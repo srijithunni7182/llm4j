@@ -26,7 +26,9 @@ public class DefaultLLMClient implements LLMClient {
     private void requireToolSupport(LLMRequest request) {
         if (!request.getTools().isEmpty() && !provider.supportsToolCalling()) {
             throw new io.github.llm4j.exception.InvalidRequestException(
-                    "provider " + provider.getProviderName() + " does not support native tool calling; send the request without tools");
+                    "provider "
+                            + provider.getProviderName()
+                            + " does not support native tool calling; send the request without tools");
         }
     }
 

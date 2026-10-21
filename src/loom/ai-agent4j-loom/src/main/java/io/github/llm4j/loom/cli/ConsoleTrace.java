@@ -14,32 +14,34 @@ final class ConsoleTrace implements TraceListener {
 
     static final int MAX_TEXT = 300;
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault());
-    private static final Map<String, String> ICONS = Map.ofEntries(
-            Map.entry(TraceEvent.RUN_START, "🚀"),
-            Map.entry(TraceEvent.RUN_END, "🏁"),
-            Map.entry(TraceEvent.SLEEP, "💤"),
-            Map.entry(TraceEvent.DELEGATE_START, "▶"),
-            Map.entry(TraceEvent.DELEGATE_END, "✔"),
-            Map.entry(TraceEvent.DELEGATE_REPLAYED, "↺"),
-            Map.entry(TraceEvent.THOUGHT, "💭"),
-            Map.entry(TraceEvent.ACTION, "🔧"),
-            Map.entry(TraceEvent.OBSERVATION, "👁"),
-            Map.entry(TraceEvent.BUDGET, "💸"),
-            Map.entry(TraceEvent.APPROVAL, "✋"),
-            Map.entry(TraceEvent.MEMORY, "🧠"),
-            Map.entry(TraceEvent.GUARD, "🛡"),
-            Map.entry(TraceEvent.VOICE, "🔊"),
-            Map.entry(TraceEvent.SUSPENDED, "⏸"),
-            Map.entry(TraceEvent.NOTE, "📝"),
-            Map.entry(TraceEvent.TOOL, "🧰"),
-            Map.entry(TraceEvent.CHECKPOINT, "📍"),
-            Map.entry(TraceEvent.REWIND, "⏪"),
-            Map.entry(TraceEvent.INTERVENTION, "🧭"),
-            Map.entry(TraceEvent.STEP_STOPPED, "⏹"),
-            Map.entry(TraceEvent.TASK_START, "⚙"),
-            Map.entry(TraceEvent.TASK_END, "✔"),
-            Map.entry(TraceEvent.TASK_REPLAYED, "↺"));
+    private static final DateTimeFormatter TIME =
+            DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault());
+    private static final Map<String, String> ICONS =
+            Map.ofEntries(
+                    Map.entry(TraceEvent.RUN_START, "🚀"),
+                    Map.entry(TraceEvent.RUN_END, "🏁"),
+                    Map.entry(TraceEvent.SLEEP, "💤"),
+                    Map.entry(TraceEvent.DELEGATE_START, "▶"),
+                    Map.entry(TraceEvent.DELEGATE_END, "✔"),
+                    Map.entry(TraceEvent.DELEGATE_REPLAYED, "↺"),
+                    Map.entry(TraceEvent.THOUGHT, "💭"),
+                    Map.entry(TraceEvent.ACTION, "🔧"),
+                    Map.entry(TraceEvent.OBSERVATION, "👁"),
+                    Map.entry(TraceEvent.BUDGET, "💸"),
+                    Map.entry(TraceEvent.APPROVAL, "✋"),
+                    Map.entry(TraceEvent.MEMORY, "🧠"),
+                    Map.entry(TraceEvent.GUARD, "🛡"),
+                    Map.entry(TraceEvent.VOICE, "🔊"),
+                    Map.entry(TraceEvent.SUSPENDED, "⏸"),
+                    Map.entry(TraceEvent.NOTE, "📝"),
+                    Map.entry(TraceEvent.TOOL, "🧰"),
+                    Map.entry(TraceEvent.CHECKPOINT, "📍"),
+                    Map.entry(TraceEvent.REWIND, "⏪"),
+                    Map.entry(TraceEvent.INTERVENTION, "🧭"),
+                    Map.entry(TraceEvent.STEP_STOPPED, "⏹"),
+                    Map.entry(TraceEvent.TASK_START, "⚙"),
+                    Map.entry(TraceEvent.TASK_END, "✔"),
+                    Map.entry(TraceEvent.TASK_REPLAYED, "↺"));
 
     private final PrintStream out;
     private final boolean json;
@@ -66,8 +68,15 @@ final class ConsoleTrace implements TraceListener {
                 line = "{\"type\":\"" + e.type() + "\"}";
             }
         } else {
-            line = TIME.format(e.at()) + " [" + e.step() + "] " + (e.agent() == null ? "" : e.agent() + "  ")
-                    + ICONS.getOrDefault(e.type(), "·") + " " + cut(e.text()).replace('\n', ' ');
+            line =
+                    TIME.format(e.at())
+                            + " ["
+                            + e.step()
+                            + "] "
+                            + (e.agent() == null ? "" : e.agent() + "  ")
+                            + ICONS.getOrDefault(e.type(), "·")
+                            + " "
+                            + cut(e.text()).replace('\n', ' ');
         }
         synchronized (out) {
             out.println(line);

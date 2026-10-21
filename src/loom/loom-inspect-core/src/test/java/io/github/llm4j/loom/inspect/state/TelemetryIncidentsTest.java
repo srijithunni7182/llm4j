@@ -14,7 +14,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** R10, R11: context nearly full, truncated answer, compaction thrash, tool success rate and latency spike. Records in, incidents out. */
+/**
+ * R10, R11: context nearly full, truncated answer, compaction thrash, tool success rate and latency
+ * spike. Records in, incidents out.
+ */
 class TelemetryIncidentsTest {
 
     private static final String RUN = "r-inc";
@@ -64,10 +67,23 @@ class TelemetryIncidentsTest {
         a.put(Semconv.LOOM_STEP, "Main/s0");
         for (int i = 0; i < kv.length; i += 2) a.put((String) kv[i], kv[i + 1]);
         long end = at(endSec);
-        state.apply(new SpanRec(TRACE, Ids.spanId(RUN, "m" + (++spanNo)), null, "chat m1", SpanRec.CLIENT, end - ms * 1_000_000L, end, a, SpanRec.STATUS_OK, null, List.of()));
+        state.apply(
+                new SpanRec(
+                        TRACE,
+                        Ids.spanId(RUN, "m" + (++spanNo)),
+                        null,
+                        "chat m1",
+                        SpanRec.CLIENT,
+                        end - ms * 1_000_000L,
+                        end,
+                        a,
+                        SpanRec.STATUS_OK,
+                        null,
+                        List.of()));
     }
 
-    private void tool(double endSec, String agent, String tool, long ms, boolean ok, String category) {
+    private void tool(
+            double endSec, String agent, String tool, long ms, boolean ok, String category) {
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_TOOL);
         a.put(Semconv.GEN_AI_AGENT_NAME, agent);
@@ -76,8 +92,19 @@ class TelemetryIncidentsTest {
         a.put(Semconv.LOOM_STEP, "Main/s0");
         if (!ok) a.put(Semconv.ERROR_TYPE, category);
         long end = at(endSec);
-        state.apply(new SpanRec(TRACE, Ids.spanId(RUN, "t" + (++spanNo)), null, "execute_tool " + tool, SpanRec.CLIENT, end - ms * 1_000_000L, end, a,
-                ok ? SpanRec.STATUS_OK : SpanRec.STATUS_ERROR, null, List.of()));
+        state.apply(
+                new SpanRec(
+                        TRACE,
+                        Ids.spanId(RUN, "t" + (++spanNo)),
+                        null,
+                        "execute_tool " + tool,
+                        SpanRec.CLIENT,
+                        end - ms * 1_000_000L,
+                        end,
+                        a,
+                        ok ? SpanRec.STATUS_OK : SpanRec.STATUS_ERROR,
+                        null,
+                        List.of()));
     }
 
     @SuppressWarnings("unchecked")
@@ -115,8 +142,12 @@ class TelemetryIncidentsTest {
     void contextAtTheWarnThresholdWarns_andAtTheHighThresholdEscalates_andClosesWhenItFalls() {
         context(1, "Editor", 0.85);
         assertThat(open("CONTEXT")).hasSize(1);
-        assertThat(open("CONTEXT").get(0)).containsEntry("severity", "warn").containsEntry("agent", "Editor");
-        assertThat(evidence(open("CONTEXT").get(0))).containsEntry("rule", "context_nearly_full").containsEntry("threshold", 0.85);
+        assertThat(open("CONTEXT").get(0))
+                .containsEntry("severity", "warn")
+                .containsEntry("agent", "Editor");
+        assertThat(evidence(open("CONTEXT").get(0)))
+                .containsEntry("rule", "context_nearly_full")
+                .containsEntry("threshold", 0.85);
         context(2, "Editor", 0.96);
         assertThat(open("CONTEXT")).hasSize(1);
         assertThat(open("CONTEXT").get(0)).containsEntry("severity", "high");
@@ -138,23 +169,48 @@ class TelemetryIncidentsTest {
         context(1, "A", 0.9);
         context(1, "B", 0.9);
         context(2, "A", 0.1);
-        assertThat(open("CONTEXT")).hasSize(1).first().satisfies(m -> assertThat(m).containsEntry("agent", "B"));
+        assertThat(open("CONTEXT"))
+                .hasSize(1)
+                .first()
+                .satisfies(m -> assertThat(m).containsEntry("agent", "B"));
     }
 
     @Test
     void anAgentsOwnThresholdsApply() {
-        state.setRules(Map.of("Editor", rules(new InspectRules.Telemetry(0.6, 0.8, null, null, null, null, null, null))));
+        state.setRules(
+                Map.of(
+                        "Editor",
+                        rules(
+                                new InspectRules.Telemetry(
+                                        0.6, 0.8, null, null, null, null, null, null))));
         context(1, "Editor", 0.65);
         context(1, "Other", 0.65);
-        assertThat(open("CONTEXT")).hasSize(1).first().satisfies(m -> assertThat(m).containsEntry("agent", "Editor").containsEntry("severity", "warn"));
+        assertThat(open("CONTEXT"))
+                .hasSize(1)
+                .first()
+                .satisfies(
+                        m ->
+                                assertThat(m)
+                                        .containsEntry("agent", "Editor")
+                                        .containsEntry("severity", "warn"));
         context(2, "Editor", 0.85);
         assertThat(open("CONTEXT").get(0)).containsEntry("severity", "high");
     }
 
     @Test
     void centralRulesLayerOverTheProcessRules() {
-        state.setRules(Map.of("Editor", rules(new InspectRules.Telemetry(0.6, null, null, null, null, null, null, null))));
-        state.setCentralRules(Map.of("Editor", rules(new InspectRules.Telemetry(0.7, null, null, null, null, null, null, null))));
+        state.setRules(
+                Map.of(
+                        "Editor",
+                        rules(
+                                new InspectRules.Telemetry(
+                                        0.6, null, null, null, null, null, null, null))));
+        state.setCentralRules(
+                Map.of(
+                        "Editor",
+                        rules(
+                                new InspectRules.Telemetry(
+                                        0.7, null, null, null, null, null, null, null))));
         context(1, "Editor", 0.65);
         assertThat(open("CONTEXT")).isEmpty();
         context(2, "Editor", 0.75);
@@ -178,10 +234,23 @@ class TelemetryIncidentsTest {
     void aTruncatedAnswerWarns_andThreeOfThemEscalate() {
         chat(1, "Writer", 500, Semconv.LOOM_MODEL_TRUNCATED, false);
         assertThat(incidents("TRUNCATED")).isEmpty();
-        chat(2, "Writer", 500, Semconv.LOOM_MODEL_TRUNCATED, true, Semconv.GEN_AI_USAGE_OUTPUT_TOKENS, 4096L, Semconv.GEN_AI_RESPONSE_FINISH_REASONS, "length");
+        chat(
+                2,
+                "Writer",
+                500,
+                Semconv.LOOM_MODEL_TRUNCATED,
+                true,
+                Semconv.GEN_AI_USAGE_OUTPUT_TOKENS,
+                4096L,
+                Semconv.GEN_AI_RESPONSE_FINISH_REASONS,
+                "length");
         assertThat(open("TRUNCATED")).hasSize(1);
-        assertThat(open("TRUNCATED").get(0)).containsEntry("severity", "warn").containsEntry("agent", "Writer");
-        assertThat(String.valueOf(evidence(open("TRUNCATED").get(0)).get("detail"))).contains("4096").contains("length");
+        assertThat(open("TRUNCATED").get(0))
+                .containsEntry("severity", "warn")
+                .containsEntry("agent", "Writer");
+        assertThat(String.valueOf(evidence(open("TRUNCATED").get(0)).get("detail")))
+                .contains("4096")
+                .contains("length");
         chat(3, "Writer", 500, Semconv.LOOM_MODEL_TRUNCATED, true);
         chat(4, "Writer", 500, Semconv.LOOM_MODEL_TRUNCATED, true);
         assertThat(open("TRUNCATED")).hasSize(1);
@@ -191,7 +260,12 @@ class TelemetryIncidentsTest {
 
     @Test
     void theNumberOfTruncationsThatRaisesItIsConfigurable() {
-        state.setRules(Map.of("Writer", rules(new InspectRules.Telemetry(null, null, 2, null, null, null, null, null))));
+        state.setRules(
+                Map.of(
+                        "Writer",
+                        rules(
+                                new InspectRules.Telemetry(
+                                        null, null, 2, null, null, null, null, null))));
         chat(1, "Writer", 500, Semconv.LOOM_MODEL_TRUNCATED, true);
         assertThat(incidents("TRUNCATED")).isEmpty();
         chat(2, "Writer", 500, Semconv.LOOM_MODEL_TRUNCATED, true);
@@ -208,7 +282,10 @@ class TelemetryIncidentsTest {
         }
         assertThat(open("THRASH")).hasSize(1);
         assertThat(open("THRASH").get(0)).containsEntry("severity", "warn");
-        assertThat(evidence(open("THRASH").get(0))).containsEntry("rule", "compaction_thrash").containsEntry("measured", 4L).containsEntry("threshold", 4);
+        assertThat(evidence(open("THRASH").get(0)))
+                .containsEntry("rule", "compaction_thrash")
+                .containsEntry("measured", 4L)
+                .containsEntry("threshold", 4);
         for (int i = 5; i <= 14; i++) chat(i, "Researcher", 100);
         assertThat(open("THRASH")).isEmpty();
     }
@@ -220,7 +297,8 @@ class TelemetryIncidentsTest {
         assertThat(open("THRASH")).isEmpty();
         compaction(3, "Researcher", "COMPACTED", 1000, 920);
         assertThat(open("THRASH")).hasSize(1);
-        assertThat(String.valueOf(evidence(open("THRASH").get(0)).get("detail"))).contains("little");
+        assertThat(String.valueOf(evidence(open("THRASH").get(0)).get("detail")))
+                .contains("little");
     }
 
     @Test
@@ -233,7 +311,12 @@ class TelemetryIncidentsTest {
 
     @Test
     void thrashThresholdsAreConfigurable() {
-        state.setRules(Map.of("Researcher", rules(new InspectRules.Telemetry(null, null, null, 2, 3, null, null, null))));
+        state.setRules(
+                Map.of(
+                        "Researcher",
+                        rules(
+                                new InspectRules.Telemetry(
+                                        null, null, null, 2, 3, null, null, null))));
         compaction(1, "Researcher", "COMPACTED", 2000, 1000);
         chat(2, "Researcher", 100);
         compaction(3, "Researcher", "COMPACTED", 2000, 1000);
@@ -250,7 +333,9 @@ class TelemetryIncidentsTest {
         assertThat(open("TOOL_RATE")).hasSize(1);
         assertThat(open("TOOL_RATE").get(0)).containsEntry("severity", "high");
         assertThat(evidence(open("TOOL_RATE").get(0))).containsEntry("rule", "tool_success_rate");
-        assertThat(String.valueOf(evidence(open("TOOL_RATE").get(0)).get("detail"))).contains("timeout").contains("1 of 5");
+        assertThat(String.valueOf(evidence(open("TOOL_RATE").get(0)).get("detail")))
+                .contains("timeout")
+                .contains("1 of 5");
         for (int i = 6; i <= 15; i++) tool(i, "Editor", "Wiki", 100, true, null);
         assertThat(open("TOOL_RATE")).isEmpty();
     }
@@ -270,7 +355,12 @@ class TelemetryIncidentsTest {
 
     @Test
     void theRateAndWindowAreConfigurable() {
-        state.setRules(Map.of("Editor", rules(new InspectRules.Telemetry(null, null, null, null, null, 0.9, 5, null))));
+        state.setRules(
+                Map.of(
+                        "Editor",
+                        rules(
+                                new InspectRules.Telemetry(
+                                        null, null, null, null, null, 0.9, 5, null))));
         for (int i = 1; i <= 5; i++) tool(i, "Editor", "Wiki", 100, i != 1, "timeout");
         assertThat(open("TOOL_RATE")).hasSize(1);
     }
@@ -283,7 +373,19 @@ class TelemetryIncidentsTest {
             a.put(Semconv.GEN_AI_AGENT_NAME, "Editor");
             a.put(Semconv.GEN_AI_TOOL_NAME, "Wiki");
             a.put(Semconv.LOOM_TOOL_NO_RESULT, true);
-            state.apply(new SpanRec(TRACE, Ids.spanId(RUN, "nr" + i), null, "execute_tool Wiki", SpanRec.CLIENT, at(i), at(i + 0.1), a, SpanRec.STATUS_UNSET, null, List.of()));
+            state.apply(
+                    new SpanRec(
+                            TRACE,
+                            Ids.spanId(RUN, "nr" + i),
+                            null,
+                            "execute_tool Wiki",
+                            SpanRec.CLIENT,
+                            at(i),
+                            at(i + 0.1),
+                            a,
+                            SpanRec.STATUS_UNSET,
+                            null,
+                            List.of()));
         }
         assertThat(incidents("TOOL_RATE")).isEmpty();
     }
@@ -297,7 +399,9 @@ class TelemetryIncidentsTest {
         assertThat(open("SPIKE")).hasSize(1);
         assertThat(open("SPIKE").get(0)).containsEntry("severity", "info");
         assertThat(evidence(open("SPIKE").get(0))).containsEntry("rule", "latency_spike");
-        assertThat(String.valueOf(evidence(open("SPIKE").get(0)).get("detail"))).contains("6000").contains("1000");
+        assertThat(String.valueOf(evidence(open("SPIKE").get(0)).get("detail")))
+                .contains("6000")
+                .contains("1000");
         chat(14, "Editor", 1000);
         assertThat(open("SPIKE")).isEmpty();
     }
@@ -334,7 +438,12 @@ class TelemetryIncidentsTest {
 
     @Test
     void theFactorIsConfigurable() {
-        state.setRules(Map.of("Editor", rules(new InspectRules.Telemetry(null, null, null, null, null, null, null, 2.0))));
+        state.setRules(
+                Map.of(
+                        "Editor",
+                        rules(
+                                new InspectRules.Telemetry(
+                                        null, null, null, null, null, null, null, 2.0))));
         for (int i = 1; i <= 12; i++) chat(i, "Editor", 2000);
         chat(13, "Editor", 4500);
         assertThat(open("SPIKE")).hasSize(1);
@@ -353,7 +462,10 @@ class TelemetryIncidentsTest {
             for (int i = 15; i <= 20; i++) t.tool(i, "Editor", "Wiki", 100, false, "timeout");
             t.chat(21, "Editor", 100, Semconv.LOOM_MODEL_TRUNCATED, true);
         }
-        assertThat(String.valueOf(a.state.view().get("incidents")).replaceAll("since=[^,}]*", "")).isEqualTo(String.valueOf(b.state.view().get("incidents")).replaceAll("since=[^,}]*", ""));
+        assertThat(String.valueOf(a.state.view().get("incidents")).replaceAll("since=[^,}]*", ""))
+                .isEqualTo(
+                        String.valueOf(b.state.view().get("incidents"))
+                                .replaceAll("since=[^,}]*", ""));
         assertThat(a.incidents("SPIKE")).isNotEmpty();
     }
 

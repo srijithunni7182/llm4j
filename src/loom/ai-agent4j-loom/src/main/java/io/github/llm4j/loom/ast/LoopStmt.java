@@ -5,8 +5,10 @@ import java.util.List;
 public class LoopStmt extends LocatedStatement {
     private final String condition;
     private final List<Statement> body;
+
     /** Upper bound on iterations ({@code max N}); 0 = unbounded (the original behaviour). */
     private int maxIterations;
+
     /** Runs once if the loop stops because it hit {@code max} before its condition became true. */
     private final List<Statement> onExhausted = new java.util.ArrayList<>();
 
@@ -15,14 +17,34 @@ public class LoopStmt extends LocatedStatement {
         this.body = body;
     }
 
-    public String getCondition() { return condition; }
-    public List<Statement> getBody() { return body; }
-    public int getMaxIterations() { return maxIterations; }
-    public void setMaxIterations(int maxIterations) { this.maxIterations = maxIterations; }
-    public List<Statement> getOnExhausted() { return onExhausted; }
+    public String getCondition() {
+        return condition;
+    }
+
+    public List<Statement> getBody() {
+        return body;
+    }
+
+    public int getMaxIterations() {
+        return maxIterations;
+    }
+
+    public void setMaxIterations(int maxIterations) {
+        this.maxIterations = maxIterations;
+    }
+
+    public List<Statement> getOnExhausted() {
+        return onExhausted;
+    }
 
     private BudgetDef budget;
+
     /** This statement's own budget ({@code budget N tokens}), or null. */
-    public BudgetDef getBudget() { return budget; }
-    public void setBudget(BudgetDef budget) { this.budget = budget; }
+    public BudgetDef getBudget() {
+        return budget;
+    }
+
+    public void setBudget(BudgetDef budget) {
+        this.budget = budget;
+    }
 }

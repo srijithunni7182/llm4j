@@ -6,12 +6,15 @@ import java.time.OffsetDateTime;
 import java.util.Optional;
 
 /**
- * Anthropic's {@code anthropic-ratelimit-<dimension>-{limit,remaining,reset}} headers, with ISO-8601
- * reset times. Picks the dimension that is used up; if none reports zero remaining, the latest reset.
+ * Anthropic's {@code anthropic-ratelimit-<dimension>-{limit,remaining,reset}} headers, with
+ * ISO-8601 reset times. Picks the dimension that is used up; if none reports zero remaining, the
+ * latest reset.
  */
 public final class AnthropicHeaders implements RateLimitParser {
 
-    private static final String[] DIMENSIONS = {"requests", "tokens", "input-tokens", "output-tokens"};
+    private static final String[] DIMENSIONS = {
+        "requests", "tokens", "input-tokens", "output-tokens"
+    };
 
     @Override
     public Optional<RateLimitInfo> parse(Response response, Clock clock) {
@@ -24,11 +27,21 @@ public final class AnthropicHeaders implements RateLimitParser {
             if (reset == null) continue;
             Long limit = number(response.header(prefix + "limit"));
             Long remaining = number(response.header(prefix + "remaining"));
-            RateLimitInfo info = new RateLimitInfo(reset,
-                    dim.equals("requests") ? RateLimitInfo.Scope.REQUESTS : RateLimitInfo.Scope.TOKENS,
-                    response.provider(), null, limit, remaining, false,
-                    prefix + "reset: " + response.header(prefix + "reset"));
-            if (remaining != null && remaining == 0 && (exhausted == null || reset.isAfter(exhausted.resetAt()))) {
+            RateLimitInfo info =
+                    new RateLimitInfo(
+                            reset,
+                            dim.equals("requests")
+                                    ? RateLimitInfo.Scope.REQUESTS
+                                    : RateLimitInfo.Scope.TOKENS,
+                            response.provider(),
+                            null,
+                            limit,
+                            remaining,
+                            false,
+                            prefix + "reset: " + response.header(prefix + "reset"));
+            if (remaining != null
+                    && remaining == 0
+                    && (exhausted == null || reset.isAfter(exhausted.resetAt()))) {
                 exhausted = info;
             }
             if (latest == null || reset.isAfter(latest.resetAt())) latest = info;

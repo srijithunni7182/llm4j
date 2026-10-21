@@ -27,14 +27,25 @@ class StopReportNativeTest {
     @Test
     void aCancelBetweenTheCallsOfOneTurnSaysSoAndKeepsWhatRan() {
         RunHandle handle = new RunHandle();
-        ScriptedModel.FixedTool tool = new ScriptedModel.FixedTool("search", n -> {
-            handle.cancel("wrong input", "alice");
-            return "r";
-        });
-        ScriptedModel model = ScriptedModel.by(true, true, n -> ScriptedModel.calls("two at once",
-                ScriptedModel.call("a", "search", Map.of("q", "1")), ScriptedModel.call("b", "search", Map.of("q", "2"))));
+        ScriptedModel.FixedTool tool =
+                new ScriptedModel.FixedTool(
+                        "search",
+                        n -> {
+                            handle.cancel("wrong input", "alice");
+                            return "r";
+                        });
+        ScriptedModel model =
+                ScriptedModel.by(
+                        true,
+                        true,
+                        n ->
+                                ScriptedModel.calls(
+                                        "two at once",
+                                        ScriptedModel.call("a", "search", Map.of("q", "1")),
+                                        ScriptedModel.call("b", "search", Map.of("q", "2"))));
 
-        AgentResult r = ReActAgent.builder().llmClient(model).addTool(tool).build().run("Q?", handle);
+        AgentResult r =
+                ReActAgent.builder().llmClient(model).addTool(tool).build().run("Q?", handle);
 
         StopReport stop = r.getStop();
         assertThat(stop.phase()).isEqualTo(StopReport.Phase.BETWEEN_TOOLS);
@@ -47,15 +58,27 @@ class StopReportNativeTest {
     @Test
     void aWrapUpMakesOneMoreCallWithToolsSwitchedOffAndTakesItsAnswer() {
         RunHandle handle = new RunHandle();
-        ScriptedModel.FixedTool tool = new ScriptedModel.FixedTool("search", n -> {
-            handle.wrapUp("deadline", "scheduler");
-            return "found something";
-        });
-        ScriptedModel model = ScriptedModel.by(true, true, n -> n == 0
-                ? ScriptedModel.calls("looking", ScriptedModel.call("c0", "search", Map.of("q", "a")))
-                : ScriptedModel.answer("here is what I have"));
+        ScriptedModel.FixedTool tool =
+                new ScriptedModel.FixedTool(
+                        "search",
+                        n -> {
+                            handle.wrapUp("deadline", "scheduler");
+                            return "found something";
+                        });
+        ScriptedModel model =
+                ScriptedModel.by(
+                        true,
+                        true,
+                        n ->
+                                n == 0
+                                        ? ScriptedModel.calls(
+                                                "looking",
+                                                ScriptedModel.call(
+                                                        "c0", "search", Map.of("q", "a")))
+                                        : ScriptedModel.answer("here is what I have"));
 
-        AgentResult r = ReActAgent.builder().llmClient(model).addTool(tool).build().run("Q?", handle);
+        AgentResult r =
+                ReActAgent.builder().llmClient(model).addTool(tool).build().run("Q?", handle);
 
         assertThat(r.isWrappedUp()).isTrue();
         assertThat(r.getFinalAnswer()).isEqualTo("here is what I have");
@@ -70,7 +93,10 @@ class StopReportNativeTest {
         assertThat(r.getStop().steps()).hasSize(1);
     }
 
-    /** A model whose streamed calls come from a script and whose whole calls (the wrap-up) answer {@code wrapUpAnswer}. */
+    /**
+     * A model whose streamed calls come from a script and whose whole calls (the wrap-up) answer
+     * {@code wrapUpAnswer}.
+     */
     static final class StreamingThenWhole implements LLMClient {
         final List<LLMRequest> streamed = Collections.synchronizedList(new ArrayList<>());
         final List<LLMRequest> whole = Collections.synchronizedList(new ArrayList<>());
@@ -105,14 +131,28 @@ class StopReportNativeTest {
     }
 
     @Test
-    void aCancelWhileAStreamingCallIsGoingSaysItWasInTheModelCallAndKeepsWhatWasSaid() throws Exception {
+    void aCancelWhileAStreamingCallIsGoingSaysItWasInTheModelCallAndKeepsWhatWasSaid()
+            throws Exception {
         RunHandle handle = new RunHandle();
         CountDownLatch waiting = new CountDownLatch(1);
-        StreamingThenWhole model = new StreamingThenWhole(
-                n -> StreamingAgentTest.thenSilence(waiting, Providers.textChunk("I will start by deleting", "m")), "unused");
+        StreamingThenWhole model =
+                new StreamingThenWhole(
+                        n ->
+                                StreamingAgentTest.thenSilence(
+                                        waiting,
+                                        Providers.textChunk("I will start by deleting", "m")),
+                        "unused");
         AgentResult[] out = new AgentResult[1];
-        Thread runner = new Thread(() -> out[0] = ReActAgent.builder().llmClient(model)
-                .addTool(ReActAgentCompactionNativeTest.search(10)).streaming(true).build().run("Clean up", handle));
+        Thread runner =
+                new Thread(
+                        () ->
+                                out[0] =
+                                        ReActAgent.builder()
+                                                .llmClient(model)
+                                                .addTool(ReActAgentCompactionNativeTest.search(10))
+                                                .streaming(true)
+                                                .build()
+                                                .run("Clean up", handle));
         runner.start();
 
         assertThat(waiting.await(5, TimeUnit.SECONDS)).isTrue();
@@ -129,11 +169,24 @@ class StopReportNativeTest {
     void aWrapUpWhileAStreamingCallIsGoingClosesItThenMakesTheLastCall() throws Exception {
         RunHandle handle = new RunHandle();
         CountDownLatch waiting = new CountDownLatch(1);
-        StreamingThenWhole model = new StreamingThenWhole(
-                n -> StreamingAgentTest.thenSilence(waiting, Providers.textChunk("Working on the summary", "m")), "the summary so far");
+        StreamingThenWhole model =
+                new StreamingThenWhole(
+                        n ->
+                                StreamingAgentTest.thenSilence(
+                                        waiting,
+                                        Providers.textChunk("Working on the summary", "m")),
+                        "the summary so far");
         AgentResult[] out = new AgentResult[1];
-        Thread runner = new Thread(() -> out[0] = ReActAgent.builder().llmClient(model)
-                .addTool(ReActAgentCompactionNativeTest.search(10)).streaming(true).build().run("Summarise", handle));
+        Thread runner =
+                new Thread(
+                        () ->
+                                out[0] =
+                                        ReActAgent.builder()
+                                                .llmClient(model)
+                                                .addTool(ReActAgentCompactionNativeTest.search(10))
+                                                .streaming(true)
+                                                .build()
+                                                .run("Summarise", handle));
         runner.start();
 
         assertThat(waiting.await(5, TimeUnit.SECONDS)).isTrue();
@@ -144,7 +197,9 @@ class StopReportNativeTest {
         assertThat(out[0].getFinalAnswer()).isEqualTo("the summary so far");
         assertThat(model.whole).hasSize(1);
         List<Message> sent = model.whole.get(0).getMessages();
-        assertThat(sent.get(sent.size() - 2).getContent()).as("what it had said stays").isEqualTo("Working on the summary");
+        assertThat(sent.get(sent.size() - 2).getContent())
+                .as("what it had said stays")
+                .isEqualTo("Working on the summary");
         assertThat(model.whole.get(0).getToolChoice()).isEqualTo(LLMRequest.ToolChoice.NONE);
         assertThat(out[0].getStop().phase()).isEqualTo(StopReport.Phase.MODEL_CALL);
     }

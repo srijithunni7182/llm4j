@@ -10,7 +10,8 @@ import org.junit.jupiter.api.Test;
 /** A {@code sleep} step in the graph and in the plain-words explanation. */
 class SleepGraphTest {
 
-    private static final String SOURCE = """
+    private static final String SOURCE =
+            """
             agent A { model: "m" }
             workflow W() {
                 delegate "x" to A -> x
@@ -22,7 +23,11 @@ class SleepGraphTest {
     @Test
     void aSleepIsOneNodeOfKindSleepCarryingItsDuration() {
         WorkflowGraph graph = graphOf(SOURCE, "W");
-        GraphNode sleep = graph.nodes().stream().filter(n -> Kinds.SLEEP.equals(n.kind())).findFirst().orElseThrow();
+        GraphNode sleep =
+                graph.nodes().stream()
+                        .filter(n -> Kinds.SLEEP.equals(n.kind()))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(sleep.label()).isEqualTo("sleep 5m");
         assertThat(sleep.attrs()).containsEntry("duration", "5m");
         assertThat(graph.nodes().stream().map(GraphNode::kind).toList())

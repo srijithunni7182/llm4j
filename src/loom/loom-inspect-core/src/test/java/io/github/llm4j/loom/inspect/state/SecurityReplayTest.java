@@ -27,7 +27,8 @@ class SecurityReplayTest {
         feed(a);
         feed(b);
         assertThat(b.security()).isEqualTo(a.security());
-        for (String kind : new String[] {"TRIFECTA", "INJECTION", "ACCESS"}) assertThat(b.incidents(kind)).as(kind).isEqualTo(a.incidents(kind));
+        for (String kind : new String[] {"TRIFECTA", "INJECTION", "ACCESS"})
+            assertThat(b.incidents(kind)).as(kind).isEqualTo(a.incidents(kind));
         assertThat(a.incidents("TRIFECTA")).hasSize(1);
         assertThat(a.incidents("INJECTION")).hasSize(1);
         assertThat(a.incidents("ACCESS")).hasSize(2);
@@ -37,11 +38,28 @@ class SecurityReplayTest {
     void feedingARecordTwiceDoesNotCountItTwice() {
         SecurityFixtures a = new SecurityFixtures();
         a.suspect(1, "A", "Fetch", "untrusted", "override", 1);
-        a.state.apply(new io.github.llm4j.loom.inspect.otel.SpanRec(SecurityFixtures.TRACE, io.github.llm4j.loom.inspect.otel.Ids.spanId(SecurityFixtures.RUN, "t1"), null, "x",
-                io.github.llm4j.loom.inspect.otel.SpanRec.CLIENT, 1, 2, java.util.Map.of(io.github.llm4j.loom.inspect.otel.Semconv.LOOM_SPAN_KIND, "tool", io.github.llm4j.loom.inspect.otel.Semconv.GEN_AI_TOOL_NAME, "Fetch",
-                io.github.llm4j.loom.inspect.otel.Semconv.LOOM_INJECTION_PATTERNS, "override"), io.github.llm4j.loom.inspect.otel.SpanRec.STATUS_OK, null, java.util.List.of()));
+        a.state.apply(
+                new io.github.llm4j.loom.inspect.otel.SpanRec(
+                        SecurityFixtures.TRACE,
+                        io.github.llm4j.loom.inspect.otel.Ids.spanId(SecurityFixtures.RUN, "t1"),
+                        null,
+                        "x",
+                        io.github.llm4j.loom.inspect.otel.SpanRec.CLIENT,
+                        1,
+                        2,
+                        java.util.Map.of(
+                                io.github.llm4j.loom.inspect.otel.Semconv.LOOM_SPAN_KIND,
+                                "tool",
+                                io.github.llm4j.loom.inspect.otel.Semconv.GEN_AI_TOOL_NAME,
+                                "Fetch",
+                                io.github.llm4j.loom.inspect.otel.Semconv.LOOM_INJECTION_PATTERNS,
+                                "override"),
+                        io.github.llm4j.loom.inspect.otel.SpanRec.STATUS_OK,
+                        null,
+                        java.util.List.of()));
         @SuppressWarnings("unchecked")
-        java.util.Map<String, Object> inj = (java.util.Map<String, Object>) a.security().get("injection");
+        java.util.Map<String, Object> inj =
+                (java.util.Map<String, Object>) a.security().get("injection");
         assertThat(inj).containsEntry("suspect", 1L);
     }
 }

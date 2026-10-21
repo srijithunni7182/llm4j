@@ -19,10 +19,14 @@ import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** What an observer may do to a run, and when it takes effect: between steps, never in the middle of one. No model, no clock. */
+/**
+ * What an observer may do to a run, and when it takes effect: between steps, never in the middle of
+ * one. No model, no clock.
+ */
 class RunControlTest {
 
-    private static final String SCRIPT = """
+    private static final String SCRIPT =
+            """
             workflow Main() {
                 note "one"
                 note "two"
@@ -31,22 +35,26 @@ class RunControlTest {
             }
             """;
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private final List<String> notes = Collections.synchronizedList(new ArrayList<>());
     private final List<TraceEvent> controls = Collections.synchronizedList(new ArrayList<>());
 
     private HarnessExecutor executor(java.util.function.Consumer<TraceEvent> onEvent) {
         LoomScript script = new LoomParser(new Lexer(SCRIPT).tokenize()).parseScript();
-        HarnessExecutor e = new HarnessExecutor(script, new io.github.llm4j.loom.execution.ToolRegistry(), model -> {
-            throw new IllegalStateException("no model in this test");
-        });
-        e.addTraceListener(event -> {
-            if (TraceEvent.NOTE.equals(event.type())) notes.add(event.text());
-            if (TraceEvent.CONTROL.equals(event.type())) controls.add(event);
-            if (onEvent != null) onEvent.accept(event);
-        });
+        HarnessExecutor e =
+                new HarnessExecutor(
+                        script,
+                        new io.github.llm4j.loom.execution.ToolRegistry(),
+                        model -> {
+                            throw new IllegalStateException("no model in this test");
+                        });
+        e.addTraceListener(
+                event -> {
+                    if (TraceEvent.NOTE.equals(event.type())) notes.add(event.text());
+                    if (TraceEvent.CONTROL.equals(event.type())) controls.add(event);
+                    if (onEvent != null) onEvent.accept(event);
+                });
         e.initialize();
         return e;
     }
@@ -59,24 +67,35 @@ class RunControlTest {
 
     private List<String> states() {
         synchronized (controls) {
-            return controls.stream().map(e -> e.data().get("action") + ":" + e.data().get("state")).toList();
+            return controls.stream()
+                    .map(e -> e.data().get("action") + ":" + e.data().get("state"))
+                    .toList();
         }
     }
 
     @Test
     void aStopAskedForDuringAStepTakesEffectAtTheNextStep_andTheRunEndsAsStopped() {
         AtomicReference<HarnessExecutor> self = new AtomicReference<>();
-        HarnessExecutor e = executor(event -> {
-            if (TraceEvent.NOTE.equals(event.type()) && "two".equals(event.text())) self.get().control().request(RunControl.Action.STOP, "alice");
-        });
+        HarnessExecutor e =
+                executor(
+                        event -> {
+                            if (TraceEvent.NOTE.equals(event.type()) && "two".equals(event.text()))
+                                self.get().control().request(RunControl.Action.STOP, "alice");
+                        });
         self.set(e);
         List<String> ends = new ArrayList<>();
-        e.addTraceListener(event -> {
-            if (TraceEvent.RUN_END.equals(event.type())) ends.add(String.valueOf(event.data().get("status")));
-        });
-        assertThatThrownBy(() -> e.executeWorkflow("Main", Map.of())).isInstanceOfSatisfying(RunStopped.class,
-                s -> assertThat(s.point()).contains("Main/s2").contains("asked by alice"));
-        assertThat(notes).containsExactly("one", "two"); // the step that was running finished; the next never started
+        e.addTraceListener(
+                event -> {
+                    if (TraceEvent.RUN_END.equals(event.type()))
+                        ends.add(String.valueOf(event.data().get("status")));
+                });
+        assertThatThrownBy(() -> e.executeWorkflow("Main", Map.of()))
+                .isInstanceOfSatisfying(
+                        RunStopped.class,
+                        s -> assertThat(s.point()).contains("Main/s2").contains("asked by alice"));
+        assertThat(notes)
+                .containsExactly(
+                        "one", "two"); // the step that was running finished; the next never started
         assertThat(states()).containsExactly("stop:requested", "stop:applied");
         assertThat(ends).containsExactly("stopped");
     }
@@ -86,30 +105,41 @@ class RunControlTest {
         AtomicReference<HarnessExecutor> self = new AtomicReference<>();
         LoomScript script = new LoomParser(new Lexer(SCRIPT).tokenize()).parseScript();
         FileRunJournal journal = new FileRunJournal(dir.resolve("journal.json"));
-        HarnessExecutor first = new HarnessExecutor(script, new io.github.llm4j.loom.execution.ToolRegistry(), m -> null);
+        HarnessExecutor first =
+                new HarnessExecutor(
+                        script, new io.github.llm4j.loom.execution.ToolRegistry(), m -> null);
         first.setJournal(journal);
         first.setRunId("r-control");
-        first.addTraceListener(event -> {
-            if (TraceEvent.NOTE.equals(event.type())) notes.add(event.text());
-            if (TraceEvent.NOTE.equals(event.type()) && "one".equals(event.text())) first.control().request(RunControl.Action.SUSPEND, "alice");
-        });
+        first.addTraceListener(
+                event -> {
+                    if (TraceEvent.NOTE.equals(event.type())) notes.add(event.text());
+                    if (TraceEvent.NOTE.equals(event.type()) && "one".equals(event.text()))
+                        first.control().request(RunControl.Action.SUSPEND, "alice");
+                });
         first.initialize();
-        assertThatThrownBy(() -> first.executeWorkflow("Main", Map.of())).isInstanceOfSatisfying(RunSuspended.class, s -> {
-            assertThat(s.reason()).isEqualTo(RunSuspended.Reason.OPERATOR);
-            assertThat(s.resumeAt()).isNull();
-            assertThat(s.stepId()).isEqualTo("Main/s1");
-            assertThat(s.prompt()).contains("alice");
-        });
+        assertThatThrownBy(() -> first.executeWorkflow("Main", Map.of()))
+                .isInstanceOfSatisfying(
+                        RunSuspended.class,
+                        s -> {
+                            assertThat(s.reason()).isEqualTo(RunSuspended.Reason.OPERATOR);
+                            assertThat(s.resumeAt()).isNull();
+                            assertThat(s.stepId()).isEqualTo("Main/s1");
+                            assertThat(s.prompt()).contains("alice");
+                        });
         assertThat(notes).containsExactly("one");
 
-        HarnessExecutor second = new HarnessExecutor(script, new io.github.llm4j.loom.execution.ToolRegistry(), m -> null);
+        HarnessExecutor second =
+                new HarnessExecutor(
+                        script, new io.github.llm4j.loom.execution.ToolRegistry(), m -> null);
         second.setJournal(journal);
         second.setRunId("r-control");
-        second.addTraceListener(event -> {
-            if (TraceEvent.NOTE.equals(event.type())) notes.add(event.text());
-        });
+        second.addTraceListener(
+                event -> {
+                    if (TraceEvent.NOTE.equals(event.type())) notes.add(event.text());
+                });
         second.initialize();
-        second.executeWorkflow("Main", Map.of());           // a new executor has its own control: nothing is held over
+        second.executeWorkflow(
+                "Main", Map.of()); // a new executor has its own control: nothing is held over
         assertThat(notes).contains("two", "three", "four");
     }
 
@@ -120,7 +150,7 @@ class RunControlTest {
         Thread run = new Thread(() -> e.executeWorkflow("Main", Map.of()));
         run.start();
         until(() -> e.control().state().held());
-        assertThat(notes).isEmpty();                          // held before the first step
+        assertThat(notes).isEmpty(); // held before the first step
         assertThat(states()).containsExactly("pause:requested", "pause:held");
         assertThat(run.isAlive()).isTrue();
 
@@ -137,13 +167,15 @@ class RunControlTest {
         HarnessExecutor e = executor(null);
         e.control().request(RunControl.Action.PAUSE, "alice");
         AtomicReference<Throwable> ended = new AtomicReference<>();
-        Thread run = new Thread(() -> {
-            try {
-                e.executeWorkflow("Main", Map.of());
-            } catch (Throwable t) {
-                ended.set(t);
-            }
-        });
+        Thread run =
+                new Thread(
+                        () -> {
+                            try {
+                                e.executeWorkflow("Main", Map.of());
+                            } catch (Throwable t) {
+                                ended.set(t);
+                            }
+                        });
         run.start();
         until(() -> e.control().state().held());
         e.control().request(RunControl.Action.STOP, "bob");
@@ -166,10 +198,10 @@ class RunControlTest {
         RunControl c = new RunControl();
         List<String> seen = new ArrayList<>();
         c.addListener(e -> seen.add(e.action() + ":" + e.state()));
-        c.request(RunControl.Action.RESUME, "a");   // nothing to resume
+        c.request(RunControl.Action.RESUME, "a"); // nothing to resume
         c.request(RunControl.Action.PAUSE, "a");
-        c.request(RunControl.Action.PAUSE, "a");    // already asked
-        c.request(RunControl.Action.RESUME, "a");   // paused but never held: cancelled, not "resumed"
+        c.request(RunControl.Action.PAUSE, "a"); // already asked
+        c.request(RunControl.Action.RESUME, "a"); // paused but never held: cancelled, not "resumed"
         assertThat(seen).containsExactly("PAUSE:requested", "PAUSE:cancelled");
         assertThat(c.state().paused()).isFalse();
     }
@@ -189,9 +221,11 @@ class RunControlTest {
     @Test
     void anObserverThatFailsNeverBreaksTheRun() {
         HarnessExecutor e = executor(null);
-        e.control().addListener(ev -> {
-            throw new IllegalStateException("a broken observer");
-        });
+        e.control()
+                .addListener(
+                        ev -> {
+                            throw new IllegalStateException("a broken observer");
+                        });
         e.control().request(RunControl.Action.PAUSE, "a");
         e.control().request(RunControl.Action.RESUME, "a");
         e.executeWorkflow("Main", Map.of());

@@ -1,7 +1,7 @@
 package io.github.llm4j.tools;
-import io.github.llm4j.agent.tool.EffectContext;
 
 import io.github.llm4j.agent.Tool;
+import io.github.llm4j.agent.tool.EffectContext;
 import java.nio.file.Path;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -12,9 +12,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * {@code tool Db { use: sql  url: env.DB_URL  user: env.DB_USER  password: env.DB_PASSWORD }}: lets an agent
- * look things up in a database. It only reads: the connection is read-only and each statement is checked.
- * Loom bundles no JDBC driver beyond what is on the classpath.
+ * {@code tool Db { use: sql url: env.DB_URL user: env.DB_USER password: env.DB_PASSWORD }}: lets an
+ * agent look things up in a database. It only reads: the connection is read-only and each statement
+ * is checked. Loom bundles no JDBC driver beyond what is on the classpath.
  */
 public final class SqlKind extends GenericKind {
 
@@ -47,7 +47,10 @@ public final class SqlKind extends GenericKind {
         try {
             DriverManager.getDriver(c.url());
         } catch (SQLException e) {
-            throw new OptionException("url: no JDBC driver is installed for " + scheme(c.url()) + " (add the driver to the classpath)");
+            throw new OptionException(
+                    "url: no JDBC driver is installed for "
+                            + scheme(c.url())
+                            + " (add the driver to the classpath)");
         }
     }
 

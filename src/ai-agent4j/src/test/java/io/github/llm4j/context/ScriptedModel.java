@@ -13,7 +13,10 @@ import java.util.Map;
 import java.util.function.IntFunction;
 import java.util.stream.Stream;
 
-/** A model that follows a script (or a function of the call number), records every request, and can report usage or fail on cue. */
+/**
+ * A model that follows a script (or a function of the call number), records every request, and can
+ * report usage or fail on cue.
+ */
 final class ScriptedModel implements LLMClient {
 
     final List<LLMRequest> requests = Collections.synchronizedList(new ArrayList<>());
@@ -27,15 +30,24 @@ final class ScriptedModel implements LLMClient {
         this.script = script;
     }
 
-    /** Plays the items in order: an {@link LLMResponse} is returned, a {@link RuntimeException} is thrown. */
+    /**
+     * Plays the items in order: an {@link LLMResponse} is returned, a {@link RuntimeException} is
+     * thrown.
+     */
     static ScriptedModel of(boolean nativeCalling, boolean reportUsage, Object... items) {
-        return new ScriptedModel(nativeCalling, reportUsage, n -> {
-            if (n >= items.length) throw new IllegalStateException("the script ran out after " + n + " requests");
-            return items[n];
-        });
+        return new ScriptedModel(
+                nativeCalling,
+                reportUsage,
+                n -> {
+                    if (n >= items.length)
+                        throw new IllegalStateException(
+                                "the script ran out after " + n + " requests");
+                    return items[n];
+                });
     }
 
-    static ScriptedModel by(boolean nativeCalling, boolean reportUsage, IntFunction<Object> script) {
+    static ScriptedModel by(
+            boolean nativeCalling, boolean reportUsage, IntFunction<Object> script) {
         return new ScriptedModel(nativeCalling, reportUsage, script);
     }
 
@@ -51,9 +63,14 @@ final class ScriptedModel implements LLMClient {
         LLMResponse r = (LLMResponse) item;
         if (!reportUsage) return r;
         long prompt = io.github.llm4j.budget.CharsPerTokenEstimator.INSTANCE.prompt(request);
-        return LLMResponse.builder().content(r.getContent()).model(r.getModel()).finishReason(r.getFinishReason())
-                .toolCalls(r.getToolCalls()).providerData(r.getProviderData())
-                .tokenUsage((int) prompt, 20, (int) prompt + 20).build();
+        return LLMResponse.builder()
+                .content(r.getContent())
+                .model(r.getModel())
+                .finishReason(r.getFinishReason())
+                .toolCalls(r.getToolCalls())
+                .providerData(r.getProviderData())
+                .tokenUsage((int) prompt, 20, (int) prompt + 20)
+                .build();
     }
 
     @Override
@@ -69,11 +86,22 @@ final class ScriptedModel implements LLMClient {
     // ── responses ──────────────────────────────────────────────────────────────────
 
     static LLMResponse answer(String text) {
-        return LLMResponse.builder().content(text).model("m").tokenUsage(10, 5, 15).finishReason("stop").build();
+        return LLMResponse.builder()
+                .content(text)
+                .model("m")
+                .tokenUsage(10, 5, 15)
+                .finishReason("stop")
+                .build();
     }
 
     static LLMResponse calls(String note, ToolCall... calls) {
-        return LLMResponse.builder().content(note).model("m").tokenUsage(10, 5, 15).finishReason("tool_calls").toolCalls(List.of(calls)).build();
+        return LLMResponse.builder()
+                .content(note)
+                .model("m")
+                .tokenUsage(10, 5, 15)
+                .finishReason("tool_calls")
+                .toolCalls(List.of(calls))
+                .build();
     }
 
     static ToolCall call(String id, String tool, Map<String, Object> args) {
@@ -82,7 +110,14 @@ final class ScriptedModel implements LLMClient {
 
     /** What the text protocol expects of a tool step and of a final answer. */
     static LLMResponse textStep(String thought, String tool, String inputJson) {
-        return answer("Thought: " + thought + "\nAction: " + tool + "\nAction Input: " + inputJson + "\n");
+        return answer(
+                "Thought: "
+                        + thought
+                        + "\nAction: "
+                        + tool
+                        + "\nAction Input: "
+                        + inputJson
+                        + "\n");
     }
 
     static LLMResponse textAnswer(String text) {

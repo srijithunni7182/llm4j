@@ -15,13 +15,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
 
-/** The guide's "Earned Autonomy" section is checked against the code, and the prompt, READMEs and editor mention the feature (spec loom-earned-autonomy R9). */
+/**
+ * The guide's "Earned Autonomy" section is checked against the code, and the prompt, READMEs and
+ * editor mention the feature (spec loom-earned-autonomy R9).
+ */
 class AutonomyGuideTest {
 
     static final String HEADING = "### Earned Autonomy";
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     static String section() throws Exception {
         String guide = Files.readString(Path.of("LOOM_GUIDE.md"), StandardCharsets.UTF_8);
@@ -42,7 +44,8 @@ class AutonomyGuideTest {
             try {
                 executor.initialize();
             } catch (RuntimeException e) {
-                throw new AssertionError("this guide example doesn't load:\n" + block + "\n→ " + e.getMessage(), e);
+                throw new AssertionError(
+                        "this guide example doesn't load:\n" + block + "\n→ " + e.getMessage(), e);
             }
         }
     }
@@ -50,25 +53,47 @@ class AutonomyGuideTest {
     @Test
     @Tag("EA-V9.3")
     void everyCommandAndOptionTheGuideShowsExists() throws Exception {
-        CommandLine cli = new CommandLine(new WeaveCLI()).addSubcommand(new AutonomyCommands()).addSubcommand(new ReplayCommand())
-                .addSubcommand(new TravelCommands.Fork());
+        CommandLine cli =
+                new CommandLine(new WeaveCLI())
+                        .addSubcommand(new AutonomyCommands())
+                        .addSubcommand(new ReplayCommand())
+                        .addSubcommand(new TravelCommands.Fork());
         CommandLine autonomy = cli.getSubcommands().get("autonomy");
         String text = section().replace("\\\n", " ");
-        Matcher commands = Pattern.compile("(?m)^weave (autonomy|replay) ?(\\w+)? (.*)$").matcher(text);
+        Matcher commands =
+                Pattern.compile("(?m)^weave (autonomy|replay) ?(\\w+)? (.*)$").matcher(text);
         int seen = 0;
         while (commands.find()) {
             seen++;
-            CommandLine sub = commands.group(1).equals("replay") ? cli.getSubcommands().get("replay") : autonomy.getSubcommands().get(commands.group(2));
+            CommandLine sub =
+                    commands.group(1).equals("replay")
+                            ? cli.getSubcommands().get("replay")
+                            : autonomy.getSubcommands().get(commands.group(2));
             assertThat(sub).as("weave " + commands.group(1) + " " + commands.group(2)).isNotNull();
             Matcher options = Pattern.compile("(--[a-z-]+)").matcher(commands.group(3));
-            while (options.find()) assertThat(sub.getCommandSpec().findOption(options.group(1))).as(commands.group(0) + " has " + options.group(1)).isNotNull();
+            while (options.find())
+                assertThat(sub.getCommandSpec().findOption(options.group(1)))
+                        .as(commands.group(0) + " has " + options.group(1))
+                        .isNotNull();
         }
         assertThat(seen).isGreaterThanOrEqualTo(9);
-        for (String name : List.of("status", "history", "promote", "demote", "approve", "reject", "freeze", "unfreeze", "outcome")) {
+        for (String name :
+                List.of(
+                        "status",
+                        "history",
+                        "promote",
+                        "demote",
+                        "approve",
+                        "reject",
+                        "freeze",
+                        "unfreeze",
+                        "outcome")) {
             assertThat(autonomy.getSubcommands()).containsKey(name);
         }
         for (String option : List.of("--until", "--script", "--at", "--effects")) {
-            assertThat(cli.getSubcommands().get("fork").getCommandSpec().findOption(option)).as("weave fork has " + option).isNotNull();
+            assertThat(cli.getSubcommands().get("fork").getCommandSpec().findOption(option))
+                    .as("weave fork has " + option)
+                    .isNotNull();
         }
     }
 
@@ -76,21 +101,34 @@ class AutonomyGuideTest {
     @Tag("EA-V9.3")
     void theGuideStatesWhatItDoesNotDoAndTheRulesPlainly() throws Exception {
         String text = section();
-        assertThat(text).contains("**What it does not do.**").contains("It does not learn").contains("It does not certify compliance");
-        assertThat(text).contains("the lower end of the 95% Wilson interval").contains("`never go above suggest` is the default");
-        for (String level : List.of("watch", "suggest", "act")) assertThat(text).contains("`" + level + "`");
+        assertThat(text)
+                .contains("**What it does not do.**")
+                .contains("It does not learn")
+                .contains("It does not certify compliance");
+        assertThat(text)
+                .contains("the lower end of the 95% Wilson interval")
+                .contains("`never go above suggest` is the default");
+        for (String level : List.of("watch", "suggest", "act"))
+            assertThat(text).contains("`" + level + "`");
     }
 
     @Test
     @Tag("EA-V9.2")
     void thePromptTheReadmesAndTheEditorMentionDecisionDecideAndAutonomy() throws Exception {
-        for (String file : List.of("LOOM_PROMPT.md", "README.md", "../README.md", "../vscode-loom/src/lsp/server.ts")) {
+        for (String file :
+                List.of(
+                        "LOOM_PROMPT.md",
+                        "README.md",
+                        "../README.md",
+                        "../vscode-loom/src/lsp/server.ts")) {
             Path p = Path.of(file);
             if (!Files.exists(p)) continue;
             String text = Files.readString(p);
             assertThat(text).as(file).contains("decision").contains("decide").contains("autonomy");
         }
-        assertThat(Files.readString(Path.of("../vscode-loom/syntaxes/loom.tmLanguage.json"))).contains("decision").contains("decide");
+        assertThat(Files.readString(Path.of("../vscode-loom/syntaxes/loom.tmLanguage.json")))
+                .contains("decision")
+                .contains("decide");
     }
 
     private static String read(Path p) {
@@ -105,10 +143,20 @@ class AutonomyGuideTest {
     @Tag("EA-V9.4")
     void noSampleWorkflowWasAddedForTheFeature() throws Exception {
         try (var samples = Files.list(Path.of("samples"))) {
-            assertThat(samples.map(p -> p.getFileName().toString()).sorted().toList()).containsExactly("boardroom", "content_factory", "digest");
+            assertThat(samples.map(p -> p.getFileName().toString()).sorted().toList())
+                    .containsExactly("boardroom", "content_factory", "digest");
         }
         try (var files = Files.walk(Path.of("samples"))) {
-            assertThat(files.filter(Files::isRegularFile).map(p -> read(p)).noneMatch(t -> java.util.regex.Pattern.compile("(?m)^\\s*decision\\s+\\w+\\s*\\{").matcher(t).find())).isTrue();
+            assertThat(
+                            files.filter(Files::isRegularFile)
+                                    .map(p -> read(p))
+                                    .noneMatch(
+                                            t ->
+                                                    java.util.regex.Pattern.compile(
+                                                                    "(?m)^\\s*decision\\s+\\w+\\s*\\{")
+                                                            .matcher(t)
+                                                            .find()))
+                    .isTrue();
         }
     }
 }

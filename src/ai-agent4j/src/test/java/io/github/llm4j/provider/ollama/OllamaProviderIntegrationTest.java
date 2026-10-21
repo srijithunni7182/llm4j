@@ -42,8 +42,8 @@ import org.slf4j.LoggerFactory;
  * tools (calculator, datetime, echo), multi-tool agents, event listeners, confidence scoring, and
  * agent result metadata.
  *
- * <p>All tests are skipped if Gemma3 (or any gemma3 variant) is not available in the running
- * Ollama server.
+ * <p>All tests are skipped if Gemma3 (or any gemma3 variant) is not available in the running Ollama
+ * server.
  */
 @TestMethodOrder(MethodOrderer.DisplayName.class)
 @Tag("integration")
@@ -76,14 +76,16 @@ public class OllamaProviderIntegrationTest {
                 }
             }
         } catch (Exception e) {
-            logger.warn("Could not connect to Ollama – integration tests will be skipped: {}",
+            logger.warn(
+                    "Could not connect to Ollama – integration tests will be skipped: {}",
                     e.getMessage());
         }
     }
 
     @BeforeEach
     void skipIfUnavailable() {
-        assumeTrue(gemma3Available,
+        assumeTrue(
+                gemma3Available,
                 "gemma3 model is not installed or Ollama is not running. Skipping integration test.");
     }
 
@@ -94,12 +96,13 @@ public class OllamaProviderIntegrationTest {
     @Test
     @DisplayName("1.1 Basic chat returns non-blank response with token usage")
     void testBasicChat() {
-        LLMRequest request = LLMRequest.builder()
-                .model(MODEL)
-                .addSystemMessage("You are a helpful assistant. Keep your response short.")
-                .addUserMessage("Say hello in one sentence.")
-                .temperature(0.5)
-                .build();
+        LLMRequest request =
+                LLMRequest.builder()
+                        .model(MODEL)
+                        .addSystemMessage("You are a helpful assistant. Keep your response short.")
+                        .addUserMessage("Say hello in one sentence.")
+                        .temperature(0.5)
+                        .build();
 
         LLMResponse response = provider.chat(request);
 
@@ -118,13 +121,14 @@ public class OllamaProviderIntegrationTest {
     @Test
     @DisplayName("1.2 System-only prompt context shapes the response")
     void testSystemPromptInfluence() {
-        LLMRequest request = LLMRequest.builder()
-                .model(MODEL)
-                .addSystemMessage(
-                        "You are a pirate. Every response must include the word 'arrr'. Keep it very short.")
-                .addUserMessage("How are you today?")
-                .temperature(0.3)
-                .build();
+        LLMRequest request =
+                LLMRequest.builder()
+                        .model(MODEL)
+                        .addSystemMessage(
+                                "You are a pirate. Every response must include the word 'arrr'. Keep it very short.")
+                        .addUserMessage("How are you today?")
+                        .temperature(0.3)
+                        .build();
 
         LLMResponse response = provider.chat(request);
 
@@ -136,14 +140,16 @@ public class OllamaProviderIntegrationTest {
     @Test
     @DisplayName("1.3 Multi-turn conversation via assistant messages")
     void testMultiTurnMessages() {
-        LLMRequest request = LLMRequest.builder()
-                .model(MODEL)
-                .addSystemMessage("You are a helpful assistant. Keep all responses to one sentence.")
-                .addUserMessage("My favourite color is blue.")
-                .addAssistantMessage("Great choice! Blue is a calming color.")
-                .addUserMessage("What is my favourite color?")
-                .temperature(0.1)
-                .build();
+        LLMRequest request =
+                LLMRequest.builder()
+                        .model(MODEL)
+                        .addSystemMessage(
+                                "You are a helpful assistant. Keep all responses to one sentence.")
+                        .addUserMessage("My favourite color is blue.")
+                        .addAssistantMessage("Great choice! Blue is a calming color.")
+                        .addUserMessage("What is my favourite color?")
+                        .temperature(0.1)
+                        .build();
 
         LLMResponse response = provider.chat(request);
 
@@ -155,18 +161,20 @@ public class OllamaProviderIntegrationTest {
     @Test
     @DisplayName("1.4 Low temperature produces more deterministic output")
     void testLowTemperatureConsistency() {
-        LLMRequest request1 = LLMRequest.builder()
-                .model(MODEL)
-                .addSystemMessage("Answer with exactly one word only.")
-                .addUserMessage("What is 2 + 2?")
-                .temperature(0.0)
-                .build();
-        LLMRequest request2 = LLMRequest.builder()
-                .model(MODEL)
-                .addSystemMessage("Answer with exactly one word only.")
-                .addUserMessage("What is 2 + 2?")
-                .temperature(0.0)
-                .build();
+        LLMRequest request1 =
+                LLMRequest.builder()
+                        .model(MODEL)
+                        .addSystemMessage("Answer with exactly one word only.")
+                        .addUserMessage("What is 2 + 2?")
+                        .temperature(0.0)
+                        .build();
+        LLMRequest request2 =
+                LLMRequest.builder()
+                        .model(MODEL)
+                        .addSystemMessage("Answer with exactly one word only.")
+                        .addUserMessage("What is 2 + 2?")
+                        .temperature(0.0)
+                        .build();
 
         String r1 = provider.chat(request1).getContent().trim();
         String r2 = provider.chat(request2).getContent().trim();
@@ -180,12 +188,13 @@ public class OllamaProviderIntegrationTest {
     @Test
     @DisplayName("1.5 maxTokens constraint limits response length")
     void testMaxTokensConstraint() {
-        LLMRequest request = LLMRequest.builder()
-                .model(MODEL)
-                .addUserMessage("Write me a story about a dragon. Make it very long.")
-                .maxTokens(20)
-                .temperature(0.7)
-                .build();
+        LLMRequest request =
+                LLMRequest.builder()
+                        .model(MODEL)
+                        .addUserMessage("Write me a story about a dragon. Make it very long.")
+                        .maxTokens(20)
+                        .temperature(0.7)
+                        .build();
 
         LLMResponse response = provider.chat(request);
 
@@ -210,11 +219,12 @@ public class OllamaProviderIntegrationTest {
     void testLLMClientWrapper() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        LLMRequest request = LLMRequest.builder()
-                .model(MODEL)
-                .addUserMessage("What is the capital of France? Answer in one word.")
-                .temperature(0.1)
-                .build();
+        LLMRequest request =
+                LLMRequest.builder()
+                        .model(MODEL)
+                        .addUserMessage("What is the capital of France? Answer in one word.")
+                        .temperature(0.1)
+                        .build();
 
         LLMResponse response = client.chat(request);
 
@@ -232,12 +242,13 @@ public class OllamaProviderIntegrationTest {
     void testReActAgentCalculator() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         AgentResult result = agent.run("What is (15 * 23) + 47? Use the calculator tool.");
 
@@ -245,9 +256,14 @@ public class OllamaProviderIntegrationTest {
         assertThat(result.getFinalAnswer()).isNotBlank();
         assertThat(result.getFinalAnswer()).contains("392");
 
-        boolean usedCalculator = result.getSteps().stream()
-                .anyMatch(step -> step.getAction() != null
-                        && step.getAction().toLowerCase().contains("calculator"));
+        boolean usedCalculator =
+                result.getSteps().stream()
+                        .anyMatch(
+                                step ->
+                                        step.getAction() != null
+                                                && step.getAction()
+                                                        .toLowerCase()
+                                                        .contains("calculator"));
         assertThat(usedCalculator).as("Agent should have used the calculator tool").isTrue();
 
         logger.info("[2.1] Final answer: {}", result.getFinalAnswer());
@@ -259,22 +275,29 @@ public class OllamaProviderIntegrationTest {
     void testReActAgentCurrentTime() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CurrentTimeTool())
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CurrentTimeTool())
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
-        AgentResult result = agent.run(
-                "What is the current date and time? Use the CurrentTime tool to find out.");
+        AgentResult result =
+                agent.run(
+                        "What is the current date and time? Use the CurrentTime tool to find out.");
 
         assertThat(result).isNotNull();
         assertThat(result.getFinalAnswer()).isNotBlank();
 
-        boolean usedTimeTool = result.getSteps().stream()
-                .anyMatch(step -> step.getAction() != null
-                        && step.getAction().toLowerCase().contains("currenttime"));
+        boolean usedTimeTool =
+                result.getSteps().stream()
+                        .anyMatch(
+                                step ->
+                                        step.getAction() != null
+                                                && step.getAction()
+                                                        .toLowerCase()
+                                                        .contains("currenttime"));
         assertThat(usedTimeTool).as("Agent should have used the CurrentTime tool").isTrue();
 
         logger.info("[2.2] Final answer: {}", result.getFinalAnswer());
@@ -285,15 +308,15 @@ public class OllamaProviderIntegrationTest {
     void testReActAgentDateTimeTool() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new DateTimeTool())
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new DateTimeTool())
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
-        AgentResult result = agent.run(
-                "What is today's date? Use the CurrentDateTime tool.");
+        AgentResult result = agent.run("What is today's date? Use the CurrentDateTime tool.");
 
         assertThat(result).isNotNull();
         assertThat(result.getFinalAnswer()).isNotBlank();
@@ -305,22 +328,27 @@ public class OllamaProviderIntegrationTest {
     void testReActAgentEchoTool() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new EchoTool())
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new EchoTool())
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
-        AgentResult result = agent.run(
-                "Use the Echo tool with the text 'HelloWorld' and report what it returns.");
+        AgentResult result =
+                agent.run(
+                        "Use the Echo tool with the text 'HelloWorld' and report what it returns.");
 
         assertThat(result).isNotNull();
         assertThat(result.getFinalAnswer()).isNotBlank();
 
-        boolean usedEcho = result.getSteps().stream()
-                .anyMatch(step -> step.getAction() != null
-                        && step.getAction().toLowerCase().contains("echo"));
+        boolean usedEcho =
+                result.getSteps().stream()
+                        .anyMatch(
+                                step ->
+                                        step.getAction() != null
+                                                && step.getAction().toLowerCase().contains("echo"));
         assertThat(usedEcho).as("Agent should have used the Echo tool").isTrue();
 
         logger.info("[2.4] Final answer: {}", result.getFinalAnswer());
@@ -335,25 +363,32 @@ public class OllamaProviderIntegrationTest {
     void testMultiToolAgentSelectsCorrectTool() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .addTool(new CurrentTimeTool())
-                .addTool(new EchoTool())
-                .maxIterations(7)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .addTool(new CurrentTimeTool())
+                        .addTool(new EchoTool())
+                        .maxIterations(7)
+                        .temperature(0.1)
+                        .build();
 
         // This question clearly requires the calculator
-        AgentResult result = agent.run("Calculate 144 / 12 using the calculator. What is the result?");
+        AgentResult result =
+                agent.run("Calculate 144 / 12 using the calculator. What is the result?");
 
         assertThat(result).isNotNull();
         assertThat(result.getFinalAnswer()).isNotBlank();
         assertThat(result.getFinalAnswer()).contains("12");
 
-        boolean usedCalculator = result.getSteps().stream()
-                .anyMatch(step -> step.getAction() != null
-                        && step.getAction().toLowerCase().contains("calculator"));
+        boolean usedCalculator =
+                result.getSteps().stream()
+                        .anyMatch(
+                                step ->
+                                        step.getAction() != null
+                                                && step.getAction()
+                                                        .toLowerCase()
+                                                        .contains("calculator"));
         assertThat(usedCalculator).isTrue();
 
         logger.info("[3.1] Final answer: {}", result.getFinalAnswer());
@@ -364,19 +399,18 @@ public class OllamaProviderIntegrationTest {
     void testGetToolsReturnsAllRegistered() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .addTool(new CurrentTimeTool())
-                .addTool(new EchoTool())
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .addTool(new CurrentTimeTool())
+                        .addTool(new EchoTool())
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         assertThat(agent.getTools()).hasSize(3);
-        List<String> names = agent.getTools().stream()
-                .map(t -> t.getName().toLowerCase())
-                .toList();
+        List<String> names = agent.getTools().stream().map(t -> t.getName().toLowerCase()).toList();
         assertThat(names).contains("calculator", "currenttime", "echo");
         logger.info("[3.2] Registered tools: {}", names);
     }
@@ -390,19 +424,22 @@ public class OllamaProviderIntegrationTest {
     void testAgentResultCompleted() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         AgentResult result = agent.run("What is 7 * 8? Use the calculator.");
 
         assertThat(result.isCompleted()).isTrue();
         assertThat(result.getIterations()).isGreaterThan(0);
         assertThat(result.getIterations()).isLessThanOrEqualTo(5);
-        logger.info("[4.1] Completed: {}, iterations: {}", result.isCompleted(),
+        logger.info(
+                "[4.1] Completed: {}, iterations: {}",
+                result.isCompleted(),
                 result.getIterations());
     }
 
@@ -411,19 +448,22 @@ public class OllamaProviderIntegrationTest {
     void testAgentResultConfidence() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         AgentResult result = agent.run("What is 100 + 200? Use the calculator.");
 
         assertThat(result.getConfidence()).isNotNull();
         assertThat(result.getConfidence().getScore()).isBetween(0.0, 1.0);
-        logger.info("[4.2] Confidence: {} (reason: {})",
-                result.getConfidence().getScore(), result.getConfidence().getReasoning());
+        logger.info(
+                "[4.2] Confidence: {} (reason: {})",
+                result.getConfidence().getScore(),
+                result.getConfidence().getReasoning());
     }
 
     @Test
@@ -431,22 +471,28 @@ public class OllamaProviderIntegrationTest {
     void testAgentResultStepsStructure() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         AgentResult result = agent.run("What is 3 * 3? Use the calculator tool.");
 
         assertThat(result.getSteps()).isNotEmpty();
-        result.getSteps().forEach(step -> {
-            logger.info("[4.3] Step -> thought='{}', action='{}', observation='{}'",
-                    step.getThought(), step.getAction(), step.getObservation());
-            assertThat(step.getObservation()).isNotNull();
-            assertThat(step.getTimestamp()).isNotNull();
-        });
+        result.getSteps()
+                .forEach(
+                        step -> {
+                            logger.info(
+                                    "[4.3] Step -> thought='{}', action='{}', observation='{}'",
+                                    step.getThought(),
+                                    step.getAction(),
+                                    step.getObservation());
+                            assertThat(step.getObservation()).isNotNull();
+                            assertThat(step.getTimestamp()).isNotNull();
+                        });
     }
 
     @Test
@@ -454,12 +500,13 @@ public class OllamaProviderIntegrationTest {
     void testShouldEscalateToHuman() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         AgentResult result = agent.run("What is 10 + 5? Use the calculator.");
 
@@ -483,33 +530,35 @@ public class OllamaProviderIntegrationTest {
         List<String> actions = new ArrayList<>();
         List<String> observations = new ArrayList<>();
 
-        AgentEventListener listener = new AgentEventListener() {
-            @Override
-            public void onThought(String thought) {
-                thoughts.add(thought);
-                logger.info("[5.1]  THOUGHT: {}", thought);
-            }
+        AgentEventListener listener =
+                new AgentEventListener() {
+                    @Override
+                    public void onThought(String thought) {
+                        thoughts.add(thought);
+                        logger.info("[5.1]  THOUGHT: {}", thought);
+                    }
 
-            @Override
-            public void onAction(String toolName, String toolInput) {
-                actions.add(toolName);
-                logger.info("[5.1]  ACTION: {} | Input: {}", toolName, toolInput);
-            }
+                    @Override
+                    public void onAction(String toolName, String toolInput) {
+                        actions.add(toolName);
+                        logger.info("[5.1]  ACTION: {} | Input: {}", toolName, toolInput);
+                    }
 
-            @Override
-            public void onObservation(String observation) {
-                observations.add(observation);
-                logger.info("[5.1]  OBSERVATION: {}", observation);
-            }
-        };
+                    @Override
+                    public void onObservation(String observation) {
+                        observations.add(observation);
+                        logger.info("[5.1]  OBSERVATION: {}", observation);
+                    }
+                };
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .addListener(listener)
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .addListener(listener)
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         AgentResult result = agent.run("What is 5 + 5? Use the calculator.");
 
@@ -517,8 +566,11 @@ public class OllamaProviderIntegrationTest {
         // At minimum, actions should have been captured
         assertThat(actions).isNotEmpty();
         assertThat(observations).isNotEmpty();
-        logger.info("[5.1] Thoughts: {}, Actions: {}, Observations: {}",
-                thoughts.size(), actions.size(), observations.size());
+        logger.info(
+                "[5.1] Thoughts: {}, Actions: {}, Observations: {}",
+                thoughts.size(),
+                actions.size(),
+                observations.size());
     }
 
     @Test
@@ -529,33 +581,60 @@ public class OllamaProviderIntegrationTest {
         AtomicInteger listener1Count = new AtomicInteger(0);
         AtomicInteger listener2Count = new AtomicInteger(0);
 
-        AgentEventListener listener1 = new AgentEventListener() {
-            @Override public void onThought(String t) { listener1Count.incrementAndGet(); }
-            @Override public void onAction(String n, String i) { listener1Count.incrementAndGet(); }
-            @Override public void onObservation(String o) { listener1Count.incrementAndGet(); }
-        };
-        AgentEventListener listener2 = new AgentEventListener() {
-            @Override public void onThought(String t) { listener2Count.incrementAndGet(); }
-            @Override public void onAction(String n, String i) { listener2Count.incrementAndGet(); }
-            @Override public void onObservation(String o) { listener2Count.incrementAndGet(); }
-        };
+        AgentEventListener listener1 =
+                new AgentEventListener() {
+                    @Override
+                    public void onThought(String t) {
+                        listener1Count.incrementAndGet();
+                    }
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .addListener(listener1)
-                .addListener(listener2)
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+                    @Override
+                    public void onAction(String n, String i) {
+                        listener1Count.incrementAndGet();
+                    }
+
+                    @Override
+                    public void onObservation(String o) {
+                        listener1Count.incrementAndGet();
+                    }
+                };
+        AgentEventListener listener2 =
+                new AgentEventListener() {
+                    @Override
+                    public void onThought(String t) {
+                        listener2Count.incrementAndGet();
+                    }
+
+                    @Override
+                    public void onAction(String n, String i) {
+                        listener2Count.incrementAndGet();
+                    }
+
+                    @Override
+                    public void onObservation(String o) {
+                        listener2Count.incrementAndGet();
+                    }
+                };
+
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .addListener(listener1)
+                        .addListener(listener2)
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         agent.run("What is 6 * 7? Use the calculator.");
 
         assertThat(listener1Count.get()).isGreaterThan(0);
         assertThat(listener2Count.get()).isGreaterThan(0);
         assertThat(listener1Count.get()).isEqualTo(listener2Count.get());
-        logger.info("[5.2] Listener1: {} events, Listener2: {} events",
-                listener1Count.get(), listener2Count.get());
+        logger.info(
+                "[5.2] Listener1: {} events, Listener2: {} events",
+                listener1Count.get(),
+                listener2Count.get());
     }
 
     // =========================================================================
@@ -567,21 +646,23 @@ public class OllamaProviderIntegrationTest {
     void testAgentPersona() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        AgentPersona persona = AgentPersona.builder()
-                .name("Aria")
-                .role("friendly math tutor")
-                .expertise("elementary arithmetic and algebra")
-                .tone("encouraging and cheerful")
-                .addConstraint("Always explain your reasoning step by step.")
-                .build();
+        AgentPersona persona =
+                AgentPersona.builder()
+                        .name("Aria")
+                        .role("friendly math tutor")
+                        .expertise("elementary arithmetic and algebra")
+                        .tone("encouraging and cheerful")
+                        .addConstraint("Always explain your reasoning step by step.")
+                        .build();
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .persona(persona)
-                .maxIterations(5)
-                .temperature(0.3)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .persona(persona)
+                        .maxIterations(5)
+                        .temperature(0.3)
+                        .build();
 
         AgentResult result = agent.run("What is 9 + 6? Use the calculator.");
 
@@ -595,22 +676,24 @@ public class OllamaProviderIntegrationTest {
     void testAgentPersonaCustomAttributes() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        AgentPersona persona = AgentPersona.builder()
-                .name("DataBot")
-                .role("data analyst")
-                .expertise("statistics and data interpretation")
-                .tone("precise and concise")
-                .addCustomAttribute("preferred_format", "bullet points")
-                .addCustomAttribute("max_response_length", "3 sentences")
-                .build();
+        AgentPersona persona =
+                AgentPersona.builder()
+                        .name("DataBot")
+                        .role("data analyst")
+                        .expertise("statistics and data interpretation")
+                        .tone("precise and concise")
+                        .addCustomAttribute("preferred_format", "bullet points")
+                        .addCustomAttribute("max_response_length", "3 sentences")
+                        .build();
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .persona(persona)
-                .maxIterations(5)
-                .temperature(0.2)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .persona(persona)
+                        .maxIterations(5)
+                        .temperature(0.2)
+                        .build();
 
         AgentResult result = agent.run("Calculate 250 / 5 and summarise the result.");
 
@@ -628,18 +711,20 @@ public class OllamaProviderIntegrationTest {
     void testAgentSkillInlineContent() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        AgentSkill skill = AgentSkill.of(
-                "Math Tips",
-                "## Math Tips\n- Always verify your arithmetic using the calculator tool.\n"
-                        + "- Express final answers as plain numbers without extra text.\n");
+        AgentSkill skill =
+                AgentSkill.of(
+                        "Math Tips",
+                        "## Math Tips\n- Always verify your arithmetic using the calculator tool.\n"
+                                + "- Express final answers as plain numbers without extra text.\n");
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .addSkill(skill)
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .addSkill(skill)
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         AgentResult result = agent.run("What is 8 * 9? Use the calculator.");
 
@@ -653,21 +738,22 @@ public class OllamaProviderIntegrationTest {
     void testMultipleAgentSkills() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        AgentSkill mathSkill = AgentSkill.of(
-                "Math Rules",
-                "Always use the calculator tool for arithmetic.\n");
-        AgentSkill formatSkill = AgentSkill.of(
-                "Output Format",
-                "Give final answers as a single number without units unless asked.\n");
+        AgentSkill mathSkill =
+                AgentSkill.of("Math Rules", "Always use the calculator tool for arithmetic.\n");
+        AgentSkill formatSkill =
+                AgentSkill.of(
+                        "Output Format",
+                        "Give final answers as a single number without units unless asked.\n");
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .addSkill(mathSkill)
-                .addSkill(formatSkill)
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .addSkill(mathSkill)
+                        .addSkill(formatSkill)
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         AgentResult result = agent.run("What is 11 * 11? Use the calculator.");
 
@@ -711,13 +797,14 @@ public class OllamaProviderIntegrationTest {
                 Keep your final answer very brief.
                 """;
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .systemPrompt(customPrompt)
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .systemPrompt(customPrompt)
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         AgentResult result = agent.run("What is 50 * 2? Use the calculator.");
 
@@ -732,10 +819,11 @@ public class OllamaProviderIntegrationTest {
         LLMClient client = new DefaultLLMClient(provider);
 
         // Create an in-memory registry with a custom template
-        PromptTemplate template = new PromptTemplate(
-                "math-agent",
-                "1.0",
-                """
+        PromptTemplate template =
+                new PromptTemplate(
+                        "math-agent",
+                        "1.0",
+                        """
                 Answer the following questions as best you can. You have access to the following tools:
 
                 {tool_descriptions}
@@ -759,30 +847,32 @@ public class OllamaProviderIntegrationTest {
                 IMPORTANT: Only provide a single valid JSON object inside a ```json code block.
                 """);
 
-        PromptRegistry registry = new PromptRegistry() {
-            @Override
-            public Optional<PromptTemplate> get(String id) {
-                if ("math-agent".equals(id)) return Optional.of(template);
-                return Optional.empty();
-            }
+        PromptRegistry registry =
+                new PromptRegistry() {
+                    @Override
+                    public Optional<PromptTemplate> get(String id) {
+                        if ("math-agent".equals(id)) return Optional.of(template);
+                        return Optional.empty();
+                    }
 
-            @Override
-            public Optional<PromptTemplate> get(String id, String version) {
-                return get(id);
-            }
+                    @Override
+                    public Optional<PromptTemplate> get(String id, String version) {
+                        return get(id);
+                    }
 
-            @Override
-            public void reload() {}
-        };
+                    @Override
+                    public void reload() {}
+                };
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .promptRegistry(registry)
-                .systemPromptId("math-agent")
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .promptRegistry(registry)
+                        .systemPromptId("math-agent")
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         AgentResult result = agent.run("What is 6 + 6? Use the calculator.");
 
@@ -801,29 +891,33 @@ public class OllamaProviderIntegrationTest {
         LLMClient client = new DefaultLLMClient(provider);
         ConversationHistory history = new ConversationHistory(10);
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .addTool(new EchoTool())
-                .conversationHistory(history)
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .addTool(new EchoTool())
+                        .conversationHistory(history)
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         // First turn: provide context. Use a tool to ensure success if model is confused.
-        AgentResult r1 = agent.run("Remember: my lucky number is 42. Use the Echo tool to confirm you received it.");
+        AgentResult r1 =
+                agent.run(
+                        "Remember: my lucky number is 42. Use the Echo tool to confirm you received it.");
         assertThat(r1.getFinalAnswer()).isNotBlank();
         logger.info("[9.1] Turn 1 response: {}", r1.getFinalAnswer());
 
         // Second turn: recall context using the same history
-        ReActAgent agent2 = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .addTool(new EchoTool())
-                .conversationHistory(history)
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent2 =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .addTool(new EchoTool())
+                        .conversationHistory(history)
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         AgentResult r2 = agent2.run("What is my lucky number?");
         assertThat(r2.getFinalAnswer()).isNotBlank();
@@ -839,14 +933,15 @@ public class OllamaProviderIntegrationTest {
 
         assertThat(history.getMessages()).isEmpty();
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .addTool(new EchoTool())
-                .conversationHistory(history)
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .addTool(new EchoTool())
+                        .conversationHistory(history)
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         agent.run("Say exactly: 'Understood.' Use the Echo tool.");
 
@@ -864,17 +959,16 @@ public class OllamaProviderIntegrationTest {
     void testToBuilderCopiesAgent() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        ReActAgent original = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .maxIterations(5)
-                .temperature(0.2)
-                .build();
+        ReActAgent original =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .maxIterations(5)
+                        .temperature(0.2)
+                        .build();
 
         // Override temperature only
-        ReActAgent copy = original.toBuilder()
-                .temperature(0.5)
-                .build();
+        ReActAgent copy = original.toBuilder().temperature(0.5).build();
 
         // Both should work correctly
         AgentResult originalResult = original.run("What is 3 + 3? Use the calculator.");
@@ -882,8 +976,10 @@ public class OllamaProviderIntegrationTest {
 
         assertThat(originalResult.getFinalAnswer()).contains("6");
         assertThat(copyResult.getFinalAnswer()).contains("8");
-        logger.info("[10.1] Original: {}, Copy: {}",
-                originalResult.getFinalAnswer(), copyResult.getFinalAnswer());
+        logger.info(
+                "[10.1] Original: {}, Copy: {}",
+                originalResult.getFinalAnswer(),
+                copyResult.getFinalAnswer());
     }
 
     @Test
@@ -891,13 +987,14 @@ public class OllamaProviderIntegrationTest {
     void testSessionIdConfiguration() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .sessionId("test-session-12345")
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .sessionId("test-session-12345")
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         AgentResult result = agent.run("What is 2 + 2? Use the calculator.");
 
@@ -911,15 +1008,16 @@ public class OllamaProviderIntegrationTest {
     void testClearTools() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .addTool(new EchoTool())
-                .clearTools()
-                .addTool(new DateTimeTool())
-                .maxIterations(5)
-                .temperature(0.1)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .addTool(new EchoTool())
+                        .clearTools()
+                        .addTool(new DateTimeTool())
+                        .maxIterations(5)
+                        .temperature(0.1)
+                        .build();
 
         assertThat(agent.getTools()).hasSize(1);
         String toolName = agent.getTools().iterator().next().getName();
@@ -936,40 +1034,48 @@ public class OllamaProviderIntegrationTest {
     void testFullFeaturedAgent() {
         LLMClient client = new DefaultLLMClient(provider);
 
-        AgentPersona persona = AgentPersona.builder()
-                .name("Nova")
-                .role("helpful AI assistant")
-                .tone("friendly and concise")
-                .build();
+        AgentPersona persona =
+                AgentPersona.builder()
+                        .name("Nova")
+                        .role("helpful AI assistant")
+                        .tone("friendly and concise")
+                        .build();
 
-        AgentSkill skill = AgentSkill.of(
-                "Calculator Policy",
-                "Always use the calculator tool for any arithmetic computation.\n");
+        AgentSkill skill =
+                AgentSkill.of(
+                        "Calculator Policy",
+                        "Always use the calculator tool for any arithmetic computation.\n");
 
         ConversationHistory history = new ConversationHistory(10);
 
         List<String> capturedThoughts = new ArrayList<>();
-        AgentEventListener listener = new AgentEventListener() {
-            @Override
-            public void onThought(String thought) {
-                capturedThoughts.add(thought);
-            }
-            @Override public void onAction(String n, String i) {}
-            @Override public void onObservation(String o) {}
-        };
+        AgentEventListener listener =
+                new AgentEventListener() {
+                    @Override
+                    public void onThought(String thought) {
+                        capturedThoughts.add(thought);
+                    }
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .addTool(new CurrentTimeTool())
-                .persona(persona)
-                .addSkill(skill)
-                .conversationHistory(history)
-                .addListener(listener)
-                .maxIterations(7)
-                .temperature(0.1)
-                .sessionId("full-featured-test")
-                .build();
+                    @Override
+                    public void onAction(String n, String i) {}
+
+                    @Override
+                    public void onObservation(String o) {}
+                };
+
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .addTool(new CurrentTimeTool())
+                        .persona(persona)
+                        .addSkill(skill)
+                        .conversationHistory(history)
+                        .addListener(listener)
+                        .maxIterations(7)
+                        .temperature(0.1)
+                        .sessionId("full-featured-test")
+                        .build();
 
         AgentResult result = agent.run("What is (25 + 75) * 2? Use the calculator.");
 

@@ -25,21 +25,28 @@ import org.junit.jupiter.api.io.TempDir;
 class OtlpExportTest {
 
     private static final Resource RES = Resource.of("p", "i_1");
-    private static final ServerLink.Timing FAST = new ServerLink.Timing(Duration.ofMillis(5), Duration.ofMillis(40), Duration.ofMillis(5), Duration.ofMillis(20));
+    private static final ServerLink.Timing FAST =
+            new ServerLink.Timing(
+                    Duration.ofMillis(5),
+                    Duration.ofMillis(40),
+                    Duration.ofMillis(5),
+                    Duration.ofMillis(20));
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private final List<Long> seqs = new CopyOnWriteArrayList<>();
     private final List<String> paths = new CopyOnWriteArrayList<>();
     private final ByteArrayOutputStream console = new ByteArrayOutputStream();
     private volatile int status = 200;
-    private final OtlpExport.Sender sender = (path, body) -> {
-        if (status < 0) throw new IOException("connection refused");
-        paths.add(path);
-        if (status == 200 && path.equals("/v1/logs")) for (OtlpJson.Logs g : OtlpJson.decodeLogs(body)) g.records().forEach(r -> seqs.add(r.seq()));
-        return status < 0 ? 200 : status;
-    };
+    private final OtlpExport.Sender sender =
+            (path, body) -> {
+                if (status < 0) throw new IOException("connection refused");
+                paths.add(path);
+                if (status == 200 && path.equals("/v1/logs"))
+                    for (OtlpJson.Logs g : OtlpJson.decodeLogs(body))
+                        g.records().forEach(r -> seqs.add(r.seq()));
+                return status < 0 ? 200 : status;
+            };
     private Outbox outbox;
     private OtlpExport export;
 
@@ -50,13 +57,33 @@ class OtlpExportTest {
     }
 
     private static byte[] log(long seq) {
-        LogRec r = new LogRec(1_000_000_000L * seq, LogRec.INFO, "w", Map.of(Semconv.EVENT_NAME, Semconv.EV_RUN_START, Semconv.LOOM_SEQ, seq), "0".repeat(32), null);
+        LogRec r =
+                new LogRec(
+                        1_000_000_000L * seq,
+                        LogRec.INFO,
+                        "w",
+                        Map.of(Semconv.EVENT_NAME, Semconv.EV_RUN_START, Semconv.LOOM_SEQ, seq),
+                        "0".repeat(32),
+                        null);
         return ("L" + OtlpJson.encodeLogs(RES, "0.1", List.of(r))).getBytes(StandardCharsets.UTF_8);
     }
 
     private OtlpExport open() {
-        outbox = new Outbox(dir.resolve("o"), 8 << 20, 256L << 20, Duration.ofDays(7), Clock.systemUTC());
-        export = new OtlpExport(outbox, new Cursor(outbox.dir(), "otlp"), sender, FAST, new PrintStream(console), acked -> outbox.trim(acked));
+        outbox =
+                new Outbox(
+                        dir.resolve("o"),
+                        8 << 20,
+                        256L << 20,
+                        Duration.ofDays(7),
+                        Clock.systemUTC());
+        export =
+                new OtlpExport(
+                        outbox,
+                        new Cursor(outbox.dir(), "otlp"),
+                        sender,
+                        FAST,
+                        new PrintStream(console),
+                        acked -> outbox.trim(acked));
         return export;
     }
 
@@ -107,7 +134,9 @@ class OtlpExportTest {
         status = 401;
         outbox.append(log(2));
         until(() -> export.dead());
-        assertThat(console.toString()).contains("rejected the credentials").contains("not affected");
+        assertThat(console.toString())
+                .contains("rejected the credentials")
+                .contains("not affected");
     }
 
     @Test
@@ -124,8 +153,18 @@ class OtlpExportTest {
 
     @Test
     void secretsInHeadersAreResolvedWhenSent_andAMissingOneIsAClearError() {
-        Map<String, String> h = OtlpExport.resolveHeaders(List.of("Authorization=Bearer ${secret:OTLP_TOKEN}", "X-Team=core"), n -> n.equals("OTLP_TOKEN") ? "tok-123" : null);
-        assertThat(h).containsEntry("Authorization", "Bearer tok-123").containsEntry("X-Team", "core");
-        assertThatThrownBy(() -> OtlpExport.resolveHeaders(List.of("Authorization=Bearer ${secret:NOPE}"), n -> null)).hasMessageContaining("NOPE").hasMessageNotContaining("tok");
+        Map<String, String> h =
+                OtlpExport.resolveHeaders(
+                        List.of("Authorization=Bearer ${secret:OTLP_TOKEN}", "X-Team=core"),
+                        n -> n.equals("OTLP_TOKEN") ? "tok-123" : null);
+        assertThat(h)
+                .containsEntry("Authorization", "Bearer tok-123")
+                .containsEntry("X-Team", "core");
+        assertThatThrownBy(
+                        () ->
+                                OtlpExport.resolveHeaders(
+                                        List.of("Authorization=Bearer ${secret:NOPE}"), n -> null))
+                .hasMessageContaining("NOPE")
+                .hasMessageNotContaining("tok");
     }
 }

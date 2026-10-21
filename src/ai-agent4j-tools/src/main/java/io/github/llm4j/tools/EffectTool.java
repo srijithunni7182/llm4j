@@ -1,20 +1,19 @@
 package io.github.llm4j.tools;
-import io.github.llm4j.agent.tool.EffectJournal;
-import io.github.llm4j.agent.tool.EffectContext;
-import io.github.llm4j.agent.tool.Effectful;
-import io.github.llm4j.agent.tool.EffectPolicy;
-import io.github.llm4j.agent.tool.Outcome;
 
 import io.github.llm4j.agent.Tool;
-
+import io.github.llm4j.agent.tool.EffectContext;
+import io.github.llm4j.agent.tool.EffectJournal;
+import io.github.llm4j.agent.tool.EffectPolicy;
+import io.github.llm4j.agent.tool.Effectful;
+import io.github.llm4j.agent.tool.Outcome;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Keeps a side-effect tool from acting twice when a run is resumed. Each effect call is written to the run
- * journal as {@code pending} before it happens and as {@code done} after; run again on the same journal,
- * a {@code done} call returns what it returned, and a {@code pending} one (the process died in between) is
- * handled by the tool's {@link EffectPolicy}.
+ * Keeps a side-effect tool from acting twice when a run is resumed. Each effect call is written to
+ * the run journal as {@code pending} before it happens and as {@code done} after; run again on the
+ * same journal, a {@code done} call returns what it returned, and a {@code pending} one (the
+ * process died in between) is handled by the tool's {@link EffectPolicy}.
  *
  * <p>Calls the tool says are not effects (reads) pass straight through.
  */
@@ -23,8 +22,10 @@ public final class EffectTool implements Tool {
     static final String PENDING = "effect_pending";
     static final String DONE = "effect_done";
     static final String FAILED = "effect_failed";
+
     /** What a tool returns in a simulated run: the call was described, not made. */
     public static final String SIMULATED = "(simulated: not performed)";
+
     static final String REPLAYED = "(already done in an earlier attempt) ";
     private static final String RUN_UID_KEY = "#effect-run-uid";
 
@@ -70,7 +71,8 @@ public final class EffectTool implements Tool {
             record("simulated", args, context.clock().millis());
             return SIMULATED;
         }
-        String key = context.identityStep() + "#effect:" + tool + ":" + hash + "#" + nextOrdinal(callId);
+        String key =
+                context.identityStep() + "#effect:" + tool + ":" + hash + "#" + nextOrdinal(callId);
         EffectJournal.Entry earlier = journal.get(key).orElse(null);
         EffectPolicy policy = delegate.policy();
         long started = context.clock().millis();
@@ -80,7 +82,12 @@ public final class EffectTool implements Tool {
             return REPLAYED + earlier.value();
         }
         if (earlier != null && PENDING.equals(earlier.kind())) {
-            audit("effect_unknown", args, policy.idempotent() ? "retry-idempotent" : policy.onUnknown().name().toLowerCase());
+            audit(
+                    "effect_unknown",
+                    args,
+                    policy.idempotent()
+                            ? "retry-idempotent"
+                            : policy.onUnknown().name().toLowerCase());
             if (!policy.idempotent() && policy.onUnknown() == EffectPolicy.OnUnknown.SKIP) {
                 record("unknown-skipped", args, started);
                 return "Error: an earlier attempt's outcome is unknown, so it was not repeated. "
@@ -88,7 +95,8 @@ public final class EffectTool implements Tool {
             }
         }
         if (earlier == null && !context.currentStep().equals(context.identityStep())) {
-            // Not a repeat of anything done before the run went back: a call of its own, which runs.
+            // Not a repeat of anything done before the run went back: a call of its own, which
+            // runs.
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("tool", tool);
             data.put("step", context.currentStep());
@@ -96,21 +104,31 @@ public final class EffectTool implements Tool {
             context.audit("effect_after_rewind", data);
             context.trace("a different effect after a rewind: " + tool + " " + target(args), data);
         }
-        // Check the allowance and claim the call together, so parallel branches can't all slip under the limit.
+        // Check the allowance and claim the call together, so parallel branches can't all slip
+        // under the limit.
         synchronized (journal) {
-            if (policy.maxPerRun() > 0 && earlier == null && callsSoFar(journal, tool) >= policy.maxPerRun()) {
-                return "Error: " + tool + " is limited to " + policy.maxPerRun() + " calls per run, and has used them.";
+            if (policy.maxPerRun() > 0
+                    && earlier == null
+                    && callsSoFar(journal, tool) >= policy.maxPerRun()) {
+                return "Error: "
+                        + tool
+                        + " is limited to "
+                        + policy.maxPerRun()
+                        + " calls per run, and has used them.";
             }
             journal.put(key, new EffectJournal.Entry(PENDING, ""));
         }
-        Outcome outcome = delegate.perform(args, policy.idempotent() ? idempotencyKey(journal, key) : null);
+        Outcome outcome =
+                delegate.perform(args, policy.idempotent() ? idempotencyKey(journal, key) : null);
         switch (outcome.status()) {
             case OK -> journal.put(key, new EffectJournal.Entry(DONE, outcome.text()));
             case FAILED -> {
                 journal.put(key, new EffectJournal.Entry(FAILED, outcome.text()));
                 giveBackOrdinal(callId); // the retry of a failed call is the same call
             }
-            case UNKNOWN -> { /* stays pending: the next attempt applies the policy */ }
+            case UNKNOWN -> {
+                /* stays pending: the next attempt applies the policy */
+            }
         }
         record(outcome.status().name().toLowerCase(), args, started);
         return outcome.text();
@@ -133,22 +151,37 @@ public final class EffectTool implements Tool {
         if (a != null) a.counts.merge(callId, -1, Integer::sum);
     }
 
-    /** Effect records for this tool that happened or may have: failed attempts don't use up the allowance. */
+    /**
+     * Effect records for this tool that happened or may have: failed attempts don't use up the
+     * allowance.
+     */
     private static long callsSoFar(EffectJournal journal, String tool) {
         String marker = "#effect:" + tool + ":";
         return journal.all().entrySet().stream()
                 .filter(e -> e.getKey().contains(marker))
-                .filter(e -> PENDING.equals(e.getValue().kind()) || DONE.equals(e.getValue().kind()))
+                .filter(
+                        e ->
+                                PENDING.equals(e.getValue().kind())
+                                        || DONE.equals(e.getValue().kind()))
                 .count();
     }
 
-    /** Stable across a resume and unique to this journal, so a daily run doesn't reuse yesterday's keys. */
+    /**
+     * Stable across a resume and unique to this journal, so a daily run doesn't reuse yesterday's
+     * keys.
+     */
     private static String idempotencyKey(EffectJournal journal, String effectKey) {
-        String uid = journal.get(RUN_UID_KEY).map(e -> String.valueOf(e.value())).orElseGet(() -> {
-            String fresh = java.util.UUID.randomUUID().toString();
-            journal.put(RUN_UID_KEY, new EffectJournal.Entry("effect_run", fresh));
-            return fresh;
-        });
+        String uid =
+                journal.get(RUN_UID_KEY)
+                        .map(e -> String.valueOf(e.value()))
+                        .orElseGet(
+                                () -> {
+                                    String fresh = java.util.UUID.randomUUID().toString();
+                                    journal.put(
+                                            RUN_UID_KEY,
+                                            new EffectJournal.Entry("effect_run", fresh));
+                                    return fresh;
+                                });
         return CanonicalArgs.sha256Hex(uid + effectKey).substring(0, 32);
     }
 
@@ -160,7 +193,9 @@ public final class EffectTool implements Tool {
         data.put("outcome", outcome);
         data.put("millis", context.clock().millis() - started);
         context.audit("tool_effect", data);
-        context.trace("tool effect: " + delegate.getName() + " " + data.get("target") + " → " + outcome, data);
+        context.trace(
+                "tool effect: " + delegate.getName() + " " + data.get("target") + " → " + outcome,
+                data);
     }
 
     private void audit(String event, Map<String, Object> args, String policy) {

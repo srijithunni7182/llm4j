@@ -3,8 +3,9 @@ package io.github.llm4j.tools.support;
 import java.util.Random;
 
 /**
- * Seeded, repeatable generated-input testing: the same seed gives the same inputs, and a failure says which
- * seed and iteration to replay. {@code -Dloom.fuzz.iterations=N} and {@code -Dloom.fuzz.seed=S} change the run.
+ * Seeded, repeatable generated-input testing: the same seed gives the same inputs, and a failure
+ * says which seed and iteration to replay. {@code -Dloom.fuzz.iterations=N} and {@code
+ * -Dloom.fuzz.seed=S} change the run.
  */
 public final class Fuzz {
 
@@ -28,8 +29,17 @@ public final class Fuzz {
             try {
                 body.run(random);
             } catch (Throwable t) {
-                throw new AssertionError(name + " failed at iteration " + i + " (replay with -Dloom.fuzz.seed=" + seed
-                        + " and iteration " + i + "): " + t.getMessage(), t);
+                throw new AssertionError(
+                        name
+                                + " failed at iteration "
+                                + i
+                                + " (replay with -Dloom.fuzz.seed="
+                                + seed
+                                + " and iteration "
+                                + i
+                                + "): "
+                                + t.getMessage(),
+                        t);
             }
         }
     }

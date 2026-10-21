@@ -28,7 +28,11 @@ public final class Audit {
         line.putAll(data);
         try {
             Files.createDirectories(file.getParent());
-            Files.writeString(file, JSON.writeValueAsString(line) + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            Files.writeString(
+                    file,
+                    JSON.writeValueAsString(line) + "\n",
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.APPEND);
         } catch (IOException e) {
             // the audit line is best effort; the pending record carries the answer too
         }

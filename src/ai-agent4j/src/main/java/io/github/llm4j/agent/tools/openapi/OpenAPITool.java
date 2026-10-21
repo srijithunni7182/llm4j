@@ -1,10 +1,10 @@
 package io.github.llm4j.agent.tools.openapi;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.llm4j.agent.Tool;
 import io.github.llm4j.secret.CredentialSource;
 import io.github.llm4j.secret.SecretException;
 import io.github.llm4j.secret.SecretRef;
-import io.github.llm4j.agent.Tool;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -43,21 +43,35 @@ public class OpenAPITool implements Tool {
     @Override
     public String getDescription() {
         StringBuilder d = new StringBuilder();
-        d.append("Calls the ").append(spec.getTitle() != null ? spec.getTitle() : "HTTP").append(" API");
+        d.append("Calls the ")
+                .append(spec.getTitle() != null ? spec.getTitle() : "HTTP")
+                .append(" API");
         if (spec.getDescription() != null && !spec.getDescription().isBlank()) {
             d.append(" (").append(spec.getDescription().strip()).append(")");
         }
-        d.append(". Arguments: {\"endpoint\": \"<path>\", \"method\": \"GET|POST|…\", "
-                + "\"parameters\": {<name>: <value>}, \"body\": {…}}. Endpoints:");
+        d.append(
+                ". Arguments: {\"endpoint\": \"<path>\", \"method\": \"GET|POST|…\", "
+                        + "\"parameters\": {<name>: <value>}, \"body\": {…}}. Endpoints:");
         for (OpenAPIEndpoint e : spec.getEndpoints()) {
             d.append("\n- ").append(e.getMethod()).append(' ').append(e.getPath());
             String what = e.getSummary() != null ? e.getSummary() : e.getDescription();
             if (what != null && !what.isBlank()) d.append(": ").append(what.strip());
             if (e.getParameters() != null && !e.getParameters().isEmpty()) {
                 d.append(" [params: ");
-                d.append(String.join(", ", e.getParameters().stream()
-                        .map(p -> p.getName() + " (" + p.getIn() + (p.getType() != null ? ", " + p.getType() : "") + ")")
-                        .toList()));
+                d.append(
+                        String.join(
+                                ", ",
+                                e.getParameters().stream()
+                                        .map(
+                                                p ->
+                                                        p.getName()
+                                                                + " ("
+                                                                + p.getIn()
+                                                                + (p.getType() != null
+                                                                        ? ", " + p.getType()
+                                                                        : "")
+                                                                + ")")
+                                        .toList()));
                 d.append("]");
             }
         }
@@ -121,7 +135,8 @@ public class OpenAPITool implements Tool {
         try {
             Exchange exchange = send(endpoint, parameters, body, baseUrl);
             if (exchange.refused()) {
-                // a credential the server refuses may have expired since it was fetched: ask again once, then give the answer as it is
+                // a credential the server refuses may have expired since it was fetched: ask again
+                // once, then give the answer as it is
                 exchange.credentials().rejected();
                 exchange = send(endpoint, parameters, body, baseUrl);
             }
@@ -140,14 +155,19 @@ public class OpenAPITool implements Tool {
     }
 
     private Exchange send(
-            OpenAPIEndpoint endpoint, Map<String, Object> parameters, Map<String, Object> body, String baseUrl)
+            OpenAPIEndpoint endpoint,
+            Map<String, Object> parameters,
+            Map<String, Object> body,
+            String baseUrl)
             throws Exception {
         RequestAuth.Resolved credentials = auth.resolve(baseUrl);
         HttpRequest request = buildRequest(endpoint, parameters, body, baseUrl, credentials);
-        return new Exchange(httpClient.send(request, HttpResponse.BodyHandlers.ofString()), credentials);
+        return new Exchange(
+                httpClient.send(request, HttpResponse.BodyHandlers.ofString()), credentials);
     }
 
-    private static final java.util.Set<String> SUPPORTED_METHODS = java.util.Set.of("GET", "POST", "PUT", "DELETE");
+    private static final java.util.Set<String> SUPPORTED_METHODS =
+            java.util.Set.of("GET", "POST", "PUT", "DELETE");
 
     private HttpRequest buildRequest(
             OpenAPIEndpoint endpoint,
@@ -195,7 +215,9 @@ public class OpenAPITool implements Tool {
         // not the query string: it can carry an API key, and logs outlive the run
         logger.info(
                 "Executing OpenAPI Tool request to URL: {} with method: {}",
-                fullUrl.contains("?") ? fullUrl.substring(0, fullUrl.indexOf('?')) + "?..." : fullUrl,
+                fullUrl.contains("?")
+                        ? fullUrl.substring(0, fullUrl.indexOf('?')) + "?..."
+                        : fullUrl,
                 endpoint.getMethod());
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder().uri(URI.create(fullUrl));
@@ -224,12 +246,11 @@ public class OpenAPITool implements Tool {
         return body != null ? objectMapper.writeValueAsString(body) : "";
     }
 
-    private static String render(HttpResponse<String> response, java.util.List<String> credentials) {
+    private static String render(
+            HttpResponse<String> response, java.util.List<String> credentials) {
         String safeBody = scrub(response.body(), credentials);
         logger.info(
-                "OpenAPI Tool Response - Status: {}, Body: {}",
-                response.statusCode(),
-                safeBody);
+                "OpenAPI Tool Response - Status: {}, Body: {}", response.statusCode(), safeBody);
 
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
             if (safeBody.length() > 2000) {
@@ -281,22 +302,29 @@ public class OpenAPITool implements Tool {
             return this;
         }
 
-        /** An API key kept in a {@link io.github.llm4j.secret.SecretStore}: fetched for each request and not held by the tool. */
+        /**
+         * An API key kept in a {@link io.github.llm4j.secret.SecretStore}: fetched for each request
+         * and not held by the tool.
+         */
         public Builder apiKeyAuth(String paramName, SecretRef apiKey) {
             auth.query(paramName, apiKey);
             return this;
         }
 
         /**
-         * An API key asked for on each request, for instance the token of the person the run is for. It is only sent over https (or to this
-         * machine); a 401 makes the tool call {@link CredentialSource#rejected()}, ask again and repeat the request once.
+         * An API key asked for on each request, for instance the token of the person the run is
+         * for. It is only sent over https (or to this machine); a 401 makes the tool call {@link
+         * CredentialSource#rejected()}, ask again and repeat the request once.
          */
         public Builder apiKeyAuth(String paramName, CredentialSource apiKey) {
             auth.query(paramName, apiKey);
             return this;
         }
 
-        /** A header credential (for example {@code Authorization} with its whole value) kept in a store, fetched for each request. */
+        /**
+         * A header credential (for example {@code Authorization} with its whole value) kept in a
+         * store, fetched for each request.
+         */
         public Builder headerAuth(String headerName, SecretRef value) {
             auth.header(headerName, value);
             return this;

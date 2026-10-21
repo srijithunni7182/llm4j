@@ -11,14 +11,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-/** A tool call's arguments in one canonical form, so the same call always hashes to the same key. */
+/**
+ * A tool call's arguments in one canonical form, so the same call always hashes to the same key.
+ */
 public final class CanonicalArgs {
 
-    private static final ObjectMapper JSON = new ObjectMapper().configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+    private static final ObjectMapper JSON =
+            new ObjectMapper().configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
 
     private CanonicalArgs() {}
 
-    /** The first 12 hex characters of SHA-256 over the tool name and the arguments as sorted-key JSON. */
+    /**
+     * The first 12 hex characters of SHA-256 over the tool name and the arguments as sorted-key
+     * JSON.
+     */
     public static String hash12(String tool, Map<String, Object> args) {
         return sha256Hex(tool + json(args)).substring(0, 12);
     }
@@ -26,7 +32,10 @@ public final class CanonicalArgs {
     /** SHA-256 of the text, in hex. */
     public static String sha256Hex(String text) {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8)));
+            return HexFormat.of()
+                    .formatHex(
+                            MessageDigest.getInstance("SHA-256")
+                                    .digest(text.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }

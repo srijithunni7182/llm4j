@@ -15,7 +15,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
 
-/** R3.2 and R10.2 of loom-onboarding: the guide travels inside the jar, and an agent can be given it with no repository. */
+/**
+ * R3.2 and R10.2 of loom-onboarding: the guide travels inside the jar, and an agent can be given it
+ * with no repository.
+ */
 class GuideCommandTest {
 
     @TempDir Path dir;
@@ -24,8 +27,16 @@ class GuideCommandTest {
     final ByteArrayOutputStream err = new ByteArrayOutputStream();
 
     WeaveEnv env() {
-        return new WeaveEnv(m -> null, q -> "yes", new PrintStream(out, true, java.nio.charset.StandardCharsets.UTF_8), new PrintStream(err, true), Clock.systemUTC(), d -> { },
-                c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""), List.of("weave"), k -> null);
+        return new WeaveEnv(
+                m -> null,
+                q -> "yes",
+                new PrintStream(out, true, java.nio.charset.StandardCharsets.UTF_8),
+                new PrintStream(err, true),
+                Clock.systemUTC(),
+                d -> {},
+                c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""),
+                List.of("weave"),
+                k -> null);
     }
 
     int guide(String... args) {
@@ -46,7 +57,12 @@ class GuideCommandTest {
     void withNothingItListsEveryPage() {
         assertThat(guide()).isZero();
 
-        assertThat(stdout()).contains("weave guide <page>").contains("readme").contains("The Loom reference").contains("loom").contains("llms");
+        assertThat(stdout())
+                .contains("weave guide <page>")
+                .contains("readme")
+                .contains("The Loom reference")
+                .contains("loom")
+                .contains("llms");
         for (Guide.Page p : Guide.pages()) assertThat(stdout()).contains(p.title());
     }
 
@@ -66,13 +82,24 @@ class GuideCommandTest {
 
     @Test
     void aPageCanBeAskedForByNumberNameOrFile() {
-        for (String ask : List.of("6", "06", "build-the-workflow", "06-build-the-workflow", "06-build-the-workflow.md", "BUILD-THE-WORKFLOW")) {
-            assertThat(Guide.find(ask)).as(ask).hasValueSatisfying(p -> assertThat(p.name()).isEqualTo("6"));
+        for (String ask :
+                List.of(
+                        "6",
+                        "06",
+                        "build-the-workflow",
+                        "06-build-the-workflow",
+                        "06-build-the-workflow.md",
+                        "BUILD-THE-WORKFLOW")) {
+            assertThat(Guide.find(ask))
+                    .as(ask)
+                    .hasValueSatisfying(p -> assertThat(p.name()).isEqualTo("6"));
         }
-        assertThat(Guide.find("10")).hasValueSatisfying(p -> assertThat(p.resource()).endsWith("10-best-practices.md"));
+        assertThat(Guide.find("10"))
+                .hasValueSatisfying(p -> assertThat(p.resource()).endsWith("10-best-practices.md"));
         assertThat(Guide.find("readme")).isPresent();
         assertThat(Guide.find("README.md")).isPresent();
-        assertThat(Guide.find("LOOM_GUIDE")).hasValueSatisfying(p -> assertThat(p.name()).isEqualTo("loom"));
+        assertThat(Guide.find("LOOM_GUIDE"))
+                .hasValueSatisfying(p -> assertThat(p.name()).isEqualTo("loom"));
         assertThat(Guide.find("nope")).isEmpty();
     }
 
@@ -80,20 +107,39 @@ class GuideCommandTest {
     void anUnknownPageIsRefusedWithTheNearestName() {
         assertThat(guide("loon")).isEqualTo(2);
 
-        assertThat(err.toString()).contains("there is no page named loon").contains("did you mean loom?").contains("weave guide");
+        assertThat(err.toString())
+                .contains("there is no page named loon")
+                .contains("did you mean loom?")
+                .contains("weave guide");
     }
 
     @Test
     void everyMarkdownFileOfTheGuideIsAPageAndEveryPageHasItsText() throws Exception {
         List<String> files;
         try (Stream<Path> s = Files.list(Path.of("../../../docs/guide"))) {
-            files = s.map(p -> p.getFileName().toString()).filter(f -> f.endsWith(".md")).sorted().collect(Collectors.toList());
+            files =
+                    s.map(p -> p.getFileName().toString())
+                            .filter(f -> f.endsWith(".md"))
+                            .sorted()
+                            .collect(Collectors.toList());
         }
-        List<String> pages = Guide.pages().stream().map(Guide.Page::resource).filter(r -> r.startsWith("guide/") && r.endsWith(".md") && !r.endsWith("LOOM_GUIDE.md"))
-                .map(r -> r.substring("guide/".length())).sorted().collect(Collectors.toList());
+        List<String> pages =
+                Guide.pages().stream()
+                        .map(Guide.Page::resource)
+                        .filter(
+                                r ->
+                                        r.startsWith("guide/")
+                                                && r.endsWith(".md")
+                                                && !r.endsWith("LOOM_GUIDE.md"))
+                        .map(r -> r.substring("guide/".length()))
+                        .sorted()
+                        .collect(Collectors.toList());
 
         assertThat(pages).isEqualTo(files);
-        for (Guide.Page p : Guide.pages()) assertThat(Guide.text(p)).as(p.resource()).hasValueSatisfying(t -> assertThat(t).isNotBlank());
+        for (Guide.Page p : Guide.pages())
+            assertThat(Guide.text(p))
+                    .as(p.resource())
+                    .hasValueSatisfying(t -> assertThat(t).isNotBlank());
     }
 
     // ── the skill ────────────────────────────────────────────────────────────
@@ -104,27 +150,45 @@ class GuideCommandTest {
 
         Path folder = Guide.skillFolder(dir);
         assertThat(Files.readString(folder.resolve("SKILL.md")))
-                .contains("earned autonomy", "weave ladder describe", "weave autonomy verify", "cannot see or change its own level");
+                .contains(
+                        "earned autonomy",
+                        "weave ladder describe",
+                        "weave autonomy verify",
+                        "cannot see or change its own level");
         assertThat(Files.readString(folder.resolve("references").resolve("LOOM_GUIDE.md")))
                 .contains("ladder", "weave autonomy verify", "test it on past cases");
         assertThat(Files.readString(folder.resolve("references").resolve("13-earned-autonomy.md")))
                 .contains("optional", "weave ladder describe", "no level has been earned");
-        assertThat(Files.readString(folder.resolve("SKILL.md"))).contains("docs/guide/13-earned-autonomy.md".replace("docs/guide/", "references/"));
-        assertThat(Files.readString(Path.of("LOOM_PROMPT.md"))).contains("weave autonomy verify", "trust { }", "ceiling");
+        assertThat(Files.readString(folder.resolve("SKILL.md")))
+                .contains("docs/guide/13-earned-autonomy.md".replace("docs/guide/", "references/"));
+        assertThat(Files.readString(Path.of("LOOM_PROMPT.md")))
+                .contains("weave autonomy verify", "trust { }", "ceiling");
     }
 
     @Test
-    void installSkillWritesTheSkillAndThePagesItPointsAtAndPointsThemAtReferences() throws Exception {
+    void installSkillWritesTheSkillAndThePagesItPointsAtAndPointsThemAtReferences()
+            throws Exception {
         assertThat(guide("--install-skill", dir.toString())).isZero();
 
         Path folder = Guide.skillFolder(dir);
         String skill = Files.readString(folder.resolve("SKILL.md"));
-        assertThat(skill).startsWith("---\nname: llm4j-workflow-guide").contains("`references/").doesNotContain("`docs/guide/");
-        long guidePages = Guide.pages().stream().filter(p -> p.resource().startsWith("guide/")).count();
+        assertThat(skill)
+                .startsWith("---\nname: llm4j-workflow-guide")
+                .contains("`references/")
+                .doesNotContain("`docs/guide/");
+        long guidePages =
+                Guide.pages().stream().filter(p -> p.resource().startsWith("guide/")).count();
         for (Guide.Page p : Guide.pages()) {
-            if (p.resource().startsWith("guide/")) assertThat(folder.resolve("references").resolve(p.resource().substring("guide/".length()))).as(p.name()).exists();
+            if (p.resource().startsWith("guide/"))
+                assertThat(
+                                folder.resolve("references")
+                                        .resolve(p.resource().substring("guide/".length())))
+                        .as(p.name())
+                        .exists();
         }
-        assertThat(stdout()).contains("Installed the skill in").contains((guidePages + 1) + " files");
+        assertThat(stdout())
+                .contains("Installed the skill in")
+                .contains((guidePages + 1) + " files");
     }
 
     @Test
@@ -148,12 +212,21 @@ class GuideCommandTest {
         Path references = Guide.skillFolder(dir).resolve("references");
         var link = java.util.regex.Pattern.compile("\\]\\(([^)\\s]+)\\)");
         try (Stream<Path> s = Files.list(references)) {
-            for (Path chapter : s.filter(p -> p.toString().endsWith(".md") && !p.getFileName().toString().equals("LOOM_GUIDE.md")).toList()) {
+            for (Path chapter :
+                    s.filter(
+                                    p ->
+                                            p.toString().endsWith(".md")
+                                                    && !p.getFileName()
+                                                            .toString()
+                                                            .equals("LOOM_GUIDE.md"))
+                            .toList()) {
                 var m = link.matcher(Files.readString(chapter));
                 while (m.find()) {
                     String t = m.group(1);
                     if (t.startsWith("http") || t.startsWith("#")) continue;
-                    assertThat(references.resolve(t.replaceFirst("#.*", ""))).as(chapter.getFileName() + " -> " + t).exists();
+                    assertThat(references.resolve(t.replaceFirst("#.*", "")))
+                            .as(chapter.getFileName() + " -> " + t)
+                            .exists();
                 }
             }
         }

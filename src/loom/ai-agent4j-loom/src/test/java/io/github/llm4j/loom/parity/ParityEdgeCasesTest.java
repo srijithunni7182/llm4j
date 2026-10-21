@@ -27,22 +27,25 @@ import org.junit.jupiter.api.io.TempDir;
 /** Branches of the new classes the scenario tests don't reach (coverage for N5). */
 class ParityEdgeCasesTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     @Test
     void embeddingFactory() throws Exception {
-        DefaultEmbeddingFactory withKey = new DefaultEmbeddingFactory(Map.of("GEMINI_API_KEY", "k")::get);
+        DefaultEmbeddingFactory withKey =
+                new DefaultEmbeddingFactory(Map.of("GEMINI_API_KEY", "k")::get);
         assertThat(withKey.problem("gemini/text-embedding-004")).isNull();
         assertThat(withKey.create("gemini/text-embedding-004")).isNotNull();
         assertThat(withKey.problem(null)).contains("needs embedding");
         assertThat(withKey.problem(" ")).contains("needs embedding");
         assertThat(withKey.problem("plain")).contains("unknown embedding model");
-        DefaultEmbeddingFactory blank = new DefaultEmbeddingFactory(Map.of("GEMINI_API_KEY", " ")::get);
+        DefaultEmbeddingFactory blank =
+                new DefaultEmbeddingFactory(Map.of("GEMINI_API_KEY", " ")::get);
         assertThat(blank.problem("gemini/x")).contains("GEMINI_API_KEY");
         assertThatThrownBy(() -> blank.create("gemini/x")).hasMessageContaining("GEMINI_API_KEY");
-        assertThatThrownBy(() -> withKey.create("onnx/missing.onnx|missing.json")).isInstanceOf(Exception.class);
-        assertThatThrownBy(() -> withKey.create("djl/file:///no/such/model")).isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> withKey.create("onnx/missing.onnx|missing.json"))
+                .isInstanceOf(Exception.class);
+        assertThatThrownBy(() -> withKey.create("djl/file:///no/such/model"))
+                .isInstanceOf(Exception.class);
     }
 
     @Test
@@ -50,47 +53,99 @@ class ParityEdgeCasesTest {
         Class<?> gate = Class.forName("io.github.llm4j.loom.execution.ApprovalGate");
         Method yes = gate.getDeclaredMethod("yes", String.class);
         yes.setAccessible(true);
-        for (String a : List.of("yes", "Y", " OK ", "approve", "TRUE")) assertThat((boolean) yes.invoke(null, a)).as(a).isTrue();
-        for (String a : new String[] {"no", "", "yes please", null}) assertThat((boolean) yes.invoke(null, a)).isFalse();
+        for (String a : List.of("yes", "Y", " OK ", "approve", "TRUE"))
+            assertThat((boolean) yes.invoke(null, a)).as(a).isTrue();
+        for (String a : new String[] {"no", "", "yes please", null})
+            assertThat((boolean) yes.invoke(null, a)).isFalse();
         Method key = gate.getDeclaredMethod("key", String.class, String.class, Map.class);
         key.setAccessible(true);
-        assertThat(key.invoke(null, "S", "T", null)).isEqualTo(key.invoke(null, "S", "T", Map.of()));
+        assertThat(key.invoke(null, "S", "T", null))
+                .isEqualTo(key.invoke(null, "S", "T", Map.of()));
         assertThat(key.invoke(null, "S", "T", Map.of("l", List.of(Map.of("b", 1, "a", 2)))))
-                .isEqualTo(key.invoke(null, "S", "T", Map.of("l", List.of(new java.util.TreeMap<>(Map.of("a", 2, "b", 1))))));
+                .isEqualTo(
+                        key.invoke(
+                                null,
+                                "S",
+                                "T",
+                                Map.of(
+                                        "l",
+                                        List.of(new java.util.TreeMap<>(Map.of("a", 2, "b", 1))))));
     }
 
     @Test
     void approvalWithoutAThought() {
         List<String> questions = new java.util.ArrayList<>();
         ToolRegistry registry = new ToolRegistry();
-        registry.register("Pub", new Tool() {
-            @Override public String getName() { return "Pub"; }
-            @Override public String getDescription() { return "d"; }
-            @Override public String execute(Map<String, Object> args) { return "ok"; }
-        });
-        io.github.llm4j.LLMClient model = new io.github.llm4j.LLMClient() {
-            int n;
-            @Override public io.github.llm4j.model.LLMResponse chat(io.github.llm4j.model.LLMRequest r) {
-                String c = n++ == 0 ? "```json\n{\"action\": \"Pub\", \"action_input\": {}}\n```" : ToolsTest.done("x");
-                return io.github.llm4j.model.LLMResponse.builder().content(c).model("m").build();
-            }
-            @Override public java.util.stream.Stream<io.github.llm4j.model.LLMResponse> chatStream(io.github.llm4j.model.LLMRequest r) {
-                return java.util.stream.Stream.of(chat(r));
-            }
-        };
-        HarnessExecutor e = new HarnessExecutor(new LoomParser(new Lexer("""
+        registry.register(
+                "Pub",
+                new Tool() {
+                    @Override
+                    public String getName() {
+                        return "Pub";
+                    }
+
+                    @Override
+                    public String getDescription() {
+                        return "d";
+                    }
+
+                    @Override
+                    public String execute(Map<String, Object> args) {
+                        return "ok";
+                    }
+                });
+        io.github.llm4j.LLMClient model =
+                new io.github.llm4j.LLMClient() {
+                    int n;
+
+                    @Override
+                    public io.github.llm4j.model.LLMResponse chat(
+                            io.github.llm4j.model.LLMRequest r) {
+                        String c =
+                                n++ == 0
+                                        ? "```json\n{\"action\": \"Pub\", \"action_input\": {}}\n```"
+                                        : ToolsTest.done("x");
+                        return io.github.llm4j.model.LLMResponse.builder()
+                                .content(c)
+                                .model("m")
+                                .build();
+                    }
+
+                    @Override
+                    public java.util.stream.Stream<io.github.llm4j.model.LLMResponse> chatStream(
+                            io.github.llm4j.model.LLMRequest r) {
+                        return java.util.stream.Stream.of(chat(r));
+                    }
+                };
+        HarnessExecutor e =
+                new HarnessExecutor(
+                        new LoomParser(
+                                        new Lexer(
+                                                        """
                 agent A { model: "m" tools: [Pub] approve: [Pub] }
                 workflow Main() { delegate "go" to A -> r }
-                """).tokenize()).parseScript(), registry, x -> model);
-        e.setHumanInterface(m -> { questions.add(m); return "y"; });
+                """)
+                                                .tokenize())
+                                .parseScript(),
+                        registry,
+                        x -> model);
+        e.setHumanInterface(
+                m -> {
+                    questions.add(m);
+                    return "y";
+                });
         e.initialize();
         e.executeWorkflow("Main", Map.of());
-        assertThat(questions).singleElement().satisfies(q -> assertThat(q).doesNotContain("Reason:"));
+        assertThat(questions)
+                .singleElement()
+                .satisfies(q -> assertThat(q).doesNotContain("Reason:"));
     }
 
     @Test
     void knowledgeEdgeCases() throws Exception {
-        Files.writeString(dir.resolve("a.htm"), "<div>Alpha &amp; beta&nbsp;gamma &lt;tag&gt;</div><style>x{}</style>");
+        Files.writeString(
+                dir.resolve("a.htm"),
+                "<div>Alpha &amp; beta&nbsp;gamma &lt;tag&gt;</div><style>x{}</style>");
         Files.writeString(dir.resolve("empty.md"), "   ");
         Files.writeString(dir.resolve("noext"), "ignored");
         KnowledgeDef def = new KnowledgeDef("K");
@@ -102,7 +157,9 @@ class ParityEdgeCasesTest {
         assertThat(index.stats().skipped()).isEqualTo(1);
         assertThat(index.stats().chunks()).isEqualTo(1); // the blank file has none
         Tool search = Retriever.searchTool(index);
-        assertThat(search.execute(Map.of("query", "alpha beta"))).contains("Alpha & beta gamma <tag>").doesNotContain("x{}");
+        assertThat(search.execute(Map.of("query", "alpha beta")))
+                .contains("Alpha & beta gamma <tag>")
+                .doesNotContain("x{}");
         assertThat(search.execute(Map.of())).startsWith("Error");
         assertThat(search.execute(Map.of("query", " "))).startsWith("Error");
         assertThat(search.getDescription()).contains("Searches the K knowledge base");
@@ -110,9 +167,11 @@ class ParityEdgeCasesTest {
         KnowledgeDef single = new KnowledgeDef("S");
         single.setPath(dir.resolve("noext").toString());
         single.setEmbeddingProvider("test/hash");
-        KnowledgeIndex nothing = KnowledgeIndexer.index(single, new HashingEmbeddingProvider(), dir);
+        KnowledgeIndex nothing =
+                KnowledgeIndexer.index(single, new HashingEmbeddingProvider(), dir);
         assertThat(nothing.stats().skipped()).isEqualTo(1);
-        assertThat(Retriever.searchTool(nothing).execute(Map.of("query", "x"))).isEqualTo("No relevant passages found.");
+        assertThat(Retriever.searchTool(nothing).execute(Map.of("query", "x")))
+                .isEqualTo("No relevant passages found.");
         assertThat(new Retriever(List.of()).topK()).isEqualTo(4);
         assertThat(Retriever.format(List.of())).isEmpty();
         assertThat(nothing.stats().toString()).contains("index up to date");
@@ -120,7 +179,8 @@ class ParityEdgeCasesTest {
 
     @Test
     void guardrailsAreFoundWhereverTheyAre() {
-        String nested = """
+        String nested =
+                """
                 agent A { model: "m" }
                 workflow Main() {
                     delegate "x" to A -> x on_failure { guardrail (G1) { note "a" } }
@@ -131,11 +191,21 @@ class ParityEdgeCasesTest {
                     guardrail (PII) { guardrail (G9) { note "i" } } on_violation { guardrail (G10) { note "j" } }
                 }
                 """;
-        HarnessExecutor e = new HarnessExecutor(new LoomParser(new Lexer(nested).tokenize()).parseScript(), new ToolRegistry(), m -> null);
-        List<ScriptValidator.Problem> problems = new ScriptValidator().validate(
-                new LoomParser(new Lexer(nested).tokenize()).parseScript(), e.validationContext());
+        HarnessExecutor e =
+                new HarnessExecutor(
+                        new LoomParser(new Lexer(nested).tokenize()).parseScript(),
+                        new ToolRegistry(),
+                        m -> null);
+        List<ScriptValidator.Problem> problems =
+                new ScriptValidator()
+                        .validate(
+                                new LoomParser(new Lexer(nested).tokenize()).parseScript(),
+                                e.validationContext());
         assertThat(problems).hasSize(10);
-        assertThat(new ScriptValidator.Problem(0, "x", "y", ScriptValidator.Severity.ERROR).toString()).isEqualTo("x: y");
+        assertThat(
+                        new ScriptValidator.Problem(0, "x", "y", ScriptValidator.Severity.ERROR)
+                                .toString())
+                .isEqualTo("x: y");
     }
 
     @Test
@@ -149,11 +219,16 @@ class ParityEdgeCasesTest {
         google.getOptions().put("cx", ToolDef.OptionValue.literal("abc"));
         assertThat(f.problems(google, Map.of("K", "v")::get)).isEmpty();
         assertThat(f.create(google, Map.of("K", "v")::get, dir).getName()).isEqualTo("G");
-        assertThat(f.problems(google, Map.<String, String>of()::get)).singleElement().asString().contains("K is not set");
+        assertThat(f.problems(google, Map.<String, String>of()::get))
+                .singleElement()
+                .asString()
+                .contains("K is not set");
         assertThat(ToolDef.OptionValue.env("K").toString()).isEqualTo("env.K");
         assertThat(ToolDef.OptionValue.literal("v").toString()).isEqualTo("v");
 
-        Files.writeString(dir.resolve("api.json"), """
+        Files.writeString(
+                dir.resolve("api.json"),
+                """
                 {"openapi": "3.0.0", "info": {"title": "T", "version": "1", "description": "Test API"},
                  "servers": [{"url": "http://localhost:1"}],
                  "paths": {"/a": {"post": {"description": "Make an a",
@@ -162,12 +237,15 @@ class ParityEdgeCasesTest {
                 """);
         ToolDef api = new ToolDef("Api");
         api.setKind("openapi");
-        api.getOptions().put("spec", ToolDef.OptionValue.literal(dir.resolve("api.json").toString()));
+        api.getOptions()
+                .put("spec", ToolDef.OptionValue.literal(dir.resolve("api.json").toString()));
         api.getOptions().put("auth_query", ToolDef.OptionValue.literal("key"));
         api.getOptions().put("auth_value", ToolDef.OptionValue.env("K"));
         assertThat(f.problems(api, Map.of("K", "v")::get)).isEmpty();
         Tool tool = f.create(api, Map.of("K", "v")::get, Path.of("/elsewhere"));
-        assertThat(tool.getDescription()).contains("Calls the T API (Test API)").contains("POST /a: Make an a");
+        assertThat(tool.getDescription())
+                .contains("Calls the T API (Test API)")
+                .contains("POST /a: Make an a");
         assertThat(tool.requiresApproval(Map.of())).isFalse();
         assertThat(((io.github.llm4j.loom.tools.NamedTool) tool).delegate()).isNotNull();
     }

@@ -31,6 +31,7 @@ public class Token {
 
     @Override
     public String toString() {
-        return String.format("Token{type=%s, value='%s', line=%d, col=%d}", type, value, line, column);
+        return String.format(
+                "Token{type=%s, value='%s', line=%d, col=%d}", type, value, line, column);
     }
 }

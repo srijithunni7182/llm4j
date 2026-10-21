@@ -30,9 +30,16 @@ class TaskContextTest {
 
     @Test
     void variablePaths() {
-        Map<String, Object> vars = Map.of(
-                "request", Map.of("order_id", "A-1", "lines", List.of(Map.of("sku", "S1"), Map.of("sku", "S2"))),
-                "name", "Ada");
+        Map<String, Object> vars =
+                Map.of(
+                        "request",
+                        Map.of(
+                                "order_id",
+                                "A-1",
+                                "lines",
+                                List.of(Map.of("sku", "S1"), Map.of("sku", "S2"))),
+                        "name",
+                        "Ada");
         TaskContext c = ctx(Map.of(), vars);
         assertEquals("A-1", c.variable("request.order_id"));
         assertEquals("S2", c.variable("request.lines.1.sku"));
@@ -47,7 +54,22 @@ class TaskContextTest {
 
     @Test
     void typedAccessors() {
-        TaskContext c = ctx(Map.of("i", 7, "d", 2.5, "s", "12.50", "n", "abc", "t", "TRUE", "big", 1_000_000_000_000L), Map.of());
+        TaskContext c =
+                ctx(
+                        Map.of(
+                                "i",
+                                7,
+                                "d",
+                                2.5,
+                                "s",
+                                "12.50",
+                                "n",
+                                "abc",
+                                "t",
+                                "TRUE",
+                                "big",
+                                1_000_000_000_000L),
+                        Map.of());
         assertEquals(7, c.arg("i", Integer.class));
         assertEquals(7L, c.arg("i", Long.class));
         assertEquals(7.0, c.arg("i", Double.class));
@@ -57,7 +79,8 @@ class TaskContextTest {
         assertTrue(c.arg("t", Boolean.class));
         assertNull(c.arg("absent", Integer.class));
         assertThrows(TaskNotPerformed.class, () -> c.arg("n", Integer.class));
-        assertThrows(TaskNotPerformed.class, () -> c.arg("d", Integer.class), "2.5 is not an exact int");
+        assertThrows(
+                TaskNotPerformed.class, () -> c.arg("d", Integer.class), "2.5 is not an exact int");
         assertThrows(TaskNotPerformed.class, () -> c.arg("big", Integer.class), "out of int range");
         assertThrows(TaskNotPerformed.class, () -> c.arg("s", Boolean.class));
         assertThrows(TaskNotPerformed.class, () -> c.arg("i", java.util.List.class));
@@ -89,9 +112,15 @@ class TaskContextTest {
 
         assertThrows(UnsupportedOperationException.class, () -> c.args().put("x", 1));
         assertThrows(UnsupportedOperationException.class, () -> c.variables().put("x", 1));
-        assertThrows(UnsupportedOperationException.class, () -> ((Map<String, Object>) c.variable("m")).put("x", 1));
-        assertThrows(UnsupportedOperationException.class, () -> ((List<Object>) c.variable("l")).add("b"));
-        assertThrows(UnsupportedOperationException.class, () -> ((Map<String, Object>) c.arg("m")).clear());
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> ((Map<String, Object>) c.variable("m")).put("x", 1));
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> ((List<Object>) c.variable("l")).add("b"));
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> ((Map<String, Object>) c.arg("m")).clear());
 
         // and the source is not aliased: changing it afterwards does not change what the task sees
         inner.put("late", "change");

@@ -6,8 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.llm4j.LLMClient;
 import io.github.llm4j.classify.ClassifyRequest;
-import io.github.llm4j.classify.Question;
 import io.github.llm4j.classify.ClassifyUsage;
+import io.github.llm4j.classify.Question;
 import io.github.llm4j.eval.export.JudgeTelemetry;
 import io.github.llm4j.eval.testing.FakeJudge;
 import io.github.llm4j.eval.testing.ScriptedClassifier;
@@ -25,21 +25,41 @@ class LlmJudgeClassifierTest {
     }
 
     private static LlmJudgeCondition.Builder judged(ScriptedClassifier c) {
-        return llmJudged("Correctness").criteria("The answer states the refund window as 30 days").classifier(c);
+        return llmJudged("Correctness")
+                .criteria("The answer states the refund window as 30 days")
+                .classifier(c);
     }
 
     // ---- passing and failing at the threshold
 
     @Test
     void passesAtOrAboveTheThresholdAndFailsBelow() {
-        assertThat(judged(ScriptedClassifier.builder().yesNo("criterion", 0.8).build()).threshold(0.7).build().matches("30 days")).isTrue();
-        assertThat(judged(ScriptedClassifier.builder().yesNo("criterion", 0.7).build()).threshold(0.7).build().matches("30 days")).isTrue();
-        assertThat(judged(ScriptedClassifier.builder().yesNo("criterion", 0.6).build()).threshold(0.7).build().matches("30 days")).isFalse();
+        assertThat(
+                        judged(ScriptedClassifier.builder().yesNo("criterion", 0.8).build())
+                                .threshold(0.7)
+                                .build()
+                                .matches("30 days"))
+                .isTrue();
+        assertThat(
+                        judged(ScriptedClassifier.builder().yesNo("criterion", 0.7).build())
+                                .threshold(0.7)
+                                .build()
+                                .matches("30 days"))
+                .isTrue();
+        assertThat(
+                        judged(ScriptedClassifier.builder().yesNo("criterion", 0.6).build())
+                                .threshold(0.7)
+                                .build()
+                                .matches("30 days"))
+                .isFalse();
     }
 
     @Test
     void theScoreIsTheProbabilityOfYes() {
-        JudgeVerdict v = judged(ScriptedClassifier.builder().yesNo("criterion", 0.43).build()).build().evaluate("the answer");
+        JudgeVerdict v =
+                judged(ScriptedClassifier.builder().yesNo("criterion", 0.43).build())
+                        .build()
+                        .evaluate("the answer");
 
         assertThat(v.score()).isEqualTo(0.43);
         assertThat(v.reason()).isEmpty();
@@ -63,15 +83,28 @@ class LlmJudgeClassifierTest {
     void theStateCarriesTheOutputAndOnlyThePartsThatWereGiven() {
         ScriptedClassifier c = ScriptedClassifier.builder().yesNo("criterion", 0.9).build();
 
-        judged(c).input("What is the refund window?").expectedOutput("30 days").context(List.of("policy v2")).retrievalContext(List.of("chunk a", "chunk b"))
-                .build().evaluate("It is 30 days.");
+        judged(c)
+                .input("What is the refund window?")
+                .expectedOutput("30 days")
+                .context(List.of("policy v2"))
+                .retrievalContext(List.of("chunk a", "chunk b"))
+                .build()
+                .evaluate("It is 30 days.");
 
         ClassifyRequest sent = c.requests().get(0);
-        assertThat(sent.state().keySet()).containsExactly("input", "expected_output", "context", "retrieved_context", "actual_output");
+        assertThat(sent.state().keySet())
+                .containsExactly(
+                        "input",
+                        "expected_output",
+                        "context",
+                        "retrieved_context",
+                        "actual_output");
         assertThat(sent.state().get("actual_output")).isEqualTo("It is 30 days.");
         assertThat(sent.state().get("retrieved_context")).isEqualTo("- chunk a\n- chunk b");
         assertThat(sent.questions()).hasSize(1);
-        assertThat(sent.questions().get(0).instructions()).contains("Correctness").contains("30 days");
+        assertThat(sent.questions().get(0).instructions())
+                .contains("Correctness")
+                .contains("30 days");
     }
 
     @Test
@@ -87,7 +120,14 @@ class LlmJudgeClassifierTest {
 
     @Test
     void samplesAreAveraged() {
-        ScriptedClassifier c = ScriptedClassifier.builder().yesNo("criterion", 0.9).next().yesNo("criterion", 0.6).next().yesNo("criterion", 0.3).build();
+        ScriptedClassifier c =
+                ScriptedClassifier.builder()
+                        .yesNo("criterion", 0.9)
+                        .next()
+                        .yesNo("criterion", 0.6)
+                        .next()
+                        .yesNo("criterion", 0.3)
+                        .build();
 
         JudgeVerdict v = judged(c).samples(3).build().evaluate("x");
 
@@ -117,9 +157,17 @@ class LlmJudgeClassifierTest {
         ScriptedClassifier c = ScriptedClassifier.builder().yesNo("criterion", 0.1).build();
         LLMClient chat = FakeJudge.rating(5);
 
-        double viaChat = llmJudged("Correctness").criteria("The answer states the refund window as 30 days").judge(chat).cache(shared).judgeIdentifier("j")
-                .build().evaluate("x").score();
-        double viaClassifier = judged(c).cache(shared).judgeIdentifier("j").build().evaluate("x").score();
+        double viaChat =
+                llmJudged("Correctness")
+                        .criteria("The answer states the refund window as 30 days")
+                        .judge(chat)
+                        .cache(shared)
+                        .judgeIdentifier("j")
+                        .build()
+                        .evaluate("x")
+                        .score();
+        double viaClassifier =
+                judged(c).cache(shared).judgeIdentifier("j").build().evaluate("x").score();
 
         assertThat(viaChat).isEqualTo(1.0);
         assertThat(viaClassifier).isEqualTo(0.1);
@@ -127,7 +175,11 @@ class LlmJudgeClassifierTest {
 
     @Test
     void telemetryCountsTheCallWithItsTokens() {
-        ScriptedClassifier c = ScriptedClassifier.builder().usage(new ClassifyUsage(120, 7, 180, "jev", "jev-1")).yesNo("criterion", 0.9).build();
+        ScriptedClassifier c =
+                ScriptedClassifier.builder()
+                        .usage(new ClassifyUsage(120, 7, 180, "jev", "jev-1"))
+                        .yesNo("criterion", 0.9)
+                        .build();
 
         judged(c).build().evaluate("x");
         JudgeTelemetry.Usage u = JudgeTelemetry.drain();
@@ -156,15 +208,24 @@ class LlmJudgeClassifierTest {
 
         cond.matches("x");
 
-        assertThat(cond.description().value()).isEqualTo("llm-judged \"Correctness\" (score=0.20, threshold=0.70)");
+        assertThat(cond.description().value())
+                .isEqualTo("llm-judged \"Correctness\" (score=0.20, threshold=0.70)");
     }
 
     @Test
     void aRationaleBecomesTheReasonWhenTheBackendGaveOne() {
-        LLMClient chat = new io.github.llm4j.eval.testing.ScriptedClient().otherwise(
-                "{\"answers\": {\"criterion\": {\"answer\": \"no\", \"confidence\": 0.9, \"reason\": \"it says 14 days\"}}}");
-        io.github.llm4j.classify.Classifier c = io.github.llm4j.classify.LlmClassifier.builder(chat).withRationale(true).build();
-        LlmJudgeCondition cond = llmJudged("Correctness").criteria("states 30 days").classifier(c).threshold(0.7).build();
+        LLMClient chat =
+                new io.github.llm4j.eval.testing.ScriptedClient()
+                        .otherwise(
+                                "{\"answers\": {\"criterion\": {\"answer\": \"no\", \"confidence\": 0.9, \"reason\": \"it says 14 days\"}}}");
+        io.github.llm4j.classify.Classifier c =
+                io.github.llm4j.classify.LlmClassifier.builder(chat).withRationale(true).build();
+        LlmJudgeCondition cond =
+                llmJudged("Correctness")
+                        .criteria("states 30 days")
+                        .classifier(c)
+                        .threshold(0.7)
+                        .build();
 
         cond.matches("14 days");
 
@@ -173,9 +234,12 @@ class LlmJudgeClassifierTest {
 
     @Test
     void aFailingClassifierIsAJudgeErrorWithTheCauseNotAFailureToMatch() {
-        ScriptedClassifier c = ScriptedClassifier.builder().failWith(new RateLimitException("slow down")).build();
+        ScriptedClassifier c =
+                ScriptedClassifier.builder().failWith(new RateLimitException("slow down")).build();
 
-        assertThatThrownBy(() -> judged(c).build().matches("x")).isInstanceOf(JudgeEvaluationException.class).hasMessageContaining("Correctness")
+        assertThatThrownBy(() -> judged(c).build().matches("x"))
+                .isInstanceOf(JudgeEvaluationException.class)
+                .hasMessageContaining("Correctness")
                 .hasCauseInstanceOf(RateLimitException.class);
     }
 
@@ -183,31 +247,57 @@ class LlmJudgeClassifierTest {
     void anOverLongOutputIsRefusedNamingTheLimitNotCut() {
         ScriptedClassifier c = ScriptedClassifier.builder().yesNo("criterion", 0.9).build();
 
-        assertThatThrownBy(() -> judged(c).build().matches("x".repeat(ClassifyRequest.MAX_STATE_CHARS + 1))).isInstanceOf(JudgeEvaluationException.class)
-                .hasRootCauseMessage("the state is " + (ClassifyRequest.MAX_STATE_CHARS + 1) + " characters, over the limit of " + ClassifyRequest.MAX_STATE_CHARS
-                        + "; shorten it");
+        assertThatThrownBy(
+                        () ->
+                                judged(c)
+                                        .build()
+                                        .matches("x".repeat(ClassifyRequest.MAX_STATE_CHARS + 1)))
+                .isInstanceOf(JudgeEvaluationException.class)
+                .hasRootCauseMessage(
+                        "the state is "
+                                + (ClassifyRequest.MAX_STATE_CHARS + 1)
+                                + " characters, over the limit of "
+                                + ClassifyRequest.MAX_STATE_CHARS
+                                + "; shorten it");
     }
 
     // ---- configuration
 
     @Test
     void aJudgeAndAClassifierTogetherIsAMistake() {
-        assertThatThrownBy(() -> judged(ScriptedClassifier.builder().yesNo("criterion", 0.9).build()).judge(FakeJudge.rating(3)).build())
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("either");
+        assertThatThrownBy(
+                        () ->
+                                judged(ScriptedClassifier.builder().yesNo("criterion", 0.9).build())
+                                        .judge(FakeJudge.rating(3))
+                                        .build())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("either");
     }
 
     @Test
     void neitherIsStillTheOldError() {
-        assertThatThrownBy(() -> llmJudged("X").criteria("c").build()).isInstanceOf(NullPointerException.class).hasMessageContaining("judge cannot be null");
+        assertThatThrownBy(() -> llmJudged("X").criteria("c").build())
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("judge cannot be null");
     }
 
     @Test
     void theChatJudgesFailureMessageIsExactlyWhatItWas() {
-        LLMClient chat = new io.github.llm4j.eval.testing.ScriptedClient().otherwise("```json\n{\"reasoning\": \"it says 14 days\", \"rating\": 2}\n```");
-        LlmJudgeCondition cond = llmJudged("Correctness").criteria("states 30 days").judge(chat).threshold(0.7).build();
+        LLMClient chat =
+                new io.github.llm4j.eval.testing.ScriptedClient()
+                        .otherwise(
+                                "```json\n{\"reasoning\": \"it says 14 days\", \"rating\": 2}\n```");
+        LlmJudgeCondition cond =
+                llmJudged("Correctness")
+                        .criteria("states 30 days")
+                        .judge(chat)
+                        .threshold(0.7)
+                        .build();
 
         cond.matches("14 days");
 
-        assertThat(cond.description().value()).isEqualTo("llm-judged \"Correctness\" (score=0.25, threshold=0.70): [2/5] it says 14 days");
+        assertThat(cond.description().value())
+                .isEqualTo(
+                        "llm-judged \"Correctness\" (score=0.25, threshold=0.70): [2/5] it says 14 days");
     }
 }

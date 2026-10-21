@@ -18,10 +18,14 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
-/** A classify call is charged to the budgets like a model call (R9): reserved first, refused when it will not fit, settled with the reported usage. */
+/**
+ * A classify call is charged to the budgets like a model call (R9): reserved first, refused when it
+ * will not fit, settled with the reported usage.
+ */
 class BudgetedClassifierTest {
 
-    private static final ClassifyRequest ASK = ClassifyRequest.builder().state("a short message").yesNo("q", "Is it urgent?").build();
+    private static final ClassifyRequest ASK =
+            ClassifyRequest.builder().state("a short message").yesNo("q", "Is it urgent?").build();
 
     /** Answers yes, reports the given usage, and counts how often it was called. */
     private static final class Counting implements Classifier {
@@ -64,8 +68,9 @@ class BudgetedClassifierTest {
         }
 
         assertThat(made).isGreaterThan(1);
-        assertThat(jev.calls.get()).isEqualTo(made);                 // the refused call was not made
-        assertThat(b.spent().tokens()).isEqualTo(made * 110L);       // what was reported, not what was reserved
+        assertThat(jev.calls.get()).isEqualTo(made); // the refused call was not made
+        assertThat(b.spent().tokens())
+                .isEqualTo(made * 110L); // what was reported, not what was reserved
     }
 
     @Test
@@ -83,13 +88,14 @@ class BudgetedClassifierTest {
         Budget b = Budget.builder().tokens(100_000).build();
         List<Charge> seen = new ArrayList<>();
 
-        BudgetedClassifier c = budgeted(new Counting(new ClassifyUsage(0, 0, 5, "x", "m")), b).build();
+        BudgetedClassifier c =
+                budgeted(new Counting(new ClassifyUsage(0, 0, 5, "x", "m")), b).build();
         c.addChargeListener((m, charge) -> seen.add(charge));
         c.classify(ASK);
 
         assertThat(seen).hasSize(1);
         assertThat(seen.get(0).estimated()).isTrue();
-        assertThat(seen.get(0).promptTokens()).isEqualTo(100);       // the fixed estimator's prompt
+        assertThat(seen.get(0).promptTokens()).isEqualTo(100); // the fixed estimator's prompt
     }
 
     @Test
@@ -107,21 +113,33 @@ class BudgetedClassifierTest {
     @Test
     void aFailedCallIsStillChargedItsPromptExceptARateLimit() {
         Budget b = Budget.builder().tokens(100_000).build();
-        Classifier boom = request -> { throw new LLMException("down"); };
-        Classifier limited = request -> { throw new RateLimitException("slow down"); };
+        Classifier boom =
+                request -> {
+                    throw new LLMException("down");
+                };
+        Classifier limited =
+                request -> {
+                    throw new RateLimitException("slow down");
+                };
 
-        assertThatThrownBy(() -> budgeted(boom, b).build().classify(ASK)).isInstanceOf(LLMException.class);
+        assertThatThrownBy(() -> budgeted(boom, b).build().classify(ASK))
+                .isInstanceOf(LLMException.class);
         long afterFailure = b.spent().tokens();
-        assertThatThrownBy(() -> budgeted(limited, b).build().classify(ASK)).isInstanceOf(RateLimitException.class);
+        assertThatThrownBy(() -> budgeted(limited, b).build().classify(ASK))
+                .isInstanceOf(RateLimitException.class);
 
-        assertThat(afterFailure).isEqualTo(100);                      // a provider may bill a failed request
-        assertThat(b.spent().tokens()).isEqualTo(100);                // a 429 is not billed
+        assertThat(afterFailure).isEqualTo(100); // a provider may bill a failed request
+        assertThat(b.spent().tokens()).isEqualTo(100); // a 429 is not billed
         assertThat(b.spent().calls()).isEqualTo(2);
     }
 
     @Test
     void jevsInputOnlyPriceIsAppliedFromThePriceTable() {
-        PriceTable prices = PriceTable.of(Map.of("jev-latest", new PriceTable.Price(new BigDecimal("0.042"), BigDecimal.ZERO)));
+        PriceTable prices =
+                PriceTable.of(
+                        Map.of(
+                                "jev-latest",
+                                new PriceTable.Price(new BigDecimal("0.042"), BigDecimal.ZERO)));
         Budget b = Budget.builder().cost(new BigDecimal("1.00")).build();
         List<Charge> seen = new ArrayList<>();
 
@@ -129,24 +147,43 @@ class BudgetedClassifierTest {
         c.addChargeListener((m, charge) -> seen.add(charge));
         c.classify(ASK);
 
-        assertThat(seen.get(0).cost()).isEqualByComparingTo(new BigDecimal("0.0000042"));   // 100 input tokens at $0.042 per million; output is free
+        assertThat(seen.get(0).cost())
+                .isEqualByComparingTo(
+                        new BigDecimal(
+                                "0.0000042")); // 100 input tokens at $0.042 per million; output is
+        // free
     }
 
     @Test
     void aCostBudgetNeedsAPriceForTheModelAndSaysWhich() {
         Budget b = Budget.builder().cost(new BigDecimal("1.00")).build();
 
-        assertThatThrownBy(() -> budgeted(jev(), b).build().classify(ASK)).isInstanceOf(IllegalStateException.class).hasMessageContaining("price table");
-        assertThatThrownBy(() -> budgeted(jev(), b).prices(PriceTable.of(Map.of())).model("jev-latest").build().classify(ASK))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("jev-latest");
+        assertThatThrownBy(() -> budgeted(jev(), b).build().classify(ASK))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("price table");
+        assertThatThrownBy(
+                        () ->
+                                budgeted(jev(), b)
+                                        .prices(PriceTable.of(Map.of()))
+                                        .model("jev-latest")
+                                        .build()
+                                        .classify(ASK))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("jev-latest");
     }
 
     @Test
     void theListenerSeesTheModelAndAFailingListenerChangesNothing() {
         List<String> models = new ArrayList<>();
-        BudgetedClassifier c = budgeted(jev(), Budget.builder().tokens(100_000).build()).model("jev-latest").build();
+        BudgetedClassifier c =
+                budgeted(jev(), Budget.builder().tokens(100_000).build())
+                        .model("jev-latest")
+                        .build();
         c.addChargeListener((m, charge) -> models.add(m));
-        c.addChargeListener((m, charge) -> { throw new IllegalStateException("boom"); });
+        c.addChargeListener(
+                (m, charge) -> {
+                    throw new IllegalStateException("boom");
+                });
 
         ClassifyResult r = c.classify(ASK);
 

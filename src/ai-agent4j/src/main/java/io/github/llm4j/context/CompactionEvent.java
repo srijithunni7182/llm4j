@@ -3,7 +3,8 @@ package io.github.llm4j.context;
 /**
  * One attempt to compact, as reported to listeners.
  *
- * @param result what the strategy did (for a failure or a stop, an {@code unchanged} result whose note says why)
+ * @param result what the strategy did (for a failure or a stop, an {@code unchanged} result whose
+ *     note says why)
  * @param reason why it was tried
  * @param iteration the agent iteration (0-based) the attempt was made before
  * @param before the context use that triggered it

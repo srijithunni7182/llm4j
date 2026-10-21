@@ -24,19 +24,21 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Turns a knowledge base's source files into a searchable index: reads text files, chunks them, embeds the
- * chunks and stores them. With a file store, a manifest of file hashes makes later loads incremental: only
- * changed files are re-embedded, removed files are dropped, and a change of embedding model or chunking
- * rebuilds everything.
+ * Turns a knowledge base's source files into a searchable index: reads text files, chunks them,
+ * embeds the chunks and stores them. With a file store, a manifest of file hashes makes later loads
+ * incremental: only changed files are re-embedded, removed files are dropped, and a change of
+ * embedding model or chunking rebuilds everything.
  */
 public final class KnowledgeIndexer {
 
     /** File types read in P1 (UTF-8 text). */
-    public static final Set<String> TEXT = Set.of("md", "markdown", "txt", "html", "htm", "json", "csv");
+    public static final Set<String> TEXT =
+            Set.of("md", "markdown", "txt", "html", "htm", "json", "csv");
+
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final int BATCH = 64;
 
-    private KnowledgeIndexer() { }
+    private KnowledgeIndexer() {}
 
     public static Path source(KnowledgeDef def, Path baseDir) {
         Path p = Path.of(def.getSource());
@@ -70,16 +72,23 @@ public final class KnowledgeIndexer {
         String raw = Files.readString(p, StandardCharsets.UTF_8);
         String n = p.getFileName().toString().toLowerCase(Locale.ROOT);
         if (n.endsWith(".html") || n.endsWith(".htm")) {
-            raw = raw.replaceAll("(?is)<(script|style)[^>]*>.*?</\\1>", " ")
-                    .replaceAll("(?s)<[^>]+>", " ")
-                    .replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
-                    .replaceAll("[ \\t\\x0B\\f\\r]+", " ").replaceAll("\\n\\s*\\n+", "\n").strip();
+            raw =
+                    raw.replaceAll("(?is)<(script|style)[^>]*>.*?</\\1>", " ")
+                            .replaceAll("(?s)<[^>]+>", " ")
+                            .replace("&nbsp;", " ")
+                            .replace("&amp;", "&")
+                            .replace("&lt;", "<")
+                            .replace("&gt;", ">")
+                            .replaceAll("[ \\t\\x0B\\f\\r]+", " ")
+                            .replaceAll("\\n\\s*\\n+", "\n")
+                            .strip();
         }
         return raw;
     }
 
     @SuppressWarnings("unchecked")
-    public static KnowledgeIndex index(KnowledgeDef def, EmbeddingProvider embeddings, Path baseDir) throws IOException {
+    public static KnowledgeIndex index(KnowledgeDef def, EmbeddingProvider embeddings, Path baseDir)
+            throws IOException {
         Path source = source(def, baseDir);
         int[] skipped = {0};
         List<Path> files = files(source, skipped);
@@ -91,22 +100,30 @@ public final class KnowledgeIndexer {
         if (def.getStore() == null) {
             store = new InMemoryVectorStore();
         } else {
-            Path storeFile = Path.of(def.getStore()).isAbsolute() ? Path.of(def.getStore()) : baseDir.resolve(def.getStore());
+            Path storeFile =
+                    Path.of(def.getStore()).isAbsolute()
+                            ? Path.of(def.getStore())
+                            : baseDir.resolve(def.getStore());
             Files.createDirectories(storeFile.toAbsolutePath().getParent());
             store = new FileVectorStore(storeFile.toFile());
             manifestFile = storeFile.resolveSibling(storeFile.getFileName() + ".manifest.json");
-            if (Files.exists(manifestFile)) manifest = JSON.readValue(manifestFile.toFile(), Map.class);
+            if (Files.exists(manifestFile))
+                manifest = JSON.readValue(manifestFile.toFile(), Map.class);
         }
 
-        boolean sameSettings = def.getEmbeddingProvider().equals(manifest.get("embedding"))
-                && Integer.valueOf(def.getChunkSize()).equals(manifest.get("chunkSize"))
-                && Integer.valueOf(def.getOverlap()).equals(manifest.get("overlap"));
-        Map<String, Map<String, Object>> known = sameSettings && manifest.get("files") instanceof Map<?, ?> m
-                ? new LinkedHashMap<>((Map<String, Map<String, Object>>) m) : new LinkedHashMap<>();
+        boolean sameSettings =
+                def.getEmbeddingProvider().equals(manifest.get("embedding"))
+                        && Integer.valueOf(def.getChunkSize()).equals(manifest.get("chunkSize"))
+                        && Integer.valueOf(def.getOverlap()).equals(manifest.get("overlap"));
+        Map<String, Map<String, Object>> known =
+                sameSettings && manifest.get("files") instanceof Map<?, ?> m
+                        ? new LinkedHashMap<>((Map<String, Map<String, Object>>) m)
+                        : new LinkedHashMap<>();
         boolean rebuilt = !sameSettings && store.size() > 0;
         if (!sameSettings) store.clear();
 
-        FixedSizeChunkingStrategy chunker = new FixedSizeChunkingStrategy(def.getChunkSize(), def.getOverlap());
+        FixedSizeChunkingStrategy chunker =
+                new FixedSizeChunkingStrategy(def.getChunkSize(), def.getOverlap());
         Map<String, Map<String, Object>> current = new LinkedHashMap<>();
         List<String> pendingIds = new ArrayList<>();
         List<String> pendingText = new ArrayList<>();
@@ -122,10 +139,12 @@ public final class KnowledgeIndexer {
                 chunks += ((List<?>) was.get("chunks")).size();
                 continue;
             }
-            if (was != null) for (Object id : (List<?>) was.get("chunks")) store.delete(String.valueOf(id));
+            if (was != null)
+                for (Object id : (List<?>) was.get("chunks")) store.delete(String.valueOf(id));
             List<String> ids = new ArrayList<>();
             if (!text.isBlank()) {
-                List<DocumentChunk> parts = chunker.chunk(Document.builder().id(rel).content(text).build());
+                List<DocumentChunk> parts =
+                        chunker.chunk(Document.builder().id(rel).content(text).build());
                 for (int i = 0; i < parts.size(); i++) {
                     String id = rel + "#" + i;
                     ids.add(id);
@@ -152,7 +171,9 @@ public final class KnowledgeIndexer {
             List<float[]> vectors = embeddings.embedBatch(pendingText.subList(from, to));
             List<VectorStore.VectorEntry> entries = new ArrayList<>();
             for (int i = from; i < to; i++) {
-                entries.add(new VectorStore.VectorEntry(pendingIds.get(i), vectors.get(i - from), pendingMeta.get(i)));
+                entries.add(
+                        new VectorStore.VectorEntry(
+                                pendingIds.get(i), vectors.get(i - from), pendingMeta.get(i)));
             }
             store.addBatch(entries);
         }
@@ -164,13 +185,20 @@ public final class KnowledgeIndexer {
             out.put("files", current);
             JSON.writerWithDefaultPrettyPrinter().writeValue(manifestFile.toFile(), out);
         }
-        return new KnowledgeIndex(def, embeddings, store,
-                new KnowledgeIndex.Stats(files.size(), skipped[0], chunks, pendingText.size(), rebuilt));
+        return new KnowledgeIndex(
+                def,
+                embeddings,
+                store,
+                new KnowledgeIndex.Stats(
+                        files.size(), skipped[0], chunks, pendingText.size(), rebuilt));
     }
 
     private static String sha256(String text) {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8)));
+            return HexFormat.of()
+                    .formatHex(
+                            MessageDigest.getInstance("SHA-256")
+                                    .digest(text.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }

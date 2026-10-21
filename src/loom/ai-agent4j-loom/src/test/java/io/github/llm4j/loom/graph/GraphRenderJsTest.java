@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
- * Runs the tests of the shared graph renderer ({@code loom/graph-render}) with {@code node --test}, so a plain
- * {@code mvn test} covers it. Skipped when node is not installed.
+ * Runs the tests of the shared graph renderer ({@code loom/graph-render}) with {@code node --test},
+ * so a plain {@code mvn test} covers it. Skipped when node is not installed.
  */
 @Tag("fragile")
 class GraphRenderJsTest {
@@ -25,7 +25,10 @@ class GraphRenderJsTest {
         assumeTrue(nodeAvailable(), "node is not installed");
         List<String> command = new ArrayList<>(List.of("node", "--test"));
         try (var files = Files.list(DIR.resolve("test"))) {
-            files.map(Path::toString).filter(p -> p.endsWith(".test.js")).sorted().forEach(command::add);
+            files.map(Path::toString)
+                    .filter(p -> p.endsWith(".test.js"))
+                    .sorted()
+                    .forEach(command::add);
         }
 
         Process process = new ProcessBuilder(command).redirectErrorStream(true).start();

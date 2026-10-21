@@ -12,50 +12,128 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * The written guide, from inside the jar: the chapters, the Loom reference and a short index for tools, and the skill that teaches an agent
- * to use them. They are copied in when the jar is built, so they are there for someone who has the jar and nothing else.
+ * The written guide, from inside the jar: the chapters, the Loom reference and a short index for
+ * tools, and the skill that teaches an agent to use them. They are copied in when the jar is built,
+ * so they are there for someone who has the jar and nothing else.
  */
 public final class Guide {
 
     /** One page of the guide: the name to ask for, what it is, and where it is in the jar. */
     public record Page(String name, String title, String resource) {}
 
-    private static final List<Page> PAGES = List.of(
-            new Page("readme", "The path, and whether you want tests first", "guide/README.md"),
-            new Page("1", "Decide your agents (and: a script, or Java)", "guide/01-decide-your-agents.md"),
-            new Page("2", "Build a golden dataset (optional)", "guide/02-golden-dataset.md"),
-            new Page("3", "Test the prompts", "guide/03-prompt-tests.md"),
-            new Page("4", "Optimize the prompts", "guide/04-prompt-optimization.md"),
-            new Page("5", "Test each agent, with spend caps", "guide/05-test-agents-with-caps.md"),
-            new Page("6", "Build the workflow", "guide/06-build-the-workflow.md"),
-            new Page("7", "Validate and audit", "guide/07-validate-and-audit.md"),
-            new Page("8", "Test the trajectory", "guide/08-trajectory-tests.md"),
-            new Page("9", "Go live: real APIs, budgets, cost checks", "guide/09-go-live.md"),
-            new Page("10", "Best practices and checklist", "guide/10-best-practices.md"),
-            new Page("11", "Build the test examples together with the user", "guide/11-build-the-dataset-with-the-user.md"),
-            new Page("12", "Java quick reference: the imports and calls you need", "guide/12-java-quick-reference.md"),
-            new Page("13", "Earned autonomy: let an agent earn the right to decide (optional)", "guide/13-earned-autonomy.md"),
-            new Page("14", "Context and compaction: keep a long run inside the model's window", "guide/14-context-and-compaction.md"),
-            new Page("15", "Steer, stop and supervise a running workflow (optional)", "guide/15-steer-stop-and-supervise.md"),
-            new Page("recipes", "Recipes: change the starter to do what you want", "guide/RECIPES.md"),
-            new Page("loom", "The Loom reference: every statement, option and command", "guide/LOOM_GUIDE.md"),
-            new Page("llms", "A one-page index of the framework, for tools and agents", "guide/llms.txt"),
-            new Page("deploy", "Deploying a workflow, watched: the map of the deployer skill", "deploy/README.md"),
-            new Page("d1", "Deploy 1: decide the shape (one page, or a Fabric)", "deploy/01-decide-the-shape.md"),
-            new Page("d2", "Deploy 2: security decisions before anything runs for real", "deploy/02-security-before-you-run.md"),
-            new Page("d3", "Deploy 3: the rules, the windows and the prices", "deploy/03-rules-windows-prices.md"),
-            new Page("d4", "Deploy 4: launch the application with its own page", "deploy/04-run-with-its-own-page.md"),
-            new Page("d5", "Deploy 5: bring up a Fabric server", "deploy/05-bring-up-fabric.md"),
-            new Page("d6", "Deploy 6: launch the application reporting to Fabric", "deploy/06-run-reporting-to-fabric.md"),
-            new Page("d7", "Deploy 7: read the pages, and what to do about each incident", "deploy/07-read-the-pages.md"),
-            new Page("d8", "Deploy 8: operate it, and fix what goes wrong", "deploy/08-operate-and-troubleshoot.md"));
+    private static final List<Page> PAGES =
+            List.of(
+                    new Page(
+                            "readme",
+                            "The path, and whether you want tests first",
+                            "guide/README.md"),
+                    new Page(
+                            "1",
+                            "Decide your agents (and: a script, or Java)",
+                            "guide/01-decide-your-agents.md"),
+                    new Page(
+                            "2", "Build a golden dataset (optional)", "guide/02-golden-dataset.md"),
+                    new Page("3", "Test the prompts", "guide/03-prompt-tests.md"),
+                    new Page("4", "Optimize the prompts", "guide/04-prompt-optimization.md"),
+                    new Page(
+                            "5",
+                            "Test each agent, with spend caps",
+                            "guide/05-test-agents-with-caps.md"),
+                    new Page("6", "Build the workflow", "guide/06-build-the-workflow.md"),
+                    new Page("7", "Validate and audit", "guide/07-validate-and-audit.md"),
+                    new Page("8", "Test the trajectory", "guide/08-trajectory-tests.md"),
+                    new Page(
+                            "9", "Go live: real APIs, budgets, cost checks", "guide/09-go-live.md"),
+                    new Page("10", "Best practices and checklist", "guide/10-best-practices.md"),
+                    new Page(
+                            "11",
+                            "Build the test examples together with the user",
+                            "guide/11-build-the-dataset-with-the-user.md"),
+                    new Page(
+                            "12",
+                            "Java quick reference: the imports and calls you need",
+                            "guide/12-java-quick-reference.md"),
+                    new Page(
+                            "13",
+                            "Earned autonomy: let an agent earn the right to decide (optional)",
+                            "guide/13-earned-autonomy.md"),
+                    new Page(
+                            "14",
+                            "Context and compaction: keep a long run inside the model's window",
+                            "guide/14-context-and-compaction.md"),
+                    new Page(
+                            "15",
+                            "Steer, stop and supervise a running workflow (optional)",
+                            "guide/15-steer-stop-and-supervise.md"),
+                    new Page(
+                            "recipes",
+                            "Recipes: change the starter to do what you want",
+                            "guide/RECIPES.md"),
+                    new Page(
+                            "loom",
+                            "The Loom reference: every statement, option and command",
+                            "guide/LOOM_GUIDE.md"),
+                    new Page(
+                            "llms",
+                            "A one-page index of the framework, for tools and agents",
+                            "guide/llms.txt"),
+                    new Page(
+                            "deploy",
+                            "Deploying a workflow, watched: the map of the deployer skill",
+                            "deploy/README.md"),
+                    new Page(
+                            "d1",
+                            "Deploy 1: decide the shape (one page, or a Fabric)",
+                            "deploy/01-decide-the-shape.md"),
+                    new Page(
+                            "d2",
+                            "Deploy 2: security decisions before anything runs for real",
+                            "deploy/02-security-before-you-run.md"),
+                    new Page(
+                            "d3",
+                            "Deploy 3: the rules, the windows and the prices",
+                            "deploy/03-rules-windows-prices.md"),
+                    new Page(
+                            "d4",
+                            "Deploy 4: launch the application with its own page",
+                            "deploy/04-run-with-its-own-page.md"),
+                    new Page(
+                            "d5",
+                            "Deploy 5: bring up a Fabric server",
+                            "deploy/05-bring-up-fabric.md"),
+                    new Page(
+                            "d6",
+                            "Deploy 6: launch the application reporting to Fabric",
+                            "deploy/06-run-reporting-to-fabric.md"),
+                    new Page(
+                            "d7",
+                            "Deploy 7: read the pages, and what to do about each incident",
+                            "deploy/07-read-the-pages.md"),
+                    new Page(
+                            "d8",
+                            "Deploy 8: operate it, and fix what goes wrong",
+                            "deploy/08-operate-and-troubleshoot.md"));
 
-    /** The launch scripts that travel with the deployer skill (macOS and Linux {@code .sh}, Windows {@code .ps1}). */
-    public static final List<String> DEPLOYER_SCRIPTS = List.of("lib.sh", "fabric-up.sh", "fabric-status.sh", "fabric-down.sh", "run-observed.sh",
-            "lib.ps1", "fabric-up.ps1", "fabric-status.ps1", "fabric-down.ps1", "run-observed.ps1");
+    /**
+     * The launch scripts that travel with the deployer skill (macOS and Linux {@code .sh}, Windows
+     * {@code .ps1}).
+     */
+    public static final List<String> DEPLOYER_SCRIPTS =
+            List.of(
+                    "lib.sh",
+                    "fabric-up.sh",
+                    "fabric-status.sh",
+                    "fabric-down.sh",
+                    "run-observed.sh",
+                    "lib.ps1",
+                    "fabric-up.ps1",
+                    "fabric-status.ps1",
+                    "fabric-down.ps1",
+                    "run-observed.ps1");
 
     /** The references that travel with the harness-design skill. */
-    public static final List<String> HARNESS_REFERENCES = List.of("principles.md", "failure-modes.md", "loom-mapping.md", "design-record.md");
+    public static final List<String> HARNESS_REFERENCES =
+            List.of("principles.md", "failure-modes.md", "loom-mapping.md", "design-record.md");
 
     private Guide() {}
 
@@ -63,14 +141,24 @@ public final class Guide {
         return PAGES;
     }
 
-    /** The page asked for: {@code 6}, {@code 06}, {@code loom}, {@code llms}, {@code readme}, or a chapter's name such as {@code build-the-workflow}. */
+    /**
+     * The page asked for: {@code 6}, {@code 06}, {@code loom}, {@code llms}, {@code readme}, or a
+     * chapter's name such as {@code build-the-workflow}.
+     */
     public static Optional<Page> find(String what) {
         String key = what.strip().toLowerCase(Locale.ROOT).replaceFirst("\\.md$", "");
         String number = key.matches("0\\d") ? key.substring(1) : key;
         for (Page p : PAGES) {
-            String file = p.resource().substring(p.resource().lastIndexOf('/') + 1).toLowerCase(Locale.ROOT).replaceFirst("\\.(md|txt)$", "");
+            String file =
+                    p.resource()
+                            .substring(p.resource().lastIndexOf('/') + 1)
+                            .toLowerCase(Locale.ROOT)
+                            .replaceFirst("\\.(md|txt)$", "");
             String named = file.replaceFirst("^\\d+-", "");
-            if (p.name().equals(number) || file.equals(key) || named.equals(key) || (p.name().equals("loom") && key.equals("loom_guide"))) return Optional.of(p);
+            if (p.name().equals(number)
+                    || file.equals(key)
+                    || named.equals(key)
+                    || (p.name().equals("loom") && key.equals("loom_guide"))) return Optional.of(p);
         }
         return Optional.empty();
     }
@@ -80,14 +168,19 @@ public final class Guide {
         return read(page.resource());
     }
 
-    /** The skill that teaches an agent to use the guide, with its chapter paths pointing at {@code references/}. */
+    /**
+     * The skill that teaches an agent to use the guide, with its chapter paths pointing at {@code
+     * references/}.
+     */
     public static Optional<String> skill() {
         return read("skill/SKILL.md").map(s -> s.replace("`docs/guide/", "`references/"));
     }
 
     public static Optional<String> read(String resource) {
         try (InputStream in = Guide.class.getClassLoader().getResourceAsStream(resource)) {
-            return in == null ? Optional.empty() : Optional.of(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+            return in == null
+                    ? Optional.empty()
+                    : Optional.of(new String(in.readAllBytes(), StandardCharsets.UTF_8));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -104,16 +197,24 @@ public final class Guide {
     }
 
     /**
-     * Writes the deployer skill into {@code project/.claude/skills/llm4j-loom-deployer}: {@code SKILL.md}, {@code references/} (its chapters) and {@code scripts/}
-     * (the launch scripts, executable). The jars the scripts launch are not in the jar of weave: the skill package carries them in {@code bin/}.
-     * Without {@code force} nothing is written when the skill is already there.
+     * Writes the deployer skill into {@code project/.claude/skills/llm4j-loom-deployer}: {@code
+     * SKILL.md}, {@code references/} (its chapters) and {@code scripts/} (the launch scripts,
+     * executable). The jars the scripts launch are not in the jar of weave: the skill package
+     * carries them in {@code bin/}. Without {@code force} nothing is written when the skill is
+     * already there.
      *
      * @return the files written, relative to the skill folder; empty when it was already there
      */
-    public static List<String> installDeployerSkill(Path project, boolean force) throws IOException {
+    public static List<String> installDeployerSkill(Path project, boolean force)
+            throws IOException {
         Path folder = deployerFolder(project);
         if (Files.exists(folder.resolve("SKILL.md")) && !force) return List.of();
-        String skill = deployerSkill().orElseThrow(() -> new IllegalStateException("this jar has no deployer skill (a broken jar?)"));
+        String skill =
+                deployerSkill()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "this jar has no deployer skill (a broken jar?)"));
         List<String> written = new ArrayList<>();
         Files.createDirectories(folder.resolve("references"));
         Files.createDirectories(folder.resolve("scripts"));
@@ -122,12 +223,25 @@ public final class Guide {
         for (Page p : PAGES) {
             if (!p.resource().startsWith("deploy/")) continue;
             String name = p.resource().substring("deploy/".length());
-            Files.writeString(folder.resolve("references").resolve(name), text(p).orElseThrow(() -> new IllegalStateException("this jar has no " + p.resource())), StandardCharsets.UTF_8);
+            Files.writeString(
+                    folder.resolve("references").resolve(name),
+                    text(p).orElseThrow(
+                                    () ->
+                                            new IllegalStateException(
+                                                    "this jar has no " + p.resource())),
+                    StandardCharsets.UTF_8);
             written.add("references/" + name);
         }
         for (String script : DEPLOYER_SCRIPTS) {
             Path target = folder.resolve("scripts").resolve(script);
-            Files.writeString(target, read("skill-deployer/scripts/" + script).orElseThrow(() -> new IllegalStateException("this jar has no script " + script)), StandardCharsets.UTF_8);
+            Files.writeString(
+                    target,
+                    read("skill-deployer/scripts/" + script)
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalStateException(
+                                                    "this jar has no script " + script)),
+                    StandardCharsets.UTF_8);
             if (script.endsWith(".sh")) target.toFile().setExecutable(true, false);
             written.add("scripts/" + script);
         }
@@ -140,22 +254,31 @@ public final class Guide {
     }
 
     /**
-     * Writes the harness-design skill into {@code project/.claude/skills/llm4j-harness-design}: {@code SKILL.md} and {@code references/}. It is text
-     * only: it needs no jar and no script. Without {@code force} nothing is written when the skill is already there.
+     * Writes the harness-design skill into {@code project/.claude/skills/llm4j-harness-design}:
+     * {@code SKILL.md} and {@code references/}. It is text only: it needs no jar and no script.
+     * Without {@code force} nothing is written when the skill is already there.
      *
      * @return the files written, relative to the skill folder; empty when it was already there
      */
     public static List<String> installHarnessSkill(Path project, boolean force) throws IOException {
         Path folder = harnessFolder(project);
         if (Files.exists(folder.resolve("SKILL.md")) && !force) return List.of();
-        String skill = read("skill-harness/SKILL.md").orElseThrow(() -> new IllegalStateException("this jar has no harness-design skill (a broken jar?)"));
+        String skill =
+                read("skill-harness/SKILL.md")
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "this jar has no harness-design skill (a broken jar?)"));
         List<String> written = new ArrayList<>();
         Files.createDirectories(folder.resolve("references"));
         Files.writeString(folder.resolve("SKILL.md"), skill, StandardCharsets.UTF_8);
         written.add("SKILL.md");
         for (String ref : HARNESS_REFERENCES) {
-            Files.writeString(folder.resolve("references").resolve(ref),
-                    read("skill-harness/references/" + ref).orElseThrow(() -> new IllegalStateException("this jar has no " + ref)), StandardCharsets.UTF_8);
+            Files.writeString(
+                    folder.resolve("references").resolve(ref),
+                    read("skill-harness/references/" + ref)
+                            .orElseThrow(() -> new IllegalStateException("this jar has no " + ref)),
+                    StandardCharsets.UTF_8);
             written.add("references/" + ref);
         }
         return written;
@@ -167,7 +290,8 @@ public final class Guide {
     }
 
     /**
-     * Writes the skill and the pages it points at into {@code project/.claude/skills/llm4j-workflow-guide} ({@code SKILL.md} and {@code references/}).
+     * Writes the skill and the pages it points at into {@code
+     * project/.claude/skills/llm4j-workflow-guide} ({@code SKILL.md} and {@code references/}).
      * Without {@code force} nothing is written when the skill is already there.
      *
      * @return the files written, relative to the skill folder; empty when it was already there
@@ -175,7 +299,11 @@ public final class Guide {
     public static List<String> installSkill(Path project, boolean force) throws IOException {
         Path folder = skillFolder(project);
         if (Files.exists(folder.resolve("SKILL.md")) && !force) return List.of();
-        String skill = skill().orElseThrow(() -> new IllegalStateException("this jar has no skill (a broken jar?)"));
+        String skill =
+                skill().orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "this jar has no skill (a broken jar?)"));
         List<String> written = new ArrayList<>();
         Files.createDirectories(folder.resolve("references"));
         Files.writeString(folder.resolve("SKILL.md"), skill, StandardCharsets.UTF_8);
@@ -183,7 +311,13 @@ public final class Guide {
         for (Page p : PAGES) {
             if (!p.resource().startsWith("guide/")) continue;
             String name = p.resource().substring("guide/".length());
-            Files.writeString(folder.resolve("references").resolve(name), text(p).orElseThrow(() -> new IllegalStateException("this jar has no " + p.resource())), StandardCharsets.UTF_8);
+            Files.writeString(
+                    folder.resolve("references").resolve(name),
+                    text(p).orElseThrow(
+                                    () ->
+                                            new IllegalStateException(
+                                                    "this jar has no " + p.resource())),
+                    StandardCharsets.UTF_8);
             written.add("references/" + name);
         }
         return written;

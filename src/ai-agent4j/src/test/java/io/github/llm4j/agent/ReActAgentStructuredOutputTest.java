@@ -22,15 +22,19 @@ class ReActAgentStructuredOutputTest {
     @Test
     void objectFinalAnswerIsKeptAsJsonText() {
         when(client.chat(any(LLMRequest.class)))
-                .thenReturn(response("```json\n"
-                        + "{\"thought\": \"done\", \"final_answer\": {\"score\": 9, \"verdict\": \"SHIP\"}}\n"
-                        + "```"));
+                .thenReturn(
+                        response(
+                                "```json\n"
+                                        + "{\"thought\": \"done\", \"final_answer\": {\"score\": 9, \"verdict\": \"SHIP\"}}\n"
+                                        + "```"));
 
         AgentResult result = ReActAgent.builder().llmClient(client).build().run("Score this");
 
         assertThat(result.isCompleted()).isTrue();
         assertThat(result.getIterations()).isEqualTo(1);
-        assertThat(result.getFinalAnswer()).contains("\"score\":9").contains("\"verdict\":\"SHIP\"");
+        assertThat(result.getFinalAnswer())
+                .contains("\"score\":9")
+                .contains("\"verdict\":\"SHIP\"");
     }
 
     @Test
@@ -48,7 +52,8 @@ class ReActAgentStructuredOutputTest {
     @Test
     void instructionsAreLayeredOnTopOfToolProtocol() {
         when(client.chat(any(LLMRequest.class)))
-                .thenReturn(response("```json\n{\"thought\": \"ok\", \"final_answer\": \"hi\"}\n```"));
+                .thenReturn(
+                        response("```json\n{\"thought\": \"ok\", \"final_answer\": \"hi\"}\n```"));
 
         ReActAgent.builder()
                 .llmClient(client)
@@ -59,11 +64,12 @@ class ReActAgentStructuredOutputTest {
 
         ArgumentCaptor<LLMRequest> captor = ArgumentCaptor.forClass(LLMRequest.class);
         verify(client).chat(captor.capture());
-        String systemPrompt = captor.getValue().getMessages().stream()
-                .filter(m -> m.getRole() == Message.Role.SYSTEM)
-                .map(Message::getContent)
-                .findFirst()
-                .orElseThrow();
+        String systemPrompt =
+                captor.getValue().getMessages().stream()
+                        .filter(m -> m.getRole() == Message.Role.SYSTEM)
+                        .map(Message::getContent)
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(systemPrompt).startsWith("You are TrendScout.");
         assertThat(systemPrompt).contains(new CalculatorTool().getName());

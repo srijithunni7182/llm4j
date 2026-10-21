@@ -7,12 +7,13 @@ import io.github.llm4j.tools.EffectTool;
 import java.util.Map;
 
 /**
- * Whether a tool call only reads. Decided by the tool's class, never by what the model says about it: an effectful tool says for each call
- * whether it is an effect, the plain built-ins that only compute or look things up are known, and everything else is assumed to change something.
+ * Whether a tool call only reads. Decided by the tool's class, never by what the model says about
+ * it: an effectful tool says for each call whether it is an effect, the plain built-ins that only
+ * compute or look things up are known, and everything else is assumed to change something.
  */
 final class ReadClass {
 
-    private ReadClass() { }
+    private ReadClass() {}
 
     /** The tool under the wrappers that rename, describe, journal or gate it. */
     static Tool unwrap(Tool tool) {
@@ -30,9 +31,10 @@ final class ReadClass {
     }
 
     /**
-     * Runs the call for real: under the stand-in a simulated run puts in front of tools that are not known to be harmless, and under the effect
-     * journal that stops a simulated run from performing anything. Used only for a read that was not recorded (when asked for) and for a tool the
-     * script declared {@code replay: allow}.
+     * Runs the call for real: under the stand-in a simulated run puts in front of tools that are
+     * not known to be harmless, and under the effect journal that stops a simulated run from
+     * performing anything. Used only for a read that was not recorded (when asked for) and for a
+     * tool the script declared {@code replay: allow}.
      */
     static String runLive(Tool tool, Map<String, Object> args) throws Exception {
         Tool t = unwrap(tool);
@@ -47,7 +49,8 @@ final class ReadClass {
     static boolean isRead(Tool tool, Map<String, Object> args) {
         Tool t = tool;
         for (int i = 0; i < 8; i++) {
-            if (t instanceof EffectTool e) return !e.effectful().isEffect(args == null ? Map.of() : args);
+            if (t instanceof EffectTool e)
+                return !e.effectful().isEffect(args == null ? Map.of() : args);
             if (t instanceof Effectful f) return !f.isEffect(args == null ? Map.of() : args);
             Tool next = unwrap(t);
             if (next == t) break;
@@ -67,7 +70,9 @@ final class ReadClass {
     /** Pure tools that compute from their arguments alone: they run in a replay as they are. */
     static boolean isPure(Tool tool) {
         Tool t = unwrap(tool);
-        return t instanceof io.github.llm4j.agent.tools.CalculatorTool || t instanceof io.github.llm4j.agent.tools.DateTimeTool || t instanceof io.github.llm4j.agent.tools.EchoTool;
+        return t instanceof io.github.llm4j.agent.tools.CalculatorTool
+                || t instanceof io.github.llm4j.agent.tools.DateTimeTool
+                || t instanceof io.github.llm4j.agent.tools.EchoTool;
     }
 
     static boolean isClock(Tool tool) {

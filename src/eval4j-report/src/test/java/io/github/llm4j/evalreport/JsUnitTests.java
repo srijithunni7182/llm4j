@@ -12,12 +12,14 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * Runs the plain-JavaScript tests of the report's graph card with {@code node --test}, and checks that the report's
- * copy of the shared graph renderer is the canonical file. The JavaScript tests are skipped when node is not installed or is older than 18.
+ * Runs the plain-JavaScript tests of the report's graph card with {@code node --test}, and checks
+ * that the report's copy of the shared graph renderer is the canonical file. The JavaScript tests
+ * are skipped when node is not installed or is older than 18.
  */
 class JsUnitTests {
 
-    private static final Path RENDER = Path.of("src/main/resources/io/github/llm4j/evalreport/render");
+    private static final Path RENDER =
+            Path.of("src/main/resources/io/github/llm4j/evalreport/render");
     private static final Path CANONICAL = Path.of("../loom/graph-render/graph-render.js");
 
     @Test
@@ -47,7 +49,8 @@ class JsUnitTests {
     }
 
     private static String sha(Path file) throws Exception {
-        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)));
+        return HexFormat.of()
+                .formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)));
     }
 
     private static int major(String version) {

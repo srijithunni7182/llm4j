@@ -3,8 +3,7 @@ package io.github.llm4j.loom.graph;
 /** Draws a workflow graph as Mermaid {@code flowchart} text, for docs and issues. */
 public final class MermaidRenderer {
 
-    private MermaidRenderer() {
-    }
+    private MermaidRenderer() {}
 
     public static String render(WorkflowGraph graph) {
         StringBuilder out = new StringBuilder("flowchart TD\n");

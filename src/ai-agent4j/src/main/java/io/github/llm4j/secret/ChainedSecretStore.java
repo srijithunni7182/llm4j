@@ -7,7 +7,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 
-/** Looks a name up in several stores, in order; the first store that has it wins. Read-only. Closing the chain closes the stores. */
+/**
+ * Looks a name up in several stores, in order; the first store that has it wins. Read-only. Closing
+ * the chain closes the stores.
+ */
 public final class ChainedSecretStore implements SecretStore {
 
     private final List<SecretStore> stores;
@@ -17,7 +20,8 @@ public final class ChainedSecretStore implements SecretStore {
     }
 
     public static ChainedSecretStore of(SecretStore... stores) {
-        if (stores.length == 0) throw new IllegalArgumentException("a chain needs at least one store");
+        if (stores.length == 0)
+            throw new IllegalArgumentException("a chain needs at least one store");
         return new ChainedSecretStore(List.copyOf(List.of(stores)));
     }
 

@@ -1,11 +1,14 @@
 package io.github.llm4j.loom.autonomy.expr;
 
-/** The 95% Wilson score interval of {@code k} successes in {@code n} trials: 20 out of 20 is not treated as 100%. */
+/**
+ * The 95% Wilson score interval of {@code k} successes in {@code n} trials: 20 out of 20 is not
+ * treated as 100%.
+ */
 public final class Wilson {
 
     private static final double Z = 1.959964;
 
-    private Wilson() { }
+    private Wilson() {}
 
     public static double lower(int k, int n) {
         return n == 0 ? 0 : Math.max(0, center(k, n) - half(k, n));

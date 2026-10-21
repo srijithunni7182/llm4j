@@ -16,7 +16,11 @@ public final class TestKeepTaskOnlyProvider implements ContextCompactorProvider 
         return new ContextCompactor() {
             @Override
             public CompactionResult compact(List<Message> messages, CompactionRequest request) {
-                return CompactionResult.of(name(), messages, messages.subList(0, Math.min(2, messages.size())), request);
+                return CompactionResult.of(
+                        name(),
+                        messages,
+                        messages.subList(0, Math.min(2, messages.size())),
+                        request);
             }
 
             @Override

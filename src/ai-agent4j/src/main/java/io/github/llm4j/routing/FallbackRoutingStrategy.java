@@ -8,8 +8,8 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * A routing strategy that sequentially falls back to the next available tier if the prior one fails.
- * By default, it begins at the cheapest tier (FAST_CHEAP) and falls upward.
+ * A routing strategy that sequentially falls back to the next available tier if the prior one
+ * fails. By default, it begins at the cheapest tier (FAST_CHEAP) and falls upward.
  */
 public class FallbackRoutingStrategy implements RoutingStrategy {
 
@@ -18,11 +18,10 @@ public class FallbackRoutingStrategy implements RoutingStrategy {
         if (clients.isEmpty()) {
             throw new LLMException("No LLM Clients configured for routing.");
         }
-        
+
         // Sort tiers by level (cheapest/lowest first)
-        TreeMap<ProviderTier, List<LLMClient>> sortedTiers = new TreeMap<>(
-            (t1, t2) -> Integer.compare(t1.getLevel(), t2.getLevel())
-        );
+        TreeMap<ProviderTier, List<LLMClient>> sortedTiers =
+                new TreeMap<>((t1, t2) -> Integer.compare(t1.getLevel(), t2.getLevel()));
         sortedTiers.putAll(clients);
 
         // Pick the first client from the first available tier

@@ -9,13 +9,16 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** Which agent made a decision, and what does and does not make it a different one (spec loom-earned-autonomy R6.1). */
+/**
+ * Which agent made a decision, and what does and does not make it a different one (spec
+ * loom-earned-autonomy R6.1).
+ */
 class AgentIdentityTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
-    private static final String BASE = """
+    private static final String BASE =
+            """
             persona Mentor { role: "a mentor" tone: "kind" }
             tool Lookup { use: http  url: env.LOOKUP_URL  api_key: "k-1" }
             agent Triager {
@@ -48,11 +51,32 @@ class AgentIdentityTest {
         Files.writeString(dir.resolve("policy.md"), "refund within 30 days");
         String base = identity(BASE);
         assertThat(base).hasSize(64);
-        assertThat(changed(s -> "// a comment\n" + s.replace("model: \"m-1\"", "model:   \"m-1\"   // trailing"))).isEqualTo(base);
-        assertThat(changed(s -> s.replace("agent Other { model: \"x\" system: \"You are Other.\" }", "agent Other { model: \"y\" system: \"changed\" }"))).isEqualTo(base);
-        assertThat(changed(s -> s.replace("workflow W() { decide Refund -> v }", "workflow W2() { note \"hello\" }"))).isEqualTo(base);
-        String reordered = BASE.replace("tool Lookup { use: http  url: env.LOOKUP_URL  api_key: \"k-1\" }", "").replace("persona Mentor { role: \"a mentor\" tone: \"kind\" }", "")
-                + "persona Mentor { role: \"a mentor\" tone: \"kind\" }\ntool Lookup { use: http  api_key: \"k-1\"  url: env.LOOKUP_URL }\n";
+        assertThat(
+                        changed(
+                                s ->
+                                        "// a comment\n"
+                                                + s.replace(
+                                                        "model: \"m-1\"",
+                                                        "model:   \"m-1\"   // trailing")))
+                .isEqualTo(base);
+        assertThat(
+                        changed(
+                                s ->
+                                        s.replace(
+                                                "agent Other { model: \"x\" system: \"You are Other.\" }",
+                                                "agent Other { model: \"y\" system: \"changed\" }")))
+                .isEqualTo(base);
+        assertThat(
+                        changed(
+                                s ->
+                                        s.replace(
+                                                "workflow W() { decide Refund -> v }",
+                                                "workflow W2() { note \"hello\" }")))
+                .isEqualTo(base);
+        String reordered =
+                BASE.replace("tool Lookup { use: http  url: env.LOOKUP_URL  api_key: \"k-1\" }", "")
+                                .replace("persona Mentor { role: \"a mentor\" tone: \"kind\" }", "")
+                        + "persona Mentor { role: \"a mentor\" tone: \"kind\" }\ntool Lookup { use: http  api_key: \"k-1\"  url: env.LOOKUP_URL }\n";
         assertThat(identity(reordered)).isEqualTo(base);
     }
 
@@ -61,19 +85,32 @@ class AgentIdentityTest {
     void everyThingThatDecidesWhatTheAgentSaysChangesIt() throws Exception {
         Files.writeString(dir.resolve("policy.md"), "refund within 30 days");
         String base = identity(BASE);
-        java.util.List<UnaryOperator<String>> edits = java.util.List.of(
-                s -> s.replace("m-1", "m-2"),
-                s -> s.replace("You are Triager.", "You are a careful Triager."),
-                s -> s.replace("role: \"a mentor\"", "role: \"a coach\""),
-                s -> s.replace("temperature: 0.2", "temperature: 0.7"),
-                s -> s.replace("reasoning: string }", "reasoning: string, confidence: number }"),
-                s -> s.replace("url: env.LOOKUP_URL", "url: env.OTHER_URL"),
-                s -> s.replace("tools: [Lookup]", "tools: []"),
-                s -> s.replace("pii: mask", "pii: block"),
-                s -> s.replace("choices: approve, reject, escalate", "choices: approve, escalate, reject"),
-                s -> s.replace("choices: approve", "dangerous mistake: propose approve, person decides reject choices: approve"),
-                s -> s.replace("proposed by: Triager", "task: \"Decide {amount}\" proposed by: Triager"),
-                s -> s.replace("persona: Mentor", ""));
+        java.util.List<UnaryOperator<String>> edits =
+                java.util.List.of(
+                        s -> s.replace("m-1", "m-2"),
+                        s -> s.replace("You are Triager.", "You are a careful Triager."),
+                        s -> s.replace("role: \"a mentor\"", "role: \"a coach\""),
+                        s -> s.replace("temperature: 0.2", "temperature: 0.7"),
+                        s ->
+                                s.replace(
+                                        "reasoning: string }",
+                                        "reasoning: string, confidence: number }"),
+                        s -> s.replace("url: env.LOOKUP_URL", "url: env.OTHER_URL"),
+                        s -> s.replace("tools: [Lookup]", "tools: []"),
+                        s -> s.replace("pii: mask", "pii: block"),
+                        s ->
+                                s.replace(
+                                        "choices: approve, reject, escalate",
+                                        "choices: approve, escalate, reject"),
+                        s ->
+                                s.replace(
+                                        "choices: approve",
+                                        "dangerous mistake: propose approve, person decides reject choices: approve"),
+                        s ->
+                                s.replace(
+                                        "proposed by: Triager",
+                                        "task: \"Decide {amount}\" proposed by: Triager"),
+                        s -> s.replace("persona: Mentor", ""));
         java.util.Set<String> seen = new java.util.HashSet<>();
         seen.add(base);
         for (int i = 0; i < edits.size(); i++) {
@@ -94,7 +131,13 @@ class AgentIdentityTest {
         Files.delete(dir.resolve("policy.md"));
         assertThat(identity(BASE)).isNotEqualTo(second).isNotEqualTo(first);
 
-        assertThat(changed(s -> s.replace("api_key: \"k-1\"", "api_key: \"a-completely-different-secret\""))).isEqualTo(changed(s -> s));
+        assertThat(
+                        changed(
+                                s ->
+                                        s.replace(
+                                                "api_key: \"k-1\"",
+                                                "api_key: \"a-completely-different-secret\"")))
+                .isEqualTo(changed(s -> s));
     }
 
     @Test
@@ -102,7 +145,9 @@ class AgentIdentityTest {
     void aKnowledgeFolderCountsByWhatItHoldsAndAMissingAgentStillGetsAnIdentity() throws Exception {
         Path kb = Files.createDirectories(dir.resolve("kb"));
         Files.writeString(kb.resolve("a.md"), "one");
-        String source = BASE.replace("tools: [Lookup]", "tools: [Lookup] knowledge: [Policy]") + "knowledge Policy { type: \"local\" path: \"kb\" }\n";
+        String source =
+                BASE.replace("tools: [Lookup]", "tools: [Lookup] knowledge: [Policy]")
+                        + "knowledge Policy { type: \"local\" path: \"kb\" }\n";
         String first = identity(source);
         Files.writeString(kb.resolve("b.md"), "two");
         assertThat(identity(source)).isNotEqualTo(first);
@@ -116,7 +161,8 @@ class AgentIdentityTest {
     @Test
     @Tag("EA-V6.1")
     void everyOtherSettingThatShapesTheAgentIsPartOfItToo() throws Exception {
-        String loaded = """
+        String loaded =
+                """
                 persona Mentor { role: "a mentor" }
                 knowledge Policy { type: "local" path: "https://example.com/policy" }
                 mcp Tools { transport: "stdio" cmd: "npx x" }
@@ -137,15 +183,31 @@ class AgentIdentityTest {
                 decision D { proposed by: Triager choices: a, b ask: x task: "Decide {amount}" dangerous mistake: propose a, person decides b }
                 """;
         String base = identity(loaded);
-        java.util.List<UnaryOperator<String>> edits = java.util.List.of(
-                s -> s.replace("limit: 5", "limit: 6"), s -> s.replace("approve: all", "approve: [Lookup]"), s -> s.replace("max_iterations: 4", "max_iterations: 5"),
-                s -> s.replace("mcp_servers: [Tools]", "mcp_servers: []"), s -> s.replace("extras: list<string>", "extras: list<number>"), s -> s.replace("nested: { x: number }", "nested: { y: number }"),
-                s -> s.replace("https://example.com/skill.md", "https://example.com/other.md"), s -> s.replace("mode: \"get\"", "mode: \"post\""),
-                s -> s.replace("tools: [Registered, Lookup]", "tools: [Lookup]"), s -> s.replace("https://example.com/policy", "https://example.com/policy2"));
+        java.util.List<UnaryOperator<String>> edits =
+                java.util.List.of(
+                        s -> s.replace("limit: 5", "limit: 6"),
+                        s -> s.replace("approve: all", "approve: [Lookup]"),
+                        s -> s.replace("max_iterations: 4", "max_iterations: 5"),
+                        s -> s.replace("mcp_servers: [Tools]", "mcp_servers: []"),
+                        s -> s.replace("extras: list<string>", "extras: list<number>"),
+                        s -> s.replace("nested: { x: number }", "nested: { y: number }"),
+                        s ->
+                                s.replace(
+                                        "https://example.com/skill.md",
+                                        "https://example.com/other.md"),
+                        s -> s.replace("mode: \"get\"", "mode: \"post\""),
+                        s -> s.replace("tools: [Registered, Lookup]", "tools: [Lookup]"),
+                        s ->
+                                s.replace(
+                                        "https://example.com/policy",
+                                        "https://example.com/policy2"));
         java.util.Set<String> seen = new java.util.HashSet<>();
         seen.add(base);
-        for (UnaryOperator<String> edit : edits) assertThat(seen.add(identity(edit.apply(loaded)))).isTrue();
-        assertThat(identity(loaded.replace("password: \"p1\"", "password: \"p2\""))).as("a secret-looking option never enters it").isEqualTo(base);
+        for (UnaryOperator<String> edit : edits)
+            assertThat(seen.add(identity(edit.apply(loaded)))).isTrue();
+        assertThat(identity(loaded.replace("password: \"p1\"", "password: \"p2\"")))
+                .as("a secret-looking option never enters it")
+                .isEqualTo(base);
         assertThat(seen).hasSize(edits.size() + 1);
     }
 }

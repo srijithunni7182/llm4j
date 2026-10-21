@@ -19,13 +19,18 @@ import java.sql.Statement;
 import javax.sql.DataSource;
 
 /**
- * Where a host keeps what lets a run carry on after a restart: each run's journal, its record, the questions it asked, the triggers that wake it, and the
- * earned-autonomy records. {@link #none()} keeps nothing (runs cannot resume); {@link #file(Path)} uses the folder layout {@code weave} uses;
- * {@link #jdbc(DataSource)} uses tables (see {@link LoomHost#createSchema(DataSource)}).
+ * Where a host keeps what lets a run carry on after a restart: each run's journal, its record, the
+ * questions it asked, the triggers that wake it, and the earned-autonomy records. {@link #none()}
+ * keeps nothing (runs cannot resume); {@link #file(Path)} uses the folder layout {@code weave}
+ * uses; {@link #jdbc(DataSource)} uses tables (see {@link LoomHost#createSchema(DataSource)}).
  */
 public final class Persistence {
 
-    private enum Kind { NONE, FILE, JDBC }
+    private enum Kind {
+        NONE,
+        FILE,
+        JDBC
+    }
 
     private final Kind kind;
     private final Path dir;
@@ -36,24 +41,29 @@ public final class Persistence {
         this.kind = kind;
         this.dir = dir == null ? null : dir.toAbsolutePath().normalize();
         this.dataSource = dataSource;
-        this.answers = switch (kind) {
-            case NONE -> new AnswerBook.Memory();
-            case FILE -> new AnswerBook.Files_(this.dir);
-            case JDBC -> new AnswerBook.Jdbc(dataSource);
-        };
+        this.answers =
+                switch (kind) {
+                    case NONE -> new AnswerBook.Memory();
+                    case FILE -> new AnswerBook.Files_(this.dir);
+                    case JDBC -> new AnswerBook.Jdbc(dataSource);
+                };
     }
 
     public static Persistence none() {
         return new Persistence(Kind.NONE, null, null);
     }
 
-    /** A folder: {@code <dir>/runs/<id>/} holds each run's {@code journal.json} and {@code run.json}; {@code <dir>/triggers} the triggers; {@code <dir>/autonomy} the records. */
+    /**
+     * A folder: {@code <dir>/runs/<id>/} holds each run's {@code journal.json} and {@code
+     * run.json}; {@code <dir>/triggers} the triggers; {@code <dir>/autonomy} the records.
+     */
     public static Persistence file(Path dir) {
         return new Persistence(Kind.FILE, dir, null);
     }
 
     public static Persistence jdbc(DataSource dataSource) {
-        if (dataSource == null) throw new IllegalArgumentException("jdbc persistence needs a DataSource");
+        if (dataSource == null)
+            throw new IllegalArgumentException("jdbc persistence needs a DataSource");
         return new Persistence(Kind.JDBC, null, dataSource);
     }
 
@@ -70,14 +80,17 @@ public final class Persistence {
     RunJournal journal(String runId) {
         return switch (kind) {
             case NONE -> null;
-            case FILE -> new FileRunJournal(dir.resolve("runs").resolve(RunRegistry.safe(runId)).resolve("journal.json"));
+            case FILE -> new FileRunJournal(
+                    dir.resolve("runs").resolve(RunRegistry.safe(runId)).resolve("journal.json"));
             case JDBC -> new JdbcRunJournal(dataSource, runId);
         };
     }
 
     /** What an executor is told about where its run lives ({@code setRunLocator}). */
     String locator(String runId) {
-        return kind == Kind.FILE ? dir.resolve("runs").resolve(RunRegistry.safe(runId)).toString() : runId;
+        return kind == Kind.FILE
+                ? dir.resolve("runs").resolve(RunRegistry.safe(runId)).toString()
+                : runId;
     }
 
     TriggerStore triggers() {
@@ -122,7 +135,8 @@ public final class Persistence {
         JdbcTriggerStore.createTable(ds);
         JdbcLedger.createTable(ds);
         JdbcLevelStore.createTable(ds);
-        try (Connection c = ds.getConnection(); Statement st = c.createStatement()) {
+        try (Connection c = ds.getConnection();
+                Statement st = c.createStatement()) {
             st.execute(RunRegistry.Jdbc.DDL);
             st.execute(AnswerBook.Jdbc.DDL);
         } catch (SQLException e) {

@@ -9,12 +9,16 @@ import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
-/** What a {@code rewind} does to a task that changes things: the same rules as for a tool that changes things. */
+/**
+ * What a {@code rewind} does to a task that changes things: the same rules as for a tool that
+ * changes things.
+ */
 class TaskRewindTest {
 
     private final TaskHarness h = new TaskHarness();
 
-    private static final String SCRIPT = """
+    private static final String SCRIPT =
+            """
             workflow Main() {
                 checkpoint a
                 run Pay(x = 1) -> receipt
@@ -25,7 +29,12 @@ class TaskRewindTest {
 
     private TaskHarness.Probe check() {
         AtomicInteger n = new AtomicInteger();
-        return h.pure("Check", c -> n.getAndIncrement() == 0 ? TaskResult.outcome("bad") : TaskResult.outcome("ok"));
+        return h.pure(
+                "Check",
+                c ->
+                        n.getAndIncrement() == 0
+                                ? TaskResult.outcome("bad")
+                                : TaskResult.outcome("ok"));
     }
 
     @Test
@@ -36,7 +45,8 @@ class TaskRewindTest {
         e.initialize();
         e.executeWorkflow("Main", new HashMap<>());
         assertEquals(2, check.calls.get(), "the run went back and checked again");
-        assertEquals(1, pay.calls.get(), "the payment from the first attempt was found, not repeated");
+        assertEquals(
+                1, pay.calls.get(), "the payment from the first attempt was found, not repeated");
         assertEquals("paid", map(e.getContext().getVariable("receipt")).get("value"));
     }
 
@@ -49,7 +59,10 @@ class TaskRewindTest {
         e.executeWorkflow("Main", new HashMap<>());
         assertEquals(2, check.calls.get());
         assertEquals(2, pay.calls.get(), "side effects: repeat runs it again in the new attempt");
-        assertNotEquals(pay.contexts.get(0).idempotencyKey(), pay.contexts.get(1).idempotencyKey(), "a deliberate repeat is a new payment");
+        assertNotEquals(
+                pay.contexts.get(0).idempotencyKey(),
+                pay.contexts.get(1).idempotencyKey(),
+                "a deliberate repeat is a new payment");
     }
 
     @Test

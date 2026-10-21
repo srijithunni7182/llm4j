@@ -29,10 +29,10 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class DurableRunTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
-    private static final String SCRIPT = """
+    private static final String SCRIPT =
+            """
             agent Writer {
                 model: "test"
                 system: "You are Writer."
@@ -53,42 +53,58 @@ class DurableRunTest {
 
     /** A scripted model that records every call. */
     static LLMClientFactory model(List<String> calls, AtomicInteger failEditorTimes) {
-        return name -> new LLMClient() {
-            @Override
-            public LLMResponse chat(LLMRequest request) {
-                String system = request.getMessages().get(0).getContent();
-                String user = request.getMessages().get(request.getMessages().size() - 1).getContent();
-                String agent = system.replaceFirst("(?s)^You are (\\w+)\\..*", "$1");
-                calls.add(agent + ": " + user.lines().filter(l -> !l.isBlank()).reduce((a, b) -> b).orElse(""));
-                if (agent.equals("Editor") && failEditorTimes.getAndDecrement() > 0) throw new IllegalStateException("model down");
-                String content = switch (agent) {
-                    case "Writer" -> "```json\n{\"draft\": \"tides and moons\"}\n```";
-                    default -> "```json\n{\"thought\": \"ok\", \"final_answer\": \"edited: " + user.contains("with angle poetic") + "\"}\n```";
-                };
-                return LLMResponse.builder().content(content).model(name).build();
-            }
+        return name ->
+                new LLMClient() {
+                    @Override
+                    public LLMResponse chat(LLMRequest request) {
+                        String system = request.getMessages().get(0).getContent();
+                        String user =
+                                request.getMessages()
+                                        .get(request.getMessages().size() - 1)
+                                        .getContent();
+                        String agent = system.replaceFirst("(?s)^You are (\\w+)\\..*", "$1");
+                        calls.add(
+                                agent
+                                        + ": "
+                                        + user.lines()
+                                                .filter(l -> !l.isBlank())
+                                                .reduce((a, b) -> b)
+                                                .orElse(""));
+                        if (agent.equals("Editor") && failEditorTimes.getAndDecrement() > 0)
+                            throw new IllegalStateException("model down");
+                        String content =
+                                switch (agent) {
+                                    case "Writer" -> "```json\n{\"draft\": \"tides and moons\"}\n```";
+                                    default -> "```json\n{\"thought\": \"ok\", \"final_answer\": \"edited: "
+                                            + user.contains("with angle poetic")
+                                            + "\"}\n```";
+                                };
+                        return LLMResponse.builder().content(content).model(name).build();
+                    }
 
-            @Override
-            public Stream<LLMResponse> chatStream(LLMRequest request) {
-                return Stream.empty();
-            }
-        };
+                    @Override
+                    public Stream<LLMResponse> chatStream(LLMRequest request) {
+                        return Stream.empty();
+                    }
+                };
     }
 
     /** A human who isn't at the keyboard: every question suspends the run. */
-    static final HumanInterface AWAY = new HumanInterface() {
-        @Override
-        public String promptHuman(String message) {
-            throw new IllegalStateException("not used");
-        }
+    static final HumanInterface AWAY =
+            new HumanInterface() {
+                @Override
+                public String promptHuman(String message) {
+                    throw new IllegalStateException("not used");
+                }
 
-        @Override
-        public String promptHuman(String stepId, String message) {
-            throw new RunSuspended(stepId, message);
-        }
-    };
+                @Override
+                public String promptHuman(String stepId, String message) {
+                    throw new RunSuspended(stepId, message);
+                }
+            };
 
-    private static HarnessExecutor executor(LLMClientFactory factory, RunJournal journal, HumanInterface human) {
+    private static HarnessExecutor executor(
+            LLMClientFactory factory, RunJournal journal, HumanInterface human) {
         LoomScript script = new LoomParser(new Lexer(SCRIPT).tokenize()).parseScript();
         HarnessExecutor executor = new HarnessExecutor(script, new ToolRegistry(), factory);
         executor.setJournal(journal);
@@ -102,21 +118,29 @@ class DurableRunTest {
         List<String> calls = new CopyOnWriteArrayList<>();
         RunJournal journal = new FileRunJournal(dir.resolve("run.json"));
 
-        RunSuspended waiting = assertThrows(RunSuspended.class,
-                () -> executor(model(calls, new AtomicInteger()), journal, AWAY).executeWorkflow("Main", Map.of("topic", "the sea")));
+        RunSuspended waiting =
+                assertThrows(
+                        RunSuspended.class,
+                        () ->
+                                executor(model(calls, new AtomicInteger()), journal, AWAY)
+                                        .executeWorkflow("Main", Map.of("topic", "the sea")));
         assertEquals("Which angle for tides and moons?", waiting.prompt());
         assertEquals(1, calls.size(), "only the Writer ran before the question");
 
-        // Tomorrow, on another server: the answer arrives and a fresh executor resumes from the file.
+        // Tomorrow, on another server: the answer arrives and a fresh executor resumes from the
+        // file.
         RunJournal reopened = new FileRunJournal(dir.resolve("run.json"));
         reopened.answer(waiting.stepId(), "poetic");
         HarnessExecutor resumed = executor(model(calls, new AtomicInteger()), reopened, AWAY);
         resumed.executeWorkflow("Main", Map.of("topic", "the sea"));
 
-        assertEquals(2, calls.size(), "the Writer was replayed from the journal, only the Editor ran");
+        assertEquals(
+                2, calls.size(), "the Writer was replayed from the journal, only the Editor ran");
         assertTrue(calls.get(1).startsWith("Editor:"));
         assertEquals("edited: true", resumed.getContext().getVariable("final"));
-        assertEquals("tides and moons", ((Map<?, ?>) resumed.getContext().getVariable("draft")).get("draft"));
+        assertEquals(
+                "tides and moons",
+                ((Map<?, ?>) resumed.getContext().getVariable("draft")).get("draft"));
     }
 
     @Test
@@ -127,16 +151,26 @@ class DurableRunTest {
         List<String> calls = new CopyOnWriteArrayList<>();
         HumanInterface present = message -> "poetic";
 
-        // The Editor's model is down: the run dies after the Writer and the human answer were recorded.
+        // The Editor's model is down: the run dies after the Writer and the human answer were
+        // recorded.
         RunJournal journal = new JdbcRunJournal(db, "run-1");
-        assertThrows(RuntimeException.class,
-                () -> executor(model(calls, new AtomicInteger(1)), journal, present).executeWorkflow("Main", Map.of("topic", "the sea")));
-        assertEquals(List.of("Writer", "Editor"), calls.stream().map(c -> c.substring(0, c.indexOf(':'))).toList());
+        assertThrows(
+                RuntimeException.class,
+                () ->
+                        executor(model(calls, new AtomicInteger(1)), journal, present)
+                                .executeWorkflow("Main", Map.of("topic", "the sea")));
+        assertEquals(
+                List.of("Writer", "Editor"),
+                calls.stream().map(c -> c.substring(0, c.indexOf(':'))).toList());
 
         // Another instance picks the run up: no second Writer call, no second question.
         calls.clear();
         HumanInterface mustNotAsk = message -> fail("the answer was already recorded");
-        HarnessExecutor resumed = executor(model(calls, new AtomicInteger()), new JdbcRunJournal(db, "run-1"), mustNotAsk);
+        HarnessExecutor resumed =
+                executor(
+                        model(calls, new AtomicInteger()),
+                        new JdbcRunJournal(db, "run-1"),
+                        mustNotAsk);
         resumed.executeWorkflow("Main", Map.of("topic", "the sea"));
         assertEquals(1, calls.size());
         assertTrue(calls.get(0).startsWith("Editor:"));
@@ -145,7 +179,8 @@ class DurableRunTest {
 
     @Test
     void aToolCanWaitForAHumanMidStepWithoutBeingTreatedAsAnError() {
-        String script = """
+        String script =
+                """
                 agent Poster {
                     model: "test"
                     system: "You are Poster."
@@ -156,38 +191,53 @@ class DurableRunTest {
                 }
                 """;
         AtomicInteger llmCalls = new AtomicInteger();
-        LLMClientFactory factory = name -> new LLMClient() {
-            @Override
-            public LLMResponse chat(LLMRequest request) {
-                llmCalls.incrementAndGet();
-                String user = request.getMessages().get(request.getMessages().size() - 1).getContent();
-                String content = user.contains("Observation:")
-                        ? "```json\n{\"thought\": \"done\", \"final_answer\": \"posted\"}\n```"
-                        : "```json\n{\"thought\": \"publish\", \"action\": \"publish\", \"action_input\": {}}\n```";
-                return LLMResponse.builder().content(content).model(name).build();
-            }
+        LLMClientFactory factory =
+                name ->
+                        new LLMClient() {
+                            @Override
+                            public LLMResponse chat(LLMRequest request) {
+                                llmCalls.incrementAndGet();
+                                String user =
+                                        request.getMessages()
+                                                .get(request.getMessages().size() - 1)
+                                                .getContent();
+                                String content =
+                                        user.contains("Observation:")
+                                                ? "```json\n{\"thought\": \"done\", \"final_answer\": \"posted\"}\n```"
+                                                : "```json\n{\"thought\": \"publish\", \"action\": \"publish\", \"action_input\": {}}\n```";
+                                return LLMResponse.builder().content(content).model(name).build();
+                            }
 
-            @Override
-            public Stream<LLMResponse> chatStream(LLMRequest request) {
-                return Stream.empty();
-            }
-        };
+                            @Override
+                            public Stream<LLMResponse> chatStream(LLMRequest request) {
+                                return Stream.empty();
+                            }
+                        };
         RunJournal journal = RunJournal.inMemory();
         HarnessExecutor[] holder = new HarnessExecutor[1];
         ToolRegistry tools = new ToolRegistry();
-        tools.register("Publish", new Tool() {
-            public String getName() { return "publish"; }
-            public String getDescription() { return "Publishes. Args: {}"; }
-            public String execute(Map<String, Object> args) {
-                return "approved=" + holder[0].awaitHuman("approve", "Publish now?");
-            }
-        });
+        tools.register(
+                "Publish",
+                new Tool() {
+                    public String getName() {
+                        return "publish";
+                    }
+
+                    public String getDescription() {
+                        return "Publishes. Args: {}";
+                    }
+
+                    public String execute(Map<String, Object> args) {
+                        return "approved=" + holder[0].awaitHuman("approve", "Publish now?");
+                    }
+                });
         LoomScript parsed = new LoomParser(new Lexer(script).tokenize()).parseScript();
 
         holder[0] = new HarnessExecutor(parsed, tools, factory);
         holder[0].setJournal(journal);
         holder[0].initialize();
-        RunSuspended waiting = assertThrows(RunSuspended.class, () -> holder[0].executeWorkflow("Main", Map.of()));
+        RunSuspended waiting =
+                assertThrows(RunSuspended.class, () -> holder[0].executeWorkflow("Main", Map.of()));
         assertEquals(1, llmCalls.get(), "suspension is not a failure: no retries were spent");
         assertTrue(waiting.stepId().endsWith("#approve"));
 

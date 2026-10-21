@@ -3,18 +3,15 @@ package io.github.llm4j.loom.execution;
 import io.github.llm4j.loom.ast.LoomScript;
 import io.github.llm4j.loom.lexer.Lexer;
 import io.github.llm4j.loom.parser.LoomParser;
-
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Logger;
 
 /**
- * Orchestrates the loading of Loom scripts, resolving imports recursively
- * and detecting circular dependencies.
+ * Orchestrates the loading of Loom scripts, resolving imports recursively and detecting circular
+ * dependencies.
  */
 public class LoomLoader {
     private static final Logger log = Logger.getLogger(LoomLoader.class.getName());
@@ -22,10 +19,15 @@ public class LoomLoader {
     private final Set<String> visitedFiles = new HashSet<>();
 
     public LoomScript load(String filePath) throws IOException {
-        return load(Paths.get(filePath).toAbsolutePath().normalize().toString(), ScriptSource.fileSystem());
+        return load(
+                Paths.get(filePath).toAbsolutePath().normalize().toString(),
+                ScriptSource.fileSystem());
     }
 
-    /** Loads the script at {@code location} and, recursively, what it imports, reading them all through {@code source}. */
+    /**
+     * Loads the script at {@code location} and, recursively, what it imports, reading them all
+     * through {@code source}.
+     */
     public LoomScript load(String location, ScriptSource source) throws IOException {
         visitedFiles.clear();
         return loadRecursive(location, source);
@@ -46,7 +48,7 @@ public class LoomLoader {
 
         // Process imports
         LoomScript effectiveScript = new LoomScript();
-        
+
         for (String importPathRaw : script.getImports()) {
             if (LibraryImports.isLibrary(importPathRaw)) {
                 effectiveScript.merge(LibraryImports.load(importPathRaw));
@@ -56,12 +58,13 @@ public class LoomLoader {
             effectiveScript.merge(importedScript);
         }
 
-        // Merge original script definitions after imports (so original file can override if needed? 
+        // Merge original script definitions after imports (so original file can override if needed?
         // Actually, for now we just merge them. Order might matter for collisions.)
         effectiveScript.merge(script);
         effectiveScript.applyAgentLadders();
         effectiveScript.applyTrustLadders();
-        // The prompts folder is the importing file's own business: imports never choose it (merge leaves it alone).
+        // The prompts folder is the importing file's own business: imports never choose it (merge
+        // leaves it alone).
         effectiveScript.setPromptsDir(script.getPromptsDir(), script.getPromptsDirLine());
 
         visitedFiles.remove(path);

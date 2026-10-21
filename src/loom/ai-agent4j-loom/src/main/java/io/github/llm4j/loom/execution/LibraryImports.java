@@ -13,21 +13,33 @@ public final class LibraryImports {
 
     private static final Pattern NAME = Pattern.compile("loom/([a-z][a-z0-9_-]*)");
 
-    private LibraryImports() { }
+    private LibraryImports() {}
 
-    /** True for an import written as a library name, with no file extension: {@code "loom/autonomy"}. */
+    /**
+     * True for an import written as a library name, with no file extension: {@code
+     * "loom/autonomy"}.
+     */
     public static boolean isLibrary(String importPath) {
         return importPath != null && NAME.matcher(importPath).matches();
     }
 
-    /** The library parsed, or an {@link IllegalArgumentException} naming the libraries there are. */
+    /**
+     * The library parsed, or an {@link IllegalArgumentException} naming the libraries there are.
+     */
     public static LoomScript load(String importPath) {
         var m = NAME.matcher(importPath);
         if (!m.matches()) throw new IllegalArgumentException("not a library import: " + importPath);
         String resource = "/loom-lib/" + m.group(1) + ".loom";
         try (InputStream in = LibraryImports.class.getResourceAsStream(resource)) {
-            if (in == null) throw new IllegalArgumentException("There is no standard library called " + importPath + " (available: loom/autonomy)");
-            return new LoomParser(new Lexer(new String(in.readAllBytes(), StandardCharsets.UTF_8)).tokenize()).parseScript();
+            if (in == null)
+                throw new IllegalArgumentException(
+                        "There is no standard library called "
+                                + importPath
+                                + " (available: loom/autonomy)");
+            return new LoomParser(
+                            new Lexer(new String(in.readAllBytes(), StandardCharsets.UTF_8))
+                                    .tokenize())
+                    .parseScript();
         } catch (IOException e) {
             throw new IllegalStateException("cannot read the library " + importPath, e);
         }

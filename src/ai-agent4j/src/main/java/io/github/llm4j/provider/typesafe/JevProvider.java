@@ -28,10 +28,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Requests go through {@link HttpClientWrapper}, so retries (429 and 529 "overloaded" are
  * retried by the default policy), timeouts and call telemetry behave as for every other provider.
- * The key is read for each request from the configuration (a literal or a secret), sent
- * only to the configured endpoint as a bearer token, and never appears in an exception message, a
- * log line or an event. Its answers are {@link io.github.llm4j.classify.Answer#calibrated()
- * calibrated}. The wire format is in one class, {@code JevWire}.
+ * The key is read for each request from the configuration (a literal or a secret), sent only to the
+ * configured endpoint as a bearer token, and never appears in an exception message, a log line or
+ * an event. Its answers are {@link io.github.llm4j.classify.Answer#calibrated() calibrated}. The
+ * wire format is in one class, {@code JevWire}.
  */
 public class JevProvider implements ClassificationProvider {
 

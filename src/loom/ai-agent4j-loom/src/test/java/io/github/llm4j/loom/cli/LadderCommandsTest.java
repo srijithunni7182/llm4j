@@ -30,7 +30,8 @@ import picocli.CommandLine;
 @Tag("L8")
 class LadderCommandsTest {
 
-    static final String SCRIPT = """
+    static final String SCRIPT =
+            """
             import "loom/autonomy"
             agent Triager {
                 model: "m"
@@ -67,8 +68,7 @@ class LadderCommandsTest {
             }
             """;
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
     ByteArrayOutputStream errBytes = new ByteArrayOutputStream();
@@ -94,26 +94,47 @@ class LadderCommandsTest {
         store = dir.resolve("store");
     }
 
-    String out() { return outBytes.toString(); }
+    String out() {
+        return outBytes.toString();
+    }
 
-    String err() { return errBytes.toString(); }
+    String err() {
+        return errBytes.toString();
+    }
 
     WeaveEnv env() {
-        LLMClient client = new LLMClient() {
-            @Override
-            public LLMResponse chat(LLMRequest request) {
-                var messages = request.getMessages();
-                String choice = agent.apply(fields(messages.get(messages.size() - 1).getContent()));
-                return LLMResponse.builder().content("```json\n{\"choice\": \"" + choice + "\", \"reasoning\": \"because\", \"confidence\": 0.9}\n```").model("m").tokenUsage(10, 5, 15).build();
-            }
+        LLMClient client =
+                new LLMClient() {
+                    @Override
+                    public LLMResponse chat(LLMRequest request) {
+                        var messages = request.getMessages();
+                        String choice =
+                                agent.apply(fields(messages.get(messages.size() - 1).getContent()));
+                        return LLMResponse.builder()
+                                .content(
+                                        "```json\n{\"choice\": \""
+                                                + choice
+                                                + "\", \"reasoning\": \"because\", \"confidence\": 0.9}\n```")
+                                .model("m")
+                                .tokenUsage(10, 5, 15)
+                                .build();
+                    }
 
-            @Override
-            public Stream<LLMResponse> chatStream(LLMRequest request) {
-                return Stream.of(chat(request));
-            }
-        };
-        return new WeaveEnv(m -> client, question -> person.apply(fields(question)), new PrintStream(outBytes, true), new PrintStream(errBytes, true), clock, d -> { },
-                c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""), List.of("weave"), System::getenv);
+                    @Override
+                    public Stream<LLMResponse> chatStream(LLMRequest request) {
+                        return Stream.of(chat(request));
+                    }
+                };
+        return new WeaveEnv(
+                m -> client,
+                question -> person.apply(fields(question)),
+                new PrintStream(outBytes, true),
+                new PrintStream(errBytes, true),
+                clock,
+                d -> {},
+                c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""),
+                List.of("weave"),
+                System::getenv);
     }
 
     int runCase(String tier, int amount) {
@@ -124,7 +145,10 @@ class LadderCommandsTest {
         in.put("reason", "damaged");
         in.put("customer_since", "2020");
         Path run = dir.resolve("runs").resolve("case-" + (++runs));
-        int code = WeaveCLI.run(script, null, "Triage", in, null, null, null, null, run, store, false, false, null, null, env());
+        int code =
+                WeaveCLI.run(
+                        script, null, "Triage", in, null, null, null, null, run, store, false,
+                        false, null, null, env());
         clock.advance(Duration.ofHours(1));
         return code;
     }
@@ -133,19 +157,47 @@ class LadderCommandsTest {
     void statusSaysWhereEachScopeStandsAndWhatIsMissingForTheNextClimb() throws Exception {
         for (int i = 0; i < 2; i++) assertThat(runCase("gold", 10 + i)).isZero();
         outBytes.reset();
-        assertThat(AutonomyCommands.status(store, "Refund", null, false, clock, new PrintStream(outBytes, true), System.err)).isZero();
+        assertThat(
+                        AutonomyCommands.status(
+                                store,
+                                "Refund",
+                                null,
+                                false,
+                                clock,
+                                new PrintStream(outBytes, true),
+                                System.err))
+                .isZero();
         String text = out();
-        assertThat(text).contains("Refund   ladder L, may climb as far as act").contains("scope gold   rung watch").contains("2 answered cases in this epoch")
-                .contains("towards suggest:").contains("history.count >= 3").contains("[2 vs 3]").contains("not met");
+        assertThat(text)
+                .contains("Refund   ladder L, may climb as far as act")
+                .contains("scope gold   rung watch")
+                .contains("2 answered cases in this epoch")
+                .contains("towards suggest:")
+                .contains("history.count >= 3")
+                .contains("[2 vs 3]")
+                .contains("not met");
 
         for (int i = 0; i < 2; i++) runCase("gold", 20 + i);
         outBytes.reset();
-        AutonomyCommands.status(store, "Refund", null, false, clock, new PrintStream(outBytes, true), System.err);
-        assertThat(out()).contains("open promotion proposal: to suggest").contains("waiting for risk-owner");
+        AutonomyCommands.status(
+                store, "Refund", null, false, clock, new PrintStream(outBytes, true), System.err);
+        assertThat(out())
+                .contains("open promotion proposal: to suggest")
+                .contains("waiting for risk-owner");
 
         outBytes.reset();
-        assertThat(AutonomyCommands.status(store, null, null, true, clock, new PrintStream(outBytes, true), System.err)).isZero();
-        Object json = new com.fasterxml.jackson.databind.ObjectMapper().readValue(out(), Object.class);
+        assertThat(
+                        AutonomyCommands.status(
+                                store,
+                                null,
+                                null,
+                                true,
+                                clock,
+                                new PrintStream(outBytes, true),
+                                System.err))
+                .isZero();
+        Object json =
+                new com.fasterxml.jackson.databind.ObjectMapper().readValue(out(), Object.class);
         Map<?, ?> decision = (Map<?, ?>) ((List<?>) json).get(0);
         assertThat(decision.get("decision")).isEqualTo("Refund");
         assertThat(decision.get("ladder")).isEqualTo("L");
@@ -160,68 +212,144 @@ class LadderCommandsTest {
         person = f -> "escalate";
         for (int i = 0; i < 4; i++) runCase("gold", 10 + i);
         outBytes.reset();
-        AutonomyCommands.status(store, "Refund", null, false, clock, new PrintStream(outBytes, true), System.err);
+        AutonomyCommands.status(
+                store, "Refund", null, false, clock, new PrintStream(outBytes, true), System.err);
         assertThat(out()).contains("coverage 0.0%").contains("always escalates");
         agent = f -> "approve";
         person = f -> "approve";
         for (int i = 0; i < 4; i++) runCase("gold", 30 + i);
         outBytes.reset();
-        AutonomyCommands.status(store, "Refund", null, false, clock, new PrintStream(outBytes, true), System.err);
+        AutonomyCommands.status(
+                store, "Refund", null, false, clock, new PrintStream(outBytes, true), System.err);
         assertThat(out()).contains("coverage 50.0%");
     }
 
     @Test
     void onlyTheNamedApproverApprovesAndTheApprovalMovesTheRungAndIsAudited() throws Exception {
         for (int i = 0; i < 4; i++) runCase("gold", 10 + i);
-        assertThat(AutonomyCommands.decide(store, "Refund", "gold", true, "fine", null, "someone-else", env())).isEqualTo(2);
+        assertThat(
+                        AutonomyCommands.decide(
+                                store, "Refund", "gold", true, "fine", null, "someone-else", env()))
+                .isEqualTo(2);
         assertThat(err()).contains("only risk-owner may approve");
         errBytes.reset();
-        assertThat(AutonomyCommands.decide(store, "Refund", "gold", true, "numbers look right", null, "risk-owner", env())).isZero();
+        assertThat(
+                        AutonomyCommands.decide(
+                                store,
+                                "Refund",
+                                "gold",
+                                true,
+                                "numbers look right",
+                                null,
+                                "risk-owner",
+                                env()))
+                .isZero();
         assertThat(out()).contains("Approved: gold moved to suggest.");
         outBytes.reset();
         runCase("gold", 99);
         outBytes.reset();
         AutonomyCommands.history(store, null, new PrintStream(outBytes, true), System.err);
-        assertThat(out()).contains("(start) -> watch").contains("watch -> suggest").contains("approved by risk-owner: numbers look right");
-        assertThat(Files.readAllLines(store.resolve("autonomy/audit.jsonl")).get(0)).contains("\"event\":\"promotion_approved\"").contains("\"decision\":\"Refund\"");
+        assertThat(out())
+                .contains("(start) -> watch")
+                .contains("watch -> suggest")
+                .contains("approved by risk-owner: numbers look right");
+        assertThat(Files.readAllLines(store.resolve("autonomy/audit.jsonl")).get(0))
+                .contains("\"event\":\"promotion_approved\"")
+                .contains("\"decision\":\"Refund\"");
     }
 
     @Test
     void aHandMoveNeedsForceToGoAboveTheEvidenceAndNeverToComeDown() throws Exception {
         runCase("gold", 10);
-        assertThat(AutonomyCommands.move(store, "Refund", "gold", null, true, false, "drill", null, null, env())).isEqualTo(2);
+        assertThat(
+                        AutonomyCommands.move(
+                                store, "Refund", "gold", null, true, false, "drill", null, null,
+                                env()))
+                .isEqualTo(2);
         assertThat(err()).contains("not supported by the evidence").contains("--force");
         errBytes.reset();
-        assertThat(AutonomyCommands.move(store, "Refund", "gold", "suggest", true, true, "incident", null, "ops", env())).isZero();
+        assertThat(
+                        AutonomyCommands.move(
+                                store,
+                                "Refund",
+                                "gold",
+                                "suggest",
+                                true,
+                                true,
+                                "incident",
+                                null,
+                                "ops",
+                                env()))
+                .isZero();
         assertThat(out()).contains("Moved gold from watch to suggest (FORCED");
         outBytes.reset();
-        assertThat(AutonomyCommands.move(store, "Refund", "gold", "watch", false, false, "model changed", null, "ops", env())).isZero();
+        assertThat(
+                        AutonomyCommands.move(
+                                store,
+                                "Refund",
+                                "gold",
+                                "watch",
+                                false,
+                                false,
+                                "model changed",
+                                null,
+                                "ops",
+                                env()))
+                .isZero();
         assertThat(out()).contains("Moved gold from suggest to watch.");
-        assertThat(AutonomyCommands.move(store, "Refund", "gold", "nowhere", true, true, "x", null, null, env())).isEqualTo(2);
+        assertThat(
+                        AutonomyCommands.move(
+                                store, "Refund", "gold", "nowhere", true, true, "x", null, null,
+                                env()))
+                .isEqualTo(2);
         assertThat(err()).contains("one of the rungs: watch, suggest, act");
-        assertThat(AutonomyCommands.move(store, "Refund", "nobody", null, true, false, "x", null, null, env())).isEqualTo(2);
+        assertThat(
+                        AutonomyCommands.move(
+                                store, "Refund", "nobody", null, true, false, "x", null, null,
+                                env()))
+                .isEqualTo(2);
         assertThat(err()).contains("no such scope");
     }
 
     @Test
     void anOutcomeIsRecordedWithItsValueAndAFreezeStopsTheAutonomousRungs() throws Exception {
         for (int i = 0; i < 3; i++) runCase("gold", 10 + i);
-        assertThat(AutonomyCommands.outcome(store, "Refund", firstCaseId(), "views", "5400", "a week on", null, env())).isZero();
+        assertThat(
+                        AutonomyCommands.outcome(
+                                store,
+                                "Refund",
+                                firstCaseId(),
+                                "views",
+                                "5400",
+                                "a week on",
+                                null,
+                                env()))
+                .isZero();
         assertThat(out()).contains("Recorded:").contains("views = 5400");
-        assertThat(AutonomyCommands.outcome(store, "Refund", "no-such-case", "reversed", null, null, env())).isEqualTo(2);
+        assertThat(
+                        AutonomyCommands.outcome(
+                                store, "Refund", "no-such-case", "reversed", null, null, env()))
+                .isEqualTo(2);
         assertThat(err()).contains("no case no-such-case");
 
         outBytes.reset();
         assertThat(AutonomyCommands.freeze(store, "Refund", true, "incident 42", env())).isZero();
         outBytes.reset();
-        AutonomyCommands.status(store, "Refund", null, false, clock, new PrintStream(outBytes, true), System.err);
+        AutonomyCommands.status(
+                store, "Refund", null, false, clock, new PrintStream(outBytes, true), System.err);
         assertThat(out()).contains("FROZEN");
         assertThat(AutonomyCommands.freeze(store, "Refund", false, "resolved", env())).isZero();
     }
 
     private String firstCaseId() {
         return new io.github.llm4j.loom.ladder.LadderEngine(
-                io.github.llm4j.loom.ladder.LadderPolicy.of(loaded(), loaded().getDecisions().get(0)), AutonomySupport.ledger(store), clock).cases().get(0).id();
+                        io.github.llm4j.loom.ladder.LadderPolicy.of(
+                                loaded(), loaded().getDecisions().get(0)),
+                        AutonomySupport.ledger(store),
+                        clock)
+                .cases()
+                .get(0)
+                .id();
     }
 
     private io.github.llm4j.loom.ast.LoomScript loaded() {
@@ -238,8 +366,12 @@ class LadderCommandsTest {
     void describeSaysInSentencesWhatTheLadderRequires() {
         assertThat(LadderCliCommand.describe(script, null, env())).isZero();
         String text = out();
-        assertThat(text).contains("Ladder L").contains("Used by decision Refund").contains("Rung watch: a person answers without seeing the agent's proposal.")
-                .contains("the number of cases is at least 3").contains("Moving up needs approval from risk-owner.");
+        assertThat(text)
+                .contains("Ladder L")
+                .contains("Used by decision Refund")
+                .contains("Rung watch: a person answers without seeing the agent's proposal.")
+                .contains("the number of cases is at least 3")
+                .contains("Moving up needs approval from risk-owner.");
         errBytes.reset();
         assertThat(LadderCliCommand.describe(script, "Nope", env())).isEqualTo(2);
         assertThat(err()).contains("no ladder named Nope").contains("Ladders: L");
@@ -249,22 +381,51 @@ class LadderCommandsTest {
     void testTriesTheLadderOnARecordedHistoryAndWritesNothing() throws Exception {
         for (int i = 0; i < 5; i++) runCase("gold", 10 + i);
         runCase("basic", 30);
-        long before = Files.walk(store).filter(Files::isRegularFile).mapToLong(p -> p.toFile().length()).sum();
+        long before =
+                Files.walk(store)
+                        .filter(Files::isRegularFile)
+                        .mapToLong(p -> p.toFile().length())
+                        .sum();
         outBytes.reset();
-        assertThat(LadderCliCommand.test(script, "Refund", store, clock, new PrintStream(outBytes, true), System.err)).isZero();
+        assertThat(
+                        LadderCliCommand.test(
+                                script,
+                                "Refund",
+                                store,
+                                clock,
+                                new PrintStream(outBytes, true),
+                                System.err))
+                .isZero();
         String text = out();
-        assertThat(text).contains("(nothing is written)").contains("scope gold   would hold rung suggest").contains("scope basic   would hold rung watch")
-                .contains("history.count >= 6").contains("[5 vs 6]");
-        long after = Files.walk(store).filter(Files::isRegularFile).mapToLong(p -> p.toFile().length()).sum();
+        assertThat(text)
+                .contains("(nothing is written)")
+                .contains("scope gold   would hold rung suggest")
+                .contains("scope basic   would hold rung watch")
+                .contains("history.count >= 6")
+                .contains("[5 vs 6]");
+        long after =
+                Files.walk(store)
+                        .filter(Files::isRegularFile)
+                        .mapToLong(p -> p.toFile().length())
+                        .sum();
         assertThat(after).isEqualTo(before);
-        assertThat(LadderCliCommand.test(script, "Nothing", store, clock, new PrintStream(outBytes, true), new PrintStream(errBytes, true))).isEqualTo(2);
+        assertThat(
+                        LadderCliCommand.test(
+                                script,
+                                "Nothing",
+                                store,
+                                clock,
+                                new PrintStream(outBytes, true),
+                                new PrintStream(errBytes, true)))
+                .isEqualTo(2);
     }
 
     @Test
     void theLadderCommandIsRegistered() {
         CommandLine cli = WeaveCLI.commandLine();
         assertThat(cli.getSubcommands()).containsKeys("ladder", "autonomy");
-        assertThat(cli.getSubcommands().get("ladder").getSubcommands()).containsKeys("describe", "test");
+        assertThat(cli.getSubcommands().get("ladder").getSubcommands())
+                .containsKeys("describe", "test");
     }
 
     // ---------- the paths a person takes when something is wrong ----------
@@ -272,35 +433,80 @@ class LadderCommandsTest {
     @Test
     void movesAreRefusedWhenTheyGoTheWrongWayOrOffTheEnds() throws Exception {
         runCase("gold", 10);
-        assertThat(AutonomyCommands.move(store, "Refund", "gold", null, false, false, "x", null, null, env())).isEqualTo(2);
+        assertThat(
+                        AutonomyCommands.move(
+                                store, "Refund", "gold", null, false, false, "x", null, null,
+                                env()))
+                .isEqualTo(2);
         assertThat(err()).contains("gold is already on watch");
         errBytes.reset();
-        AutonomyCommands.move(store, "Refund", "gold", "suggest", true, true, "force", null, "ops", env());
+        AutonomyCommands.move(
+                store, "Refund", "gold", "suggest", true, true, "force", null, "ops", env());
         errBytes.reset();
-        assertThat(AutonomyCommands.move(store, "Refund", "gold", "act", false, false, "x", null, null, env())).isEqualTo(2);
+        assertThat(
+                        AutonomyCommands.move(
+                                store, "Refund", "gold", "act", false, false, "x", null, null,
+                                env()))
+                .isEqualTo(2);
         assertThat(err()).contains("demote moves down, and act is above suggest");
         errBytes.reset();
-        assertThat(AutonomyCommands.move(store, "Refund", "gold", "watch", true, false, "x", null, null, env())).isEqualTo(2);
+        assertThat(
+                        AutonomyCommands.move(
+                                store, "Refund", "gold", "watch", true, false, "x", null, null,
+                                env()))
+                .isEqualTo(2);
         assertThat(err()).contains("promote moves up, and watch is below suggest");
         errBytes.reset();
-        AutonomyCommands.move(store, "Refund", "gold", "act", true, true, "force", null, "ops", env());
+        AutonomyCommands.move(
+                store, "Refund", "gold", "act", true, true, "force", null, "ops", env());
         errBytes.reset();
-        assertThat(AutonomyCommands.move(store, "Refund", "gold", null, true, false, "x", null, null, env())).isEqualTo(2);
+        assertThat(
+                        AutonomyCommands.move(
+                                store, "Refund", "gold", null, true, false, "x", null, null, env()))
+                .isEqualTo(2);
         assertThat(err()).contains("gold is already on act");
         outBytes.reset();
-        assertThat(AutonomyCommands.move(store, "Refund", "gold", null, false, false, "back one", null, "ops", env())).isZero();
+        assertThat(
+                        AutonomyCommands.move(
+                                store,
+                                "Refund",
+                                "gold",
+                                null,
+                                false,
+                                false,
+                                "back one",
+                                null,
+                                "ops",
+                                env()))
+                .isZero();
         assertThat(out()).contains("Moved gold from act to suggest.");
     }
 
     @Test
     void aProposalCanBeRejectedOnlyByTheApproverAndNotTwice() throws Exception {
         for (int i = 0; i < 4; i++) runCase("gold", 10 + i);
-        assertThat(AutonomyCommands.decide(store, "Refund", "gold", false, "no", null, "someone-else", env())).isEqualTo(2);
+        assertThat(
+                        AutonomyCommands.decide(
+                                store, "Refund", "gold", false, "no", null, "someone-else", env()))
+                .isEqualTo(2);
         assertThat(err()).contains("only risk-owner may decide on moving up");
         errBytes.reset();
-        assertThat(AutonomyCommands.decide(store, "Refund", "gold", false, "not yet", null, "risk-owner", env())).isZero();
+        assertThat(
+                        AutonomyCommands.decide(
+                                store,
+                                "Refund",
+                                "gold",
+                                false,
+                                "not yet",
+                                null,
+                                "risk-owner",
+                                env()))
+                .isZero();
         assertThat(out()).contains("Rejected the promotion of gold to suggest.");
-        assertThat(AutonomyCommands.decide(store, "Refund", "gold", false, "again", null, "risk-owner", env())).isEqualTo(2);
+        assertThat(
+                        AutonomyCommands.decide(
+                                store, "Refund", "gold", false, "again", null, "risk-owner", env()))
+                .isEqualTo(2);
         assertThat(err()).contains("no open promotion proposal");
     }
 
@@ -308,18 +514,49 @@ class LadderCommandsTest {
     void anOutcomeOfAnyShapeIsRecordedAndAScriptThatCannotBeFoundIsSaid() throws Exception {
         runCase("gold", 10);
         String id = firstCaseId();
-        assertThat(AutonomyCommands.outcome(store, "Refund", id, "status", "taken down", null, null, env())).isZero();
+        assertThat(
+                        AutonomyCommands.outcome(
+                                store, "Refund", id, "status", "taken down", null, null, env()))
+                .isZero();
         assertThat(out()).contains("status = taken down");
-        assertThat(AutonomyCommands.outcome(store, "Refund", id, "tick", null, null, null, env())).isZero();
+        assertThat(AutonomyCommands.outcome(store, "Refund", id, "tick", null, null, null, env()))
+                .isZero();
         errBytes.reset();
-        assertThat(AutonomyCommands.status(dir.resolve("nothing"), null, null, false, clock, new PrintStream(outBytes, true), new PrintStream(errBytes, true))).isEqualTo(2);
+        assertThat(
+                        AutonomyCommands.status(
+                                dir.resolve("nothing"),
+                                null,
+                                null,
+                                false,
+                                clock,
+                                new PrintStream(outBytes, true),
+                                new PrintStream(errBytes, true)))
+                .isEqualTo(2);
         assertThat(err()).contains("no decision has run");
         Files.delete(script.toPath());
         errBytes.reset();
-        assertThat(AutonomyCommands.status(store, "Refund", null, false, clock, new PrintStream(outBytes, true), new PrintStream(errBytes, true))).isEqualTo(2);
+        assertThat(
+                        AutonomyCommands.status(
+                                store,
+                                "Refund",
+                                null,
+                                false,
+                                clock,
+                                new PrintStream(outBytes, true),
+                                new PrintStream(errBytes, true)))
+                .isEqualTo(2);
         assertThat(err()).contains("don't know which script declares Refund");
         errBytes.reset();
-        assertThat(AutonomyCommands.status(store, "Refund", dir.resolve("elsewhere.loom").toFile(), false, clock, new PrintStream(outBytes, true), new PrintStream(errBytes, true))).isEqualTo(2);
+        assertThat(
+                        AutonomyCommands.status(
+                                store,
+                                "Refund",
+                                dir.resolve("elsewhere.loom").toFile(),
+                                false,
+                                clock,
+                                new PrintStream(outBytes, true),
+                                new PrintStream(errBytes, true)))
+                .isEqualTo(2);
     }
 
     @Test
@@ -328,45 +565,82 @@ class LadderCommandsTest {
         AutonomyCommands.decide(store, "Refund", "gold", true, "ok", null, "risk-owner", env());
         for (int i = 0; i < 6; i++) runCase("gold", 30 + i);
         outBytes.reset();
-        AutonomyCommands.status(store, "Refund", null, false, clock, new PrintStream(outBytes, true), System.err);
-        assertThat(out()).contains("towards act: every condition is met").contains("coverage 100.0%");
+        AutonomyCommands.status(
+                store, "Refund", null, false, clock, new PrintStream(outBytes, true), System.err);
+        assertThat(out())
+                .contains("towards act: every condition is met")
+                .contains("coverage 100.0%");
         AutonomyCommands.decide(store, "Refund", "gold", true, "ok", null, "risk-owner", env());
         outBytes.reset();
-        AutonomyCommands.status(store, "Refund", null, false, clock, new PrintStream(outBytes, true), System.err);
-        assertThat(out()).contains("this is the top rung").contains("scope gold   rung act").contains("slips to suggest when any of:").contains("history.last(3).count(dangerous) >= 2");
+        AutonomyCommands.status(
+                store, "Refund", null, false, clock, new PrintStream(outBytes, true), System.err);
+        assertThat(out())
+                .contains("this is the top rung")
+                .contains("scope gold   rung act")
+                .contains("slips to suggest when any of:")
+                .contains("history.last(3).count(dangerous) >= 2");
     }
 
     @Test
-    void describeReadsATrustBlockAsALadderAndSaysWhyADecisionStaysOnTheOriginalEngine() throws Exception {
+    void describeReadsATrustBlockAsALadderAndSaysWhyADecisionStaysOnTheOriginalEngine()
+            throws Exception {
         Path trust = dir.resolve("trust.loom");
         String base = io.github.llm4j.loom.autonomy.Scripts2Access.refund("");
         Files.writeString(trust, base);
         assertThat(LadderCliCommand.describe(trust.toFile(), "Refund", env())).isZero();
-        assertThat(out()).contains("The trust block of Refund, read as a ladder").contains("Rung watch").contains("Rung suggest").contains("Rung act")
+        assertThat(out())
+                .contains("The trust block of Refund, read as a ladder")
+                .contains("Rung watch")
+                .contains("Rung suggest")
+                .contains("Rung act")
                 .contains("cases answered without seeing the proposal");
         errBytes.reset();
-        assertThat(LadderCliCommand.describe(trust.toFile(), null, env())).as("a script that declares no ladder of its own").isEqualTo(2);
+        assertThat(LadderCliCommand.describe(trust.toFile(), null, env()))
+                .as("a script that declares no ladder of its own")
+                .isEqualTo(2);
         assertThat(err()).contains("declares no ladder");
 
-        Files.writeString(trust, io.github.llm4j.loom.autonomy.Scripts2Access.refund("always ask a person after 50 cases a day"));
+        Files.writeString(
+                trust,
+                io.github.llm4j.loom.autonomy.Scripts2Access.refund(
+                        "always ask a person after 50 cases a day"));
         outBytes.reset();
         assertThat(LadderCliCommand.describe(trust.toFile(), "Refund", env())).isZero();
-        assertThat(out()).contains("runs on the original engine, not on a ladder").contains("calendar days");
+        assertThat(out())
+                .contains("runs on the original engine, not on a ladder")
+                .contains("calendar days");
     }
 
     @Test
     void theLadderCommandsSayWhatIsWrongWithTheirArguments() throws Exception {
-        assertThat(LadderCliCommand.describe(dir.resolve("missing.loom").toFile(), null, env())).isEqualTo(2);
+        assertThat(LadderCliCommand.describe(dir.resolve("missing.loom").toFile(), null, env()))
+                .isEqualTo(2);
         assertThat(err()).startsWith("Error:");
         errBytes.reset();
-        assertThat(LadderCliCommand.test(dir.resolve("missing.loom").toFile(), "Refund", store, clock, new PrintStream(outBytes, true), new PrintStream(errBytes, true))).isEqualTo(2);
+        assertThat(
+                        LadderCliCommand.test(
+                                dir.resolve("missing.loom").toFile(),
+                                "Refund",
+                                store,
+                                clock,
+                                new PrintStream(outBytes, true),
+                                new PrintStream(errBytes, true)))
+                .isEqualTo(2);
         Path plain = dir.resolve("plain.loom");
         Files.writeString(plain, "agent A { model: \"m\" system: \"s\" }\n");
         errBytes.reset();
         assertThat(LadderCliCommand.describe(plain.toFile(), null, env())).isEqualTo(2);
         assertThat(err()).contains("declares no ladder");
         errBytes.reset();
-        assertThat(LadderCliCommand.test(plain.toFile(), "Refund", store, clock, new PrintStream(outBytes, true), new PrintStream(errBytes, true))).isEqualTo(2);
+        assertThat(
+                        LadderCliCommand.test(
+                                plain.toFile(),
+                                "Refund",
+                                store,
+                                clock,
+                                new PrintStream(outBytes, true),
+                                new PrintStream(errBytes, true)))
+                .isEqualTo(2);
         assertThat(err()).contains("has no decision named Refund that binds a ladder");
         Path unbound = dir.resolve("unbound.loom");
         Files.writeString(unbound, SCRIPT.substring(0, SCRIPT.indexOf("decision Refund")));
@@ -374,7 +648,15 @@ class LadderCommandsTest {
         assertThat(LadderCliCommand.describe(unbound.toFile(), "L", env())).isZero();
         assertThat(out()).contains("Ladder L").doesNotContain("Used by");
         outBytes.reset();
-        assertThat(LadderCliCommand.test(script, "Refund", dir.resolve("empty-store"), clock, new PrintStream(outBytes, true), System.err)).isZero();
+        assertThat(
+                        LadderCliCommand.test(
+                                script,
+                                "Refund",
+                                dir.resolve("empty-store"),
+                                clock,
+                                new PrintStream(outBytes, true),
+                                System.err))
+                .isZero();
         assertThat(out()).contains("no cases in");
         assertThat(new LadderCliCommand().call()).isEqualTo(2);
     }
@@ -383,7 +665,11 @@ class LadderCommandsTest {
     void testingALadderOnAHistoryThatEarnsTheTopRungShowsTheSlipConditionsToo() throws Exception {
         for (int i = 0; i < 8; i++) runCase("gold", 10 + i);
         outBytes.reset();
-        LadderCliCommand.test(script, "Refund", store, clock, new PrintStream(outBytes, true), System.err);
-        assertThat(out()).contains("would hold rung act").contains("slip if history.last(3).count(dangerous) >= 2").contains("no");
+        LadderCliCommand.test(
+                script, "Refund", store, clock, new PrintStream(outBytes, true), System.err);
+        assertThat(out())
+                .contains("would hold rung act")
+                .contains("slip if history.last(3).count(dangerous) >= 2")
+                .contains("no");
     }
 }

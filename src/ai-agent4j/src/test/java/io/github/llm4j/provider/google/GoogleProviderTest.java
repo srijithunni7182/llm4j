@@ -100,7 +100,8 @@ class GoogleProviderTest {
 
         // Contract R1.1: the system prompt goes in Gemini's systemInstruction, not the user's text
         assertThat(captor.getValue())
-                .contains("\"systemInstruction\":{\"parts\":[{\"text\":\"You are a helpful bot.\"}]}")
+                .contains(
+                        "\"systemInstruction\":{\"parts\":[{\"text\":\"You are a helpful bot.\"}]}")
                 .contains("{\"role\":\"user\",\"parts\":[{\"text\":\"Are you a bot?\"}]}");
     }
 

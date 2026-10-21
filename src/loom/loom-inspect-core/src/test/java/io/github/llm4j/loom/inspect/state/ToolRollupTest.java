@@ -21,7 +21,8 @@ class ToolRollupTest {
     private final RunRegistry registry = new RunRegistry();
     private int n;
 
-    private void call(String client, String runId, String agent, String tool, boolean ok, String category) {
+    private void call(
+            String client, String runId, String agent, String tool, boolean ok, String category) {
         String trace = Ids.traceId(runId);
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_TOOL);
@@ -30,8 +31,21 @@ class ToolRollupTest {
         a.put(Semconv.LOOM_TOOL_DURATION_MS, 100L);
         if (!ok) a.put(Semconv.ERROR_TYPE, category);
         long end = T0 + (++n) * 1_000_000_000L;
-        registry.applySpans(Resource.of(client, "i_1"), List.of(new SpanRec(trace, Ids.spanId(runId, "t" + n), null, "execute_tool " + tool, SpanRec.CLIENT, end - 100_000_000L, end, a,
-                ok ? SpanRec.STATUS_OK : SpanRec.STATUS_ERROR, null, List.of())));
+        registry.applySpans(
+                Resource.of(client, "i_1"),
+                List.of(
+                        new SpanRec(
+                                trace,
+                                Ids.spanId(runId, "t" + n),
+                                null,
+                                "execute_tool " + tool,
+                                SpanRec.CLIENT,
+                                end - 100_000_000L,
+                                end,
+                                a,
+                                ok ? SpanRec.STATUS_OK : SpanRec.STATUS_ERROR,
+                                null,
+                                List.of())));
     }
 
     @Test
@@ -53,11 +67,16 @@ class ToolRollupTest {
     void aRollupCanBeLimitedToOneClient() {
         for (int i = 0; i < 4; i++) call("shop", "r1", "Writer", "Search", false, "timeout");
         for (int i = 0; i < 4; i++) call("blog", "r2", "Editor", "Search", true, null);
-        assertThat(registry.toolRollup("shop")).singleElement().satisfies(s -> {
-            assertThat(s.calls()).isEqualTo(4);
-            assertThat(s.state()).isEqualTo("failing");
-        });
-        assertThat(registry.toolRollup("blog")).singleElement().satisfies(s -> assertThat(s.state()).isEqualTo("healthy"));
+        assertThat(registry.toolRollup("shop"))
+                .singleElement()
+                .satisfies(
+                        s -> {
+                            assertThat(s.calls()).isEqualTo(4);
+                            assertThat(s.state()).isEqualTo("failing");
+                        });
+        assertThat(registry.toolRollup("blog"))
+                .singleElement()
+                .satisfies(s -> assertThat(s.state()).isEqualTo("healthy"));
         assertThat(registry.toolRollup("nobody")).isEmpty();
     }
 
@@ -67,7 +86,9 @@ class ToolRollupTest {
         for (int i = 0; i < 20; i++) call("c", "r", "A", "Busy", true, null);
         for (int i = 0; i < 10; i++) call("c", "r", "A", "Flaky", i % 2 == 0, "timeout");
         for (int i = 0; i < 3; i++) call("c", "r", "A", "Dead", false, "not_found");
-        assertThat(registry.toolRollup(null)).extracting(ToolSummary::name).containsExactly("Dead", "Flaky", "Busy", "Fine");
+        assertThat(registry.toolRollup(null))
+                .extracting(ToolSummary::name)
+                .containsExactly("Dead", "Flaky", "Busy", "Fine");
         assertThat(registry.toolRollup(null).get(1).state()).isEqualTo("degraded");
     }
 

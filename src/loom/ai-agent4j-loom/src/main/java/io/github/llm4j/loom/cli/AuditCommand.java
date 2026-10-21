@@ -13,14 +13,23 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-/** {@code weave audit}: a security review of a script, with findings mapped to the OWASP Top 10 for LLM Applications. Nothing is run. */
-@Command(name = "audit", description = "Reviews a script's security without running it: what each agent can reach, where untrusted content, private data and a way out meet in one agent, unapproved effects, budgets and outside dependencies. Findings name the OWASP Top 10 for LLM Applications risks.")
+/**
+ * {@code weave audit}: a security review of a script, with findings mapped to the OWASP Top 10 for
+ * LLM Applications. Nothing is run.
+ */
+@Command(
+        name = "audit",
+        description =
+                "Reviews a script's security without running it: what each agent can reach, where untrusted content, private data and a way out meet in one agent, unapproved effects, budgets and outside dependencies. Findings name the OWASP Top 10 for LLM Applications risks.")
 final class AuditCommand implements Callable<Integer> {
 
     @Parameters(index = "0", description = "The .loom script.")
     File script;
 
-    @Option(names = {"-l", "--loot"}, description = "The .loot tool mapping file: its Name.reach lines say what your own tools reach (the audit never loads their classes).")
+    @Option(
+            names = {"-l", "--loot"},
+            description =
+                    "The .loot tool mapping file: its Name.reach lines say what your own tools reach (the audit never loads their classes).")
     File lootFile;
 
     @Option(names = "--format", description = "md (default) or json.", defaultValue = "md")
@@ -29,14 +38,16 @@ final class AuditCommand implements Callable<Integer> {
     @Option(names = "--out", description = "Also write the report to this file.")
     File out;
 
-    @Option(names = "--fail-on", description = "Exit 1 when a finding is at least this severe: high (default), medium, low, info or none.", defaultValue = "high")
+    @Option(
+            names = "--fail-on",
+            description =
+                    "Exit 1 when a finding is at least this severe: high (default), medium, low, info or none.",
+            defaultValue = "high")
     String failOn;
 
-    @picocli.CommandLine.Mixin
-    PromptOptions promptOptions = new PromptOptions();
+    @picocli.CommandLine.Mixin PromptOptions promptOptions = new PromptOptions();
 
-    @picocli.CommandLine.Mixin
-    ContextOptions contextOptions = new ContextOptions();
+    @picocli.CommandLine.Mixin ContextOptions contextOptions = new ContextOptions();
 
     @Override
     public Integer call() {
@@ -72,7 +83,8 @@ final class AuditCommand implements Callable<Integer> {
                 env.err().println("Error: " + c.lootFile + " does not exist.");
                 return 2;
             }
-            java.util.List<String> problems = io.github.llm4j.loom.execution.LootLoader.reachProblems(c.lootFile.toPath());
+            java.util.List<String> problems =
+                    io.github.llm4j.loom.execution.LootLoader.reachProblems(c.lootFile.toPath());
             if (!problems.isEmpty()) {
                 problems.forEach(p -> env.err().println("Error: " + p));
                 return 2;
@@ -80,7 +92,9 @@ final class AuditCommand implements Callable<Integer> {
             reach = io.github.llm4j.loom.execution.LootLoader.reaches(c.lootFile.toPath());
         }
         AuditReport report = SecurityAudit.audit(loaded, c.script.getName(), reach);
-        var catalog = io.github.llm4j.loom.prompt.PromptSupport.catalog(loaded, c.script.toPath(), env.prompts());
+        var catalog =
+                io.github.llm4j.loom.prompt.PromptSupport.catalog(
+                        loaded, c.script.toPath(), env.prompts());
         if (catalog != null) report = report.withPrompts(catalog.usesOf(loaded));
         report = io.github.llm4j.loom.context.ContextAudit.add(report, loaded, c.script.toPath());
         String text = c.format.equals("json") ? report.json() : report.markdown();

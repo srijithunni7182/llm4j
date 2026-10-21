@@ -11,7 +11,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** A classification is a model call: it shows in the run's calls and tokens, under the classifier's name, and carries no state text (R12). */
+/**
+ * A classification is a model call: it shows in the run's calls and tokens, under the classifier's
+ * name, and carries no state text (R12).
+ */
 class ClassifyMappingTest {
 
     private static final Instant T0 = Instant.parse("2026-10-21T10:00:00Z");
@@ -30,13 +33,21 @@ class ClassifyMappingTest {
         d.put("attempts", 2);
         d.put("outcome", outcome);
         d.put("labels", Map.of("kind", "refund"));
-        return new TraceEvent("classify", null, "Main/s0", "Intent → kind=refund", d, T0.plusMillis(900));
+        return new TraceEvent(
+                "classify", null, "Main/s0", "Intent → kind=refund", d, T0.plusMillis(900));
     }
 
     @Test
     void aClassificationBecomesAModelSpanWithTokensDurationAndTheClassifiersName() {
         TraceMapper m = new TraceMapper("r-1", Detail.FULL);
-        m.map(new TraceEvent(TraceEvent.RUN_START, null, "", "", Map.of("workflow", "Main", "run", "r-1"), T0));
+        m.map(
+                new TraceEvent(
+                        TraceEvent.RUN_START,
+                        null,
+                        "",
+                        "",
+                        Map.of("workflow", "Main", "run", "r-1"),
+                        T0));
 
         List<SpanRec> spans = m.map(classify("ok")).spans();
 

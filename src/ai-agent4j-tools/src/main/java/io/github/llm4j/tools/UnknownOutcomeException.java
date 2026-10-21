@@ -1,6 +1,9 @@
 package io.github.llm4j.tools;
 
-/** The action may or may not have happened (a timeout after sending, a connection lost after the data). */
+/**
+ * The action may or may not have happened (a timeout after sending, a connection lost after the
+ * data).
+ */
 public final class UnknownOutcomeException extends ToolRefusal {
 
     public UnknownOutcomeException(String message) {

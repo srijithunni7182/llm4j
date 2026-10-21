@@ -11,7 +11,10 @@ import java.util.Random;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-/** Random expressions and random histories against the rules that must always hold. Reproduce a failure with {@code -Dloom.ladder.seed=…}. */
+/**
+ * Random expressions and random histories against the rules that must always hold. Reproduce a
+ * failure with {@code -Dloom.ladder.seed=…}.
+ */
 @Tag("L5")
 class ExprPropertyTest {
 
@@ -19,8 +22,19 @@ class ExprPropertyTest {
     private static final int ROUNDS = Integer.getInteger("loom.ladder.rounds", 5_000);
     private static final long NOW = 1_000L * 86_400_000L;
 
-    private static final String[] PREDICATES = {"ok", "big", "not ok", "amount > 100", "big and ok", "ok or big", "tier == \"gold\"", "edit_size < 0.1"};
-    private static final String[] NUMBERS = {"amount", "edit_size", "review_time", "amount * 2", "edit_size + 1"};
+    private static final String[] PREDICATES = {
+        "ok",
+        "big",
+        "not ok",
+        "amount > 100",
+        "big and ok",
+        "ok or big",
+        "tier == \"gold\"",
+        "edit_size < 0.1"
+    };
+    private static final String[] NUMBERS = {
+        "amount", "edit_size", "review_time", "amount * 2", "edit_size + 1"
+    };
 
     private static String window(Random r) {
         return switch (r.nextInt(6)) {
@@ -28,7 +42,11 @@ class ExprPropertyTest {
             case 1 -> "history.last(" + r.nextInt(60) + ")";
             case 2 -> "history.since(" + (1 + r.nextInt(30)) + "d)";
             case 3 -> "history.where(" + pick(r, PREDICATES) + ")";
-            case 4 -> "history.last(" + (1 + r.nextInt(50)) + ").where(" + pick(r, PREDICATES) + ")";
+            case 4 -> "history.last("
+                    + (1 + r.nextInt(50))
+                    + ").where("
+                    + pick(r, PREDICATES)
+                    + ")";
             default -> "history.between(" + (10 + r.nextInt(20)) + "d, " + r.nextInt(10) + "d)";
         };
     }
@@ -62,14 +80,26 @@ class ExprPropertyTest {
     /** A threshold of the right kind: a duration for review_time, a number otherwise. */
     private static String numeric(Random r, String window, String method, String cmp) {
         String m = pick(r, NUMBERS);
-        return window + "." + method + "(" + m + ")" + cmp + (m.equals("review_time") ? (1 + r.nextInt(100)) + "s" : String.valueOf(r.nextInt(300)));
+        return window
+                + "."
+                + method
+                + "("
+                + m
+                + ")"
+                + cmp
+                + (m.equals("review_time")
+                        ? (1 + r.nextInt(100)) + "s"
+                        : String.valueOf(r.nextInt(300)));
     }
 
     private static Map<String, Interpreter.Measure> measures() {
         Map<String, Interpreter.Measure> ms = new LinkedHashMap<>();
         ms.put("big", new Interpreter.Measure("big", "c", ExprParser.parse("c.amount > 250")));
         ms.put("ok", new Interpreter.Measure("ok", "c", ExprParser.parse("c.accepted")));
-        ms.put("edit_size", new Interpreter.Measure("edit_size", "c", ExprParser.parse("distance(c.proposal, c.final)")));
+        ms.put(
+                "edit_size",
+                new Interpreter.Measure(
+                        "edit_size", "c", ExprParser.parse("distance(c.proposal, c.final)")));
         return ms;
     }
 
@@ -112,7 +142,9 @@ class ExprPropertyTest {
             String src = condition(r, 2);
             Expr e = ExprParser.parse(src);
             assertThat(checker.condition(e)).as(src).isIn(T.BOOL, T.ANY);
-            var ctx = new Interpreter.Context(Map.of("history", V.cases(history(r, r.nextInt(80)))), ms, NOW);
+            var ctx =
+                    new Interpreter.Context(
+                            Map.of("history", V.cases(history(r, r.nextInt(80)))), ms, NOW);
             V v = Interpreter.eval(e, ctx);
             assertThat(v).as(src).isInstanceOfAny(V.Bool.class, V.Undefined.class);
         }
@@ -123,11 +155,22 @@ class ExprPropertyTest {
         Random r = new Random(SEED + 1);
         Map<String, Interpreter.Measure> ms = measures();
         for (int i = 0; i < ROUNDS; i++) {
-            // a climb is written as thresholds over aggregates joined by 'and'; over no cases each aggregate threshold is false or undefined
-            String src = "history.rate(" + pick(r, PREDICATES) + ") >= " + (r.nextInt(100) / 100.0) + " and " + condition(r, 0);
+            // a climb is written as thresholds over aggregates joined by 'and'; over no cases each
+            // aggregate threshold is false or undefined
+            String src =
+                    "history.rate("
+                            + pick(r, PREDICATES)
+                            + ") >= "
+                            + (r.nextInt(100) / 100.0)
+                            + " and "
+                            + condition(r, 0);
             var ctx = new Interpreter.Context(Map.of("history", V.cases(List.of())), ms, NOW);
             assertThat(Interpreter.test(ExprParser.parse(src), ctx)).as(src).isFalse();
-            String lower = "history.rate(" + pick(r, PREDICATES) + ").lower95 >= " + (r.nextInt(100) / 100.0);
+            String lower =
+                    "history.rate("
+                            + pick(r, PREDICATES)
+                            + ").lower95 >= "
+                            + (r.nextInt(100) / 100.0);
             assertThat(Interpreter.test(ExprParser.parse(lower), ctx)).as(lower).isFalse();
         }
     }
@@ -153,7 +196,9 @@ class ExprPropertyTest {
         for (int i = 0; i < 500; i++) {
             List<V.Rec> h = history(r, 40);
             var snapshot = new ArrayList<>(h);
-            Interpreter.eval(ExprParser.parse(condition(r, 2)), new Interpreter.Context(Map.of("history", V.cases(h)), ms, NOW));
+            Interpreter.eval(
+                    ExprParser.parse(condition(r, 2)),
+                    new Interpreter.Context(Map.of("history", V.cases(h)), ms, NOW));
             assertThat(h).isEqualTo(snapshot);
         }
     }
@@ -163,10 +208,14 @@ class ExprPropertyTest {
         Random r = new Random(SEED + 4);
         Map<String, Interpreter.Measure> ms = measures();
         for (int i = 0; i < 1_000; i++) {
-            var ctx = new Interpreter.Context(Map.of("history", V.cases(history(r, 5 + r.nextInt(60)))), ms, NOW);
+            var ctx =
+                    new Interpreter.Context(
+                            Map.of("history", V.cases(history(r, 5 + r.nextInt(60)))), ms, NOW);
             double lo = r.nextInt(50) / 100.0, hi = lo + r.nextInt(50) / 100.0;
-            boolean easy = Interpreter.test(ExprParser.parse("history.rate(ok).lower95 >= " + hi), ctx);
-            boolean hard = Interpreter.test(ExprParser.parse("history.rate(ok).lower95 >= " + lo), ctx);
+            boolean easy =
+                    Interpreter.test(ExprParser.parse("history.rate(ok).lower95 >= " + hi), ctx);
+            boolean hard =
+                    Interpreter.test(ExprParser.parse("history.rate(ok).lower95 >= " + lo), ctx);
             if (easy) assertThat(hard).isTrue();
         }
     }

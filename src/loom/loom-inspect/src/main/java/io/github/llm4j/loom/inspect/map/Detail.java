@@ -1,8 +1,9 @@
 package io.github.llm4j.loom.inspect.map;
 
 /**
- * How much of what an agent said or a tool returned may leave the process. Applied in the workflow process, before anything is
- * written to the outbox or sent, so a receiver never sees more than its level allows.
+ * How much of what an agent said or a tool returned may leave the process. Applied in the workflow
+ * process, before anything is written to the outbox or sent, so a receiver never sees more than its
+ * level allows.
  */
 public enum Detail {
     /** Everything, as the GenAI conventions' opt-in content attributes. */
@@ -30,7 +31,8 @@ public enum Detail {
             case "full" -> FULL;
             case "truncated" -> TRUNCATED;
             case "metadata" -> METADATA;
-            default -> throw new IllegalArgumentException("detail must be full, truncated or metadata, got '" + word + "'");
+            default -> throw new IllegalArgumentException(
+                    "detail must be full, truncated or metadata, got '" + word + "'");
         };
     }
 }

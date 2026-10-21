@@ -16,16 +16,26 @@ class TaskResultTest {
     void shapes() {
         assertEquals(Map.of("outcome", "ok"), TaskResult.ok().toMap());
         assertEquals(Map.of("outcome", "ok", "value", 5), TaskResult.value(5).toMap());
-        assertEquals(Map.of("outcome", "rejected", "reason", "over limit"), TaskResult.rejected("over limit").toMap());
+        assertEquals(
+                Map.of("outcome", "rejected", "reason", "over limit"),
+                TaskResult.rejected("over limit").toMap());
         assertEquals(Map.of("outcome", "needs_review"), TaskResult.outcome("needs_review").toMap());
-        assertEquals(Map.of("outcome", "ok", "a", 1, "b", "x"), TaskResult.ok(Map.of("a", 1, "b", "x")).toMap());
-        TaskResult r = TaskResult.outcome("approved").reason("within policy").with("amount", 40).withValue(true);
+        assertEquals(
+                Map.of("outcome", "ok", "a", 1, "b", "x"),
+                TaskResult.ok(Map.of("a", 1, "b", "x")).toMap());
+        TaskResult r =
+                TaskResult.outcome("approved")
+                        .reason("within policy")
+                        .with("amount", 40)
+                        .withValue(true);
         assertEquals("approved", r.outcome());
         assertEquals("within policy", r.reason());
         assertTrue(r.hasValue());
         assertEquals(true, r.value());
         assertEquals(Map.of("amount", 40), r.data());
-        assertEquals(List.of("outcome", "reason", "value", "amount"), new ArrayList<>(r.toMap().keySet()));
+        assertEquals(
+                List.of("outcome", "reason", "value", "amount"),
+                new ArrayList<>(r.toMap().keySet()));
     }
 
     @Test
@@ -57,7 +67,8 @@ class TaskResultTest {
 
     @Test
     void outcomeNaming() {
-        for (String ok : new String[] {"ok", "approved", "needs_review", "a1"}) assertEquals(ok, TaskResult.outcome(ok).outcome());
+        for (String ok : new String[] {"ok", "approved", "needs_review", "a1"})
+            assertEquals(ok, TaskResult.outcome(ok).outcome());
         for (String bad : new String[] {"", "Ok", "1x", "needs review", "x-y", "_x"}) {
             assertThrows(IllegalArgumentException.class, () -> TaskResult.outcome(bad), bad);
         }
@@ -76,15 +87,20 @@ class TaskResultTest {
 
     @Test
     void jsonSafe() {
-        TaskResult fine = TaskResult.ok()
-                .with("s", "x").with("n", 1.5).with("b", false).with("z", null)
-                .with("nested", Map.of("list", List.of(1, "two", Map.of("k", true))));
+        TaskResult fine =
+                TaskResult.ok()
+                        .with("s", "x")
+                        .with("n", 1.5)
+                        .with("b", false)
+                        .with("z", null)
+                        .with("nested", Map.of("list", List.of(1, "two", Map.of("k", true))));
         assertEquals(5, fine.data().size());
 
         assertThrows(IllegalArgumentException.class, () -> TaskResult.ok().with("d", new Date()));
         assertThrows(IllegalArgumentException.class, () -> TaskResult.ok().with("o", new Object()));
         assertThrows(IllegalArgumentException.class, () -> TaskResult.value(Double.NaN));
-        assertThrows(IllegalArgumentException.class, () -> TaskResult.value(Double.POSITIVE_INFINITY));
+        assertThrows(
+                IllegalArgumentException.class, () -> TaskResult.value(Double.POSITIVE_INFINITY));
         Map<Object, Object> intKeys = new HashMap<>();
         intKeys.put(1, "x");
         assertThrows(IllegalArgumentException.class, () -> TaskResult.value(intKeys));
@@ -94,7 +110,10 @@ class TaskResultTest {
         List<Object> cyc = new ArrayList<>();
         cyc.add(cyc);
         assertThrows(IllegalArgumentException.class, () -> TaskResult.value(cyc));
-        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> TaskResult.ok().with("when", new Date()));
+        IllegalArgumentException e =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> TaskResult.ok().with("when", new Date()));
         assertTrue(e.getMessage().contains("when"), e.getMessage());
         // the same instance twice (not a cycle) is fine
         List<Object> shared = List.of(1);
@@ -105,6 +124,8 @@ class TaskResultTest {
     void equalsByContent() {
         assertEquals(TaskResult.rejected("x"), TaskResult.outcome("rejected").reason("x"));
         assertNotEquals(TaskResult.rejected("x"), TaskResult.rejected("y"));
-        assertEquals(TaskResult.rejected("x").hashCode(), TaskResult.outcome("rejected").reason("x").hashCode());
+        assertEquals(
+                TaskResult.rejected("x").hashCode(),
+                TaskResult.outcome("rejected").reason("x").hashCode());
     }
 }

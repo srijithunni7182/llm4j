@@ -9,11 +9,17 @@ import java.util.Map;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-/** What the executor knows of a credential option when it has to hide one: an invoker credential is known only to a run, which hides it itself. */
+/**
+ * What the executor knows of a credential option when it has to hide one: an invoker credential is
+ * known only to a run, which hides it itself.
+ */
 class CredentialValueTest {
 
-    private final HarnessExecutor executor = new HarnessExecutor(new LoomParser(new Lexer("agent A { model: \"m\" }").tokenize()).parseScript(),
-            new ToolRegistry(), model -> null);
+    private final HarnessExecutor executor =
+            new HarnessExecutor(
+                    new LoomParser(new Lexer("agent A { model: \"m\" }").tokenize()).parseScript(),
+                    new ToolRegistry(),
+                    model -> null);
 
     @Test
     @Tag("CC-V5.1")
@@ -22,7 +28,8 @@ class CredentialValueTest {
 
         assertThat(executor.credentialValue(ToolDef.OptionValue.invoker("token"))).isNull();
         assertThat(executor.credentialValue(ToolDef.OptionValue.env("KEY"))).isEqualTo("env-value");
-        assertThat(executor.credentialValue(ToolDef.OptionValue.literal("plain"))).isEqualTo("plain");
+        assertThat(executor.credentialValue(ToolDef.OptionValue.literal("plain")))
+                .isEqualTo("plain");
         assertThat(executor.credentialValue(ToolDef.OptionValue.env("UNSET"))).isNull();
     }
 

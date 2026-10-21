@@ -6,8 +6,9 @@ import io.github.llm4j.secret.SecretException;
 import java.util.function.Supplier;
 
 /**
- * One credential of whoever is running the workflow ({@code invoker.NAME} in a script), as a tool sees it. It holds no value: each {@link #get}
- * asks the run's {@link InvokerCredentials}, which belongs to the thread the tool is running on, so two runs never see each other's.
+ * One credential of whoever is running the workflow ({@code invoker.NAME} in a script), as a tool
+ * sees it. It holds no value: each {@link #get} asks the run's {@link InvokerCredentials}, which
+ * belongs to the thread the tool is running on, so two runs never see each other's.
  */
 final class InvokerSource implements CredentialSource {
 
@@ -22,7 +23,8 @@ final class InvokerSource implements CredentialSource {
     @Override
     public String get() {
         InvokerCredentials invoker = current.get();
-        if (invoker == null) throw new SecretException("this run has no invoker credentials (invoker." + name + ")");
+        if (invoker == null)
+            throw new SecretException("this run has no invoker credentials (invoker." + name + ")");
         String value = invoker.get(name);
         if (value == null) throw new SecretException("the invoker has no credential " + name);
         return value;

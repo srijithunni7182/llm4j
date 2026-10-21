@@ -66,12 +66,18 @@ public final class RetryPolicy {
         return retryableStatusCodes;
     }
 
-    /** A 429 whose limit resets within this long is waited out inline; longer ones are raised. Default 30 s. */
+    /**
+     * A 429 whose limit resets within this long is waited out inline; longer ones are raised.
+     * Default 30 s.
+     */
     public Duration getInlineWaitThreshold() {
         return inlineWaitThreshold;
     }
 
-    /** Assumed wait when a 429 carries no reset information; doubles per consecutive 429. Default 60 s. */
+    /**
+     * Assumed wait when a 429 carries no reset information; doubles per consecutive 429. Default 60
+     * s.
+     */
     public Duration getFallbackDelay() {
         return fallbackDelay;
     }
@@ -180,8 +186,15 @@ public final class RetryPolicy {
     @Override
     public int hashCode() {
         return Objects.hash(
-                maxRetries, backoffStrategy, initialBackoff, maxBackoff, retryableStatusCodes,
-                inlineWaitThreshold, fallbackDelay, maxFallbackDelay, dailyResetZone);
+                maxRetries,
+                backoffStrategy,
+                initialBackoff,
+                maxBackoff,
+                retryableStatusCodes,
+                inlineWaitThreshold,
+                fallbackDelay,
+                maxFallbackDelay,
+                dailyResetZone);
     }
 
     @Override

@@ -1,16 +1,15 @@
 package io.github.llm4j.tools;
-import io.github.llm4j.agent.tool.EffectContext;
 
 import io.github.llm4j.agent.Tool;
-
+import io.github.llm4j.agent.tool.EffectContext;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 
 /**
- * {@code tool Notes { use: file  root: "notes/"  mode: readwrite }}: lets an agent read, list, write and
- * append text files inside one directory of the script's directory. Nothing hidden, nothing the run itself
- * keeps (journal, trigger store), nothing outside.
+ * {@code tool Notes { use: file root: "notes/" mode: readwrite }}: lets an agent read, list, write
+ * and append text files inside one directory of the script's directory. Nothing hidden, nothing the
+ * run itself keeps (journal, trigger store), nothing outside.
  */
 public final class FileKind extends GenericKind {
 
@@ -28,7 +27,8 @@ public final class FileKind extends GenericKind {
     protected void validate(Options o, Path baseDir) {
         FileTool.Config c = FileTool.Config.parse(o);
         Path root = resolveRoot(c.root(), baseDir);
-        if (Files.exists(root) && !Files.isDirectory(root)) throw new OptionException("root: " + c.root() + " is a file, not a directory");
+        if (Files.exists(root) && !Files.isDirectory(root))
+            throw new OptionException("root: " + c.root() + " is a file, not a directory");
     }
 
     @Override

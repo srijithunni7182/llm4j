@@ -5,13 +5,20 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-/** Markers that context management keeps in a message's {@code providerData}. Providers ignore keys they do not know. */
+/**
+ * Markers that context management keeps in a message's {@code providerData}. Providers ignore keys
+ * they do not know.
+ */
 public final class Messages {
 
-    /** Set on a message a compaction strategy created or changed; the value is the strategy's name. */
+    /**
+     * Set on a message a compaction strategy created or changed; the value is the strategy's name.
+     */
     public static final String COMPACTION = "llm4j.compaction";
+
     /** On a "messages were removed" marker: how many messages it stands for, cumulatively. */
     public static final String DROPPED = "llm4j.compaction.dropped";
+
     /** Set (to true) on a message that must never be removed or changed by compaction. */
     public static final String PINNED = "llm4j.pinned";
 
@@ -28,7 +35,9 @@ public final class Messages {
 
     /** The strategy that created or changed this message, if any. */
     public static Optional<String> compactionOf(Message message) {
-        return message.getProviderData().get(COMPACTION) instanceof String s ? Optional.of(s) : Optional.empty();
+        return message.getProviderData().get(COMPACTION) instanceof String s
+                ? Optional.of(s)
+                : Optional.empty();
     }
 
     /** How many messages a "removed" marker stands for; zero for any other message. */
@@ -36,13 +45,20 @@ public final class Messages {
         return message.getProviderData().get(DROPPED) instanceof Number n ? n.intValue() : 0;
     }
 
-    /** The same message, marked as created or changed by this compaction strategy (rule 8 of {@link ContextCompactor}). */
+    /**
+     * The same message, marked as created or changed by this compaction strategy (rule 8 of {@link
+     * ContextCompactor}).
+     */
     public static Message marked(Message message, String strategy) {
         return with(message, COMPACTION, strategy);
     }
 
-    /** A test that accepts what the developer's own test accepts and every message marked with {@link #pinned}. */
-    public static java.util.function.Predicate<Message> orMarked(java.util.function.Predicate<Message> own) {
+    /**
+     * A test that accepts what the developer's own test accepts and every message marked with
+     * {@link #pinned}.
+     */
+    public static java.util.function.Predicate<Message> orMarked(
+            java.util.function.Predicate<Message> own) {
         return own == null ? Messages::isPinned : m -> isPinned(m) || own.test(m);
     }
 

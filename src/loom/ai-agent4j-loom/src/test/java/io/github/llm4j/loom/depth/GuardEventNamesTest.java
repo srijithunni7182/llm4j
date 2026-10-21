@@ -11,11 +11,13 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** R36: a guard event in the trace names what the guard did (as the audit line does), so an observer can count them without reading text. */
+/**
+ * R36: a guard event in the trace names what the guard did (as the audit line does), so an observer
+ * can count them without reading text.
+ */
 class GuardEventNamesTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private static List<TraceEvent> guards(List<TraceEvent> trace) {
         synchronized (trace) {
@@ -24,8 +26,14 @@ class GuardEventNamesTest {
     }
 
     private List<TraceEvent> run(String guard) {
-        Harness h = new Harness(dir).answers(Harness.call("Lookup", "{\"q\": \"order\"}"), Harness.done("Reply sent to asha@example.com"));
-        h.tools.register("Lookup", Harness.recording("Lookup", new ArrayList<>(), "Customer: Ravi, ravi@shop.in"));
+        Harness h =
+                new Harness(dir)
+                        .answers(
+                                Harness.call("Lookup", "{\"q\": \"order\"}"),
+                                Harness.done("Reply sent to asha@example.com"));
+        h.tools.register(
+                "Lookup",
+                Harness.recording("Lookup", new ArrayList<>(), "Customer: Ravi, ravi@shop.in"));
         HarnessExecutor e = h.ready(GuardTest.script(guard));
         List<TraceEvent> trace = java.util.Collections.synchronizedList(new ArrayList<>());
         e.addTraceListener(trace::add);
@@ -36,7 +44,9 @@ class GuardEventNamesTest {
     @Test
     void aMaskedValueIsATraceEventNamedPiiMasked() {
         List<TraceEvent> g = run("pii: mask");
-        assertThat(g).isNotEmpty().allSatisfy(e -> assertThat(e.data()).containsEntry("event", "pii_masked"));
+        assertThat(g)
+                .isNotEmpty()
+                .allSatisfy(e -> assertThat(e.data()).containsEntry("event", "pii_masked"));
     }
 
     @Test
@@ -53,6 +63,9 @@ class GuardEventNamesTest {
 
     @Test
     void theEventNamesCarryNoPersonalData() {
-        for (TraceEvent e : run("pii: mask")) assertThat(String.valueOf(e.data())).doesNotContain("asha@example.com").doesNotContain("ravi@shop.in");
+        for (TraceEvent e : run("pii: mask"))
+            assertThat(String.valueOf(e.data()))
+                    .doesNotContain("asha@example.com")
+                    .doesNotContain("ravi@shop.in");
     }
 }

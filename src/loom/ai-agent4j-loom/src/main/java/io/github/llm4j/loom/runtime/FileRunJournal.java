@@ -22,7 +22,8 @@ public class FileRunJournal implements RunJournal {
         this.file = file;
         if (Files.exists(file)) {
             try {
-                entries.putAll(JSON.readValue(file.toFile(), new TypeReference<Map<String, Entry>>() { }));
+                entries.putAll(
+                        JSON.readValue(file.toFile(), new TypeReference<Map<String, Entry>>() {}));
             } catch (IOException e) {
                 throw new UncheckedIOException("Unreadable run journal " + file, e);
             }
@@ -46,7 +47,8 @@ public class FileRunJournal implements RunJournal {
             Files.createDirectories(file.toAbsolutePath().getParent());
             Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
             JSON.writeValue(tmp.toFile(), entries);
-            Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            Files.move(
+                    tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot write run journal " + file, e);
         }

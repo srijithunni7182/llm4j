@@ -26,22 +26,49 @@ import org.junit.jupiter.api.Test;
 class FabricControlsTest {
 
     private static final String TRACE = Ids.traceId("r-1");
-    private final AtomicReference<Instant> now = new AtomicReference<>(Instant.parse("2026-10-12T10:00:00Z"));
-    private final Clock clock = new Clock() {
-        public java.time.ZoneId getZone() { return ZoneOffset.UTC; }
-        public Clock withZone(java.time.ZoneId z) { return this; }
-        public Instant instant() { return now.get(); }
-    };
+    private final AtomicReference<Instant> now =
+            new AtomicReference<>(Instant.parse("2026-10-12T10:00:00Z"));
+    private final Clock clock =
+            new Clock() {
+                public java.time.ZoneId getZone() {
+                    return ZoneOffset.UTC;
+                }
+
+                public Clock withZone(java.time.ZoneId z) {
+                    return this;
+                }
+
+                public Instant instant() {
+                    return now.get();
+                }
+            };
     private final RunRegistry registry = new RunRegistry();
     private final Receiver receiver = new Receiver(registry, clock);
     private final CommandQueue queue = new CommandQueue(clock);
+
     private Controls controls(String password) {
         return new FabricControls(receiver, queue, () -> password);
     }
 
     private void report() {
-        receiver.hello("alpha", new Hello("alpha", "i_1", "h", 1, "5", "0.1", Wire.VERSION, List.of()));
-        LogRec r = new LogRec(1_000_000_000L, LogRec.INFO, "w", Map.of(Semconv.EVENT_NAME, Semconv.EV_RUN_START, Semconv.LOOM_SEQ, 1L, Semconv.LOOM_RUN_ID, "r-1", Semconv.LOOM_WORKFLOW, "Main"), TRACE, null);
+        receiver.hello(
+                "alpha", new Hello("alpha", "i_1", "h", 1, "5", "0.1", Wire.VERSION, List.of()));
+        LogRec r =
+                new LogRec(
+                        1_000_000_000L,
+                        LogRec.INFO,
+                        "w",
+                        Map.of(
+                                Semconv.EVENT_NAME,
+                                Semconv.EV_RUN_START,
+                                Semconv.LOOM_SEQ,
+                                1L,
+                                Semconv.LOOM_RUN_ID,
+                                "r-1",
+                                Semconv.LOOM_WORKFLOW,
+                                "Main"),
+                        TRACE,
+                        null);
         receiver.logs("alpha", OtlpJson.encodeLogs(Resource.of("alpha", "i_1"), "0.1", List.of(r)));
     }
 
@@ -49,9 +76,13 @@ class FabricControlsTest {
     void anOnlineRunOffersTheControlsAndARequestIsQueuedForItsProcess() throws Exception {
         report();
         Controls c = controls("pw");
-        assertThat(c.allowed(TRACE)).containsExactlyInAnyOrder(Controls.Action.STOP, Controls.Action.SUSPEND, Controls.Action.PAUSE);
+        assertThat(c.allowed(TRACE))
+                .containsExactlyInAnyOrder(
+                        Controls.Action.STOP, Controls.Action.SUSPEND, Controls.Action.PAUSE);
         assertThat(c.request(TRACE, Controls.Action.STOP, "ops").accepted()).isTrue();
-        assertThat(queue.next("alpha", Duration.ZERO)).singleElement().satisfies(cmd -> assertThat(cmd.action()).isEqualTo("stop"));
+        assertThat(queue.next("alpha", Duration.ZERO))
+                .singleElement()
+                .satisfies(cmd -> assertThat(cmd.action()).isEqualTo("stop"));
         assertThat(queue.next("beta", Duration.ZERO)).isEmpty();
     }
 
@@ -68,7 +99,8 @@ class FabricControlsTest {
     }
 
     @Test
-    void withoutAnAdminPasswordNothingIsOffered_andACommandNotCollectedInASecondMinuteIsDropped() throws Exception {
+    void withoutAnAdminPasswordNothingIsOffered_andACommandNotCollectedInASecondMinuteIsDropped()
+            throws Exception {
         report();
         assertThat(controls(null).allowed(TRACE)).isEmpty();
         controls("pw").request(TRACE, Controls.Action.PAUSE, "ops");

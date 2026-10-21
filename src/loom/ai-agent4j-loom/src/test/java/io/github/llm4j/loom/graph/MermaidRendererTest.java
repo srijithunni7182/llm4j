@@ -20,7 +20,10 @@ class MermaidRendererTest {
             assertThat(text).contains(node.id());
         }
         assertThat(text).contains("n4 -->|then| n5").contains("n4 -->|else| n6");
-        assertThat(text).contains("start([\"Start\"])").contains("end_([\"End\"])").contains("n4{{");
+        assertThat(text)
+                .contains("start([\"Start\"])")
+                .contains("end_([\"End\"])")
+                .contains("n4{{");
     }
 
     @Test
@@ -32,8 +35,27 @@ class MermaidRendererTest {
 
     @Test
     void quotesAndLineBreaksInLabelsCannotBreakTheDiagram() {
-        GraphNode tricky = new GraphNode("n1", "note", "say \"hi\"\nthen \"bye\"", null, null, null, null, false, null, null, null);
-        WorkflowGraph graph = new WorkflowGraph("W", "w.loom", 1, java.util.List.of(), java.util.List.of(tricky), java.util.List.of());
+        GraphNode tricky =
+                new GraphNode(
+                        "n1",
+                        "note",
+                        "say \"hi\"\nthen \"bye\"",
+                        null,
+                        null,
+                        null,
+                        null,
+                        false,
+                        null,
+                        null,
+                        null);
+        WorkflowGraph graph =
+                new WorkflowGraph(
+                        "W",
+                        "w.loom",
+                        1,
+                        java.util.List.of(),
+                        java.util.List.of(tricky),
+                        java.util.List.of());
 
         String text = MermaidRenderer.render(graph);
 
@@ -43,11 +65,15 @@ class MermaidRendererTest {
 
     @Test
     void aRewindIsADashedEdgeAndEachKindHasItsOwnShape() {
-        WorkflowGraph graph = graphOfFile("src/test/resources/graph/all_statements.loom", "Everything");
+        WorkflowGraph graph =
+                graphOfFile("src/test/resources/graph/all_statements.loom", "Everything");
 
         String text = MermaidRenderer.render(graph);
 
-        assertThat(text).contains("-.->|rewind|").contains("[[\"call Helper\"]]").contains(">\"checkpoint collected\"]")
+        assertThat(text)
+                .contains("-.->|rewind|")
+                .contains("[[\"call Helper\"]]")
+                .contains(">\"checkpoint collected\"]")
                 .contains("[/\"ask a person\"/]");
     }
 }

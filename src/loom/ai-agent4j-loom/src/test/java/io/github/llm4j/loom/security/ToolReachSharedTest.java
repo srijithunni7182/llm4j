@@ -17,33 +17,35 @@ import org.junit.jupiter.api.io.TempDir;
 /** R28: the audit and the trace read a tool's reach from one place, so they cannot disagree. */
 class ToolReachSharedTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private static final String[] KINDS = {
-            "tool T { use: calculator }",
-            "tool T { use: duckduckgo }",
-            "tool T { use: webhook  url: env.HOOK }",
-            "tool T { use: email  host: \"smtp.example.com\"  from: \"a@example.com\"  to: \"me@example.com\" }",
-            "tool T { use: email  host: \"smtp.example.com\"  from: \"a@example.com\"  allow_to: \"*@example.com\" }",
-            "tool T { use: http  base_url: \"https://api.example.com\" }",
-            "tool T { use: http  base_url: \"https://api.example.com\"  methods: \"GET, POST\" }",
-            "tool T { use: file  root: \"data\"  mode: read }",
-            "tool T { use: file  root: \"data\"  mode: write }",
-            "tool T { use: shell  allow: \"df\" }",
-            "tool T { use: sql  url: env.DB_URL }",
-            "tool T { use: openapi  spec: \"https://example.com/petstore.json\" }",
-            "tool T { use: skill_registry  url: \"https://skills.example.com\" }",
-            "tool T { use: class  class: \"com.acme.Tool\" }",
-            "tool T { use: class  class: \"com.acme.Tool\"  reach: reads }",
-            "tool T { use: class  class: \"com.acme.Tool\"  reach: fetches }",
-            "tool T { use: class  class: \"com.acme.Tool\"  reach: sends }",
-            "tool T { use: class  class: \"com.acme.Tool\"  reach: none }",
+        "tool T { use: calculator }",
+        "tool T { use: duckduckgo }",
+        "tool T { use: webhook  url: env.HOOK }",
+        "tool T { use: email  host: \"smtp.example.com\"  from: \"a@example.com\"  to: \"me@example.com\" }",
+        "tool T { use: email  host: \"smtp.example.com\"  from: \"a@example.com\"  allow_to: \"*@example.com\" }",
+        "tool T { use: http  base_url: \"https://api.example.com\" }",
+        "tool T { use: http  base_url: \"https://api.example.com\"  methods: \"GET, POST\" }",
+        "tool T { use: file  root: \"data\"  mode: read }",
+        "tool T { use: file  root: \"data\"  mode: write }",
+        "tool T { use: shell  allow: \"df\" }",
+        "tool T { use: sql  url: env.DB_URL }",
+        "tool T { use: openapi  spec: \"https://example.com/petstore.json\" }",
+        "tool T { use: skill_registry  url: \"https://skills.example.com\" }",
+        "tool T { use: class  class: \"com.acme.Tool\" }",
+        "tool T { use: class  class: \"com.acme.Tool\"  reach: reads }",
+        "tool T { use: class  class: \"com.acme.Tool\"  reach: fetches }",
+        "tool T { use: class  class: \"com.acme.Tool\"  reach: sends }",
+        "tool T { use: class  class: \"com.acme.Tool\"  reach: none }",
     };
 
     private LoomScript load(String declaration) throws Exception {
         Path f = dir.resolve("s" + System.nanoTime() + ".loom");
-        Files.writeString(f, declaration + "\nagent A { model: \"m\" system: \"s\" tools: [T] }\nworkflow Main(q) { delegate \"{q}\" to A -> r }\n");
+        Files.writeString(
+                f,
+                declaration
+                        + "\nagent A { model: \"m\" system: \"s\" tools: [T] }\nworkflow Main(q) { delegate \"{q}\" to A -> r }\n");
         return new LoomLoader().load(f.toString());
     }
 
@@ -54,7 +56,9 @@ class ToolReachSharedTest {
     }
 
     private static String legs(SecurityAudit.AgentProfile p) {
-        return (p.outward().isEmpty() ? "" : "outward,") + (p.privateData().isEmpty() ? "" : "private,") + (p.untrusted().isEmpty() ? "" : "untrusted");
+        return (p.outward().isEmpty() ? "" : "outward,")
+                + (p.privateData().isEmpty() ? "" : "private,")
+                + (p.untrusted().isEmpty() ? "" : "untrusted");
     }
 
     @Test
@@ -80,13 +84,16 @@ class ToolReachSharedTest {
         ToolReach reads = ToolReach.resolve("lookup", Map.of(), Map.of("lookup", "reads"));
         assertThat(reads.legs()).isEqualTo("private");
         assertThat(reads.known()).isTrue();
-        assertThat(ToolReach.resolve("lookup", Map.of(), Map.of("lookup", "none")).legs()).isEmpty();
-        assertThat(ToolReach.resolve("lookup", Map.of(), Map.of("lookup", "bogus")).known()).isFalse();
+        assertThat(ToolReach.resolve("lookup", Map.of(), Map.of("lookup", "none")).legs())
+                .isEmpty();
+        assertThat(ToolReach.resolve("lookup", Map.of(), Map.of("lookup", "bogus")).known())
+                .isFalse();
     }
 
     @Test
     void aBuiltInToolUsedByNameIsKnown() {
-        assertThat(ToolReach.resolve("web_search", Map.of(), Map.of()).legs()).isEqualTo("untrusted");
+        assertThat(ToolReach.resolve("web_search", Map.of(), Map.of()).legs())
+                .isEqualTo("untrusted");
         assertThat(ToolReach.resolve("calculator", Map.of(), Map.of()).legs()).isEmpty();
         assertThat(ToolReach.resolve("calculator", Map.of(), Map.of()).known()).isTrue();
     }
@@ -94,8 +101,10 @@ class ToolReachSharedTest {
     @Test
     void legsAreSortedAndStable() {
         List<String> all = List.of("outward", "private", "untrusted");
-        assertThat(ToolReach.resolve("x", Map.of(), Map.of()).legs().split(",")).containsExactlyElementsOf(all);
+        assertThat(ToolReach.resolve("x", Map.of(), Map.of()).legs().split(","))
+                .containsExactlyElementsOf(all);
         assertThat(new ToolReach(true, true, false, true).legs()).isEqualTo("private,untrusted");
-        assertThat(all.stream().collect(Collectors.joining(","))).isEqualTo(ToolReach.resolve("x", Map.of(), Map.of()).legs());
+        assertThat(all.stream().collect(Collectors.joining(",")))
+                .isEqualTo(ToolReach.resolve("x", Map.of(), Map.of()).legs());
     }
 }

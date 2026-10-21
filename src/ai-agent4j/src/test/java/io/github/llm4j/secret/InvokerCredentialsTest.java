@@ -22,7 +22,8 @@ class InvokerCredentialsTest {
     @Test
     @Tag("CC-V2.1")
     void fixedValuesAreReturnedByName() {
-        InvokerCredentials fixed = InvokerCredentials.of(Map.of("token", "Bearer t1", "admin", "Bearer a1"));
+        InvokerCredentials fixed =
+                InvokerCredentials.of(Map.of("token", "Bearer t1", "admin", "Bearer a1"));
 
         assertThat(fixed.get("token")).isEqualTo("Bearer t1");
         assertThat(fixed.get("admin")).isEqualTo("Bearer a1");
@@ -35,7 +36,8 @@ class InvokerCredentialsTest {
     @Tag("CC-V2.4")
     void aSuppliedValueIsReadOnEveryCall() {
         AtomicInteger n = new AtomicInteger();
-        InvokerCredentials supplied = InvokerCredentials.of("token", () -> "Bearer t" + n.incrementAndGet());
+        InvokerCredentials supplied =
+                InvokerCredentials.of("token", () -> "Bearer t" + n.incrementAndGet());
 
         assertThat(supplied.get("token")).isEqualTo("Bearer t1");
         assertThat(supplied.get("token")).isEqualTo("Bearer t2");
@@ -48,10 +50,14 @@ class InvokerCredentialsTest {
     @Test
     @Tag("CC-V1.2")
     void namesFollowTheRulesOfSecretNames() {
-        assertThatThrownBy(() -> InvokerCredentials.of("a.b", () -> "x")).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> InvokerCredentials.of("1a", () -> "x")).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> InvokerCredentials.of("token", null)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> InvokerCredentials.of((Map<String, String>) null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> InvokerCredentials.of("a.b", () -> "x"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> InvokerCredentials.of("1a", () -> "x"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> InvokerCredentials.of("token", null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> InvokerCredentials.of((Map<String, String>) null))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -82,13 +88,15 @@ class InvokerCredentialsTest {
         source.rejected();
 
         assertThat(source.get()).isEqualTo("Bearer t");
-        assertThatThrownBy(() -> CredentialSource.of(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> CredentialSource.of(null))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     @Tag("CC-V4.1")
     void theMissingCredentialExceptionNamesWhatIsMissing() {
-        MissingInvokerCredentialException e = new MissingInvokerCredentialException(java.util.List.of("token", "admin"));
+        MissingInvokerCredentialException e =
+                new MissingInvokerCredentialException(java.util.List.of("token", "admin"));
 
         assertThat(e.names()).containsExactly("token", "admin");
         assertThat(e.getMessage()).contains("[token, admin]").contains("InvokerCredentials");

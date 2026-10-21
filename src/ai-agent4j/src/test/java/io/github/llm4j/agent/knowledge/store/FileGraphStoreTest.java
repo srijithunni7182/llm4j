@@ -22,7 +22,11 @@ class FileGraphStoreTest {
     void entitiesAndTriplesSurviveANewStore() {
         Path file = dir.resolve("g/graph.json");
         FileGraphStore g = new FileGraphStore(file);
-        g.addTriple(new Triple(e("asha", "Person"), Relation.builder().type("WORKS_AT").addProperty("since", 2020).build(), e("acme", "Company")));
+        g.addTriple(
+                new Triple(
+                        e("asha", "Person"),
+                        Relation.builder().type("WORKS_AT").addProperty("since", 2020).build(),
+                        e("acme", "Company")));
         g.addEntity(e("pune", "City"));
 
         FileGraphStore reopened = new FileGraphStore(file);
@@ -51,8 +55,11 @@ class FileGraphStoreTest {
         assertThrows(IllegalStateException.class, () -> new FileGraphStore(bad));
 
         Path dangling = dir.resolve("dangling.json");
-        Files.writeString(dangling, "{\"entities\":[],\"triples\":[{\"subject\":\"a\",\"predicate\":{\"type\":\"R\"},\"object\":\"b\"}]}");
-        IllegalStateException e = assertThrows(IllegalStateException.class, () -> new FileGraphStore(dangling));
+        Files.writeString(
+                dangling,
+                "{\"entities\":[],\"triples\":[{\"subject\":\"a\",\"predicate\":{\"type\":\"R\"},\"object\":\"b\"}]}");
+        IllegalStateException e =
+                assertThrows(IllegalStateException.class, () -> new FileGraphStore(dangling));
         assertTrue(e.getMessage().contains("isn't in the file"));
 
         Path noType = dir.resolve("notype.json");

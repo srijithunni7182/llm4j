@@ -20,9 +20,12 @@ import org.h2.jdbcx.JdbcDataSource;
 /** Scripted models, a counting task and an in-memory database for the Loom tests. */
 final class LoomFixtures {
 
-    private LoomFixtures() { }
+    private LoomFixtures() {}
 
-    /** An agent named in "You are X." answers {@code X#n}; a latch can hold one agent's call so a test can look at a run in flight. */
+    /**
+     * An agent named in "You are X." answers {@code X#n}; a latch can hold one agent's call so a
+     * test can look at a run in flight.
+     */
     static final class Models implements LLMClientFactory {
         final Map<String, AtomicInteger> calls = new ConcurrentHashMap<>();
         volatile String failAgent;
@@ -46,7 +49,9 @@ final class LoomFixtures {
                 public LLMResponse chat(LLMRequest request) {
                     String system = request.getMessages().get(0).getContent();
                     String agent = system.replaceAll("(?s).*?You are (\\w+)\\..*", "$1");
-                    if (agent.equals(failAgent)) throw new io.github.llm4j.exception.ProviderException("test", "scripted failure", (Throwable) null);
+                    if (agent.equals(failAgent))
+                        throw new io.github.llm4j.exception.ProviderException(
+                                "test", "scripted failure", (Throwable) null);
                     if (agent.equals(holdAgent) && hold != null) {
                         if (entered != null) entered.countDown();
                         try {
@@ -55,8 +60,19 @@ final class LoomFixtures {
                             Thread.currentThread().interrupt();
                         }
                     }
-                    int n = calls.computeIfAbsent(agent, k -> new AtomicInteger()).incrementAndGet();
-                    return LLMResponse.builder().content("```json\n{\"thought\": \"t\", \"final_answer\": \"" + agent + "#" + n + "\"}\n```").model(model).tokenUsage(100, 50, 150).build();
+                    int n =
+                            calls.computeIfAbsent(agent, k -> new AtomicInteger())
+                                    .incrementAndGet();
+                    return LLMResponse.builder()
+                            .content(
+                                    "```json\n{\"thought\": \"t\", \"final_answer\": \""
+                                            + agent
+                                            + "#"
+                                            + n
+                                            + "\"}\n```")
+                            .model(model)
+                            .tokenUsage(100, 50, 150)
+                            .build();
                 }
 
                 @Override
@@ -71,7 +87,10 @@ final class LoomFixtures {
     static final class Notify implements Task {
         final AtomicInteger effects = new AtomicInteger();
 
-        @Override public String getName() { return "Notify"; }
+        @Override
+        public String getName() {
+            return "Notify";
+        }
 
         @Override
         public TaskResult run(TaskContext context) {
@@ -83,16 +102,23 @@ final class LoomFixtures {
     static final class Refund implements Task {
         final AtomicInteger calls = new AtomicInteger();
 
-        @Override public String getName() { return "Refund"; }
+        @Override
+        public String getName() {
+            return "Refund";
+        }
 
         @Override
         public TaskResult run(TaskContext context) {
             calls.incrementAndGet();
-            return TaskResult.value(Map.of("approved", true, "amount", String.valueOf(context.arg("amount"))));
+            return TaskResult.value(
+                    Map.of("approved", true, "amount", String.valueOf(context.arg("amount"))));
         }
     }
 
-    /** A fresh in-memory H2 that outlives any one context (so a restart can be played) until the JVM ends. */
+    /**
+     * A fresh in-memory H2 that outlives any one context (so a restart can be played) until the JVM
+     * ends.
+     */
     static DataSource h2() {
         JdbcDataSource ds = new JdbcDataSource();
         ds.setURL("jdbc:h2:mem:" + UUID.randomUUID() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1");

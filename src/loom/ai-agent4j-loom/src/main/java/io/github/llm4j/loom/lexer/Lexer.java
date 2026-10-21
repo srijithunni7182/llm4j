@@ -9,60 +9,60 @@ public class Lexer {
     private static final Map<String, TokenType> KEYWORDS = new HashMap<>();
 
     static {
-        KEYWORDS.put("agent",           TokenType.AGENT);
-        KEYWORDS.put("import",          TokenType.IMPORT);
-        KEYWORDS.put("tool",            TokenType.TOOL);
-        KEYWORDS.put("workflow",        TokenType.WORKFLOW);
-        KEYWORDS.put("model",           TokenType.MODEL);
-        KEYWORDS.put("system",          TokenType.SYSTEM);
-        KEYWORDS.put("role",            TokenType.ROLE);
-        KEYWORDS.put("tools",           TokenType.TOOLS);
-        KEYWORDS.put("note",            TokenType.NOTE);
-        KEYWORDS.put("handoff",         TokenType.HANDOFF);
-        KEYWORDS.put("delegate",        TokenType.DELEGATE);
-        KEYWORDS.put("to",              TokenType.TO);
-        KEYWORDS.put("alt",             TokenType.ALT);
-        KEYWORDS.put("else",            TokenType.ELSE);
-        KEYWORDS.put("loop",            TokenType.LOOP);
-        KEYWORDS.put("until",           TokenType.UNTIL);
-        KEYWORDS.put("human_prompt",    TokenType.HUMAN_PROMPT);
-        KEYWORDS.put("retry",           TokenType.RETRY);
-        KEYWORDS.put("broadcast",       TokenType.BROADCAST);
+        KEYWORDS.put("agent", TokenType.AGENT);
+        KEYWORDS.put("import", TokenType.IMPORT);
+        KEYWORDS.put("tool", TokenType.TOOL);
+        KEYWORDS.put("workflow", TokenType.WORKFLOW);
+        KEYWORDS.put("model", TokenType.MODEL);
+        KEYWORDS.put("system", TokenType.SYSTEM);
+        KEYWORDS.put("role", TokenType.ROLE);
+        KEYWORDS.put("tools", TokenType.TOOLS);
+        KEYWORDS.put("note", TokenType.NOTE);
+        KEYWORDS.put("handoff", TokenType.HANDOFF);
+        KEYWORDS.put("delegate", TokenType.DELEGATE);
+        KEYWORDS.put("to", TokenType.TO);
+        KEYWORDS.put("alt", TokenType.ALT);
+        KEYWORDS.put("else", TokenType.ELSE);
+        KEYWORDS.put("loop", TokenType.LOOP);
+        KEYWORDS.put("until", TokenType.UNTIL);
+        KEYWORDS.put("human_prompt", TokenType.HUMAN_PROMPT);
+        KEYWORDS.put("retry", TokenType.RETRY);
+        KEYWORDS.put("broadcast", TokenType.BROADCAST);
         // Tier 1 extensions
-        KEYWORDS.put("mcp",             TokenType.MCP);
-        KEYWORDS.put("mcp_servers",     TokenType.MCP_SERVERS);
-        KEYWORDS.put("transport",       TokenType.TRANSPORT);
-        KEYWORDS.put("cmd",             TokenType.CMD);
-        KEYWORDS.put("persona",         TokenType.PERSONA);
+        KEYWORDS.put("mcp", TokenType.MCP);
+        KEYWORDS.put("mcp_servers", TokenType.MCP_SERVERS);
+        KEYWORDS.put("transport", TokenType.TRANSPORT);
+        KEYWORDS.put("cmd", TokenType.CMD);
+        KEYWORDS.put("persona", TokenType.PERSONA);
         KEYWORDS.put("system_template", TokenType.SYSTEM_TEMPLATE);
-        KEYWORDS.put("audit",           TokenType.AUDIT);
-        KEYWORDS.put("path",            TokenType.PATH);
-        KEYWORDS.put("logger",          TokenType.LOGGER);
+        KEYWORDS.put("audit", TokenType.AUDIT);
+        KEYWORDS.put("path", TokenType.PATH);
+        KEYWORDS.put("logger", TokenType.LOGGER);
         // Tier 2 extensions
-        KEYWORDS.put("knowledge",       TokenType.KNOWLEDGE);
-        KEYWORDS.put("skills",          TokenType.SKILLS);
-        KEYWORDS.put("memory",          TokenType.MEMORY);
-        KEYWORDS.put("routing",         TokenType.ROUTING);
-        KEYWORDS.put("strategy",        TokenType.STRATEGY);
-        KEYWORDS.put("threshold",       TokenType.THRESHOLD);
-        KEYWORDS.put("guardrail",       TokenType.GUARDRAIL);
-        KEYWORDS.put("on_violation",    TokenType.ON_VIOLATION);
-        KEYWORDS.put("embedding",       TokenType.EMBEDDING);
-        KEYWORDS.put("chunk_size",      TokenType.CHUNK_SIZE);
-        KEYWORDS.put("primary",         TokenType.PRIMARY);
-        KEYWORDS.put("fallback",        TokenType.FALLBACK);
-        KEYWORDS.put("type",            TokenType.TYPE);
+        KEYWORDS.put("knowledge", TokenType.KNOWLEDGE);
+        KEYWORDS.put("skills", TokenType.SKILLS);
+        KEYWORDS.put("memory", TokenType.MEMORY);
+        KEYWORDS.put("routing", TokenType.ROUTING);
+        KEYWORDS.put("strategy", TokenType.STRATEGY);
+        KEYWORDS.put("threshold", TokenType.THRESHOLD);
+        KEYWORDS.put("guardrail", TokenType.GUARDRAIL);
+        KEYWORDS.put("on_violation", TokenType.ON_VIOLATION);
+        KEYWORDS.put("embedding", TokenType.EMBEDDING);
+        KEYWORDS.put("chunk_size", TokenType.CHUNK_SIZE);
+        KEYWORDS.put("primary", TokenType.PRIMARY);
+        KEYWORDS.put("fallback", TokenType.FALLBACK);
+        KEYWORDS.put("type", TokenType.TYPE);
         // Tier 3 extensions
-        KEYWORDS.put("parallel",        TokenType.PARALLEL);
-        KEYWORDS.put("schedule",        TokenType.SCHEDULE);
-        KEYWORDS.put("pattern",         TokenType.PATTERN);
-        KEYWORDS.put("observe",         TokenType.OBSERVE);
+        KEYWORDS.put("parallel", TokenType.PARALLEL);
+        KEYWORDS.put("schedule", TokenType.SCHEDULE);
+        KEYWORDS.put("pattern", TokenType.PATTERN);
+        KEYWORDS.put("observe", TokenType.OBSERVE);
         // Frontier features
-        KEYWORDS.put("call",            TokenType.CALL);
-        KEYWORDS.put("enum",            TokenType.ENUM);
-        KEYWORDS.put("list",            TokenType.LIST);
-        KEYWORDS.put("output_schema",   TokenType.OUTPUT_SCHEMA);
-        KEYWORDS.put("on_failure",      TokenType.ON_FAILURE);
+        KEYWORDS.put("call", TokenType.CALL);
+        KEYWORDS.put("enum", TokenType.ENUM);
+        KEYWORDS.put("list", TokenType.LIST);
+        KEYWORDS.put("output_schema", TokenType.OUTPUT_SCHEMA);
+        KEYWORDS.put("on_failure", TokenType.ON_FAILURE);
     }
 
     private final String source;
@@ -71,6 +71,7 @@ public class Lexer {
     private int line = 1;
     private int columnStart = 1;
     private final List<Token> tokens = new ArrayList<>();
+
     /** How deep inside braces the scan is; a ladder or measure is only ever declared at depth 0. */
     private int depth = 0;
 
@@ -90,23 +91,46 @@ public class Lexer {
     private void scanToken() {
         char c = advance();
         switch (c) {
-            case '{': depth++; addToken(TokenType.LBRACE); break;
-            case '}': depth = Math.max(0, depth - 1); addToken(TokenType.RBRACE); break;
-            case '(': addToken(TokenType.LPAREN); break;
-            case ')': addToken(TokenType.RPAREN); break;
-            case '[': addToken(TokenType.LBRACKET); break;
-            case ']': addToken(TokenType.RBRACKET); break;
-            case ',': addToken(TokenType.COMMA); break;
-            case ':': addToken(TokenType.COLON); break;
-            case '+': addToken(TokenType.PLUS); break;
-            case '%': addToken(TokenType.PERCENT); break;
+            case '{':
+                depth++;
+                addToken(TokenType.LBRACE);
+                break;
+            case '}':
+                depth = Math.max(0, depth - 1);
+                addToken(TokenType.RBRACE);
+                break;
+            case '(':
+                addToken(TokenType.LPAREN);
+                break;
+            case ')':
+                addToken(TokenType.RPAREN);
+                break;
+            case '[':
+                addToken(TokenType.LBRACKET);
+                break;
+            case ']':
+                addToken(TokenType.RBRACKET);
+                break;
+            case ',':
+                addToken(TokenType.COMMA);
+                break;
+            case ':':
+                addToken(TokenType.COLON);
+                break;
+            case '+':
+                addToken(TokenType.PLUS);
+                break;
+            case '%':
+                addToken(TokenType.PERCENT);
+                break;
             case '-':
                 if (match('>')) {
                     addToken(TokenType.ARROW);
                 } else if (isDigit(peek())) {
                     number(); // a negative number, so the parser can say why it isn't allowed
                 } else {
-                    // It could be a minus, but we haven't defined minus yet. Let's just ignore or throw.
+                    // It could be a minus, but we haven't defined minus yet. Let's just ignore or
+                    // throw.
                     throw new RuntimeException("Unexpected character '-' at line " + line);
                 }
                 break;
@@ -143,11 +167,15 @@ public class Lexer {
                 line++;
                 columnStart = current;
                 break;
-            case '"': string(); break;
+            case '"':
+                string();
+                break;
             case '|':
                 if (peek() == '|') {
-                    throw new RuntimeException("Unexpected character '|' at line " + line
-                            + ". A condition is one comparison (== != > >= < <=): there is no && or ||; nest alt blocks instead (weave guide loom, \"Conditions\")");
+                    throw new RuntimeException(
+                            "Unexpected character '|' at line "
+                                    + line
+                                    + ". A condition is one comparison (== != > >= < <=): there is no && or ||; nest alt blocks instead (weave guide loom, \"Conditions\")");
                 }
                 addToken(TokenType.PIPE);
                 break;
@@ -157,10 +185,12 @@ public class Lexer {
                 } else if (isAlpha(c)) {
                     identifier();
                 } else {
-                    String hint = c == '&' || c == '|'
-                            ? ". A condition is one comparison (== != > >= < <=): there is no && or ||; nest alt blocks instead (weave guide loom, \"Conditions\")"
-                            : "";
-                    throw new RuntimeException("Unexpected character '" + c + "' at line " + line + hint);
+                    String hint =
+                            c == '&' || c == '|'
+                                    ? ". A condition is one comparison (== != > >= < <=): there is no && or ||; nest alt blocks instead (weave guide loom, \"Conditions\")"
+                                    : "";
+                    throw new RuntimeException(
+                            "Unexpected character '" + c + "' at line " + line + hint);
                 }
                 break;
         }
@@ -189,7 +219,7 @@ public class Lexer {
 
     private void number() {
         while (isDigit(peek())) advance();
-        
+
         // Look for a fractional part.
         if (peek() == '.' && isDigit(peekNext())) {
             // Consume the "."
@@ -202,8 +232,10 @@ public class Lexer {
     }
 
     private void identifier() {
-        // A name may be hyphenated (support-lead) or carry an apostrophe (doesn't): neither was valid before, so no script changes meaning.
-        while (isAlphaNumeric(peek()) || ((peek() == '-' || peek() == '\'') && isAlpha(peekNext()))) advance();
+        // A name may be hyphenated (support-lead) or carry an apostrophe (doesn't): neither was
+        // valid before, so no script changes meaning.
+        while (isAlphaNumeric(peek()) || ((peek() == '-' || peek() == '\'') && isAlpha(peekNext())))
+            advance();
 
         // Dotted property paths (e.g. report.status) lex as a single identifier so that
         // alt/loop conditions can reference fields of output_schema results.
@@ -213,21 +245,29 @@ public class Lexer {
         }
 
         String text = source.substring(start, current);
-        if (depth == 0 && (text.equals("ladder") || text.equals("measure")) && declaration(text)) return;
+        if (depth == 0 && (text.equals("ladder") || text.equals("measure")) && declaration(text))
+            return;
         TokenType type = KEYWORDS.get(text);
         if (type == null) type = TokenType.IDENTIFIER;
         addToken(type);
     }
 
     /**
-     * A {@code ladder} or {@code measure} declaration is set aside whole, as one token holding its raw text: its conditions are expressions
-     * ({@code *}, {@code /}, {@code 14d}, method chains) in a language of their own. Only recognised where a declaration can start (at the top
-     * level, after a closing brace, a string or another declaration), so {@code agent ladder { }} and a variable called {@code measure} are untouched.
+     * A {@code ladder} or {@code measure} declaration is set aside whole, as one token holding its
+     * raw text: its conditions are expressions ({@code *}, {@code /}, {@code 14d}, method chains)
+     * in a language of their own. Only recognised where a declaration can start (at the top level,
+     * after a closing brace, a string or another declaration), so {@code agent ladder { }} and a
+     * variable called {@code measure} are untouched.
      */
     private boolean declaration(String word) {
         TokenType previous = tokens.isEmpty() ? null : tokens.get(tokens.size() - 1).getType();
-        boolean startsHere = previous == null || previous == TokenType.RBRACE || previous == TokenType.STRING_LITERAL
-                || previous == TokenType.NUMBER_LITERAL || previous == TokenType.LADDER_DECL || previous == TokenType.MEASURE_DECL;
+        boolean startsHere =
+                previous == null
+                        || previous == TokenType.RBRACE
+                        || previous == TokenType.STRING_LITERAL
+                        || previous == TokenType.NUMBER_LITERAL
+                        || previous == TokenType.LADDER_DECL
+                        || previous == TokenType.MEASURE_DECL;
         if (!startsHere) return false;
         int i = current;
         while (i < source.length() && Character.isWhitespace(source.charAt(i))) i++;
@@ -235,13 +275,26 @@ public class Lexer {
         char next = source.charAt(i);
         boolean ladder = word.equals("ladder");
         if (!(isAlpha(next) || (ladder && next == '{'))) return false;
-        int end = ladder ? io.github.llm4j.loom.parser.LadderParser.ladderEnd(source, start)
-                : io.github.llm4j.loom.parser.LadderParser.measureEnd(source, start);
-        if (end < 0) throw new RuntimeException("The " + word + " starting at line " + line + " was never closed (missing '}').");
+        int end =
+                ladder
+                        ? io.github.llm4j.loom.parser.LadderParser.ladderEnd(source, start)
+                        : io.github.llm4j.loom.parser.LadderParser.measureEnd(source, start);
+        if (end < 0)
+            throw new RuntimeException(
+                    "The "
+                            + word
+                            + " starting at line "
+                            + line
+                            + " was never closed (missing '}').");
         int col = start - columnStart + 1;
         int startLine = line;
         String raw = source.substring(start, end);
-        tokens.add(new Token(ladder ? TokenType.LADDER_DECL : TokenType.MEASURE_DECL, raw, startLine, col));
+        tokens.add(
+                new Token(
+                        ladder ? TokenType.LADDER_DECL : TokenType.MEASURE_DECL,
+                        raw,
+                        startLine,
+                        col));
         int lastNewline = raw.lastIndexOf('\n');
         for (int k = 0; k < raw.length(); k++) if (raw.charAt(k) == '\n') line++;
         if (lastNewline >= 0) columnStart = start + lastNewline + 1;
@@ -267,9 +320,7 @@ public class Lexer {
     }
 
     private boolean isAlpha(char c) {
-        return (c >= 'a' && c <= 'z') ||
-               (c >= 'A' && c <= 'Z') ||
-                c == '_';
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
     }
 
     private boolean isAlphaNumeric(char c) {

@@ -12,9 +12,21 @@ import java.util.List;
  * @param cost what the run cost when prices are known, else null
  * @param error what stopped the run before its checks could be made, else null
  */
-public record ScenarioResult(String target, String kind, String file, String id, String name, Status status, List<Check> checks, BigDecimal cost, String error) {
+public record ScenarioResult(
+        String target,
+        String kind,
+        String file,
+        String id,
+        String name,
+        Status status,
+        List<Check> checks,
+        BigDecimal cost,
+        String error) {
 
-    /** One thing that was checked: {@code answer contains}, {@code tools}, {@code rubric}, {@code expect}. */
+    /**
+     * One thing that was checked: {@code answer contains}, {@code tools}, {@code rubric}, {@code
+     * expect}.
+     */
     public record Check(String kind, String text, Status status, String detail) {}
 
     public ScenarioResult {

@@ -1,6 +1,9 @@
 package io.github.llm4j.loom.security;
 
-/** The OWASP Top 10 for Large Language Model Applications, 2025 edition (https://genai.owasp.org/llm-top-10/). */
+/**
+ * The OWASP Top 10 for Large Language Model Applications, 2025 edition
+ * (https://genai.owasp.org/llm-top-10/).
+ */
 public enum Owasp {
     LLM01("Prompt Injection"),
     LLM02("Sensitive Information Disclosure"),

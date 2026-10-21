@@ -4,9 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@code intentclassify Intent on message -> intent}: asks a declared {@link IntentClassifierDef} about the state and binds the answers to a record:
- * {@code intent.kind}, {@code intent.urgent}, {@code intent.confidence}, {@code intent.calibrated}, … The state is one value ({@code on message},
- * {@code on "text with {vars}"}) or named fields ({@code on { message: message, history: past }}).
+ * {@code intentclassify Intent on message -> intent}: asks a declared {@link IntentClassifierDef}
+ * about the state and binds the answers to a record: {@code intent.kind}, {@code intent.urgent},
+ * {@code intent.confidence}, {@code intent.calibrated}, … The state is one value ({@code on
+ * message}, {@code on "text with {vars}"}) or named fields ({@code on { message: message, history:
+ * past }}).
  */
 public class IntentClassifyStmt extends LocatedStatement {
 
@@ -23,17 +25,44 @@ public class IntentClassifyStmt extends LocatedStatement {
         this.variableName = variableName;
     }
 
-    public String getClassifier() { return classifier; }
+    public String getClassifier() {
+        return classifier;
+    }
 
     /** The state: one unnamed value (name {@code ""}), or one entry per named field. */
-    public List<RunStmt.Arg> getInputs() { return inputs; }
+    public List<RunStmt.Arg> getInputs() {
+        return inputs;
+    }
 
-    public String getVariableName() { return variableName; }
-    public int getRetryCount() { return retryCount; }
-    public void setRetryCount(int retryCount) { this.retryCount = retryCount; }
-    public long getBackoffMillis() { return backoffMillis; }
-    public void setBackoffMillis(long backoffMillis) { this.backoffMillis = backoffMillis; }
-    public long getTimeoutMillis() { return timeoutMillis; }
-    public void setTimeoutMillis(long timeoutMillis) { this.timeoutMillis = timeoutMillis; }
-    public List<Statement> getOnFailure() { return onFailure; }
+    public String getVariableName() {
+        return variableName;
+    }
+
+    public int getRetryCount() {
+        return retryCount;
+    }
+
+    public void setRetryCount(int retryCount) {
+        this.retryCount = retryCount;
+    }
+
+    public long getBackoffMillis() {
+        return backoffMillis;
+    }
+
+    public void setBackoffMillis(long backoffMillis) {
+        this.backoffMillis = backoffMillis;
+    }
+
+    public long getTimeoutMillis() {
+        return timeoutMillis;
+    }
+
+    public void setTimeoutMillis(long timeoutMillis) {
+        this.timeoutMillis = timeoutMillis;
+    }
+
+    public List<Statement> getOnFailure() {
+        return onFailure;
+    }
 }

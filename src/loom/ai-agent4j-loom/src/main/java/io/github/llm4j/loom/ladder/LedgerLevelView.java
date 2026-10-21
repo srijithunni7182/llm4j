@@ -9,8 +9,9 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Where each scope stands, read from the ladder engine's record in the ledger and shown the way the original level store shows it, so the code that
- * prints a trust decision's status prints it from the one record both engines have written. Read only: the ledger changes through the engine.
+ * Where each scope stands, read from the ladder engine's record in the ledger and shown the way the
+ * original level store shows it, so the code that prints a trust decision's status prints it from
+ * the one record both engines have written. Read only: the ledger changes through the engine.
  */
 public final class LedgerLevelView implements LevelStore {
 
@@ -21,7 +22,14 @@ public final class LedgerLevelView implements LevelStore {
     }
 
     private static LevelState state(LevelLog.Standing s) {
-        return new LevelState(Level.of(s.rungName()), s.epoch(), s.identity(), s.forced(), s.at(), s.reason(), s.version());
+        return new LevelState(
+                Level.of(s.rungName()),
+                s.epoch(),
+                s.identity(),
+                s.forced(),
+                s.at(),
+                s.reason(),
+                s.version());
     }
 
     @Override
@@ -30,8 +38,10 @@ public final class LedgerLevelView implements LevelStore {
     }
 
     @Override
-    public boolean compareAndSet(String decision, String scope, LevelState expected, LevelState next) {
-        throw new UnsupportedOperationException("the level of a decision on a ladder changes through its engine");
+    public boolean compareAndSet(
+            String decision, String scope, LevelState expected, LevelState next) {
+        throw new UnsupportedOperationException(
+                "the level of a decision on a ladder changes through its engine");
     }
 
     @Override
@@ -43,7 +53,12 @@ public final class LedgerLevelView implements LevelStore {
 
     @Override
     public Optional<Freeze> freeze(String decision) {
-        return log.frozen() ? Optional.of(new Freeze(log.freezeReason() == null ? "" : log.freezeReason(), Instant.EPOCH)) : Optional.empty();
+        return log.frozen()
+                ? Optional.of(
+                        new Freeze(
+                                log.freezeReason() == null ? "" : log.freezeReason(),
+                                Instant.EPOCH))
+                : Optional.empty();
     }
 
     @Override

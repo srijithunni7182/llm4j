@@ -26,15 +26,29 @@ public final class LLMResponse {
             return value;
         }
 
-        /** Provider-specific values, so the same stop reads the same whichever provider answered. */
+        /**
+         * Provider-specific values, so the same stop reads the same whichever provider answered.
+         */
         private static final java.util.Map<String, FinishReason> SYNONYMS = synonyms();
 
         private static java.util.Map<String, FinishReason> synonyms() {
             java.util.Map<String, FinishReason> m = new java.util.HashMap<>();
-            for (String v : new String[] {"end_turn", "stop_sequence", "pause_turn", "finish_reason_stop", "eos"}) m.put(v, STOP);
-            for (String v : new String[] {"max_tokens", "model_context_window_exceeded"}) m.put(v, LENGTH);
-            for (String v : new String[] {"refusal", "safety", "recitation", "blocklist", "prohibited_content", "spii",
-                    "image_safety"}) m.put(v, CONTENT_FILTER);
+            for (String v :
+                    new String[] {
+                        "end_turn", "stop_sequence", "pause_turn", "finish_reason_stop", "eos"
+                    }) m.put(v, STOP);
+            for (String v : new String[] {"max_tokens", "model_context_window_exceeded"})
+                m.put(v, LENGTH);
+            for (String v :
+                    new String[] {
+                        "refusal",
+                        "safety",
+                        "recitation",
+                        "blocklist",
+                        "prohibited_content",
+                        "spii",
+                        "image_safety"
+                    }) m.put(v, CONTENT_FILTER);
             for (String v : new String[] {"tool_use", "function_call"}) m.put(v, TOOL_CALLS);
             for (String v : new String[] {"malformed_function_call"}) m.put(v, ERROR);
             return java.util.Map.copyOf(m);
@@ -74,8 +88,12 @@ public final class LLMResponse {
         this.tokenUsage = builder.tokenUsage;
         this.finishReason =
                 builder.finishReason != null ? builder.finishReason : FinishReason.UNKNOWN;
-        this.toolCalls = builder.toolCalls == null ? java.util.List.of() : java.util.List.copyOf(builder.toolCalls);
-        this.providerData = builder.providerData == null ? Map.of() : Map.copyOf(builder.providerData);
+        this.toolCalls =
+                builder.toolCalls == null
+                        ? java.util.List.of()
+                        : java.util.List.copyOf(builder.toolCalls);
+        this.providerData =
+                builder.providerData == null ? Map.of() : Map.copyOf(builder.providerData);
         this.reasoning = builder.reasoning;
         this.toolCallDelta = builder.toolCallDelta;
         this.metadata =
@@ -113,22 +131,30 @@ public final class LLMResponse {
         return !toolCalls.isEmpty();
     }
 
-    /** What the provider needs sent back unchanged with the tool results; copy it onto the assistant {@link Message}. */
+    /**
+     * What the provider needs sent back unchanged with the tool results; copy it onto the assistant
+     * {@link Message}.
+     */
     public Map<String, Object> getProviderData() {
         return providerData;
     }
 
     /**
-     * On a streamed chunk: a piece of the model's reasoning (null on every other chunk, and on every chunk unless the request asked for it
-     * with {@link LLMRequest.Builder#reasoning}). It is never part of {@link #getContent()}, which stays the answer only, so a consumer that
-     * joins the content of the chunks gets the same answer with or without reasoning. What it holds depends on the model: a summary of its
-     * thinking where the provider offers one, otherwise nothing.
+     * On a streamed chunk: a piece of the model's reasoning (null on every other chunk, and on
+     * every chunk unless the request asked for it with {@link LLMRequest.Builder#reasoning}). It is
+     * never part of {@link #getContent()}, which stays the answer only, so a consumer that joins
+     * the content of the chunks gets the same answer with or without reasoning. What it holds
+     * depends on the model: a summary of its thinking where the provider offers one, otherwise
+     * nothing.
      */
     public String getReasoning() {
         return reasoning;
     }
 
-    /** On a streamed chunk: a piece of a tool call being written (null on every other chunk). See {@link ToolCallDelta}. */
+    /**
+     * On a streamed chunk: a piece of a tool call being written (null on every other chunk). See
+     * {@link ToolCallDelta}.
+     */
     public ToolCallDelta getToolCallDelta() {
         return toolCallDelta;
     }
@@ -155,7 +181,16 @@ public final class LLMResponse {
 
     @Override
     public int hashCode() {
-        return Objects.hash(content, model, tokenUsage, finishReason, metadata, toolCalls, providerData, reasoning, toolCallDelta);
+        return Objects.hash(
+                content,
+                model,
+                tokenUsage,
+                finishReason,
+                metadata,
+                toolCalls,
+                providerData,
+                reasoning,
+                toolCallDelta);
     }
 
     @Override

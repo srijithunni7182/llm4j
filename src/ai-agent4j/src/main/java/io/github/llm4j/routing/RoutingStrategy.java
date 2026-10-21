@@ -5,9 +5,7 @@ import io.github.llm4j.model.LLMRequest;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Defines a strategy for routing requests across multiple LLM clients.
- */
+/** Defines a strategy for routing requests across multiple LLM clients. */
 public interface RoutingStrategy {
 
     /**
@@ -21,8 +19,8 @@ public interface RoutingStrategy {
     LLMClient selectClient(LLMRequest request, Map<ProviderTier, List<LLMClient>> clients);
 
     /**
-     * Called when a selected client fails to process the request.
-     * The strategy can then mark the client as temporarily degraded or update its internal state.
+     * Called when a selected client fails to process the request. The strategy can then mark the
+     * client as temporarily degraded or update its internal state.
      *
      * @param failedClient the client that failed
      * @param request the request that failed

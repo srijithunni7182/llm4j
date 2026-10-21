@@ -7,8 +7,8 @@ public enum BudgetPolicy {
     /** Propagate {@link BudgetExceeded}. */
     FAIL,
     /**
-     * When the refusing budget is windowed (it refills at a known time), throw
-     * {@link io.github.llm4j.ratelimit.RateLimited} so a harness can pause and resume the task after the
+     * When the refusing budget is windowed (it refills at a known time), throw {@link
+     * io.github.llm4j.ratelimit.RateLimited} so a harness can pause and resume the task after the
      * refill; otherwise behave as {@link #RETURN_PARTIAL}.
      */
     SUSPEND

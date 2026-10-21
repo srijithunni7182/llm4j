@@ -24,10 +24,11 @@ class ChainTest {
     void stopsAtTheFirstStrategyThatReachesTheTarget() {
         List<String> called = new ArrayList<>();
         ContextCompactor trim = ContextCompactors.trimToolResults(500);
-        ContextCompactor spy = (m, r) -> {
-            called.add("spy");
-            return CompactionResult.of("spy", m, m, r);
-        };
+        ContextCompactor spy =
+                (m, r) -> {
+                    called.add("spy");
+                    return CompactionResult.of("spy", m, m, r);
+                };
         List<Message> in = convo();
         long target = req(1).sizeOf(in) / 2;
         CompactionResult r = ContextCompactors.chain(trim, spy).compact(in, req(target));
@@ -40,9 +41,20 @@ class ChainTest {
     void goesOnToTheNextStrategyWhenTheFirstIsNotEnough() {
         List<Message> in = convo();
         long target = 600; // trimming alone cannot reach this
-        CompactionResult r = ContextCompactors.chain(ContextCompactors.trimToolResults(500), ContextCompactors.dropOldest()).compact(in, req(target));
+        CompactionResult r =
+                ContextCompactors.chain(
+                                ContextCompactors.trimToolResults(500),
+                                ContextCompactors.dropOldest())
+                        .compact(in, req(target));
         assertThat(r.outcome()).isEqualTo(CompactionResult.Outcome.COMPACTED);
-        assertThat(r.messages().stream().anyMatch(m -> Messages.compactionOf(m).filter("drop_oldest"::equals).isPresent())).isTrue();
+        assertThat(
+                        r.messages().stream()
+                                .anyMatch(
+                                        m ->
+                                                Messages.compactionOf(m)
+                                                        .filter("drop_oldest"::equals)
+                                                        .isPresent()))
+                .isTrue();
         assertThat(r.strategy()).isEqualTo("chain(trim_tool_results, drop_oldest)");
     }
 
@@ -50,7 +62,11 @@ class ChainTest {
     void reportsTheWholeChainAgainstTheOriginalInput() {
         List<Message> in = convo();
         CompactionRequest req = req(600);
-        CompactionResult r = ContextCompactors.chain(ContextCompactors.trimToolResults(500), ContextCompactors.dropOldest()).compact(in, req);
+        CompactionResult r =
+                ContextCompactors.chain(
+                                ContextCompactors.trimToolResults(500),
+                                ContextCompactors.dropOldest())
+                        .compact(in, req);
         assertThat(r.messagesBefore()).isEqualTo(in.size());
         assertThat(r.tokensBefore()).isEqualTo(req.sizeOf(in));
         assertThat(r.tokensAfter()).isEqualTo(req.sizeOf(r.messages()));
@@ -60,29 +76,46 @@ class ChainTest {
     @Test
     void anAlreadySmallConversationIsSkipped() {
         List<Message> in = new Convo().system("s").task("t").answer("a").build();
-        CompactionResult r = ContextCompactors.chain(ContextCompactors.dropOldest()).compact(in, req(10_000));
+        CompactionResult r =
+                ContextCompactors.chain(ContextCompactors.dropOldest()).compact(in, req(10_000));
         assertThat(r.outcome()).isEqualTo(CompactionResult.Outcome.SKIPPED);
     }
 
     @Test
     void needsAtLeastOneStrategyAndNoNulls() {
-        assertThatThrownBy(() -> ContextCompactors.chain()).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> ContextCompactors.chain((ContextCompactor) null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> ContextCompactors.chain())
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> ContextCompactors.chain((ContextCompactor) null))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void aStrategyThatThrowsPropagatesSoTheManagerCanHandleIt() {
-        ContextCompactor boom = (m, r) -> {
-            throw new IllegalStateException("boom");
-        };
-        assertThatThrownBy(() -> ContextCompactors.chain(boom).compact(convo(), req(10))).hasMessage("boom");
+        ContextCompactor boom =
+                (m, r) -> {
+                    throw new IllegalStateException("boom");
+                };
+        assertThatThrownBy(() -> ContextCompactors.chain(boom).compact(convo(), req(10)))
+                .hasMessage("boom");
     }
 
     @Test
     void whatTheStagesSpentOnModelCallsIsAddedUp() {
         CompactionUsage one = new CompactionUsage(1, 700, 60, new java.math.BigDecimal("0.002"));
-        ContextCompactor spenderA = (m, r) -> ContextCompactors.dropOldest().compact(m, CompactionRequest.builder(r.targetTokens() * 2).keepRecent(2).build()).withUsage(one);
-        ContextCompactor spenderB = (m, r) -> ContextCompactors.dropOldest().compact(m, r).withUsage(new CompactionUsage(2, 100, 20, null));
+        ContextCompactor spenderA =
+                (m, r) ->
+                        ContextCompactors.dropOldest()
+                                .compact(
+                                        m,
+                                        CompactionRequest.builder(r.targetTokens() * 2)
+                                                .keepRecent(2)
+                                                .build())
+                                .withUsage(one);
+        ContextCompactor spenderB =
+                (m, r) ->
+                        ContextCompactors.dropOldest()
+                                .compact(m, r)
+                                .withUsage(new CompactionUsage(2, 100, 20, null));
         List<Message> in = convo();
         CompactionResult r = ContextCompactors.chain(spenderA, spenderB).compact(in, req(300));
         assertThat(r.summarizerUsage().calls()).isEqualTo(3);
@@ -102,6 +135,10 @@ class ChainTest {
 
     @Test
     void noModelCallsMeansNoUsage() {
-        assertThat(ContextCompactors.chain(ContextCompactors.dropOldest()).compact(convo(), req(300)).summarizerUsage()).isNull();
+        assertThat(
+                        ContextCompactors.chain(ContextCompactors.dropOldest())
+                                .compact(convo(), req(300))
+                                .summarizerUsage())
+                .isNull();
     }
 }

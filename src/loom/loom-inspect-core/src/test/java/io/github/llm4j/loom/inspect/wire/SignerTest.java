@@ -21,7 +21,8 @@ class SignerTest {
     void aDifferentKeyABodyChangeOrAnOldTimestampAllFail() {
         String h = Signer.sign("key-1", NOW, BODY);
         assertThat(Signer.verify("key-2", h, BODY, NOW)).isFalse();
-        assertThat(Signer.verify("key-1", h, "{\"a\":2}".getBytes(StandardCharsets.UTF_8), NOW)).isFalse();
+        assertThat(Signer.verify("key-1", h, "{\"a\":2}".getBytes(StandardCharsets.UTF_8), NOW))
+                .isFalse();
         assertThat(Signer.verify("key-1", h, BODY, NOW.plusSeconds(6 * 60))).isFalse(); // replay
         assertThat(Signer.verify("key-1", h, BODY, NOW.minusSeconds(6 * 60))).isFalse();
     }
@@ -32,6 +33,7 @@ class SignerTest {
         assertThat(Signer.verify(null, "t=1,v1=00", BODY, NOW)).isFalse();
         assertThat(Signer.verify("k", "nonsense", BODY, NOW)).isFalse();
         assertThat(Signer.verify("k", "t=abc,v1=zz", BODY, NOW)).isFalse();
-        assertThat(Signer.verify("k", "t=" + NOW.getEpochSecond() + ",v1=nothex", BODY, NOW)).isFalse();
+        assertThat(Signer.verify("k", "t=" + NOW.getEpochSecond() + ",v1=nothex", BODY, NOW))
+                .isFalse();
     }
 }

@@ -3,9 +3,10 @@ package io.github.llm4j.loom.autonomy;
 /** The decision declaration the autonomy tests share. */
 public final class Scripts {
 
-    private Scripts() { }
+    private Scripts() {}
 
-    public static final String AGENT = """
+    public static final String AGENT =
+            """
             agent Triager {
                 model: "m"
                 system: "You are Triager."
@@ -14,7 +15,9 @@ public final class Scripts {
             """;
 
     /** The example of the design, §1.1. */
-    public static final String REFUND = AGENT + """
+    public static final String REFUND =
+            AGENT
+                    + """
             decision Refund {
                 proposed by:            Triager
                 choices:                approve, reject, escalate

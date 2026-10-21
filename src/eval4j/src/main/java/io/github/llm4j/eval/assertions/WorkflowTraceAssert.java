@@ -160,7 +160,10 @@ public class WorkflowTraceAssert extends AbstractObjectAssert<WorkflowTraceAsser
         return this;
     }
 
-    /** Passes if {@code task} ran exactly {@code times} times; 0 proves it never ran (a refund that policy refused). */
+    /**
+     * Passes if {@code task} ran exactly {@code times} times; 0 proves it never ran (a refund that
+     * policy refused).
+     */
     public WorkflowTraceAssert runsTaskTimes(String task, int times) {
         EvalChecks.check(
                 M_TASKS,
@@ -176,7 +179,10 @@ public class WorkflowTraceAssert extends AbstractObjectAssert<WorkflowTraceAsser
         return this;
     }
 
-    /** Passes if the last time {@code task} ended, its outcome was {@code outcome} (for example {@code approved}). */
+    /**
+     * Passes if the last time {@code task} ended, its outcome was {@code outcome} (for example
+     * {@code approved}).
+     */
     public WorkflowTraceAssert taskEndedWith(String task, String outcome) {
         EvalChecks.check(
                 M_TASKS,

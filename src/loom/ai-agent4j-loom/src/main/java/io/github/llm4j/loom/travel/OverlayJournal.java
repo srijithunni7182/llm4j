@@ -7,9 +7,9 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * A journal laid over another: reads look in what this run wrote and then in the journal underneath, writes go only to this layer, and
- * the one underneath is never touched. It is how a run can be tried against a copy of the past without copying it, and without any way
- * to change it.
+ * A journal laid over another: reads look in what this run wrote and then in the journal
+ * underneath, writes go only to this layer, and the one underneath is never touched. It is how a
+ * run can be tried against a copy of the past without copying it, and without any way to change it.
  */
 public final class OverlayJournal implements RunJournal {
 

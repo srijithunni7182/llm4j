@@ -6,8 +6,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * How far one destination (Fabric, an OTLP collector) has acknowledged, kept in a small file beside the log. It is moved only after
- * the destination says it has the records, so a crash between sending and recording just sends a batch again.
+ * How far one destination (Fabric, an OTLP collector) has acknowledged, kept in a small file beside
+ * the log. It is moved only after the destination says it has the records, so a crash between
+ * sending and recording just sends a batch again.
  */
 public final class Cursor {
 
@@ -20,7 +21,8 @@ public final class Cursor {
         try {
             if (Files.exists(file)) v = Long.parseLong(Files.readString(file).trim());
         } catch (IOException | NumberFormatException e) {
-            v = 0; // an unreadable cursor starts from the beginning: duplicates are dropped by the server, a gap would not be
+            v = 0; // an unreadable cursor starts from the beginning: duplicates are dropped by
+            // the server, a gap would not be
         }
         this.value = v;
     }

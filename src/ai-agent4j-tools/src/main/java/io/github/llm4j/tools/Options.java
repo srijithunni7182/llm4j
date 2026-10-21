@@ -11,9 +11,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Typed reads over a tool's resolved options. Every failure is an {@link OptionException} whose message
- * names the option, so a kind's {@code check} can return it as a load error and {@code create} can trust
- * what it reads.
+ * Typed reads over a tool's resolved options. Every failure is an {@link OptionException} whose
+ * message names the option, so a kind's {@code check} can return it as a load error and {@code
+ * create} can trust what it reads.
  */
 public final class Options {
 
@@ -21,7 +21,8 @@ public final class Options {
     public static final String HEADER_PREFIX = "header.";
 
     private static final Pattern DURATION = Pattern.compile("(\\d+)\\s*(ms|s|m|h)?");
-    private static final Pattern SIZE = Pattern.compile("(\\d+)\\s*(b|k|kb|m|mb)?", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SIZE =
+            Pattern.compile("(\\d+)\\s*(b|k|kb|m|mb)?", Pattern.CASE_INSENSITIVE);
     private static final List<String> SECRET_HEADER_WORDS =
             List.of("authorization", "token", "key", "secret", "cookie", "password");
 
@@ -68,7 +69,9 @@ public final class Options {
         } catch (NumberFormatException e) {
             throw new OptionException(name + ": must be a whole number, not " + v);
         }
-        if (n < min || n > max) throw new OptionException(name + ": must be between " + min + " and " + max + ", not " + n);
+        if (n < min || n > max)
+            throw new OptionException(
+                    name + ": must be between " + min + " and " + max + ", not " + n);
         return n;
     }
 
@@ -76,9 +79,12 @@ public final class Options {
         String v = values.get(name);
         if (v == null) return fallback;
         Duration d = parseDuration(v);
-        if (d == null) throw new OptionException(name + ": must be a duration like 500ms, 20s or 2m, not " + v);
+        if (d == null)
+            throw new OptionException(
+                    name + ": must be a duration like 500ms, 20s or 2m, not " + v);
         if (d.isZero() || d.compareTo(max) > 0) {
-            throw new OptionException(name + ": must be above zero and at most " + describe(max) + ", not " + v);
+            throw new OptionException(
+                    name + ": must be above zero and at most " + describe(max) + ", not " + v);
         }
         return d;
     }
@@ -88,7 +94,9 @@ public final class Options {
         if (v == null) return fallback;
         long n = parseSize(v);
         if (n < 0) throw new OptionException(name + ": must be a size like 64k or 1m, not " + v);
-        if (n == 0 || n > max) throw new OptionException(name + ": must be above zero and at most " + max + " bytes, not " + v);
+        if (n == 0 || n > max)
+            throw new OptionException(
+                    name + ": must be above zero and at most " + max + " bytes, not " + v);
         return n;
     }
 
@@ -97,7 +105,8 @@ public final class Options {
         if (v == null) return fallback;
         String lower = v.toLowerCase(Locale.ROOT);
         for (String a : allowed) if (a.equals(lower)) return a;
-        throw new OptionException(name + ": must be one of " + String.join(", ", allowed) + ", not " + v);
+        throw new OptionException(
+                name + ": must be one of " + String.join(", ", allowed) + ", not " + v);
     }
 
     /** A comma-separated list, trimmed, with empty entries dropped. */
@@ -115,19 +124,26 @@ public final class Options {
     /** The {@code header.*} options, by header name. */
     public Map<String, String> headers() {
         Map<String, String> out = new LinkedHashMap<>();
-        values.forEach((k, v) -> {
-            if (k.startsWith(HEADER_PREFIX) && k.length() > HEADER_PREFIX.length()) out.put(k.substring(HEADER_PREFIX.length()), v);
-        });
+        values.forEach(
+                (k, v) -> {
+                    if (k.startsWith(HEADER_PREFIX) && k.length() > HEADER_PREFIX.length())
+                        out.put(k.substring(HEADER_PREFIX.length()), v);
+                });
         return out;
     }
 
-    /** True when a header's value is a credential, so the script must take it from the environment. */
+    /**
+     * True when a header's value is a credential, so the script must take it from the environment.
+     */
     public static boolean isSecretHeader(String headerName) {
         String n = headerName.toLowerCase(Locale.ROOT);
         return SECRET_HEADER_WORDS.stream().anyMatch(n::contains);
     }
 
-    /** {@code 500ms}, {@code 20s}, {@code 2m}, {@code 1h}; a bare number is seconds. Null if malformed. */
+    /**
+     * {@code 500ms}, {@code 20s}, {@code 2m}, {@code 1h}; a bare number is seconds. Null if
+     * malformed.
+     */
     public static Duration parseDuration(String text) {
         Matcher m = DURATION.matcher(text.trim());
         if (!m.matches()) return null;
@@ -155,7 +171,9 @@ public final class Options {
     }
 
     private static String describe(Duration d) {
-        return d.toMinutes() > 0 && d.toSeconds() % 60 == 0 ? d.toMinutes() + "m" : d.toSeconds() + "s";
+        return d.toMinutes() > 0 && d.toSeconds() % 60 == 0
+                ? d.toMinutes() + "m"
+                : d.toSeconds() + "s";
     }
 
     @Override

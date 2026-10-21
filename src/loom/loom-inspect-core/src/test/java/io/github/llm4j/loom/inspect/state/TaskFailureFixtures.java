@@ -11,7 +11,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Records for the task-failure tests: a task span, a failure event and a run end, fed to a {@link RunState}. */
+/**
+ * Records for the task-failure tests: a task span, a failure event and a run end, fed to a {@link
+ * RunState}.
+ */
 final class TaskFailureFixtures {
 
     static final String RUN = "r-task";
@@ -34,11 +37,23 @@ final class TaskFailureFixtures {
         a.put(Semconv.LOOM_TASK_OUTCOME, ok ? "ok" : "failed");
         if (!ok) a.put(Semconv.ERROR_TYPE, category);
         long end = at(endSec);
-        state.apply(new SpanRec(TRACE, Ids.spanId(RUN, "k" + (++spanNo)), null, "loom.task " + task, SpanRec.INTERNAL, end - ms * 1_000_000L, end, a,
-                ok ? SpanRec.STATUS_OK : SpanRec.STATUS_ERROR, null, List.of()));
+        state.apply(
+                new SpanRec(
+                        TRACE,
+                        Ids.spanId(RUN, "k" + (++spanNo)),
+                        null,
+                        "loom.task " + task,
+                        SpanRec.INTERNAL,
+                        end - ms * 1_000_000L,
+                        end,
+                        a,
+                        ok ? SpanRec.STATUS_OK : SpanRec.STATUS_ERROR,
+                        null,
+                        List.of()));
     }
 
-    void failure(double sec, String kind, String name, String step, String category, boolean handled) {
+    void failure(
+            double sec, String kind, String name, String step, String category, boolean handled) {
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.EVENT_NAME, Semconv.EV_FAILURE);
         a.put(Semconv.LOOM_SEQ, ++seq);
@@ -48,7 +63,10 @@ final class TaskFailureFixtures {
         a.put(Semconv.LOOM_FAILURE_CATEGORY, category);
         a.put(Semconv.LOOM_FAILURE_ATTEMPTS, 3L);
         a.put(Semconv.LOOM_FAILURE_HANDLED, handled);
-        state.apply("i_1", new LogRec(at(sec), handled ? LogRec.WARN : LogRec.ERROR, "failed", a, TRACE, null));
+        state.apply(
+                "i_1",
+                new LogRec(
+                        at(sec), handled ? LogRec.WARN : LogRec.ERROR, "failed", a, TRACE, null));
     }
 
     void runEnd(double sec, String status, Object... failed) {

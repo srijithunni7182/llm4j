@@ -40,9 +40,12 @@ public final class AgentResult {
         this.protocolFollowed = builder.protocolFollowed;
         this.budgetExceeded = builder.budgetExceeded;
         this.budgetExhausted = builder.budgetExhausted || builder.budgetExceeded != null;
-        this.stats = builder.stats != null ? builder.stats : io.github.llm4j.telemetry.RunStats.EMPTY;
+        this.stats =
+                builder.stats != null ? builder.stats : io.github.llm4j.telemetry.RunStats.EMPTY;
         this.stop = builder.stop;
-        this.cancelled = builder.cancelled || (builder.stop != null && builder.stop.kind() == StopReport.Kind.CANCEL);
+        this.cancelled =
+                builder.cancelled
+                        || (builder.stop != null && builder.stop.kind() == StopReport.Kind.CANCEL);
         this.inputRejected = builder.inputRejected;
     }
 
@@ -102,43 +105,58 @@ public final class AgentResult {
     }
 
     /**
-     * True when the run stopped because its budget ran out. The final answer is then the best the agent
-     * had so far, {@link #isCompleted()} is false and the last step's outcome is
-     * {@link StepOutcome#BUDGET_EXHAUSTED}.
+     * True when the run stopped because its budget ran out. The final answer is then the best the
+     * agent had so far, {@link #isCompleted()} is false and the last step's outcome is {@link
+     * StepOutcome#BUDGET_EXHAUSTED}.
      */
     public boolean budgetExhausted() {
         return budgetExhausted;
     }
 
-    /** The refusal that stopped this run, when {@link #budgetExhausted()}: which budget, and what it had spent. */
+    /**
+     * The refusal that stopped this run, when {@link #budgetExhausted()}: which budget, and what it
+     * had spent.
+     */
     public io.github.llm4j.budget.BudgetExceeded getBudgetExceeded() {
         return budgetExceeded;
     }
 
     /**
-     * What this run's tool calls and model calls added up to: per tool and per model, calls, failures by category and latency percentiles. Always
-     * present; empty when nothing was called.
+     * What this run's tool calls and model calls added up to: per tool and per model, calls,
+     * failures by category and latency percentiles. Always present; empty when nothing was called.
      */
     public io.github.llm4j.telemetry.RunStats getStats() {
         return stats;
     }
 
-    /** True when the run was ended through its {@link RunHandle}. The final answer is then the last thing the agent said or saw, and {@link #isCompleted()} is false. */
+    /**
+     * True when the run was ended through its {@link RunHandle}. The final answer is then the last
+     * thing the agent said or saw, and {@link #isCompleted()} is false.
+     */
     public boolean isCancelled() {
         return cancelled;
     }
 
-    /** True when a {@link RunHook} refused the question: no model call was made and {@link #getFinalAnswer()} is the hook's message. */
+    /**
+     * True when a {@link RunHook} refused the question: no model call was made and {@link
+     * #getFinalAnswer()} is the hook's message.
+     */
     public boolean isInputRejected() {
         return inputRejected;
     }
 
-    /** True when the run ended because it was asked to wrap up: its answer is the one last model call (tools off) gave. {@link #isCompleted()} is false. */
+    /**
+     * True when the run ended because it was asked to wrap up: its answer is the one last model
+     * call (tools off) gave. {@link #isCompleted()} is false.
+     */
     public boolean isWrappedUp() {
         return stop != null && stop.kind() == StopReport.Kind.WRAP_UP;
     }
 
-    /** Why, where and in what state the run stopped when it was ended through its {@link RunHandle}; null for a run that ended on its own. */
+    /**
+     * Why, where and in what state the run stopped when it was ended through its {@link RunHandle};
+     * null for a run that ended on its own.
+     */
     public StopReport getStop() {
         return stop;
     }
@@ -212,7 +230,10 @@ public final class AgentResult {
         REJECTED_BY_HUMAN,
         /** The tool was approved (or required none) but threw while executing. */
         EXECUTION_ERROR,
-        /** A {@link ToolHook} (or the argument check, see {@code ReActAgent.Builder#validateToolArguments}) refused the call; the tool did not run. */
+        /**
+         * A {@link ToolHook} (or the argument check, see {@code
+         * ReActAgent.Builder#validateToolArguments}) refused the call; the tool did not run.
+         */
         REJECTED_BY_HOOK,
         /** The agent's budget ran out; the run stopped here with its best answer so far. */
         BUDGET_EXHAUSTED
@@ -252,7 +273,14 @@ public final class AgentResult {
                 String observation,
                 ConfidenceScore stepConfidence,
                 Instant timestamp) {
-            this(thought, action, actionInput, observation, stepConfidence, timestamp, StepOutcome.EXECUTED);
+            this(
+                    thought,
+                    action,
+                    actionInput,
+                    observation,
+                    stepConfidence,
+                    timestamp,
+                    StepOutcome.EXECUTED);
         }
 
         public AgentStep(
@@ -338,11 +366,17 @@ public final class AgentResult {
         }
 
         /**
-         * @param estimated true if any call's usage was estimated because its provider reported none
+         * @param estimated true if any call's usage was estimated because its provider reported
+         *     none
          * @param cost the run's cost from a price table, or {@code null} if unpriced
          */
-        public Usage(int llmCalls, int promptTokens, int completionTokens, int totalTokens, boolean estimated,
-                     java.math.BigDecimal cost) {
+        public Usage(
+                int llmCalls,
+                int promptTokens,
+                int completionTokens,
+                int totalTokens,
+                boolean estimated,
+                java.math.BigDecimal cost) {
             this.llmCalls = llmCalls;
             this.promptTokens = promptTokens;
             this.completionTokens = completionTokens;
@@ -387,7 +421,9 @@ public final class AgentResult {
                     && completionTokens == that.completionTokens
                     && totalTokens == that.totalTokens
                     && estimated == that.estimated
-                    && (cost == null ? that.cost == null : that.cost != null && cost.compareTo(that.cost) == 0);
+                    && (cost == null
+                            ? that.cost == null
+                            : that.cost != null && cost.compareTo(that.cost) == 0);
         }
 
         @Override

@@ -18,30 +18,43 @@ class EngineTest {
     private final Seed seed = new Seed();
 
     private DecisionDef def(String trust) {
-        return DecisionParseTest.parse(Scripts.AGENT + "decision Refund { proposed by: Triager choices: approve, reject, escalate ask: lead dangerous mistake: propose approve, person decides reject\n trust { " + trust + " } }")
-                .getDecisions().get(0);
+        return DecisionParseTest.parse(
+                        Scripts.AGENT
+                                + "decision Refund { proposed by: Triager choices: approve, reject, escalate ask: lead dangerous mistake: propose approve, person decides reject\n trust { "
+                                + trust
+                                + " } }")
+                .getDecisions()
+                .get(0);
     }
 
     private Engine engine(String trust) {
         return new Engine(def(trust), ledger, levels, clock);
     }
 
-    private static final String LADDER = "never go above act to suggest: after 3 cases, agreeing at least 30% to act: after 5 cases, agreeing at least 30%, with no dangerous mistakes moving up needs approval from: boss";
+    private static final String LADDER =
+            "never go above act to suggest: after 3 cases, agreeing at least 30% to act: after 5 cases, agreeing at least 30%, with no dangerous mistakes moving up needs approval from: boss";
 
     private void blind(int n, String proposal, String verdict) {
-        for (int i = 0; i < n; i++) seed.blind(ledger, "Refund", "s", 1, proposal, verdict, DecideHarness.T0);
+        for (int i = 0; i < n; i++)
+            seed.blind(ledger, "Refund", "s", 1, proposal, verdict, DecideHarness.T0);
     }
 
     @Test
     @Tag("EA-V5.3")
     void aHandSetLevelUpNeedsForceBeyondTheCeilingOrTheEvidenceAndComingDownNeverDoes() {
-        Engine e = engine("never go above suggest to suggest: after 3 cases, agreeing at least 30% to act: after 5 cases, agreeing at least 30% moving up is automatic");
+        Engine e =
+                engine(
+                        "never go above suggest to suggest: after 3 cases, agreeing at least 30% to act: after 5 cases, agreeing at least 30% moving up is automatic");
         e.state("s", "id1");
-        assertThatThrownBy(() -> e.set("nowhere", Level.SUGGEST, false, "r", "ada")).hasMessageContaining("no such scope");
-        assertThatThrownBy(() -> e.set("s", Level.SUGGEST, false, "r", "ada")).hasMessageContaining("not supported by the evidence").hasMessageContaining("--force");
+        assertThatThrownBy(() -> e.set("nowhere", Level.SUGGEST, false, "r", "ada"))
+                .hasMessageContaining("no such scope");
+        assertThatThrownBy(() -> e.set("s", Level.SUGGEST, false, "r", "ada"))
+                .hasMessageContaining("not supported by the evidence")
+                .hasMessageContaining("--force");
         blind(4, "approve", "approve");
         assertThat(e.set("s", Level.SUGGEST, false, "enough evidence", "ada").forced()).isFalse();
-        assertThatThrownBy(() -> e.set("s", Level.ACT, false, "r", "ada")).hasMessageContaining("above the ceiling");
+        assertThatThrownBy(() -> e.set("s", Level.ACT, false, "r", "ada"))
+                .hasMessageContaining("above the ceiling");
         Engine.Change forced = e.set("s", Level.ACT, true, "emergency", "ada");
         assertThat(forced.forced()).isTrue();
         assertThat(levels.get("Refund", "s").orElseThrow().forced()).isTrue();
@@ -56,7 +69,9 @@ class EngineTest {
     @Test
     @Tag("EA-V5.3")
     void aForcedLevelIsNoLongerForcedOnceTheEvidenceSupportsEveryStepUpToIt() {
-        Engine e = engine("never go above act to suggest: after 3 cases, agreeing at least 30% to act: after 5 cases, agreeing at least 30% moving up is automatic");
+        Engine e =
+                engine(
+                        "never go above act to suggest: after 3 cases, agreeing at least 30% to act: after 5 cases, agreeing at least 30% moving up is automatic");
         e.state("s", "id1");
         e.set("s", Level.ACT, true, "emergency", "ada");
         assertThat(e.unearned("s", levels.get("Refund", "s").orElseThrow())).isTrue();
@@ -69,8 +84,10 @@ class EngineTest {
     void approvingOrRejectingNeedsAnOpenProposalTheNamedApproverAndAScopeThatStillNeedsIt() {
         Engine e = engine(LADDER);
         e.state("s", "id1");
-        assertThatThrownBy(() -> e.approve("s", "boss", "ok")).hasMessageContaining("no open promotion proposal for scope s");
-        assertThatThrownBy(() -> e.reject("s", "boss", "ok")).hasMessageContaining("no open promotion proposal");
+        assertThatThrownBy(() -> e.approve("s", "boss", "ok"))
+                .hasMessageContaining("no open promotion proposal for scope s");
+        assertThatThrownBy(() -> e.reject("s", "boss", "ok"))
+                .hasMessageContaining("no open promotion proposal");
         blind(4, "approve", "approve");
         assertThat(e.afterCase("s")).extracting(Engine.Change::kind).containsExactly("proposed");
         assertThat(e.afterCase("s")).as("one proposal, not two").isEmpty();
@@ -86,14 +103,21 @@ class EngineTest {
         assertThat(e.afterCase("s")).extracting(Engine.Change::kind).containsExactly("proposed");
 
         LevelState state = levels.get("Refund", "s").orElseThrow();
-        levels.compareAndSet("Refund", "s", state, state.withLevel(Level.SUGGEST, false, clock.instant(), "moved meanwhile"));
-        assertThatThrownBy(() -> e.approve("s", "boss", "late")).hasMessageContaining("already at suggest");
+        levels.compareAndSet(
+                "Refund",
+                "s",
+                state,
+                state.withLevel(Level.SUGGEST, false, clock.instant(), "moved meanwhile"));
+        assertThatThrownBy(() -> e.approve("s", "boss", "late"))
+                .hasMessageContaining("already at suggest");
     }
 
     @Test
     @Tag("EA-V3.9")
     void aStepUpThatADemotionRuleWouldUndoAtOnceIsNotMade() {
-        Engine e = engine("never go above act to suggest: after 3 cases, agreeing at least 30% drop to watch when 2 unusable proposals in 5 cases moving up is automatic");
+        Engine e =
+                engine(
+                        "never go above act to suggest: after 3 cases, agreeing at least 30% drop to watch when 2 unusable proposals in 5 cases moving up is automatic");
         e.state("s", "id1");
         blind(3, "approve", "approve");
         seed.malformed(ledger, "Refund", "s", 1, DecideHarness.T0);
@@ -110,18 +134,24 @@ class EngineTest {
         Engine.Change change = e.newEpoch("s", first, "id2", Level.WATCH, "the agent changed");
         assertThat(change.kind()).isEqualTo("epoch");
         assertThat(levels.get("Refund", "s").orElseThrow().epoch()).isEqualTo(2);
-        assertThat(e.newEpoch("s", first, "id3", Level.WATCH, "a slower caller")).as("beaten to it").isNull();
+        assertThat(e.newEpoch("s", first, "id3", Level.WATCH, "a slower caller"))
+                .as("beaten to it")
+                .isNull();
         assertThat(levels.get("Refund", "s").orElseThrow().identity()).isEqualTo("id2");
     }
 
     @Test
     @Tag("EA-V3.11")
     void aFrozenDecisionRunsAtSuggestAtMostAndTheCeilingHoldsAnyLevel() {
-        Engine e = engine("never go above suggest to suggest: after 3 cases, agreeing at least 30% moving up is automatic");
+        Engine e =
+                engine(
+                        "never go above suggest to suggest: after 3 cases, agreeing at least 30% moving up is automatic");
         e.state("s", "id1");
         LevelState act = new LevelState(Level.ACT, 1, "id1", true, clock.instant(), "forced", 2);
         assertThat(e.effective(act)).as("held at the ceiling").isEqualTo(Level.SUGGEST);
-        Engine open = engine("never go above act to suggest: after 3 cases, agreeing at least 30% to act: after 3 cases, agreeing at least 30% moving up is automatic");
+        Engine open =
+                engine(
+                        "never go above act to suggest: after 3 cases, agreeing at least 30% to act: after 3 cases, agreeing at least 30% moving up is automatic");
         assertThat(open.effective(act)).isEqualTo(Level.ACT);
         open.freeze("Refund", "incident");
         assertThat(open.effective(act)).isEqualTo(Level.SUGGEST);
@@ -129,15 +159,21 @@ class EngineTest {
         assertThat(open.effective(act)).isEqualTo(Level.ACT);
         Engine.freeze(ledger, levels, clock, "Refund", "*", "everything");
         assertThat(open.effective(act)).as("a freeze of everything").isEqualTo(Level.SUGGEST);
-        assertThat(ledger.recordsOfKind("Refund", Rec.FROZEN)).extracting(r -> r.flag("frozen")).containsExactly(true, false, true);
+        assertThat(ledger.recordsOfKind("Refund", Rec.FROZEN))
+                .extracting(r -> r.flag("frozen"))
+                .containsExactly(true, false, true);
     }
 
     @Test
     @Tag("EA-V5.5")
     void anOutcomeAboutAnUnknownCaseIsAnErrorAndOneAboutARealCaseMayDemote() {
-        Engine e = engine("never go above act to suggest: after 3 cases, agreeing at least 30% to act: after 3 cases, agreeing at least 30% drop to watch when 1 reversals in 5 cases moving up is automatic");
+        Engine e =
+                engine(
+                        "never go above act to suggest: after 3 cases, agreeing at least 30% to act: after 3 cases, agreeing at least 30% drop to watch when 1 reversals in 5 cases moving up is automatic");
         e.state("s", "id1");
-        assertThatThrownBy(() -> e.outcome("nope", "reversed", null)).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("there is no case nope");
+        assertThatThrownBy(() -> e.outcome("nope", "reversed", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("there is no case nope");
         blind(4, "approve", "approve");
         e.afterCase("s");
         e.afterCase("s");
@@ -146,13 +182,36 @@ class EngineTest {
         seed.byAgent(ledger, "Refund", "s", 1, "approve", DecideHarness.T0);
         List<Engine.Change> changes = e.outcome(seed.lastId(), "reversed", "chargeback");
         assertThat(changes).extracting(Engine.Change::kind).containsExactly("demoted");
-        assertThat(changes.get(0).sentence()).contains("moved from act to watch").contains("demoted").contains("reversals");
+        assertThat(changes.get(0).sentence())
+                .contains("moved from act to watch")
+                .contains("demoted")
+                .contains("reversals");
     }
 
     @Test
     @Tag("EA-V3.7")
     void aChangeIsSentenceIsReadableForAWholeDecisionAndForAScope() {
-        assertThat(new Engine.Change("promoted", "all", Level.WATCH, Level.SUGGEST, "why", "runtime", false).sentence()).startsWith("the decision moved from watch to suggest");
-        assertThat(new Engine.Change("proposed", "gold", Level.WATCH, Level.ACT, "why", "runtime", false).sentence()).isEqualTo("promotion to act proposed for scope gold: why");
+        assertThat(
+                        new Engine.Change(
+                                        "promoted",
+                                        "all",
+                                        Level.WATCH,
+                                        Level.SUGGEST,
+                                        "why",
+                                        "runtime",
+                                        false)
+                                .sentence())
+                .startsWith("the decision moved from watch to suggest");
+        assertThat(
+                        new Engine.Change(
+                                        "proposed",
+                                        "gold",
+                                        Level.WATCH,
+                                        Level.ACT,
+                                        "why",
+                                        "runtime",
+                                        false)
+                                .sentence())
+                .isEqualTo("promotion to act proposed for scope gold: why");
     }
 }

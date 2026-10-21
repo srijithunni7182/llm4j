@@ -1,8 +1,8 @@
 package io.github.llm4j.tools.support;
 
 import io.github.llm4j.agent.Tool;
-import io.github.llm4j.tools.DescribedTool;
 import io.github.llm4j.agent.tool.EffectContext;
+import io.github.llm4j.tools.DescribedTool;
 import io.github.llm4j.tools.EmailKind;
 import io.github.llm4j.tools.FileKind;
 import io.github.llm4j.tools.GenericKind;
@@ -20,21 +20,30 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Builds a tool from the text of a script-style declaration, {@code tool Name { use: webhook url: env.HOOK }},
- * so the tests read the way a user's script does. This is a small reader for tests only: the real parser is
- * Loom's, and Loom's own tests cover it. {@code env.NAME} values come from the map given to the constructor.
+ * Builds a tool from the text of a script-style declaration, {@code tool Name { use: webhook url:
+ * env.HOOK }}, so the tests read the way a user's script does. This is a small reader for tests
+ * only: the real parser is Loom's, and Loom's own tests cover it. {@code env.NAME} values come from
+ * the map given to the constructor.
  */
 public final class Declared {
 
-    private static final Pattern PAIR = Pattern.compile(
-            "(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([A-Za-z_][\\w.\\-]*))\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|(\\S+))");
+    private static final Pattern PAIR =
+            Pattern.compile(
+                    "(?:\"((?:[^\"\\\\]|\\\\.)*)\"|([A-Za-z_][\\w.\\-]*))\\s*:\\s*(?:\"((?:[^\"\\\\]|\\\\.)*)\"|(\\S+))");
 
     private final Map<String, GenericKind> kinds = new LinkedHashMap<>();
     private final Map<String, String> env;
     private final Path dir;
 
     public Declared(Map<String, String> env, Path dir, GenericKind... replacing) {
-        for (GenericKind k : List.of(new WebhookKind(), new EmailKind(), new HttpKind(), new FileKind(), new ShellKind(), new SqlKind())) {
+        for (GenericKind k :
+                List.of(
+                        new WebhookKind(),
+                        new EmailKind(),
+                        new HttpKind(),
+                        new FileKind(),
+                        new ShellKind(),
+                        new SqlKind())) {
             kinds.put(k.name(), k);
         }
         for (GenericKind k : replacing) kinds.put(k.name(), k);
@@ -49,10 +58,14 @@ public final class Declared {
         if (!out.isEmpty()) return out;
         GenericKind kind = kinds.get(p.kind);
         if (kind == null) return List.of("unknown tool kind '" + p.kind + "'");
-        for (String req : kind.required()) if (!p.options.containsKey(req)) out.add("use: " + p.kind + " needs " + req + ":");
+        for (String req : kind.required())
+            if (!p.options.containsKey(req)) out.add("use: " + p.kind + " needs " + req + ":");
         for (String key : p.options.keySet()) {
-            boolean known = kind.required().contains(key) || kind.optional().contains(key) || kind.secrets().contains(key)
-                    || kind.prefixes().stream().anyMatch(key::startsWith);
+            boolean known =
+                    kind.required().contains(key)
+                            || kind.optional().contains(key)
+                            || kind.secrets().contains(key)
+                            || kind.prefixes().stream().anyMatch(key::startsWith);
             if (!known) out.add("unknown option " + key + " for use: " + p.kind);
         }
         if (!out.isEmpty()) return out;
@@ -70,10 +83,17 @@ public final class Declared {
         return p.description == null ? tool : new DescribedTool(tool, p.description);
     }
 
-    private record Parsed(String name, String kind, Map<String, String> options, List<String> problems, String description) { }
+    private record Parsed(
+            String name,
+            String kind,
+            Map<String, String> options,
+            List<String> problems,
+            String description) {}
 
     private Parsed parse(String declaration) {
-        Matcher head = Pattern.compile("tool\\s+(\\w+)\\s*\\{(.*)}\\s*", Pattern.DOTALL).matcher(declaration.strip());
+        Matcher head =
+                Pattern.compile("tool\\s+(\\w+)\\s*\\{(.*)}\\s*", Pattern.DOTALL)
+                        .matcher(declaration.strip());
         if (!head.matches()) throw new AssertionError("not a tool declaration: " + declaration);
         Map<String, String> options = new LinkedHashMap<>();
         List<String> problems = new ArrayList<>();
@@ -89,14 +109,19 @@ public final class Declared {
                 problems.add(key + " must come from the environment, e.g. " + key + ": env.NAME");
                 continue;
             }
-            if (key.startsWith("header.") && Options.isSecretHeader(key.substring("header.".length())) && !fromEnv) {
+            if (key.startsWith("header.")
+                    && Options.isSecretHeader(key.substring("header.".length()))
+                    && !fromEnv) {
                 problems.add(key + " must come from the environment, e.g. " + key + ": env.NAME");
                 continue;
             }
             if (fromEnv) {
                 String name = value.substring(4);
                 String resolved = env.get(name);
-                if (resolved == null) { problems.add(key + ": environment variable " + name + " is not set"); continue; }
+                if (resolved == null) {
+                    problems.add(key + ": environment variable " + name + " is not set");
+                    continue;
+                }
                 value = resolved;
             }
             if (key.equals("use")) kind = value;

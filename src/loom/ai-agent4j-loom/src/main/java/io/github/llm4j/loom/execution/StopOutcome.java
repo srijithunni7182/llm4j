@@ -1,6 +1,9 @@
 package io.github.llm4j.loom.execution;
 
-/** What a workflow does with a step whose agent was stopped (see the design in {@code .kiro/specs/loom-agent-intervention}). */
+/**
+ * What a workflow does with a step whose agent was stopped (see the design in {@code
+ * .kiro/specs/loom-agent-intervention}).
+ */
 public enum StopOutcome {
     /** Carry on with what the agent had (or the wrap-up answer), marked as degraded. */
     USE_PARTIAL,
@@ -14,7 +17,10 @@ public enum StopOutcome {
     SUSPEND,
     /** Bring the whole run to an end. */
     CONCLUDE,
-    /** Send the run back to an earlier checkpoint the script declared, carrying the reason; the step runs again after the steps before it. */
+    /**
+     * Send the run back to an earlier checkpoint the script declared, carrying the reason; the step
+     * runs again after the steps before it.
+     */
     REWIND,
     /** Put the decision to a person. */
     ASK

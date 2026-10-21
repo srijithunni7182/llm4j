@@ -10,8 +10,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 /**
- * V3.8: the JSON and Mermaid for the sample scripts match committed files exactly. Regenerate them after an
- * intended change with {@code -Dgolden.update=true} and review the diff.
+ * V3.8: the JSON and Mermaid for the sample scripts match committed files exactly. Regenerate them
+ * after an intended change with {@code -Dgolden.update=true} and review the diff.
  */
 class GraphGoldenTest {
 
@@ -31,13 +31,17 @@ class GraphGoldenTest {
         GraphResult result = new GraphService().graph(Path.of(script));
 
         check(GOLDEN.resolve(name + ".json"), portable(GraphJson.write(result)) + "\n");
-        String mermaid = result.workflows().stream()
-                .map(w -> "%% workflow " + w.name() + "\n" + MermaidRenderer.render(w))
-                .collect(Collectors.joining("\n"));
+        String mermaid =
+                result.workflows().stream()
+                        .map(w -> "%% workflow " + w.name() + "\n" + MermaidRenderer.render(w))
+                        .collect(Collectors.joining("\n"));
         check(GOLDEN.resolve(name + ".mmd"), portable(mermaid));
     }
 
-    /** Machine-specific paths are replaced so the committed files do not depend on where the repo is checked out. */
+    /**
+     * Machine-specific paths are replaced so the committed files do not depend on where the repo is
+     * checked out.
+     */
     private static String portable(String text) {
         return text.replace(ROOT.toString(), "<root>");
     }

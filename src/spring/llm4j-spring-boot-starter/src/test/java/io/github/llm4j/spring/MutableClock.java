@@ -23,7 +23,18 @@ final class MutableClock extends Clock {
         now = now.plus(d);
     }
 
-    @Override public ZoneId getZone() { return ZoneOffset.UTC; }
-    @Override public Clock withZone(ZoneId zone) { return this; }
-    @Override public Instant instant() { return now; }
+    @Override
+    public ZoneId getZone() {
+        return ZoneOffset.UTC;
+    }
+
+    @Override
+    public Clock withZone(ZoneId zone) {
+        return this;
+    }
+
+    @Override
+    public Instant instant() {
+        return now;
+    }
 }

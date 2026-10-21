@@ -16,10 +16,13 @@ public class MemoryLevelStore implements LevelStore {
     }
 
     @Override
-    public synchronized boolean compareAndSet(String decision, String scope, LevelState expected, LevelState next) {
+    public synchronized boolean compareAndSet(
+            String decision, String scope, LevelState expected, LevelState next) {
         Map<String, LevelState> d = levels.computeIfAbsent(decision, k -> new LinkedHashMap<>());
         LevelState current = d.get(scope);
-        if (current == null ? expected != null : (expected == null || current.version() != expected.version())) return false;
+        if (current == null
+                ? expected != null
+                : (expected == null || current.version() != expected.version())) return false;
         d.put(scope, next);
         return true;
     }

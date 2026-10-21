@@ -48,10 +48,18 @@ class ProviderEdgesTest {
     }
 
     LLMConfig config(String path, String model, boolean logging) {
-        return LLMConfig.builder().apiKey("k").baseUrl(server.url(path).toString().replaceAll("/+$", "")).defaultModel(model)
+        return LLMConfig.builder()
+                .apiKey("k")
+                .baseUrl(server.url(path).toString().replaceAll("/+$", ""))
+                .defaultModel(model)
                 .enableLogging(logging)
-                .retryPolicy(RetryPolicy.builder().maxRetries(1).initialBackoff(Duration.ofMillis(1))
-                        .retryableStatusCodes(RetryPolicy.defaultPolicy().getRetryableStatusCodes()).build())
+                .retryPolicy(
+                        RetryPolicy.builder()
+                                .maxRetries(1)
+                                .initialBackoff(Duration.ofMillis(1))
+                                .retryableStatusCodes(
+                                        RetryPolicy.defaultPolicy().getRetryableStatusCodes())
+                                .build())
                 .build();
     }
 
@@ -65,30 +73,55 @@ class ProviderEdgesTest {
 
     @Test
     void silentServersAreRetriedThenReported() {
-        LLMConfig quick = LLMConfig.builder().apiKey("k").enableLogging(true).timeout(Duration.ofMillis(300))
-                .retryPolicy(RetryPolicy.builder().maxRetries(1).initialBackoff(Duration.ofMillis(1))
-                        .retryableStatusCodes(RetryPolicy.defaultPolicy().getRetryableStatusCodes()).build())
-                .build();
+        LLMConfig quick =
+                LLMConfig.builder()
+                        .apiKey("k")
+                        .enableLogging(true)
+                        .timeout(Duration.ofMillis(300))
+                        .retryPolicy(
+                                RetryPolicy.builder()
+                                        .maxRetries(1)
+                                        .initialBackoff(Duration.ofMillis(1))
+                                        .retryableStatusCodes(
+                                                RetryPolicy.defaultPolicy()
+                                                        .getRetryableStatusCodes())
+                                        .build())
+                        .build();
         HttpClientWrapper http = new HttpClientWrapper(quick);
         server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE));
         server.enqueue(new MockResponse().setBody("fine"));
-        assertThat(http.post(server.url("/x").toString(), "{}", new Headers.Builder().build())).isEqualTo("fine");
+        assertThat(http.post(server.url("/x").toString(), "{}", new Headers.Builder().build()))
+                .isEqualTo("fine");
 
         server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE));
         server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE));
-        assertThatThrownBy(() -> http.post(server.url("/x").toString(), "{}", new Headers.Builder().build()))
-                .isExactlyInstanceOf(LLMException.class).hasMessageContaining("HTTP request failed");
+        assertThatThrownBy(
+                        () ->
+                                http.post(
+                                        server.url("/x").toString(),
+                                        "{}",
+                                        new Headers.Builder().build()))
+                .isExactlyInstanceOf(LLMException.class)
+                .hasMessageContaining("HTTP request failed");
 
         server.enqueue(new MockResponse().setResponseCode(502).setBody("<html>bad gateway</html>"));
         server.enqueue(new MockResponse().setResponseCode(502).setBody("<html>bad gateway</html>"));
-        assertThatThrownBy(() -> http.post(server.url("/x").toString(), "{}", new Headers.Builder().build()))
-                .isInstanceOf(ServiceUnavailableException.class).hasMessageContaining("<html>bad gateway</html>");
+        assertThatThrownBy(
+                        () ->
+                                http.post(
+                                        server.url("/x").toString(),
+                                        "{}",
+                                        new Headers.Builder().build()))
+                .isInstanceOf(ServiceUnavailableException.class)
+                .hasMessageContaining("<html>bad gateway</html>");
     }
 
     @Test
     void geminiTruncationWithNoTextAndPromptBlocks() {
         GoogleProvider g = new GoogleProvider(config("/v1beta", "gemini-2.5-flash", false));
-        server.enqueue(json("{\"candidates\":[{\"content\":{\"role\":\"model\"},\"finishReason\":\"MAX_TOKENS\"}]}"));
+        server.enqueue(
+                json(
+                        "{\"candidates\":[{\"content\":{\"role\":\"model\"},\"finishReason\":\"MAX_TOKENS\"}]}"));
         LLMResponse r = g.chat(ask());
         assertThat(r.getFinishReason()).isEqualTo(FinishReason.LENGTH);
         assertThat(r.getContent()).contains("truncated");
@@ -97,10 +130,16 @@ class ProviderEdgesTest {
         assertThatThrownBy(() -> g.chat(ask())).isInstanceOf(ContentBlockedException.class);
 
         server.enqueue(json("{\"candidates\":[]}"));
-        assertThatThrownBy(() -> g.chat(ask())).isExactlyInstanceOf(ProviderException.class).hasMessageContaining("No candidates");
+        assertThatThrownBy(() -> g.chat(ask()))
+                .isExactlyInstanceOf(ProviderException.class)
+                .hasMessageContaining("No candidates");
 
-        server.enqueue(json("{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]},\"finishReason\":\"STOP\"}]}"));
-        assertThatThrownBy(() -> g.chat(ask())).isExactlyInstanceOf(ProviderException.class).hasMessageContaining("No parts");
+        server.enqueue(
+                json(
+                        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]},\"finishReason\":\"STOP\"}]}"));
+        assertThatThrownBy(() -> g.chat(ask()))
+                .isExactlyInstanceOf(ProviderException.class)
+                .hasMessageContaining("No parts");
 
         server.enqueue(json("{\"error\":{\"code\":403,\"message\":\"denied\"}}"));
         assertThatThrownBy(() -> g.chat(ask())).isInstanceOf(AuthenticationException.class);
@@ -111,12 +150,22 @@ class ProviderEdgesTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"401,AuthenticationException", "404,InvalidRequestException", "429,RateLimitException",
-            "500,ServiceUnavailableException", "409,ProviderException"})
+    @CsvSource({
+        "401,AuthenticationException",
+        "404,InvalidRequestException",
+        "429,RateLimitException",
+        "500,ServiceUnavailableException",
+        "409,ProviderException"
+    })
     void geminiStreamErrorsAreTyped(int code, String type) {
         GoogleProvider g = new GoogleProvider(config("/v1beta", "gemini-2.5-flash", false));
-        server.enqueue(new MockResponse().setHeader("Content-Type", "text/event-stream")
-                .setBody("data: {\"error\":{\"code\":" + code + ",\"message\":\"m\",\"status\":\"S\"}}\n\n"));
+        server.enqueue(
+                new MockResponse()
+                        .setHeader("Content-Type", "text/event-stream")
+                        .setBody(
+                                "data: {\"error\":{\"code\":"
+                                        + code
+                                        + ",\"message\":\"m\",\"status\":\"S\"}}\n\n"));
         assertThatThrownBy(() -> g.chatStream(ask()).toList())
                 .satisfies(e -> assertThat(e.getClass().getSimpleName()).isEqualTo(type));
     }
@@ -124,53 +173,83 @@ class ProviderEdgesTest {
     @Test
     void geminiStreamsStopOnSafetyAndRejectBadEvents() {
         GoogleProvider g = new GoogleProvider(config("/v1beta", "gemini-2.5-flash", false));
-        server.enqueue(new MockResponse().setHeader("Content-Type", "text/event-stream").setBody(
-                "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Sure\"}]}}]}\n\n"
-                        + "data: {\"candidates\":[{\"content\":{\"parts\":[]},\"finishReason\":\"SAFETY\"}]}\n\n"));
-        assertThatThrownBy(() -> g.chatStream(ask()).toList()).isInstanceOf(ContentBlockedException.class);
+        server.enqueue(
+                new MockResponse()
+                        .setHeader("Content-Type", "text/event-stream")
+                        .setBody(
+                                "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Sure\"}]}}]}\n\n"
+                                        + "data: {\"candidates\":[{\"content\":{\"parts\":[]},\"finishReason\":\"SAFETY\"}]}\n\n"));
+        assertThatThrownBy(() -> g.chatStream(ask()).toList())
+                .isInstanceOf(ContentBlockedException.class);
 
-        server.enqueue(new MockResponse().setHeader("Content-Type", "text/event-stream").setBody("data: {not json\n\n"));
-        assertThatThrownBy(() -> g.chatStream(ask()).toList()).isExactlyInstanceOf(ProviderException.class)
+        server.enqueue(
+                new MockResponse()
+                        .setHeader("Content-Type", "text/event-stream")
+                        .setBody("data: {not json\n\n"));
+        assertThatThrownBy(() -> g.chatStream(ask()).toList())
+                .isExactlyInstanceOf(ProviderException.class)
                 .hasMessageContaining("Unreadable stream event");
 
         GoogleProvider noModel = new GoogleProvider(config("/v1beta", null, false));
-        assertThatThrownBy(() -> noModel.chatStream(ask())).isInstanceOf(InvalidRequestException.class);
+        assertThatThrownBy(() -> noModel.chatStream(ask()))
+                .isInstanceOf(InvalidRequestException.class);
     }
 
     @Test
     void ollamaStreamEdges() {
         OllamaProvider o = new OllamaProvider(config("/api", "llama3.2", false));
-        server.enqueue(new MockResponse().setBody("{\"message\":{\"content\":\"hi\"},\"done\":false}\n{\"done\":true}\n"));
+        server.enqueue(
+                new MockResponse()
+                        .setBody(
+                                "{\"message\":{\"content\":\"hi\"},\"done\":false}\n{\"done\":true}\n"));
         List<LLMResponse> chunks = o.chatStream(ask()).toList();
         assertThat(chunks).extracting(LLMResponse::getContent).containsExactly("hi", "");
         assertThat(chunks.get(1).getFinishReason()).isEqualTo(FinishReason.STOP);
         assertThat(chunks.get(1).getTokenUsage()).isNull();
 
         server.enqueue(new MockResponse().setBody("not json\n"));
-        assertThatThrownBy(() -> o.chatStream(ask()).toList()).hasMessageContaining("Unreadable stream line");
+        assertThatThrownBy(() -> o.chatStream(ask()).toList())
+                .hasMessageContaining("Unreadable stream line");
 
-        server.enqueue(new MockResponse().setResponseCode(404).setBody("{\"error\":\"model 'x' not found\"}"));
-        assertThatThrownBy(() -> o.chatStream(ask())).isInstanceOf(InvalidRequestException.class).hasMessageContaining("model 'x' not found");
+        server.enqueue(
+                new MockResponse()
+                        .setResponseCode(404)
+                        .setBody("{\"error\":\"model 'x' not found\"}"));
+        assertThatThrownBy(() -> o.chatStream(ask()))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("model 'x' not found");
 
         server.enqueue(new MockResponse().setBody("{\"error\":\"out of memory\"}"));
-        assertThatThrownBy(() -> o.chat(ask())).isExactlyInstanceOf(ProviderException.class).hasMessageContaining("out of memory");
+        assertThatThrownBy(() -> o.chat(ask()))
+                .isExactlyInstanceOf(ProviderException.class)
+                .hasMessageContaining("out of memory");
     }
 
     @Test
     void sarvamErrorBodiesInA200() {
         SarvamChatProvider s = new SarvamChatProvider(config("", "sarvam-m", false));
         server.enqueue(json("{\"error\":\"quota exhausted\"}"));
-        assertThatThrownBy(() -> s.chat(ask())).isInstanceOf(ProviderException.class).hasMessageContaining("quota exhausted");
+        assertThatThrownBy(() -> s.chat(ask()))
+                .isInstanceOf(ProviderException.class)
+                .hasMessageContaining("quota exhausted");
         server.enqueue(json("{\"choices\":[]}"));
         assertThatThrownBy(() -> s.chat(ask())).isInstanceOf(ProviderException.class);
-        server.enqueue(new MockResponse().setHeader("Content-Type", "text/event-stream").setBody("data: {oops\n\n"));
-        assertThatThrownBy(() -> s.chatStream(ask()).toList()).hasMessageContaining("Unreadable stream event");
+        server.enqueue(
+                new MockResponse()
+                        .setHeader("Content-Type", "text/event-stream")
+                        .setBody("data: {oops\n\n"));
+        assertThatThrownBy(() -> s.chatStream(ask()).toList())
+                .hasMessageContaining("Unreadable stream event");
     }
 
     @Test
     void rateLimitsStillCarryThroughStreams() {
         OllamaProvider o = new OllamaProvider(config("/api", "llama3.2", false));
-        server.enqueue(new MockResponse().setResponseCode(429).setHeader("Retry-After", "7200").setBody("{\"error\":\"slow down\"}"));
+        server.enqueue(
+                new MockResponse()
+                        .setResponseCode(429)
+                        .setHeader("Retry-After", "7200")
+                        .setBody("{\"error\":\"slow down\"}"));
         assertThatThrownBy(() -> o.chatStream(ask())).isInstanceOf(RateLimitException.class);
     }
 }

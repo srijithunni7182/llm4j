@@ -13,11 +13,13 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** R4: the context-window catalog is a configuration section like the prices: saved checked and whole, kept, loaded again, applied at once. */
+/**
+ * R4: the context-window catalog is a configuration section like the prices: saved checked and
+ * whole, kept, loaded again, applied at once.
+ */
 class WindowsConfigTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private final RunRegistry registry = new RunRegistry();
 
@@ -44,9 +46,11 @@ class WindowsConfigTest {
         FabricConfig c = config(registry);
         var result = c.save("windows", "big-model = 50000\nsmall = 8000\n", "admin");
         assertThat(result.saved()).as(result.toString()).isTrue();
-        assertThat(registry.find("p", "a".repeat(32)).orElseThrow().windows().usable("big-model")).isEqualTo(50_000L);
+        assertThat(registry.find("p", "a".repeat(32)).orElseThrow().windows().usable("big-model"))
+                .isEqualTo(50_000L);
         assertThat(windows(c).get("summary").toString()).contains("2 model");
-        assertThat(Files.isRegularFile(dir.resolve("config").resolve("windows.properties"))).isTrue();
+        assertThat(Files.isRegularFile(dir.resolve("config").resolve("windows.properties")))
+                .isTrue();
     }
 
     @Test
@@ -63,7 +67,11 @@ class WindowsConfigTest {
     @Test
     void theStructuredFormGoesBothWays() {
         FabricConfig c = config(registry);
-        var result = c.saveStructured("windows", "[{\"model\":\"big-model\",\"window\":50000},{\"model\":\"small\",\"window\":8000}]", "admin");
+        var result =
+                c.saveStructured(
+                        "windows",
+                        "[{\"model\":\"big-model\",\"window\":50000},{\"model\":\"small\",\"window\":8000}]",
+                        "admin");
         assertThat(result.saved()).as(result.toString()).isTrue();
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> rows = (List<Map<String, Object>>) windows(c).get("structured");
@@ -75,11 +83,27 @@ class WindowsConfigTest {
     @Test
     void theStructuredFormRefusesWhatTheFileRefuses() {
         FabricConfig c = config(registry);
-        assertThat(c.saveStructured("windows", "[{\"model\":\"\",\"window\":50000}]", "admin").saved()).isFalse();
-        assertThat(c.saveStructured("windows", "[{\"model\":\"m\",\"window\":0}]", "admin").saved()).isFalse();
-        assertThat(c.saveStructured("windows", "[{\"model\":\"m\",\"window\":\"lots\"}]", "admin").saved()).isFalse();
+        assertThat(
+                        c.saveStructured("windows", "[{\"model\":\"\",\"window\":50000}]", "admin")
+                                .saved())
+                .isFalse();
+        assertThat(c.saveStructured("windows", "[{\"model\":\"m\",\"window\":0}]", "admin").saved())
+                .isFalse();
+        assertThat(
+                        c.saveStructured(
+                                        "windows",
+                                        "[{\"model\":\"m\",\"window\":\"lots\"}]",
+                                        "admin")
+                                .saved())
+                .isFalse();
         assertThat(c.saveStructured("windows", "{\"not\":\"a list\"}", "admin").saved()).isFalse();
-        assertThat(c.saveStructured("windows", "[{\"model\":\"m\",\"window\":10},{\"model\":\"m\",\"window\":20}]", "admin").saved()).isFalse();
+        assertThat(
+                        c.saveStructured(
+                                        "windows",
+                                        "[{\"model\":\"m\",\"window\":10},{\"model\":\"m\",\"window\":20}]",
+                                        "admin")
+                                .saved())
+                .isFalse();
     }
 
     @Test
@@ -89,10 +113,13 @@ class WindowsConfigTest {
         FabricConfig c = config(again);
         c.load();
         again.setModels("p", "b".repeat(32), Map.of());
-        assertThat(again.find("p", "b".repeat(32)).orElseThrow().windows().usable("kept-model")).isEqualTo(12_345L);
+        assertThat(again.find("p", "b".repeat(32)).orElseThrow().windows().usable("kept-model"))
+                .isEqualTo(12_345L);
 
         Path other = dir.resolve("old");
-        FabricConfig old = new FabricConfig(other, new RunRegistry(), new PrintStream(new ByteArrayOutputStream()));
+        FabricConfig old =
+                new FabricConfig(
+                        other, new RunRegistry(), new PrintStream(new ByteArrayOutputStream()));
         old.load();
         assertThat((List<?>) windows(old).get("structured")).isEmpty();
     }

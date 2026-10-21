@@ -41,8 +41,14 @@ class GraphRobustnessTest {
     @Test
     void aVeryLongPromptNeverBloatsTheOutput(@TempDir Path dir) throws Exception {
         String payload = "p".repeat(5000);
-        Path file = Files.writeString(dir.resolve("long.loom"),
-                "agent A { model: \"m\" }\nworkflow W() {\n  delegate \"" + payload + "\" to A -> r\n  note \"" + payload + "\"\n}\n");
+        Path file =
+                Files.writeString(
+                        dir.resolve("long.loom"),
+                        "agent A { model: \"m\" }\nworkflow W() {\n  delegate \""
+                                + payload
+                                + "\" to A -> r\n  note \""
+                                + payload
+                                + "\"\n}\n");
 
         String json = GraphJson.write(service.graph(file));
 
@@ -55,7 +61,12 @@ class GraphRobustnessTest {
         try {
             List<Future<String>> runs = new ArrayList<>();
             for (int i = 0; i < 2; i++) {
-                runs.add(pool.submit(() -> GraphJson.write(service.graph(Path.of("samples/boardroom/main.loom")))));
+                runs.add(
+                        pool.submit(
+                                () ->
+                                        GraphJson.write(
+                                                service.graph(
+                                                        Path.of("samples/boardroom/main.loom")))));
             }
             assertThat(runs.get(0).get()).isEqualTo(runs.get(1).get());
         } finally {

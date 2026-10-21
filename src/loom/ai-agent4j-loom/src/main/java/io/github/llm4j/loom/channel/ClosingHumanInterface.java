@@ -4,7 +4,10 @@ import io.github.llm4j.loom.runtime.HumanInterface;
 import java.nio.file.Path;
 import java.time.Clock;
 
-/** The console, for a store that has questions: an answer given here closes the question that was sent to a channel for the same step. */
+/**
+ * The console, for a store that has questions: an answer given here closes the question that was
+ * sent to a channel for the same step.
+ */
 public final class ClosingHumanInterface implements HumanInterface {
 
     private final HumanInterface inner;
@@ -31,20 +34,29 @@ public final class ClosingHumanInterface implements HumanInterface {
 
     @Override
     public String promptHuman(String stepId, String message, Hints hints) {
-        return recorded(stepId).orElseGet(() -> close(stepId, inner.promptHuman(stepId, message, hints)));
+        return recorded(stepId)
+                .orElseGet(() -> close(stepId, inner.promptHuman(stepId, message, hints)));
     }
 
-    /** An answer already given (with {@code weave answer}, or in a chat) is the answer; the console is asked only when there is none. */
+    /**
+     * An answer already given (with {@code weave answer}, or in a chat) is the answer; the console
+     * is asked only when there is none.
+     */
     private java.util.Optional<String> recorded(String stepId) {
-        return pending.find(run, stepId).flatMap(p -> switch (p.state()) {
-            case ANSWERED -> java.util.Optional.of(p.answer().text());
-            case EXPIRED -> java.util.Optional.of("");
-            default -> java.util.Optional.empty();
-        });
+        return pending.find(run, stepId)
+                .flatMap(
+                        p ->
+                                switch (p.state()) {
+                                    case ANSWERED -> java.util.Optional.of(p.answer().text());
+                                    case EXPIRED -> java.util.Optional.of("");
+                                    default -> java.util.Optional.empty();
+                                });
     }
 
     private String close(String stepId, String answer) {
-        pending.find(run, stepId).filter(Pending::open).ifPresent(p -> answers.record(p.code(), answer, "console", false));
+        pending.find(run, stepId)
+                .filter(Pending::open)
+                .ifPresent(p -> answers.record(p.code(), answer, "console", false));
         return answer;
     }
 }

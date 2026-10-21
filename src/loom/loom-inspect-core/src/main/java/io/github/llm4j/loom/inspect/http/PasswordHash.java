@@ -9,8 +9,9 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 /**
- * The admin password as it may be stored: either the password itself, or a salted PBKDF2-HMAC-SHA256 hash of it written
- * {@code pbkdf2-sha256$<iterations>$<salt>$<hash>}. A stored hash means the secret store (or a backup, or a screen share) never holds a password someone could
+ * The admin password as it may be stored: either the password itself, or a salted
+ * PBKDF2-HMAC-SHA256 hash of it written {@code pbkdf2-sha256$<iterations>$<salt>$<hash>}. A stored
+ * hash means the secret store (or a backup, or a screen share) never holds a password someone could
  * type in. Both forms are accepted so an existing setup keeps working.
  */
 public final class PasswordHash {
@@ -21,20 +22,28 @@ public final class PasswordHash {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final Base64.Encoder B64 = Base64.getEncoder().withoutPadding();
 
-    private PasswordHash() { }
+    private PasswordHash() {}
 
     /** A hash of {@code password} with a fresh random salt. */
     public static String hash(String password) {
         byte[] salt = new byte[16];
         RANDOM.nextBytes(salt);
-        return PREFIX + ITERATIONS + "$" + B64.encodeToString(salt) + "$" + B64.encodeToString(derive(password, salt, ITERATIONS));
+        return PREFIX
+                + ITERATIONS
+                + "$"
+                + B64.encodeToString(salt)
+                + "$"
+                + B64.encodeToString(derive(password, salt, ITERATIONS));
     }
 
     public static boolean isHash(String stored) {
         return stored != null && stored.startsWith(PREFIX);
     }
 
-    /** True when {@code given} is the password that {@code stored} (plain or hashed) stands for. Constant time in the secret parts. */
+    /**
+     * True when {@code given} is the password that {@code stored} (plain or hashed) stands for.
+     * Constant time in the secret parts.
+     */
     public static boolean matches(String stored, String given) {
         if (stored == null || given == null) return false;
         if (!isHash(stored)) return MessageDigest.isEqual(sha(given), sha(stored));
@@ -44,7 +53,8 @@ public final class PasswordHash {
             int iterations = Integer.parseInt(p[1]);
             if (iterations < 10_000 || iterations > 5_000_000) return false;
             byte[] want = Base64.getDecoder().decode(p[3]);
-            return MessageDigest.isEqual(want, derive(given, Base64.getDecoder().decode(p[2]), iterations));
+            return MessageDigest.isEqual(
+                    want, derive(given, Base64.getDecoder().decode(p[2]), iterations));
         } catch (IllegalArgumentException e) {
             return false;
         }
@@ -52,7 +62,9 @@ public final class PasswordHash {
 
     private static byte[] derive(String password, byte[] salt, int iterations) {
         try {
-            return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(new PBEKeySpec(password.toCharArray(), salt, iterations, BITS)).getEncoded();
+            return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+                    .generateSecret(new PBEKeySpec(password.toCharArray(), salt, iterations, BITS))
+                    .getEncoded();
         } catch (GeneralSecurityException e) {
             throw new IllegalStateException(e);
         }
@@ -60,7 +72,12 @@ public final class PasswordHash {
 
     private static byte[] sha(String s) {
         try {
-            return MessageDigest.getInstance("SHA-256").digest(s.getBytes(StandardCharsets.UTF_8)); // equal length, so the compare does not leak length
+            return MessageDigest.getInstance("SHA-256")
+                    .digest(
+                            s.getBytes(
+                                    StandardCharsets
+                                            .UTF_8)); // equal length, so the compare does not leak
+            // length
         } catch (GeneralSecurityException e) {
             throw new IllegalStateException(e);
         }

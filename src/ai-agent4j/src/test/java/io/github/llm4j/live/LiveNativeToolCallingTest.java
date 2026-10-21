@@ -18,9 +18,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Native tool calling against the real APIs (Gemini and Claude), for whichever credentials are set (see {@link LiveTargets}). The wire formats are
- * tested against recorded responses on every build; this is what shows the real services accept what is sent. Run with
- * {@code mvn -pl ai-agent4j -Plive test}; never part of a default build.
+ * Native tool calling against the real APIs (Gemini and Claude), for whichever credentials are set
+ * (see {@link LiveTargets}). The wire formats are tested against recorded responses on every build;
+ * this is what shows the real services accept what is sent. Run with {@code mvn -pl ai-agent4j
+ * -Plive test}; never part of a default build.
  */
 @Tag("live")
 class LiveNativeToolCallingTest {
@@ -41,9 +42,15 @@ class LiveNativeToolCallingTest {
     void l12_aModelAsksForAToolAndAnswersFromItsResult(LiveTargets.Target t) {
         LLMClient client = capable(t);
         CalculatorTool calc = new CalculatorTool();
-        ToolSpec spec = new ToolSpec(calc.getName(), calc.getDescription(), calc.getParametersSchema());
+        ToolSpec spec =
+                new ToolSpec(calc.getName(), calc.getDescription(), calc.getParametersSchema());
 
-        LLMRequest first = LLMRequest.builder().addUserMessage("What is 1234 * 5678? Use the calculator tool.").tools(List.of(spec)).maxTokens(500).build();
+        LLMRequest first =
+                LLMRequest.builder()
+                        .addUserMessage("What is 1234 * 5678? Use the calculator tool.")
+                        .tools(List.of(spec))
+                        .maxTokens(500)
+                        .build();
         LLMResponse asked = client.chat(first);
         assertThat(asked.hasToolCalls()).as("the model called the tool").isTrue();
         assertThat(asked.getFinishReason()).isEqualTo(LLMResponse.FinishReason.TOOL_CALLS);
@@ -56,10 +63,23 @@ class LiveNativeToolCallingTest {
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
-        LLMResponse answered = client.chat(LLMRequest.builder().addUserMessage("What is 1234 * 5678? Use the calculator tool.")
-                .addMessage(Message.assistantToolCalls(asked.getContent(), asked.getToolCalls(), asked.getProviderData()))
-                .addMessage(Message.toolResult(asked.getToolCalls().get(0).id(), calc.getName(), result))
-                .tools(List.of(spec)).maxTokens(500).build());
+        LLMResponse answered =
+                client.chat(
+                        LLMRequest.builder()
+                                .addUserMessage("What is 1234 * 5678? Use the calculator tool.")
+                                .addMessage(
+                                        Message.assistantToolCalls(
+                                                asked.getContent(),
+                                                asked.getToolCalls(),
+                                                asked.getProviderData()))
+                                .addMessage(
+                                        Message.toolResult(
+                                                asked.getToolCalls().get(0).id(),
+                                                calc.getName(),
+                                                result))
+                                .tools(List.of(spec))
+                                .maxTokens(500)
+                                .build());
         assertThat(answered.getContent().replace(",", "")).contains("7006652");
     }
 
@@ -67,10 +87,21 @@ class LiveNativeToolCallingTest {
     @MethodSource("targets")
     void l13_anAgentOnNativeToolCallingCompletesATask(LiveTargets.Target t) {
         LLMClient client = capable(t);
-        AgentResult r = ReActAgent.builder().llmClient(client).addTool(new CalculatorTool()).toolCalling(ReActAgent.ToolCalling.NATIVE).maxIterations(5).build()
-                .run("What is 1234 * 5678? Use the calculator.");
+        AgentResult r =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .toolCalling(ReActAgent.ToolCalling.NATIVE)
+                        .maxIterations(5)
+                        .build()
+                        .run("What is 1234 * 5678? Use the calculator.");
         assertThat(r.isCompleted()).isTrue();
-        assertThat(r.getSteps()).anyMatch(s -> s.getAction().equalsIgnoreCase("calculator") || s.getAction().equalsIgnoreCase(new CalculatorTool().getName()));
+        assertThat(r.getSteps())
+                .anyMatch(
+                        s ->
+                                s.getAction().equalsIgnoreCase("calculator")
+                                        || s.getAction()
+                                                .equalsIgnoreCase(new CalculatorTool().getName()));
         assertThat(r.getFinalAnswer().replace(",", "")).contains("7006652");
         assertThat(r.isProtocolFollowed()).isTrue();
     }

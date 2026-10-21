@@ -18,7 +18,9 @@ final class Attrs {
     Attrs text(String key, String value) {
         if (value != null && !value.isBlank()) {
             String safe = Redactor.mask(value);
-            values.put(key, safe.length() > TEXT_LIMIT ? safe.substring(0, TEXT_LIMIT - 1) + "…" : safe);
+            values.put(
+                    key,
+                    safe.length() > TEXT_LIMIT ? safe.substring(0, TEXT_LIMIT - 1) + "…" : safe);
         }
         return this;
     }

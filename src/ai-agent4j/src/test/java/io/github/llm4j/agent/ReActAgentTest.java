@@ -161,7 +161,8 @@ class ReActAgentTest {
     @Test
     void testProtocolFollowedIsFalseWhenModelIgnoresResponseFormat() {
         when(mockClient.chat(any(LLMRequest.class)))
-                .thenReturn(createResponse("I am just going to ramble without following any format."));
+                .thenReturn(
+                        createResponse("I am just going to ramble without following any format."));
 
         agent = ReActAgent.builder().llmClient(mockClient).maxIterations(3).build();
 
@@ -271,7 +272,9 @@ class ReActAgentTest {
     @Test
     void testRedundantActionCountIncrementsOnRepeatedAction() {
         String repeatedAction =
-                "Thought: I need to calculate 2 + 2\n" + "Action: Calculator\n" + "Action Input: 2 + 2";
+                "Thought: I need to calculate 2 + 2\n"
+                        + "Action: Calculator\n"
+                        + "Action Input: 2 + 2";
         when(mockClient.chat(any(LLMRequest.class)))
                 .thenReturn(createResponse(repeatedAction))
                 .thenReturn(createResponse(repeatedAction))
@@ -293,7 +296,8 @@ class ReActAgentTest {
         return LLMResponse.builder().content(content).model("test-model").build();
     }
 
-    private LLMResponse createResponseWithUsage(String content, int promptTokens, int completionTokens) {
+    private LLMResponse createResponseWithUsage(
+            String content, int promptTokens, int completionTokens) {
         return LLMResponse.builder()
                 .content(content)
                 .model("test-model")

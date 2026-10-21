@@ -6,20 +6,29 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Folds ledger records into cases: the highest generation of a run is the case's current decision, earlier ones are superseded. */
+/**
+ * Folds ledger records into cases: the highest generation of a run is the case's current decision,
+ * earlier ones are superseded.
+ */
 public final class Cases {
 
-    private Cases() { }
+    private Cases() {}
 
-    /** The cases of these records, in the order they were opened. Records about a case that was never opened are folded as an orphan, not dropped. */
+    /**
+     * The cases of these records, in the order they were opened. Records about a case that was
+     * never opened are folded as an orphan, not dropped.
+     */
     public static List<Case> fold(List<Rec> records) {
         Map<String, Map<Integer, List<Rec>>> byCase = new LinkedHashMap<>();
         for (Rec r : records) {
             if (r.caseId().isEmpty()) continue;
-            byCase.computeIfAbsent(r.caseId(), k -> new LinkedHashMap<>()).computeIfAbsent(r.generation(), k -> new ArrayList<>()).add(r);
+            byCase.computeIfAbsent(r.caseId(), k -> new LinkedHashMap<>())
+                    .computeIfAbsent(r.generation(), k -> new ArrayList<>())
+                    .add(r);
         }
         List<Case> out = new ArrayList<>();
-        for (Map.Entry<String, Map<Integer, List<Rec>>> e : byCase.entrySet()) out.addAll(foldCase(e.getKey(), e.getValue()));
+        for (Map.Entry<String, Map<Integer, List<Rec>>> e : byCase.entrySet())
+            out.addAll(foldCase(e.getKey(), e.getValue()));
         return out;
     }
 
@@ -43,41 +52,84 @@ public final class Cases {
         return cases.stream().filter(c -> !c.superseded()).toList();
     }
 
-    private static Case foldOne(String id, int generation, List<Rec> records, List<Rec> outcomes, boolean superseded) {
+    private static Case foldOne(
+            String id, int generation, List<Rec> records, List<Rec> outcomes, boolean superseded) {
         Rec opened = null, proposed = null, decided = null, responded = null;
         for (Rec r : records) {
             switch (r.kind()) {
                 case Rec.CASE -> opened = r;
                 case Rec.PROPOSED -> proposed = r;
                 case Rec.DECIDED -> decided = r;
-                // a case answered under a ladder: the response is the verdict, the person who responded the decider
+                    // a case answered under a ladder: the response is the verdict, the person who
+                    // responded the decider
                 case Rec.RESPONDED -> responded = r;
-                default -> { }
+                default -> {}
             }
         }
         if (decided == null && responded != null) {
-            decided = new Rec(responded.id(), responded.decision(), Rec.DECIDED, responded.at(), responded.caseId(), responded.generation(),
-                    Rec.map("verdict", responded.str("choice"), "decider", responded.str("by"), "shown", responded.flag("shown"), "millis", responded.num("millis")));
+            decided =
+                    new Rec(
+                            responded.id(),
+                            responded.decision(),
+                            Rec.DECIDED,
+                            responded.at(),
+                            responded.caseId(),
+                            responded.generation(),
+                            Rec.map(
+                                    "verdict",
+                                    responded.str("choice"),
+                                    "decider",
+                                    responded.str("by"),
+                                    "shown",
+                                    responded.flag("shown"),
+                                    "millis",
+                                    responded.num("millis")));
         }
         Rec head = opened != null ? opened : records.get(0);
         Map<String, String> fields = new LinkedHashMap<>();
-        if (opened != null && opened.body().get("fields") instanceof Map<?, ?> m) m.forEach((k, v) -> fields.put(String.valueOf(k), String.valueOf(v)));
+        if (opened != null && opened.body().get("fields") instanceof Map<?, ?> m)
+            m.forEach((k, v) -> fields.put(String.valueOf(k), String.valueOf(v)));
         List<String> flags = new ArrayList<>();
-        if (opened != null && opened.body().get("flags") instanceof List<?> l) l.forEach(f -> flags.add(String.valueOf(f)));
-        if (proposed != null && proposed.body().get("flags") instanceof List<?> l) l.forEach(f -> { if (!flags.contains(String.valueOf(f))) flags.add(String.valueOf(f)); });
-        if ((opened != null && opened.flag("purged")) || (proposed != null && proposed.flag("purged"))) flags.add("fields_masked");
+        if (opened != null && opened.body().get("flags") instanceof List<?> l)
+            l.forEach(f -> flags.add(String.valueOf(f)));
+        if (proposed != null && proposed.body().get("flags") instanceof List<?> l)
+            l.forEach(
+                    f -> {
+                        if (!flags.contains(String.valueOf(f))) flags.add(String.valueOf(f));
+                    });
+        if ((opened != null && opened.flag("purged"))
+                || (proposed != null && proposed.flag("purged"))) flags.add("fields_masked");
         List<String> results = new ArrayList<>();
         for (Rec o : outcomes) results.add(o.str("result"));
         Instant decidedAt = decided == null ? null : decided.at();
-        return new Case(id, head.decision(), opened == null ? "" : opened.str("scope") == null ? "" : opened.str("scope"),
-                opened == null ? null : opened.str("locator"), opened == null ? null : opened.str("step"), opened == null ? null : opened.str("journalStep"), head.at(), fields,
-                opened == null ? null : Level.of(opened.str("level")), opened == null ? null : opened.str("identity"),
-                opened == null || opened.num("epoch") == null ? 1 : opened.num("epoch").intValue(), generation, superseded, flags,
-                proposed == null ? null : proposed.str("choice"), proposed == null ? null : proposed.str("reasoning"),
-                proposed == null || proposed.num("confidence") == null ? null : proposed.num("confidence").doubleValue(),
+        return new Case(
+                id,
+                head.decision(),
+                opened == null ? "" : opened.str("scope") == null ? "" : opened.str("scope"),
+                opened == null ? null : opened.str("locator"),
+                opened == null ? null : opened.str("step"),
+                opened == null ? null : opened.str("journalStep"),
+                head.at(),
+                fields,
+                opened == null ? null : Level.of(opened.str("level")),
+                opened == null ? null : opened.str("identity"),
+                opened == null || opened.num("epoch") == null ? 1 : opened.num("epoch").intValue(),
+                generation,
+                superseded,
+                flags,
+                proposed == null ? null : proposed.str("choice"),
+                proposed == null ? null : proposed.str("reasoning"),
+                proposed == null || proposed.num("confidence") == null
+                        ? null
+                        : proposed.num("confidence").doubleValue(),
                 proposed != null && proposed.flag("malformed"),
-                decided == null ? null : decided.str("verdict"), decided == null ? null : decided.str("decider"),
-                decided != null && decided.flag("shown"), decidedAt, decided == null || decided.num("millis") == null ? null : decided.num("millis").longValue(),
+                decided == null ? null : decided.str("verdict"),
+                decided == null ? null : decided.str("decider"),
+                decided != null && decided.flag("shown"),
+                decidedAt,
+                decided == null || decided.num("millis") == null
+                        ? null
+                        : decided.num("millis").longValue(),
                 results);
     }
 }

@@ -4,7 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-/** R8: nearest-rank percentiles, exact up to the capacity and bounded beyond it, with no clock and no randomness from outside. */
+/**
+ * R8: nearest-rank percentiles, exact up to the capacity and bounded beyond it, with no clock and
+ * no randomness from outside.
+ */
 class PercentilesTest {
 
     @Test

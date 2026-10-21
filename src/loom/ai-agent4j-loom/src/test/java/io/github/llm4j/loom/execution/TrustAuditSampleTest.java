@@ -9,13 +9,17 @@ import io.github.llm4j.loom.parser.LoomParser;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-/** A trust block checks the same cases blind after it moves to the ladder engine as it did before. */
+/**
+ * A trust block checks the same cases blind after it moves to the ladder engine as it did before.
+ */
 @Tag("L7")
 class TrustAuditSampleTest {
 
     @Test
     void theCasesCheckedBlindAreExactlyTheOnesTheOriginalEngineChecked() {
-        String src = Scripts2Access.refund("check 30% of cases with a person who doesn't see the proposal");
+        String src =
+                Scripts2Access.refund(
+                        "check 30% of cases with a person who doesn't see the proposal");
         var script = new LoomParser(new Lexer(src).tokenize()).parseScript();
         var decision = script.getDecisions().get(0);
         assertThat(decision.isLadderFromTrust()).isTrue();

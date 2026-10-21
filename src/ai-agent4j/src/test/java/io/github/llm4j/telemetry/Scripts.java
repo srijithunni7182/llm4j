@@ -10,11 +10,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntFunction;
 import java.util.stream.Stream;
 
-/** Scripted models for the telemetry tests: they call a tool a few times and then answer "done", in either loop. */
+/**
+ * Scripted models for the telemetry tests: they call a tool a few times and then answer "done", in
+ * either loop.
+ */
 final class Scripts {
     private Scripts() {}
 
-    /** A model whose n-th reply (0-based) is given by {@code reply}; an item that is a RuntimeException is thrown. */
+    /**
+     * A model whose n-th reply (0-based) is given by {@code reply}; an item that is a
+     * RuntimeException is thrown.
+     */
     static LLMClient by(boolean nativeLoop, IntFunction<Object> reply) {
         AtomicInteger n = new AtomicInteger();
         return new LLMClient() {
@@ -39,14 +45,28 @@ final class Scripts {
 
     static LLMResponse call(boolean nativeLoop, String tool, String q) {
         if (nativeLoop) {
-            return LLMResponse.builder().content("go").model("m").tokenUsage(10, 5, 15).finishReason("tool_calls")
-                    .toolCalls(List.of(new ToolCall("c-" + q, tool, Map.of("q", q)))).build();
+            return LLMResponse.builder()
+                    .content("go")
+                    .model("m")
+                    .tokenUsage(10, 5, 15)
+                    .finishReason("tool_calls")
+                    .toolCalls(List.of(new ToolCall("c-" + q, tool, Map.of("q", q))))
+                    .build();
         }
-        return LLMResponse.builder().content("Thought: go\nAction: " + tool + "\nAction Input: {\"q\":\"" + q + "\"}\n").model("m").tokenUsage(10, 5, 15).build();
+        return LLMResponse.builder()
+                .content("Thought: go\nAction: " + tool + "\nAction Input: {\"q\":\"" + q + "\"}\n")
+                .model("m")
+                .tokenUsage(10, 5, 15)
+                .build();
     }
 
     static LLMResponse done(boolean nativeLoop) {
-        return LLMResponse.builder().content(nativeLoop ? "done" : "Thought: ok\nFinal Answer: done").model("m").tokenUsage(10, 5, 15).finishReason("stop").build();
+        return LLMResponse.builder()
+                .content(nativeLoop ? "done" : "Thought: ok\nFinal Answer: done")
+                .model("m")
+                .tokenUsage(10, 5, 15)
+                .finishReason("stop")
+                .build();
     }
 
     static LLMClient oneToolStep(boolean nativeLoop, String tool, String q) {

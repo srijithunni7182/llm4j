@@ -38,12 +38,29 @@ class ThreadScopeTest {
         ThreadScope.Snapshot snapshot = scope.capture();
         ExecutorService pool = Executors.newSingleThreadExecutor();
         try {
-            Object[] seen = pool.submit(() -> {
-                try (ThreadScope.Installed ignored = snapshot.install()) {
-                    return new Object[] {scope.step.get(), scope.locals.get(), scope.budgets.get(), scope.invoker.get()};
-                }
-            }).get();
-            Object[] after = pool.submit(() -> new Object[] {scope.step.get(), scope.locals.get(), scope.invoker.get(), scope.budgets.get()}).get();
+            Object[] seen =
+                    pool.submit(
+                                    () -> {
+                                        try (ThreadScope.Installed ignored = snapshot.install()) {
+                                            return new Object[] {
+                                                scope.step.get(),
+                                                scope.locals.get(),
+                                                scope.budgets.get(),
+                                                scope.invoker.get()
+                                            };
+                                        }
+                                    })
+                            .get();
+            Object[] after =
+                    pool.submit(
+                                    () ->
+                                            new Object[] {
+                                                scope.step.get(),
+                                                scope.locals.get(),
+                                                scope.invoker.get(),
+                                                scope.budgets.get()
+                                            })
+                            .get();
 
             assertThat(seen[0]).isEqualTo("Main/s1");
             assertThat(seen[1]).isSameAs(names);
@@ -67,11 +84,18 @@ class ThreadScopeTest {
         ThreadScope.Snapshot branch = scope.capture().at("Main/s0/p1", Map.of("n", 2));
         ExecutorService pool = Executors.newSingleThreadExecutor();
         try {
-            Object[] seen = pool.submit(() -> {
-                try (ThreadScope.Installed ignored = branch.install()) {
-                    return new Object[] {scope.step.get(), scope.locals.get(), scope.invoker.get()};
-                }
-            }).get();
+            Object[] seen =
+                    pool.submit(
+                                    () -> {
+                                        try (ThreadScope.Installed ignored = branch.install()) {
+                                            return new Object[] {
+                                                scope.step.get(),
+                                                scope.locals.get(),
+                                                scope.invoker.get()
+                                            };
+                                        }
+                                    })
+                            .get();
 
             assertThat(seen[0]).isEqualTo("Main/s0/p1");
             assertThat(seen[1]).isEqualTo(Map.of("n", 2));
@@ -90,19 +114,25 @@ class ThreadScopeTest {
         ThreadScope.Snapshot withInvoker = scope.capture();
         scope.invoker.remove();
         ThreadScope.Snapshot without = scope.capture();
-        ExecutorService pool = Executors.newSingleThreadExecutor(); // one thread, reused, like the branch pool
+        ExecutorService pool =
+                Executors.newSingleThreadExecutor(); // one thread, reused, like the branch pool
         try {
-            pool.submit(() -> {
-                try (ThreadScope.Installed ignored = withInvoker.install()) {
-                    return scope.invoker.get();
-                }
-            }).get();
+            pool.submit(
+                            () -> {
+                                try (ThreadScope.Installed ignored = withInvoker.install()) {
+                                    return scope.invoker.get();
+                                }
+                            })
+                    .get();
 
-            Object next = pool.submit(() -> {
-                try (ThreadScope.Installed ignored = without.install()) {
-                    return scope.invoker.get();
-                }
-            }).get();
+            Object next =
+                    pool.submit(
+                                    () -> {
+                                        try (ThreadScope.Installed ignored = without.install()) {
+                                            return scope.invoker.get();
+                                        }
+                                    })
+                            .get();
 
             assertThat(next).isNull();
         } finally {

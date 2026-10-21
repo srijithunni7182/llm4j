@@ -20,50 +20,67 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Builds the graph of one workflow: {@code start}, one node per statement in pre-order, {@code end}, and the
- * control-flow edges between them.
+ * Builds the graph of one workflow: {@code start}, one node per statement in pre-order, {@code
+ * end}, and the control-flow edges between them.
  *
  * <ul>
- *   <li>{@code alt} has a {@code then} and an {@code else} edge into its branches; both exits join the next step.
- *   <li>{@code loop} and {@code for each} have an edge into the body, an {@code again} edge back from it, and a
- *       {@code done} edge to the next step.
+ *   <li>{@code alt} has a {@code then} and an {@code else} edge into its branches; both exits join
+ *       the next step.
+ *   <li>{@code loop} and {@code for each} have an edge into the body, an {@code again} edge back
+ *       from it, and a {@code done} edge to the next step.
  *   <li>{@code parallel} is one node standing for the whole round.
- *   <li>Handler blocks ({@code on_failure}, {@code on_stopped}, {@code on_exhausted}, {@code on_violation}, a rewind's
- *       {@code if still fails} and {@code if blocked}) hang off their owner on a labelled edge and rejoin the main
- *       path. They are numbered after the main path, so adding a handler never changes the id of another step.
+ *   <li>Handler blocks ({@code on_failure}, {@code on_stopped}, {@code on_exhausted}, {@code
+ *       on_violation}, a rewind's {@code if still fails} and {@code if blocked}) hang off their
+ *       owner on a labelled edge and rejoin the main path. They are numbered after the main path,
+ *       so adding a handler never changes the id of another step.
  * </ul>
  */
 public final class GraphBuilder {
 
     private final NodeDescriber describer;
 
-    /** What the graph shows of a declared classifier: the declaration, and whether its backend is Jev (calibrated) or a chat model. */
-    public record ClassifierInfo(io.github.llm4j.loom.ast.IntentClassifierDef def, boolean jev) {
-    }
+    /**
+     * What the graph shows of a declared classifier: the declaration, and whether its backend is
+     * Jev (calibrated) or a chat model.
+     */
+    public record ClassifierInfo(io.github.llm4j.loom.ast.IntentClassifierDef def, boolean jev) {}
 
-    /** @param decisionLevels decision name to the level it starts at, shown on {@code decide} nodes */
+    /**
+     * @param decisionLevels decision name to the level it starts at, shown on {@code decide} nodes
+     */
     public GraphBuilder(Map<String, String> decisionLevels) {
         this(decisionLevels, Map.of());
     }
 
     /**
      * @param decisionLevels decision name to the level it starts at, shown on {@code decide} nodes
-     * @param classifiers classifier name to its declaration, so an {@code intentclassify} node can show its backend and labels
+     * @param classifiers classifier name to its declaration, so an {@code intentclassify} node can
+     *     show its backend and labels
      */
-    public GraphBuilder(Map<String, String> decisionLevels, Map<String, ClassifierInfo> classifiers) {
+    public GraphBuilder(
+            Map<String, String> decisionLevels, Map<String, ClassifierInfo> classifiers) {
         this.describer = new NodeDescriber(decisionLevels, classifiers);
     }
 
-    /** The classifiers a script declares, with whether each is served by Jev (the built-in {@code jev/…} names, or a provider declared with {@code use: jev}). */
-    public static Map<String, ClassifierInfo> classifiersOf(io.github.llm4j.loom.ast.LoomScript script) {
+    /**
+     * The classifiers a script declares, with whether each is served by Jev (the built-in {@code
+     * jev/…} names, or a provider declared with {@code use: jev}).
+     */
+    public static Map<String, ClassifierInfo> classifiersOf(
+            io.github.llm4j.loom.ast.LoomScript script) {
         return classifiersOf(List.of(script));
     }
 
-    /** As {@link #classifiersOf(io.github.llm4j.loom.ast.LoomScript)}, over several scripts (an entry file and what it imports). */
-    public static Map<String, ClassifierInfo> classifiersOf(List<io.github.llm4j.loom.ast.LoomScript> scripts) {
+    /**
+     * As {@link #classifiersOf(io.github.llm4j.loom.ast.LoomScript)}, over several scripts (an
+     * entry file and what it imports).
+     */
+    public static Map<String, ClassifierInfo> classifiersOf(
+            List<io.github.llm4j.loom.ast.LoomScript> scripts) {
         java.util.Set<String> jevProviders = new java.util.HashSet<>();
         for (io.github.llm4j.loom.ast.LoomScript s : scripts) {
-            for (io.github.llm4j.loom.ast.ProviderDef p : s.getProviders()) if ("jev".equals(p.getKind())) jevProviders.add(p.getName());
+            for (io.github.llm4j.loom.ast.ProviderDef p : s.getProviders())
+                if ("jev".equals(p.getKind())) jevProviders.add(p.getName());
         }
         Map<String, ClassifierInfo> out = new java.util.LinkedHashMap<>();
         for (io.github.llm4j.loom.ast.LoomScript s : scripts) {
@@ -71,7 +88,10 @@ public final class GraphBuilder {
                 String model = def.getModel() == null ? "" : def.getModel();
                 String lower = model.toLowerCase(java.util.Locale.ROOT);
                 int slash = model.indexOf('/');
-                boolean jev = lower.startsWith("jev/") || lower.startsWith("jev-") || (slash > 0 && jevProviders.contains(model.substring(0, slash)));
+                boolean jev =
+                        lower.startsWith("jev/")
+                                || lower.startsWith("jev-")
+                                || (slash > 0 && jevProviders.contains(model.substring(0, slash)));
                 out.putIfAbsent(def.getName(), new ClassifierInfo(def, jev));
             }
         }
@@ -87,12 +107,15 @@ public final class GraphBuilder {
     }
 
     /** Where control leaves a node, and the label of the edge it leaves on. */
-    private record Exit(String from, String label) {
-    }
+    private record Exit(String from, String label) {}
 
     /** A handler block waiting to be laid out once the main path is done. */
-    private record Pending(String token, String owner, String branch, String edgeLabel, List<Statement> statements) {
-    }
+    private record Pending(
+            String token,
+            String owner,
+            String branch,
+            String edgeLabel,
+            List<Statement> statements) {}
 
     private final class Build {
         private final WorkflowDef workflow;
@@ -100,8 +123,10 @@ public final class GraphBuilder {
         private final List<GraphNode> nodes = new ArrayList<>();
         private final List<GraphEdge> edges = new ArrayList<>();
         private final Deque<Pending> pending = new ArrayDeque<>();
+
         /** Handler token to where control leaves the handler block. */
         private final Map<String, List<Exit>> handlerExits = new HashMap<>();
+
         private final Map<String, String> checkpoints = new HashMap<>();
         private int counter;
 
@@ -112,7 +137,12 @@ public final class GraphBuilder {
 
         WorkflowGraph run() {
             nodes.add(marker(Kinds.START, "Start"));
-            List<Exit> exits = block(workflow.getStatements(), List.of(new Exit(Kinds.START, null)), null, null);
+            List<Exit> exits =
+                    block(
+                            workflow.getStatements(),
+                            List.of(new Exit(Kinds.START, null)),
+                            null,
+                            null);
             while (!pending.isEmpty()) {
                 layOut(pending.poll());
             }
@@ -120,7 +150,11 @@ public final class GraphBuilder {
             List<GraphEdge> expanded = new ArrayList<>();
             for (GraphEdge edge : edges) {
                 for (Exit from : expand(new Exit(edge.from(), edge.label()))) {
-                    expanded.add(new GraphEdge(from.from(), edge.to(), edge.label() != null ? edge.label() : from.label()));
+                    expanded.add(
+                            new GraphEdge(
+                                    from.from(),
+                                    edge.to(),
+                                    edge.label() != null ? edge.label() : from.label()));
                 }
             }
             for (Exit exit : exits) {
@@ -138,11 +172,13 @@ public final class GraphBuilder {
         }
 
         private GraphNode marker(String kind, String label) {
-            return new GraphNode(kind, kind, label, null, null, null, null, false, null, null, Map.of());
+            return new GraphNode(
+                    kind, kind, label, null, null, null, null, false, null, null, Map.of());
         }
 
         /** Lays out a statement list; returns where control leaves it. */
-        private List<Exit> block(List<Statement> statements, List<Exit> entries, String parent, String branch) {
+        private List<Exit> block(
+                List<Statement> statements, List<Exit> entries, String parent, String branch) {
             List<Exit> current = entries;
             for (Statement statement : statements) {
                 String id = "n" + (++counter);
@@ -191,8 +227,10 @@ public final class GraphBuilder {
                 rewindBack(rewind, id);
                 defer(exits, id, "still fails", "still fails", rewind.getIfStillFails());
                 defer(exits, id, "blocked", "blocked", rewind.getIfBlocked());
-            } else if (statement instanceof io.github.llm4j.loom.ast.HaltStmt || statement instanceof io.github.llm4j.loom.ast.ReturnStmt) {
-                // the path ends here: straight to End, and nothing after it is reached from this node
+            } else if (statement instanceof io.github.llm4j.loom.ast.HaltStmt
+                    || statement instanceof io.github.llm4j.loom.ast.ReturnStmt) {
+                // the path ends here: straight to End, and nothing after it is reached from this
+                // node
                 edges.add(new GraphEdge(id, Kinds.END, null));
                 return List.of();
             } else {
@@ -208,7 +246,9 @@ public final class GraphBuilder {
             return block(statements, List.of(new Exit(owner, name)), owner, name);
         }
 
-        /** A loop body: into it from the owner, and an {@code again} edge back from where it ends. */
+        /**
+         * A loop body: into it from the owner, and an {@code again} edge back from where it ends.
+         */
         private List<Exit> repeat(List<Statement> body, String owner) {
             List<Exit> bodyExits = block(body, List.of(new Exit(owner, null)), owner, "body");
             for (Exit exit : bodyExits) {
@@ -219,7 +259,10 @@ public final class GraphBuilder {
             return List.of();
         }
 
-        /** Draws the way back to the checkpoint a rewind names; a rewind to a checkpoint that is not there is marked. */
+        /**
+         * Draws the way back to the checkpoint a rewind names; a rewind to a checkpoint that is not
+         * there is marked.
+         */
         private void rewindBack(RewindStmt rewind, String id) {
             String target = checkpoints.get(rewind.getTarget());
             if (target == null) {
@@ -231,7 +274,12 @@ public final class GraphBuilder {
         }
 
         /** Registers a handler block to lay out later; control leaves it into the next step too. */
-        private void defer(List<Exit> exits, String owner, String branch, String edgeLabel, List<Statement> statements) {
+        private void defer(
+                List<Exit> exits,
+                String owner,
+                String branch,
+                String edgeLabel,
+                List<Statement> statements) {
             if (statements == null || statements.isEmpty()) {
                 return;
             }
@@ -241,11 +289,12 @@ public final class GraphBuilder {
         }
 
         private void layOut(Pending handler) {
-            List<Exit> exits = block(
-                    handler.statements(),
-                    List.of(new Exit(handler.owner(), handler.edgeLabel())),
-                    handler.owner(),
-                    handler.branch());
+            List<Exit> exits =
+                    block(
+                            handler.statements(),
+                            List.of(new Exit(handler.owner(), handler.edgeLabel())),
+                            handler.owner(),
+                            handler.branch());
             handlerExits.put(handler.token(), exits);
         }
 

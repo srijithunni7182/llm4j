@@ -2,8 +2,8 @@ package io.github.llm4j.tools.foundation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.llm4j.tools.support.Fuzz;
 import io.github.llm4j.tools.Redactor;
+import io.github.llm4j.tools.support.Fuzz;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -20,64 +20,92 @@ class RedactorTest {
         String secret = "s3cr3t/Value+=&1";
         Redactor r = new Redactor(List.of(secret));
         String urlEncoded = URLEncoder.encode(secret, StandardCharsets.UTF_8);
-        String basic = Base64.getEncoder().encodeToString(("user:" + secret).getBytes(StandardCharsets.UTF_8));
+        String basic =
+                Base64.getEncoder()
+                        .encodeToString(("user:" + secret).getBytes(StandardCharsets.UTF_8));
 
         String out = r.scrub("a " + secret + " b " + urlEncoded + " c Basic " + basic);
 
-        assertThat(out).doesNotContain(secret).doesNotContain(urlEncoded).doesNotContain(basic.substring(8, basic.length() - 4));
+        assertThat(out)
+                .doesNotContain(secret)
+                .doesNotContain(urlEncoded)
+                .doesNotContain(basic.substring(8, basic.length() - 4));
         assertThat(out).contains("***").startsWith("a *** b");
     }
 
     @Test
     @Tag("V1.5")
     void leavesTextWithoutSecretsAlone() {
-        assertThat(new Redactor(List.of("hunter2-long")).scrub("nothing to see")).isEqualTo("nothing to see");
+        assertThat(new Redactor(List.of("hunter2-long")).scrub("nothing to see"))
+                .isEqualTo("nothing to see");
         assertThat(Redactor.NONE.scrub("anything")).isEqualTo("anything");
-        assertThat(new Redactor(List.of("abc")).scrub("abc stays")).as("too short to scrub safely").isEqualTo("abc stays");
+        assertThat(new Redactor(List.of("abc")).scrub("abc stays"))
+                .as("too short to scrub safely")
+                .isEqualTo("abc stays");
     }
 
     @Test
     @Tag("F4")
     void generatedSecretsNeverSurviveInAnyForm() {
-        Fuzz.run("redactor", random -> {
-            String secret = randomSecret(random);
-            Redactor r = new Redactor(List.of(secret));
-            byte[] s = secret.getBytes(StandardCharsets.UTF_8);
+        Fuzz.run(
+                "redactor",
+                random -> {
+                    String secret = randomSecret(random);
+                    Redactor r = new Redactor(List.of(secret));
+                    byte[] s = secret.getBytes(StandardCharsets.UTF_8);
 
-            // The part of a Base64 encoding that belongs to the secret alone is what two encodings share when
-            // only the bytes around the secret differ (same lengths, so the same alignment).
-            int lead = random.nextInt(3);
-            byte[] before = randomBytes(random, lead);
-            byte[] after = randomBytes(random, random.nextInt(5));
-            String enc1 = Base64.getEncoder().encodeToString(concat(before, s, after));
-            String enc2 = Base64.getEncoder().encodeToString(concat(flip(before), s, flip(after)));
-            String stable = longestCommonSubstring(enc1, enc2);
+                    // The part of a Base64 encoding that belongs to the secret alone is what two
+                    // encodings share when
+                    // only the bytes around the secret differ (same lengths, so the same
+                    // alignment).
+                    int lead = random.nextInt(3);
+                    byte[] before = randomBytes(random, lead);
+                    byte[] after = randomBytes(random, random.nextInt(5));
+                    String enc1 = Base64.getEncoder().encodeToString(concat(before, s, after));
+                    String enc2 =
+                            Base64.getEncoder()
+                                    .encodeToString(concat(flip(before), s, flip(after)));
+                    String stable = longestCommonSubstring(enc1, enc2);
 
-            String text = randomText(random) + secret + randomText(random) + " "
-                    + URLEncoder.encode(secret, StandardCharsets.UTF_8) + " Basic " + enc1;
-            String out = r.scrub(text);
+                    String text =
+                            randomText(random)
+                                    + secret
+                                    + randomText(random)
+                                    + " "
+                                    + URLEncoder.encode(secret, StandardCharsets.UTF_8)
+                                    + " Basic "
+                                    + enc1;
+                    String out = r.scrub(text);
 
-            assertThat(out).doesNotContain(secret);
-            assertThat(out).doesNotContain(URLEncoder.encode(secret, StandardCharsets.UTF_8));
-            if (stable.length() >= 8) assertThat(out).as("stable Base64 of the secret in " + enc1).doesNotContain(stable);
-        });
+                    assertThat(out).doesNotContain(secret);
+                    assertThat(out)
+                            .doesNotContain(URLEncoder.encode(secret, StandardCharsets.UTF_8));
+                    if (stable.length() >= 8)
+                        assertThat(out)
+                                .as("stable Base64 of the secret in " + enc1)
+                                .doesNotContain(stable);
+                });
     }
 
     @Test
     @Tag("F4")
     void generatedTextWithoutSecretsIsUnchanged() {
-        Fuzz.run("redactor-clean", random -> {
-            String secret = "Zq" + randomSecret(random) + "Zq";
-            String text = "plain words " + random.nextInt() + " only";
-            if (!text.contains(secret)) assertThat(new Redactor(List.of(secret)).scrub(text)).isEqualTo(text);
-        });
+        Fuzz.run(
+                "redactor-clean",
+                random -> {
+                    String secret = "Zq" + randomSecret(random) + "Zq";
+                    String text = "plain words " + random.nextInt() + " only";
+                    if (!text.contains(secret))
+                        assertThat(new Redactor(List.of(secret)).scrub(text)).isEqualTo(text);
+                });
     }
 
     private static String randomSecret(Random random) {
         String alphabet = "abcXYZ0123456789-_.~/+=&?%# !@:*()[]{}\\\"'";
         int length = 4 + random.nextInt(40);
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < length; i++) sb.append(alphabet.charAt(random.nextInt(alphabet.length())));
+        for (int i = 0; i < length; i++)
+            sb.append(alphabet.charAt(random.nextInt(alphabet.length())));
         return sb.toString();
     }
 
@@ -129,6 +157,7 @@ class RedactorTest {
         Redactor r = new Redactor(java.util.Arrays.asList(null, "", "ab", "abcd"));
         assertThat(r.scrub(null)).isNull();
         assertThat(r.scrub("an abcd here, and ab")).isEqualTo("an *** here, and ab");
-        assertThat(new Redactor(java.util.Arrays.asList((String) null)).scrub("untouched")).isEqualTo("untouched");
+        assertThat(new Redactor(java.util.Arrays.asList((String) null)).scrub("untouched"))
+                .isEqualTo("untouched");
     }
 }

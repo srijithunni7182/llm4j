@@ -8,10 +8,16 @@ public final class Kinds {
     public static final String START = "start";
     public static final String END = "end";
     public static final String DELEGATE = "delegate";
+
     /** A {@code run} statement: a deterministic task, plain code with no model. */
     public static final String TASK = "task";
-    /** An {@code intentclassify} statement: a typed question put to a classifier backend (a chat model or Jev), answered in one call. */
+
+    /**
+     * An {@code intentclassify} statement: a typed question put to a classifier backend (a chat
+     * model or Jev), answered in one call.
+     */
     public static final String CLASSIFY = "classify";
+
     public static final String HANDOFF = "handoff";
     public static final String BROADCAST = "broadcast";
     public static final String PARALLEL = "parallel";
@@ -26,22 +32,54 @@ public final class Kinds {
     public static final String DECIDE = "decide";
     public static final String OBSERVE = "observe";
     public static final String NOTE = "note";
+
     /** A {@code halt} statement: the run ends here on purpose. */
     public static final String HALT = "halt";
+
     /** A {@code set} statement: a variable is given a value. */
     public static final String SET = "set";
+
     /** A {@code return} statement: the workflow hands back its {@code result} and ends. */
     public static final String RETURN = "return";
+
     /** A {@code sleep} statement: the workflow waits for a fixed time. */
     public static final String SLEEP = "sleep";
-    /** What an {@code on_stopped} handler decides for a stopped step: {@code use partial}, {@code skip}, {@code retry} and so on. */
+
+    /**
+     * What an {@code on_stopped} handler decides for a stopped step: {@code use partial}, {@code
+     * skip}, {@code retry} and so on.
+     */
     public static final String OUTCOME = "outcome";
+
     public static final String UNKNOWN = "unknown";
 
-    public static final List<String> ALL = List.of(
-            START, END, DELEGATE, TASK, CLASSIFY, HANDOFF, BROADCAST, PARALLEL, ALT, LOOP, FOREACH, HUMAN_PROMPT,
-            CHECKPOINT, REWIND, CALL, GUARDRAIL, DECIDE, OBSERVE, NOTE, HALT, SET, RETURN, SLEEP, OUTCOME, UNKNOWN);
+    public static final List<String> ALL =
+            List.of(
+                    START,
+                    END,
+                    DELEGATE,
+                    TASK,
+                    CLASSIFY,
+                    HANDOFF,
+                    BROADCAST,
+                    PARALLEL,
+                    ALT,
+                    LOOP,
+                    FOREACH,
+                    HUMAN_PROMPT,
+                    CHECKPOINT,
+                    REWIND,
+                    CALL,
+                    GUARDRAIL,
+                    DECIDE,
+                    OBSERVE,
+                    NOTE,
+                    HALT,
+                    SET,
+                    RETURN,
+                    SLEEP,
+                    OUTCOME,
+                    UNKNOWN);
 
-    private Kinds() {
-    }
+    private Kinds() {}
 }

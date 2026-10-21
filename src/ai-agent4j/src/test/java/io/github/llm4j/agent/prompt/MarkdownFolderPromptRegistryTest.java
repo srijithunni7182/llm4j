@@ -53,7 +53,9 @@ class MarkdownFolderPromptRegistryTest {
 
     @Test
     void frontMatterGivesDescriptionAndVariablesAndIsNotPartOfThePrompt() throws IOException {
-        write("r.md", "---\ndescription: Finds background\nvariables: [topic, region]\n---\n\n\nYou are careful about {topic}.\n\n");
+        write(
+                "r.md",
+                "---\ndescription: Finds background\nvariables: [topic, region]\n---\n\n\nYou are careful about {topic}.\n\n");
 
         var entry = new MarkdownFolderPromptRegistry(dir).entry("r", "v1").orElseThrow();
 
@@ -66,7 +68,8 @@ class MarkdownFolderPromptRegistryTest {
     void aFileWithoutFrontMatterIsTheWholeTextAndAHorizontalRuleLaterIsKept() throws IOException {
         write("r.md", "Intro\n\n---\n\nrest");
 
-        assertThat(new MarkdownFolderPromptRegistry(dir).get("r").orElseThrow().getTemplate()).isEqualTo("Intro\n\n---\n\nrest");
+        assertThat(new MarkdownFolderPromptRegistry(dir).get("r").orElseThrow().getTemplate())
+                .isEqualTo("Intro\n\n---\n\nrest");
     }
 
     @Test
@@ -90,7 +93,8 @@ class MarkdownFolderPromptRegistryTest {
         var registry = new MarkdownFolderPromptRegistry(dir);
 
         assertThat(registry.ids()).containsExactly("ok");
-        assertThat(registry.problems()).extracting(p -> p.file().getFileName().toString())
+        assertThat(registry.problems())
+                .extracting(p -> p.file().getFileName().toString())
                 .containsExactlyInAnyOrder("Bad Name", "notes.txt", "README.txt", "UPPER.md");
     }
 
@@ -101,27 +105,37 @@ class MarkdownFolderPromptRegistryTest {
         var registry = new MarkdownFolderPromptRegistry(dir);
 
         assertThat(registry.get("big")).isEmpty();
-        assertThat(registry.problems()).singleElement().satisfies(p -> {
-            assertThat(p.file().getFileName().toString()).isEqualTo("big.md");
-            assertThat(p.message()).contains("over the 65536 byte limit");
-        });
+        assertThat(registry.problems())
+                .singleElement()
+                .satisfies(
+                        p -> {
+                            assertThat(p.file().getFileName().toString()).isEqualTo("big.md");
+                            assertThat(p.message()).contains("over the 65536 byte limit");
+                        });
     }
 
     @Test
     void aFileThatIsNotUtf8IsRefused() throws IOException {
-        Files.write(dir.resolve("bad.md"), new byte[] {(byte) 0xC3, 0x28}); // an invalid two-byte sequence
+        Files.write(
+                dir.resolve("bad.md"),
+                new byte[] {(byte) 0xC3, 0x28}); // an invalid two-byte sequence
 
         var registry = new MarkdownFolderPromptRegistry(dir);
 
         assertThat(registry.get("bad")).isEmpty();
-        assertThat(registry.problems()).singleElement().extracting(MarkdownFolderPromptRegistry.Problem::message).asString().contains("not valid UTF-8");
+        assertThat(registry.problems())
+                .singleElement()
+                .extracting(MarkdownFolderPromptRegistry.Problem::message)
+                .asString()
+                .contains("not valid UTF-8");
     }
 
     @Test
     void unicodeTextIsKept() throws IOException {
         Files.writeString(dir.resolve("u.md"), "naïve — 日本語", StandardCharsets.UTF_8);
 
-        assertThat(new MarkdownFolderPromptRegistry(dir).get("u").orElseThrow().getTemplate()).isEqualTo("naïve — 日本語");
+        assertThat(new MarkdownFolderPromptRegistry(dir).get("u").orElseThrow().getTemplate())
+                .isEqualTo("naïve — 日本語");
     }
 
     @Test
@@ -131,7 +145,11 @@ class MarkdownFolderPromptRegistryTest {
         var registry = new MarkdownFolderPromptRegistry(dir);
 
         assertThat(registry.get("r")).isEmpty();
-        assertThat(registry.problems()).singleElement().extracting(MarkdownFolderPromptRegistry.Problem::message).asString().contains("front matter");
+        assertThat(registry.problems())
+                .singleElement()
+                .extracting(MarkdownFolderPromptRegistry.Problem::message)
+                .asString()
+                .contains("front matter");
     }
 
     @Test
@@ -140,7 +158,8 @@ class MarkdownFolderPromptRegistryTest {
         Path outside = Files.writeString(dir.resolveSibling("secret.md"), "outside");
         var registry = new MarkdownFolderPromptRegistry(dir);
 
-        for (String id : List.of("../secret", "..", "/etc/passwd", "a/../../secret", "a/v1", "", "A")) {
+        for (String id :
+                List.of("../secret", "..", "/etc/passwd", "a/../../secret", "a/v1", "", "A")) {
             assertThat(registry.get(id)).as(id).isEmpty();
             assertThat(registry.get(id, "v1")).as(id).isEmpty();
         }
@@ -165,7 +184,11 @@ class MarkdownFolderPromptRegistryTest {
         var registry = new MarkdownFolderPromptRegistry(root);
 
         assertThat(registry.get("leak")).isEmpty();
-        assertThat(registry.problems()).singleElement().extracting(MarkdownFolderPromptRegistry.Problem::message).asString().contains("leaves the prompt folder");
+        assertThat(registry.problems())
+                .singleElement()
+                .extracting(MarkdownFolderPromptRegistry.Problem::message)
+                .asString()
+                .contains("leaves the prompt folder");
         Files.deleteIfExists(outside);
     }
 
@@ -198,7 +221,8 @@ class MarkdownFolderPromptRegistryTest {
             write("a/v2.md", "two");
 
             long deadline = System.currentTimeMillis() + 10_000;
-            while (registry.versions("a").size() < 2 && System.currentTimeMillis() < deadline) Thread.sleep(50);
+            while (registry.versions("a").size() < 2 && System.currentTimeMillis() < deadline)
+                Thread.sleep(50);
 
             assertThat(registry.versions("a")).containsExactly("v1", "v2");
         }

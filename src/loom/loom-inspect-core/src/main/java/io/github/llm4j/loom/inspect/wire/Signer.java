@@ -10,8 +10,9 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
- * The signature on every request to a server: {@code X-Loom-Inspect-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256(key, t + "." + body)>}.
- * The timestamp bounds replay; each process has its own key, so one can be revoked alone.
+ * The signature on every request to a server: {@code X-Loom-Inspect-Signature: t=<unix
+ * seconds>,v1=<hex HMAC-SHA256(key, t + "." + body)>}. The timestamp bounds replay; each process
+ * has its own key, so one can be revoked alone.
  */
 public final class Signer {
 
@@ -19,14 +20,17 @@ public final class Signer {
     public static final String CLIENT_HEADER = "X-Loom-Inspect-Client";
     public static final Duration WINDOW = Duration.ofMinutes(5);
 
-    private Signer() { }
+    private Signer() {}
 
     public static String sign(String key, Instant at, byte[] body) {
         long t = at.getEpochSecond();
         return "t=" + t + ",v1=" + HexFormat.of().formatHex(mac(key, t, body));
     }
 
-    /** True when the header is well formed, is inside the replay window around {@code now}, and matches the body under {@code key}. */
+    /**
+     * True when the header is well formed, is inside the replay window around {@code now}, and
+     * matches the body under {@code key}.
+     */
     public static boolean verify(String key, String header, byte[] body, Instant now) {
         if (key == null || header == null) return false;
         long t = -1;

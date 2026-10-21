@@ -9,8 +9,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Tags as a list ({@code [kind:refund, risky]}) or as a mapping ({@code {kind: refund}}), which reads as the tag {@code kind:refund}.
- * Both give the same list, so a dataset can be written whichever way reads best.
+ * Tags as a list ({@code [kind:refund, risky]}) or as a mapping ({@code {kind: refund}}), which
+ * reads as the tag {@code kind:refund}. Both give the same list, so a dataset can be written
+ * whichever way reads best.
  */
 final class TagsDeserializer extends JsonDeserializer<List<String>> {
 

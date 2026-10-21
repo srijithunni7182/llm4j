@@ -31,20 +31,38 @@ public class LoomScript implements Node {
     private final List<SuperviseDef> supervisions = new ArrayList<>();
 
     /** The {@code supervise Agent { }} blocks. */
-    public List<SuperviseDef> getSupervisions() { return supervisions; }
-    public void addSupervision(SuperviseDef def) { supervisions.add(def); }
+    public List<SuperviseDef> getSupervisions() {
+        return supervisions;
+    }
+
+    public void addSupervision(SuperviseDef def) {
+        supervisions.add(def);
+    }
 
     /** The script-level {@code intervention { }} defaults, or null. */
-    public InterventionDef getIntervention() { return intervention; }
-    public void setIntervention(InterventionDef intervention) { this.intervention = intervention; }
+    public InterventionDef getIntervention() {
+        return intervention;
+    }
+
+    public void setIntervention(InterventionDef intervention) {
+        this.intervention = intervention;
+    }
 
     /** The {@code intentclassifier} declarations. */
-    public List<IntentClassifierDef> getIntentClassifiers() { return intentClassifiers; }
-    public void addIntentClassifier(IntentClassifierDef def) { intentClassifiers.add(def); }
+    public List<IntentClassifierDef> getIntentClassifiers() {
+        return intentClassifiers;
+    }
+
+    public void addIntentClassifier(IntentClassifierDef def) {
+        intentClassifiers.add(def);
+    }
 
     /** The classifier called {@code name}, or null. */
     public IntentClassifierDef findIntentClassifier(String name) {
-        return intentClassifiers.stream().filter(c -> c.getName().equals(name)).findFirst().orElse(null);
+        return intentClassifiers.stream()
+                .filter(c -> c.getName().equals(name))
+                .findFirst()
+                .orElse(null);
     }
 
     public void addAgent(AgentDef agent) {
@@ -59,88 +77,196 @@ public class LoomScript implements Node {
         return agents;
     }
 
-    public List<WorkflowDef> getWorkflows() { return workflows; }
+    public List<WorkflowDef> getWorkflows() {
+        return workflows;
+    }
 
-    /** The folder named by {@code prompts: "./prompts"}, relative to the script; null when the script does not name one. */
     /**
-     * {@code shared_prompt: "text"}: text put in front of every agent's system prompt, or null. It is the same bytes in every agent's request, so a provider
-     * that reuses the start of a prompt it has just seen can reuse it across the agents of the workflow.
+     * The folder named by {@code prompts: "./prompts"}, relative to the script; null when the
+     * script does not name one.
      */
-    public String getSharedPrompt() { return sharedPrompt; }
-    /** {@code shared_prompt: prompt "id"}: a prompt file or registry prompt used the same way, or null. */
-    public String getSharedPromptRef() { return sharedPromptRef; }
-    public int getSharedPromptLine() { return sharedPromptLine; }
-    public void setSharedPrompt(String text, String ref, int line) { this.sharedPrompt = text; this.sharedPromptRef = ref; this.sharedPromptLine = line; }
+    /**
+     * {@code shared_prompt: "text"}: text put in front of every agent's system prompt, or null. It
+     * is the same bytes in every agent's request, so a provider that reuses the start of a prompt
+     * it has just seen can reuse it across the agents of the workflow.
+     */
+    public String getSharedPrompt() {
+        return sharedPrompt;
+    }
 
-    public String getPromptsDir() { return promptsDir; }
-    public int getPromptsDirLine() { return promptsDirLine; }
-    public void setPromptsDir(String dir, int line) { this.promptsDir = dir; this.promptsDirLine = line; }
+    /**
+     * {@code shared_prompt: prompt "id"}: a prompt file or registry prompt used the same way, or
+     * null.
+     */
+    public String getSharedPromptRef() {
+        return sharedPromptRef;
+    }
 
-    public void addMcpServer(McpServerDef mcp) { this.mcpServers.add(mcp); }
-    public List<McpServerDef> getMcpServers() { return mcpServers; }
+    public int getSharedPromptLine() {
+        return sharedPromptLine;
+    }
 
-    public void addKnowledgeBase(KnowledgeDef kb) { this.knowledgeBases.add(kb); }
-    public List<KnowledgeDef> getKnowledgeBases() { return knowledgeBases; }
+    public void setSharedPrompt(String text, String ref, int line) {
+        this.sharedPrompt = text;
+        this.sharedPromptRef = ref;
+        this.sharedPromptLine = line;
+    }
 
-    public void addRoutingPolicy(RoutingPolicyDef rp) { this.routingPolicies.add(rp); }
-    public List<RoutingPolicyDef> getRoutingPolicies() { return routingPolicies; }
+    public String getPromptsDir() {
+        return promptsDir;
+    }
 
-    public void addSchedule(ScheduleDef schedule) { this.schedules.add(schedule); }
-    public List<ScheduleDef> getSchedules() { return schedules; }
+    public int getPromptsDirLine() {
+        return promptsDirLine;
+    }
 
-    public void addTool(ToolDef tool) { this.tools.add(tool); }
+    public void setPromptsDir(String dir, int line) {
+        this.promptsDir = dir;
+        this.promptsDirLine = line;
+    }
+
+    public void addMcpServer(McpServerDef mcp) {
+        this.mcpServers.add(mcp);
+    }
+
+    public List<McpServerDef> getMcpServers() {
+        return mcpServers;
+    }
+
+    public void addKnowledgeBase(KnowledgeDef kb) {
+        this.knowledgeBases.add(kb);
+    }
+
+    public List<KnowledgeDef> getKnowledgeBases() {
+        return knowledgeBases;
+    }
+
+    public void addRoutingPolicy(RoutingPolicyDef rp) {
+        this.routingPolicies.add(rp);
+    }
+
+    public List<RoutingPolicyDef> getRoutingPolicies() {
+        return routingPolicies;
+    }
+
+    public void addSchedule(ScheduleDef schedule) {
+        this.schedules.add(schedule);
+    }
+
+    public List<ScheduleDef> getSchedules() {
+        return schedules;
+    }
+
+    public void addTool(ToolDef tool) {
+        this.tools.add(tool);
+    }
+
     /** Tools declared with {@code tool Name { use: … }}. */
-    public List<ToolDef> getTools() { return tools; }
+    public List<ToolDef> getTools() {
+        return tools;
+    }
 
-    public void addProvider(ProviderDef provider) { this.providers.add(provider); }
+    public void addProvider(ProviderDef provider) {
+        this.providers.add(provider);
+    }
+
     /** Model providers declared with {@code provider Name { use: … }}. */
-    public List<ProviderDef> getProviders() { return providers; }
+    public List<ProviderDef> getProviders() {
+        return providers;
+    }
 
-    public void addPersona(PersonaDef persona) { this.personas.add(persona); }
+    public void addPersona(PersonaDef persona) {
+        this.personas.add(persona);
+    }
+
     /** Personas declared with {@code persona Name { role: … }}. */
-    public List<PersonaDef> getPersonas() { return personas; }
+    public List<PersonaDef> getPersonas() {
+        return personas;
+    }
 
-    public void addDecision(DecisionDef decision) { this.decisions.add(decision); }
+    public void addDecision(DecisionDef decision) {
+        this.decisions.add(decision);
+    }
+
     /** Decisions declared with {@code decision Name { … }}. */
-    public List<DecisionDef> getDecisions() { return decisions; }
+    public List<DecisionDef> getDecisions() {
+        return decisions;
+    }
 
-    public void addLadder(LadderDef ladder) { this.ladders.add(ladder); }
+    public void addLadder(LadderDef ladder) {
+        this.ladders.add(ladder);
+    }
+
     /** Ladders declared with {@code ladder Name { rung … }}. */
-    public List<LadderDef> getLadders() { return ladders; }
+    public List<LadderDef> getLadders() {
+        return ladders;
+    }
 
-    public void addMeasure(MeasureDef measure) { this.measures.add(measure); }
+    public void addMeasure(MeasureDef measure) {
+        this.measures.add(measure);
+    }
+
     /** Measures declared with {@code measure name(c) = …}. */
-    public List<MeasureDef> getMeasures() { return measures; }
+    public List<MeasureDef> getMeasures() {
+        return measures;
+    }
 
-    public void addImport(String path) { addImport(path, 0); }
+    public void addImport(String path) {
+        addImport(path, 0);
+    }
+
     public void addImport(String path, int line) {
         this.imports.add(path);
         this.importLines.add(line);
     }
-    /** The line of each import, in the order of {@link #getImports()}; 0 when unknown. */
-    public List<Integer> getImportLines() { return importLines; }
-    public List<String> getImports() { return imports; }
 
-    public void setAuditConfig(AuditConfig auditConfig) { this.auditConfig = auditConfig; }
-    public AuditConfig getAuditConfig() { return auditConfig; }
+    /** The line of each import, in the order of {@link #getImports()}; 0 when unknown. */
+    public List<Integer> getImportLines() {
+        return importLines;
+    }
+
+    public List<String> getImports() {
+        return imports;
+    }
+
+    public void setAuditConfig(AuditConfig auditConfig) {
+        this.auditConfig = auditConfig;
+    }
+
+    public AuditConfig getAuditConfig() {
+        return auditConfig;
+    }
 
     /** The run's budget ({@code budget { }} at top level), or null. */
-    public BudgetDef getBudget() { return budget; }
-    public void setBudget(BudgetDef budget) { this.budget = budget; }
+    public BudgetDef getBudget() {
+        return budget;
+    }
+
+    public void setBudget(BudgetDef budget) {
+        this.budget = budget;
+    }
 
     /** The {@code rate_limits { }} block, or null. */
-    public RateLimitDef getRateLimits() { return rateLimits; }
-    public void setRateLimits(RateLimitDef rateLimits) { this.rateLimits = rateLimits; }
+    public RateLimitDef getRateLimits() {
+        return rateLimits;
+    }
+
+    public void setRateLimits(RateLimitDef rateLimits) {
+        this.rateLimits = rateLimits;
+    }
 
     /**
-     * Gives every decision that has neither a {@code ladder:} nor a {@code trust { }} block the default ladder of the agent that proposes for it.
-     * Safe to call again after more has been merged in: a decision that already has a ladder is left as it is.
+     * Gives every decision that has neither a {@code ladder:} nor a {@code trust { }} block the
+     * default ladder of the agent that proposes for it. Safe to call again after more has been
+     * merged in: a decision that already has a ladder is left as it is.
      */
     public void applyAgentLadders() {
         for (DecisionDef d : decisions) {
-            // a ladder written from a decision that said nothing of trust is only a stand-in: an agent merged in from another file replaces it
+            // a ladder written from a decision that said nothing of trust is only a stand-in: an
+            // agent merged in from another file replaces it
             boolean standIn = d.isLadderFromTrust() && !d.isTrustGiven();
-            if ((d.getLadder() != null && !standIn) || d.isTrustGiven() || d.getAgent() == null) continue;
+            if ((d.getLadder() != null && !standIn) || d.isTrustGiven() || d.getAgent() == null)
+                continue;
             for (AgentDef a : agents) {
                 if (!a.getName().equals(d.getAgent()) || a.getLadder() == null) continue;
                 if (standIn) {
@@ -153,13 +279,17 @@ public class LoomScript implements Node {
                 d.setLadder(a.getLadder(), a.getLadderLine());
                 d.setLadderFromAgent(true);
                 d.getLadderArgs().putAll(a.getLadderArgs());
-                if (d.getCeilingRung() == null && a.getCeilingRung() != null) d.setCeilingRung(a.getCeilingRung(), a.getCeilingRungLine());
+                if (d.getCeilingRung() == null && a.getCeilingRung() != null)
+                    d.setCeilingRung(a.getCeilingRung(), a.getCeilingRungLine());
                 break;
             }
         }
     }
 
-    /** Writes the ladder of each decision that has none from its {@code trust { }} block, where the language can say it; see {@code TrustDesugar}. */
+    /**
+     * Writes the ladder of each decision that has none from its {@code trust { }} block, where the
+     * language can say it; see {@code TrustDesugar}.
+     */
     public void applyTrustLadders() {
         io.github.llm4j.loom.ladder.TrustDesugar.apply(this);
     }

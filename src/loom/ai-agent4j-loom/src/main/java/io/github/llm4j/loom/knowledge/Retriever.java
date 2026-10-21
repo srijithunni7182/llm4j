@@ -13,7 +13,7 @@ import java.util.Map;
 public final class Retriever {
 
     /** One passage and where it came from. */
-    public record Passage(String kb, String source, String text, float similarity) { }
+    public record Passage(String kb, String source, String text, float similarity) {}
 
     private final List<KnowledgeIndex> indexes;
 
@@ -32,8 +32,12 @@ public final class Retriever {
             float[] q = vectors.computeIfAbsent(index.embeddings(), e -> e.embed(query));
             for (VectorStore.SearchResult r : index.store().search(q, k)) {
                 Map<String, Object> m = r.getMetadata();
-                all.add(new Passage(index.def().getName(), String.valueOf(m.get("source")), String.valueOf(m.get("content")),
-                        r.getSimilarity()));
+                all.add(
+                        new Passage(
+                                index.def().getName(),
+                                String.valueOf(m.get("source")),
+                                String.valueOf(m.get("content")),
+                                r.getSimilarity()));
             }
         }
         all.sort(Comparator.comparingDouble(Passage::similarity).reversed());
@@ -45,7 +49,13 @@ public final class Retriever {
         StringBuilder sb = new StringBuilder("Relevant knowledge (from your knowledge bases):\n");
         for (int i = 0; i < passages.size(); i++) {
             Passage p = passages.get(i);
-            sb.append('[').append(i + 1).append("] (").append(p.source()).append(") ").append(p.text().strip()).append('\n');
+            sb.append('[')
+                    .append(i + 1)
+                    .append("] (")
+                    .append(p.source())
+                    .append(") ")
+                    .append(p.text().strip())
+                    .append('\n');
         }
         return sb.toString();
     }
@@ -62,7 +72,9 @@ public final class Retriever {
 
             @Override
             public String getDescription() {
-                return "Searches the " + index.def().getName() + " knowledge base. Arguments: {\"query\": \"<what to look up>\"}."
+                return "Searches the "
+                        + index.def().getName()
+                        + " knowledge base. Arguments: {\"query\": \"<what to look up>\"}."
                         + " Returns the most relevant passages with their source files.";
             }
 

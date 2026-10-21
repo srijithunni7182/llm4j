@@ -10,11 +10,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The credentials an {@link OpenAPITool} puts on a request, in the three ways it can hold them: as given strings, as {@link SecretRef}s into a
- * store, and as {@link CredentialSource}s asked for on each request (the person the run is for). Everything but the given strings is fetched
- * again for every request, so nothing here goes stale.
+ * The credentials an {@link OpenAPITool} puts on a request, in the three ways it can hold them: as
+ * given strings, as {@link SecretRef}s into a store, and as {@link CredentialSource}s asked for on
+ * each request (the person the run is for). Everything but the given strings is fetched again for
+ * every request, so nothing here goes stale.
  *
- * <p>A credential from a source is only ever sent over https, or to this machine: it is somebody's own token.
+ * <p>A credential from a source is only ever sent over https, or to this machine: it is somebody's
+ * own token.
  */
 final class RequestAuth {
 
@@ -58,7 +60,8 @@ final class RequestAuth {
     /**
      * The credentials for one request to {@code baseUrl}.
      *
-     * @throws SecretException when one cannot be had, or may not be sent there; the message names the credential, never its value
+     * @throws SecretException when one cannot be had, or may not be sent there; the message names
+     *     the credential, never its value
      */
     Resolved resolve(String baseUrl) {
         String host = SecretMetadata.hostOf(baseUrl);
@@ -84,9 +87,15 @@ final class RequestAuth {
             throw e;
         } catch (RuntimeException e) {
             // the cause's message is the host's, and may hold anything: say only what failed
-            throw new SecretException("credential for " + name + " could not be obtained (" + e.getClass().getSimpleName() + ")");
+            throw new SecretException(
+                    "credential for "
+                            + name
+                            + " could not be obtained ("
+                            + e.getClass().getSimpleName()
+                            + ")");
         }
-        if (value == null || value.isBlank()) throw new SecretException("there is no credential for " + name);
+        if (value == null || value.isBlank())
+            throw new SecretException("there is no credential for " + name);
         return value;
     }
 
@@ -94,8 +103,10 @@ final class RequestAuth {
         boolean https = baseUrl != null && baseUrl.regionMatches(true, 0, "https://", 0, 8);
         boolean local = "localhost".equals(host) || "127.0.0.1".equals(host) || "::1".equals(host);
         if (!https && !local) {
-            throw new SecretException("a credential for the person running this workflow is only sent over https (this API is at "
-                    + (host == null ? "an unknown host" : host) + " over http)");
+            throw new SecretException(
+                    "a credential for the person running this workflow is only sent over https (this API is at "
+                            + (host == null ? "an unknown host" : host)
+                            + " over http)");
         }
     }
 
@@ -120,7 +131,8 @@ final class RequestAuth {
             headers.put(name, value);
             secrets.add(value);
             int space = value.indexOf(' ');
-            if (space > 0) secrets.add(value.substring(space + 1)); // "Bearer <token>": the token alone
+            if (space > 0)
+                secrets.add(value.substring(space + 1)); // "Bearer <token>": the token alone
         }
 
         Map<String, String> query() {
@@ -131,12 +143,18 @@ final class RequestAuth {
             return headers;
         }
 
-        /** Every credential value on this request, so none can come back out in a log line or an error. */
+        /**
+         * Every credential value on this request, so none can come back out in a log line or an
+         * error.
+         */
         List<String> secrets() {
             return secrets;
         }
 
-        /** Whether asking the sources again could give a different value, so a refused request is worth repeating once. */
+        /**
+         * Whether asking the sources again could give a different value, so a refused request is
+         * worth repeating once.
+         */
         boolean canRetry() {
             return !sources.isEmpty();
         }

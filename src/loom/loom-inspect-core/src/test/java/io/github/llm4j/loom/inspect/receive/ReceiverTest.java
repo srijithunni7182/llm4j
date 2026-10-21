@@ -30,9 +30,20 @@ class ReceiverTest {
     private static final class Manual extends Clock {
         Instant now = Instant.parse("2026-10-11T14:00:00Z");
 
-        @Override public ZoneId getZone() { return ZoneOffset.UTC; }
-        @Override public Clock withZone(ZoneId z) { return this; }
-        @Override public Instant instant() { return now; }
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId z) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
     }
 
     private final Manual clock = new Manual();
@@ -40,24 +51,52 @@ class ReceiverTest {
     private final Receiver receiver = new Receiver(registry, clock);
 
     private static Hello hello(String name, int wire) {
-        return new Hello(name, "i_1", "host-1", 42, "5.0", "0.1", wire, List.of(new Hello.Workflow("Main", "h")));
+        return new Hello(
+                name,
+                "i_1",
+                "host-1",
+                42,
+                "5.0",
+                "0.1",
+                wire,
+                List.of(new Hello.Workflow("Main", "h")));
     }
 
     private static String logs(String service, long seq, String event) {
-        LogRec r = new LogRec(1_000_000_000L * (1 + seq), LogRec.INFO, "w",
-                Map.of(Semconv.EVENT_NAME, event, Semconv.LOOM_SEQ, seq, Semconv.LOOM_RUN_ID, RUN, Semconv.LOOM_WORKFLOW, "Main"), TRACE, null);
+        LogRec r =
+                new LogRec(
+                        1_000_000_000L * (1 + seq),
+                        LogRec.INFO,
+                        "w",
+                        Map.of(
+                                Semconv.EVENT_NAME,
+                                event,
+                                Semconv.LOOM_SEQ,
+                                seq,
+                                Semconv.LOOM_RUN_ID,
+                                RUN,
+                                Semconv.LOOM_WORKFLOW,
+                                "Main"),
+                        TRACE,
+                        null);
         return OtlpJson.encodeLogs(Resource.of(service, "i_1"), "0.1", List.of(r));
     }
 
     private Map<String, Object> process(String name) {
-        return receiver.processes().stream().filter(p -> name.equals(p.get("name"))).findFirst().orElseThrow();
+        return receiver.processes().stream()
+                .filter(p -> name.equals(p.get("name")))
+                .findFirst()
+                .orElseThrow();
     }
 
     @Test
     void aHelloMakesAProcessOnline_andItGoesOfflineWhenItsMessagesStop() {
         Receiver.HelloReply reply = receiver.hello("getviral", hello("getviral", Wire.VERSION));
         assertThat(reply.supported()).isTrue();
-        assertThat(process("getviral")).containsEntry("state", "online").containsEntry("host", "host-1").containsEntry("workflows", List.of("Main"));
+        assertThat(process("getviral"))
+                .containsEntry("state", "online")
+                .containsEntry("host", "host-1")
+                .containsEntry("workflows", List.of("Main"));
         clock.now = clock.now.plus(Duration.ofSeconds(14));
         assertThat(process("getviral")).containsEntry("state", "online");
         clock.now = clock.now.plus(Duration.ofSeconds(2));
@@ -75,9 +114,12 @@ class ReceiverTest {
 
     @Test
     void aClientCannotReportAsAnotherClient() {
-        assertThatThrownBy(() -> receiver.hello("a", hello("b", 1))).isInstanceOf(Receiver.Rejected.class);
-        assertThatThrownBy(() -> receiver.logs("a", logs("b", 1, Semconv.EV_RUN_START))).isInstanceOf(Receiver.Rejected.class);
-        assertThatThrownBy(() -> receiver.heartbeat("a", new Heartbeat("b", "i", "x"))).isInstanceOf(Receiver.Rejected.class);
+        assertThatThrownBy(() -> receiver.hello("a", hello("b", 1)))
+                .isInstanceOf(Receiver.Rejected.class);
+        assertThatThrownBy(() -> receiver.logs("a", logs("b", 1, Semconv.EV_RUN_START)))
+                .isInstanceOf(Receiver.Rejected.class);
+        assertThatThrownBy(() -> receiver.heartbeat("a", new Heartbeat("b", "i", "x")))
+                .isInstanceOf(Receiver.Rejected.class);
         assertThat(registry.summaries()).isEmpty();
     }
 
@@ -85,9 +127,13 @@ class ReceiverTest {
     void logsReachTheRegistry_andAReplayedBatchIsNotCountedTwice() {
         receiver.hello("p", hello("p", 1));
         receiver.logs("p", logs("p", 1, Semconv.EV_RUN_START));
-        receiver.logs("p", logs("p", 1, Semconv.EV_RUN_START)); // sent again after a lost acknowledgement
+        receiver.logs(
+                "p", logs("p", 1, Semconv.EV_RUN_START)); // sent again after a lost acknowledgement
         Map<String, Object> run = registry.findByTrace(TRACE).orElseThrow().view();
-        assertThat(run).containsEntry("status", "running").containsEntry("workflow", "Main").containsEntry("client", "p");
+        assertThat(run)
+                .containsEntry("status", "running")
+                .containsEntry("workflow", "Main")
+                .containsEntry("client", "p");
         assertThat(run.get("gaps")).isEqualTo(0L);
     }
 
@@ -95,12 +141,34 @@ class ReceiverTest {
     void aSnapshotGivesTheRunItsGraphAndLadders_andAHeartbeatCarriesTheLatestLadders() {
         receiver.hello("p", hello("p", 1));
         receiver.logs("p", logs("p", 1, Semconv.EV_RUN_START));
-        receiver.snapshot("p", new Snapshot("p", "i_1", TRACE, RUN, "Main", Map.of("workflows", List.of()), List.of(Map.of("name", "Refund", "level", "watch"))));
+        receiver.snapshot(
+                "p",
+                new Snapshot(
+                        "p",
+                        "i_1",
+                        TRACE,
+                        RUN,
+                        "Main",
+                        Map.of("workflows", List.of()),
+                        List.of(Map.of("name", "Refund", "level", "watch"))));
         assertThat(registry.findByTrace(TRACE).orElseThrow().graph()).containsKey("workflows");
-        assertThat((List<?>) registry.findByTrace(TRACE).orElseThrow().view().get("ladders")).hasSize(1);
-        receiver.heartbeat("p", new Heartbeat("p", "i_1", "x", 10, 0, 0, Map.of(TRACE, List.of(Map.of("name", "Refund", "level", "suggest")))));
+        assertThat((List<?>) registry.findByTrace(TRACE).orElseThrow().view().get("ladders"))
+                .hasSize(1);
+        receiver.heartbeat(
+                "p",
+                new Heartbeat(
+                        "p",
+                        "i_1",
+                        "x",
+                        10,
+                        0,
+                        0,
+                        Map.of(TRACE, List.of(Map.of("name", "Refund", "level", "suggest")))));
         @SuppressWarnings("unchecked")
-        Map<String, Object> ladder = ((List<Map<String, Object>>) registry.findByTrace(TRACE).orElseThrow().view().get("ladders")).get(0);
+        Map<String, Object> ladder =
+                ((List<Map<String, Object>>)
+                                registry.findByTrace(TRACE).orElseThrow().view().get("ladders"))
+                        .get(0);
         assertThat(ladder).containsEntry("level", "suggest");
     }
 
@@ -111,8 +179,12 @@ class ReceiverTest {
         receiver.heartbeat("p", new Heartbeat("p", "i_1", "x", 100, 40, 3, Map.of()));
         clock.now = clock.now.plusSeconds(5);
         receiver.heartbeat("p", new Heartbeat("p", "i_1", "x", 150, 20, 3, Map.of()));
-        assertThat(process("p")).containsEntry("state", "catching up").containsEntry("backlog", 20L).containsEntry("lost", 3L)
-                .containsEntry("liveRuns", 1).containsEntry("eventsPerSecond", 10.0);
+        assertThat(process("p"))
+                .containsEntry("state", "catching up")
+                .containsEntry("backlog", 20L)
+                .containsEntry("lost", 3L)
+                .containsEntry("liveRuns", 1)
+                .containsEntry("eventsPerSecond", 10.0);
         receiver.heartbeat("p", new Heartbeat("p", "i_1", "x", 150, 0, 3, Map.of()));
         assertThat(process("p")).containsEntry("state", "online");
     }
@@ -128,23 +200,59 @@ class ReceiverTest {
 
     @Test
     void garbageOtlpIsRejectedNotThrownRaw() {
-        assertThatThrownBy(() -> receiver.logs("p", "{not json")).isInstanceOf(Receiver.Rejected.class);
+        assertThatThrownBy(() -> receiver.logs("p", "{not json"))
+                .isInstanceOf(Receiver.Rejected.class);
     }
 
     @Test
     void aSnapshotsInspectRulesReachTheRunsDetectors() {
         receiver.hello("p", hello("p", 1));
         receiver.logs("p", logs("p", 1, Semconv.EV_RUN_START));
-        receiver.snapshot("p", new Snapshot("p", "i_1", TRACE, RUN, "Main", Map.of(), List.of(),
-                Map.of("Editor", new io.github.llm4j.loom.inspect.state.InspectRules(2, null, null, null, null, null, null, null))));
+        receiver.snapshot(
+                "p",
+                new Snapshot(
+                        "p",
+                        "i_1",
+                        TRACE,
+                        RUN,
+                        "Main",
+                        Map.of(),
+                        List.of(),
+                        Map.of(
+                                "Editor",
+                                new io.github.llm4j.loom.inspect.state.InspectRules(
+                                        2, null, null, null, null, null, null, null))));
         for (long seq = 2; seq <= 3; seq++) {
-            LogRec r = new LogRec(1_000_000_000L * (1 + seq), LogRec.INFO, "execute_tool Wiki",
-                    Map.of(Semconv.EVENT_NAME, Semconv.EV_SPAN_START, Semconv.LOOM_SEQ, seq, Semconv.LOOM_SPAN_KIND, Semconv.KIND_TOOL, Semconv.GEN_AI_AGENT_NAME, "Editor",
-                            Semconv.GEN_AI_TOOL_NAME, "Wiki", Semconv.LOOM_STEP, "Main/s1", Semconv.LOOM_ACTION_HASH, "h"), TRACE, Ids.spanId(RUN, "t" + seq));
+            LogRec r =
+                    new LogRec(
+                            1_000_000_000L * (1 + seq),
+                            LogRec.INFO,
+                            "execute_tool Wiki",
+                            Map.of(
+                                    Semconv.EVENT_NAME,
+                                    Semconv.EV_SPAN_START,
+                                    Semconv.LOOM_SEQ,
+                                    seq,
+                                    Semconv.LOOM_SPAN_KIND,
+                                    Semconv.KIND_TOOL,
+                                    Semconv.GEN_AI_AGENT_NAME,
+                                    "Editor",
+                                    Semconv.GEN_AI_TOOL_NAME,
+                                    "Wiki",
+                                    Semconv.LOOM_STEP,
+                                    "Main/s1",
+                                    Semconv.LOOM_ACTION_HASH,
+                                    "h"),
+                            TRACE,
+                            Ids.spanId(RUN, "t" + seq));
             receiver.logs("p", OtlpJson.encodeLogs(Resource.of("p", "i_1"), "0.1", List.of(r)));
         }
         @SuppressWarnings("unchecked")
-        List<Map<String, Object>> incidents = (List<Map<String, Object>>) registry.findByTrace(TRACE).orElseThrow().view().get("incidents");
-        assertThat(incidents).hasSize(1); // two identical calls is a loop for this agent, though the default is four
+        List<Map<String, Object>> incidents =
+                (List<Map<String, Object>>)
+                        registry.findByTrace(TRACE).orElseThrow().view().get("incidents");
+        assertThat(incidents)
+                .hasSize(1); // two identical calls is a loop for this agent, though the default is
+        // four
     }
 }

@@ -10,7 +10,10 @@ import io.github.llm4j.loom.runtime.DefaultVariableContext;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** R13: Loom's transcript memory stays bounded, keeps pairs and the latest entries, and a rewind still restores it. */
+/**
+ * R13: Loom's transcript memory stays bounded, keeps pairs and the latest entries, and a rewind
+ * still restores it.
+ */
 class TranscriptCompactionTest {
 
     private static AgentDef agent(String name) {
@@ -23,11 +26,19 @@ class TranscriptCompactionTest {
     }
 
     private static TranscriptAccumulationEngine bounded(long maxTokens) {
-        return new TranscriptAccumulationEngine().limits(a -> new TranscriptAccumulationEngine.Limit(maxTokens, ContextCompactors.dropOldest(), 0.5, 2));
+        return new TranscriptAccumulationEngine()
+                .limits(
+                        a ->
+                                new TranscriptAccumulationEngine.Limit(
+                                        maxTokens, ContextCompactors.dropOldest(), 0.5, 2));
     }
 
     private static void turn(TranscriptAccumulationEngine e, AgentDef a, int i) {
-        e.storeOutcome(a, "task " + i + " " + "t".repeat(100), result("answer " + i + " " + "r".repeat(300)), new DefaultVariableContext());
+        e.storeOutcome(
+                a,
+                "task " + i + " " + "t".repeat(100),
+                result("answer " + i + " " + "r".repeat(300)),
+                new DefaultVariableContext());
     }
 
     private static String briefing(TranscriptAccumulationEngine e, AgentDef a) {
@@ -40,7 +51,10 @@ class TranscriptCompactionTest {
         AgentDef a = agent("A");
         for (int i = 0; i < 30; i++) turn(e, a, i);
         String b = briefing(e, a);
-        assertThat(b).contains("task 0 ").contains("answer 29 ").startsWith("Conversation History:\n");
+        assertThat(b)
+                .contains("task 0 ")
+                .contains("answer 29 ")
+                .startsWith("Conversation History:\n");
         assertThat(b).doesNotContain("Earlier");
     }
 
@@ -50,7 +64,9 @@ class TranscriptCompactionTest {
         AgentDef a = agent("A");
         for (int i = 0; i < 30; i++) {
             turn(e, a, i);
-            assertThat(briefing(e, a).length() / 4).as("after turn " + i).isLessThanOrEqualTo(600 + 50);
+            assertThat(briefing(e, a).length() / 4)
+                    .as("after turn " + i)
+                    .isLessThanOrEqualTo(600 + 50);
         }
     }
 
@@ -60,7 +76,11 @@ class TranscriptCompactionTest {
         AgentDef a = agent("A");
         for (int i = 0; i < 30; i++) turn(e, a, i);
         String b = briefing(e, a);
-        assertThat(b).contains("task 29 ").contains("answer 29 ").contains("task 28 ").contains("answer 28 ");
+        assertThat(b)
+                .contains("task 29 ")
+                .contains("answer 29 ")
+                .contains("task 28 ")
+                .contains("answer 28 ");
         for (int i = 0; i < 30; i++) {
             boolean task = b.contains("task " + i + " ");
             boolean answer = b.contains("answer " + i + " ");
@@ -80,7 +100,17 @@ class TranscriptCompactionTest {
     @Test
     void aStrategyThatThrowsOrGrowsLeavesTheTranscriptAlone() {
         AgentDef a = agent("A");
-        TranscriptAccumulationEngine thrower = new TranscriptAccumulationEngine().limits(x -> new TranscriptAccumulationEngine.Limit(100, (m, r) -> { throw new IllegalStateException("boom"); }, 0.5, 2));
+        TranscriptAccumulationEngine thrower =
+                new TranscriptAccumulationEngine()
+                        .limits(
+                                x ->
+                                        new TranscriptAccumulationEngine.Limit(
+                                                100,
+                                                (m, r) -> {
+                                                    throw new IllegalStateException("boom");
+                                                },
+                                                0.5,
+                                                2));
         for (int i = 0; i < 5; i++) turn(thrower, a, i);
         assertThat(briefing(thrower, a)).contains("task 0 ").contains("answer 4 ");
     }
@@ -113,7 +143,14 @@ class TranscriptCompactionTest {
 
     @Test
     void agentsWithoutALimitDoNotTriggerCompactionOfTheSharedTranscript() {
-        TranscriptAccumulationEngine e = new TranscriptAccumulationEngine().limits(x -> x.getName().equals("Bounded") ? new TranscriptAccumulationEngine.Limit(600, ContextCompactors.dropOldest(), 0.5, 2) : null);
+        TranscriptAccumulationEngine e =
+                new TranscriptAccumulationEngine()
+                        .limits(
+                                x ->
+                                        x.getName().equals("Bounded")
+                                                ? new TranscriptAccumulationEngine.Limit(
+                                                        600, ContextCompactors.dropOldest(), 0.5, 2)
+                                                : null);
         AgentDef free = agent("Free");
         for (int i = 0; i < 20; i++) turn(e, free, i);
         assertThat(briefing(e, free)).contains("task 0 ");
@@ -125,7 +162,11 @@ class TranscriptCompactionTest {
     // ── through a script ──────────────────────────────────────────────────────────────
 
     private static String twoAgents(String memoryBlock, String contextBlock) {
-        return "agent Writer { model: \"tiny-model\"  " + memoryBlock + " " + contextBlock + " }\n"
+        return "agent Writer { model: \"tiny-model\"  "
+                + memoryBlock
+                + " "
+                + contextBlock
+                + " }\n"
                 + "workflow Main() {\n"
                 + "  delegate \"write a long paragraph about topic\" to Writer -> out\n".repeat(12)
                 + "}\n";
@@ -134,7 +175,8 @@ class TranscriptCompactionTest {
     private static List<Integer> sizes(TestLoom l) {
         List<Integer> out = new java.util.ArrayList<>();
         synchronized (l.requests) {
-            for (var r : l.requests) out.add(r.getMessages().get(r.getMessages().size() - 1).getContent().length());
+            for (var r : l.requests)
+                out.add(r.getMessages().get(r.getMessages().size() - 1).getContent().length());
         }
         return out;
     }
@@ -150,8 +192,7 @@ class TranscriptCompactionTest {
         return max;
     }
 
-    @org.junit.jupiter.api.io.TempDir
-    java.nio.file.Path dir;
+    @org.junit.jupiter.api.io.TempDir java.nio.file.Path dir;
 
     private TestLoom scripted(String src) {
         TestLoom l = new TestLoom(dir, src, 0);
@@ -161,21 +202,36 @@ class TranscriptCompactionTest {
 
     @Test
     void aMemoryBlockWithMaxTokensBoundsWhatTheNextAgentIsGiven() {
-        TestLoom bounded = scripted(twoAgents("memory { max_tokens: 700  compact: drop_oldest }", ""));
+        TestLoom bounded =
+                scripted(twoAgents("memory { max_tokens: 700  compact: drop_oldest }", ""));
         bounded.run();
         TestLoom free = scripted(twoAgents("", ""));
         free.run();
         assertThat(largestBriefing(free)).isGreaterThan(8000);
-        assertThat(largestBriefing(bounded)).as("bounded: the briefing stops growing").isLessThan(largestBriefing(free) / 2 + 500);
-        assertThat(sizes(bounded).subList(6, 12)).as("a steady size once the bound is reached").containsOnly(sizes(bounded).get(11));
+        assertThat(largestBriefing(bounded))
+                .as("bounded: the briefing stops growing")
+                .isLessThan(largestBriefing(free) / 2 + 500);
+        assertThat(sizes(bounded).subList(6, 12))
+                .as("a steady size once the bound is reached")
+                .containsOnly(sizes(bounded).get(11));
     }
 
     @Test
     void anAgentWithAContextBlockAndAKnownWindowBoundsItToAQuarterOfTheUsableInput() {
         TestLoom l = scripted(twoAgents("", "context { compact: drop_oldest }"));
-        l.executor.setContextWindows(WindowLayers.none().over("t", io.github.llm4j.context.ContextWindows.empty().with("tiny-model", new io.github.llm4j.context.ContextWindow(4000, 1000))));
+        l.executor.setContextWindows(
+                WindowLayers.none()
+                        .over(
+                                "t",
+                                io.github.llm4j.context.ContextWindows.empty()
+                                        .with(
+                                                "tiny-model",
+                                                new io.github.llm4j.context.ContextWindow(
+                                                        4000, 1000))));
         l.run();
-        assertThat(sizes(l).subList(6, 12)).as("a steady size once the bound is reached").containsOnly(sizes(l).get(11));
+        assertThat(sizes(l).subList(6, 12))
+                .as("a steady size once the bound is reached")
+                .containsOnly(sizes(l).get(11));
         assertThat(largestBriefing(l)).isLessThan(6000);
     }
 

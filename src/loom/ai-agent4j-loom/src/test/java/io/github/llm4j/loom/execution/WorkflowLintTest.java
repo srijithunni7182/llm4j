@@ -11,7 +11,11 @@ import org.junit.jupiter.api.Test;
 class WorkflowLintTest {
 
     private static List<WorkflowLint.Finding> lint(String workflowBody) {
-        var script = new LoomParser(new Lexer("agent A { model: \"m\" system: \"s\" }\n" + workflowBody).tokenize()).parseScript();
+        var script =
+                new LoomParser(
+                                new Lexer("agent A { model: \"m\" system: \"s\" }\n" + workflowBody)
+                                        .tokenize())
+                        .parseScript();
         return script.getWorkflows().stream().flatMap(w -> WorkflowLint.check(w).stream()).toList();
     }
 
@@ -19,25 +23,35 @@ class WorkflowLintTest {
         return lint(body).stream().map(WorkflowLint.Finding::message).toList();
     }
 
-    /** Without the findings about a name that is also an ordinary word, for the tests that are about something else. */
-    private static List<WorkflowLint.Finding> withoutWordFindings(List<WorkflowLint.Finding> found) {
+    /**
+     * Without the findings about a name that is also an ordinary word, for the tests that are about
+     * something else.
+     */
+    private static List<WorkflowLint.Finding> withoutWordFindings(
+            List<WorkflowLint.Finding> found) {
         return found.stream().filter(f -> !f.message().contains("ordinary word")).toList();
     }
 
     @Test
     void r6_1_aResultThatIsStoredAndNeverReadIsReportedWithItsLine() {
-        var findings = lint("workflow W() {\n    delegate \"x\" to A -> unused\n    note \"done\"\n}\n");
+        var findings =
+                lint("workflow W() {\n    delegate \"x\" to A -> unused\n    note \"done\"\n}\n");
 
-        assertThat(findings).singleElement().satisfies(f -> {
-            assertThat(f.message()).isEqualTo("unused is set here and never used");
-            assertThat(f.line()).isEqualTo(3);
-            assertThat(f.construct()).isEqualTo("workflow W");
-        });
+        assertThat(findings)
+                .singleElement()
+                .satisfies(
+                        f -> {
+                            assertThat(f.message()).isEqualTo("unused is set here and never used");
+                            assertThat(f.line()).isEqualTo(3);
+                            assertThat(f.construct()).isEqualTo("workflow W");
+                        });
     }
 
     @Test
     void aResultReadAnywhereCounts_inAPromptAConditionANoteAFieldPathOrAHumanQuestion() {
-        assertThat(messages("""
+        assertThat(
+                        messages(
+                                """
                 workflow W() {
                     delegate "x" to A -> a
                     delegate "uses {a}" to A -> b
@@ -47,40 +61,53 @@ class WorkflowLintTest {
                     human_prompt "Is {d} fine?" -> e
                     loop until (e == "yes") max 2 { delegate "again" to A -> e }
                 }
-                """)).isEmpty();
+                """))
+                .isEmpty();
     }
 
     @Test
     void aVariableIsNotReadJustBecauseItsNameIsPartOfALongerWord() {
-        assertThat(withoutWordFindings(lint("workflow W() {\n    delegate \"x\" to A -> draft\n    delegate \"the drafting phase, {drafts}\" to A -> other\n    note \"{other}\"\n}\n")))
-                .extracting(WorkflowLint.Finding::message).containsExactly("draft is set here and never used");
+        assertThat(
+                        withoutWordFindings(
+                                lint(
+                                        "workflow W() {\n    delegate \"x\" to A -> draft\n    delegate \"the drafting phase, {drafts}\" to A -> other\n    note \"{other}\"\n}\n")))
+                .extracting(WorkflowLint.Finding::message)
+                .containsExactly("draft is set here and never used");
     }
 
     @Test
     void aVariableReadInItsOwnStatementCountsSoARewriteLoopIsFine() {
-        assertThat(messages("""
+        assertThat(
+                        messages(
+                                """
                 workflow W() {
                     delegate "first" to A -> draft
                     delegate "fix {draft}" to A -> draft
                     note "{draft}"
                 }
-                """)).isEmpty();
+                """))
+                .isEmpty();
     }
 
     @Test
     void anUnderscoreNameIsMeantToBeIgnoredAndATasksResultIsNotReported() {
-        assertThat(messages("workflow W() {\n    delegate \"x\" to A -> _ignored\n    run Task() -> receipt\n}\n")).isEmpty();
+        assertThat(
+                        messages(
+                                "workflow W() {\n    delegate \"x\" to A -> _ignored\n    run Task() -> receipt\n}\n"))
+                .isEmpty();
     }
 
     @Test
     void parametersAreNotReportedAndNestedStatementsAreLooked_at() {
-        var found = messages("""
+        var found =
+                messages(
+                        """
                 workflow W(topic) {
                     loop until (done == "yes") max 2 {
                         delegate "x" to A -> done
                         delegate "y" to A -> inner
                     }
-                } 
+                }
                 """);
 
         assertThat(found).containsExactly("inner is set here and never used");
@@ -88,14 +115,20 @@ class WorkflowLintTest {
 
     @Test
     void r6_2_aQuestionWhoseAnswerIsNeverReadSaysSoInPlainWords() {
-        var found = messages("workflow W() {\n    human_prompt \"Show the draft anyway? (yes/no)\" -> override\n    note \"done\"\n}\n");
+        var found =
+                messages(
+                        "workflow W() {\n    human_prompt \"Show the draft anyway? (yes/no)\" -> override\n    note \"done\"\n}\n");
 
-        assertThat(found).containsExactly("the answer to this question is stored in override and never read, so the workflow does the same whatever the person says");
+        assertThat(found)
+                .containsExactly(
+                        "the answer to this question is stored in override and never read, so the workflow does the same whatever the person says");
     }
 
     @Test
     void r6_2_theExhaustedLoopFromTheDogfoodingRunIsCaught() {
-        var found = lint("""
+        var found =
+                lint(
+                        """
                 workflow Diagnose(problem) {
                     delegate "diagnose {problem}" to A -> draft
                     loop until (review.verdict == "APPROVED") max 3 {
@@ -108,48 +141,65 @@ class WorkflowLintTest {
                 }
                 """);
 
-        assertThat(withoutWordFindings(found)).singleElement().satisfies(f -> {
-            assertThat(f.message()).contains("override").contains("whatever the person says");
-            assertThat(f.line()).isEqualTo(8);
-        });
+        assertThat(withoutWordFindings(found))
+                .singleElement()
+                .satisfies(
+                        f -> {
+                            assertThat(f.message())
+                                    .contains("override")
+                                    .contains("whatever the person says");
+                            assertThat(f.line()).isEqualTo(8);
+                        });
     }
 
     @Test
     void r6_4_bothAnswersLeadingToTheSameStepsIsReported() {
-        var found = messages("""
+        var found =
+                messages(
+                        """
                 workflow W() {
                     human_prompt "Approve?" -> ok
                     alt (ok == "yes") { note "sent" } else { note "sent" }
                 }
                 """);
 
-        assertThat(found).containsExactly("both answers to the question lead to the same steps, so the question changes nothing");
+        assertThat(found)
+                .containsExactly(
+                        "both answers to the question lead to the same steps, so the question changes nothing");
     }
 
     @Test
     void differentStepsForTheTwoAnswersAreFine_andSoIsACommonStepAfterwards() {
-        assertThat(messages("""
+        assertThat(
+                        messages(
+                                """
                 workflow W() {
                     human_prompt "Approve?" -> ok
                     alt (ok == "yes") { note "sent" } else { note "held" }
                     note "end"
                 }
-                """)).isEmpty();
+                """))
+                .isEmpty();
     }
 
     @Test
     void anAltOnSomethingOtherThanAHumanAnswerIsNotCompared() {
-        assertThat(messages("""
+        assertThat(
+                        messages(
+                                """
                 workflow W() {
                     delegate "x" to A -> r
                     alt (r == "yes") { note "a" } else { note "a" }
                 }
-                """)).isEmpty();
+                """))
+                .isEmpty();
     }
 
     @Test
     void theFindingsComeInLineOrder() {
-        var found = lint("workflow W() {\n    delegate \"x\" to A -> first\n    delegate \"y\" to A -> second\n}\n");
+        var found =
+                lint(
+                        "workflow W() {\n    delegate \"x\" to A -> first\n    delegate \"y\" to A -> second\n}\n");
 
         assertThat(found).extracting(WorkflowLint.Finding::line).isSorted();
         assertThat(found).hasSize(2);
@@ -157,53 +207,83 @@ class WorkflowLintTest {
 
     @Test
     void theVariableNamedResultIsWhatACalledWorkflowHandsBackSoItIsNotReportedAsUnused() {
-        assertThat(messages("workflow Sub(x) {\n    delegate \"do {x}\" to A -> result\n}\n")).isEmpty();
-        assertThat(messages("workflow Sub(x) {\n    delegate \"do {x}\" to A -> other\n}\n")).containsExactly("other is set here and never used");
+        assertThat(messages("workflow Sub(x) {\n    delegate \"do {x}\" to A -> result\n}\n"))
+                .isEmpty();
+        assertThat(messages("workflow Sub(x) {\n    delegate \"do {x}\" to A -> other\n}\n"))
+                .containsExactly("other is set here and never used");
     }
 
     @Test
     void aVariableNameWrittenAsAnOrdinaryWordInATextIsReported() {
-        var findings = messages("workflow W(topic) {\n    delegate \"Write about {topic}\" to A -> draft\n    delegate \"Review this draft:\\n{draft}\" to A -> verdict_text\n    note \"{verdict_text}\"\n}\n");
+        var findings =
+                messages(
+                        "workflow W(topic) {\n    delegate \"Write about {topic}\" to A -> draft\n    delegate \"Review this draft:\\n{draft}\" to A -> verdict_text\n    note \"{verdict_text}\"\n}\n");
 
-        assertThat(findings).singleElement().asString().contains("the variable draft is also written as an ordinary word").contains("draft_text");
+        assertThat(findings)
+                .singleElement()
+                .asString()
+                .contains("the variable draft is also written as an ordinary word")
+                .contains("draft_text");
     }
 
     @Test
     void aNameOnlyInsidePlaceholdersOrOnlyAsPartOfAPathIsFine() {
-        assertThat(messages("workflow W(topic) {\n    delegate \"Write about {topic}\" to A -> draft_text\n    delegate \"Review {draft_text}\" to A -> review_result expecting { verdict: string }\n    note \"{review_result.verdict}\"\n}\n")).isEmpty();
+        assertThat(
+                        messages(
+                                "workflow W(topic) {\n    delegate \"Write about {topic}\" to A -> draft_text\n    delegate \"Review {draft_text}\" to A -> review_result expecting { verdict: string }\n    note \"{review_result.verdict}\"\n}\n"))
+                .isEmpty();
     }
 
     @Test
     void aWorkflowParameterWrittenAsAWordIsReportedToo() {
-        assertThat(messages("workflow W(email) {\n    delegate \"Reply to this email: {email}\" to A -> reply_text\n    note \"{reply_text}\"\n}\n")).singleElement().asString().contains("the variable email");
+        assertThat(
+                        messages(
+                                "workflow W(email) {\n    delegate \"Reply to this email: {email}\" to A -> reply_text\n    note \"{reply_text}\"\n}\n"))
+                .singleElement()
+                .asString()
+                .contains("the variable email");
     }
 
     @Test
     void aLoopWhoseConditionIsTrueBeforeTheFirstRoundIsReported() {
-        var found = messages("""
+        var found =
+                messages(
+                        """
                 workflow W() {
                     delegate "x" to A -> check
                     loop until (check != "blocked") max 2 { delegate "again" to A -> check }
                     note "{check}"
                 }
                 """);
-        assertThat(found).isEmpty(); // check is set before the loop: its value is known when the condition is first tested
+        assertThat(found)
+                .isEmpty(); // check is set before the loop: its value is known when the condition
+        // is first tested
 
-        assertThat(messages("""
+        assertThat(
+                        messages(
+                                """
                 workflow W() {
                     loop until (verdict != "blocked") max 2 { delegate "again" to A -> verdict }
                     note "{verdict}"
                 }
-                """)).singleElement().asString().contains("this loop never runs").contains("tested before the first round").contains("verdict");
+                """))
+                .singleElement()
+                .asString()
+                .contains("this loop never runs")
+                .contains("tested before the first round")
+                .contains("verdict");
     }
 
     @Test
     void aLoopThatStopsOnAValueTheLoopSetsIsFine() {
-        assertThat(messages("""
+        assertThat(
+                        messages(
+                                """
                 workflow W() {
                     loop until (verdict == "OK") max 2 { delegate "again" to A -> verdict }
                     note "{verdict}"
                 }
-                """)).isEmpty();
+                """))
+                .isEmpty();
     }
 }

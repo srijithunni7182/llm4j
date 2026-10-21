@@ -8,13 +8,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * What an evaluation found, as text for a person, JSON for a tool and a page for a manager. Passed, failed and unjudged are always three
- * separate counts: a line nothing judged is never counted as met.
+ * What an evaluation found, as text for a person, JSON for a tool and a page for a manager. Passed,
+ * failed and unjudged are always three separate counts: a line nothing judged is never counted as
+ * met.
  */
 public final class EvalReport {
 
-    /** @param notRun scenarios that were not run because a limit stopped the evaluation */
-    public record Run(String script, boolean mock, List<ScenarioResult> results, int notRun, String stoppedBecause, Map<String, String> dimensions) {
+    /**
+     * @param notRun scenarios that were not run because a limit stopped the evaluation
+     */
+    public record Run(
+            String script,
+            boolean mock,
+            List<ScenarioResult> results,
+            int notRun,
+            String stoppedBecause,
+            Map<String, String> dimensions) {
         public long count(Status s) {
             return results.stream().filter(r -> r.status() == s).count();
         }
@@ -31,7 +40,10 @@ public final class EvalReport {
             return any ? sum : null;
         }
 
-        /** 0 when nothing failed, 1 when something did. Unjudged scenarios do not fail the run, and are never counted as passes. */
+        /**
+         * 0 when nothing failed, 1 when something did. Unjudged scenarios do not fail the run, and
+         * are never counted as passes.
+         */
         public int exitCode() {
             return count(Status.FAIL) > 0 ? 1 : 0;
         }
@@ -41,13 +53,27 @@ public final class EvalReport {
 
     public static String summary(Run run) {
         StringBuilder b = new StringBuilder();
-        b.append(String.format("%d passed, %d failed, %d unjudged", run.count(Status.PASS), run.count(Status.FAIL), run.count(Status.UNJUDGED)));
+        b.append(
+                String.format(
+                        "%d passed, %d failed, %d unjudged",
+                        run.count(Status.PASS),
+                        run.count(Status.FAIL),
+                        run.count(Status.UNJUDGED)));
         if (run.notRun() > 0) b.append(", ").append(run.notRun()).append(" not run");
         BigDecimal cost = run.cost();
-        b.append(run.mock() ? "; mock run, nothing was spent and tasks that change things were described, not run" : cost == null ? "" : "; cost $" + cost.setScale(4, java.math.RoundingMode.HALF_UP).toPlainString());
-        if (run.stoppedBecause() != null) b.append("\nStopped early: ").append(run.stoppedBecause());
+        b.append(
+                run.mock()
+                        ? "; mock run, nothing was spent and tasks that change things were described, not run"
+                        : cost == null
+                                ? ""
+                                : "; cost $"
+                                        + cost.setScale(4, java.math.RoundingMode.HALF_UP)
+                                                .toPlainString());
+        if (run.stoppedBecause() != null)
+            b.append("\nStopped early: ").append(run.stoppedBecause());
         if (run.count(Status.UNJUDGED) > 0) {
-            b.append("\nUnjudged means nothing confirmed it (").append(run.mock() ? "a mock run does not judge" : "no judge ran or it failed")
+            b.append("\nUnjudged means nothing confirmed it (")
+                    .append(run.mock() ? "a mock run does not judge" : "no judge ran or it failed")
                     .append("); it is not a pass.");
         }
         return b.toString();
@@ -57,11 +83,21 @@ public final class EvalReport {
     public static String detail(Run run) {
         StringBuilder b = new StringBuilder();
         for (ScenarioResult r : run.results()) {
-            b.append(mark(r.status())).append(' ').append(r.target()).append(" · ").append(r.label()).append('\n');
+            b.append(mark(r.status()))
+                    .append(' ')
+                    .append(r.target())
+                    .append(" · ")
+                    .append(r.label())
+                    .append('\n');
             if (r.error() != null) b.append("    error: ").append(r.error()).append('\n');
             for (ScenarioResult.Check c : r.checks()) {
                 if (c.status() == Status.PASS) continue;
-                b.append("    ").append(mark(c.status())).append(' ').append(c.kind()).append(c.text().isEmpty() ? "" : ": " + c.text()).append('\n');
+                b.append("    ")
+                        .append(mark(c.status()))
+                        .append(' ')
+                        .append(c.kind())
+                        .append(c.text().isEmpty() ? "" : ": " + c.text())
+                        .append('\n');
                 if (c.detail() != null) b.append("        ").append(c.detail()).append('\n');
             }
         }
@@ -121,28 +157,65 @@ public final class EvalReport {
     /** A single self-contained page: no script, no external file, every text escaped. */
     public static String html(Run run) {
         StringBuilder b = new StringBuilder();
-        b.append("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">")
-                .append("<title>Evaluation: ").append(esc(run.script())).append("</title><style>")
-                .append("body{font:15px/1.5 system-ui,sans-serif;margin:24px auto;max-width:960px;padding:0 16px;color:#1f2330;background:#fff}")
-                .append("h1{font-size:22px}.sum{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}.box{border:1px solid #cfd4e3;border-radius:8px;padding:8px 14px}")
-                .append(".pass{color:#1a7f37}.fail{color:#c93232}.unjudged{color:#955f00}table{border-collapse:collapse;width:100%;margin:16px 0}")
-                .append("td,th{border-bottom:1px solid #e3e6ef;padding:6px 8px;text-align:left;vertical-align:top}small{color:#5a6177}")
-                .append("@media (prefers-color-scheme:dark){body{background:#14161d;color:#e7e9f1}.box,td,th{border-color:#2a3040}small{color:#9aa2b7}.pass{color:#56d364}.fail{color:#ff7b72}.unjudged{color:#e3b341}}")
-                .append("</style></head><body><h1>Evaluation of ").append(esc(run.script())).append("</h1>");
-        b.append("<div class=\"sum\"><div class=\"box pass\"><b>").append(run.count(Status.PASS)).append("</b> passed</div>")
-                .append("<div class=\"box fail\"><b>").append(run.count(Status.FAIL)).append("</b> failed</div>")
-                .append("<div class=\"box unjudged\"><b>").append(run.count(Status.UNJUDGED)).append("</b> unjudged</div>");
-        if (run.notRun() > 0) b.append("<div class=\"box\"><b>").append(run.notRun()).append("</b> not run</div>");
-        b.append("</div><p><small>").append(esc(summary(run)).replace("\n", "<br>")).append("</small></p>");
-        b.append("<table><tr><th>Result</th><th>Target</th><th>Scenario</th><th>What happened</th></tr>");
+        b.append(
+                        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">")
+                .append("<title>Evaluation: ")
+                .append(esc(run.script()))
+                .append("</title><style>")
+                .append(
+                        "body{font:15px/1.5 system-ui,sans-serif;margin:24px auto;max-width:960px;padding:0 16px;color:#1f2330;background:#fff}")
+                .append(
+                        "h1{font-size:22px}.sum{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}.box{border:1px solid #cfd4e3;border-radius:8px;padding:8px 14px}")
+                .append(
+                        ".pass{color:#1a7f37}.fail{color:#c93232}.unjudged{color:#955f00}table{border-collapse:collapse;width:100%;margin:16px 0}")
+                .append(
+                        "td,th{border-bottom:1px solid #e3e6ef;padding:6px 8px;text-align:left;vertical-align:top}small{color:#5a6177}")
+                .append(
+                        "@media (prefers-color-scheme:dark){body{background:#14161d;color:#e7e9f1}.box,td,th{border-color:#2a3040}small{color:#9aa2b7}.pass{color:#56d364}.fail{color:#ff7b72}.unjudged{color:#e3b341}}")
+                .append("</style></head><body><h1>Evaluation of ")
+                .append(esc(run.script()))
+                .append("</h1>");
+        b.append("<div class=\"sum\"><div class=\"box pass\"><b>")
+                .append(run.count(Status.PASS))
+                .append("</b> passed</div>")
+                .append("<div class=\"box fail\"><b>")
+                .append(run.count(Status.FAIL))
+                .append("</b> failed</div>")
+                .append("<div class=\"box unjudged\"><b>")
+                .append(run.count(Status.UNJUDGED))
+                .append("</b> unjudged</div>");
+        if (run.notRun() > 0)
+            b.append("<div class=\"box\"><b>").append(run.notRun()).append("</b> not run</div>");
+        b.append("</div><p><small>")
+                .append(esc(summary(run)).replace("\n", "<br>"))
+                .append("</small></p>");
+        b.append(
+                "<table><tr><th>Result</th><th>Target</th><th>Scenario</th><th>What happened</th></tr>");
         for (ScenarioResult r : run.results()) {
-            b.append("<tr><td class=\"").append(r.status().name().toLowerCase()).append("\">").append(mark(r.status())).append(' ').append(r.status().name().toLowerCase())
-                    .append("</td><td>").append(esc(r.target())).append("<br><small>").append(esc(r.kind())).append("</small></td><td>").append(esc(r.label())).append("</td><td>");
+            b.append("<tr><td class=\"")
+                    .append(r.status().name().toLowerCase())
+                    .append("\">")
+                    .append(mark(r.status()))
+                    .append(' ')
+                    .append(r.status().name().toLowerCase())
+                    .append("</td><td>")
+                    .append(esc(r.target()))
+                    .append("<br><small>")
+                    .append(esc(r.kind()))
+                    .append("</small></td><td>")
+                    .append(esc(r.label()))
+                    .append("</td><td>");
             if (r.error() != null) b.append("<b>error:</b> ").append(esc(r.error())).append("<br>");
             for (ScenarioResult.Check c : r.checks()) {
-                b.append("<span class=\"").append(c.status().name().toLowerCase()).append("\">").append(mark(c.status())).append("</span> ").append(esc(c.kind()));
+                b.append("<span class=\"")
+                        .append(c.status().name().toLowerCase())
+                        .append("\">")
+                        .append(mark(c.status()))
+                        .append("</span> ")
+                        .append(esc(c.kind()));
                 if (!c.text().isEmpty()) b.append(": ").append(esc(c.text()));
-                if (c.detail() != null) b.append("<br><small>").append(esc(c.detail())).append("</small>");
+                if (c.detail() != null)
+                    b.append("<br><small>").append(esc(c.detail())).append("</small>");
                 b.append("<br>");
             }
             b.append("</td></tr>");
@@ -150,7 +223,14 @@ public final class EvalReport {
         b.append("</table>");
         if (!run.dimensions().isEmpty()) {
             b.append("<h2>Dimensions</h2><ul>");
-            run.dimensions().forEach((k, v) -> b.append("<li><b>").append(esc(k)).append("</b>").append(v.isEmpty() ? "" : ": " + esc(v)).append("</li>"));
+            run.dimensions()
+                    .forEach(
+                            (k, v) ->
+                                    b.append("<li><b>")
+                                            .append(esc(k))
+                                            .append("</b>")
+                                            .append(v.isEmpty() ? "" : ": " + esc(v))
+                                            .append("</li>"));
             b.append("</ul>");
         }
         return b.append("</body></html>").toString();
@@ -158,6 +238,10 @@ public final class EvalReport {
 
     private static String esc(String s) {
         if (s == null) return "";
-        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;");
+        return s.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
     }
 }

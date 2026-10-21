@@ -1,8 +1,7 @@
 package io.github.llm4j.tools;
-import io.github.llm4j.agent.tool.EffectContext;
 
 import io.github.llm4j.agent.Tool;
-
+import io.github.llm4j.agent.tool.EffectContext;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -14,17 +13,57 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * {@code tool Ops { use: shell  allow: "git, df, du" }}: lets an agent run a few named programs on this machine.
- * Programs are started directly with an argument list, never through a shell, so quoting and metacharacters
- * mean nothing. Because it can run local code, an agent must have it under {@code approve:} or the tool must
- * say {@code unattended: true}.
+ * {@code tool Ops { use: shell allow: "git, df, du" }}: lets an agent run a few named programs on
+ * this machine. Programs are started directly with an argument list, never through a shell, so
+ * quoting and metacharacters mean nothing. Because it can run local code, an agent must have it
+ * under {@code approve:} or the tool must say {@code unattended: true}.
  */
 public final class ShellKind extends GenericKind {
 
     /** Programs that run other programs, so allowing one allows anything. */
-    private static final Set<String> WRAPPERS = Set.of("sh", "bash", "zsh", "dash", "fish", "ksh", "csh", "tcsh", "ash", "busybox",
-            "cmd", "powershell", "pwsh", "node", "nodejs", "perl", "ruby", "php", "lua", "env", "xargs", "sudo", "su", "doas", "ssh",
-            "find", "awk", "gawk", "sed", "nohup", "nice", "timeout", "watch", "setsid", "stdbuf", "strace", "ltrace", "make", "eval", "exec");
+    private static final Set<String> WRAPPERS =
+            Set.of(
+                    "sh",
+                    "bash",
+                    "zsh",
+                    "dash",
+                    "fish",
+                    "ksh",
+                    "csh",
+                    "tcsh",
+                    "ash",
+                    "busybox",
+                    "cmd",
+                    "powershell",
+                    "pwsh",
+                    "node",
+                    "nodejs",
+                    "perl",
+                    "ruby",
+                    "php",
+                    "lua",
+                    "env",
+                    "xargs",
+                    "sudo",
+                    "su",
+                    "doas",
+                    "ssh",
+                    "find",
+                    "awk",
+                    "gawk",
+                    "sed",
+                    "nohup",
+                    "nice",
+                    "timeout",
+                    "watch",
+                    "setsid",
+                    "stdbuf",
+                    "strace",
+                    "ltrace",
+                    "make",
+                    "eval",
+                    "exec");
+
     private static final Pattern PYTHON = Pattern.compile("python[0-9.]*");
 
     private final String osName;
@@ -50,7 +89,14 @@ public final class ShellKind extends GenericKind {
 
     @Override
     public Set<String> optional() {
-        return Set.of("cwd", "env_pass", "max_output", "unattended", "allow_interpreters", "on_unknown", "timeout");
+        return Set.of(
+                "cwd",
+                "env_pass",
+                "max_output",
+                "unattended",
+                "allow_interpreters",
+                "on_unknown",
+                "timeout");
     }
 
     @Override
@@ -70,25 +116,40 @@ public final class ShellKind extends GenericKind {
     }
 
     @Override
-    public String agentProblem(Map<String, String> options, String toolName, String agentName, boolean approved) {
+    public String agentProblem(
+            Map<String, String> options, String toolName, String agentName, boolean approved) {
         if (approved || "true".equals(options.get("unattended"))) return null;
-        return "tool " + toolName + " runs programs on this machine: add it to " + agentName + "'s approve: list, "
+        return "tool "
+                + toolName
+                + " runs programs on this machine: add it to "
+                + agentName
+                + "'s approve: list, "
                 + "or set unattended: true on the tool if nobody should be asked";
     }
 
     // ── Shared with the tool ─────────────────────────────────────────────────────────────────
 
-    /** Resolves each allowed name to an absolute program path; a name that isn't one program is an option error. */
+    /**
+     * Resolves each allowed name to an absolute program path; a name that isn't one program is an
+     * option error.
+     */
     static Map<String, Path> resolveAllowed(List<String> names, boolean allowInterpreters) {
         Map<String, Path> out = new LinkedHashMap<>();
         for (String name : names) {
-            if (name.contains("/") || name.contains("\\") || name.chars().anyMatch(Character::isWhitespace)) {
-                throw new OptionException("allow: " + name + " must be a program name, not a path or a command line");
+            if (name.contains("/")
+                    || name.contains("\\")
+                    || name.chars().anyMatch(Character::isWhitespace)) {
+                throw new OptionException(
+                        "allow: " + name + " must be a program name, not a path or a command line");
             }
             String lower = name.toLowerCase(Locale.ROOT);
-            if (!allowInterpreters && (WRAPPERS.contains(lower) || PYTHON.matcher(lower).matches())) {
-                throw new OptionException("allow: " + name + " can run any other program, which defeats the allow-list "
-                        + "(allow_interpreters: true permits it)");
+            if (!allowInterpreters
+                    && (WRAPPERS.contains(lower) || PYTHON.matcher(lower).matches())) {
+                throw new OptionException(
+                        "allow: "
+                                + name
+                                + " can run any other program, which defeats the allow-list "
+                                + "(allow_interpreters: true permits it)");
             }
             out.put(name, find(name));
         }
@@ -101,7 +162,8 @@ public final class ShellKind extends GenericKind {
             for (String dir : path.split(java.io.File.pathSeparator)) {
                 if (dir.isBlank()) continue;
                 Path candidate = Path.of(dir).resolve(name);
-                if (Files.isRegularFile(candidate) && Files.isExecutable(candidate)) return candidate.toAbsolutePath().normalize();
+                if (Files.isRegularFile(candidate) && Files.isExecutable(candidate))
+                    return candidate.toAbsolutePath().normalize();
             }
         }
         throw new OptionException("allow: " + name + " was not found on the PATH");
@@ -114,7 +176,8 @@ public final class ShellKind extends GenericKind {
         } catch (IllegalArgumentException e) {
             throw new OptionException("cwd: " + e.getMessage());
         }
-        if (!Files.isDirectory(dir)) throw new OptionException("cwd: " + cwd + " is not a directory");
+        if (!Files.isDirectory(dir))
+            throw new OptionException("cwd: " + cwd + " is not a directory");
         return dir;
     }
 }

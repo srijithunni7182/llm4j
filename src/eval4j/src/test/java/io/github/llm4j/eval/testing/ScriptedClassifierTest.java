@@ -12,12 +12,22 @@ import org.junit.jupiter.api.Test;
 
 class ScriptedClassifierTest {
 
-    private static final ClassifyRequest REQ = ClassifyRequest.builder().state("m")
-            .choice("intent", "what?", "refund", "other").yesNo("urgent", "urgent?").score("tone", "how?", Scale.of("calm", "annoyed", "angry")).build();
+    private static final ClassifyRequest REQ =
+            ClassifyRequest.builder()
+                    .state("m")
+                    .choice("intent", "what?", "refund", "other")
+                    .yesNo("urgent", "urgent?")
+                    .score("tone", "how?", Scale.of("calm", "annoyed", "angry"))
+                    .build();
 
     @Test
     void answersEachQuestionByName() {
-        ScriptedClassifier c = ScriptedClassifier.builder().choice("intent", "refund", 0.93).yesNo("urgent", 0.12).score("tone", 0.9).build();
+        ScriptedClassifier c =
+                ScriptedClassifier.builder()
+                        .choice("intent", "refund", 0.93)
+                        .yesNo("urgent", 0.12)
+                        .score("tone", 0.9)
+                        .build();
 
         var r = c.classify(REQ);
 
@@ -31,8 +41,16 @@ class ScriptedClassifierTest {
 
     @Test
     void severalCallsAreScriptedInOrderAndTheLastOneRepeats() {
-        ScriptedClassifier c = ScriptedClassifier.builder().choice("intent", "refund").yesNo("urgent", 0).score("tone", 0)
-                .next().choice("intent", "other").yesNo("urgent", 1).score("tone", 0).build();
+        ScriptedClassifier c =
+                ScriptedClassifier.builder()
+                        .choice("intent", "refund")
+                        .yesNo("urgent", 0)
+                        .score("tone", 0)
+                        .next()
+                        .choice("intent", "other")
+                        .yesNo("urgent", 1)
+                        .score("tone", 0)
+                        .build();
 
         assertThat(c.classify(REQ).choice("intent").label()).isEqualTo("refund");
         assertThat(c.classify(REQ).choice("intent").label()).isEqualTo("other");
@@ -44,31 +62,67 @@ class ScriptedClassifierTest {
     void aQuestionItWasNotScriptedForIsAnError() {
         ScriptedClassifier c = ScriptedClassifier.builder().choice("intent", "refund").build();
 
-        assertThatThrownBy(() -> c.classify(REQ)).isInstanceOf(IllegalStateException.class).hasMessageContaining("urgent");
+        assertThatThrownBy(() -> c.classify(REQ))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("urgent");
     }
 
     @Test
     void aLabelTheRequestDidNotOfferIsRefusedLikeARealBackend() {
-        ScriptedClassifier c = ScriptedClassifier.builder().choice("intent", "refunds").yesNo("urgent", 0).score("tone", 0).build();
+        ScriptedClassifier c =
+                ScriptedClassifier.builder()
+                        .choice("intent", "refunds")
+                        .yesNo("urgent", 0)
+                        .score("tone", 0)
+                        .build();
 
-        assertThatThrownBy(() -> c.classify(REQ)).isInstanceOf(ClassificationException.class).hasMessageContaining("refunds");
+        assertThatThrownBy(() -> c.classify(REQ))
+                .isInstanceOf(ClassificationException.class)
+                .hasMessageContaining("refunds");
     }
 
     @Test
     void aWrongKindIsRefused() {
-        ScriptedClassifier c = ScriptedClassifier.builder().yesNo("intent", 0.5).yesNo("urgent", 0).score("tone", 0).build();
-        ScriptedClassifier d = ScriptedClassifier.builder().choice("intent", "refund").choice("urgent", "refund").score("tone", 0).build();
-        ScriptedClassifier e = ScriptedClassifier.builder().choice("intent", "refund").yesNo("urgent", 0).yesNo("tone", 0).build();
+        ScriptedClassifier c =
+                ScriptedClassifier.builder()
+                        .yesNo("intent", 0.5)
+                        .yesNo("urgent", 0)
+                        .score("tone", 0)
+                        .build();
+        ScriptedClassifier d =
+                ScriptedClassifier.builder()
+                        .choice("intent", "refund")
+                        .choice("urgent", "refund")
+                        .score("tone", 0)
+                        .build();
+        ScriptedClassifier e =
+                ScriptedClassifier.builder()
+                        .choice("intent", "refund")
+                        .yesNo("urgent", 0)
+                        .yesNo("tone", 0)
+                        .build();
 
-        assertThatThrownBy(() -> c.classify(REQ)).isInstanceOf(ClassificationException.class).hasMessageContaining("a choice");
-        assertThatThrownBy(() -> d.classify(REQ)).isInstanceOf(ClassificationException.class).hasMessageContaining("a yes/no");
-        assertThatThrownBy(() -> e.classify(REQ)).isInstanceOf(ClassificationException.class).hasMessageContaining("a score");
+        assertThatThrownBy(() -> c.classify(REQ))
+                .isInstanceOf(ClassificationException.class)
+                .hasMessageContaining("a choice");
+        assertThatThrownBy(() -> d.classify(REQ))
+                .isInstanceOf(ClassificationException.class)
+                .hasMessageContaining("a yes/no");
+        assertThatThrownBy(() -> e.classify(REQ))
+                .isInstanceOf(ClassificationException.class)
+                .hasMessageContaining("a score");
     }
 
     @Test
     void aCallCanFailAndTheNextOneAnswers() {
-        ScriptedClassifier c = ScriptedClassifier.builder().failWith(new RateLimitException("slow down"))
-                .next().choice("intent", "refund").yesNo("urgent", 0).score("tone", 0).build();
+        ScriptedClassifier c =
+                ScriptedClassifier.builder()
+                        .failWith(new RateLimitException("slow down"))
+                        .next()
+                        .choice("intent", "refund")
+                        .yesNo("urgent", 0)
+                        .score("tone", 0)
+                        .build();
 
         assertThatThrownBy(() -> c.classify(REQ)).isInstanceOf(RateLimitException.class);
         assertThat(c.classify(REQ).choice("intent").label()).isEqualTo("refund");
@@ -76,8 +130,14 @@ class ScriptedClassifierTest {
 
     @Test
     void calibrationAndUsageCanBeScripted() {
-        ScriptedClassifier c = ScriptedClassifier.builder().calibrated(true).usage(new ClassifyUsage(10, 2, 150, "jev", "jev-1")).choice("intent", "refund")
-                .yesNo("urgent", 0).score("tone", 0).build();
+        ScriptedClassifier c =
+                ScriptedClassifier.builder()
+                        .calibrated(true)
+                        .usage(new ClassifyUsage(10, 2, 150, "jev", "jev-1"))
+                        .choice("intent", "refund")
+                        .yesNo("urgent", 0)
+                        .score("tone", 0)
+                        .build();
 
         var r = c.classify(REQ);
 

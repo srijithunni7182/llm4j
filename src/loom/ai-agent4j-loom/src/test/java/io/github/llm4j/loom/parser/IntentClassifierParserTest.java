@@ -12,14 +12,18 @@ import io.github.llm4j.loom.lexer.TokenType;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** The grammar of {@code intentclassifier} and {@code intentclassify} (docs/specs/07-classifier DESIGN 5.1 to 5.3). */
+/**
+ * The grammar of {@code intentclassifier} and {@code intentclassify} (docs/specs/07-classifier
+ * DESIGN 5.1 to 5.3).
+ */
 class IntentClassifierParserTest {
 
     private static LoomScript parse(String source) {
         return new LoomParser(new Lexer(source).tokenize()).parseScript();
     }
 
-    private static final String FULL = """
+    private static final String FULL =
+            """
             provider Jev { use: jev  api_key: env.JEV_API_KEY }
 
             intentclassifier Intent {
@@ -40,7 +44,8 @@ class IntentClassifierParserTest {
     @Test
     void aSinglePipeIsATokenAndADoublePipeIsStillRefusedWithItsHint() {
         assertEquals(TokenType.PIPE, new Lexer("a | b").tokenize().get(1).getType());
-        RuntimeException e = assertThrows(RuntimeException.class, () -> new Lexer("a || b").tokenize());
+        RuntimeException e =
+                assertThrows(RuntimeException.class, () -> new Lexer("a || b").tokenize());
         assertTrue(e.getMessage().contains("no && or ||"), e.getMessage());
     }
 
@@ -59,7 +64,8 @@ class IntentClassifierParserTest {
         assertEquals("kind", kind.name());
         assertEquals(List.of("refund", "order_status", "complaint", "other"), kind.labels());
         assertEquals(IntentClassifierDef.Kind.ASK, def.getQuestions().get(1).kind());
-        assertEquals("Is the customer threatening to leave?", def.getQuestions().get(1).instructions());
+        assertEquals(
+                "Is the customer threatening to leave?", def.getQuestions().get(1).instructions());
         assertEquals(IntentClassifierDef.Kind.RATE, def.getQuestions().get(2).kind());
         assertEquals(List.of("calm", "annoyed", "angry"), def.getQuestions().get(2).labels());
         assertEquals(0.8, def.getConfidence().threshold());
@@ -68,7 +74,9 @@ class IntentClassifierParserTest {
 
     @Test
     void instructionsMayBeWrittenOutAndOtherwiseDefaultToASentenceFromTheName() {
-        IntentClassifierDef def = parse("""
+        IntentClassifierDef def =
+                parse(
+                                """
                 intentclassifier C {
                     model: "gemini-2.5-flash"
                     choose kind "What does the customer want?": refund | other
@@ -76,12 +84,17 @@ class IntentClassifierParserTest {
                     ask angry
                     rate tone "How hostile is it?": calm | angry
                 }
-                """).getIntentClassifiers().get(0);
+                """)
+                        .getIntentClassifiers()
+                        .get(0);
 
         assertEquals("What does the customer want?", def.getQuestions().get(0).instructions());
         assertNull(def.getQuestions().get(1).instructions());
-        assertEquals("Which sector fits best?", def.effectiveInstructions(def.getQuestions().get(1)));
-        assertEquals("Is it angry? Answer yes or no.", def.effectiveInstructions(def.getQuestions().get(2)));
+        assertEquals(
+                "Which sector fits best?", def.effectiveInstructions(def.getQuestions().get(1)));
+        assertEquals(
+                "Is it angry? Answer yes or no.",
+                def.effectiveInstructions(def.getQuestions().get(2)));
         assertEquals("How hostile is it?", def.effectiveInstructions(def.getQuestions().get(3)));
     }
 
@@ -89,10 +102,17 @@ class IntentClassifierParserTest {
     void theThreeConfidenceActionsAndTheDefault() {
         String head = "intentclassifier C { model: \"m\" choose k: a | b ";
 
-        assertEquals(IntentClassifierDef.Action.ESCALATE, action(head + "confidence at least 0.5 else escalate }"));
-        assertEquals(IntentClassifierDef.Action.ASK_PERSON, action(head + "confidence at least 0.5 else ask person }"));
-        assertEquals(IntentClassifierDef.Action.FAIL, action(head + "confidence at least 0.5 else fail }"));
-        assertEquals(IntentClassifierDef.Action.ESCALATE, action(head + "confidence at least 0.5 }"));
+        assertEquals(
+                IntentClassifierDef.Action.ESCALATE,
+                action(head + "confidence at least 0.5 else escalate }"));
+        assertEquals(
+                IntentClassifierDef.Action.ASK_PERSON,
+                action(head + "confidence at least 0.5 else ask person }"));
+        assertEquals(
+                IntentClassifierDef.Action.FAIL,
+                action(head + "confidence at least 0.5 else fail }"));
+        assertEquals(
+                IntentClassifierDef.Action.ESCALATE, action(head + "confidence at least 0.5 }"));
     }
 
     private static IntentClassifierDef.Action action(String source) {
@@ -101,25 +121,45 @@ class IntentClassifierParserTest {
 
     @Test
     void piiIsReadAndAbsentByDefault() {
-        assertEquals("mask", parse("intentclassifier C { model: \"m\" pii: mask choose k: a | b }").getIntentClassifiers().get(0).getPii());
-        assertNull(parse("intentclassifier C { model: \"m\" choose k: a | b }").getIntentClassifiers().get(0).getPii());
+        assertEquals(
+                "mask",
+                parse("intentclassifier C { model: \"m\" pii: mask choose k: a | b }")
+                        .getIntentClassifiers()
+                        .get(0)
+                        .getPii());
+        assertNull(
+                parse("intentclassifier C { model: \"m\" choose k: a | b }")
+                        .getIntentClassifiers()
+                        .get(0)
+                        .getPii());
     }
 
     @Test
     void samplesAreRead() {
-        assertEquals(5, parse("intentclassifier C { model: \"m\" samples: 5 choose k: a | b }").getIntentClassifiers().get(0).getSamples());
+        assertEquals(
+                5,
+                parse("intentclassifier C { model: \"m\" samples: 5 choose k: a | b }")
+                        .getIntentClassifiers()
+                        .get(0)
+                        .getSamples());
     }
 
     @Test
     void labelsMayBeQuotedAndMayBeWordsThatAreKeywordsElsewhere() {
-        IntentClassifierDef def = parse("intentclassifier C { model: \"m\" choose k: type | model | \"order status\" }").getIntentClassifiers().get(0);
+        IntentClassifierDef def =
+                parse(
+                                "intentclassifier C { model: \"m\" choose k: type | model | \"order status\" }")
+                        .getIntentClassifiers()
+                        .get(0);
 
         assertEquals(List.of("type", "model", "order status"), def.getQuestions().get(0).labels());
     }
 
     @Test
     void theLinesOfTheDeclarationItsQuestionsAndTheStatementAreKept() {
-        LoomScript script = parse("\n\nintentclassifier C {\n  model: \"m\"\n  choose k: a | b\n  ask u: \"u?\"\n  confidence at least 0.9\n}\nworkflow W(x) {\n  intentclassify C on x -> r\n}\n");
+        LoomScript script =
+                parse(
+                        "\n\nintentclassifier C {\n  model: \"m\"\n  choose k: a | b\n  ask u: \"u?\"\n  confidence at least 0.9\n}\nworkflow W(x) {\n  intentclassify C on x -> r\n}\n");
 
         IntentClassifierDef def = script.getIntentClassifiers().get(0);
         assertEquals(3, def.getLine());
@@ -148,13 +188,16 @@ class IntentClassifierParserTest {
         assertEquals(RunStmt.Kind.REFERENCE, byName.getInputs().get(0).kind());
         assertEquals("message", byName.getInputs().get(0).text());
 
-        assertEquals("request.text", statement("intentclassify C on request.text -> r").getInputs().get(0).text());
+        assertEquals(
+                "request.text",
+                statement("intentclassify C on request.text -> r").getInputs().get(0).text());
 
         IntentClassifyStmt literal = statement("intentclassify C on \"Customer said: {x}\" -> r");
         assertEquals(RunStmt.Kind.STRING, literal.getInputs().get(0).kind());
         assertEquals("Customer said: {x}", literal.getInputs().get(0).text());
 
-        IntentClassifyStmt fields = statement("intentclassify C on { message: x, history: \"none\" } -> r");
+        IntentClassifyStmt fields =
+                statement("intentclassify C on { message: x, history: \"none\" } -> r");
         assertEquals(2, fields.getInputs().size());
         assertEquals("message", fields.getInputs().get(0).name());
         assertEquals(RunStmt.Kind.REFERENCE, fields.getInputs().get(0).kind());
@@ -164,7 +207,9 @@ class IntentClassifierParserTest {
 
     @Test
     void retryBackoffTimeoutAndOnFailureAreTheSameAsForRun() {
-        IntentClassifyStmt s = statement("intentclassify C on x -> r retry 2 backoff 2s timeout 30s on_failure { note \"classifier down\" }");
+        IntentClassifyStmt s =
+                statement(
+                        "intentclassify C on x -> r retry 2 backoff 2s timeout 30s on_failure { note \"classifier down\" }");
 
         assertEquals(2, s.getRetryCount());
         assertEquals(2000, s.getBackoffMillis());
@@ -176,7 +221,9 @@ class IntentClassifierParserTest {
 
     @Test
     void theNewWordsStayUsableAsNamesEverywhereElse() {
-        LoomScript s = parse("""
+        LoomScript s =
+                parse(
+                        """
                 agent choose { model: "gemini-2.5-flash" system: "x" }
                 workflow W(rate) { note "{rate}" }
                 """);
@@ -200,22 +247,40 @@ class IntentClassifierParserTest {
         String m = error("intentclassifier C { model: \"m\" chose k: a | b }");
 
         assertTrue(m.contains("chose"), m);
-        assertTrue(m.contains("choose") && m.contains("ask") && m.contains("rate") && m.contains("confidence") && m.contains("samples") && m.contains("pii"), m);
+        assertTrue(
+                m.contains("choose")
+                        && m.contains("ask")
+                        && m.contains("rate")
+                        && m.contains("confidence")
+                        && m.contains("samples")
+                        && m.contains("pii"),
+                m);
         assertTrue(m.contains("Did you mean choose"), m);
     }
 
     @Test
     void repeatedSingletonSettingsAreRefused() {
-        assertTrue(error("intentclassifier C { model: \"a\" model: \"b\" }").contains("model is given twice"));
-        assertTrue(error("intentclassifier C { model: \"a\" samples: 2 samples: 3 }").contains("samples is given twice"));
-        assertTrue(error("intentclassifier C { model: \"a\" confidence at least 0.5 confidence at least 0.6 }").contains("one confidence"));
+        assertTrue(
+                error("intentclassifier C { model: \"a\" model: \"b\" }")
+                        .contains("model is given twice"));
+        assertTrue(
+                error("intentclassifier C { model: \"a\" samples: 2 samples: 3 }")
+                        .contains("samples is given twice"));
+        assertTrue(
+                error(
+                                "intentclassifier C { model: \"a\" confidence at least 0.5 confidence at least 0.6 }")
+                        .contains("one confidence"));
     }
 
     @Test
     void badValuesAreExplained() {
         assertTrue(error("intentclassifier C { model: \"a\" samples: 0 }").contains("samples"));
-        assertTrue(error("intentclassifier C { model: \"a\" confidence at least 1.5 }").contains("0 to 1"));
-        assertTrue(error("intentclassifier C { model: \"a\" confidence at least 0.5 else shrug }").contains("escalate"));
+        assertTrue(
+                error("intentclassifier C { model: \"a\" confidence at least 1.5 }")
+                        .contains("0 to 1"));
+        assertTrue(
+                error("intentclassifier C { model: \"a\" confidence at least 0.5 else shrug }")
+                        .contains("escalate"));
         assertTrue(error("intentclassifier C { model: \"a\" choose k }").contains("labels"));
         assertTrue(error("intentclassifier C { model: \"a\" choose k: a | }").contains("label"));
     }

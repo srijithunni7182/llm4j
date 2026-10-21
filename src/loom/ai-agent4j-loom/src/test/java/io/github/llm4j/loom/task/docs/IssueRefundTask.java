@@ -8,7 +8,10 @@ import io.github.llm4j.agent.tool.EffectPolicy;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** A payment for the documentation's refund example: idempotent, with a fake provider that remembers the keys it has seen. */
+/**
+ * A payment for the documentation's refund example: idempotent, with a fake provider that remembers
+ * the keys it has seen.
+ */
 public class IssueRefundTask implements Task {
 
     /** The "payment provider": one receipt per idempotency key. */
@@ -33,7 +36,9 @@ public class IssueRefundTask implements Task {
     public TaskResult run(TaskContext context) {
         context.requireArg("order", String.class);
         context.requireArg("amount", Double.class);
-        String receipt = PROVIDER.computeIfAbsent(context.idempotencyKey(), k -> "rcpt-" + (PROVIDER.size() + 1));
+        String receipt =
+                PROVIDER.computeIfAbsent(
+                        context.idempotencyKey(), k -> "rcpt-" + (PROVIDER.size() + 1));
         return TaskResult.value(receipt);
     }
 }

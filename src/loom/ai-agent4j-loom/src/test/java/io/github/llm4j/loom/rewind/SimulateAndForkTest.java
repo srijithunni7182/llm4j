@@ -20,22 +20,37 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** Simulated runs, forks that never touch their parent, and stopping at a step (spec loom-rewind-and-fork R4.5, R5, R8.4). */
+/**
+ * Simulated runs, forks that never touch their parent, and stopping at a step (spec
+ * loom-rewind-and-fork R4.5, R5, R8.4).
+ */
 class SimulateAndForkTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     /** A host-registered Java tool that changes something: counts its real calls. */
     static final class Stamper implements Tool {
         final List<String> calls = Collections.synchronizedList(new ArrayList<>());
 
-        @Override public String getName() { return "Stamp"; }
-        @Override public String getDescription() { return "Stamps a document."; }
-        @Override public String execute(Map<String, Object> args) { calls.add(String.valueOf(args)); return "stamped"; }
+        @Override
+        public String getName() {
+            return "Stamp";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Stamps a document.";
+        }
+
+        @Override
+        public String execute(Map<String, Object> args) {
+            calls.add(String.valueOf(args));
+            return "stamped";
+        }
     }
 
-    static final String SCRIPT = """
+    static final String SCRIPT =
+            """
             tool Log { use: file  root: "out"  mode: write }
             agent Worker { model: "m" system: "You are Worker." tools: [Log, Stamp, calculator] max_iterations: 8 }
             workflow W() {
@@ -48,10 +63,14 @@ class SimulateAndForkTest {
         String message = ScriptedRun.lastMessage(request);
         int observed = message.split("Observation:", -1).length - 1;
         return switch (observed) {
-            case 0 -> ScriptedRun.call("Log", "{\"action\": \"append\", \"path\": \"n.md\", \"content\": \"hello\"}");
+            case 0 -> ScriptedRun.call(
+                    "Log", "{\"action\": \"append\", \"path\": \"n.md\", \"content\": \"hello\"}");
             case 1 -> ScriptedRun.call("Stamp", "{\"doc\": \"a\"}");
             case 2 -> ScriptedRun.call("calculator", "{\"expression\": \"2+2\"}");
-            default -> ScriptedRun.done("finished: " + message.substring(message.lastIndexOf("Observation:")).replace("\n", " "));
+            default -> ScriptedRun.done(
+                    "finished: "
+                            + message.substring(message.lastIndexOf("Observation:"))
+                                    .replace("\n", " "));
         };
     }
 
@@ -69,9 +88,11 @@ class SimulateAndForkTest {
         executor.executeWorkflow("W", Map.of());
 
         assertThat(dir.resolve("out/n.md")).doesNotExist(); // the file tool pretended
-        assertThat(stamper.calls).isEmpty();                // the host's own tool pretended too, by class
-        assertThat(run.journal.all().keySet().stream().filter(k -> k.contains("#effect:"))).isEmpty();
-        assertThat(run.journal.all().get("W/s0").value().toString()).contains("4"); // the calculator really ran
+        assertThat(stamper.calls).isEmpty(); // the host's own tool pretended too, by class
+        assertThat(run.journal.all().keySet().stream().filter(k -> k.contains("#effect:")))
+                .isEmpty();
+        assertThat(run.journal.all().get("W/s0").value().toString())
+                .contains("4"); // the calculator really ran
     }
 
     @Test
@@ -106,8 +127,18 @@ class SimulateAndForkTest {
         long publishers = model.count("Publisher");
 
         OverlayJournal overlay = new OverlayJournal(parent);
-        io.github.llm4j.loom.runtime.Generations g = new io.github.llm4j.loom.runtime.Generations(overlay);
-        g.start("Report/s", 1, "collected", "test", null, "what if", Map.of("feedback", "forked"), "keep", false);
+        io.github.llm4j.loom.runtime.Generations g =
+                new io.github.llm4j.loom.runtime.Generations(overlay);
+        g.start(
+                "Report/s",
+                1,
+                "collected",
+                "test",
+                null,
+                "what if",
+                Map.of("feedback", "forked"),
+                "keep",
+                false);
         ScriptedRun fork = new ScriptedRun(dir);
         fork.responder = model::reply;
         fork.journal = overlay;
@@ -131,7 +162,9 @@ class SimulateAndForkTest {
         HarnessExecutor executor = run.executor(ReportScript.SCRIPT);
         executor.setStopAt("Report/s2");
         executor.initialize();
-        assertThatThrownBy(() -> executor.executeWorkflow("Report", Map.of("topic", "bees"))).isInstanceOf(RunStopped.class).hasMessageContaining("Report/s2");
+        assertThatThrownBy(() -> executor.executeWorkflow("Report", Map.of("topic", "bees")))
+                .isInstanceOf(RunStopped.class)
+                .hasMessageContaining("Report/s2");
         assertThat(journal.all()).containsKey("Report/s2").doesNotContainKey("Report/s3");
         assertThat(model.count("Writer")).isZero();
 

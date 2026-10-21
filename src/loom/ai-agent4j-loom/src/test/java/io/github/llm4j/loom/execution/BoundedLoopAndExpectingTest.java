@@ -15,10 +15,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
-/** Loops can be bounded (`max N` + `on_exhausted`); a step can ask an agent for a different schema (`expecting`). */
+/**
+ * Loops can be bounded (`max N` + `on_exhausted`); a step can ask an agent for a different schema
+ * (`expecting`).
+ */
 class BoundedLoopAndExpectingTest {
 
-    private static final String SCRIPT = """
+    private static final String SCRIPT =
+            """
             agent Boss {
                 model: "test"
                 system: "You are Boss."
@@ -43,33 +47,44 @@ class BoundedLoopAndExpectingTest {
             }
             """;
 
-    private static LLMClientFactory factory(int doneOnRound, List<String> tasks, AtomicInteger reviews) {
-        return model -> new LLMClient() {
-            @Override
-            public LLMResponse chat(LLMRequest request) {
-                String system = request.getMessages().get(0).getContent();
-                String user = request.getMessages().get(request.getMessages().size() - 1).getContent();
-                tasks.add(user);
-                String content;
-                if (system.startsWith("You are Boss.") && user.contains("Review round")) {
-                    int round = reviews.incrementAndGet();
-                    assertTrue(user.contains("\"verdict\"") || user.contains("verdict"), "the step's own schema is requested");
-                    content = round >= doneOnRound
-                            ? "```json\n{\"verdict\": \"DONE\", \"fix\": \"\"}\n```"
-                            : "```json\n{\"verdict\": \"AGAIN\", \"fix\": \"tighten part " + round + "\"}\n```";
-                } else if (system.startsWith("You are Boss.")) {
-                    content = "```json\n{\"plan\": \"do it\"}\n```";
-                } else {
-                    content = "```json\n{\"thought\": \"ok\", \"final_answer\": \"done\"}\n```";
-                }
-                return LLMResponse.builder().content(content).model(model).build();
-            }
+    private static LLMClientFactory factory(
+            int doneOnRound, List<String> tasks, AtomicInteger reviews) {
+        return model ->
+                new LLMClient() {
+                    @Override
+                    public LLMResponse chat(LLMRequest request) {
+                        String system = request.getMessages().get(0).getContent();
+                        String user =
+                                request.getMessages()
+                                        .get(request.getMessages().size() - 1)
+                                        .getContent();
+                        tasks.add(user);
+                        String content;
+                        if (system.startsWith("You are Boss.") && user.contains("Review round")) {
+                            int round = reviews.incrementAndGet();
+                            assertTrue(
+                                    user.contains("\"verdict\"") || user.contains("verdict"),
+                                    "the step's own schema is requested");
+                            content =
+                                    round >= doneOnRound
+                                            ? "```json\n{\"verdict\": \"DONE\", \"fix\": \"\"}\n```"
+                                            : "```json\n{\"verdict\": \"AGAIN\", \"fix\": \"tighten part "
+                                                    + round
+                                                    + "\"}\n```";
+                        } else if (system.startsWith("You are Boss.")) {
+                            content = "```json\n{\"plan\": \"do it\"}\n```";
+                        } else {
+                            content =
+                                    "```json\n{\"thought\": \"ok\", \"final_answer\": \"done\"}\n```";
+                        }
+                        return LLMResponse.builder().content(content).model(model).build();
+                    }
 
-            @Override
-            public Stream<LLMResponse> chatStream(LLMRequest request) {
-                return Stream.empty();
-            }
-        };
+                    @Override
+                    public Stream<LLMResponse> chatStream(LLMRequest request) {
+                        return Stream.empty();
+                    }
+                };
     }
 
     private static HarnessExecutor run(LLMClientFactory factory) {
@@ -86,7 +101,10 @@ class BoundedLoopAndExpectingTest {
         HarnessExecutor executor = run(factory(2, tasks, new AtomicInteger()));
         Map<String, Object> vars = executor.getContext().getAll();
         assertEquals("DONE", ((Map<?, ?>) vars.get("review")).get("verdict"));
-        assertEquals("do it", ((Map<?, ?>) vars.get("plan")).get("plan"), "the agent's own schema still applies elsewhere");
+        assertEquals(
+                "do it",
+                ((Map<?, ?>) vars.get("plan")).get("plan"),
+                "the agent's own schema still applies elsewhere");
         assertTrue(tasks.stream().anyMatch(t -> t.contains("Fix: tighten part 1")));
         assertTrue(tasks.stream().anyMatch(t -> t.contains("Review round 2")));
         assertFalse(vars.containsKey("escalation"), "on_exhausted only runs when the bound is hit");
@@ -104,7 +122,8 @@ class BoundedLoopAndExpectingTest {
 
     @Test
     void onExhaustedRequiresABound() {
-        String bad = """
+        String bad =
+                """
                 workflow W() {
                     loop until (x == "y") {
                         note "a"
@@ -113,6 +132,8 @@ class BoundedLoopAndExpectingTest {
                     }
                 }
                 """;
-        assertThrows(RuntimeException.class, () -> new LoomParser(new Lexer(bad).tokenize()).parseScript());
+        assertThrows(
+                RuntimeException.class,
+                () -> new LoomParser(new Lexer(bad).tokenize()).parseScript());
     }
 }

@@ -9,8 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A tool that allows an agent to schedule future tasks. 
- * Enables autonomous "background" capabilities (e.g. "Remind me to check X in 1 hour").
+ * A tool that allows an agent to schedule future tasks. Enables autonomous "background"
+ * capabilities (e.g. "Remind me to check X in 1 hour").
  */
 public class ScheduledActionTool implements Tool {
 
@@ -29,12 +29,12 @@ public class ScheduledActionTool implements Tool {
 
     @Override
     public String getDescription() {
-        return "Use this tool to schedule a background task to be executed at a later time. " +
-               "This allows you to 'wake up' later and perform an action like checking a status or sending a reminder. " +
-               "Arguments: \n" +
-               "- instructions (string): What you should do when you wake up.\n" +
-               "- delaySeconds (integer): How many seconds into the future to wait before executing.\n" +
-               "- isRecurring (boolean, optional): If true, this task will repeat indefinitely every 'delaySeconds'. Default is false.";
+        return "Use this tool to schedule a background task to be executed at a later time. "
+                + "This allows you to 'wake up' later and perform an action like checking a status or sending a reminder. "
+                + "Arguments: \n"
+                + "- instructions (string): What you should do when you wake up.\n"
+                + "- delaySeconds (integer): How many seconds into the future to wait before executing.\n"
+                + "- isRecurring (boolean, optional): If true, this task will repeat indefinitely every 'delaySeconds'. Default is false.";
     }
 
     @Override
@@ -42,7 +42,7 @@ public class ScheduledActionTool implements Tool {
         String instructions = (String) args.get("instructions");
         Number delaySecondsNum = (Number) args.get("delaySeconds");
         Boolean isRecurringObj = (Boolean) args.get("isRecurring");
-        
+
         boolean isRecurring = isRecurringObj != null ? isRecurringObj : false;
 
         if (instructions == null || instructions.trim().isEmpty()) {
@@ -57,16 +57,24 @@ public class ScheduledActionTool implements Tool {
         if (isRecurring) {
             scheduler.scheduleRecurringTask(instructions, delay, delay);
             logger.info("Scheduled recurring action for {} seconds from now.", delaySecondsNum);
-            return "Successfully scheduled a recurring background task to execute every " + delaySecondsNum + " seconds.";
+            return "Successfully scheduled a recurring background task to execute every "
+                    + delaySecondsNum
+                    + " seconds.";
         } else {
             scheduler.scheduleTask(instructions, delay);
             logger.info("Scheduled one-time action for {} seconds from now.", delaySecondsNum);
-            return "Successfully scheduled a single background task to execute in " + delaySecondsNum + " seconds.";
+            return "Successfully scheduled a single background task to execute in "
+                    + delaySecondsNum
+                    + " seconds.";
         }
     }
 
     @Override
     public java.util.Map<String, Object> getParametersSchema() {
-        return io.github.llm4j.model.ToolSchema.object().string("instructions", "What to do when waking up", true).integer("delaySeconds", "How many seconds to wait first", true).bool("isRecurring", "Repeat every delaySeconds (default false)", false).build();
+        return io.github.llm4j.model.ToolSchema.object()
+                .string("instructions", "What to do when waking up", true)
+                .integer("delaySeconds", "How many seconds to wait first", true)
+                .bool("isRecurring", "Repeat every delaySeconds (default false)", false)
+                .build();
     }
 }

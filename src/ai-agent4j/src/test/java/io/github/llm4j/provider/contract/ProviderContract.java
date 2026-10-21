@@ -58,19 +58,26 @@ public abstract class ProviderContract {
     /** The provider under test, pointed at {@code server} (via {@link #config}). */
     protected abstract LLMProvider provider(String model);
 
-    /** A model name this provider accepts (and, for Anthropic, one that accepts sampling settings). */
+    /**
+     * A model name this provider accepts (and, for Anthropic, one that accepts sampling settings).
+     */
     protected abstract String model();
 
-    /** Where the system prompt landed in a request body (joined), or null if not in a native field. */
+    /**
+     * Where the system prompt landed in a request body (joined), or null if not in a native field.
+     */
     protected abstract String nativeSystem(JsonNode request);
 
-    /** The non-system turns of a request body, as "role: text", roles normalised to user/assistant. */
+    /**
+     * The non-system turns of a request body, as "role: text", roles normalised to user/assistant.
+     */
     protected abstract List<String> turns(JsonNode request);
 
     /** The settings as sent: max tokens, temperature, top_p, stop sequences (null when absent). */
     protected abstract Settings settings(JsonNode request);
 
-    protected record Settings(Integer maxTokens, Double temperature, Double topP, List<String> stops) {}
+    protected record Settings(
+            Integer maxTokens, Double temperature, Double topP, List<String> stops) {}
 
     /** A successful answer. */
     protected abstract String answer(String text, int inputTokens, int outputTokens);
@@ -84,7 +91,10 @@ public abstract class ProviderContract {
     /** An error body for this status. */
     protected abstract String error(int status, String message);
 
-    /** The message this provider documents for a prompt that is longer than the model's context window. */
+    /**
+     * The message this provider documents for a prompt that is longer than the model's context
+     * window.
+     */
     protected abstract String overflowMessage();
 
     /** A 429 response that says the limit resets at {@code reset}. */
@@ -117,19 +127,23 @@ public abstract class ProviderContract {
         assertThat(capturedErr.toString()).doesNotContain(SECRET);
     }
 
-    /** Config pointed at the mock: the secret key, quick retries, and a short inline wait for 429s. */
+    /**
+     * Config pointed at the mock: the secret key, quick retries, and a short inline wait for 429s.
+     */
     protected LLMConfig config(String baseUrl, String model) {
         return LLMConfig.builder()
                 .apiKey(SECRET)
                 .baseUrl(baseUrl)
                 .defaultModel(model)
-                .retryPolicy(RetryPolicy.builder()
-                        .maxRetries(2)
-                        .initialBackoff(Duration.ofMillis(1))
-                        .maxBackoff(Duration.ofMillis(5))
-                        .inlineWaitThreshold(Duration.ofSeconds(1))
-                        .retryableStatusCodes(RetryPolicy.defaultPolicy().getRetryableStatusCodes())
-                        .build())
+                .retryPolicy(
+                        RetryPolicy.builder()
+                                .maxRetries(2)
+                                .initialBackoff(Duration.ofMillis(1))
+                                .maxBackoff(Duration.ofMillis(5))
+                                .inlineWaitThreshold(Duration.ofSeconds(1))
+                                .retryableStatusCodes(
+                                        RetryPolicy.defaultPolicy().getRetryableStatusCodes())
+                                .build())
                 .build();
     }
 
@@ -161,34 +175,48 @@ public abstract class ProviderContract {
     @Test
     void c1_systemMessagesGoToTheNativeSystemField() throws Exception {
         server.enqueue(ok(answer("ok", 5, 1)));
-        provider(model()).chat(LLMRequest.builder()
-                .addSystemMessage("You are terse.")
-                .addSystemMessage("Answer in English.")
-                .addUserMessage("Hi")
-                .build());
+        provider(model())
+                .chat(
+                        LLMRequest.builder()
+                                .addSystemMessage("You are terse.")
+                                .addSystemMessage("Answer in English.")
+                                .addUserMessage("Hi")
+                                .build());
         JsonNode sent = sent();
         String system = nativeSystem(sent);
         assertThat(system).isNotNull().contains("You are terse.").contains("Answer in English.");
-        assertThat(system.indexOf("You are terse.")).isLessThan(system.indexOf("Answer in English."));
+        assertThat(system.indexOf("You are terse."))
+                .isLessThan(system.indexOf("Answer in English."));
         assertThat(turns(sent)).containsExactly("user: Hi");
     }
 
     @Test
     void c2_turnsKeepTheirOrder() throws Exception {
         server.enqueue(ok(answer("Asha", 5, 1)));
-        provider(model()).chat(LLMRequest.builder()
-                .addUserMessage("My name is Asha")
-                .addAssistantMessage("Hi Asha")
-                .addUserMessage("What is my name?")
-                .build());
-        assertThat(turns(sent())).containsExactly("user: My name is Asha", "assistant: Hi Asha", "user: What is my name?");
+        provider(model())
+                .chat(
+                        LLMRequest.builder()
+                                .addUserMessage("My name is Asha")
+                                .addAssistantMessage("Hi Asha")
+                                .addUserMessage("What is my name?")
+                                .build());
+        assertThat(turns(sent()))
+                .containsExactly(
+                        "user: My name is Asha", "assistant: Hi Asha", "user: What is my name?");
     }
 
     @Test
     void c3_settingsArePassedUnderTheProvidersNames() throws Exception {
         server.enqueue(ok(answer("ok", 5, 1)));
-        provider(model()).chat(LLMRequest.builder().addUserMessage("Hi")
-                .maxTokens(123).temperature(0.2).topP(0.9).stopSequences(List.of("END")).build());
+        provider(model())
+                .chat(
+                        LLMRequest.builder()
+                                .addUserMessage("Hi")
+                                .maxTokens(123)
+                                .temperature(0.2)
+                                .topP(0.9)
+                                .stopSequences(List.of("END"))
+                                .build());
         Settings s = settings(sent());
         assertThat(s.maxTokens()).isEqualTo(123);
         assertThat(s.temperature()).isEqualTo(0.2);
@@ -232,17 +260,24 @@ public abstract class ProviderContract {
 
     @Test
     void c7_authAndBadRequestsAreTyped() {
-        server.enqueue(new MockResponse().setResponseCode(401).setBody(error(401, "invalid x-api-key")));
+        server.enqueue(
+                new MockResponse().setResponseCode(401).setBody(error(401, "invalid x-api-key")));
         assertThatThrownBy(() -> provider(model()).chat(ask("hi")))
                 .isExactlyInstanceOf(AuthenticationException.class)
                 .hasMessageContaining("401")
                 .satisfies(ProviderContract::noSecret);
 
-        server.enqueue(new MockResponse().setResponseCode(400).setBody(error(400, "max_tokens is too large")));
+        server.enqueue(
+                new MockResponse()
+                        .setResponseCode(400)
+                        .setBody(error(400, "max_tokens is too large")));
         assertThatThrownBy(() -> provider(model()).chat(ask("hi")))
                 .isExactlyInstanceOf(InvalidRequestException.class)
                 .hasMessageContaining("max_tokens is too large")
-                .satisfies(e -> assertThat(((InvalidRequestException) e).getStatusCode()).isEqualTo(400))
+                .satisfies(
+                        e ->
+                                assertThat(((InvalidRequestException) e).getStatusCode())
+                                        .isEqualTo(400))
                 .satisfies(ProviderContract::noSecret);
     }
 
@@ -252,7 +287,8 @@ public abstract class ProviderContract {
         server.enqueue(ok(answer("recovered", 3, 1)));
         assertThat(provider(model()).chat(ask("hi")).getContent()).isEqualTo("recovered");
 
-        for (int i = 0; i < 3; i++) server.enqueue(new MockResponse().setResponseCode(503).setBody(error(503, "busy")));
+        for (int i = 0; i < 3; i++)
+            server.enqueue(new MockResponse().setResponseCode(503).setBody(error(503, "busy")));
         assertThatThrownBy(() -> provider(model()).chat(ask("hi")))
                 .isInstanceOf(ServiceUnavailableException.class)
                 .isInstanceOf(ProviderException.class)
@@ -264,10 +300,13 @@ public abstract class ProviderContract {
         Instant reset = Instant.now().plus(Duration.ofHours(2));
         server.enqueue(rateLimited(reset));
         assertThatThrownBy(() -> provider(model()).chat(ask("hi")))
-                .isInstanceOfSatisfying(RateLimitException.class, e -> {
-                    assertThat(e.info()).isNotNull();
-                    assertThat(e.info().resetAt()).isAfter(Instant.now().plus(Duration.ofMinutes(30)));
-                });
+                .isInstanceOfSatisfying(
+                        RateLimitException.class,
+                        e -> {
+                            assertThat(e.info()).isNotNull();
+                            assertThat(e.info().resetAt())
+                                    .isAfter(Instant.now().plus(Duration.ofMinutes(30)));
+                        });
     }
 
     // ── C10–C11: streaming works the same ───────────────────────────────────────────────────
@@ -310,7 +349,11 @@ public abstract class ProviderContract {
 
         server.enqueue(streamThenError(List.of("partial ")));
         List<String> received = new ArrayList<>();
-        assertThatThrownBy(() -> provider(model()).chatStream(ask("hi")).forEach(c -> received.add(c.getContent())))
+        assertThatThrownBy(
+                        () ->
+                                provider(model())
+                                        .chatStream(ask("hi"))
+                                        .forEach(c -> received.add(c.getContent())))
                 .isInstanceOf(midStreamError())
                 .satisfies(ProviderContract::noSecret);
         assertThat(received).contains("partial ");
@@ -322,9 +365,12 @@ public abstract class ProviderContract {
     void c14_budgetsChargeTheStreamsReportedUsage() {
         server.enqueue(stream(List.of("one ", "two"), 20, 7));
         Budget budget = Budget.builder().name("contract").tokens(10_000).build();
-        BudgetedLLMClient client = BudgetedLLMClient.builder(new DefaultLLMClient(provider(model()))).budget(budget).build();
+        BudgetedLLMClient client =
+                BudgetedLLMClient.builder(new DefaultLLMClient(provider(model())))
+                        .budget(budget)
+                        .build();
         try (Stream<LLMResponse> s = client.chatStream(ask("count"))) {
-            s.forEach(c -> { });
+            s.forEach(c -> {});
         }
         assertThat(budget.spent().tokens()).isEqualTo(27);
     }
@@ -360,23 +406,44 @@ public abstract class ProviderContract {
 
     // ── a prompt that is too long ──────────────────────────────────────────────────────────
 
-    /** C15: a prompt the provider rejects as too long is a {@code ContextOverflowException}, which is still an {@code InvalidRequestException}. */
+    /**
+     * C15: a prompt the provider rejects as too long is a {@code ContextOverflowException}, which
+     * is still an {@code InvalidRequestException}.
+     */
     @Test
     void c15_aPromptThatIsTooLongIsAContextOverflow() throws Exception {
-        server.enqueue(new MockResponse().setResponseCode(400).setBody(error(400, overflowMessage())));
+        server.enqueue(
+                new MockResponse().setResponseCode(400).setBody(error(400, overflowMessage())));
         LLMProvider p = provider(model());
-        assertThatThrownBy(() -> p.chat(LLMRequest.builder().addUserMessage("a very long prompt").build()))
+        assertThatThrownBy(
+                        () ->
+                                p.chat(
+                                        LLMRequest.builder()
+                                                .addUserMessage("a very long prompt")
+                                                .build()))
                 .isInstanceOf(io.github.llm4j.exception.ContextOverflowException.class)
                 .isInstanceOf(InvalidRequestException.class)
-                .satisfies(e -> assertThat(((InvalidRequestException) e).getStatusCode()).isEqualTo(400))
-                .satisfies(e -> assertThat(((InvalidRequestException) e).getResponseBody()).contains(overflowMessage().substring(0, 15)).doesNotContain(SECRET));
-        assertThat(server.getRequestCount()).as("not retried: a prompt that is too long stays too long").isEqualTo(1);
+                .satisfies(
+                        e ->
+                                assertThat(((InvalidRequestException) e).getStatusCode())
+                                        .isEqualTo(400))
+                .satisfies(
+                        e ->
+                                assertThat(((InvalidRequestException) e).getResponseBody())
+                                        .contains(overflowMessage().substring(0, 15))
+                                        .doesNotContain(SECRET));
+        assertThat(server.getRequestCount())
+                .as("not retried: a prompt that is too long stays too long")
+                .isEqualTo(1);
     }
 
     /** C15b: any other bad request is not mistaken for it. */
     @Test
     void c15b_anotherBadRequestIsNotAContextOverflow() throws Exception {
-        server.enqueue(new MockResponse().setResponseCode(400).setBody(error(400, "temperature must be between 0 and 2")));
+        server.enqueue(
+                new MockResponse()
+                        .setResponseCode(400)
+                        .setBody(error(400, "temperature must be between 0 and 2")));
         LLMProvider p = provider(model());
         assertThatThrownBy(() -> p.chat(LLMRequest.builder().addUserMessage("hi").build()))
                 .isExactlyInstanceOf(InvalidRequestException.class);

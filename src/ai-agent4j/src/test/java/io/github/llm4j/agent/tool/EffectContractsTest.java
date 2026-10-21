@@ -63,12 +63,33 @@ class EffectContractsTest {
 
     @Test
     void aKindIsOptionalAboutEverythingExceptItsNameCheckAndCreate() throws Exception {
-        ToolKind kind = new ToolKind() {
-            @Override public String name() { return "demo"; }
-            @Override public String check(Map<String, String> options, Path baseDir) { return null; }
-            @Override public io.github.llm4j.agent.Tool create(String name, Map<String, String> options, Path baseDir) { return null; }
-            @Override public io.github.llm4j.agent.Tool create(String name, Map<String, String> options, Path baseDir, EffectContext context) { return null; }
-        };
+        ToolKind kind =
+                new ToolKind() {
+                    @Override
+                    public String name() {
+                        return "demo";
+                    }
+
+                    @Override
+                    public String check(Map<String, String> options, Path baseDir) {
+                        return null;
+                    }
+
+                    @Override
+                    public io.github.llm4j.agent.Tool create(
+                            String name, Map<String, String> options, Path baseDir) {
+                        return null;
+                    }
+
+                    @Override
+                    public io.github.llm4j.agent.Tool create(
+                            String name,
+                            Map<String, String> options,
+                            Path baseDir,
+                            EffectContext context) {
+                        return null;
+                    }
+                };
         assertThat(kind.required()).isEmpty();
         assertThat(kind.optional()).isEmpty();
         assertThat(kind.prefixes()).isEmpty();

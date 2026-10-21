@@ -21,8 +21,9 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
- * The questions of a run store, one JSON file per code under {@code <store>/channel/questions}, written atomically. Every change goes through
- * {@link #locked}, which holds a lock across threads and processes, so two answers at once admit one.
+ * The questions of a run store, one JSON file per code under {@code <store>/channel/questions},
+ * written atomically. Every change goes through {@link #locked}, which holds a lock across threads
+ * and processes, so two answers at once admit one.
  */
 public final class PendingStore {
 
@@ -51,7 +52,12 @@ public final class PendingStore {
         jvm.lock();
         try {
             Files.createDirectories(root);
-            try (FileChannel ch = FileChannel.open(root.resolve(".lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE); FileLock ignored = ch.lock()) {
+            try (FileChannel ch =
+                            FileChannel.open(
+                                    root.resolve(".lock"),
+                                    StandardOpenOption.CREATE,
+                                    StandardOpenOption.WRITE);
+                    FileLock ignored = ch.lock()) {
                 return action.get();
             }
         } catch (IOException e) {
@@ -68,7 +74,10 @@ public final class PendingStore {
         return Optional.of(read(f));
     }
 
-    /** The question a step of a run already asked: runs are identified by their directory, which stays the same however they are resumed. */
+    /**
+     * The question a step of a run already asked: runs are identified by their directory, which
+     * stays the same however they are resumed.
+     */
     public Optional<Pending> find(String run, String step) {
         return all().stream().filter(p -> p.run().equals(run) && p.step().equals(step)).findFirst();
     }
@@ -100,8 +109,13 @@ public final class PendingStore {
         try {
             Files.createDirectories(questions);
             Path tmp = Files.createTempFile(questions, ".q", ".tmp");
-            Files.writeString(tmp, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(p.toMap()));
-            Files.move(tmp, questions.resolve(p.code() + ".json"), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            Files.writeString(
+                    tmp, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(p.toMap()));
+            Files.move(
+                    tmp,
+                    questions.resolve(p.code() + ".json"),
+                    StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -114,7 +128,8 @@ public final class PendingStore {
 
     private static Pending read(Path f) {
         try {
-            return Pending.fromMap(JSON.readValue(f.toFile(), new TypeReference<Map<String, Object>>() { }));
+            return Pending.fromMap(
+                    JSON.readValue(f.toFile(), new TypeReference<Map<String, Object>>() {}));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

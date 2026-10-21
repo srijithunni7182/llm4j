@@ -4,8 +4,9 @@ import io.github.llm4j.telemetry.ErrorCategory;
 import java.util.Objects;
 
 /**
- * Thrown by a tool to say <em>why</em> it failed, in the vocabulary statistics and dashboards use. A tool that throws anything else is still
- * classified, by the exception's type; this is for a tool that knows better.
+ * Thrown by a tool to say <em>why</em> it failed, in the vocabulary statistics and dashboards use.
+ * A tool that throws anything else is still classified, by the exception's type; this is for a tool
+ * that knows better.
  *
  * <pre>{@code
  * throw new ToolException(ErrorCategory.TIMEOUT, "the search backend did not answer in 10 s");

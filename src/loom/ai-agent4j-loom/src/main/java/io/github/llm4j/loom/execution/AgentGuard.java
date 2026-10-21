@@ -19,15 +19,22 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * An agent's {@code guard { pii: … bias: … }}. PII means personal identifiers (email, phone, SSN, card,
- * IP address); URLs are not treated as personal. Findings are audited and traced with types and counts,
- * never the values themselves.
+ * An agent's {@code guard { pii: … bias: … }}. PII means personal identifiers (email, phone, SSN,
+ * card, IP address); URLs are not treated as personal. Findings are audited and traced with types
+ * and counts, never the values themselves.
  */
 final class AgentGuard {
 
-    enum Pii { MASK, BLOCK, WARN }
+    enum Pii {
+        MASK,
+        BLOCK,
+        WARN
+    }
 
-    enum Bias { WARN, BLOCK }
+    enum Bias {
+        WARN,
+        BLOCK
+    }
 
     static final Set<String> PII_VALUES = Set.of("mask", "block", "warn");
     static final Set<String> BIAS_VALUES = Set.of("warn", "block");
@@ -39,10 +46,20 @@ final class AgentGuard {
     private final HarnessExecutor executor;
     private final PIIDetector detector = new RegexPIIDetector();
 
-    AgentGuard(String agent, AgentDef.GuardConfig config, BiasMonitor monitor, HarnessExecutor executor) {
+    AgentGuard(
+            String agent,
+            AgentDef.GuardConfig config,
+            BiasMonitor monitor,
+            HarnessExecutor executor) {
         this.agent = agent;
-        this.pii = config.getPii() == null ? null : Pii.valueOf(config.getPii().toUpperCase(Locale.ROOT));
-        this.bias = config.getBias() == null ? null : Bias.valueOf(config.getBias().toUpperCase(Locale.ROOT));
+        this.pii =
+                config.getPii() == null
+                        ? null
+                        : Pii.valueOf(config.getPii().toUpperCase(Locale.ROOT));
+        this.bias =
+                config.getBias() == null
+                        ? null
+                        : Bias.valueOf(config.getBias().toUpperCase(Locale.ROOT));
         this.monitor = monitor;
         this.executor = executor;
     }
@@ -50,10 +67,16 @@ final class AgentGuard {
     /** With {@code pii: mask}, everything the agent sends its model is masked first. */
     LLMClient wrap(LLMClient client) {
         if (pii != Pii.MASK) return client;
-        return new MaskingLLMClient(client, detector, MaskingLLMClient.PERSONAL, counts -> report("pii_masked", "model input", counts));
+        return new MaskingLLMClient(
+                client,
+                detector,
+                MaskingLLMClient.PERSONAL,
+                counts -> report("pii_masked", "model input", counts));
     }
 
-    /** Before the agent runs: {@code block} refuses a task carrying PII; {@code warn} records it. */
+    /**
+     * Before the agent runs: {@code block} refuses a task carrying PII; {@code warn} records it.
+     */
     void checkTask(String task) {
         if (pii != Pii.BLOCK && pii != Pii.WARN) return;
         Map<PIIType, Integer> found = find(task);
@@ -63,11 +86,19 @@ final class AgentGuard {
             return;
         }
         report("pii_blocked", "task", found);
-        throw new StepFailure("guard: the task for " + agent + " contains personal data (" + types(found)
-                + "); pii: block keeps it from the model", null);
+        throw new StepFailure(
+                "guard: the task for "
+                        + agent
+                        + " contains personal data ("
+                        + types(found)
+                        + "); pii: block keeps it from the model",
+                null);
     }
 
-    /** After the agent answers: mask, block or record PII, then check for bias. Returns what may be stored. */
+    /**
+     * After the agent answers: mask, block or record PII, then check for bias. Returns what may be
+     * stored.
+     */
     String checkAnswer(String answer) {
         String out = answer == null ? "" : answer;
         if (pii != null) {
@@ -80,15 +111,21 @@ final class AgentGuard {
                     }
                     case BLOCK -> {
                         report("pii_blocked", "answer", found);
-                        throw new StepFailure("guard: " + agent + "'s answer contains personal data (" + types(found)
-                                + "); pii: block keeps it out of the run", null);
+                        throw new StepFailure(
+                                "guard: "
+                                        + agent
+                                        + "'s answer contains personal data ("
+                                        + types(found)
+                                        + "); pii: block keeps it out of the run",
+                                null);
                     }
                     case WARN -> report("pii_detected", "answer", found);
                 }
             }
         }
         if (bias != null) {
-            List<BiasEvent> events = monitor.detectBias(out, BiasContext.builder().taskType("delegate").build());
+            List<BiasEvent> events =
+                    monitor.detectBias(out, BiasContext.builder().taskType("delegate").build());
             for (BiasEvent e : events) {
                 Map<String, Object> data = new LinkedHashMap<>();
                 data.put("agent", agent);
@@ -98,17 +135,27 @@ final class AgentGuard {
                 data.put("explanation", e.getExplanation() == null ? "" : e.getExplanation());
                 data.put("event", "bias_detected");
                 executor.audit("bias_detected", data);
-                executor.trace(TraceEvent.GUARD, agent, "bias " + e.getSeverity() + " " + e.getType() + ": " + e.getExplanation(), data);
+                executor.trace(
+                        TraceEvent.GUARD,
+                        agent,
+                        "bias " + e.getSeverity() + " " + e.getType() + ": " + e.getExplanation(),
+                        data);
             }
             if (bias == Bias.BLOCK && monitor.shouldIntervene(events)) {
-                String what = events.stream().map(e -> e.getType() + " (" + e.getSeverity() + ")").distinct().toList().toString();
+                String what =
+                        events.stream()
+                                .map(e -> e.getType() + " (" + e.getSeverity() + ")")
+                                .distinct()
+                                .toList()
+                                .toString();
                 Map<String, Object> data = new LinkedHashMap<>();
                 data.put("agent", agent);
                 data.put("step", executor.currentStep());
                 data.put("findings", what);
                 data.put("event", "bias_blocked");
                 executor.audit("bias_blocked", data);
-                throw new StepFailure("guard: " + agent + "'s answer was blocked for bias " + what, null);
+                throw new StepFailure(
+                        "guard: " + agent + "'s answer was blocked for bias " + what, null);
             }
         }
         return out;
@@ -116,14 +163,17 @@ final class AgentGuard {
 
     /** What is kept (e.g. in conversation memory): masked with {@code pii: mask}, else as is. */
     String forStorage(String text) {
-        return pii == Pii.MASK ? MaskingLLMClient.mask(text, detector, MaskingLLMClient.PERSONAL, null) : text;
+        return pii == Pii.MASK
+                ? MaskingLLMClient.mask(text, detector, MaskingLLMClient.PERSONAL, null)
+                : text;
     }
 
     private Map<PIIType, Integer> find(String text) {
         Map<PIIType, Integer> counts = new EnumMap<>(PIIType.class);
         if (text == null) return counts;
         for (PIIEntity e : detector.detect(text).getEntities()) {
-            if (MaskingLLMClient.PERSONAL.contains(e.getType())) counts.merge(e.getType(), 1, Integer::sum);
+            if (MaskingLLMClient.PERSONAL.contains(e.getType()))
+                counts.merge(e.getType(), 1, Integer::sum);
         }
         return counts;
     }
@@ -142,6 +192,10 @@ final class AgentGuard {
         data.put("types", byType.toString());
         data.put("event", event);
         executor.audit(event, data);
-        executor.trace(TraceEvent.GUARD, agent, event.replace('_', ' ') + " in " + where + ": " + byType, data);
+        executor.trace(
+                TraceEvent.GUARD,
+                agent,
+                event.replace('_', ' ') + " in " + where + ": " + byType,
+                data);
     }
 }

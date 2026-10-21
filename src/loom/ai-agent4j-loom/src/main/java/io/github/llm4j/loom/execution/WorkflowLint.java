@@ -20,12 +20,14 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Things in a workflow that are almost always a mistake and that a person cannot see by reading the script once: a result that is stored and
- * never read, and above all a question put to a person whose answer changes nothing. It reads the statements generically: any text a
- * statement carries (a prompt, a condition, a note, arguments) may read a variable, so it stays quiet when unsure.
+ * Things in a workflow that are almost always a mistake and that a person cannot see by reading the
+ * script once: a result that is stored and never read, and above all a question put to a person
+ * whose answer changes nothing. It reads the statements generically: any text a statement carries
+ * (a prompt, a condition, a note, arguments) may read a variable, so it stays quiet when unsure.
  *
- * <p>A variable whose name starts with an underscore is meant to be ignored and is never reported. The result of a {@code run} task is not
- * reported either: a task is often run for what it does, not for what it returns.
+ * <p>A variable whose name starts with an underscore is meant to be ignored and is never reported.
+ * The result of a {@code run} task is not reported either: a task is often run for what it does,
+ * not for what it returns.
  */
 public final class WorkflowLint {
 
@@ -33,7 +35,14 @@ public final class WorkflowLint {
     public record Finding(int line, String construct, String message) {}
 
     /** Getters that name what a statement assigns, or are not text it carries. */
-    private static final Set<String> NOT_TEXT = Set.of("getLine", "getVariableName", "getResultVariable", "getVariable", "getClass", "getName");
+    private static final Set<String> NOT_TEXT =
+            Set.of(
+                    "getLine",
+                    "getVariableName",
+                    "getResultVariable",
+                    "getVariable",
+                    "getClass",
+                    "getName");
 
     private WorkflowLint() {}
 
@@ -59,14 +68,34 @@ public final class WorkflowLint {
                 }
             }
             if (read) continue;
-            findings.add(new Finding(s.getLine(), who, s instanceof HumanPromptStmt
-                    ? "the answer to this question is stored in " + name + " and never read, so the workflow does the same whatever the person says"
-                    : name + " is set here and never used"));
+            findings.add(
+                    new Finding(
+                            s.getLine(),
+                            who,
+                            s instanceof HumanPromptStmt
+                                    ? "the answer to this question is stored in "
+                                            + name
+                                            + " and never read, so the workflow does the same whatever the person says"
+                                    : name + " is set here and never used"));
         }
         for (Statement s : all) {
-            if (s instanceof AltStmt alt && !alt.getIfBranch().isEmpty() && signature(alt.getIfBranch()).equals(signature(alt.getElseBranch()))
-                    && humanAnswers.stream().anyMatch(a -> Pattern.compile("(?<![\\w.])" + Pattern.quote(a) + "(?![\\w])").matcher(alt.getCondition()).find())) {
-                findings.add(new Finding(s.getLine(), who, "both answers to the question lead to the same steps, so the question changes nothing"));
+            if (s instanceof AltStmt alt
+                    && !alt.getIfBranch().isEmpty()
+                    && signature(alt.getIfBranch()).equals(signature(alt.getElseBranch()))
+                    && humanAnswers.stream()
+                            .anyMatch(
+                                    a ->
+                                            Pattern.compile(
+                                                            "(?<![\\w.])"
+                                                                    + Pattern.quote(a)
+                                                                    + "(?![\\w])")
+                                                    .matcher(alt.getCondition())
+                                                    .find())) {
+                findings.add(
+                        new Finding(
+                                s.getLine(),
+                                who,
+                                "both answers to the question lead to the same steps, so the question changes nothing"));
             }
         }
         findings.addAll(wordsThatAreVariables(workflow, all, who));
@@ -76,28 +105,51 @@ public final class WorkflowLint {
     }
 
     /**
-     * A {@code loop until (…)} tests its condition before every round, the first included. When the condition reads a variable that nothing sets
-     * before the loop (it is set inside the loop, or nowhere) and the condition is already true with that variable unset (as {@code x != "v"}
-     * is), the loop body never runs. Reported once per such loop.
+     * A {@code loop until (…)} tests its condition before every round, the first included. When the
+     * condition reads a variable that nothing sets before the loop (it is set inside the loop, or
+     * nowhere) and the condition is already true with that variable unset (as {@code x != "v"} is),
+     * the loop body never runs. Reported once per such loop.
      */
-    private static List<Finding> loopsThatNeverRun(WorkflowDef workflow, List<Statement> all, String who) {
+    private static List<Finding> loopsThatNeverRun(
+            WorkflowDef workflow, List<Statement> all, String who) {
         List<Finding> out = new ArrayList<>();
         for (Statement s : all) {
-            if (!(s instanceof io.github.llm4j.loom.ast.LoopStmt loop) || loop.getCondition() == null) continue;
+            if (!(s instanceof io.github.llm4j.loom.ast.LoopStmt loop)
+                    || loop.getCondition() == null) continue;
             String condition = loop.getCondition().strip();
-            String root = condition.split("\\s*(==|!=|>=|<=|>|<)", 2)[0].strip().split("\\.")[0].strip();
-            if (root.isEmpty() || !root.matches("[A-Za-z_][A-Za-z0-9_]*") || workflow.getParameters().contains(root)) continue;
+            String root =
+                    condition.split("\\s*(==|!=|>=|<=|>|<)", 2)[0].strip().split("\\.")[0].strip();
+            if (root.isEmpty()
+                    || !root.matches("[A-Za-z_][A-Za-z0-9_]*")
+                    || workflow.getParameters().contains(root)) continue;
             List<Statement> inside = new ArrayList<>();
             StatementWalker.walk(loop.getBody(), inside::add);
             boolean setBefore = false;
             for (Statement t : all) {
-                String setsIt = t instanceof io.github.llm4j.loom.ast.RunStmt r ? r.getVariableName() : assigned(t); // a run step's result counts: it is not reported as unused, but it is set
-                if (t != loop && !inside.contains(t) && t.getLine() < loop.getLine() && root.equals(setsIt)) setBefore = true;
+                String setsIt =
+                        t instanceof io.github.llm4j.loom.ast.RunStmt r
+                                ? r.getVariableName()
+                                : assigned(t); // a run step's result counts: it is not reported as
+                // unused, but it is set
+                if (t != loop
+                        && !inside.contains(t)
+                        && t.getLine() < loop.getLine()
+                        && root.equals(setsIt)) setBefore = true;
             }
             if (setBefore) continue;
-            if (io.github.llm4j.loom.runtime.ConditionEvaluator.evaluate(condition, new io.github.llm4j.loom.runtime.DefaultVariableContext())) {
-                out.add(new Finding(loop.getLine(), who, "this loop never runs: it is tested before the first round, " + root
-                        + " has no value yet, and the condition (" + condition + ") is already true. Stop on a value the loop sets (for example == \"OK\"), or set " + root + " before the loop"));
+            if (io.github.llm4j.loom.runtime.ConditionEvaluator.evaluate(
+                    condition, new io.github.llm4j.loom.runtime.DefaultVariableContext())) {
+                out.add(
+                        new Finding(
+                                loop.getLine(),
+                                who,
+                                "this loop never runs: it is tested before the first round, "
+                                        + root
+                                        + " has no value yet, and the condition ("
+                                        + condition
+                                        + ") is already true. Stop on a value the loop sets (for example == \"OK\"), or set "
+                                        + root
+                                        + " before the loop"));
             }
         }
         return out;
@@ -106,10 +158,13 @@ public final class WorkflowLint {
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{[^{}\\s]+}");
 
     /**
-     * A variable's name is also replaced where it is written as a plain word in a prompt, a question or a note (the older bare-name form), so a
-     * variable called {@code draft} turns "Review this draft" into "Review this <the whole draft>". Reported once per variable, where it first happens.
+     * A variable's name is also replaced where it is written as a plain word in a prompt, a
+     * question or a note (the older bare-name form), so a variable called {@code draft} turns
+     * "Review this draft" into "Review this <the whole draft>". Reported once per variable, where
+     * it first happens.
      */
-    private static List<Finding> wordsThatAreVariables(WorkflowDef workflow, List<Statement> all, String who) {
+    private static List<Finding> wordsThatAreVariables(
+            WorkflowDef workflow, List<Statement> all, String who) {
         java.util.Set<String> names = new java.util.LinkedHashSet<>(workflow.getParameters());
         for (Statement s : all) {
             String name = assigned(s);
@@ -117,12 +172,27 @@ public final class WorkflowLint {
         }
         List<Finding> out = new ArrayList<>();
         for (String name : names) {
-            if (name == null || name.length() < 2 || name.startsWith("_") || name.startsWith("{")) continue;
+            if (name == null || name.length() < 2 || name.startsWith("_") || name.startsWith("{"))
+                continue;
             for (Statement s : all) {
-                String payload = s instanceof DelegateStmt d ? d.getPayload() : s instanceof BroadcastStmt b ? b.getPayload()
-                        : s instanceof HumanPromptStmt h ? h.getMessage() : s instanceof NoteStmt n ? n.getMessage() : null;
+                String payload =
+                        s instanceof DelegateStmt d
+                                ? d.getPayload()
+                                : s instanceof BroadcastStmt b
+                                        ? b.getPayload()
+                                        : s instanceof HumanPromptStmt h
+                                                ? h.getMessage()
+                                                : s instanceof NoteStmt n ? n.getMessage() : null;
                 if (payload != null && PLACEHOLDER.matcher(payload).replaceAll("").contains(name)) {
-                    out.add(new Finding(s.getLine(), who, "the variable " + name + " is also written as an ordinary word here, and the word is replaced by the variable's value; rename the variable (for example " + name + "_text)"));
+                    out.add(
+                            new Finding(
+                                    s.getLine(),
+                                    who,
+                                    "the variable "
+                                            + name
+                                            + " is also written as an ordinary word here, and the word is replaced by the variable's value; rename the variable (for example "
+                                            + name
+                                            + "_text)"));
                     break;
                 }
             }
@@ -137,10 +207,16 @@ public final class WorkflowLint {
         else if (s instanceof BroadcastStmt b) name = b.getVariableName();
         else if (s instanceof CallStmt c) name = c.getResultVariable();
         else if (s instanceof DecideStmt d) name = d.getVariable();
-        else if (s instanceof io.github.llm4j.loom.ast.IntentClassifyStmt i) name = i.getVariableName();
+        else if (s instanceof io.github.llm4j.loom.ast.IntentClassifyStmt i)
+            name = i.getVariableName();
         else if (s instanceof io.github.llm4j.loom.ast.SetStmt set) name = set.getName();
-        // `result` is what a workflow hands back to the one that `call`s it, so it is used by the caller, not here
-        if (name == null || name.isBlank() || name.startsWith("{") || name.startsWith("_") || name.equals("result")) return null;
+        // `result` is what a workflow hands back to the one that `call`s it, so it is used by the
+        // caller, not here
+        if (name == null
+                || name.isBlank()
+                || name.startsWith("{")
+                || name.startsWith("_")
+                || name.equals("result")) return null;
         return name;
     }
 
@@ -148,7 +224,9 @@ public final class WorkflowLint {
     private static String text(Statement s) {
         StringBuilder out = new StringBuilder();
         for (Method m : s.getClass().getMethods()) {
-            if (m.getParameterCount() != 0 || NOT_TEXT.contains(m.getName()) || !(m.getName().startsWith("get") || m.getName().startsWith("is"))) continue;
+            if (m.getParameterCount() != 0
+                    || NOT_TEXT.contains(m.getName())
+                    || !(m.getName().startsWith("get") || m.getName().startsWith("is"))) continue;
             try {
                 append(out, m.invoke(s));
             } catch (ReflectiveOperationException | RuntimeException e) {
@@ -160,18 +238,31 @@ public final class WorkflowLint {
 
     private static void append(StringBuilder out, Object value) {
         if (value instanceof String str) out.append(str).append('\n');
-        else if (value instanceof io.github.llm4j.loom.ast.ValueExpr v) v.visitTexts(t -> out.append(t).append('\n'));
-        else if (value instanceof io.github.llm4j.loom.ast.RunStmt.Arg arg) out.append(arg.text()).append('\n'); // what a task is handed is read, even when only a task reads it
+        else if (value instanceof io.github.llm4j.loom.ast.ValueExpr v)
+            v.visitTexts(t -> out.append(t).append('\n'));
+        else if (value instanceof io.github.llm4j.loom.ast.RunStmt.Arg arg)
+            out.append(arg.text())
+                    .append('\n'); // what a task is handed is read, even when only a task reads it
         else if (value instanceof Map<?, ?> map) map.values().forEach(v -> append(out, v));
-        else if (value instanceof Collection<?> list) list.forEach(v -> {
-            if (!(v instanceof Statement)) append(out, v);
-        });
+        else if (value instanceof Collection<?> list)
+            list.forEach(
+                    v -> {
+                        if (!(v instanceof Statement)) append(out, v);
+                    });
     }
 
-    /** What a list of statements is, for comparing two lists: the kind and text of each, in order. */
+    /**
+     * What a list of statements is, for comparing two lists: the kind and text of each, in order.
+     */
     private static String signature(List<Statement> statements) {
         StringBuilder out = new StringBuilder();
-        StatementWalker.walk(statements, s -> out.append(s.getClass().getSimpleName()).append('|').append(text(s)).append("||"));
+        StatementWalker.walk(
+                statements,
+                s ->
+                        out.append(s.getClass().getSimpleName())
+                                .append('|')
+                                .append(text(s))
+                                .append("||"));
         return out.toString();
     }
 }

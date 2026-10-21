@@ -4,15 +4,12 @@ import io.github.llm4j.loom.ast.LoomScript;
 import io.github.llm4j.loom.execution.*;
 import io.github.llm4j.loom.lexer.Lexer;
 import io.github.llm4j.loom.parser.LoomParser;
-
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * The standard entry point for a packaged Loom workflow JAR.
- */
+/** The standard entry point for a packaged Loom workflow JAR. */
 public class PackagedLoomApp {
 
     public static void main(String[] args) throws Exception {

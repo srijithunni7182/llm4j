@@ -23,9 +23,10 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
- * Triggers as files in a directory — one {@code triggers/<id>.json} each, written atomically — for a
- * single machine: the {@code weave} CLI, cron, systemd or launchd. A claim is a {@code <id>.claim} file
- * created exclusively, so two processes can never both fire a trigger; {@code tick.lock} serialises ticks.
+ * Triggers as files in a directory — one {@code triggers/<id>.json} each, written atomically — for
+ * a single machine: the {@code weave} CLI, cron, systemd or launchd. A claim is a {@code
+ * <id>.claim} file created exclusively, so two processes can never both fire a trigger; {@code
+ * tick.lock} serialises ticks.
  */
 public class FileTriggerStore implements TriggerStore {
 
@@ -84,9 +85,12 @@ public class FileTriggerStore implements TriggerStore {
     public List<Trigger> all() {
         List<Trigger> out = new ArrayList<>();
         try (Stream<Path> files = Files.list(triggers)) {
-            for (Path f : files.filter(p -> p.getFileName().toString().endsWith(".json")).toList()) {
+            for (Path f :
+                    files.filter(p -> p.getFileName().toString().endsWith(".json")).toList()) {
                 String name = f.getFileName().toString();
-                String id = URLDecoder.decode(name.substring(0, name.length() - 5), StandardCharsets.UTF_8);
+                String id =
+                        URLDecoder.decode(
+                                name.substring(0, name.length() - 5), StandardCharsets.UTF_8);
                 get(id).ifPresent(out::add);
             }
         } catch (IOException e) {
@@ -108,12 +112,16 @@ public class FileTriggerStore implements TriggerStore {
     @Override
     public boolean claim(String id, String owner, Instant now, Duration staleAfter) {
         Optional<Trigger> t = get(id);
-        if (t.isEmpty() || !t.get().enabled() || t.get().nextFire() == null || t.get().nextFire().isAfter(now)) return false;
+        if (t.isEmpty()
+                || !t.get().enabled()
+                || t.get().nextFire() == null
+                || t.get().nextFire().isAfter(now)) return false;
         Path claim = claimFile(id);
         for (int attempt = 0; attempt < 2; attempt++) {
             if (createClaim(claim, owner + "\n" + now)) return true;
             String[] c = readClaim(id);
-            if (c == null || Instant.parse(c[1]).isAfter(now.minus(staleAfter))) return false; // held
+            if (c == null || Instant.parse(c[1]).isAfter(now.minus(staleAfter)))
+                return false; // held
             if (!takeOverStale(claim, now.minus(staleAfter))) return false;
         }
         return false;
@@ -131,7 +139,11 @@ public class FileTriggerStore implements TriggerStore {
                 return false;
             } catch (UnsupportedOperationException noLinks) {
                 try {
-                    Files.writeString(claim, content, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+                    Files.writeString(
+                            claim,
+                            content,
+                            StandardOpenOption.CREATE_NEW,
+                            StandardOpenOption.WRITE);
                     return true;
                 } catch (FileAlreadyExistsException held) {
                     return false;
@@ -145,11 +157,12 @@ public class FileTriggerStore implements TriggerStore {
     }
 
     /**
-     * Moves a dead process's claim aside. If what was moved turns out to be fresh (another process took
-     * the claim over first), it is put back and the takeover fails.
+     * Moves a dead process's claim aside. If what was moved turns out to be fresh (another process
+     * took the claim over first), it is put back and the takeover fails.
      */
     boolean takeOverStale(Path claim, Instant staleBefore) {
-        Path aside = claim.resolveSibling(claim.getFileName() + ".stale-" + java.util.UUID.randomUUID());
+        Path aside =
+                claim.resolveSibling(claim.getFileName() + ".stale-" + java.util.UUID.randomUUID());
         try {
             Files.move(claim, aside, StandardCopyOption.ATOMIC_MOVE);
         } catch (NoSuchFileException gone) {
@@ -159,7 +172,8 @@ public class FileTriggerStore implements TriggerStore {
         }
         try {
             String[] parts = Files.readString(aside).split("\n", 2);
-            boolean stale = parts.length == 2 && Instant.parse(parts[1].trim()).isBefore(staleBefore);
+            boolean stale =
+                    parts.length == 2 && Instant.parse(parts[1].trim()).isBefore(staleBefore);
             if (!stale) {
                 try {
                     Files.createLink(claim, aside); // not ours to take: put it back
@@ -182,7 +196,8 @@ public class FileTriggerStore implements TriggerStore {
     @Override
     public synchronized void complete(String id, String owner, Trigger next) {
         String[] c = readClaim(id);
-        if (c == null || !c[0].equals(owner)) return; // rewritten (e.g. the run paused again): keep that
+        if (c == null || !c[0].equals(owner))
+            return; // rewritten (e.g. the run paused again): keep that
         if (next == null) {
             remove(id);
         } else {
@@ -198,7 +213,11 @@ public class FileTriggerStore implements TriggerStore {
     @Override
     public AutoCloseable tickLock() {
         try {
-            FileChannel channel = FileChannel.open(dir.resolve("tick.lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            FileChannel channel =
+                    FileChannel.open(
+                            dir.resolve("tick.lock"),
+                            StandardOpenOption.CREATE,
+                            StandardOpenOption.WRITE);
             FileLock lock;
             try {
                 lock = channel.tryLock();
@@ -235,7 +254,11 @@ public class FileTriggerStore implements TriggerStore {
             Path tmp = Files.createTempFile(target.getParent(), ".write-", ".tmp");
             Files.writeString(tmp, content);
             try {
-                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                Files.move(
+                        tmp,
+                        target,
+                        StandardCopyOption.REPLACE_EXISTING,
+                        StandardCopyOption.ATOMIC_MOVE);
             } catch (AtomicMoveNotSupportedException e) {
                 Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
             }

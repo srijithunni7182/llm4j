@@ -10,7 +10,10 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** V2.1, V2.5, V2.6: the files an entry script reaches, and what is reported when some cannot be loaded. */
+/**
+ * V2.1, V2.5, V2.6: the files an entry script reaches, and what is reported when some cannot be
+ * loaded.
+ */
 class ImportClosureLoaderTest {
 
     private final ImportClosureLoader loader = new ImportClosureLoader();
@@ -28,7 +31,8 @@ class ImportClosureLoaderTest {
         ImportClosure closure = loader.load(path("imports/parent.loom"));
 
         assertThat(names(closure.discovery())).containsExactly("parent.loom", "child.loom");
-        assertThat(names(closure.imports().get(path("imports/parent.loom")))).containsExactly("child.loom");
+        assertThat(names(closure.imports().get(path("imports/parent.loom"))))
+                .containsExactly("child.loom");
         assertThat(closure.imports().get(path("imports/child.loom"))).isEmpty();
         assertThat(closure.diagnostics()).isEmpty();
     }
@@ -44,19 +48,25 @@ class ImportClosureLoaderTest {
     void aFileImportedByTwoFilesIsLoadedOnceAndListedByBoth() {
         ImportClosure closure = loader.load(path("graph/diamond/a.loom"));
 
-        assertThat(names(closure.discovery())).containsExactly("a.loom", "b.loom", "d.loom", "c.loom");
-        assertThat(names(closure.imports().get(path("graph/diamond/b.loom")))).containsExactly("d.loom");
-        assertThat(names(closure.imports().get(path("graph/diamond/c.loom")))).containsExactly("d.loom");
-        assertThat(names(closure.scripts().keySet())).containsExactly("d.loom", "b.loom", "c.loom", "a.loom");
+        assertThat(names(closure.discovery()))
+                .containsExactly("a.loom", "b.loom", "d.loom", "c.loom");
+        assertThat(names(closure.imports().get(path("graph/diamond/b.loom"))))
+                .containsExactly("d.loom");
+        assertThat(names(closure.imports().get(path("graph/diamond/c.loom"))))
+                .containsExactly("d.loom");
+        assertThat(names(closure.scripts().keySet()))
+                .containsExactly("d.loom", "b.loom", "c.loom", "a.loom");
         assertThat(closure.diagnostics()).isEmpty();
     }
 
     @Test
     void anImportCycleEndsWithOneWarningNamingTheFilesAndBothGraphsStillLoad() {
-        ImportClosure closure = org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(
-                Duration.ofSeconds(2), () -> loader.load(path("imports/circular_a.loom")));
+        ImportClosure closure =
+                org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(
+                        Duration.ofSeconds(2), () -> loader.load(path("imports/circular_a.loom")));
 
-        assertThat(names(closure.scripts().keySet())).containsExactlyInAnyOrder("circular_a.loom", "circular_b.loom");
+        assertThat(names(closure.scripts().keySet()))
+                .containsExactlyInAnyOrder("circular_a.loom", "circular_b.loom");
         assertThat(closure.diagnostics()).hasSize(1);
         Diagnostic cycle = closure.diagnostics().get(0);
         assertThat(cycle.severity()).isEqualTo(Diagnostic.Severity.WARNING);
@@ -102,7 +112,9 @@ class ImportClosureLoaderTest {
 
     @Test
     void aSyntaxErrorInTheEntryFileLeavesNoEntry(@TempDir Path dir) throws Exception {
-        Path entry = Files.writeString(dir.resolve("bad.loom"), "workflow W() {\n  delegate \"x\" to A }\n");
+        Path entry =
+                Files.writeString(
+                        dir.resolve("bad.loom"), "workflow W() {\n  delegate \"x\" to A }\n");
 
         ImportClosure closure = loader.load(entry);
 
@@ -127,8 +139,10 @@ class ImportClosureLoaderTest {
     private List<Diagnostic> loadFromFolder(Path dir, String folderName) throws Exception {
         Path folder = Files.createDirectories(dir.resolve(folderName));
         Files.writeString(folder.resolve("child file.loom"), "workflow Child() { note \"c\" }\n");
-        Path entry = Files.writeString(
-                folder.resolve("main.loom"), "import \"child file.loom\"\nworkflow M() { call Child() -> r }\n");
+        Path entry =
+                Files.writeString(
+                        folder.resolve("main.loom"),
+                        "import \"child file.loom\"\nworkflow M() { call Child() -> r }\n");
 
         ImportClosure closure = loader.load(entry);
 

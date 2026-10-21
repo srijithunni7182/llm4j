@@ -10,9 +10,14 @@ final class TelemetryListener implements AgentEventListener {
     final List<ToolCallEvent> tools = Collections.synchronizedList(new ArrayList<>());
     final List<ModelCallEvent> models = Collections.synchronizedList(new ArrayList<>());
 
-    @Override public void onThought(String thought) {}
-    @Override public void onAction(String toolName, String toolInput) {}
-    @Override public void onObservation(String observation) {}
+    @Override
+    public void onThought(String thought) {}
+
+    @Override
+    public void onAction(String toolName, String toolInput) {}
+
+    @Override
+    public void onObservation(String observation) {}
 
     @Override
     public void onToolCall(ToolCallEvent event) {
@@ -25,7 +30,8 @@ final class TelemetryListener implements AgentEventListener {
     }
 
     ToolCallEvent onlyTool() {
-        if (tools.size() != 1) throw new AssertionError("expected one tool event, got " + tools.size() + ": " + tools);
+        if (tools.size() != 1)
+            throw new AssertionError("expected one tool event, got " + tools.size() + ": " + tools);
         return tools.get(0);
     }
 }

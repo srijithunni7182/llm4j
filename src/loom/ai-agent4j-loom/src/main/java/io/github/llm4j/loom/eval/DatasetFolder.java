@@ -13,9 +13,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A script's golden dataset, matched to what it can evaluate. {@code researcher.yaml} is for the agent {@code Researcher} (case does not matter);
- * {@code Diagnose.yaml} is for the workflow {@code Diagnose}; {@code workflow.yaml} is for the workflow named with {@code --workflow}, else
- * {@code Main}, else the script's only workflow. A file that is none of these is reported with the names nearest to it.
+ * A script's golden dataset, matched to what it can evaluate. {@code researcher.yaml} is for the
+ * agent {@code Researcher} (case does not matter); {@code Diagnose.yaml} is for the workflow {@code
+ * Diagnose}; {@code workflow.yaml} is for the workflow named with {@code --workflow}, else {@code
+ * Main}, else the script's only workflow. A file that is none of these is reported with the names
+ * nearest to it.
  */
 public final class DatasetFolder {
 
@@ -39,13 +41,19 @@ public final class DatasetFolder {
 
     private DatasetFolder() {}
 
-    /** {@code eval/golden} beside the script (or {@code src/test/resources/eval/golden} in a Maven project), unless a folder is given. */
+    /**
+     * {@code eval/golden} beside the script (or {@code src/test/resources/eval/golden} in a Maven
+     * project), unless a folder is given.
+     */
     public static Path locate(Path scriptFile, Path given) {
         if (given != null) return given.toAbsolutePath().normalize();
         return io.github.llm4j.loom.init.ProjectLayout.dataset(scriptFile);
     }
 
-    /** Reads the folder and matches its files to the script. {@code workflowChoice} (may be null) says which workflow {@code workflow.yaml} is for. */
+    /**
+     * Reads the folder and matches its files to the script. {@code workflowChoice} (may be null)
+     * says which workflow {@code workflow.yaml} is for.
+     */
     public static Plan plan(LoomScript script, Path dir, String workflowChoice) {
         EvalDataset dataset = EvalDataset.load(dir);
         List<String> problems = new ArrayList<>();
@@ -64,8 +72,13 @@ public final class DatasetFolder {
             } else if (stem.equalsIgnoreCase("workflow")) {
                 String chosen = chooseWorkflow(workflows, workflowChoice);
                 if (chosen == null) {
-                    problems.add(stem + ".yaml: it is not clear which workflow this is for (" + String.join(", ", workflows)
-                            + "); name the file after the workflow, for example " + (workflows.isEmpty() ? "Main" : workflows.get(0)) + ".yaml, or use --workflow");
+                    problems.add(
+                            stem
+                                    + ".yaml: it is not clear which workflow this is for ("
+                                    + String.join(", ", workflows)
+                                    + "); name the file after the workflow, for example "
+                                    + (workflows.isEmpty() ? "Main" : workflows.get(0))
+                                    + ".yaml, or use --workflow");
                 } else {
                     targets.add(new Target("workflow", chosen, stem + ".yaml", file.getValue()));
                 }
@@ -73,8 +86,13 @@ public final class DatasetFolder {
                 List<String> all = new ArrayList<>(agents);
                 all.addAll(workflows);
                 List<String> near = PromptCatalog.nearest(stem, all);
-                problems.add(stem + ".yaml: the script has no agent or workflow named " + stem
-                        + (near.isEmpty() ? " (it has " + String.join(", ", all) + ")" : "; did you mean " + String.join(", ", near) + "?"));
+                problems.add(
+                        stem
+                                + ".yaml: the script has no agent or workflow named "
+                                + stem
+                                + (near.isEmpty()
+                                        ? " (it has " + String.join(", ", all) + ")"
+                                        : "; did you mean " + String.join(", ", near) + "?"));
             }
         }
         return new Plan(dir, targets, problems, dataset);

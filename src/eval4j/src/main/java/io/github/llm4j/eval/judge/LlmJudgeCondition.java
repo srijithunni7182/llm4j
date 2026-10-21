@@ -80,11 +80,17 @@ public final class LlmJudgeCondition extends Condition<Object> {
         this.name = builder.name;
         this.criteria = Objects.requireNonNull(builder.criteria, "criteria cannot be null");
         if (builder.judge != null && builder.classifier != null) {
-            throw new IllegalStateException("set either judge(LLMClient) or classifier(Classifier) on \"" + builder.name + "\", not both");
+            throw new IllegalStateException(
+                    "set either judge(LLMClient) or classifier(Classifier) on \""
+                            + builder.name
+                            + "\", not both");
         }
         this.classifier = builder.classifier;
         this.graded = builder.graded;
-        this.judge = builder.classifier != null ? null : Objects.requireNonNull(builder.judge, "judge cannot be null");
+        this.judge =
+                builder.classifier != null
+                        ? null
+                        : Objects.requireNonNull(builder.judge, "judge cannot be null");
         this.threshold = builder.threshold;
         this.input = builder.input;
         this.expectedOutput = builder.expectedOutput;
@@ -218,10 +224,15 @@ public final class LlmJudgeCondition extends Condition<Object> {
         return threshold;
     }
 
-    /** The judge identifier folded into the cache key; a classifier's verdicts never share keys with a chat judge's, nor graded with yes/no. */
+    /**
+     * The judge identifier folded into the cache key; a classifier's verdicts never share keys with
+     * a chat judge's, nor graded with yes/no.
+     */
     private String cacheIdentifier() {
         if (classifier == null) return judgeIdentifier;
-        return (judgeIdentifier == null ? "" : judgeIdentifier) + "#classifier:" + (graded ? "graded" : "yesno");
+        return (judgeIdentifier == null ? "" : judgeIdentifier)
+                + "#classifier:"
+                + (graded ? "graded" : "yesno");
     }
 
     private String telemetryId() {
@@ -234,13 +245,29 @@ public final class LlmJudgeCondition extends Condition<Object> {
         long start = System.nanoTime();
         try {
             ClassifierJudge.Judged judged =
-                    ClassifierJudge.judge(classifier, graded, name, criteria, input, expectedOutput, context, retrievalContext, actualOutput, trajectory);
+                    ClassifierJudge.judge(
+                            classifier,
+                            graded,
+                            name,
+                            criteria,
+                            input,
+                            expectedOutput,
+                            context,
+                            retrievalContext,
+                            actualOutput,
+                            trajectory);
             io.github.llm4j.classify.ClassifyUsage usage = judged.result().usage();
-            JudgeTelemetry.callMade(id, (System.nanoTime() - start) / 1_000_000, usage.inputTokens(), usage.outputTokens(), false);
+            JudgeTelemetry.callMade(
+                    id,
+                    (System.nanoTime() - start) / 1_000_000,
+                    usage.inputTokens(),
+                    usage.outputTokens(),
+                    false);
             return judged.verdict();
         } catch (Exception e) {
             JudgeTelemetry.callMade(id, (System.nanoTime() - start) / 1_000_000, 0, 0, true);
-            throw new JudgeEvaluationException("Judge call failed for criterion \"" + name + "\"", e);
+            throw new JudgeEvaluationException(
+                    "Judge call failed for criterion \"" + name + "\"", e);
         }
     }
 
@@ -338,17 +365,23 @@ public final class LlmJudgeCondition extends Condition<Object> {
         }
 
         /**
-         * Judges with a {@link Classifier} instead of a chat model: the criterion becomes one yes/no question (the score is the probability of yes),
-         * or one question on a five-point scale with {@link #graded(boolean)}. A judgement is then one short call, and {@code threshold},
-         * {@code samples}, {@code cache}, telemetry and {@code dimensions} work as they do with {@link #judge(LLMClient)}. Set one of the two, not both.
-         * The verdict has no reason text unless the classifier gave a rationale ({@code LlmClassifier.builder(..).withRationale(true)}).
+         * Judges with a {@link Classifier} instead of a chat model: the criterion becomes one
+         * yes/no question (the score is the probability of yes), or one question on a five-point
+         * scale with {@link #graded(boolean)}. A judgement is then one short call, and {@code
+         * threshold}, {@code samples}, {@code cache}, telemetry and {@code dimensions} work as they
+         * do with {@link #judge(LLMClient)}. Set one of the two, not both. The verdict has no
+         * reason text unless the classifier gave a rationale ({@code
+         * LlmClassifier.builder(..).withRationale(true)}).
          */
         public Builder classifier(Classifier classifier) {
             this.classifier = classifier;
             return this;
         }
 
-        /** With {@link #classifier(Classifier)}: grade the criterion on a five-point scale (the score is the position) rather than ask yes/no. Default false. */
+        /**
+         * With {@link #classifier(Classifier)}: grade the criterion on a five-point scale (the
+         * score is the position) rather than ask yes/no. Default false.
+         */
         public Builder graded(boolean graded) {
             this.graded = graded;
             return this;

@@ -11,7 +11,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** R25: tasks have the health account tools have, kept apart from tools, in the view and in the cross-run rollup. */
+/**
+ * R25: tasks have the health account tools have, kept apart from tools, in the view and in the
+ * cross-run rollup.
+ */
 class TaskHealthTest {
 
     private final TaskFailureFixtures f = new TaskFailureFixtures();
@@ -26,7 +29,11 @@ class TaskHealthTest {
         for (int i = 0; i < 4; i++) f.task(i + 1, "Pay", 200, true, null);
         f.task(5, "Pay", 900, false, "server_error");
         Map<String, Object> pay = rows("tasks").get(0);
-        assertThat(pay).containsEntry("name", "Pay").containsEntry("calls", 5L).containsEntry("errors", 1L).containsEntry("successes", 4L);
+        assertThat(pay)
+                .containsEntry("name", "Pay")
+                .containsEntry("calls", 5L)
+                .containsEntry("errors", 1L)
+                .containsEntry("successes", 4L);
         assertThat((double) pay.get("successRate")).isEqualTo(0.8);
         assertThat((Map<String, Object>) pay.get("failures")).containsEntry("server_error", 1L);
         assertThat(((Map<String, Object>) pay.get("health")).get("state")).isEqualTo("healthy");
@@ -36,7 +43,8 @@ class TaskHealthTest {
     @Test
     void aTaskThatKeepsFailingIsFailing() {
         for (int i = 0; i < 3; i++) f.task(i + 1, "Pay", 100, false, "timeout");
-        assertThat(((Map<String, Object>) rows("tasks").get(0).get("health")).get("state")).isEqualTo("failing");
+        assertThat(((Map<String, Object>) rows("tasks").get(0).get("health")).get("state"))
+                .isEqualTo("failing");
     }
 
     @Test
@@ -61,10 +69,36 @@ class TaskHealthTest {
         task.put(Semconv.LOOM_TASK, "Search");
         task.put(Semconv.LOOM_TASK_OUTCOME, "ok");
         long end = TaskFailureFixtures.at(1);
-        registry.applySpans(Resource.of("shop", "i_1"), List.of(
-                new SpanRec(trace, Ids.spanId("r1", "a"), null, "execute_tool Search", SpanRec.CLIENT, end - 1000, end, tool, SpanRec.STATUS_OK, null, List.of()),
-                new SpanRec(trace, Ids.spanId("r1", "b"), null, "loom.task Search", SpanRec.INTERNAL, end - 1000, end, task, SpanRec.STATUS_OK, null, List.of())));
-        assertThat(registry.toolRollup(null)).extracting(ToolSummary::kind).containsExactlyInAnyOrder("tool", "task");
+        registry.applySpans(
+                Resource.of("shop", "i_1"),
+                List.of(
+                        new SpanRec(
+                                trace,
+                                Ids.spanId("r1", "a"),
+                                null,
+                                "execute_tool Search",
+                                SpanRec.CLIENT,
+                                end - 1000,
+                                end,
+                                tool,
+                                SpanRec.STATUS_OK,
+                                null,
+                                List.of()),
+                        new SpanRec(
+                                trace,
+                                Ids.spanId("r1", "b"),
+                                null,
+                                "loom.task Search",
+                                SpanRec.INTERNAL,
+                                end - 1000,
+                                end,
+                                task,
+                                SpanRec.STATUS_OK,
+                                null,
+                                List.of())));
+        assertThat(registry.toolRollup(null))
+                .extracting(ToolSummary::kind)
+                .containsExactlyInAnyOrder("tool", "task");
     }
 
     @Test
@@ -72,7 +106,11 @@ class TaskHealthTest {
         TaskFailureFixtures g = new TaskFailureFixtures();
         for (int i = 0; i < 3; i++) f.task(i + 1, "Pay", 100, true, null);
         for (int i = 0; i < 2; i++) g.task(i + 1, "Pay", 100, false, "timeout");
-        ToolSummary merged = f.state.toolSummaries().get(0).merge(g.state.toolSummaries().get(0), Thresholds.defaults());
+        ToolSummary merged =
+                f.state
+                        .toolSummaries()
+                        .get(0)
+                        .merge(g.state.toolSummaries().get(0), Thresholds.defaults());
         assertThat(merged.kind()).isEqualTo("task");
         assertThat(merged.calls()).isEqualTo(5);
         assertThat(merged.successes()).isEqualTo(3);

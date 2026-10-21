@@ -37,7 +37,10 @@ final class Stores {
         return new Stores("jdbc", new JdbcLedger(db), new JdbcLevelStore(db));
     }
 
-    /** Runs the check against memory, a file store in a fresh directory under {@code root}, and an in-memory H2 database. */
+    /**
+     * Runs the check against memory, a file store in a fresh directory under {@code root}, and an
+     * in-memory H2 database.
+     */
     static void each(Path root, Consumer<Stores> check) {
         try {
             check.accept(memory());

@@ -390,9 +390,9 @@ public final class LlmClassifier implements Classifier {
 
         /**
          * The most output tokens a reply may use. The default is 96 per question (at least 256), or
-         * 160 per question (at least 400) with a rationale. (64 was too tight in a live run: a model that thinks aloud
-         * for an ambiguous message was cut off.) A reply cut off by it is a {@link
-         * ClassificationException} naming the cap.
+         * 160 per question (at least 400) with a rationale. (64 was too tight in a live run: a
+         * model that thinks aloud for an ambiguous message was cut off.) A reply cut off by it is a
+         * {@link ClassificationException} naming the cap.
          */
         public Builder maxOutputTokens(int maxOutputTokens) {
             if (maxOutputTokens < 1)

@@ -1,5 +1,6 @@
 package io.github.llm4j.loom.execution;
 
+import io.github.llm4j.agent.Tool;
 import io.github.llm4j.agent.memory.ConversationStore;
 import io.github.llm4j.agent.memory.FileConversationStore;
 import io.github.llm4j.agent.memory.FileMemoryVectorStore;
@@ -9,7 +10,6 @@ import io.github.llm4j.agent.memory.SemanticMemoryService;
 import io.github.llm4j.agent.memory.VectorStore;
 import io.github.llm4j.agent.rag.embedding.EmbeddingProvider;
 import io.github.llm4j.agent.tool.MemoryManagementTool;
-import io.github.llm4j.agent.Tool;
 import io.github.llm4j.loom.ast.AgentDef;
 import io.github.llm4j.model.Message;
 import java.nio.charset.StandardCharsets;
@@ -22,9 +22,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 /**
- * One agent's own memory ({@code memory { … }}): its conversations, kept per session, and the long-term
- * facts it chose to save. The executor recalls both before a delegate and records the exchange after
- * it; replayed steps touch neither.
+ * One agent's own memory ({@code memory { … }}): its conversations, kept per session, and the
+ * long-term facts it chose to save. The executor recalls both before a delegate and records the
+ * exchange after it; replayed steps touch neither.
  */
 final class AgentMemory {
 
@@ -40,7 +40,11 @@ final class AgentMemory {
             StringBuilder sb = new StringBuilder();
             if (!messages.isEmpty()) {
                 sb.append("Previous conversation (").append(session).append("):\n");
-                for (Message m : messages) sb.append(m.getRole().getValue()).append(": ").append(m.getContent()).append('\n');
+                for (Message m : messages)
+                    sb.append(m.getRole().getValue())
+                            .append(": ")
+                            .append(m.getContent())
+                            .append('\n');
                 sb.append('\n');
             }
             if (!facts.isEmpty()) {
@@ -59,18 +63,25 @@ final class AgentMemory {
     private final VectorStore facts;
     private final Map<String, SemanticMemoryService> services = new ConcurrentHashMap<>();
 
-    AgentMemory(String agent, AgentDef.MemoryConfig config, Path baseDir, EmbeddingProvider embedding) {
+    AgentMemory(
+            String agent, AgentDef.MemoryConfig config, Path baseDir, EmbeddingProvider embedding) {
         this.agent = agent;
         this.config = config;
         String conversation = config.getConversation();
-        this.conversations = conversation == null ? null
-                : MEMORY.equals(conversation) ? new InMemoryConversationStore()
-                : new FileConversationStore(baseDir.resolve(conversation));
+        this.conversations =
+                conversation == null
+                        ? null
+                        : MEMORY.equals(conversation)
+                                ? new InMemoryConversationStore()
+                                : new FileConversationStore(baseDir.resolve(conversation));
         String factsAt = config.getFacts();
         this.embedding = factsAt == null ? null : embedding;
-        this.facts = factsAt == null ? null
-                : MEMORY.equals(factsAt) ? new InMemoryVectorStore()
-                : new FileMemoryVectorStore(baseDir.resolve(factsAt));
+        this.facts =
+                factsAt == null
+                        ? null
+                        : MEMORY.equals(factsAt)
+                                ? new InMemoryVectorStore()
+                                : new FileMemoryVectorStore(baseDir.resolve(factsAt));
     }
 
     boolean keepsFacts() {
@@ -86,9 +97,18 @@ final class AgentMemory {
     }
 
     Recall recall(String session, String task) {
-        List<Message> messages = conversations == null ? List.of() : conversations.loadHistory(key(session), config.getLimit());
-        List<String> found = facts == null ? List.of()
-                : service(session).recallRelevantFacts(task, config.getRecall(), (float) config.getMinSimilarity());
+        List<Message> messages =
+                conversations == null
+                        ? List.of()
+                        : conversations.loadHistory(key(session), config.getLimit());
+        List<String> found =
+                facts == null
+                        ? List.of()
+                        : service(session)
+                                .recallRelevantFacts(
+                                        task,
+                                        config.getRecall(),
+                                        (float) config.getMinSimilarity());
         return new Recall(messages, found);
     }
 
@@ -100,8 +120,8 @@ final class AgentMemory {
     }
 
     /**
-     * {@code save_memory_fact}, writing to whichever session the calling step belongs to (the same agent
-     * may serve several users in parallel branches).
+     * {@code save_memory_fact}, writing to whichever session the calling step belongs to (the same
+     * agent may serve several users in parallel branches).
      */
     Tool factTool(Supplier<String> currentSession) {
         MemoryManagementTool described = new MemoryManagementTool(service(agent));
@@ -124,18 +144,21 @@ final class AgentMemory {
     }
 
     private SemanticMemoryService service(String session) {
-        return services.computeIfAbsent(session, s -> new SemanticMemoryService(embedding, facts, s));
+        return services.computeIfAbsent(
+                session, s -> new SemanticMemoryService(embedding, facts, s));
     }
 
     /**
-     * A conversation id that is unique per (agent, session) and safe as a file name: readable prefix,
-     * plus a hash so distinct sessions never share a file after sanitising.
+     * A conversation id that is unique per (agent, session) and safe as a file name: readable
+     * prefix, plus a hash so distinct sessions never share a file after sanitising.
      */
     String key(String session) {
         String readable = session.replaceAll("[^A-Za-z0-9._-]", "_");
         if (readable.length() > 40) readable = readable.substring(0, 40);
         try {
-            byte[] hash = MessageDigest.getInstance("SHA-256").digest((agent + "\u0000" + session).getBytes(StandardCharsets.UTF_8));
+            byte[] hash =
+                    MessageDigest.getInstance("SHA-256")
+                            .digest((agent + "\u0000" + session).getBytes(StandardCharsets.UTF_8));
             return agent + "--" + readable + "-" + HexFormat.of().formatHex(hash, 0, 4);
         } catch (java.security.NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);

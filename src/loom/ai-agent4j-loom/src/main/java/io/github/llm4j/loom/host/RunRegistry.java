@@ -35,14 +35,26 @@ interface RunRegistry {
     final class Memory implements RunRegistry {
         private final Map<String, RunRecord> records = new ConcurrentHashMap<>();
 
-        @Override public void save(RunRecord r) { records.put(r.runId(), r); }
-        @Override public Optional<RunRecord> find(String id) { return Optional.ofNullable(records.get(id)); }
-        @Override public List<RunRecord> all() { return sorted(new ArrayList<>(records.values())); }
+        @Override
+        public void save(RunRecord r) {
+            records.put(r.runId(), r);
+        }
+
+        @Override
+        public Optional<RunRecord> find(String id) {
+            return Optional.ofNullable(records.get(id));
+        }
+
+        @Override
+        public List<RunRecord> all() {
+            return sorted(new ArrayList<>(records.values()));
+        }
     }
 
     /**
-     * {@code <dir>/runs/<id>/run.json}, with the keys {@code weave} reads ({@code script}, {@code workflow}, {@code inputs}, {@code store}) beside the
-     * host's own, so {@code weave resume} and {@code weave timeline} can open a run the host started.
+     * {@code <dir>/runs/<id>/run.json}, with the keys {@code weave} reads ({@code script}, {@code
+     * workflow}, {@code inputs}, {@code store}) beside the host's own, so {@code weave resume} and
+     * {@code weave timeline} can open a run the host started.
      */
     final class Files_ implements RunRegistry {
         private static final ObjectMapper JSON = new ObjectMapper();
@@ -80,7 +92,11 @@ interface RunRegistry {
                 Files.createDirectories(run);
                 Path tmp = Files.createTempFile(run, "run", ".tmp");
                 Files.writeString(tmp, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(m));
-                Files.move(tmp, run.resolve("run.json"), java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+                Files.move(
+                        tmp,
+                        run.resolve("run.json"),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                        java.nio.file.StandardCopyOption.ATOMIC_MOVE);
             } catch (IOException e) {
                 throw new UncheckedIOException("Cannot write the record of run " + r.runId(), e);
             }
@@ -109,12 +125,26 @@ interface RunRegistry {
             if (!Files.isRegularFile(file)) return Optional.empty();
             try {
                 Map<String, Object> m = JSON.readValue(file.toFile(), Map.class);
-                if (m.get("hostRunId") == null) return Optional.empty(); // a run weave started: not one the host knows
-                return Optional.of(new RunRecord((String) m.get("hostRunId"), (String) m.get("workflow"), (Map<String, String>) m.get("inputs"),
-                        (String) m.get("origin"), RunRecord.Status.valueOf((String) m.get("status")),
-                        m.get("reason") == null ? null : RunSuspended.Reason.valueOf((String) m.get("reason")),
-                        m.get("resumeAt") == null ? null : Instant.parse((String) m.get("resumeAt")), (String) m.get("stepId"),
-                        (String) m.get("prompt"), (String) m.get("detail"), Instant.parse((String) m.get("created")), Instant.parse((String) m.get("updated"))));
+                if (m.get("hostRunId") == null)
+                    return Optional.empty(); // a run weave started: not one the host knows
+                return Optional.of(
+                        new RunRecord(
+                                (String) m.get("hostRunId"),
+                                (String) m.get("workflow"),
+                                (Map<String, String>) m.get("inputs"),
+                                (String) m.get("origin"),
+                                RunRecord.Status.valueOf((String) m.get("status")),
+                                m.get("reason") == null
+                                        ? null
+                                        : RunSuspended.Reason.valueOf((String) m.get("reason")),
+                                m.get("resumeAt") == null
+                                        ? null
+                                        : Instant.parse((String) m.get("resumeAt")),
+                                (String) m.get("stepId"),
+                                (String) m.get("prompt"),
+                                (String) m.get("detail"),
+                                Instant.parse((String) m.get("created")),
+                                Instant.parse((String) m.get("updated"))));
             } catch (IOException e) {
                 throw new UncheckedIOException("Cannot read " + file, e);
             }
@@ -123,7 +153,8 @@ interface RunRegistry {
 
     /** Table {@code llm4j_loom_runs}. */
     final class Jdbc implements RunRegistry {
-        static final String DDL = """
+        static final String DDL =
+                """
                 CREATE TABLE IF NOT EXISTS llm4j_loom_runs (
                     run_id      VARCHAR(200) PRIMARY KEY,
                     workflow    VARCHAR(200) NOT NULL,
@@ -141,7 +172,9 @@ interface RunRegistry {
         private static final ObjectMapper JSON = new ObjectMapper();
         private final DataSource ds;
 
-        Jdbc(DataSource ds) { this.ds = ds; }
+        Jdbc(DataSource ds) {
+            this.ds = ds;
+        }
 
         @Override
         public void save(RunRecord r) {
@@ -152,8 +185,10 @@ interface RunRegistry {
                 throw new IllegalArgumentException("inputs are not JSON", e);
             }
             try (Connection c = ds.getConnection()) {
-                try (PreparedStatement up = c.prepareStatement("UPDATE llm4j_loom_runs SET workflow=?, inputs_json=?, origin=?, status=?, reason=?, resume_at=?, "
-                        + "step_id=?, prompt=?, detail=?, updated=? WHERE run_id=?")) {
+                try (PreparedStatement up =
+                        c.prepareStatement(
+                                "UPDATE llm4j_loom_runs SET workflow=?, inputs_json=?, origin=?, status=?, reason=?, resume_at=?, "
+                                        + "step_id=?, prompt=?, detail=?, updated=? WHERE run_id=?")) {
                     up.setString(1, r.workflow());
                     up.setString(2, inputs);
                     up.setString(3, r.origin());
@@ -167,8 +202,10 @@ interface RunRegistry {
                     up.setString(11, r.runId());
                     if (up.executeUpdate() > 0) return;
                 }
-                try (PreparedStatement in = c.prepareStatement("INSERT INTO llm4j_loom_runs (run_id, workflow, inputs_json, origin, status, reason, resume_at, "
-                        + "step_id, prompt, detail, created, updated) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")) {
+                try (PreparedStatement in =
+                        c.prepareStatement(
+                                "INSERT INTO llm4j_loom_runs (run_id, workflow, inputs_json, origin, status, reason, resume_at, "
+                                        + "step_id, prompt, detail, created, updated) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")) {
                     in.setString(1, r.runId());
                     in.setString(2, r.workflow());
                     in.setString(3, inputs);
@@ -184,13 +221,18 @@ interface RunRegistry {
                     in.executeUpdate();
                 }
             } catch (SQLException e) {
-                throw new IllegalStateException("Cannot save the record of run " + r.runId() + " (is the schema created? see LoomHost.createSchema)", e);
+                throw new IllegalStateException(
+                        "Cannot save the record of run "
+                                + r.runId()
+                                + " (is the schema created? see LoomHost.createSchema)",
+                        e);
             }
         }
 
         @Override
         public Optional<RunRecord> find(String runId) {
-            return query("SELECT * FROM llm4j_loom_runs WHERE run_id = ?", runId).stream().findFirst();
+            return query("SELECT * FROM llm4j_loom_runs WHERE run_id = ?", runId).stream()
+                    .findFirst();
         }
 
         @Override
@@ -201,7 +243,8 @@ interface RunRegistry {
         @SuppressWarnings("unchecked")
         private List<RunRecord> query(String sql, String... args) {
             List<RunRecord> out = new ArrayList<>();
-            try (Connection c = ds.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            try (Connection c = ds.getConnection();
+                    PreparedStatement ps = c.prepareStatement(sql)) {
                 for (int i = 0; i < args.length; i++) ps.setString(i + 1, args[i]);
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
@@ -209,10 +252,22 @@ interface RunRegistry {
                         boolean noResume = rs.wasNull();
                         String reason = rs.getString("reason");
                         String inputs = rs.getString("inputs_json");
-                        out.add(new RunRecord(rs.getString("run_id"), rs.getString("workflow"), inputs == null ? Map.of() : JSON.readValue(inputs, Map.class),
-                                rs.getString("origin"), RunRecord.Status.valueOf(rs.getString("status")), reason == null ? null : RunSuspended.Reason.valueOf(reason),
-                                noResume ? null : Instant.ofEpochMilli(resume), rs.getString("step_id"), rs.getString("prompt"), rs.getString("detail"),
-                                Instant.ofEpochMilli(rs.getLong("created")), Instant.ofEpochMilli(rs.getLong("updated"))));
+                        out.add(
+                                new RunRecord(
+                                        rs.getString("run_id"),
+                                        rs.getString("workflow"),
+                                        inputs == null
+                                                ? Map.of()
+                                                : JSON.readValue(inputs, Map.class),
+                                        rs.getString("origin"),
+                                        RunRecord.Status.valueOf(rs.getString("status")),
+                                        reason == null ? null : RunSuspended.Reason.valueOf(reason),
+                                        noResume ? null : Instant.ofEpochMilli(resume),
+                                        rs.getString("step_id"),
+                                        rs.getString("prompt"),
+                                        rs.getString("detail"),
+                                        Instant.ofEpochMilli(rs.getLong("created")),
+                                        Instant.ofEpochMilli(rs.getLong("updated"))));
                     }
                 }
             } catch (SQLException | IOException e) {
@@ -233,14 +288,20 @@ interface RunRegistry {
         return runId;
     }
 
-    /** A run id made from text the host itself produced (a trigger's name and time), which may hold characters a folder name cannot. */
+    /**
+     * A run id made from text the host itself produced (a trigger's name and time), which may hold
+     * characters a folder name cannot.
+     */
     static String idFrom(String text) {
         String id = text.replaceAll("[^A-Za-z0-9._@-]", "-");
         if (!id.matches("[A-Za-z0-9].*")) id = "t-" + id;
         return id.length() > 100 ? id.substring(0, 100) : id;
     }
 
-    /** What a run id may be: it becomes a folder name, so it cannot hold a separator or start with a dot. */
+    /**
+     * What a run id may be: it becomes a folder name, so it cannot hold a separator or start with a
+     * dot.
+     */
     static boolean validId(String runId) {
         return runId != null && runId.matches("[A-Za-z0-9][A-Za-z0-9._@-]{0,99}");
     }

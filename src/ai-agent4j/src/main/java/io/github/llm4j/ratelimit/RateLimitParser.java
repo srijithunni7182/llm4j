@@ -8,8 +8,9 @@ import java.util.Optional;
 import java.util.TreeMap;
 
 /**
- * Reads rate-limit information from one kind of provider response. Implementations are pure functions
- * of the response and the clock, and never throw: anything they can't read is simply not theirs.
+ * Reads rate-limit information from one kind of provider response. Implementations are pure
+ * functions of the response and the clock, and never throw: anything they can't read is simply not
+ * theirs.
  */
 @FunctionalInterface
 public interface RateLimitParser {
@@ -23,7 +24,8 @@ public interface RateLimitParser {
         private final Map<String, List<String>> headers;
         private final String body;
 
-        public Response(String provider, int status, Map<String, List<String>> headers, String body) {
+        public Response(
+                String provider, int status, Map<String, List<String>> headers, String body) {
             this.provider = provider == null ? "unknown" : provider;
             this.status = status;
             TreeMap<String, List<String>> h = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
@@ -54,7 +56,8 @@ public interface RateLimitParser {
 
         public boolean hasHeaderPrefix(String prefix) {
             String p = prefix.toLowerCase(Locale.ROOT);
-            return headers.keySet().stream().anyMatch(k -> k.toLowerCase(Locale.ROOT).startsWith(p));
+            return headers.keySet().stream()
+                    .anyMatch(k -> k.toLowerCase(Locale.ROOT).startsWith(p));
         }
     }
 }

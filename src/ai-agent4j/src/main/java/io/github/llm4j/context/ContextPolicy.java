@@ -13,7 +13,8 @@ import java.util.function.Predicate;
  * @param keepRecent the last this-many messages are never touched
  * @param maxCompactions per run; after that compaction stops
  * @param minGain a result must be at least this fraction smaller to be used
- * @param pinned messages that are never removed or changed, besides those marked with {@link Messages#pinned}
+ * @param pinned messages that are never removed or changed, besides those marked with {@link
+ *     Messages#pinned}
  * @param onOverflow what to do when the provider rejects a prompt as too long
  */
 public record ContextPolicy(
@@ -34,12 +35,21 @@ public record ContextPolicy(
     }
 
     public ContextPolicy {
-        if (!(triggerAt > 0 && triggerAt <= 1)) throw new IllegalArgumentException("triggerAt must be in (0, 1], got " + triggerAt);
-        if (!(targetAt > 0 && targetAt < 1)) throw new IllegalArgumentException("targetAt must be in (0, 1), got " + targetAt);
-        if (targetAt >= triggerAt) throw new IllegalArgumentException("targetAt must be below triggerAt, got " + targetAt + " and " + triggerAt);
-        if (keepRecent < 0) throw new IllegalArgumentException("keepRecent must not be negative, got " + keepRecent);
-        if (maxCompactions < 0) throw new IllegalArgumentException("maxCompactions must not be negative, got " + maxCompactions);
-        if (!(minGain >= 0 && minGain < 1)) throw new IllegalArgumentException("minGain must be in [0, 1), got " + minGain);
+        if (!(triggerAt > 0 && triggerAt <= 1))
+            throw new IllegalArgumentException("triggerAt must be in (0, 1], got " + triggerAt);
+        if (!(targetAt > 0 && targetAt < 1))
+            throw new IllegalArgumentException("targetAt must be in (0, 1), got " + targetAt);
+        if (targetAt >= triggerAt)
+            throw new IllegalArgumentException(
+                    "targetAt must be below triggerAt, got " + targetAt + " and " + triggerAt);
+        if (keepRecent < 0)
+            throw new IllegalArgumentException(
+                    "keepRecent must not be negative, got " + keepRecent);
+        if (maxCompactions < 0)
+            throw new IllegalArgumentException(
+                    "maxCompactions must not be negative, got " + maxCompactions);
+        if (!(minGain >= 0 && minGain < 1))
+            throw new IllegalArgumentException("minGain must be in [0, 1), got " + minGain);
         pinned = Messages.orMarked(pinned);
         if (onOverflow == null) onOverflow = OnOverflow.RETRY_ONCE;
     }
@@ -50,7 +60,15 @@ public record ContextPolicy(
 
     /** The same policy with this window. */
     public ContextPolicy withWindow(ContextWindow newWindow) {
-        return new ContextPolicy(newWindow, triggerAt, targetAt, keepRecent, maxCompactions, minGain, pinned, onOverflow);
+        return new ContextPolicy(
+                newWindow,
+                triggerAt,
+                targetAt,
+                keepRecent,
+                maxCompactions,
+                minGain,
+                pinned,
+                onOverflow);
     }
 
     /** The prompt size that triggers compaction, in tokens; empty without a window. */
@@ -64,7 +82,9 @@ public record ContextPolicy(
     }
 
     private Optional<Long> tokens(double fraction) {
-        return window == null ? Optional.empty() : Optional.of((long) Math.floor(window.usableInput() * fraction + 1e-9));
+        return window == null
+                ? Optional.empty()
+                : Optional.of((long) Math.floor(window.usableInput() * fraction + 1e-9));
     }
 
     public static final class Builder {
@@ -118,7 +138,15 @@ public record ContextPolicy(
         }
 
         public ContextPolicy build() {
-            return new ContextPolicy(window, triggerAt, targetAt, keepRecent, maxCompactions, minGain, pinned, onOverflow);
+            return new ContextPolicy(
+                    window,
+                    triggerAt,
+                    targetAt,
+                    keepRecent,
+                    maxCompactions,
+                    minGain,
+                    pinned,
+                    onOverflow);
         }
     }
 }

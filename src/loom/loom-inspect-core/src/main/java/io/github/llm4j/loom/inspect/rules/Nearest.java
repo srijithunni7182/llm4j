@@ -2,16 +2,19 @@ package io.github.llm4j.loom.inspect.rules;
 
 import java.util.Collection;
 
-/** (A copy of Loom's own suggester, so the server needs no Loom runtime.) The closest known name to a misspelt one, for messages that say "did you mean …?". */
+/**
+ * (A copy of Loom's own suggester, so the server needs no Loom runtime.) The closest known name to
+ * a misspelt one, for messages that say "did you mean …?".
+ */
 public final class Nearest {
 
-    private Nearest() { }
+    private Nearest() {}
 
     /** The nearest candidate within two edits (or sharing a long prefix), or null. */
     public static String nearest(String word, Collection<String> candidates) {
         if (word.length() < 3) {
             for (String c : candidates) if (c.equalsIgnoreCase(word)) return c;
-            return null;                                        // a one- or two-letter word is too short for a guess to mean anything
+            return null; // a one- or two-letter word is too short for a guess to mean anything
         }
         String best = null;
         int bestDistance = Integer.MAX_VALUE;

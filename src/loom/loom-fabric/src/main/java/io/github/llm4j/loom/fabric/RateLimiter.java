@@ -4,7 +4,10 @@ import java.time.Clock;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** A token bucket per client: a burst, then a steady rate. Over it the server answers 429 and the process backs off. */
+/**
+ * A token bucket per client: a burst, then a steady rate. Over it the server answers 429 and the
+ * process backs off.
+ */
 final class RateLimiter {
 
     private static final class Bucket {
@@ -25,12 +28,15 @@ final class RateLimiter {
 
     /** True when the request may go ahead. */
     boolean allow(String client) {
-        Bucket b = buckets.computeIfAbsent(client, k -> {
-            Bucket n = new Bucket();
-            n.tokens = burst;
-            n.at = clock.millis();
-            return n;
-        });
+        Bucket b =
+                buckets.computeIfAbsent(
+                        client,
+                        k -> {
+                            Bucket n = new Bucket();
+                            n.tokens = burst;
+                            n.at = clock.millis();
+                            return n;
+                        });
         synchronized (b) {
             long now = clock.millis();
             b.tokens = Math.min(burst, b.tokens + (now - b.at) * perSecond / 1000.0);

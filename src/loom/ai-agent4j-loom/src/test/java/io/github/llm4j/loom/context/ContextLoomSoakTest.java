@@ -10,22 +10,33 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** R12: a Loom run whose tool loop is far longer than the window completes with compaction on, and fails as it always did with it off. */
+/**
+ * R12: a Loom run whose tool loop is far longer than the window completes with compaction on, and
+ * fails as it always did with it off.
+ */
 class ContextLoomSoakTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private static final int STEPS = 150;
     private static final long USABLE = 2500;
 
     private static WindowLayers tiny() {
-        return WindowLayers.none().over("test", ContextWindows.empty().with("tiny-model", new ContextWindow(3000, 500)));
+        return WindowLayers.none()
+                .over(
+                        "test",
+                        ContextWindows.empty().with("tiny-model", new ContextWindow(3000, 500)));
     }
 
     @Test
     void withCompactionTheRunCompletesAndNeverExceedsTheWindow() {
-        TestLoom l = new TestLoom(dir, TestLoom.script("tiny-model", "context { compact: chain(trim_tool_results, drop_oldest)  keep_recent: 4  max_compactions: 500 }"), STEPS);
+        TestLoom l =
+                new TestLoom(
+                        dir,
+                        TestLoom.script(
+                                "tiny-model",
+                                "context { compact: chain(trim_tool_results, drop_oldest)  keep_recent: 4  max_compactions: 500 }"),
+                        STEPS);
         l.refuseAbove = USABLE;
         l.executor.setContextWindows(tiny());
         l.run();
@@ -43,7 +54,13 @@ class ContextLoomSoakTest {
 
     @Test
     void anUnknownWindowStillRecoversFromTheProvidersRefusal() {
-        TestLoom l = new TestLoom(dir, TestLoom.script("mystery-model", "context { compact: drop_oldest  keep_recent: 4 }"), 40);
+        TestLoom l =
+                new TestLoom(
+                        dir,
+                        TestLoom.script(
+                                "mystery-model",
+                                "context { compact: drop_oldest  keep_recent: 4 }"),
+                        40);
         l.refuseAbove = USABLE;
         l.executor.setContextWindows(WindowLayers.none());
         l.run();

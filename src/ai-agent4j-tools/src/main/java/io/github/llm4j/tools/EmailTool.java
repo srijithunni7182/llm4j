@@ -1,8 +1,7 @@
 package io.github.llm4j.tools;
+
 import io.github.llm4j.agent.tool.EffectContext;
 import io.github.llm4j.agent.tool.EffectPolicy;
-
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -21,10 +20,23 @@ final class EmailTool extends GenericTool {
     private static final long MAX_ATTACHMENT_BYTES = 10L * 1024 * 1024;
 
     /** A declaration, parsed and checked. */
-    record Config(String host, int port, SmtpSender.Security security, String username, String password, MailAddress from,
-                  List<MailAddress> fixedTo, List<String> allowTo, List<MailAddress> cc, List<MailAddress> bcc,
-                  int maxRecipients, int maxPerRun, boolean attachments, Path outbox, Duration timeout,
-                  EffectPolicy.OnUnknown onUnknown) {
+    record Config(
+            String host,
+            int port,
+            SmtpSender.Security security,
+            String username,
+            String password,
+            MailAddress from,
+            List<MailAddress> fixedTo,
+            List<String> allowTo,
+            List<MailAddress> cc,
+            List<MailAddress> bcc,
+            int maxRecipients,
+            int maxPerRun,
+            boolean attachments,
+            Path outbox,
+            Duration timeout,
+            EffectPolicy.OnUnknown onUnknown) {
 
         static Config parse(Options o, Path baseDir) {
             Path outbox = null;
@@ -36,29 +48,58 @@ final class EmailTool extends GenericTool {
                 }
             }
             String host = o.get("host");
-            if (outbox == null && (host == null || host.isBlank())) throw new OptionException("host: is required (or give outbox: to write messages to files instead)");
+            if (outbox == null && (host == null || host.isBlank()))
+                throw new OptionException(
+                        "host: is required (or give outbox: to write messages to files instead)");
 
-            SmtpSender.Security security = SmtpSender.Security.valueOf(o.choice("security", "starttls", "starttls", "ssl", "none").toUpperCase(Locale.ROOT));
+            SmtpSender.Security security =
+                    SmtpSender.Security.valueOf(
+                            o.choice("security", "starttls", "starttls", "ssl", "none")
+                                    .toUpperCase(Locale.ROOT));
             boolean loopback = host != null && NetPolicy.isLoopbackName(host);
-            if (outbox == null && security == SmtpSender.Security.NONE && !loopback && !o.bool("allow_insecure", false)) {
-                throw new OptionException("security: none sends mail unencrypted; it is only allowed for localhost, or with allow_insecure: true");
+            if (outbox == null
+                    && security == SmtpSender.Security.NONE
+                    && !loopback
+                    && !o.bool("allow_insecure", false)) {
+                throw new OptionException(
+                        "security: none sends mail unencrypted; it is only allowed for localhost, or with allow_insecure: true");
             }
             int port = o.integer("port", security == SmtpSender.Security.SSL ? 465 : 587, 1, 65535);
-            if (o.has("username") != o.has("password")) throw new OptionException("username and password go together");
+            if (o.has("username") != o.has("password"))
+                throw new OptionException("username and password go together");
 
             MailAddress from = address("from", o.require("from"));
             List<MailAddress> fixed = addresses("to", o.list("to"));
             List<String> allow = o.list("allow_to");
-            if (fixed.isEmpty() == allow.isEmpty()) throw new OptionException("give exactly one of to: (fixed recipients) or allow_to: (addresses the agent may choose)");
+            if (fixed.isEmpty() == allow.isEmpty())
+                throw new OptionException(
+                        "give exactly one of to: (fixed recipients) or allow_to: (addresses the agent may choose)");
             for (String pattern : allow) {
-                if (!MailAddress.validPattern(pattern)) throw new OptionException("allow_to: " + pattern + " is not an address or a *@domain pattern");
+                if (!MailAddress.validPattern(pattern))
+                    throw new OptionException(
+                            "allow_to: " + pattern + " is not an address or a *@domain pattern");
             }
             List<MailAddress> cc = addresses("cc", o.list("cc"));
             List<MailAddress> bcc = addresses("bcc", o.list("bcc"));
             int maxRecipients = o.integer("max_recipients", 20, 1, 500);
-            if (fixed.size() + cc.size() + bcc.size() > maxRecipients) throw new OptionException("max_recipients: " + maxRecipients + " is fewer than the fixed recipients");
-            return new Config(host, port, security, o.get("username"), o.get("password"), from, fixed, allow, cc, bcc, maxRecipients,
-                    o.integer("max_per_run", 20, 1, 10_000), o.bool("attachments", false), outbox,
+            if (fixed.size() + cc.size() + bcc.size() > maxRecipients)
+                throw new OptionException(
+                        "max_recipients: " + maxRecipients + " is fewer than the fixed recipients");
+            return new Config(
+                    host,
+                    port,
+                    security,
+                    o.get("username"),
+                    o.get("password"),
+                    from,
+                    fixed,
+                    allow,
+                    cc,
+                    bcc,
+                    maxRecipients,
+                    o.integer("max_per_run", 20, 1, 10_000),
+                    o.bool("attachments", false),
+                    outbox,
                     o.duration("timeout", Duration.ofSeconds(30), EmailKind.maxTimeout()),
                     EffectPolicy.parse(o.choice("on_unknown", "skip", "skip", "retry")));
         }
@@ -82,7 +123,13 @@ final class EmailTool extends GenericTool {
     private final EmailSender sender;
     private final PathGuard guard;
 
-    EmailTool(String name, Config config, EmailSender sender, Redactor redactor, EffectContext context, Path baseDir) {
+    EmailTool(
+            String name,
+            Config config,
+            EmailSender sender,
+            Redactor redactor,
+            EffectContext context,
+            Path baseDir) {
         super(name, "email", description(config), redactor, context);
         this.config = config;
         this.sender = sender;
@@ -91,9 +138,13 @@ final class EmailTool extends GenericTool {
 
     private static String description(Config c) {
         StringBuilder d = new StringBuilder("Sends an email");
-        d.append(c.fixedTo().isEmpty() ? ". Arguments: to (required: one or more addresses separated by commas), "
-                : " to a fixed list of recipients (you can't change it). Arguments: ");
-        d.append("subject (required, one line, at most ").append(MAX_SUBJECT).append(" characters), body (required, plain text");
+        d.append(
+                c.fixedTo().isEmpty()
+                        ? ". Arguments: to (required: one or more addresses separated by commas), "
+                        : " to a fixed list of recipients (you can't change it). Arguments: ");
+        d.append("subject (required, one line, at most ")
+                .append(MAX_SUBJECT)
+                .append(" characters), body (required, plain text");
         d.append("; html: true sends it as HTML)");
         if (c.attachments()) d.append(", attach (optional: file paths, comma separated)");
         d.append(". Returns a confirmation or an Error.");
@@ -121,39 +172,70 @@ final class EmailTool extends GenericTool {
 
     @Override
     protected String run(Map<String, Object> args, String idempotencyKey) throws IOException {
-        String subject = text(args, "subject").strip(); // surrounding whitespace is not significant in a header
+        String subject =
+                text(args, "subject")
+                        .strip(); // surrounding whitespace is not significant in a header
         String body = text(args, "body");
-        if (subject.length() > MAX_SUBJECT) throw new ToolRefusal("subject is too long (the limit is " + MAX_SUBJECT + " characters)");
+        if (subject.length() > MAX_SUBJECT)
+            throw new ToolRefusal(
+                    "subject is too long (the limit is " + MAX_SUBJECT + " characters)");
         for (int i = 0; i < subject.length(); i++) {
             char c = subject.charAt(i);
-            if (c < 0x20 || c == 0x7f || c == 0x85 || c == 0x2028 || c == 0x2029) throw new ToolRefusal("subject must be a single line");
+            if (c < 0x20 || c == 0x7f || c == 0x85 || c == 0x2028 || c == 0x2029)
+                throw new ToolRefusal("subject must be a single line");
         }
-        if (body.getBytes(StandardCharsets.UTF_8).length > MAX_BODY_BYTES) throw new ToolRefusal("body is too large (the limit is " + MAX_BODY_BYTES / 1024 + " KB)");
+        if (body.getBytes(StandardCharsets.UTF_8).length > MAX_BODY_BYTES)
+            throw new ToolRefusal(
+                    "body is too large (the limit is " + MAX_BODY_BYTES / 1024 + " KB)");
 
         List<MailAddress> to = chosenTo(args);
         int total = to.size() + config.cc().size() + config.bcc().size();
-        if (total > config.maxRecipients()) throw new ToolRefusal("too many recipients (" + total + "; the limit is " + config.maxRecipients() + ")");
+        if (total > config.maxRecipients())
+            throw new ToolRefusal(
+                    "too many recipients ("
+                            + total
+                            + "; the limit is "
+                            + config.maxRecipients()
+                            + ")");
 
         boolean html = "true".equalsIgnoreCase(String.valueOf(args.getOrDefault("html", "false")));
-        EmailMessage message = new EmailMessage(config.from(), to, config.cc(), config.bcc(), subject, body, html, attachments(args));
+        EmailMessage message =
+                new EmailMessage(
+                        config.from(),
+                        to,
+                        config.cc(),
+                        config.bcc(),
+                        subject,
+                        body,
+                        html,
+                        attachments(args));
         try {
             sender.send(message);
         } catch (EmailSender.EmailFailure e) {
             if (e.stage() == EmailSender.Stage.LOST) {
-                throw new UnknownOutcomeException("the connection was lost after the message was sent; delivery is unknown");
+                throw new UnknownOutcomeException(
+                        "the connection was lost after the message was sent; delivery is unknown");
             }
             throw new ToolRefusal(e.getMessage());
         }
-        return config.outbox() != null ? "Wrote the message for " + total + " recipient(s) to the outbox (nothing was sent)."
+        return config.outbox() != null
+                ? "Wrote the message for "
+                        + total
+                        + " recipient(s) to the outbox (nothing was sent)."
                 : "Sent to " + total + " recipient(s).";
     }
 
     /** The recipients the agent chose, or the fixed list. */
     private List<MailAddress> chosenTo(Map<String, Object> args) {
         Object given = args.get("to");
-        boolean none = given == null || (given instanceof String s && s.isBlank()) || (given instanceof List<?> l && l.isEmpty());
+        boolean none =
+                given == null
+                        || (given instanceof String s && s.isBlank())
+                        || (given instanceof List<?> l && l.isEmpty());
         if (!config.fixedTo().isEmpty()) {
-            if (!none) throw new ToolRefusal("this tool sends to a fixed list of recipients; don't give to");
+            if (!none)
+                throw new ToolRefusal(
+                        "this tool sends to a fixed list of recipients; don't give to");
             return config.fixedTo();
         }
         if (none) throw new ToolRefusal("to is required");
@@ -165,7 +247,8 @@ final class EmailTool extends GenericTool {
             } catch (IllegalArgumentException e) {
                 throw new ToolRefusal("to: " + e.getMessage());
             }
-            if (config.allowTo().stream().noneMatch(a::matches)) throw new ToolRefusal("that recipient is not allowed");
+            if (config.allowTo().stream().noneMatch(a::matches))
+                throw new ToolRefusal("that recipient is not allowed");
             chosen.add(a);
         }
         if (chosen.isEmpty()) throw new ToolRefusal("to is required");
@@ -173,7 +256,11 @@ final class EmailTool extends GenericTool {
     }
 
     private List<MailAddress> recipients(Map<String, Object> args) {
-        List<MailAddress> all = new ArrayList<>(config.fixedTo().isEmpty() ? parseLenient(args.get("to")) : config.fixedTo());
+        List<MailAddress> all =
+                new ArrayList<>(
+                        config.fixedTo().isEmpty()
+                                ? parseLenient(args.get("to"))
+                                : config.fixedTo());
         all.addAll(config.cc());
         all.addAll(config.bcc());
         return all;
@@ -209,9 +296,14 @@ final class EmailTool extends GenericTool {
         long total = 0;
         for (String entry : splitAddresses(given)) {
             Path file = guard.resolve(entry.strip());
-            if (!Files.isRegularFile(file)) throw new ToolRefusal(entry.strip() + " doesn't exist or isn't a file");
+            if (!Files.isRegularFile(file))
+                throw new ToolRefusal(entry.strip() + " doesn't exist or isn't a file");
             total += Files.size(file);
-            if (total > MAX_ATTACHMENT_BYTES) throw new ToolRefusal("attachments are too large (the limit is " + MAX_ATTACHMENT_BYTES / (1024 * 1024) + " MB in total)");
+            if (total > MAX_ATTACHMENT_BYTES)
+                throw new ToolRefusal(
+                        "attachments are too large (the limit is "
+                                + MAX_ATTACHMENT_BYTES / (1024 * 1024)
+                                + " MB in total)");
             files.add(file);
         }
         return files;
@@ -220,8 +312,11 @@ final class EmailTool extends GenericTool {
     @Override
     public java.util.Map<String, Object> getParametersSchema() {
         io.github.llm4j.model.ToolSchema s = io.github.llm4j.model.ToolSchema.object();
-        if (config.fixedTo().isEmpty()) s.string("to", "One or more addresses separated by commas", true);
-        s.string("subject", "A one-line subject", true).string("body", "The message text", true).bool("html", "Send the body as HTML", false);
+        if (config.fixedTo().isEmpty())
+            s.string("to", "One or more addresses separated by commas", true);
+        s.string("subject", "A one-line subject", true)
+                .string("body", "The message text", true)
+                .bool("html", "Send the body as HTML", false);
         if (config.attachments()) s.string("attach", "File paths, comma separated", false);
         return s.build();
     }

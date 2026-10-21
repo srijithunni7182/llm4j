@@ -1,21 +1,20 @@
 package io.github.llm4j.http;
 
+import io.github.llm4j.config.RetryPolicy;
 import io.github.llm4j.exception.AuthenticationException;
 import io.github.llm4j.exception.InvalidRequestException;
-import io.github.llm4j.exception.ServiceUnavailableException;
-import java.util.List;
-import java.util.Map;
-
-import io.github.llm4j.config.RetryPolicy;
 import io.github.llm4j.exception.LLMException;
 import io.github.llm4j.exception.RateLimitException;
+import io.github.llm4j.exception.ServiceUnavailableException;
 import io.github.llm4j.ratelimit.RateLimitInfo;
 import io.github.llm4j.ratelimit.RateLimitParser;
 import io.github.llm4j.ratelimit.RateLimitParsers;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import okhttp3.*;
@@ -40,8 +39,11 @@ public class HttpClientWrapper {
             boolean enableLogging) {
         this.retryPolicy = Objects.requireNonNull(retryPolicy, "retryPolicy cannot be null");
         this.enableLogging = enableLogging;
-        this.rateLimits = RateLimitParsers.standard(retryPolicy.getDailyResetZone(),
-                retryPolicy.getFallbackDelay(), retryPolicy.getMaxFallbackDelay());
+        this.rateLimits =
+                RateLimitParsers.standard(
+                        retryPolicy.getDailyResetZone(),
+                        retryPolicy.getFallbackDelay(),
+                        retryPolicy.getMaxFallbackDelay());
         this.client =
                 new OkHttpClient.Builder()
                         .callTimeout(timeout)
@@ -142,12 +144,15 @@ public class HttpClientWrapper {
     }
 
     private String executeWithRetry(Request request) {
-        return send(request, client, response -> {
-            try (response) {
-                ResponseBody body = response.body();
-                return body != null ? body.string() : "";
-            }
-        });
+        return send(
+                request,
+                client,
+                response -> {
+                    try (response) {
+                        ResponseBody body = response.body();
+                        return body != null ? body.string() : "";
+                    }
+                });
     }
 
     /** What to do with a successful (2xx) response; it owns the response from then on. */
@@ -157,8 +162,8 @@ public class HttpClientWrapper {
     }
 
     /**
-     * Sends with retries: retryable statuses and I/O errors are retried with backoff (a 429 waits as
-     * long as the provider says, when that's short enough); a final failure is a typed {@link
+     * Sends with retries: retryable statuses and I/O errors are retried with backoff (a 429 waits
+     * as long as the provider says, when that's short enough); a final failure is a typed {@link
      * LLMException} (see {@link #failure}). Nothing is retried once a 2xx arrives.
      */
     private <T> T send(Request request, OkHttpClient http, OnSuccess<T> onSuccess) {
@@ -170,7 +175,8 @@ public class HttpClientWrapper {
         while (attempt <= retryPolicy.getMaxRetries()) {
             try {
                 if (attempt > 0) {
-                    Duration backoff = nextWait != null ? nextWait : retryPolicy.calculateBackoff(attempt - 1);
+                    Duration backoff =
+                            nextWait != null ? nextWait : retryPolicy.calculateBackoff(attempt - 1);
                     nextWait = null;
                     if (enableLogging) {
                         logger.info(
@@ -184,7 +190,8 @@ public class HttpClientWrapper {
                 }
 
                 if (enableLogging) {
-                    logger.debug("Executing HTTP {} to {}", request.method(), request.url().redact());
+                    logger.debug(
+                            "Executing HTTP {} to {}", request.method(), request.url().redact());
                 }
 
                 io.github.llm4j.telemetry.CallTrace.attempt();
@@ -204,7 +211,8 @@ public class HttpClientWrapper {
                     ResponseBody responseBody = response.body();
                     bodyString = responseBody != null ? responseBody.string() : "";
                 }
-                // a provider may echo what it was sent: nothing downstream (messages, logs, rate-limit parsing) sees the credential
+                // a provider may echo what it was sent: nothing downstream (messages, logs,
+                // rate-limit parsing) sees the credential
                 bodyString = Credentials.scrub(bodyString, request.headers());
 
                 if (enableLogging) {
@@ -213,9 +221,11 @@ public class HttpClientWrapper {
 
                 if (statusCode == 429) {
                     Instant now = retryPolicy.getClock().instant();
-                    RateLimitInfo info = rateLimits.parse(
-                            new RateLimitParser.Response(provider, statusCode, headers, bodyString),
-                            retryPolicy.getClock());
+                    RateLimitInfo info =
+                            rateLimits.parse(
+                                    new RateLimitParser.Response(
+                                            provider, statusCode, headers, bodyString),
+                                    retryPolicy.getClock());
                     Duration wait = info.waitFrom(now);
                     if (attempt < retryPolicy.getMaxRetries()
                             && retryPolicy.isRetryable(statusCode)
@@ -240,7 +250,11 @@ public class HttpClientWrapper {
                     logger.error("HTTP request failed with IOException", e);
                 }
 
-                lastException = new LLMException("HTTP request failed: " + Credentials.scrub(e.getMessage(), request.headers()), e);
+                lastException =
+                        new LLMException(
+                                "HTTP request failed: "
+                                        + Credentials.scrub(e.getMessage(), request.headers()),
+                                e);
 
                 if (attempt >= retryPolicy.getMaxRetries()) {
                     throw lastException;
@@ -259,21 +273,30 @@ public class HttpClientWrapper {
                         "Request failed after " + retryPolicy.getMaxRetries() + " retries");
     }
 
-    private static final com.fasterxml.jackson.databind.ObjectMapper ERRORS = new com.fasterxml.jackson.databind.ObjectMapper();
+    private static final com.fasterxml.jackson.databind.ObjectMapper ERRORS =
+            new com.fasterxml.jackson.databind.ObjectMapper();
 
     /**
-     * The same failure reads the same whatever the provider: 401/403 → {@link AuthenticationException},
-     * 400/404/413/422 → {@link InvalidRequestException}, 500/502/503/504/529 → {@link
-     * ServiceUnavailableException}, anything else → {@link LLMException}. All keep the status and the
-     * response body; the message carries the provider's own error text and request id (never headers
-     * that could hold credentials).
+     * The same failure reads the same whatever the provider: 401/403 → {@link
+     * AuthenticationException}, 400/404/413/422 → {@link InvalidRequestException},
+     * 500/502/503/504/529 → {@link ServiceUnavailableException}, anything else → {@link
+     * LLMException}. All keep the status and the response body; the message carries the provider's
+     * own error text and request id (never headers that could hold credentials).
      */
-    static LLMException failure(String provider, int status, String body, Map<String, List<String>> headers) {
-        String message = "HTTP request failed with status " + status + ": " + describe(body) + requestId(headers, body);
+    static LLMException failure(
+            String provider, int status, String body, Map<String, List<String>> headers) {
+        String message =
+                "HTTP request failed with status "
+                        + status
+                        + ": "
+                        + describe(body)
+                        + requestId(headers, body);
         return switch (status) {
             case 401, 403 -> new AuthenticationException(message, status, body);
-            case 400, 404, 413, 422 -> io.github.llm4j.context.ContextOverflowClassifier.invalidRequest(message, status, body);
-            case 500, 502, 503, 504, 529 -> new ServiceUnavailableException(provider, message, status, body);
+            case 400, 404, 413, 422 -> io.github.llm4j.context.ContextOverflowClassifier
+                    .invalidRequest(message, status, body);
+            case 500, 502, 503, 504, 529 -> new ServiceUnavailableException(
+                    provider, message, status, body);
             default -> new LLMException(message, status, body);
         };
     }
@@ -283,7 +306,8 @@ public class HttpClientWrapper {
         if (body == null || body.isBlank()) return "(no body)";
         try {
             com.fasterxml.jackson.databind.JsonNode root = ERRORS.readTree(body);
-            if (root.isArray() && root.size() > 0) root = root.get(0); // Gemini sometimes wraps errors in a list
+            if (root.isArray() && root.size() > 0)
+                root = root.get(0); // Gemini sometimes wraps errors in a list
             com.fasterxml.jackson.databind.JsonNode error = root.path("error");
             if (error.isObject()) {
                 String type = error.path("type").asText(error.path("status").asText(""));
@@ -300,10 +324,13 @@ public class HttpClientWrapper {
         return trimmed.length() > 500 ? trimmed.substring(0, 500) + "…" : trimmed;
     }
 
-    /** The provider's request id: a response header, or (Anthropic, on some errors) a body field. */
+    /**
+     * The provider's request id: a response header, or (Anthropic, on some errors) a body field.
+     */
     private static String requestId(Map<String, List<String>> headers, String body) {
         String fromHeader = requestId(headers);
-        if (!fromHeader.isEmpty() || body == null || !body.contains("request_id")) return fromHeader;
+        if (!fromHeader.isEmpty() || body == null || !body.contains("request_id"))
+            return fromHeader;
         try {
             com.fasterxml.jackson.databind.JsonNode id = ERRORS.readTree(body).path("request_id");
             return id.isTextual() ? " (request-id " + id.asText() + ")" : "";
@@ -316,7 +343,9 @@ public class HttpClientWrapper {
         if (headers == null) return "";
         for (String name : List.of("request-id", "x-request-id", "x-goog-request-id")) {
             for (Map.Entry<String, List<String>> h : headers.entrySet()) {
-                if (h.getKey() != null && h.getKey().equalsIgnoreCase(name) && !h.getValue().isEmpty()) {
+                if (h.getKey() != null
+                        && h.getKey().equalsIgnoreCase(name)
+                        && !h.getValue().isEmpty()) {
                     return " (" + name + " " + h.getValue().get(0) + ")";
                 }
             }
@@ -333,7 +362,8 @@ public class HttpClientWrapper {
     public StreamingBody stream(String url, String jsonBody, Headers headers) {
         RequestBody body = RequestBody.create(jsonBody, JSON);
         Request request = new Request.Builder().url(url).headers(headers).post(body).build();
-        // No overall deadline for a stream (a long answer is fine); the read timeout still catches a stall.
+        // No overall deadline for a stream (a long answer is fine); the read timeout still catches
+        // a stall.
         OkHttpClient streaming = client.newBuilder().callTimeout(Duration.ZERO).build();
         return send(request, streaming, StreamingBody::new);
     }
@@ -341,7 +371,9 @@ public class HttpClientWrapper {
     /** Up to 10% extra, so many clients throttled together don't all return in the same instant. */
     private static Duration jitter(Duration wait) {
         long max = wait.toMillis() / 10;
-        return max <= 0 ? Duration.ZERO : Duration.ofMillis(ThreadLocalRandom.current().nextLong(max + 1));
+        return max <= 0
+                ? Duration.ZERO
+                : Duration.ofMillis(ThreadLocalRandom.current().nextLong(max + 1));
     }
 
     /** A short provider name from the request host, for rate-limit reports. */

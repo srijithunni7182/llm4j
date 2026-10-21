@@ -18,16 +18,18 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
- * Turns Loom's {@link TraceEvent}s into OpenTelemetry-shaped records: a log record when something starts or changes, and a span
- * when a step ends. One mapper per process instance and run; feed it every event in order. It is not thread-safe: the writer
- * thread of the emitter is the only caller.
+ * Turns Loom's {@link TraceEvent}s into OpenTelemetry-shaped records: a log record when something
+ * starts or changes, and a span when a step ends. One mapper per process instance and run; feed it
+ * every event in order. It is not thread-safe: the writer thread of the emitter is the only caller.
  *
- * <p>Span ids are derived from the run id and the step id ({@link Ids}), so a process that wakes a sleeping run closes the span
- * the first process opened. Text leaves the mapper only as far as the {@link Detail} level allows.
+ * <p>Span ids are derived from the run id and the step id ({@link Ids}), so a process that wakes a
+ * sleeping run closes the span the first process opened. Text leaves the mapper only as far as the
+ * {@link Detail} level allows.
  *
- * <p>What it cannot know yet: Loom's trace has no per-call event, so a step's tokens are the total the delegate reported
- * ({@code loom.usage.total_tokens}), not input and output separately, and a tool call is paired with its observation by order
- * within an agent. The error check on tool results is a heuristic (see {@link #looksLikeError}).
+ * <p>What it cannot know yet: Loom's trace has no per-call event, so a step's tokens are the total
+ * the delegate reported ({@code loom.usage.total_tokens}), not input and output separately, and a
+ * tool call is paired with its observation by order within an agent. The error check on tool
+ * results is a heuristic (see {@link #looksLikeError}).
  */
 public final class TraceMapper {
 
@@ -36,11 +38,25 @@ public final class TraceMapper {
         static final Output NONE = new Output(List.of(), List.of());
     }
 
-    private record Pending(String spanId, String name, String kind, String agent, String tool, String step, long startNanos, Map<String, Object> attrs) { }
+    private record Pending(
+            String spanId,
+            String name,
+            String kind,
+            String agent,
+            String tool,
+            String step,
+            long startNanos,
+            Map<String, Object> attrs) {}
 
-    private static final Pattern ERROR_TEXT = Pattern.compile("^\\s*(error|failed|failure|exception|tool error)\\b|^\\s*(HTTP/\\d(\\.\\d)?\\s+)?[45]\\d\\d\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ERROR_TEXT =
+            Pattern.compile(
+                    "^\\s*(error|failed|failure|exception|tool error)\\b|^\\s*(HTTP/\\d(\\.\\d)?\\s+)?[45]\\d\\d\\b",
+                    Pattern.CASE_INSENSITIVE);
 
-    /** A data value this short is treated as structure (a name, a step id) and kept at every detail level. */
+    /**
+     * A data value this short is treated as structure (a name, a step id) and kept at every detail
+     * level.
+     */
     private static final int SHORT = 80;
 
     private final Detail detail;
@@ -55,18 +71,30 @@ public final class TraceMapper {
     private final Map<String, Deque<Pending>> tools = new HashMap<>();
     private final Map<String, Integer> toolCounts = new HashMap<>();
     private final Map<String, Pending> tasks = new HashMap<>();
+
     /** What each agent step was given and fetched, to check its answer's figures against. */
     private final Map<String, Signals.Corpus> corpora = new HashMap<>();
+
     private final Map<String, Pending> sleeps = new HashMap<>();
-    /** A tool span whose observation has arrived, held for its tool_call event (only once the trace is known to carry them). */
-    private record Held(Pending p, long endNanos, boolean looksFailed, String text) { }
+
+    /**
+     * A tool span whose observation has arrived, held for its tool_call event (only once the trace
+     * is known to carry them).
+     */
+    private record Held(Pending p, long endNanos, boolean looksFailed, String text) {}
+
     private final Map<String, Held> held = new HashMap<>();
     private final Map<String, Integer> modelCounts = new HashMap<>();
-    /** True once the trace has shown a model_call or context event: the runtime sends tool_call events too, so a closed tool span waits for its. */
+
+    /**
+     * True once the trace has shown a model_call or context event: the runtime sends tool_call
+     * events too, so a closed tool span waits for its.
+     */
     private boolean rich;
 
     /**
-     * @param fallbackRunId the run id to use when the run reports none (an in-memory run); null to make one up
+     * @param fallbackRunId the run id to use when the run reports none (an in-memory run); null to
+     *     make one up
      */
     public TraceMapper(String fallbackRunId, Detail detail) {
         this.fallbackRunId = fallbackRunId;
@@ -78,12 +106,18 @@ public final class TraceMapper {
         return runId;
     }
 
-    /** Whether results of untrusted tools are scanned for injected instructions (on unless the rules say {@code injection_scan: off}). */
+    /**
+     * Whether results of untrusted tools are scanned for injected instructions (on unless the rules
+     * say {@code injection_scan: off}).
+     */
     public void injectionScan(boolean on) {
         this.injectionScan = agent -> on;
     }
 
-    /** As {@link #injectionScan(boolean)}, decided per agent (a rule may turn it off for one agent only); the argument is the agent's name, null when the event names none. */
+    /**
+     * As {@link #injectionScan(boolean)}, decided per agent (a rule may turn it off for one agent
+     * only); the argument is the agent's name, null when the event names none.
+     */
     public void injectionScan(java.util.function.Predicate<String> forAgent) {
         this.injectionScan = forAgent == null ? agent -> true : forAgent;
     }
@@ -129,24 +163,35 @@ public final class TraceMapper {
             case TraceEvent.THOUGHT -> {
                 flushHeld(e.agent(), spans);
                 closeUnanswered(e.agent(), now, spans);
-                logs.add(log(now, LogRec.INFO, Semconv.EV_THOUGHT, detail.apply(e.text()), e, null));
+                logs.add(
+                        log(now, LogRec.INFO, Semconv.EV_THOUGHT, detail.apply(e.text()), e, null));
             }
-            case TraceEvent.BUDGET -> logs.add(log(now, LogRec.WARN, Semconv.EV_BUDGET, e.text(), e, data));
+            case TraceEvent.BUDGET -> logs.add(
+                    log(now, LogRec.WARN, Semconv.EV_BUDGET, e.text(), e, data));
             case TraceEvent.CLASSIFY -> classify(e, data, now, spans);
             case TraceEvent.TASK_START -> taskStart(e, data, now, logs);
             case TraceEvent.TASK_END -> taskEnd(e, data, now, spans);
             case TraceEvent.FAILURE -> failure(e, data, now, logs);
             case TraceEvent.TASK_REPLAYED -> taskReplayed(e, data, now, spans);
             case TraceEvent.SLEEP -> sleep(e, data, now, logs, spans);
-            case TraceEvent.NOTE -> logs.add(log(now, LogRec.INFO, Semconv.EV_NOTE, detail.apply(e.text()), e, null));
-            default -> logs.add(log(now, LogRec.INFO, Semconv.EV_PREFIX + e.type(), detail.apply(e.text()), e, data));
+            case TraceEvent.NOTE -> logs.add(
+                    log(now, LogRec.INFO, Semconv.EV_NOTE, detail.apply(e.text()), e, null));
+            default -> logs.add(
+                    log(
+                            now,
+                            LogRec.INFO,
+                            Semconv.EV_PREFIX + e.type(),
+                            detail.apply(e.text()),
+                            e,
+                            data));
         }
         return logs.isEmpty() && spans.isEmpty() ? Output.NONE : new Output(logs, spans);
     }
 
     /**
-     * A workflow variable's hash at the boundary between two rounds of a loop, for the {@code no_progress} rule (read on the run's thread
-     * by {@link ProgressSampler}). Only the hash is recorded, at every detail level: the value itself never leaves the process.
+     * A workflow variable's hash at the boundary between two rounds of a loop, for the {@code
+     * no_progress} rule (read on the run's thread by {@link ProgressSampler}). Only the hash is
+     * recorded, at every detail level: the value itself never leaves the process.
      */
     private void sample(Map<String, Object> data, long now, List<LogRec> logs) {
         Map<String, Object> a = new LinkedHashMap<>();
@@ -154,10 +199,20 @@ public final class TraceMapper {
         a.put(Semconv.LOOM_INSPECT_VAR, text(data.get("variable"), ""));
         a.put(Semconv.LOOM_INSPECT_LOOP, text(data.get("loop"), ""));
         a.put(Semconv.LOOM_INSPECT_HASH, text(data.get("hash"), ""));
-        logs.add(record(now, LogRec.INFO, Semconv.EV_INSPECT_SAMPLE, text(data.get("variable"), "") + " sampled", a, null));
+        logs.add(
+                record(
+                        now,
+                        LogRec.INFO,
+                        Semconv.EV_INSPECT_SAMPLE,
+                        text(data.get("variable"), "") + " sampled",
+                        a,
+                        null));
     }
 
-    /** An observer's pause, resume, suspend or stop, and the step where it took effect. Who asked travels: it is for the audit trail. */
+    /**
+     * An observer's pause, resume, suspend or stop, and the step where it took effect. Who asked
+     * travels: it is for the audit trail.
+     */
     private void control(TraceEvent e, Map<String, Object> data, long now, List<LogRec> logs) {
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.LOOM_CONTROL_ACTION, text(data.get("action"), ""));
@@ -171,7 +226,10 @@ public final class TraceMapper {
 
     private void ensureRun() {
         if (runId != null) return;
-        runId = fallbackRunId != null ? fallbackRunId : "run-" + UUID.randomUUID().toString().substring(0, 8);
+        runId =
+                fallbackRunId != null
+                        ? fallbackRunId
+                        : "run-" + UUID.randomUUID().toString().substring(0, 8);
         traceId = Ids.traceId(runId);
     }
 
@@ -190,17 +248,34 @@ public final class TraceMapper {
         logs.add(record(now, LogRec.INFO, Semconv.EV_RUN_START, "workflow " + workflow, a, null));
     }
 
-    private void runEnd(TraceEvent e, Map<String, Object> data, long now, List<LogRec> logs, List<SpanRec> spans) {
+    private void runEnd(
+            TraceEvent e,
+            Map<String, Object> data,
+            long now,
+            List<LogRec> logs,
+            List<SpanRec> spans) {
         String status = text(data.get("status"), Semconv.STATUS_FAILED);
-        boolean bad = Semconv.STATUS_FAILED.equals(status) || Semconv.STATUS_STOPPED.equals(status) || Semconv.STATUS_BUDGET.equals(status);
+        boolean bad =
+                Semconv.STATUS_FAILED.equals(status)
+                        || Semconv.STATUS_STOPPED.equals(status)
+                        || Semconv.STATUS_BUDGET.equals(status);
         if (Semconv.STATUS_SUSPENDED.equals(status)) {
             Map<String, Object> s = new LinkedHashMap<>();
             s.put(Semconv.LOOM_SUSPEND_REASON, text(data.get("reason"), "UNKNOWN"));
-            if (data.get("resumeAt") != null) s.put(Semconv.LOOM_RESUME_AT, String.valueOf(data.get("resumeAt")));
-            logs.add(record(now, LogRec.WARN, Semconv.EV_RUN_SUSPENDED, "run paused: " + s.get(Semconv.LOOM_SUSPEND_REASON), s, null));
+            if (data.get("resumeAt") != null)
+                s.put(Semconv.LOOM_RESUME_AT, String.valueOf(data.get("resumeAt")));
+            logs.add(
+                    record(
+                            now,
+                            LogRec.WARN,
+                            Semconv.EV_RUN_SUSPENDED,
+                            "run paused: " + s.get(Semconv.LOOM_SUSPEND_REASON),
+                            s,
+                            null));
         }
         for (String agent : new ArrayList<>(held.keySet())) flushHeld(agent, spans);
-        // anything still open when a run fails or is stopped was cut short; when it is only suspended, whoever resumes it closes it
+        // anything still open when a run fails or is stopped was cut short; when it is only
+        // suspended, whoever resumes it closes it
         if (bad) {
             String why = "run " + status;
             List<Pending> open = new ArrayList<>(agents.values());
@@ -220,7 +295,14 @@ public final class TraceMapper {
         a.putAll(totals);
         Map<String, Object> culprit = failedBy(data);
         a.putAll(culprit);
-        logs.add(record(now, bad ? LogRec.ERROR : LogRec.INFO, Semconv.EV_RUN_END, "workflow " + workflow + " " + status, a, null));
+        logs.add(
+                record(
+                        now,
+                        bad ? LogRec.ERROR : LogRec.INFO,
+                        Semconv.EV_RUN_END,
+                        "workflow " + workflow + " " + status,
+                        a,
+                        null));
 
         Map<String, Object> root = new LinkedHashMap<>();
         root.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_WORKFLOW);
@@ -229,8 +311,19 @@ public final class TraceMapper {
         root.put(Semconv.LOOM_RUN_STATUS, status);
         root.putAll(totals);
         root.putAll(culprit);
-        spans.add(new SpanRec(traceId, rootSpanId(), null, "loom.workflow " + workflow, SpanRec.INTERNAL, runStartNanos == 0 ? now : runStartNanos, now, root,
-                bad ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK, bad ? text(data.get("error"), status) : null, List.of()));
+        spans.add(
+                new SpanRec(
+                        traceId,
+                        rootSpanId(),
+                        null,
+                        "loom.workflow " + workflow,
+                        SpanRec.INTERNAL,
+                        runStartNanos == 0 ? now : runStartNanos,
+                        now,
+                        root,
+                        bad ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK,
+                        bad ? text(data.get("error"), status) : null,
+                        List.of()));
     }
 
     private String rootSpanId() {
@@ -239,14 +332,24 @@ public final class TraceMapper {
 
     // ------------------------------------------------------------------------------ agents
 
-    private void delegateStart(TraceEvent e, Map<String, Object> data, long now, List<LogRec> logs) {
+    private void delegateStart(
+            TraceEvent e, Map<String, Object> data, long now, List<LogRec> logs) {
         String agent = e.agent();
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.GEN_AI_OPERATION_NAME, Semconv.OP_INVOKE_AGENT);
         a.put(Semconv.GEN_AI_AGENT_NAME, agent);
         a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_AGENT);
         a.put(Semconv.LOOM_STEP, e.step());
-        Pending p = new Pending(Ids.spanId(runId, e.step() + "#agent:" + agent), "invoke_agent " + agent, Semconv.KIND_AGENT, agent, null, e.step(), now, a);
+        Pending p =
+                new Pending(
+                        Ids.spanId(runId, e.step() + "#agent:" + agent),
+                        "invoke_agent " + agent,
+                        Semconv.KIND_AGENT,
+                        agent,
+                        null,
+                        e.step(),
+                        now,
+                        a);
         agents.put(agent + "@" + e.step(), p);
         corpora.computeIfAbsent(agent + "@" + e.step(), k -> new Signals.Corpus()).add(e.text());
         Map<String, Object> startAttrs = new LinkedHashMap<>(a);
@@ -256,30 +359,53 @@ public final class TraceMapper {
     }
 
     /**
-     * A tool call that was started and never answered when its agent begins its next thought or finishes: the runtime blocks an exact
-     * repeat of an earlier call and feeds the model an error, without reporting an observation. It is closed as having no result, so
-     * the page does not show it in flight for the rest of the run.
+     * A tool call that was started and never answered when its agent begins its next thought or
+     * finishes: the runtime blocks an exact repeat of an earlier call and feeds the model an error,
+     * without reporting an observation. It is closed as having no result, so the page does not show
+     * it in flight for the rest of the run.
      */
     private void closeUnanswered(String agent, long now, List<SpanRec> spans) {
         Deque<Pending> queue = agent == null ? null : tools.get(agent);
         if (queue == null) return;
         Pending p;
         while ((p = queue.pollFirst()) != null) {
-            spans.add(span(p, now, SpanRec.STATUS_UNSET, null, Map.of(Semconv.LOOM_TOOL_NO_RESULT, true)));
+            spans.add(
+                    span(
+                            p,
+                            now,
+                            SpanRec.STATUS_UNSET,
+                            null,
+                            Map.of(Semconv.LOOM_TOOL_NO_RESULT, true)));
         }
     }
 
-    private void delegateEnd(TraceEvent e, Map<String, Object> data, long now, List<SpanRec> spans) {
+    private void delegateEnd(
+            TraceEvent e, Map<String, Object> data, long now, List<SpanRec> spans) {
         flushHeld(e.agent(), spans);
         closeUnanswered(e.agent(), now, spans);
         Pending p = agents.remove(e.agent() + "@" + e.step());
-        if (p == null) p = new Pending(Ids.spanId(runId, e.step() + "#agent:" + e.agent()), "invoke_agent " + e.agent(), Semconv.KIND_AGENT, e.agent(), null, e.step(), now, agentAttrs(e));
+        if (p == null)
+            p =
+                    new Pending(
+                            Ids.spanId(runId, e.step() + "#agent:" + e.agent()),
+                            "invoke_agent " + e.agent(),
+                            Semconv.KIND_AGENT,
+                            e.agent(),
+                            null,
+                            e.step(),
+                            now,
+                            agentAttrs(e));
         Map<String, Object> extra = new LinkedHashMap<>();
-        if (data.get("tokens") != null) extra.put(Semconv.LOOM_USAGE_TOTAL_TOKENS, number(data.get("tokens")));
-        if (data.get("calls") != null) extra.put(Semconv.LOOM_USAGE_CALLS, number(data.get("calls")));
-        if (data.get("promptTokens") != null) extra.put(Semconv.GEN_AI_USAGE_INPUT_TOKENS, number(data.get("promptTokens")));
-        if (data.get("completionTokens") != null) extra.put(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS, number(data.get("completionTokens")));
-        if (data.get("cost") != null) extra.put(Semconv.LOOM_COST_USD, String.valueOf(data.get("cost")));
+        if (data.get("tokens") != null)
+            extra.put(Semconv.LOOM_USAGE_TOTAL_TOKENS, number(data.get("tokens")));
+        if (data.get("calls") != null)
+            extra.put(Semconv.LOOM_USAGE_CALLS, number(data.get("calls")));
+        if (data.get("promptTokens") != null)
+            extra.put(Semconv.GEN_AI_USAGE_INPUT_TOKENS, number(data.get("promptTokens")));
+        if (data.get("completionTokens") != null)
+            extra.put(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS, number(data.get("completionTokens")));
+        if (data.get("cost") != null)
+            extra.put(Semconv.LOOM_COST_USD, String.valueOf(data.get("cost")));
         String t = detail.apply(e.text());
         if (t != null) extra.put(Semconv.LOOM_TEXT, t);
         if (e.text() != null && !e.text().isBlank()) {
@@ -289,14 +415,24 @@ public final class TraceMapper {
                 Signals.Grounding g = Signals.ground(e.text(), corpus);
                 extra.put(Semconv.LOOM_GROUNDING_FIGURES, (long) g.figures());
                 extra.put(Semconv.LOOM_GROUNDING_UNGROUNDED, (long) g.ungrounded());
-                if (!g.examples().isEmpty() && detail != Detail.METADATA) extra.put(Semconv.LOOM_GROUNDING_EXAMPLES, String.join(", ", g.examples()));
+                if (!g.examples().isEmpty() && detail != Detail.METADATA)
+                    extra.put(Semconv.LOOM_GROUNDING_EXAMPLES, String.join(", ", g.examples()));
             }
         }
         spans.add(span(p, now, SpanRec.STATUS_OK, null, extra));
     }
 
     private void delegateReplayed(TraceEvent e, long now, List<SpanRec> spans) {
-        Pending p = new Pending(Ids.spanId(runId, e.step() + "#agent:" + e.agent()), "invoke_agent " + e.agent(), Semconv.KIND_AGENT, e.agent(), null, e.step(), now, agentAttrs(e));
+        Pending p =
+                new Pending(
+                        Ids.spanId(runId, e.step() + "#agent:" + e.agent()),
+                        "invoke_agent " + e.agent(),
+                        Semconv.KIND_AGENT,
+                        e.agent(),
+                        null,
+                        e.step(),
+                        now,
+                        agentAttrs(e));
         spans.add(span(p, now, SpanRec.STATUS_OK, null, Map.of("loom.replayed", true)));
     }
 
@@ -312,7 +448,8 @@ public final class TraceMapper {
     // ------------------------------------------------------------------------------ tools
 
     private void toolStart(TraceEvent e, Map<String, Object> data, long now, List<LogRec> logs) {
-        String tool = data.get("tool") != null ? String.valueOf(data.get("tool")) : firstWord(e.text());
+        String tool =
+                data.get("tool") != null ? String.valueOf(data.get("tool")) : firstWord(e.text());
         int n = toolCounts.merge(e.agent() + "@" + e.step(), 1, Integer::sum);
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.GEN_AI_OPERATION_NAME, Semconv.OP_EXECUTE_TOOL);
@@ -321,8 +458,18 @@ public final class TraceMapper {
         a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_TOOL);
         a.put(Semconv.LOOM_STEP, e.step());
         a.put(Semconv.LOOM_ACTION_HASH, Signals.actionHash(tool, e.text()));
-        corpora.computeIfAbsent(e.agent() + "@" + e.step(), k -> new Signals.Corpus()).add(e.text());
-        Pending p = new Pending(Ids.spanId(runId, e.step() + "#tool:" + e.agent() + ":" + n), "execute_tool " + tool, Semconv.KIND_TOOL, e.agent(), tool, e.step(), now, a);
+        corpora.computeIfAbsent(e.agent() + "@" + e.step(), k -> new Signals.Corpus())
+                .add(e.text());
+        Pending p =
+                new Pending(
+                        Ids.spanId(runId, e.step() + "#tool:" + e.agent() + ":" + n),
+                        "execute_tool " + tool,
+                        Semconv.KIND_TOOL,
+                        e.agent(),
+                        tool,
+                        e.step(),
+                        now,
+                        a);
         tools.computeIfAbsent(e.agent(), k -> new ArrayDeque<>()).addLast(p);
         Map<String, Object> startAttrs = new LinkedHashMap<>(a);
         String input = detail.apply(e.text());
@@ -334,12 +481,14 @@ public final class TraceMapper {
         Deque<Pending> queue = tools.get(e.agent());
         Pending p = queue == null ? null : queue.pollFirst();
         if (p == null) {
-            logs.add(log(now, LogRec.INFO, Semconv.EV_OBSERVATION, detail.apply(e.text()), e, null));
+            logs.add(
+                    log(now, LogRec.INFO, Semconv.EV_OBSERVATION, detail.apply(e.text()), e, null));
             return;
         }
         boolean error = looksLikeError(e.text());
         Signals.Corpus seen = corpora.get(p.agent() + "@" + p.step());
-        if (seen != null && !error) seen.add(e.text()); // what a failed call returned is not a source
+        if (seen != null && !error)
+            seen.add(e.text()); // what a failed call returned is not a source
         if (rich) {
             flushHeld(e.agent(), spans);
             held.put(e.agent(), new Held(p, now, error, e.text()));
@@ -349,10 +498,19 @@ public final class TraceMapper {
         String t = detail.apply(e.text());
         if (t != null) extra.put(Semconv.LOOM_TEXT, t);
         if (error) extra.put(Semconv.ERROR_TYPE, "tool_error");
-        spans.add(span(p, now, error ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK, error ? firstLine(e.text()) : null, extra));
+        spans.add(
+                span(
+                        p,
+                        now,
+                        error ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK,
+                        error ? firstLine(e.text()) : null,
+                        extra));
     }
 
-    /** A closed tool span that never got its tool_call (an older runtime, or a call the runtime did not report): the text decides, as it always did. */
+    /**
+     * A closed tool span that never got its tool_call (an older runtime, or a call the runtime did
+     * not report): the text decides, as it always did.
+     */
     private void flushHeld(String agent, List<SpanRec> spans) {
         Held h = agent == null ? null : held.remove(agent);
         if (h == null) return;
@@ -360,13 +518,20 @@ public final class TraceMapper {
         String t = detail.apply(h.text());
         if (t != null) extra.put(Semconv.LOOM_TEXT, t);
         if (h.looksFailed()) extra.put(Semconv.ERROR_TYPE, "tool_error");
-        spans.add(span(h.p(), h.endNanos(), h.looksFailed() ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK, h.looksFailed() ? firstLine(h.text()) : null, extra));
+        spans.add(
+                span(
+                        h.p(),
+                        h.endNanos(),
+                        h.looksFailed() ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK,
+                        h.looksFailed() ? firstLine(h.text()) : null,
+                        extra));
     }
 
     /**
-     * The runtime's own account of a tool call, which arrives right after the observation: the real outcome, whether the tool returned its error as
-     * text, and the category. It completes the held span; for a call that was never run (blocked, rejected, unknown) there may be no observation, and it
-     * closes the call still waiting.
+     * The runtime's own account of a tool call, which arrives right after the observation: the real
+     * outcome, whether the tool returned its error as text, and the category. It completes the held
+     * span; for a call that was never run (blocked, rejected, unknown) there may be no observation,
+     * and it closes the call still waiting.
      */
     private void toolCall(TraceEvent e, Map<String, Object> data, long now, List<SpanRec> spans) {
         rich = true;
@@ -390,23 +555,41 @@ public final class TraceMapper {
         }
         String outcome = text(data.get("outcome"), "EXECUTED");
         boolean ran = "EXECUTED".equals(outcome) || "EXECUTION_ERROR".equals(outcome);
-        String category = data.get("category") == null ? null : String.valueOf(data.get("category")).toLowerCase(java.util.Locale.ROOT);
+        String category =
+                data.get("category") == null
+                        ? null
+                        : String.valueOf(data.get("category")).toLowerCase(java.util.Locale.ROOT);
         Map<String, Object> extra = new LinkedHashMap<>();
         extra.put(Semconv.LOOM_TOOL_OUTCOME, outcome);
-        extra.put(Semconv.LOOM_TOOL_SOFT_FAILURE, Boolean.parseBoolean(String.valueOf(data.get("soft_failure"))));
-        if (data.get("result_chars") != null) extra.put(Semconv.LOOM_TOOL_RESULT_CHARS, number(data.get("result_chars")));
-        if (data.get("approval_ms") != null) extra.put(Semconv.LOOM_TOOL_APPROVAL_MS, number(data.get("approval_ms")));
-        if (data.get("duration_ms") != null) extra.put(Semconv.LOOM_TOOL_DURATION_MS, number(data.get("duration_ms")));
-        if (data.get("reach") != null && injectionScan.test(e.agent()) && observed != null && String.valueOf(data.get("reach")).contains("untrusted")) {
-            InjectionScan.Result found = InjectionScan.scan(observed); // in this process, so the text never leaves it: only group names and a count do
+        extra.put(
+                Semconv.LOOM_TOOL_SOFT_FAILURE,
+                Boolean.parseBoolean(String.valueOf(data.get("soft_failure"))));
+        if (data.get("result_chars") != null)
+            extra.put(Semconv.LOOM_TOOL_RESULT_CHARS, number(data.get("result_chars")));
+        if (data.get("approval_ms") != null)
+            extra.put(Semconv.LOOM_TOOL_APPROVAL_MS, number(data.get("approval_ms")));
+        if (data.get("duration_ms") != null)
+            extra.put(Semconv.LOOM_TOOL_DURATION_MS, number(data.get("duration_ms")));
+        if (data.get("reach") != null
+                && injectionScan.test(e.agent())
+                && observed != null
+                && String.valueOf(data.get("reach")).contains("untrusted")) {
+            InjectionScan.Result found =
+                    InjectionScan.scan(
+                            observed); // in this process, so the text never leaves it: only group
+            // names and a count do
             if (found.suspect()) {
                 extra.put(Semconv.LOOM_INJECTION_PATTERNS, String.join(",", found.groups()));
                 extra.put(Semconv.LOOM_INJECTION_COUNT, (long) found.count());
             }
         }
-        if (data.get("reach") != null) { // what the tool can reach, from the same code the static audit uses: names only, safe at every detail level
+        if (data.get("reach")
+                != null) { // what the tool can reach, from the same code the static audit uses:
+            // names only, safe at every detail level
             extra.put(Semconv.LOOM_TOOL_REACH, String.valueOf(data.get("reach")));
-            extra.put(Semconv.LOOM_TOOL_REACH_KNOWN, !"false".equals(String.valueOf(data.get("reach_known"))));
+            extra.put(
+                    Semconv.LOOM_TOOL_REACH_KNOWN,
+                    !"false".equals(String.valueOf(data.get("reach_known"))));
         }
         if (observed != null) {
             String t = detail.apply(observed);
@@ -428,70 +611,137 @@ public final class TraceMapper {
         spans.add(span(p, end, status, message, extra));
     }
 
-    /** One model call, as a {@code chat} span that ends now and began {@code duration_ms} earlier. Numbers and names only. */
+    /**
+     * One model call, as a {@code chat} span that ends now and began {@code duration_ms} earlier.
+     * Numbers and names only.
+     */
     private void modelCall(TraceEvent e, Map<String, Object> data, long now, List<SpanRec> spans) {
         String model = text(data.get("model"), text(data.get("requested_model"), "model"));
-        long duration = data.get("duration_ms") == null ? 0 : Math.max(0, number(data.get("duration_ms")));
+        long duration =
+                data.get("duration_ms") == null ? 0 : Math.max(0, number(data.get("duration_ms")));
         int n = modelCounts.merge(e.agent() + "@" + e.step(), 1, Integer::sum);
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.GEN_AI_OPERATION_NAME, Semconv.OP_CHAT);
         a.put(Semconv.GEN_AI_AGENT_NAME, e.agent());
-        if (data.get("requested_model") != null) a.put(Semconv.GEN_AI_REQUEST_MODEL, String.valueOf(data.get("requested_model")));
-        if (data.get("model") != null) a.put(Semconv.GEN_AI_RESPONSE_MODEL, String.valueOf(data.get("model")));
-        a.put(Semconv.GEN_AI_USAGE_INPUT_TOKENS, data.get("prompt_tokens") == null ? 0L : number(data.get("prompt_tokens")));
-        a.put(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS, data.get("completion_tokens") == null ? 0L : number(data.get("completion_tokens")));
-        if (data.get("finish_reason") != null) a.put(Semconv.GEN_AI_RESPONSE_FINISH_REASONS, String.valueOf(data.get("finish_reason")));
+        if (data.get("requested_model") != null)
+            a.put(Semconv.GEN_AI_REQUEST_MODEL, String.valueOf(data.get("requested_model")));
+        if (data.get("model") != null)
+            a.put(Semconv.GEN_AI_RESPONSE_MODEL, String.valueOf(data.get("model")));
+        a.put(
+                Semconv.GEN_AI_USAGE_INPUT_TOKENS,
+                data.get("prompt_tokens") == null ? 0L : number(data.get("prompt_tokens")));
+        a.put(
+                Semconv.GEN_AI_USAGE_OUTPUT_TOKENS,
+                data.get("completion_tokens") == null ? 0L : number(data.get("completion_tokens")));
+        if (data.get("finish_reason") != null)
+            a.put(
+                    Semconv.GEN_AI_RESPONSE_FINISH_REASONS,
+                    String.valueOf(data.get("finish_reason")));
         a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_MODEL);
         a.put(Semconv.LOOM_STEP, e.step());
-        a.put(Semconv.LOOM_MODEL_ATTEMPTS, data.get("attempts") == null ? 1L : number(data.get("attempts")));
-        a.put(Semconv.LOOM_MODEL_WAITED_MS, data.get("waited_ms") == null ? 0L : number(data.get("waited_ms")));
+        a.put(
+                Semconv.LOOM_MODEL_ATTEMPTS,
+                data.get("attempts") == null ? 1L : number(data.get("attempts")));
+        a.put(
+                Semconv.LOOM_MODEL_WAITED_MS,
+                data.get("waited_ms") == null ? 0L : number(data.get("waited_ms")));
         a.put(Semconv.LOOM_MODEL_DURATION_MS, duration);
         if (data.get("failovers") != null) {
             Object f = data.get("failovers");
-            String joined = f instanceof Iterable<?> it ? String.join(",", java.util.stream.StreamSupport.stream(it.spliterator(), false).map(String::valueOf).toList()) : String.valueOf(f);
+            String joined =
+                    f instanceof Iterable<?> it
+                            ? String.join(
+                                    ",",
+                                    java.util.stream.StreamSupport.stream(it.spliterator(), false)
+                                            .map(String::valueOf)
+                                            .toList())
+                            : String.valueOf(f);
             if (!joined.isEmpty()) a.put(Semconv.LOOM_MODEL_FAILOVERS, joined);
         }
-        a.put(Semconv.LOOM_MODEL_TRUNCATED, Boolean.parseBoolean(String.valueOf(data.get("truncated"))));
+        a.put(
+                Semconv.LOOM_MODEL_TRUNCATED,
+                Boolean.parseBoolean(String.valueOf(data.get("truncated"))));
         boolean failed = "FAILED".equals(String.valueOf(data.get("outcome")));
-        String category = data.get("category") == null ? null : String.valueOf(data.get("category")).toLowerCase(java.util.Locale.ROOT);
+        String category =
+                data.get("category") == null
+                        ? null
+                        : String.valueOf(data.get("category")).toLowerCase(java.util.Locale.ROOT);
         if (failed) a.put(Semconv.ERROR_TYPE, category != null ? category : "other");
-        Pending p = new Pending(Ids.spanId(runId, e.step() + "#model:" + e.agent() + ":" + n), "chat " + model, Semconv.KIND_MODEL, e.agent(), null, e.step(), Math.max(0, now - duration * 1_000_000L), a);
-        spans.add(span(p, now, failed ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK, failed ? (category != null ? category : "failed") : null, Map.of()));
+        Pending p =
+                new Pending(
+                        Ids.spanId(runId, e.step() + "#model:" + e.agent() + ":" + n),
+                        "chat " + model,
+                        Semconv.KIND_MODEL,
+                        e.agent(),
+                        null,
+                        e.step(),
+                        Math.max(0, now - duration * 1_000_000L),
+                        a);
+        spans.add(
+                span(
+                        p,
+                        now,
+                        failed ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK,
+                        failed ? (category != null ? category : "failed") : null,
+                        Map.of()));
     }
 
     /**
-     * A classification is one model call under the classifier's name: tokens, time, attempts and backend, never the state or the labels (the trace event
-     * carries the labels for the run's own trace; they are the answer, not the question, but a span is a measurement).
+     * A classification is one model call under the classifier's name: tokens, time, attempts and
+     * backend, never the state or the labels (the trace event carries the labels for the run's own
+     * trace; they are the answer, not the question, but a span is a measurement).
      */
     private void classify(TraceEvent e, Map<String, Object> data, long now, List<SpanRec> spans) {
         String name = text(data.get("classifier"), "classifier");
         String model = text(data.get("model"), text(data.get("requested_model"), "model"));
-        long duration = data.get("duration_ms") == null ? 0 : Math.max(0, number(data.get("duration_ms")));
+        long duration =
+                data.get("duration_ms") == null ? 0 : Math.max(0, number(data.get("duration_ms")));
         int n = modelCounts.merge(name + "@" + e.step(), 1, Integer::sum);
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.GEN_AI_OPERATION_NAME, "classify");
         a.put(Semconv.GEN_AI_AGENT_NAME, name);
-        if (data.get("requested_model") != null) a.put(Semconv.GEN_AI_REQUEST_MODEL, String.valueOf(data.get("requested_model")));
-        if (data.get("model") != null) a.put(Semconv.GEN_AI_RESPONSE_MODEL, String.valueOf(data.get("model")));
-        a.put(Semconv.GEN_AI_USAGE_INPUT_TOKENS, data.get("input_tokens") == null ? 0L : number(data.get("input_tokens")));
-        a.put(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS, data.get("output_tokens") == null ? 0L : number(data.get("output_tokens")));
+        if (data.get("requested_model") != null)
+            a.put(Semconv.GEN_AI_REQUEST_MODEL, String.valueOf(data.get("requested_model")));
+        if (data.get("model") != null)
+            a.put(Semconv.GEN_AI_RESPONSE_MODEL, String.valueOf(data.get("model")));
+        a.put(
+                Semconv.GEN_AI_USAGE_INPUT_TOKENS,
+                data.get("input_tokens") == null ? 0L : number(data.get("input_tokens")));
+        a.put(
+                Semconv.GEN_AI_USAGE_OUTPUT_TOKENS,
+                data.get("output_tokens") == null ? 0L : number(data.get("output_tokens")));
         a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_MODEL);
         a.put(Semconv.LOOM_STEP, e.step());
-        a.put(Semconv.LOOM_MODEL_ATTEMPTS, data.get("attempts") == null ? 1L : number(data.get("attempts")));
+        a.put(
+                Semconv.LOOM_MODEL_ATTEMPTS,
+                data.get("attempts") == null ? 1L : number(data.get("attempts")));
         a.put(Semconv.LOOM_MODEL_WAITED_MS, 0L);
         a.put(Semconv.LOOM_MODEL_DURATION_MS, duration);
         a.put(Semconv.LOOM_MODEL_TRUNCATED, false);
-        Pending p = new Pending(Ids.spanId(runId, e.step() + "#classify:" + name + ":" + n), "classify " + model, Semconv.KIND_MODEL, name, null, e.step(), Math.max(0, now - duration * 1_000_000L), a);
+        Pending p =
+                new Pending(
+                        Ids.spanId(runId, e.step() + "#classify:" + name + ":" + n),
+                        "classify " + model,
+                        Semconv.KIND_MODEL,
+                        name,
+                        null,
+                        e.step(),
+                        Math.max(0, now - duration * 1_000_000L),
+                        a);
         spans.add(span(p, now, SpanRec.STATUS_OK, null, Map.of()));
     }
 
     private void context(TraceEvent e, Map<String, Object> data, long now, List<LogRec> logs) {
         Map<String, Object> a = agentStep(e);
         a.put(Semconv.LOOM_CONTEXT_USED, data.get("used") == null ? 0L : number(data.get("used")));
-        if (data.get("window") != null) a.put(Semconv.LOOM_CONTEXT_WINDOW, number(data.get("window")));
-        if (data.get("usable") != null) a.put(Semconv.LOOM_CONTEXT_USABLE, number(data.get("usable")));
-        if (data.get("fraction") instanceof Number f) a.put(Semconv.LOOM_CONTEXT_FRACTION, f.doubleValue());
-        if (data.get("source") != null) a.put(Semconv.LOOM_CONTEXT_SOURCE, String.valueOf(data.get("source")));
+        if (data.get("window") != null)
+            a.put(Semconv.LOOM_CONTEXT_WINDOW, number(data.get("window")));
+        if (data.get("usable") != null)
+            a.put(Semconv.LOOM_CONTEXT_USABLE, number(data.get("usable")));
+        if (data.get("fraction") instanceof Number f)
+            a.put(Semconv.LOOM_CONTEXT_FRACTION, f.doubleValue());
+        if (data.get("source") != null)
+            a.put(Semconv.LOOM_CONTEXT_SOURCE, String.valueOf(data.get("source")));
         logs.add(record(now, LogRec.INFO, Semconv.EV_CONTEXT, e.text(), a, null));
     }
 
@@ -500,15 +750,31 @@ public final class TraceMapper {
         a.put(Semconv.LOOM_COMPACTION_STRATEGY, text(data.get("strategy"), ""));
         a.put(Semconv.LOOM_COMPACTION_OUTCOME, text(data.get("outcome"), ""));
         a.put(Semconv.LOOM_COMPACTION_REASON, text(data.get("reason"), ""));
-        a.put(Semconv.LOOM_COMPACTION_BEFORE, data.get("before") == null ? 0L : number(data.get("before")));
-        a.put(Semconv.LOOM_COMPACTION_AFTER, data.get("after") == null ? 0L : number(data.get("after")));
-        if (data.get("messages_before") != null) a.put(Semconv.LOOM_COMPACTION_MESSAGES_BEFORE, number(data.get("messages_before")));
-        if (data.get("messages_after") != null) a.put(Semconv.LOOM_COMPACTION_MESSAGES_AFTER, number(data.get("messages_after")));
-        if (data.get("summary_tokens") != null) a.put(Semconv.LOOM_COMPACTION_SUMMARY_TOKENS, number(data.get("summary_tokens")));
-        if (data.get("summary_cost") != null) a.put(Semconv.LOOM_COMPACTION_SUMMARY_COST, String.valueOf(data.get("summary_cost")));
-        if (data.get("error_type") != null) a.put(Semconv.ERROR_TYPE, String.valueOf(data.get("error_type")));
+        a.put(
+                Semconv.LOOM_COMPACTION_BEFORE,
+                data.get("before") == null ? 0L : number(data.get("before")));
+        a.put(
+                Semconv.LOOM_COMPACTION_AFTER,
+                data.get("after") == null ? 0L : number(data.get("after")));
+        if (data.get("messages_before") != null)
+            a.put(Semconv.LOOM_COMPACTION_MESSAGES_BEFORE, number(data.get("messages_before")));
+        if (data.get("messages_after") != null)
+            a.put(Semconv.LOOM_COMPACTION_MESSAGES_AFTER, number(data.get("messages_after")));
+        if (data.get("summary_tokens") != null)
+            a.put(Semconv.LOOM_COMPACTION_SUMMARY_TOKENS, number(data.get("summary_tokens")));
+        if (data.get("summary_cost") != null)
+            a.put(Semconv.LOOM_COMPACTION_SUMMARY_COST, String.valueOf(data.get("summary_cost")));
+        if (data.get("error_type") != null)
+            a.put(Semconv.ERROR_TYPE, String.valueOf(data.get("error_type")));
         boolean failed = "FAILED".equals(String.valueOf(data.get("outcome")));
-        logs.add(record(now, failed ? LogRec.WARN : LogRec.INFO, Semconv.EV_COMPACTION, e.text(), a, null));
+        logs.add(
+                record(
+                        now,
+                        failed ? LogRec.WARN : LogRec.INFO,
+                        Semconv.EV_COMPACTION,
+                        e.text(),
+                        a,
+                        null));
     }
 
     private static Map<String, Object> agentStep(TraceEvent e) {
@@ -518,11 +784,20 @@ public final class TraceMapper {
         return a;
     }
 
-    /** The run's totals from {@code run_end}, as typed attributes; nothing when the runtime sent none. */
+    /**
+     * The run's totals from {@code run_end}, as typed attributes; nothing when the runtime sent
+     * none.
+     */
     private static Map<String, Object> runTotals(Map<String, Object> data) {
         Map<String, Object> t = new LinkedHashMap<>();
-        String[][] keys = {{"model_calls", Semconv.LOOM_RUN_MODEL_CALLS}, {"tool_calls", Semconv.LOOM_RUN_TOOL_CALLS}, {"tool_failures", Semconv.LOOM_RUN_TOOL_FAILURES},
-                {"retries", Semconv.LOOM_RUN_RETRIES}, {"failovers", Semconv.LOOM_RUN_FAILOVERS}, {"compactions", Semconv.LOOM_RUN_COMPACTIONS}};
+        String[][] keys = {
+            {"model_calls", Semconv.LOOM_RUN_MODEL_CALLS},
+            {"tool_calls", Semconv.LOOM_RUN_TOOL_CALLS},
+            {"tool_failures", Semconv.LOOM_RUN_TOOL_FAILURES},
+            {"retries", Semconv.LOOM_RUN_RETRIES},
+            {"failovers", Semconv.LOOM_RUN_FAILOVERS},
+            {"compactions", Semconv.LOOM_RUN_COMPACTIONS}
+        };
         for (String[] k : keys) if (data.get(k[0]) != null) t.put(k[1], number(data.get(k[0])));
         return t;
     }
@@ -533,20 +808,26 @@ public final class TraceMapper {
         if (data.get("failed_name") == null) return t;
         t.put(Semconv.LOOM_RUN_FAILED_KIND, text(data.get("failed_kind"), "task"));
         t.put(Semconv.LOOM_RUN_FAILED_NAME, text(data.get("failed_name"), "unknown"));
-        if (data.get("failed_step") != null) t.put(Semconv.LOOM_RUN_FAILED_STEP, text(data.get("failed_step"), ""));
-        if (data.get("failed_category") != null) t.put(Semconv.LOOM_RUN_FAILED_CATEGORY, String.valueOf(data.get("failed_category")).toLowerCase(java.util.Locale.ROOT));
+        if (data.get("failed_step") != null)
+            t.put(Semconv.LOOM_RUN_FAILED_STEP, text(data.get("failed_step"), ""));
+        if (data.get("failed_category") != null)
+            t.put(
+                    Semconv.LOOM_RUN_FAILED_CATEGORY,
+                    String.valueOf(data.get("failed_category")).toLowerCase(java.util.Locale.ROOT));
         return t;
     }
 
     /**
-     * A heuristic: Loom's trace gives a tool's result as text with no status, so a result that begins with "error", "failed" or
-     * "exception", or with an HTTP 4xx or 5xx status, is treated as a failed call.
+     * A heuristic: Loom's trace gives a tool's result as text with no status, so a result that
+     * begins with "error", "failed" or "exception", or with an HTTP 4xx or 5xx status, is treated
+     * as a failed call.
      */
     static boolean looksLikeError(String text) {
         return text != null && ERROR_TEXT.matcher(text).find();
     }
 
-    // ------------------------------------------------------------------------------ tasks and sleeps
+    // ------------------------------------------------------------------------------ tasks and
+    // sleeps
 
     private void taskStart(TraceEvent e, Map<String, Object> data, long now, List<LogRec> logs) {
         String task = text(data.get("task"), "task");
@@ -554,9 +835,25 @@ public final class TraceMapper {
         a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_TASK);
         a.put(Semconv.LOOM_TASK, task);
         a.put(Semconv.LOOM_STEP, e.step());
-        Pending p = new Pending(Ids.spanId(runId, e.step() + "#task"), "loom.task " + task, Semconv.KIND_TASK, null, null, e.step(), now, a);
+        Pending p =
+                new Pending(
+                        Ids.spanId(runId, e.step() + "#task"),
+                        "loom.task " + task,
+                        Semconv.KIND_TASK,
+                        null,
+                        null,
+                        e.step(),
+                        now,
+                        a);
         tasks.put(e.step(), p);
-        logs.add(record(now, LogRec.INFO, Semconv.EV_SPAN_START, p.name(), new LinkedHashMap<>(a), p.spanId()));
+        logs.add(
+                record(
+                        now,
+                        LogRec.INFO,
+                        Semconv.EV_SPAN_START,
+                        p.name(),
+                        new LinkedHashMap<>(a),
+                        p.spanId()));
     }
 
     private void taskEnd(TraceEvent e, Map<String, Object> data, long now, List<SpanRec> spans) {
@@ -569,48 +866,103 @@ public final class TraceMapper {
             a.put(Semconv.LOOM_TASK, task);
             a.put(Semconv.LOOM_STEP, step);
             long millis = data.get("millis") == null ? 0 : number(data.get("millis"));
-            p = new Pending(Ids.spanId(runId, step + "#task"), "loom.task " + task, Semconv.KIND_TASK, null, null, step, now - millis * 1_000_000L, a);
+            p =
+                    new Pending(
+                            Ids.spanId(runId, step + "#task"),
+                            "loom.task " + task,
+                            Semconv.KIND_TASK,
+                            null,
+                            null,
+                            step,
+                            now - millis * 1_000_000L,
+                            a);
         }
         String outcome = text(data.get("outcome"), "ok");
         boolean failed = "failed".equals(outcome) || "unknown".equals(outcome);
         Map<String, Object> extra = new LinkedHashMap<>();
         extra.put(Semconv.LOOM_TASK_OUTCOME, outcome);
-        String category = data.get("category") == null ? null : String.valueOf(data.get("category")).toLowerCase(java.util.Locale.ROOT);
+        String category =
+                data.get("category") == null
+                        ? null
+                        : String.valueOf(data.get("category")).toLowerCase(java.util.Locale.ROOT);
         if (failed) extra.put(Semconv.ERROR_TYPE, category != null ? category : "task_failed");
-        if (data.get("attempts") != null) extra.put(Semconv.LOOM_TASK_ATTEMPTS, number(data.get("attempts")));
+        if (data.get("attempts") != null)
+            extra.put(Semconv.LOOM_TASK_ATTEMPTS, number(data.get("attempts")));
         String why = failed ? detail.apply(text(data.get("error"), null)) : null;
-        spans.add(span(p, now, failed ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK, failed ? (why != null ? why : category != null ? category : outcome) : null, extra));
+        spans.add(
+                span(
+                        p,
+                        now,
+                        failed ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK,
+                        failed ? (why != null ? why : category != null ? category : outcome) : null,
+                        extra));
     }
 
-    /** A task or delegate failed: names and numbers always; the error text only as far as the detail level lets text out. */
+    /**
+     * A task or delegate failed: names and numbers always; the error text only as far as the detail
+     * level lets text out.
+     */
     private void failure(TraceEvent e, Map<String, Object> data, long now, List<LogRec> logs) {
-        boolean handled = Boolean.TRUE.equals(data.get("handled")) || "true".equals(String.valueOf(data.get("handled")));
+        boolean handled =
+                Boolean.TRUE.equals(data.get("handled"))
+                        || "true".equals(String.valueOf(data.get("handled")));
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.LOOM_FAILURE_KIND, text(data.get("kind"), "task"));
         a.put(Semconv.LOOM_FAILURE_NAME, text(data.get("name"), "unknown"));
         a.put(Semconv.LOOM_STEP, text(data.get("step"), e.step()));
-        if (data.get("category") != null) a.put(Semconv.LOOM_FAILURE_CATEGORY, String.valueOf(data.get("category")).toLowerCase(java.util.Locale.ROOT));
-        if (data.get("error_type") != null) a.put(Semconv.ERROR_TYPE, String.valueOf(data.get("error_type")));
-        if (data.get("attempts") != null) a.put(Semconv.LOOM_FAILURE_ATTEMPTS, number(data.get("attempts")));
+        if (data.get("category") != null)
+            a.put(
+                    Semconv.LOOM_FAILURE_CATEGORY,
+                    String.valueOf(data.get("category")).toLowerCase(java.util.Locale.ROOT));
+        if (data.get("error_type") != null)
+            a.put(Semconv.ERROR_TYPE, String.valueOf(data.get("error_type")));
+        if (data.get("attempts") != null)
+            a.put(Semconv.LOOM_FAILURE_ATTEMPTS, number(data.get("attempts")));
         a.put(Semconv.LOOM_FAILURE_HANDLED, handled);
         String error = detail.apply(text(data.get("error"), null));
         if (error != null) a.put(Semconv.LOOM_FAILURE_ERROR, error);
-        String body = a.get(Semconv.LOOM_FAILURE_KIND) + " " + a.get(Semconv.LOOM_FAILURE_NAME) + (handled ? " failed; on_failure took over" : " failed");
-        logs.add(record(now, handled ? LogRec.WARN : LogRec.ERROR, Semconv.EV_FAILURE, body, a, null));
+        String body =
+                a.get(Semconv.LOOM_FAILURE_KIND)
+                        + " "
+                        + a.get(Semconv.LOOM_FAILURE_NAME)
+                        + (handled ? " failed; on_failure took over" : " failed");
+        logs.add(
+                record(
+                        now,
+                        handled ? LogRec.WARN : LogRec.ERROR,
+                        Semconv.EV_FAILURE,
+                        body,
+                        a,
+                        null));
     }
 
-    private void taskReplayed(TraceEvent e, Map<String, Object> data, long now, List<SpanRec> spans) {
+    private void taskReplayed(
+            TraceEvent e, Map<String, Object> data, long now, List<SpanRec> spans) {
         String task = text(data.get("task"), "task");
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_TASK);
         a.put(Semconv.LOOM_TASK, task);
         a.put(Semconv.LOOM_STEP, e.step());
         a.put("loom.replayed", true);
-        Pending p = new Pending(Ids.spanId(runId, e.step() + "#task"), "loom.task " + task, Semconv.KIND_TASK, null, null, e.step(), now, a);
+        Pending p =
+                new Pending(
+                        Ids.spanId(runId, e.step() + "#task"),
+                        "loom.task " + task,
+                        Semconv.KIND_TASK,
+                        null,
+                        null,
+                        e.step(),
+                        now,
+                        a);
         spans.add(span(p, now, SpanRec.STATUS_OK, null, Map.of()));
     }
 
-    private void sleep(TraceEvent e, Map<String, Object> data, long now, List<LogRec> logs, List<SpanRec> spans) {
+    private void sleep(
+            TraceEvent e,
+            Map<String, Object> data,
+            long now,
+            List<LogRec> logs,
+            List<SpanRec> spans) {
         String step = text(data.get("step"), e.step());
         String wakeAt = text(data.get("wakeAt"), null);
         long millis = data.get("millis") == null ? 0 : number(data.get("millis"));
@@ -620,33 +972,70 @@ public final class TraceMapper {
             a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_SLEEP);
             a.put(Semconv.LOOM_STEP, step);
             if (wakeAt != null) a.put(Semconv.LOOM_SLEEP_WAKE_AT, wakeAt);
-            Pending p = new Pending(spanId, "loom.sleep", Semconv.KIND_SLEEP, null, null, step, now, a);
+            Pending p =
+                    new Pending(spanId, "loom.sleep", Semconv.KIND_SLEEP, null, null, step, now, a);
             sleeps.put(step, p);
-            logs.add(record(now, LogRec.INFO, Semconv.EV_SPAN_START, "loom.sleep", new LinkedHashMap<>(a), spanId));
+            logs.add(
+                    record(
+                            now,
+                            LogRec.INFO,
+                            Semconv.EV_SPAN_START,
+                            "loom.sleep",
+                            new LinkedHashMap<>(a),
+                            spanId));
             return;
         }
         Pending p = sleeps.remove(step);
         if (p == null) {
-            // woken by a process that did not start the sleep: the start is the wake time less the duration, which is how long it was
+            // woken by a process that did not start the sleep: the start is the wake time less the
+            // duration, which is how long it was
             long wake = wakeAt == null ? now : OtlpJson.nanos(Instant.parse(wakeAt));
             Map<String, Object> a = new LinkedHashMap<>();
             a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_SLEEP);
             a.put(Semconv.LOOM_STEP, step);
             if (wakeAt != null) a.put(Semconv.LOOM_SLEEP_WAKE_AT, wakeAt);
-            p = new Pending(spanId, "loom.sleep", Semconv.KIND_SLEEP, null, null, step, wake - millis * 1_000_000L, a);
+            p =
+                    new Pending(
+                            spanId,
+                            "loom.sleep",
+                            Semconv.KIND_SLEEP,
+                            null,
+                            null,
+                            step,
+                            wake - millis * 1_000_000L,
+                            a);
         }
         spans.add(span(p, now, SpanRec.STATUS_OK, null, Map.of()));
     }
 
-    // ------------------------------------------------------------------------------ building records
+    // ------------------------------------------------------------------------------ building
+    // records
 
-    private SpanRec span(Pending p, long end, int status, String message, Map<String, Object> extra) {
+    private SpanRec span(
+            Pending p, long end, int status, String message, Map<String, Object> extra) {
         Map<String, Object> a = new LinkedHashMap<>(p.attrs());
         a.putAll(extra);
-        return new SpanRec(traceId, p.spanId(), rootSpanId(), p.name(), SpanRec.CLIENT, p.startNanos(), Math.max(end, p.startNanos()), a, status, message, List.of());
+        return new SpanRec(
+                traceId,
+                p.spanId(),
+                rootSpanId(),
+                p.name(),
+                SpanRec.CLIENT,
+                p.startNanos(),
+                Math.max(end, p.startNanos()),
+                a,
+                status,
+                message,
+                List.of());
     }
 
-    private LogRec log(long now, int severity, String event, String body, TraceEvent e, Map<String, Object> data) {
+    private LogRec log(
+            long now,
+            int severity,
+            String event,
+            String body,
+            TraceEvent e,
+            Map<String, Object> data) {
         Map<String, Object> a = new LinkedHashMap<>();
         if (e.agent() != null) a.put(Semconv.GEN_AI_AGENT_NAME, e.agent());
         if (e.step() != null && !e.step().isEmpty()) a.put(Semconv.LOOM_STEP, e.step());
@@ -656,7 +1045,12 @@ public final class TraceMapper {
                 if (v instanceof Number || v instanceof Boolean) {
                     a.put("loom.data." + d.getKey(), v);
                 } else if (v instanceof String str) {
-                    String shown = str.length() <= SHORT ? str : detail.apply(str); // a short value is structure (a name, a step); a long one is content
+                    String shown =
+                            str.length() <= SHORT
+                                    ? str
+                                    : detail.apply(
+                                            str); // a short value is structure (a name, a step); a
+                    // long one is content
                     if (shown != null) a.put("loom.data." + d.getKey(), shown);
                 }
             }
@@ -664,7 +1058,13 @@ public final class TraceMapper {
         return record(now, severity, event, body, a, null);
     }
 
-    private LogRec record(long now, int severity, String event, String body, Map<String, Object> attrs, String spanId) {
+    private LogRec record(
+            long now,
+            int severity,
+            String event,
+            String body,
+            Map<String, Object> attrs,
+            String spanId) {
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.EVENT_NAME, event);
         a.put(Semconv.LOOM_SEQ, ++seq);
@@ -676,7 +1076,10 @@ public final class TraceMapper {
         return o == null ? fallback : String.valueOf(o);
     }
 
-    /** A count as a long, whatever number type the runtime used (so the same value always travels as the same type). */
+    /**
+     * A count as a long, whatever number type the runtime used (so the same value always travels as
+     * the same type).
+     */
     private static long number(Object o) {
         if (o instanceof Number n) return n.longValue();
         try {

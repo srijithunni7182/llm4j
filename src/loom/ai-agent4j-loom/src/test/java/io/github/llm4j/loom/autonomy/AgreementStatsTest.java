@@ -16,12 +16,17 @@ class AgreementStatsTest {
     @Tag("EA-V4.5")
     void theWilsonLowerBoundMatchesPublishedReferenceValues() {
         assertThat(AgreementStats.wilsonLower(0, 0)).isZero();
-        assertThat(AgreementStats.wilsonLower(20, 20)).isCloseTo(0.838875, org.assertj.core.data.Offset.offset(1e-6));
-        assertThat(AgreementStats.wilsonLower(90, 100)).isCloseTo(0.825634, org.assertj.core.data.Offset.offset(1e-6));
-        assertThat(AgreementStats.wilsonLower(291, 300)).isCloseTo(0.943977, org.assertj.core.data.Offset.offset(1e-6));
+        assertThat(AgreementStats.wilsonLower(20, 20))
+                .isCloseTo(0.838875, org.assertj.core.data.Offset.offset(1e-6));
+        assertThat(AgreementStats.wilsonLower(90, 100))
+                .isCloseTo(0.825634, org.assertj.core.data.Offset.offset(1e-6));
+        assertThat(AgreementStats.wilsonLower(291, 300))
+                .isCloseTo(0.943977, org.assertj.core.data.Offset.offset(1e-6));
         assertThat(AgreementStats.wilsonLower(0, 10)).isZero();
-        assertThat(AgreementStats.wilsonLower(5, 10)).isCloseTo(0.236593, org.assertj.core.data.Offset.offset(1e-6));
-        assertThat(AgreementStats.wilsonLower(1, 2)).isCloseTo(0.094531, org.assertj.core.data.Offset.offset(1e-6));
+        assertThat(AgreementStats.wilsonLower(5, 10))
+                .isCloseTo(0.236593, org.assertj.core.data.Offset.offset(1e-6));
+        assertThat(AgreementStats.wilsonLower(1, 2))
+                .isCloseTo(0.094531, org.assertj.core.data.Offset.offset(1e-6));
     }
 
     /** Wilson by the textbook formula, written differently, as the reference. */
@@ -47,7 +52,9 @@ class AgreementStatsTest {
             if (k < n) assertThat(AgreementStats.wilsonLower(k + 1, n)).isGreaterThan(bound);
         }
         for (int m = 1; m < 60; m++) {
-            assertThat(AgreementStats.wilsonLower(9 * (m + 1), 10 * (m + 1))).as("the same rate over more cases").isGreaterThan(AgreementStats.wilsonLower(9 * m, 10 * m));
+            assertThat(AgreementStats.wilsonLower(9 * (m + 1), 10 * (m + 1)))
+                    .as("the same rate over more cases")
+                    .isGreaterThan(AgreementStats.wilsonLower(9 * m, 10 * m));
         }
     }
 
@@ -55,13 +62,19 @@ class AgreementStatsTest {
     @Tag("EA-V4.3")
     void figuresCountAgreementDangerousMistakesCoverageMalformedAndReversals() {
         List<DecisionDef.Mistake> dangerous = List.of(new DecisionDef.Mistake("approve", "reject"));
-        List<AgreementStats.Sample> samples = new ArrayList<>(List.of(
-                new AgreementStats.Sample("approve", "approve"),
-                new AgreementStats.Sample("approve", "reject"),            // dangerous
-                new AgreementStats.Sample("reject", "approve"),            // wrong, not dangerous
-                new AgreementStats.Sample("escalate", "approve"),          // escalating is its own choice: disagreement, no coverage
-                new AgreementStats.Sample("escalate", "reject", true, false),
-                new AgreementStats.Sample("approve", "approve", false, true)));
+        List<AgreementStats.Sample> samples =
+                new ArrayList<>(
+                        List.of(
+                                new AgreementStats.Sample("approve", "approve"),
+                                new AgreementStats.Sample("approve", "reject"), // dangerous
+                                new AgreementStats.Sample(
+                                        "reject", "approve"), // wrong, not dangerous
+                                new AgreementStats.Sample(
+                                        "escalate",
+                                        "approve"), // escalating is its own choice: disagreement,
+                                // no coverage
+                                new AgreementStats.Sample("escalate", "reject", true, false),
+                                new AgreementStats.Sample("approve", "approve", false, true)));
 
         AgreementStats.Figures f = AgreementStats.of(samples, dangerous);
 
