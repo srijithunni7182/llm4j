@@ -27,6 +27,10 @@ AgentResult result = AgentReplay.at(Path.of("target/eval/replay"))
              () -> agent.run(task));
 ```
 
+## Testing a classifier
+
+A classifier is tested on labelled cases: `ClassifierComparison` for accuracy, calibration, cost and latency per backend (a few cents on a live run, opt-in), and `ScriptedClassifier` for tests that must not call a model. Check the confidence rule on the cases it should send to a person (`unsure`), not only on the accuracy.
+
 ## What to assert per case
 
 ```java
