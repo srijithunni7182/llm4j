@@ -21,7 +21,7 @@ function expand(body: string[]): string {
 }
 
 // Statement-level snippets go inside a workflow; the rest are whole top-level definitions.
-const TOP = new Set(['agent', 'agent-private', 'agent-steerable', 'intervention', 'supervise', 'workflow', 'budget', 'tool', 'tool-class', 'import']);
+const TOP = new Set(['intentclassifier', 'agent', 'agent-private', 'agent-steerable', 'intervention', 'supervise', 'workflow', 'budget', 'tool', 'tool-class', 'import']);
 // Not checkable on their own: a task is Java (graph only), an import needs a file.
 // halt and return end the path (the frame's own statements after them would never run), and `is ok` needs a real run result.
 const PARSE_ONLY = new Set(['run', 'halt', 'return', 'isok']);
@@ -42,6 +42,11 @@ function frame(name: string, text: string): string {
     }
     if (name === 'agent' || name === 'agent-private' || name === 'agent-steerable') {
         return text + '\nworkflow Main(topic_text) {\n    delegate "x" to ' + /agent (\w+)/.exec(text)![1] + ' -> out_text\n    note "{out_text}"\n}\n';
+    }
+    if (name === 'intentclassify') {
+        // a statement that needs a classifier declared above it
+        return PRELUDE + 'intentclassifier Intent { model: "Jev/jev-latest" choose kind: a | b }\nworkflow Main(topic_text) {\n' +
+            text.split('\n').map((l) => '    ' + l).join('\n') + '\n    note "{intent.kind}"\n}\n';
     }
     if (TOP.has(name)) {
         return PRELUDE + text + '\nworkflow Main(topic_text) {\n    note "{topic_text}"\n}\n';
