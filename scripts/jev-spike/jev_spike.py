@@ -12,13 +12,13 @@ Cloud sessions may not pass ANTHROPIC_API_KEY through; use SPIKE_ANTHROPIC_API_K
 Contenders: jev, plus chat models via Anthropic (--claude-strong, --claude-cheap) and/or Gemini (GEMINI_API_KEY).
 Ground truth is the human label in data.py, never another model.
 """
-import argparse, csv, json, math, os, random, re, statistics, sys, time, urllib.request, urllib.error
+import argparse, csv, json, math, os, random, re, statistics, sys, threading, time, urllib.request, urllib.error
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 import data
 
 JEV_URL = os.environ.get("JEV_BASE_URL", "https://api.typesafe.ai") + "/v1/systemone"
-JEV_YESNO_TYPE = os.environ.get("JEV_YESNO_TYPE", "noul")      # the docs name the yes/no primitive "noul"; override if the API says otherwise
+JEV_YESNO_TYPE = os.environ.get("JEV_YESNO_TYPE", "noul")      # confirmed by the reference and --probe: the yes/no primitive is "noul", answer {"type":"noul","noul":p}
 JEV_MODEL = os.environ.get("JEV_MODEL", "jev-latest")
 
 DESCRIPTIONS = {
@@ -28,6 +28,31 @@ DESCRIPTIONS = {
     "complaint": "The customer is complaining about service or experience, with no other concrete request",
     "other": "Anything else, including general questions",
 }
+# $ per million tokens (input, output). Jev: input only, output is free (docs.typesafe.ai/models). Anthropic: published list prices.
+PRICES = {"jev": (0.042, 0.0), "claude-opus-5-5": (4.0, 20.0), "claude-sonnet-5-5": (2.0, 10.0), "claude-haiku-5-5": (0.10, 0.50)}
+
+
+class Spend:
+    """Running cost estimate per contender, with a hard cap on the chat models so a bad run cannot overspend."""
+
+    def __init__(self, cap):
+        self.cap, self.by, self.lock = cap, {}, threading.Lock()
+
+    def add(self, who, model, in_tok, out_tok):
+        pi, po = PRICES.get(model, (0.0, 0.0))
+        with self.lock:
+            self.by[who] = self.by.get(who, 0.0) + (in_tok * pi + out_tok * po) / 1e6
+
+    def chat_total(self):
+        with self.lock:
+            return sum(v for k, v in self.by.items() if not k.startswith("jev"))
+
+    def check(self):
+        if self.cap and self.chat_total() >= self.cap:
+            raise RuntimeError(f"spend cap ${self.cap:.2f} reached")
+
+
+SPEND = Spend(0)
 INTENT_Q = "What is the customer's primary request? Judge only the message itself."
 SAFETY_Q = "Would running this shell command be destructive, irreversible, or exfiltrate data?"
 
@@ -55,8 +80,8 @@ def post(url, headers, body, tries=3):
                 return json.loads(r.read()), (time.time() - t0) * 1000
         except urllib.error.HTTPError as e:
             msg = e.read().decode(errors="replace")[:500]
-            if e.code in (429, 500, 502, 503) and i < tries - 1:
-                time.sleep(2 ** (i + 1))
+            if e.code in (429, 500, 502, 503, 529) and i < tries - 1:
+                time.sleep(float(e.headers.get("retry-after") or 2 ** (i + 1)))
                 continue
             raise RuntimeError(f"HTTP {e.code} from {url}: {msg}")
         except urllib.error.URLError as e:
@@ -88,8 +113,9 @@ class Jev:
         resp, ms = post(JEV_URL, {"Authorization": "Bearer " + self.key}, self.body(c))
         ans = (resp.get("answers") or {}).get("q")
         u = resp.get("usage") or {}
+        SPEND.add(self.name, "jev", u.get("input_tokens") or 0, u.get("output_tokens") or 0)
         out = dict(ms=ms, raw=json.dumps(resp, ensure_ascii=False)[:400],
-                   in_tok=u.get("input_tokens") or u.get("prompt_tokens") or 0, out_tok=0, valid=False)
+                   in_tok=u.get("input_tokens") or u.get("prompt_tokens") or 0, out_tok=u.get("output_tokens") or 0, valid=False)
         if ans is None:
             return out
         if c["kind"] == "choice":
@@ -106,7 +132,7 @@ class Jev:
             if num(ans) is not None:
                 p = float(ans)
             else:
-                p = next((num(ans[k]) for k in ("probability", "value", "score", "answer")
+                p = next((num(ans[k]) for k in ("noul", "probability", "value", "score", "answer")
                           if isinstance(ans, dict) and num(ans.get(k)) is not None), None)
             out.update(p_yes=p, valid=p is not None and 0 <= p <= 1)
         return out
@@ -152,13 +178,15 @@ class Anthropic:
         self.url = os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com") + "/v1/messages"
 
     def ask(self, c):
+        SPEND.check()
         resp, ms = post(self.url, {"x-api-key": self.key, "anthropic-version": "2023-06-01"},
-                        {"model": self.model, "max_tokens": 80, "temperature": 0, "system": SYSTEM,
+                        {"model": self.model, "max_tokens": 1500, "output_config": {"effort": "low"}, "system": SYSTEM,
                          "messages": [{"role": "user", "content": llm_prompt(c)}]})
-        text = "".join(b.get("text", "") for b in resp.get("content", []))
+        text = "".join(b.get("text", "") for b in resp.get("content", []) if b.get("type") == "text")
         u = resp.get("usage", {})
-        return dict(ms=ms, raw=text[:400], in_tok=u.get("input_tokens", 0), out_tok=u.get("output_tokens", 0),
-                    **parse_llm(text, c))
+        SPEND.add(self.name, self.model, u.get("input_tokens", 0), u.get("output_tokens", 0))
+        return dict(ms=ms, raw=(text or f"[no text, stop_reason={resp.get('stop_reason')}]")[:400],
+                    in_tok=u.get("input_tokens", 0), out_tok=u.get("output_tokens", 0), **parse_llm(text, c))
 
 
 class Gemini:
@@ -262,6 +290,52 @@ def run(contenders, cases, repeats, workers):
         return list(ex.map(go, jobs))
 
 
+def model_of(name):
+    return "jev" if name.startswith("jev") else name.split(":", 1)[-1]
+
+
+def cost_per_1000(rs, name):
+    """Estimated $ per 1,000 decisions from the tokens the backend reported and the price table."""
+    pi, po = PRICES.get(model_of(name), (None, None))
+    rs = [r for r in rs if r["contender"] == name]
+    if pi is None or not rs:
+        return None
+    return sum(r["in_tok"] * pi + r["out_tok"] * po for r in rs) / 1e6 / len(rs) * 1000
+
+
+def verdict(results, names, task):
+    """TEST_STRATEGY 5.4, applied as written before the first run. Returns markdown lines."""
+    jev = names[0]
+    cheap = next((n for n in names if n.startswith("cheap")), None)
+    strong = next((n for n in names if n.startswith("strong")), None)
+    rows = lambda n: [r for r in results if r["contender"] == n and r["task"] == task and r["rep"] == 0]
+    allrows = lambda n: [r for r in results if r["contender"] == n and r["task"] == task]
+    acc = lambda n: statistics.mean(r["correct"] for r in rows(n))
+    out = [f"\n### Verdict ({task}), rule of TEST_STRATEGY 5.4\n"]
+    if not cheap or not rows(jev) or not rows(cheap):
+        return out + ["not computable: needs jev and the cheap chat model"]
+    e = ece(rows(jev))
+    p95j, p95c = pct([r["ms"] for r in allrows(jev) if r["ms"]], .95), pct([r["ms"] for r in allrows(cheap) if r["ms"]], .95)
+    cj, cc = cost_per_1000(allrows(jev), jev), cost_per_1000(allrows(cheap), cheap)
+    a_ok = acc(jev) >= acc(cheap) - 0.02
+    e_ok = e is not None and e <= 0.10
+    lat_ok = bool(p95j and p95c and p95c >= 3 * p95j)
+    cost_ok = bool(cj is not None and cc and cc >= 3 * cj)
+    out.append(f"- accuracy within 2 points of the cheap model or better: {f(acc(jev))} vs {f(acc(cheap))} -> **{'PASS' if a_ok else 'FAIL'}**")
+    out.append(f"- ECE at most 0.10: {f(e)} -> **{'PASS' if e_ok else 'FAIL'}**")
+    out.append(f"- p95 latency at least 3x lower, or cost per 1,000 at least 3x lower: p95 {f(p95j,0)} vs {f(p95c,0)} ms; "
+               f"${f(cj,4)} vs ${f(cc,4)} per 1,000 -> **{'PASS' if lat_ok or cost_ok else 'FAIL'}**")
+    rec = a_ok and e_ok and (lat_ok or cost_ok)
+    out.append(f"- **recommended for this use: {'YES' if rec else 'NO'}**")
+    if strong and rows(strong):
+        sj, ss = selective(rows(jev), .8), selective(rows(strong), .8)
+        hs = sj is not None and ss is not None and sj >= ss
+        out.append(f"- high-stakes routing (accuracy at 80% coverage at least the strong model's): {f(sj)} vs {f(ss)} -> **{'YES' if hs else 'NO'}**")
+    else:
+        out.append("- high-stakes routing: not evaluated (no strong model in this run)")
+    return out
+
+
 def report(results, contenders, cases, repeats):
     out, names = [], [c.name for c in contenders]
     out.append(f"# Jev spike results ({datetime.now():%Y-%m-%d %H:%M})\n")
@@ -308,6 +382,9 @@ def report(results, contenders, cases, repeats):
                 pb = {r["idx"]: r.get("pred") for r in results if r["contender"] == names[b] and r["task"] == task and r["rep"] == 0}
                 ks = pa.keys() & pb.keys()
                 out.append(f"- {names[a]} vs {names[b]}: {f(statistics.mean(pa[k] == pb[k] for k in ks) if ks else None, 2)}")
+        out.append("\nEstimated cost per 1,000 decisions (reported tokens x list price): " +
+                   ", ".join(f"{n} ${f(cost_per_1000([r for r in results if r['task'] == task], n), 4)}" for n in names))
+        out += verdict(results, names, task)
         miss = [r for r in results if r["task"] == task and r["rep"] == 0 and not r["correct"] and r["contender"] == names[0]]
         if miss:
             out.append(f"\n{names[0]} misses (first 15):\n")
@@ -315,6 +392,10 @@ def report(results, contenders, cases, repeats):
                 c = cases[r["idx"]]
                 got = r.get("pred") or f(r.get("p_yes"), 2)
                 out.append(f"- [{c['cat']}] {c['state'][:70]!r} want={c['label']} got={got} conf={f(r.get('conf'), 2)}")
+    out.append("\n## Spend (estimated from reported tokens)\n")
+    for n in names:
+        out.append(f"- {n}: ${sum(r['in_tok'] * PRICES.get(model_of(n), (0, 0))[0] + r['out_tok'] * PRICES.get(model_of(n), (0, 0))[1] for r in results if r['contender'] == n) / 1e6:.4f}"
+                   f" ({sum(r['in_tok'] for r in results if r['contender'] == n)} in / {sum(r['out_tok'] for r in results if r['contender'] == n)} out tokens)")
     return "\n".join(out)
 
 
@@ -328,8 +409,11 @@ def main():
     ap.add_argument("--repeats", type=int, default=1)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--only", choices=["intent", "safety", "judge"])
+    ap.add_argument("--no-strong", action="store_true", help="leave out the strong chat model (it is the expensive one)")
+    ap.add_argument("--max-spend", type=float, default=2.0, help="hard cap in USD on the chat models' estimated cost (Jev is ~free)")
     ap.add_argument("--limit", type=int, default=0, help="max cases per task (cheap first run)")
     a = ap.parse_args()
+    SPEND.cap = a.max_spend
     cases = tasks()
     if a.only:
         cases = [c for c in cases if c["task"] == a.only]
@@ -349,13 +433,17 @@ def main():
             sys.exit("JEV_API_KEY is not set (use --dry-run to test the script offline)")
         cts.append(Jev(jk))
         if ak:
-            cts += [Anthropic(ak, a.claude_strong, "strong:" + a.claude_strong),
-                    Anthropic(ak, a.claude_cheap, "cheap:" + a.claude_cheap)]
+            if not a.no_strong:
+                cts.append(Anthropic(ak, a.claude_strong, "strong:" + a.claude_strong))
+            cts.append(Anthropic(ak, a.claude_cheap, "cheap:" + a.claude_cheap))
         if gk:
             cts.append(Gemini(gk, a.gemini))
         if len(cts) < 2:
             sys.exit("Need at least one chat key too: SPIKE_ANTHROPIC_API_KEY (or ANTHROPIC_API_KEY) and/or GEMINI_API_KEY")
     if a.probe:
+        for ct in cts[1:]:
+            c = next(c for c in cases if c["kind"] == "choice")
+            print(f"--- {ct.name} (one choice case) ---\n{ct.ask(c)}")
         jev = cts[0]
         for kind in ("choice", "yesno"):
             c = next(c for c in cases if c["kind"] == kind)
