@@ -15,7 +15,7 @@ never contain a label you did not offer. Design: [specs/07-classifier](specs/07-
 | `Classifier`, `ClassifyRequest`, `LlmClassifier` (any chat model), `ClassificationProvider` SPI, `ScriptedClassifier` test double (eval4j). Wiki: [Classification](../src/ai-agent4j/wiki/Classification.md) | **works now** |
 | `llmJudged(...).classifier(...)` and `ClassifierComparison` (compare backends on your own labelled cases) in eval4j. Guide: [LLM-as-judge](../src/eval4j/docs/LLM-AS-JUDGE.md#judge-with-a-classifier) | **works now** |
 | `JevProvider` (TypeSafe AI's Jev), `ClassifierResolver` (`Jev/jev-latest` or any chat model name: one string to switch backends) | **works now** |
-| Loom `intentclassifier` / `intentclassify`, with `weave check` and `weave audit` rules | coming |
+| Loom `intentclassifier` / `intentclassify`: typed questions in a script, a confidence rule (`else escalate` / `ask person` / `fail`), `pii:`, budget, trace step, `weave check`, `weave audit` rule LA19, the workflow graph and the conformance kit. Guide: [Loom guide, "Classifying"](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md); example: [ticket-triage](../src/examples/ticket-triage/README.md) | **works now** |
 | VS Code support for the new Loom syntax | coming (may follow in 6.1.x) |
 
 ### What Jev is, and what we found
