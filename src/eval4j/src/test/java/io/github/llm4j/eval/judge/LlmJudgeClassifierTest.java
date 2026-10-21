@@ -208,6 +208,6 @@ class LlmJudgeClassifierTest {
 
         cond.matches("14 days");
 
-        assertThat(cond.description().value()).isEqualTo("llm-judged \"Correctness\" (score=0.25, threshold=0.70): it says 14 days");
+        assertThat(cond.description().value()).isEqualTo("llm-judged \"Correctness\" (score=0.25, threshold=0.70): [2/5] it says 14 days");
     }
 }
