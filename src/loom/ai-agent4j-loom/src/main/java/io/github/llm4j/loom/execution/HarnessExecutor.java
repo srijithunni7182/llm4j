@@ -819,7 +819,8 @@ public class HarnessExecutor implements LoomEngine {
                 .check(validation::checkCompactors)
                 .check(validation::checkToolsAndApprovals)
                 .check(validation::checkKnowledge)
-                .check(validation::checkProviders);
+                .check(validation::checkProviders)
+                .check(validation::checkClassifiers);
     }
 
     private final ExecutorValidation validation = new ExecutorValidation(new ExecutorValidation.Host() {

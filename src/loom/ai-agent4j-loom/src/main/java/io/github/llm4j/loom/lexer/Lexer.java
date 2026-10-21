@@ -144,6 +144,13 @@ public class Lexer {
                 columnStart = current;
                 break;
             case '"': string(); break;
+            case '|':
+                if (peek() == '|') {
+                    throw new RuntimeException("Unexpected character '|' at line " + line
+                            + ". A condition is one comparison (== != > >= < <=): there is no && or ||; nest alt blocks instead (weave guide loom, \"Conditions\")");
+                }
+                addToken(TokenType.PIPE);
+                break;
             default:
                 if (isDigit(c)) {
                     number();

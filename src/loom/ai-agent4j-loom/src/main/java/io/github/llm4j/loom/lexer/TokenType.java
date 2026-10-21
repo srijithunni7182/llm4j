@@ -94,6 +94,7 @@ public enum TokenType {
     ARROW,      // ->
     PLUS,       // + (for string concat)
     PERCENT,    // % (e.g. warn_at: 80%)
+    PIPE,       // | (between the labels of an intentclassifier question)
 
     // A whole ladder or measure declaration, set aside as raw text (their conditions are expressions of their own)
     LADDER_DECL,

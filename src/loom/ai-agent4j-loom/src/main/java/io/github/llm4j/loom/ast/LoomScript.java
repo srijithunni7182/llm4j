@@ -16,6 +16,7 @@ public class LoomScript implements Node {
     private final List<DecisionDef> decisions = new ArrayList<>();
     private final List<LadderDef> ladders = new ArrayList<>();
     private final List<MeasureDef> measures = new ArrayList<>();
+    private final List<IntentClassifierDef> intentClassifiers = new ArrayList<>();
     private final List<String> imports = new ArrayList<>();
     private final List<Integer> importLines = new ArrayList<>();
     private String sharedPrompt;
@@ -36,6 +37,15 @@ public class LoomScript implements Node {
     /** The script-level {@code intervention { }} defaults, or null. */
     public InterventionDef getIntervention() { return intervention; }
     public void setIntervention(InterventionDef intervention) { this.intervention = intervention; }
+
+    /** The {@code intentclassifier} declarations. */
+    public List<IntentClassifierDef> getIntentClassifiers() { return intentClassifiers; }
+    public void addIntentClassifier(IntentClassifierDef def) { intentClassifiers.add(def); }
+
+    /** The classifier called {@code name}, or null. */
+    public IntentClassifierDef findIntentClassifier(String name) {
+        return intentClassifiers.stream().filter(c -> c.getName().equals(name)).findFirst().orElse(null);
+    }
 
     public void addAgent(AgentDef agent) {
         this.agents.add(agent);
@@ -167,6 +177,7 @@ public class LoomScript implements Node {
         this.decisions.addAll(other.decisions);
         this.ladders.addAll(other.ladders);
         this.measures.addAll(other.measures);
+        this.intentClassifiers.addAll(other.intentClassifiers);
         if (this.auditConfig == null) {
             this.auditConfig = other.auditConfig;
         }

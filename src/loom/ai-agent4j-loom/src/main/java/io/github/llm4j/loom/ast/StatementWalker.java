@@ -23,6 +23,7 @@ public final class StatementWalker {
         if (s instanceof ParallelStmt p) return List.of(p.getBody());
         if (s instanceof DelegateStmt d) return List.of(d.getOnFailure(), d.getOnStopped());
         if (s instanceof RunStmt r) return List.of(r.getOnFailure());
+        if (s instanceof IntentClassifyStmt c) return List.of(c.getOnFailure());
         if (s instanceof GuardrailStmt g) return List.of(g.getBody(), g.getOnViolation());
         if (s instanceof RewindStmt r) return List.of(r.getIfStillFails(), r.getIfBlocked());
         return List.of();

@@ -44,6 +44,9 @@ public class LoomParser {
                     && tokens.get(current + 1).getType() == TokenType.IDENTIFIER) {
                 advance();
                 script.addPersona(parsePersonaDef());
+            } else if (isNamedBlock("intentclassifier")) {
+                advance();
+                script.addIntentClassifier(parseIntentClassifier());
             } else if (isBudgetKeyword()) {
                 // Contextual keyword: `budget` stays usable as a variable name everywhere else.
                 Token keyword = advance();
@@ -88,7 +91,7 @@ public class LoomParser {
                 if (script.getRateLimits() != null) throw error(keyword, "Only one rate_limits block is allowed.");
                 script.setRateLimits(parseRateLimits());
             } else {
-                throw error(peek(), "Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: " + peek().getType());
+                throw error(peek(), "Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: " + peek().getType());
             }
         }
 
@@ -362,6 +365,8 @@ public class LoomParser {
             return parseRewind();
         } else if (isWord("decide") && peekAt(1).getType() == TokenType.IDENTIFIER) {
             return parseDecide();
+        } else if (isWord("intentclassify") && peekAt(1).getType() == TokenType.IDENTIFIER) {
+            return parseIntentClassify();
         } else if (isWord("halt")) {
             return parseHalt();
         } else if (isWord("set")) {
@@ -1774,6 +1779,160 @@ public class LoomParser {
         consume(TokenType.RBRACE, "Expect '}' after provider " + name.getValue() + ".");
         if (provider.getKind() == null) throw error(name, "provider " + name.getValue() + " needs use: gemini | anthropic | ollama | sarvam");
         return provider;
+    }
+
+    private static final java.util.List<String> CLASSIFIER_SETTINGS = java.util.List.of("model", "samples", "choose", "ask", "rate", "confidence");
+
+    /**
+     * {@code intentclassifier Name { model: "…"  samples: 3  choose kind: a | b  ask urgent: "…"  rate tone: low | high  confidence at least 0.8 else escalate }},
+     * after the word {@code intentclassifier}. The words inside are contextual: they mean something only here.
+     */
+    private io.github.llm4j.loom.ast.IntentClassifierDef parseIntentClassifier() {
+        Token name = consume(TokenType.IDENTIFIER, "Expect a classifier name, e.g. intentclassifier Intent { model: \"…\"  choose kind: a | b }");
+        io.github.llm4j.loom.ast.IntentClassifierDef def = new io.github.llm4j.loom.ast.IntentClassifierDef(name.getValue());
+        def.setLine(name.getLine());
+        consume(TokenType.LBRACE, "Expect '{' after intentclassifier " + name.getValue() + ".");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token key = word("Expect a classifier setting: " + String.join(", ", CLASSIFIER_SETTINGS) + ".");
+            switch (key.getValue()) {
+                case "model" -> {
+                    if (def.getModel() != null) throw error(key, "model is given twice in intentclassifier " + name.getValue() + ".");
+                    consume(TokenType.COLON, "Expect ':' after model.");
+                    def.setModel(consume(TokenType.STRING_LITERAL, "Expect a quoted model, as in model: \"Jev/jev-latest\" or model: \"gemini-2.5-flash\".").getValue(), key.getLine());
+                }
+                case "samples" -> {
+                    if (def.getSamplesLine() != 0) throw error(key, "samples is given twice in intentclassifier " + name.getValue() + ".");
+                    consume(TokenType.COLON, "Expect ':' after samples.");
+                    Token n = consume(TokenType.NUMBER_LITERAL, "Expect how many independent calls to combine, as in samples: 3.");
+                    double v = Double.parseDouble(n.getValue());
+                    if (v < 1 || v != Math.floor(v)) throw error(n, "samples is a whole number of calls, at least 1; got " + n.getValue() + ".");
+                    def.setSamples((int) v, key.getLine());
+                }
+                case "choose", "rate" -> def.getQuestions().add(parseClassifierChoice(key, "rate".equals(key.getValue())));
+                case "ask" -> def.getQuestions().add(parseClassifierAsk(key));
+                case "confidence" -> {
+                    if (def.getConfidence() != null) throw error(key, "an intentclassifier has one confidence rule; " + name.getValue() + " has two.");
+                    def.setConfidence(parseClassifierConfidence(key));
+                }
+                default -> throw error(key, unknownClassifierSetting(key));
+            }
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after intentclassifier " + name.getValue() + ".");
+        if (def.getModel() == null) throw error(name, "intentclassifier " + name.getValue() + " needs a model, as in model: \"Jev/jev-latest\" or model: \"gemini-2.5-flash\".");
+        return def;
+    }
+
+    private static String unknownClassifierSetting(Token t) {
+        java.util.List<String> near = io.github.llm4j.loom.prompt.PromptCatalog.nearest(t.getValue(), CLASSIFIER_SETTINGS);
+        return "\"" + t.getValue() + "\" is not something an intentclassifier can have. An intentclassifier can have: " + String.join(", ", CLASSIFIER_SETTINGS) + "."
+                + (near.isEmpty() ? "" : " Did you mean " + String.join(" or ", near) + "?");
+    }
+
+    /** {@code choose kind ["instructions"]: a | b | c} or {@code rate tone ["instructions"]: low | high}, after the keyword. */
+    private io.github.llm4j.loom.ast.IntentClassifierDef.Question parseClassifierChoice(Token keyword, boolean scale) {
+        Token name = word("Expect a name for the question, as in " + keyword.getValue() + " kind: a | b.");
+        String instructions = check(TokenType.STRING_LITERAL) ? advance().getValue() : null;
+        consume(TokenType.COLON, "Expect ':' and the " + (scale ? "points of the scale, lowest first" : "labels") + " of " + name.getValue() + ", as in " + keyword.getValue() + " "
+                + name.getValue() + ": a | b.");
+        java.util.List<String> labels = new java.util.ArrayList<>();
+        labels.add(classifierLabel(name));
+        while (match(TokenType.PIPE)) labels.add(classifierLabel(name));
+        return new io.github.llm4j.loom.ast.IntentClassifierDef.Question(scale ? io.github.llm4j.loom.ast.IntentClassifierDef.Kind.RATE
+                : io.github.llm4j.loom.ast.IntentClassifierDef.Kind.CHOOSE, name.getValue(), instructions, java.util.List.copyOf(labels), keyword.getLine());
+    }
+
+    private String classifierLabel(Token question) {
+        if (check(TokenType.STRING_LITERAL)) return advance().getValue();
+        return word("Expect a label for " + question.getValue() + " (a word or a quoted text) after ':' or '|'.").getValue();
+    }
+
+    /** {@code ask urgent: "Is it urgent?"} (also {@code ask urgent "…"}, or {@code ask urgent} alone for a sentence made from the name). */
+    private io.github.llm4j.loom.ast.IntentClassifierDef.Question parseClassifierAsk(Token keyword) {
+        Token name = word("Expect a name for the question, as in ask urgent: \"Is it urgent?\".");
+        String instructions = null;
+        if (check(TokenType.STRING_LITERAL)) {
+            instructions = advance().getValue();
+        } else if (match(TokenType.COLON)) {
+            instructions = consume(TokenType.STRING_LITERAL, "Expect the yes/no question in quotes after ask " + name.getValue() + ":.").getValue();
+        }
+        return new io.github.llm4j.loom.ast.IntentClassifierDef.Question(io.github.llm4j.loom.ast.IntentClassifierDef.Kind.ASK, name.getValue(), instructions,
+                java.util.List.of(), keyword.getLine());
+    }
+
+    /** {@code confidence at least 0.8 else escalate | ask person | fail}, after {@code confidence}; the action defaults to escalate. */
+    private io.github.llm4j.loom.ast.IntentClassifierDef.Confidence parseClassifierConfidence(Token keyword) {
+        expectWord("at", "Write the rule as confidence at least 0.8 else escalate.");
+        expectWord("least", "Write the rule as confidence at least 0.8 else escalate.");
+        Token n = consume(TokenType.NUMBER_LITERAL, "Expect a threshold from 0 to 1, as in confidence at least 0.8.");
+        double threshold = Double.parseDouble(n.getValue());
+        if (threshold < 0 || threshold > 1) throw error(n, "the confidence threshold is from 0 to 1; got " + n.getValue() + ".");
+        io.github.llm4j.loom.ast.IntentClassifierDef.Action action = io.github.llm4j.loom.ast.IntentClassifierDef.Action.ESCALATE;
+        if (match(TokenType.ELSE)) {
+            if (isWord("escalate")) {
+                advance();
+            } else if (isWord("ask")) {
+                advance();
+                expectWord("person", "Write ask person to put the decision to a person.");
+                action = io.github.llm4j.loom.ast.IntentClassifierDef.Action.ASK_PERSON;
+            } else if (isWord("fail")) {
+                advance();
+                action = io.github.llm4j.loom.ast.IntentClassifierDef.Action.FAIL;
+            } else {
+                throw error(peek(), "After else write escalate (the label becomes unsure), ask person, or fail.");
+            }
+        }
+        return new io.github.llm4j.loom.ast.IntentClassifierDef.Confidence(threshold, action, keyword.getLine());
+    }
+
+    /** {@code intentclassify Intent on message -> intent [retry 2] [backoff 2s] [timeout 30s] [on_failure { … }]}. */
+    private io.github.llm4j.loom.ast.IntentClassifyStmt parseIntentClassify() {
+        Token keyword = advance();
+        Token classifier = consume(TokenType.IDENTIFIER, "Expect the name of an intentclassifier.");
+        if (!isWord("on")) throw error(peek(), "Expect 'on' and what to classify, as in intentclassify " + classifier.getValue() + " on message -> result.");
+        advance();
+        java.util.List<RunStmt.Arg> inputs = new java.util.ArrayList<>();
+        if (match(TokenType.LBRACE)) {
+            while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                Token field = word("Expect a field name, as in on { message: message, history: past }.");
+                consume(TokenType.COLON, "Expect ':' after " + field.getValue() + ".");
+                inputs.add(classifierInput(field.getValue()));
+                match(TokenType.COMMA);
+            }
+            consume(TokenType.RBRACE, "Expect '}' after the fields.");
+            if (inputs.isEmpty()) throw error(previous(), "Name at least one field to classify, as in on { message: message }.");
+        } else {
+            inputs.add(classifierInput(""));
+        }
+        consume(TokenType.ARROW, "Expect '->' and a variable to hold the answers, as in intentclassify " + classifier.getValue() + " on message -> intent.");
+        String variable = nameOrReference("Expect a variable name for the answers.");
+        io.github.llm4j.loom.ast.IntentClassifyStmt stmt = new io.github.llm4j.loom.ast.IntentClassifyStmt(classifier.getValue(), variable);
+        stmt.setLine(keyword.getLine());
+        stmt.getInputs().addAll(inputs);
+        while (true) {
+            if (match(TokenType.RETRY)) {
+                stmt.setRetryCount((int) Double.parseDouble(consume(TokenType.NUMBER_LITERAL, "Expect number of retries.").getValue()));
+            } else if (check(TokenType.IDENTIFIER) && ("backoff".equals(peek().getValue()) || "timeout".equals(peek().getValue()))) {
+                String option = advance().getValue();
+                long millis = durationMillis();
+                if (option.equals("backoff")) stmt.setBackoffMillis(millis); else stmt.setTimeoutMillis(millis);
+            } else {
+                break;
+            }
+        }
+        if (match(TokenType.ON_FAILURE)) {
+            consume(TokenType.LBRACE, "Expect '{' before on_failure body.");
+            while (!check(TokenType.RBRACE) && !isAtEnd()) stmt.getOnFailure().add(parseStatement());
+            consume(TokenType.RBRACE, "Expect '}' after on_failure body.");
+        }
+        return stmt;
+    }
+
+    /** One thing to classify: a quoted text (with {placeholders}) or a variable. */
+    private RunStmt.Arg classifierInput(String field) {
+        if (check(TokenType.STRING_LITERAL)) return new RunStmt.Arg(field, RunStmt.Kind.STRING, advance().getValue());
+        Token ref = word("Expect what to classify: a variable (message, request.text) or a quoted text.");
+        return new RunStmt.Arg(field, RunStmt.Kind.REFERENCE, ref.getValue());
     }
 
     private PersonaDef parsePersonaDef() {

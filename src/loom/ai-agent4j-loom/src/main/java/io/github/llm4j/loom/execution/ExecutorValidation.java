@@ -70,7 +70,7 @@ final class ExecutorValidation {
                         + "/… models; pick another name");
             }
             if (!ProviderSpec.KINDS.contains(p.getKind())) {
-                c.error(p.getLine(), who, "unknown use: " + p.getKind() + "; use one of gemini, anthropic, ollama, sarvam");
+                c.error(p.getLine(), who, "unknown use: " + p.getKind() + "; use one of gemini, anthropic, ollama, sarvam, jev");
                 continue;
             }
             for (var e : p.getOptions().entrySet()) {
@@ -142,7 +142,42 @@ final class ExecutorValidation {
         }
     }
 
+    /** True for a model served by Jev: the built-in {@code jev/…} or {@code jev-…}, or a provider declared with {@code use: jev}. */
+    boolean isJevModel(String model) {
+        String m = model.toLowerCase(java.util.Locale.ROOT);
+        if (m.startsWith("jev/") || m.startsWith("jev-")) return true;
+        io.github.llm4j.loom.ast.ProviderDef declared = host.declaredProvider(model);
+        return declared != null && "jev".equals(declared.getKind());
+    }
+
+    /** The backend of each {@code intentclassifier}: a Jev model needs its key; any other must be a model the client factory can serve. */
+    void checkClassifiers(ScriptValidator.Checker c) {
+        for (io.github.llm4j.loom.ast.IntentClassifierDef def : host.script().getIntentClassifiers()) {
+            String model = def.getModel();
+            if (model == null) continue;
+            String who = "intentclassifier " + def.getName();
+            int line = def.getModelLine();
+            io.github.llm4j.loom.ast.ProviderDef declared = host.declaredProvider(model);
+            if (declared != null) {
+                if (model.substring(model.indexOf('/') + 1).isBlank()) c.error(line, who, "model " + model + " names no model after the provider");
+            } else if (isJevModel(model)) {
+                if (model.indexOf('/') >= 0 && model.substring(model.indexOf('/') + 1).isBlank()) {
+                    c.error(line, who, "model " + model + " names no model after the provider");
+                } else if (host.credential("JEV_API_KEY") == null || host.credential("JEV_API_KEY").isBlank()) {
+                    c.error(line, who, "model " + model + " needs JEV_API_KEY in the environment or the secret store");
+                }
+            } else {
+                String problem = host.modelProblem(model);
+                if (problem != null) c.error(line, who, problem);
+            }
+        }
+    }
+
     void checkModel(ScriptValidator.Checker c, int line, String who, String model) {
+        if (isJevModel(model)) {
+            c.error(line, who, "model " + model + " is a Jev model: Jev answers typed questions, it does not chat. Use it in an intentclassifier, and give this a chat model");
+            return;
+        }
         if (host.declaredProvider(model) != null) {
             if (model.substring(model.indexOf('/') + 1).isBlank()) c.error(line, who, "model " + model + " names no model after the provider");
             return;

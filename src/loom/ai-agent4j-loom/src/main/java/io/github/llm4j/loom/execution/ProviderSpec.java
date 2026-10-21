@@ -4,7 +4,7 @@ package io.github.llm4j.loom.execution;
  * A provider declared in a script ({@code provider Name { use: … base_url: … api_key: env.X }}), with
  * environment references already resolved. {@link #toString()} never shows the key.
  *
- * @param kind {@code gemini}, {@code ollama}, {@code sarvam} or {@code anthropic}
+ * @param kind {@code gemini}, {@code ollama}, {@code sarvam}, {@code anthropic}, or {@code jev} (which answers typed questions for an {@code intentclassifier} and does not chat)
  * @param baseUrl the endpoint, or null for the provider's default
  * @param apiKey the key, or null (Ollama needs none); used when {@code apiKeyRef} is null
  * @param apiKeyRef the key held in a secret store, fetched for each request (and bound to the secret's allowed hosts), or null
@@ -15,7 +15,7 @@ public record ProviderSpec(String name, String kind, String baseUrl, String apiK
         this(name, kind, baseUrl, apiKey, null);
     }
 
-    public static final java.util.Set<String> KINDS = java.util.Set.of("gemini", "ollama", "sarvam", "anthropic");
+    public static final java.util.Set<String> KINDS = java.util.Set.of("gemini", "ollama", "sarvam", "anthropic", "jev");
 
     @Override
     public String toString() {
