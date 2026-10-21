@@ -182,13 +182,20 @@ and eval4j.
 
 ## 5. Loom
 
+> **As built (7d).** Where the implementation settled something this section left open: `escalate` replaces the label of only the `choose` questions below
+> the threshold (per question), and `unsure` is legal in a condition only when some rule escalates; a budget breach halts the run and is not subject to the
+> confidence policy or `on_failure`; the `pii: mask | block | warn` setting of §8 is the `intentclassifier` setting of that name, using the same masking as
+> `guard { pii: mask }`; `ask person` asks the question like `human_prompt` and accepts only a label (one retry, then the step fails); a provider
+> whose name equals a built-in kind (`Jev`) is reserved, so the example declares `Scorer`; `samples:` has no effect on Jev and `weave check` says so.
+> The trace event type is `classify` and the graph node kind is `classify`; the audit rule is LA19.
+
 ### 5.1 Declaring
 
 ```
-provider Jev { use: jev  api_key: env("JEV_API_KEY") }
+provider Scorer { use: jev  api_key: env.JEV_API_KEY }   // optional: "Jev/jev-latest" alone reads JEV_API_KEY
 
 intentclassifier Intent {
-    model: "Jev/jev-latest"                         // or "gemini-2.5-flash", "Box/llama3": same block, other backend
+    model: "Scorer/jev-latest"                      // or "Jev/jev-latest", "gemini-2.5-flash", "Box/llama3": same block, other backend
     choose kind: refund | order_status | complaint | other
     ask urgent: "Is the customer threatening to leave?"
     confidence at least 0.8 else escalate           // see §5.3
