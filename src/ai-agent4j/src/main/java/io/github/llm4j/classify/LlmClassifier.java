@@ -106,8 +106,8 @@ public final class LlmClassifier implements Classifier {
 
     private int cap(ClassifyRequest request) {
         if (maxOutputTokens != null) return maxOutputTokens;
-        int perQuestion = rationale ? 120 : 48;
-        return Math.max(rationale ? 200 : 64, perQuestion * request.questions().size());
+        int perQuestion = rationale ? 160 : 96;
+        return Math.max(rationale ? 400 : 256, perQuestion * request.questions().size());
     }
 
     private String userMessage(ClassifyRequest request) {
@@ -389,8 +389,9 @@ public final class LlmClassifier implements Classifier {
         }
 
         /**
-         * The most output tokens a reply may use. The default is 48 per question (at least 64), or
-         * 120 per question (at least 200) with a rationale. A reply cut off by it is a {@link
+         * The most output tokens a reply may use. The default is 96 per question (at least 256), or
+         * 160 per question (at least 400) with a rationale. (64 was too tight in a live run: a model that thinks aloud
+         * for an ambiguous message was cut off.) A reply cut off by it is a {@link
          * ClassificationException} naming the cap.
          */
         public Builder maxOutputTokens(int maxOutputTokens) {

@@ -212,7 +212,7 @@ class LlmClassifierTest {
             // the reply only answers one question; the cap is what is being looked at
         }
 
-        assertThat(one).isEqualTo(64);
+        assertThat(one).isEqualTo(256);
         assertThat(many.lastRequest().getMaxTokens()).isGreaterThan(one);
     }
 
@@ -225,7 +225,7 @@ class LlmClassifierTest {
         LlmClassifier.builder(chat).withRationale(true).build().classify(ONE);
 
         assertThat(chat.requests().get(0).getMaxTokens()).isEqualTo(500);
-        assertThat(chat.requests().get(1).getMaxTokens()).isEqualTo(200);
+        assertThat(chat.requests().get(1).getMaxTokens()).isEqualTo(400);
     }
 
     @Test

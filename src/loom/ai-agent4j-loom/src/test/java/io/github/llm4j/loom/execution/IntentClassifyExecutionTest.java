@@ -288,6 +288,43 @@ class IntentClassifyExecutionTest {
     }
 
     @Test
+    void theBackoffBetweenRetriesDoublesFromTheDeclaredStart() {
+        ScriptedClassifier c = jev().failWith(new RateLimitException("slow")).next().failWith(new RateLimitException("slow")).next()
+                .choice("kind", "refund", 0.9).yesNo("urgent", 0.1).score("tone", 0).build();
+        String script = DECL + "workflow W(message) { intentclassify Intent on message -> intent retry 2 backoff 2s\n note \"{intent.kind}\" }";
+        LoomScript parsed = new LoomParser(new Lexer(script).tokenize()).parseScript();
+        HarnessExecutor executor = new HarnessExecutor(parsed, new ToolRegistry(), model -> { throw new IllegalStateException("no chat model is used"); });
+        executor.setClassifierFactory((model, samples) -> c);
+        executor.setEnvLookup(name -> name.equals("JEV_API_KEY") ? "test-key" : null);
+        List<java.time.Duration> slept = new ArrayList<>();
+        executor.setSleeper(slept::add);
+        executor.initialize();
+
+        executor.executeWorkflow("W", Map.of("message", MESSAGE));
+
+        assertThat(slept).containsExactly(java.time.Duration.ofSeconds(2), java.time.Duration.ofSeconds(4));
+    }
+
+    @Test
+    void theTraceTextSaysWhatWasDecidedWithTheLabelsAndTheConfidence() {
+        Run r = run(TRIAGE, answers(0.93));
+
+        assertThat(r.classify().text()).isEqualTo("Intent → kind=refund urgent=no tone=" + r.intent().get("tone") + " (confidence 0.93)");
+    }
+
+    @Test
+    void anAnswerIsMatchedToALabelByExactNameOrAUniquePrefixOnly() {
+        List<String> labels = List.of("refund", "order_status", "other");
+
+        assertThat(ClassifyRunner.match(labels, " REFUND ")).isEqualTo("refund");
+        assertThat(ClassifyRunner.match(labels, "ord")).isEqualTo("order_status");
+        assertThat(ClassifyRunner.match(List.of("order_status", "order_cancel"), "ord")).isNull();
+        assertThat(ClassifyRunner.match(labels, "")).isNull();
+        assertThat(ClassifyRunner.match(labels, null)).isNull();
+        assertThat(ClassifyRunner.match(labels, "x")).isNull();
+    }
+
+    @Test
     void aClassifierThatKeepsFailingFailsTheRunWithTheCause() {
         ScriptedClassifier c = jev().failWith(new RateLimitException("slow down")).build();
 

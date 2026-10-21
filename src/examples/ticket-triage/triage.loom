@@ -19,7 +19,7 @@ agent Replier {
 
 budget { tokens: 20000  calls: 10 }
 
-workflow Triage(message) {
+workflow Main(message) {
     intentclassify Intent on message -> intent retry 2 timeout 30s on_failure {
         human_prompt "The classifier is down. Which team takes: {message}" -> chosen
         return { team: "{chosen}", route: "person" }

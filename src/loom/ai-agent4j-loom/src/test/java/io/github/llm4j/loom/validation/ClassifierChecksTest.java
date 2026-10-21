@@ -196,6 +196,19 @@ class ClassifierChecksTest {
         assertTrue(wasted.contains("samples") && wasted.contains("same answer"), wasted);
     }
 
+    @Test
+    void aProviderDeclaredWithUseJevIsJevAndAnotherKindIsNot() {
+        String decl = "intentclassifier C { model: \"%s/m\" %s choose k: a | b confidence at least 0.8 }\nworkflow W(m) { intentclassify C on m -> r\n note \"{r.k}\" }\n";
+        String jev = text(problems("provider P { use: jev api_key: env.JEV_API_KEY }\n" + String.format(decl, "P", "samples: 3")));
+        String chat = text(problems("provider P { use: ollama base_url: \"http://h:1\" }\n" + String.format(decl, "P", "")));
+        String jevNoSamples = text(problems("provider P { use: jev api_key: env.JEV_API_KEY }\n" + String.format(decl, "P", "")));
+
+        assertTrue(jev.contains("same answer"), jev);
+        assertTrue(chat.contains("uncalibrated"), chat);
+        assertFalse(jevNoSamples.contains("uncalibrated"), jevNoSamples);
+        assertFalse(text(problems(String.format(decl, "Other", "").replace("\"Other/m\"", "\"jev-latest\""))).contains("uncalibrated"));
+    }
+
     // ---- an alt on a label that can never be produced (R8)
 
     private static String alt(String condition) {

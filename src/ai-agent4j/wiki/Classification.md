@@ -86,8 +86,9 @@ Classifier classifier = LlmClassifier.builder(chatClient)
         .build();
 ```
 
-- **One call, small reply.** All questions are answered in one JSON reply; the output is capped (48 tokens per question, at least 64;
-  120 per question with a rationale), because the reply is a label and a number.
+- **One call, small reply.** All questions are answered in one JSON reply; the output is capped (96 tokens per question, at least 256;
+  160 per question, at least 400, with a rationale), because the reply is a label and a number. The cap is generous on purpose: a live run showed that 64 cut off
+  a model that thinks aloud before answering an ambiguous message; raise or lower it with `maxOutputTokens`.
 - **Samples.** With `samples(n)` greater than 1, the label with the most votes wins (a tie goes to the label listed first), its
   vote share is the confidence, and every label's share is in `probabilities()`. For a yes/no and a score the mean is used. It costs
   `n` calls.

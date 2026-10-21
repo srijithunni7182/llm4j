@@ -131,7 +131,7 @@ Classifier c = LlmClassifier.builder(client)
 
 It sends one request with a fixed system prompt, the state as delimited, untrusted data (same untrusted-data handling as `JudgeCalls`), and the
 questions; it requires a JSON reply and, where the provider supports it, uses native tool calling or JSON mode to bind the schema. Output is
-capped (default 64 tokens, 200 with rationale). Its answers have `calibrated == false`; `confidence` is the model's self-report when asked
+capped (default 256 tokens, 400 with rationale; first set at 64/200 and raised after the 7c-live run showed 64 cutting off real replies). Its answers have `calibrated == false`; `confidence` is the model's self-report when asked
 for, and with `samples > 1` it is the vote share. `probabilities` is empty with one sample and no self-report.
 
 **`JevProvider`** (`io.github.llm4j.provider.typesafe`):

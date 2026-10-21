@@ -46,7 +46,7 @@ written in advance. Then, before 7a starts, the spec is revised from the evidenc
 | A14 | `weave audit` lists a hosted classifier backend as a data flow; the graph marks `uncalibrated` | §5.5 | audit and graph tests | 7d ✅ `ClassifierAuditTest` (LA19: hosted service, fields sent, `pii:` acknowledged, uncalibrated chat model), `IntentClassifyGraphTest` (backend, `calibrated`/`uncalibrated`, labels, failure edge, JSON, Mermaid), renderer chip test |
 | A15 | `Classifier.using(chat)` and `Classifier.using(jev)` can be compared on a dataset with `CalibrationRunner`, giving agreement, calibration curve, cost and latency | §7.3 | eval4j calibration tests | 7b ✅ `ClassifierComparisonTest` (accuracy, ECE 0.25 and Brier 0.1475 computed by hand, selective accuracy, agreement, per-category, latency/tokens/cost, reliability bins, invalid calls, flip rate); public class `ClassifierComparison`, not inside the test-scope `CalibrationRunner` |
 | A16 | All documentation samples execute in tests | docs | docs examples test | 7a, 7b, 7c ✅ `ClassificationDocsExamplesTest` (9 samples incl. Jev and the resolver), `ClassifierJudgeDocsTest` (3); Loom guide: 7d ✅ `ClassifierDocsTest` (every `intentclassify` example in the Loom guide, chapter 6 and the recipes parses and passes the checks) |
-| A17 ✅ (7.0 harness; Java port 7c-live owed) | The 7.0 study runs end to end with a real Jev key and at least one chat model, writes its report and CSV, stays inside its spend cap, and its results are recorded in §7 with the verdict rule applied as written in advance | §5 of the test strategy | `JevVsLlmStudyIntegrationTest` (live, opt-in) |
+| A17 ✅ (7.0 harness and the Java port, 7c-live) | The 7.0 study runs end to end with a real Jev key and at least one chat model, writes its report and CSV, stays inside its spend cap, and its results are recorded in §7 with the verdict rule applied as written in advance | §5 of the test strategy | `JevVsLlmStudyIntegrationTest` (live, opt-in) |
 
 ## 3. Traceability
 
@@ -80,7 +80,7 @@ One row per requirement. A requirement with no row blocks the phase. "pending" n
 
 - [x] A recorded session against the real Jev API replaces the fixtures (Q1), and the contract suite still passes. Done 2026-10-21: `scripts/record-jev-fixtures.py` recorded success replies for each question kind and a multi-question call, a 422 and a 401 (`src/ai-agent4j/src/test/resources/jev/`); the 429, 529 and malformed cases are hand-written, named in `JevProviderTest`. The recordings are what `JevWireTest` pins.
 - [x] The live study (TEST_STRATEGY §5), run with the Python harness (7.0): results in §7 and STUDY_REPORT.md, the Jev recommendations in the guide and wiki written from them. The Java port (7c-live) is owed.
-- [ ] An end-to-end triage workflow in Loom with Jev, run once with `--observe` to see the call events in Fabric. Owed: no live API was used after the study (budget rule); `src/examples/ticket-triage` passes `weave check` and `weave audit` and the execution is covered with a scripted classifier and recorded Jev fixtures.
+- [x] An end-to-end triage workflow in Loom with Jev, run with `--observe`. Done 2026-10-21 with the real Jev API and Claude Haiku 5.5 (`src/examples/ticket-triage`): both routes ran, the trace step carried backend, model, tokens and labels but no text, and the run page listed `jev-1.13.0` in its Models table (this showed that classify events were not mapped; `TraceMapper` now makes them model spans, `ClassifyMappingTest`). With `pii: mask` an e-mail address in the text lowered Jev's confidence to 0.36 and the step answered `unsure`, as designed.
 - [x] The VS Code extension on the new syntax: highlighting, hover, snippets (typed through `weave check` by the snippet tests), the graph node (renderer tests); diagnostics come from the bundled `weave check`. Not opened in a desktop VS Code by hand; the extension's own suites (45 for grammar, snippets and docs) pass.
 
 ## 6. Documentation owed
@@ -113,7 +113,7 @@ Full report: [STUDY_REPORT.md](STUDY_REPORT.md); raw data in [study/](study/). C
 
 **Verdict (the outcome row "meets it for some tasks only" of §1a):** Jev is recommended for intent routing and for judging, and for `confidence … else escalate` routing on intent and judging (accuracy at 80% coverage equals the strong model's). It is not recommended as the only safe/unsafe-command guardrail (below the cheap model on both sets; one confident miss, `> /etc/passwd` at 0.95). Caveats recorded with the verdict: small hand-written sets, differences of one or two cases are noise, intent saturated on the standard set, no Gemini contender, no 5-sample chat pass.
 
-A17 is satisfied by the harness run for 7.0; the Java port (7c-live) is owed.
+A17 is satisfied by the harness run for 7.0 and by the Java port (7c-live, §7.2), which reproduced it.
 
 ### 7.1 Build and test results (2026-10-21), phases 7a to 7e
 
@@ -129,5 +129,19 @@ A17 is satisfied by the harness run for 7.0; the Java port (7c-live) is owed.
 Skills: `scripts/package-skill.sh` and `scripts/verify-skill-package.sh` pass for the workflow-guide, loom-deployer and harness-design packages (the verify script
 was failing on a sentence of `docs/guide/README.md` that the packager's pattern no longer matched; the pattern was fixed, not the check).
 
-Not done, stated plainly: the Java port of the study (7c-live), PIT mutation runs on the classifier validators, a live end-to-end Loom run with `--observe`,
-and `make format-check` (its baseline already fails on files this phase did not touch; new files were formatted individually). Spend: about $0.96 in total, all in 7.0.
+### 7.2 Iteration after the first report (2026-10-21)
+
+- **7c-live done.** `JevVsLlmStudyIntegrationTest` (eval4j, `-Plive`, opt-in) ports the study onto `Classifier` and `ClassifierComparison`; the labelled sets are exported to
+  `src/eval4j/src/test/resources/study/jev-study-sets.json`. Jev reproduced the Python study exactly: intent 1.000 (standard) and 0.969 (hard), judging 0.967, safe/unsafe 0.875 and 0.950, p95 about 150 to 200 ms, no invalid replies.
+  Haiku 5.5 through `LlmClassifier`: 1.000, 0.969, 0.967, 0.925, 1.000, no invalid replies. Results: [study/java-port-results.md](study/java-port-results.md).
+- **A defect found by the live run, fixed.** The first live run gave Haiku 13 to 28 invalid replies per set ("cut off at the output cap of 64 tokens"): a model that thinks aloud on an ambiguous message
+  needs more than the 64-token default. The default is now 96 per question, at least 256 (160 and 400 with a rationale); `LlmClassifierTest` updated; wiki and DESIGN corrected. Mocks could not have shown this.
+- **Eval4j with a real key.** `ClassifierJudgeLiveTest` (eval4j, `-Plive`, needs `JEV_API_KEY`): a classifier-backed `llmJudged` passes a correct answer and fails a wrong one, an injection in the answer does not change the
+  verdict, and `ClassifierComparison` over six cases reports accuracy, calibration and cost. Three tests, green against the real API.
+- **PIT (profile `mutation-classify`).** ai-agent4j `classify` and `provider.typesafe`: 314 mutations, 91% killed. Loom `ClassifierChecks` and `ClassifyRunner`: 215 mutations, 86% killed after adding tests for provider-declared Jev,
+  retry backoff, the trace text and label matching (it was 77%). Both above the 75% threshold. The survivors left are the audit call, the human-answer record and the unquoted-literal path.
+- **Jev is for classification only, never an agent.** `weave check` already refuses a Jev model (`Jev/…`, `jev-…`, or a provider declared `use: jev`) for an agent, a routing policy, a context summarizer or a guard's
+  `bias_model`, with "Jev answers typed questions, it does not chat" (`ClassifierModelChecksTest`); `JevProvider` is a `ClassificationProvider`, not an `LLMProvider`, so Java code cannot make an agent of it either.
+- **Spend this iteration:** under $0.10 (Jev $0.01; Haiku about 1,500 calls at roughly $0.003 per 40).
+
+Still not done: `make format-check` (its baseline already fails on files this phase did not touch; new files were formatted individually).
