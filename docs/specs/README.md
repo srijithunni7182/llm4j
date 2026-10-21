@@ -80,4 +80,4 @@ done, so that what we learn building a lower layer shapes the spec above it.
 | 4 | approved, built | all written | all done (4a–4e) | verified (live and manual checks owed); **awaiting review** |
 | 5 | approved, built | all written | all done (5a–5e) | verified (live and manual checks owed); **awaiting review** |
 | 6 | not started | | | |
-| 7 | approved (decisions recorded; scope for 6.1.0 set; §4.3 corrected from the real API) | 7.0 study run ([report](07-classifier/STUDY_REPORT.md)) | in progress (7a first) | not yet |
+| 7 | approved (decisions recorded; scope for 6.1.0 set; §4.3 corrected from the real API) | 7.0 study run ([report](07-classifier/STUDY_REPORT.md)) | 7a done (contract, LlmClassifier, ScriptedClassifier, wiki page); 7b–7e in progress | 7a verified; the phase is not |

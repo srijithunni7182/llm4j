@@ -62,3 +62,6 @@ Before introducing a breaking change:
 1. Document the impact in `MIGRATION_GUIDE_5_0.md` (or next migration guide).
 2. Add compatibility notes in PR description.
 3. Update examples and wiki pages in the same change set.
+
+`io.github.llm4j.classify` (new in 6.1.0) and `io.github.llm4j.provider.ClassificationProvider` are additive: `Classifier`, `ClassifyRequest`, `Question`, `Option`, `Scale`, `ClassifyResult`, the answer records, `ClassifyUsage`, `ClassifyEvent`,
+`ClassifyListener`, `ClassificationException` and `LlmClassifier`. Nothing existing changes; an agent, judge or workflow that does not use a classifier behaves exactly as before. The answer records grow by adding components at the end, keeping the previous constructor.

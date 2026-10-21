@@ -28,34 +28,44 @@ written in advance. Then, before 7a starts, the spec is revised from the evidenc
 
 ## 2. Acceptance criteria
 
-| # | Criterion | Requirement | Test |
-|---|---|---|---|
-| A1 | Both backends pass the same `ClassifierContract` suite | R1, R2 | `ClassifierContract` subclasses for `LlmClassifier`, `JevProvider` |
-| A2 | Invalid replies (unknown label, missing/extra question, bad probability, truncated) never become values | R1, R2, R4 | unit + property tests |
-| A3 | Injection corpus does not change answers; the state is delimited | R3 | security tests |
-| A4 | `LlmClassifier` answers are never `calibrated`; `JevProvider` answers are | R5 | contract tests |
-| A5 | The Jev key never appears in exceptions, logs, events or traces | R6 | canary-key test |
-| A6 | A judge backed by a classifier passes/fails at the threshold and keeps `samples`, cache, dimensions and telemetry | R10 | eval4j tests |
-| A7 | `.judge(LLMClient)` and every existing judge test behave exactly as before | R11 | full existing eval4j suite |
-| A8 | `intentclassify` routes an `alt` on label and confidence; the three confidence actions work at the boundaries | §5.2, §5.3 | Loom execution tests |
-| A9 | `unsure` appears only from a confidence rule | R7 | Loom tests |
-| A10 | `weave check` rejects: unknown classifier, unbound `on`, duplicate or fewer than two labels, a declared `unsure`, an `alt` on a label never produced, a `confidence` line with no available confidence | R8 | validator tests |
-| A11 | A classify step is charged to the budget and a breach halts | R9 | budget tests |
-| A12 | The trace and call telemetry carry backend, model, tokens, latency, outcome; no state text at the default detail level | R12 | trace tests |
-| A13 | A script or test with no classifier gives byte-identical output to the previous release | R11 | regression test |
-| A14 | `weave audit` lists a hosted classifier backend as a data flow; the graph marks `uncalibrated` | §5.5 | audit and graph tests |
-| A15 | `Classifier.using(chat)` and `Classifier.using(jev)` can be compared on a dataset with `CalibrationRunner`, giving agreement, calibration curve, cost and latency | §7.3 | eval4j calibration tests |
-| A16 | All documentation samples execute in tests | docs | docs examples test |
+| # | Criterion | Requirement | Test | Status |
+|---|---|---|---|---|
+| A1 | Both backends pass the same `ClassifierContract` suite | R1, R2 | `ClassifierContract` subclasses for `LlmClassifier`, `JevProvider` | 7a ✅ `LlmClassifierContractTest` extends `ClassifierContract` (10 cases); JevProvider: 7c |
+| A2 | Invalid replies (unknown label, missing/extra question, bad probability, truncated) never become values | R1, R2, R4 | unit + property tests | 7a ✅ `ClassifierContract`, `ClassifyTypesTest`, `LlmClassifierTest`, `LlmClassifierPropertyTest` (1,500 random replies) |
+| A3 | Injection corpus does not change answers; the state is delimited | R3 | security tests | 7a ✅ for the structure (`LlmClassifierTest`: delimited data, forged markers neutralised, state never in the system prompt); the behavioural check on a real model is the opt-in live injection test (owed, §5) and the study's injection cases (STUDY_REPORT §3) |
+| A4 | `LlmClassifier` answers are never `calibrated`; `JevProvider` answers are | R5 | contract tests | 7a ✅ LlmClassifier never calibrated (`ClassifierContract.calibratedOnlyWhenTheBackendIs`, `LlmClassifierTest.theSelfReportedConfidence…`); JevProvider: 7c |
+| A5 | The Jev key never appears in exceptions, logs, events or traces | R6 | canary-key test | 7c |
+| A6 | A judge backed by a classifier passes/fails at the threshold and keeps `samples`, cache, dimensions and telemetry | R10 | eval4j tests | 7b |
+| A7 | `.judge(LLMClient)` and every existing judge test behave exactly as before | R11 | full existing eval4j suite | 7b |
+| A8 | `intentclassify` routes an `alt` on label and confidence; the three confidence actions work at the boundaries | §5.2, §5.3 | Loom execution tests | 7d |
+| A9 | `unsure` appears only from a confidence rule | R7 | Loom tests | 7d |
+| A10 | `weave check` rejects: unknown classifier, unbound `on`, duplicate or fewer than two labels, a declared `unsure`, an `alt` on a label never produced, a `confidence` line with no available confidence | R8 | validator tests | 7d |
+| A11 | A classify step is charged to the budget and a breach halts | R9 | budget tests | 7d |
+| A12 | The trace and call telemetry carry backend, model, tokens, latency, outcome; no state text at the default detail level | R12 | trace tests | 7a ✅ `ClassifyTypesTest.anObserverSeesNumbers…` (classifier events); Loom trace: 7d |
+| A13 | A script or test with no classifier gives byte-identical output to the previous release | R11 | regression test | 7b, 7d |
+| A14 | `weave audit` lists a hosted classifier backend as a data flow; the graph marks `uncalibrated` | §5.5 | audit and graph tests | 7d |
+| A15 | `Classifier.using(chat)` and `Classifier.using(jev)` can be compared on a dataset with `CalibrationRunner`, giving agreement, calibration curve, cost and latency | §7.3 | eval4j calibration tests | 7b |
+| A16 | All documentation samples execute in tests | docs | docs examples test | 7a ✅ `ClassificationDocsExamplesTest` (7 samples run and compared with the page); later pages: with their sub-phases |
 | A17 ✅ (7.0 harness; Java port 7c-live owed) | The 7.0 study runs end to end with a real Jev key and at least one chat model, writes its report and CSV, stays inside its spend cap, and its results are recorded in §7 with the verdict rule applied as written in advance | §5 of the test strategy | `JevVsLlmStudyIntegrationTest` (live, opt-in) |
 
 ## 3. Traceability
 
-Filled in as tests are written: one row per requirement, `R1` … `R12`, naming the test classes that cover it. A requirement with no row blocks
-the phase.
+One row per requirement. A requirement with no row blocks the phase. "pending" names the sub-phase that fills it in.
 
-| Req | Tests |
-|---|---|
-| R1–R12 | _to be listed when the tests are written_ |
+| Req | Tests | Status |
+|---|---|---|
+| R1 no label/probability/position outside the request | `ClassifierContract` (unknown label, unknown scale point, probability 1.2 / -0.1, confidence 1.7, wrong kind), `ClassifyTypesTest.answersRefuseValuesOutsideTheirRange`, `.aProviderResultIsCheckedAgainstTheRequest`, `LlmClassifierPropertyTest` | 7a ✅ (LlmClassifier, `Classifier.using(provider)` validation); JevProvider via the same contract in 7c |
+| R2 exactly the requested questions | `ClassifierContract` (missing, extra), `ClassifyTypesTest`, `LlmClassifierPropertyTest`; request built once, one backend call: `ClassifierContract.answersExactly…` asserts `callsSent() == 1` | 7a ✅ |
+| R3 state is untrusted data | `LlmClassifierTest.theStateIsDelimitedData…`, `.forgedMarkersInsideTheStateCannotCloseTheBlock`, `.anUnnamedTextAndSeveralFieldsAreAllDelimited` | 7a ✅ structure; live behaviour owed (§5) |
+| R4 output capped; truncation is an error naming the cap | `LlmClassifierTest.aReplyCutOffByTheCapIsAnErrorNamingTheCap`, `.theOutputIsCappedAndTheCapGrowsWithTheQuestions`, `.anExplicitCapWinsAndRationaleRaisesTheDefault`, `.proseAndTruncatedJsonAreErrors` | 7a ✅ |
+| R5 calibrated only when the backend says so | `ClassifierContract.calibratedOnlyWhenTheBackendIs`, `LlmClassifierTest.theSelfReportedConfidenceIsCarriedButNeverCalibrated` | 7a ✅ LlmClassifier; Jev: 7c |
+| R6 no request when invalid; key never leaves | `ClassifyTypesTest` (an invalid request cannot be built, so no backend is called); canary-key test | 7a ✅ first half; 7c second half |
+| R7 `unsure` only from a confidence rule | pending | 7d |
+| R8 `alt` on a label never produced is a check error | pending | 7d |
+| R9 classify step charged to the budget | pending | 7d |
+| R10 classifier-backed judge yields `JudgeVerdict`, honours threshold/samples/cache/telemetry | pending | 7b |
+| R11 nothing existing changes | full existing suites green after 7a: ai-agent4j 2,826 tests, eval4j 507 tests, no existing file changed except docs and the module pom (a coverage rule) | 7a ✅; pinned for Loom/eval4j in 7b, 7d |
+| R12 telemetry carries backend, model, tokens, latency, outcome; never state or rationale | `ClassifyTypesTest.anObserverSeesNumbersAndLabelsButNeverTheStateOrTheReason`, `.anObserverSeesAFailure…` | 7a ✅ classifier events; trace: 7d |
 
 ## 4. Quality gates
 
