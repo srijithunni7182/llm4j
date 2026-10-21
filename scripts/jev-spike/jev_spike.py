@@ -344,7 +344,7 @@ def main():
         cts = [Fake("jev(fake)", .9, True, 250), Fake("strong(fake)", .93, False, 1800), Fake("cheap(fake)", .85, False, 700)]
     else:
         cts = []
-        jk, ak, gk = os.environ.get("JEV_API_KEY"), os.environ.get("SPIKE_ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"), os.environ.get("GEMINI_API_KEY")
+        jk, ak, gk = os.environ.get("JEV_API_KEY"), os.environ.get("SPIKE_ANTHROPIC_API_KEY") or os.environ.get("SPIKE_ANTHROPIC_KEY") or os.environ.get("ANTHROPIC_API_KEY"), os.environ.get("GEMINI_API_KEY")
         if not jk:
             sys.exit("JEV_API_KEY is not set (use --dry-run to test the script offline)")
         cts.append(Jev(jk))
