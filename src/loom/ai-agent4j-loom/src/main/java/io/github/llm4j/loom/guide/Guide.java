@@ -66,6 +66,10 @@ public final class Guide {
                             "Steer, stop and supervise a running workflow (optional)",
                             "guide/15-steer-stop-and-supervise.md"),
                     new Page(
+                            "16",
+                            "Cost and model choice: suggest models from evidence, estimate and cap the cost",
+                            "guide/16-cost-and-model-choice.md"),
+                    new Page(
                             "recipes",
                             "Recipes: change the starter to do what you want",
                             "guide/RECIPES.md"),
@@ -133,7 +137,12 @@ public final class Guide {
 
     /** The references that travel with the harness-design skill. */
     public static final List<String> HARNESS_REFERENCES =
-            List.of("principles.md", "failure-modes.md", "loom-mapping.md", "design-record.md");
+            List.of(
+                    "principles.md",
+                    "failure-modes.md",
+                    "loom-mapping.md",
+                    "design-record.md",
+                    "cost-and-models.md");
 
     private Guide() {}
 
