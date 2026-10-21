@@ -1,6 +1,6 @@
 # Phase 7 design: classification as a first-class capability (ai-agent4j, Loom, eval4j)
 
-Status: **approved; decisions in §9, scope for 6.1.0 in §10**. Layers: ai-agent4j (the contract, the LLM-backed classifier, the Jev provider), Loom (an `intentclassifier`
+Status: **approved; decisions in §9, scope for 6.1.0 in §10; 7.0 study done ([STUDY_REPORT.md](STUDY_REPORT.md)), §4.3 corrected from the official reference (2026-10-21)**. Layers: ai-agent4j (the contract, the LLM-backed classifier, the Jev provider), Loom (an `intentclassifier`
 block and an `intentclassify` statement), eval4j (a classifier-backed judge). Companion documents: [TEST_STRATEGY.md](TEST_STRATEGY.md),
 [VERIFICATION.md](VERIFICATION.md), [roadmap](../README.md). Builds on the provider SPI pattern (`TranslationProvider` and friends), the
 `JudgeCache`/`JudgeTelemetry` machinery of eval4j and the call telemetry of [Phase 2](../02-call-telemetry/DESIGN.md).
@@ -146,22 +146,32 @@ timeouts behave like every other provider) and reads the key through the same pe
 `calibrated == true`. All of Jev's wire format lives in **one class** (`JevWire`), so a change in the vendor's API touches one file and one
 contract test.
 
-What the public docs state ([docs.typesafe.ai](https://docs.typesafe.ai/api)), which `JevWire` is built to:
+What the official reference states ([docs.typesafe.ai](https://docs.typesafe.ai/api), `/primitives/*`, `/concepts/state`, `/confidence`, `/api/errors`, and the OpenAPI document at `api.typesafe.ai/openapi.json`), confirmed against the real API by the 7.0 `--probe`; `JevWire` is built to it:
 
 | Aspect | Jev |
 |---|---|
-| Endpoint, auth | `POST https://api.typesafe.ai/v1/systemone`, bearer token, JSON body; the base URL is configurable (`LLMConfig.baseUrl`) |
-| Request | `state`, `model` (e.g. `jev-latest`), `questions`: a map whose keys we choose and whose values are the typed questions |
-| `Choice` | `instructions` + a `criteria` map of option name → description. Answer: the chosen label, a probability per option, a confidence |
-| `Score` | `instructions` + an **ordered** `criteria` array of 2 to 10 levels. Answer: a numeric score, a legend of the levels, probabilities, a confidence |
-| yes/no | a single value from 0 to 1 (the docs name this question type `noul`) |
-| Response | the model version that ran, an `answers` map under our keys, token usage |
+| Endpoint, auth | `POST https://api.typesafe.ai/v1/systemone`, `Authorization: Bearer <key>`, UTF-8 JSON; `GET /v1/models` lists model names. The base URL is configurable (`LLMConfig.baseUrl`) |
+| Request | `model` (e.g. `jev-latest`), `state`, `questions`: a map whose keys we choose and whose values are typed questions with a `type` of `choice`, `score` or `noul`. At least one question |
+| `state` | a string, **or an object, or an array**. We send a string when the request has one unnamed field and an object of our named fields otherwise |
+| `choice` | `instructions` + `criteria`: map of option name → description (1 to 255 options; a missing description means the name alone). Answer: `{"type":"choice","choice":<name>,"confidence":c,"probabilities":{<name>:p…}}` |
+| `score` | `instructions` + `criteria`: **ordered array** of 1 to 10 level descriptions; level i scores i (from 0). Answer: `{"type":"score","score":s,"confidence":c,"legend":{"0":…},"probabilities":{"0":p…}}` where `score` is the probability-weighted level, so it can be fractional |
+| yes/no | the type is **`noul`**: `instructions` (+ optional `criteria` `{"true":…,"false":…}`). Answer: `{"type":"noul","noul":p}`, the probability of yes, **with no confidence** |
+| Response | `{"model": <version that ran, e.g. "jev-1.13.0">, "answers": {<our keys>…}, "usage": {"input_tokens", "output_tokens"}}`; output tokens are free of charge |
+| Errors | 401 bad key, 422 validation (body names the field), 429 rate limit and 529 overloaded (retry with backoff, honour `retry-after`), 413 over 32 MiB |
+| Price, speed | input tokens only ($0.042 per million at the time of the study); p50 about 170 ms in the study |
 | Cost shape | questions run in parallel; extra questions add little latency but cost tokens |
 
 Mapping: our `Choice` options become the `criteria` map (the option `description` is sent when present, else the label); our `Scale` becomes
-the ordered array, which is why a scale is limited to 2–10 points for every backend, so a script behaves the same on either; `position` is the
-returned score normalised to [0,1] over the scale. The exact field names (including the yes/no type's name and the `state` shape, a string or
-a map) are taken from the reference by `JevWire` and pinned by recorded fixtures.
+the ordered array, so a scale is limited to 2–10 points for every backend (Jev accepts 1; we require 2 so that `position` is defined); `position` is
+`score / (points - 1)`, `nearest()` the scale point at `round(score)`, `probabilities` keyed by our point labels instead of Jev's indices. Our `YesNo`
+becomes a `noul` question; `YesNoAnswer.probability` is the `noul` value.
+
+**Confidence is Jev's statistic, not P(correct).** For a choice among n options Jev reports `confidence = (n·max_p − 1)/(n−1)`: 1 when all the
+probability is on one option, 0 when it is spread evenly (an answer 80% sure among 5 options reports 0.75). `ChoiceAnswer.confidence` and
+`ScoreAnswer.confidence` carry Jev's field as returned (documented as such, and a `confidence at least` threshold in Loom is therefore a threshold on
+that field); the chosen option's probability is `probabilities().get(label())`. A `YesNoAnswer` has no confidence (Jev gives none): its distance from 0.5 is
+the signal, exposed as `YesNoAnswer.certainty()` = `max(p, 1-p)`. For a chat model, `confidence` is the self-reported or vote-share number as before. This is
+why the 7.0 study measured calibration on the probability of the chosen option and not on Jev's `confidence` field.
 
 ### 4.4 Choosing a backend by configuration
 
@@ -324,7 +334,7 @@ The questions raised in the draft, answered. Nothing starts with a question open
 
 | # | Decision |
 |---|---|
-| Q1 | **Jev's exact field names** (the yes/no type's name, the `state` shape, the `usage` fields) are a *precondition task*, not a design question. The 7.0 spike's `--probe` mode is the first contact with the real API; sub-phase 7c begins by reading the reference (`/api`, `/primitives/*`, `/concepts/state`) and recording fixtures from the real API. If the wire format differs from §4.3, only §4.3 and `JevWire` change; the public API above does not |
+| Q1 | **Resolved 2026-10-21.** Jev's field names were read from the official reference and OpenAPI document and confirmed by the 7.0 `--probe` against the real API: yes/no is `noul`, `state` is a string/object/array, `usage` is `{input_tokens, output_tokens}`, confidence is a statistic of the probabilities (§4.3). §4.3 was corrected; the public API above did not change except `YesNoAnswer.certainty()` and the documented meaning of `confidence`. 7c still records fixtures from the real API |
 | Q2 | Loom keywords are **`intentclassifier`** (declaration) and **`intentclassify`** (statement). `decide`/`decision` stay for earned autonomy |
 | Q3 | The reserved label **`unsure`** exists, is produced only by a `confidence … else escalate` rule (R7), and `escalate` is the default action when a `confidence` line is present without one |
 | Q4 | A `confidence at least` rule is **allowed on a chat backend**, which must then have `samples > 1` or a self-report; such a classifier is marked `uncalibrated` in the graph and in `weave audit` (§5.3) |
@@ -332,6 +342,7 @@ The questions raised in the draft, answered. Nothing starts with a question open
 | Q6 | The resolver for `model: "Jev/jev-latest"` lives in ai-agent4j as `ClassifierResolver`, reading the same provider declarations Loom already reads |
 | Q7 | A `Score` answer exposes **both** `position()` (0–1 along the scale) and `nearest()` (the closest scale point) |
 | Q8 | No prose reason from a Jev-backed judge. A second call to a chat model on failures only is a documented *pattern* in the guide, not a feature |
+| Q10 | **The 7.0 verdict** ([STUDY_REPORT.md](STUDY_REPORT.md)): Jev is recommended for intent routing and judging; it is not recommended as the only safe/unsafe-command guardrail. The guide, wiki and `weave audit` wording follow this. `JevProvider` is built as designed (§1a, "meets it for some tasks only") |
 | Q9 | The live study's pass thresholds are **as proposed in TEST_STRATEGY §5.4** (within 2 points of the cheap chat model, ECE ≤ 0.10, 3× on latency or cost; the high-stakes rule at 80% coverage) and are fixed before the first run |
 
 ## 10. Scope for release 6.1.0

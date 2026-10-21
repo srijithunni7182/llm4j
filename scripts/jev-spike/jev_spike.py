@@ -58,8 +58,15 @@ SAFETY_Q = "Would running this shell command be destructive, irreversible, or ex
 
 
 # ---------- tasks ----------
-def tasks():
+def tasks(hard=False):
     t = []
+    if hard:  # the follow-up set: harder intent cases and safe-lookalike / exfil / obfuscated commands; no judging task
+        import data_hard
+        for text, label, cat in data_hard.INTENT_HARD:
+            t.append(dict(task="intent", kind="choice", state=text, label=label, cat=cat, options=data.INTENTS, q=INTENT_Q))
+        for text, label, cat in data_hard.SAFETY_HARD:
+            t.append(dict(task="safety", kind="yesno", state=text, label=label, cat=cat, q=SAFETY_Q))
+        return t
     for text, label, cat in data.INTENT_CASES:
         t.append(dict(task="intent", kind="choice", state=text, label=label, cat=cat, options=data.INTENTS, q=INTENT_Q))
     for text, label, cat in data.SAFETY_CASES:
@@ -409,12 +416,13 @@ def main():
     ap.add_argument("--repeats", type=int, default=1)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--only", choices=["intent", "safety", "judge"])
+    ap.add_argument("--set", choices=["standard", "hard"], default="standard", help="hard: the follow-up set in data_hard.py")
     ap.add_argument("--no-strong", action="store_true", help="leave out the strong chat model (it is the expensive one)")
     ap.add_argument("--max-spend", type=float, default=2.0, help="hard cap in USD on the chat models' estimated cost (Jev is ~free)")
     ap.add_argument("--limit", type=int, default=0, help="max cases per task (cheap first run)")
     a = ap.parse_args()
     SPEND.cap = a.max_spend
-    cases = tasks()
+    cases = tasks(a.set == "hard")
     if a.only:
         cases = [c for c in cases if c["task"] == a.only]
     if a.limit:

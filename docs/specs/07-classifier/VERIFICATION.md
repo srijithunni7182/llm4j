@@ -46,7 +46,7 @@ written in advance. Then, before 7a starts, the spec is revised from the evidenc
 | A14 | `weave audit` lists a hosted classifier backend as a data flow; the graph marks `uncalibrated` | §5.5 | audit and graph tests |
 | A15 | `Classifier.using(chat)` and `Classifier.using(jev)` can be compared on a dataset with `CalibrationRunner`, giving agreement, calibration curve, cost and latency | §7.3 | eval4j calibration tests |
 | A16 | All documentation samples execute in tests | docs | docs examples test |
-| A17 | The 7.0 study runs end to end with a real Jev key and at least one chat model, writes its report and CSV, stays inside its spend cap, and its results are recorded in §7 with the verdict rule applied as written in advance | §5 of the test strategy | `JevVsLlmStudyIntegrationTest` (live, opt-in) |
+| A17 ✅ (7.0 harness; Java port 7c-live owed) | The 7.0 study runs end to end with a real Jev key and at least one chat model, writes its report and CSV, stays inside its spend cap, and its results are recorded in §7 with the verdict rule applied as written in advance | §5 of the test strategy | `JevVsLlmStudyIntegrationTest` (live, opt-in) |
 
 ## 3. Traceability
 
@@ -89,4 +89,19 @@ are followed. Items not ready are listed in the release notes as "coming", never
 
 ## 7. Result
 
-_Not started._ The live study's results go here, with the date, the models and versions compared, the spend, and the verdict.
+### 7.0 The study (2026-10-21), done
+
+Full report: [STUDY_REPORT.md](STUDY_REPORT.md); raw data in [study/](study/). Contenders: Jev (`jev-latest` = jev-1.13.0), `claude-opus-5-5` (strong), `claude-haiku-5-5` (cheap). Three full runs (standard set with 1 and 3 repeats, a hard set written and labelled beforehand) plus a smoke run. Estimated spend: Jev $0.01 of $5, Anthropic $0.95 of about $6.
+
+| Task | Set | Jev acc / ECE | Cheap (Haiku) acc / ECE | Strong (Opus) acc / ECE | p95 ms (Jev vs Haiku) | $/1,000 (Jev vs Haiku) | Rule §5.4 |
+|---|---|---|---|---|---|---|---|
+| Intent | standard, 52 | 1.000 / 0.020 | 1.000 / 0.083 | 1.000 / 0.079 | 321 vs 1,558 | 0.017 vs 0.037 | recommended |
+| Intent | hard, 65 | 0.969 / 0.030 | 0.969 / 0.096 | 1.000 / 0.102 | 476 vs 1,576 | 0.018 vs 0.038 | recommended |
+| Judging | standard, 30 | 0.967 / 0.071 | 0.900 / 0.136 | 0.967 / 0.078 | 253 vs 2,254 | 0.013 vs 0.056 | recommended |
+| Safe/unsafe | standard, 40 | 0.875 / 0.077 | 0.900 / 0.058 | 0.900 / 0.071 | 242 vs 1,935 | 0.012 vs 0.040 | **not** recommended |
+| Safe/unsafe | hard, 40 | 0.950 / 0.062 | 1.000 / 0.048 | 0.875 / 0.065 | 228 vs 1,535 | 0.012 vs 0.042 | **not** recommended |
+
+**Verdict (the outcome row "meets it for some tasks only" of §1a):** Jev is recommended for intent routing and for judging, and for `confidence … else escalate` routing on intent and judging (accuracy at 80% coverage equals the strong model's). It is not recommended as the only safe/unsafe-command guardrail (below the cheap model on both sets; one confident miss, `> /etc/passwd` at 0.95). Caveats recorded with the verdict: small hand-written sets, differences of one or two cases are noise, intent saturated on the standard set, no Gemini contender, no 5-sample chat pass.
+
+A17 is satisfied by the harness run for 7.0; the Java port (7c-live) is owed.
+

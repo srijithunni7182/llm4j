@@ -73,6 +73,8 @@ The goal is first-hand evidence of how good Jev is for the two jobs this phase s
 | **Intent routing** | A new labelled set (target 300 utterances, 6–8 intents including `other`): clear cases, ambiguous cases, two-intent messages, typos and slang, a block in Indian languages and Hinglish (Sarvam is a first-class provider here), out-of-scope, and prompt-injection attempts | The routing use case, including the failure modes that matter |
 | **Safe/unsafe command** | A new labelled set (target 150 shell commands and tool calls, safe, risky, destructive, obfuscated) as yes/no and a 3-level score | The "guardrail for an agent" use Jev's makers describe; a high-stakes check where calibration matters |
 
+The 7.0 runs used two sets: the standard set above (52 intent, 40 command, 30 judging cases; a first run showed intent saturated at 100% for every contender) and a hard follow-up set (65 intent, 40 command cases) written and labelled beforehand; both are in `scripts/jev-spike/`. See [STUDY_REPORT.md](STUDY_REPORT.md). The 300-utterance target was not met; the Java study (7c-live) should grow the intent set.
+
 ### 5.3 What is measured
 
 | Metric | Why |
