@@ -31,9 +31,10 @@ class ClassifyCtkConformanceTest {
     private static final Path CTK = Path.of("..", "ctk").toAbsolutePath().normalize();
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    private static ScriptedClassifier fixture(JsonNode mock) {
-        ScriptedClassifier.Builder b = ScriptedClassifier.builder().calibrated(mock.get("calibrated").asBoolean()).usage(new ClassifyUsage(100, 10, 150, "jev", "jev-1.13.0"));
-        mock.get("answers").fields().forEachRemaining(e -> {
+    /** The classifier's behaviour is the fixture: for a given text, its answers (a label and probability, a yes, or a position). */
+    private static ScriptedClassifier fixture(JsonNode answers) {
+        ScriptedClassifier.Builder b = ScriptedClassifier.builder().calibrated(true).usage(new ClassifyUsage(100, 10, 150, "jev", "jev-1.13.0"));
+        answers.fields().forEachRemaining(e -> {
             JsonNode a = e.getValue();
             if (a.has("label")) b.choice(e.getKey(), a.get("label").asText(), a.get("probability").asDouble());
             else if (a.has("yes")) b.yesNo(e.getKey(), a.get("yes").asDouble());
@@ -45,16 +46,17 @@ class ClassifyCtkConformanceTest {
     @ParameterizedTest
     @ValueSource(strings = {"classify_basic", "classify_unsure"})
     void theTraceMatchesTheCanonicalOne(String scenario) throws Exception {
-        JsonNode mock = JSON.readTree(Files.readString(CTK.resolve("mocks/" + scenario + ".json")));
+        JsonNode mock = JSON.readTree(Files.readString(CTK.resolve("mocks/" + scenario + ".json"))).get("Intent");
+        String input = mock.fieldNames().next();
         LoomScript script = new LoomParser(new Lexer(Files.readString(CTK.resolve("scripts/" + scenario + ".loom"))).tokenize()).parseScript();
         HarnessExecutor executor = new HarnessExecutor(script, new ToolRegistry(), model -> { throw new IllegalStateException("the scenario uses no chat model"); });
-        ScriptedClassifier classifier = fixture(mock);
+        ScriptedClassifier classifier = fixture(JSON.readTree(mock.get(input).asText()));
         executor.setClassifierFactory((model, samples) -> classifier);
         executor.setEnvLookup(name -> name.equals("JEV_API_KEY") ? "test-key" : null);
         List<TraceEvent> events = new ArrayList<>();
         executor.addTraceListener(events::add);
         executor.initialize();
-        executor.executeWorkflow("main", new HashMap<>(Map.of("message", mock.get("input").asText())));
+        executor.executeWorkflow("main", new HashMap<>(Map.of("message", input)));
 
         List<Map<String, String>> actual = new ArrayList<>();
         for (TraceEvent ev : events) {

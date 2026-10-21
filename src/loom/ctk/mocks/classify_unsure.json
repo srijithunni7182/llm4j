@@ -1,8 +1,5 @@
 {
-  "input": "it is what it is",
-  "calibrated": true,
-  "answers": {
-    "kind": { "label": "complaint", "probability": 0.55 },
-    "urgent": { "yes": 0.2 }
+  "Intent": {
+    "it is what it is": "{\"kind\":{\"label\":\"complaint\",\"probability\":0.55},\"urgent\":{\"yes\":0.2}}"
   }
 }

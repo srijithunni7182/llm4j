@@ -28,8 +28,8 @@ test tasks implement. The Java runtime runs them in `TaskCtkConformanceTest` (mo
 An `intentclassify Classifier on text -> result` statement puts typed questions (`choose`, `ask`, `rate`) to a classifier backend and binds one label per
 question to the result. Its trace step has `"kind": "classify"`, the `classifier` name, the `outcome` (`ok`, or `unsure` when the confidence rule turned an
 answer into the reserved label `unsure`) and the bound `labels` as `question=label` pairs joined by commas, in declaration order. The step carries no state and
-no model text. `scripts/classify_basic.loom` and `scripts/classify_unsure.loom` are the canonical scenarios; `mocks/classify_*.json` gives the text the workflow
-is started with and what the backend answers (`label` and `probability` for a choice, `yes` for a yes/no, `position` for a score), so a runtime needs no network
+no model text. `scripts/classify_basic.loom` and `scripts/classify_unsure.loom` are the canonical scenarios; `mocks/classify_*.json` maps the classifier's name and the
+text the workflow is started with to what the backend answers (`label` and `probability` for a choice, `yes` for a yes/no, `position` for a score), so a runtime needs no network
 or key. The Java runtime runs them in `ClassifyCtkConformanceTest` (module `ai-agent4j-loom`).
 
 ## Interventions (steering, stopping, wrapping up)
