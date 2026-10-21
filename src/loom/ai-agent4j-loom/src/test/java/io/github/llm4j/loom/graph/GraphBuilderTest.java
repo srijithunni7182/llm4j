@@ -128,7 +128,7 @@ class GraphBuilderTest {
 
         Set<String> kinds = graph.nodes().stream().map(GraphNode::kind).collect(Collectors.toSet());
         assertThat(kinds).containsExactlyInAnyOrder(
-                "start", "end", "delegate", "task", "broadcast", "parallel", "human_prompt", "alt", "note", "observe",
+                "start", "end", "delegate", "task", "classify", "broadcast", "parallel", "human_prompt", "alt", "note", "observe",
                 "loop", "foreach", "guardrail", "decide", "call", "rewind", "checkpoint", "handoff");
     }
 

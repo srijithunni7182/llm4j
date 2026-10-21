@@ -62,6 +62,7 @@ public final class RulesCheck {
                 else if (s instanceof CallStmt c) n = c.getResultVariable();
                 else if (s instanceof DecideStmt d) n = d.getVariable();
                 else if (s instanceof RunStmt r) n = r.getVariableName();
+                else if (s instanceof io.github.llm4j.loom.ast.IntentClassifyStmt ic) n = ic.getVariableName();
                 else if (s instanceof ForEachStmt f) n = f.getItemName();
                 if (n != null && !n.isBlank() && !n.startsWith("{")) names.add(n);
             });

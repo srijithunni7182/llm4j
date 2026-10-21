@@ -56,6 +56,9 @@ final class ClassifierChecks {
     private static void declaration(ScriptValidator.Checker c, IntentClassifierDef def) {
         String who = "intentclassifier " + def.getName();
         if (def.getQuestions().isEmpty()) c.error(def.getLine(), who, "needs at least one question: choose kind: a | b, ask urgent: \"…\", or rate tone: low | high");
+        if (def.getPii() != null && !AgentGuard.PII_VALUES.contains(def.getPii())) {
+            c.error(def.getPiiLine(), who, "pii: use mask, block or warn; got " + def.getPii());
+        }
         Set<String> names = new HashSet<>();
         Map<String, String> produced = new LinkedHashMap<>();
         for (String reserved : IntentClassifierDef.RESERVED_NAMES) produced.put(reserved, "the answer's own field");

@@ -168,6 +168,7 @@ final class BudgetCoordinator {
         for (Statement st : statements) {
             if (st instanceof DelegateStmt d && (d.getBudget() != null || hasStatementBudget(d.getOnFailure()))) return true;
             if (st instanceof io.github.llm4j.loom.ast.RunStmt r && hasStatementBudget(r.getOnFailure())) return true;
+            if (st instanceof io.github.llm4j.loom.ast.IntentClassifyStmt ic && hasStatementBudget(ic.getOnFailure())) return true;
             if (st instanceof BroadcastStmt b && b.getBudget() != null) return true;
             if (st instanceof LoopStmt l && (l.getBudget() != null || hasStatementBudget(l.getBody())
                     || hasStatementBudget(l.getOnExhausted()))) return true;
@@ -193,6 +194,23 @@ final class BudgetCoordinator {
                 .prices(priceTable)
                 .model(model)
                 .perCallCap(perCall)
+                .build();
+        metered.addChargeListener((m, charge) -> {
+            String stepId = host.stepId();
+            spendLines.add(new SpendReport.Line(stepId, agentName, m, charge));
+            journalUsage(stepId, agentName, m, charge);
+        });
+        return metered;
+    }
+
+    /** Meters a classifier against run + agent + enclosing budgets, when the script uses budgets: a classify call is charged like a model call. */
+    io.github.llm4j.classify.Classifier meteredClassifier(io.github.llm4j.classify.Classifier classifier, String agentName, String model) {
+        if (!budgeting || classifier == null) return classifier;
+        io.github.llm4j.budget.BudgetedClassifier metered = io.github.llm4j.budget.BudgetedClassifier.builder(classifier)
+                .budgets(() -> budgetsFor(agentName))
+                .estimator(tokenEstimator)
+                .prices(priceTable)
+                .model(model)
                 .build();
         metered.addChargeListener((m, charge) -> {
             String stepId = host.stepId();

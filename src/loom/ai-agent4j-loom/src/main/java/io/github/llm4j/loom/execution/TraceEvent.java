@@ -59,6 +59,12 @@ public record TraceEvent(String type, String agent, String step, String text, Ma
     public static final String SCHEMA_VIOLATION = "schema_violation";
     /** A script's {@code halt} ended the run: {@code text} and {@code data.reason} say why. */
     public static final String HALT = "halt";
+    /**
+     * One {@code intentclassify} step: {@code classifier}, {@code step}, {@code backend}, {@code model}, {@code requested_model}, {@code calibrated}, {@code samples},
+     * {@code questions}, {@code input_tokens}, {@code output_tokens}, {@code duration_ms}, {@code attempts}, {@code outcome} (ok, unsure, asked or replayed), {@code labels}
+     * (the answer to each question), {@code confidence} (the lowest among the choose questions), {@code escalated}. Never the state or a rationale.
+     */
+    public static final String CLASSIFY = "classify";
     public static final String TASK_START = "task_start";
     public static final String TASK_END = "task_end";
     public static final String TASK_REPLAYED = "task_replayed";

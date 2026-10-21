@@ -34,9 +34,14 @@ final class NodeDescriber {
     private static final int LABEL_LIMIT = 60;
 
     private final Map<String, String> decisionLevels;
+    private final Map<String, GraphBuilder.ClassifierInfo> classifiers;
 
-    /** @param decisionLevels decision name to the level it starts at ({@code watch}, {@code suggest}, {@code act}) */
-    NodeDescriber(Map<String, String> decisionLevels) {
+    /**
+     * @param decisionLevels decision name to the level it starts at ({@code watch}, {@code suggest}, {@code act})
+     * @param classifiers classifier name to its declaration and backend
+     */
+    NodeDescriber(Map<String, String> decisionLevels, Map<String, GraphBuilder.ClassifierInfo> classifiers) {
+        this.classifiers = classifiers;
         this.decisionLevels = decisionLevels;
     }
 
@@ -52,6 +57,9 @@ final class NodeDescriber {
         }
         if (st instanceof RunStmt r) {
             return run(r);
+        }
+        if (st instanceof io.github.llm4j.loom.ast.IntentClassifyStmt c) {
+            return classify(c);
         }
         if (st instanceof HandoffStmt h) {
             return new Described(Kinds.HANDOFF, "handoff " + h.getTargetAgent())
@@ -172,6 +180,33 @@ final class NodeDescriber {
                         .positive("retry", r.getRetryCount())
                         .positive("backoffMs", r.getBackoffMillis())
                         .positive("timeoutMs", r.getTimeoutMillis()));
+    }
+
+    private Described classify(io.github.llm4j.loom.ast.IntentClassifyStmt c) {
+        Attrs attrs = Attrs.create().text("classifier", c.getClassifier()).text("variable", c.getVariableName());
+        GraphBuilder.ClassifierInfo info = classifiers.get(c.getClassifier());
+        if (info != null) {
+            io.github.llm4j.loom.ast.IntentClassifierDef def = info.def();
+            List<String> labels = new ArrayList<>();
+            for (io.github.llm4j.loom.ast.IntentClassifierDef.Question q : def.getQuestions()) {
+                if (q.kind() != io.github.llm4j.loom.ast.IntentClassifierDef.Kind.ASK) labels.add(q.name() + ": " + String.join(" | ", q.labels()));
+            }
+            io.github.llm4j.loom.ast.IntentClassifierDef.Confidence rule = def.getConfidence();
+            attrs.text("model", def.getModel())
+                    .text("backend", info.jev() ? "jev" : "chat")
+                    .flag("calibrated", info.jev())
+                    .flag("uncalibrated", !info.jev())
+                    .positive("questions", def.getQuestions().size())
+                    .positive("samples", def.getSamples() > 1 ? def.getSamples() : 0)
+                    .list("labels", labels)
+                    .text("confidence", rule == null ? null : "at least " + rule.threshold() + " else " + switch (rule.action()) {
+                        case ESCALATE -> "escalate";
+                        case ASK_PERSON -> "ask person";
+                        case FAIL -> "fail";
+                    });
+        }
+        attrs.positive("retry", c.getRetryCount()).positive("backoffMs", c.getBackoffMillis()).positive("timeoutMs", c.getTimeoutMillis());
+        return new Described(Kinds.CLASSIFY, "classify " + c.getClassifier()).attrs(attrs);
     }
 
     private Described parallel(ParallelStmt p) {

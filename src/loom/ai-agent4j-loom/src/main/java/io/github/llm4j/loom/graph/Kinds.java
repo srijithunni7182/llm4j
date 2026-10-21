@@ -10,6 +10,8 @@ public final class Kinds {
     public static final String DELEGATE = "delegate";
     /** A {@code run} statement: a deterministic task, plain code with no model. */
     public static final String TASK = "task";
+    /** An {@code intentclassify} statement: a typed question put to a classifier backend (a chat model or Jev), answered in one call. */
+    public static final String CLASSIFY = "classify";
     public static final String HANDOFF = "handoff";
     public static final String BROADCAST = "broadcast";
     public static final String PARALLEL = "parallel";
@@ -37,7 +39,7 @@ public final class Kinds {
     public static final String UNKNOWN = "unknown";
 
     public static final List<String> ALL = List.of(
-            START, END, DELEGATE, TASK, HANDOFF, BROADCAST, PARALLEL, ALT, LOOP, FOREACH, HUMAN_PROMPT,
+            START, END, DELEGATE, TASK, CLASSIFY, HANDOFF, BROADCAST, PARALLEL, ALT, LOOP, FOREACH, HUMAN_PROMPT,
             CHECKPOINT, REWIND, CALL, GUARDRAIL, DECIDE, OBSERVE, NOTE, HALT, SET, RETURN, SLEEP, OUTCOME, UNKNOWN);
 
     private Kinds() {

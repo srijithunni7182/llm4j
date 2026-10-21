@@ -34,7 +34,8 @@ public final class GraphService {
         }
         List<Path> runOrder = new ArrayList<>(closure.scripts().keySet());
 
-        GraphBuilder builder = new GraphBuilder(decisionLevels(closure, runOrder));
+        GraphBuilder builder = new GraphBuilder(decisionLevels(closure, runOrder),
+                GraphBuilder.classifiersOf(runOrder.stream().map(file -> closure.scripts().get(file)).toList()));
         List<WorkflowGraph> graphs = new ArrayList<>();
         Map<String, AgentCatalog.Located> agents = new LinkedHashMap<>();
         for (Path file : runOrder) {

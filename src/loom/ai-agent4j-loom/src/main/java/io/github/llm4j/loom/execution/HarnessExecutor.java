@@ -290,6 +290,7 @@ public class HarnessExecutor implements LoomEngine {
 
     private io.github.llm4j.agent.task.TaskRegistry taskRegistry;
     private final TaskRunner taskRunner = new TaskRunner(this);
+    private final ClassifyRunner classifyRunner = new ClassifyRunner(this);
 
     /**
      * The tasks {@code run} statements can use. Default: every task the class path declares as a service
@@ -1618,6 +1619,8 @@ public class HarnessExecutor implements LoomEngine {
             executeSleep(sleep);
         } else if (stmt instanceof io.github.llm4j.loom.ast.RunStmt run) {
             taskRunner.run(run);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.IntentClassifyStmt classify) {
+            classifyRunner.run(classify);
         } else if (stmt instanceof DelegateStmt del) {
             delegates.execute(del);
         } else if (stmt instanceof CallStmt call) {
@@ -2001,6 +2004,52 @@ public class HarnessExecutor implements LoomEngine {
      * The client a task gets from {@code ctx.llm()}: the model the {@code run} statement named, metered like an agent's. Its spend is
      * reported under {@code task <Name>}, and counts against the run budget and the budgets around the statement.
      */
+    // ── Classifiers ─────────────────────────────────────────────────────────────────────────
+
+    private ClassifierFactory classifierFactory;
+
+    /** Replaces how {@code intentclassify} gets its classifier (a host's own backend, or a scripted one in a test). Every classifier it makes is metered like a model call. */
+    public void setClassifierFactory(ClassifierFactory factory) {
+        this.classifierFactory = factory;
+    }
+
+    /** The classifier an {@code intentclassifier} asks, metered against the budgets when the script has any. */
+    io.github.llm4j.classify.Classifier classifierFor(io.github.llm4j.loom.ast.IntentClassifierDef def) {
+        String who = "intentclassify " + def.getName();
+        if (classifierFactory != null) return budgets.meteredClassifier(classifierFactory.create(def.getModel(), def.getSamples()), who, def.getModel());
+        String model = def.getModel();
+        io.github.llm4j.loom.ast.ProviderDef declared = declaredProvider(model);
+        boolean builtInJev = model.toLowerCase(java.util.Locale.ROOT).startsWith("jev/") || model.toLowerCase(java.util.Locale.ROOT).startsWith("jev-");
+        if ((declared != null && "jev".equals(declared.getKind())) || (declared == null && builtInJev)) {
+            return budgets.meteredClassifier(jevClassifier(declared, model), who, model);
+        }
+        // a chat model: each sample is a model call, metered as one
+        io.github.llm4j.classify.LlmClassifier.Builder chat = io.github.llm4j.classify.LlmClassifier.builder(budgets.metered(clientFor(model), who, null, model))
+                .samples(def.getSamples());
+        return chat.build();
+    }
+
+    private io.github.llm4j.classify.Classifier jevClassifier(io.github.llm4j.loom.ast.ProviderDef declared, String model) {
+        io.github.llm4j.config.LLMConfig.Builder config = io.github.llm4j.config.LLMConfig.builder();
+        if (declared != null) {
+            String baseUrl = option(declared, "base_url");
+            if (baseUrl != null) config.baseUrl(baseUrl);
+            io.github.llm4j.loom.ast.ToolDef.OptionValue keyOption = declared.getOptions().get("api_key");
+            io.github.llm4j.secret.SecretRef ref = storedKey(keyOption);
+            if (ref != null) config.apiKey(ref);
+            else if (keyOption != null) config.apiKey(option(declared, "api_key"));
+            config.defaultModel(model.substring(declared.getName().length() + 1));
+        } else {
+            String key = envValue("JEV_API_KEY");
+            if (key == null || key.isBlank()) throw new IllegalStateException("JEV_API_KEY (an environment variable or a secret) is required for model: " + model);
+            config.apiKey(key);
+            String baseUrl = envValue("JEV_BASE_URL");
+            if (baseUrl != null && !baseUrl.isBlank()) config.baseUrl(baseUrl);
+            config.defaultModel(model.substring(model.indexOf('/') + 1));
+        }
+        return io.github.llm4j.classify.Classifier.using(new io.github.llm4j.provider.typesafe.JevProvider(config.build()));
+    }
+
     io.github.llm4j.LLMClient clientForTask(String taskName, String model) {
         return budgets.metered(clientFor(model), "task " + taskName, null, model);
     }

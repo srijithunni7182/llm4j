@@ -74,6 +74,18 @@ public final class ScriptDrift {
             r.getArgs().forEach(a -> b.append(a.name()).append('=').append(a.kind()).append(':').append(a.text()).append(','));
             return b.append(')').toString();
         }
+        if (s instanceof io.github.llm4j.loom.ast.IntentClassifyStmt ic) {
+            var def = script.findIntentClassifier(ic.getClassifier());
+            StringBuilder b = new StringBuilder("classify " + ic.getClassifier());
+            if (def != null) {
+                b.append('@').append(def.getModel()).append('x').append(def.getSamples()).append('[');
+                def.getQuestions().forEach(q -> b.append(q.kind()).append(':').append(q.name()).append(q.labels()).append(','));
+                b.append(']');
+                if (def.getConfidence() != null) b.append(def.getConfidence());
+            }
+            ic.getInputs().forEach(a -> b.append(a.name()).append('=').append(a.kind()).append(':').append(a.text()).append(','));
+            return b.toString();
+        }
         if (s instanceof io.github.llm4j.loom.ast.HumanPromptStmt h) return h.getMessage();
         if (s instanceof io.github.llm4j.loom.ast.NoteStmt n) return n.getMessage();
         if (s instanceof io.github.llm4j.loom.ast.SleepStmt z) return "sleep " + z.getText();

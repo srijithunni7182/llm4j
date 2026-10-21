@@ -128,3 +128,11 @@ test('a sleep is drawn with the clock glyph and its duration, not as an unknown 
   assert.ok(!svg.includes('M8 5.5v3M8 10.6v.2'), 'the unknown glyph is not');
   assert.deepEqual(G.chips(g.nodes[1]), [], 'a sleep has no chips');
 });
+
+test('a classify node says whether its answers are calibrated', () => {
+  const jev = node('classify', { backend: 'jev', calibrated: true, samples: 3, variable: 'intent' });
+  assert.deepEqual(texts(jev), ['Jev · calibrated', '3 samples', '→ intent']);
+  const chat = node('classify', { backend: 'chat', uncalibrated: true });
+  assert.deepEqual(texts(chat), ['chat model · uncalibrated']);
+  assert.equal(G.chips(chat)[0].v, 'warn');
+});

@@ -54,6 +54,7 @@ public final class SecurityAudit {
         actingAsInvoker(script, findings);
         supplyChain(script, findings);
         providerEndpoints(script, findings);
+        classifiers(script, findings);
         if (script.getBudget() == null) {
             findings.add(new Finding("LA03", Severity.MEDIUM, List.of(Owasp.LLM10), "script", 0, "No run budget",
                     "Nothing caps what one run may spend: a loop or a manipulated agent can keep calling models.",
@@ -189,6 +190,63 @@ public final class SecurityAudit {
                         "Add allow_paths: with the paths the workflow needs."));
             }
         }
+    }
+
+    /**
+     * A classifier on a hosted backend sends the state of its {@code intentclassify} steps off this machine, like any hosted model. Listed once per classifier,
+     * with where it goes, which fields go, and (for a chat model that gates on its own confidence) that its confidence is uncalibrated.
+     */
+    private static void classifiers(LoomScript script, List<Finding> findings) {
+        for (io.github.llm4j.loom.ast.IntentClassifierDef def : script.getIntentClassifiers()) {
+            if (def.getModel() == null) continue;
+            String service = hostedService(script, def.getModel());
+            if (service == null) continue; // on this machine: nothing leaves
+            java.util.Set<String> fields = new java.util.LinkedHashSet<>();
+            StatementWalker.any(script, st -> {
+                if (st instanceof io.github.llm4j.loom.ast.IntentClassifyStmt c && c.getClassifier().equals(def.getName())) {
+                    c.getInputs().forEach(a -> fields.add(a.name().isEmpty() ? a.text() : a.name()));
+                }
+                return false;
+            });
+            boolean jev = isJev(script, def.getModel());
+            boolean masked = "mask".equals(def.getPii());
+            boolean uncalibrated = !jev && def.getConfidence() != null;
+            findings.add(new Finding("LA19", Severity.INFO, List.of(Owasp.LLM02), "intentclassifier " + def.getName(), def.getLine(), "A classifier sends its state to a hosted service",
+                    def.getName() + " sends the state of its intentclassify steps" + (fields.isEmpty() ? "" : " (" + String.join(", ", fields) + ")") + " to " + service
+                            + ", so that text leaves this machine" + (masked ? "; personal data is masked first (pii: mask)." : ".")
+                            + (uncalibrated ? " Its confidence is the model's own report (uncalibrated), so a confidence rule is a ranking, not a measured accuracy." : ""),
+                    def.getPii() == null ? "Add pii: mask (or pii: block where personal data must never leave) to " + def.getName() + ", and treat the service as a processor of that text."
+                            : "Keep pii: " + def.getPii() + " set, and treat the service as a processor of that text."));
+        }
+    }
+
+    /** The hosted service a classifier model goes to, as a sentence part, or null when it stays on this machine. */
+    private static String hostedService(LoomScript script, String model) {
+        String lower = model.toLowerCase(java.util.Locale.ROOT);
+        int slash = model.indexOf('/');
+        io.github.llm4j.loom.ast.ProviderDef declared = slash > 0
+                ? script.getProviders().stream().filter(p -> p.getName().equals(model.substring(0, slash))).findFirst().orElse(null) : null;
+        if (declared != null) {
+            String url = Capabilities.opt(declared, "base_url");
+            String host = url == null ? null : io.github.llm4j.secret.SecretMetadata.hostOf(url);
+            if (host != null && (host.equals("localhost") || host.equals("127.0.0.1") || host.equals("::1"))) return null;
+            if ("ollama".equals(declared.getKind()) && url == null) return null;
+            String kind = "jev".equals(declared.getKind()) ? "TypeSafe AI's Jev API" : "the " + declared.getKind() + " API";
+            return kind + " at " + (host != null ? host : "jev".equals(declared.getKind()) ? "api.typesafe.ai" : "its default address") + " (provider " + declared.getName() + ")";
+        }
+        if (lower.startsWith("jev/") || lower.startsWith("jev-")) return "TypeSafe AI's Jev API (api.typesafe.ai)";
+        if (lower.startsWith("ollama/") || lower.contains("llama") || lower.contains("gemma") || lower.contains("mistral")) return null;
+        if (lower.contains("gemini")) return "Google (Gemini API)";
+        if (lower.startsWith("anthropic/") || lower.startsWith("claude-")) return "Anthropic (Claude API)";
+        if (lower.startsWith("sarvam/")) return "Sarvam AI";
+        return "the provider of " + model;
+    }
+
+    private static boolean isJev(LoomScript script, String model) {
+        String lower = model.toLowerCase(java.util.Locale.ROOT);
+        if (lower.startsWith("jev/") || lower.startsWith("jev-")) return true;
+        int slash = model.indexOf('/');
+        return slash > 0 && script.getProviders().stream().anyMatch(p -> p.getName().equals(model.substring(0, slash)) && "jev".equals(p.getKind()));
     }
 
     /** A provider that sends its key to an address the script chooses: whoever controls that address receives the key. */

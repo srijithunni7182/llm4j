@@ -385,6 +385,8 @@ public class ScriptValidator {
                 walk(d.getOnFailure(), c);
             } else if (st instanceof RunStmt r) {
                 walk(r.getOnFailure(), c);
+            } else if (st instanceof io.github.llm4j.loom.ast.IntentClassifyStmt ic) {
+                walk(ic.getOnFailure(), c);
             } else if (st instanceof LoopStmt l) {
                 walk(l.getBody(), c);
                 walk(l.getOnExhausted(), c);

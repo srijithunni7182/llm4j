@@ -163,6 +163,12 @@ class ClassifierChecksTest {
         assertTrue(text(errors("intentclassifier C { model: \"m\" ask a: \"x?\" ask a_probability: \"y?\" }\n")).contains("a_probability"));
     }
 
+    @Test
+    void piiTakesMaskBlockOrWarn() {
+        assertEquals(List.of(), errors("intentclassifier C { model: \"m\" pii: mask choose k: a | b }\n"));
+        assertTrue(text(errors("intentclassifier C { model: \"m\" pii: scrub choose k: a | b }\n")).contains("pii: use mask, block or warn"));
+    }
+
     // ---- the confidence rule
 
     @Test

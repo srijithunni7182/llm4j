@@ -39,6 +39,7 @@ class ParserLinesTest {
     private static final Map<Class<?>, List<String>> KEYWORDS = Map.ofEntries(
             Map.entry(DelegateStmt.class, List.of("delegate")),
             Map.entry(RunStmt.class, List.of("run")),
+            Map.entry(io.github.llm4j.loom.ast.IntentClassifyStmt.class, List.of("intentclassify")),
             Map.entry(BroadcastStmt.class, List.of("broadcast")),
             Map.entry(ParallelStmt.class, List.of("parallel")),
             Map.entry(HumanPromptStmt.class, List.of("human_prompt")),

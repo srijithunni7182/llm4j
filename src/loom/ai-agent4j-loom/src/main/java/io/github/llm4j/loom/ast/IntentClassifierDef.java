@@ -46,6 +46,8 @@ public class IntentClassifierDef implements Node {
     private int samplesLine;
     private final List<Question> questions = new ArrayList<>();
     private Confidence confidence;
+    private String pii;
+    private int piiLine;
 
     public IntentClassifierDef(String name) {
         this.name = name;
@@ -62,6 +64,11 @@ public class IntentClassifierDef implements Node {
     public void setSamples(int samples, int line) { this.samples = samples; this.samplesLine = line; }
     public List<Question> getQuestions() { return questions; }
     public Confidence getConfidence() { return confidence; }
+
+    /** {@code pii: mask | block | warn}: what to do with personal data in the state before it leaves, or null for nothing. */
+    public String getPii() { return pii; }
+    public int getPiiLine() { return piiLine; }
+    public void setPii(String pii, int line) { this.pii = pii; this.piiLine = line; }
     public void setConfidence(Confidence confidence) { this.confidence = confidence; }
 
     /** The question's instructions as written, or a sentence built from its name. */

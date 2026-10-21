@@ -15,9 +15,19 @@ decision Refund {
     }
 }
 
+provider Scorer { use: jev api_key: env.JEV_API_KEY }
+
+intentclassifier Intent {
+    model: "Scorer/jev-latest"
+    choose kind: refund | order_status | complaint | other
+    ask urgent: "Is the customer threatening to leave?"
+    confidence at least 0.8 else escalate
+}
+
 workflow Everything(topic) {
     checkpoint collected starting with feedback = "none", round = "1"
     delegate "Research {topic}" to Researcher -> research retry 3 backoff 2s timeout 90s budget 5000 tokens
+    intentclassify Intent on topic -> intent retry 2 timeout 30s
     run RefundPolicy(amount = 40) -> verdict retry 2 timeout 30s
     broadcast "Review {research}" to [Critic, Copywriter] -> reviews budget 3000 tokens
     parallel {

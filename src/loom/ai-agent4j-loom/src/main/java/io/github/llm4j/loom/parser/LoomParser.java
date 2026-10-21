@@ -1781,7 +1781,7 @@ public class LoomParser {
         return provider;
     }
 
-    private static final java.util.List<String> CLASSIFIER_SETTINGS = java.util.List.of("model", "samples", "choose", "ask", "rate", "confidence");
+    private static final java.util.List<String> CLASSIFIER_SETTINGS = java.util.List.of("model", "samples", "pii", "choose", "ask", "rate", "confidence");
 
     /**
      * {@code intentclassifier Name { model: "…"  samples: 3  choose kind: a | b  ask urgent: "…"  rate tone: low | high  confidence at least 0.8 else escalate }},
@@ -1807,6 +1807,11 @@ public class LoomParser {
                     double v = Double.parseDouble(n.getValue());
                     if (v < 1 || v != Math.floor(v)) throw error(n, "samples is a whole number of calls, at least 1; got " + n.getValue() + ".");
                     def.setSamples((int) v, key.getLine());
+                }
+                case "pii" -> {
+                    if (def.getPii() != null) throw error(key, "pii is given twice in intentclassifier " + name.getValue() + ".");
+                    consume(TokenType.COLON, "Expect ':' after pii.");
+                    def.setPii(word("Expect mask, block or warn after pii:.").getValue(), key.getLine());
                 }
                 case "choose", "rate" -> def.getQuestions().add(parseClassifierChoice(key, "rate".equals(key.getValue())));
                 case "ask" -> def.getQuestions().add(parseClassifierAsk(key));

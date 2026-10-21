@@ -63,7 +63,7 @@ class ReportGraphTraceTest {
                 .path("workflow").path("graph").path("nodes");
         List<String> kinds = new java.util.ArrayList<>();
         nodes.forEach(n -> kinds.add(n.path("kind").asText()));
-        assertThat(kinds).contains("foreach", "guardrail", "call", "rewind", "decide", "broadcast", "observe", "note")
+        assertThat(kinds).contains("foreach", "guardrail", "call", "rewind", "decide", "broadcast", "observe", "note", "classify")
                 .doesNotContain("statement");
         JsonNode research = null;
         for (JsonNode n : nodes) {

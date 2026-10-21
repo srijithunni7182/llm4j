@@ -100,6 +100,12 @@ class IntentClassifierParserTest {
     }
 
     @Test
+    void piiIsReadAndAbsentByDefault() {
+        assertEquals("mask", parse("intentclassifier C { model: \"m\" pii: mask choose k: a | b }").getIntentClassifiers().get(0).getPii());
+        assertNull(parse("intentclassifier C { model: \"m\" choose k: a | b }").getIntentClassifiers().get(0).getPii());
+    }
+
+    @Test
     void samplesAreRead() {
         assertEquals(5, parse("intentclassifier C { model: \"m\" samples: 5 choose k: a | b }").getIntentClassifiers().get(0).getSamples());
     }
@@ -194,7 +200,7 @@ class IntentClassifierParserTest {
         String m = error("intentclassifier C { model: \"m\" chose k: a | b }");
 
         assertTrue(m.contains("chose"), m);
-        assertTrue(m.contains("choose") && m.contains("ask") && m.contains("rate") && m.contains("confidence") && m.contains("samples"), m);
+        assertTrue(m.contains("choose") && m.contains("ask") && m.contains("rate") && m.contains("confidence") && m.contains("samples") && m.contains("pii"), m);
         assertTrue(m.contains("Did you mean choose"), m);
     }
 

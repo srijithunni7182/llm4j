@@ -37,9 +37,45 @@ public final class GraphBuilder {
 
     private final NodeDescriber describer;
 
+    /** What the graph shows of a declared classifier: the declaration, and whether its backend is Jev (calibrated) or a chat model. */
+    public record ClassifierInfo(io.github.llm4j.loom.ast.IntentClassifierDef def, boolean jev) {
+    }
+
     /** @param decisionLevels decision name to the level it starts at, shown on {@code decide} nodes */
     public GraphBuilder(Map<String, String> decisionLevels) {
-        this.describer = new NodeDescriber(decisionLevels);
+        this(decisionLevels, Map.of());
+    }
+
+    /**
+     * @param decisionLevels decision name to the level it starts at, shown on {@code decide} nodes
+     * @param classifiers classifier name to its declaration, so an {@code intentclassify} node can show its backend and labels
+     */
+    public GraphBuilder(Map<String, String> decisionLevels, Map<String, ClassifierInfo> classifiers) {
+        this.describer = new NodeDescriber(decisionLevels, classifiers);
+    }
+
+    /** The classifiers a script declares, with whether each is served by Jev (the built-in {@code jev/…} names, or a provider declared with {@code use: jev}). */
+    public static Map<String, ClassifierInfo> classifiersOf(io.github.llm4j.loom.ast.LoomScript script) {
+        return classifiersOf(List.of(script));
+    }
+
+    /** As {@link #classifiersOf(io.github.llm4j.loom.ast.LoomScript)}, over several scripts (an entry file and what it imports). */
+    public static Map<String, ClassifierInfo> classifiersOf(List<io.github.llm4j.loom.ast.LoomScript> scripts) {
+        java.util.Set<String> jevProviders = new java.util.HashSet<>();
+        for (io.github.llm4j.loom.ast.LoomScript s : scripts) {
+            for (io.github.llm4j.loom.ast.ProviderDef p : s.getProviders()) if ("jev".equals(p.getKind())) jevProviders.add(p.getName());
+        }
+        Map<String, ClassifierInfo> out = new java.util.LinkedHashMap<>();
+        for (io.github.llm4j.loom.ast.LoomScript s : scripts) {
+            for (io.github.llm4j.loom.ast.IntentClassifierDef def : s.getIntentClassifiers()) {
+                String model = def.getModel() == null ? "" : def.getModel();
+                String lower = model.toLowerCase(java.util.Locale.ROOT);
+                int slash = model.indexOf('/');
+                boolean jev = lower.startsWith("jev/") || lower.startsWith("jev-") || (slash > 0 && jevProviders.contains(model.substring(0, slash)));
+                out.putIfAbsent(def.getName(), new ClassifierInfo(def, jev));
+            }
+        }
+        return out;
     }
 
     public GraphBuilder() {
@@ -144,6 +180,9 @@ public final class GraphBuilder {
             } else if (statement instanceof RunStmt run) {
                 exits.add(new Exit(id, null));
                 defer(exits, id, "failure", "failure", run.getOnFailure());
+            } else if (statement instanceof io.github.llm4j.loom.ast.IntentClassifyStmt classify) {
+                exits.add(new Exit(id, null));
+                defer(exits, id, "failure", "failure", classify.getOnFailure());
             } else if (statement instanceof CheckpointStmt checkpoint) {
                 checkpoints.putIfAbsent(checkpoint.getName(), id);
                 exits.add(new Exit(id, null));
