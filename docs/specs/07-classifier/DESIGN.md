@@ -289,7 +289,8 @@ Classifier judge = Classifier.using(new JevProvider(cfg));        // or Classifi
 assertThat(result).is(llmJudged("Correctness")
         .criteria("The answer states the refund window as 30 days")
         .classifier(judge)                  // new: instead of .judge(LLMClient)
-        .threshold(0.7));
+        .threshold(0.7)
+        .build());
 ```
 
 `.judge(LLMClient)` keeps working unchanged. `.classifier(Classifier)` selects the classifier path.
@@ -301,8 +302,8 @@ A judgement becomes a classification, so the judge's job fits the primitive:
 | Judge feature | As a classifier question |
 |---|---|
 | A single criterion | one `YesNo`: "Does the output satisfy: <criterion>?" → score = P(yes) |
-| A graded criterion (the existing 0–1 rubric presets) | one `Score` on a 5-point scale, `position` is the score |
-| `dimensions` (several named sub-criteria) | one question per dimension, all in one call |
+| A graded criterion | `.graded(true)`: one `Score` on a 5-point scale (fails the criterion … fully satisfies), `position` is the score. The rubric *presets* (`LlmJudgePresets`) keep using a chat judge; classifier-backed presets are not in this phase |
+| `dimensions` | **unchanged from the chat judge**: dimensions are tags the one verdict is filed under (the report's quality rings), not sub-criteria, so the classifier path asks **one** question and files its score under every dimension (7b found that "one question per dimension" would change what a dimension means) |
 | `samples(n)` | n calls, averaged as today (a calibrated backend needs fewer; default stays 1) |
 | `cache(...)` | the key is the existing key with the backend identifier and the question set; a rerun replays |
 | `includeTrajectory`, `retrievalContext`, `expectedOutput`, `context` | part of the **state**, as delimited fields, as now |
@@ -314,9 +315,10 @@ phase delivers the single-criterion and dimensions paths (§9, Q5).
 
 ### 7.3 Making the choice measurable
 
-`CalibrationRunner` already compares a judge against human-labelled cases. It gains a run mode that takes a `Classifier` so a team can compare
-`Classifier.using(chatClient)` and `Classifier.using(jev)` on **their** criteria and datasets: agreement with the labels, a calibration curve for
-the calibrated backend, cost and latency per judgement. We recommend Jev for judging only where this measurement shows it holds up on the
+`CalibrationRunner` is a test-scope tool wired to live Anthropic keys and the preset judges, so a team cannot use it. The comparison therefore ships as a public eval4j class,
+`io.github.llm4j.eval.compare.ClassifierComparison` (7b), which does what the 7.0 study did on any `Classifier`: it takes labelled cases and named contenders so a team can compare
+`Classifier.using(chatClient)` and `Classifier.using(jev)` on **their** criteria and datasets: agreement with the labels, calibration (ECE, Brier, the reliability curve),
+the accuracy kept when acting only on confident answers, flip rate, cost and latency per judgement. We recommend Jev for judging only where this measurement shows it holds up on the
 team's own cases. This phase ships with a **live head-to-head study** (TEST_STRATEGY §5) that runs that comparison on labelled datasets with
 the real Jev API against real chat models, so the recommendations in our guide and wiki rest on measured results, not on vendor claims.
 

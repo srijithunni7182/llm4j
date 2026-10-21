@@ -18,9 +18,11 @@ import java.util.OptionalDouble;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * A {@link Classifier} that answers from a script and never calls a model, so a judge, a Loom workflow or an evaluation can be tested for
- * free and exactly. It answers each question by name; a question it was not scripted for is an error, so a test cannot pass by accident. It
- * checks what it returns the way every real backend does: a label that the request did not offer is a {@link ClassificationException}.
+ * A {@link Classifier} that answers from a script and never calls a model, so a judge, a Loom
+ * workflow or an evaluation can be tested for free and exactly. It answers each question by name; a
+ * question it was not scripted for is an error, so a test cannot pass by accident. It checks what
+ * it returns the way every real backend does: a label that the request did not offer is a {@link
+ * ClassificationException}.
  *
  * <pre>{@code
  * Classifier c = ScriptedClassifier.builder()
@@ -29,8 +31,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *         .build();
  * }</pre>
  *
- * <p>Several calls can be scripted with {@link Builder#next()}; calls past the last script repeat it. Every request is kept in
- * {@link #requests()}. Thread-safe.
+ * <p>Several calls can be scripted with {@link Builder#next()}; calls past the last script repeat
+ * it. Every request is kept in {@link #requests()}. Thread-safe.
  */
 public final class ScriptedClassifier implements Classifier {
 
@@ -68,7 +70,11 @@ public final class ScriptedClassifier implements Classifier {
         Map<String, Answer> answers = new LinkedHashMap<>();
         for (Question q : request.questions()) {
             Scripted s = script.get(q.name());
-            if (s == null) throw new IllegalStateException("ScriptedClassifier has no scripted answer for question '" + q.name() + "'");
+            if (s == null)
+                throw new IllegalStateException(
+                        "ScriptedClassifier has no scripted answer for question '"
+                                + q.name()
+                                + "'");
             answers.put(q.name(), answer(q, s));
         }
         return new ClassifyResult(answers, usage);
@@ -78,7 +84,13 @@ public final class ScriptedClassifier implements Classifier {
         if (q instanceof Question.Choice c) {
             if (!s.kind().equals("choice")) throw wrong(q, "a choice");
             if (!c.labels().contains(s.label())) {
-                throw new ClassificationException("question '" + q.name() + "' was scripted with '" + s.label() + "', which is not one of " + c.labels());
+                throw new ClassificationException(
+                        "question '"
+                                + q.name()
+                                + "' was scripted with '"
+                                + s.label()
+                                + "', which is not one of "
+                                + c.labels());
             }
             return new ChoiceAnswer(s.label(), Map.of(), s.confidence(), calibrated);
         } else if (q instanceof Question.YesNo) {
@@ -87,17 +99,24 @@ public final class ScriptedClassifier implements Classifier {
         }
         if (!s.kind().equals("score")) throw wrong(q, "a score");
         Question.Score sc = (Question.Score) q;
-        return new ScoreAnswer(s.number(), sc.scale().nearest(s.number()), Map.of(), s.confidence(), calibrated);
+        return new ScoreAnswer(
+                s.number(), sc.scale().nearest(s.number()), Map.of(), s.confidence(), calibrated);
     }
 
     private static ClassificationException wrong(Question q, String expected) {
-        return new ClassificationException("question '" + q.name() + "' was scripted as the wrong kind; it needs " + expected + " answer");
+        return new ClassificationException(
+                "question '"
+                        + q.name()
+                        + "' was scripted as the wrong kind; it needs "
+                        + expected
+                        + " answer");
     }
 
     /** Scripts a {@link ScriptedClassifier}. */
     public static final class Builder {
 
-        private final List<Map<String, Scripted>> calls = new ArrayList<>(List.of(new LinkedHashMap<>()));
+        private final List<Map<String, Scripted>> calls =
+                new ArrayList<>(List.of(new LinkedHashMap<>()));
         private final List<RuntimeException> failures = new ArrayList<>();
         private boolean calibrated;
         private ClassifyUsage usage = new ClassifyUsage(0, 0, 0, "scripted", "scripted");
@@ -115,13 +134,17 @@ public final class ScriptedClassifier implements Classifier {
         }
 
         public Builder choice(String question, String label, double confidence) {
-            current().put(question, new Scripted("choice", label, 0, OptionalDouble.of(confidence)));
+            current()
+                    .put(question, new Scripted("choice", label, 0, OptionalDouble.of(confidence)));
             return this;
         }
 
         /** Answers a yes/no question with this probability of yes. */
         public Builder yesNo(String question, double probability) {
-            current().put(question, new Scripted("yesno", null, probability, OptionalDouble.empty()));
+            current()
+                    .put(
+                            question,
+                            new Scripted("yesno", null, probability, OptionalDouble.empty()));
             return this;
         }
 
@@ -144,7 +167,10 @@ public final class ScriptedClassifier implements Classifier {
             return this;
         }
 
-        /** Marks the answers calibrated, to test code that treats a calibrated backend differently. Default false. */
+        /**
+         * Marks the answers calibrated, to test code that treats a calibrated backend differently.
+         * Default false.
+         */
         public Builder calibrated(boolean calibrated) {
             this.calibrated = calibrated;
             return this;

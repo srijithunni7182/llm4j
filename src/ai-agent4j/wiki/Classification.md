@@ -5,8 +5,9 @@ Two jobs in an agent system need an answer from a fixed set: **routing** ("what 
 A **classifier** asks the question as a typed question and returns a typed answer: a label from your list, a probability, a
 point on a scale. You never parse text, and a result can never contain a label you did not offer.
 
-> **Status: the contract and the chat-model backend work (this page, sections 1 to 6). Coming in the same release, and not described
-> here as working until they are: classifier-backed judges in eval4j, the Jev provider, and the Loom `intentclassify` statement.**
+> **Status: the contract and the chat-model backend work (this page, sections 1 to 6), and so do classifier-backed judges and a comparison
+> tool in eval4j (section 7). Coming in the same release, and not described here as working until they are: the Jev provider and the Loom
+> `intentclassify` statement.**
 > The design is in [`docs/specs/07-classifier`](../../../docs/specs/07-classifier/DESIGN.md).
 
 Everything here is opt-in and changes nothing for code that does not use it.
@@ -171,7 +172,7 @@ throws does not change the outcome of the call.
 
 | Piece | Where | Status |
 |---|---|---|
-| `llmJudged(...).classifier(...)`, a calibration mode for classifiers | eval4j | coming (same release) |
+| `llmJudged(...).classifier(...)` and `ClassifierComparison` | eval4j | **works now**: see [LLM-as-judge](../../eval4j/docs/LLM-AS-JUDGE.md#judge-with-a-classifier) |
 | `JevProvider`, the `jev` provider name | ai-agent4j | coming (same release) |
 | `intentclassifier` / `intentclassify` | Loom | coming (same release) |
 

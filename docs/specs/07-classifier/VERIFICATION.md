@@ -35,8 +35,8 @@ written in advance. Then, before 7a starts, the spec is revised from the evidenc
 | A3 | Injection corpus does not change answers; the state is delimited | R3 | security tests | 7a ✅ for the structure (`LlmClassifierTest`: delimited data, forged markers neutralised, state never in the system prompt); the behavioural check on a real model is the opt-in live injection test (owed, §5) and the study's injection cases (STUDY_REPORT §3) |
 | A4 | `LlmClassifier` answers are never `calibrated`; `JevProvider` answers are | R5 | contract tests | 7a ✅ LlmClassifier never calibrated (`ClassifierContract.calibratedOnlyWhenTheBackendIs`, `LlmClassifierTest.theSelfReportedConfidence…`); JevProvider: 7c |
 | A5 | The Jev key never appears in exceptions, logs, events or traces | R6 | canary-key test | 7c |
-| A6 | A judge backed by a classifier passes/fails at the threshold and keeps `samples`, cache, dimensions and telemetry | R10 | eval4j tests | 7b |
-| A7 | `.judge(LLMClient)` and every existing judge test behave exactly as before | R11 | full existing eval4j suite | 7b |
+| A6 | A judge backed by a classifier passes/fails at the threshold and keeps `samples`, cache, dimensions and telemetry | R10 | eval4j tests | 7b ✅ `LlmJudgeClassifierTest` (threshold boundary, samples averaging, cache replay and no mixing with chat verdicts, telemetry tokens, dimensions from one call, failure text, failing classifier → `JudgeEvaluationException`) |
+| A7 | `.judge(LLMClient)` and every existing judge test behave exactly as before | R11 | full existing eval4j suite | 7b ✅ the existing `LlmJudgeConditionTest`/`LlmJudgePresetsTest` and all 539 eval4j tests unchanged and green; `LlmJudgeClassifierTest.theChatJudgesFailureMessageIsExactlyWhatItWas` pins the message |
 | A8 | `intentclassify` routes an `alt` on label and confidence; the three confidence actions work at the boundaries | §5.2, §5.3 | Loom execution tests | 7d |
 | A9 | `unsure` appears only from a confidence rule | R7 | Loom tests | 7d |
 | A10 | `weave check` rejects: unknown classifier, unbound `on`, duplicate or fewer than two labels, a declared `unsure`, an `alt` on a label never produced, a `confidence` line with no available confidence | R8 | validator tests | 7d |
@@ -44,8 +44,8 @@ written in advance. Then, before 7a starts, the spec is revised from the evidenc
 | A12 | The trace and call telemetry carry backend, model, tokens, latency, outcome; no state text at the default detail level | R12 | trace tests | 7a ✅ `ClassifyTypesTest.anObserverSeesNumbers…` (classifier events); Loom trace: 7d |
 | A13 | A script or test with no classifier gives byte-identical output to the previous release | R11 | regression test | 7b, 7d |
 | A14 | `weave audit` lists a hosted classifier backend as a data flow; the graph marks `uncalibrated` | §5.5 | audit and graph tests | 7d |
-| A15 | `Classifier.using(chat)` and `Classifier.using(jev)` can be compared on a dataset with `CalibrationRunner`, giving agreement, calibration curve, cost and latency | §7.3 | eval4j calibration tests | 7b |
-| A16 | All documentation samples execute in tests | docs | docs examples test | 7a ✅ `ClassificationDocsExamplesTest` (7 samples run and compared with the page); later pages: with their sub-phases |
+| A15 | `Classifier.using(chat)` and `Classifier.using(jev)` can be compared on a dataset with `CalibrationRunner`, giving agreement, calibration curve, cost and latency | §7.3 | eval4j calibration tests | 7b ✅ `ClassifierComparisonTest` (accuracy, ECE 0.25 and Brier 0.1475 computed by hand, selective accuracy, agreement, per-category, latency/tokens/cost, reliability bins, invalid calls, flip rate); public class `ClassifierComparison`, not inside the test-scope `CalibrationRunner` |
+| A16 | All documentation samples execute in tests | docs | docs examples test | 7a, 7b ✅ `ClassificationDocsExamplesTest` (7 samples), `ClassifierJudgeDocsTest` (3 samples); later pages: with their sub-phases |
 | A17 ✅ (7.0 harness; Java port 7c-live owed) | The 7.0 study runs end to end with a real Jev key and at least one chat model, writes its report and CSV, stays inside its spend cap, and its results are recorded in §7 with the verdict rule applied as written in advance | §5 of the test strategy | `JevVsLlmStudyIntegrationTest` (live, opt-in) |
 
 ## 3. Traceability
@@ -63,8 +63,8 @@ One row per requirement. A requirement with no row blocks the phase. "pending" n
 | R7 `unsure` only from a confidence rule | pending | 7d |
 | R8 `alt` on a label never produced is a check error | pending | 7d |
 | R9 classify step charged to the budget | pending | 7d |
-| R10 classifier-backed judge yields `JudgeVerdict`, honours threshold/samples/cache/telemetry | pending | 7b |
-| R11 nothing existing changes | full existing suites green after 7a: ai-agent4j 2,826 tests, eval4j 507 tests, no existing file changed except docs and the module pom (a coverage rule) | 7a ✅; pinned for Loom/eval4j in 7b, 7d |
+| R10 classifier-backed judge yields `JudgeVerdict`, honours threshold/samples/cache/telemetry | `LlmJudgeClassifierTest` | 7b ✅ |
+| R11 nothing existing changes | full existing suites green: ai-agent4j 2,826 tests, eval4j 539 tests; existing source touched only in `LlmJudgeCondition` (an added builder option and branch; every pre-existing judge test unchanged) and the ai-agent4j pom (a coverage rule) | 7a ✅, 7b ✅ (eval4j 539 tests green, chat-judge message pinned); Loom in 7d |
 | R12 telemetry carries backend, model, tokens, latency, outcome; never state or rationale | `ClassifyTypesTest.anObserverSeesNumbersAndLabelsButNeverTheStateOrTheReason`, `.anObserverSeesAFailure…` | 7a ✅ classifier events; trace: 7d |
 
 ## 4. Quality gates

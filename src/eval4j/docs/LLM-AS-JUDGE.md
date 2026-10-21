@@ -152,6 +152,76 @@ assertThat(result).is(
 
 `OutputExtractor.extract(actual)` returns the text a judge grades from an `AgentResult`, `LLMResponse` or `String`.
 
+## Judge with a classifier
+
+> **Status:** works with any chat model through `Classifier.using(chatClient)`. A Jev-backed classifier plugs in the same way once the Jev provider ships
+> (same release; see [the classification page](../../ai-agent4j/wiki/Classification.md)). Pairwise, RAG-chunk and conversation judging still use `.judge(LLMClient)`;
+> the presets are unchanged.
+
+A judgement is one question with a fixed set of answers, so it can be asked as a **typed question** instead of "write a rating as JSON and I will parse it". With
+`.classifier(...)` the judge sends the output (and the input, expected output, context and trajectory you give it, as delimited data) to a `Classifier`, and the score
+is the probability of **yes** to "does the output satisfy this criterion?". There is nothing to parse, so there is nothing to fail parsing; `threshold`, `samples`,
+`cache`, telemetry and `dimensions` work as before.
+
+```java
+Classifier judge = Classifier.using(cheapChatClient);   // any chat model; a Jev-backed classifier plugs in the same way
+
+assertThat(result).is(llmJudged("Correctness")
+        .criteria("The answer states the refund window as 30 days")
+        .classifier(judge)                              // instead of .judge(chatClient)
+        .threshold(0.7)
+        .build());
+```
+
+Two things differ from a chat judge, on purpose:
+
+- **No invented reason.** The verdict's reason is empty unless the backend gave one. A failure then reads `llm-judged "Correctness" (score=0.20, threshold=0.70)`, with
+  the score and the threshold, and nothing made up. Ask for a reason when you want one (it costs output tokens).
+- **A graded criterion is a five-point scale.** `graded(true)` asks "how well" on a scale from *fails the criterion* to *fully satisfies*, and the score is the position
+  on it, as the rubric presets give.
+
+```java
+Classifier judge = LlmClassifier.builder(cheapChatClient).withRationale(true).build();   // a reason costs output tokens
+
+var verdict = llmJudged("Correctness")
+        .criteria("The answer states the refund window and when it starts")
+        .classifier(judge)
+        .graded(true)                                    // a five-point scale instead of yes/no; the score is the position on it
+        .build()
+        .evaluate("Refunds are accepted within 30 days.");
+// verdict.score() is 0.75 here; verdict.reason() is "" unless the backend gave a rationale
+```
+
+Set either `.judge(...)` or `.classifier(...)`, not both. `dimensions(...)` still files the one verdict under every dimension you name. The cache never mixes a
+classifier's verdicts with a chat judge's, nor a graded verdict with a yes/no one.
+
+### Compare classifiers on your own cases
+
+Whether a cheaper or faster backend is good enough is a question about **your** criteria, so measure it. `ClassifierComparison` sends the same labelled cases to every
+contender and reports, for each: accuracy against your labels, invalid replies, calibration (expected calibration error, Brier score, the reliability curve), the accuracy
+you keep if you act only on the most confident answers, latency, tokens and cost per 1,000 decisions; and between them the agreement and how often an answer flips.
+
+```java
+List<Case> cases = List.of(
+        Case.yesNo("c1", "clear", "Refunds are accepted within 30 days.", "Does the answer state a 30 day refund window?", true),
+        Case.yesNo("c2", "wrong number", "Refunds are accepted within 14 days.", "Does the answer state a 30 day refund window?", false));
+
+ClassifierComparison.Report report = ClassifierComparison.builder()
+        .cases(cases)
+        .contender("cheap", Classifier.using(cheapChatClient))
+        .contender("strong", Classifier.using(strongChatClient))
+        .price("cheap", 0.10, 0.50)                      // dollars per million input and output tokens; optional
+        .repeats(3)                                      // ask each case three times to see how often the answer flips
+        .build()
+        .run();
+
+System.out.println(report.toMarkdown());                 // accuracy, calibration, latency, cost, agreement
+```
+
+The labels are the ground truth, never another model. Use a few dozen cases you have read yourself, including the awkward ones (negation, typos, the
+wrong number, an injection attempt). The run that produced the figures in [the Phase 7 study](../../../docs/specs/07-classifier/STUDY_REPORT.md) is this, in Python.
+Treat a difference of one or two cases as noise.
+
 ## Choosing a judge model
 
 A small calibration study (author-labelled synthetic data, Claude Haiku 4.5 vs Sonnet 5.5 — see

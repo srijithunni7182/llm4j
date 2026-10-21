@@ -13,7 +13,7 @@ never contain a label you did not offer. Design: [specs/07-classifier](specs/07-
 | Piece | Status |
 |---|---|
 | `Classifier`, `ClassifyRequest`, `LlmClassifier` (any chat model), `ClassificationProvider` SPI, `ScriptedClassifier` test double (eval4j). Wiki: [Classification](../src/ai-agent4j/wiki/Classification.md) | **works now** |
-| `llmJudged(...).classifier(...)` and a calibration mode for classifiers in eval4j | coming |
+| `llmJudged(...).classifier(...)` and `ClassifierComparison` (compare backends on your own labelled cases) in eval4j. Guide: [LLM-as-judge](../src/eval4j/docs/LLM-AS-JUDGE.md#judge-with-a-classifier) | **works now** |
 | `JevProvider` (TypeSafe AI's Jev) and the `jev` provider name | coming |
 | Loom `intentclassifier` / `intentclassify`, with `weave check` and `weave audit` rules | coming |
 | VS Code support for the new Loom syntax | coming (may follow in 6.1.x) |
