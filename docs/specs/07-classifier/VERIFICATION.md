@@ -30,11 +30,11 @@ written in advance. Then, before 7a starts, the spec is revised from the evidenc
 
 | # | Criterion | Requirement | Test | Status |
 |---|---|---|---|---|
-| A1 | Both backends pass the same `ClassifierContract` suite | R1, R2 | `ClassifierContract` subclasses for `LlmClassifier`, `JevProvider` | 7a ✅ `LlmClassifierContractTest` extends `ClassifierContract` (10 cases); JevProvider: 7c |
+| A1 | Both backends pass the same `ClassifierContract` suite | R1, R2 | `ClassifierContract` subclasses for `LlmClassifier`, `JevProvider` | 7a, 7c ✅ `LlmClassifierContractTest` and `JevProviderContractTest` both extend `ClassifierContract` (10 cases each) |
 | A2 | Invalid replies (unknown label, missing/extra question, bad probability, truncated) never become values | R1, R2, R4 | unit + property tests | 7a ✅ `ClassifierContract`, `ClassifyTypesTest`, `LlmClassifierTest`, `LlmClassifierPropertyTest` (1,500 random replies) |
 | A3 | Injection corpus does not change answers; the state is delimited | R3 | security tests | 7a ✅ for the structure (`LlmClassifierTest`: delimited data, forged markers neutralised, state never in the system prompt); the behavioural check on a real model is the opt-in live injection test (owed, §5) and the study's injection cases (STUDY_REPORT §3) |
-| A4 | `LlmClassifier` answers are never `calibrated`; `JevProvider` answers are | R5 | contract tests | 7a ✅ LlmClassifier never calibrated (`ClassifierContract.calibratedOnlyWhenTheBackendIs`, `LlmClassifierTest.theSelfReportedConfidence…`); JevProvider: 7c |
-| A5 | The Jev key never appears in exceptions, logs, events or traces | R6 | canary-key test | 7c |
+| A4 | `LlmClassifier` answers are never `calibrated`; `JevProvider` answers are | R5 | contract tests | 7a, 7c ✅ `ClassifierContract.calibratedOnlyWhenTheBackendIs` for both (`calibrated() == false` for the chat backend, `true` for Jev); `JevWireTest` |
+| A5 | The Jev key never appears in exceptions, logs, events or traces | R6 | canary-key test | 7c ✅ `JevProviderTest.theKeyIsNeverInAnExceptionALogLineOrAnEvent` (canary key through 401/422/500/200 bodies that echo it, searched in exceptions, causes, response bodies, events and captured log output; confirmed by sabotage to fail when the key leaks) and `.theKeyIsSentOnlyToTheConfiguredEndpoint`. Traces: with 7d |
 | A6 | A judge backed by a classifier passes/fails at the threshold and keeps `samples`, cache, dimensions and telemetry | R10 | eval4j tests | 7b ✅ `LlmJudgeClassifierTest` (threshold boundary, samples averaging, cache replay and no mixing with chat verdicts, telemetry tokens, dimensions from one call, failure text, failing classifier → `JudgeEvaluationException`) |
 | A7 | `.judge(LLMClient)` and every existing judge test behave exactly as before | R11 | full existing eval4j suite | 7b ✅ the existing `LlmJudgeConditionTest`/`LlmJudgePresetsTest` and all 539 eval4j tests unchanged and green; `LlmJudgeClassifierTest.theChatJudgesFailureMessageIsExactlyWhatItWas` pins the message |
 | A8 | `intentclassify` routes an `alt` on label and confidence; the three confidence actions work at the boundaries | §5.2, §5.3 | Loom execution tests | 7d |
@@ -45,7 +45,7 @@ written in advance. Then, before 7a starts, the spec is revised from the evidenc
 | A13 | A script or test with no classifier gives byte-identical output to the previous release | R11 | regression test | 7b, 7d |
 | A14 | `weave audit` lists a hosted classifier backend as a data flow; the graph marks `uncalibrated` | §5.5 | audit and graph tests | 7d |
 | A15 | `Classifier.using(chat)` and `Classifier.using(jev)` can be compared on a dataset with `CalibrationRunner`, giving agreement, calibration curve, cost and latency | §7.3 | eval4j calibration tests | 7b ✅ `ClassifierComparisonTest` (accuracy, ECE 0.25 and Brier 0.1475 computed by hand, selective accuracy, agreement, per-category, latency/tokens/cost, reliability bins, invalid calls, flip rate); public class `ClassifierComparison`, not inside the test-scope `CalibrationRunner` |
-| A16 | All documentation samples execute in tests | docs | docs examples test | 7a, 7b ✅ `ClassificationDocsExamplesTest` (7 samples), `ClassifierJudgeDocsTest` (3 samples); later pages: with their sub-phases |
+| A16 | All documentation samples execute in tests | docs | docs examples test | 7a, 7b, 7c ✅ `ClassificationDocsExamplesTest` (9 samples incl. Jev and the resolver), `ClassifierJudgeDocsTest` (3); Loom guide: 7d |
 | A17 ✅ (7.0 harness; Java port 7c-live owed) | The 7.0 study runs end to end with a real Jev key and at least one chat model, writes its report and CSV, stays inside its spend cap, and its results are recorded in §7 with the verdict rule applied as written in advance | §5 of the test strategy | `JevVsLlmStudyIntegrationTest` (live, opt-in) |
 
 ## 3. Traceability
@@ -54,12 +54,12 @@ One row per requirement. A requirement with no row blocks the phase. "pending" n
 
 | Req | Tests | Status |
 |---|---|---|
-| R1 no label/probability/position outside the request | `ClassifierContract` (unknown label, unknown scale point, probability 1.2 / -0.1, confidence 1.7, wrong kind), `ClassifyTypesTest.answersRefuseValuesOutsideTheirRange`, `.aProviderResultIsCheckedAgainstTheRequest`, `LlmClassifierPropertyTest` | 7a ✅ (LlmClassifier, `Classifier.using(provider)` validation); JevProvider via the same contract in 7c |
+| R1 no label/probability/position outside the request | `ClassifierContract` (unknown label, unknown scale point, probability 1.2 / -0.1, confidence 1.7, wrong kind), `ClassifyTypesTest.answersRefuseValuesOutsideTheirRange`, `.aProviderResultIsCheckedAgainstTheRequest`, `LlmClassifierPropertyTest` | 7a, 7c ✅ (LlmClassifier, `Classifier.using(provider)` validation, JevProvider via the same contract and `JevWireTest`) |
 | R2 exactly the requested questions | `ClassifierContract` (missing, extra), `ClassifyTypesTest`, `LlmClassifierPropertyTest`; request built once, one backend call: `ClassifierContract.answersExactly…` asserts `callsSent() == 1` | 7a ✅ |
 | R3 state is untrusted data | `LlmClassifierTest.theStateIsDelimitedData…`, `.forgedMarkersInsideTheStateCannotCloseTheBlock`, `.anUnnamedTextAndSeveralFieldsAreAllDelimited` | 7a ✅ structure; live behaviour owed (§5) |
 | R4 output capped; truncation is an error naming the cap | `LlmClassifierTest.aReplyCutOffByTheCapIsAnErrorNamingTheCap`, `.theOutputIsCappedAndTheCapGrowsWithTheQuestions`, `.anExplicitCapWinsAndRationaleRaisesTheDefault`, `.proseAndTruncatedJsonAreErrors` | 7a ✅ |
-| R5 calibrated only when the backend says so | `ClassifierContract.calibratedOnlyWhenTheBackendIs`, `LlmClassifierTest.theSelfReportedConfidenceIsCarriedButNeverCalibrated` | 7a ✅ LlmClassifier; Jev: 7c |
-| R6 no request when invalid; key never leaves | `ClassifyTypesTest` (an invalid request cannot be built, so no backend is called); canary-key test | 7a ✅ first half; 7c second half |
+| R5 calibrated only when the backend says so | `ClassifierContract.calibratedOnlyWhenTheBackendIs` (both backends), `LlmClassifierTest.theSelfReportedConfidenceIsCarriedButNeverCalibrated`, `JevWireTest` | 7a, 7c ✅ |
+| R6 no request when invalid; key never leaves | `ClassifyTypesTest`, `JevProviderTest.anInvalidRequestCannotBeBuiltSoNothingIsSent` and `.aMissingKeyIsRefusedBeforeAnyRequest` (no request reaches the server); the canary-key tests above | 7a, 7c ✅ |
 | R7 `unsure` only from a confidence rule | pending | 7d |
 | R8 `alt` on a label never produced is a check error | pending | 7d |
 | R9 classify step charged to the budget | pending | 7d |
@@ -78,7 +78,7 @@ One row per requirement. A requirement with no row blocks the phase. "pending" n
 
 ## 5. Manual and live checks (owed, opt-in)
 
-- [ ] A recorded session against the real Jev API replaces the fixtures (Q1), and the contract suite still passes.
+- [x] A recorded session against the real Jev API replaces the fixtures (Q1), and the contract suite still passes. Done 2026-10-21: `scripts/record-jev-fixtures.py` recorded success replies for each question kind and a multi-question call, a 422 and a 401 (`src/ai-agent4j/src/test/resources/jev/`); the 429, 529 and malformed cases are hand-written, named in `JevProviderTest`. The recordings are what `JevWireTest` pins.
 - [ ] The live study (TEST_STRATEGY §5): `Classifier.using(jev)` against a strong and a cheap chat model on the judging, intent and safe/unsafe tasks. Results recorded in §7 and the Jev recommendations in the guide and wiki written from them.
 - [ ] An end-to-end triage workflow in Loom with Jev, run once with `--observe` to see the call events in Fabric.
 - [ ] The VS Code extension on the new syntax: highlighting, completion, diagnostics.

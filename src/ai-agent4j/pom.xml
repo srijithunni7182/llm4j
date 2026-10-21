@@ -178,6 +178,7 @@
                                     <element>PACKAGE</element>
                                     <includes>
                                         <include>io.github.llm4j.classify</include>
+                                        <include>io.github.llm4j.provider.typesafe</include>
                                     </includes>
                                     <limits>
                                         <limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit>

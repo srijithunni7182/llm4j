@@ -177,7 +177,7 @@ why the 7.0 study measured calibration on the probability of the chosen option a
 
 Providers are chosen by name everywhere else (`gemini`, `ollama`, `sarvam`, `anthropic`); Jev joins that list as `jev`, so Loom's
 `provider X { use: jev … }` and `Classifier.using("jev/jev-latest")`-style lookup work the same way. A model name such as `Box/llama3` resolves
-to an `LlmClassifier` over that provider's chat client; `Jev/jev-latest` resolves to a `JevProvider`. The resolver is one function, shared by Loom
+to an `LlmClassifier` over that provider's chat client; `Jev/jev-latest` resolves to a `JevProvider`. The resolver is one class, `ClassifierResolver`, shared by Loom
 and eval4j.
 
 ## 5. Loom
@@ -341,7 +341,7 @@ The questions raised in the draft, answered. Nothing starts with a question open
 | Q3 | The reserved label **`unsure`** exists, is produced only by a `confidence … else escalate` rule (R7), and `escalate` is the default action when a `confidence` line is present without one |
 | Q4 | A `confidence at least` rule is **allowed on a chat backend**, which must then have `samples > 1` or a self-report; such a classifier is marked `uncalibrated` in the graph and in `weave audit` (§5.3) |
 | Q5 | eval4j scope for this phase: **single criterion and `dimensions`**. Pairwise, RAG-chunk and conversation judging follow once the calibration comparison exists |
-| Q6 | The resolver for `model: "Jev/jev-latest"` lives in ai-agent4j as `ClassifierResolver`, reading the same provider declarations Loom already reads |
+| Q6 | The resolver for `model: "Jev/jev-latest"` lives in ai-agent4j as `ClassifierResolver`. It cannot read Loom's declarations (ai-agent4j knows nothing of Loom), so the **host** says what a name means by giving it functions: Jev settings for `Jev/<model>`, bare `jev-…` names and declared jev aliases (`jevAlias`), and a chat-client factory for every other name; Loom supplies both from the providers a script declares (7d), a plain application uses `fromEnvironment` (`JEV_API_KEY`, `JEV_BASE_URL`) |
 | Q7 | A `Score` answer exposes **both** `position()` (0–1 along the scale) and `nearest()` (the closest scale point) |
 | Q8 | No prose reason from a Jev-backed judge. A second call to a chat model on failures only is a documented *pattern* in the guide, not a feature |
 | Q10 | **The 7.0 verdict** ([STUDY_REPORT.md](STUDY_REPORT.md)): Jev is recommended for intent routing and judging; it is not recommended as the only safe/unsafe-command guardrail. The guide, wiki and `weave audit` wording follow this. `JevProvider` is built as designed (§1a, "meets it for some tasks only") |

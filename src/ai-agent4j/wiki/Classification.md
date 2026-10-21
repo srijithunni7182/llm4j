@@ -5,9 +5,8 @@ Two jobs in an agent system need an answer from a fixed set: **routing** ("what 
 A **classifier** asks the question as a typed question and returns a typed answer: a label from your list, a probability, a
 point on a scale. You never parse text, and a result can never contain a label you did not offer.
 
-> **Status: the contract and the chat-model backend work (this page, sections 1 to 6), and so do classifier-backed judges and a comparison
-> tool in eval4j (section 7). Coming in the same release, and not described here as working until they are: the Jev provider and the Loom
-> `intentclassify` statement.**
+> **Status: the contract, the chat-model backend and the Jev provider work (this page), and so do classifier-backed judges and a comparison
+> tool in eval4j (section 9). Coming in the same release, and not described here as working until it is: the Loom `intentclassify` statement.**
 > The design is in [`docs/specs/07-classifier`](../../../docs/specs/07-classifier/DESIGN.md).
 
 Everything here is opt-in and changes nothing for code that does not use it.
@@ -20,9 +19,11 @@ Everything here is opt-in and changes nothing for code that does not use it.
 2. [Read the answer](#2-read-the-answer)
 3. [The chat backend and its options](#3-the-chat-backend-and-its-options)
 4. [What can never happen](#4-what-can-never-happen)
-5. [Plug in a backend of your own](#5-plug-in-a-backend-of-your-own)
-6. [Watch the calls](#6-watch-the-calls)
-7. [What is coming](#7-what-is-coming)
+5. [Use Jev](#5-use-jev)
+6. [Choose the backend by name](#6-choose-the-backend-by-name)
+7. [Plug in a backend of your own](#7-plug-in-a-backend-of-your-own)
+8. [Watch the calls](#8-watch-the-calls)
+9. [What is coming](#9-what-is-coming)
 
 ---
 
@@ -120,7 +121,70 @@ try {
 | a refusal (the model declined) | `ClassificationException`, not a guess |
 | a timeout, a rate limit, an invalid key | the provider's own exception, after its retries |
 
-## 5. Plug in a backend of your own
+## 5. Use Jev
+
+[Jev](https://docs.typesafe.ai) is TypeSafe AI's *decision model*. It does not write text: you send a state and typed questions and it returns the
+answers directly, in one call, with a probability for every option. It is a hosted service and needs an API key from the TypeSafe console.
+
+```java
+LLMConfig cfg = LLMConfig.builder()
+        .apiKey(jevApiKey)
+        .defaultModel("jev-latest")
+        .baseUrl(jevUrl)                                 // optional: the default is https://api.typesafe.ai
+        .build();
+Classifier jev = Classifier.using(new JevProvider(cfg));   // the same interface as a chat model
+
+ChoiceAnswer intent = jev.classify(ClassifyRequest.builder()
+        .state("message", customerMessage)
+        .choice("intent", "What does the customer want?", "refund", "order_status", "complaint", "other")
+        .build()).choice("intent");
+
+double sure = intent.probabilities().get(intent.label());   // a calibrated probability
+boolean calibrated = intent.calibrated();                   // true: Jev's probabilities are measured, not self-reported
+```
+
+What to know before you rely on it:
+
+- **Its probabilities are calibrated** (`calibrated()` is `true`): they are trained to match how often Jev is right, which a chat model's "confidence: 0.93" is not.
+  A yes/no answer is a probability of yes with no separate confidence; use `YesNoAnswer.certainty()` for its distance from a coin toss.
+- **Its `confidence` field is a statistic, not a chance of being right.** For a choice among *n* options Jev reports `(n·p − 1) / (n − 1)` for the top probability `p`, so an
+  80%-sure answer among 5 options has confidence 0.75. `ChoiceAnswer.confidence()` carries the field as Jev returned it; the probability of the chosen label is
+  `probabilities().get(label())`.
+- **A score is a position.** Jev returns a level from 0 to n−1 (fractional, a probability-weighted average); `ScoreAnswer.position()` is that over the scale and
+  `nearest()` the closest point.
+- **Speed and cost.** About 170 ms median in our runs, and billed on input tokens only ($0.042 per million when this was written; output is free). Jev counts a few hundred
+  input tokens of its own on every call, which at that price does not matter.
+- **Failures** are the provider layer's, as for every other provider: a wrong key is an `AuthenticationException`, a 429 or 529 is retried with back-off (and a
+  `RateLimitException` or `ServiceUnavailableException` if it persists), a rejected request is an `InvalidRequestException` that names the field but never repeats your
+  state, a reply that is not an answer is a `ClassificationException`. The key is never in an exception message, a log line or an event.
+- **Your state leaves the process.** It goes to TypeSafe's API, as it would to any hosted model. Mask personal data first if that matters to you.
+- **English first.** Jev's primary training language is English; other languages are accepted with lower accuracy, according to its documentation. In our runs it made no mistake on
+  Hinglish, Hindi, Tamil, Spanish, German and Arabic intent cases.
+
+**Where it fits.** In the measurements behind this release ([the study](../../../docs/specs/07-classifier/STUDY_REPORT.md): Jev against Claude Opus 5.5 and Claude Haiku 5.5 on labelled
+data), Jev matched the chat models for **intent routing** and **judging**, was better calibrated, 3 to 9 times faster at the 95th percentile and 2 to 4 times cheaper than the
+cheap chat model. It was **not** good enough to be the only safety guardrail for shell commands (below the cheap chat model on both sets, and once it called `> /etc/passwd` safe
+with confidence 0.95): use it as one signal there, not the only one. The sets were small and ours, and a difference of one or two cases is noise, so rerun the comparison on
+your own cases ([how](../../eval4j/docs/LLM-AS-JUDGE.md#compare-classifiers-on-your-own-cases)) before you depend on it.
+
+## 6. Choose the backend by name
+
+Providers are chosen by name everywhere in llm4j; classifiers are too. A `ClassifierResolver` turns a model name into a `Classifier`, so changing the backend is
+changing a string in your configuration:
+
+```java
+ClassifierResolver resolver = ClassifierResolver.fromEnvironment(env::get,       // System::getenv in your application: JEV_API_KEY, JEV_BASE_URL
+        modelName -> chatClient);                                                 // how your application builds a chat client for a model name
+
+Classifier cheap = resolver.resolve("gemini-2.5-flash");   // any other name: a chat model, asked through LlmClassifier
+Classifier jev = resolver.resolve("Jev/jev-latest");       // Jev: one word different, same Classifier
+```
+
+`Jev/jev-latest` (the alias `jev` in any case, an alias you declare with `jevAlias`, or a bare `jev-…` name) is Jev. Anything else is passed as written to the chat
+clients you provide. `isJev(name)` says which, so a caller can warn that the state leaves for a hosted service. The resolver reads nothing by itself: the host says what a name
+means, which is what lets Loom use the providers a script declares.
+
+## 7. Plug in a backend of your own
 
 A backend that answers typed questions directly (not a chat model) implements `ClassificationProvider`, in the same shape as the
 other provider interfaces: a name, a `validate()` and the one operation.
@@ -156,7 +220,7 @@ static final class KeywordProvider implements ClassificationProvider {
 Classifier classifier = Classifier.using(new KeywordProvider());   // the result is checked against every request
 ```
 
-## 6. Watch the calls
+## 8. Watch the calls
 
 ```java
 Classifier observed = Classifier.using(chatClient).observed(event ->
@@ -168,15 +232,11 @@ A `ClassifyEvent` has the backend, model, tokens, latency, the number of questio
 class name) and the chosen label of each choice question. It never has the state, and never an answer's rationale. A listener that
 throws does not change the outcome of the call.
 
-## 7. What is coming
+## 9. What is coming
 
 | Piece | Where | Status |
 |---|---|---|
+| `Classifier`, `LlmClassifier`, `ClassificationProvider`, `ClassifierResolver` | ai-agent4j | **works now** (this page) |
+| `JevProvider`, the `jev` provider name | ai-agent4j | **works now** (section 5) |
 | `llmJudged(...).classifier(...)` and `ClassifierComparison` | eval4j | **works now**: see [LLM-as-judge](../../eval4j/docs/LLM-AS-JUDGE.md#judge-with-a-classifier) |
-| `JevProvider`, the `jev` provider name | ai-agent4j | coming (same release) |
 | `intentclassifier` / `intentclassify` | Loom | coming (same release) |
-
-Jev is TypeSafe AI's decision model: it answers these questions directly, in about 170 ms, from calibrated probabilities, at a small
-fraction of a chat model's price. On the study in [STUDY_REPORT.md](../../../docs/specs/07-classifier/STUDY_REPORT.md) it matched the chat
-models for intent routing and judging and was not good enough to be a safety guardrail on its own. Those pages are written when the
-provider ships.

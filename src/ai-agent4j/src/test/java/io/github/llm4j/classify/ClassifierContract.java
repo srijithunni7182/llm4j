@@ -111,9 +111,9 @@ public abstract class ClassifierContract {
                                 A.yesNo("urgent", 0.8),
                                 A.score("tone", "furious", 0.7)));
 
-        assertThatThrownBy(() -> c.classify(request()))
-                .isInstanceOf(ClassificationException.class)
-                .hasMessageContaining("furious");
+        // how a backend names the offending point differs (a chat model writes it, Jev returns a
+        // number), so only the type is common
+        assertThatThrownBy(() -> c.classify(request())).isInstanceOf(ClassificationException.class);
     }
 
     @Test

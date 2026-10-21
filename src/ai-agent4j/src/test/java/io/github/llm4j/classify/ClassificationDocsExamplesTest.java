@@ -5,13 +5,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.llm4j.LLMClient;
 import io.github.llm4j.classify.fixtures.ScriptedChat;
+import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.provider.ClassificationProvider;
+import io.github.llm4j.provider.typesafe.JevProvider;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -110,7 +114,10 @@ class ClassificationDocsExamplesTest {
 
     @Test
     void whenTheReplyIsNotAnAnswer() {
-        LLMClient chatClient = new ScriptedChat().reply("I think it is a refund.").reply("I think it is a refund.");
+        LLMClient chatClient =
+                new ScriptedChat()
+                        .reply("I think it is a refund.")
+                        .reply("I think it is a refund.");
         Classifier classifier = Classifier.using(chatClient);
         ClassifyRequest request =
                 ClassifyRequest.builder()
@@ -127,6 +134,60 @@ class ClassificationDocsExamplesTest {
         // --- end sample
         assertThatThrownBy(() -> classifier.classify(request))
                 .isInstanceOf(io.github.llm4j.exception.LLMException.class);
+    }
+
+    @Test
+    void useJev() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            server.start();
+            server.enqueue(new MockResponse().setBody("{\"model\": \"jev-1.13.0\", \"answers\": {\"intent\": {\"type\": \"choice\", \"choice\": \"refund\", \"confidence\": 1.0,"
+                    + " \"probabilities\": {\"refund\": 1.0, \"order_status\": 0.0, \"complaint\": 0.0, \"other\": 0.0}}},"
+                    + " \"usage\": {\"input_tokens\": 357, \"output_tokens\": 39}}"));
+            String jevApiKey = "test-key";                         // System.getenv("JEV_API_KEY") in your application
+            String jevUrl = server.url("/").toString().replaceAll("/$", "");
+            String customerMessage = "I want my money back, order 8812 arrived broken";
+            // --- sample: jev
+            LLMConfig cfg = LLMConfig.builder()
+                    .apiKey(jevApiKey)
+                    .defaultModel("jev-latest")
+                    .baseUrl(jevUrl)                                 // optional: the default is https://api.typesafe.ai
+                    .build();
+            Classifier jev = Classifier.using(new JevProvider(cfg));   // the same interface as a chat model
+
+            ChoiceAnswer intent = jev.classify(ClassifyRequest.builder()
+                    .state("message", customerMessage)
+                    .choice("intent", "What does the customer want?", "refund", "order_status", "complaint", "other")
+                    .build()).choice("intent");
+
+            double sure = intent.probabilities().get(intent.label());   // a calibrated probability
+            boolean calibrated = intent.calibrated();                   // true: Jev's probabilities are measured, not self-reported
+            // --- end sample
+            assertThat(intent.label()).isEqualTo("refund");
+            assertThat(sure).isEqualTo(1.0);
+            assertThat(calibrated).isTrue();
+        }
+    }
+
+    @Test
+    void chooseTheBackendByName() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            server.start();
+            server.enqueue(new MockResponse().setBody("{\"model\": \"jev-1.13.0\", \"answers\": {\"intent\": {\"type\": \"choice\", \"choice\": \"other\","
+                    + " \"confidence\": 1.0, \"probabilities\": {\"refund\": 0.0, \"other\": 1.0}}}, \"usage\": {\"input_tokens\": 1, \"output_tokens\": 1}}"));
+            Map<String, String> env = Map.of("JEV_API_KEY", "test-key", "JEV_BASE_URL", server.url("/").toString().replaceAll("/$", ""));
+            LLMClient chatClient = new ScriptedChat().reply(REPLY);
+            ClassifyRequest request = ClassifyRequest.builder().state("hi").choice("intent", "What?", "refund", "other").build();
+            // --- sample: resolver
+            ClassifierResolver resolver = ClassifierResolver.fromEnvironment(env::get,       // System::getenv in your application: JEV_API_KEY, JEV_BASE_URL
+                    modelName -> chatClient);                                                 // how your application builds a chat client for a model name
+
+            Classifier cheap = resolver.resolve("gemini-2.5-flash");   // any other name: a chat model, asked through LlmClassifier
+            Classifier jev = resolver.resolve("Jev/jev-latest");       // Jev: one word different, same Classifier
+            // --- end sample
+            assertThat(resolver.isJev("Jev/jev-latest")).isTrue();
+            assertThat(jev.classify(request).usage().backend()).isEqualTo("jev");
+            assertThat(cheap).isNotNull();
+        }
     }
 
     // --- sample: provider

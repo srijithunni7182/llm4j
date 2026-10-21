@@ -1,0 +1,24 @@
+{
+ "model": "jev-1.13.0",
+ "answers": {
+  "tone": {
+   "type": "score",
+   "score": 1.93,
+   "confidence": 0.9,
+   "legend": {
+    "0": "calm",
+    "1": "annoyed",
+    "2": "angry"
+   },
+   "probabilities": {
+    "0": 0.0,
+    "1": 0.07,
+    "2": 0.93
+   }
+  }
+ },
+ "usage": {
+  "input_tokens": 308,
+  "output_tokens": 17
+ }
+}
