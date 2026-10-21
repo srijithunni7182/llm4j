@@ -1,0 +1,12 @@
+{
+  "scriptName": "classify_basic.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "classify",
+      "classifier": "Intent",
+      "outcome": "ok",
+      "labels": "kind=refund,urgent=no"
+    }
+  ]
+}

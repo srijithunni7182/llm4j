@@ -11,7 +11,10 @@ import io.github.llm4j.loom.parser.LoomParser;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-/** The decision declaration reads as plain phrases and parses into its parts (spec loom-earned-autonomy R1). */
+/**
+ * The decision declaration reads as plain phrases and parses into its parts (spec
+ * loom-earned-autonomy R1).
+ */
 class DecisionParseTest {
 
     static LoomScript parse(String source) {
@@ -37,7 +40,8 @@ class DecisionParseTest {
 
         assertThat(d.getStartAt()).isEqualTo(Level.WATCH);
         assertThat(d.getCeiling()).isEqualTo(Level.SUGGEST);
-        assertThat(d.getUpRules().get(Level.SUGGEST)).isEqualTo(new DecisionDef.UpRule(Level.SUGGEST, 100, 14, 90, false, null, 21));
+        assertThat(d.getUpRules().get(Level.SUGGEST))
+                .isEqualTo(new DecisionDef.UpRule(Level.SUGGEST, 100, 14, 90, false, null, 21));
         DecisionDef.UpRule act = d.getUpRules().get(Level.ACT);
         assertThat(act.cases()).isEqualTo(300);
         assertThat(act.days()).isEqualTo(30);
@@ -47,24 +51,35 @@ class DecisionParseTest {
         assertThat(d.getAuditPercent()).isEqualTo(5);
         assertThat(d.getAskWhen()).containsExactly("amount > 200");
         assertThat(d.getAskAfterPerDay()).isEqualTo(50);
-        assertThat(d.getDropRules()).extracting(DecisionDef.DropRule::count).containsExactly(
-                DecisionDef.Count.DANGEROUS_MISTAKES, DecisionDef.Count.REVERSALS, DecisionDef.Count.AGREEMENT_BELOW, DecisionDef.Count.UNUSABLE_PROPOSALS);
+        assertThat(d.getDropRules())
+                .extracting(DecisionDef.DropRule::count)
+                .containsExactly(
+                        DecisionDef.Count.DANGEROUS_MISTAKES,
+                        DecisionDef.Count.REVERSALS,
+                        DecisionDef.Count.AGREEMENT_BELOW,
+                        DecisionDef.Count.UNUSABLE_PROPOSALS);
         assertThat(d.getDropRules().get(0).n()).isEqualTo(2);
         assertThat(d.getDropRules().get(0).inCases()).isEqualTo(50);
         assertThat(d.getDropRules().get(2).percent()).isEqualTo(92);
         assertThat(d.getApprover()).isEqualTo("risk-owner");
         assertThat(d.isAutomatic()).isFalse();
 
-        assertThat(script.getWorkflows().get(0).getStatements().get(0)).isInstanceOfSatisfying(DecideStmt.class, s -> {
-            assertThat(s.getDecision()).isEqualTo("Refund");
-            assertThat(s.getVariable()).isEqualTo("verdict");
-        });
+        assertThat(script.getWorkflows().get(0).getStatements().get(0))
+                .isInstanceOfSatisfying(
+                        DecideStmt.class,
+                        s -> {
+                            assertThat(s.getDecision()).isEqualTo("Refund");
+                            assertThat(s.getVariable()).isEqualTo("verdict");
+                        });
     }
 
     @Test
     @Tag("EA-V1.1")
     void theOtherPhrasesParseToo() {
-        DecisionDef d = parse(Scripts.AGENT + """
+        DecisionDef d =
+                parse(
+                                Scripts.AGENT
+                                        + """
                 decision D {
                     proposed by: Triager
                     choices: yes, no
@@ -76,36 +91,65 @@ class DecisionParseTest {
                         moving up is automatic
                     }
                 }
-                """).getDecisions().get(0);
+                """)
+                        .getDecisions()
+                        .get(0);
         assertThat(d.getOnChange()).isEqualTo(DecisionDef.OnChange.KEEP_TRUST);
         assertThat(d.getTask()).isEqualTo("Decide for {amount}");
         assertThat(d.getStaleDays()).isEqualTo(3);
         assertThat(d.getUpRules().get(Level.ACT).dangerousAtMost()).isEqualTo(1.0);
         assertThat(d.getUpRules().get(Level.ACT).days()).isZero();
         assertThat(d.isAutomatic()).isTrue();
-        assertThat(parse(Scripts.AGENT + "decision D { proposed by: Triager choices: a, b when the agent changes: start over }").getDecisions().get(0).getOnChange())
+        assertThat(
+                        parse(
+                                        Scripts.AGENT
+                                                + "decision D { proposed by: Triager choices: a, b when the agent changes: start over }")
+                                .getDecisions()
+                                .get(0)
+                                .getOnChange())
                 .isEqualTo(DecisionDef.OnChange.START_OVER);
     }
 
     @Test
     @Tag("EA-V1.8")
     void aPhraseOutOfOrderIsReportedInTheAuthorsOwnWords() {
-        assertThatThrownBy(() -> parse("decision D { proposed A }")).hasMessageContaining("Write: proposed by: AgentName");
-        assertThatThrownBy(() -> parse("decision D { trust { to act: 100 cases } }")).hasMessageContaining("needs \"after N cases\"");
-        assertThatThrownBy(() -> parse("decision D { trust { to act: after 100 cases, agreeing at least 90 } }")).hasMessageContaining("percentage");
-        assertThatThrownBy(() -> parse("decision D { trust { to act: after 100 cases } }")).hasMessageContaining("Write: to act");
-        assertThatThrownBy(() -> parse("decision D { trust { start at flying } }")).hasMessageContaining("watch, suggest or act");
-        assertThatThrownBy(() -> parse("decision D { trust { drop to suggest when 2 mice in 50 cases } }")).hasMessageContaining("reversals");
-        assertThatThrownBy(() -> parse("decision D { trust { moving up sideways } }")).hasMessageContaining("moving up needs approval");
-        assertThatThrownBy(() -> parse("decision D { frobnicate: 1 }")).hasMessageContaining("A decision holds");
-        assertThatThrownBy(() -> parse("workflow W() { decide Refund verdict }")).hasMessageContaining("decide Refund -> verdict");
-        assertThatThrownBy(() -> parse("decision D { trust { always ask a person } }")).hasMessageContaining("always ask a person when");
-        assertThatThrownBy(() -> parse("decision D { trust { to suggest: after 1.5 cases, agreeing at least 90% } }")).hasMessageContaining("whole number");
+        assertThatThrownBy(() -> parse("decision D { proposed A }"))
+                .hasMessageContaining("Write: proposed by: AgentName");
+        assertThatThrownBy(() -> parse("decision D { trust { to act: 100 cases } }"))
+                .hasMessageContaining("needs \"after N cases\"");
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "decision D { trust { to act: after 100 cases, agreeing at least 90 } }"))
+                .hasMessageContaining("percentage");
+        assertThatThrownBy(() -> parse("decision D { trust { to act: after 100 cases } }"))
+                .hasMessageContaining("Write: to act");
+        assertThatThrownBy(() -> parse("decision D { trust { start at flying } }"))
+                .hasMessageContaining("watch, suggest or act");
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "decision D { trust { drop to suggest when 2 mice in 50 cases } }"))
+                .hasMessageContaining("reversals");
+        assertThatThrownBy(() -> parse("decision D { trust { moving up sideways } }"))
+                .hasMessageContaining("moving up needs approval");
+        assertThatThrownBy(() -> parse("decision D { frobnicate: 1 }"))
+                .hasMessageContaining("A decision holds");
+        assertThatThrownBy(() -> parse("workflow W() { decide Refund verdict }"))
+                .hasMessageContaining("decide Refund -> verdict");
+        assertThatThrownBy(() -> parse("decision D { trust { always ask a person } }"))
+                .hasMessageContaining("always ask a person when");
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "decision D { trust { to suggest: after 1.5 cases, agreeing at least 90% } }"))
+                .hasMessageContaining("whole number");
     }
 
     @Test
     @Tag("EA-V1.8")
     void aDecisionInsideAWorkflowIsAnError() {
-        assertThatThrownBy(() -> parse("workflow W() { decision D { choices: a, b } }")).hasMessageContaining("Expected statement");
+        assertThatThrownBy(() -> parse("workflow W() { decision D { choices: a, b } }"))
+                .hasMessageContaining("Expected statement");
     }
 }

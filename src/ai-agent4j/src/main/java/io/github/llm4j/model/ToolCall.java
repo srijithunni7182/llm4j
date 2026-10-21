@@ -14,7 +14,11 @@ public record ToolCall(String id, String name, Map<String, Object> arguments) {
 
     public ToolCall {
         Objects.requireNonNull(name, "name cannot be null");
-        arguments = arguments == null ? Map.of() : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(arguments));
+        arguments =
+                arguments == null
+                        ? Map.of()
+                        : java.util.Collections.unmodifiableMap(
+                                new java.util.LinkedHashMap<>(arguments));
     }
 
     /** The same call with an id (the agent gives ids to calls that arrive without one). */

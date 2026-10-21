@@ -7,6 +7,9 @@ import java.util.Map;
 public record EventRec(long timeNanos, String name, Map<String, Object> attributes) {
 
     public EventRec {
-        attributes = attributes == null ? Map.of() : java.util.Collections.unmodifiableMap(new LinkedHashMap<>(attributes));
+        attributes =
+                attributes == null
+                        ? Map.of()
+                        : java.util.Collections.unmodifiableMap(new LinkedHashMap<>(attributes));
     }
 }

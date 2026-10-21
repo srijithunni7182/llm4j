@@ -10,8 +10,8 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * A sophisticated routing strategy that estimates the computational cost and complexity
- * required by a request and routes it to the most cost-effective tier capable of handling it.
+ * A sophisticated routing strategy that estimates the computational cost and complexity required by
+ * a request and routes it to the most cost-effective tier capable of handling it.
  */
 public class CostAwareRoutingStrategy implements RoutingStrategy {
 
@@ -28,14 +28,14 @@ public class CostAwareRoutingStrategy implements RoutingStrategy {
         ProviderTier requiredTier = determineRequiredTier(request);
 
         // Sort tiers by level
-        TreeMap<ProviderTier, List<LLMClient>> sortedTiers = new TreeMap<>(
-            (t1, t2) -> Integer.compare(t1.getLevel(), t2.getLevel())
-        );
+        TreeMap<ProviderTier, List<LLMClient>> sortedTiers =
+                new TreeMap<>((t1, t2) -> Integer.compare(t1.getLevel(), t2.getLevel()));
         sortedTiers.putAll(clients);
 
         // Find the lowest tier capable of satisfying the requirement
         for (Map.Entry<ProviderTier, List<LLMClient>> entry : sortedTiers.entrySet()) {
-            if (entry.getKey().getLevel() >= requiredTier.getLevel() && !entry.getValue().isEmpty()) {
+            if (entry.getKey().getLevel() >= requiredTier.getLevel()
+                    && !entry.getValue().isEmpty()) {
                 return entry.getValue().get(0);
             }
         }
@@ -46,7 +46,8 @@ public class CostAwareRoutingStrategy implements RoutingStrategy {
             return sortedTiers.get(highest).get(0);
         }
 
-        throw new LLMException("Could not find an available LLMClient capable of handling the request.");
+        throw new LLMException(
+                "Could not find an available LLMClient capable of handling the request.");
     }
 
     private ProviderTier determineRequiredTier(LLMRequest request) {
@@ -68,7 +69,7 @@ public class CostAwareRoutingStrategy implements RoutingStrategy {
                 totalChars += msg.getContent().length();
             }
         }
-        
+
         if (totalChars > DEFAULT_LONG_CONTEXT_CHARS) {
             return ProviderTier.REASONING; // Cheap models degrade on massive contexts
         }
@@ -77,9 +78,9 @@ public class CostAwareRoutingStrategy implements RoutingStrategy {
         for (Message msg : request.getMessages()) {
             if (Message.Role.SYSTEM == msg.getRole() && msg.getContent() != null) {
                 String sysPrompt = msg.getContent().toLowerCase();
-                if (sysPrompt.contains("think step") || 
-                    sysPrompt.contains("expert mathematician") ||
-                    sysPrompt.contains("logical reasoning")) {
+                if (sysPrompt.contains("think step")
+                        || sysPrompt.contains("expert mathematician")
+                        || sysPrompt.contains("logical reasoning")) {
                     return ProviderTier.REASONING;
                 }
             }

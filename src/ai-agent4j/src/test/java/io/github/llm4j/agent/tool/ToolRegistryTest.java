@@ -33,7 +33,7 @@ class ToolRegistryTest {
         registry.register(new MockTool("tool_b"));
 
         List<Tool> resolved = registry.resolveTools(List.of("tool_a", "tool_b", "non_existent"));
-        
+
         assertEquals(2, resolved.size());
         assertTrue(resolved.stream().anyMatch(t -> t.getName().equals("tool_a")));
         assertTrue(resolved.stream().anyMatch(t -> t.getName().equals("tool_b")));

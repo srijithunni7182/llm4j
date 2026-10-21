@@ -14,8 +14,7 @@ import org.mockito.MockitoAnnotations;
 
 class MemoryManagementToolTest {
 
-    @Mock
-    private SemanticMemoryService memoryService;
+    @Mock private SemanticMemoryService memoryService;
 
     private MemoryManagementTool tool;
 

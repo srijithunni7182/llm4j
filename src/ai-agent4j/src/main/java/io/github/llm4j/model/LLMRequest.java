@@ -109,15 +109,28 @@ public final class LLMRequest {
         return toolChoice;
     }
 
-    /** Whether a streamed answer should also carry the model's reasoning; see {@link Builder#reasoning(boolean)}. */
+    /**
+     * Whether a streamed answer should also carry the model's reasoning; see {@link
+     * Builder#reasoning(boolean)}.
+     */
     public boolean isReasoning() {
         return reasoning;
     }
 
     /** A builder holding everything of this request, so a copy never drops a field. */
     public Builder toBuilder() {
-        Builder b = builder().messages(messages).model(model).temperature(temperature).maxTokens(maxTokens).topP(topP)
-                .stopSequences(stopSequences).complexityHint(complexityHint).tools(tools).toolChoice(toolChoice).reasoning(reasoning);
+        Builder b =
+                builder()
+                        .messages(messages)
+                        .model(model)
+                        .temperature(temperature)
+                        .maxTokens(maxTokens)
+                        .topP(topP)
+                        .stopSequences(stopSequences)
+                        .complexityHint(complexityHint)
+                        .tools(tools)
+                        .toolChoice(toolChoice)
+                        .reasoning(reasoning);
         if (!additionalParameters.isEmpty()) b.additionalParameters(additionalParameters);
         return b;
     }
@@ -147,7 +160,17 @@ public final class LLMRequest {
     @Override
     public int hashCode() {
         return Objects.hash(
-                messages, model, temperature, maxTokens, topP, stopSequences, complexityHint, additionalParameters, tools, toolChoice, reasoning);
+                messages,
+                model,
+                temperature,
+                maxTokens,
+                topP,
+                stopSequences,
+                complexityHint,
+                additionalParameters,
+                tools,
+                toolChoice,
+                reasoning);
     }
 
     @Override
@@ -189,10 +212,11 @@ public final class LLMRequest {
         private Builder() {}
 
         /**
-         * Asks the model to show its reasoning on a streamed call ({@code chatStream}); it arrives as chunks whose
-         * {@link LLMResponse#getReasoning()} is set. Off by default, because it changes the request: the provider is told to think and to
-         * report what it thought, which can cost more and, on some models, takes the place of settings such as temperature. A provider or
-         * model that cannot show reasoning ignores this. Has no effect on {@code chat}.
+         * Asks the model to show its reasoning on a streamed call ({@code chatStream}); it arrives
+         * as chunks whose {@link LLMResponse#getReasoning()} is set. Off by default, because it
+         * changes the request: the provider is told to think and to report what it thought, which
+         * can cost more and, on some models, takes the place of settings such as temperature. A
+         * provider or model that cannot show reasoning ignores this. Has no effect on {@code chat}.
          */
         public Builder reasoning(boolean reasoning) {
             this.reasoning = reasoning;

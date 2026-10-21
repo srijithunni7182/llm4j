@@ -3,9 +3,7 @@ package io.github.llm4j.agent.skill;
 import java.io.IOException;
 import java.util.List;
 
-/**
- * Interface for discovering and fetching skills from an external registry (e.g. SkillsMP).
- */
+/** Interface for discovering and fetching skills from an external registry (e.g. SkillsMP). */
 public interface SkillRegistry {
 
     /**

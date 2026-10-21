@@ -100,11 +100,16 @@ public final class EvalScenarios {
     }
 
     /**
-     * Reads {@code RUBRIC:} and {@code EXPECT:} lines in {@code context} as the {@code rubric} and {@code expect} fields, the way datasets were
-     * written before those fields existed. Only dataset folders ({@link EvalDataset}) are read this way; {@code fromYaml} returns {@code context} exactly as written. Lines already in the fields come first; the lines are removed from {@code context}.
+     * Reads {@code RUBRIC:} and {@code EXPECT:} lines in {@code context} as the {@code rubric} and
+     * {@code expect} fields, the way datasets were written before those fields existed. Only
+     * dataset folders ({@link EvalDataset}) are read this way; {@code fromYaml} returns {@code
+     * context} exactly as written. Lines already in the fields come first; the lines are removed
+     * from {@code context}.
      */
     static EvalScenario normalized(EvalScenario s) {
-        if (s.context() == null || s.context().stream().noneMatch(c -> c.startsWith("RUBRIC:") || c.startsWith("EXPECT:"))) {
+        if (s.context() == null
+                || s.context().stream()
+                        .noneMatch(c -> c.startsWith("RUBRIC:") || c.startsWith("EXPECT:"))) {
             return s;
         }
         List<String> context = new java.util.ArrayList<>();
@@ -112,19 +117,34 @@ public final class EvalScenarios {
         List<String> expect = new java.util.ArrayList<>(s.expectLines());
         for (String line : s.context()) {
             if (line.startsWith("RUBRIC:")) rubric.add(line.substring("RUBRIC:".length()).strip());
-            else if (line.startsWith("EXPECT:")) expect.add(line.substring("EXPECT:".length()).strip());
+            else if (line.startsWith("EXPECT:"))
+                expect.add(line.substring("EXPECT:".length()).strip());
             else context.add(line);
         }
-        return new EvalScenario(s.name(), s.input(), s.expectedOutputContains(), s.expectedOutput(), s.expectedTools(),
-                context.isEmpty() ? null : context, s.retrievalContext(), s.id(), s.dimensions(), s.tags(),
-                rubric.isEmpty() ? null : rubric, expect.isEmpty() ? null : expect, s.inputs(), s.expectedOutputNotContains(),
-                s.expectedMinWords(), s.expectedMaxWords());
+        return new EvalScenario(
+                s.name(),
+                s.input(),
+                s.expectedOutputContains(),
+                s.expectedOutput(),
+                s.expectedTools(),
+                context.isEmpty() ? null : context,
+                s.retrievalContext(),
+                s.id(),
+                s.dimensions(),
+                s.tags(),
+                rubric.isEmpty() ? null : rubric,
+                expect.isEmpty() ? null : expect,
+                s.inputs(),
+                s.expectedOutputNotContains(),
+                s.expectedMinWords(),
+                s.expectedMaxWords());
     }
 
     /**
-     * Loads every dataset file in a folder, by file name without {@code .yaml}: {@code researcher.yaml} is {@code researcher}. The files
-     * {@code dataset.yaml} and {@code fixtures.yaml} are not scenario lists and are skipped. Use {@link EvalDataset#load(Path)} to also get
-     * the dimensions and what is wrong with the folder.
+     * Loads every dataset file in a folder, by file name without {@code .yaml}: {@code
+     * researcher.yaml} is {@code researcher}. The files {@code dataset.yaml} and {@code
+     * fixtures.yaml} are not scenario lists and are skipped. Use {@link EvalDataset#load(Path)} to
+     * also get the dimensions and what is wrong with the folder.
      */
     public static java.util.Map<String, List<EvalScenario>> fromDirectory(Path dir) {
         if (!Files.isDirectory(dir)) {

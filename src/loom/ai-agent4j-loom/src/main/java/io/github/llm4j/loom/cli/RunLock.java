@@ -7,8 +7,9 @@ import java.nio.file.StandardOpenOption;
 import java.util.Optional;
 
 /**
- * Says that a process is working on a run directory, so an operator command doesn't change the journal under it. The lock is a file
- * holding the process id; a lock whose process has gone is stale and ignored.
+ * Says that a process is working on a run directory, so an operator command doesn't change the
+ * journal under it. The lock is a file holding the process id; a lock whose process has gone is
+ * stale and ignored.
  */
 final class RunLock implements AutoCloseable {
 
@@ -32,7 +33,10 @@ final class RunLock implements AutoCloseable {
             Files.createDirectories(runDir);
             for (int attempt = 0; attempt < 2; attempt++) {
                 try {
-                    Files.writeString(file, String.valueOf(ProcessHandle.current().pid()), StandardOpenOption.CREATE_NEW);
+                    Files.writeString(
+                            file,
+                            String.valueOf(ProcessHandle.current().pid()),
+                            StandardOpenOption.CREATE_NEW);
                     return Optional.of(new RunLock(file));
                 } catch (java.nio.file.FileAlreadyExistsException held) {
                     if (holder(runDir).isPresent()) return Optional.empty();

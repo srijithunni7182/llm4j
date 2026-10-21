@@ -1,18 +1,16 @@
 package io.github.llm4j.agent.rag.store;
 
-import io.github.llm4j.secret.SecretMetadata;
-import io.github.llm4j.secret.SecretRef;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pgvector.PGvector;
+import io.github.llm4j.agent.rag.store.VectorStore.SearchResult;
+import io.github.llm4j.agent.rag.store.VectorStore.VectorEntry;
+import io.github.llm4j.secret.SecretMetadata;
+import io.github.llm4j.secret.SecretRef;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.sql.*;
 import java.util.*;
-
-import io.github.llm4j.agent.rag.store.VectorStore;
-import io.github.llm4j.agent.rag.store.VectorStore.SearchResult;
-import io.github.llm4j.agent.rag.store.VectorStore.VectorEntry;
 
 /**
  * Persistent vector store using PostgreSQL and the 'pgvector' extension. Requires a running
@@ -37,17 +35,31 @@ public class PGVectorStore implements VectorStore {
      */
     public PGVectorStore(
             String url, String user, String password, String tableName, int dimension) {
-        this(url, user, password == null ? null : SecretRef.literal(password), tableName, dimension, true);
+        this(
+                url,
+                user,
+                password == null ? null : SecretRef.literal(password),
+                tableName,
+                dimension,
+                true);
     }
 
-    /** A store whose database password lives in a {@link io.github.llm4j.secret.SecretStore}: fetched for each connection, never held here. */
+    /**
+     * A store whose database password lives in a {@link io.github.llm4j.secret.SecretStore}:
+     * fetched for each connection, never held here.
+     */
     public static PGVectorStore withSecret(
             String url, String user, SecretRef password, String tableName, int dimension) {
         return new PGVectorStore(url, user, password, tableName, dimension, true);
     }
 
     private PGVectorStore(
-            String url, String user, SecretRef password, String tableName, int dimension, boolean unused) {
+            String url,
+            String user,
+            SecretRef password,
+            String tableName,
+            int dimension,
+            boolean unused) {
         this.url = url;
         this.user = user;
         this.password = password;
@@ -84,7 +96,10 @@ public class PGVectorStore implements VectorStore {
         }
     }
 
-    /** The host of a {@code jdbc:...://host:port/db} URL, for a secret that is bound to hosts; null when there is none. */
+    /**
+     * The host of a {@code jdbc:...://host:port/db} URL, for a secret that is bound to hosts; null
+     * when there is none.
+     */
     private static String jdbcHost(String jdbcUrl) {
         int at = jdbcUrl == null ? -1 : jdbcUrl.indexOf("://");
         if (at < 0) return null;
@@ -98,7 +113,13 @@ public class PGVectorStore implements VectorStore {
     }
 
     protected Connection getConnection() throws SQLException {
-        Connection conn = DriverManager.getConnection(url, user, password == null ? null : password.resolveFor(SecretMetadata.hostOf(jdbcHost(url))));
+        Connection conn =
+                DriverManager.getConnection(
+                        url,
+                        user,
+                        password == null
+                                ? null
+                                : password.resolveFor(SecretMetadata.hostOf(jdbcHost(url))));
         // Register vector type
         PGvector.addVectorType(conn);
         return conn;

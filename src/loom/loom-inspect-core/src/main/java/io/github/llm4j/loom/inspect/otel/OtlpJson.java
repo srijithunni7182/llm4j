@@ -13,11 +13,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Reads and writes OTLP/HTTP in its JSON encoding (the shape an OpenTelemetry Collector accepts at {@code /v1/traces},
- * {@code /v1/logs} and {@code /v1/metrics}), with no OpenTelemetry SDK. The encoding rules that matter: 64-bit integers and
- * timestamps are written as JSON strings, ids are lowercase hex, attribute values are tagged ({@code stringValue},
- * {@code intValue}, {@code doubleValue}, {@code boolValue}). The decoder is tolerant: unknown fields are ignored and integers
- * may be numbers or strings.
+ * Reads and writes OTLP/HTTP in its JSON encoding (the shape an OpenTelemetry Collector accepts at
+ * {@code /v1/traces}, {@code /v1/logs} and {@code /v1/metrics}), with no OpenTelemetry SDK. The
+ * encoding rules that matter: 64-bit integers and timestamps are written as JSON strings, ids are
+ * lowercase hex, attribute values are tagged ({@code stringValue}, {@code intValue}, {@code
+ * doubleValue}, {@code boolValue}). The decoder is tolerant: unknown fields are ignored and
+ * integers may be numbers or strings.
  */
 public final class OtlpJson {
 
@@ -25,16 +26,16 @@ public final class OtlpJson {
     private static final String SCOPE_NAME = "loom-inspect";
     private static final int CUMULATIVE = 2;
 
-    private OtlpJson() { }
+    private OtlpJson() {}
 
     /** A decoded batch of spans from one resource. */
-    public record Traces(Resource resource, List<SpanRec> spans) { }
+    public record Traces(Resource resource, List<SpanRec> spans) {}
 
     /** A decoded batch of log records from one resource. */
-    public record Logs(Resource resource, List<LogRec> records) { }
+    public record Logs(Resource resource, List<LogRec> records) {}
 
     /** A decoded batch of metrics from one resource. */
-    public record Metrics(Resource resource, List<MetricRec> metrics) { }
+    public record Metrics(Resource resource, List<MetricRec> metrics) {}
 
     /** Nanoseconds since the epoch for an instant. */
     public static long nanos(Instant t) {
@@ -42,7 +43,8 @@ public final class OtlpJson {
     }
 
     public static Instant instant(long nanos) {
-        return Instant.ofEpochSecond(Math.floorDiv(nanos, 1_000_000_000L), Math.floorMod(nanos, 1_000_000_000L));
+        return Instant.ofEpochSecond(
+                Math.floorDiv(nanos, 1_000_000_000L), Math.floorMod(nanos, 1_000_000_000L));
     }
 
     // ------------------------------------------------------------------------------ encode
@@ -116,7 +118,8 @@ public final class OtlpJson {
                 ObjectNode pn = points.addObject();
                 pn.put("startTimeUnixNano", Long.toString(p.startNanos()));
                 pn.put("timeUnixNano", Long.toString(p.timeNanos()));
-                if (p.value() instanceof Long || p.value() instanceof Integer) pn.put("asInt", Long.toString(p.value().longValue()));
+                if (p.value() instanceof Long || p.value() instanceof Integer)
+                    pn.put("asInt", Long.toString(p.value().longValue()));
                 else pn.put("asDouble", p.value().doubleValue());
                 pn.set("attributes", attributes(p.attributes()));
             }
@@ -150,8 +153,13 @@ public final class OtlpJson {
             ObjectNode v = a.putObject("value");
             Object x = e.getValue();
             if (x instanceof Boolean b) v.put("boolValue", b);
-            else if (x instanceof Integer || x instanceof Long || x instanceof Short || x instanceof Byte) v.put("intValue", Long.toString(((Number) x).longValue()));
-            else if (x instanceof Float || x instanceof Double) v.put("doubleValue", ((Number) x).doubleValue());
+            else if (x instanceof Integer
+                    || x instanceof Long
+                    || x instanceof Short
+                    || x instanceof Byte)
+                v.put("intValue", Long.toString(((Number) x).longValue()));
+            else if (x instanceof Float || x instanceof Double)
+                v.put("doubleValue", ((Number) x).doubleValue());
             else if (x instanceof BigDecimal d) v.put("doubleValue", d.doubleValue());
             else v.put("stringValue", String.valueOf(x));
         }
@@ -177,13 +185,26 @@ public final class OtlpJson {
                 for (JsonNode s : array(ss, "spans")) {
                     List<EventRec> events = new ArrayList<>();
                     for (JsonNode e : array(s, "events")) {
-                        events.add(new EventRec(nanosOf(e.get("timeUnixNano")), text(e, "name"), attributes(e.get("attributes"))));
+                        events.add(
+                                new EventRec(
+                                        nanosOf(e.get("timeUnixNano")),
+                                        text(e, "name"),
+                                        attributes(e.get("attributes"))));
                     }
                     JsonNode status = s.get("status");
-                    spans.add(new SpanRec(text(s, "traceId"), text(s, "spanId"), blankToNull(text(s, "parentSpanId")), text(s, "name"),
-                            s.path("kind").asInt(SpanRec.INTERNAL), nanosOf(s.get("startTimeUnixNano")), nanosOf(s.get("endTimeUnixNano")),
-                            attributes(s.get("attributes")), status == null ? 0 : status.path("code").asInt(0),
-                            status == null ? null : blankToNull(text(status, "message")), events));
+                    spans.add(
+                            new SpanRec(
+                                    text(s, "traceId"),
+                                    text(s, "spanId"),
+                                    blankToNull(text(s, "parentSpanId")),
+                                    text(s, "name"),
+                                    s.path("kind").asInt(SpanRec.INTERNAL),
+                                    nanosOf(s.get("startTimeUnixNano")),
+                                    nanosOf(s.get("endTimeUnixNano")),
+                                    attributes(s.get("attributes")),
+                                    status == null ? 0 : status.path("code").asInt(0),
+                                    status == null ? null : blankToNull(text(status, "message")),
+                                    events));
                 }
             }
             out.add(new Traces(resource, spans));
@@ -199,9 +220,14 @@ public final class OtlpJson {
             for (JsonNode sl : array(rl, "scopeLogs")) {
                 for (JsonNode r : array(sl, "logRecords")) {
                     JsonNode body = r.get("body");
-                    records.add(new LogRec(nanosOf(r.get("timeUnixNano")), r.path("severityNumber").asInt(LogRec.INFO),
-                            body == null ? "" : text(body, "stringValue"), attributes(r.get("attributes")),
-                            blankToNull(text(r, "traceId")), blankToNull(text(r, "spanId"))));
+                    records.add(
+                            new LogRec(
+                                    nanosOf(r.get("timeUnixNano")),
+                                    r.path("severityNumber").asInt(LogRec.INFO),
+                                    body == null ? "" : text(body, "stringValue"),
+                                    attributes(r.get("attributes")),
+                                    blankToNull(text(r, "traceId")),
+                                    blankToNull(text(r, "spanId"))));
                 }
             }
             out.add(new Logs(resource, records));
@@ -221,11 +247,24 @@ public final class OtlpJson {
                     if (body == null) continue;
                     List<MetricRec.Point> points = new ArrayList<>();
                     for (JsonNode p : array(body, "dataPoints")) {
-                        Number value = p.has("asInt") ? (Number) p.get("asInt").asLong() : (Number) p.path("asDouble").asDouble();
-                        points.add(new MetricRec.Point(nanosOf(p.get("startTimeUnixNano")), nanosOf(p.get("timeUnixNano")), value, attributes(p.get("attributes"))));
+                        Number value =
+                                p.has("asInt")
+                                        ? (Number) p.get("asInt").asLong()
+                                        : (Number) p.path("asDouble").asDouble();
+                        points.add(
+                                new MetricRec.Point(
+                                        nanosOf(p.get("startTimeUnixNano")),
+                                        nanosOf(p.get("timeUnixNano")),
+                                        value,
+                                        attributes(p.get("attributes"))));
                     }
-                    metrics.add(new MetricRec(text(m, "name"), blankToNull(text(m, "unit")), sum ? MetricRec.Type.SUM : MetricRec.Type.GAUGE,
-                            sum && body.path("isMonotonic").asBoolean(false), points));
+                    metrics.add(
+                            new MetricRec(
+                                    text(m, "name"),
+                                    blankToNull(text(m, "unit")),
+                                    sum ? MetricRec.Type.SUM : MetricRec.Type.GAUGE,
+                                    sum && body.path("isMonotonic").asBoolean(false),
+                                    points));
                 }
             }
             out.add(new Metrics(resource, metrics));

@@ -6,7 +6,10 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
-/** Where {@code weave} asks for a passphrase or a secret value: never from an argument, and never echoed. Replaceable, so tests need no console. */
+/**
+ * Where {@code weave} asks for a passphrase or a secret value: never from an argument, and never
+ * echoed. Replaceable, so tests need no console.
+ */
 interface Prompts {
 
     /** Reads a line without echoing it. */
@@ -22,20 +25,26 @@ interface Prompts {
             public char[] readSecret(String prompt) {
                 java.io.Console console = System.console();
                 if (console == null) {
-                    throw new SecretStoreException("there is no console to ask for \"" + prompt.trim()
-                            + "\"; give --secrets-key-file or --secrets-key-env, or run weave in a terminal");
+                    throw new SecretStoreException(
+                            "there is no console to ask for \""
+                                    + prompt.trim()
+                                    + "\"; give --secrets-key-file or --secrets-key-env, or run weave in a terminal");
                 }
                 char[] value = console.readPassword("%s", prompt);
-                if (value == null || value.length == 0) throw new SecretStoreException("nothing was entered");
+                if (value == null || value.length == 0)
+                    throw new SecretStoreException("nothing was entered");
                 return value;
             }
 
             @Override
             public String readLine() {
                 try {
-                    return new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)).readLine();
+                    return new BufferedReader(
+                                    new InputStreamReader(System.in, StandardCharsets.UTF_8))
+                            .readLine();
                 } catch (IOException e) {
-                    throw new SecretStoreException("cannot read standard input: " + e.getMessage(), e);
+                    throw new SecretStoreException(
+                            "cannot read standard input: " + e.getMessage(), e);
                 }
             }
         };

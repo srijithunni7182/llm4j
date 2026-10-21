@@ -9,6 +9,11 @@ public class HumanPromptStmt extends LocatedStatement {
         this.variableName = variableName;
     }
 
-    public String getMessage() { return message; }
-    public String getVariableName() { return variableName; }
+    public String getMessage() {
+        return message;
+    }
+
+    public String getVariableName() {
+        return variableName;
+    }
 }

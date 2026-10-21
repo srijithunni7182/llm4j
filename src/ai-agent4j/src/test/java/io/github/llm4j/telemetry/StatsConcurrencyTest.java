@@ -12,7 +12,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 
-/** R17 with real agents: many runs on a pool, one shared collector; its totals equal the sum of the runs' own statistics. */
+/**
+ * R17 with real agents: many runs on a pool, one shared collector; its totals equal the sum of the
+ * runs' own statistics.
+ */
 class StatsConcurrencyTest {
 
     @Test
@@ -25,12 +28,18 @@ class StatsConcurrencyTest {
             for (int i = 0; i < runs; i++) {
                 boolean nativeLoop = i % 2 == 0;
                 int steps = 1 + i % 5;
-                futures.add(pool.submit(() -> ReActAgent.builder()
-                        .llmClient(Scripts.toolSteps(nativeLoop, "search", steps))
-                        .addTool(TestTool.returning("search", "ok"))
-                        .maxIterations(20)
-                        .addListener(shared)
-                        .build().run("Go.")));
+                futures.add(
+                        pool.submit(
+                                () ->
+                                        ReActAgent.builder()
+                                                .llmClient(
+                                                        Scripts.toolSteps(
+                                                                nativeLoop, "search", steps))
+                                                .addTool(TestTool.returning("search", "ok"))
+                                                .maxIterations(20)
+                                                .addListener(shared)
+                                                .build()
+                                                .run("Go.")));
             }
             long models = 0, tools = 0, prompt = 0;
             for (Future<AgentResult> f : futures) {
@@ -57,16 +66,19 @@ class StatsConcurrencyTest {
             List<Future<CallTrace.Totals>> futures = new ArrayList<>();
             for (int t = 0; t < threads; t++) {
                 int attempts = t + 1;
-                futures.add(pool.submit(() -> {
-                    CallTrace.begin();
-                    for (int i = 0; i < attempts; i++) {
-                        CallTrace.attempt();
-                        Thread.yield();
-                    }
-                    return CallTrace.end();
-                }));
+                futures.add(
+                        pool.submit(
+                                () -> {
+                                    CallTrace.begin();
+                                    for (int i = 0; i < attempts; i++) {
+                                        CallTrace.attempt();
+                                        Thread.yield();
+                                    }
+                                    return CallTrace.end();
+                                }));
             }
-            for (int t = 0; t < threads; t++) assertThat(futures.get(t).get().attempts()).isEqualTo(t + 1);
+            for (int t = 0; t < threads; t++)
+                assertThat(futures.get(t).get().attempts()).isEqualTo(t + 1);
         } finally {
             pool.shutdownNow();
         }

@@ -10,7 +10,10 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** R1 and R2.4 of loom-weave-eval: a dataset is a folder, and what is wrong with it is listed, not thrown. */
+/**
+ * R1 and R2.4 of loom-weave-eval: a dataset is a folder, and what is wrong with it is listed, not
+ * thrown.
+ */
 class EvalDatasetTest {
 
     @TempDir Path dir;
@@ -37,10 +40,14 @@ class EvalDatasetTest {
     @Test
     void r1_2_dimensionsComeFromAMappingOrAList() throws IOException {
         write("dataset.yaml", "dimensions:\n  safety: Does no harm\n  grounding: Uses sources\n");
-        assertThat(EvalDataset.load(dir).dimensions()).containsExactly(java.util.Map.entry("safety", "Does no harm"), java.util.Map.entry("grounding", "Uses sources"));
+        assertThat(EvalDataset.load(dir).dimensions())
+                .containsExactly(
+                        java.util.Map.entry("safety", "Does no harm"),
+                        java.util.Map.entry("grounding", "Uses sources"));
 
         write("dataset.yaml", "dimensions: [safety, grounding]\n");
-        assertThat(EvalDataset.load(dir).dimensions().keySet()).containsExactly("safety", "grounding");
+        assertThat(EvalDataset.load(dir).dimensions().keySet())
+                .containsExactly("safety", "grounding");
     }
 
     @Test
@@ -48,11 +55,16 @@ class EvalDatasetTest {
         write("dataset.yaml", "dimensions: [safety]\n");
         write("a.yaml", "- name: n\n  input: x\n  dimensions: [safety, speed]\n");
 
-        assertThat(EvalDataset.load(dir).problems()).singleElement().satisfies(p -> {
-            assertThat(p.message()).contains("uses the dimension speed").contains("it has safety");
-            assertThat(p.fatal()).isFalse();
-            assertThat(p.toString()).startsWith("a.yaml [n]");
-        });
+        assertThat(EvalDataset.load(dir).problems())
+                .singleElement()
+                .satisfies(
+                        p -> {
+                            assertThat(p.message())
+                                    .contains("uses the dimension speed")
+                                    .contains("it has safety");
+                            assertThat(p.fatal()).isFalse();
+                            assertThat(p.toString()).startsWith("a.yaml [n]");
+                        });
     }
 
     @Test
@@ -69,7 +81,9 @@ class EvalDatasetTest {
 
         List<EvalDataset.Problem> problems = EvalDataset.load(dir).problems();
 
-        assertThat(problems).extracting(EvalDataset.Problem::message).anyMatch(m -> m.equals("has no input"))
+        assertThat(problems)
+                .extracting(EvalDataset.Problem::message)
+                .anyMatch(m -> m.equals("has no input"))
                 .anyMatch(m -> m.contains("repeats the id s-1 (first in a.yaml)"));
     }
 
@@ -81,29 +95,43 @@ class EvalDatasetTest {
         EvalDataset dataset = EvalDataset.load(dir);
 
         assertThat(dataset.files().keySet()).containsExactly("good");
-        assertThat(dataset.problems()).singleElement().satisfies(p -> {
-            assertThat(p.fatal()).isTrue();
-            assertThat(p.file()).isEqualTo("bad.yaml");
-            assertThat(p.message()).startsWith("cannot be read");
-        });
+        assertThat(dataset.problems())
+                .singleElement()
+                .satisfies(
+                        p -> {
+                            assertThat(p.fatal()).isTrue();
+                            assertThat(p.file()).isEqualTo("bad.yaml");
+                            assertThat(p.message()).startsWith("cannot be read");
+                        });
     }
 
     @Test
     void aListWhereOneTextIsExpectedNamesTheScenarioAndTheField() throws IOException {
-        write("a.yaml", "- id: a-1\n  input: x\n- id: a-2\n  input: y\n  expected_output_contains: [\"one\", \"two\"]\n");
+        write(
+                "a.yaml",
+                "- id: a-1\n  input: x\n- id: a-2\n  input: y\n  expected_output_contains: [\"one\", \"two\"]\n");
 
-        assertThat(EvalDataset.load(dir).problems()).singleElement().satisfies(p ->
-                assertThat(p.message()).contains("scenario 2").contains("field expected_output_contains").contains("takes one text, not a list"));
+        assertThat(EvalDataset.load(dir).problems())
+                .singleElement()
+                .satisfies(
+                        p ->
+                                assertThat(p.message())
+                                        .contains("scenario 2")
+                                        .contains("field expected_output_contains")
+                                        .contains("takes one text, not a list"));
     }
 
     @Test
     void anUnknownKeyInAScenarioIsAProblemNotASilentIgnore() throws IOException {
         write("a.yaml", "- name: n\n  input: x\n  rubrik: [typo]\n");
 
-        assertThat(EvalDataset.load(dir).problems()).singleElement().satisfies(p -> {
-            assertThat(p.fatal()).isTrue();
-            assertThat(p.message()).contains("rubrik");
-        });
+        assertThat(EvalDataset.load(dir).problems())
+                .singleElement()
+                .satisfies(
+                        p -> {
+                            assertThat(p.fatal()).isTrue();
+                            assertThat(p.message()).contains("rubrik");
+                        });
     }
 
     @Test
@@ -111,14 +139,21 @@ class EvalDatasetTest {
         EvalDataset dataset = EvalDataset.load(dir.resolve("nope"));
 
         assertThat(dataset.files()).isEmpty();
-        assertThat(dataset.problems()).singleElement().extracting(EvalDataset.Problem::message).isEqualTo("the dataset folder does not exist");
+        assertThat(dataset.problems())
+                .singleElement()
+                .extracting(EvalDataset.Problem::message)
+                .isEqualTo("the dataset folder does not exist");
     }
 
     @Test
     void aBadDimensionsFileIsReported() throws IOException {
         write("dataset.yaml", "dimensions: 42\n");
 
-        assertThat(EvalDataset.load(dir).problems()).singleElement().extracting(EvalDataset.Problem::message).asString().contains("needs a dimensions: mapping");
+        assertThat(EvalDataset.load(dir).problems())
+                .singleElement()
+                .extracting(EvalDataset.Problem::message)
+                .asString()
+                .contains("needs a dimensions: mapping");
     }
 
     @Test
@@ -126,8 +161,12 @@ class EvalDatasetTest {
         write("a.yaml", "- name: n\n  input: x\n");
 
         assertThat(EvalScenarios.fromDirectory(dir)).containsOnlyKeys("a");
-        assertThatThrownBy(() -> EvalScenarios.fromDirectory(dir.resolve("nope"))).isInstanceOf(EvalDatasetException.class).hasMessageContaining("not found");
+        assertThatThrownBy(() -> EvalScenarios.fromDirectory(dir.resolve("nope")))
+                .isInstanceOf(EvalDatasetException.class)
+                .hasMessageContaining("not found");
         write("b.yaml", "- [broken\n");
-        assertThatThrownBy(() -> EvalScenarios.fromDirectory(dir)).isInstanceOf(EvalDatasetException.class).hasMessageContaining("b.yaml");
+        assertThatThrownBy(() -> EvalScenarios.fromDirectory(dir))
+                .isInstanceOf(EvalDatasetException.class)
+                .hasMessageContaining("b.yaml");
     }
 }

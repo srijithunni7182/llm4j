@@ -14,8 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A facade LLMClient that intelligently routes requests across multiple underlying providers.
- * It provides seamless auto-failover, attempting secondary providers when the primary fails.
+ * A facade LLMClient that intelligently routes requests across multiple underlying providers. It
+ * provides seamless auto-failover, attempting secondary providers when the primary fails.
  */
 public class RoutingLLMClient implements LLMClient {
 
@@ -27,16 +27,17 @@ public class RoutingLLMClient implements LLMClient {
     private RoutingLLMClient(Builder builder) {
         this.strategy = builder.strategy != null ? builder.strategy : new FallbackRoutingStrategy();
         this.clientsByTier = new EnumMap<>(ProviderTier.class);
-        
+
         // Deep copy the configured map ensuring no empty lists
         for (Map.Entry<ProviderTier, List<LLMClient>> entry : builder.clientsByTier.entrySet()) {
             if (!entry.getValue().isEmpty()) {
                 this.clientsByTier.put(entry.getKey(), new ArrayList<>(entry.getValue()));
             }
         }
-        
+
         if (this.clientsByTier.isEmpty()) {
-            throw new IllegalArgumentException("RoutingLLMClient must be configured with at least one LLMClient.");
+            throw new IllegalArgumentException(
+                    "RoutingLLMClient must be configured with at least one LLMClient.");
         }
     }
 
@@ -58,10 +59,14 @@ public class RoutingLLMClient implements LLMClient {
             }
 
             try {
-                logger.debug("Routing request to client: {}", clientToTry.getClass().getSimpleName());
+                logger.debug(
+                        "Routing request to client: {}", clientToTry.getClass().getSimpleName());
                 return clientToTry.chat(request);
             } catch (Exception e) {
-                logger.warn("RoutingLLMClient: Client {} failed. Failing over. Error: {}", clientToTry.getClass().getSimpleName(), e.getMessage());
+                logger.warn(
+                        "RoutingLLMClient: Client {} failed. Failing over. Error: {}",
+                        clientToTry.getClass().getSimpleName(),
+                        e.getMessage());
                 strategy.onFailure(clientToTry, request, e);
                 io.github.llm4j.telemetry.CallTrace.failover(nameOf(clientToTry));
                 suppressedExceptions.add(e);
@@ -69,16 +74,20 @@ public class RoutingLLMClient implements LLMClient {
             }
         }
 
-        io.github.llm4j.exception.RateLimitException limited = soonestIfAllRateLimited(suppressedExceptions);
+        io.github.llm4j.exception.RateLimitException limited =
+                soonestIfAllRateLimited(suppressedExceptions);
         if (limited != null) throw limited;
-        LLMException fatal = new LLMException("All available LLM Clients failed to process the request.");
+        LLMException fatal =
+                new LLMException("All available LLM Clients failed to process the request.");
         for (Exception e : suppressedExceptions) {
             fatal.addSuppressed(e);
         }
         throw fatal;
     }
 
-    /** The class's simple name; an anonymous or lambda class has none, so its binary name stands in. */
+    /**
+     * The class's simple name; an anonymous or lambda class has none, so its binary name stands in.
+     */
     private static String nameOf(LLMClient client) {
         String simple = client.getClass().getSimpleName();
         return simple.isEmpty() ? client.getClass().getName() : simple;
@@ -100,7 +109,7 @@ public class RoutingLLMClient implements LLMClient {
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
-        
+
         // Similarly clone available clients
         Map<ProviderTier, List<LLMClient>> availableClients = new EnumMap<>(clientsByTier);
         List<Exception> suppressedExceptions = new ArrayList<>();
@@ -114,24 +123,31 @@ public class RoutingLLMClient implements LLMClient {
             }
 
             try {
-                logger.debug("Routing stream request to client: {}", clientToTry.getClass().getSimpleName());
+                logger.debug(
+                        "Routing stream request to client: {}",
+                        clientToTry.getClass().getSimpleName());
                 return clientToTry.chatStream(request);
             } catch (Exception e) {
-                logger.warn("RoutingLLMClient: Stream client {} failed initialization. Failing over. Error: {}", clientToTry.getClass().getSimpleName(), e.getMessage());
+                logger.warn(
+                        "RoutingLLMClient: Stream client {} failed initialization. Failing over. Error: {}",
+                        clientToTry.getClass().getSimpleName(),
+                        e.getMessage());
                 strategy.onFailure(clientToTry, request, e);
                 suppressedExceptions.add(e);
                 removeClientFromAvailability(availableClients, clientToTry);
             }
         }
 
-        LLMException fatal = new LLMException("All available LLM Clients failed to initialize stream.");
+        LLMException fatal =
+                new LLMException("All available LLM Clients failed to initialize stream.");
         for (Exception e : suppressedExceptions) {
             fatal.addSuppressed(e);
         }
         throw fatal;
     }
 
-    private void removeClientFromAvailability(Map<ProviderTier, List<LLMClient>> availableClients, LLMClient client) {
+    private void removeClientFromAvailability(
+            Map<ProviderTier, List<LLMClient>> availableClients, LLMClient client) {
         availableClients.values().forEach(list -> list.remove(client));
         availableClients.entrySet().removeIf(entry -> entry.getValue().isEmpty());
     }
@@ -142,7 +158,8 @@ public class RoutingLLMClient implements LLMClient {
 
     public static final class Builder {
         private RoutingStrategy strategy;
-        private final Map<ProviderTier, List<LLMClient>> clientsByTier = new EnumMap<>(ProviderTier.class);
+        private final Map<ProviderTier, List<LLMClient>> clientsByTier =
+                new EnumMap<>(ProviderTier.class);
 
         private Builder() {}
 
@@ -164,18 +181,20 @@ public class RoutingLLMClient implements LLMClient {
     }
 
     /**
-     * When every client failed only because it is rate limited, the request can go through as soon as
-     * the first of them resets: report that one, so callers can wait for it rather than give up.
+     * When every client failed only because it is rate limited, the request can go through as soon
+     * as the first of them resets: report that one, so callers can wait for it rather than give up.
      */
-    public static io.github.llm4j.exception.RateLimitException soonestIfAllRateLimited(List<Exception> failures) {
+    public static io.github.llm4j.exception.RateLimitException soonestIfAllRateLimited(
+            List<Exception> failures) {
         if (failures.isEmpty()) return null;
         io.github.llm4j.exception.RateLimitException soonest = null;
         for (Exception e : failures) {
             if (!(e instanceof io.github.llm4j.exception.RateLimitException r)) return null;
             if (soonest == null) {
                 soonest = r;
-            } else if (r.info() != null && (soonest.info() == null
-                    || r.info().resetAt().isBefore(soonest.info().resetAt()))) {
+            } else if (r.info() != null
+                    && (soonest.info() == null
+                            || r.info().resetAt().isBefore(soonest.info().resetAt()))) {
                 soonest = r;
             }
         }

@@ -16,8 +16,16 @@ class LazyLoadingTest {
 
     private static List<String> classLoadLines(String mode) throws Exception {
         String java = Path.of(System.getProperty("java.home"), "bin", "java").toString();
-        Process p = new ProcessBuilder(java, "-verbose:class", "-cp", System.getProperty("java.class.path"),
-                LazyLoadProbe.class.getName(), mode).redirectErrorStream(true).start();
+        Process p =
+                new ProcessBuilder(
+                                java,
+                                "-verbose:class",
+                                "-cp",
+                                System.getProperty("java.class.path"),
+                                LazyLoadProbe.class.getName(),
+                                mode)
+                        .redirectErrorStream(true)
+                        .start();
         List<String> lines = new ArrayList<>();
         try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
             for (String line; (line = r.readLine()) != null; ) lines.add(line);
@@ -28,7 +36,8 @@ class LazyLoadingTest {
     }
 
     private static boolean loadedMailLibrary(List<String> lines) {
-        return lines.stream().anyMatch(l -> l.contains("jakarta.mail.") || l.contains("org.eclipse.angus.mail"));
+        return lines.stream()
+                .anyMatch(l -> l.contains("jakarta.mail.") || l.contains("org.eclipse.angus.mail"));
     }
 
     @Test
@@ -40,6 +49,8 @@ class LazyLoadingTest {
     @Test
     @Tag("V5.9")
     void theProbeWouldNoticeIfItWasLoaded() throws Exception {
-        assertThat(loadedMailLibrary(classLoadLines("send"))).as("sending mail does load it").isTrue();
+        assertThat(loadedMailLibrary(classLoadLines("send")))
+                .as("sending mail does load it")
+                .isTrue();
     }
 }

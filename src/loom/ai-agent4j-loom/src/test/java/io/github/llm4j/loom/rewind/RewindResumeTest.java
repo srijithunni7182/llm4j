@@ -19,11 +19,13 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** Resuming after a rewind or a crash, old journals, and what is spent (spec loom-rewind-and-fork R2.10, R3, R4.11, R8.5, R9). */
+/**
+ * Resuming after a rewind or a crash, old journals, and what is spent (spec loom-rewind-and-fork
+ * R2.10, R3, R4.11, R8.5, R9).
+ */
 class RewindResumeTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private ScriptedRun run(ReportScript model, RunJournal journal) {
         ScriptedRun run = new ScriptedRun(dir);
@@ -43,8 +45,10 @@ class RewindResumeTest {
         assertThat(journal.get("Report/s5#rewind")).isPresent();
         assertThat(journal.all()).doesNotContainKey("#boundaries");
 
-        // the recorded review changes under the run's feet (a hand-edited journal): the condition would now be true
-        journal.put("Report/s4", new RunJournal.Entry("delegate", Map.of("score", 1, "notes", "fix1")));
+        // the recorded review changes under the run's feet (a hand-edited journal): the condition
+        // would now be true
+        journal.put(
+                "Report/s4", new RunJournal.Entry("delegate", Map.of("score", 1, "notes", "fix1")));
         ReportScript again = new ReportScript(9);
         var second = run(again, journal).executor(ReportScript.SCRIPT);
         second.initialize();
@@ -79,7 +83,8 @@ class RewindResumeTest {
             RunJournal j = RunJournal.inMemory();
             ReportScript m = new ReportScript(5, 8);
             try {
-                var e1 = run(m, new FaultRunJournal(j, crashAt, true)).executor(ReportScript.SCRIPT);
+                var e1 =
+                        run(m, new FaultRunJournal(j, crashAt, true)).executor(ReportScript.SCRIPT);
                 e1.initialize();
                 e1.executeWorkflow("Report", Map.of("topic", "bees"));
             } catch (FaultRunJournal.Crash crash) {
@@ -88,8 +93,17 @@ class RewindResumeTest {
             var e2 = run(m, j).executor(ReportScript.SCRIPT);
             e2.initialize();
             e2.executeWorkflow("Report", Map.of("topic", "bees"));
-            assertThat(m.tasks.stream().filter(t -> t.startsWith("Collector")).reduce((x, y) -> y).orElse("")).as("crash after write " + crashAt)
-                    .isEqualTo(liveTasks.stream().filter(t -> t.startsWith("Collector")).reduce((x, y) -> y).orElse(""));
+            assertThat(
+                            m.tasks.stream()
+                                    .filter(t -> t.startsWith("Collector"))
+                                    .reduce((x, y) -> y)
+                                    .orElse(""))
+                    .as("crash after write " + crashAt)
+                    .isEqualTo(
+                            liveTasks.stream()
+                                    .filter(t -> t.startsWith("Collector"))
+                                    .reduce((x, y) -> y)
+                                    .orElse(""));
         }
         assertThat(crashing.calls).isEmpty();
         assertThat(durable.all()).isEmpty();
@@ -105,32 +119,57 @@ class RewindResumeTest {
         e.initialize();
         e.executeWorkflow("Report", Map.of("topic", "bees"));
 
-        long all = journal.all().entrySet().stream().filter(x -> x.getKey().contains("#usage:"))
-                .mapToLong(x -> ((Number) ((Map<?, ?>) x.getValue().value()).get("prompt")).longValue() + ((Number) ((Map<?, ?>) x.getValue().value()).get("completion")).longValue()).sum();
+        long all =
+                journal.all().entrySet().stream()
+                        .filter(x -> x.getKey().contains("#usage:"))
+                        .mapToLong(
+                                x ->
+                                        ((Number) ((Map<?, ?>) x.getValue().value()).get("prompt"))
+                                                        .longValue()
+                                                + ((Number)
+                                                                ((Map<?, ?>) x.getValue().value())
+                                                                        .get("completion"))
+                                                        .longValue())
+                        .sum();
         var timeline = RunTravel.timeline(journal);
         assertThat(timeline.keptTokens() + timeline.discardedTokens()).isEqualTo(all);
         assertThat(timeline.discardedTokens()).isGreaterThan(0);
         assertThat(timeline.keptTokens()).isGreaterThan(0);
         assertThat(e.spend().table()).contains("total");
-        assertThat(e.spend().lines().stream().mapToLong(l -> l.charge().promptTokens() + l.charge().completionTokens()).sum()).as("the spend report counts the replaced attempt too").isEqualTo(all);
+        assertThat(
+                        e.spend().lines().stream()
+                                .mapToLong(
+                                        l ->
+                                                l.charge().promptTokens()
+                                                        + l.charge().completionTokens())
+                                .sum())
+                .as("the spend report counts the replaced attempt too")
+                .isEqualTo(all);
     }
 
     @Test
     @Tag("RW-V3.8")
-    void aJournalWrittenBeforeThisFeatureResumesWithTheSameResultsAndAddsNothingNew() throws IOException {
+    void aJournalWrittenBeforeThisFeatureResumesWithTheSameResultsAndAddsNothingNew()
+            throws IOException {
         Path journalFile = dir.resolve("legacy.json");
         try (Stream<String> ignored = Stream.of("x")) {
-            Files.copy(Path.of("src/test/resources/legacy/paused-journal.json"), journalFile, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(
+                    Path.of("src/test/resources/legacy/paused-journal.json"),
+                    journalFile,
+                    StandardCopyOption.REPLACE_EXISTING);
         }
         FileRunJournal journal = new FileRunJournal(journalFile);
         List<String> tasks = Collections.synchronizedList(new ArrayList<>());
         ScriptedRun run = new ScriptedRun(dir);
         run.journal = journal;
-        run.responder = r -> {
-            tasks.add(ScriptedRun.lastMessage(r));
-            return ScriptedRun.done("finished");
-        };
-        var executor = run.executor("""
+        run.responder =
+                r -> {
+                    tasks.add(ScriptedRun.lastMessage(r));
+                    return ScriptedRun.done("finished");
+                };
+        var executor =
+                run.executor(
+                        """
                 agent A { model: "m" system: "You are A." }
                 workflow W() {
                     delegate "first" to A -> prev
@@ -143,7 +182,13 @@ class RewindResumeTest {
 
         assertThat(tasks).hasSize(1);
         assertThat(tasks.get(0)).contains("second, after legacy-result and yes");
-        assertThat(journal.all().keySet()).noneMatch(k -> k.contains("#boundaries") || k.contains("~") || k.contains("#asked") || k.contains("#checkpoint"));
+        assertThat(journal.all().keySet())
+                .noneMatch(
+                        k ->
+                                k.contains("#boundaries")
+                                        || k.contains("~")
+                                        || k.contains("#asked")
+                                        || k.contains("#checkpoint"));
         assertThat(journal.get("W/s0").get().value()).isEqualTo("legacy-result");
         assertThat(journal.get("W/s2").get().value()).isEqualTo("finished");
     }
@@ -151,23 +196,42 @@ class RewindResumeTest {
     @Test
     @Tag("RW-V8.5")
     void aToolOfAnUnknownClassHoldsARewindUntilAPersonSaysSo() {
-        java.util.concurrent.atomic.AtomicInteger stamps = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicInteger stamps =
+                new java.util.concurrent.atomic.AtomicInteger();
         ScriptedRun run = new ScriptedRun(dir);
         run.journal = RunJournal.inMemory();
-        run.tools.register("Stamp", new io.github.llm4j.agent.Tool() {
-            @Override public String getName() { return "Stamp"; }
-            @Override public String getDescription() { return "stamps"; }
-            @Override public String execute(Map<String, Object> args) { stamps.incrementAndGet(); return "stamped"; }
-        });
+        run.tools.register(
+                "Stamp",
+                new io.github.llm4j.agent.Tool() {
+                    @Override
+                    public String getName() {
+                        return "Stamp";
+                    }
+
+                    @Override
+                    public String getDescription() {
+                        return "stamps";
+                    }
+
+                    @Override
+                    public String execute(Map<String, Object> args) {
+                        stamps.incrementAndGet();
+                        return "stamped";
+                    }
+                });
         run.human = q -> "cancel";
-        run.responder = r -> {
-            String system = r.getMessages().get(0).getContent();
-            String message = ScriptedRun.lastMessage(r);
-            if (system.contains("Reviewer")) return "```json\n{\"score\": 1, \"notes\": \"x\"}\n```";
-            if (message.contains("Observation:")) return ScriptedRun.done("stamped it");
-            return ScriptedRun.call("Stamp", "{\"doc\": \"a\"}");
-        };
-        var executor = run.executor("""
+        run.responder =
+                r -> {
+                    String system = r.getMessages().get(0).getContent();
+                    String message = ScriptedRun.lastMessage(r);
+                    if (system.contains("Reviewer"))
+                        return "```json\n{\"score\": 1, \"notes\": \"x\"}\n```";
+                    if (message.contains("Observation:")) return ScriptedRun.done("stamped it");
+                    return ScriptedRun.call("Stamp", "{\"doc\": \"a\"}");
+                };
+        var executor =
+                run.executor(
+                        """
                 agent Stamper { model: "m" system: "You are Stamper." tools: [Stamp] max_iterations: 4 }
                 agent Reviewer { model: "m" system: "You are Reviewer." }
                 workflow W() {
@@ -181,7 +245,11 @@ class RewindResumeTest {
         executor.executeWorkflow("W", Map.of());
 
         assertThat(run.questions).hasSize(1);
-        assertThat(run.questions.get(0)).contains("Stamp").contains("isn't known to change nothing");
-        assertThat(stamps.get()).as("the person said cancel: no second attempt, no second stamp").isEqualTo(1);
+        assertThat(run.questions.get(0))
+                .contains("Stamp")
+                .contains("isn't known to change nothing");
+        assertThat(stamps.get())
+                .as("the person said cancel: no second attempt, no second stamp")
+                .isEqualTo(1);
     }
 }

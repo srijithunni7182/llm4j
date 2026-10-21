@@ -7,7 +7,6 @@ import io.github.llm4j.loom.ladder.LadderEngine;
 import io.github.llm4j.loom.ladder.LadderPolicy;
 import io.github.llm4j.loom.lexer.Lexer;
 import io.github.llm4j.loom.parser.LoomParser;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.Tag;
@@ -17,7 +16,8 @@ import org.junit.jupiter.api.Test;
 @Tag("L5")
 class LadderScaleTest {
 
-    static final String SCRIPT = """
+    static final String SCRIPT =
+            """
             agent T { model: "m" system: "s" output_schema: { choice: string, reasoning: string } }
             measure agrees(c) = c.response.choice == c.proposal.choice
             ladder L {
@@ -34,16 +34,57 @@ class LadderScaleTest {
         LoomScript s = new LoomParser(new Lexer(SCRIPT).tokenize()).parseScript();
         MemoryLedger ledger = new MemoryLedger();
         MutableClock clock = new MutableClock(Instant.parse("2026-10-01T00:00:00Z"));
-        LadderEngine engine = new LadderEngine(LadderPolicy.of(s, s.getDecisions().get(0)), ledger, clock);
+        LadderEngine engine =
+                new LadderEngine(LadderPolicy.of(s, s.getDecisions().get(0)), ledger, clock);
         int scopes = 50, cases = 100_000;
         for (int sc = 0; sc < scopes; sc++) engine.standing("scope" + sc, "id-a", "m");
         for (int i = 0; i < cases; i++) {
             String id = "c" + i;
             String scope = "scope" + (i % scopes);
             Instant t = clock.instant().plusSeconds(i);
-            ledger.append(new Rec(id + "#case#1", "D", Rec.CASE, t, id, 1, Rec.map("scope", scope, "level", "watch", "identity", "id-a", "epoch", 1, "fields", Map.of("amount", String.valueOf(i % 500)))));
-            ledger.append(new Rec(id + "#proposed#1", "D", Rec.PROPOSED, t, id, 1, Rec.map("choice", "a")));
-            ledger.append(new Rec(id + "#responded#1", "D", Rec.RESPONDED, t.plusSeconds(1), id, 1, Rec.map("kind", "accept", "choice", i % 10 == 0 ? "b" : "a", "by", "p")));
+            ledger.append(
+                    new Rec(
+                            id + "#case#1",
+                            "D",
+                            Rec.CASE,
+                            t,
+                            id,
+                            1,
+                            Rec.map(
+                                    "scope",
+                                    scope,
+                                    "level",
+                                    "watch",
+                                    "identity",
+                                    "id-a",
+                                    "epoch",
+                                    1,
+                                    "fields",
+                                    Map.of("amount", String.valueOf(i % 500)))));
+            ledger.append(
+                    new Rec(
+                            id + "#proposed#1",
+                            "D",
+                            Rec.PROPOSED,
+                            t,
+                            id,
+                            1,
+                            Rec.map("choice", "a")));
+            ledger.append(
+                    new Rec(
+                            id + "#responded#1",
+                            "D",
+                            Rec.RESPONDED,
+                            t.plusSeconds(1),
+                            id,
+                            1,
+                            Rec.map(
+                                    "kind",
+                                    "accept",
+                                    "choice",
+                                    i % 10 == 0 ? "b" : "a",
+                                    "by",
+                                    "p")));
         }
         clock.set(Instant.parse("2026-10-01T00:00:00Z").plusSeconds(cases + 10));
         long first = 0, rest = 0;
@@ -55,8 +96,17 @@ class LadderScaleTest {
             else rest += took;
         }
         long perCase = rest / 5;
-        System.out.println("LADDER-SCALE with " + cases + " cases: first step " + first + " ms (folds the record), later steps " + perCase + " ms each");
-        assertThat(first).as("milliseconds for the first ladder step, which folds the whole record").isLessThan(3000);
+        System.out.println(
+                "LADDER-SCALE with "
+                        + cases
+                        + " cases: first step "
+                        + first
+                        + " ms (folds the record), later steps "
+                        + perCase
+                        + " ms each");
+        assertThat(first)
+                .as("milliseconds for the first ladder step, which folds the whole record")
+                .isLessThan(3000);
         assertThat(perCase).as("milliseconds for one case's ladder step").isLessThan(1000);
     }
 }

@@ -15,10 +15,12 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * Everything an observer of a run may read, in one place, so an add-on such as loom-inspect depends on this interface and not on
- * the executor's internals. It is read-only by intent: the journal and the stores are the run's own objects, so look, do not write.
+ * Everything an observer of a run may read, in one place, so an add-on such as loom-inspect depends
+ * on this interface and not on the executor's internals. It is read-only by intent: the journal and
+ * the stores are the run's own objects, so look, do not write.
  *
- * <p>Listeners must be added <b>before</b> the executor is initialized; agents report events only when someone listens.
+ * <p>Listeners must be added <b>before</b> the executor is initialized; agents report events only
+ * when someone listens.
  */
 public interface ObservableRun {
 
@@ -34,7 +36,10 @@ public interface ObservableRun {
     /** The secret store the run uses, or null when it has none. */
     SecretStore secretStore();
 
-    /** What the {@code .loot} file declares your own tools reach ({@code Name.reach = reads}); empty when it declares none. The same answer the trace uses. */
+    /**
+     * What the {@code .loot} file declares your own tools reach ({@code Name.reach = reads}); empty
+     * when it declares none. The same answer the trace uses.
+     */
     default java.util.Map<String, String> toolReach() {
         return java.util.Map.of();
     }
@@ -51,10 +56,16 @@ public interface ObservableRun {
     /** What the run has spent so far, per agent and per step. */
     SpendReport spend();
 
-    /** A shallow copy of the workflow's variables now. The values are the run's own: read them, do not change them. */
+    /**
+     * A shallow copy of the workflow's variables now. The values are the run's own: read them, do
+     * not change them.
+     */
     Map<String, Object> variables();
 
-    /** The statistics of the model and tool calls made so far: per tool and per model, success rates, latency percentiles, failures by category. */
+    /**
+     * The statistics of the model and tool calls made so far: per tool and per model, success
+     * rates, latency percentiles, failures by category.
+     */
     default io.github.llm4j.telemetry.RunStats stats() {
         return io.github.llm4j.telemetry.RunStats.EMPTY;
     }
@@ -63,14 +74,18 @@ public interface ObservableRun {
     Clock clock();
 
     /**
-     * What an observer may do to the run: pause, resume, suspend, stop. Unlike everything else here this changes the run, so offer it only
-     * behind a login. Takes effect between steps; see {@link io.github.llm4j.loom.execution.RunControl}.
+     * What an observer may do to the run: pause, resume, suspend, stop. Unlike everything else here
+     * this changes the run, so offer it only behind a login. Takes effect between steps; see {@link
+     * io.github.llm4j.loom.execution.RunControl}.
      */
     io.github.llm4j.loom.execution.RunControl control();
 
     /** Receives the run's trace events live. Call before the executor is initialized. */
     void addTraceListener(TraceListener listener);
 
-    /** Told whenever the run pauses (a limit, a sleep), before {@link RunSuspended} leaves {@code executeWorkflow}. */
+    /**
+     * Told whenever the run pauses (a limit, a sleep), before {@link RunSuspended} leaves {@code
+     * executeWorkflow}.
+     */
     void addSuspensionListener(Consumer<RunSuspended> listener);
 }

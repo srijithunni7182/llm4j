@@ -1,14 +1,16 @@
 package io.github.llm4j.loom.lexer;
 
-import org.junit.jupiter.api.Test;
-import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.List;
+import org.junit.jupiter.api.Test;
 
 public class LexerTest {
 
     @Test
     public void testTokenizeAgentDef() {
-        String input = """
+        String input =
+                """
             agent Writer {
                 model: "gpt-4"
                 system: "You are a writer"

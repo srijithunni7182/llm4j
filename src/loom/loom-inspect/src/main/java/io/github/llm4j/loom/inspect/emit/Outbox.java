@@ -23,21 +23,24 @@ import java.util.List;
 import java.util.zip.CRC32;
 
 /**
- * The durable local log every observed event is written to before anything is sent. Append-only segment files of length-prefixed,
- * checksummed records, each with an increasing offset. A record cut off by a crash is found by its length and checksum and dropped
- * when the log is opened again; everything before it is intact.
+ * The durable local log every observed event is written to before anything is sent. Append-only
+ * segment files of length-prefixed, checksummed records, each with an increasing offset. A record
+ * cut off by a crash is found by its length and checksum and dropped when the log is opened again;
+ * everything before it is intact.
  *
- * <p>Record: {@code int length, long offset, int crc32(offset + payload), payload}. A segment is named for the offset of its first
- * record, so what a deleted segment held is known without reading it. The oldest segments go first when the log passes its size or
- * age cap, and the loss shows as {@link #firstOffset()} moving past what a reader had acknowledged.
+ * <p>Record: {@code int length, long offset, int crc32(offset + payload), payload}. A segment is
+ * named for the offset of its first record, so what a deleted segment held is known without reading
+ * it. The oldest segments go first when the log passes its size or age cap, and the loss shows as
+ * {@link #firstOffset()} moving past what a reader had acknowledged.
  *
- * <p>Thread-safe. Writes are buffered: call {@link #flush()} about every 200 ms and {@link #sync()} about every second (the owner
- * does), which is the stated bound on what a crash or a power cut can lose.
+ * <p>Thread-safe. Writes are buffered: call {@link #flush()} about every 200 ms and {@link #sync()}
+ * about every second (the owner does), which is the stated bound on what a crash or a power cut can
+ * lose.
  */
 public final class Outbox implements AutoCloseable {
 
     /** One stored record. */
-    public record Entry(long offset, byte[] payload) { }
+    public record Entry(long offset, byte[] payload) {}
 
     private static final int HEADER = 4 + 8 + 4;
     private static final int MAX_RECORD = 16 * 1024 * 1024;
@@ -57,7 +60,10 @@ public final class Outbox implements AutoCloseable {
     private long next;
     private boolean closed;
 
-    /** Opens (creating it if needed) the log in {@code dir}, repairing a torn tail, and takes the directory's lock. */
+    /**
+     * Opens (creating it if needed) the log in {@code dir}, repairing a torn tail, and takes the
+     * directory's lock.
+     */
     public Outbox(Path dir, long segmentBytes, long maxBytes, Duration maxAge, Clock clock) {
         this.dir = dir;
         this.segmentBytes = segmentBytes;
@@ -66,7 +72,11 @@ public final class Outbox implements AutoCloseable {
         this.clock = clock;
         try {
             makePrivateDir(dir);
-            lockChannel = FileChannel.open(dir.resolve("lock"), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            lockChannel =
+                    FileChannel.open(
+                            dir.resolve("lock"),
+                            StandardOpenOption.CREATE,
+                            StandardOpenOption.WRITE);
             FileLock got = null;
             try {
                 got = lockChannel.tryLock();
@@ -75,7 +85,8 @@ public final class Outbox implements AutoCloseable {
             }
             if (got == null) {
                 lockChannel.close();
-                throw new IllegalStateException("the outbox " + dir + " is in use by another process");
+                throw new IllegalStateException(
+                        "the outbox " + dir + " is in use by another process");
             }
             lock = got;
             recover();
@@ -87,7 +98,10 @@ public final class Outbox implements AutoCloseable {
     private static void makePrivateDir(Path dir) throws IOException {
         if (Files.exists(dir)) return;
         try {
-            Files.createDirectories(dir, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+            Files.createDirectories(
+                    dir,
+                    PosixFilePermissions.asFileAttribute(
+                            PosixFilePermissions.fromString("rwx------")));
         } catch (UnsupportedOperationException e) {
             Files.createDirectories(dir);
         }
@@ -98,7 +112,8 @@ public final class Outbox implements AutoCloseable {
     /** Appends a record and returns its offset. */
     public synchronized long append(byte[] payload) {
         if (closed) throw new IllegalStateException("closed");
-        if (payload.length > MAX_RECORD) throw new IllegalArgumentException("record too large: " + payload.length);
+        if (payload.length > MAX_RECORD)
+            throw new IllegalArgumentException("record too large: " + payload.length);
         try {
             if (out == null || (activeBytes >= segmentBytes)) roll();
             long offset = next++;
@@ -113,7 +128,10 @@ public final class Outbox implements AutoCloseable {
         }
     }
 
-    /** Pushes buffered records to the file (visible to readers; survives a process crash, not a power cut). */
+    /**
+     * Pushes buffered records to the file (visible to readers; survives a process crash, not a
+     * power cut).
+     */
     public synchronized void flush() {
         try {
             if (out != null) out.flush();
@@ -148,7 +166,9 @@ public final class Outbox implements AutoCloseable {
         } catch (UnsupportedOperationException ignored) {
             // not a POSIX file system
         }
-        out = new BufferedOutputStream(java.nio.channels.Channels.newOutputStream(active), 64 * 1024);
+        out =
+                new BufferedOutputStream(
+                        java.nio.channels.Channels.newOutputStream(active), 64 * 1024);
         activeBytes = 0;
         enforceCaps();
     }
@@ -157,7 +177,10 @@ public final class Outbox implements AutoCloseable {
         return dir.resolve(String.format("seg-%012d.log", first));
     }
 
-    /** Drops the oldest segments while the log is over its size or age cap. The active segment is never dropped. */
+    /**
+     * Drops the oldest segments while the log is over its size or age cap. The active segment is
+     * never dropped.
+     */
     private void enforceCaps() throws IOException {
         List<Long> segs = segments();
         long total = 0;
@@ -176,12 +199,16 @@ public final class Outbox implements AutoCloseable {
         }
     }
 
-    /** Deletes whole segments that every reader has passed: those whose last offset is at or below {@code acknowledged}. */
+    /**
+     * Deletes whole segments that every reader has passed: those whose last offset is at or below
+     * {@code acknowledged}.
+     */
     public synchronized void trim(long acknowledged) {
         try {
             List<Long> segs = segments();
             for (int i = 0; i + 1 < segs.size(); i++) {
-                if (segs.get(i + 1) - 1 <= acknowledged) Files.deleteIfExists(segmentFile(segs.get(i)));
+                if (segs.get(i + 1) - 1 <= acknowledged)
+                    Files.deleteIfExists(segmentFile(segs.get(i)));
                 else break;
             }
         } catch (IOException e) {
@@ -206,7 +233,10 @@ public final class Outbox implements AutoCloseable {
         }
     }
 
-    /** Up to {@code max} records with an offset greater than {@code after}, oldest first, flushing first so nothing written is missed. */
+    /**
+     * Up to {@code max} records with an offset greater than {@code after}, oldest first, flushing
+     * first so nothing written is missed.
+     */
     public synchronized List<Entry> read(long after, int max) {
         flush();
         List<Entry> found = new ArrayList<>();
@@ -216,7 +246,8 @@ public final class Outbox implements AutoCloseable {
                 long first = segs.get(i);
                 long nextFirst = i + 1 < segs.size() ? segs.get(i + 1) : Long.MAX_VALUE;
                 if (nextFirst - 1 <= after) continue;
-                try (InputStream in = new java.io.BufferedInputStream(Files.newInputStream(segmentFile(first)))) {
+                try (InputStream in =
+                        new java.io.BufferedInputStream(Files.newInputStream(segmentFile(first)))) {
                     DataInputStream data = new DataInputStream(in);
                     while (found.size() < max) {
                         Entry e = readOne(data);
@@ -297,7 +328,8 @@ public final class Outbox implements AutoCloseable {
             }
         }
         next = lastOffset + 1;
-        // the next record starts a new segment, so a reopened log never appends into a file another version wrote
+        // the next record starts a new segment, so a reopened log never appends into a file another
+        // version wrote
     }
 
     // ------------------------------------------------------------------------------ misc
@@ -307,11 +339,17 @@ public final class Outbox implements AutoCloseable {
         return dir;
     }
 
-    /** When anything was last written to the outbox in {@code dir}: the newest segment's time, or the directory's if it has none. */
+    /**
+     * When anything was last written to the outbox in {@code dir}: the newest segment's time, or
+     * the directory's if it has none.
+     */
     public static long lastWrite(Path dir) {
         long newest = 0;
         try (var list = Files.list(dir)) {
-            for (Path p : (Iterable<Path>) list.filter(f -> f.getFileName().toString().startsWith("seg-"))::iterator) {
+            for (Path p :
+                    (Iterable<Path>)
+                            list.filter(f -> f.getFileName().toString().startsWith("seg-"))
+                                    ::iterator) {
                 newest = Math.max(newest, Files.getLastModifiedTime(p).toMillis());
             }
             if (newest == 0) newest = Files.getLastModifiedTime(dir).toMillis();
@@ -337,7 +375,10 @@ public final class Outbox implements AutoCloseable {
         }
     }
 
-    /** Writes a small file atomically (a cursor): the new content replaces the old whole or not at all. */
+    /**
+     * Writes a small file atomically (a cursor): the new content replaces the old whole or not at
+     * all.
+     */
     static void writeAtomically(Path file, String content) throws IOException {
         Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
         Files.writeString(tmp, content);

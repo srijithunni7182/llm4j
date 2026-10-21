@@ -15,13 +15,18 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 /**
- * {@code weave graph}: the workflows of a script and its imports as nodes and edges. Nothing is run: no model, no
- * secret, no tool and no network is touched, so it needs no keys and no {@code .loot} file.
+ * {@code weave graph}: the workflows of a script and its imports as nodes and edges. Nothing is
+ * run: no model, no secret, no tool and no network is touched, so it needs no keys and no {@code
+ * .loot} file.
  *
- * <p>Standard output carries only the result (JSON, or Mermaid text). Problems that stop a graph from being built are
- * written to standard error. Problems that leave a partial graph are inside the JSON.
+ * <p>Standard output carries only the result (JSON, or Mermaid text). Problems that stop a graph
+ * from being built are written to standard error. Problems that leave a partial graph are inside
+ * the JSON.
  */
-@Command(name = "graph", description = "Draws the workflows of a script and its imports as a graph, as JSON (default) or Mermaid, without running anything.")
+@Command(
+        name = "graph",
+        description =
+                "Draws the workflows of a script and its imports as a graph, as JSON (default) or Mermaid, without running anything.")
 final class GraphCommand implements Callable<Integer> {
 
     @Parameters(index = "0", description = "The .loom script.")
@@ -33,8 +38,7 @@ final class GraphCommand implements Callable<Integer> {
     @Option(names = "--workflow", description = "Only this workflow.")
     String workflow;
 
-    @picocli.CommandLine.Mixin
-    PromptOptions promptOptions = new PromptOptions();
+    @picocli.CommandLine.Mixin PromptOptions promptOptions = new PromptOptions();
 
     @Override
     public Integer call() {
@@ -55,20 +59,45 @@ final class GraphCommand implements Callable<Integer> {
             return 2;
         }
         if (c.workflow != null) {
-            List<WorkflowGraph> chosen = result.workflows().stream().filter(w -> w.name().equals(c.workflow)).toList();
+            List<WorkflowGraph> chosen =
+                    result.workflows().stream().filter(w -> w.name().equals(c.workflow)).toList();
             if (chosen.isEmpty()) {
-                String known = result.workflows().stream().map(WorkflowGraph::name).collect(Collectors.joining(", "));
-                env.err().println("Error: no workflow named " + c.workflow + ". Known workflows: " + (known.isEmpty() ? "none" : known) + ".");
+                String known =
+                        result.workflows().stream()
+                                .map(WorkflowGraph::name)
+                                .collect(Collectors.joining(", "));
+                env.err()
+                        .println(
+                                "Error: no workflow named "
+                                        + c.workflow
+                                        + ". Known workflows: "
+                                        + (known.isEmpty() ? "none" : known)
+                                        + ".");
                 return 2;
             }
-            result = new GraphResult(result.version(), result.entry(), result.files(), chosen, result.agents(),
-                    result.runBudget(), result.diagnostics());
+            result =
+                    new GraphResult(
+                            result.version(),
+                            result.entry(),
+                            result.files(),
+                            chosen,
+                            result.agents(),
+                            result.runBudget(),
+                            result.diagnostics());
         }
         if (c.format.equals("json")) {
             env.out().println(GraphJson.write(result));
         } else {
             env.out().println(mermaid(result));
-            result.diagnostics().forEach(d -> env.err().println(d.severity().word() + ": " + where(d) + d.message()));
+            result.diagnostics()
+                    .forEach(
+                            d ->
+                                    env.err()
+                                            .println(
+                                                    d.severity().word()
+                                                            + ": "
+                                                            + where(d)
+                                                            + d.message()));
         }
         return 0;
     }
@@ -79,7 +108,11 @@ final class GraphCommand implements Callable<Integer> {
             if (out.length() > 0) {
                 out.append('\n');
             }
-            out.append("%% workflow ").append(graph.name()).append(" (").append(graph.file()).append(")\n");
+            out.append("%% workflow ")
+                    .append(graph.name())
+                    .append(" (")
+                    .append(graph.file())
+                    .append(")\n");
             out.append(MermaidRenderer.render(graph));
         }
         return out.toString().stripTrailing();

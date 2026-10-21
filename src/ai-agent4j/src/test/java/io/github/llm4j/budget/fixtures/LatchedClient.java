@@ -21,7 +21,8 @@ public class LatchedClient extends ScriptedLLMClient {
     @Override
     public LLMResponse chat(LLMRequest request) {
         try {
-            if (!gate.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("latch never released");
+            if (!gate.await(10, TimeUnit.SECONDS))
+                throw new IllegalStateException("latch never released");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(e);

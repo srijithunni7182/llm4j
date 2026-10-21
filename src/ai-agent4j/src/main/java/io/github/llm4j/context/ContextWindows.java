@@ -10,8 +10,9 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Context windows per model. The catalogue starts <b>empty</b>: nothing is assumed about a model. {@link #defaults()} is a short list of
- * models checked against their provider's documentation (each entry says when), and you load your own for the rest:
+ * Context windows per model. The catalogue starts <b>empty</b>: nothing is assumed about a model.
+ * {@link #defaults()} is a short list of models checked against their provider's documentation
+ * (each entry says when), and you load your own for the rest:
  *
  * <pre>
  * # windows.properties — model = window [/ tokens kept for the reply]
@@ -19,8 +20,8 @@ import java.util.Optional;
  * my-local-model = 32000
  * </pre>
  *
- * A model is looked up by its id, then by the id without its provider prefix, ignoring case. An unknown model has no window;
- * nothing is guessed.
+ * A model is looked up by its id, then by the id without its provider prefix, ignoring case. An
+ * unknown model has no window; nothing is guessed.
  */
 public final class ContextWindows {
 
@@ -37,14 +38,18 @@ public final class ContextWindows {
     }
 
     /**
-     * The short list that ships with the library: only models whose window was checked against the provider's own documentation, with the date
-     * in {@code windows.properties}. It is never applied by itself; pass it to the agent. Extend or override it with {@link #with}, or load your own
-     * file for the models it does not cover.
+     * The short list that ships with the library: only models whose window was checked against the
+     * provider's own documentation, with the date in {@code windows.properties}. It is never
+     * applied by itself; pass it to the agent. Extend or override it with {@link #with}, or load
+     * your own file for the models it does not cover.
      */
     public static ContextWindows defaults() {
-        try (java.io.InputStream in = ContextWindows.class.getResourceAsStream("windows.properties")) {
+        try (java.io.InputStream in =
+                ContextWindows.class.getResourceAsStream("windows.properties")) {
             if (in == null) return EMPTY;
-            return parse(new String(in.readAllBytes(), StandardCharsets.UTF_8).lines().toList(), "the seeded windows");
+            return parse(
+                    new String(in.readAllBytes(), StandardCharsets.UTF_8).lines().toList(),
+                    "the seeded windows");
         } catch (IOException e) {
             throw new java.io.UncheckedIOException("could not read the seeded context windows", e);
         }
@@ -64,11 +69,16 @@ public final class ContextWindows {
             if (line.isEmpty()) continue;
             String where = file + ":" + n + ": ";
             int eq = line.indexOf('=');
-            if (eq < 0) throw new IllegalArgumentException(where + "expected 'model = window [/ reserve]', got: " + raw);
+            if (eq < 0)
+                throw new IllegalArgumentException(
+                        where + "expected 'model = window [/ reserve]', got: " + raw);
             String model = line.substring(0, eq).strip().toLowerCase(Locale.ROOT);
-            if (model.isEmpty()) throw new IllegalArgumentException(where + "the model name is missing");
+            if (model.isEmpty())
+                throw new IllegalArgumentException(where + "the model name is missing");
             String[] parts = line.substring(eq + 1).split("/", -1);
-            if (parts.length > 2) throw new IllegalArgumentException(where + "expected 'model = window [/ reserve]', got: " + raw);
+            if (parts.length > 2)
+                throw new IllegalArgumentException(
+                        where + "expected 'model = window [/ reserve]', got: " + raw);
             try {
                 int tokens = Integer.parseInt(parts[0].strip());
                 int reserve = parts.length == 2 ? Integer.parseInt(parts[1].strip()) : 0;
@@ -76,7 +86,8 @@ public final class ContextWindows {
                     throw new IllegalArgumentException(where + "'" + model + "' is listed twice");
                 }
             } catch (NumberFormatException e) {
-                throw new IllegalArgumentException(where + "the window and the reserve must be whole numbers, got: " + raw);
+                throw new IllegalArgumentException(
+                        where + "the window and the reserve must be whole numbers, got: " + raw);
             } catch (IllegalArgumentException e) {
                 if (e.getMessage().startsWith(where)) throw e;
                 throw new IllegalArgumentException(where + e.getMessage());
@@ -92,7 +103,10 @@ public final class ContextWindows {
         return new ContextWindows(copy);
     }
 
-    /** The model's window: the exact id, then the id without its provider prefix; empty when unknown. */
+    /**
+     * The model's window: the exact id, then the id without its provider prefix; empty when
+     * unknown.
+     */
     public Optional<ContextWindow> window(String model) {
         if (model == null) return Optional.empty();
         String key = model.toLowerCase(Locale.ROOT);

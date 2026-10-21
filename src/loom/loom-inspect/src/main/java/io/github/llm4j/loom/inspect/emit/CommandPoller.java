@@ -16,9 +16,11 @@ import java.util.Set;
 import java.util.function.Function;
 
 /**
- * Asks the server for this process's commands (a long-poll the server answers when one arrives or after 25 s), checks each is addressed
- * to this process, still fresh and not seen before, hands it to the {@code handler} and tells the server what came of it. The answer to
- * the poll must be signed by the server with this process's key, so a man in the middle cannot make a run stop. A failure waits and tries again.
+ * Asks the server for this process's commands (a long-poll the server answers when one arrives or
+ * after 25 s), checks each is addressed to this process, still fresh and not seen before, hands it
+ * to the {@code handler} and tells the server what came of it. The answer to the poll must be
+ * signed by the server with this process's key, so a man in the middle cannot make a run stop. A
+ * failure waits and tries again.
  */
 public final class CommandPoller implements AutoCloseable {
 
@@ -38,7 +40,14 @@ public final class CommandPoller implements AutoCloseable {
     private final Thread thread;
     private volatile boolean closed;
 
-    public CommandPoller(String name, Transport transport, Function<Command, CommandResult> handler, Clock clock, PrintStream out, long waitSeconds, long retryMillis) {
+    public CommandPoller(
+            String name,
+            Transport transport,
+            Function<Command, CommandResult> handler,
+            Clock clock,
+            PrintStream out,
+            long waitSeconds,
+            long retryMillis) {
         this.name = name;
         this.transport = transport;
         this.handler = handler;
@@ -60,7 +69,9 @@ public final class CommandPoller implements AutoCloseable {
             try {
                 Transport.Reply r = transport.postVerified(POLL, "{\"wait\":" + waitSeconds + "}");
                 if (!r.ok()) {
-                    if (r.status() == 401 || r.status() == 403) return; // the link reports a bad key; commands are not worth a second complaint
+                    if (r.status() == 401 || r.status() == 403)
+                        return; // the link reports a bad key; commands are not worth a second
+                    // complaint
                     sleep(backoff);
                     backoff = Math.min(backoff * 2, 30_000);
                     continue;
@@ -87,7 +98,8 @@ public final class CommandPoller implements AutoCloseable {
         } catch (IOException e) {
             return;
         }
-        if (!name.equals(root.path("client").asText())) return; // an answer meant for another process
+        if (!name.equals(root.path("client").asText()))
+            return; // an answer meant for another process
         for (JsonNode n : root.path("commands")) {
             Command c;
             try {
@@ -100,11 +112,14 @@ public final class CommandPoller implements AutoCloseable {
     }
 
     private CommandResult execute(Command c) {
-        if (c.id() == null || !seen.add(c.id())) return new CommandResult(c.id(), false, "already handled");
+        if (c.id() == null || !seen.add(c.id()))
+            return new CommandResult(c.id(), false, "already handled");
         seenOrder.add(c.id());
         if (seenOrder.size() > 200) seen.remove(seenOrder.poll());
         try {
-            if (c.expires() == null || Instant.parse(c.expires()).isBefore(clock.instant())) return new CommandResult(c.id(), false, "the command had expired and was not carried out");
+            if (c.expires() == null || Instant.parse(c.expires()).isBefore(clock.instant()))
+                return new CommandResult(
+                        c.id(), false, "the command had expired and was not carried out");
             return handler.apply(c);
         } catch (RuntimeException e) {
             return new CommandResult(c.id(), false, "could not carry it out: " + e.getMessage());

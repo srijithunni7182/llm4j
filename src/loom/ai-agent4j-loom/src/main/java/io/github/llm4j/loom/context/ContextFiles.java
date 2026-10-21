@@ -6,8 +6,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The context files the command line named, for the executors it builds: {@code --context-windows} and {@code --loct}, plus the files that sit beside the
- * script ({@code <script>.windows}, {@code <script>.loct}) and the user's windows file. A process holds one set, as {@code --classes} does.
+ * The context files the command line named, for the executors it builds: {@code --context-windows}
+ * and {@code --loct}, plus the files that sit beside the script ({@code <script>.windows}, {@code
+ * <script>.loct}) and the user's windows file. A process holds one set, as {@code --classes} does.
  */
 public final class ContextFiles {
 
@@ -23,13 +24,17 @@ public final class ContextFiles {
         this.loct = List.copyOf(loct);
     }
 
-    /** Remembers the files for this process. Throws {@link IllegalArgumentException} for a named file that does not exist. */
+    /**
+     * Remembers the files for this process. Throws {@link IllegalArgumentException} for a named
+     * file that does not exist.
+     */
     public static void use(Path script, List<File> windowsFiles, List<File> loctFiles) {
         List<Path> w = new ArrayList<>();
         List<Path> l = new ArrayList<>();
         if (windowsFiles != null) for (File f : windowsFiles) w.add(exists("--context-windows", f));
         if (loctFiles != null) for (File f : loctFiles) l.add(exists("--loct", f));
-        current = new ContextFiles(script == null ? null : script.toAbsolutePath().normalize(), w, l);
+        current =
+                new ContextFiles(script == null ? null : script.toAbsolutePath().normalize(), w, l);
     }
 
     private static Path exists(String option, File f) {
@@ -37,10 +42,14 @@ public final class ContextFiles {
         return f.toPath().toAbsolutePath().normalize();
     }
 
-    /** Looks for the files beside this script, unless {@link #use} already named a script. For commands that were not given the options (resume, tick). */
+    /**
+     * Looks for the files beside this script, unless {@link #use} already named a script. For
+     * commands that were not given the options (resume, tick).
+     */
     public static void beside(Path script) {
         ContextFiles c = current;
-        if (c.script == null && script != null) current = new ContextFiles(script.toAbsolutePath().normalize(), c.windows, c.loct);
+        if (c.script == null && script != null)
+            current = new ContextFiles(script.toAbsolutePath().normalize(), c.windows, c.loct);
     }
 
     public static ContextFiles current() {
@@ -54,10 +63,14 @@ public final class ContextFiles {
 
     /** The windows, layered: command line, beside the script, the user's file, the catalogue. */
     public WindowLayers windowLayers() {
-        return WindowLayers.load(windows, script == null ? null : sibling(script, "windows"), userFile());
+        return WindowLayers.load(
+                windows, script == null ? null : sibling(script, "windows"), userFile());
     }
 
-    /** The {@code .loct} files, lowest priority first: beside the script, then those named on the command line. */
+    /**
+     * The {@code .loct} files, lowest priority first: beside the script, then those named on the
+     * command line.
+     */
     public List<Path> loctFiles() {
         List<Path> all = new ArrayList<>();
         if (script != null) {

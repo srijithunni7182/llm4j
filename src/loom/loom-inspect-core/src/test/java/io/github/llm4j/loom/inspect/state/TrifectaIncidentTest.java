@@ -4,7 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-/** R33, R42: one agent that has read untrusted content, reached private data and sent something out, in one run. */
+/**
+ * R33, R42: one agent that has read untrusted content, reached private data and sent something out,
+ * in one run.
+ */
 class TrifectaIncidentTest {
 
     private final SecurityFixtures f = new SecurityFixtures();
@@ -22,10 +25,19 @@ class TrifectaIncidentTest {
         f.tool(1, "Support", "Fetch", "untrusted");
         f.tool(2, "Support", "CustomerDB", "private");
         f.tool(3, "Support", "SendEmail", "outward");
-        assertThat(f.incidents("TRIFECTA")).singleElement().satisfies(i -> {
-            assertThat(i).containsEntry("severity", "high").containsEntry("agent", "Support").containsEntry("state", "open");
-            assertThat(SecurityFixtures.detail(i)).contains("Fetch").contains("CustomerDB").contains("SendEmail");
-        });
+        assertThat(f.incidents("TRIFECTA"))
+                .singleElement()
+                .satisfies(
+                        i -> {
+                            assertThat(i)
+                                    .containsEntry("severity", "high")
+                                    .containsEntry("agent", "Support")
+                                    .containsEntry("state", "open");
+                            assertThat(SecurityFixtures.detail(i))
+                                    .contains("Fetch")
+                                    .contains("CustomerDB")
+                                    .contains("SendEmail");
+                        });
         assertThat(f.agent("Support")).containsEntry("verdict", "exercised");
     }
 
@@ -46,11 +58,16 @@ class TrifectaIncidentTest {
     @Test
     void whenAnyLegIsOnlyAnAssumptionItIsAWarningThatSaysSo() {
         f.tool(1, "A", "Mine", "outward,private,untrusted", false);
-        assertThat(f.incidents("TRIFECTA")).singleElement().satisfies(i -> {
-            assertThat(i).containsEntry("severity", "warn");
-            assertThat(SecurityFixtures.detail(i)).contains("assumed");
-        });
-        assertThat(f.agent("A")).containsEntry("assumed", true).containsEntry("verdict", "exercised");
+        assertThat(f.incidents("TRIFECTA"))
+                .singleElement()
+                .satisfies(
+                        i -> {
+                            assertThat(i).containsEntry("severity", "warn");
+                            assertThat(SecurityFixtures.detail(i)).contains("assumed");
+                        });
+        assertThat(f.agent("A"))
+                .containsEntry("assumed", true)
+                .containsEntry("verdict", "exercised");
     }
 
     @Test
@@ -59,7 +76,9 @@ class TrifectaIncidentTest {
         f.tool(2, "A", "Fetch", "untrusted");
         f.tool(3, "A", "DB", "private");
         f.tool(4, "A", "Send", "outward");
-        assertThat(f.incidents("TRIFECTA")).singleElement().satisfies(i -> assertThat(i).containsEntry("severity", "high"));
+        assertThat(f.incidents("TRIFECTA"))
+                .singleElement()
+                .satisfies(i -> assertThat(i).containsEntry("severity", "high"));
     }
 
     @Test
@@ -70,7 +89,9 @@ class TrifectaIncidentTest {
         assertThat(f.incidents("TRIFECTA")).isEmpty();
         f.tool(4, "A", "DB", "private");
         f.tool(5, "A", "Send", "outward");
-        assertThat(f.incidents("TRIFECTA")).singleElement().satisfies(i -> assertThat(i).containsEntry("agent", "A"));
+        assertThat(f.incidents("TRIFECTA"))
+                .singleElement()
+                .satisfies(i -> assertThat(i).containsEntry("agent", "A"));
     }
 
     @Test
@@ -93,14 +114,18 @@ class TrifectaIncidentTest {
     void itStaysOpenAfterTheRunEnds() {
         f.tool(1, "A", "Swiss", "outward,private,untrusted");
         f.runEnd(5, "completed");
-        assertThat(f.incidents("TRIFECTA")).singleElement().satisfies(i -> assertThat(i).containsEntry("state", "open"));
+        assertThat(f.incidents("TRIFECTA"))
+                .singleElement()
+                .satisfies(i -> assertThat(i).containsEntry("state", "open"));
     }
 
     @Test
     void aTrifectaThatRestsOnAnAssumptionClosesWithTheRun() {
         f.tool(1, "A", "Mine", "outward,private,untrusted", false);
         f.runEnd(5, "completed");
-        assertThat(f.incidents("TRIFECTA")).singleElement().satisfies(i -> assertThat(i).containsEntry("state", "closed"));
+        assertThat(f.incidents("TRIFECTA"))
+                .singleElement()
+                .satisfies(i -> assertThat(i).containsEntry("state", "closed"));
     }
 
     @Test
@@ -110,7 +135,13 @@ class TrifectaIncidentTest {
         f.tool(3, "A", "DB", "private");
         f.tool(4, "A", "Send", "outward");
         f.runEnd(5, "completed");
-        assertThat(f.incidents("TRIFECTA")).singleElement().satisfies(i -> assertThat(i).containsEntry("severity", "high").containsEntry("state", "open"));
+        assertThat(f.incidents("TRIFECTA"))
+                .singleElement()
+                .satisfies(
+                        i ->
+                                assertThat(i)
+                                        .containsEntry("severity", "high")
+                                        .containsEntry("state", "open"));
     }
 
     @Test
@@ -119,10 +150,14 @@ class TrifectaIncidentTest {
         f.tool(1, "Support", "Fetch", "untrusted");
         f.tool(2, "Support", "CustomerDB", "private");
         f.tool(3, "Support", "SendEmail", "outward");
-        assertThat(f.incidents("TRIFECTA")).singleElement().satisfies(i -> {
-            assertThat(i).containsEntry("severity", "info");
-            assertThat(SecurityFixtures.detail(i)).contains("customer support: reads tickets");
-        });
+        assertThat(f.incidents("TRIFECTA"))
+                .singleElement()
+                .satisfies(
+                        i -> {
+                            assertThat(i).containsEntry("severity", "info");
+                            assertThat(SecurityFixtures.detail(i))
+                                    .contains("customer support: reads tickets");
+                        });
         assertThat(f.agent("Support")).containsEntry("verdict", "accepted");
     }
 
@@ -130,19 +165,47 @@ class TrifectaIncidentTest {
     void anotherAgentIsNotCoveredByTheAcceptance() {
         f.accept("Support", "reviewed");
         f.tool(1, "Billing", "Swiss", "outward,private,untrusted");
-        assertThat(f.incidents("TRIFECTA")).singleElement().satisfies(i -> assertThat(i.get("severity")).isNotEqualTo("info"));
+        assertThat(f.incidents("TRIFECTA"))
+                .singleElement()
+                .satisfies(i -> assertThat(i.get("severity")).isNotEqualTo("info"));
     }
 
     @Test
     void theStarBlockAcceptsForEveryoneWhoSaysNothingElse() {
-        f.state.setRules(java.util.Map.of("*", new InspectRules(null, null, null, null, null, null, null, null, null, new InspectRules.Security(null, null, null, "all reviewed"))));
+        f.state.setRules(
+                java.util.Map.of(
+                        "*",
+                        new InspectRules(
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                new InspectRules.Security(null, null, null, "all reviewed"))));
         f.tool(1, "Anyone", "Swiss", "outward,private,untrusted");
-        assertThat(f.incidents("TRIFECTA")).singleElement().satisfies(i -> assertThat(i).containsEntry("severity", "info"));
+        assertThat(f.incidents("TRIFECTA"))
+                .singleElement()
+                .satisfies(i -> assertThat(i).containsEntry("severity", "info"));
     }
 
     @Test
     void whatTheScriptCanDoShowsNextToWhatWasDone() {
-        f.state.setSecurityProfile(() -> java.util.List.of(java.util.Map.of("agent", "Billing", "untrusted", java.util.List.of("Fetch"), "private", java.util.List.of("DB"), "outward", java.util.List.of("Refund"))));
+        f.state.setSecurityProfile(
+                () ->
+                        java.util.List.of(
+                                java.util.Map.of(
+                                        "agent",
+                                        "Billing",
+                                        "untrusted",
+                                        java.util.List.of("Fetch"),
+                                        "private",
+                                        java.util.List.of("DB"),
+                                        "outward",
+                                        java.util.List.of("Refund"))));
         f.tool(1, "Billing", "Fetch", "untrusted");
         java.util.Map<String, Object> a = f.agent("Billing");
         assertThat(a).containsKey("can");
@@ -152,7 +215,18 @@ class TrifectaIncidentTest {
 
     @Test
     void anAgentThatNeverCalledAToolButCanDoAllThreeIsArmed() {
-        f.state.setSecurityProfile(() -> java.util.List.of(java.util.Map.of("agent", "Billing", "untrusted", java.util.List.of("Fetch"), "private", java.util.List.of("DB"), "outward", java.util.List.of("Refund"))));
+        f.state.setSecurityProfile(
+                () ->
+                        java.util.List.of(
+                                java.util.Map.of(
+                                        "agent",
+                                        "Billing",
+                                        "untrusted",
+                                        java.util.List.of("Fetch"),
+                                        "private",
+                                        java.util.List.of("DB"),
+                                        "outward",
+                                        java.util.List.of("Refund"))));
         assertThat(f.agent("Billing")).containsEntry("verdict", "armed");
     }
 

@@ -1,14 +1,17 @@
 package io.github.llm4j.spring;
 
+import io.github.llm4j.loom.observe.ObservableRun;
 import io.github.llm4j.loom.observe.ObserveOptions;
 import io.github.llm4j.loom.observe.ObserveProvider;
-import io.github.llm4j.loom.observe.ObservableRun;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/** Stands in for loom-inspect: records what the starter asks of an observe provider. Registered through ServiceLoader in the test resources. */
+/**
+ * Stands in for loom-inspect: records what the starter asks of an observe provider. Registered
+ * through ServiceLoader in the test resources.
+ */
 public final class RecordingObserveProvider implements ObserveProvider {
 
     static final List<ObserveOptions> OPENED = new CopyOnWriteArrayList<>();

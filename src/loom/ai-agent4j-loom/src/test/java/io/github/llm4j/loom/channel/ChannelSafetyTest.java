@@ -24,11 +24,13 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** Who may answer, what an answer may be, and what never leaves the machine (spec loom-remote-answers R5). */
+/**
+ * Who may answer, what an answer may be, and what never leaves the machine (spec
+ * loom-remote-answers R5).
+ */
 class ChannelSafetyTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     ChannelHarness h;
     HumanInterface person;
@@ -46,7 +48,11 @@ class ChannelSafetyTest {
     }
 
     String ask(String step, Hints.Kind kind, List<String> choices) {
-        assertThatThrownBy(() -> person.promptHuman(step, "Question " + step, new Hints(kind, choices, null))).isInstanceOf(RunSuspended.class);
+        assertThatThrownBy(
+                        () ->
+                                person.promptHuman(
+                                        step, "Question " + step, new Hints(kind, choices, null)))
+                .isInstanceOf(RunSuspended.class);
         return h.pending.find(RUN, step).orElseThrow().code();
     }
 
@@ -59,7 +65,14 @@ class ChannelSafetyTest {
         String expired = ask("A/s2", Hints.Kind.DECIDE, List.of("approve", "reject"));
         h.answers.expire(h.pending.get(expired).orElseThrow());
 
-        long[][] senders = {{999, 999}, {ChannelHarness.ME, 999}, {999, ChannelHarness.ME}, {0, 0}, {-1, ChannelHarness.ME}, {ChannelHarness.ME, ChannelHarness.ME}}; // the allowed sender comes last, so a stranger who got in would be first
+        long[][] senders = {
+            {999, 999},
+            {ChannelHarness.ME, 999},
+            {999, ChannelHarness.ME},
+            {0, 0},
+            {-1, ChannelHarness.ME},
+            {ChannelHarness.ME, ChannelHarness.ME}
+        }; // the allowed sender comes last, so a stranger who got in would be first
         String[] codes = {open, answered, expired, "ZZZZZZ", "", "A/s0", open.toLowerCase()};
         int recordedFromAllowed = 0;
         for (long[] s : senders) {
@@ -70,8 +83,12 @@ class ChannelSafetyTest {
         Listener.Summary sum = h.runtime.listener().pollOnce(Duration.ZERO);
         recordedFromAllowed = sum.recorded();
 
-        assertThat(recordedFromAllowed).as("exactly one reply is from an allowed sender to a question that is open (its lower-case form arrives after it is closed)").isEqualTo(1);
-        assertThat(h.pending.get(open).orElseThrow().answer().by()).isEqualTo("telegram:" + ChannelHarness.ME);
+        assertThat(recordedFromAllowed)
+                .as(
+                        "exactly one reply is from an allowed sender to a question that is open (its lower-case form arrives after it is closed)")
+                .isEqualTo(1);
+        assertThat(h.pending.get(open).orElseThrow().answer().by())
+                .isEqualTo("telegram:" + ChannelHarness.ME);
         assertThat(h.pending.get(answered).orElseThrow().answer().by()).isEqualTo("first");
         assertThat(h.pending.get(expired).orElseThrow().answer()).isNull();
     }
@@ -86,15 +103,19 @@ class ChannelSafetyTest {
         assertThat(seen).allSatisfy(c -> assertThat(Codes.looksLikeOne(c)).isTrue());
 
         List<String> first = new ArrayList<>();
-        String next = Codes.fresh(c -> {
-            if (first.size() < 3) {
-                first.add(c);
-                return true;
-            }
-            return false;
-        });
+        String next =
+                Codes.fresh(
+                        c -> {
+                            if (first.size() < 3) {
+                                first.add(c);
+                                return true;
+                            }
+                            return false;
+                        });
         assertThat(first).as("a clash draws again").hasSize(3).doesNotContain(next);
-        assertThat(Codes.class.getDeclaredFields()).extracting(f -> f.getType().getSimpleName()).contains("SecureRandom");
+        assertThat(Codes.class.getDeclaredFields())
+                .extracting(f -> f.getType().getSimpleName())
+                .contains("SecureRandom");
     }
 
     @Test
@@ -118,9 +139,13 @@ class ChannelSafetyTest {
 
     @Test
     @Tag("RA-V5.5")
-    void controlCharactersAreNeutralisedAndAReplyIsOnlyEverTextComparedWithTheChoices() throws Exception {
+    void controlCharactersAreNeutralisedAndAReplyIsOnlyEverTextComparedWithTheChoices()
+            throws Exception {
         String code = ask("A/s0", Hints.Kind.DECIDE, List.of("approve", "reject"));
-        for (String hostile : new String[] {"; rm -rf /", "../../x", "$(reboot)", "approve; reject", "`id`", "approve\u0000"}) {
+        for (String hostile :
+                new String[] {
+                    "; rm -rf /", "../../x", "$(reboot)", "approve; reject", "`id`", "approve\u0000"
+                }) {
             Answers.Outcome o = h.answers.record(code, hostile, "t");
             assertThat(o.recorded()).as(hostile).isFalse();
         }
@@ -128,9 +153,15 @@ class ChannelSafetyTest {
 
         String free = ask("A/s1", Hints.Kind.PROMPT, List.of());
         h.answers.record(free, "line one\r\nline\u0007 two ‮", "t");
-        assertThat(h.pending.get(free).orElseThrow().answer().text()).isEqualTo("line one??line? two ?");
+        assertThat(h.pending.get(free).orElseThrow().answer().text())
+                .isEqualTo("line one??line? two ?");
 
-        assertThatThrownBy(() -> person.promptHuman("A/s2", "case value\u0007 with a bell\u001b[31m and an escape")).isInstanceOf(RunSuspended.class);
+        assertThatThrownBy(
+                        () ->
+                                person.promptHuman(
+                                        "A/s2",
+                                        "case value\u0007 with a bell\u001b[31m and an escape"))
+                .isInstanceOf(RunSuspended.class);
         assertThat(h.telegram.last().text()).doesNotContain("\u0007").doesNotContain("\u001b");
     }
 
@@ -138,18 +169,19 @@ class ChannelSafetyTest {
     @Tag("RA-V5.6")
     void theBotTokenIsNowhereInTheStoreTheAuditLogTheLogsOrTheErrors() throws Exception {
         List<String> logged = new ArrayList<>();
-        Handler capture = new Handler() {
-            @Override
-            public void publish(LogRecord r) {
-                logged.add(r.getMessage());
-            }
+        Handler capture =
+                new Handler() {
+                    @Override
+                    public void publish(LogRecord r) {
+                        logged.add(r.getMessage());
+                    }
 
-            @Override
-            public void flush() { }
+                    @Override
+                    public void flush() {}
 
-            @Override
-            public void close() { }
-        };
+                    @Override
+                    public void close() {}
+                };
         Logger root = Logger.getLogger("");
         root.addHandler(capture);
         try {
@@ -172,19 +204,58 @@ class ChannelSafetyTest {
 
         List<String> everything = new ArrayList<>(logged);
         try (Stream<Path> files = Files.walk(dir)) {
-            for (Path f : files.filter(Files::isRegularFile).toList()) everything.add(Files.readString(f));
+            for (Path f : files.filter(Files::isRegularFile).toList())
+                everything.add(Files.readString(f));
         }
-        assertThat(everything).isNotEmpty().allSatisfy(text -> assertThat(String.valueOf(text)).doesNotContain(FakeTelegram.TOKEN).doesNotContain("FAKE-SECRET"));
+        assertThat(everything)
+                .isNotEmpty()
+                .allSatisfy(
+                        text ->
+                                assertThat(String.valueOf(text))
+                                        .doesNotContain(FakeTelegram.TOKEN)
+                                        .doesNotContain("FAKE-SECRET"));
     }
 
     @Test
     @Tag("RA-V5.7")
     void aChannelThatCannotBeUsedFailsAtStartAndNamesWhatIsMissingNeverAcceptingEveryone() {
         Path store = dir.resolve("s");
-        assertThatThrownBy(() -> Channels.open(store, "telegram", Map.of("TELEGRAM_CHAT_IDS", "5")::get, h.clock)).hasMessageContaining("TELEGRAM_BOT_TOKEN");
-        assertThatThrownBy(() -> Channels.open(store, "telegram", Map.of("TELEGRAM_BOT_TOKEN", "t")::get, h.clock)).hasMessageContaining("nobody is allowed to answer").hasMessageContaining("TELEGRAM_CHAT_IDS");
-        assertThatThrownBy(() -> Channels.open(store, "command", Map.<String, String>of()::get, h.clock)).hasMessageContaining("command");
-        assertThatThrownBy(() -> Channels.open(store, "carrier-pigeon", Map.<String, String>of()::get, h.clock)).hasMessageContaining("unknown channel");
-        assertThat(Channels.open(store, "telegram", Map.of("TELEGRAM_BOT_TOKEN", "t", "TELEGRAM_CHAT_IDS", "5, 6")::get, h.clock)).isPresent();
+        assertThatThrownBy(
+                        () ->
+                                Channels.open(
+                                        store,
+                                        "telegram",
+                                        Map.of("TELEGRAM_CHAT_IDS", "5")::get,
+                                        h.clock))
+                .hasMessageContaining("TELEGRAM_BOT_TOKEN");
+        assertThatThrownBy(
+                        () ->
+                                Channels.open(
+                                        store,
+                                        "telegram",
+                                        Map.of("TELEGRAM_BOT_TOKEN", "t")::get,
+                                        h.clock))
+                .hasMessageContaining("nobody is allowed to answer")
+                .hasMessageContaining("TELEGRAM_CHAT_IDS");
+        assertThatThrownBy(
+                        () ->
+                                Channels.open(
+                                        store, "command", Map.<String, String>of()::get, h.clock))
+                .hasMessageContaining("command");
+        assertThatThrownBy(
+                        () ->
+                                Channels.open(
+                                        store,
+                                        "carrier-pigeon",
+                                        Map.<String, String>of()::get,
+                                        h.clock))
+                .hasMessageContaining("unknown channel");
+        assertThat(
+                        Channels.open(
+                                store,
+                                "telegram",
+                                Map.of("TELEGRAM_BOT_TOKEN", "t", "TELEGRAM_CHAT_IDS", "5, 6")::get,
+                                h.clock))
+                .isPresent();
     }
 }

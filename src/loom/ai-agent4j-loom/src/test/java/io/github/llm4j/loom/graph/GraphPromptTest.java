@@ -10,7 +10,10 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** R7.1 of loom-prompt-files: the graph shows which prompt each agent runs, and only when there is one. */
+/**
+ * R7.1 of loom-prompt-files: the graph shows which prompt each agent runs, and only when there is
+ * one.
+ */
 class GraphPromptTest {
 
     @TempDir Path dir;
@@ -28,10 +31,14 @@ class GraphPromptTest {
     }
 
     private static GraphNode first(GraphResult r, String agent) {
-        return r.workflows().get(0).nodes().stream().filter(n -> agent.equals(n.agent())).findFirst().orElseThrow();
+        return r.workflows().get(0).nodes().stream()
+                .filter(n -> agent.equals(n.agent()))
+                .findFirst()
+                .orElseThrow();
     }
 
-    private static final String SCRIPT = """
+    private static final String SCRIPT =
+            """
             agent Researcher { model: "m" prompt: "researcher" }
             agent Plain { model: "m" system: "s" }
             workflow Main() {
@@ -48,9 +55,15 @@ class GraphPromptTest {
         GraphResult result = service.graph(script(SCRIPT));
 
         assertThat(first(result, "Researcher").attrs()).containsEntry("prompt", "researcher@v2");
-        var info = result.agents().stream().filter(a -> a.name().equals("Researcher")).findFirst().orElseThrow().prompt();
+        var info =
+                result.agents().stream()
+                        .filter(a -> a.name().equals("Researcher"))
+                        .findFirst()
+                        .orElseThrow()
+                        .prompt();
         assertThat(info.version()).isEqualTo("v2");
-        assertThat(info.file()).endsWith("prompts/researcher/v2.md".replace('/', java.io.File.separatorChar));
+        assertThat(info.file())
+                .endsWith("prompts/researcher/v2.md".replace('/', java.io.File.separatorChar));
     }
 
     @Test
@@ -60,7 +73,13 @@ class GraphPromptTest {
         GraphResult result = service.graph(script(SCRIPT));
 
         assertThat(first(result, "Plain").attrs()).doesNotContainKey("prompt");
-        assertThat(result.agents().stream().filter(a -> a.name().equals("Plain")).findFirst().orElseThrow().prompt()).isNull();
+        assertThat(
+                        result.agents().stream()
+                                .filter(a -> a.name().equals("Plain"))
+                                .findFirst()
+                                .orElseThrow()
+                                .prompt())
+                .isNull();
     }
 
     @Test
@@ -68,7 +87,8 @@ class GraphPromptTest {
         prompt("researcher/v1.md", "old");
         prompt("researcher/v2.md", "new");
 
-        GraphResult result = service.graph(script(SCRIPT), new PromptSettings(null, Map.of("researcher", "v1")));
+        GraphResult result =
+                service.graph(script(SCRIPT), new PromptSettings(null, Map.of("researcher", "v1")));
 
         assertThat(first(result, "Researcher").attrs()).containsEntry("prompt", "researcher@v1");
     }
@@ -80,22 +100,35 @@ class GraphPromptTest {
         GraphResult result = service.graph(script(SCRIPT));
 
         assertThat(first(result, "Researcher").attrs()).containsEntry("prompt", "researcher");
-        var info = result.agents().stream().filter(a -> a.name().equals("Researcher")).findFirst().orElseThrow().prompt();
+        var info =
+                result.agents().stream()
+                        .filter(a -> a.name().equals("Researcher"))
+                        .findFirst()
+                        .orElseThrow()
+                        .prompt();
         assertThat(info.version()).isNull();
         assertThat(info.file()).isNull();
     }
 
     @Test
     void anImportedAgentsPromptIsFoundInTheEntryScriptsFolder() throws IOException {
-        Files.writeString(dir.resolve("lib.loom"), "agent Lib { model: \"m\" prompt: \"libby\" }\nworkflow Helper() { delegate \"x\" to Lib -> r }\n");
+        Files.writeString(
+                dir.resolve("lib.loom"),
+                "agent Lib { model: \"m\" prompt: \"libby\" }\nworkflow Helper() { delegate \"x\" to Lib -> r }\n");
         prompt("libby.md", "from the entry folder");
-        Path main = script("import \"lib.loom\"\nagent A { model: \"m\" system: \"s\" }\nworkflow Main() { call Helper() -> out }\n");
+        Path main =
+                script(
+                        "import \"lib.loom\"\nagent A { model: \"m\" system: \"s\" }\nworkflow Main() { call Helper() -> out }\n");
 
         GraphResult result = service.graph(main);
 
         assertThat(result.diagnostics()).isEmpty();
         assertThat(result.agents()).extracting(AgentInfo::name).contains("Lib");
-        var lib = result.agents().stream().filter(a -> a.name().equals("Lib")).findFirst().orElseThrow();
+        var lib =
+                result.agents().stream()
+                        .filter(a -> a.name().equals("Lib"))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(lib.prompt().version()).isEqualTo("v1");
     }
 
@@ -105,13 +138,20 @@ class GraphPromptTest {
 
         String json = GraphJson.write(service.graph(script(SCRIPT)));
 
-        assertThat(json).contains("\"prompt\": \"researcher@v1\"").contains("\"ref\": \"researcher\"").contains("\"version\": \"v1\"").doesNotContain("TOP SECRET");
+        assertThat(json)
+                .contains("\"prompt\": \"researcher@v1\"")
+                .contains("\"ref\": \"researcher\"")
+                .contains("\"version\": \"v1\"")
+                .doesNotContain("TOP SECRET");
     }
 
     @Test
     void aScriptWithNoPromptFilesGivesExactlyTheOutputItAlwaysDid() throws IOException {
-        Path main = script("agent A { model: \"m\" system: \"s\" }\nworkflow Main() { delegate \"x\" to A -> r }\n");
-        Files.createDirectories(dir.resolve("prompts")); // a folder with nothing in it changes nothing
+        Path main =
+                script(
+                        "agent A { model: \"m\" system: \"s\" }\nworkflow Main() { delegate \"x\" to A -> r }\n");
+        Files.createDirectories(
+                dir.resolve("prompts")); // a folder with nothing in it changes nothing
 
         String json = GraphJson.write(service.graph(main));
 

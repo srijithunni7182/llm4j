@@ -7,7 +7,10 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** A key written into the committed .env.example is flagged by name; empty values and placeholders are not. */
+/**
+ * A key written into the committed .env.example is flagged by name; empty values and placeholders
+ * are not.
+ */
 class EnvExampleCheckTest {
 
     @TempDir Path dir;
@@ -23,13 +26,20 @@ class EnvExampleCheckTest {
 
     @Test
     void realLookingValueIsFlaggedByNameOnly() throws Exception {
-        Path script = project("# keys\nOPENAI_API_KEY=sk-live-abcdef123456\nEMPTY=\nOTHER=your-key-here\n");
+        Path script =
+                project(
+                        "# keys\nOPENAI_API_KEY=sk-live-abcdef123456\nEMPTY=\nOTHER=your-key-here\n");
         assertThat(EnvExampleCheck.namesWithValues(script)).containsExactly("OPENAI_API_KEY");
-        assertThat(EnvExampleCheck.warning(EnvExampleCheck.namesWithValues(script))).contains("OPENAI_API_KEY").doesNotContain("sk-live");
+        assertThat(EnvExampleCheck.warning(EnvExampleCheck.namesWithValues(script)))
+                .contains("OPENAI_API_KEY")
+                .doesNotContain("sk-live");
     }
 
     @Test
     void templateWithEmptyValuesIsQuiet() throws Exception {
-        assertThat(EnvExampleCheck.namesWithValues(project("OPENAI_API_KEY=\nANTHROPIC_API_KEY=\n"))).isEmpty();
+        assertThat(
+                        EnvExampleCheck.namesWithValues(
+                                project("OPENAI_API_KEY=\nANTHROPIC_API_KEY=\n")))
+                .isEmpty();
     }
 }

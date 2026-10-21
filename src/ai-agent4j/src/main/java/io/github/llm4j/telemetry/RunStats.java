@@ -4,7 +4,10 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
 
-/** An immutable snapshot of statistics: per model and per tool, with totals. Keys are in alphabetical order. */
+/**
+ * An immutable snapshot of statistics: per model and per tool, with totals. Keys are in
+ * alphabetical order.
+ */
 public record RunStats(Map<String, ModelStats> models, Map<String, ToolStats> tools) {
 
     public static final RunStats EMPTY = new RunStats(Map.of(), Map.of());
@@ -14,13 +17,19 @@ public record RunStats(Map<String, ModelStats> models, Map<String, ToolStats> to
         tools = Collections.unmodifiableMap(new TreeMap<>(tools));
     }
 
-    /** The statistics of one tool; a tool never called gives a result with no calls rather than null. */
+    /**
+     * The statistics of one tool; a tool never called gives a result with no calls rather than
+     * null.
+     */
     public ToolStats tool(String name) {
         ToolStats s = tools.get(name);
         return s != null ? s : ToolStats.none(name);
     }
 
-    /** The statistics of one model; a model never called gives a result with no calls rather than null. */
+    /**
+     * The statistics of one model; a model never called gives a result with no calls rather than
+     * null.
+     */
     public ModelStats model(String name) {
         ModelStats s = models.get(name);
         return s != null ? s : ModelStats.none(name);

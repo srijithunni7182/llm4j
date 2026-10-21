@@ -6,7 +6,10 @@ import io.github.llm4j.loom.inspect.state.InspectRules;
 import io.github.llm4j.loom.inspect.state.Thresholds;
 import org.junit.jupiter.api.Test;
 
-/** R38, R41, R42 (grammar): access_denied, injection_scan and an accepted trifecta in the rules file. */
+/**
+ * R38, R41, R42 (grammar): access_denied, injection_scan and an accepted trifecta in the rules
+ * file.
+ */
 class SecurityRulesFileTest {
 
     private static RulesFile.Parsed parse(String text) {
@@ -19,7 +22,9 @@ class SecurityRulesFileTest {
 
     @Test
     void theThreeRulesAreRead() {
-        RulesFile.Parsed p = parse("""
+        RulesFile.Parsed p =
+                parse(
+                        """
                 Support {
                     access_denied: 5 in 2m
                     injection_scan: off
@@ -31,7 +36,8 @@ class SecurityRulesFileTest {
         assertThat(s.accessDeniedCount()).isEqualTo(5);
         assertThat(s.accessDeniedSeconds()).isEqualTo(120L);
         assertThat(s.injectionScan()).isFalse();
-        assertThat(s.trifectaAccepted()).isEqualTo("customer support: reads tickets, looks up the account, replies");
+        assertThat(s.trifectaAccepted())
+                .isEqualTo("customer support: reads tickets, looks up the account, replies");
     }
 
     @Test
@@ -41,28 +47,40 @@ class SecurityRulesFileTest {
 
     @Test
     void aReasonMayHoldTheCharactersThatMarkCommentsAndSeparators() {
-        RulesFile.Parsed p = parse("Support { trifecta: accepted \"reads tickets; replies by mail # see https://wiki.example/support\" }");
+        RulesFile.Parsed p =
+                parse(
+                        "Support { trifecta: accepted \"reads tickets; replies by mail # see https://wiki.example/support\" }");
         assertThat(p.ok()).as(p.problems().toString()).isTrue();
-        assertThat(security(p, "Support").trifectaAccepted()).isEqualTo("reads tickets; replies by mail # see https://wiki.example/support");
+        assertThat(security(p, "Support").trifectaAccepted())
+                .isEqualTo("reads tickets; replies by mail # see https://wiki.example/support");
     }
 
     @Test
     void aCommentAfterTheRuleIsStillACommentAndTwoRulesCanShareALine() {
-        RulesFile.Parsed p = parse("Support { trifecta: accepted \"ok\"; access_denied: 4 in 30s   # note\n}");
+        RulesFile.Parsed p =
+                parse("Support { trifecta: accepted \"ok\"; access_denied: 4 in 30s   # note\n}");
         assertThat(p.ok()).as(p.problems().toString()).isTrue();
         assertThat(security(p, "Support").accessDeniedCount()).isEqualTo(4);
     }
 
     @Test
     void anAcceptanceWithoutAReasonIsAnErrorWithItsLine() {
-        for (String bad : new String[] {"trifecta: accepted", "trifecta: accepted \"\"", "trifecta: accepted \"   \"", "trifecta: accepted no quotes here"}) {
+        for (String bad :
+                new String[] {
+                    "trifecta: accepted",
+                    "trifecta: accepted \"\"",
+                    "trifecta: accepted \"   \"",
+                    "trifecta: accepted no quotes here"
+                }) {
             RulesFile.Parsed p = parse("Support {\n    " + bad + "\n}\n");
             assertThat(p.ok()).as(bad).isFalse();
-            assertThat(p.problems()).anySatisfy(x -> {
-                assertThat(x.line()).isEqualTo(2);
-                assertThat(x.error()).isTrue();
-                assertThat(x.message()).contains("reason");
-            });
+            assertThat(p.problems())
+                    .anySatisfy(
+                            x -> {
+                                assertThat(x.line()).isEqualTo(2);
+                                assertThat(x.error()).isTrue();
+                                assertThat(x.message()).contains("reason");
+                            });
         }
     }
 
@@ -76,29 +94,41 @@ class SecurityRulesFileTest {
     void acceptingForEveryAgentIsAllowedButWarns() {
         RulesFile.Parsed p = parse("* { trifecta: accepted \"all of our agents are reviewed\" }");
         assertThat(p.ok()).isTrue();
-        assertThat(p.problems()).singleElement().satisfies(x -> {
-            assertThat(x.error()).isFalse();
-            assertThat(x.message()).contains("every agent").contains("hides");
-        });
+        assertThat(p.problems())
+                .singleElement()
+                .satisfies(
+                        x -> {
+                            assertThat(x.error()).isFalse();
+                            assertThat(x.message()).contains("every agent").contains("hides");
+                        });
     }
 
     @Test
     void badValuesAreErrorsThatSayHowToWriteThem() {
-        assertThat(parse("A { injection_scan: maybe }").problems()).anySatisfy(x -> assertThat(x.message()).contains("injection_scan: on").contains("off"));
+        assertThat(parse("A { injection_scan: maybe }").problems())
+                .anySatisfy(
+                        x ->
+                                assertThat(x.message())
+                                        .contains("injection_scan: on")
+                                        .contains("off"));
         assertThat(parse("A { access_denied: 0 in 60s }").ok()).isFalse();
         assertThat(parse("A { access_denied: 3 in 0s }").ok()).isFalse();
-        assertThat(parse("A { access_denied: 3 times }").problems()).anySatisfy(x -> assertThat(x.message()).contains("access_denied: 3 in 60s"));
+        assertThat(parse("A { access_denied: 3 times }").problems())
+                .anySatisfy(x -> assertThat(x.message()).contains("access_denied: 3 in 60s"));
     }
 
     @Test
     void theRulesAreListedAmongTheKnownOnes() {
         assertThat(RulesFile.RULES).contains("access_denied", "injection_scan", "trifecta");
-        assertThat(parse("A { trifecta_ok: 3 }").problems()).anySatisfy(x -> assertThat(x.message()).contains("trifecta"));
+        assertThat(parse("A { trifecta_ok: 3 }").problems())
+                .anySatisfy(x -> assertThat(x.message()).contains("trifecta"));
     }
 
     @Test
     void theyRoundTripThroughWrite() {
-        RulesFile.Parsed p = parse("""
+        RulesFile.Parsed p =
+                parse(
+                        """
                 * { injection_scan: on }
                 Support {
                     access_denied: 5 in 2m
@@ -125,7 +155,8 @@ class SecurityRulesFileTest {
 
     @Test
     void anAgentsBlockOverridesTheStarBlockRuleByRule() {
-        InspectRules star = parse("* { access_denied: 5 in 2m; trifecta: accepted \"all\" }").rules().get("*");
+        InspectRules star =
+                parse("* { access_denied: 5 in 2m; trifecta: accepted \"all\" }").rules().get("*");
         InspectRules own = parse("Support { access_denied: 2 in 30s }").rules().get("Support");
         InspectRules.Security merged = own.security().over(star.security());
         assertThat(merged.accessDeniedCount()).isEqualTo(2);

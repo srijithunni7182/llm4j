@@ -11,15 +11,18 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** What a ladder cannot say in a line stays on the original engine, and still runs there, with its own records and level store. */
+/**
+ * What a ladder cannot say in a line stays on the original engine, and still runs there, with its
+ * own records and level store.
+ */
 @Tag("L7")
 class OriginalEngineFallbackTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private DecideHarness harness(String trustExtra) {
-        return new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), Scripts2.refund(trustExtra));
+        return new DecideHarness(
+                dir, new MemoryLedger(), new MemoryLevelStore(), Scripts2.refund(trustExtra));
     }
 
     @Test
@@ -52,7 +55,11 @@ class OriginalEngineFallbackTest {
         DecideHarness h = harness("");
         assertThat(h.parsed().getDecisions().get(0).isLadderFromTrust()).isTrue();
         h.runCase("run-1", h.inputs("gold", 20));
-        assertThat(h.ledger.records("Refund").stream().map(Rec::kind).toList()).contains(Rec.RESPONDED).doesNotContain(Rec.DECIDED);
-        assertThat(h.levels.get("Refund", "gold")).as("nothing in the original level store").isEmpty();
+        assertThat(h.ledger.records("Refund").stream().map(Rec::kind).toList())
+                .contains(Rec.RESPONDED)
+                .doesNotContain(Rec.DECIDED);
+        assertThat(h.levels.get("Refund", "gold"))
+                .as("nothing in the original level store")
+                .isEmpty();
     }
 }

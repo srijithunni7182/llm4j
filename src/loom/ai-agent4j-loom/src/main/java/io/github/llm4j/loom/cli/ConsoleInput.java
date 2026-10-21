@@ -11,9 +11,10 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * The one reader of the console while a run can be steered from it ({@code --steer-via console}). A line typed while a person is being asked a question is
- * the answer; any other line is a command to the runs in this process (steer, wrap up, cancel, pause, resume, agents), answered on the console. Without
- * the router the console works as it always did.
+ * The one reader of the console while a run can be steered from it ({@code --steer-via console}). A
+ * line typed while a person is being asked a question is the answer; any other line is a command to
+ * the runs in this process (steer, wrap up, cancel, pause, resume, agents), answered on the
+ * console. Without the router the console works as it always did.
  */
 final class ConsoleInput {
 
@@ -37,7 +38,8 @@ final class ConsoleInput {
         Thread t = new Thread(() -> router.read(in), "loom-console-commands");
         t.setDaemon(true);
         t.start();
-        out.println("🧭 Steering from this console: steer [Agent] <text> · wrap up [Agent] · cancel [Agent] [outcome] [: reason] · cancel [Agent] back to <checkpoint> [: reason] · pause · resume · agents");
+        out.println(
+                "🧭 Steering from this console: steer [Agent] <text> · wrap up [Agent] · cancel [Agent] [outcome] [: reason] · cancel [Agent] back to <checkpoint> [: reason] · pause · resume · agents");
     }
 
     /** Stops routing (for tests that start it more than once in a process). */
@@ -49,7 +51,9 @@ final class ConsoleInput {
         return active != null;
     }
 
-    /** The next line a person types as an answer; commands typed meanwhile are still carried out. */
+    /**
+     * The next line a person types as an answer; commands typed meanwhile are still carried out.
+     */
     static String answer() {
         ConsoleInput router;
         synchronized (ConsoleInput.class) {
@@ -67,7 +71,8 @@ final class ConsoleInput {
     }
 
     private void read(InputStream in) {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+        try (BufferedReader reader =
+                new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.isBlank() && !asking) continue;
@@ -76,7 +81,8 @@ final class ConsoleInput {
                 } else if (commands.isCommand(line)) {
                     out.println(commands.handle(line, "console"));
                 } else {
-                    out.println("Not a command here. Try: agents, steer, wrap up, cancel, pause, resume.");
+                    out.println(
+                            "Not a command here. Try: agents, steer, wrap up, cancel, pause, resume.");
                 }
             }
         } catch (IOException e) {

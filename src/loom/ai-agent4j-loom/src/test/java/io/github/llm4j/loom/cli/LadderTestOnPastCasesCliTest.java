@@ -24,11 +24,15 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** A real run of {@code weave run}: the agent behind a ladder decision is changed, and the new agent starts on the rung the replay of the old one's cases supports. */
+/**
+ * A real run of {@code weave run}: the agent behind a ladder decision is changed, and the new agent
+ * starts on the rung the replay of the old one's cases supports.
+ */
 @Tag("L7")
 class LadderTestOnPastCasesCliTest {
 
-    static final String SCRIPT = """
+    static final String SCRIPT =
+            """
             agent Triager {
                 model: "m"
                 system: "You are Triager."
@@ -56,8 +60,7 @@ class LadderTestOnPastCasesCliTest {
             }
             """;
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
     ByteArrayOutputStream errBytes = new ByteArrayOutputStream();
@@ -68,27 +71,53 @@ class LadderTestOnPastCasesCliTest {
     int asked;
 
     WeaveEnv env() {
-        LLMClient client = new LLMClient() {
-            @Override
-            public LLMResponse chat(LLMRequest request) {
-                String system = request.getMessages().get(0).getContent();
-                String last = request.getMessages().get(request.getMessages().size() - 1).getContent();
-                int amount = Integer.parseInt(AutonomyCommandsTest.fields(last).getOrDefault("amount", "0"));
-                // the old agent approves everything; the new, stricter one does what the people do
-                String choice = system.contains("stricter") && amount >= 100 ? "reject" : "approve";
-                return LLMResponse.builder().content("```json\n{\"choice\": \"" + choice + "\", \"reasoning\": \"r\", \"confidence\": 0.9}\n```").model("m").tokenUsage(10, 5, 15).build();
-            }
+        LLMClient client =
+                new LLMClient() {
+                    @Override
+                    public LLMResponse chat(LLMRequest request) {
+                        String system = request.getMessages().get(0).getContent();
+                        String last =
+                                request.getMessages()
+                                        .get(request.getMessages().size() - 1)
+                                        .getContent();
+                        int amount =
+                                Integer.parseInt(
+                                        AutonomyCommandsTest.fields(last)
+                                                .getOrDefault("amount", "0"));
+                        // the old agent approves everything; the new, stricter one does what the
+                        // people do
+                        String choice =
+                                system.contains("stricter") && amount >= 100 ? "reject" : "approve";
+                        return LLMResponse.builder()
+                                .content(
+                                        "```json\n{\"choice\": \""
+                                                + choice
+                                                + "\", \"reasoning\": \"r\", \"confidence\": 0.9}\n```")
+                                .model("m")
+                                .tokenUsage(10, 5, 15)
+                                .build();
+                    }
 
-            @Override
-            public Stream<LLMResponse> chatStream(LLMRequest request) {
-                return Stream.of(chat(request));
-            }
-        };
-        return new WeaveEnv(m -> client, q -> {
-            asked++;
-            return Integer.parseInt(AutonomyCommandsTest.fields(q).get("amount")) < 100 ? "approve" : "reject";
-        }, new PrintStream(outBytes, true), new PrintStream(errBytes, true), clock, d -> { }, c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""),
-                List.of("weave"), System::getenv);
+                    @Override
+                    public Stream<LLMResponse> chatStream(LLMRequest request) {
+                        return Stream.of(chat(request));
+                    }
+                };
+        return new WeaveEnv(
+                m -> client,
+                q -> {
+                    asked++;
+                    return Integer.parseInt(AutonomyCommandsTest.fields(q).get("amount")) < 100
+                            ? "approve"
+                            : "reject";
+                },
+                new PrintStream(outBytes, true),
+                new PrintStream(errBytes, true),
+                clock,
+                d -> {},
+                c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""),
+                List.of("weave"),
+                System::getenv);
     }
 
     void runCases(int from, int to) {
@@ -99,7 +128,24 @@ class LadderTestOnPastCasesCliTest {
             in.put("amount", String.valueOf(20 + i * 20));
             in.put("reason", "damaged");
             in.put("customer_since", "2020");
-            assertThat(WeaveCLI.run(script, null, "Triage", in, null, null, null, null, dir.resolve("runs").resolve("c" + (++runs)), store, false, false, null, null, env())).isZero();
+            assertThat(
+                            WeaveCLI.run(
+                                    script,
+                                    null,
+                                    "Triage",
+                                    in,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    dir.resolve("runs").resolve("c" + (++runs)),
+                                    store,
+                                    false,
+                                    false,
+                                    null,
+                                    null,
+                                    env()))
+                    .isZero();
             clock.advance(Duration.ofHours(1));
         }
     }
@@ -107,28 +153,42 @@ class LadderTestOnPastCasesCliTest {
     LevelLog.Standing standing() throws Exception {
         var loaded = new io.github.llm4j.loom.execution.LoomLoader().load(script.getAbsolutePath());
         var policy = LadderPolicy.of(loaded, loaded.getDecisions().get(0));
-        return new LevelLog("Refund", policy.rungs(), new FileLedger(store.resolve("autonomy"))).current("gold").orElseThrow();
+        return new LevelLog("Refund", policy.rungs(), new FileLedger(store.resolve("autonomy")))
+                .current("gold")
+                .orElseThrow();
     }
 
     @Test
-    void aChangedPromptInARealRunStartsTheNewAgentOnTheRungItsReplayEarnsAndNotOnTheFirst() throws Exception {
+    void aChangedPromptInARealRunStartsTheNewAgentOnTheRungItsReplayEarnsAndNotOnTheFirst()
+            throws Exception {
         script = dir.resolve("refund.loom").toFile();
         Files.writeString(script.toPath(), SCRIPT);
         store = dir.resolve("store");
         runCases(0, 12);
-        assertThat(standing().rungName()).as("the old agent agreed with the people on the small amounts and earned suggest").isEqualTo("suggest");
+        assertThat(standing().rungName())
+                .as("the old agent agreed with the people on the small amounts and earned suggest")
+                .isEqualTo("suggest");
 
         // the prompt is changed: a new agent
-        Files.writeString(script.toPath(), SCRIPT.replace("You are Triager.", "You are a stricter Triager."));
+        Files.writeString(
+                script.toPath(), SCRIPT.replace("You are Triager.", "You are a stricter Triager."));
         int ledgerBefore = Files.readAllLines(store.resolve("autonomy/Refund/ledger.jsonl")).size();
         runCases(12, 13);
 
         LevelLog.Standing now = standing();
         assertThat(now.epoch()).isEqualTo(2);
         assertThat(now.reason()).contains("test it on past cases");
-        assertThat(now.rungName()).as("its replay over the old agent's blind cases agreed with the people every time: it keeps suggest and does not start over on watch").isEqualTo("suggest");
-        assertThat(Files.list(store.resolve("autonomy/Refund/replays")).count()).as("the replay kept its own directory").isEqualTo(1);
+        assertThat(now.rungName())
+                .as(
+                        "its replay over the old agent's blind cases agreed with the people every time: it keeps suggest and does not start over on watch")
+                .isEqualTo("suggest");
+        assertThat(Files.list(store.resolve("autonomy/Refund/replays")).count())
+                .as("the replay kept its own directory")
+                .isEqualTo(1);
         // nothing but the case itself and the new epoch was added to the ledger by the replay
-        assertThat(Files.readAllLines(store.resolve("autonomy/Refund/ledger.jsonl")).size() - ledgerBefore).isLessThanOrEqualTo(6);
+        assertThat(
+                        Files.readAllLines(store.resolve("autonomy/Refund/ledger.jsonl")).size()
+                                - ledgerBefore)
+                .isLessThanOrEqualTo(6);
     }
 }

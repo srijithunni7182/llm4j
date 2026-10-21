@@ -5,7 +5,10 @@ import io.github.llm4j.loom.autonomy.expr.Lexer.Token;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Parses a ladder expression (see the grammar in the loom-ladders design). Recursive descent; nesting is bounded. */
+/**
+ * Parses a ladder expression (see the grammar in the loom-ladders design). Recursive descent;
+ * nesting is bounded.
+ */
 public final class ExprParser {
 
     private static final int MAX_DEPTH = 64;
@@ -25,24 +28,35 @@ public final class ExprParser {
         ExprParser p = new ExprParser(source);
         Expr e = p.or();
         Token t = p.peek();
-        if (t.kind() != Kind.EOF) throw new ExprException("unexpected '" + t.text() + "' at column " + t.column(), t.column());
+        if (t.kind() != Kind.EOF)
+            throw new ExprException(
+                    "unexpected '" + t.text() + "' at column " + t.column(), t.column());
         return e;
     }
 
-    private Token peek() { return tokens.get(pos); }
+    private Token peek() {
+        return tokens.get(pos);
+    }
 
-    private Token next() { return tokens.get(pos++); }
+    private Token next() {
+        return tokens.get(pos++);
+    }
 
-    private boolean at(Kind k) { return peek().kind() == k; }
+    private boolean at(Kind k) {
+        return peek().kind() == k;
+    }
 
     private Token expect(Kind k, String what) {
         Token t = peek();
-        if (t.kind() != k) throw new ExprException("expected " + what + " at column " + t.column(), t.column());
+        if (t.kind() != k)
+            throw new ExprException("expected " + what + " at column " + t.column(), t.column());
         return next();
     }
 
     private void enter(Token t) {
-        if (++depth > MAX_DEPTH) throw new ExprException("expression nested too deeply at column " + t.column(), t.column());
+        if (++depth > MAX_DEPTH)
+            throw new ExprException(
+                    "expression nested too deeply at column " + t.column(), t.column());
     }
 
     private Expr or() {
@@ -79,23 +93,31 @@ public final class ExprParser {
     private Expr comparison() {
         Expr left = sum();
         Token t = peek();
-        String op = switch (t.kind()) {
-            case EQ -> "==";
-            case NE -> "!=";
-            case LT -> "<";
-            case LE -> "<=";
-            case GT -> ">";
-            case GE -> ">=";
-            case IN -> "in";
-            default -> null;
-        };
+        String op =
+                switch (t.kind()) {
+                    case EQ -> "==";
+                    case NE -> "!=";
+                    case LT -> "<";
+                    case LE -> "<=";
+                    case GT -> ">";
+                    case GE -> ">=";
+                    case IN -> "in";
+                    default -> null;
+                };
         if (op == null) return left;
         next();
         Expr right = sum();
         Token after = peek();
-        if (after.kind() == Kind.EQ || after.kind() == Kind.NE || after.kind() == Kind.LT || after.kind() == Kind.LE
-                || after.kind() == Kind.GT || after.kind() == Kind.GE || after.kind() == Kind.IN) {
-            throw new ExprException("comparisons do not chain: use 'and' (column " + after.column() + ")", after.column());
+        if (after.kind() == Kind.EQ
+                || after.kind() == Kind.NE
+                || after.kind() == Kind.LT
+                || after.kind() == Kind.LE
+                || after.kind() == Kind.GT
+                || after.kind() == Kind.GE
+                || after.kind() == Kind.IN) {
+            throw new ExprException(
+                    "comparisons do not chain: use 'and' (column " + after.column() + ")",
+                    after.column());
         }
         return new Expr.Bin(op, left, right, t.column());
     }
@@ -135,7 +157,9 @@ public final class ExprParser {
         Expr e = primary();
         while (at(Kind.DOT)) {
             Token dot = next();
-            if (!at(Kind.IDENT)) throw new ExprException("expected a name after '.' at column " + peek().column(), peek().column());
+            if (!at(Kind.IDENT))
+                throw new ExprException(
+                        "expected a name after '.' at column " + peek().column(), peek().column());
             Token name = next();
             if (at(Kind.LPAREN)) {
                 next();
@@ -168,12 +192,33 @@ public final class ExprParser {
     private Expr primary() {
         Token t = peek();
         switch (t.kind()) {
-            case NUMBER -> { next(); return new Expr.Lit(V.num(t.number()), trim(t.number()), t.column()); }
-            case PERCENT -> { next(); return new Expr.Lit(V.num(t.number()), t.text(), t.column()); }
-            case DURATION -> { next(); return new Expr.Lit(V.dur(t.millis()), t.text(), t.column()); }
-            case STRING -> { next(); return new Expr.Lit(V.str(t.text()), "\"" + t.text().replace("\\", "\\\\").replace("\"", "\\\"") + "\"", t.column()); }
-            case TRUE -> { next(); return new Expr.Lit(V.bool(true), "true", t.column()); }
-            case FALSE -> { next(); return new Expr.Lit(V.bool(false), "false", t.column()); }
+            case NUMBER -> {
+                next();
+                return new Expr.Lit(V.num(t.number()), trim(t.number()), t.column());
+            }
+            case PERCENT -> {
+                next();
+                return new Expr.Lit(V.num(t.number()), t.text(), t.column());
+            }
+            case DURATION -> {
+                next();
+                return new Expr.Lit(V.dur(t.millis()), t.text(), t.column());
+            }
+            case STRING -> {
+                next();
+                return new Expr.Lit(
+                        V.str(t.text()),
+                        "\"" + t.text().replace("\\", "\\\\").replace("\"", "\\\"") + "\"",
+                        t.column());
+            }
+            case TRUE -> {
+                next();
+                return new Expr.Lit(V.bool(true), "true", t.column());
+            }
+            case FALSE -> {
+                next();
+                return new Expr.Lit(V.bool(false), "false", t.column());
+            }
             case IDENT -> {
                 next();
                 if (at(Kind.LPAREN)) {
@@ -210,12 +255,20 @@ public final class ExprParser {
                     return new Expr.ListLit(items, t.column());
                 }
             }
-            default -> throw new ExprException("expected a value at column " + t.column() + " but found "
-                    + (t.kind() == Kind.EOF ? "the end of the expression" : "'" + t.text() + "'"), t.column());
+            default -> throw new ExprException(
+                    "expected a value at column "
+                            + t.column()
+                            + " but found "
+                            + (t.kind() == Kind.EOF
+                                    ? "the end of the expression"
+                                    : "'" + t.text() + "'"),
+                    t.column());
         }
     }
 
     private static String trim(double d) {
-        return d == Math.rint(d) && Math.abs(d) < 1e15 ? String.valueOf((long) d) : String.valueOf(d);
+        return d == Math.rint(d) && Math.abs(d) < 1e15
+                ? String.valueOf((long) d)
+                : String.valueOf(d);
     }
 }

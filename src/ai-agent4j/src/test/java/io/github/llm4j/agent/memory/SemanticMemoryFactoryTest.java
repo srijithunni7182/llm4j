@@ -18,7 +18,8 @@ class SemanticMemoryFactoryTest {
         SemanticMemoryConfig config = SemanticMemoryConfig.inMemory("user-1");
         SemanticMemoryService service = SemanticMemoryFactory.create(config);
 
-        // In-memory mode uses zero vectors — all cosine similarities will be 0.0 (undefined direction)
+        // In-memory mode uses zero vectors — all cosine similarities will be 0.0 (undefined
+        // direction)
         // This is expected. The test just verifies no exception is thrown.
         service.saveFact("The user likes tea.");
 
@@ -41,13 +42,16 @@ class SemanticMemoryFactoryTest {
     void testOnnxMode_throwsWhenAddonsNotPresent() {
         // ONNX requires ai-agent4j-addons on the classpath
         // We're in the core module so it won't be on the classpath — expect a helpful error
-        SemanticMemoryConfig config = SemanticMemoryConfig.builder()
-                .userId("user-1")
-                .onnxModelPath("/nonexistent/model.onnx")
-                .onnxTokenizerPath("/nonexistent/tokenizer.json")
-                .build();
+        SemanticMemoryConfig config =
+                SemanticMemoryConfig.builder()
+                        .userId("user-1")
+                        .onnxModelPath("/nonexistent/model.onnx")
+                        .onnxTokenizerPath("/nonexistent/tokenizer.json")
+                        .build();
 
-        assertThrows(IllegalStateException.class, () -> SemanticMemoryFactory.create(config),
+        assertThrows(
+                IllegalStateException.class,
+                () -> SemanticMemoryFactory.create(config),
                 "Should throw descriptive error when ai-agent4j-addons is missing");
     }
 }

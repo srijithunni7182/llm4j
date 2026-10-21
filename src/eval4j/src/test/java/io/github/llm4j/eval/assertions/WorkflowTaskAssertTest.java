@@ -54,7 +54,16 @@ class WorkflowTaskAssertTest {
 
     private static WorkflowTrace trace(Event... events) {
         return new WorkflowTrace(
-                "wf", List.of(), List.of(), List.of(), List.of(), List.of(events), List.of(), null, 0, null);
+                "wf",
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(events),
+                List.of(),
+                null,
+                0,
+                null);
     }
 
     private final WorkflowTrace refused =
@@ -72,7 +81,8 @@ class WorkflowTaskAssertTest {
         assertThat(refused.taskSequence()).containsExactly("RefundPolicy", "Escalate");
         assertThat(refused.taskRuns("RefundPolicy")).isEqualTo(1);
         assertThat(refused.taskRuns("IssueRefund")).isZero();
-        assertThat(refused.taskCounts()).containsExactly(Map.entry("RefundPolicy", 1L), Map.entry("Escalate", 1L));
+        assertThat(refused.taskCounts())
+                .containsExactly(Map.entry("RefundPolicy", 1L), Map.entry("Escalate", 1L));
         assertThat(refused.taskOutcomes("RefundPolicy")).containsExactly("rejected");
         assertThat(refused.agentsInOrder()).containsExactly("Intake");
     }
@@ -108,19 +118,31 @@ class WorkflowTaskAssertTest {
 
     @Test
     void failuresThrowWithAMessageThatNamesWhatHappened() {
-        assertThatThrownBy(() -> WorkflowAssertions.assertThat(refused).runsTasksInOrder("Escalate", "RefundPolicy"))
+        assertThatThrownBy(
+                        () ->
+                                WorkflowAssertions.assertThat(refused)
+                                        .runsTasksInOrder("Escalate", "RefundPolicy"))
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining("[Escalate, RefundPolicy]")
                 .hasMessageContaining("[RefundPolicy, Escalate]");
-        assertThatThrownBy(() -> WorkflowAssertions.assertThat(refused).runsTaskTimes("IssueRefund", 1))
+        assertThatThrownBy(
+                        () ->
+                                WorkflowAssertions.assertThat(refused)
+                                        .runsTaskTimes("IssueRefund", 1))
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining("IssueRefund")
                 .hasMessageContaining("0 time(s)");
-        assertThatThrownBy(() -> WorkflowAssertions.assertThat(refused).taskEndedWith("RefundPolicy", "approved"))
+        assertThatThrownBy(
+                        () ->
+                                WorkflowAssertions.assertThat(refused)
+                                        .taskEndedWith("RefundPolicy", "approved"))
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining("approved")
                 .hasMessageContaining("[rejected]");
-        assertThatThrownBy(() -> WorkflowAssertions.assertThat(refused).taskEndedWith("IssueRefund", "ok"))
+        assertThatThrownBy(
+                        () ->
+                                WorkflowAssertions.assertThat(refused)
+                                        .taskEndedWith("IssueRefund", "ok"))
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining("[]");
     }

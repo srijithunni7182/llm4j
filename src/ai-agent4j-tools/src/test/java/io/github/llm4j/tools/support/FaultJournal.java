@@ -6,8 +6,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Wraps a journal and "crashes" after a number of writes, so a test can stop a run exactly between two
- * journal entries and then run again on the same underlying journal.
+ * Wraps a journal and "crashes" after a number of writes, so a test can stop a run exactly between
+ * two journal entries and then run again on the same underlying journal.
  */
 public final class FaultJournal implements EffectJournal {
 
@@ -24,8 +24,8 @@ public final class FaultJournal implements EffectJournal {
 
     /**
      * @param putsAllowed writes that succeed before the crash
-     * @param crashAfterWrite true: the write that hits the limit is stored and then the crash happens (the
-     *                        process died just after it); false: the crash happens instead of the write
+     * @param crashAfterWrite true: the write that hits the limit is stored and then the crash
+     *     happens (the process died just after it); false: the crash happens instead of the write
      */
     public FaultJournal(EffectJournal delegate, int putsAllowed, boolean crashAfterWrite) {
         this.delegate = delegate;

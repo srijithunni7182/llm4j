@@ -7,14 +7,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** The settings of every agent the graphs name, read from the agent definitions in the import closure. */
+/**
+ * The settings of every agent the graphs name, read from the agent definitions in the import
+ * closure.
+ */
 final class AgentCatalog {
 
     /** Agents found, and a warning for each named agent that is defined nowhere. */
-    record Found(List<AgentInfo> agents, List<Diagnostic> diagnostics) {
-    }
+    record Found(List<AgentInfo> agents, List<Diagnostic> diagnostics) {}
 
-    /** @param definitions agent name to its definition and the file it is in; the first in run order wins */
+    /**
+     * @param definitions agent name to its definition and the file it is in; the first in run order
+     *     wins
+     */
     static Found describe(List<WorkflowGraph> graphs, Map<String, Located> definitions) {
         Set<String> named = new LinkedHashSet<>();
         for (WorkflowGraph graph : graphs) {
@@ -37,8 +42,11 @@ final class AgentCatalog {
             Located located = definitions.get(name);
             if (located == null) {
                 SourceRef use = firstUse(graphs, name);
-                diagnostics.add(Diagnostic.warning(
-                        use.file(), use.line(), "Agent " + name + " is not defined in this file or its imports."));
+                diagnostics.add(
+                        Diagnostic.warning(
+                                use.file(),
+                                use.line(),
+                                "Agent " + name + " is not defined in this file or its imports."));
             } else {
                 found.add(info(located));
             }
@@ -49,10 +57,14 @@ final class AgentCatalog {
     private static SourceRef firstUse(List<WorkflowGraph> graphs, String agent) {
         for (WorkflowGraph graph : graphs) {
             for (GraphNode node : graph.nodes()) {
-                boolean uses = agent.equals(node.agent())
-                        || (node.attrs().get("agents") instanceof List<?> l && l.contains(agent));
+                boolean uses =
+                        agent.equals(node.agent())
+                                || (node.attrs().get("agents") instanceof List<?> l
+                                        && l.contains(agent));
                 if (uses) {
-                    return node.source() != null ? node.source() : new SourceRef(graph.file(), graph.line());
+                    return node.source() != null
+                            ? node.source()
+                            : new SourceRef(graph.file(), graph.line());
                 }
             }
         }
@@ -82,9 +94,7 @@ final class AgentCatalog {
     }
 
     /** An agent definition and the file it is written in. */
-    record Located(AgentDef agent, String file) {
-    }
+    record Located(AgentDef agent, String file) {}
 
-    private AgentCatalog() {
-    }
+    private AgentCatalog() {}
 }

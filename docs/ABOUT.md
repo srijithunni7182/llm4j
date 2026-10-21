@@ -84,6 +84,7 @@ Test code is almost as large as production code: about 111,000 test lines agains
 | 2026-10-15 | Context management and call telemetry. Runs can be steered, paused, resumed or cancelled from another thread. |
 | 2026-10-16 | `LoomHost` runs workflows from an application and resumes them after a restart. The Spring Boot starter. |
 | 2026-10-17 | **Release 6.0.0** published to Maven Central: eleven artifacts, including the Spring Boot starter, `eval4j` and Fabric. |
+| 2026-10-21 | In preparation for 6.1.0: typed classification (`Classifier`, Jev, `intentclassify` in Loom), after a study of Jev against chat models. |
 
 Release dates for 1.0 to 5.0 come from the git tags; 4.0 and 5.0 were not published to Maven Central (its only earlier version is 0.1.0), so 6.0.0 is the first Central release since then. The other entries are dates of the commits that introduced the
 feature.

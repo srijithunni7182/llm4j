@@ -13,11 +13,13 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** The boundary list and the step-id rules (spec loom-rewind-and-fork R3), and that a run that never goes back is written as it always was. */
+/**
+ * The boundary list and the step-id rules (spec loom-rewind-and-fork R3), and that a run that never
+ * goes back is written as it always was.
+ */
 class JournalFormatTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     @Test
     @Tag("RW-V3.2")
@@ -43,7 +45,16 @@ class JournalFormatTest {
     void aBoundaryRecordsEverythingAPersonWouldAskAndSurvivesAReload() {
         RunJournal journal = RunJournal.inMemory();
         Generations g = new Generations(journal);
-        g.start("W/s", 1, "collected", "operator:ada", "W/s7", "review.score<7", Map.of("feedback", "fix1"), "keep", true);
+        g.start(
+                "W/s",
+                1,
+                "collected",
+                "operator:ada",
+                "W/s7",
+                "review.score<7",
+                Map.of("feedback", "fix1"),
+                "keep",
+                true);
 
         Generations.Boundary b = new Generations(journal).all().get(0);
         assertThat(b.block()).isEqualTo("W/s");
@@ -68,7 +79,9 @@ class JournalFormatTest {
         assertThat(Generations.strip("W/s3/a0")).isEqualTo("W/s3/a0");
         assertThat(g.identity("W/s3~2")).isEqualTo("W/s3");
         g.start("W/s", 3, "a", "script", "W/s9", "r", Map.of(), "repeat", false);
-        assertThat(g.identity("W/s3~2")).as("a repeat keeps its attempt, so its effects have keys of their own").isEqualTo("W/s3~2");
+        assertThat(g.identity("W/s3~2"))
+                .as("a repeat keeps its attempt, so its effects have keys of their own")
+                .isEqualTo("W/s3~2");
         assertThat(g.identity("W/s3~2/a0")).isEqualTo("W/s3~2/a0");
         g.start("W/s", 3, "a", "script", "W/s9", "r", Map.of(), "keep", false);
         assertThat(g.identity("W/s3~3")).isEqualTo("W/s3");
@@ -105,8 +118,10 @@ class JournalFormatTest {
         future.put("version", 99);
         future.put("boundaries", java.util.List.of());
         journal.put("#boundaries", new RunJournal.Entry("boundaries", future));
-        assertThatThrownBy(() -> new Generations(journal)).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("different version of weave").hasMessageContaining("99");
+        assertThatThrownBy(() -> new Generations(journal))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("different version of weave")
+                .hasMessageContaining("99");
 
         RunJournal old = RunJournal.inMemory();
         old.put("#boundaries", new RunJournal.Entry("boundaries", java.util.List.of()));
@@ -120,12 +135,18 @@ class JournalFormatTest {
         RunJournal journal = RunJournal.inMemory();
         ScriptedRun run = new ScriptedRun(dir);
         run.journal = journal;
-        run.responder = r -> {
-            String message = ScriptedRun.lastMessage(r);
-            if (message.lastIndexOf("Observation:") > message.lastIndexOf("Current Task:")) return ScriptedRun.done("sent");
-            return ScriptedRun.call("Log", "{\"action\": \"append\", \"path\": \"n.md\", \"content\": \"x\"}");
-        };
-        var executor = run.executor("""
+        run.responder =
+                r -> {
+                    String message = ScriptedRun.lastMessage(r);
+                    if (message.lastIndexOf("Observation:") > message.lastIndexOf("Current Task:"))
+                        return ScriptedRun.done("sent");
+                    return ScriptedRun.call(
+                            "Log",
+                            "{\"action\": \"append\", \"path\": \"n.md\", \"content\": \"x\"}");
+                };
+        var executor =
+                run.executor(
+                        """
                 tool Log { use: file  root: "out"  mode: write }
                 agent A { model: "m" system: "You are A." tools: [Log] approve: [Log] max_iterations: 6 }
                 workflow W() {
@@ -137,8 +158,18 @@ class JournalFormatTest {
         executor.initialize();
         executor.executeWorkflow("W", Map.of());
 
-        assertThat(journal.all().keySet()).noneMatch(k -> k.contains("#boundaries") || k.contains("#checkpoint") || k.contains("#asked") || k.contains("~") || k.contains("#rewind"));
-        assertThat(journal.all().keySet()).anyMatch(k -> k.contains("#effect:")).anyMatch(k -> k.contains("#approve:")).contains("W/s0", "W/s1");
+        assertThat(journal.all().keySet())
+                .noneMatch(
+                        k ->
+                                k.contains("#boundaries")
+                                        || k.contains("#checkpoint")
+                                        || k.contains("#asked")
+                                        || k.contains("~")
+                                        || k.contains("#rewind"));
+        assertThat(journal.all().keySet())
+                .anyMatch(k -> k.contains("#effect:"))
+                .anyMatch(k -> k.contains("#approve:"))
+                .contains("W/s0", "W/s1");
     }
 
     @Test
@@ -151,7 +182,9 @@ class JournalFormatTest {
         ScriptedRun run = new ScriptedRun(dir);
         run.responder = model::reply;
         run.journal = journal;
-        var executor = run.executor("""
+        var executor =
+                run.executor(
+                        """
                 agent Writer { model: "m" system: "You are Writer." }
                 workflow W(topic) {
                     checkpoint a  starting with feedback = "none", subject = "about {topic}"
@@ -162,7 +195,9 @@ class JournalFormatTest {
         executor.executeWorkflow("W", Map.of("topic", "bees"));
 
         assertThat(journal.get("W/s0#checkpoint")).isPresent();
-        assertThat(journal.get("W/s0#checkpoint").get().value().toString()).contains("name=a").contains("generation=1");
+        assertThat(journal.get("W/s0#checkpoint").get().value().toString())
+                .contains("name=a")
+                .contains("generation=1");
         assertThat(model.calls).containsExactly("Writer");
         assertThat(model.tasks.get(0)).contains("Feedback: none about bees");
         assertThat(run.audit).contains("checkpoint_reached");
@@ -172,7 +207,9 @@ class JournalFormatTest {
         ScriptedRun again = new ScriptedRun(dir);
         again.responder = model::reply;
         again.journal = journal;
-        var e2 = again.executor("""
+        var e2 =
+                again.executor(
+                        """
                 agent Writer { model: "m" system: "You are Writer." }
                 workflow W(topic) {
                     checkpoint a  starting with feedback = "none", subject = "about {topic}"
@@ -181,7 +218,9 @@ class JournalFormatTest {
                 """);
         e2.initialize();
         e2.executeWorkflow("W", Map.of("topic", "bees"));
-        assertThat(journal.get("W/s0#checkpoint").get().value().toString()).as("not written twice").isEqualTo(before);
+        assertThat(journal.get("W/s0#checkpoint").get().value().toString())
+                .as("not written twice")
+                .isEqualTo(before);
         assertThat(model.calls).hasSize(1);
     }
 
@@ -193,7 +232,9 @@ class JournalFormatTest {
         ScriptedRun run = new ScriptedRun(dir);
         run.responder = model::reply;
         run.journal = journal;
-        var executor = run.executor("""
+        var executor =
+                run.executor(
+                        """
                 agent Writer { model: "m" system: "You are Writer." }
                 workflow W() {
                     loop until (w == "never") max 2 {

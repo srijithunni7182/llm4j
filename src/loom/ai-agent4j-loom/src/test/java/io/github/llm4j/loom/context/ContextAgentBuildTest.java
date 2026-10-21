@@ -9,16 +9,19 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** R6, R7, R8, R9, R12: an agent with a context block is built with its policy, its model's window and its strategy. */
+/**
+ * R6, R7, R8, R9, R12: an agent with a context block is built with its policy, its model's window
+ * and its strategy.
+ */
 class ContextAgentBuildTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private static final int STEPS = 14;
 
     private static WindowLayers tiny(String model) {
-        return WindowLayers.none().over("test", ContextWindows.empty().with(model, new ContextWindow(3000, 500)));
+        return WindowLayers.none()
+                .over("test", ContextWindows.empty().with(model, new ContextWindow(3000, 500)));
     }
 
     private TestLoom loom(String model, String block) {
@@ -36,7 +39,10 @@ class ContextAgentBuildTest {
 
     @Test
     void aBlockKeepsThePromptInsideTheWindowOfItsModel() {
-        TestLoom l = loom("tiny-model", "context { compact: drop_oldest  keep_recent: 2  trigger: 70%  target: 40% }");
+        TestLoom l =
+                loom(
+                        "tiny-model",
+                        "context { compact: drop_oldest  keep_recent: 2  trigger: 70%  target: 40% }");
         l.executor.setContextWindows(tiny("tiny-model"));
         l.run();
         assertThat(l.requests).hasSize(STEPS + 1);
@@ -49,7 +55,12 @@ class ContextAgentBuildTest {
         small.executor.setContextWindows(tiny("tiny-model"));
         small.run();
         TestLoom large = loom("tiny-model", "context { compact: drop_oldest  keep_recent: 2 }");
-        large.executor.setContextWindows(WindowLayers.none().over("t", ContextWindows.empty().with("tiny-model", new ContextWindow(100_000, 500))));
+        large.executor.setContextWindows(
+                WindowLayers.none()
+                        .over(
+                                "t",
+                                ContextWindows.empty()
+                                        .with("tiny-model", new ContextWindow(100_000, 500))));
         large.run();
         assertThat(small.biggest()).isLessThan(2500);
         assertThat(large.biggest()).as("a larger window needs no compaction").isGreaterThan(3000);
@@ -66,18 +77,28 @@ class ContextAgentBuildTest {
 
     @Test
     void aRoutingAgentIsGovernedByTheSmallestWindowOfItsModels() {
-        String src = "routing Pol { primary: \"big-model\"  fallback: [\"tiny-model\"]  strategy: fallback }\n"
-                + "agent Researcher {\n  routing: Pol\n  model: \"big-model\"\n  tools: [lookup]\n  max_iterations: 60\n  context { compact: drop_oldest  keep_recent: 2 }\n}\n"
-                + "workflow Main() { delegate \"research the topic\" to Researcher -> out }\n";
+        String src =
+                "routing Pol { primary: \"big-model\"  fallback: [\"tiny-model\"]  strategy: fallback }\n"
+                        + "agent Researcher {\n  routing: Pol\n  model: \"big-model\"\n  tools: [lookup]\n  max_iterations: 60\n  context { compact: drop_oldest  keep_recent: 2 }\n}\n"
+                        + "workflow Main() { delegate \"research the topic\" to Researcher -> out }\n";
         TestLoom l = new TestLoom(dir, src, STEPS);
-        l.executor.setContextWindows(WindowLayers.none().over("t", ContextWindows.empty().with("big-model", new ContextWindow(1_000_000, 1000)).with("tiny-model", new ContextWindow(3000, 500))));
+        l.executor.setContextWindows(
+                WindowLayers.none()
+                        .over(
+                                "t",
+                                ContextWindows.empty()
+                                        .with("big-model", new ContextWindow(1_000_000, 1000))
+                                        .with("tiny-model", new ContextWindow(3000, 500))));
         l.run();
         assertThat(l.biggest()).isLessThan(2500);
     }
 
     @Test
     void theSummarizerIsBuiltByTheSameFactoryAsTheAgent() {
-        TestLoom l = loom("tiny-model", "context { compact: summarize  summarizer: \"notes-model\"  keep_recent: 2 }");
+        TestLoom l =
+                loom(
+                        "tiny-model",
+                        "context { compact: summarize  summarizer: \"notes-model\"  keep_recent: 2 }");
         l.executor.setContextWindows(tiny("tiny-model"));
         l.run();
         assertThat(l.modelsCreated).contains("tiny-model", "notes-model");
@@ -94,7 +115,10 @@ class ContextAgentBuildTest {
 
     @Test
     void aChainIsBuiltInOrder() {
-        TestLoom l = loom("tiny-model", "context { compact: chain(trim_tool_results, drop_oldest)  max_chars: 300  keep_recent: 2 }");
+        TestLoom l =
+                loom(
+                        "tiny-model",
+                        "context { compact: chain(trim_tool_results, drop_oldest)  max_chars: 300  keep_recent: 2 }");
         l.executor.setContextWindows(tiny("tiny-model"));
         l.run();
         assertThat(l.biggest()).isLessThan(2500);
@@ -110,7 +134,10 @@ class ContextAgentBuildTest {
     @Test
     void aCustomStrategyFromCodeIsUsedByName() {
         Strategies.calls.set(0);
-        TestLoom l = loom("tiny-model", "context { compact: chain(keep_newest, drop_oldest)  keep_recent: 2 }");
+        TestLoom l =
+                loom(
+                        "tiny-model",
+                        "context { compact: chain(keep_newest, drop_oldest)  keep_recent: 2 }");
         l.executor.setContextWindows(tiny("tiny-model"));
         l.executor.registerCompactor("keep_newest", new Strategies.KeepNewest());
         l.run();
@@ -120,11 +147,18 @@ class ContextAgentBuildTest {
 
     @Test
     void aCustomStrategyFromALoctFileGetsTheBlocksOptions() throws Exception {
-        java.nio.file.Files.writeString(dir.resolve("s.loct"), "with_options = io.github.llm4j.loom.context.Strategies$WithOptions\n");
-        TestLoom l = loom("tiny-model", "context { compact: with_options  keep_recent: 2  flavour: spicy }");
+        java.nio.file.Files.writeString(
+                dir.resolve("s.loct"),
+                "with_options = io.github.llm4j.loom.context.Strategies$WithOptions\n");
+        TestLoom l =
+                loom(
+                        "tiny-model",
+                        "context { compact: with_options  keep_recent: 2  flavour: spicy }");
         l.executor.setContextWindows(tiny("tiny-model"));
         assertThat(l.executor.loadCompactors(dir.resolve("s.loct"))).isEmpty();
         l.executor.initialize();
-        assertThat(Strategies.WithOptions.lastOptions).containsEntry("flavour", "spicy").doesNotContainKey("keep_recent");
+        assertThat(Strategies.WithOptions.lastOptions)
+                .containsEntry("flavour", "spicy")
+                .doesNotContainKey("keep_recent");
     }
 }

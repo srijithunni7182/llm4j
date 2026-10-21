@@ -1,8 +1,8 @@
 package io.github.llm4j.loom.ast;
 
 /**
- * AST node for an observation statement.
- * Logs and audits a specific variable or expression value at runtime.
+ * AST node for an observation statement. Logs and audits a specific variable or expression value at
+ * runtime.
  */
 public class ObserveStmt extends LocatedStatement {
     private final String label;
@@ -13,6 +13,11 @@ public class ObserveStmt extends LocatedStatement {
         this.expression = expression;
     }
 
-    public String getLabel() { return label; }
-    public String getExpression() { return expression; }
+    public String getLabel() {
+        return label;
+    }
+
+    public String getExpression() {
+        return expression;
+    }
 }

@@ -37,6 +37,7 @@
     rewind: { k: 'misc', g: 'rewind', shape: 'rect' },
     call: { k: 'call', g: 'call', shape: 'dbl' },
     guardrail: { k: 'task', g: 'shield', shape: 'rect' },
+    classify: { k: 'task', g: 'tag', shape: 'rect' },
     decide: { k: 'call', g: 'scale', shape: 'rect' },
     observe: { k: 'misc', g: 'eye', shape: 'rect' },
     note: { k: 'misc', g: 'note', shape: 'rect', dashed: true },
@@ -64,6 +65,7 @@
     flag: '<path d="M4 2v12M4 3h8l-2 2.6L12 8.2H4"/>',
     rewind: '<path d="M8 4L3 8l5 4zM13 4L8 8l5 4z"/>',
     shield: '<path d="M8 2l5 2v4c0 3-2 5-5 6-3-1-5-3-5-6V4z"/>',
+    tag: '<path d="M2.5 8.2V3.5h4.7L13.5 9.8l-4.7 4.7z"/><circle class="fill" cx="5.4" cy="6.2" r=".9"/>',
     scale: '<path d="M8 2.5v11M4 13.5h8M3 5.5h10M3 5.5L1.8 9h2.4zM13 5.5L11.8 9h2.4z"/>',
     eye: '<path d="M1.5 8S4 3.8 8 3.8 14.5 8 14.5 8 12 12.2 8 12.2 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="1.9"/>',
     note: '<path d="M3 3h10v10H3zM5.5 6h5M5.5 8.5h5M5.5 11h3"/>',
@@ -77,7 +79,7 @@
   };
 
   var LEGEND = [
-    ['agent', 'Agent step (delegate, handoff, broadcast)'], ['task', 'Task or guardrail'], ['par', 'Parallel round'],
+    ['agent', 'Agent step (delegate, handoff, broadcast)'], ['task', 'Task, guardrail or classify'], ['par', 'Parallel round'],
     ['alt', 'Branch (alt)'], ['loop', 'Loop or for each'], ['call', 'Call or decision'], ['human', 'Ask a person'],
     ['misc', 'Checkpoint, note, other']
   ];
@@ -115,6 +117,7 @@
   var CHIP_KINDS = {
     delegate: ['prompt', 'timeout', 'retry', 'budget', 'expecting', 'variable'],
     task: ['timeout', 'retry', 'variable'],
+    classify: ['backend', 'samples', 'timeout', 'retry', 'variable'],
     broadcast: ['budget', 'variable'],
     parallel: ['branches'],
     loop: ['max', 'budget'],
@@ -152,6 +155,8 @@
       case 'carrying': { var n = a.carrying ? Object.keys(a.carrying).length : 0; return n ? { t: 'carrying ' + n } : null; }
       case 'values': { var m = a.startingWith ? Object.keys(a.startingWith).length : 0; return m ? { t: plural(m, 'value') } : null; }
       case 'args': return a.args ? { t: plural(a.args, 'arg') } : null;
+      case 'backend': return a.backend ? (a.backend === 'jev' ? { t: 'Jev · calibrated' } : { t: 'chat model · uncalibrated', v: 'warn' }) : null;
+      case 'samples': return a.samples ? { t: a.samples + ' samples' } : null;
       case 'level': return a.level ? { t: String(a.level).toUpperCase() } : null;
       case 'variable': return a.variable ? { t: '→ ' + cut(a.variable, 20) } : null;
       default: return null;
@@ -191,6 +196,7 @@
       case 'sleep': return a.duration || null;
       case 'rewind': return a.condition ? cut(a.condition, 40) : null;
       case 'task': return a.args ? plural(a.args, 'arg') : null;
+      case 'classify': return a.labels && a.labels.length ? cut(a.labels.join('; '), 44) : (a.classifier || null);
       case 'call':
         if (node.unresolved) { return 'not found'; }
         return node.call && node.call.file && node.call.file !== ctx.currentFile ? fileName(node.call.file) : null;

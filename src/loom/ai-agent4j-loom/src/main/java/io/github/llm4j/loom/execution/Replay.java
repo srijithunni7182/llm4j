@@ -7,8 +7,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Makes one run a replay of a past case under a candidate: nobody is asked, the ledger and the levels are not touched, and the decision's agent
- * reads from what the case recorded. What happened is collected here for the report.
+ * Makes one run a replay of a past case under a candidate: nobody is asked, the ledger and the
+ * levels are not touched, and the decision's agent reads from what the case recorded. What happened
+ * is collected here for the report.
  */
 public final class Replay {
 
@@ -25,13 +26,19 @@ public final class Replay {
     private boolean proposedAfterSimulation;
 
     /**
-     * @param liveReads reads that were not recorded run live (flagged non-deterministic) instead of making the case unreplayable
-     * @param noMemory  memory and knowledge reads are not run
-     * @param allowed   tools declared {@code replay: allow}
-     * @param caseTime  what the clock tool answers: when the case was decided
+     * @param liveReads reads that were not recorded run live (flagged non-deterministic) instead of
+     *     making the case unreplayable
+     * @param noMemory memory and knowledge reads are not run
+     * @param allowed tools declared {@code replay: allow}
+     * @param caseTime what the clock tool answers: when the case was decided
      * @param evidenceStep the step id the original case's task and evidence were journaled under
      */
-    public Replay(boolean liveReads, boolean noMemory, Set<String> allowed, Instant caseTime, String evidenceStep) {
+    public Replay(
+            boolean liveReads,
+            boolean noMemory,
+            Set<String> allowed,
+            Instant caseTime,
+            String evidenceStep) {
         this.liveReads = liveReads;
         this.noMemory = noMemory;
         this.allowed = allowed;
@@ -40,33 +47,74 @@ public final class Replay {
     }
 
     /** The step the original case's evidence is journaled under. */
-    public String evidenceStep() { return evidenceStep; }
+    public String evidenceStep() {
+        return evidenceStep;
+    }
 
-    public boolean liveReads() { return liveReads; }
-    public boolean noMemory() { return noMemory; }
-    public boolean allows(String tool) { return allowed.contains(tool); }
-    public Instant caseTime() { return caseTime; }
+    public boolean liveReads() {
+        return liveReads;
+    }
+
+    public boolean noMemory() {
+        return noMemory;
+    }
+
+    public boolean allows(String tool) {
+        return allowed.contains(tool);
+    }
+
+    public Instant caseTime() {
+        return caseTime;
+    }
 
     synchronized void simulated(String tool) {
         simulated.add(tool);
         proposedAfterSimulation = true;
     }
 
-    synchronized void unrecorded(String tool) { unrecorded.add(tool); }
-    synchronized void live(String tool) { live.add(tool); }
-    synchronized void allowedRan(String tool) { allowedRun.add(tool); }
+    synchronized void unrecorded(String tool) {
+        unrecorded.add(tool);
+    }
+
+    synchronized void live(String tool) {
+        live.add(tool);
+    }
+
+    synchronized void allowedRan(String tool) {
+        allowedRun.add(tool);
+    }
 
     /** The tools that were simulated while proposing. */
-    public synchronized List<String> simulatedCalls() { return List.copyOf(simulated); }
-    /** Reads the candidate made that the case had not recorded. */
-    public synchronized Set<String> unrecordedReads() { return Set.copyOf(unrecorded); }
-    /** Reads that ran live. */
-    public synchronized Set<String> liveReadsUsed() { return Set.copyOf(live); }
-    public synchronized Set<String> allowedToolsRun() { return Set.copyOf(allowedRun); }
-    /** The proposal was made after a tool was only simulated, so on less information than the original. */
-    public synchronized boolean proposedAfterSimulation() { return proposedAfterSimulation; }
+    public synchronized List<String> simulatedCalls() {
+        return List.copyOf(simulated);
+    }
 
-    /** Thrown when the candidate reads something the case did not record: the case cannot be replayed under this candidate. */
+    /** Reads the candidate made that the case had not recorded. */
+    public synchronized Set<String> unrecordedReads() {
+        return Set.copyOf(unrecorded);
+    }
+
+    /** Reads that ran live. */
+    public synchronized Set<String> liveReadsUsed() {
+        return Set.copyOf(live);
+    }
+
+    public synchronized Set<String> allowedToolsRun() {
+        return Set.copyOf(allowedRun);
+    }
+
+    /**
+     * The proposal was made after a tool was only simulated, so on less information than the
+     * original.
+     */
+    public synchronized boolean proposedAfterSimulation() {
+        return proposedAfterSimulation;
+    }
+
+    /**
+     * Thrown when the candidate reads something the case did not record: the case cannot be
+     * replayed under this candidate.
+     */
     public static final class Unreplayable extends RuntimeException {
         private final String reason;
 
@@ -75,6 +123,8 @@ public final class Replay {
             this.reason = reason;
         }
 
-        public String reason() { return reason; }
+        public String reason() {
+            return reason;
+        }
     }
 }

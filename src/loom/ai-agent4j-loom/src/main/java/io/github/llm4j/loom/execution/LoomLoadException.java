@@ -4,8 +4,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * A script asks for something the runtime can't honour — an unknown tool, a missing secret, a feature
- * that isn't supported yet. Thrown before any model is called, listing every problem with its line.
+ * A script asks for something the runtime can't honour — an unknown tool, a missing secret, a
+ * feature that isn't supported yet. Thrown before any model is called, listing every problem with
+ * its line.
  */
 public class LoomLoadException extends RuntimeException {
 
@@ -17,7 +18,11 @@ public class LoomLoadException extends RuntimeException {
     }
 
     private static String message(List<ScriptValidator.Problem> problems) {
-        return "The script can't run (" + problems.size() + " problem" + (problems.size() == 1 ? "" : "s") + "):\n"
+        return "The script can't run ("
+                + problems.size()
+                + " problem"
+                + (problems.size() == 1 ? "" : "s")
+                + "):\n"
                 + problems.stream().map(p -> "  " + p).collect(Collectors.joining("\n"));
     }
 

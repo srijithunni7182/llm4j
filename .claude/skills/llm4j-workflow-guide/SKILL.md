@@ -21,7 +21,7 @@ may not be here, so never send the user to a repository path and never ask them 
 | 3 | Prompt tests (optional) | `docs/guide/03-prompt-tests.md` | each prompt meets its rule; candidates do not regress |
 | 4 | Prompt optimization (optional) | `docs/guide/04-prompt-optimization.md` | `result.generalized()` is true (skip the stage if prompts already pass) |
 | 5 | Agent tests with spend caps (optional) | `docs/guide/05-test-agents-with-caps.md` | goals met, judge noise measured, cost near the model |
-| 6 | Build the workflow | `docs/guide/06-build-the-workflow.md` | `weave check` passes (tasks registered, `run` steps checked) |
+| 6 | Build the workflow | `docs/guide/06-build-the-workflow.md` | `weave check` passes (tasks registered, `run` steps checked; a step that only chooses a label, such as routing or judging, is an `intentclassify` step with a confidence rule that sends `unsure` to a person, never an agent that writes an answer to be parsed; Jev is recommended for routing and judging but never as the only guard on a dangerous action) |
 | 7 | Validate and audit | `docs/guide/07-validate-and-audit.md` | `weave audit --fail-on medium` clean or every finding explained; injection cases pass |
 | 8 | Trajectory tests (optional) | `docs/guide/08-trajectory-tests.md` | path, branch, round-count and budget-stop tests pass for free |
 | 9 | Go live | `docs/guide/09-go-live.md` | smoke and first real run within about twice the cost model; limits set |

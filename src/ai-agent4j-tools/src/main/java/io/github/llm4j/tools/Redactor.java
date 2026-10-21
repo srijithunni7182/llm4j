@@ -11,13 +11,16 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Removes secret values from text on its way out of a tool. Each secret is matched as written, URL-encoded,
- * and inside Base64 (standard and URL-safe, at each of the three byte alignments, so a Basic-auth header
- * that embeds it is caught too).
+ * Removes secret values from text on its way out of a tool. Each secret is matched as written,
+ * URL-encoded, and inside Base64 (standard and URL-safe, at each of the three byte alignments, so a
+ * Basic-auth header that embeds it is caught too).
  */
 public final class Redactor {
 
-    /** Secrets shorter than this can't be scrubbed without mangling ordinary text; kinds refuse them at load. */
+    /**
+     * Secrets shorter than this can't be scrubbed without mangling ordinary text; kinds refuse them
+     * at load.
+     */
     public static final int MIN_SECRET_LENGTH = 4;
 
     public static final Redactor NONE = new Redactor(List.of());
@@ -49,18 +52,21 @@ public final class Redactor {
         return out;
     }
 
-    /** The part of a Base64 encoding of {@code secret} that doesn't depend on the bytes around it. */
+    /**
+     * The part of a Base64 encoding of {@code secret} that doesn't depend on the bytes around it.
+     */
     private static List<String> base64Fragments(byte[] secret) {
         List<String> out = new ArrayList<>();
         for (int lead = 0; lead < 3; lead++) {
             byte[] padded = new byte[lead + secret.length];
             System.arraycopy(secret, 0, padded, lead, secret.length);
             String enc = Base64.getEncoder().withoutPadding().encodeToString(padded);
-            int drop = switch (padded.length % 3) {
-                case 1 -> 2;
-                case 2 -> 1;
-                default -> 0;
-            };
+            int drop =
+                    switch (padded.length % 3) {
+                        case 1 -> 2;
+                        case 2 -> 1;
+                        default -> 0;
+                    };
             int from = lead == 0 ? 0 : lead + 1;
             int to = enc.length() - drop;
             if (to - from < MIN_SECRET_LENGTH) continue;

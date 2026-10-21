@@ -11,8 +11,9 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 /**
- * What the run does when a model call is limited (a provider's rate limit, or a budget that refills): wait it out in place, pause the run until the reset,
- * or fail, as the script's {@code rate_limits} block says. {@link HarnessExecutor} owns one.
+ * What the run does when a model call is limited (a provider's rate limit, or a budget that
+ * refills): wait it out in place, pause the run until the reset, or fail, as the script's {@code
+ * rate_limits} block says. {@link HarnessExecutor} owns one.
  */
 final class LimitPolicy {
     private static final Logger log = Logger.getLogger(HarnessExecutor.class.getName());
@@ -38,7 +39,10 @@ final class LimitPolicy {
 
         String sessionId();
 
-        /** True when the refusing budget refills at a known time and its script says to wait for that. */
+        /**
+         * True when the refusing budget refills at a known time and its script says to wait for
+         * that.
+         */
         boolean refills(io.github.llm4j.budget.BudgetExceeded be);
     }
 
@@ -51,7 +55,9 @@ final class LimitPolicy {
     RateLimitDef.OnLimit onLimitPolicy() {
         RateLimitDef rl = host.script().getRateLimits();
         if (rl != null && rl.getOnLimit() != null) return rl.getOnLimit();
-        return host.journal().isDurable() ? RateLimitDef.OnLimit.SUSPEND : RateLimitDef.OnLimit.WAIT;
+        return host.journal().isDurable()
+                ? RateLimitDef.OnLimit.SUSPEND
+                : RateLimitDef.OnLimit.WAIT;
     }
 
     Duration maxWait(RateLimitDef.OnLimit policy) {
@@ -66,14 +72,15 @@ final class LimitPolicy {
     }
 
     /**
-     * A step hit a limit. Returns after waiting it out inline (the caller runs the step again), or throws
-     * {@link RunSuspended} to pause the run until the reset, or {@link RateLimitFailure}.
-     * A budget that refills pauses the run (its {@code when_exhausted: suspend}); a provider limit
+     * A step hit a limit. Returns after waiting it out inline (the caller runs the step again), or
+     * throws {@link RunSuspended} to pause the run until the reset, or {@link RateLimitFailure}. A
+     * budget that refills pauses the run (its {@code when_exhausted: suspend}); a provider limit
      * follows {@code rate_limits { on_limit }}.
      */
     void onLimit(io.github.llm4j.ratelimit.RateLimited limited, int[] waits) {
         io.github.llm4j.ratelimit.RateLimitInfo info = limited.info();
-        boolean window = limited.reason() == io.github.llm4j.ratelimit.RateLimited.Reason.BUDGET_WINDOW;
+        boolean window =
+                limited.reason() == io.github.llm4j.ratelimit.RateLimited.Reason.BUDGET_WINDOW;
         RateLimitDef.OnLimit policy = window ? RateLimitDef.OnLimit.SUSPEND : onLimitPolicy();
         Duration wait = info.waitFrom(host.clock().instant());
         Duration max = maxWait(policy);
@@ -83,12 +90,17 @@ final class LimitPolicy {
             throw new RateLimitFailure(info, "that is more than max_wait " + human(max) + " away");
         }
         if (policy == RateLimitDef.OnLimit.SUSPEND) {
-            throw new RunSuspended(stepId, window ? RunSuspended.Reason.BUDGET_WINDOW : RunSuspended.Reason.RATE_LIMIT, info);
+            throw new RunSuspended(
+                    stepId,
+                    window ? RunSuspended.Reason.BUDGET_WINDOW : RunSuspended.Reason.RATE_LIMIT,
+                    info);
         }
         if (++waits[0] > maxResumes()) {
-            throw new RateLimitFailure(info, "still limited after " + (waits[0] - 1) + " waits (max_resumes)");
+            throw new RateLimitFailure(
+                    info, "still limited after " + (waits[0] - 1) + " waits (max_resumes)");
         }
-        log.warning("Rate limited at " + stepId + " (" + info.describe() + "): waiting " + human(wait));
+        log.warning(
+                "Rate limited at " + stepId + " (" + info.describe() + "): waiting " + human(wait));
         Map<String, Object> data = limitData(info);
         data.put("step", stepId);
         data.put("waitMillis", String.valueOf(wait.toMillis()));
@@ -122,7 +134,8 @@ final class LimitPolicy {
         long s = d.toSeconds();
         if (s < 60) return s + "s";
         if (s < 3600) return (s / 60) + "m" + (s % 60 == 0 ? "" : (s % 60) + "s");
-        if (s < 86_400) return (s / 3600) + "h" + ((s % 3600) / 60 == 0 ? "" : ((s % 3600) / 60) + "m");
+        if (s < 86_400)
+            return (s / 3600) + "h" + ((s % 3600) / 60 == 0 ? "" : ((s % 3600) / 60) + "m");
         return (s / 86_400) + "d" + ((s % 86_400) / 3600 == 0 ? "" : ((s % 86_400) / 3600) + "h");
     }
 

@@ -19,19 +19,19 @@ class InMemoryVectorStoreTest {
 
     @Test
     void testAddAndSize() {
-        store.add("id-1", new float[]{0.1f, 0.0f}, Map.of("key", "value"));
-        store.add("id-2", new float[]{0.0f, 0.1f}, Map.of("key", "value"));
+        store.add("id-1", new float[] {0.1f, 0.0f}, Map.of("key", "value"));
+        store.add("id-2", new float[] {0.0f, 0.1f}, Map.of("key", "value"));
         assertEquals(2, store.size());
     }
 
     @Test
     void testSearchReturnsTopKByCosineSimilarity() {
         // id-1 is aligned with the query (pointing in the same direction)
-        store.add("id-1", new float[]{1.0f, 0.0f}, Map.of("fact", "Java is awesome"));
+        store.add("id-1", new float[] {1.0f, 0.0f}, Map.of("fact", "Java is awesome"));
         // id-2 is orthogonal to query — zero cosine similarity
-        store.add("id-2", new float[]{0.0f, 1.0f}, Map.of("fact", "Python is awesome"));
+        store.add("id-2", new float[] {0.0f, 1.0f}, Map.of("fact", "Python is awesome"));
 
-        float[] query = new float[]{1.0f, 0.0f};
+        float[] query = new float[] {1.0f, 0.0f};
         List<SearchResult> results = store.search(query, 2);
 
         assertEquals(2, results.size());
@@ -46,20 +46,26 @@ class InMemoryVectorStoreTest {
     @Test
     void testSearchWithTopKBound() {
         for (int i = 0; i < 5; i++) {
-            store.add("id-" + i, new float[]{i * 0.1f, 0.0f}, Map.of());
+            store.add("id-" + i, new float[] {i * 0.1f, 0.0f}, Map.of());
         }
-        List<SearchResult> results = store.search(new float[]{0.5f, 0.0f}, 2);
+        List<SearchResult> results = store.search(new float[] {0.5f, 0.0f}, 2);
         assertEquals(2, results.size());
     }
 
     @Test
     void testSearchWithFilters() {
-        store.add("id-user1", new float[]{1.0f, 0.0f}, Map.of("userId", "user-1", "fact", "loves Java"));
-        store.add("id-user2", new float[]{1.0f, 0.0f}, Map.of("userId", "user-2", "fact", "loves Python"));
+        store.add(
+                "id-user1",
+                new float[] {1.0f, 0.0f},
+                Map.of("userId", "user-1", "fact", "loves Java"));
+        store.add(
+                "id-user2",
+                new float[] {1.0f, 0.0f},
+                Map.of("userId", "user-2", "fact", "loves Python"));
 
         Map<String, Object> filters = new HashMap<>();
         filters.put("userId", "user-1");
-        List<SearchResult> results = store.search(new float[]{1.0f, 0.0f}, 5, filters);
+        List<SearchResult> results = store.search(new float[] {1.0f, 0.0f}, 5, filters);
 
         assertEquals(1, results.size());
         assertEquals("loves Java", results.get(0).getMetadata().get("fact"));
@@ -67,7 +73,7 @@ class InMemoryVectorStoreTest {
 
     @Test
     void testDelete() {
-        store.add("id-1", new float[]{1.0f}, Map.of());
+        store.add("id-1", new float[] {1.0f}, Map.of());
         assertTrue(store.delete("id-1"));
         assertEquals(0, store.size());
         assertFalse(store.delete("no-such-id"));
@@ -75,8 +81,8 @@ class InMemoryVectorStoreTest {
 
     @Test
     void testClear() {
-        store.add("id-1", new float[]{1.0f}, Map.of());
-        store.add("id-2", new float[]{2.0f}, Map.of());
+        store.add("id-1", new float[] {1.0f}, Map.of());
+        store.add("id-2", new float[] {2.0f}, Map.of());
         store.clear();
         assertEquals(0, store.size());
     }

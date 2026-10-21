@@ -3,10 +3,10 @@ package io.github.llm4j.tools.file;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.llm4j.agent.Tool;
+import io.github.llm4j.agent.tool.EffectJournal;
 import io.github.llm4j.tools.support.Declared;
 import io.github.llm4j.tools.support.Fuzz;
 import io.github.llm4j.tools.support.RecordingEffects;
-import io.github.llm4j.agent.tool.EffectJournal;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -28,8 +28,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class FileToolTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
     RecordingEffects ctx;
     Declared declared;
     Path root;
@@ -66,14 +65,21 @@ class FileToolTest {
     @Tag("V7.1")
     void writeCreatesTheFileAndRefusesToReplaceItUnlessAllowed() throws Exception {
         Tool t = tool("mode: write");
-        assertThat(run(t, Map.of("action", "write", "path", "new.md", "content", "hello"))).startsWith("Wrote 5 bytes");
+        assertThat(run(t, Map.of("action", "write", "path", "new.md", "content", "hello")))
+                .startsWith("Wrote 5 bytes");
         assertThat(Files.readString(root.resolve("new.md"))).isEqualTo("hello");
 
-        assertThat(run(t, Map.of("action", "write", "path", "new.md", "content", "again"))).startsWith("Error:").contains("already exists");
+        assertThat(run(t, Map.of("action", "write", "path", "new.md", "content", "again")))
+                .startsWith("Error:")
+                .contains("already exists");
         assertThat(Files.readString(root.resolve("new.md"))).isEqualTo("hello");
 
         Tool replacing = tool("mode: write  overwrite: true");
-        assertThat(run(replacing, Map.of("action", "write", "path", "new.md", "content", "replaced"))).startsWith("Wrote");
+        assertThat(
+                        run(
+                                replacing,
+                                Map.of("action", "write", "path", "new.md", "content", "replaced")))
+                .startsWith("Wrote");
         assertThat(Files.readString(root.resolve("new.md"))).isEqualTo("replaced");
     }
 
@@ -85,12 +91,21 @@ class FileToolTest {
         Files.writeString(root.resolve("big.md"), "old");
         ExecutorService pool = Executors.newSingleThreadExecutor();
         try {
-            var writes = pool.submit(() -> {
-                for (int i = 0; i < 30; i++) run(t, Map.of("action", "write", "path", "big.md", "content", big + i));
-            });
+            var writes =
+                    pool.submit(
+                            () -> {
+                                for (int i = 0; i < 30; i++)
+                                    run(
+                                            t,
+                                            Map.of(
+                                                    "action", "write", "path", "big.md", "content",
+                                                    big + i));
+                            });
             while (!writes.isDone()) {
                 String seen = Files.readString(root.resolve("big.md"));
-                assertThat(seen.equals("old") || seen.length() >= 900_000).as("saw a partial file of " + seen.length()).isTrue();
+                assertThat(seen.equals("old") || seen.length() >= 900_000)
+                        .as("saw a partial file of " + seen.length())
+                        .isTrue();
             }
             writes.get();
         } finally {
@@ -108,7 +123,8 @@ class FileToolTest {
         run(t, Map.of("action", "append", "path", "nonl.md", "content", "next"));
 
         assertThat(Files.readString(root.resolve("log.md"))).isEqualTo("first\nsecond\n");
-        assertThat(Files.readString(root.resolve("nonl.md"))).isEqualTo("no newline at end\nnext\n");
+        assertThat(Files.readString(root.resolve("nonl.md")))
+                .isEqualTo("no newline at end\nnext\n");
     }
 
     @Test
@@ -124,8 +140,10 @@ class FileToolTest {
     @Tag("V7.2")
     void readReturnsContentAndCanSelectAWindowOfLines() throws Exception {
         Tool t = tool("");
-        assertThat(run(t, Map.of("action", "read", "path", "a.md"))).isEqualTo("line1\nline2\nline3\nline4\n");
-        assertThat(run(t, Map.of("action", "read", "path", "a.md", "from_line", 2, "lines", 2))).isEqualTo("line2\nline3");
+        assertThat(run(t, Map.of("action", "read", "path", "a.md")))
+                .isEqualTo("line1\nline2\nline3\nline4\n");
+        assertThat(run(t, Map.of("action", "read", "path", "a.md", "from_line", 2, "lines", 2)))
+                .isEqualTo("line2\nline3");
         assertThat(run(t, Map.of("action", "read", "path", "a.md", "from_line", "9"))).isEmpty();
     }
 
@@ -141,7 +159,9 @@ class FileToolTest {
     @Tag("V7.2")
     void aBinaryFileIsRefused() throws Exception {
         Files.write(root.resolve("img.log"), new byte[] {'a', 0, 'b'});
-        assertThat(run(tool(""), Map.of("action", "read", "path", "img.log"))).startsWith("Error:").contains("not a text file");
+        assertThat(run(tool(""), Map.of("action", "read", "path", "img.log")))
+                .startsWith("Error:")
+                .contains("not a text file");
     }
 
     @Test
@@ -150,37 +170,68 @@ class FileToolTest {
         Tool t = tool("");
         assertThat(run(t, Map.of("action", "exists", "path", "a.md"))).isEqualTo("true");
         assertThat(run(t, Map.of("action", "exists", "path", "nope.md"))).isEqualTo("false");
-        assertThat(run(t, Map.of("action", "read", "path", "nope.md"))).startsWith("Error:").contains("doesn't exist");
+        assertThat(run(t, Map.of("action", "read", "path", "nope.md")))
+                .startsWith("Error:")
+                .contains("doesn't exist");
     }
 
     // ── V7.3 confinement ─────────────────────────────────────────────────────────────────────
 
     @ParameterizedTest
-    @ValueSource(strings = {"../outside.md", "../../etc/passwd", "/etc/passwd", "sub/../../outside.md", ".env", ".hidden/x.md",
-            "sub/.hidden", "data.bin"})
+    @ValueSource(
+            strings = {
+                "../outside.md",
+                "../../etc/passwd",
+                "/etc/passwd",
+                "sub/../../outside.md",
+                ".env",
+                ".hidden/x.md",
+                "sub/.hidden",
+                "data.bin"
+            })
     @Tag("V7.3")
     @Tag("H4")
     void escapesHiddenFilesAndDisallowedNamesAreRefused(String path) throws Exception {
-        String out = run(tool("mode: readwrite  overwrite: true"), Map.of("action", "read", "path", path));
+        String out =
+                run(
+                        tool("mode: readwrite  overwrite: true"),
+                        Map.of("action", "read", "path", path));
         assertThat(out).startsWith("Error:").doesNotContain("SECRET");
-        String written = run(tool("mode: readwrite  overwrite: true"), Map.of("action", "write", "path", path, "content", "PWNED"));
+        String written =
+                run(
+                        tool("mode: readwrite  overwrite: true"),
+                        Map.of("action", "write", "path", path, "content", "PWNED"));
         assertThat(written).startsWith("Error:");
         assertThat(Files.readString(dir.resolve("outside.md"))).isEqualTo("OUTSIDE-SECRET");
         assertThat(Files.readString(root.resolve(".env"))).isEqualTo("HIDDEN-SECRET");
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"a\nb.md", "a\r\nBcc: evil@evil.example\r\nX-Injected: yes.md", "tab\there.md", "bell\u0007.md", "del\u007f.md",
-            "next\u0085line.md", "ls\u2028sep.md", "ps\u2029sep.md", "sub/a\nb.md"})
+    @ValueSource(
+            strings = {
+                "a\nb.md",
+                "a\r\nBcc: evil@evil.example\r\nX-Injected: yes.md",
+                "tab\there.md",
+                "bell\u0007.md",
+                "del\u007f.md",
+                "next\u0085line.md",
+                "ls\u2028sep.md",
+                "ps\u2029sep.md",
+                "sub/a\nb.md"
+            })
     @Tag("V7.3")
     @Tag("H4")
     void aNameWithAControlOrLineBreakCharacterIsRefusedEverywhere(String path) throws Exception {
         Tool t = tool("mode: readwrite  overwrite: true  allow: \"*\"");
         for (String action : List.of("write", "append", "read", "exists")) {
-            assertThat(run(t, Map.of("action", action, "path", path, "content", "x"))).as(action).startsWith("Error:").contains("control or line-break");
+            assertThat(run(t, Map.of("action", action, "path", path, "content", "x")))
+                    .as(action)
+                    .startsWith("Error:")
+                    .contains("control or line-break");
         }
         try (Stream<Path> files = Files.walk(root)) {
-            assertThat(files.map(p -> p.getFileName().toString())).noneMatch(n -> n.chars().anyMatch(c -> c < 0x20 || c == 0x7f));
+            assertThat(files.map(p -> p.getFileName().toString()))
+                    .noneMatch(n -> n.chars().anyMatch(c -> c < 0x20 || c == 0x7f));
         }
     }
 
@@ -193,8 +244,14 @@ class FileToolTest {
         } catch (UnsupportedOperationException | IOException e) {
             org.junit.jupiter.api.Assumptions.assumeTrue(false, "can't create symlinks here");
         }
-        assertThat(run(tool(""), Map.of("action", "read", "path", "link.md"))).startsWith("Error:").doesNotContain("OUTSIDE-SECRET");
-        assertThat(run(tool("mode: readwrite  overwrite: true"), Map.of("action", "write", "path", "link.md", "content", "PWNED"))).startsWith("Error:");
+        assertThat(run(tool(""), Map.of("action", "read", "path", "link.md")))
+                .startsWith("Error:")
+                .doesNotContain("OUTSIDE-SECRET");
+        assertThat(
+                        run(
+                                tool("mode: readwrite  overwrite: true"),
+                                Map.of("action", "write", "path", "link.md", "content", "PWNED")))
+                .startsWith("Error:");
         assertThat(Files.readString(dir.resolve("outside.md"))).isEqualTo("OUTSIDE-SECRET");
     }
 
@@ -209,8 +266,11 @@ class FileToolTest {
 
         Tool t = tool("allow: \"*.json, *.md\"  mode: readwrite  overwrite: true");
 
-        assertThat(run(t, Map.of("action", "read", "path", "journal/run.json"))).startsWith("Error:").contains("belongs to the run");
-        assertThat(run(t, Map.of("action", "write", "path", "journal/run.json", "content", "x"))).startsWith("Error:");
+        assertThat(run(t, Map.of("action", "read", "path", "journal/run.json")))
+                .startsWith("Error:")
+                .contains("belongs to the run");
+        assertThat(run(t, Map.of("action", "write", "path", "journal/run.json", "content", "x")))
+                .startsWith("Error:");
         assertThat(run(t, Map.of("action", "list"))).doesNotContain("journal");
         assertThat(Files.readString(journalDir.resolve("run.json"))).isEqualTo("JOURNAL-SECRET");
     }
@@ -228,7 +288,8 @@ class FileToolTest {
     @Test
     @Tag("V7.3")
     void listIsCappedAt500() throws Exception {
-        for (int i = 0; i < 520; i++) Files.writeString(root.resolve(String.format("f%03d.md", i)), "x");
+        for (int i = 0; i < 520; i++)
+            Files.writeString(root.resolve(String.format("f%03d.md", i)), "x");
         String out = run(tool(""), Map.of("action", "list"));
         assertThat(out.lines().count()).as("500 entries and the note").isEqualTo(501L);
         assertThat(out).endsWith("… [21 more not shown]"); // 520 new files and a.md
@@ -240,11 +301,15 @@ class FileToolTest {
     @Tag("V7.4")
     void modesAreEnforcedAndTheDescriptionListsOnlyWhatIsAllowed() throws Exception {
         Tool reader = tool("mode: read");
-        assertThat(run(reader, Map.of("action", "write", "path", "n.md", "content", "x"))).startsWith("Error:").contains("read only");
+        assertThat(run(reader, Map.of("action", "write", "path", "n.md", "content", "x")))
+                .startsWith("Error:")
+                .contains("read only");
         assertThat(reader.getDescription()).contains("read (path").doesNotContain("write (path");
 
         Tool writer = tool("mode: write");
-        assertThat(run(writer, Map.of("action", "read", "path", "a.md"))).startsWith("Error:").contains("write only");
+        assertThat(run(writer, Map.of("action", "read", "path", "a.md")))
+                .startsWith("Error:")
+                .contains("write only");
         assertThat(run(writer, Map.of("action", "list"))).startsWith("Error:");
         assertThat(writer.getDescription()).contains("write (path").doesNotContain("read (path");
         assertThat(run(writer, Map.of("action", "exists", "path", "a.md"))).isEqualTo("true");
@@ -253,11 +318,16 @@ class FileToolTest {
     @Test
     @Tag("V7.5")
     void aRootOutsideTheScriptDirectoryOrAFileIsALoadError() throws Exception {
-        assertThat(declared.problems("tool N { use: file  root: \"../elsewhere\" }")).anyMatch(p -> p.contains("root:") && p.contains("outside"));
-        assertThat(declared.problems("tool N { use: file  root: \"/etc\" }")).anyMatch(p -> p.contains("root:"));
-        assertThat(declared.problems("tool N { use: file  root: \"outside.md\" }")).anyMatch(p -> p.contains("is a file"));
-        assertThat(declared.problems("tool N { use: file  root: \"notes/\"  mode: delete }")).anyMatch(p -> p.contains("mode"));
-        assertThat(declared.problems("tool N { use: file  allow: \" , \" }")).anyMatch(p -> p.contains("allow"));
+        assertThat(declared.problems("tool N { use: file  root: \"../elsewhere\" }"))
+                .anyMatch(p -> p.contains("root:") && p.contains("outside"));
+        assertThat(declared.problems("tool N { use: file  root: \"/etc\" }"))
+                .anyMatch(p -> p.contains("root:"));
+        assertThat(declared.problems("tool N { use: file  root: \"outside.md\" }"))
+                .anyMatch(p -> p.contains("is a file"));
+        assertThat(declared.problems("tool N { use: file  root: \"notes/\"  mode: delete }"))
+                .anyMatch(p -> p.contains("mode"));
+        assertThat(declared.problems("tool N { use: file  allow: \" , \" }"))
+                .anyMatch(p -> p.contains("allow"));
         assertThat(declared.problems("tool N { use: file }")).isEmpty();
     }
 
@@ -277,9 +347,21 @@ class FileToolTest {
         Tool t = tool("mode: readwrite");
         assertThat(run(t, Map.of())).startsWith("Error:");
         assertThat(run(t, Map.of("action", "read"))).contains("path is required");
-        assertThat(run(t, Map.of("action", "write", "path", "x.md"))).contains("content is required");
-        assertThat(run(t, Map.of("action", "write", "path", "x.md", "content", "a".repeat(1024 * 1024 + 1)))).contains("too large");
-        assertThat(run(t, Map.of("action", "read", "path", "a.md", "from_line", "abc"))).contains("whole number");
+        assertThat(run(t, Map.of("action", "write", "path", "x.md")))
+                .contains("content is required");
+        assertThat(
+                        run(
+                                t,
+                                Map.of(
+                                        "action",
+                                        "write",
+                                        "path",
+                                        "x.md",
+                                        "content",
+                                        "a".repeat(1024 * 1024 + 1))))
+                .contains("too large");
+        assertThat(run(t, Map.of("action", "read", "path", "a.md", "from_line", "abc")))
+                .contains("whole number");
         assertThat(run(t, Map.of("action", "read", "path", "a\u0000b.md"))).startsWith("Error:");
     }
 
@@ -293,9 +375,19 @@ class FileToolTest {
         ExecutorService pool = Executors.newFixedThreadPool(8);
         for (int thread = 0; thread < 8; thread++) {
             int id = thread;
-            pool.submit(() -> {
-                for (int i = 0; i < 200; i++) run(t, Map.of("action", "append", "path", "shared.md", "content", "t" + id + "-line-" + i + "-" + "z".repeat(50)));
-            });
+            pool.submit(
+                    () -> {
+                        for (int i = 0; i < 200; i++)
+                            run(
+                                    t,
+                                    Map.of(
+                                            "action",
+                                            "append",
+                                            "path",
+                                            "shared.md",
+                                            "content",
+                                            "t" + id + "-line-" + i + "-" + "z".repeat(50)));
+                    });
         }
         pool.shutdown();
         assertThat(pool.awaitTermination(30, TimeUnit.SECONDS)).isTrue();
@@ -313,10 +405,15 @@ class FileToolTest {
         run(t, Map.of("action", "append", "path", "log.md", "content", "entry"));
         run(t, Map.of("action", "read", "path", "log.md"));
         run(t, Map.of("action", "list"));
-        assertThat(ctx.journal().all().values()).extracting(EffectJournal.Entry::kind).containsExactly("effect_done");
+        assertThat(ctx.journal().all().values())
+                .extracting(EffectJournal.Entry::kind)
+                .containsExactly("effect_done");
 
         // A resumed run replays the append instead of appending twice.
-        String resumed = run(tool("mode: readwrite"), Map.of("action", "append", "path", "log.md", "content", "entry"));
+        String resumed =
+                run(
+                        tool("mode: readwrite"),
+                        Map.of("action", "append", "path", "log.md", "content", "entry"));
         assertThat(resumed).contains("already done");
         assertThat(Files.readString(root.resolve("log.md"))).isEqualTo("entry\n");
     }
@@ -329,16 +426,30 @@ class FileToolTest {
         Tool t = tool("mode: readwrite  overwrite: true  allow: \"*\"");
         String alphabet = "a.b/\\@:%\u0000\n .~..//..․．／";
         Path outsideBefore = dir.resolve("outside.md");
-        Fuzz.run("file-paths", random -> {
-            String path = randomPath(random, alphabet);
-            String read = run(t, Map.of("action", "read", "path", path));
-            assertThat(read).doesNotContain("OUTSIDE-SECRET").doesNotContain("HIDDEN-SECRET");
-            run(t, Map.of("action", "write", "path", path, "content", "FUZZ-WRITE"));
-            run(t, Map.of("action", "append", "path", path, "content", "FUZZ-APPEND"));
-        });
+        Fuzz.run(
+                "file-paths",
+                random -> {
+                    String path = randomPath(random, alphabet);
+                    String read = run(t, Map.of("action", "read", "path", path));
+                    assertThat(read)
+                            .doesNotContain("OUTSIDE-SECRET")
+                            .doesNotContain("HIDDEN-SECRET");
+                    run(t, Map.of("action", "write", "path", path, "content", "FUZZ-WRITE"));
+                    run(t, Map.of("action", "append", "path", path, "content", "FUZZ-APPEND"));
+                });
         try (Stream<Path> created = Files.walk(root)) {
-            assertThat(created.map(p -> p.getFileName().toString())).as("no generated name carries a control character")
-                    .noneMatch(n -> n.chars().anyMatch(c -> c < 0x20 || c == 0x7f || c == 0x85 || c == 0x2028 || c == 0x2029));
+            assertThat(created.map(p -> p.getFileName().toString()))
+                    .as("no generated name carries a control character")
+                    .noneMatch(
+                            n ->
+                                    n.chars()
+                                            .anyMatch(
+                                                    c ->
+                                                            c < 0x20
+                                                                    || c == 0x7f
+                                                                    || c == 0x85
+                                                                    || c == 0x2028
+                                                                    || c == 0x2029));
         }
 
         assertThat(Files.readString(outsideBefore)).isEqualTo("OUTSIDE-SECRET");
@@ -348,8 +459,13 @@ class FileToolTest {
             for (Path p : (Iterable<Path>) all.filter(Files::isRegularFile)::iterator) {
                 String content = Files.readString(p, StandardCharsets.UTF_8);
                 if (content.contains("FUZZ-")) {
-                    assertThat(p.startsWith(root)).as("a fuzz write landed outside the root: " + p).isTrue();
-                    assertThat(root.relativize(p).toString()).as("a fuzz write landed in a hidden location: " + p).doesNotContain("/.").doesNotStartWith(".");
+                    assertThat(p.startsWith(root))
+                            .as("a fuzz write landed outside the root: " + p)
+                            .isTrue();
+                    assertThat(root.relativize(p).toString())
+                            .as("a fuzz write landed in a hidden location: " + p)
+                            .doesNotContain("/.")
+                            .doesNotStartWith(".");
                 }
             }
         }
@@ -359,7 +475,8 @@ class FileToolTest {
         List<String> parts = new ArrayList<>();
         for (int i = 1 + random.nextInt(4); i > 0; i--) {
             StringBuilder sb = new StringBuilder();
-            for (int j = random.nextInt(5); j >= 0; j--) sb.append(alphabet.charAt(random.nextInt(alphabet.length())));
+            for (int j = random.nextInt(5); j >= 0; j--)
+                sb.append(alphabet.charAt(random.nextInt(alphabet.length())));
             parts.add(sb.toString());
         }
         return String.join(random.nextBoolean() ? "/" : "", parts);

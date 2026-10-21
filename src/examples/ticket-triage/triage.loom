@@ -1,0 +1,39 @@
+// Route a support message with a classifier, and write a reply with an agent only for the cases a machine may answer.
+// Run it (needs JEV_API_KEY and a key for the agent model):  weave run triage.loom -i message="my parcel never arrived"
+
+provider Scorer { use: jev  api_key: env.JEV_API_KEY }
+
+intentclassifier Intent {
+    model: "Scorer/jev-latest"
+    choose kind: refund | order_status | complaint | other
+    ask urgent: "Is the customer threatening to leave?"
+    rate tone: calm | annoyed | angry
+    pii: mask
+    confidence at least 0.8 else escalate
+}
+
+agent Replier {
+    model: "claude-haiku-5-5"
+    prompt: "replier"
+}
+
+budget { tokens: 20000  calls: 10 }
+
+workflow Main(message) {
+    intentclassify Intent on message -> intent retry 2 timeout 30s on_failure {
+        human_prompt "The classifier is down. Which team takes: {message}" -> chosen
+        return { team: "{chosen}", route: "person" }
+    }
+    alt (intent.kind == "unsure") {
+        human_prompt "The classifier was not sure. Which team takes: {message}" -> chosen
+        return { team: "{chosen}", route: "person" }
+    }
+    alt (intent.urgent == "yes") {
+        return { team: "retention", route: "person" }
+    }
+    alt (intent.kind == "order_status") {
+        delegate "Customer asks: {message}" to Replier -> reply
+        return { team: "support", route: "reply", reply: "{reply}" }
+    }
+    return { team: "{intent.kind}", route: "queue" }
+}

@@ -11,13 +11,15 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * Reads the text of a {@code ladder} or {@code measure} declaration. These are read from raw text and not from Loom's tokens because their
- * conditions are expressions ({@code *}, {@code /}, {@code 14d}, method chains) in a language of their own; the Loom lexer sets the declaration
- * aside whole, using {@link #ladderEnd} and {@link #measureEnd} to find where it stops.
+ * Reads the text of a {@code ladder} or {@code measure} declaration. These are read from raw text
+ * and not from Loom's tokens because their conditions are expressions ({@code *}, {@code /}, {@code
+ * 14d}, method chains) in a language of their own; the Loom lexer sets the declaration aside whole,
+ * using {@link #ladderEnd} and {@link #measureEnd} to find where it stops.
  */
 public final class LadderParser {
 
-    private static final Pattern ENDS_OPEN = Pattern.compile("(?:^|[^A-Za-z0-9_])(?:and|or|not|in)$|[,+\\-*/<>=!(\\[.]$");
+    private static final Pattern ENDS_OPEN =
+            Pattern.compile("(?:^|[^A-Za-z0-9_])(?:and|or|not|in)$|[,+\\-*/<>=!(\\[.]$");
     private static final Pattern STARTS_ON = Pattern.compile("^(?:and\\b|or\\b|[.,+*/<>=!-])");
 
     private final String text;
@@ -31,7 +33,10 @@ public final class LadderParser {
 
     // ---------- extents (used by the lexer) ----------
 
-    /** The raw text with every {@code //} comment replaced by spaces, so offsets and line numbers stay the same. */
+    /**
+     * The raw text with every {@code //} comment replaced by spaces, so offsets and line numbers
+     * stay the same.
+     */
     public static String stripComments(String s) {
         StringBuilder b = new StringBuilder(s.length());
         char quote = 0;
@@ -57,7 +62,10 @@ public final class LadderParser {
         return b.toString();
     }
 
-    /** The index just after the closing brace of the ladder that starts at {@code from}, or -1 when it never closes. */
+    /**
+     * The index just after the closing brace of the ladder that starts at {@code from}, or -1 when
+     * it never closes.
+     */
     public static int ladderEnd(String source, int from) {
         String s = stripComments(source);
         int open = s.indexOf('{', from);
@@ -80,12 +88,17 @@ public final class LadderParser {
         return -1;
     }
 
-    /** The index just after the measure declaration that starts at {@code from}: its expression runs on while it is unfinished. */
+    /**
+     * The index just after the measure declaration that starts at {@code from}: its expression runs
+     * on while it is unfinished.
+     */
     public static int measureEnd(String source, int from) {
         String s = stripComments(source);
         int eq = s.indexOf('=', from);
         int nl = s.indexOf('\n', from);
-        if (eq < 0 || (nl >= 0 && nl < eq && s.indexOf(')', from) >= 0 && s.indexOf(')', from) > nl)) return nl < 0 ? s.length() : nl;
+        if (eq < 0
+                || (nl >= 0 && nl < eq && s.indexOf(')', from) >= 0 && s.indexOf(')', from) > nl))
+            return nl < 0 ? s.length() : nl;
         return new LadderParser(s.substring(eq + 1), 0).expressionEnd(false) + eq + 1;
     }
 
@@ -137,13 +150,20 @@ public final class LadderParser {
         if (!eat(c)) throw error(pos, message);
     }
 
-    /** A word: letters, digits, underscores, and hyphens between them (support-lead). Empty when there is none here. */
+    /**
+     * A word: letters, digits, underscores, and hyphens between them (support-lead). Empty when
+     * there is none here.
+     */
     private String word() {
         ws();
         int s = pos;
         while (pos < text.length()) {
             char c = text.charAt(pos);
-            boolean hyphen = c == '-' && pos + 1 < text.length() && Character.isLetterOrDigit(text.charAt(pos + 1)) && pos > s;
+            boolean hyphen =
+                    c == '-'
+                            && pos + 1 < text.length()
+                            && Character.isLetterOrDigit(text.charAt(pos + 1))
+                            && pos > s;
             if (Character.isLetterOrDigit(c) || c == '_' || hyphen) pos++;
             else break;
         }
@@ -162,13 +182,17 @@ public final class LadderParser {
         if (!word().equals("ladder")) throw error(start, "Expect 'ladder'.");
         int nameAt = here();
         String name = word();
-        if (name.isEmpty()) throw error(nameAt, "Expect a ladder name, as in: ladder RefundLadder { rung watch { mode: blind } }");
+        if (name.isEmpty())
+            throw error(
+                    nameAt,
+                    "Expect a ladder name, as in: ladder RefundLadder { rung watch { mode: blind } }");
         LadderDef def = new LadderDef(name, lineAt(start));
         if (eat('(')) {
             do {
                 int p = here();
                 String param = word();
-                if (param.isEmpty()) throw error(p, "Expect a parameter name in ladder " + name + ".");
+                if (param.isEmpty())
+                    throw error(p, "Expect a parameter name in ladder " + name + ".");
                 def.getParams().add(param);
                 ws();
             } while (eat(','));
@@ -184,14 +208,26 @@ public final class LadderParser {
             if (w.equals("rung")) {
                 RungDef r = rung(def);
                 for (RungDef other : def.getRungs()) {
-                    if (other.getName().equals(r.getName())) throw error(at, "rung " + r.getName() + " is declared twice in ladder " + name + ".");
+                    if (other.getName().equals(r.getName()))
+                        throw error(
+                                at,
+                                "rung "
+                                        + r.getName()
+                                        + " is declared twice in ladder "
+                                        + name
+                                        + ".");
                 }
                 def.getRungs().add(r);
             } else if (w.equals("climbing")) {
                 climbing(def, at);
             } else {
-                throw error(at, "Unexpected \"" + (w.isEmpty() ? String.valueOf(text.charAt(pos)) : w) + "\" in ladder " + name
-                        + ". A ladder holds rung blocks, and: climbing needs approval from NAME, or: climbing is automatic.");
+                throw error(
+                        at,
+                        "Unexpected \""
+                                + (w.isEmpty() ? String.valueOf(text.charAt(pos)) : w)
+                                + "\" in ladder "
+                                + name
+                                + ". A ladder holds rung blocks, and: climbing needs approval from NAME, or: climbing is automatic.");
             }
         }
         return def;
@@ -216,7 +252,8 @@ public final class LadderParser {
     private RungDef rung(LadderDef ladder) {
         int nameAt = here();
         String name = word();
-        if (name.isEmpty()) throw error(nameAt, "Expect a rung name, as in: rung watch { mode: blind }");
+        if (name.isEmpty())
+            throw error(nameAt, "Expect a rung name, as in: rung watch { mode: blind }");
         RungDef r = new RungDef(name, lineAt(nameAt));
         expect('{', "Expect '{' after rung " + name + ".");
         while (true) {
@@ -226,65 +263,96 @@ public final class LadderParser {
             int at = pos;
             String w = word();
             switch (w) {
-                case "mode": {
-                    if (r.getMode() != null) throw error(at, "mode is given twice in rung " + name + ".");
-                    expect(':', "Write: mode: blind, confirm or autonomous");
-                    int m = here();
-                    String mode = word();
-                    RungDef.Mode parsed = RungDef.Mode.of(mode);
-                    if (parsed == null) throw error(m, "A rung's mode must be blind, confirm or autonomous (not \"" + mode + "\").");
-                    r.setMode(parsed, lineAt(m));
-                    break;
-                }
-                case "climb": {
-                    if (!word().equals("when")) throw error(at, "Write: climb when <condition>");
-                    int line = lineAt(pos);
-                    String cond = condition("climb when", " and ", at);
-                    r.setClimb(parse(cond, line), cond, line);
-                    break;
-                }
-                case "slip": {
-                    String to = null;
-                    if (peekWord().equals("to")) {
-                        word();
-                        to = word();
-                        if (to.isEmpty()) throw error(at, "Write: slip to <rung> when <condition>");
+                case "mode":
+                    {
+                        if (r.getMode() != null)
+                            throw error(at, "mode is given twice in rung " + name + ".");
+                        expect(':', "Write: mode: blind, confirm or autonomous");
+                        int m = here();
+                        String mode = word();
+                        RungDef.Mode parsed = RungDef.Mode.of(mode);
+                        if (parsed == null)
+                            throw error(
+                                    m,
+                                    "A rung's mode must be blind, confirm or autonomous (not \""
+                                            + mode
+                                            + "\").");
+                        r.setMode(parsed, lineAt(m));
+                        break;
                     }
-                    if (!word().equals("when")) throw error(at, "Write: slip when <condition>, or: slip to <rung> when <condition>");
-                    int line = lineAt(pos);
-                    String cond = condition("slip when", " or ", at);
-                    r.setSlip(parse(cond, line), cond, to, line);
-                    break;
-                }
-                case "sample": {
-                    String usage = "Write: sample 5% blind";
-                    ws();
-                    int s = pos;
-                    while (pos < text.length() && (Character.isDigit(text.charAt(pos)) || text.charAt(pos) == '.')) pos++;
-                    if (s == pos || pos >= text.length() || text.charAt(pos) != '%') throw error(at, usage);
-                    double share = Double.parseDouble(text.substring(s, pos)) / 100.0;
-                    pos++;
-                    if (!word().equals("blind")) throw error(at, usage);
-                    r.setSample(share, lineAt(at));
-                    break;
-                }
-                case "escalate": {
-                    if (!word().equals("when")) throw error(at, "Write: escalate when <condition>");
-                    int line = lineAt(pos);
-                    String cond = condition("escalate when", " or ", at);
-                    r.setEscalate(parse(cond, line), cond, line);
-                    break;
-                }
+                case "climb":
+                    {
+                        if (!word().equals("when"))
+                            throw error(at, "Write: climb when <condition>");
+                        int line = lineAt(pos);
+                        String cond = condition("climb when", " and ", at);
+                        r.setClimb(parse(cond, line), cond, line);
+                        break;
+                    }
+                case "slip":
+                    {
+                        String to = null;
+                        if (peekWord().equals("to")) {
+                            word();
+                            to = word();
+                            if (to.isEmpty())
+                                throw error(at, "Write: slip to <rung> when <condition>");
+                        }
+                        if (!word().equals("when"))
+                            throw error(
+                                    at,
+                                    "Write: slip when <condition>, or: slip to <rung> when <condition>");
+                        int line = lineAt(pos);
+                        String cond = condition("slip when", " or ", at);
+                        r.setSlip(parse(cond, line), cond, to, line);
+                        break;
+                    }
+                case "sample":
+                    {
+                        String usage = "Write: sample 5% blind";
+                        ws();
+                        int s = pos;
+                        while (pos < text.length()
+                                && (Character.isDigit(text.charAt(pos)) || text.charAt(pos) == '.'))
+                            pos++;
+                        if (s == pos || pos >= text.length() || text.charAt(pos) != '%')
+                            throw error(at, usage);
+                        double share = Double.parseDouble(text.substring(s, pos)) / 100.0;
+                        pos++;
+                        if (!word().equals("blind")) throw error(at, usage);
+                        r.setSample(share, lineAt(at));
+                        break;
+                    }
+                case "escalate":
+                    {
+                        if (!word().equals("when"))
+                            throw error(at, "Write: escalate when <condition>");
+                        int line = lineAt(pos);
+                        String cond = condition("escalate when", " or ", at);
+                        r.setEscalate(parse(cond, line), cond, line);
+                        break;
+                    }
                 default:
-                    throw error(at, "Unexpected \"" + (w.isEmpty() ? String.valueOf(text.charAt(pos)) : w) + "\" in rung " + name
-                            + ". A rung holds: mode, climb when, slip when, sample, escalate when.");
+                    throw error(
+                            at,
+                            "Unexpected \""
+                                    + (w.isEmpty() ? String.valueOf(text.charAt(pos)) : w)
+                                    + "\" in rung "
+                                    + name
+                                    + ". A rung holds: mode, climb when, slip when, sample, escalate when.");
             }
         }
-        if (r.getMode() == null) throw error(nameAt, "A rung needs a mode: mode: blind, confirm or autonomous (rung " + name + ").");
+        if (r.getMode() == null)
+            throw error(
+                    nameAt,
+                    "A rung needs a mode: mode: blind, confirm or autonomous (rung " + name + ").");
         return r;
     }
 
-    /** The condition after {@code climb when}: a comma list is "a, b, c" for "a and b and c" (climb) or "a or b or c" (slip, escalate). */
+    /**
+     * The condition after {@code climb when}: a comma list is "a, b, c" for "a and b and c" (climb)
+     * or "a or b or c" (slip, escalate).
+     */
     private String condition(String after, String joiner, int at) {
         ws();
         int s = pos;
@@ -295,7 +363,12 @@ public final class LadderParser {
         if (parts.size() == 1) return raw;
         List<String> wrapped = new ArrayList<>();
         for (String p : parts) {
-            if (p.isBlank()) throw error(at, "A comma in the condition after \"" + after + "\" needs a condition on each side.");
+            if (p.isBlank())
+                throw error(
+                        at,
+                        "A comma in the condition after \""
+                                + after
+                                + "\" needs a condition on each side.");
             wrapped.add("(" + p.trim() + ")");
         }
         return String.join(joiner, wrapped);
@@ -305,7 +378,8 @@ public final class LadderParser {
         try {
             return ExprParser.parse(cond);
         } catch (ExprException e) {
-            throw new RuntimeException("Parse error at line " + line + ": " + e.getMessage() + " (in: " + cond + ")");
+            throw new RuntimeException(
+                    "Parse error at line " + line + ": " + e.getMessage() + " (in: " + cond + ")");
         }
     }
 
@@ -334,8 +408,9 @@ public final class LadderParser {
     }
 
     /**
-     * Where an expression that starts at the current position ends: at a line break when brackets are closed and the expression is complete
-     * (it does not end in an operator and the next line does not carry on with {@code and}, {@code or}, a dot or an operator), or at a closing brace.
+     * Where an expression that starts at the current position ends: at a line break when brackets
+     * are closed and the expression is complete (it does not end in an operator and the next line
+     * does not carry on with {@code and}, {@code or}, a dot or an operator), or at a closing brace.
      */
     private int expressionEnd(boolean stopAtBrace) {
         int depth = 0;
@@ -355,16 +430,26 @@ public final class LadderParser {
             if (c == '(' || c == '[') depth++;
             if (c == ')' || c == ']') depth--;
             if (c == '}' && stopAtBrace) return i;
-            if (stopAtBrace && depth <= 0 && Character.isLetter(c) && i > 0 && Character.isWhitespace(text.charAt(i - 1)) && !sofar.toString().isBlank()
-                    && !ENDS_OPEN.matcher(sofar.toString().trim()).find() && nextWordIsClause(i)) {
-                return i;                                            // the next clause of the rung begins on the same line
+            if (stopAtBrace
+                    && depth <= 0
+                    && Character.isLetter(c)
+                    && i > 0
+                    && Character.isWhitespace(text.charAt(i - 1))
+                    && !sofar.toString().isBlank()
+                    && !ENDS_OPEN.matcher(sofar.toString().trim()).find()
+                    && nextWordIsClause(i)) {
+                return i; // the next clause of the rung begins on the same line
             }
             if (c == '\n' && depth <= 0) {
                 String done = sofar.toString().trim();
                 int j = i;
                 while (j < text.length() && Character.isWhitespace(text.charAt(j))) j++;
-                String rest = j < text.length() ? text.substring(j, Math.min(text.length(), j + 4)) : "";
-                boolean carries = done.isEmpty() || ENDS_OPEN.matcher(done).find() || STARTS_ON.matcher(rest).find();
+                String rest =
+                        j < text.length() ? text.substring(j, Math.min(text.length(), j + 4)) : "";
+                boolean carries =
+                        done.isEmpty()
+                                || ENDS_OPEN.matcher(done).find()
+                                || STARTS_ON.matcher(rest).find();
                 if (!carries || j >= text.length()) return i;
             }
             sofar.append(c);
@@ -375,9 +460,16 @@ public final class LadderParser {
 
     private boolean nextWordIsClause(int at) {
         int j = at;
-        while (j < text.length() && (Character.isLetterOrDigit(text.charAt(j)) || text.charAt(j) == '_')) j++;
+        while (j < text.length()
+                && (Character.isLetterOrDigit(text.charAt(j)) || text.charAt(j) == '_')) j++;
         String word = text.substring(at, j);
-        boolean clause = word.equals("slip") || word.equals("sample") || word.equals("escalate") || word.equals("climb") || word.equals("mode") || word.equals("rung");
+        boolean clause =
+                word.equals("slip")
+                        || word.equals("sample")
+                        || word.equals("escalate")
+                        || word.equals("climb")
+                        || word.equals("mode")
+                        || word.equals("rung");
         return clause && (j >= text.length() || Character.isWhitespace(text.charAt(j)));
     }
 
@@ -401,7 +493,10 @@ public final class LadderParser {
             } while (eat(','));
         }
         expect(')', usage);
-        if (params.size() != 1) throw error(nameAt, "A measure takes exactly one case: measure " + name + "(c) = expression");
+        if (params.size() != 1)
+            throw error(
+                    nameAt,
+                    "A measure takes exactly one case: measure " + name + "(c) = expression");
         expect('=', usage);
         ws();
         int line = lineAt(pos);

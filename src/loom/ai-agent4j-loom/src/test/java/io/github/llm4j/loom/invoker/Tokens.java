@@ -6,8 +6,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A host's {@link InvokerCredentials} for tests: hands out the access tokens it was given in order (the last one again and again), as a host that
- * refreshes an expiring token would, and records what it was asked.
+ * A host's {@link InvokerCredentials} for tests: hands out the access tokens it was given in order
+ * (the last one again and again), as a host that refreshes an expiring token would, and records
+ * what it was asked.
  */
 final class Tokens implements InvokerCredentials {
 
@@ -21,7 +22,9 @@ final class Tokens implements InvokerCredentials {
 
     @Override
     public String get(String name) {
-        return "token".equals(name) ? tokens.get(Math.min(gets.getAndIncrement(), tokens.size() - 1)) : null;
+        return "token".equals(name)
+                ? tokens.get(Math.min(gets.getAndIncrement(), tokens.size() - 1))
+                : null;
     }
 
     @Override

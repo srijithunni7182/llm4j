@@ -36,9 +36,13 @@ class HttpCallTraceTest {
     }
 
     private HttpClientWrapper http(int maxRetries) {
-        RetryPolicy policy = RetryPolicy.builder().maxRetries(maxRetries)
-                .addRetryableStatusCode(429).addRetryableStatusCode(500)
-                .sleeper(slept::add).build();
+        RetryPolicy policy =
+                RetryPolicy.builder()
+                        .maxRetries(maxRetries)
+                        .addRetryableStatusCode(429)
+                        .addRetryableStatusCode(500)
+                        .sleeper(slept::add)
+                        .build();
         return new HttpClientWrapper(Duration.ofSeconds(5), Duration.ofSeconds(5), policy, false);
     }
 

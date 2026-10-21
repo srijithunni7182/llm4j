@@ -26,5 +26,6 @@ needed**.
 | 🚀 **[Hexamind Hub](../src/examples/hexamind-hub/README.md)** | A digital boardroom. Six agents with distinct personalities, including a cynical skeptic and a creative thinker, debate your problem live over WebSockets and reach consensus. |
 | 🏭 **[Nirmaan Yantra](../src/examples/nirmaan-yantra/README.md)** | An autonomous software factory: spec → tests → code → QA → release, from a one-line prompt. It fixes its own build errors and detects dead ends. |
 | 🐈 **[Kingini](../src/examples/kingini/README.md)** | A voice-first companion for children: a whimsical Kerala cat who talks in Malayalam, built on Sarvam speech-to-text, LLM and text-to-speech. |
+| 🎫 **[Ticket triage](../src/examples/ticket-triage/README.md)** | Routes a support message with a classifier (`intentclassify`, on Jev or any chat model) and writes a reply only where a machine may; doubtful or urgent cases go to a person. |
 | 📧 **[Gmail MCP App](../src/examples/gmail-mcp-app/)** | Agents that read, draft and send email through the Model Context Protocol, with human approval before anything is sent. |
 

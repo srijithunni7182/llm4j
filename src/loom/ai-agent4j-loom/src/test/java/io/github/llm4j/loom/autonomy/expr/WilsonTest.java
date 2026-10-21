@@ -18,7 +18,9 @@ class WilsonTest {
         assertThat(Wilson.lower(90, 100)).isCloseTo(0.825634, Offset.offset(1e-6));
         assertThat(Wilson.lower(5, 10)).isCloseTo(0.236593, Offset.offset(1e-6));
         for (int n = 0; n <= 60; n++) {
-            for (int k = 0; k <= n; k++) assertThat(Wilson.lower(k, n)).isCloseTo(AgreementStats.wilsonLower(k, n), Offset.offset(1e-9));
+            for (int k = 0; k <= n; k++)
+                assertThat(Wilson.lower(k, n))
+                        .isCloseTo(AgreementStats.wilsonLower(k, n), Offset.offset(1e-9));
         }
     }
 
@@ -28,7 +30,8 @@ class WilsonTest {
         assertThat(Wilson.upper(20, 20)).isCloseTo(1.0, Offset.offset(1e-9));
         for (int n = 1; n <= 40; n++) {
             for (int k = 0; k <= n; k++) {
-                assertThat(Wilson.upper(k, n)).isCloseTo(1 - Wilson.lower(n - k, n), Offset.offset(1e-9));
+                assertThat(Wilson.upper(k, n))
+                        .isCloseTo(1 - Wilson.lower(n - k, n), Offset.offset(1e-9));
                 assertThat(Wilson.lower(k, n)).isLessThanOrEqualTo((double) k / n + 1e-12);
                 assertThat(Wilson.upper(k, n)).isGreaterThanOrEqualTo((double) k / n - 1e-12);
             }

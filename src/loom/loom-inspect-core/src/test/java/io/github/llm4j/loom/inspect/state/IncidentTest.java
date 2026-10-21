@@ -15,9 +15,10 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * The rules, replayed: a recorded stream of what a run did in, the incidents out. No clock, no run; only what the process would send.
- * The streams are the misbehaviour the soak workflow stages on purpose (a tool that fails, a loop that does not converge, a draft with
- * invented figures, a pause).
+ * The rules, replayed: a recorded stream of what a run did in, the incidents out. No clock, no run;
+ * only what the process would send. The streams are the misbehaviour the soak workflow stages on
+ * purpose (a tool that fails, a loop that does not converge, a draft with invented figures, a
+ * pause).
  */
 class IncidentTest {
 
@@ -55,7 +56,16 @@ class IncidentTest {
         a.put(Semconv.GEN_AI_TOOL_NAME, tool);
         a.put(Semconv.LOOM_STEP, step);
         a.put(Semconv.LOOM_ACTION_HASH, hash);
-        reg.applyLogs(PROC, List.of(new LogRec(at(second), LogRec.INFO, "execute_tool " + tool, a, TRACE, Ids.spanId(RUN, "t" + (++keys)))));
+        reg.applyLogs(
+                PROC,
+                List.of(
+                        new LogRec(
+                                at(second),
+                                LogRec.INFO,
+                                "execute_tool " + tool,
+                                a,
+                                TRACE,
+                                Ids.spanId(RUN, "t" + (++keys)))));
     }
 
     private void toolEnd(int second, String agent, String tool, String step, boolean error) {
@@ -64,11 +74,31 @@ class IncidentTest {
         a.put(Semconv.GEN_AI_AGENT_NAME, agent);
         a.put(Semconv.GEN_AI_TOOL_NAME, tool);
         a.put(Semconv.LOOM_STEP, step);
-        reg.applySpans(PROC, List.of(new SpanRec(TRACE, Ids.spanId(RUN, "te" + (++keys)), null, "execute_tool " + tool, SpanRec.CLIENT, at(second), at(second + 1), a,
-                error ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK, null, List.of())));
+        reg.applySpans(
+                PROC,
+                List.of(
+                        new SpanRec(
+                                TRACE,
+                                Ids.spanId(RUN, "te" + (++keys)),
+                                null,
+                                "execute_tool " + tool,
+                                SpanRec.CLIENT,
+                                at(second),
+                                at(second + 1),
+                                a,
+                                error ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK,
+                                null,
+                                List.of())));
     }
 
-    private void answer(int second, String agent, String step, String hash, long figures, long ungrounded, String examples) {
+    private void answer(
+            int second,
+            String agent,
+            String step,
+            String hash,
+            long figures,
+            long ungrounded,
+            String examples) {
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_AGENT);
         a.put(Semconv.GEN_AI_AGENT_NAME, agent);
@@ -77,8 +107,21 @@ class IncidentTest {
         a.put(Semconv.LOOM_GROUNDING_FIGURES, figures);
         a.put(Semconv.LOOM_GROUNDING_UNGROUNDED, ungrounded);
         if (examples != null) a.put(Semconv.LOOM_GROUNDING_EXAMPLES, examples);
-        reg.applySpans(PROC, List.of(new SpanRec(TRACE, Ids.spanId(RUN, "a" + (++keys)), null, "invoke_agent " + agent, SpanRec.CLIENT, at(second), at(second + 1), a,
-                SpanRec.STATUS_OK, null, List.of())));
+        reg.applySpans(
+                PROC,
+                List.of(
+                        new SpanRec(
+                                TRACE,
+                                Ids.spanId(RUN, "a" + (++keys)),
+                                null,
+                                "invoke_agent " + agent,
+                                SpanRec.CLIENT,
+                                at(second),
+                                at(second + 1),
+                                a,
+                                SpanRec.STATUS_OK,
+                                null,
+                                List.of())));
     }
 
     private RunState run() {
@@ -98,12 +141,20 @@ class IncidentTest {
     @Test
     void theSameToolCallFourTimesInAStep_roundsOfALoopCountedTogether_isALoop() {
         start();
-        for (int round = 1; round <= 3; round++) toolStart(round, "Editor", "Wiki", "W/s1/r" + round + ".0", "h1");
+        for (int round = 1; round <= 3; round++)
+            toolStart(round, "Editor", "Wiki", "W/s1/r" + round + ".0", "h1");
         assertThat(incidents()).isEmpty();
         toolStart(4, "Editor", "Wiki", "W/s1/r4.0", "h1");
         Map<String, Object> inc = incidents().get(0);
-        assertThat(inc).containsEntry("kind", "LOOPING").containsEntry("severity", "warn").containsEntry("state", "open").containsEntry("agent", "Editor");
-        assertThat(evidence(inc)).containsEntry("rule", "same_action").containsEntry("measured", 4).containsEntry("threshold", 4);
+        assertThat(inc)
+                .containsEntry("kind", "LOOPING")
+                .containsEntry("severity", "warn")
+                .containsEntry("state", "open")
+                .containsEntry("agent", "Editor");
+        assertThat(evidence(inc))
+                .containsEntry("rule", "same_action")
+                .containsEntry("measured", 4)
+                .containsEntry("threshold", 4);
     }
 
     @Test
@@ -122,9 +173,13 @@ class IncidentTest {
         assertThat(incidents()).isEmpty();
         answer(3, "Lead", "W/s1/r3.1", "aa", 0, 0, null);
         assertThat(incidents()).hasSize(1);
-        assertThat(evidence(incidents().get(0))).containsEntry("rule", "same_output").containsEntry("measured", 3);
+        assertThat(evidence(incidents().get(0)))
+                .containsEntry("rule", "same_output")
+                .containsEntry("measured", 3);
         answer(4, "Lead", "W/s1/r4.1", "bb", 0, 0, null);
-        assertThat(incidents().get(0)).containsEntry("state", "closed").containsEntry("closeReason", "the answer changed");
+        assertThat(incidents().get(0))
+                .containsEntry("state", "closed")
+                .containsEntry("closeReason", "the answer changed");
     }
 
     @Test
@@ -133,11 +188,16 @@ class IncidentTest {
         answer(1, "Writer", "W/s2", "h1", 5, 1, "87%");
         assertThat(incidents()).isEmpty();
         answer(2, "Writer", "W/s2", "h2", 5, 2, "87%, 2019");
-        assertThat(incidents().get(0)).containsEntry("kind", "SUSPECT_OUTPUT").containsEntry("severity", "warn");
+        assertThat(incidents().get(0))
+                .containsEntry("kind", "SUSPECT_OUTPUT")
+                .containsEntry("severity", "warn");
         answer(3, "Writer", "W/s2", "h3", 6, 4, "87%, 2019, 1200, 12.5%");
         Map<String, Object> inc = incidents().get(0);
         assertThat(inc).containsEntry("severity", "high");
-        assertThat(String.valueOf(evidence(inc).get("detail"))).contains("4 of 6 figures").contains("nothing this step was given or fetched").contains("2019");
+        assertThat(String.valueOf(evidence(inc).get("detail")))
+                .contains("4 of 6 figures")
+                .contains("nothing this step was given or fetched")
+                .contains("2019");
         assertThat(String.valueOf(inc.get("title"))).contains("Suspect output");
     }
 
@@ -148,33 +208,63 @@ class IncidentTest {
         toolEnd(2, "Competitor", "Example", "W/s0", true);
         assertThat(incidents()).isEmpty();
         toolEnd(3, "Competitor", "Example", "W/s0", true);
-        assertThat(incidents().get(0)).containsEntry("kind", "FAILED").containsEntry("severity", "warn");
+        assertThat(incidents().get(0))
+                .containsEntry("kind", "FAILED")
+                .containsEntry("severity", "warn");
         toolEnd(4, "Competitor", "Example", "W/s0", false);
         assertThat(incidents().get(0)).containsEntry("state", "closed");
         toolEnd(5, "Competitor", "Example", "W/s0", true); // the streak starts again from one
-        // (four failures in five calls is also, rightly, a collapsing success rate: that is another incident kind)
-        assertThat(incidents().stream().filter(i -> "open".equals(i.get("state")) && "FAILED".equals(i.get("kind")))).isEmpty();
+        // (four failures in five calls is also, rightly, a collapsing success rate: that is another
+        // incident kind)
+        assertThat(
+                        incidents().stream()
+                                .filter(
+                                        i ->
+                                                "open".equals(i.get("state"))
+                                                        && "FAILED".equals(i.get("kind"))))
+                .isEmpty();
     }
 
     @Test
     void aPauseByALimitIsInformation_aLongOneAWarning_andItEndsWhenTheRunGoesOn() {
         start();
-        log(5, Semconv.EV_RUN_SUSPENDED, "run paused: RATE_LIMIT", Semconv.LOOM_SUSPEND_REASON, "RATE_LIMIT", Semconv.LOOM_RESUME_AT, "2026-10-11T14:10:00Z");
+        log(
+                5,
+                Semconv.EV_RUN_SUSPENDED,
+                "run paused: RATE_LIMIT",
+                Semconv.LOOM_SUSPEND_REASON,
+                "RATE_LIMIT",
+                Semconv.LOOM_RESUME_AT,
+                "2026-10-11T14:10:00Z");
         Map<String, Object> inc = incidents().get(0); // viewed 5 seconds in
         assertThat(inc).containsEntry("kind", "PAUSED").containsEntry("severity", "info");
         assertThat(String.valueOf(evidence(inc).get("detail"))).contains("not a failure");
         @SuppressWarnings("unchecked")
-        Map<String, Object> later = ((List<Map<String, Object>>) run().view(OtlpJson.instant(at(5 + 90))).get("incidents")).get(0);
+        Map<String, Object> later =
+                ((List<Map<String, Object>>)
+                                run().view(OtlpJson.instant(at(5 + 90))).get("incidents"))
+                        .get(0);
         assertThat(later).containsEntry("severity", "warn");
-        assertThat(evidence(later)).containsEntry("rule", "paused_longer_than").containsEntry("threshold", "60s");
+        assertThat(evidence(later))
+                .containsEntry("rule", "paused_longer_than")
+                .containsEntry("threshold", "60s");
         toolStart(200, "Editor", "Wiki", "W/s3", "h");
-        assertThat(incidents().get(0)).containsEntry("state", "closed").containsEntry("closeReason", "the run resumed");
+        assertThat(incidents().get(0))
+                .containsEntry("state", "closed")
+                .containsEntry("closeReason", "the run resumed");
     }
 
     @Test
     void aSleepOrAWaitForAPersonIsNotAnIncident() {
         start();
-        log(5, Semconv.EV_RUN_SUSPENDED, "sleep", Semconv.LOOM_SUSPEND_REASON, "SLEEP", Semconv.LOOM_RESUME_AT, "2026-10-11T14:10:00Z");
+        log(
+                5,
+                Semconv.EV_RUN_SUSPENDED,
+                "sleep",
+                Semconv.LOOM_SUSPEND_REASON,
+                "SLEEP",
+                Semconv.LOOM_RESUME_AT,
+                "2026-10-11T14:10:00Z");
         log(6, Semconv.EV_RUN_SUSPENDED, "human", Semconv.LOOM_SUSPEND_REASON, "HUMAN");
         assertThat(incidents()).isEmpty();
     }
@@ -182,9 +272,25 @@ class IncidentTest {
     @Test
     void aBudgetWarningIsAWarning_andRunningOutIsHigh() {
         start();
-        log(3, Semconv.EV_BUDGET, "WARN run: spent 80% of limits", "loom.data.budget", "run", "loom.data.kind", "WARN");
-        assertThat(incidents().get(0)).containsEntry("kind", "BUDGET").containsEntry("severity", "warn");
-        log(4, Semconv.EV_BUDGET, "EXHAUSTED run: spent 100% of limits", "loom.data.budget", "run", "loom.data.kind", "EXHAUSTED");
+        log(
+                3,
+                Semconv.EV_BUDGET,
+                "WARN run: spent 80% of limits",
+                "loom.data.budget",
+                "run",
+                "loom.data.kind",
+                "WARN");
+        assertThat(incidents().get(0))
+                .containsEntry("kind", "BUDGET")
+                .containsEntry("severity", "warn");
+        log(
+                4,
+                Semconv.EV_BUDGET,
+                "EXHAUSTED run: spent 100% of limits",
+                "loom.data.budget",
+                "run",
+                "loom.data.kind",
+                "EXHAUSTED");
         assertThat(incidents()).hasSize(1);
         assertThat(incidents().get(0)).containsEntry("severity", "high");
     }
@@ -197,7 +303,9 @@ class IncidentTest {
         assertThat(incidents().get(0)).containsEntry("state", "open");
         log(9, Semconv.EV_RUN_START, "w", Semconv.LOOM_RUN_ID, RUN, Semconv.LOOM_WORKFLOW, "W");
         log(10, Semconv.EV_RUN_END, "done", Semconv.LOOM_RUN_STATUS, Semconv.STATUS_COMPLETED);
-        assertThat(incidents().get(0)).containsEntry("state", "closed").containsEntry("closeReason", "the run ended");
+        assertThat(incidents().get(0))
+                .containsEntry("state", "closed")
+                .containsEntry("closeReason", "the run ended");
     }
 
     @Test
@@ -230,7 +338,8 @@ class IncidentTest {
         a.put(Semconv.LOOM_STEP, "W/s1");
         a.put(Semconv.LOOM_ACTION_HASH, "h1");
         LogRec r = new LogRec(at(1), LogRec.INFO, "x", a, TRACE, Ids.spanId(RUN, "dup"));
-        for (int i = 0; i < 6; i++) reg.applyLogs(PROC, List.of(r)); // sent again after lost acknowledgements
+        for (int i = 0; i < 6; i++)
+            reg.applyLogs(PROC, List.of(r)); // sent again after lost acknowledgements
         assertThat(incidents()).isEmpty();
     }
 
@@ -244,17 +353,44 @@ class IncidentTest {
         a.put(Semconv.GEN_AI_AGENT_NAME, "Competitor");
         a.put(Semconv.GEN_AI_TOOL_NAME, "Example");
         a.put(Semconv.LOOM_TOOL_NO_RESULT, true);
-        reg.applySpans(PROC, List.of(new SpanRec(TRACE, Ids.spanId(RUN, "blocked"), null, "execute_tool Example", SpanRec.CLIENT, at(3), at(4), a, SpanRec.STATUS_UNSET, null, List.of())));
-        assertThat(incidents()).isEmpty();      // it did not count as a third failure
+        reg.applySpans(
+                PROC,
+                List.of(
+                        new SpanRec(
+                                TRACE,
+                                Ids.spanId(RUN, "blocked"),
+                                null,
+                                "execute_tool Example",
+                                SpanRec.CLIENT,
+                                at(3),
+                                at(4),
+                                a,
+                                SpanRec.STATUS_UNSET,
+                                null,
+                                List.of())));
+        assertThat(incidents()).isEmpty(); // it did not count as a third failure
         toolEnd(5, "Competitor", "Example", "W/s0", true);
-        assertThat(incidents().get(0)).containsEntry("kind", "FAILED"); // and it did not reset the streak either
+        assertThat(incidents().get(0))
+                .containsEntry("kind", "FAILED"); // and it did not reset the streak either
     }
 
     private void sample(int second, String owner, String variable, String loop, String hash) {
-        log(second, Semconv.EV_INSPECT_SAMPLE, "sample", Semconv.LOOM_INSPECT_AGENT, owner, Semconv.LOOM_INSPECT_VAR, variable, Semconv.LOOM_INSPECT_LOOP, loop, Semconv.LOOM_INSPECT_HASH, hash);
+        log(
+                second,
+                Semconv.EV_INSPECT_SAMPLE,
+                "sample",
+                Semconv.LOOM_INSPECT_AGENT,
+                owner,
+                Semconv.LOOM_INSPECT_VAR,
+                variable,
+                Semconv.LOOM_INSPECT_LOOP,
+                loop,
+                Semconv.LOOM_INSPECT_HASH,
+                hash);
     }
 
-    private static InspectRules rules(Integer sameAction, Long paused, Integer rounds, String variable) {
+    private static InspectRules rules(
+            Integer sameAction, Long paused, Integer rounds, String variable) {
         return new InspectRules(sameAction, null, null, null, null, paused, rounds, variable);
     }
 
@@ -272,7 +408,8 @@ class IncidentTest {
     }
 
     @Test
-    void aVariableThatDoesNotChangeAcrossRoundBoundariesIsNoProgress_andChangingItEndsTheIncident() {
+    void
+            aVariableThatDoesNotChangeAcrossRoundBoundariesIsNoProgress_andChangingItEndsTheIncident() {
         start();
         run().setRules(Map.of("Editor", rules(null, null, 3, "review.score")));
         sample(1, "Editor", "review.score", "W/s1", "five");
@@ -281,10 +418,15 @@ class IncidentTest {
         sample(3, "Editor", "review.score", "W/s1", "five");
         Map<String, Object> inc = incidents().get(0);
         assertThat(inc).containsEntry("kind", "LOOPING").containsEntry("agent", "Editor");
-        assertThat(evidence(inc)).containsEntry("rule", "no_progress").containsEntry("measured", 3).containsEntry("threshold", 3);
+        assertThat(evidence(inc))
+                .containsEntry("rule", "no_progress")
+                .containsEntry("measured", 3)
+                .containsEntry("threshold", 3);
         assertThat(String.valueOf(inc.get("title"))).contains("review.score has not changed");
         sample(4, "Editor", "review.score", "W/s1", "eight");
-        assertThat(incidents().get(0)).containsEntry("state", "closed").containsEntry("closeReason", "review.score changed");
+        assertThat(incidents().get(0))
+                .containsEntry("state", "closed")
+                .containsEntry("closeReason", "review.score changed");
     }
 
     @Test
@@ -302,7 +444,10 @@ class IncidentTest {
         run().setRules(Map.of("Editor", rules(null, 10L, null, null)));
         log(5, Semconv.EV_RUN_SUSPENDED, "run paused", Semconv.LOOM_SUSPEND_REASON, "RATE_LIMIT");
         @SuppressWarnings("unchecked")
-        Map<String, Object> inc = ((List<Map<String, Object>>) run().view(OtlpJson.instant(at(5 + 15))).get("incidents")).get(0);
+        Map<String, Object> inc =
+                ((List<Map<String, Object>>)
+                                run().view(OtlpJson.instant(at(5 + 15))).get("incidents"))
+                        .get(0);
         assertThat(inc).containsEntry("severity", "warn");
         assertThat(evidence(inc)).containsEntry("threshold", "10s");
     }
@@ -310,22 +455,29 @@ class IncidentTest {
     @Test
     void theBlockForEveryAgentIsTheBaseAndAnAgentsOwnBlockOverridesItRuleByRule() {
         start();
-        run().setRules(Map.of("*", rules(2, null, null, null), "Editor", rules(3, null, null, null)));
+        run().setRules(
+                        Map.of(
+                                "*",
+                                rules(2, null, null, null),
+                                "Editor",
+                                rules(3, null, null, null)));
         toolStart(1, "Editor", "Wiki", "W/s1", "h1");
         toolStart(2, "Editor", "Wiki", "W/s1", "h1");
         toolStart(1, "Other", "Wiki", "W/s1", "h1");
         toolStart(2, "Other", "Wiki", "W/s1", "h1");
-        assertThat(incidents()).hasSize(1);                                   // Other, at the shared 2; Editor has its own 3
+        assertThat(incidents()).hasSize(1); // Other, at the shared 2; Editor has its own 3
         assertThat(incidents().get(0)).containsEntry("agent", "Other");
         toolStart(3, "Editor", "Wiki", "W/s1", "h1");
         assertThat(incidents()).hasSize(2);
     }
 
     @Test
-    void rulesKeptAtTheServerAreLaidOverTheProcessesOwnRuleByRule_andRemovingThemRestoresTheOriginals() {
+    void
+            rulesKeptAtTheServerAreLaidOverTheProcessesOwnRuleByRule_andRemovingThemRestoresTheOriginals() {
         start();
         run().setRules(Map.of("Editor", rules(3, null, null, null)));
-        reg.setCentralRules(Map.of("Editor", new InspectRules(2, null, null, null, null, null, null, null)));
+        reg.setCentralRules(
+                Map.of("Editor", new InspectRules(2, null, null, null, null, null, null, null)));
         toolStart(1, "Editor", "Wiki", "W/s1", "h1");
         toolStart(2, "Editor", "Wiki", "W/s1", "h1");
         assertThat(incidents()).hasSize(1); // the server's 2 beats the process's 3
@@ -334,7 +486,8 @@ class IncidentTest {
         reg.setCentralRules(Map.of());
         toolStart(1, "Other", "Wiki", "W/s9", "h2");
         run().setRules(Map.of("Editor", rules(3, null, null, null)));
-        assertThat(incidents()).hasSize(1); // already open stays; the point is the rules are the process's again
+        assertThat(incidents())
+                .hasSize(1); // already open stays; the point is the rules are the process's again
     }
 
     @Test

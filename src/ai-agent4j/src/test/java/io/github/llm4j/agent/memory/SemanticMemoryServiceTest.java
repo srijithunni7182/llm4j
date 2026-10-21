@@ -1,10 +1,10 @@
 package io.github.llm4j.agent.memory;
 
-import io.github.llm4j.agent.rag.embedding.EmbeddingProvider;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import io.github.llm4j.agent.rag.embedding.EmbeddingProvider;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,14 +15,12 @@ import org.mockito.MockitoAnnotations;
 
 class SemanticMemoryServiceTest {
 
-    @Mock
-    private EmbeddingProvider embeddingProvider;
+    @Mock private EmbeddingProvider embeddingProvider;
 
-    @Mock
-    private VectorStore vectorStore;
+    @Mock private VectorStore vectorStore;
 
     private SemanticMemoryService service;
-    private final float[] dummyEmbedding = new float[]{0.1f, 0.2f, 0.3f};
+    private final float[] dummyEmbedding = new float[] {0.1f, 0.2f, 0.3f};
 
     @BeforeEach
     void setup() {
@@ -35,10 +33,14 @@ class SemanticMemoryServiceTest {
     void testSaveFact() {
         service.saveFact("The user is a vegetarian.");
         verify(embeddingProvider).embed("The user is a vegetarian.");
-        verify(vectorStore).add(anyString(), eq(dummyEmbedding), argThat(metadata ->
-                "The user is a vegetarian.".equals(metadata.get("fact")) &&
-                "user-123".equals(metadata.get("userId"))
-        ));
+        verify(vectorStore)
+                .add(
+                        anyString(),
+                        eq(dummyEmbedding),
+                        argThat(
+                                metadata ->
+                                        "The user is a vegetarian.".equals(metadata.get("fact"))
+                                                && "user-123".equals(metadata.get("userId"))));
     }
 
     @Test
@@ -55,7 +57,8 @@ class SemanticMemoryServiceTest {
         metadata.put("userId", "user-123");
 
         SearchResult result = new SearchResult("id-1", 0.9f, metadata);
-        when(vectorStore.search(any(float[].class), anyInt(), anyMap())).thenReturn(List.of(result));
+        when(vectorStore.search(any(float[].class), anyInt(), anyMap()))
+                .thenReturn(List.of(result));
 
         List<String> facts = service.recallRelevantFacts("What programming language?", 3, 0.7f);
         assertEquals(1, facts.size());
@@ -68,7 +71,8 @@ class SemanticMemoryServiceTest {
         metadata.put("fact", "The user loves Java.");
 
         SearchResult result = new SearchResult("id-1", 0.5f, metadata); // below 0.7 threshold
-        when(vectorStore.search(any(float[].class), anyInt(), anyMap())).thenReturn(List.of(result));
+        when(vectorStore.search(any(float[].class), anyInt(), anyMap()))
+                .thenReturn(List.of(result));
 
         List<String> facts = service.recallRelevantFacts("What programming language?", 3, 0.7f);
         assertTrue(facts.isEmpty(), "Low-similarity facts should be filtered out");

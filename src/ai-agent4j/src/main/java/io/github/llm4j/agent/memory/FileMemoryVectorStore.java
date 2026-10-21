@@ -14,9 +14,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * An {@link InMemoryVectorStore} kept in a JSON file, so an agent's long-term facts survive restarts.
- * Loaded when constructed; rewritten (atomically) after every change. Suited to the small stores of
- * per-user facts, not to large corpora.
+ * An {@link InMemoryVectorStore} kept in a JSON file, so an agent's long-term facts survive
+ * restarts. Loaded when constructed; rewritten (atomically) after every change. Suited to the small
+ * stores of per-user facts, not to large corpora.
  */
 public class FileMemoryVectorStore extends InMemoryVectorStore {
 
@@ -47,13 +47,15 @@ public class FileMemoryVectorStore extends InMemoryVectorStore {
         this.file = file;
         if (Files.exists(file)) {
             try {
-                List<Stored> loaded = MAPPER.readValue(file.toFile(), new TypeReference<List<Stored>>() {});
+                List<Stored> loaded =
+                        MAPPER.readValue(file.toFile(), new TypeReference<List<Stored>>() {});
                 for (Stored s : loaded) {
                     super.add(s.id, s.embedding, s.metadata);
                     entries.put(s.id, s);
                 }
             } catch (IOException e) {
-                throw new UncheckedIOException("Can't read memory store " + file + ": " + e.getMessage(), e);
+                throw new UncheckedIOException(
+                        "Can't read memory store " + file + ": " + e.getMessage(), e);
             }
         }
     }
@@ -61,7 +63,12 @@ public class FileMemoryVectorStore extends InMemoryVectorStore {
     @Override
     public synchronized void add(String id, float[] embedding, Map<String, Object> metadata) {
         super.add(id, embedding, metadata);
-        entries.put(id, new Stored(id, embedding, metadata != null ? new HashMap<>(metadata) : new HashMap<>()));
+        entries.put(
+                id,
+                new Stored(
+                        id,
+                        embedding,
+                        metadata != null ? new HashMap<>(metadata) : new HashMap<>()));
         save();
     }
 
@@ -92,9 +99,11 @@ public class FileMemoryVectorStore extends InMemoryVectorStore {
             if (parent != null) Files.createDirectories(parent);
             Path tmp = Files.createTempFile(parent, file.getFileName().toString(), ".tmp");
             MAPPER.writeValue(tmp.toFile(), new ArrayList<>(entries.values()));
-            Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            Files.move(
+                    tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
-            throw new UncheckedIOException("Can't write memory store " + file + ": " + e.getMessage(), e);
+            throw new UncheckedIOException(
+                    "Can't write memory store " + file + ": " + e.getMessage(), e);
         }
     }
 }

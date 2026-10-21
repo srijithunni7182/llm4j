@@ -1,6 +1,9 @@
 package io.github.llm4j.context;
 
-/** A developer's own compactor, written as a lambda, is held to the same rules as the built-ins (R1, A2). */
+/**
+ * A developer's own compactor, written as a lambda, is held to the same rules as the built-ins (R1,
+ * A2).
+ */
 class LambdaCompactorContractTest extends ContextCompactorContract {
     @Override
     protected ContextCompactor subject() {

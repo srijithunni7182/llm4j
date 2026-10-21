@@ -13,17 +13,20 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A script's workflows as plain maps for the page, each node carrying {@code path}: the normalized step id the executor reports
- * while that statement runs (see {@code StepPaths}), so the page can colour a node by what the run is doing. Nothing is run.
+ * A script's workflows as plain maps for the page, each node carrying {@code path}: the normalized
+ * step id the executor reports while that statement runs (see {@code StepPaths}), so the page can
+ * colour a node by what the run is doing. Nothing is run.
  *
- * <p>A statement's path is its block's path plus its position in the block. The block keys are the executor's own: {@code s} for a
- * workflow, {@code a}/{@code b} for the two sides of an {@code alt}, {@code r.} for a loop body (one place for every round), {@code b}
- * for a {@code for each}, {@code g} for a guardrail, and {@code x}, {@code v}, {@code f} for the exhausted, violation and failure
- * handlers. Blocks with no key here (a rewind's handlers) have no path and are drawn without a state.
+ * <p>A statement's path is its block's path plus its position in the block. The block keys are the
+ * executor's own: {@code s} for a workflow, {@code a}/{@code b} for the two sides of an {@code
+ * alt}, {@code r.} for a loop body (one place for every round), {@code b} for a {@code for each},
+ * {@code g} for a guardrail, and {@code x}, {@code v}, {@code f} for the exhausted, violation and
+ * failure handlers. Blocks with no key here (a rewind's handlers) have no path and are drawn
+ * without a state.
  */
 public final class GraphView {
 
-    private GraphView() { }
+    private GraphView() {}
 
     public static Map<String, Object> of(LoomScript script) {
         GraphBuilder builder = new GraphBuilder();
@@ -50,7 +53,12 @@ public final class GraphView {
                 String key = key(byId.get(n.parent()), n.branch());
                 base = owner == null || key == null ? null : owner + "/" + key;
             }
-            String path = base == null ? null : base + (next.merge(base, 1, Integer::sum) - 1); // positions count from 0
+            String path =
+                    base == null
+                            ? null
+                            : base
+                                    + (next.merge(base, 1, Integer::sum)
+                                            - 1); // positions count from 0
             if (path != null) paths.put(n.id(), path);
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", n.id());

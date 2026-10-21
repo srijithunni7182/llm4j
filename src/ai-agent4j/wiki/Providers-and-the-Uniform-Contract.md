@@ -128,3 +128,4 @@ US$0.50.
 | Sarvam | ✅ | ✅ Verified by the maintainer against the real Sarvam API |
 | Ollama | ✅ | ✅ Verified by the maintainer against a local Ollama server |
 | Anthropic | ✅ | ✅ Full live suite, L1–L11, on `claude-opus-5-5` and `claude-haiku-4-5` (2026-09-29) |
+| Jev (TypeSafe AI) | ✅ the `ClassifierContract` suite, against a local server replaying recorded wire fixtures | ✅ Fixtures recorded from the real API and a head-to-head study with real keys (2026-10-21). Jev does not chat: it is a [`ClassificationProvider`](Classification.md#5-use-jev), not an `LLMProvider` |

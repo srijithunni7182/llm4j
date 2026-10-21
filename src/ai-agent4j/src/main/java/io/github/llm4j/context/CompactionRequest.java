@@ -12,11 +12,13 @@ import java.util.function.Predicate;
  *
  * @param targetTokens bring the conversation down to about this many (estimated) tokens
  * @param window the model's window, or null
- * @param estimator how to count tokens; use {@link #sizeOf(List)} so every strategy counts the same way
+ * @param estimator how to count tokens; use {@link #sizeOf(List)} so every strategy counts the same
+ *     way
  * @param keepRecent the last this-many messages must be returned unchanged
- * @param pinned messages that must be returned unchanged, besides those marked with {@link Messages#pinned}
- * @param protectTask whether the first user message (the task of an agent run) must be returned unchanged; false for a chat history, where it is
- *     only the oldest message
+ * @param pinned messages that must be returned unchanged, besides those marked with {@link
+ *     Messages#pinned}
+ * @param protectTask whether the first user message (the task of an agent run) must be returned
+ *     unchanged; false for a chat history, where it is only the oldest message
  * @param reason why compaction was asked for
  */
 public record CompactionRequest(
@@ -38,8 +40,12 @@ public record CompactionRequest(
     }
 
     public CompactionRequest {
-        if (targetTokens <= 0) throw new IllegalArgumentException("targetTokens must be positive, got " + targetTokens);
-        if (keepRecent < 0) throw new IllegalArgumentException("keepRecent must not be negative, got " + keepRecent);
+        if (targetTokens <= 0)
+            throw new IllegalArgumentException(
+                    "targetTokens must be positive, got " + targetTokens);
+        if (keepRecent < 0)
+            throw new IllegalArgumentException(
+                    "keepRecent must not be negative, got " + keepRecent);
         if (estimator == null) estimator = CharsPerTokenEstimator.INSTANCE;
         pinned = Messages.orMarked(pinned);
         if (reason == null) reason = Reason.MANUAL;
@@ -56,7 +62,12 @@ public record CompactionRequest(
 
     /** A request taking its protections from a policy. */
     public static CompactionRequest from(ContextPolicy policy, long targetTokens, Reason reason) {
-        return builder(targetTokens).window(policy.window()).keepRecent(policy.keepRecent()).pinned(policy.pinned()).reason(reason).build();
+        return builder(targetTokens)
+                .window(policy.window())
+                .keepRecent(policy.keepRecent())
+                .pinned(policy.pinned())
+                .reason(reason)
+                .build();
     }
 
     /** The estimated size of these messages as a prompt; zero for none. */
@@ -109,7 +120,8 @@ public record CompactionRequest(
         }
 
         public CompactionRequest build() {
-            return new CompactionRequest(targetTokens, window, estimator, keepRecent, pinned, protectTask, reason);
+            return new CompactionRequest(
+                    targetTokens, window, estimator, keepRecent, pinned, protectTask, reason);
         }
     }
 }

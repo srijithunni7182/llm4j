@@ -12,16 +12,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** Verification plan N6: weave check on a script using every new feature calls no model and embeds nothing. */
+/**
+ * Verification plan N6: weave check on a script using every new feature calls no model and embeds
+ * nothing.
+ */
 class CheckCallsNothingTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     @Test
     void n6_checkingTouchesNoModelNoEmbeddingNoSpeechService() throws Exception {
         Path f = dir.resolve("all.loom");
-        Files.writeString(f, """
+        Files.writeString(
+                f,
+                """
                 provider Box { use: ollama  base_url: "http://127.0.0.1:1" }
                 persona Mentor { role: "mentor" }
                 tool Graph { use: knowledge_graph  store: "g.json" }
@@ -37,8 +41,13 @@ class CheckCallsNothingTest {
                 """);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         AtomicInteger clients = new AtomicInteger();
-        int code = CliProbe.check(f.toFile(), false, new PrintStream(out, true),
-                Map.of("SARVAM_API_KEY", "s", "GEMINI_API_KEY", "g")::get, clients);
+        int code =
+                CliProbe.check(
+                        f.toFile(),
+                        false,
+                        new PrintStream(out, true),
+                        Map.of("SARVAM_API_KEY", "s", "GEMINI_API_KEY", "g")::get,
+                        clients);
         assertThat(out.toString()).contains("✓ all.loom: ready to run");
         assertThat(code).isZero();
         assertThat(clients).hasValue(0);

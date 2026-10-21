@@ -31,8 +31,8 @@ public interface AgentEventListener {
      * Called when a tool requires human approval before execution. Listeners can use this to
      * surface a UI prompt, send a notification, or log a pending approval request.
      *
-     * <p>This is a notification-only hook; the approval decision itself is made via the
-     * {@link ApprovalCallback} registered on the agent builder.
+     * <p>This is a notification-only hook; the approval decision itself is made via the {@link
+     * ApprovalCallback} registered on the agent builder.
      *
      * @param toolName The name of the tool awaiting approval.
      * @param args The arguments the agent intends to pass.
@@ -52,18 +52,20 @@ public interface AgentEventListener {
     }
 
     /**
-     * Called before each model call with how full the context is. {@link io.github.llm4j.context.ContextUsage#fraction()} is empty
-     * when the model's window is not known.
+     * Called before each model call with how full the context is. {@link
+     * io.github.llm4j.context.ContextUsage#fraction()} is empty when the model's window is not
+     * known.
      *
-     * @param usage the prompt size, where it came from (the provider's count or an estimate) and the window
+     * @param usage the prompt size, where it came from (the provider's count or an estimate) and
+     *     the window
      */
     default void onContextUsage(io.github.llm4j.context.ContextUsage usage) {
         // no-op by default; implementors opt in
     }
 
     /**
-     * Called after each attempt to compact the conversation: a compaction, a result that was not used, a strategy that failed, and the one
-     * notice that compaction has stopped for the run.
+     * Called after each attempt to compact the conversation: a compaction, a result that was not
+     * used, a strategy that failed, and the one notice that compaction has stopped for the run.
      *
      * @param event what was tried and what came of it
      */
@@ -72,8 +74,9 @@ public interface AgentEventListener {
     }
 
     /**
-     * Called after each call to a model, whether it produced an answer or failed: how long it took, how many attempts it needed, the tokens, the
-     * finish reason, and why it failed. The event holds numbers and names only, never the prompt or the answer.
+     * Called after each call to a model, whether it produced an answer or failed: how long it took,
+     * how many attempts it needed, the tokens, the finish reason, and why it failed. The event
+     * holds numbers and names only, never the prompt or the answer.
      *
      * @param event what the call was and how it went
      */
@@ -82,8 +85,9 @@ public interface AgentEventListener {
     }
 
     /**
-     * Called after each tool call, whatever happened to it: it ran, it threw, it returned an error as text, it was blocked, unknown or rejected. The
-     * event holds numbers and names only, never the arguments or the result (see {@link #onAction} and {@link #onObservation} for those).
+     * Called after each tool call, whatever happened to it: it ran, it threw, it returned an error
+     * as text, it was blocked, unknown or rejected. The event holds numbers and names only, never
+     * the arguments or the result (see {@link #onAction} and {@link #onObservation} for those).
      *
      * @param event what the call was and how it went
      */
@@ -92,7 +96,8 @@ public interface AgentEventListener {
     }
 
     /**
-     * Called when a message sent through {@link RunHandle#steer} reaches the agent, just before the model call that will see it.
+     * Called when a message sent through {@link RunHandle#steer} reaches the agent, just before the
+     * model call that will see it.
      *
      * @param message the text the user sent
      */
@@ -104,8 +109,9 @@ public interface AgentEventListener {
      * Called when a {@link RunHook} changed the course of a run.
      *
      * @param seam {@code input}, {@code model_call} or {@code settle}
-     * @param outcome {@code replaced}, {@code rejected}, {@code note}, {@code sent_back} or {@code limit_reached} (the agent had been sent back as often as
-     *     it may be, and the answer was accepted)
+     * @param outcome {@code replaced}, {@code rejected}, {@code note}, {@code sent_back} or {@code
+     *     limit_reached} (the agent had been sent back as often as it may be, and the answer was
+     *     accepted)
      * @param message the text the hook gave, or null
      */
     default void onRunHook(String seam, String outcome, String message) {
@@ -113,24 +119,34 @@ public interface AgentEventListener {
     }
 
     /**
-     * Streaming only: a piece of the model's reasoning, as it is written (see {@link ReActAgent.Builder#reasoning}). What it holds depends
-     * on the model; where the provider offers a summary of the thinking, this is the summary.
+     * Streaming only: a piece of the model's reasoning, as it is written (see {@link
+     * ReActAgent.Builder#reasoning}). What it holds depends on the model; where the provider offers
+     * a summary of the thinking, this is the summary.
      */
     default void onReasoningDelta(String piece) {
         // no-op by default; implementors opt in
     }
 
-    /** Streaming only: a piece of the model's reply text, as it is written. The whole text still arrives through {@link #onThought} or the answer. */
+    /**
+     * Streaming only: a piece of the model's reply text, as it is written. The whole text still
+     * arrives through {@link #onThought} or the answer.
+     */
     default void onTextDelta(String piece) {
         // no-op by default; implementors opt in
     }
 
-    /** Streaming only: the model has begun writing a call to this tool; its arguments are still to come. */
+    /**
+     * Streaming only: the model has begun writing a call to this tool; its arguments are still to
+     * come.
+     */
     default void onToolCallStarted(String toolName) {
         // no-op by default; implementors opt in
     }
 
-    /** Called when a tool hook (or the argument check) refuses a call; {@code message} is what the model is shown instead of a result. */
+    /**
+     * Called when a tool hook (or the argument check) refuses a call; {@code message} is what the
+     * model is shown instead of a result.
+     */
     default void onToolRejected(String toolName, String message) {
         // no-op by default; implementors opt in
     }

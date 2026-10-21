@@ -45,7 +45,9 @@ public final class LiveTargets {
 
         /** A metered client (the provider's shared budget). */
         public LLMClient client() {
-            return BudgetedLLMClient.builder(new DefaultLLMClient(factory.apply(null))).budget(budget(provider)).build();
+            return BudgetedLLMClient.builder(new DefaultLLMClient(factory.apply(null)))
+                    .budget(budget(provider))
+                    .build();
         }
 
         @Override
@@ -57,7 +59,9 @@ public final class LiveTargets {
     private LiveTargets() {}
 
     public static Budget budget(String provider) {
-        return BUDGETS.computeIfAbsent(provider, p -> Budget.builder().name("live " + p).tokens(TOKENS_PER_PROVIDER).build());
+        return BUDGETS.computeIfAbsent(
+                provider,
+                p -> Budget.builder().name("live " + p).tokens(TOKENS_PER_PROVIDER).build());
     }
 
     static String env(String name) {
@@ -67,7 +71,10 @@ public final class LiveTargets {
 
     static List<String> models(String variable, String defaults) {
         String v = env(variable);
-        return Arrays.stream((v != null ? v : defaults).split(",")).map(String::strip).filter(s -> !s.isEmpty()).toList();
+        return Arrays.stream((v != null ? v : defaults).split(","))
+                .map(String::strip)
+                .filter(s -> !s.isEmpty())
+                .toList();
     }
 
     public static List<Target> all() {
@@ -75,24 +82,51 @@ public final class LiveTargets {
         String anthropic = env("ANTHROPIC_API_KEY");
         if (anthropic != null) {
             for (String m : models("ANTHROPIC_TEST_MODELS", "claude-opus-5-5,claude-haiku-4-5")) {
-                out.add(new Target("anthropic", m, key -> new AnthropicProvider(config(key != null ? key : anthropic, env("ANTHROPIC_BASE_URL"), m))));
+                out.add(
+                        new Target(
+                                "anthropic",
+                                m,
+                                key ->
+                                        new AnthropicProvider(
+                                                config(
+                                                        key != null ? key : anthropic,
+                                                        env("ANTHROPIC_BASE_URL"),
+                                                        m))));
             }
         }
         String gemini = env("GEMINI_API_KEY");
         if (gemini != null) {
             for (String m : models("GEMINI_TEST_MODELS", "gemini-2.5-flash")) {
-                out.add(new Target("gemini", m, key -> new GoogleProvider(config(key != null ? key : gemini, null, m))));
+                out.add(
+                        new Target(
+                                "gemini",
+                                m,
+                                key ->
+                                        new GoogleProvider(
+                                                config(key != null ? key : gemini, null, m))));
             }
         }
         String sarvam = env("SARVAM_API_KEY");
         if (sarvam != null) {
             for (String m : models("SARVAM_TEST_MODELS", "sarvam-m")) {
-                out.add(new Target("sarvam", m, key -> new SarvamChatProvider(config(key != null ? key : sarvam, env("SARVAM_BASE_URL"), m))));
+                out.add(
+                        new Target(
+                                "sarvam",
+                                m,
+                                key ->
+                                        new SarvamChatProvider(
+                                                config(
+                                                        key != null ? key : sarvam,
+                                                        env("SARVAM_BASE_URL"),
+                                                        m))));
             }
         }
         String ollama = env("OLLAMA_BASE_URL");
         if (ollama != null && reachable(ollama)) {
-            String api = ollama.replaceAll("/+$", "").endsWith("/api") ? ollama : ollama.replaceAll("/+$", "") + "/api";
+            String api =
+                    ollama.replaceAll("/+$", "").endsWith("/api")
+                            ? ollama
+                            : ollama.replaceAll("/+$", "") + "/api";
             for (String m : models("OLLAMA_TEST_MODELS", "llama3.2")) {
                 out.add(new Target("ollama", m, key -> new OllamaProvider(config(null, api, m))));
             }
@@ -101,7 +135,8 @@ public final class LiveTargets {
     }
 
     static LLMConfig config(String key, String baseUrl, String model) {
-        LLMConfig.Builder b = LLMConfig.builder().defaultModel(model).timeout(java.time.Duration.ofSeconds(120));
+        LLMConfig.Builder b =
+                LLMConfig.builder().defaultModel(model).timeout(java.time.Duration.ofSeconds(120));
         if (key != null) b.apiKey(key);
         if (baseUrl != null) b.baseUrl(baseUrl);
         return b.build();

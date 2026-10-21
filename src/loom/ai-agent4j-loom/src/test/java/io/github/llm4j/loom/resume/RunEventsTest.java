@@ -18,13 +18,13 @@ import org.junit.jupiter.api.io.TempDir;
 /** {@code run_start} and {@code run_end}: a run's edges are in the trace, with how it ended. */
 class RunEventsTest {
 
-    private static final String AGENTS = """
+    private static final String AGENTS =
+            """
             agent Researcher { model: "test/model" system: "You are Researcher." }
             agent Drafter { model: "test/model" system: "You are Drafter." }
             """;
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private final TestClock clock = new TestClock();
     private final List<TraceEvent> events = Collections.synchronizedList(new ArrayList<>());
@@ -34,28 +34,51 @@ class RunEventsTest {
     }
 
     private List<TraceEvent> edges() {
-        return events.stream().filter(e -> TraceEvent.RUN_START.equals(e.type()) || TraceEvent.RUN_END.equals(e.type())).toList();
+        return events.stream()
+                .filter(
+                        e ->
+                                TraceEvent.RUN_START.equals(e.type())
+                                        || TraceEvent.RUN_END.equals(e.type()))
+                .toList();
     }
 
     @Test
     void aCompletedRunHasOneStartAndOneEndSaying_completed() {
-        script(AGENTS + "workflow Main() { delegate \"x\" to Researcher -> r }", RunJournal.inMemory(), null).run();
-        assertThat(edges()).extracting(TraceEvent::type).containsExactly(TraceEvent.RUN_START, TraceEvent.RUN_END);
-        assertThat(edges().get(0).data()).containsEntry("workflow", "Main").containsEntry("resumed", "false");
-        assertThat(edges().get(1).data()).containsEntry("status", "completed").containsEntry("workflow", "Main");
+        script(
+                        AGENTS + "workflow Main() { delegate \"x\" to Researcher -> r }",
+                        RunJournal.inMemory(),
+                        null)
+                .run();
+        assertThat(edges())
+                .extracting(TraceEvent::type)
+                .containsExactly(TraceEvent.RUN_START, TraceEvent.RUN_END);
+        assertThat(edges().get(0).data())
+                .containsEntry("workflow", "Main")
+                .containsEntry("resumed", "false");
+        assertThat(edges().get(1).data())
+                .containsEntry("status", "completed")
+                .containsEntry("workflow", "Main");
         assertThat(events.get(0).type()).isEqualTo(TraceEvent.RUN_START);
         assertThat(events.get(events.size() - 1).type()).isEqualTo(TraceEvent.RUN_END);
     }
 
     @Test
     void aSleepingRunEndsAsSuspendedWithTheReasonAndWakeTime_andIsMarkedResumedLater() {
-        String source = AGENTS + "workflow Main() { sleep 90s\n delegate \"x\" to Researcher -> r }";
+        String source =
+                AGENTS + "workflow Main() { sleep 90s\n delegate \"x\" to Researcher -> r }";
         RunJournal journal = new FileRunJournal(dir.resolve("journal.json"));
         assertThatThrownBy(script(source, journal, null)::run).isInstanceOf(RunSuspended.class);
         TraceEvent end = edges().get(1);
-        assertThat(end.data()).containsEntry("status", "suspended").containsEntry("reason", "SLEEP")
+        assertThat(end.data())
+                .containsEntry("status", "suspended")
+                .containsEntry("reason", "SLEEP")
                 .containsEntry("resumeAt", TestClock.T0.plusSeconds(90).toString());
-        int suspendedAt = events.indexOf(events.stream().filter(e -> TraceEvent.SUSPENDED.equals(e.type())).findFirst().orElseThrow());
+        int suspendedAt =
+                events.indexOf(
+                        events.stream()
+                                .filter(e -> TraceEvent.SUSPENDED.equals(e.type()))
+                                .findFirst()
+                                .orElseThrow());
         assertThat(suspendedAt).isLessThan(events.indexOf(end));
 
         events.clear();
@@ -67,8 +90,14 @@ class RunEventsTest {
 
     @Test
     void aFailedRunEndsAsFailedWithTheError() {
-        String source = AGENTS + "rate_limits { on_limit: fail }\nworkflow Main() { delegate \"x\" to Drafter -> d }";
-        LimitScript run = script(source, RunJournal.inMemory(), LimitScript.limitedUntil(clock, "Drafter", TestClock.T0.plusSeconds(3600)));
+        String source =
+                AGENTS
+                        + "rate_limits { on_limit: fail }\nworkflow Main() { delegate \"x\" to Drafter -> d }";
+        LimitScript run =
+                script(
+                        source,
+                        RunJournal.inMemory(),
+                        LimitScript.limitedUntil(clock, "Drafter", TestClock.T0.plusSeconds(3600)));
         assertThatThrownBy(run::run).hasMessageContaining("rate limit");
         TraceEvent end = edges().get(1);
         assertThat(end.data()).containsEntry("status", "failed");

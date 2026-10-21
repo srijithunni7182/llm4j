@@ -8,8 +8,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
- * A workflow running on its own thread, with the controls an embedding application needs: steer, wrap up, cancel (with the outcome it names, or sending
- * the run back to a checkpoint), pause and resume. It is also registered with {@link LiveRuns}, so a console or chat in the same process can reach it.
+ * A workflow running on its own thread, with the controls an embedding application needs: steer,
+ * wrap up, cancel (with the outcome it names, or sending the run back to a checkpoint), pause and
+ * resume. It is also registered with {@link LiveRuns}, so a console or chat in the same process can
+ * reach it.
  *
  * <pre>{@code
  * LoomRun run = LoomRun.start(executor, "Digest", Map.of("topic", "AI agents"));
@@ -20,13 +22,20 @@ import java.util.concurrent.TimeUnit;
  * run.await(Duration.ofMinutes(5));
  * }</pre>
  *
- * Every call returns how many running agents took it; 0 means none matched or it was refused (the reason is in the run's trace). The executor must be
- * initialized. The application decides who may call these; Loom records the {@code origin} given to {@link #start}.
+ * Every call returns how many running agents took it; 0 means none matched or it was refused (the
+ * reason is in the run's trace). The executor must be initialized. The application decides who may
+ * call these; Loom records the {@code origin} given to {@link #start}.
  */
 public final class LoomRun {
 
     /** Where the run is. */
-    public enum Status { RUNNING, COMPLETED, SUSPENDED, STOPPED, FAILED }
+    public enum Status {
+        RUNNING,
+        COMPLETED,
+        SUSPENDED,
+        STOPPED,
+        FAILED
+    }
 
     private final HarnessExecutor executor;
     private final String origin;
@@ -35,40 +44,59 @@ public final class LoomRun {
     private volatile Throwable failure;
     private final Runnable body;
 
-    private LoomRun(HarnessExecutor executor, String label, String workflow, Map<String, String> inputs, String origin,
-                    io.github.llm4j.secret.InvokerCredentials invoker, java.util.function.Consumer<LoomRun> onDone) {
+    private LoomRun(
+            HarnessExecutor executor,
+            String label,
+            String workflow,
+            Map<String, String> inputs,
+            String origin,
+            io.github.llm4j.secret.InvokerCredentials invoker,
+            java.util.function.Consumer<LoomRun> onDone) {
         this.executor = executor;
         this.origin = origin;
-        this.body = () -> {
-            try (AutoCloseable registered = LiveRuns.shared().register(label, executor)) {
-                executor.executeWorkflow(workflow, inputs, invoker);
-                status = Status.COMPLETED;
-            } catch (RunSuspended suspended) {
-                status = Status.SUSPENDED;
-                failure = suspended;
-            } catch (RunStopped stopped) {
-                status = Status.STOPPED;
-                failure = stopped;
-            } catch (Throwable t) {
-                status = Status.FAILED;
-                failure = t;
-            } finally {
-                try {
-                    if (onDone != null) onDone.accept(this);
-                } finally {
-                    done.countDown();
-                }
-            }
-        };
+        this.body =
+                () -> {
+                    try (AutoCloseable registered = LiveRuns.shared().register(label, executor)) {
+                        executor.executeWorkflow(workflow, inputs, invoker);
+                        status = Status.COMPLETED;
+                    } catch (RunSuspended suspended) {
+                        status = Status.SUSPENDED;
+                        failure = suspended;
+                    } catch (RunStopped stopped) {
+                        status = Status.STOPPED;
+                        failure = stopped;
+                    } catch (Throwable t) {
+                        status = Status.FAILED;
+                        failure = t;
+                    } finally {
+                        try {
+                            if (onDone != null) onDone.accept(this);
+                        } finally {
+                            done.countDown();
+                        }
+                    }
+                };
     }
 
-    /** Starts the workflow; its label is the workflow's name and the origin of what the application does to it is {@code "app"}. */
-    public static LoomRun start(HarnessExecutor executor, String workflow, Map<String, String> inputs) {
+    /**
+     * Starts the workflow; its label is the workflow's name and the origin of what the application
+     * does to it is {@code "app"}.
+     */
+    public static LoomRun start(
+            HarnessExecutor executor, String workflow, Map<String, String> inputs) {
         return start(executor, workflow, workflow, inputs, "app");
     }
 
-    /** @param label how a person names this run to a console or chat ({@code #label}); @param origin who the journal and audit say acted */
-    public static LoomRun start(HarnessExecutor executor, String label, String workflow, Map<String, String> inputs, String origin) {
+    /**
+     * @param label how a person names this run to a console or chat ({@code #label}); @param origin
+     *     who the journal and audit say acted
+     */
+    public static LoomRun start(
+            HarnessExecutor executor,
+            String label,
+            String workflow,
+            Map<String, String> inputs,
+            String origin) {
         LoomRun run = new LoomRun(executor, label, workflow, inputs, origin, null, null);
         Thread thread = new Thread(run.body, "loom-run-" + label);
         thread.setDaemon(true);
@@ -77,12 +105,20 @@ public final class LoomRun {
     }
 
     /**
-     * Starts the workflow for the person {@code invoker} stands for (may be null), on a thread the application provides, and calls {@code onDone} with the
-     * finished run, whatever the outcome, before {@link #await} returns. {@code runner} must run the task or throw; if it throws, nothing has started.
+     * Starts the workflow for the person {@code invoker} stands for (may be null), on a thread the
+     * application provides, and calls {@code onDone} with the finished run, whatever the outcome,
+     * before {@link #await} returns. {@code runner} must run the task or throw; if it throws,
+     * nothing has started.
      */
-    public static LoomRun start(HarnessExecutor executor, String label, String workflow, Map<String, String> inputs, String origin,
-                                io.github.llm4j.secret.InvokerCredentials invoker, java.util.concurrent.Executor runner,
-                                java.util.function.Consumer<LoomRun> onDone) {
+    public static LoomRun start(
+            HarnessExecutor executor,
+            String label,
+            String workflow,
+            Map<String, String> inputs,
+            String origin,
+            io.github.llm4j.secret.InvokerCredentials invoker,
+            java.util.concurrent.Executor runner,
+            java.util.function.Consumer<LoomRun> onDone) {
         LoomRun run = new LoomRun(executor, label, workflow, inputs, origin, invoker, onDone);
         runner.execute(run.body);
         return run;
@@ -112,7 +148,10 @@ public final class LoomRun {
         return executor;
     }
 
-    /** Sends a message to the agent(s) named (an agent name, a step id, or {@code *}). The agent must be declared {@code steerable}. */
+    /**
+     * Sends a message to the agent(s) named (an agent name, a step id, or {@code *}). The agent
+     * must be declared {@code steerable}.
+     */
     public int steer(String agent, String text) {
         return executor.steer(agent, text, origin);
     }
@@ -131,7 +170,8 @@ public final class LoomRun {
     }
 
     public int cancel(String agent, Outcome outcome, String reason) {
-        if (outcome.checkpoint() != null) return executor.cancelBack(agent, outcome.checkpoint(), reason, origin);
+        if (outcome.checkpoint() != null)
+            return executor.cancelBack(agent, outcome.checkpoint(), reason, origin);
         return executor.cancel(agent, reason, origin, outcome.outcome());
     }
 

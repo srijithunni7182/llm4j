@@ -1,8 +1,6 @@
 package io.github.llm4j.loom.inspect.receive;
 
-import io.github.llm4j.loom.inspect.otel.LogRec;
 import io.github.llm4j.loom.inspect.otel.OtlpJson;
-import io.github.llm4j.loom.inspect.otel.SpanRec;
 import io.github.llm4j.loom.inspect.state.RunRegistry;
 import io.github.llm4j.loom.inspect.state.RunState;
 import io.github.llm4j.loom.inspect.wire.Heartbeat;
@@ -19,9 +17,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Takes what the processes send and keeps the registry and the process table current. It knows nothing of HTTP or of keys: the
- * transport has already checked the signature and says who the caller is ({@code client}), and the receiver refuses anything that
- * claims to be somebody else.
+ * Takes what the processes send and keeps the registry and the process table current. It knows
+ * nothing of HTTP or of keys: the transport has already checked the signature and says who the
+ * caller is ({@code client}), and the receiver refuses anything that claims to be somebody else.
  */
 public final class Receiver {
 
@@ -38,16 +36,22 @@ public final class Receiver {
             this.status = status;
         }
 
-        /** The HTTP status that fits: 403 for a client reporting as another, 400 for what could not be read. */
+        /**
+         * The HTTP status that fits: 403 for a client reporting as another, 400 for what could not
+         * be read.
+         */
         public int status() {
             return status;
         }
     }
 
     /** What a server answers to {@code hello}. */
-    public record HelloReply(int wire, boolean supported, String serverTime) { }
+    public record HelloReply(int wire, boolean supported, String serverTime) {}
 
-    /** Online means a message within this long. Heartbeats come every 5 seconds, so three missed ones is offline. */
+    /**
+     * Online means a message within this long. Heartbeats come every 5 seconds, so three missed
+     * ones is offline.
+     */
     public static final Duration ONLINE_WITHIN = Duration.ofSeconds(15);
 
     private static final class Process {
@@ -106,7 +110,8 @@ public final class Receiver {
 
     public void snapshot(String client, Snapshot s) {
         same(client, s.client());
-        if (s.traceId() == null || !s.traceId().matches("[0-9a-f]{32}")) throw new Rejected("snapshot without a trace id");
+        if (s.traceId() == null || !s.traceId().matches("[0-9a-f]{32}"))
+            throw new Rejected("snapshot without a trace id");
         registry.setGraph(client, s.traceId(), s.graph());
         registry.setLadders(client, s.traceId(), s::ladders);
         registry.setRules(client, s.traceId(), s.inspect());
@@ -115,7 +120,10 @@ public final class Receiver {
         touch(client);
     }
 
-    /** @return the server's clock, so the process can warn when the two differ by more than the signature window */
+    /**
+     * @return the server's clock, so the process can warn when the two differ by more than the
+     *     signature window
+     */
     public String heartbeat(String client, Heartbeat hb) {
         same(client, hb.client());
         Process p = processes.computeIfAbsent(client, k -> new Process());
@@ -129,7 +137,8 @@ public final class Receiver {
             p.lost = hb.lost();
             if (p.rateAt != null && now.isAfter(p.rateAt)) {
                 double secs = Duration.between(p.rateAt, now).toMillis() / 1000.0;
-                if (secs >= 1 && hb.events() >= p.rateEvents) p.rate = (hb.events() - p.rateEvents) / secs;
+                if (secs >= 1 && hb.events() >= p.rateEvents)
+                    p.rate = (hb.events() - p.rateEvents) / secs;
             }
             if (p.rateAt == null || Duration.between(p.rateAt, now).toSeconds() >= 1) {
                 p.rateEvents = hb.events();
@@ -137,9 +146,12 @@ public final class Receiver {
             }
             p.events = hb.events();
         }
-        hb.ladders().forEach((trace, ladders) -> {
-            if (trace != null && trace.matches("[0-9a-f]{32}")) registry.setLadders(client, trace, () -> ladders);
-        });
+        hb.ladders()
+                .forEach(
+                        (trace, ladders) -> {
+                            if (trace != null && trace.matches("[0-9a-f]{32}"))
+                                registry.setLadders(client, trace, () -> ladders);
+                        });
         return now.toString();
     }
 
@@ -190,14 +202,17 @@ public final class Receiver {
 
     private void touch(String client) {
         Process p = processes.get(client);
-        if (p != null) synchronized (p) {
-            p.lastSeen = clock.instant();
-        }
+        if (p != null)
+            synchronized (p) {
+                p.lastSeen = clock.instant();
+            }
     }
 
     private static void same(String authenticated, String claimed) {
         if (claimed == null || !claimed.equals(authenticated)) {
-            throw new Rejected("a client may only report as itself (authenticated as '" + authenticated + "')", 403);
+            throw new Rejected(
+                    "a client may only report as itself (authenticated as '" + authenticated + "')",
+                    403);
         }
     }
 
@@ -208,7 +223,11 @@ public final class Receiver {
         Map<String, Integer> live = new LinkedHashMap<>();
         for (Map<String, Object> r : registry.summaries()) {
             String st = String.valueOf(r.get("status"));
-            if (st.equals("running") || st.equals("sleeping") || st.equals("waiting") || st.equals("paused")) live.merge(String.valueOf(r.get("client")), 1, Integer::sum);
+            if (st.equals("running")
+                    || st.equals("sleeping")
+                    || st.equals("waiting")
+                    || st.equals("paused"))
+                live.merge(String.valueOf(r.get("client")), 1, Integer::sum);
         }
         for (Process p : processes.values()) {
             synchronized (p) {
@@ -238,17 +257,24 @@ public final class Receiver {
     private static String state(Process p, Instant now) {
         if (p.wire > Wire.VERSION) return "unsupported";
         if (p.bye) return "finished";
-        boolean online = p.lastSeen != null && Duration.between(p.lastSeen, now).compareTo(ONLINE_WITHIN) <= 0;
+        boolean online =
+                p.lastSeen != null
+                        && Duration.between(p.lastSeen, now).compareTo(ONLINE_WITHIN) <= 0;
         if (!online) return "offline";
         return p.backlog > 0 ? "catching up" : "online";
     }
 
-    /** True when a process of this name has been heard from (used to mark a run's connection as stale). */
+    /**
+     * True when a process of this name has been heard from (used to mark a run's connection as
+     * stale).
+     */
     public boolean online(String client) {
         Process p = processes.get(client);
         if (p == null) return false;
         synchronized (p) {
-            return !p.bye && p.lastSeen != null && Duration.between(p.lastSeen, clock.instant()).compareTo(ONLINE_WITHIN) <= 0;
+            return !p.bye
+                    && p.lastSeen != null
+                    && Duration.between(p.lastSeen, clock.instant()).compareTo(ONLINE_WITHIN) <= 0;
         }
     }
 

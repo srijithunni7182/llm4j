@@ -3,7 +3,7 @@
 This repository uses the following canonical Maven coordinates for broad adoption:
 
 - Group ID: `io.github.srijithunni7182`
-- Current aligned version: `6.0.0`
+- Current aligned version: `6.0.0` (6.1.0 is in preparation; see [RELEASE_NOTES_6_1_0.md](RELEASE_NOTES_6_1_0.md))
 
 ## Core Libraries
 

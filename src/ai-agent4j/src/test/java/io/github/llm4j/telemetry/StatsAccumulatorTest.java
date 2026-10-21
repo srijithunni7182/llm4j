@@ -10,13 +10,36 @@ import org.junit.jupiter.api.Test;
 /** Statistics are the events added up (R15). */
 class StatsAccumulatorTest {
 
-    private static ModelCallEvent ok(String model, long ms, int attempts, long waited, long in, long out, String cost, FinishReason fr, List<String> failovers) {
-        return ModelCallEvent.builder().model(model).durationMillis(ms).waitedMillis(waited).attempts(attempts).failovers(failovers)
-                .promptTokens(in).completionTokens(out).totalTokens(in + out).cost(cost == null ? null : new BigDecimal(cost)).finishReason(fr).build();
+    private static ModelCallEvent ok(
+            String model,
+            long ms,
+            int attempts,
+            long waited,
+            long in,
+            long out,
+            String cost,
+            FinishReason fr,
+            List<String> failovers) {
+        return ModelCallEvent.builder()
+                .model(model)
+                .durationMillis(ms)
+                .waitedMillis(waited)
+                .attempts(attempts)
+                .failovers(failovers)
+                .promptTokens(in)
+                .completionTokens(out)
+                .totalTokens(in + out)
+                .cost(cost == null ? null : new BigDecimal(cost))
+                .finishReason(fr)
+                .build();
     }
 
     private static ToolCallEvent tool(String name, long ms, long chars) {
-        return ToolCallEvent.builder().tool(name).durationMillis(ms).resultChars((int) chars).build();
+        return ToolCallEvent.builder()
+                .tool(name)
+                .durationMillis(ms)
+                .resultChars((int) chars)
+                .build();
     }
 
     @Test
@@ -36,7 +59,17 @@ class StatsAccumulatorTest {
     void modelCallsAreAddedUpPerModel() {
         StatsAccumulator a = new StatsAccumulator();
         a.onModelCall(ok("flash", 100, 1, 0, 1_000, 50, "0.001", FinishReason.STOP, List.of()));
-        a.onModelCall(ok("flash", 300, 3, 250, 2_000, 150, "0.002", FinishReason.LENGTH, List.of("primary")));
+        a.onModelCall(
+                ok(
+                        "flash",
+                        300,
+                        3,
+                        250,
+                        2_000,
+                        150,
+                        "0.002",
+                        FinishReason.LENGTH,
+                        List.of("primary")));
         a.onModelCall(ok("pro", 900, 1, 0, 500, 20, null, FinishReason.STOP, List.of()));
         RunStats s = a.snapshot();
         ModelStats flash = s.model("flash");
@@ -48,7 +81,9 @@ class StatsAccumulatorTest {
         assertThat(flash.failovers()).isEqualTo(1);
         assertThat(flash.waitedMillis()).isEqualTo(250);
         assertThat(flash.truncated()).isEqualTo(1);
-        assertThat(flash.finishReasons()).containsEntry(FinishReason.STOP, 1L).containsEntry(FinishReason.LENGTH, 1L);
+        assertThat(flash.finishReasons())
+                .containsEntry(FinishReason.STOP, 1L)
+                .containsEntry(FinishReason.LENGTH, 1L);
         assertThat(flash.latency().count()).isEqualTo(2);
         assertThat(flash.latency().max()).isEqualTo(300);
         assertThat(flash.successRate()).hasValue(1.0);
@@ -63,13 +98,31 @@ class StatsAccumulatorTest {
     void failedModelCallsAreCountedByCategory() {
         StatsAccumulator a = new StatsAccumulator();
         a.onModelCall(ok("flash", 100, 1, 0, 10, 1, null, FinishReason.STOP, List.of()));
-        a.onModelCall(ModelCallEvent.builder().model("flash").durationMillis(5_000).failed(ErrorCategory.TIMEOUT, "SocketTimeoutException").build());
-        a.onModelCall(ModelCallEvent.builder().model("flash").durationMillis(40).failed(ErrorCategory.RATE_LIMITED, "RateLimitException").build());
-        a.onModelCall(ModelCallEvent.builder().model("flash").durationMillis(60).failed(ErrorCategory.TIMEOUT, "TimeoutException").build());
+        a.onModelCall(
+                ModelCallEvent.builder()
+                        .model("flash")
+                        .durationMillis(5_000)
+                        .failed(ErrorCategory.TIMEOUT, "SocketTimeoutException")
+                        .build());
+        a.onModelCall(
+                ModelCallEvent.builder()
+                        .model("flash")
+                        .durationMillis(40)
+                        .failed(ErrorCategory.RATE_LIMITED, "RateLimitException")
+                        .build());
+        a.onModelCall(
+                ModelCallEvent.builder()
+                        .model("flash")
+                        .durationMillis(60)
+                        .failed(ErrorCategory.TIMEOUT, "TimeoutException")
+                        .build());
         ModelStats m = a.snapshot().model("flash");
         assertThat(m.calls()).isEqualTo(4);
         assertThat(m.failed()).isEqualTo(3);
-        assertThat(m.failures()).containsEntry(ErrorCategory.TIMEOUT, 2L).containsEntry(ErrorCategory.RATE_LIMITED, 1L).hasSize(2);
+        assertThat(m.failures())
+                .containsEntry(ErrorCategory.TIMEOUT, 2L)
+                .containsEntry(ErrorCategory.RATE_LIMITED, 1L)
+                .hasSize(2);
         assertThat(m.successRate()).hasValue(0.25);
         assertThat(m.latency().count()).as("failed calls have a latency too").isEqualTo(4);
         assertThat(m.finishReasons()).as("a failed call has no finish reason").hasSize(1);
@@ -79,7 +132,11 @@ class StatsAccumulatorTest {
     @Test
     void aCallWithoutAModelNameIsFiledUnderTheRequestedOneOrUnknown() {
         StatsAccumulator a = new StatsAccumulator();
-        a.onModelCall(ModelCallEvent.builder().requestedModel("asked-for").failed(ErrorCategory.OTHER, "X").build());
+        a.onModelCall(
+                ModelCallEvent.builder()
+                        .requestedModel("asked-for")
+                        .failed(ErrorCategory.OTHER, "X")
+                        .build());
         a.onModelCall(ModelCallEvent.builder().failed(ErrorCategory.OTHER, "X").build());
         assertThat(a.snapshot().models()).containsOnlyKeys("asked-for", "unknown");
     }
@@ -89,15 +146,31 @@ class StatsAccumulatorTest {
         StatsAccumulator a = new StatsAccumulator();
         a.onToolCall(tool("search", 100, 500));
         a.onToolCall(tool("search", 300, 700));
-        a.onToolCall(ToolCallEvent.builder().tool("search").durationMillis(900).softFailure(ErrorCategory.NOT_FOUND).resultChars(30).build());
-        a.onToolCall(ToolCallEvent.builder().tool("search").durationMillis(2_000).outcome(ToolOutcome.EXECUTION_ERROR, ErrorCategory.TIMEOUT, "SocketTimeoutException").build());
+        a.onToolCall(
+                ToolCallEvent.builder()
+                        .tool("search")
+                        .durationMillis(900)
+                        .softFailure(ErrorCategory.NOT_FOUND)
+                        .resultChars(30)
+                        .build());
+        a.onToolCall(
+                ToolCallEvent.builder()
+                        .tool("search")
+                        .durationMillis(2_000)
+                        .outcome(
+                                ToolOutcome.EXECUTION_ERROR,
+                                ErrorCategory.TIMEOUT,
+                                "SocketTimeoutException")
+                        .build());
         a.onToolCall(tool("calc", 5, 2));
         ToolStats s = a.snapshot().tool("search");
         assertThat(s.calls()).isEqualTo(4);
         assertThat(s.successes()).isEqualTo(2);
         assertThat(s.failed()).isEqualTo(2);
         assertThat(s.softFailures()).isEqualTo(1);
-        assertThat(s.failures()).containsEntry(ErrorCategory.NOT_FOUND, 1L).containsEntry(ErrorCategory.TIMEOUT, 1L);
+        assertThat(s.failures())
+                .containsEntry(ErrorCategory.NOT_FOUND, 1L)
+                .containsEntry(ErrorCategory.TIMEOUT, 1L);
         assertThat(s.successRate()).hasValue(0.5);
         assertThat(s.resultChars()).isEqualTo(1_230);
         assertThat(s.latency().count()).isEqualTo(4);
@@ -111,11 +184,24 @@ class StatsAccumulatorTest {
     void callsThatNeverReachedTheToolAreCountedButDoNotSkewItsLatency() {
         StatsAccumulator a = new StatsAccumulator();
         a.onToolCall(tool("search", 200, 10));
-        a.onToolCall(ToolCallEvent.builder().tool("search").outcome(ToolOutcome.DUPLICATE_BLOCKED, ErrorCategory.REPEAT_BLOCKED, null).build());
-        a.onToolCall(ToolCallEvent.builder().tool("search").outcome(ToolOutcome.REJECTED_BY_HUMAN, ErrorCategory.REJECTED_BY_HUMAN, null).build());
+        a.onToolCall(
+                ToolCallEvent.builder()
+                        .tool("search")
+                        .outcome(ToolOutcome.DUPLICATE_BLOCKED, ErrorCategory.REPEAT_BLOCKED, null)
+                        .build());
+        a.onToolCall(
+                ToolCallEvent.builder()
+                        .tool("search")
+                        .outcome(
+                                ToolOutcome.REJECTED_BY_HUMAN,
+                                ErrorCategory.REJECTED_BY_HUMAN,
+                                null)
+                        .build());
         ToolStats s = a.snapshot().tool("search");
         assertThat(s.calls()).isEqualTo(3);
-        assertThat(s.failures()).containsEntry(ErrorCategory.REPEAT_BLOCKED, 1L).containsEntry(ErrorCategory.REJECTED_BY_HUMAN, 1L);
+        assertThat(s.failures())
+                .containsEntry(ErrorCategory.REPEAT_BLOCKED, 1L)
+                .containsEntry(ErrorCategory.REJECTED_BY_HUMAN, 1L);
         assertThat(s.latency().count()).isEqualTo(1);
         assertThat(s.latency().p50()).isEqualTo(200);
     }
@@ -146,16 +232,28 @@ class StatsAccumulatorTest {
         a.onToolCall(tool("alpha", 1, 1));
         RunStats s = a.snapshot();
         assertThat(s.tools().keySet()).containsExactly("alpha", "zeta");
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> s.tools().put("x", s.tool("alpha"))).isInstanceOf(UnsupportedOperationException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> s.tools().put("x", s.tool("alpha")))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test
     void aHardFailureIsNotASoftFailureAndAnUnlabelledOneUsesTheOutcomesDefault() {
         StatsAccumulator a = new StatsAccumulator();
-        a.onToolCall(ToolCallEvent.builder().tool("t").outcome(ToolOutcome.UNKNOWN_TOOL, null, null).build());
-        a.onToolCall(ToolCallEvent.builder().tool("t").outcome(ToolOutcome.EXECUTION_ERROR, null, null).build());
+        a.onToolCall(
+                ToolCallEvent.builder()
+                        .tool("t")
+                        .outcome(ToolOutcome.UNKNOWN_TOOL, null, null)
+                        .build());
+        a.onToolCall(
+                ToolCallEvent.builder()
+                        .tool("t")
+                        .outcome(ToolOutcome.EXECUTION_ERROR, null, null)
+                        .build());
         ToolStats t = a.snapshot().tool("t");
         assertThat(t.softFailures()).isZero();
-        assertThat(t.failures()).containsEntry(ErrorCategory.UNKNOWN_TOOL, 1L).containsEntry(ErrorCategory.OTHER, 1L);
+        assertThat(t.failures())
+                .containsEntry(ErrorCategory.UNKNOWN_TOOL, 1L)
+                .containsEntry(ErrorCategory.OTHER, 1L);
     }
 }

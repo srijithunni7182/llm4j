@@ -11,10 +11,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * The trace listener of an observed run. It is on the run's own thread, so it does almost nothing: it puts the event in a bounded
- * queue and returns. A separate thread hands the events, in order, to the consumer. A full queue never blocks the run: the oldest
- * event is dropped and counted. A failing consumer never reaches the run either: it is logged (at most once a minute) and the
- * next event is delivered.
+ * The trace listener of an observed run. It is on the run's own thread, so it does almost nothing:
+ * it puts the event in a bounded queue and returns. A separate thread hands the events, in order,
+ * to the consumer. A full queue never blocks the run: the oldest event is dropped and counted. A
+ * failing consumer never reaches the run either: it is logged (at most once a minute) and the next
+ * event is delivered.
  */
 public final class EventSink implements TraceListener, AutoCloseable {
 
@@ -49,8 +50,9 @@ public final class EventSink implements TraceListener, AutoCloseable {
     }
 
     /**
-     * Stops the thread once the queue is empty. For the consumer to call when it has seen the run end: a long-lived process
-     * (a daemon) attaches a sink to every run it fires and must not keep a thread for each of them.
+     * Stops the thread once the queue is empty. For the consumer to call when it has seen the run
+     * end: a long-lived process (a daemon) attaches a sink to every run it fires and must not keep
+     * a thread for each of them.
      */
     public void finishWhenDrained() {
         endRequested = true;
@@ -66,7 +68,10 @@ public final class EventSink implements TraceListener, AutoCloseable {
         return dropped.get();
     }
 
-    /** Waits until every event accepted so far has been handed to the consumer (or dropped); false on timeout. For tests and for closing. */
+    /**
+     * Waits until every event accepted so far has been handed to the consumer (or dropped); false
+     * on timeout. For tests and for closing.
+     */
     public boolean awaitIdle(Duration timeout) {
         long until = System.nanoTime() + timeout.toNanos();
         while (finished.get() + dropped.get() < enqueued.get()) {
@@ -110,7 +115,10 @@ public final class EventSink implements TraceListener, AutoCloseable {
                 long now = System.currentTimeMillis();
                 if (now - lastLogged > LOG_EVERY_MILLIS) {
                     lastLogged = now;
-                    LOG.log(Level.WARNING, "loom-inspect could not handle a trace event: " + ex, ex);
+                    LOG.log(
+                            Level.WARNING,
+                            "loom-inspect could not handle a trace event: " + ex,
+                            ex);
                 }
             } finally {
                 finished.incrementAndGet();

@@ -87,7 +87,8 @@ public class SarvamAudioProvider implements SpeechToTextProvider {
                         e) { // Catching Exception because postMultipart might throw runtime
             // exceptions or
             // checked if modified
-            throw io.github.llm4j.provider.Providers.typed(getProviderName(), "Failed to transcribe audio", e);
+            throw io.github.llm4j.provider.Providers.typed(
+                    getProviderName(), "Failed to transcribe audio", e);
         }
     }
 
@@ -99,7 +100,8 @@ public class SarvamAudioProvider implements SpeechToTextProvider {
     @Override
     public void validate() {
         if (!config.hasApiKey()) {
-            throw new AuthenticationException(config.missingApiKeyMessage("Sarvam API key is required"));
+            throw new AuthenticationException(
+                    config.missingApiKeyMessage("Sarvam API key is required"));
         }
     }
 
@@ -107,7 +109,9 @@ public class SarvamAudioProvider implements SpeechToTextProvider {
         // Content-Type is multipart/form-data, but OkHttp handles that when using
         // MultipartBody.
         // We just need the API key.
-        return new Headers.Builder().add("api-subscription-key", config.requireApiKey("Sarvam", baseUrl)).build();
+        return new Headers.Builder()
+                .add("api-subscription-key", config.requireApiKey("Sarvam", baseUrl))
+                .build();
     }
 
     private TranscriptionResponse parseResponse(String responseJson) throws IOException {

@@ -4,11 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
 import org.assertj.core.data.Offset;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-/** {@code distance(a, b)}: how far a person moved a proposal, from 0 (untouched) to 1 (nothing left). */
+/**
+ * {@code distance(a, b)}: how far a person moved a proposal, from 0 (untouched) to 1 (nothing
+ * left).
+ */
 @Tag("L1")
 class DistanceTest {
 
@@ -35,7 +38,15 @@ class DistanceTest {
 
     @Test
     void itIsSymmetricAndBoundedAndHandlesUnicode() {
-        String[] samples = {"", "a", "héllo wörld", "日本語のテキスト", "the quick brown fox", "the quick brown cat", "emoji 😀 test"};
+        String[] samples = {
+            "",
+            "a",
+            "héllo wörld",
+            "日本語のテキスト",
+            "the quick brown fox",
+            "the quick brown cat",
+            "emoji 😀 test"
+        };
         for (String a : samples) {
             for (String b : samples) {
                 double x = d(V.str(a), V.str(b));
@@ -49,10 +60,42 @@ class DistanceTest {
 
     @Test
     void structuredValuesAreTheShareOfLeafFieldsThatDiffer() {
-        V a = V.rec(Map.of("title", V.str("Hi"), "tags", V.rec(Map.of("x", V.num(1), "y", V.num(2))), "ok", V.bool(true)));
-        V same = V.rec(Map.of("title", V.str("Hi"), "tags", V.rec(Map.of("x", V.num(1), "y", V.num(2))), "ok", V.bool(true)));
-        V changed = V.rec(Map.of("title", V.str("Ho"), "tags", V.rec(Map.of("x", V.num(1), "y", V.num(2))), "ok", V.bool(true)));
-        V missing = V.rec(Map.of("title", V.str("Hi"), "tags", V.rec(Map.of("x", V.num(1))), "ok", V.bool(true)));
+        V a =
+                V.rec(
+                        Map.of(
+                                "title",
+                                V.str("Hi"),
+                                "tags",
+                                V.rec(Map.of("x", V.num(1), "y", V.num(2))),
+                                "ok",
+                                V.bool(true)));
+        V same =
+                V.rec(
+                        Map.of(
+                                "title",
+                                V.str("Hi"),
+                                "tags",
+                                V.rec(Map.of("x", V.num(1), "y", V.num(2))),
+                                "ok",
+                                V.bool(true)));
+        V changed =
+                V.rec(
+                        Map.of(
+                                "title",
+                                V.str("Ho"),
+                                "tags",
+                                V.rec(Map.of("x", V.num(1), "y", V.num(2))),
+                                "ok",
+                                V.bool(true)));
+        V missing =
+                V.rec(
+                        Map.of(
+                                "title",
+                                V.str("Hi"),
+                                "tags",
+                                V.rec(Map.of("x", V.num(1))),
+                                "ok",
+                                V.bool(true)));
         assertThat(d(a, same)).isZero();
         assertThat(d(a, changed)).isCloseTo(0.25, Offset.offset(1e-9));
         assertThat(d(a, missing)).isCloseTo(0.25, Offset.offset(1e-9));
@@ -77,7 +120,7 @@ class DistanceTest {
     @Test
     @Timeout(20)
     void aLargeDocumentWithASmallEditIsFastAndSmall() {
-        String base = "lorem ipsum dolor sit amet ".repeat(40_000);        // about 1 MB
+        String base = "lorem ipsum dolor sit amet ".repeat(40_000); // about 1 MB
         String edited = base.substring(0, 500_000) + "CHANGED" + base.substring(500_007);
         double x = d(V.str(base), V.str(edited));
         assertThat(x).isBetween(0.0, 0.001);

@@ -5,28 +5,35 @@ import io.github.llm4j.agent.skill.FileSystemSkillLoader;
 import io.github.llm4j.loom.ast.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * Every check a script must pass before it runs, collected in one pass so authors see all problems at
- * once. Nothing here calls a model, embeds, or starts a server — {@code weave check} runs exactly this.
+ * Every check a script must pass before it runs, collected in one pass so authors see all problems
+ * at once. Nothing here calls a model, embeds, or starts a server — {@code weave check} runs
+ * exactly this.
  *
  * <p>Principle: a script never says something the runtime ignores. Unsupported features are errors
  * (warnings in lenient mode); unknown names and missing secrets are always errors.
  */
 public class ScriptValidator {
 
-    public enum Severity { ERROR, WARNING }
+    public enum Severity {
+        ERROR,
+        WARNING
+    }
 
     /** One problem. {@code construct} names what it is about, e.g. {@code agent Writer}. */
     public record Problem(int line, String construct, String message, Severity severity) {
         @Override
         public String toString() {
-            return (line > 0 ? "line " + line + ": " : "") + construct + ": " + message
+            return (line > 0 ? "line " + line + ": " : "")
+                    + construct
+                    + ": "
+                    + message
                     + (severity == Severity.WARNING ? " (warning)" : "");
         }
     }
@@ -34,7 +41,8 @@ public class ScriptValidator {
     /** What the script is checked against. */
     public static final class Context {
         Set<String> registeredTools = Set.of();
-        io.github.llm4j.agent.task.TaskRegistry tasks = new io.github.llm4j.agent.task.TaskRegistry();
+        io.github.llm4j.agent.task.TaskRegistry tasks =
+                new io.github.llm4j.agent.task.TaskRegistry();
         Function<String, String> env = System::getenv;
         boolean lenient;
         boolean humanInterface;
@@ -84,7 +92,10 @@ public class ScriptValidator {
             return this;
         }
 
-        /** The prompts the script's {@code prompt:} references resolve against; null when there is no catalog. */
+        /**
+         * The prompts the script's {@code prompt:} references resolve against; null when there is
+         * no catalog.
+         */
         public Context prompts(io.github.llm4j.loom.prompt.PromptCatalog prompts) {
             this.prompts = prompts;
             return this;
@@ -133,7 +144,12 @@ public class ScriptValidator {
 
         /** A feature the runtime doesn't support yet: an error, or a warning in lenient mode. */
         public void unsupported(int line, String construct, String message) {
-            problems.add(new Problem(line, construct, message, context.lenient ? Severity.WARNING : Severity.ERROR));
+            problems.add(
+                    new Problem(
+                            line,
+                            construct,
+                            message,
+                            context.lenient ? Severity.WARNING : Severity.ERROR));
         }
     }
 
@@ -149,7 +165,9 @@ public class ScriptValidator {
         checkStatements(c);
         for (Consumer<Checker> extra : context.extraChecks) extra.accept(c);
         List<Problem> sorted = new ArrayList<>(c.problems);
-        sorted.sort(java.util.Comparator.comparingInt(Problem::line)); // stable: same-line problems keep their order
+        sorted.sort(
+                java.util.Comparator.comparingInt(
+                        Problem::line)); // stable: same-line problems keep their order
         return sorted;
     }
 
@@ -163,67 +181,138 @@ public class ScriptValidator {
 
     // ── checks ───────────────────────────────────────────────────────────────────────────────
 
-    /** What an {@code on_stopped} handler reads and does must exist: the {@code _stop} fields, and a way out for every path that matters. */
+    /**
+     * What an {@code on_stopped} handler reads and does must exist: the {@code _stop} fields, and a
+     * way out for every path that matters.
+     */
     private void checkStopHandlers(Checker c) {
         java.util.regex.Pattern ref = java.util.regex.Pattern.compile("_stop\\.([A-Za-z_]+)");
         for (io.github.llm4j.loom.ast.WorkflowDef w : c.script().getWorkflows()) {
-            io.github.llm4j.loom.ast.StatementWalker.walk(w.getStatements(), st -> {
-                if (st instanceof io.github.llm4j.loom.ast.DelegateStmt d && d.hasOnStopped()) {
-                    boolean[] testsChanged = {false};
-                    boolean[] retries = {false};
-                    io.github.llm4j.loom.ast.StatementWalker.walk(d.getOnStopped(), inner -> {
-                        if (inner instanceof io.github.llm4j.loom.ast.OutcomeStmt o && o.getKind() == io.github.llm4j.loom.ast.OutcomeStmt.Kind.RETRY) retries[0] = true;
-                        if (inner instanceof io.github.llm4j.loom.ast.AltStmt a) {
-                            var m = ref.matcher(a.getCondition());
-                            while (m.find()) {
-                                if (!StopHandlers.FIELDS.contains(m.group(1))) {
-                                    c.error(a.getLine(), "on_stopped", "_stop." + m.group(1) + " is not something a stop has. A stop has: "
-                                            + String.join(", ", StopHandlers.FIELDS) + ".");
-                                }
-                                if (m.group(1).equals("changed")) testsChanged[0] = true;
+            io.github.llm4j.loom.ast.StatementWalker.walk(
+                    w.getStatements(),
+                    st -> {
+                        if (st instanceof io.github.llm4j.loom.ast.DelegateStmt d
+                                && d.hasOnStopped()) {
+                            boolean[] testsChanged = {false};
+                            boolean[] retries = {false};
+                            io.github.llm4j.loom.ast.StatementWalker.walk(
+                                    d.getOnStopped(),
+                                    inner -> {
+                                        if (inner instanceof io.github.llm4j.loom.ast.OutcomeStmt o
+                                                && o.getKind()
+                                                        == io.github.llm4j.loom.ast.OutcomeStmt.Kind
+                                                                .RETRY) retries[0] = true;
+                                        if (inner instanceof io.github.llm4j.loom.ast.AltStmt a) {
+                                            var m = ref.matcher(a.getCondition());
+                                            while (m.find()) {
+                                                if (!StopHandlers.FIELDS.contains(m.group(1))) {
+                                                    c.error(
+                                                            a.getLine(),
+                                                            "on_stopped",
+                                                            "_stop."
+                                                                    + m.group(1)
+                                                                    + " is not something a stop has. A stop has: "
+                                                                    + String.join(
+                                                                            ", ",
+                                                                            StopHandlers.FIELDS)
+                                                                    + ".");
+                                                }
+                                                if (m.group(1).equals("changed"))
+                                                    testsChanged[0] = true;
+                                            }
+                                        }
+                                    });
+                            boolean hasTools =
+                                    c.script().getAgents().stream()
+                                            .anyMatch(
+                                                    a ->
+                                                            a.getName().equals(d.getTargetAgent())
+                                                                    && !a.getTools().isEmpty());
+                            if (retries[0] && hasTools && !testsChanged[0]) {
+                                c.warn(
+                                        d.getLine(),
+                                        "on_stopped",
+                                        "retry for "
+                                                + d.getTargetAgent()
+                                                + ", which has tools, without testing _stop.changed; "
+                                                + "a step that already changed something is not run again, it is put to a person instead");
                             }
                         }
                     });
-                    boolean hasTools = c.script().getAgents().stream().anyMatch(a -> a.getName().equals(d.getTargetAgent()) && !a.getTools().isEmpty());
-                    if (retries[0] && hasTools && !testsChanged[0]) {
-                        c.warn(d.getLine(), "on_stopped", "retry for " + d.getTargetAgent() + ", which has tools, without testing _stop.changed; "
-                                + "a step that already changed something is not run again, it is put to a person instead");
-                    }
-                }
-            });
         }
     }
 
-    /** What a {@code supervise} block watches must exist: the agent, and the tool of a {@code tool_failing} rule. */
+    /**
+     * What a {@code supervise} block watches must exist: the agent, and the tool of a {@code
+     * tool_failing} rule.
+     */
     private void checkSupervision(Checker c) {
         java.util.Set<String> seen = new java.util.HashSet<>();
         for (io.github.llm4j.loom.ast.SuperviseDef def : c.script().getSupervisions()) {
-            AgentDef agent = c.script().getAgents().stream().filter(a -> a.getName().equals(def.getAgent())).findFirst().orElse(null);
+            AgentDef agent =
+                    c.script().getAgents().stream()
+                            .filter(a -> a.getName().equals(def.getAgent()))
+                            .findFirst()
+                            .orElse(null);
             if (agent == null) {
-                c.error(def.getLine(), "supervise " + def.getAgent(), "there is no agent named " + def.getAgent() + " to supervise");
+                c.error(
+                        def.getLine(),
+                        "supervise " + def.getAgent(),
+                        "there is no agent named " + def.getAgent() + " to supervise");
                 continue;
             }
-            if (!seen.add(def.getAgent())) c.error(def.getLine(), "supervise " + def.getAgent(), "agent " + def.getAgent() + " is supervised by two blocks; put the rules in one");
+            if (!seen.add(def.getAgent()))
+                c.error(
+                        def.getLine(),
+                        "supervise " + def.getAgent(),
+                        "agent "
+                                + def.getAgent()
+                                + " is supervised by two blocks; put the rules in one");
             for (io.github.llm4j.loom.ast.SuperviseDef.Rule rule : def.getRules()) {
-                if (rule.getSignal() == io.github.llm4j.loom.ast.SuperviseDef.Signal.TOOL_FAILING && !agent.getTools().contains(rule.getTool())) {
-                    c.error(rule.getLine(), "supervise " + def.getAgent(), "agent " + def.getAgent() + " has no tool named " + rule.getTool()
-                            + (agent.getTools().isEmpty() ? " (it has no tools)" : " (its tools: " + String.join(", ", agent.getTools()) + ")"));
+                if (rule.getSignal() == io.github.llm4j.loom.ast.SuperviseDef.Signal.TOOL_FAILING
+                        && !agent.getTools().contains(rule.getTool())) {
+                    c.error(
+                            rule.getLine(),
+                            "supervise " + def.getAgent(),
+                            "agent "
+                                    + def.getAgent()
+                                    + " has no tool named "
+                                    + rule.getTool()
+                                    + (agent.getTools().isEmpty()
+                                            ? " (it has no tools)"
+                                            : " (its tools: "
+                                                    + String.join(", ", agent.getTools())
+                                                    + ")"));
                 }
                 for (io.github.llm4j.loom.ast.SuperviseDef.Action a : rule.getActions()) {
-                    if (a.kind() == io.github.llm4j.loom.ast.SuperviseDef.Do.STEER && a.text().isBlank()) c.error(rule.getLine(), "supervise " + def.getAgent(), "a steer needs text");
+                    if (a.kind() == io.github.llm4j.loom.ast.SuperviseDef.Do.STEER
+                            && a.text().isBlank())
+                        c.error(
+                                rule.getLine(),
+                                "supervise " + def.getAgent(),
+                                "a steer needs text");
                 }
             }
         }
     }
 
-    /** A steer reaches a model call in progress only if the agent streams; without it the message waits for the call to finish. */
+    /**
+     * A steer reaches a model call in progress only if the agent streams; without it the message
+     * waits for the call to finish.
+     */
     private void checkSteerable(Checker c) {
         for (AgentDef a : c.script().getAgents()) {
             if (a.isSteerable() && !a.isStreaming()) {
-                c.warn(a.getLine(), "agent " + a.getName(), "steerable: true without streaming: true; a steer waits for the model call in progress to finish");
+                c.warn(
+                        a.getLine(),
+                        "agent " + a.getName(),
+                        "steerable: true without streaming: true; a steer waits for the model call in progress to finish");
             }
             if (a.isReasoning() && !a.isStreaming()) {
-                c.warn(a.getLine(), "agent " + a.getName(), "reasoning: true has no effect without streaming: true");
+                c.warn(
+                        a.getLine(),
+                        "agent " + a.getName(),
+                        "reasoning: true has no effect without streaming: true");
             }
         }
     }
@@ -231,11 +320,15 @@ public class ScriptValidator {
     /** Warnings about what a workflow stores and never reads (see {@link WorkflowLint}). */
     private void checkWorkflowLint(Checker c) {
         for (io.github.llm4j.loom.ast.WorkflowDef workflow : c.script().getWorkflows()) {
-            for (WorkflowLint.Finding f : WorkflowLint.check(workflow)) c.warn(f.line(), f.construct(), f.message());
+            for (WorkflowLint.Finding f : WorkflowLint.check(workflow))
+                c.warn(f.line(), f.construct(), f.message());
         }
     }
 
-    /** What is wrong with the prompt folder itself: files refused or ignored, and files no agent uses. */
+    /**
+     * What is wrong with the prompt folder itself: files refused or ignored, and files no agent
+     * uses.
+     */
     private void checkPromptFiles(Checker c) {
         var catalog = c.context().prompts;
         if (catalog == null || catalog.folder().isEmpty()) return;
@@ -249,7 +342,9 @@ public class ScriptValidator {
         java.util.Set<String> used = new java.util.HashSet<>();
         if (c.script().getSharedPromptRef() != null) {
             try {
-                used.add(io.github.llm4j.loom.prompt.PromptRef.parse(c.script().getSharedPromptRef()).id());
+                used.add(
+                        io.github.llm4j.loom.prompt.PromptRef.parse(c.script().getSharedPromptRef())
+                                .id());
             } catch (IllegalArgumentException e) {
                 // a bad reference is reported where it is checked
             }
@@ -264,7 +359,14 @@ public class ScriptValidator {
         }
         for (String id : folder.ids()) {
             if (!used.contains(id)) {
-                c.warn(line, "prompt files", "prompt " + id + " is not used by any agent (" + folder.root().relativize(folder.latest(id).orElseThrow().file()) + ")");
+                c.warn(
+                        line,
+                        "prompt files",
+                        "prompt "
+                                + id
+                                + " is not used by any agent ("
+                                + folder.root().relativize(folder.latest(id).orElseThrow().file())
+                                + ")");
             }
         }
     }
@@ -273,24 +375,44 @@ public class ScriptValidator {
         LoomScript s = c.script();
         if (s.getSharedPromptRef() != null) {
             if (c.context().prompts == null) {
-                c.error(s.getSharedPromptLine(), "shared_prompt", "prompt " + s.getSharedPromptRef() + " needs prompt files: create a prompts/ folder next to the script, or name one with prompts: \"./dir\" or --prompts, or write the text inline: shared_prompt: \"…\"");
+                c.error(
+                        s.getSharedPromptLine(),
+                        "shared_prompt",
+                        "prompt "
+                                + s.getSharedPromptRef()
+                                + " needs prompt files: create a prompts/ folder next to the script, or name one with prompts: \"./dir\" or --prompts, or write the text inline: shared_prompt: \"…\"");
             } else {
-                String problem = c.context().prompts.problemWith(s.getSharedPromptRef(), "shared_prompt");
+                String problem =
+                        c.context().prompts.problemWith(s.getSharedPromptRef(), "shared_prompt");
                 if (problem != null) c.error(s.getSharedPromptLine(), "shared_prompt", problem);
             }
         }
         for (AgentDef a : s.getAgents()) {
             String who = "agent " + a.getName();
-            if (a.getPersona() != null && s.getPersonas().stream().noneMatch(p -> p.getName().equals(a.getPersona()))
+            if (a.getPersona() != null
+                    && s.getPersonas().stream().noneMatch(p -> p.getName().equals(a.getPersona()))
                     && libraryPersona(a.getPersona()) == null) {
-                c.error(a.getLine(), who, "persona " + a.getPersona() + " is not defined: declare it (persona "
-                        + a.getPersona() + " { role: \"…\" }) or use a built-in one " + LIBRARY_PERSONAS);
+                c.error(
+                        a.getLine(),
+                        who,
+                        "persona "
+                                + a.getPersona()
+                                + " is not defined: declare it (persona "
+                                + a.getPersona()
+                                + " { role: \"…\" }) or use a built-in one "
+                                + LIBRARY_PERSONAS);
             }
             String ref = a.getPromptRef();
             if (ref != null) {
                 String attr = a.getPrompt() != null ? "prompt" : "system_template";
                 if (c.context().prompts == null) {
-                    c.error(a.getLine(), who, attr + " " + ref + " needs a prompt registry or prompt files: create a prompts/ folder next to the script, name one with prompts: \"./dir\" or --prompts, or use system: \"…\". If the folder is there and you load the script from Java (a test or your own program), weave's prompt catalog is not built for you: call executor.setPromptCatalog(PromptSupport.catalog(script, scriptFile, PromptSettings.NONE)) before initialize() (weave guide api)");
+                    c.error(
+                            a.getLine(),
+                            who,
+                            attr
+                                    + " "
+                                    + ref
+                                    + " needs a prompt registry or prompt files: create a prompts/ folder next to the script, name one with prompts: \"./dir\" or --prompts, or use system: \"…\". If the folder is there and you load the script from Java (a test or your own program), weave's prompt catalog is not built for you: call executor.setPromptCatalog(PromptSupport.catalog(script, scriptFile, PromptSettings.NONE)) before initialize() (weave guide api)");
                 } else {
                     String problem = c.context().prompts.problemWith(ref, attr);
                     if (problem != null) c.error(a.getLine(), who, problem);
@@ -298,12 +420,23 @@ public class ScriptValidator {
             }
             for (String kb : a.getKnowledgeBases()) {
                 if (s.getKnowledgeBases().stream().noneMatch(k -> k.getName().equals(kb))) {
-                    c.error(a.getLine(), who, "knowledge " + kb + " is not defined (add: knowledge " + kb + " { source: \"…\" })");
+                    c.error(
+                            a.getLine(),
+                            who,
+                            "knowledge "
+                                    + kb
+                                    + " is not defined (add: knowledge "
+                                    + kb
+                                    + " { source: \"…\" })");
                 }
             }
             if (a.getRoutingPolicy() != null
-                    && s.getRoutingPolicies().stream().noneMatch(r -> r.getName().equals(a.getRoutingPolicy()))) {
-                c.error(a.getLine(), who, "routing policy " + a.getRoutingPolicy() + " is not defined");
+                    && s.getRoutingPolicies().stream()
+                            .noneMatch(r -> r.getName().equals(a.getRoutingPolicy()))) {
+                c.error(
+                        a.getLine(),
+                        who,
+                        "routing policy " + a.getRoutingPolicy() + " is not defined");
             }
             for (String mcp : a.getMcpServers()) {
                 if (s.getMcpServers().stream().noneMatch(m -> m.getName().equals(mcp))) {
@@ -312,15 +445,24 @@ public class ScriptValidator {
             }
             for (String tool : a.getTools()) {
                 if (!c.context().registeredTools.contains(tool)) {
-                    c.error(a.getLine(), who, "tool " + tool + " is not defined: declare it (tool " + tool
-                            + " { use: … }), use a built-in, map it in a .loot file, or register it from Java");
+                    c.error(
+                            a.getLine(),
+                            who,
+                            "tool "
+                                    + tool
+                                    + " is not defined: declare it (tool "
+                                    + tool
+                                    + " { use: … }), use a built-in, map it in a .loot file, or register it from Java");
                 }
             }
             for (String uri : a.getSkills()) {
                 try {
                     loadSkill(uri, c.context().baseDir);
                 } catch (Exception e) {
-                    c.error(a.getLine(), who, "skill " + uri + " can't be loaded: " + e.getMessage());
+                    c.error(
+                            a.getLine(),
+                            who,
+                            "skill " + uri + " can't be loaded: " + e.getMessage());
                 }
             }
         }
@@ -330,8 +472,10 @@ public class ScriptValidator {
     public static final java.util.SortedSet<String> LIBRARY_PERSONAS = new java.util.TreeSet<>();
 
     static {
-        for (java.lang.reflect.Method m : io.github.llm4j.agent.persona.PersonaLibrary.class.getMethods()) {
-            if (java.lang.reflect.Modifier.isStatic(m.getModifiers()) && m.getParameterCount() == 0
+        for (java.lang.reflect.Method m :
+                io.github.llm4j.agent.persona.PersonaLibrary.class.getMethods()) {
+            if (java.lang.reflect.Modifier.isStatic(m.getModifiers())
+                    && m.getParameterCount() == 0
                     && m.getReturnType() == io.github.llm4j.agent.persona.AgentPersona.class) {
                 LIBRARY_PERSONAS.add(m.getName());
             }
@@ -342,7 +486,8 @@ public class ScriptValidator {
     public static io.github.llm4j.agent.persona.AgentPersona libraryPersona(String name) {
         if (!LIBRARY_PERSONAS.contains(name)) return null;
         try {
-            return (io.github.llm4j.agent.persona.AgentPersona) io.github.llm4j.agent.persona.PersonaLibrary.class.getMethod(name).invoke(null);
+            return (io.github.llm4j.agent.persona.AgentPersona)
+                    io.github.llm4j.agent.persona.PersonaLibrary.class.getMethod(name).invoke(null);
         } catch (ReflectiveOperationException e) {
             return null;
         }
@@ -351,13 +496,17 @@ public class ScriptValidator {
     private void checkRouting(Checker c) {
         for (RoutingPolicyDef r : c.script().getRoutingPolicies()) {
             if (r.getStrategy() != null && routingStrategy(r.getStrategy()) == null) {
-                c.error(r.getLine(), "routing " + r.getName(), "unknown strategy \"" + r.getStrategy()
-                        + "\"; use cost_aware or fallback");
+                c.error(
+                        r.getLine(),
+                        "routing " + r.getName(),
+                        "unknown strategy \"" + r.getStrategy() + "\"; use cost_aware or fallback");
             }
-            if (r.getPrimaryModel() == null) c.error(r.getLine(), "routing " + r.getName(), "needs primary: \"<model>\"");
+            if (r.getPrimaryModel() == null)
+                c.error(r.getLine(), "routing " + r.getName(), "needs primary: \"<model>\"");
         }
         for (McpServerDef m : c.script().getMcpServers()) {
-            if (m.getCmd() == null || m.getCmd().isBlank()) c.error(m.getLine(), "mcp " + m.getName(), "needs cmd: \"<command>\"");
+            if (m.getCmd() == null || m.getCmd().isBlank())
+                c.error(m.getLine(), "mcp " + m.getName(), "needs cmd: \"<command>\"");
         }
     }
 
@@ -367,6 +516,7 @@ public class ScriptValidator {
         ControlChecks.run(c);
         RewindChecks.run(c);
         DecisionChecks.run(c);
+        ClassifierChecks.run(c);
         io.github.llm4j.loom.ladder.LadderChecks.run(c);
     }
 
@@ -375,7 +525,10 @@ public class ScriptValidator {
         for (Statement st : statements) {
             if (st instanceof GuardrailStmt g) {
                 if (!"PII".equalsIgnoreCase(g.getType())) {
-                    c.unsupported(g.getLine(), "guardrail " + g.getType(), "unknown guardrail type; supported: PII");
+                    c.unsupported(
+                            g.getLine(),
+                            "guardrail " + g.getType(),
+                            "unknown guardrail type; supported: PII");
                 }
                 walk(g.getBody(), c);
                 walk(g.getOnViolation(), c);
@@ -384,6 +537,8 @@ public class ScriptValidator {
                 walk(d.getOnFailure(), c);
             } else if (st instanceof RunStmt r) {
                 walk(r.getOnFailure(), c);
+            } else if (st instanceof io.github.llm4j.loom.ast.IntentClassifyStmt ic) {
+                walk(ic.getOnFailure(), c);
             } else if (st instanceof LoopStmt l) {
                 walk(l.getBody(), c);
                 walk(l.getOnExhausted(), c);
@@ -401,14 +556,26 @@ public class ScriptValidator {
         }
     }
 
-    /** A delegate or broadcast that names an agent the script does not define fails mid-run (a handoff may end a path with a name that is no agent, so it is not checked), after the earlier steps have spent money; say so before the run. */
+    /**
+     * A delegate or broadcast that names an agent the script does not define fails mid-run (a
+     * handoff may end a path with a name that is no agent, so it is not checked), after the earlier
+     * steps have spent money; say so before the run.
+     */
     private void knownAgent(Checker c, int line, String step, String agent) {
-        if (agent == null || agent.isBlank() || agent.startsWith("{")) return; // chosen by the data at run time
+        if (agent == null || agent.isBlank() || agent.startsWith("{"))
+            return; // chosen by the data at run time
         List<String> known = c.script().getAgents().stream().map(a -> a.getName()).toList();
         if (known.contains(agent)) return;
         List<String> near = io.github.llm4j.loom.prompt.PromptCatalog.nearest(agent, known);
-        c.error(line, step + " " + agent, "there is no agent named " + agent + (near.isEmpty() ? "" : "; did you mean " + String.join(", ", near) + "?")
-                + " Agents defined: " + (known.isEmpty() ? "none" : String.join(", ", known)) + ".");
+        c.error(
+                line,
+                step + " " + agent,
+                "there is no agent named "
+                        + agent
+                        + (near.isEmpty() ? "" : "; did you mean " + String.join(", ", near) + "?")
+                        + " Agents defined: "
+                        + (known.isEmpty() ? "none" : String.join(", ", known))
+                        + ".");
     }
 
     // ── shared helpers (also used by the executor) ──────────────────────────────────────────
@@ -419,17 +586,19 @@ public class ScriptValidator {
         return s.equals("cost_aware") || s.equals("fallback") ? s : null;
     }
 
-    private static final Map<String, AgentSkill> REMOTE_SKILLS = java.util.Collections.synchronizedMap(
-            new java.util.LinkedHashMap<>(16, 0.75f, true) {
-                @Override
-                protected boolean removeEldestEntry(Map.Entry<String, AgentSkill> eldest) {
-                    return size() > 256;
-                }
-            });
+    private static final Map<String, AgentSkill> REMOTE_SKILLS =
+            java.util.Collections.synchronizedMap(
+                    new java.util.LinkedHashMap<>(16, 0.75f, true) {
+                        @Override
+                        protected boolean removeEldestEntry(Map.Entry<String, AgentSkill> eldest) {
+                            return size() > 256;
+                        }
+                    });
 
     /**
-     * {@code classpath://…}, {@code https://…} (or {@code http://} on localhost), or a file ({@code fs://…}
-     * or a plain path) relative to {@code baseDir}. Remote skills are fetched once per process.
+     * {@code classpath://…}, {@code https://…} (or {@code http://} on localhost), or a file ({@code
+     * fs://…} or a plain path) relative to {@code baseDir}. Remote skills are fetched once per
+     * process.
      */
     public static AgentSkill loadSkill(String uri, java.nio.file.Path baseDir) throws Exception {
         if (uri.startsWith("classpath://")) return AgentSkill.fromClasspath(uri.substring(12));
@@ -437,18 +606,27 @@ public class ScriptValidator {
         if (lower.startsWith("http://") || lower.startsWith("https://")) {
             java.net.URI parsed = java.net.URI.create(uri);
             String host = parsed.getHost() == null ? "" : parsed.getHost();
-            if (lower.startsWith("http://") && !host.equals("localhost") && !host.equals("127.0.0.1")) {
-                throw new IllegalArgumentException("remote skills must use https:// (http:// only for localhost)");
+            if (lower.startsWith("http://")
+                    && !host.equals("localhost")
+                    && !host.equals("127.0.0.1")) {
+                throw new IllegalArgumentException(
+                        "remote skills must use https:// (http:// only for localhost)");
             }
             AgentSkill cached = REMOTE_SKILLS.get(uri);
             if (cached != null) return cached;
-            AgentSkill skill = new io.github.llm4j.agent.skill.RemoteSkillLoader(java.net.http.HttpClient.newBuilder()
-                    .connectTimeout(java.time.Duration.ofSeconds(10)).followRedirects(java.net.http.HttpClient.Redirect.NORMAL).build())
-                    .load(uri);
+            AgentSkill skill =
+                    new io.github.llm4j.agent.skill.RemoteSkillLoader(
+                                    java.net.http.HttpClient.newBuilder()
+                                            .connectTimeout(java.time.Duration.ofSeconds(10))
+                                            .followRedirects(
+                                                    java.net.http.HttpClient.Redirect.NORMAL)
+                                            .build())
+                            .load(uri);
             REMOTE_SKILLS.put(uri, skill);
             return skill;
         }
-        java.nio.file.Path path = java.nio.file.Path.of(uri.startsWith("fs://") ? uri.substring(5) : uri);
+        java.nio.file.Path path =
+                java.nio.file.Path.of(uri.startsWith("fs://") ? uri.substring(5) : uri);
         if (!path.isAbsolute()) path = baseDir.resolve(path);
         return new FileSystemSkillLoader().load(path.toString());
     }

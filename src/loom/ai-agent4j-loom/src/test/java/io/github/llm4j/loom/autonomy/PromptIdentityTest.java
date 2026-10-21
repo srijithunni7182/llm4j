@@ -10,12 +10,16 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** R4.1 of loom-prompt-files: an agent's prompt text is part of who it is, so a prompt edit or a different pin is a different agent. */
+/**
+ * R4.1 of loom-prompt-files: an agent's prompt text is part of who it is, so a prompt edit or a
+ * different pin is a different agent.
+ */
 class PromptIdentityTest {
 
     @TempDir Path dir;
 
-    private static final String SOURCE = """
+    private static final String SOURCE =
+            """
             agent Triager { model: "m" prompt: "triage" }
             agent Other { model: "m" system: "other" }
             decision Refund { proposed by: Triager choices: approve, reject }
@@ -30,7 +34,8 @@ class PromptIdentityTest {
 
     private String identity(Map<String, String> pins) {
         var script = DecisionParseTest.parse(SOURCE);
-        var catalog = new PromptCatalog(new MarkdownFolderPromptRegistry(dir.resolve("prompts")), pins);
+        var catalog =
+                new PromptCatalog(new MarkdownFolderPromptRegistry(dir.resolve("prompts")), pins);
         return AgentIdentity.of(script, script.getDecisions().get(0), dir, catalog);
     }
 

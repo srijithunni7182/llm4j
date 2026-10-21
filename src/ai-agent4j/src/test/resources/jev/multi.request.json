@@ -1,0 +1,31 @@
+{
+ "model": "jev-latest",
+ "state": {
+  "message": "Our API integration started returning 500 errors on every request about 20 minutes ago, and we can't process any customer orders until this is fixed.",
+  "history": "Customer wrote in twice yesterday about the same integration."
+ },
+ "questions": {
+  "department": {
+   "type": "choice",
+   "instructions": "Which team should handle this?",
+   "criteria": {
+    "billing": "Payment or subscription issues",
+    "technical": "Bugs or integration problems",
+    "sales": "Pricing or account questions"
+   }
+  },
+  "urgent": {
+   "type": "noul",
+   "instructions": "Is the customer threatening to leave?"
+  },
+  "frustration": {
+   "type": "score",
+   "instructions": "How frustrated does the customer sound?",
+   "criteria": [
+    "calm",
+    "frustrated but civil",
+    "very angry"
+   ]
+  }
+ }
+}

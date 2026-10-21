@@ -10,10 +10,14 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-/** The model a summarising strategy calls in tests: replies from a function of the request, and records what it was sent. */
+/**
+ * The model a summarising strategy calls in tests: replies from a function of the request, and
+ * records what it was sent.
+ */
 final class SummariserModel implements LLMClient {
     final List<LLMRequest> requests = Collections.synchronizedList(new ArrayList<>());
-    private final Function<LLMRequest, Object> reply; // a String (the summary), an LLMResponse, or a RuntimeException to throw
+    private final Function<LLMRequest, Object>
+            reply; // a String (the summary), an LLMResponse, or a RuntimeException to throw
 
     SummariserModel(Function<LLMRequest, Object> reply) {
         this.reply = reply;
@@ -34,8 +38,13 @@ final class SummariserModel implements LLMClient {
         if (o instanceof RuntimeException e) throw e;
         if (o instanceof LLMResponse r) return r;
         String text = (String) o;
-        return LLMResponse.builder().content(text).model("summariser").tokenUsage(700, 60, 760)
-                .addMetadata(io.github.llm4j.budget.BudgetedLLMClient.COST, new BigDecimal("0.0021")).build();
+        return LLMResponse.builder()
+                .content(text)
+                .model("summariser")
+                .tokenUsage(700, 60, 760)
+                .addMetadata(
+                        io.github.llm4j.budget.BudgetedLLMClient.COST, new BigDecimal("0.0021"))
+                .build();
     }
 
     @Override

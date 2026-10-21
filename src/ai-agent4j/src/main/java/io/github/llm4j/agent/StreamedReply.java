@@ -15,16 +15,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 /**
- * Reads a streamed model call to its end and puts it back together as the one {@link LLMResponse} a whole call would have returned: the
- * answer text, the tool calls (arguments joined and parsed), and the finish reason, usage and provider data of the last chunk. While it
- * reads, it tells the caller about every piece, and it watches the {@link RunHandle}: a steer or cancel closes the stream at once, even if
- * the model is silent, and what had arrived is returned marked {@link #INTERRUPTED} with no tool calls (half a call is never run).
+ * Reads a streamed model call to its end and puts it back together as the one {@link LLMResponse} a
+ * whole call would have returned: the answer text, the tool calls (arguments joined and parsed),
+ * and the finish reason, usage and provider data of the last chunk. While it reads, it tells the
+ * caller about every piece, and it watches the {@link RunHandle}: a steer or cancel closes the
+ * stream at once, even if the model is silent, and what had arrived is returned marked {@link
+ * #INTERRUPTED} with no tool calls (half a call is never run).
  */
 final class StreamedReply {
 
     /** Metadata key, on a response whose stream was cut short by the run handle. */
     static final String INTERRUPTED = "llm4j.interrupted";
-    /** Metadata key: the names of tool calls whose arguments were not valid JSON (cut off, or malformed); those calls are left out. */
+
+    /**
+     * Metadata key: the names of tool calls whose arguments were not valid JSON (cut off, or
+     * malformed); those calls are left out.
+     */
     static final String MALFORMED = "llm4j.malformedToolCalls";
 
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -46,17 +52,19 @@ final class StreamedReply {
         Map<Integer, Call> calls = new TreeMap<>();
         LLMResponse last = null;
         if (handle != null) {
-            handle.onInterrupt(() -> {
-                aborted.set(true);
-                stream.close();
-            });
+            handle.onInterrupt(
+                    () -> {
+                        aborted.set(true);
+                        stream.close();
+                    });
         }
         try {
             Iterator<LLMResponse> chunks = stream.iterator();
             while (!aborted.get() && chunks.hasNext()) {
                 LLMResponse chunk = chunks.next();
                 last = chunk;
-                if (chunk.getReasoning() != null && !chunk.getReasoning().isEmpty()) sink.reasoning(chunk.getReasoning());
+                if (chunk.getReasoning() != null && !chunk.getReasoning().isEmpty())
+                    sink.reasoning(chunk.getReasoning());
                 if (chunk.getContent() != null && !chunk.getContent().isEmpty()) {
                     text.append(chunk.getContent());
                     sink.text(chunk.getContent());
@@ -73,7 +81,8 @@ final class StreamedReply {
                 }
             }
         } catch (RuntimeException e) {
-            // closing the stream under a blocked read is how an interrupt gets the reader out; anything else is a real failure
+            // closing the stream under a blocked read is how an interrupt gets the reader out;
+            // anything else is a real failure
             if (!aborted.get()) throw e;
         } finally {
             if (handle != null) handle.onInterrupt(null);
@@ -95,8 +104,10 @@ final class StreamedReply {
         for (Call call : calls.values()) {
             if (call.name == null) continue;
             try {
-                String json = call.arguments.toString().isBlank() ? "{}" : call.arguments.toString();
-                Map<String, Object> args = JSON.readValue(json, new TypeReference<Map<String, Object>>() {});
+                String json =
+                        call.arguments.toString().isBlank() ? "{}" : call.arguments.toString();
+                Map<String, Object> args =
+                        JSON.readValue(json, new TypeReference<Map<String, Object>>() {});
                 parsed.add(new ToolCall(call.id, call.name, args));
             } catch (Exception e) {
                 malformed.add(call.name);

@@ -5,7 +5,9 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 
-/** A period after which a budget's spend starts again from zero, aligned to the clock's time zone. */
+/**
+ * A period after which a budget's spend starts again from zero, aligned to the clock's time zone.
+ */
 public enum Window {
     MINUTE(ChronoUnit.MINUTES),
     HOUR(ChronoUnit.HOURS),

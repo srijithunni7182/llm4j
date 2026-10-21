@@ -12,17 +12,19 @@ import io.github.llm4j.loom.ladder.LadderEngine;
 import io.github.llm4j.loom.ladder.LadderPolicy;
 import io.github.llm4j.loom.ladder.LevelLog;
 import io.github.llm4j.loom.runtime.RunJournal;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.LinkedHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 /**
- * Runs a {@code decide} statement whose decision binds a ladder. The agent proposes; the rung says whether a person answers without seeing the
- * proposal, answers with it, or is not asked; the answer (accepted, edited, rejected) and everything that follows is written to the ledger, and the
- * ladder moves on what the record then says. Everything is journaled under the decide step so a resumed run repeats nothing.
+ * Runs a {@code decide} statement whose decision binds a ladder. The agent proposes; the rung says
+ * whether a person answers without seeing the proposal, answers with it, or is not asked; the
+ * answer (accepted, edited, rejected) and everything that follows is written to the ledger, and the
+ * ladder moves on what the record then says. Everything is journaled under the decide step so a
+ * resumed run repeats nothing.
  */
 final class LadderDecider {
 
@@ -37,37 +39,66 @@ final class LadderDecider {
         this.d = decider;
     }
 
-    /** The engine of a decision, created once; rules that changed since the last run are applied the first time it is built. */
+    /**
+     * The engine of a decision, created once; rules that changed since the last run are applied the
+     * first time it is built.
+     */
     LadderEngine engine(DecisionDef def) {
-        return engines.computeIfAbsent(def.getName(), n -> {
-            LadderPolicy policy = LadderPolicy.of(run.script(), def);
-            LadderEngine engine = new LadderEngine(policy, d.ledger(), run.clock());
-            // "when the agent changes: test it on past cases": the new agent starts on the rung the replay of the old one's cases under it supports
-            engine.inheritWith((scope, old, identity) -> {
-                HarnessExecutor.Inherited inherited = run.inheritedRung(def, scope, old.rungName(), old.epoch(), identity);
-                log.info("Decision " + def.getName() + ", scope " + scope + ": " + inherited.reason());
-                return inherited.rung() == null ? 0 : Math.max(0, policy.indexOf(inherited.rung()));
-            });
-            try {
-                for (LadderEngine.Change change : engine.reevaluate()) announce(def, change);
-            } catch (RuntimeException e) {
-                log.warning("Decision " + def.getName() + ": could not check the ladder against its rules (" + e.getMessage() + ")");
-            }
-            return engine;
-        });
+        return engines.computeIfAbsent(
+                def.getName(),
+                n -> {
+                    LadderPolicy policy = LadderPolicy.of(run.script(), def);
+                    LadderEngine engine = new LadderEngine(policy, d.ledger(), run.clock());
+                    // "when the agent changes: test it on past cases": the new agent starts on the
+                    // rung the replay of the old one's cases under it supports
+                    engine.inheritWith(
+                            (scope, old, identity) -> {
+                                HarnessExecutor.Inherited inherited =
+                                        run.inheritedRung(
+                                                def, scope, old.rungName(), old.epoch(), identity);
+                                log.info(
+                                        "Decision "
+                                                + def.getName()
+                                                + ", scope "
+                                                + scope
+                                                + ": "
+                                                + inherited.reason());
+                                return inherited.rung() == null
+                                        ? 0
+                                        : Math.max(0, policy.indexOf(inherited.rung()));
+                            });
+                    try {
+                        for (LadderEngine.Change change : engine.reevaluate())
+                            announce(def, change);
+                    } catch (RuntimeException e) {
+                        log.warning(
+                                "Decision "
+                                        + def.getName()
+                                        + ": could not check the ladder against its rules ("
+                                        + e.getMessage()
+                                        + ")");
+                    }
+                    return engine;
+                });
     }
 
     /**
-     * The level a case is said to have run at. A ladder says its rung. A trust block keeps the words it always used: the level the case actually ran at,
-     * so a case audited blind at suggest ran at watch, and one a person was asked about at act ran at suggest.
+     * The level a case is said to have run at. A ladder says its rung. A trust block keeps the
+     * words it always used: the level the case actually ran at, so a case audited blind at suggest
+     * ran at watch, and one a person was asked about at act ran at suggest.
      */
     static String level(DecisionDef def, Map<String, Object> plan) {
         if (!def.isLadderFromTrust()) return Decider.text(plan.get("rung"));
         RungDef.Mode mode = RungDef.Mode.of(Decider.text(plan.get("mode")));
-        return mode == RungDef.Mode.BLIND ? "watch" : mode == RungDef.Mode.CONFIRM ? "suggest" : "act";
+        return mode == RungDef.Mode.BLIND
+                ? "watch"
+                : mode == RungDef.Mode.CONFIRM ? "suggest" : "act";
     }
 
-    /** Why the case ran there. A trust block calls a blind sample an audit and a case a person is asked about a limit. */
+    /**
+     * Why the case ran there. A trust block calls a blind sample an audit and a case a person is
+     * asked about a limit.
+     */
     static String how(DecisionDef def, Map<String, Object> plan) {
         String how = Decider.text(plan.get("how"));
         if (!def.isLadderFromTrust()) return how;
@@ -83,7 +114,8 @@ final class LadderDecider {
         return Decider.text(v);
     }
 
-    // ---- the statement -------------------------------------------------------------------------------------------------------
+    // ---- the statement
+    // -------------------------------------------------------------------------------------------------------
 
     void decide(DecideStmt stmt, DecisionDef def, AgentDef agent) {
         String step = run.currentStep();
@@ -98,9 +130,14 @@ final class LadderDecider {
 
         var done = journal.get(step + "#decide-result");
         if (done.isPresent() && done.get().value() instanceof Map<?, ?> m) {
-            // a resumed run: the case is decided; make sure the ledger has all of it (a crash may have come between the journal and the ledger)
+            // a resumed run: the case is decided; make sure the ledger has all of it (a crash may
+            // have come between the journal and the ledger)
             Map<String, Object> result = Decider.castMap(m);
-            Map<String, Object> proposal = journal.get(step + "#decide-proposal").filter(e -> e.value() instanceof Map<?, ?>).map(e -> Decider.castMap((Map<?, ?>) e.value())).orElse(Map.of());
+            Map<String, Object> proposal =
+                    journal.get(step + "#decide-proposal")
+                            .filter(e -> e.value() instanceof Map<?, ?>)
+                            .map(e -> Decider.castMap((Map<?, ?>) e.value()))
+                            .orElse(Map.of());
             openCase(def, caseId, step, free, scope, fields, plan, proposal);
             appendProposed(def, caseId, step, proposal);
             bind(stmt, result);
@@ -110,18 +147,33 @@ final class LadderDecider {
         }
 
         // 1. the proposal
-        Map<String, Object> proposal = journal.get(step + "#decide-proposal").filter(e -> e.value() instanceof Map<?, ?>).map(e -> Decider.castMap((Map<?, ?>) e.value())).orElse(null);
+        Map<String, Object> proposal =
+                journal.get(step + "#decide-proposal")
+                        .filter(e -> e.value() instanceof Map<?, ?>)
+                        .map(e -> Decider.castMap((Map<?, ?>) e.value()))
+                        .orElse(null);
         Decider.Proposing p = null;
         if (proposal == null) {
             boolean hide = RungDef.Mode.of(Decider.text(plan.get("mode"))) == RungDef.Mode.BLIND;
             p = new Decider.Proposing(journal, step, hide);
             run.forgetServedModel(agent.getName());
-            proposal = d.propose(def, agent, step, fields, p, io.github.llm4j.loom.autonomy.Level.WATCH);
+            proposal =
+                    d.propose(
+                            def, agent, step, fields, p, io.github.llm4j.loom.autonomy.Level.WATCH);
             String served = run.servedModel(agent.getName());
             proposal.put("servedModel", served == null ? "unreported" : served);
             journal.put(step + "#decide-proposal", new RunJournal.Entry("proposal", proposal));
-            // the provider's reply may show the model changed behind an unchanged script: a new epoch starts, and this case is run under it
-            plan = planFor(def, engine, caseId, step, scope, fields, Decider.text(proposal.get("servedModel")));
+            // the provider's reply may show the model changed behind an unchanged script: a new
+            // epoch starts, and this case is run under it
+            plan =
+                    planFor(
+                            def,
+                            engine,
+                            caseId,
+                            step,
+                            scope,
+                            fields,
+                            Decider.text(proposal.get("servedModel")));
         }
         boolean malformed = Boolean.TRUE.equals(proposal.get("malformed"));
         RungDef.Mode mode = RungDef.Mode.of(Decider.text(plan.get("mode")));
@@ -149,19 +201,31 @@ final class LadderDecider {
             result.put("millis", 0L);
         } else {
             boolean shown = mode == RungDef.Mode.CONFIRM;
-            long askedAt = journal.get(step + "#decide-asked-at").map(e -> ((Number) e.value()).longValue()).orElseGet(() -> {
-                long now = run.clock().millis();
-                journal.put(step + "#decide-asked-at", new RunJournal.Entry("time", now));
-                return now;
-            });
-            if (artifact(def)) answerArtifact(def, step, fields, shown ? proposal : null, proposedText, result);
+            long askedAt =
+                    journal.get(step + "#decide-asked-at")
+                            .map(e -> ((Number) e.value()).longValue())
+                            .orElseGet(
+                                    () -> {
+                                        long now = run.clock().millis();
+                                        journal.put(
+                                                step + "#decide-asked-at",
+                                                new RunJournal.Entry("time", now));
+                                        return now;
+                                    });
+            if (artifact(def))
+                answerArtifact(def, step, fields, shown ? proposal : null, proposedText, result);
             else answerChoice(def, step, fields, shown ? proposal : null, proposedText, result);
             result.put("decider", def.getAsk());
             result.put("shown", shown);
             result.put("millis", Math.max(0, run.clock().millis() - askedAt));
         }
         if (p != null) p.flush();
-        if (artifact(def)) result.put("final", Decider.text(result.get("verdict")));       // what took effect: for an accept it is the proposal, so the edit is 0
+        if (artifact(def))
+            result.put(
+                    "final",
+                    Decider.text(
+                            result.get("verdict"))); // what took effect: for an accept it is the
+        // proposal, so the edit is 0
         result.put("proposal", proposedText);
         result.put("level", level(def, plan));
         journal.put(step + "#decide-result", new RunJournal.Entry("decision", result));
@@ -176,13 +240,22 @@ final class LadderDecider {
         run.setVariable(stmt.getVariable() + "_level", Decider.text(result.get("level")));
     }
 
-    // ---- the plan ------------------------------------------------------------------------------------------------------------
+    // ---- the plan
+    // ------------------------------------------------------------------------------------------------------------
 
     /**
-     * The rung and mode this case runs at, read once and journaled so a run resumed after a change finishes the case as it began. Asked again
-     * when the proposal reveals a new served model: the epoch it opens may put the case on a lower rung.
+     * The rung and mode this case runs at, read once and journaled so a run resumed after a change
+     * finishes the case as it began. Asked again when the proposal reveals a new served model: the
+     * epoch it opens may put the case on a lower rung.
      */
-    private Map<String, Object> planFor(DecisionDef def, LadderEngine engine, String caseId, String step, String scope, Map<String, String> fields, String served) {
+    private Map<String, Object> planFor(
+            DecisionDef def,
+            LadderEngine engine,
+            String caseId,
+            String step,
+            String scope,
+            Map<String, String> fields,
+            String served) {
         RunJournal journal = run.journal();
         var known = journal.get(step + "#level");
         if (known.isPresent() && known.get().value() instanceof Map<?, ?> m) {
@@ -194,17 +267,58 @@ final class LadderDecider {
         try {
             String identity = d.identityOf(def);
             LevelLog.Standing st = engine.standing(scope, identity, served);
-            if (known.isPresent() && known.get().value() instanceof Map<?, ?> began && served != null
-                    && Decider.text(Decider.castMap(began).get("epoch")).equals(String.valueOf(st.epoch()))) {
-                // the reply named the model, and it is the same epoch: the case finishes as it began (a freeze that came since waits for the next case)
+            if (known.isPresent()
+                    && known.get().value() instanceof Map<?, ?> began
+                    && served != null
+                    && Decider.text(Decider.castMap(began).get("epoch"))
+                            .equals(String.valueOf(st.epoch()))) {
+                // the reply named the model, and it is the same epoch: the case finishes as it
+                // began (a freeze that came since waits for the next case)
                 Map<String, Object> same = new LinkedHashMap<>(Decider.castMap(began));
                 same.put("served", served);
                 journal.put(step + "#level", new RunJournal.Entry("level", same));
                 return same;
             }
-            V.Rec current = HistoryBuilder.record(new LCase(caseId, def.getName(), scope, run.clock().instant(), st.rungName(), "", identity, st.epoch(), 1, false,
-                    fields, served, null, null, null, null, false, null, List.of(), false, null, null, null, null, false, null, null, List.of()), def.getRememberTypes());
-            LadderEngine.Plan plan = engine.plan(scope, caseId, st, current, engine.history(scope, st.epoch()), run.clock().millis());
+            V.Rec current =
+                    HistoryBuilder.record(
+                            new LCase(
+                                    caseId,
+                                    def.getName(),
+                                    scope,
+                                    run.clock().instant(),
+                                    st.rungName(),
+                                    "",
+                                    identity,
+                                    st.epoch(),
+                                    1,
+                                    false,
+                                    fields,
+                                    served,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    false,
+                                    null,
+                                    List.of(),
+                                    false,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    false,
+                                    null,
+                                    null,
+                                    List.of()),
+                            def.getRememberTypes());
+            LadderEngine.Plan plan =
+                    engine.plan(
+                            scope,
+                            caseId,
+                            st,
+                            current,
+                            engine.history(scope, st.epoch()),
+                            run.clock().millis());
             pick.put("rung", plan.rung());
             pick.put("mode", plan.mode().word());
             pick.put("how", plan.how());
@@ -214,10 +328,33 @@ final class LadderDecider {
             if (st.forced()) pick.put("forced", true);
             if (served != null) pick.put("served", served);
         } catch (RuntimeException e) {
-            // fail closed: a ledger that cannot be read never means a higher rung, and never means the agent acts alone
-            log.warning("Decision " + def.getName() + ": the ledger failed (" + e.getMessage() + "); asking a person");
-            run.audit("autonomy_degraded", Map.of("decision", def.getName(), "case", caseId, "reason", Decider.text(e.getMessage())));
-            if (e instanceof io.github.llm4j.loom.autonomy.LedgerTampered) run.audit("ledger_tampered", Map.of("decision", def.getName(), "case", caseId, "reason", Decider.text(e.getMessage())));
+            // fail closed: a ledger that cannot be read never means a higher rung, and never means
+            // the agent acts alone
+            log.warning(
+                    "Decision "
+                            + def.getName()
+                            + ": the ledger failed ("
+                            + e.getMessage()
+                            + "); asking a person");
+            run.audit(
+                    "autonomy_degraded",
+                    Map.of(
+                            "decision",
+                            def.getName(),
+                            "case",
+                            caseId,
+                            "reason",
+                            Decider.text(e.getMessage())));
+            if (e instanceof io.github.llm4j.loom.autonomy.LedgerTampered)
+                run.audit(
+                        "ledger_tampered",
+                        Map.of(
+                                "decision",
+                                def.getName(),
+                                "case",
+                                caseId,
+                                "reason",
+                                Decider.text(e.getMessage())));
             pick.put("rung", engine.policy().nameOf(0));
             pick.put("mode", RungDef.Mode.BLIND.word());
             pick.put("how", "degraded");
@@ -228,39 +365,91 @@ final class LadderDecider {
         return pick;
     }
 
-    // ---- the person ----------------------------------------------------------------------------------------------------------
+    // ---- the person
+    // ----------------------------------------------------------------------------------------------------------
 
-    private void answerChoice(DecisionDef def, String step, Map<String, String> fields, Map<String, Object> shown, String proposedText, Map<String, Object> result) {
+    private void answerChoice(
+            DecisionDef def,
+            String step,
+            Map<String, String> fields,
+            Map<String, Object> shown,
+            String proposedText,
+            Map<String, Object> result) {
         String choice = d.ask(def, step, fields, shown);
         result.put("choice", choice);
         result.put("verdict", choice);
         result.put("kind", choice.equals(proposedText) ? "accept" : "reject");
     }
 
-    private void answerArtifact(DecisionDef def, String step, Map<String, String> fields, Map<String, Object> shown, String proposedText, Map<String, Object> result) {
+    private void answerArtifact(
+            DecisionDef def,
+            String step,
+            Map<String, String> fields,
+            Map<String, Object> shown,
+            String proposedText,
+            Map<String, Object> result) {
         if (run.humanInterface() == null) {
-            throw new IllegalStateException("decision " + def.getName() + " needs a person to ask (" + def.getAsk() + "), but no human interface is configured");
+            throw new IllegalStateException(
+                    "decision "
+                            + def.getName()
+                            + " needs a person to ask ("
+                            + def.getAsk()
+                            + "), but no human interface is configured");
         }
         StringBuilder q = new StringBuilder();
-        q.append(def.getAsk()).append(", please ").append(shown == null ? "write the " + def.getProposes() + " for " : "review the " + def.getProposes() + " for ").append(def.getName()).append('\n');
-        fields.forEach((k, v) -> q.append(Decider.neutralise(k)).append(" = ").append(Decider.neutralise(v)).append('\n'));
+        q.append(def.getAsk())
+                .append(", please ")
+                .append(
+                        shown == null
+                                ? "write the " + def.getProposes() + " for "
+                                : "review the " + def.getProposes() + " for ")
+                .append(def.getName())
+                .append('\n');
+        fields.forEach(
+                (k, v) ->
+                        q.append(Decider.neutralise(k))
+                                .append(" = ")
+                                .append(Decider.neutralise(v))
+                                .append('\n'));
         if (shown != null) {
-            q.append("\nThe agent proposes:\n").append(Decider.neutralise(proposedText)).append("\nIts reasoning: ").append(Decider.neutralise(Decider.text(shown.get("reasoning"))))
-                    .append("\n\nAnswer accept, reject, or send the corrected ").append(def.getProposes()).append(".\n");
+            q.append("\nThe agent proposes:\n")
+                    .append(Decider.neutralise(proposedText))
+                    .append("\nIts reasoning: ")
+                    .append(Decider.neutralise(Decider.text(shown.get("reasoning"))))
+                    .append("\n\nAnswer accept, reject, or send the corrected ")
+                    .append(def.getProposes())
+                    .append(".\n");
         }
         String question = q.toString();
         String key = step + "#decide-ask";
-        String answer = run.atStep(key, () -> {
-            String recorded = run.recordedAnswer(question);
-            if (recorded != null) return recorded;
-            String got = run.humanInterface().promptHuman(key, question,
-                    new io.github.llm4j.loom.runtime.HumanInterface.Hints(io.github.llm4j.loom.runtime.HumanInterface.Hints.Kind.DECIDE, List.of(), def.getAsk()));
-            run.recordAnswer(question, got);
-            return got;
-        });
+        String answer =
+                run.atStep(
+                        key,
+                        () -> {
+                            String recorded = run.recordedAnswer(question);
+                            if (recorded != null) return recorded;
+                            String got =
+                                    run.humanInterface()
+                                            .promptHuman(
+                                                    key,
+                                                    question,
+                                                    new io.github.llm4j.loom.runtime.HumanInterface
+                                                            .Hints(
+                                                            io.github.llm4j.loom.runtime
+                                                                    .HumanInterface.Hints.Kind
+                                                                    .DECIDE,
+                                                            List.of(),
+                                                            def.getAsk()));
+                            run.recordAnswer(question, got);
+                            return got;
+                        });
         String a = answer == null ? "" : answer.strip();
         String word = a.toLowerCase(Locale.ROOT);
-        if (shown != null && (word.equals("accept") || word.equals("ok") || word.equals("yes") || word.equals("approve"))) {
+        if (shown != null
+                && (word.equals("accept")
+                        || word.equals("ok")
+                        || word.equals("yes")
+                        || word.equals("approve"))) {
             result.put("kind", "accept");
             result.put("verdict", proposedText);
         } else if (shown != null && (word.equals("reject") || word.equals("no"))) {
@@ -277,46 +466,146 @@ final class LadderDecider {
         }
     }
 
-    // ---- the ledger ----------------------------------------------------------------------------------------------------------
+    // ---- the ledger
+    // ----------------------------------------------------------------------------------------------------------
 
-    private void openCase(DecisionDef def, String caseId, String step, String free, String scope, Map<String, String> fields, Map<String, Object> plan, Map<String, Object> proposal) {
+    private void openCase(
+            DecisionDef def,
+            String caseId,
+            String step,
+            String free,
+            String scope,
+            Map<String, String> fields,
+            Map<String, Object> plan,
+            Map<String, Object> proposal) {
         int gen = Decider.generationOf(step);
-        d.write(def, new Rec(caseId + "#case#" + gen, def.getName(), Rec.CASE, run.clock().instant(), caseId, gen,
-                Rec.map("scope", scope, "locator", run.runLocator(), "step", free, "journalStep", step, "fields", fields, "level", level(def, plan), "how", how(def, plan),
-                        "identity", plan.get("identity"), "epoch", plan.get("epoch"), "forced", plan.get("forced"),
-                        "servedModel", proposal == null ? null : proposal.get("servedModel"))));
+        d.write(
+                def,
+                new Rec(
+                        caseId + "#case#" + gen,
+                        def.getName(),
+                        Rec.CASE,
+                        run.clock().instant(),
+                        caseId,
+                        gen,
+                        Rec.map(
+                                "scope",
+                                scope,
+                                "locator",
+                                run.runLocator(),
+                                "step",
+                                free,
+                                "journalStep",
+                                step,
+                                "fields",
+                                fields,
+                                "level",
+                                level(def, plan),
+                                "how",
+                                how(def, plan),
+                                "identity",
+                                plan.get("identity"),
+                                "epoch",
+                                plan.get("epoch"),
+                                "forced",
+                                plan.get("forced"),
+                                "servedModel",
+                                proposal == null ? null : proposal.get("servedModel"))));
     }
 
-    private void appendProposed(DecisionDef def, String caseId, String step, Map<String, Object> proposal) {
+    private void appendProposed(
+            DecisionDef def, String caseId, String step, Map<String, Object> proposal) {
         int gen = Decider.generationOf(step);
         java.time.Instant now = run.clock().instant();
-        Map<String, Object> body = Rec.map("choice", proposal.get("choice"), "reasoning", proposal.get("reasoning"), "confidence", proposal.get("confidence"),
-                "malformed", Boolean.TRUE.equals(proposal.get("malformed")) ? true : null, "flags", proposal.get("flags"));
+        Map<String, Object> body =
+                Rec.map(
+                        "choice",
+                        proposal.get("choice"),
+                        "reasoning",
+                        proposal.get("reasoning"),
+                        "confidence",
+                        proposal.get("confidence"),
+                        "malformed",
+                        Boolean.TRUE.equals(proposal.get("malformed")) ? true : null,
+                        "flags",
+                        proposal.get("flags"));
         // a large artifact is kept once, apart, and the record says where
-        body.putAll(io.github.llm4j.loom.ladder.Blobs.keep(rec -> d.write(def, rec), def.getName(), "value", proposal.get("value") == null ? null : Decider.text(proposal.get("value")), now));
-        d.write(def, new Rec(caseId + "#proposed#" + gen, def.getName(), Rec.PROPOSED, now, caseId, gen, body));
+        body.putAll(
+                io.github.llm4j.loom.ladder.Blobs.keep(
+                        rec -> d.write(def, rec),
+                        def.getName(),
+                        "value",
+                        proposal.get("value") == null ? null : Decider.text(proposal.get("value")),
+                        now));
+        d.write(
+                def,
+                new Rec(
+                        caseId + "#proposed#" + gen,
+                        def.getName(),
+                        Rec.PROPOSED,
+                        now,
+                        caseId,
+                        gen,
+                        body));
     }
 
-    private void appendResponded(DecisionDef def, String caseId, String step, Map<String, Object> result) {
+    private void appendResponded(
+            DecisionDef def, String caseId, String step, Map<String, Object> result) {
         int gen = Decider.generationOf(step);
         java.time.Instant now = run.clock().instant();
-        Map<String, Object> body = Rec.map("kind", result.get("kind"), "choice", result.get("choice"), "by", result.get("decider"),
-                "shown", Boolean.TRUE.equals(result.get("shown")), "millis", result.get("millis"));
-        body.putAll(io.github.llm4j.loom.ladder.Blobs.keep(rec -> d.write(def, rec), def.getName(), "final", result.get("final") == null ? null : Decider.text(result.get("final")), now));
-        d.write(def, new Rec(caseId + "#responded#" + gen, def.getName(), Rec.RESPONDED, now, caseId, gen, body));
+        Map<String, Object> body =
+                Rec.map(
+                        "kind",
+                        result.get("kind"),
+                        "choice",
+                        result.get("choice"),
+                        "by",
+                        result.get("decider"),
+                        "shown",
+                        Boolean.TRUE.equals(result.get("shown")),
+                        "millis",
+                        result.get("millis"));
+        body.putAll(
+                io.github.llm4j.loom.ladder.Blobs.keep(
+                        rec -> d.write(def, rec),
+                        def.getName(),
+                        "final",
+                        result.get("final") == null ? null : Decider.text(result.get("final")),
+                        now));
+        d.write(
+                def,
+                new Rec(
+                        caseId + "#responded#" + gen,
+                        def.getName(),
+                        Rec.RESPONDED,
+                        now,
+                        caseId,
+                        gen,
+                        body));
     }
 
     private void afterResponse(DecisionDef def, LadderEngine engine, String scope) {
         try {
             for (LadderEngine.Change change : engine.afterResponse(scope)) announce(def, change);
         } catch (RuntimeException e) {
-            log.warning("Decision " + def.getName() + ": could not apply the ladder (" + e.getMessage() + ")");
+            log.warning(
+                    "Decision "
+                            + def.getName()
+                            + ": could not apply the ladder ("
+                            + e.getMessage()
+                            + ")");
         }
     }
 
-    // ---- telling people ------------------------------------------------------------------------------------------------------
+    // ---- telling people
+    // ------------------------------------------------------------------------------------------------------
 
-    private void announceProposal(DecisionDef def, String caseId, Map<String, Object> plan, boolean blind, Map<String, Object> proposal) {
+    private void announceProposal(
+            DecisionDef def,
+            String caseId,
+            Map<String, Object> plan,
+            boolean blind,
+            Map<String, Object> proposal) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("decision", def.getName());
         data.put("case", caseId);
@@ -325,7 +614,11 @@ final class LadderDecider {
             run.trace(TraceEvent.DECISION, def.getAgent(), "proposal recorded (hidden)", data);
         } else {
             data.put(artifact(def) ? "value" : "choice", proposed(proposal));
-            run.trace(TraceEvent.DECISION, def.getAgent(), "proposes " + (artifact(def) ? def.getProposes() : proposed(proposal)), data);
+            run.trace(
+                    TraceEvent.DECISION,
+                    def.getAgent(),
+                    "proposes " + (artifact(def) ? def.getProposes() : proposed(proposal)),
+                    data);
             run.audit("decision_proposed", data);
         }
     }
@@ -350,16 +643,39 @@ final class LadderDecider {
             Map<String, Object> args = new LinkedHashMap<>();
             args.put("title", "Trust in " + def.getName() + " changed");
             args.put("text", change.sentence());
-            run.atStep(run.currentStep() + "#tell:" + change.scope() + ":" + change.kind() + ":" + change.to(), () -> {
-                try {
-                    return tool.execute(args);
-                } catch (Exception e) {
-                    throw new IllegalStateException(e);
-                }
-            });
+            run.atStep(
+                    run.currentStep()
+                            + "#tell:"
+                            + change.scope()
+                            + ":"
+                            + change.kind()
+                            + ":"
+                            + change.to(),
+                    () -> {
+                        try {
+                            return tool.execute(args);
+                        } catch (Exception e) {
+                            throw new IllegalStateException(e);
+                        }
+                    });
         } catch (RuntimeException e) {
-            log.warning("Decision " + def.getName() + ": could not tell " + def.getTellTool() + " (" + e.getMessage() + ")");
-            run.audit("autonomy_notification_failed", Map.of("decision", def.getName(), "tool", def.getTellTool(), "reason", Decider.text(e.getMessage())));
+            log.warning(
+                    "Decision "
+                            + def.getName()
+                            + ": could not tell "
+                            + def.getTellTool()
+                            + " ("
+                            + e.getMessage()
+                            + ")");
+            run.audit(
+                    "autonomy_notification_failed",
+                    Map.of(
+                            "decision",
+                            def.getName(),
+                            "tool",
+                            def.getTellTool(),
+                            "reason",
+                            Decider.text(e.getMessage())));
         }
     }
 }

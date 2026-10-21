@@ -10,8 +10,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * The context windows of models, from several files layered by priority. A model's window belongs to the model, not to a script, so it is configured
- * outside: files given on the command line (the last one wins), then the file beside the script, then the user's file, then the seeded catalogue.
+ * The context windows of models, from several files layered by priority. A model's window belongs
+ * to the model, not to a script, so it is configured outside: files given on the command line (the
+ * last one wins), then the file beside the script, then the user's file, then the seeded catalogue.
  */
 public final class WindowLayers {
 
@@ -19,10 +20,10 @@ public final class WindowLayers {
     public static final String CATALOGUE = "the seeded catalogue";
 
     /** One file (or the catalogue) and what it says. */
-    public record Layer(String source, ContextWindows windows) { }
+    public record Layer(String source, ContextWindows windows) {}
 
     /** A window and the layer it came from. */
-    public record Found(ContextWindow window, String source) { }
+    public record Found(ContextWindow window, String source) {}
 
     private final List<Layer> layers; // highest priority first
 
@@ -54,8 +55,9 @@ public final class WindowLayers {
     }
 
     /**
-     * The layers for a deployment. {@code commandLine} files must exist (later ones win over earlier); {@code beside} and {@code user} are used only when
-     * they are there. A file that cannot be read is an {@link IllegalArgumentException} naming it, with the line.
+     * The layers for a deployment. {@code commandLine} files must exist (later ones win over
+     * earlier); {@code beside} and {@code user} are used only when they are there. A file that
+     * cannot be read is an {@link IllegalArgumentException} naming it, with the line.
      */
     public static WindowLayers load(List<Path> commandLine, Path beside, Path user) {
         List<Layer> all = new ArrayList<>();
@@ -68,13 +70,15 @@ public final class WindowLayers {
 
     private static Layer read(Path file, boolean mustExist) {
         if (!Files.isRegularFile(file)) {
-            if (mustExist) throw new IllegalArgumentException("the windows file " + file + " does not exist");
+            if (mustExist)
+                throw new IllegalArgumentException("the windows file " + file + " does not exist");
             return new Layer(file.toString(), ContextWindows.empty());
         }
         try {
             return new Layer(file.toString(), ContextWindows.load(file));
         } catch (IOException e) {
-            throw new IllegalArgumentException("the windows file " + file + " cannot be read: " + e.getMessage());
+            throw new IllegalArgumentException(
+                    "the windows file " + file + " cannot be read: " + e.getMessage());
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("the windows file " + file + ": " + e.getMessage());
         }

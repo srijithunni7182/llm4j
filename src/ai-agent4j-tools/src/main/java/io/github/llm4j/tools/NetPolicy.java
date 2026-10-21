@@ -10,11 +10,13 @@ import java.util.Set;
 import okhttp3.HttpUrl;
 
 /**
- * Which network addresses a tool may contact: https only, no private or metadata addresses, an optional host
- * allow-list. A model that has been talked into calling somewhere it shouldn't meets this first.
+ * Which network addresses a tool may contact: https only, no private or metadata addresses, an
+ * optional host allow-list. A model that has been talked into calling somewhere it shouldn't meets
+ * this first.
  *
- * <p>The address check is separate from the connection: {@link #resolveChecked} returns the addresses it
- * approved, and the caller connects to exactly those (so DNS can't answer differently the second time).
+ * <p>The address check is separate from the connection: {@link #resolveChecked} returns the
+ * addresses it approved, and the caller connects to exactly those (so DNS can't answer differently
+ * the second time).
  */
 public final class NetPolicy {
 
@@ -27,7 +29,8 @@ public final class NetPolicy {
     }
 
     /** What the tool's declaration allows. */
-    public record Rules(boolean allowHttp, boolean allowPrivate, Set<String> hosts, boolean followRedirects) {
+    public record Rules(
+            boolean allowHttp, boolean allowPrivate, Set<String> hosts, boolean followRedirects) {
         public Rules {
             hosts = Set.copyOf(hosts);
         }
@@ -38,14 +41,15 @@ public final class NetPolicy {
     private final String configuredHost;
 
     /**
-     * @param configuredHost the host the declaration itself names (a webhook's host, an http tool's base host):
-     *                       always allowed, and when it is {@code localhost} or a loopback address, loopback
-     *                       connections to it are allowed too
+     * @param configuredHost the host the declaration itself names (a webhook's host, an http tool's
+     *     base host): always allowed, and when it is {@code localhost} or a loopback address,
+     *     loopback connections to it are allowed too
      */
     public NetPolicy(Rules rules, Resolver resolver, String configuredHost) {
         this.rules = rules;
         this.resolver = resolver;
-        this.configuredHost = configuredHost == null ? null : configuredHost.toLowerCase(Locale.ROOT);
+        this.configuredHost =
+                configuredHost == null ? null : configuredHost.toLowerCase(Locale.ROOT);
     }
 
     public Rules rules() {
@@ -55,7 +59,8 @@ public final class NetPolicy {
     /** The first thing wrong with the URL on its face (scheme, credentials, host list), or null. */
     public String checkUrl(HttpUrl url) {
         String host = url.host().toLowerCase(Locale.ROOT);
-        if (!url.username().isEmpty() || !url.password().isEmpty()) return "the URL must not carry a user name or password";
+        if (!url.username().isEmpty() || !url.password().isEmpty())
+            return "the URL must not carry a user name or password";
         boolean loopbackHost = isLoopbackName(host);
         if (!url.isHttps() && !(rules.allowHttp() || loopbackHost)) {
             return "only https is allowed (http needs allow_http: true, or a localhost address)";
@@ -64,7 +69,8 @@ public final class NetPolicy {
         InetAddress literal = literalAddress(host);
         if (literal != null && !rules.allowPrivate()) {
             String why = forbidden(unmap(literal), loopbackAllowedFor(host));
-            if (why != null) return "the address is " + why + " address (allow_private: true permits it)";
+            if (why != null)
+                return "the address is " + why + " address (allow_private: true permits it)";
         }
         return null;
     }
@@ -75,7 +81,8 @@ public final class NetPolicy {
         boolean v6 = host.contains(":");
         if (!v4 && !v6) return null;
         try {
-            return InetAddress.getByName(host.startsWith("[") ? host.substring(1, host.length() - 1) : host);
+            return InetAddress.getByName(
+                    host.startsWith("[") ? host.substring(1, host.length() - 1) : host);
         } catch (UnknownHostException e) {
             return null;
         }
@@ -94,7 +101,8 @@ public final class NetPolicy {
             boolean loopbackOk = loopbackAllowedFor(host);
             for (InetAddress a : addresses) {
                 String why = forbidden(unmap(a), loopbackOk);
-                if (why != null) throw new ToolRefusal("refused: the host resolves to " + why + " address");
+                if (why != null)
+                    throw new ToolRefusal("refused: the host resolves to " + why + " address");
             }
         }
         return new ArrayList<>(addresses);
@@ -105,18 +113,25 @@ public final class NetPolicy {
         if (host.equals(configuredHost)) return true;
         for (String pattern : rules.hosts()) {
             String p = pattern.toLowerCase(Locale.ROOT);
-            if (p.startsWith("*.") ? host.endsWith(p.substring(1)) && host.length() > p.length() - 1 : host.equals(p)) return true;
+            if (p.startsWith("*.")
+                    ? host.endsWith(p.substring(1)) && host.length() > p.length() - 1
+                    : host.equals(p)) return true;
         }
         return false;
     }
 
     private boolean loopbackAllowedFor(String host) {
-        return configuredHost != null && host.equalsIgnoreCase(configuredHost) && isLoopbackName(configuredHost);
+        return configuredHost != null
+                && host.equalsIgnoreCase(configuredHost)
+                && isLoopbackName(configuredHost);
     }
 
     static boolean isLoopbackName(String host) {
         String h = host.toLowerCase(Locale.ROOT);
-        return h.equals("localhost") || h.equals("127.0.0.1") || h.equals("::1") || h.equals("[::1]");
+        return h.equals("localhost")
+                || h.equals("127.0.0.1")
+                || h.equals("::1")
+                || h.equals("[::1]");
     }
 
     /** An IPv4-mapped IPv6 address ({@code ::ffff:10.0.0.5}) is the IPv4 address it wraps. */
@@ -150,7 +165,8 @@ public final class NetPolicy {
             int first = b[0] & 0xFF;
             int second = b[1] & 0xFF;
             if (first == 0) return "an unspecified";
-            if (first == 100 && second >= 64 && second <= 127) return "a shared (carrier-grade NAT)";
+            if (first == 100 && second >= 64 && second <= 127)
+                return "a shared (carrier-grade NAT)";
         }
         return null;
     }

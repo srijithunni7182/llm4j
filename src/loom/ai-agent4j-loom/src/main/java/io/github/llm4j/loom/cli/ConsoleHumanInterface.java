@@ -3,9 +3,7 @@ package io.github.llm4j.loom.cli;
 import io.github.llm4j.loom.runtime.HumanInterface;
 import java.util.Scanner;
 
-/**
- * Standard console-based implementation of HumanInterface for CLI usage.
- */
+/** Standard console-based implementation of HumanInterface for CLI usage. */
 public class ConsoleHumanInterface implements HumanInterface {
     private final Scanner scanner = new Scanner(System.in);
 

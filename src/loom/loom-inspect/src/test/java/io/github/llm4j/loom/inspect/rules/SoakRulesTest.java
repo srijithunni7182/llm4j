@@ -7,7 +7,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
-/** The example's rules must stay valid for the example's script, as the guide's example must stay valid Loom. */
+/**
+ * The example's rules must stay valid for the example's script, as the guide's example must stay
+ * valid Loom.
+ */
 class SoakRulesTest {
 
     private static final Path DIR = Path.of("..", "..", "examples", "inspect-soak");
@@ -24,6 +27,9 @@ class SoakRulesTest {
 
     @Test
     void theRulesStayOutOfTheScript() throws Exception {
-        assertThat(Files.readString(DIR.resolve("soak.loom"))).doesNotContain("inspect {").doesNotContain("same_action").doesNotContain("no_progress");
+        assertThat(Files.readString(DIR.resolve("soak.loom")))
+                .doesNotContain("inspect {")
+                .doesNotContain("same_action")
+                .doesNotContain("no_progress");
     }
 }

@@ -9,14 +9,17 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** Running {@code decide}: who decides at each level, what is recorded, and what the person is never shown (spec loom-earned-autonomy R2, R3, R4). */
+/**
+ * Running {@code decide}: who decides at each level, what is recorded, and what the person is never
+ * shown (spec loom-earned-autonomy R2, R3, R4).
+ */
 class DecideTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private DecideHarness harness(String trustExtra) {
-        return new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), Scripts2.refund(trustExtra));
+        return new DecideHarness(
+                dir, new MemoryLedger(), new MemoryLevelStore(), Scripts2.refund(trustExtra));
     }
 
     @Test
@@ -36,7 +39,10 @@ class DecideTest {
 
         Case c = h.ledger.get("Refund", "run-1/Triage/s0").orElseThrow();
         assertThat(c.scope()).isEqualTo("gold");
-        assertThat(c.fields()).containsEntry("amount", "20").containsEntry("reason", "damaged").containsEntry("customer_since", "2020");
+        assertThat(c.fields())
+                .containsEntry("amount", "20")
+                .containsEntry("reason", "damaged")
+                .containsEntry("customer_since", "2020");
         assertThat(c.locator()).isEqualTo("run-1");
         assertThat(c.step()).isEqualTo("Triage/s0");
         assertThat(c.level()).isEqualTo(Level.WATCH);
@@ -59,21 +65,27 @@ class DecideTest {
         String marker = "ZEBRA-MARKER-7731";
         h.agent = f -> new String[] {"approve", "because " + marker, "0.77"};
         List<String> seenAtAnswer = new java.util.ArrayList<>();
-        h.person = f -> {
-            seenAtAnswer.addAll(h.trace);
-            seenAtAnswer.addAll(h.audit);
-            seenAtAnswer.addAll(h.last.audit);
-            seenAtAnswer.addAll(h.last.auditData.stream().map(Object::toString).toList());
-            return "approve";
-        };
+        h.person =
+                f -> {
+                    seenAtAnswer.addAll(h.trace);
+                    seenAtAnswer.addAll(h.audit);
+                    seenAtAnswer.addAll(h.last.audit);
+                    seenAtAnswer.addAll(h.last.auditData.stream().map(Object::toString).toList());
+                    return "approve";
+                };
 
         h.runCase("run-1", h.inputs("gold", 20));
 
-        assertThat(h.asked.get(0)).doesNotContain(marker).doesNotContain("0.77").doesNotContain("proposes").doesNotContain("reasoning");
+        assertThat(h.asked.get(0))
+                .doesNotContain(marker)
+                .doesNotContain("0.77")
+                .doesNotContain("proposes")
+                .doesNotContain("reasoning");
         assertThat(String.join("\n", seenAtAnswer)).doesNotContain(marker).doesNotContain("0.77");
         assertThat(String.join("\n", h.trace)).contains("proposal recorded (hidden)");
         // after the verdict the held entries are delivered, and the ledger has the reasoning
-        assertThat(h.ledger.get("Refund", "run-1/Triage/s0").orElseThrow().reasoning()).contains(marker);
+        assertThat(h.ledger.get("Refund", "run-1/Triage/s0").orElseThrow().reasoning())
+                .contains(marker);
     }
 
     @Test
@@ -88,7 +100,10 @@ class DecideTest {
 
         assertThat(vars.get("verdict")).isEqualTo("reject");
         assertThat(vars.get("verdict_level")).isEqualTo("suggest");
-        assertThat(h.asked.get(0)).contains("The agent proposes: approve").contains("fine by policy").contains("confidence 0.9");
+        assertThat(h.asked.get(0))
+                .contains("The agent proposes: approve")
+                .contains("fine by policy")
+                .contains("confidence 0.9");
         Case c = h.ledger.get("Refund", "run-1/Triage/s0").orElseThrow();
         assertThat(c.shown()).isTrue();
         assertThat(c.blindEvidence()).isFalse();
@@ -130,7 +145,10 @@ class DecideTest {
     void theVerdictAndItsPartsAreUsableInLaterSteps() {
         DecideHarness h = harness("");
         h.person = f -> "reject";
-        h.script = h.script.replace("note \"verdict", "alt (verdict == \"reject\") { note \"rejected\" } else { note \"other\" }\n    note \"verdict");
+        h.script =
+                h.script.replace(
+                        "note \"verdict",
+                        "alt (verdict == \"reject\") { note \"rejected\" } else { note \"other\" }\n    note \"verdict");
         h.runCase("run-1", h.inputs("gold", 20));
         assertThat(h.lastExecutor.getContext().getAll()).containsEntry("verdict", "reject");
     }

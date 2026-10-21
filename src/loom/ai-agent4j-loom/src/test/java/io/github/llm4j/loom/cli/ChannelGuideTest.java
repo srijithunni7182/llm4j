@@ -16,13 +16,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
 
-/** The guide's "Answering from Your Phone" section is checked against the code (spec loom-remote-answers R7). */
+/**
+ * The guide's "Answering from Your Phone" section is checked against the code (spec
+ * loom-remote-answers R7).
+ */
 class ChannelGuideTest {
 
     static final String HEADING = "### Answering from Your Phone";
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     static String section() throws Exception {
         String guide = Files.readString(Path.of("LOOM_GUIDE.md"), StandardCharsets.UTF_8);
@@ -42,7 +44,8 @@ class ChannelGuideTest {
             try {
                 new ScriptedRun(dir).executor(block).initialize();
             } catch (RuntimeException e) {
-                throw new AssertionError("this guide example doesn't load:\n" + block + "\n→ " + e.getMessage(), e);
+                throw new AssertionError(
+                        "this guide example doesn't load:\n" + block + "\n→ " + e.getMessage(), e);
             }
         }
 
@@ -54,7 +57,10 @@ class ChannelGuideTest {
             CommandLine sub = cli.getSubcommands().get(commands.group(1));
             assertThat(sub).as("weave " + commands.group(1)).isNotNull();
             Matcher options = Pattern.compile("(--[a-z-]+)").matcher(commands.group(2));
-            while (options.find()) assertThat(sub.getCommandSpec().findOption(options.group(1))).as(commands.group(0) + " has " + options.group(1)).isNotNull();
+            while (options.find())
+                assertThat(sub.getCommandSpec().findOption(options.group(1)))
+                        .as(commands.group(0) + " has " + options.group(1))
+                        .isNotNull();
         }
         assertThat(seen).isGreaterThanOrEqualTo(6);
 
@@ -63,7 +69,10 @@ class ChannelGuideTest {
         Path store = dir.resolve("store");
         Files.createDirectories(store);
         Files.writeString(store.resolve("channel.json"), json.group(1));
-        var config = io.github.llm4j.loom.channel.ChannelConfig.load(store, null, Map.of("TELEGRAM_BOT_TOKEN", "t")::get).orElseThrow();
+        var config =
+                io.github.llm4j.loom.channel.ChannelConfig.load(
+                                store, null, Map.of("TELEGRAM_BOT_TOKEN", "t")::get)
+                        .orElseThrow();
         assertThat(config.chatsFor("support-lead")).containsExactly(123456L, 777888L);
         assertThat(config.remindAtMost()).isEqualTo(3);
         assertThat(config.expire()).hasDays(3);
@@ -74,17 +83,24 @@ class ChannelGuideTest {
     void theAutonomySectionMentionsTheChatAndTheHelpListsTheCommands() throws Exception {
         String guide = Files.readString(Path.of("LOOM_GUIDE.md"));
         int from = guide.indexOf("### Earned Autonomy");
-        assertThat(guide.substring(from, guide.indexOf("\n### ", from + 10))).contains("From your phone").contains("answering-from-your-phone");
+        assertThat(guide.substring(from, guide.indexOf("\n### ", from + 10)))
+                .contains("From your phone")
+                .contains("answering-from-your-phone");
         CommandLine cli = WeaveCLI.commandLine();
-        for (String name : List.of("answer", "questions")) assertThat(cli.getSubcommands()).containsKey(name);
-        for (String name : List.of("run", "resume", "tick", "daemon")) assertThat(cli.getSubcommands().get(name).getCommandSpec().findOption("--ask-via")).as(name).isNotNull();
+        for (String name : List.of("answer", "questions"))
+            assertThat(cli.getSubcommands()).containsKey(name);
+        for (String name : List.of("run", "resume", "tick", "daemon"))
+            assertThat(cli.getSubcommands().get(name).getCommandSpec().findOption("--ask-via"))
+                    .as(name)
+                    .isNotNull();
     }
 
     @Test
     @Tag("RA-V7.3")
     void noSampleDirectoryWasAdded() throws Exception {
         try (var samples = Files.list(Path.of("samples"))) {
-            assertThat(samples.map(p -> p.getFileName().toString()).sorted().toList()).containsExactly("boardroom", "content_factory", "digest");
+            assertThat(samples.map(p -> p.getFileName().toString()).sorted().toList())
+                    .containsExactly("boardroom", "content_factory", "digest");
         }
     }
 }

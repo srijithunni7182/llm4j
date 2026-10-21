@@ -6,10 +6,10 @@ import io.github.llm4j.agent.memory.SemanticMemoryConfig;
 import io.github.llm4j.agent.skill.RestSkillRegistry;
 import io.github.llm4j.agent.tools.SerpApiSearchTool;
 import io.github.llm4j.agent.tools.WebSearchTool;
-import io.github.llm4j.agent.tools.openapi.OpenAPITool;
-import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.agent.tools.openapi.OpenAPIEndpoint;
 import io.github.llm4j.agent.tools.openapi.OpenAPISpec;
+import io.github.llm4j.agent.tools.openapi.OpenAPITool;
+import io.github.llm4j.config.LLMConfig;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -44,14 +44,24 @@ class ToolsAndConfigSecretTest {
 
     /** A client that sends every request to the mock server, whatever host the tool asked for. */
     private OkHttpClient redirecting() {
-        return new OkHttpClient.Builder().addInterceptor(chain -> {
-            okhttp3.Request r = chain.request();
-            okhttp3.HttpUrl to = r.url().newBuilder().scheme("http").host(server.getHostName()).port(server.getPort()).build();
-            return chain.proceed(r.newBuilder().url(to).build());
-        }).build();
+        return new OkHttpClient.Builder()
+                .addInterceptor(
+                        chain -> {
+                            okhttp3.Request r = chain.request();
+                            okhttp3.HttpUrl to =
+                                    r.url()
+                                            .newBuilder()
+                                            .scheme("http")
+                                            .host(server.getHostName())
+                                            .port(server.getPort())
+                                            .build();
+                            return chain.proceed(r.newBuilder().url(to).build());
+                        })
+                .build();
     }
 
-    // ---- LLMConfig ----------------------------------------------------------------------------------------------
+    // ---- LLMConfig
+    // ----------------------------------------------------------------------------------------------
 
     @Test
     void configNeverHoldsOrPrintsTheKey() {
@@ -60,7 +70,9 @@ class ToolsAndConfigSecretTest {
         assertEquals("secret:k", config.getApiKeyRef().toString());
         assertTrue(config.toString().contains("secret:k"));
         assertFalse(config.toString().contains(FakeKeys.ONE));
-        assertFalse(LLMConfig.builder().apiKey(FakeKeys.ONE).build().toString().contains(FakeKeys.ONE), "even a literal key is not printed");
+        assertFalse(
+                LLMConfig.builder().apiKey(FakeKeys.ONE).build().toString().contains(FakeKeys.ONE),
+                "even a literal key is not printed");
         assertTrue(config.hasApiKey());
         assertEquals(FakeKeys.ONE, config.getApiKey());
         store.put("k", FakeKeys.TWO);
@@ -74,10 +86,16 @@ class ToolsAndConfigSecretTest {
         LLMConfig b = LLMConfig.builder().apiKey(SecretRef.of(store, "k")).build();
         assertEquals(a, b);
         assertEquals(a.hashCode(), b.hashCode());
-        assertEquals(LLMConfig.builder().apiKey(FakeKeys.ONE).build(), LLMConfig.builder().apiKey(FakeKeys.ONE).build());
-        assertEquals(LLMConfig.builder().apiKey(FakeKeys.ONE).build().hashCode(), LLMConfig.builder().apiKey(FakeKeys.TWO).build().hashCode(),
+        assertEquals(
+                LLMConfig.builder().apiKey(FakeKeys.ONE).build(),
+                LLMConfig.builder().apiKey(FakeKeys.ONE).build());
+        assertEquals(
+                LLMConfig.builder().apiKey(FakeKeys.ONE).build().hashCode(),
+                LLMConfig.builder().apiKey(FakeKeys.TWO).build().hashCode(),
                 "a hash must not depend on a literal key");
-        assertNotEquals(LLMConfig.builder().apiKey(FakeKeys.ONE).build(), LLMConfig.builder().apiKey(FakeKeys.TWO).build());
+        assertNotEquals(
+                LLMConfig.builder().apiKey(FakeKeys.ONE).build(),
+                LLMConfig.builder().apiKey(FakeKeys.TWO).build());
     }
 
     @Test
@@ -96,25 +114,32 @@ class ToolsAndConfigSecretTest {
         store.put("k", FakeKeys.ONE, SecretMetadata.allowing("api.example.com"));
         LLMConfig config = LLMConfig.builder().apiKey(SecretRef.of(store, "k")).build();
         assertEquals(FakeKeys.ONE, config.requireApiKey("X", "https://api.example.com/v1"));
-        io.github.llm4j.exception.AuthenticationException e = assertThrows(io.github.llm4j.exception.AuthenticationException.class,
-                () -> config.requireApiKey("X", "https://evil.example.net/v1"));
+        io.github.llm4j.exception.AuthenticationException e =
+                assertThrows(
+                        io.github.llm4j.exception.AuthenticationException.class,
+                        () -> config.requireApiKey("X", "https://evil.example.net/v1"));
         assertFalse(e.getMessage().contains(FakeKeys.ONE));
         assertTrue(e.getMessage().contains("evil.example.net"));
     }
 
-    // ---- search tools -------------------------------------------------------------------------------------------
+    // ---- search tools
+    // -------------------------------------------------------------------------------------------
 
     @Test
     void serpApiFetchesItsKeyPerSearchAndScrubsErrors() throws Exception {
         store.put("serp", FakeKeys.ONE);
-        SerpApiSearchTool tool = SerpApiSearchTool.withSecret(SecretRef.of(store, "serp"), new OkHttpClient(), base() + "/search");
+        SerpApiSearchTool tool =
+                SerpApiSearchTool.withSecret(
+                        SecretRef.of(store, "serp"), new OkHttpClient(), base() + "/search");
         server.enqueue(new MockResponse().setBody("{\"organic_results\":[]}"));
         tool.execute(Map.of("query", "java"));
         assertTrue(server.takeRequest().getPath().contains("api_key=" + FakeKeys.ONE));
         store.put("serp", FakeKeys.TWO);
         server.enqueue(new MockResponse().setBody("{\"organic_results\":[]}"));
         tool.execute(Map.of("query", "java"));
-        assertTrue(server.takeRequest().getPath().contains("api_key=" + FakeKeys.TWO), "the rotated key is used");
+        assertTrue(
+                server.takeRequest().getPath().contains("api_key=" + FakeKeys.TWO),
+                "the rotated key is used");
 
         server.enqueue(new MockResponse().setResponseCode(401).setBody("bad key " + FakeKeys.TWO));
         String result = tool.execute(Map.of("query", "java"));
@@ -125,7 +150,9 @@ class ToolsAndConfigSecretTest {
     @Test
     void serpApiRefusesAHostTheSecretIsNotBoundTo() throws Exception {
         store.put("serp", FakeKeys.ONE, SecretMetadata.allowing("serpapi.com"));
-        SerpApiSearchTool tool = SerpApiSearchTool.withSecret(SecretRef.of(store, "serp"), new OkHttpClient(), base() + "/search");
+        SerpApiSearchTool tool =
+                SerpApiSearchTool.withSecret(
+                        SecretRef.of(store, "serp"), new OkHttpClient(), base() + "/search");
         String result = tool.execute(Map.of("query", "java"));
         assertTrue(result.startsWith("Error"), result);
         assertFalse(result.contains(FakeKeys.ONE));
@@ -134,9 +161,14 @@ class ToolsAndConfigSecretTest {
 
     @Test
     void searchToolsReportAMissingSecretWithoutSendingAnything() throws Exception {
-        String serp = SerpApiSearchTool.withSecret(SecretRef.of(store, "gone"), new OkHttpClient(), base()).execute(Map.of("query", "x"));
+        String serp =
+                SerpApiSearchTool.withSecret(
+                                SecretRef.of(store, "gone"), new OkHttpClient(), base())
+                        .execute(Map.of("query", "x"));
         assertTrue(serp.contains("secret:gone is not in the store"), serp);
-        String web = WebSearchTool.withSecret(SecretRef.of(store, "gone"), "cx").execute(Map.of("query", "x"));
+        String web =
+                WebSearchTool.withSecret(SecretRef.of(store, "gone"), "cx")
+                        .execute(Map.of("query", "x"));
         assertTrue(web.contains("secret:gone is not in the store"), web);
         assertEquals(0, server.getRequestCount());
     }
@@ -144,22 +176,33 @@ class ToolsAndConfigSecretTest {
     @Test
     void stringConstructorsOfTheSearchToolsStillWork() throws Exception {
         server.enqueue(new MockResponse().setBody("{\"organic_results\":[]}"));
-        new SerpApiSearchTool(FakeKeys.ONE, new OkHttpClient(), base() + "/search").execute(Map.of("query", "x"));
+        new SerpApiSearchTool(FakeKeys.ONE, new OkHttpClient(), base() + "/search")
+                .execute(Map.of("query", "x"));
         assertTrue(server.takeRequest().getPath().contains("api_key=" + FakeKeys.ONE));
-        assertTrue(new SerpApiSearchTool(null).execute(Map.of("query", "x")).contains("not configured"));
-        assertTrue(new WebSearchTool(null, "cx").execute(Map.of("query", "x")).contains("not configured"));
+        assertTrue(
+                new SerpApiSearchTool(null)
+                        .execute(Map.of("query", "x"))
+                        .contains("not configured"));
+        assertTrue(
+                new WebSearchTool(null, "cx")
+                        .execute(Map.of("query", "x"))
+                        .contains("not configured"));
     }
 
     @Test
     void webSearchBindsTheKeyToGoogleApisAndScrubsErrors() throws Exception {
         store.put("g", FakeKeys.ONE, SecretMetadata.allowing("www.googleapis.com"));
-        WebSearchTool tool = WebSearchTool.withSecret(SecretRef.of(store, "g"), "cx-id", redirecting());
+        WebSearchTool tool =
+                WebSearchTool.withSecret(SecretRef.of(store, "g"), "cx-id", redirecting());
         server.enqueue(new MockResponse().setBody("{\"items\":[]}"));
         tool.execute(Map.of("query", "java"));
         RecordedRequest r = server.takeRequest();
         assertTrue(r.getPath().contains("key=" + FakeKeys.ONE), r.getPath());
 
-        server.enqueue(new MockResponse().setResponseCode(403).setBody("key " + FakeKeys.ONE + " blocked"));
+        server.enqueue(
+                new MockResponse()
+                        .setResponseCode(403)
+                        .setBody("key " + FakeKeys.ONE + " blocked"));
         String result = tool.execute(Map.of("query", "java"));
         assertFalse(result.contains(FakeKeys.ONE), result);
 
@@ -169,11 +212,24 @@ class ToolsAndConfigSecretTest {
         assertEquals(2, server.getRequestCount(), "the refused search sent nothing");
     }
 
-    // ---- OpenAPI tool and REST skills ---------------------------------------------------------------------------
+    // ---- OpenAPI tool and REST skills
+    // ---------------------------------------------------------------------------
 
     private OpenAPITool openApi(OpenAPITool.Builder b) {
-        OpenAPISpec spec = OpenAPISpec.builder().title("t").version("1").servers(List.of(base()))
-                .endpoints(List.of(OpenAPIEndpoint.builder().path("/ping").method("GET").summary("ping").parameters(List.of()).build())).build();
+        OpenAPISpec spec =
+                OpenAPISpec.builder()
+                        .title("t")
+                        .version("1")
+                        .servers(List.of(base()))
+                        .endpoints(
+                                List.of(
+                                        OpenAPIEndpoint.builder()
+                                                .path("/ping")
+                                                .method("GET")
+                                                .summary("ping")
+                                                .parameters(List.of())
+                                                .build()))
+                        .build();
         return b.name("api").spec(spec).build();
     }
 
@@ -183,7 +239,11 @@ class ToolsAndConfigSecretTest {
     void openApiToolFetchesQueryAndHeaderCredentialsPerRequest() throws Exception {
         store.put("q", FakeKeys.ONE);
         store.put("h", "Bearer " + FakeKeys.TWO);
-        OpenAPITool tool = openApi(OpenAPITool.builder().apiKeyAuth("api_key", SecretRef.of(store, "q")).headerAuth("Authorization", SecretRef.of(store, "h")));
+        OpenAPITool tool =
+                openApi(
+                        OpenAPITool.builder()
+                                .apiKeyAuth("api_key", SecretRef.of(store, "q"))
+                                .headerAuth("Authorization", SecretRef.of(store, "h")));
         server.enqueue(new MockResponse().setBody("{}"));
         tool.execute(PING);
         RecordedRequest r = server.takeRequest();
@@ -198,8 +258,15 @@ class ToolsAndConfigSecretTest {
     @Test
     void openApiToolDoesNotReturnOrLogACredentialTheServerEchoes() throws Exception {
         store.put("q", FakeKeys.ONE);
-        OpenAPITool tool = openApi(OpenAPITool.builder().apiKeyAuth("api_key", SecretRef.of(store, "q")).headerAuth("X-Literal", "literal-credential-0009"));
-        server.enqueue(new MockResponse().setResponseCode(401).setBody("rejected " + FakeKeys.ONE + " and literal-credential-0009"));
+        OpenAPITool tool =
+                openApi(
+                        OpenAPITool.builder()
+                                .apiKeyAuth("api_key", SecretRef.of(store, "q"))
+                                .headerAuth("X-Literal", "literal-credential-0009"));
+        server.enqueue(
+                new MockResponse()
+                        .setResponseCode(401)
+                        .setBody("rejected " + FakeKeys.ONE + " and literal-credential-0009"));
         String result = tool.execute(PING);
         assertFalse(result.contains(FakeKeys.ONE), result);
         assertFalse(result.contains("literal-credential-0009"), result);
@@ -209,7 +276,8 @@ class ToolsAndConfigSecretTest {
     @Test
     void openApiToolRefusesAHostTheSecretIsNotBoundTo() throws Exception {
         store.put("q", FakeKeys.ONE, SecretMetadata.allowing("api.example.com"));
-        OpenAPITool tool = openApi(OpenAPITool.builder().apiKeyAuth("api_key", SecretRef.of(store, "q")));
+        OpenAPITool tool =
+                openApi(OpenAPITool.builder().apiKeyAuth("api_key", SecretRef.of(store, "q")));
         String result = tool.execute(PING);
         assertTrue(result.contains("credential unavailable"), result);
         assertFalse(result.contains(FakeKeys.ONE));
@@ -219,7 +287,11 @@ class ToolsAndConfigSecretTest {
     @Test
     void restSkillRegistryFetchesItsKeyPerRequestAndScrubsErrors() throws Exception {
         store.put("r", FakeKeys.ONE);
-        RestSkillRegistry registry = RestSkillRegistry.builder().baseUrl(base()).apiKey(SecretRef.of(store, "r")).build();
+        RestSkillRegistry registry =
+                RestSkillRegistry.builder()
+                        .baseUrl(base())
+                        .apiKey(SecretRef.of(store, "r"))
+                        .build();
         server.enqueue(new MockResponse().setBody("[]"));
         registry.searchSkills("x");
         RecordedRequest first = server.takeRequest();
@@ -230,7 +302,8 @@ class ToolsAndConfigSecretTest {
         registry.searchSkills("x");
         assertEquals(FakeKeys.TWO, server.takeRequest().getHeader("x-api-key"));
 
-        server.enqueue(new MockResponse().setResponseCode(401).setBody("unknown key " + FakeKeys.TWO));
+        server.enqueue(
+                new MockResponse().setResponseCode(401).setBody("unknown key " + FakeKeys.TWO));
         IOException e = assertThrows(IOException.class, () -> registry.searchSkills("x"));
         assertFalse(e.getMessage().contains(FakeKeys.TWO), e.getMessage());
 
@@ -240,20 +313,28 @@ class ToolsAndConfigSecretTest {
         assertEquals(3, server.getRequestCount(), "nothing was sent when the host was refused");
     }
 
-    // ---- semantic memory config ---------------------------------------------------------------------------------
+    // ---- semantic memory config
+    // ---------------------------------------------------------------------------------
 
     @Test
     void semanticMemoryConfigAcceptsReferences() {
         store.put("g", FakeKeys.ONE);
         store.put("pg", FakeKeys.TWO);
-        SemanticMemoryConfig config = SemanticMemoryConfig.builder().userId("u")
-                .geminiApiKey(SecretRef.of(store, "g"))
-                .pgPassword(SecretRef.of(store, "pg"))
-                .build();
+        SemanticMemoryConfig config =
+                SemanticMemoryConfig.builder()
+                        .userId("u")
+                        .geminiApiKey(SecretRef.of(store, "g"))
+                        .pgPassword(SecretRef.of(store, "pg"))
+                        .build();
         assertEquals("secret:g", config.getGeminiApiKeyRef().toString());
         assertEquals("secret:pg", config.getPgPasswordRef().toString());
         assertEquals(FakeKeys.ONE, config.getGeminiApiKey());
-        SemanticMemoryConfig literal = SemanticMemoryConfig.builder().userId("u").geminiApiKey(FakeKeys.ONE).pgPassword("pw").build();
+        SemanticMemoryConfig literal =
+                SemanticMemoryConfig.builder()
+                        .userId("u")
+                        .geminiApiKey(FakeKeys.ONE)
+                        .pgPassword("pw")
+                        .build();
         assertEquals(FakeKeys.ONE, literal.getGeminiApiKey());
         assertEquals("pw", literal.getPgPassword());
         assertNull(SemanticMemoryConfig.builder().userId("u").build().getPgPasswordRef());

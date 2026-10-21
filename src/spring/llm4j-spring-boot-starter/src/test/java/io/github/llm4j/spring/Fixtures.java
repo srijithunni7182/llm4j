@@ -15,22 +15,35 @@ import okhttp3.mockwebserver.RecordedRequest;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
-/** What the starter's tests share: a context runner, and provider stand-ins that answer in each provider's own shape and record what they were sent. */
+/**
+ * What the starter's tests share: a context runner, and provider stand-ins that answer in each
+ * provider's own shape and record what they were sent.
+ */
 final class Fixtures {
 
     static final String CANARY = "sk-canary-7f3a9c41";
 
-    private Fixtures() { }
+    private Fixtures() {}
 
     static ApplicationContextRunner runner() {
-        return new ApplicationContextRunner().withConfiguration(AutoConfigurations.of(
-                Llm4jGuardAutoConfiguration.class, Llm4jSecretsAutoConfiguration.class, Llm4jClientsAutoConfiguration.class, Llm4jToolsAutoConfiguration.class,
-                Llm4jAgentsAutoConfiguration.class, Llm4jRagAutoConfiguration.class, Llm4jObserveAutoConfiguration.class, Llm4jLoomAutoConfiguration.class));
+        return new ApplicationContextRunner()
+                .withConfiguration(
+                        AutoConfigurations.of(
+                                Llm4jGuardAutoConfiguration.class,
+                                Llm4jSecretsAutoConfiguration.class,
+                                Llm4jClientsAutoConfiguration.class,
+                                Llm4jToolsAutoConfiguration.class,
+                                Llm4jAgentsAutoConfiguration.class,
+                                Llm4jRagAutoConfiguration.class,
+                                Llm4jObserveAutoConfiguration.class,
+                                Llm4jLoomAutoConfiguration.class));
     }
 
-    static org.springframework.core.env.StandardEnvironment environment(java.util.Map<String, Object> properties) {
+    static org.springframework.core.env.StandardEnvironment environment(
+            java.util.Map<String, Object> properties) {
         var env = new org.springframework.core.env.StandardEnvironment();
-        env.getPropertySources().addFirst(new org.springframework.core.env.MapPropertySource("test", properties));
+        env.getPropertySources()
+                .addFirst(new org.springframework.core.env.MapPropertySource("test", properties));
         return env;
     }
 
@@ -38,26 +51,35 @@ final class Fixtures {
         return client.chat(LLMRequest.builder().addMessage(Message.user(text)).build());
     }
 
-    /** A provider's HTTP API on localhost: answers {@code reply} (or whatever {@link #responder} says) in the shape of {@code kind}, and records requests. */
+    /**
+     * A provider's HTTP API on localhost: answers {@code reply} (or whatever {@link #responder}
+     * says) in the shape of {@code kind}, and records requests.
+     */
     static final class Provider implements AutoCloseable {
         final MockWebServer server = new MockWebServer();
         final List<RecordedRequest> seen = new CopyOnWriteArrayList<>();
         volatile String reply = "hello";
-        /** Report prompt tokens as a real provider would (a quarter of the request's characters) instead of a constant 10. */
+
+        /**
+         * Report prompt tokens as a real provider would (a quarter of the request's characters)
+         * instead of a constant 10.
+         */
         volatile boolean realisticUsage;
+
         volatile Function<RecordedRequest, MockResponse> responder;
         final String kind;
 
         Provider(String kind) throws IOException {
             this.kind = kind;
-            server.setDispatcher(new Dispatcher() {
-                @Override
-                public MockResponse dispatch(RecordedRequest request) {
-                    seen.add(request);
-                    Function<RecordedRequest, MockResponse> r = responder;
-                    return r != null ? r.apply(request) : okFor(reply, request);
-                }
-            });
+            server.setDispatcher(
+                    new Dispatcher() {
+                        @Override
+                        public MockResponse dispatch(RecordedRequest request) {
+                            seen.add(request);
+                            Function<RecordedRequest, MockResponse> r = responder;
+                            return r != null ? r.apply(request) : okFor(reply, request);
+                        }
+                    });
             server.start();
         }
 
@@ -75,15 +97,30 @@ final class Fixtures {
 
         MockResponse ok(String text, int promptTokens) {
             String t = quote(text);
-            String body = switch (kind) {
-                case "anthropic" -> "{\"id\":\"m1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude\",\"content\":[{\"type\":\"text\",\"text\":" + t
-                        + "}],\"stop_reason\":\"end_turn\",\"usage\":{\"input_tokens\":" + promptTokens + ",\"output_tokens\":5}}";
-                case "gemini" -> "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":" + t + "}],\"role\":\"model\"},\"finishReason\":\"STOP\"}],"
-                        + "\"usageMetadata\":{\"promptTokenCount\":" + promptTokens + ",\"candidatesTokenCount\":5,\"totalTokenCount\":15}}";
-                case "sarvam" -> "{\"id\":\"1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":" + t
-                        + "},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":" + promptTokens + ",\"completion_tokens\":5,\"total_tokens\":15}}";
-                default -> "{\"model\":\"m\",\"message\":{\"role\":\"assistant\",\"content\":" + t + "},\"done\":true,\"prompt_eval_count\":" + promptTokens + ",\"eval_count\":5}";
-            };
+            String body =
+                    switch (kind) {
+                        case "anthropic" -> "{\"id\":\"m1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude\",\"content\":[{\"type\":\"text\",\"text\":"
+                                + t
+                                + "}],\"stop_reason\":\"end_turn\",\"usage\":{\"input_tokens\":"
+                                + promptTokens
+                                + ",\"output_tokens\":5}}";
+                        case "gemini" -> "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":"
+                                + t
+                                + "}],\"role\":\"model\"},\"finishReason\":\"STOP\"}],"
+                                + "\"usageMetadata\":{\"promptTokenCount\":"
+                                + promptTokens
+                                + ",\"candidatesTokenCount\":5,\"totalTokenCount\":15}}";
+                        case "sarvam" -> "{\"id\":\"1\",\"model\":\"m\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":"
+                                + t
+                                + "},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":"
+                                + promptTokens
+                                + ",\"completion_tokens\":5,\"total_tokens\":15}}";
+                        default -> "{\"model\":\"m\",\"message\":{\"role\":\"assistant\",\"content\":"
+                                + t
+                                + "},\"done\":true,\"prompt_eval_count\":"
+                                + promptTokens
+                                + ",\"eval_count\":5}";
+                    };
             return new MockResponse().setHeader("Content-Type", "application/json").setBody(body);
         }
 
@@ -97,13 +134,21 @@ final class Fixtures {
 
         /** Answers these, one for each request, then {@link #reply}. */
         Provider queue(String... replies) {
-            java.util.concurrent.atomic.AtomicInteger n = new java.util.concurrent.atomic.AtomicInteger();
-            responder = r -> okFor(n.get() < replies.length ? replies[n.getAndIncrement()] : reply, r);
+            java.util.concurrent.atomic.AtomicInteger n =
+                    new java.util.concurrent.atomic.AtomicInteger();
+            responder =
+                    r -> okFor(n.get() < replies.length ? replies[n.getAndIncrement()] : reply, r);
             return this;
         }
 
         static String react(String tool, String inputJson) {
-            return "```json\n{\"thought\": \"use " + tool + "\", \"action\": \"" + tool + "\", \"action_input\": " + inputJson + "}\n```";
+            return "```json\n{\"thought\": \"use "
+                    + tool
+                    + "\", \"action\": \""
+                    + tool
+                    + "\", \"action_input\": "
+                    + inputJson
+                    + "}\n```";
         }
 
         static String done(String answer) {

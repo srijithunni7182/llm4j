@@ -5,7 +5,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiPredicate;
 
-/** A journal that "dies" (throws an Error nothing can swallow) just before a chosen write, so a test can stop a run between two entries. */
+/**
+ * A journal that "dies" (throws an Error nothing can swallow) just before a chosen write, so a test
+ * can stop a run between two entries.
+ */
 final class CrashingJournal implements RunJournal {
 
     static final class Crash extends Error {

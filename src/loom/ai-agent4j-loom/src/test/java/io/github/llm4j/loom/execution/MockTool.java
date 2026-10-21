@@ -3,9 +3,8 @@ package io.github.llm4j.loom.execution;
 import io.github.llm4j.agent.Tool;
 
 public class MockTool implements Tool {
-    
-    public MockTool() {
-    }
+
+    public MockTool() {}
 
     @Override
     public String getName() {

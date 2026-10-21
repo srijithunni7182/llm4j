@@ -25,9 +25,10 @@ import java.util.Map;
  * }
  * }</pre>
  *
- * <p>A workflow with several parameters takes them by name in {@code inputs:} ({@code input} alone is its first parameter or an agent's task).
- * Every field besides {@code input} (or {@code inputs}) is optional and may be {@code null} — a test decides which
- * fields a given dataset actually needs to check.
+ * <p>A workflow with several parameters takes them by name in {@code inputs:} ({@code input} alone
+ * is its first parameter or an agent's task). Every field besides {@code input} (or {@code inputs})
+ * is optional and may be {@code null} — a test decides which fields a given dataset actually needs
+ * to check.
  */
 public record EvalScenario(
         String name,
@@ -44,12 +45,17 @@ public record EvalScenario(
         List<String> expect,
         @JsonDeserialize(using = InputsDeserializer.class) Map<String, String> inputs,
         @JsonAlias("expected_output_not_contains")
-        @com.fasterxml.jackson.annotation.JsonFormat(with = com.fasterxml.jackson.annotation.JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
-        List<String> expectedOutputNotContains,
+                @com.fasterxml.jackson.annotation.JsonFormat(
+                        with =
+                                com.fasterxml.jackson.annotation.JsonFormat.Feature
+                                        .ACCEPT_SINGLE_VALUE_AS_ARRAY)
+                List<String> expectedOutputNotContains,
         @JsonAlias("expected_min_words") Integer expectedMinWords,
         @JsonAlias("expected_max_words") Integer expectedMaxWords) {
 
-    /** The fourteen-field form, before {@code expected_min_words} and {@code expected_max_words}. */
+    /**
+     * The fourteen-field form, before {@code expected_min_words} and {@code expected_max_words}.
+     */
     public EvalScenario(
             String name,
             String input,
@@ -65,8 +71,23 @@ public record EvalScenario(
             List<String> expect,
             Map<String, String> inputs,
             List<String> expectedOutputNotContains) {
-        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, rubric, expect, inputs,
-                expectedOutputNotContains, null, null);
+        this(
+                name,
+                input,
+                expectedOutputContains,
+                expectedOutput,
+                expectedTools,
+                context,
+                retrievalContext,
+                id,
+                dimensions,
+                tags,
+                rubric,
+                expect,
+                inputs,
+                expectedOutputNotContains,
+                null,
+                null);
     }
 
     /** The thirteen-field form, before {@code expected_output_not_contains}. */
@@ -84,16 +105,36 @@ public record EvalScenario(
             List<String> rubric,
             List<String> expect,
             Map<String, String> inputs) {
-        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, rubric, expect, inputs, null, null, null);
+        this(
+                name,
+                input,
+                expectedOutputContains,
+                expectedOutput,
+                expectedTools,
+                context,
+                retrievalContext,
+                id,
+                dimensions,
+                tags,
+                rubric,
+                expect,
+                inputs,
+                null,
+                null,
+                null);
     }
 
-    /** What the answer must never contain (any capitalisation): a deterministic check, no judge, never null. */
+    /**
+     * What the answer must never contain (any capitalisation): a deterministic check, no judge,
+     * never null.
+     */
     public List<String> mustNotContain() {
         return expectedOutputNotContains == null ? List.of() : expectedOutputNotContains;
     }
 
     /**
-     * The twelve-field form, before {@code inputs}: a scenario whose workflow takes one parameter (or an agent's task) is just {@code input}.
+     * The twelve-field form, before {@code inputs}: a scenario whose workflow takes one parameter
+     * (or an agent's task) is just {@code input}.
      */
     public EvalScenario(
             String name,
@@ -108,18 +149,38 @@ public record EvalScenario(
             List<String> tags,
             List<String> rubric,
             List<String> expect) {
-        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, rubric, expect, null, null, null, null);
+        this(
+                name,
+                input,
+                expectedOutputContains,
+                expectedOutput,
+                expectedTools,
+                context,
+                retrievalContext,
+                id,
+                dimensions,
+                tags,
+                rubric,
+                expect,
+                null,
+                null,
+                null,
+                null);
     }
 
-    /** The named parameters of a workflow with several, never null; empty when {@code input} alone says everything. */
+    /**
+     * The named parameters of a workflow with several, never null; empty when {@code input} alone
+     * says everything.
+     */
     public Map<String, String> namedInputs() {
         return inputs == null ? Map.of() : inputs;
     }
 
     /**
-     * Everything but the judged expectations: the ten-field form. {@code rubric} and {@code expect} are what a judge is asked to
-     * confirm (about an agent's answer, and about what a workflow run did); they were once written as {@code RUBRIC:} and
-     * {@code EXPECT:} lines in {@code context}, which {@link EvalScenarios} still reads as these fields.
+     * Everything but the judged expectations: the ten-field form. {@code rubric} and {@code expect}
+     * are what a judge is asked to confirm (about an agent's answer, and about what a workflow run
+     * did); they were once written as {@code RUBRIC:} and {@code EXPECT:} lines in {@code context},
+     * which {@link EvalScenarios} still reads as these fields.
      */
     public EvalScenario(
             String name,
@@ -132,19 +193,37 @@ public record EvalScenario(
             String id,
             List<String> dimensions,
             List<String> tags) {
-        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, null, null, null, null);
+        this(
+                name,
+                input,
+                expectedOutputContains,
+                expectedOutput,
+                expectedTools,
+                context,
+                retrievalContext,
+                id,
+                dimensions,
+                tags,
+                null,
+                null,
+                null,
+                null);
     }
 
     /**
-     * The typed tags: a tag written {@code kind:fabricated-premise} (or {@code kind: fabricated-premise} as a YAML mapping entry) is
-     * the pair {@code kind} and {@code fabricated-premise}. Tags without a colon are not in the map; the order they were written in is kept.
+     * The typed tags: a tag written {@code kind:fabricated-premise} (or {@code kind:
+     * fabricated-premise} as a YAML mapping entry) is the pair {@code kind} and {@code
+     * fabricated-premise}. Tags without a colon are not in the map; the order they were written in
+     * is kept.
      */
     public Map<String, String> meta() {
         Map<String, String> out = new LinkedHashMap<>();
         if (tags != null) {
             for (String tag : tags) {
                 int colon = tag.indexOf(':');
-                if (colon > 0) out.putIfAbsent(tag.substring(0, colon).strip(), tag.substring(colon + 1).strip());
+                if (colon > 0)
+                    out.putIfAbsent(
+                            tag.substring(0, colon).strip(), tag.substring(colon + 1).strip());
             }
         }
         return out;

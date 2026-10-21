@@ -35,18 +35,26 @@ class GoogleContractTest extends ProviderContract {
     @Override
     protected List<String> turns(JsonNode request) {
         List<String> out = new ArrayList<>();
-        request.path("contents").forEach(c -> {
-            StringBuilder sb = new StringBuilder();
-            c.path("parts").forEach(p -> sb.append(p.path("text").asText()));
-            out.add(("model".equals(c.path("role").asText()) ? "assistant" : "user") + ": " + sb);
-        });
+        request.path("contents")
+                .forEach(
+                        c -> {
+                            StringBuilder sb = new StringBuilder();
+                            c.path("parts").forEach(p -> sb.append(p.path("text").asText()));
+                            out.add(
+                                    ("model".equals(c.path("role").asText()) ? "assistant" : "user")
+                                            + ": "
+                                            + sb);
+                        });
         return out;
     }
 
     @Override
     protected Settings settings(JsonNode r) {
         JsonNode g = r.path("generationConfig");
-        return new Settings(integer(g.path("maxOutputTokens")), decimal(g.path("temperature")), decimal(g.path("topP")),
+        return new Settings(
+                integer(g.path("maxOutputTokens")),
+                decimal(g.path("temperature")),
+                decimal(g.path("topP")),
                 strings(g.path("stopSequences")));
     }
 
@@ -55,7 +63,8 @@ class GoogleContractTest extends ProviderContract {
                 {"candidates":[{"content":{"role":"model","parts":[{"text":"Let me think.","thought":true},{"text":%s}]},
                   "finishReason":"%s","index":0}],
                  "usageMetadata":{"promptTokenCount":%d,"candidatesTokenCount":%d,"totalTokenCount":%d},
-                 "modelVersion":"gemini-2.5-flash"}""".formatted(AnthropicContractTest.quote(text), finish, in, out, in + out);
+                 "modelVersion":"gemini-2.5-flash"}"""
+                .formatted(AnthropicContractTest.quote(text), finish, in, out, in + out);
     }
 
     @Override
@@ -82,20 +91,31 @@ class GoogleContractTest extends ProviderContract {
 
     @Override
     protected String error(int status, String message) {
-        String s = switch (status) {
-            case 401 -> "UNAUTHENTICATED";
-            case 503 -> "UNAVAILABLE";
-            default -> "INVALID_ARGUMENT";
-        };
-        return "{\"error\":{\"code\":" + status + ",\"message\":" + AnthropicContractTest.quote(message) + ",\"status\":\"" + s + "\"}}";
+        String s =
+                switch (status) {
+                    case 401 -> "UNAUTHENTICATED";
+                    case 503 -> "UNAVAILABLE";
+                    default -> "INVALID_ARGUMENT";
+                };
+        return "{\"error\":{\"code\":"
+                + status
+                + ",\"message\":"
+                + AnthropicContractTest.quote(message)
+                + ",\"status\":\""
+                + s
+                + "\"}}";
     }
 
     @Override
     protected MockResponse rateLimited(Instant reset) {
         long seconds = Duration.between(Instant.now(), reset).getSeconds();
-        return new MockResponse().setResponseCode(429).setBody("""
+        return new MockResponse()
+                .setResponseCode(429)
+                .setBody(
+                        """
                 {"error":{"code":429,"message":"Resource has been exhausted (e.g. check quota).","status":"RESOURCE_EXHAUSTED",
-                  "details":[{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"%ds"}]}}""".formatted(seconds));
+                  "details":[{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"%ds"}]}}"""
+                                .formatted(seconds));
     }
 
     static String data(String json) {
@@ -103,15 +123,22 @@ class GoogleContractTest extends ProviderContract {
     }
 
     static String chunk(String text) {
-        return "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":" + AnthropicContractTest.quote(text) + "}]},\"index\":0}]}";
+        return "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":"
+                + AnthropicContractTest.quote(text)
+                + "}]},\"index\":0}]}";
     }
 
     @Override
     protected MockResponse stream(List<String> pieces, int in, int out) {
         StringBuilder sb = new StringBuilder();
-        sb.append(data("{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"planning\",\"thought\":true}]}}]}"));
+        sb.append(
+                data(
+                        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"planning\",\"thought\":true}]}}]}"));
         for (int i = 0; i < pieces.size() - 1; i++) sb.append(data(chunk(pieces.get(i))));
-        sb.append(data(candidate("STOP", pieces.get(pieces.size() - 1), in, out).replace("{\"text\":\"Let me think.\",\"thought\":true},", "")));
+        sb.append(
+                data(
+                        candidate("STOP", pieces.get(pieces.size() - 1), in, out)
+                                .replace("{\"text\":\"Let me think.\",\"thought\":true},", "")));
         return sse(sb.toString());
     }
 
@@ -119,14 +146,23 @@ class GoogleContractTest extends ProviderContract {
     protected MockResponse streamThenError(List<String> pieces) {
         StringBuilder sb = new StringBuilder();
         pieces.forEach(p -> sb.append(data(chunk(p))));
-        sb.append(data("{\"error\":{\"code\":503,\"message\":\"The model is overloaded.\",\"status\":\"UNAVAILABLE\"}}"));
+        sb.append(
+                data(
+                        "{\"error\":{\"code\":503,\"message\":\"The model is overloaded.\",\"status\":\"UNAVAILABLE\"}}"));
         return sse(sb.toString());
     }
 
-    /** Seen from the real API: Gemini answers a bad key with 400, not 401 — still an authentication failure. */
+    /**
+     * Seen from the real API: Gemini answers a bad key with 400, not 401 — still an authentication
+     * failure.
+     */
     @org.junit.jupiter.api.Test
     void aBadKeyIsAnAuthenticationFailureEvenAsA400() {
-        server.enqueue(new MockResponse().setResponseCode(400).setBody("""
+        server.enqueue(
+                new MockResponse()
+                        .setResponseCode(400)
+                        .setBody(
+                                """
                 {"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT",
                   "details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"API_KEY_INVALID","domain":"googleapis.com"}]}}"""));
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> provider(model()).chat(ask("hi")))

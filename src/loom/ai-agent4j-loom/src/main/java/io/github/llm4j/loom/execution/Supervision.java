@@ -10,19 +10,21 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 
 /**
- * The rules of {@code supervise Agent { }} at work. A step that has rules runs its agent under a {@link Run}: the agent's events (an action, a tool result, a
- * model call, how full the context is) are counted on the thread the agent runs on, and when a rule's condition becomes true its actions are carried out on the
- * step's own handle: a steer, a wrap-up or a cancel. Rules are symbolic: every signal is a count of what the agent did, never an opinion of a model, and
- * what a rule does is journaled, traced and audited like what a person does.
+ * The rules of {@code supervise Agent { }} at work. A step that has rules runs its agent under a
+ * {@link Run}: the agent's events (an action, a tool result, a model call, how full the context is)
+ * are counted on the thread the agent runs on, and when a rule's condition becomes true its actions
+ * are carried out on the step's own handle: a steer, a wrap-up or a cancel. Rules are symbolic:
+ * every signal is a count of what the agent did, never an opinion of a model, and what a rule does
+ * is journaled, traced and audited like what a person does.
  *
- * <p>A rule fires when its condition <em>becomes</em> true; it fires again only if the condition goes false and true again, and never again at all
- * when it is written {@code once}.
+ * <p>A rule fires when its condition <em>becomes</em> true; it fires again only if the condition
+ * goes false and true again, and never again at all when it is written {@code once}.
  */
 final class Supervision {
 
     private static final ThreadLocal<Run> CURRENT = new ThreadLocal<>();
 
-    private Supervision() { }
+    private Supervision() {}
 
     /** What a rule's actions are carried out through. */
     interface Actor {
@@ -45,29 +47,37 @@ final class Supervision {
         }
     }
 
-    /** The listener that gives a step's {@link Run} the events of the agent running on this thread. */
+    /**
+     * The listener that gives a step's {@link Run} the events of the agent running on this thread.
+     */
     static AgentEventListener adapter() {
         return new AgentEventListener() {
-            @Override public void onThought(String thought) { }
+            @Override
+            public void onThought(String thought) {}
 
-            @Override public void onAction(String toolName, String toolInput) {
+            @Override
+            public void onAction(String toolName, String toolInput) {
                 Run r = CURRENT.get();
                 if (r != null) r.action(toolName, toolInput);
             }
 
-            @Override public void onObservation(String observation) { }
+            @Override
+            public void onObservation(String observation) {}
 
-            @Override public void onToolCall(ToolCallEvent event) {
+            @Override
+            public void onToolCall(ToolCallEvent event) {
                 Run r = CURRENT.get();
                 if (r != null) r.toolCall(event);
             }
 
-            @Override public void onModelCall(io.github.llm4j.telemetry.ModelCallEvent event) {
+            @Override
+            public void onModelCall(io.github.llm4j.telemetry.ModelCallEvent event) {
                 Run r = CURRENT.get();
                 if (r != null) r.modelCall();
             }
 
-            @Override public void onContextUsage(io.github.llm4j.context.ContextUsage usage) {
+            @Override
+            public void onContextUsage(io.github.llm4j.context.ContextUsage usage) {
                 Run r = CURRENT.get();
                 if (r != null) r.context(usage);
             }
@@ -121,7 +131,8 @@ final class Supervision {
         private boolean holds(SuperviseDef.Rule r, String tool) {
             return switch (r.getSignal()) {
                 case LOOPING -> repeats >= r.getN();
-                case TOOL_FAILING -> r.getTool().equals(tool) && failing.getOrDefault(tool, 0) >= r.getN();
+                case TOOL_FAILING -> r.getTool().equals(tool)
+                        && failing.getOrDefault(tool, 0) >= r.getN();
                 case CONTEXT -> contextPercent > r.getN();
                 case STEPS -> steps > r.getN();
             };
@@ -131,7 +142,9 @@ final class Supervision {
             List<SuperviseDef.Rule> rules = def.getRules();
             for (int i = 0; i < rules.size(); i++) {
                 SuperviseDef.Rule r = rules.get(i);
-                if (r.getSignal() != signal || (signal == SuperviseDef.Signal.TOOL_FAILING && !r.getTool().equals(tool))) continue;
+                if (r.getSignal() != signal
+                        || (signal == SuperviseDef.Signal.TOOL_FAILING
+                                && !r.getTool().equals(tool))) continue;
                 boolean now = holds(r, tool);
                 boolean edge = now && !active[i];
                 active[i] = now;
@@ -141,7 +154,13 @@ final class Supervision {
                     switch (a.kind()) {
                         case STEER -> actor.steer(stepId, def.getAgent(), a.text(), r.describe());
                         case WRAP_UP -> actor.wrapUp(stepId, def.getAgent(), r.describe());
-                        case CANCEL -> actor.cancel(stepId, def.getAgent(), a.outcome() == null ? null : StopOutcome.valueOf(a.outcome().name()), r.describe());
+                        case CANCEL -> actor.cancel(
+                                stepId,
+                                def.getAgent(),
+                                a.outcome() == null
+                                        ? null
+                                        : StopOutcome.valueOf(a.outcome().name()),
+                                r.describe());
                     }
                 }
             }

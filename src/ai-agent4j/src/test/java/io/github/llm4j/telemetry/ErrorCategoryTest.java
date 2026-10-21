@@ -33,24 +33,43 @@ import org.mockito.Mockito;
 class ErrorCategoryTest {
 
     private static void is(Throwable t, ErrorCategory expected) {
-        assertThat(ErrorCategory.of(t)).as(t.getClass().getSimpleName() + ": " + t.getMessage()).isEqualTo(expected);
-        assertThat(ErrorCategory.of(new RuntimeException("wrapped", t))).as("wrapped " + t.getClass().getSimpleName()).isEqualTo(expected);
-        assertThat(ErrorCategory.of(new ExecutionException(t))).as("in an ExecutionException " + t.getClass().getSimpleName()).isEqualTo(expected);
+        assertThat(ErrorCategory.of(t))
+                .as(t.getClass().getSimpleName() + ": " + t.getMessage())
+                .isEqualTo(expected);
+        assertThat(ErrorCategory.of(new RuntimeException("wrapped", t)))
+                .as("wrapped " + t.getClass().getSimpleName())
+                .isEqualTo(expected);
+        assertThat(ErrorCategory.of(new ExecutionException(t)))
+                .as("in an ExecutionException " + t.getClass().getSimpleName())
+                .isEqualTo(expected);
     }
 
     @Test
     void anExplicitCategoryWins() {
         is(new ToolException(ErrorCategory.NOT_FOUND, "no such record"), ErrorCategory.NOT_FOUND);
         // even over what the cause would say
-        assertThat(ErrorCategory.of(new ToolException(ErrorCategory.PERMISSION_DENIED, "no", new SocketTimeoutException("slow"))))
+        assertThat(
+                        ErrorCategory.of(
+                                new ToolException(
+                                        ErrorCategory.PERMISSION_DENIED,
+                                        "no",
+                                        new SocketTimeoutException("slow"))))
                 .isEqualTo(ErrorCategory.PERMISSION_DENIED);
     }
 
     @Test
     void modelSideExceptions() {
-        is(new ContextOverflowException("prompt is too long"), ErrorCategory.CONTEXT_OVERFLOW); // not INVALID_ARGUMENTS, though it is an InvalidRequestException
+        is(
+                new ContextOverflowException("prompt is too long"),
+                ErrorCategory.CONTEXT_OVERFLOW); // not INVALID_ARGUMENTS, though it is an
+        // InvalidRequestException
         is(new RateLimitException("slow down"), ErrorCategory.RATE_LIMITED);
-        is(new RateLimited(new RateLimitException("x").infoOrEstimate(Instant.now(), Duration.ofSeconds(30)), RateLimited.Reason.PROVIDER_LIMIT), ErrorCategory.RATE_LIMITED);
+        is(
+                new RateLimited(
+                        new RateLimitException("x")
+                                .infoOrEstimate(Instant.now(), Duration.ofSeconds(30)),
+                        RateLimited.Reason.PROVIDER_LIMIT),
+                ErrorCategory.RATE_LIMITED);
         is(new AuthenticationException("bad key"), ErrorCategory.AUTHENTICATION);
         is(new ContentBlockedException("p", "refused"), ErrorCategory.CONTENT_BLOCKED);
         is(new ServiceUnavailableException("p", "overloaded"), ErrorCategory.SERVER_ERROR);
@@ -64,7 +83,9 @@ class ErrorCategoryTest {
         is(new InvalidRequestException("m", 413, "{}"), ErrorCategory.INVALID_ARGUMENTS);
         is(new InvalidRequestException("m", 422, "{}"), ErrorCategory.INVALID_ARGUMENTS);
         is(new InvalidRequestException("m", 409, "{}"), ErrorCategory.CLIENT_ERROR);
-        is(new InvalidRequestException("m"), ErrorCategory.INVALID_ARGUMENTS); // the default status is 400
+        is(
+                new InvalidRequestException("m"),
+                ErrorCategory.INVALID_ARGUMENTS); // the default status is 400
     }
 
     @Test
@@ -85,8 +106,13 @@ class ErrorCategoryTest {
         is(new LLMException("m", 503), ErrorCategory.SERVER_ERROR);
         is(new LLMException("m", 429), ErrorCategory.RATE_LIMITED);
         is(new LLMException("m"), ErrorCategory.OTHER);
-        is(new LLMException("HTTP request failed", new SocketTimeoutException("Read timed out")), ErrorCategory.TIMEOUT);
-        is(new LLMException("HTTP request failed", new ConnectException("refused")), ErrorCategory.NETWORK);
+        is(
+                new LLMException(
+                        "HTTP request failed", new SocketTimeoutException("Read timed out")),
+                ErrorCategory.TIMEOUT);
+        is(
+                new LLMException("HTTP request failed", new ConnectException("refused")),
+                ErrorCategory.NETWORK);
     }
 
     @Test
@@ -132,12 +158,20 @@ class ErrorCategoryTest {
     void theNearestRecognisedCauseWinsAndTheChainIsBounded() {
         Throwable deep = new SocketTimeoutException("slow");
         for (int i = 0; i < 4; i++) deep = new RuntimeException("layer " + i, deep);
-        assertThat(ErrorCategory.of(deep)).as("four layers down is still found").isEqualTo(ErrorCategory.TIMEOUT);
+        assertThat(ErrorCategory.of(deep))
+                .as("four layers down is still found")
+                .isEqualTo(ErrorCategory.TIMEOUT);
         Throwable tooDeep = new SocketTimeoutException("slow");
         for (int i = 0; i < 8; i++) tooDeep = new RuntimeException("layer " + i, tooDeep);
-        assertThat(ErrorCategory.of(tooDeep)).as("eight layers is past the limit").isEqualTo(ErrorCategory.OTHER);
+        assertThat(ErrorCategory.of(tooDeep))
+                .as("eight layers is past the limit")
+                .isEqualTo(ErrorCategory.OTHER);
         // the outer, more specific one is preferred over the inner one
-        assertThat(ErrorCategory.of(new IllegalArgumentException("bad", new SocketTimeoutException("slow")))).isEqualTo(ErrorCategory.INVALID_ARGUMENTS);
+        assertThat(
+                        ErrorCategory.of(
+                                new IllegalArgumentException(
+                                        "bad", new SocketTimeoutException("slow"))))
+                .isEqualTo(ErrorCategory.INVALID_ARGUMENTS);
     }
 
     @Test
@@ -150,7 +184,8 @@ class ErrorCategoryTest {
 
     @Test
     void aNullMessageIsFine() {
-        assertThat(ErrorCategory.of(new IOException((String) null))).isEqualTo(ErrorCategory.NETWORK);
+        assertThat(ErrorCategory.of(new IOException((String) null)))
+                .isEqualTo(ErrorCategory.NETWORK);
         assertThat(ErrorCategory.of(new InterruptedIOException())).isEqualTo(ErrorCategory.NETWORK);
     }
 
@@ -180,8 +215,11 @@ class ErrorCategoryTest {
     void onlyTheFirstFiveLinksOfACauseChainAreAsked() {
         Throwable deepest = new io.github.llm4j.exception.RateLimitException("slow down");
         Throwable fifth = deepest;
-        // links 1..5 are inspected: a known exception at the 5th link is found, at the 6th it is not
-        Throwable chain5 = new RuntimeException(new RuntimeException(new RuntimeException(new RuntimeException(fifth))));
+        // links 1..5 are inspected: a known exception at the 5th link is found, at the 6th it is
+        // not
+        Throwable chain5 =
+                new RuntimeException(
+                        new RuntimeException(new RuntimeException(new RuntimeException(fifth))));
         assertThat(ErrorCategory.of(chain5)).isEqualTo(ErrorCategory.RATE_LIMITED);
         Throwable chain6 = new RuntimeException(chain5);
         assertThat(ErrorCategory.of(chain6)).isEqualTo(ErrorCategory.OTHER);

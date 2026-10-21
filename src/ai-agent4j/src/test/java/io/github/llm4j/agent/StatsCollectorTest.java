@@ -23,9 +23,26 @@ class StatsCollectorTest {
     void itIsAnAgentListenerThatCountsWhatItIsTold() {
         StatsCollector c = new StatsCollector();
         AgentEventListener listener = c;
-        listener.onToolCall(ToolCallEvent.builder().tool("search").durationMillis(120).resultChars(300).build());
-        listener.onToolCall(ToolCallEvent.builder().tool("search").softFailure(ErrorCategory.NOT_FOUND).durationMillis(80).build());
-        listener.onModelCall(ModelCallEvent.builder().model("m").durationMillis(900).promptTokens(100).completionTokens(10).totalTokens(110).build());
+        listener.onToolCall(
+                ToolCallEvent.builder()
+                        .tool("search")
+                        .durationMillis(120)
+                        .resultChars(300)
+                        .build());
+        listener.onToolCall(
+                ToolCallEvent.builder()
+                        .tool("search")
+                        .softFailure(ErrorCategory.NOT_FOUND)
+                        .durationMillis(80)
+                        .build());
+        listener.onModelCall(
+                ModelCallEvent.builder()
+                        .model("m")
+                        .durationMillis(900)
+                        .promptTokens(100)
+                        .completionTokens(10)
+                        .totalTokens(110)
+                        .build());
         RunStats s = c.snapshot();
         assertThat(s.tool("search").calls()).isEqualTo(2);
         assertThat(s.tool("search").successRate()).hasValue(0.5);
@@ -59,15 +76,40 @@ class StatsCollectorTest {
             List<Future<Integer>> work = new ArrayList<>();
             for (int t = 0; t < threads; t++) {
                 int id = t;
-                work.add(pool.submit((Callable<Integer>) () -> {
-                    go.await();
-                    for (int i = 0; i < perThread; i++) {
-                        c.onToolCall(ToolCallEvent.builder().tool("t" + (id % 3)).durationMillis(i % 50).resultChars(1)
-                                .outcome(i % 10 == 0 ? ToolOutcome.EXECUTION_ERROR : ToolOutcome.EXECUTED, i % 10 == 0 ? ErrorCategory.TIMEOUT : null, null).build());
-                        c.onModelCall(ModelCallEvent.builder().model("m").durationMillis(i % 70).promptTokens(2).completionTokens(1).totalTokens(3).build());
-                    }
-                    return perThread;
-                }));
+                work.add(
+                        pool.submit(
+                                (Callable<Integer>)
+                                        () -> {
+                                            go.await();
+                                            for (int i = 0; i < perThread; i++) {
+                                                c.onToolCall(
+                                                        ToolCallEvent.builder()
+                                                                .tool("t" + (id % 3))
+                                                                .durationMillis(i % 50)
+                                                                .resultChars(1)
+                                                                .outcome(
+                                                                        i % 10 == 0
+                                                                                ? ToolOutcome
+                                                                                        .EXECUTION_ERROR
+                                                                                : ToolOutcome
+                                                                                        .EXECUTED,
+                                                                        i % 10 == 0
+                                                                                ? ErrorCategory
+                                                                                        .TIMEOUT
+                                                                                : null,
+                                                                        null)
+                                                                .build());
+                                                c.onModelCall(
+                                                        ModelCallEvent.builder()
+                                                                .model("m")
+                                                                .durationMillis(i % 70)
+                                                                .promptTokens(2)
+                                                                .completionTokens(1)
+                                                                .totalTokens(3)
+                                                                .build());
+                                            }
+                                            return perThread;
+                                        }));
             }
             // snapshots taken while the others write must each add up on their own
             go.countDown();
@@ -75,7 +117,11 @@ class StatsCollectorTest {
                 RunStats s = c.snapshot();
                 long byTool = s.tools().values().stream().mapToLong(x -> x.calls()).sum();
                 assertThat(byTool).isEqualTo(s.totalToolCalls());
-                assertThat(s.tools().values().stream().mapToLong(x -> x.successes() + x.failed()).sum()).isEqualTo(byTool);
+                assertThat(
+                                s.tools().values().stream()
+                                        .mapToLong(x -> x.successes() + x.failed())
+                                        .sum())
+                        .isEqualTo(byTool);
             }
             for (Future<Integer> f : work) f.get();
         } finally {

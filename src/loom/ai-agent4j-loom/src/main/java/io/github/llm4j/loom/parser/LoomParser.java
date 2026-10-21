@@ -3,7 +3,6 @@ package io.github.llm4j.loom.parser;
 import io.github.llm4j.loom.ast.*;
 import io.github.llm4j.loom.lexer.Token;
 import io.github.llm4j.loom.lexer.TokenType;
-
 import java.util.List;
 
 public class LoomParser {
@@ -40,14 +39,19 @@ public class LoomParser {
             } else if (isNamedBlock("provider")) {
                 advance();
                 script.addProvider(parseProviderDef());
-            } else if (check(TokenType.PERSONA) && tokens.size() > current + 1
+            } else if (check(TokenType.PERSONA)
+                    && tokens.size() > current + 1
                     && tokens.get(current + 1).getType() == TokenType.IDENTIFIER) {
                 advance();
                 script.addPersona(parsePersonaDef());
+            } else if (isNamedBlock("intentclassifier")) {
+                advance();
+                script.addIntentClassifier(parseIntentClassifier());
             } else if (isBudgetKeyword()) {
                 // Contextual keyword: `budget` stays usable as a variable name everywhere else.
                 Token keyword = advance();
-                if (script.getBudget() != null) throw error(keyword, "Only one top-level budget block is allowed.");
+                if (script.getBudget() != null)
+                    throw error(keyword, "Only one top-level budget block is allowed.");
                 script.setBudget(parseBudgetBlock(false));
             } else if (isDecisionStart()) {
                 script.addDecision(parseDecision());
@@ -61,34 +65,51 @@ public class LoomParser {
                 // Contextual: `prompts` stays usable as a variable name everywhere else.
                 Token keyword = advance();
                 advance(); // the colon
-                if (script.getPromptsDir() != null) throw error(keyword, "Only one prompts: folder can be named.");
-                script.setPromptsDir(consume(TokenType.STRING_LITERAL, "Expect a folder for prompts, e.g. prompts: \"./prompts\".").getValue(), keyword.getLine());
+                if (script.getPromptsDir() != null)
+                    throw error(keyword, "Only one prompts: folder can be named.");
+                script.setPromptsDir(
+                        consume(
+                                        TokenType.STRING_LITERAL,
+                                        "Expect a folder for prompts, e.g. prompts: \"./prompts\".")
+                                .getValue(),
+                        keyword.getLine());
             } else if (isNamedAttribute("shared_prompt")) {
                 // Contextual: stays usable as a name everywhere else.
                 Token keyword = advance();
                 advance(); // the colon
-                if (script.getSharedPrompt() != null || script.getSharedPromptRef() != null) throw error(keyword, "Only one shared_prompt can be given.");
+                if (script.getSharedPrompt() != null || script.getSharedPromptRef() != null)
+                    throw error(keyword, "Only one shared_prompt can be given.");
                 if (isWord("prompt") && peekAt(1).getType() == TokenType.STRING_LITERAL) {
                     advance();
                     script.setSharedPrompt(null, advance().getValue(), keyword.getLine());
                 } else {
-                    Token text = consume(TokenType.STRING_LITERAL, "Write shared_prompt: \"text for every agent\" or shared_prompt: prompt \"house-rules\" (a prompt file).");
+                    Token text =
+                            consume(
+                                    TokenType.STRING_LITERAL,
+                                    "Write shared_prompt: \"text for every agent\" or shared_prompt: prompt \"house-rules\" (a prompt file).");
                     if (text.getValue().isBlank()) throw error(text, "shared_prompt is empty.");
                     script.setSharedPrompt(text.getValue(), null, keyword.getLine());
                 }
-            } else if (isWord("supervise") && peekAt(1).getType() == TokenType.IDENTIFIER && peekAt(2).getType() == TokenType.LBRACE) {
+            } else if (isWord("supervise")
+                    && peekAt(1).getType() == TokenType.IDENTIFIER
+                    && peekAt(2).getType() == TokenType.LBRACE) {
                 Token keyword = advance();
                 script.addSupervision(parseSupervise(keyword));
             } else if (isBlockKeyword("intervention")) {
                 Token keyword = advance();
-                if (script.getIntervention() != null) throw error(keyword, "Only one intervention block is allowed.");
+                if (script.getIntervention() != null)
+                    throw error(keyword, "Only one intervention block is allowed.");
                 script.setIntervention(parseIntervention(keyword));
             } else if (isBlockKeyword("rate_limits")) {
                 Token keyword = advance();
-                if (script.getRateLimits() != null) throw error(keyword, "Only one rate_limits block is allowed.");
+                if (script.getRateLimits() != null)
+                    throw error(keyword, "Only one rate_limits block is allowed.");
                 script.setRateLimits(parseRateLimits());
             } else {
-                throw error(peek(), "Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: " + peek().getType());
+                throw error(
+                        peek(),
+                        "Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: "
+                                + peek().getType());
             }
         }
 
@@ -97,29 +118,72 @@ public class LoomParser {
         return script;
     }
 
-    /** True at an identifier with this name followed by a colon, such as {@code prompt:}; the word is not reserved anywhere else. */
+    /**
+     * True at an identifier with this name followed by a colon, such as {@code prompt:}; the word
+     * is not reserved anywhere else.
+     */
     private boolean isNamedAttribute(String name) {
-        return check(TokenType.IDENTIFIER) && name.equals(peek().getValue())
-                && tokens.size() > current + 1 && tokens.get(current + 1).getType() == TokenType.COLON;
+        return check(TokenType.IDENTIFIER)
+                && name.equals(peek().getValue())
+                && tokens.size() > current + 1
+                && tokens.get(current + 1).getType() == TokenType.COLON;
     }
 
     private String parseImport() {
-        Token pathToken = consume(TokenType.STRING_LITERAL, "Expect string literal for import path.");
+        Token pathToken =
+                consume(TokenType.STRING_LITERAL, "Expect string literal for import path.");
         return pathToken.getValue();
     }
 
-    private static final java.util.List<String> AGENT_SETTINGS = java.util.List.of("model", "system", "system_template", "prompt", "persona", "tools",
-            "mcp_servers", "skills", "memory", "voice", "guard", "routing", "knowledge", "output_schema", "approve", "max_iterations", "temperature", "budget", "ladder", "ceiling", "context", "streaming", "reasoning", "steerable");
+    private static final java.util.List<String> AGENT_SETTINGS =
+            java.util.List.of(
+                    "model",
+                    "system",
+                    "system_template",
+                    "prompt",
+                    "persona",
+                    "tools",
+                    "mcp_servers",
+                    "skills",
+                    "memory",
+                    "voice",
+                    "guard",
+                    "routing",
+                    "knowledge",
+                    "output_schema",
+                    "approve",
+                    "max_iterations",
+                    "temperature",
+                    "budget",
+                    "ladder",
+                    "ceiling",
+                    "context",
+                    "streaming",
+                    "reasoning",
+                    "steerable");
 
-    /** What to say when something that is not a setting turns up inside an agent: the word itself, what an agent can have, and the nearest guess. */
+    /**
+     * What to say when something that is not a setting turns up inside an agent: the word itself,
+     * what an agent can have, and the nearest guess.
+     */
     private static String unknownAgentSetting(Token t) {
         String all = String.join(", ", AGENT_SETTINGS);
         if (t.getType() != TokenType.IDENTIFIER) {
-            return "Unexpected " + (t.getValue() == null || t.getValue().isBlank() ? t.getType().toString() : "\"" + t.getValue() + "\"")
-                    + " inside an agent; an agent can have: " + all + ".";
+            return "Unexpected "
+                    + (t.getValue() == null || t.getValue().isBlank()
+                            ? t.getType().toString()
+                            : "\"" + t.getValue() + "\"")
+                    + " inside an agent; an agent can have: "
+                    + all
+                    + ".";
         }
-        java.util.List<String> near = io.github.llm4j.loom.prompt.PromptCatalog.nearest(t.getValue(), AGENT_SETTINGS);
-        return "\"" + t.getValue() + "\" is not something an agent can have. An agent can have: " + all + "."
+        java.util.List<String> near =
+                io.github.llm4j.loom.prompt.PromptCatalog.nearest(t.getValue(), AGENT_SETTINGS);
+        return "\""
+                + t.getValue()
+                + "\" is not something an agent can have. An agent can have: "
+                + all
+                + "."
                 + (near.isEmpty() ? "" : " Did you mean " + String.join(" or ", near) + "?");
     }
 
@@ -133,20 +197,30 @@ public class LoomParser {
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
             if (match(TokenType.MODEL)) {
                 consume(TokenType.COLON, "Expect ':' after model.");
-                Token modelToken = consume(TokenType.STRING_LITERAL, "Expect string literal for model.");
+                Token modelToken =
+                        consume(TokenType.STRING_LITERAL, "Expect string literal for model.");
                 agent.setModel(modelToken.getValue());
             } else if (match(TokenType.SYSTEM)) {
                 consume(TokenType.COLON, "Expect ':' after system.");
-                Token sysToken = consume(TokenType.STRING_LITERAL, "Expect string literal for system prompt.");
+                Token sysToken =
+                        consume(
+                                TokenType.STRING_LITERAL,
+                                "Expect string literal for system prompt.");
                 agent.setSystemPrompt(sysToken.getValue());
             } else if (match(TokenType.SYSTEM_TEMPLATE)) {
                 consume(TokenType.COLON, "Expect ':' after system_template.");
-                Token tmpl = consume(TokenType.STRING_LITERAL, "Expect string literal for system_template id.");
+                Token tmpl =
+                        consume(
+                                TokenType.STRING_LITERAL,
+                                "Expect string literal for system_template id.");
                 agent.setSystemTemplate(tmpl.getValue());
             } else if (isNamedAttribute("prompt")) {
                 Token keyword = advance();
                 advance(); // the colon
-                Token ref = consume(TokenType.STRING_LITERAL, "Expect a string for prompt, e.g. prompt: \"researcher\" or prompt: \"researcher@v2\".");
+                Token ref =
+                        consume(
+                                TokenType.STRING_LITERAL,
+                                "Expect a string for prompt, e.g. prompt: \"researcher\" or prompt: \"researcher@v2\".");
                 try {
                     io.github.llm4j.loom.prompt.PromptRef.parse(ref.getValue());
                 } catch (IllegalArgumentException e) {
@@ -155,8 +229,12 @@ public class LoomParser {
                 agent.setPrompt(ref.getValue());
             } else if (match(TokenType.PERSONA)) {
                 consume(TokenType.COLON, "Expect ':' after persona.");
-                Token personaToken = check(TokenType.IDENTIFIER) ? advance()
-                        : consume(TokenType.STRING_LITERAL, "Expect a persona name, e.g. persona: Mentor");
+                Token personaToken =
+                        check(TokenType.IDENTIFIER)
+                                ? advance()
+                                : consume(
+                                        TokenType.STRING_LITERAL,
+                                        "Expect a persona name, e.g. persona: Mentor");
                 agent.setPersona(personaToken.getValue());
             } else if (match(TokenType.TOOLS)) {
                 consume(TokenType.COLON, "Expect ':' after tools.");
@@ -183,7 +261,8 @@ public class LoomParser {
                 consume(TokenType.LBRACKET, "Expect '[' before skills list.");
                 if (!check(TokenType.RBRACKET)) {
                     do {
-                        Token skillToken = consume(TokenType.STRING_LITERAL, "Expect skill URI (string).");
+                        Token skillToken =
+                                consume(TokenType.STRING_LITERAL, "Expect skill URI (string).");
                         agent.addSkill(skillToken.getValue());
                     } while (match(TokenType.COMMA));
                 }
@@ -213,7 +292,8 @@ public class LoomParser {
                 consume(TokenType.LBRACKET, "Expect '[' before knowledge list.");
                 if (!check(TokenType.RBRACKET)) {
                     do {
-                        Token kbToken = consume(TokenType.IDENTIFIER, "Expect knowledge base name.");
+                        Token kbToken =
+                                consume(TokenType.IDENTIFIER, "Expect knowledge base name.");
                         agent.addKnowledgeBase(kbToken.getValue());
                     } while (match(TokenType.COMMA));
                 }
@@ -231,7 +311,10 @@ public class LoomParser {
                     consume(TokenType.LBRACKET, "Expect [Tool, …] or all after approve:");
                     if (!check(TokenType.RBRACKET)) {
                         do {
-                            agent.getApprove().add(consume(TokenType.IDENTIFIER, "Expect a tool name.").getValue());
+                            agent.getApprove()
+                                    .add(
+                                            consume(TokenType.IDENTIFIER, "Expect a tool name.")
+                                                    .getValue());
                         } while (match(TokenType.COMMA));
                     }
                     consume(TokenType.RBRACKET, "Expect ']' after approve list.");
@@ -239,23 +322,36 @@ public class LoomParser {
             } else if (check(TokenType.IDENTIFIER) && "max_iterations".equals(peek().getValue())) {
                 Token keyword = advance();
                 consume(TokenType.COLON, "Expect ':' after max_iterations.");
-                Token n = consume(TokenType.NUMBER_LITERAL, "Expect a whole number for max_iterations.");
+                Token n =
+                        consume(
+                                TokenType.NUMBER_LITERAL,
+                                "Expect a whole number for max_iterations.");
                 double v = Double.parseDouble(n.getValue());
                 if (v < 1 || v != Math.floor(v)) {
-                    throw error(keyword, "max_iterations must be a positive whole number, got " + n.getValue());
+                    throw error(
+                            keyword,
+                            "max_iterations must be a positive whole number, got " + n.getValue());
                 }
                 agent.setMaxIterations((int) v);
             } else if (check(TokenType.IDENTIFIER) && "temperature".equals(peek().getValue())) {
-                // Contextual keyword, so existing scripts may still use "temperature" as a name elsewhere.
+                // Contextual keyword, so existing scripts may still use "temperature" as a name
+                // elsewhere.
                 Token keyword = advance();
                 consume(TokenType.COLON, "Expect ':' after temperature.");
-                Token value = consume(TokenType.NUMBER_LITERAL, "Expect a number for temperature, e.g. temperature: 0.7");
+                Token value =
+                        consume(
+                                TokenType.NUMBER_LITERAL,
+                                "Expect a number for temperature, e.g. temperature: 0.7");
                 double temperature = Double.parseDouble(value.getValue());
                 if (temperature < 0.0 || temperature > 2.0) {
-                    throw error(keyword, "temperature must be between 0.0 and 2.0, got " + value.getValue());
+                    throw error(
+                            keyword,
+                            "temperature must be between 0.0 and 2.0, got " + value.getValue());
                 }
                 agent.setTemperature(temperature);
-            } else if (isNamedAttribute("streaming") || isNamedAttribute("reasoning") || isNamedAttribute("steerable")) {
+            } else if (isNamedAttribute("streaming")
+                    || isNamedAttribute("reasoning")
+                    || isNamedAttribute("steerable")) {
                 Token keyword = advance();
                 advance(); // the colon
                 Token value = advance();
@@ -270,18 +366,24 @@ public class LoomParser {
                 }
             } else if (isBudgetKeyword()) {
                 Token keyword = advance();
-                if (agent.getBudget() != null) throw error(keyword, "An agent can have only one budget block.");
+                if (agent.getBudget() != null)
+                    throw error(keyword, "An agent can have only one budget block.");
                 agent.setBudget(parseBudgetBlock(true));
             } else if (isNamedAttribute("ladder")) {
                 Token keyword = advance();
                 advance(); // the colon
-                if (agent.getLadder() != null) throw error(keyword, "An agent can have only one default ladder.");
+                if (agent.getLadder() != null)
+                    throw error(keyword, "An agent can have only one default ladder.");
                 agent.setLadder(parseLadderName(), keyword.getLine());
                 parseLadderArgs(agent.getLadder(), agent.getLadderArgs());
             } else if (isNamedAttribute("ceiling")) {
                 Token keyword = advance();
                 advance(); // the colon
-                agent.setCeilingRung(rungName("ceiling:", "Expect the name of a rung after \"ceiling:\", such as ceiling: suggest."), keyword.getLine());
+                agent.setCeilingRung(
+                        rungName(
+                                "ceiling:",
+                                "Expect the name of a rung after \"ceiling:\", such as ceiling: suggest."),
+                        keyword.getLine());
             } else {
                 throw error(peek(), unknownAgentSetting(peek()));
             }
@@ -362,6 +464,8 @@ public class LoomParser {
             return parseRewind();
         } else if (isWord("decide") && peekAt(1).getType() == TokenType.IDENTIFIER) {
             return parseDecide();
+        } else if (isWord("intentclassify") && peekAt(1).getType() == TokenType.IDENTIFIER) {
+            return parseIntentClassify();
         } else if (isWord("halt")) {
             return parseHalt();
         } else if (isWord("set")) {
@@ -373,7 +477,7 @@ public class LoomParser {
         } else if (isWord("sleep") && isDurationStart(peekAt(1))) {
             return parseSleep();
         }
-        
+
         throw error(peek(), "Expected statement, got " + peek().getType());
     }
 
@@ -381,7 +485,10 @@ public class LoomParser {
     // Checkpoints and rewinds: read as sentences, in a fixed order of phrases.
     // -----------------------------------------------------------------------
 
-    /** True when the next token is the plain word {@code word} (these words are keywords only where a statement starts). */
+    /**
+     * True when the next token is the plain word {@code word} (these words are keywords only where
+     * a statement starts).
+     */
     private OutcomeStmt pendingOutcome;
 
     private boolean parseOutcomeAhead() {
@@ -407,56 +514,103 @@ public class LoomParser {
     // run: a deterministic task (plain Java, no model).
     // -----------------------------------------------------------------------
 
-    /** A word that can name a task or an argument: it looks like an identifier, whichever keyword the lexer made of it. */
+    /**
+     * A word that can name a task or an argument: it looks like an identifier, whichever keyword
+     * the lexer made of it.
+     */
     private static boolean isNameToken(Token t) {
-        return t.getType() != TokenType.STRING_LITERAL && t.getType() != TokenType.NUMBER_LITERAL
-                && t.getValue() != null && t.getValue().matches("[A-Za-z][A-Za-z0-9_-]*");
+        return t.getType() != TokenType.STRING_LITERAL
+                && t.getType() != TokenType.NUMBER_LITERAL
+                && t.getValue() != null
+                && t.getValue().matches("[A-Za-z][A-Za-z0-9_-]*");
     }
 
-    /** {@code run Name(}: `run` is a keyword only where a statement starts and a task name and '(' follow, so it stays a usable variable name. */
+    /**
+     * {@code run Name(}: `run` is a keyword only where a statement starts and a task name and '('
+     * follow, so it stays a usable variable name.
+     */
     private boolean isRunStart() {
         return isWord("run") && isNameToken(peekAt(1)) && peekAt(2).getType() == TokenType.LPAREN;
     }
 
     /**
-     * {@code run Task(name = value, ...) [model "name"] -> variable [model "name"] [retry N] [backoff 2s] [timeout 30s] [on_failure { ... }]}.
-     * A value is a variable path (passed with its type), a quoted string (placeholders filled in), a number or true/false.
+     * {@code run Task(name = value, ...) [model "name"] -> variable [model "name"] [retry N]
+     * [backoff 2s] [timeout 30s] [on_failure { ... }]}. A value is a variable path (passed with its
+     * type), a quoted string (placeholders filled in), a number or true/false.
      */
     private RunStmt parseRun() {
         Token keyword = advance();
         Token task = advance();
-        consume(TokenType.LPAREN, "Expect '(' after the task name, as in run " + task.getValue() + "(name = value).");
+        consume(
+                TokenType.LPAREN,
+                "Expect '(' after the task name, as in run " + task.getValue() + "(name = value).");
         List<RunStmt.Arg> args = new java.util.ArrayList<>();
         if (!check(TokenType.RPAREN)) {
             do {
                 Token key = advance();
-                if (!isNameToken(key)) throw error(key, "Expect an argument name, as in run " + task.getValue() + "(name = value).");
-                consume(TokenType.ASSIGN, "Expect '=' after " + key.getValue() + ", as in " + key.getValue() + " = value.");
+                if (!isNameToken(key))
+                    throw error(
+                            key,
+                            "Expect an argument name, as in run "
+                                    + task.getValue()
+                                    + "(name = value).");
+                consume(
+                        TokenType.ASSIGN,
+                        "Expect '=' after "
+                                + key.getValue()
+                                + ", as in "
+                                + key.getValue()
+                                + " = value.");
                 for (RunStmt.Arg earlier : args) {
-                    if (earlier.name().equals(key.getValue())) throw error(key, "Argument " + key.getValue() + " is given twice.");
+                    if (earlier.name().equals(key.getValue()))
+                        throw error(key, "Argument " + key.getValue() + " is given twice.");
                 }
                 Token value = advance();
                 if (value.getType() == TokenType.STRING_LITERAL) {
-                    args.add(new RunStmt.Arg(key.getValue(), RunStmt.Kind.STRING, value.getValue()));
+                    args.add(
+                            new RunStmt.Arg(key.getValue(), RunStmt.Kind.STRING, value.getValue()));
                 } else if (value.getType() == TokenType.NUMBER_LITERAL) {
-                    args.add(new RunStmt.Arg(key.getValue(), RunStmt.Kind.NUMBER, value.getValue()));
-                } else if (isNameToken(value) && ("true".equals(value.getValue()) || "false".equals(value.getValue()))) {
-                    args.add(new RunStmt.Arg(key.getValue(), RunStmt.Kind.BOOLEAN, value.getValue()));
-                } else if (isNameToken(value) || (value.getValue() != null && value.getValue().matches("[A-Za-z][A-Za-z0-9_.-]*"))) {
-                    args.add(new RunStmt.Arg(key.getValue(), RunStmt.Kind.REFERENCE, value.getValue()));
+                    args.add(
+                            new RunStmt.Arg(key.getValue(), RunStmt.Kind.NUMBER, value.getValue()));
+                } else if (isNameToken(value)
+                        && ("true".equals(value.getValue()) || "false".equals(value.getValue()))) {
+                    args.add(
+                            new RunStmt.Arg(
+                                    key.getValue(), RunStmt.Kind.BOOLEAN, value.getValue()));
+                } else if (isNameToken(value)
+                        || (value.getValue() != null
+                                && value.getValue().matches("[A-Za-z][A-Za-z0-9_.-]*"))) {
+                    args.add(
+                            new RunStmt.Arg(
+                                    key.getValue(), RunStmt.Kind.REFERENCE, value.getValue()));
                 } else {
-                    throw error(value, "Expect a value for " + key.getValue() + ": a variable (request.amount), a quoted string, a number or true/false.");
+                    throw error(
+                            value,
+                            "Expect a value for "
+                                    + key.getValue()
+                                    + ": a variable (request.amount), a quoted string, a number or true/false.");
                 }
             } while (match(TokenType.COMMA));
         }
         consume(TokenType.RPAREN, "Expect ')' after the arguments of " + task.getValue() + ".");
-        String model = null; // model "name" may come before the arrow, as it reads best, or with the other options after the variable
+        String model =
+                null; // model "name" may come before the arrow, as it reads best, or with the other
+        // options after the variable
         if (match(TokenType.MODEL)) {
             match(TokenType.COLON);
-            model = consume(TokenType.STRING_LITERAL, "Expect a quoted model name, as in model \"gemini-2.5-flash\".").getValue();
+            model =
+                    consume(
+                                    TokenType.STRING_LITERAL,
+                                    "Expect a quoted model name, as in model \"gemini-2.5-flash\".")
+                            .getValue();
         }
-        consume(TokenType.ARROW, "Expect '->' and a variable to hold the result, as in run " + task.getValue() + "(...) -> result.");
-        String variable = nameOrReference("Expect a variable name for the result (or {item.field}).");
+        consume(
+                TokenType.ARROW,
+                "Expect '->' and a variable to hold the result, as in run "
+                        + task.getValue()
+                        + "(...) -> result.");
+        String variable =
+                nameOrReference("Expect a variable name for the result (or {item.field}).");
 
         RunStmt stmt = new RunStmt(task.getValue(), variable);
         stmt.setLine(keyword.getLine());
@@ -466,17 +620,29 @@ public class LoomParser {
         while (true) {
             if (match(TokenType.MODEL)) {
                 match(TokenType.COLON); // model: "x" reads as it does in an agent
-                if (stmt.getModel() != null) throw error(previous(), "model is given twice in run " + task.getValue() + ".");
-                stmt.setModel(consume(TokenType.STRING_LITERAL, "Expect a quoted model name, as in model \"gemini-2.5-flash\".").getValue());
+                if (stmt.getModel() != null)
+                    throw error(previous(), "model is given twice in run " + task.getValue() + ".");
+                stmt.setModel(
+                        consume(
+                                        TokenType.STRING_LITERAL,
+                                        "Expect a quoted model name, as in model \"gemini-2.5-flash\".")
+                                .getValue());
             } else if (match(TokenType.RETRY)) {
                 Token count = consume(TokenType.NUMBER_LITERAL, "Expect number of retries.");
                 stmt.setRetryCount((int) Double.parseDouble(count.getValue()));
-            } else if (check(TokenType.IDENTIFIER) && ("backoff".equals(peek().getValue()) || "timeout".equals(peek().getValue()))) {
+            } else if (check(TokenType.IDENTIFIER)
+                    && ("backoff".equals(peek().getValue())
+                            || "timeout".equals(peek().getValue()))) {
                 String option = advance().getValue();
                 long millis = durationMillis();
-                if (option.equals("backoff")) stmt.setBackoffMillis(millis); else stmt.setTimeoutMillis(millis);
+                if (option.equals("backoff")) stmt.setBackoffMillis(millis);
+                else stmt.setTimeoutMillis(millis);
             } else if (isBudgetModifier()) {
-                throw error(peek(), "A task has no budget of its own: remove 'budget' from run " + task.getValue() + ". Its model calls count against the enclosing run, loop or step budgets.");
+                throw error(
+                        peek(),
+                        "A task has no budget of its own: remove 'budget' from run "
+                                + task.getValue()
+                                + ". Its model calls count against the enclosing run, loop or step budgets.");
             } else {
                 break;
             }
@@ -494,11 +660,16 @@ public class LoomParser {
     /** {@code checkpoint Name [starting with name = "value", name = "value"]} */
     private CheckpointStmt parseCheckpoint() {
         Token keyword = advance();
-        CheckpointStmt stmt = new CheckpointStmt(consume(TokenType.IDENTIFIER, "Expect a name after checkpoint.").getValue());
+        CheckpointStmt stmt =
+                new CheckpointStmt(
+                        consume(TokenType.IDENTIFIER, "Expect a name after checkpoint.")
+                                .getValue());
         stmt.setLine(keyword.getLine());
         if (isWord("starting")) {
             advance();
-            expectWord("with", "Write: checkpoint " + stmt.getName() + "  starting with name = \"value\"");
+            expectWord(
+                    "with",
+                    "Write: checkpoint " + stmt.getName() + "  starting with name = \"value\"");
             parseAssignments(stmt.getStartingWith(), "starting with");
         }
         return stmt;
@@ -507,8 +678,15 @@ public class LoomParser {
     /** name = "value" [, name = "value"]... */
     private void parseAssignments(java.util.Map<String, String> into, String after) {
         do {
-            Token name = consume(TokenType.IDENTIFIER, "Expect a variable name after '" + after + "'.");
-            consume(TokenType.ASSIGN, "Expect '=' after " + name.getValue() + ", as in " + name.getValue() + " = \"value\".");
+            Token name =
+                    consume(TokenType.IDENTIFIER, "Expect a variable name after '" + after + "'.");
+            consume(
+                    TokenType.ASSIGN,
+                    "Expect '=' after "
+                            + name.getValue()
+                            + ", as in "
+                            + name.getValue()
+                            + " = \"value\".");
             if (match(TokenType.STRING_LITERAL, TokenType.NUMBER_LITERAL, TokenType.IDENTIFIER)) {
                 into.put(name.getValue(), previous().getValue());
             } else {
@@ -518,26 +696,36 @@ public class LoomParser {
     }
 
     /**
-     * {@code rewind to Name [when (condition)] at most N times [carrying a = "x", ...] [side effects: ask first|keep|repeat]
-     * [if it still fails { ... }] [if blocked { ... }]}
+     * {@code rewind to Name [when (condition)] at most N times [carrying a = "x", ...] [side
+     * effects: ask first|keep|repeat] [if it still fails { ... }] [if blocked { ... }]}
      */
     private RewindStmt parseRewind() {
         Token keyword = advance();
         consume(TokenType.TO, "Expect 'to' after rewind.");
-        Token target = consume(TokenType.IDENTIFIER, "Expect the name of a checkpoint after 'rewind to'.");
+        Token target =
+                consume(TokenType.IDENTIFIER, "Expect the name of a checkpoint after 'rewind to'.");
 
         String condition = null;
         if (isWord("when")) {
             advance();
-            consume(TokenType.LPAREN, "Write the condition in brackets: rewind to " + target.getValue() + " when (score < 7)");
+            consume(
+                    TokenType.LPAREN,
+                    "Write the condition in brackets: rewind to "
+                            + target.getValue()
+                            + " when (score < 7)");
             condition = readCondition();
             consume(TokenType.RPAREN, "Expect ')' after the rewind condition.");
         }
 
-        if (!isWord("at")) throw error(peek(), "A rewind needs a limit: add \"at most 2 times\" (or another number).");
+        if (!isWord("at"))
+            throw error(
+                    peek(), "A rewind needs a limit: add \"at most 2 times\" (or another number).");
         advance();
         expectWord("most", "Write the limit as: at most 2 times");
-        Token n = consume(TokenType.NUMBER_LITERAL, "Expect a number after 'at most', as in: at most 2 times");
+        Token n =
+                consume(
+                        TokenType.NUMBER_LITERAL,
+                        "Expect a number after 'at most', as in: at most 2 times");
         int atMost = (int) Double.parseDouble(n.getValue());
         if (atMost < 1) throw error(n, "\"at most\" must be at least 1 time");
         if (isWord("times") || isWord("time")) advance();
@@ -560,7 +748,10 @@ public class LoomParser {
                 phrase = "ask first";
             }
             RewindStmt.Effects effects = RewindStmt.Effects.of(phrase);
-            if (effects == null) throw error(side, "Side effects can be: ask first, keep or repeat (not \"" + phrase + "\").");
+            if (effects == null)
+                throw error(
+                        side,
+                        "Side effects can be: ask first, keep or repeat (not \"" + phrase + "\").");
             stmt.setEffects(effects);
         }
         while (isWord("if")) {
@@ -575,7 +766,9 @@ public class LoomParser {
                 expectWord("fails", "Write: if it still fails { ... }");
                 into = stmt.getIfStillFails();
             } else {
-                throw error(ifToken, "After a rewind, write either: if it still fails { ... } or: if blocked { ... }");
+                throw error(
+                        ifToken,
+                        "After a rewind, write either: if it still fails { ... } or: if blocked { ... }");
             }
             consume(TokenType.LBRACE, "Expect '{' before the handler.");
             while (!check(TokenType.RBRACE) && !isAtEnd()) into.add(parseStatement());
@@ -588,9 +781,14 @@ public class LoomParser {
     // Decisions and earned autonomy: plain phrases in a fixed order, read aloud.
     // -----------------------------------------------------------------------
 
-    /** The next token is the plain word {@code word}, whatever kind of token the lexer made of it ("agent" and "to" are keywords elsewhere). */
+    /**
+     * The next token is the plain word {@code word}, whatever kind of token the lexer made of it
+     * ("agent" and "to" are keywords elsewhere).
+     */
     private boolean wordIs(String word) {
-        return peek().getType() != TokenType.STRING_LITERAL && peek().getType() != TokenType.EOF && word.equals(peek().getValue());
+        return peek().getType() != TokenType.STRING_LITERAL
+                && peek().getType() != TokenType.EOF
+                && word.equals(peek().getValue());
     }
 
     private void word(String word, String hint) {
@@ -599,16 +797,23 @@ public class LoomParser {
     }
 
     private boolean isDecisionStart() {
-        return isWord("decision") && peekAt(1).getType() == TokenType.IDENTIFIER && peekAt(2).getType() == TokenType.LBRACE;
+        return isWord("decision")
+                && peekAt(1).getType() == TokenType.IDENTIFIER
+                && peekAt(2).getType() == TokenType.LBRACE;
     }
 
     /** {@code decide Name -> variable} */
     private io.github.llm4j.loom.ast.DecideStmt parseDecide() {
         Token keyword = advance();
         Token name = consume(TokenType.IDENTIFIER, "Expect the name of a decision after decide.");
-        consume(TokenType.ARROW, "Write: decide " + name.getValue() + " -> verdict (the name the answer is kept under)");
+        consume(
+                TokenType.ARROW,
+                "Write: decide "
+                        + name.getValue()
+                        + " -> verdict (the name the answer is kept under)");
         Token variable = consume(TokenType.IDENTIFIER, "Expect a variable name after '->'.");
-        io.github.llm4j.loom.ast.DecideStmt stmt = new io.github.llm4j.loom.ast.DecideStmt(name.getValue(), variable.getValue());
+        io.github.llm4j.loom.ast.DecideStmt stmt =
+                new io.github.llm4j.loom.ast.DecideStmt(name.getValue(), variable.getValue());
         stmt.setLine(keyword.getLine());
         return stmt;
     }
@@ -616,20 +821,34 @@ public class LoomParser {
     private int whole(String what) {
         Token n = consume(TokenType.NUMBER_LITERAL, "Expect a whole number for " + what + ".");
         double d = Double.parseDouble(n.getValue());
-        if (d != Math.rint(d)) throw error(n, what + " must be a whole number, not " + n.getValue());
+        if (d != Math.rint(d))
+            throw error(n, what + " must be a whole number, not " + n.getValue());
         return (int) d;
     }
 
     private double percent(String what) {
-        Token n = consume(TokenType.NUMBER_LITERAL, "Expect a percentage for " + what + ", such as 90%.");
-        consume(TokenType.PERCENT, "Write " + what + " as a percentage, such as 90% (not " + n.getValue() + ").");
+        Token n =
+                consume(
+                        TokenType.NUMBER_LITERAL,
+                        "Expect a percentage for " + what + ", such as 90%.");
+        consume(
+                TokenType.PERCENT,
+                "Write " + what + " as a percentage, such as 90% (not " + n.getValue() + ").");
         return Double.parseDouble(n.getValue());
     }
 
     private io.github.llm4j.loom.autonomy.Level level(String after) {
         Token t = advance();
-        io.github.llm4j.loom.autonomy.Level l = io.github.llm4j.loom.autonomy.Level.of(t.getValue());
-        if (l == null || t.getType() == TokenType.STRING_LITERAL) throw error(t, "After \"" + after + "\" write watch, suggest or act (not \"" + t.getValue() + "\").");
+        io.github.llm4j.loom.autonomy.Level l =
+                io.github.llm4j.loom.autonomy.Level.of(t.getValue());
+        if (l == null || t.getType() == TokenType.STRING_LITERAL)
+            throw error(
+                    t,
+                    "After \""
+                            + after
+                            + "\" write watch, suggest or act (not \""
+                            + t.getValue()
+                            + "\").");
         return l;
     }
 
@@ -650,7 +869,10 @@ public class LoomParser {
         while (!isAtEnd() && peek().getLine() == line && !check(TokenType.RBRACE)) {
             Token t = advance();
             if (b.length() > 0 && t.getType() != TokenType.PERCENT) b.append(' ');
-            b.append(t.getType() == TokenType.STRING_LITERAL ? "\"" + t.getValue() + "\"" : t.getValue());
+            b.append(
+                    t.getType() == TokenType.STRING_LITERAL
+                            ? "\"" + t.getValue() + "\""
+                            : t.getValue());
         }
         return b.toString();
     }
@@ -658,7 +880,8 @@ public class LoomParser {
     private io.github.llm4j.loom.ast.DecisionDef parseDecision() {
         Token keyword = advance();
         Token name = consume(TokenType.IDENTIFIER, "Expect a decision name.");
-        io.github.llm4j.loom.ast.DecisionDef d = new io.github.llm4j.loom.ast.DecisionDef(name.getValue());
+        io.github.llm4j.loom.ast.DecisionDef d =
+                new io.github.llm4j.loom.ast.DecisionDef(name.getValue());
         d.setLine(keyword.getLine());
         consume(TokenType.LBRACE, "Expect '{' before the decision body.");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
@@ -667,27 +890,49 @@ public class LoomParser {
                 advance();
                 word("by", "Write: proposed by: AgentName");
                 consume(TokenType.COLON, "Expect ':' after \"proposed by\".");
-                d.setAgent(consume(TokenType.IDENTIFIER, "Expect the name of the agent that proposes.").getValue());
+                d.setAgent(
+                        consume(TokenType.IDENTIFIER, "Expect the name of the agent that proposes.")
+                                .getValue());
             } else if (wordIs("choices")) {
                 advance();
                 consume(TokenType.COLON, "Expect ':' after \"choices\".");
-                do d.getChoices().add(consume(TokenType.IDENTIFIER, "Expect a choice name, such as approve.").getValue()); while (match(TokenType.COMMA));
+                do
+                    d.getChoices()
+                            .add(
+                                    consume(
+                                                    TokenType.IDENTIFIER,
+                                                    "Expect a choice name, such as approve.")
+                                            .getValue());
+                while (match(TokenType.COMMA));
             } else if (wordIs("group")) {
                 advance();
                 word("cases", "Write: group cases by: variable");
                 word("by", "Write: group cases by: variable");
                 consume(TokenType.COLON, "Expect ':' after \"group cases by\".");
-                d.setGroupBy(consume(TokenType.IDENTIFIER, "Expect a variable name after \"group cases by:\".").getValue());
+                d.setGroupBy(
+                        consume(
+                                        TokenType.IDENTIFIER,
+                                        "Expect a variable name after \"group cases by:\".")
+                                .getValue());
             } else if (wordIs("remember")) {
                 advance();
                 consume(TokenType.COLON, "Expect ':' after \"remember\".");
                 do {
-                    Token variable = consume(TokenType.IDENTIFIER, "Expect a variable name to remember.");
+                    Token variable =
+                            consume(TokenType.IDENTIFIER, "Expect a variable name to remember.");
                     d.getRemember().add(variable.getValue());
                     if (match(TokenType.COLON)) {
                         Token type = advance();
-                        if (type.getType() == TokenType.STRING_LITERAL || !java.util.Set.of("number", "text", "flag").contains(type.getValue())) {
-                            throw error(type, "After \"" + variable.getValue() + ":\" write number, text or flag (not \"" + type.getValue() + "\").");
+                        if (type.getType() == TokenType.STRING_LITERAL
+                                || !java.util.Set.of("number", "text", "flag")
+                                        .contains(type.getValue())) {
+                            throw error(
+                                    type,
+                                    "After \""
+                                            + variable.getValue()
+                                            + ":\" write number, text or flag (not \""
+                                            + type.getValue()
+                                            + "\").");
                         }
                         d.getRememberTypes().put(variable.getValue(), type.getValue());
                     }
@@ -697,15 +942,40 @@ public class LoomParser {
                 word("mistake", "Write: dangerous mistake: propose approve, person decides reject");
                 consume(TokenType.COLON, "Expect ':' after \"dangerous mistake\".");
                 word("propose", "Write: dangerous mistake: propose approve, person decides reject");
-                String proposed = consume(TokenType.IDENTIFIER, "Expect the choice the agent proposes.").getValue();
-                consume(TokenType.COMMA, "Write: dangerous mistake: propose " + proposed + ", person decides reject");
-                word("person", "Write: dangerous mistake: propose " + proposed + ", person decides reject");
-                word("decides", "Write: dangerous mistake: propose " + proposed + ", person decides reject");
-                d.getDangerous().add(new io.github.llm4j.loom.ast.DecisionDef.Mistake(proposed, consume(TokenType.IDENTIFIER, "Expect the choice the person makes.").getValue()));
+                String proposed =
+                        consume(TokenType.IDENTIFIER, "Expect the choice the agent proposes.")
+                                .getValue();
+                consume(
+                        TokenType.COMMA,
+                        "Write: dangerous mistake: propose "
+                                + proposed
+                                + ", person decides reject");
+                word(
+                        "person",
+                        "Write: dangerous mistake: propose "
+                                + proposed
+                                + ", person decides reject");
+                word(
+                        "decides",
+                        "Write: dangerous mistake: propose "
+                                + proposed
+                                + ", person decides reject");
+                d.getDangerous()
+                        .add(
+                                new io.github.llm4j.loom.ast.DecisionDef.Mistake(
+                                        proposed,
+                                        consume(
+                                                        TokenType.IDENTIFIER,
+                                                        "Expect the choice the person makes.")
+                                                .getValue()));
             } else if (wordIs("ask")) {
                 advance();
-                consume(TokenType.COLON, "Expect ':' after \"ask\" (who decides), as in: ask: support-lead");
-                d.setAsk(consume(TokenType.IDENTIFIER, "Expect the name of who decides.").getValue());
+                consume(
+                        TokenType.COLON,
+                        "Expect ':' after \"ask\" (who decides), as in: ask: support-lead");
+                d.setAsk(
+                        consume(TokenType.IDENTIFIER, "Expect the name of who decides.")
+                                .getValue());
             } else if (wordIs("keep")) {
                 advance();
                 word("records", "Write: keep records for: 180 days");
@@ -715,9 +985,15 @@ public class LoomParser {
                 days("how long to keep records");
             } else if (wordIs("when")) {
                 advance();
-                word("the", "Write: when the agent changes: start over | test it on past cases | keep the trust");
-                word("agent", "Write: when the agent changes: start over | test it on past cases | keep the trust");
-                word("changes", "Write: when the agent changes: start over | test it on past cases | keep the trust");
+                word(
+                        "the",
+                        "Write: when the agent changes: start over | test it on past cases | keep the trust");
+                word(
+                        "agent",
+                        "Write: when the agent changes: start over | test it on past cases | keep the trust");
+                word(
+                        "changes",
+                        "Write: when the agent changes: start over | test it on past cases | keep the trust");
                 consume(TokenType.COLON, "Expect ':' after \"when the agent changes\".");
                 if (wordIs("start")) {
                     advance();
@@ -736,18 +1012,26 @@ public class LoomParser {
                     word("trust", "Write: keep the trust");
                     d.setOnChange(io.github.llm4j.loom.ast.DecisionDef.OnChange.KEEP_TRUST);
                 } else {
-                    throw error(peek(), "After \"when the agent changes:\" write start over, test it on past cases or keep the trust.");
+                    throw error(
+                            peek(),
+                            "After \"when the agent changes:\" write start over, test it on past cases or keep the trust.");
                 }
             } else if (wordIs("tell")) {
                 advance();
-                d.setTellTool(consume(TokenType.IDENTIFIER, "Expect the name of a tool to tell, as in: tell Slack when trust changes").getValue());
+                d.setTellTool(
+                        consume(
+                                        TokenType.IDENTIFIER,
+                                        "Expect the name of a tool to tell, as in: tell Slack when trust changes")
+                                .getValue());
                 word("when", "Write: tell " + d.getTellTool() + " when trust changes");
                 word("trust", "Write: tell " + d.getTellTool() + " when trust changes");
                 word("changes", "Write: tell " + d.getTellTool() + " when trust changes");
             } else if (wordIs("task")) {
                 advance();
                 consume(TokenType.COLON, "Expect ':' after \"task\".");
-                d.setTask(consume(TokenType.STRING_LITERAL, "Expect the task text in quotes.").getValue());
+                d.setTask(
+                        consume(TokenType.STRING_LITERAL, "Expect the task text in quotes.")
+                                .getValue());
             } else if (wordIs("flag")) {
                 advance();
                 word("cases", "Write: flag cases with no verdict after 7 days");
@@ -767,14 +1051,29 @@ public class LoomParser {
             } else if (wordIs("ceiling") && peekAt(1).getType() == TokenType.COLON) {
                 advance();
                 advance();
-                d.setCeilingRung(rungName("ceiling:", "Expect the name of a rung after \"ceiling:\", such as ceiling: suggest."), first.getLine());
+                d.setCeilingRung(
+                        rungName(
+                                "ceiling:",
+                                "Expect the name of a rung after \"ceiling:\", such as ceiling: suggest."),
+                        first.getLine());
             } else if (wordIs("proposes") && peekAt(1).getType() == TokenType.COLON) {
                 advance();
                 advance();
-                d.setProposes(consume(TokenType.IDENTIFIER, "Expect the name of what the agent proposes after \"proposes:\", such as proposes: script.").getValue(), first.getLine());
+                d.setProposes(
+                        consume(
+                                        TokenType.IDENTIFIER,
+                                        "Expect the name of what the agent proposes after \"proposes:\", such as proposes: script.")
+                                .getValue(),
+                        first.getLine());
             } else {
-                throw error(first, "Unexpected \"" + first.getValue() + "\" in decision " + d.getName() + ". A decision holds: proposed by, choices, proposes, group cases by, remember, "
-                        + "dangerous mistake, ask, keep records for, when the agent changes, tell, task, flag cases, ladder, ceiling, and a trust { } block.");
+                throw error(
+                        first,
+                        "Unexpected \""
+                                + first.getValue()
+                                + "\" in decision "
+                                + d.getName()
+                                + ". A decision holds: proposed by, choices, proposes, group cases by, remember, "
+                                + "dangerous mistake, ask, keep records for, when the agent changes, tell, task, flag cases, ladder, ceiling, and a trust { } block.");
             }
         }
         consume(TokenType.RBRACE, "Expect '}' after the decision body.");
@@ -784,7 +1083,8 @@ public class LoomParser {
     /** A rung or ladder name: any word, since the lexer makes keywords of some ordinary ones. */
     private String rungName(String after, String hint) {
         Token t = peek();
-        if (t.getType() == TokenType.STRING_LITERAL || !t.getValue().matches("[A-Za-z_][A-Za-z0-9_-]*")) throw error(t, hint);
+        if (t.getType() == TokenType.STRING_LITERAL
+                || !t.getValue().matches("[A-Za-z_][A-Za-z0-9_-]*")) throw error(t, hint);
         advance();
         return t.getValue();
     }
@@ -797,26 +1097,47 @@ public class LoomParser {
     }
 
     private String parseLadderName() {
-        return rungName("ladder:", "Expect the name of a ladder after \"ladder:\", such as ladder: RefundLadder.");
+        return rungName(
+                "ladder:",
+                "Expect the name of a ladder after \"ladder:\", such as ladder: RefundLadder.");
     }
 
-    private void parseLadderArgs(String name, java.util.Map<String, io.github.llm4j.loom.autonomy.expr.Expr> into) {
+    private void parseLadderArgs(
+            String name, java.util.Map<String, io.github.llm4j.loom.autonomy.expr.Expr> into) {
         if (!match(TokenType.LPAREN)) return;
         if (!check(TokenType.RPAREN)) {
             do {
-                Token key = consume(TokenType.IDENTIFIER, "Expect a parameter name in the arguments of ladder " + name + ".");
-                consume(TokenType.COLON, "Write the arguments of a ladder as name: value, such as baseline_views: 1200.");
+                Token key =
+                        consume(
+                                TokenType.IDENTIFIER,
+                                "Expect a parameter name in the arguments of ladder " + name + ".");
+                consume(
+                        TokenType.COLON,
+                        "Write the arguments of a ladder as name: value, such as baseline_views: 1200.");
                 StringBuilder text = new StringBuilder();
                 int line = peek().getLine();
                 while (!check(TokenType.COMMA) && !check(TokenType.RPAREN) && !isAtEnd()) {
                     Token t = advance();
-                    text.append(t.getType() == TokenType.STRING_LITERAL ? "\"" + t.getValue() + "\"" : t.getValue());
+                    text.append(
+                            t.getType() == TokenType.STRING_LITERAL
+                                    ? "\"" + t.getValue() + "\""
+                                    : t.getValue());
                 }
-                if (text.length() == 0) throw error(peek(), "Expect a value after \"" + key.getValue() + ":\".");
+                if (text.length() == 0)
+                    throw error(peek(), "Expect a value after \"" + key.getValue() + ":\".");
                 try {
-                    into.put(key.getValue(), io.github.llm4j.loom.autonomy.expr.ExprParser.parse(text.toString()));
+                    into.put(
+                            key.getValue(),
+                            io.github.llm4j.loom.autonomy.expr.ExprParser.parse(text.toString()));
                 } catch (io.github.llm4j.loom.autonomy.expr.ExprException e) {
-                    throw new RuntimeException("Parse error at line " + line + ": " + e.getMessage() + " (in the argument " + key.getValue() + ")");
+                    throw new RuntimeException(
+                            "Parse error at line "
+                                    + line
+                                    + ": "
+                                    + e.getMessage()
+                                    + " (in the argument "
+                                    + key.getValue()
+                                    + ")");
                 }
             } while (match(TokenType.COMMA));
         }
@@ -841,7 +1162,14 @@ public class LoomParser {
                 advance();
                 io.github.llm4j.loom.autonomy.Level to = level("to");
                 consume(TokenType.COLON, "Expect ':' after \"to " + to.word() + "\".");
-                if (!wordIs("after")) throw error(peek(), "\"to " + to.word() + "\" needs \"after N cases\", as in: to " + to.word() + ": after 100 cases over 14 days, agreeing at least 90%");
+                if (!wordIs("after"))
+                    throw error(
+                            peek(),
+                            "\"to "
+                                    + to.word()
+                                    + "\" needs \"after N cases\", as in: to "
+                                    + to.word()
+                                    + ": after 100 cases over 14 days, agreeing at least 90%");
                 advance();
                 int cases = whole("the number of cases");
                 cases();
@@ -851,7 +1179,13 @@ public class LoomParser {
                     days = whole("the number of days");
                     days("the time the cases must span");
                 }
-                consume(TokenType.COMMA, "Write: to " + to.word() + ": after " + cases + " cases over 14 days, agreeing at least 90%");
+                consume(
+                        TokenType.COMMA,
+                        "Write: to "
+                                + to.word()
+                                + ": after "
+                                + cases
+                                + " cases over 14 days, agreeing at least 90%");
                 word("agreeing", "\"to " + to.word() + "\" needs \"agreeing at least P%\"");
                 word("at", "Write: agreeing at least 90%");
                 word("least", "Write: agreeing at least 90%");
@@ -859,19 +1193,34 @@ public class LoomParser {
                 boolean none = false;
                 Double atMost = null;
                 if (match(TokenType.COMMA)) {
-                    word("with", "Write: with no dangerous mistakes, or: with at most 1% dangerous mistakes");
+                    word(
+                            "with",
+                            "Write: with no dangerous mistakes, or: with at most 1% dangerous mistakes");
                     if (wordIs("no")) {
                         advance();
                         none = true;
                     } else {
-                        word("at", "Write: with no dangerous mistakes, or: with at most 1% dangerous mistakes");
+                        word(
+                                "at",
+                                "Write: with no dangerous mistakes, or: with at most 1% dangerous mistakes");
                         word("most", "Write: with at most 1% dangerous mistakes");
                         atMost = percent("the dangerous mistakes allowed");
                     }
                     word("dangerous", "Write: dangerous mistakes");
                     word("mistakes", "Write: dangerous mistakes");
                 }
-                if (d.getUpRules().put(to, new io.github.llm4j.loom.ast.DecisionDef.UpRule(to, cases, days, agree, none, atMost, first.getLine())) != null) {
+                if (d.getUpRules()
+                                .put(
+                                        to,
+                                        new io.github.llm4j.loom.ast.DecisionDef.UpRule(
+                                                to,
+                                                cases,
+                                                days,
+                                                agree,
+                                                none,
+                                                atMost,
+                                                first.getLine()))
+                        != null) {
                     throw error(first, "There are two rules for moving up to " + to.word() + ".");
                 }
             } else if (wordIs("judge")) {
@@ -888,12 +1237,18 @@ public class LoomParser {
                 cases();
                 word("with", "Write: check 5% of cases with a person who doesn't see the proposal");
                 word("a", "Write: check 5% of cases with a person who doesn't see the proposal");
-                word("person", "Write: check 5% of cases with a person who doesn't see the proposal");
+                word(
+                        "person",
+                        "Write: check 5% of cases with a person who doesn't see the proposal");
                 word("who", "Write: check 5% of cases with a person who doesn't see the proposal");
-                word("doesn't", "Write: check 5% of cases with a person who doesn't see the proposal");
+                word(
+                        "doesn't",
+                        "Write: check 5% of cases with a person who doesn't see the proposal");
                 word("see", "Write: check 5% of cases with a person who doesn't see the proposal");
                 word("the", "Write: check 5% of cases with a person who doesn't see the proposal");
-                word("proposal", "Write: check 5% of cases with a person who doesn't see the proposal");
+                word(
+                        "proposal",
+                        "Write: check 5% of cases with a person who doesn't see the proposal");
             } else if (wordIs("always")) {
                 advance();
                 word("ask", "Write: always ask a person when amount > 200");
@@ -902,7 +1257,8 @@ public class LoomParser {
                 if (wordIs("when")) {
                     advance();
                     String condition = restOfLine();
-                    if (condition.isBlank()) throw error(first, "Say when: always ask a person when amount > 200");
+                    if (condition.isBlank())
+                        throw error(first, "Say when: always ask a person when amount > 200");
                     d.getAskWhen().add(condition);
                 } else if (wordIs("after")) {
                     advance();
@@ -911,20 +1267,37 @@ public class LoomParser {
                     word("a", "Write: always ask a person after 50 cases a day");
                     word("day", "Write: always ask a person after 50 cases a day");
                 } else {
-                    throw error(peek(), "Write: always ask a person when amount > 200, or: always ask a person after 50 cases a day");
+                    throw error(
+                            peek(),
+                            "Write: always ask a person when amount > 200, or: always ask a person after 50 cases a day");
                 }
             } else if (wordIs("drop")) {
                 advance();
-                if (!check(TokenType.TO)) throw error(peek(), "Write: drop to suggest when 2 dangerous mistakes in 50 cases");
+                if (!check(TokenType.TO))
+                    throw error(
+                            peek(), "Write: drop to suggest when 2 dangerous mistakes in 50 cases");
                 advance();
                 io.github.llm4j.loom.autonomy.Level to = level("drop to");
-                word("when", "Write: drop to " + to.word() + " when 2 dangerous mistakes in 50 cases");
+                word(
+                        "when",
+                        "Write: drop to " + to.word() + " when 2 dangerous mistakes in 50 cases");
                 io.github.llm4j.loom.ast.DecisionDef.DropRule rule;
                 if (wordIs("agreement")) {
                     advance();
-                    word("falls", "Write: drop to " + to.word() + " when agreement falls below 92%");
-                    word("below", "Write: drop to " + to.word() + " when agreement falls below 92%");
-                    rule = new io.github.llm4j.loom.ast.DecisionDef.DropRule(to, io.github.llm4j.loom.ast.DecisionDef.Count.AGREEMENT_BELOW, 0, 0, percent("the floor"), first.getLine());
+                    word(
+                            "falls",
+                            "Write: drop to " + to.word() + " when agreement falls below 92%");
+                    word(
+                            "below",
+                            "Write: drop to " + to.word() + " when agreement falls below 92%");
+                    rule =
+                            new io.github.llm4j.loom.ast.DecisionDef.DropRule(
+                                    to,
+                                    io.github.llm4j.loom.ast.DecisionDef.Count.AGREEMENT_BELOW,
+                                    0,
+                                    0,
+                                    percent("the floor"),
+                                    first.getLine());
                 } else {
                     int n = whole("how many");
                     io.github.llm4j.loom.ast.DecisionDef.Count count;
@@ -941,44 +1314,63 @@ public class LoomParser {
                         else throw error(peek(), "Write: unusable proposals");
                         count = io.github.llm4j.loom.ast.DecisionDef.Count.UNUSABLE_PROPOSALS;
                     } else {
-                        throw error(peek(), "After a number write dangerous mistakes, reversals or unusable proposals, as in: drop to suggest when 2 reversals in 100 cases");
+                        throw error(
+                                peek(),
+                                "After a number write dangerous mistakes, reversals or unusable proposals, as in: drop to suggest when 2 reversals in 100 cases");
                     }
                     word("in", "Write: " + n + " ... in 50 cases");
                     int in = whole("the number of cases to look at");
                     cases();
-                    rule = new io.github.llm4j.loom.ast.DecisionDef.DropRule(to, count, n, in, 0, first.getLine());
+                    rule =
+                            new io.github.llm4j.loom.ast.DecisionDef.DropRule(
+                                    to, count, n, in, 0, first.getLine());
                 }
                 d.getDropRules().add(rule);
             } else if (wordIs("moving")) {
                 advance();
-                word("up", "Write: moving up needs approval from: someone, or: moving up is automatic");
+                word(
+                        "up",
+                        "Write: moving up needs approval from: someone, or: moving up is automatic");
                 if (wordIs("needs")) {
                     advance();
                     word("approval", "Write: moving up needs approval from: risk-owner");
                     word("from", "Write: moving up needs approval from: risk-owner");
                     consume(TokenType.COLON, "Expect ':' after \"approval from\".");
-                    d.setApprover(consume(TokenType.IDENTIFIER, "Expect the name of who approves.").getValue());
+                    d.setApprover(
+                            consume(TokenType.IDENTIFIER, "Expect the name of who approves.")
+                                    .getValue());
                 } else if (wordIs("is")) {
                     advance();
                     word("automatic", "Write: moving up is automatic");
                     d.setAutomatic(true);
                 } else {
-                    throw error(peek(), "Write: moving up needs approval from: risk-owner, or: moving up is automatic");
+                    throw error(
+                            peek(),
+                            "Write: moving up needs approval from: risk-owner, or: moving up is automatic");
                 }
             } else {
-                throw error(first, "Unexpected \"" + first.getValue() + "\" in trust. Write one of: start at, never go above, to <level>:, judge on the latest, check N% of cases, "
-                        + "always ask a person, drop to <level> when, moving up.");
+                throw error(
+                        first,
+                        "Unexpected \""
+                                + first.getValue()
+                                + "\" in trust. Write one of: start at, never go above, to <level>:, judge on the latest, check N% of cases, "
+                                + "always ask a person, drop to <level> when, moving up.");
             }
         }
         consume(TokenType.RBRACE, "Expect '}' after the trust block.");
     }
 
-    /** True when the token can open a duration: {@code 90s} (a number) or {@code "90s"} (a string). */
+    /**
+     * True when the token can open a duration: {@code 90s} (a number) or {@code "90s"} (a string).
+     */
     private static boolean isDurationStart(Token t) {
         return t.getType() == TokenType.NUMBER_LITERAL || t.getType() == TokenType.STRING_LITERAL;
     }
 
-    /** {@code sleep 30s}, {@code sleep 5m}, {@code sleep 2h}, {@code sleep 1d}; a contextual word, so {@code sleep} stays usable as a variable name. */
+    /**
+     * {@code sleep 30s}, {@code sleep 5m}, {@code sleep 2h}, {@code sleep 1d}; a contextual word,
+     * so {@code sleep} stays usable as a variable name.
+     */
     private SleepStmt parseSleep() {
         Token word = advance();
         int from = current;
@@ -986,7 +1378,10 @@ public class LoomParser {
         Token first = tokens.get(from);
         StringBuilder text = new StringBuilder();
         for (int i = from; i < current; i++) text.append(tokens.get(i).getValue());
-        String written = first.getType() == TokenType.STRING_LITERAL ? first.getValue().trim() : text.toString();
+        String written =
+                first.getType() == TokenType.STRING_LITERAL
+                        ? first.getValue().trim()
+                        : text.toString();
         return new SleepStmt(duration, written);
     }
 
@@ -995,14 +1390,17 @@ public class LoomParser {
     // -----------------------------------------------------------------------
 
     /**
-     * The text of a condition, up to the closing bracket: its tokens joined, as ever, with one addition. {@code name is ok} and
-     * {@code name is not ok} are kept as those words (with single spaces), which is how {@code ConditionEvaluator} recognises them.
+     * The text of a condition, up to the closing bracket: its tokens joined, as ever, with one
+     * addition. {@code name is ok} and {@code name is not ok} are kept as those words (with single
+     * spaces), which is how {@code ConditionEvaluator} recognises them.
      */
     private String readCondition() {
         StringBuilder text = new StringBuilder();
         while (!check(TokenType.RPAREN) && !isAtEnd()) {
             if (isWord("and") || isWord("or")) {
-                throw error(peek(), "a condition is one comparison, such as (score < 7), or one true/false variable; combine several tests into a variable first");
+                throw error(
+                        peek(),
+                        "a condition is one comparison, such as (score < 7), or one true/false variable; combine several tests into a variable first");
             }
             if (text.length() > 0 && isWord("is")) {
                 if ("ok".equals(peekAt(1).getValue())) {
@@ -1027,7 +1425,10 @@ public class LoomParser {
     /** {@code halt "reason"} */
     private HaltStmt parseHalt() {
         advance();
-        Token reason = consume(TokenType.STRING_LITERAL, "Say why in quotes after halt, as in: halt \"the build could not be fixed: {check_run.reason}\"");
+        Token reason =
+                consume(
+                        TokenType.STRING_LITERAL,
+                        "Say why in quotes after halt, as in: halt \"the build could not be fixed: {check_run.reason}\"");
         return new HaltStmt(reason.getValue());
     }
 
@@ -1035,8 +1436,13 @@ public class LoomParser {
     private SetStmt parseSet() {
         advance();
         Token name = advance();
-        if (!isNameToken(name) || !check(TokenType.ASSIGN)) throw error(name, "Write set as: set name = value");
-        if (name.getValue().startsWith("_")) throw error(name, "A variable whose name starts with _ is the runtime's: choose another name than " + name.getValue());
+        if (!isNameToken(name) || !check(TokenType.ASSIGN))
+            throw error(name, "Write set as: set name = value");
+        if (name.getValue().startsWith("_"))
+            throw error(
+                    name,
+                    "A variable whose name starts with _ is the runtime's: choose another name than "
+                            + name.getValue());
         advance(); // =
         return new SetStmt(name.getValue(), parseValue());
     }
@@ -1047,32 +1453,51 @@ public class LoomParser {
         return new ReturnStmt(parseValue());
     }
 
-    /** A text, a number, true or false, a variable or {@code var.path}, or an object {@code { key: value, ... }}. */
+    /**
+     * A text, a number, true or false, a variable or {@code var.path}, or an object {@code { key:
+     * value, ... }}.
+     */
     private io.github.llm4j.loom.ast.ValueExpr parseValue() {
         Token t = peek();
-        if (match(TokenType.STRING_LITERAL)) return new io.github.llm4j.loom.ast.ValueExpr.Text(previous().getValue());
-        if (match(TokenType.NUMBER_LITERAL)) return new io.github.llm4j.loom.ast.ValueExpr.Num(previous().getValue());
+        if (match(TokenType.STRING_LITERAL))
+            return new io.github.llm4j.loom.ast.ValueExpr.Text(previous().getValue());
+        if (match(TokenType.NUMBER_LITERAL))
+            return new io.github.llm4j.loom.ast.ValueExpr.Num(previous().getValue());
         if (match(TokenType.LBRACE)) {
-            java.util.Map<String, io.github.llm4j.loom.ast.ValueExpr> fields = new java.util.LinkedHashMap<>();
+            java.util.Map<String, io.github.llm4j.loom.ast.ValueExpr> fields =
+                    new java.util.LinkedHashMap<>();
             if (!check(TokenType.RBRACE)) {
                 do {
                     Token key = advance();
-                    if (!isNameToken(key) && key.getType() != TokenType.STRING_LITERAL) throw error(key, "Expect a field name, as in { verdict: \"PASSED\" }.");
-                    if (fields.containsKey(key.getValue())) throw error(key, "The field " + key.getValue() + " is given twice.");
-                    consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ", as in " + key.getValue() + ": value.");
+                    if (!isNameToken(key) && key.getType() != TokenType.STRING_LITERAL)
+                        throw error(key, "Expect a field name, as in { verdict: \"PASSED\" }.");
+                    if (fields.containsKey(key.getValue()))
+                        throw error(key, "The field " + key.getValue() + " is given twice.");
+                    consume(
+                            TokenType.COLON,
+                            "Expect ':' after "
+                                    + key.getValue()
+                                    + ", as in "
+                                    + key.getValue()
+                                    + ": value.");
                     fields.put(key.getValue(), parseValue());
                 } while (match(TokenType.COMMA));
             }
             consume(TokenType.RBRACE, "Expect '}' to close the object.");
             return new io.github.llm4j.loom.ast.ValueExpr.Obj(fields);
         }
-        if (isNameToken(t) || (t.getValue() != null && t.getValue().matches("[A-Za-z][A-Za-z0-9_.-]*"))) {
+        if (isNameToken(t)
+                || (t.getValue() != null && t.getValue().matches("[A-Za-z][A-Za-z0-9_.-]*"))) {
             advance();
-            if ("true".equals(t.getValue())) return new io.github.llm4j.loom.ast.ValueExpr.Bool(true);
-            if ("false".equals(t.getValue())) return new io.github.llm4j.loom.ast.ValueExpr.Bool(false);
+            if ("true".equals(t.getValue()))
+                return new io.github.llm4j.loom.ast.ValueExpr.Bool(true);
+            if ("false".equals(t.getValue()))
+                return new io.github.llm4j.loom.ast.ValueExpr.Bool(false);
             return new io.github.llm4j.loom.ast.ValueExpr.Ref(t.getValue());
         }
-        throw error(t, "Expect a value: a quoted text, a number, true or false, a variable (request.amount), or an object { key: value }.");
+        throw error(
+                t,
+                "Expect a value: a quoted text, a number, true or false, a variable (request.amount), or an object { key: value }.");
     }
 
     private NoteStmt parseNoteStmt() {
@@ -1094,7 +1519,7 @@ public class LoomParser {
 
         consume(TokenType.TO, "Expect 'to' after handoff payload.");
         Token target = consume(TokenType.IDENTIFIER, "Expect target agent identifier.");
-        
+
         return new HandoffStmt(payload, target.getValue());
     }
 
@@ -1117,7 +1542,8 @@ public class LoomParser {
 
         DelegateStmt stmt = new DelegateStmt(payload, target, varName);
 
-        // Optional per-step schema: the same agent can return different structures in different steps.
+        // Optional per-step schema: the same agent can return different structures in different
+        // steps.
         if (check(TokenType.IDENTIFIER) && "expecting".equals(peek().getValue())) {
             advance();
             stmt.setExpecting(parseSchema());
@@ -1128,10 +1554,13 @@ public class LoomParser {
             if (match(TokenType.RETRY)) {
                 Token count = consume(TokenType.NUMBER_LITERAL, "Expect number of retries.");
                 stmt.setRetryCount((int) Double.parseDouble(count.getValue()));
-            } else if (check(TokenType.IDENTIFIER) && ("backoff".equals(peek().getValue()) || "timeout".equals(peek().getValue()))) {
+            } else if (check(TokenType.IDENTIFIER)
+                    && ("backoff".equals(peek().getValue())
+                            || "timeout".equals(peek().getValue()))) {
                 String option = advance().getValue();
                 long millis = durationMillis();
-                if (option.equals("backoff")) stmt.setBackoffMillis(millis); else stmt.setTimeoutMillis(millis);
+                if (option.equals("backoff")) stmt.setBackoffMillis(millis);
+                else stmt.setTimeoutMillis(millis);
             } else if (isBudgetModifier()) {
                 stmt.setBudget(parseBudgetModifier(stmt.getBudget()));
             } else {
@@ -1149,7 +1578,8 @@ public class LoomParser {
                 consume(TokenType.RBRACE, "Expect '}' after on_failure body.");
             } else if (isBlockKeyword("on_stopped")) {
                 Token keyword = advance();
-                if (stmt.hasOnStopped()) throw error(keyword, "A step can have only one on_stopped block.");
+                if (stmt.hasOnStopped())
+                    throw error(keyword, "A step can have only one on_stopped block.");
                 stmt.setHasOnStopped(true);
                 consume(TokenType.LBRACE, "Expect '{' before on_stopped body.");
                 stopHandlerDepth++;
@@ -1169,10 +1599,16 @@ public class LoomParser {
         return stmt;
     }
 
-    /** How many {@code on_stopped} blocks the parser is inside; outcome words are statements only there. */
+    /**
+     * How many {@code on_stopped} blocks the parser is inside; outcome words are statements only
+     * there.
+     */
     private int stopHandlerDepth;
 
-    /** The outcome statement at the cursor ({@code use partial}, {@code skip}, ...), or null when the cursor is not at one. */
+    /**
+     * The outcome statement at the cursor ({@code use partial}, {@code skip}, ...), or null when
+     * the cursor is not at one.
+     */
     private OutcomeStmt parseOutcome() {
         return parseOutcome(stopHandlerDepth);
     }
@@ -1183,11 +1619,14 @@ public class LoomParser {
         if (check(TokenType.RETRY)) {
             advance();
             kind = OutcomeStmt.Kind.RETRY;
-        } else if (isWord("use") && peekAt(1).getType() == TokenType.IDENTIFIER && "partial".equals(peekAt(1).getValue())) {
+        } else if (isWord("use")
+                && peekAt(1).getType() == TokenType.IDENTIFIER
+                && "partial".equals(peekAt(1).getValue())) {
             advance();
             advance();
             kind = OutcomeStmt.Kind.USE_PARTIAL;
-        } else if (check(TokenType.IDENTIFIER) && OutcomeStmt.Kind.ofPhrase(peek().getValue()) != null) {
+        } else if (check(TokenType.IDENTIFIER)
+                && OutcomeStmt.Kind.ofPhrase(peek().getValue()) != null) {
             kind = OutcomeStmt.Kind.ofPhrase(advance().getValue());
         }
         return kind == null ? null : new OutcomeStmt(kind);
@@ -1200,7 +1639,8 @@ public class LoomParser {
         consume(TokenType.LBRACE, "Expect '{' after supervise " + agent.getValue() + ".");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
             Token when = advance();
-            if (!"when".equals(when.getValue())) throw error(when, "Inside supervise, write rules as: when looping(3) { ... }");
+            if (!"when".equals(when.getValue()))
+                throw error(when, "Inside supervise, write rules as: when looping(3) { ... }");
             SuperviseDef.Rule rule = parseSignal(when.getLine());
             consume(TokenType.LBRACE, "Expect '{' after the condition of the rule.");
             boolean once = false;
@@ -1209,63 +1649,111 @@ public class LoomParser {
                 Token verb = advance();
                 String word = verb.getValue();
                 if ("steer".equals(word)) {
-                    Token text = consume(TokenType.STRING_LITERAL, "Write what to tell the agent: steer \"Use a different source.\"");
-                    actions.add(new SuperviseDef.Action(SuperviseDef.Do.STEER, text.getValue(), null));
+                    Token text =
+                            consume(
+                                    TokenType.STRING_LITERAL,
+                                    "Write what to tell the agent: steer \"Use a different source.\"");
+                    actions.add(
+                            new SuperviseDef.Action(SuperviseDef.Do.STEER, text.getValue(), null));
                 } else if ("wrap_up".equals(word)) {
                     actions.add(new SuperviseDef.Action(SuperviseDef.Do.WRAP_UP, null, null));
                 } else if ("cancel".equals(word)) {
                     OutcomeStmt.Kind outcome = null;
-                    if (check(TokenType.RETRY)) { advance(); outcome = OutcomeStmt.Kind.RETRY; }
-                    else if (isWord("use") && peekAt(1).getType() == TokenType.IDENTIFIER && "partial".equals(peekAt(1).getValue())) { advance(); advance(); outcome = OutcomeStmt.Kind.USE_PARTIAL; }
-                    else if (check(TokenType.IDENTIFIER) && OutcomeStmt.Kind.ofPhrase(peek().getValue()) != null) outcome = OutcomeStmt.Kind.ofPhrase(advance().getValue());
+                    if (check(TokenType.RETRY)) {
+                        advance();
+                        outcome = OutcomeStmt.Kind.RETRY;
+                    } else if (isWord("use")
+                            && peekAt(1).getType() == TokenType.IDENTIFIER
+                            && "partial".equals(peekAt(1).getValue())) {
+                        advance();
+                        advance();
+                        outcome = OutcomeStmt.Kind.USE_PARTIAL;
+                    } else if (check(TokenType.IDENTIFIER)
+                            && OutcomeStmt.Kind.ofPhrase(peek().getValue()) != null)
+                        outcome = OutcomeStmt.Kind.ofPhrase(advance().getValue());
                     actions.add(new SuperviseDef.Action(SuperviseDef.Do.CANCEL, null, outcome));
                 } else if ("once".equals(word)) {
                     once = true;
                 } else if ("retry".equals(word) || verb.getType() == TokenType.RETRY) {
-                    throw error(verb, "retry with another agent is not supported in supervise yet; use steer, wrap_up or cancel.");
+                    throw error(
+                            verb,
+                            "retry with another agent is not supported in supervise yet; use steer, wrap_up or cancel.");
                 } else {
-                    throw error(verb, "A rule can steer \"…\", wrap_up or cancel [outcome], and end with once; not \"" + word + "\".");
+                    throw error(
+                            verb,
+                            "A rule can steer \"…\", wrap_up or cancel [outcome], and end with once; not \""
+                                    + word
+                                    + "\".");
                 }
             }
             consume(TokenType.RBRACE, "Expect '}' after the rule.");
-            if (actions.isEmpty()) throw error(when, "The rule when " + rule.describe() + " does nothing; give it steer, wrap_up or cancel.");
-            SuperviseDef.Rule full = new SuperviseDef.Rule(rule.getSignal(), rule.getTool(), rule.getN(), once, rule.getLine());
+            if (actions.isEmpty())
+                throw error(
+                        when,
+                        "The rule when "
+                                + rule.describe()
+                                + " does nothing; give it steer, wrap_up or cancel.");
+            SuperviseDef.Rule full =
+                    new SuperviseDef.Rule(
+                            rule.getSignal(), rule.getTool(), rule.getN(), once, rule.getLine());
             full.getActions().addAll(actions);
             def.getRules().add(full);
         }
         consume(TokenType.RBRACE, "Expect '}' after supervise.");
-        if (def.getRules().isEmpty()) throw error(keyword, "supervise " + agent.getValue() + " has no rules.");
+        if (def.getRules().isEmpty())
+            throw error(keyword, "supervise " + agent.getValue() + " has no rules.");
         return def;
     }
 
-    /** The condition after {@code when}: looping(3), tool_failing(Tool, 3), context > 90%, steps > 20. */
+    /**
+     * The condition after {@code when}: looping(3), tool_failing(Tool, 3), context > 90%, steps >
+     * 20.
+     */
     private SuperviseDef.Rule parseSignal(int line) {
         Token signal = advance();
         String word = signal.getValue();
         if ("looping".equals(word)) {
-            consume(TokenType.LPAREN, "Write looping(3): the same action this many times in a row.");
+            consume(
+                    TokenType.LPAREN,
+                    "Write looping(3): the same action this many times in a row.");
             int n = whole("looping");
             consume(TokenType.RPAREN, "Expect ')'.");
-            return positive(new SuperviseDef.Rule(SuperviseDef.Signal.LOOPING, null, n, false, line), signal);
+            return positive(
+                    new SuperviseDef.Rule(SuperviseDef.Signal.LOOPING, null, n, false, line),
+                    signal);
         }
         if ("tool_failing".equals(word)) {
             consume(TokenType.LPAREN, "Write tool_failing(Search, 3).");
             Token tool = consume(TokenType.IDENTIFIER, "Expect the tool's name.");
-            consume(TokenType.COMMA, "Write tool_failing(" + tool.getValue() + ", 3): how many failures in a row.");
+            consume(
+                    TokenType.COMMA,
+                    "Write tool_failing(" + tool.getValue() + ", 3): how many failures in a row.");
             int n = whole("tool_failing");
             consume(TokenType.RPAREN, "Expect ')'.");
-            return positive(new SuperviseDef.Rule(SuperviseDef.Signal.TOOL_FAILING, tool.getValue(), n, false, line), signal);
+            return positive(
+                    new SuperviseDef.Rule(
+                            SuperviseDef.Signal.TOOL_FAILING, tool.getValue(), n, false, line),
+                    signal);
         }
         if ("context".equals(word) || "steps".equals(word)) {
-            consume(TokenType.GT, "Write " + word + " > " + ("context".equals(word) ? "90%" : "20") + ".");
+            consume(
+                    TokenType.GT,
+                    "Write " + word + " > " + ("context".equals(word) ? "90%" : "20") + ".");
             if ("context".equals(word)) {
                 int n = (int) percent("the share of the model's window");
                 if (n < 1 || n > 100) throw error(signal, "context must be between 1% and 100%.");
                 return new SuperviseDef.Rule(SuperviseDef.Signal.CONTEXT, null, n, false, line);
             }
-            return positive(new SuperviseDef.Rule(SuperviseDef.Signal.STEPS, null, whole("steps"), false, line), signal);
+            return positive(
+                    new SuperviseDef.Rule(
+                            SuperviseDef.Signal.STEPS, null, whole("steps"), false, line),
+                    signal);
         }
-        throw error(signal, "\"" + word + "\" is not something to watch. The signals are looping(N), tool_failing(Tool, N), context > N% and steps > N.");
+        throw error(
+                signal,
+                "\""
+                        + word
+                        + "\" is not something to watch. The signals are looping(N), tool_failing(Tool, N), context > N% and steps > N.");
     }
 
     private SuperviseDef.Rule positive(SuperviseDef.Rule rule, Token at) {
@@ -1273,7 +1761,7 @@ public class LoomParser {
         return rule;
     }
 
-    /** {@code intervention { timeout: retry  user: ask }} after the keyword. */
+    /** {@code intervention { timeout: retry user: ask }} after the keyword. */
     private InterventionDef parseIntervention(Token keyword) {
         InterventionDef def = new InterventionDef();
         def.setLine(keyword.getLine());
@@ -1282,16 +1770,29 @@ public class LoomParser {
             Token reason = advance();
             String name = reason.getValue();
             if (!InterventionDef.REASONS.contains(name)) {
-                throw error(reason, "\"" + name + "\" is not a reason an agent is stopped for. The reasons are: " + String.join(", ", InterventionDef.REASONS) + ".");
+                throw error(
+                        reason,
+                        "\""
+                                + name
+                                + "\" is not a reason an agent is stopped for. The reasons are: "
+                                + String.join(", ", InterventionDef.REASONS)
+                                + ".");
             }
-            if (def.getByReason().containsKey(name)) throw error(reason, "The reason " + name + " is given twice in intervention.");
+            if (def.getByReason().containsKey(name))
+                throw error(reason, "The reason " + name + " is given twice in intervention.");
             consume(TokenType.COLON, "Expect ':' after " + name + ".");
             if (check(TokenType.IDENTIFIER) && "wrap_up".equals(peek().getValue())) {
-                throw error(peek(), "wrap_up is not an outcome here; name what the run does when the agent is stopped: use partial, skip, discard, retry, suspend, conclude or ask.");
+                throw error(
+                        peek(),
+                        "wrap_up is not an outcome here; name what the run does when the agent is stopped: use partial, skip, discard, retry, suspend, conclude or ask.");
             }
             OutcomeStmt outcome = parseOutcome(1);
             if (outcome == null) {
-                throw error(peek(), "Expect an outcome after " + name + ": use partial, skip, discard, retry, suspend, conclude or ask.");
+                throw error(
+                        peek(),
+                        "Expect an outcome after "
+                                + name
+                                + ": use partial, skip, discard, retry, suspend, conclude or ask.");
             }
             def.put(name, outcome.getKind(), reason.getLine());
         }
@@ -1314,23 +1815,27 @@ public class LoomParser {
         Token n = consume(TokenType.NUMBER_LITERAL, "Expect a duration, e.g. 2s or 500ms");
         double value = Double.parseDouble(n.getValue());
         String unit = "s";
-        if (check(TokenType.IDENTIFIER) && List.of("ms", "s", "m", "h").contains(peek().getValue())) unit = advance().getValue();
-        return (long) switch (unit) {
-            case "ms" -> value;
-            case "m" -> value * 60_000;
-            case "h" -> value * 3_600_000;
-            default -> value * 1_000;
-        };
+        if (check(TokenType.IDENTIFIER) && List.of("ms", "s", "m", "h").contains(peek().getValue()))
+            unit = advance().getValue();
+        return (long)
+                switch (unit) {
+                    case "ms" -> value;
+                    case "m" -> value * 60_000;
+                    case "h" -> value * 3_600_000;
+                    default -> value * 1_000;
+                };
     }
 
     /** for each item in list.path { ... } */
     private ForEachStmt parseForEach(boolean parallel) {
         Token each = consume(TokenType.IDENTIFIER, "Expect 'each' after 'for'.");
-        if (!"each".equals(each.getValue())) throw error(each, "Expect 'for each <item> in <list>'.");
+        if (!"each".equals(each.getValue()))
+            throw error(each, "Expect 'for each <item> in <list>'.");
         Token item = consume(TokenType.IDENTIFIER, "Expect a name for the item.");
         Token in = consume(TokenType.IDENTIFIER, "Expect 'in' after the item name.");
         if (!"in".equals(in.getValue())) throw error(in, "Expect 'for each <item> in <list>'.");
-        Token list = consume(TokenType.IDENTIFIER, "Expect the list to iterate, e.g. review.fixes.");
+        Token list =
+                consume(TokenType.IDENTIFIER, "Expect the list to iterate, e.g. review.fixes.");
         io.github.llm4j.loom.ast.BudgetDef budget = null;
         while (isBudgetModifier()) budget = parseBudgetModifier(budget);
         consume(TokenType.LBRACE, "Expect '{' before for each body.");
@@ -1343,7 +1848,10 @@ public class LoomParser {
         loop.setBudget(budget);
         if (check(TokenType.IDENTIFIER) && "on_exhausted".equals(peek().getValue())) {
             Token keyword = advance();
-            if (budget == null) throw error(keyword, "on_exhausted on a for each needs a budget (add 'budget N tokens')");
+            if (budget == null)
+                throw error(
+                        keyword,
+                        "on_exhausted on a for each needs a budget (add 'budget N tokens')");
             consume(TokenType.LBRACE, "Expect '{' before on_exhausted body.");
             while (!check(TokenType.RBRACE) && !isAtEnd()) {
                 loop.getOnExhausted().add(parseStatement());
@@ -1388,9 +1896,11 @@ public class LoomParser {
             java.util.Map<String, SchemaDef> fields = new java.util.LinkedHashMap<>();
             if (!check(TokenType.RBRACE)) {
                 do {
-                    // Any word is a valid field name, including ones Loom uses as keywords (note, model, …).
+                    // Any word is a valid field name, including ones Loom uses as keywords (note,
+                    // model, …).
                     Token fieldName = advance();
-                    if (fieldName.getValue() == null || !fieldName.getValue().matches("[A-Za-z_][A-Za-z0-9_]*")) {
+                    if (fieldName.getValue() == null
+                            || !fieldName.getValue().matches("[A-Za-z_][A-Za-z0-9_]*")) {
                         throw error(fieldName, "Expect field name.");
                     }
                     consume(TokenType.COLON, "Expect ':' after field name.");
@@ -1412,7 +1922,9 @@ public class LoomParser {
             SchemaDef schema = new SchemaDef(SchemaDef.Type.ENUM);
             java.util.List<String> values = new java.util.ArrayList<>();
             do {
-                values.add(consume(TokenType.STRING_LITERAL, "Expect string literal in enum.").getValue());
+                values.add(
+                        consume(TokenType.STRING_LITERAL, "Expect string literal in enum.")
+                                .getValue());
             } while (match(TokenType.COMMA));
             consume(TokenType.RBRACKET, "Expect ']' after enum values.");
             schema.setEnumValues(values);
@@ -1514,7 +2026,9 @@ public class LoomParser {
         if (check(TokenType.IDENTIFIER) && "on_exhausted".equals(peek().getValue())) {
             Token keyword = advance();
             if (max == 0 && loopBudget == null) {
-                throw error(keyword, "on_exhausted needs a bounded loop (add 'max N' or 'budget N tokens')");
+                throw error(
+                        keyword,
+                        "on_exhausted needs a bounded loop (add 'max N' or 'budget N tokens')");
             }
             consume(TokenType.LBRACE, "Expect '{' before on_exhausted body.");
             while (!check(TokenType.RBRACE) && !isAtEnd()) {
@@ -1526,7 +2040,10 @@ public class LoomParser {
     }
 
     private HumanPromptStmt parseHumanPromptStmt() {
-        Token msg = consume(TokenType.STRING_LITERAL, "Expect string literal message for human prompt.");
+        Token msg =
+                consume(
+                        TokenType.STRING_LITERAL,
+                        "Expect string literal message for human prompt.");
         consume(TokenType.ARROW, "Expect '->' to assign human prompt result.");
         Token varName = consume(TokenType.IDENTIFIER, "Expect variable name for result.");
         return new HumanPromptStmt(msg.getValue(), varName.getValue());
@@ -1538,6 +2055,7 @@ public class LoomParser {
 
     /**
      * Parses a top-level MCP server declaration.
+     *
      * <pre>
      * mcp PostgresDB {
      *     transport: "stdio"
@@ -1554,7 +2072,8 @@ public class LoomParser {
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
             if (match(TokenType.TRANSPORT)) {
                 consume(TokenType.COLON, "Expect ':' after transport.");
-                Token val = consume(TokenType.STRING_LITERAL, "Expect string literal for transport.");
+                Token val =
+                        consume(TokenType.STRING_LITERAL, "Expect string literal for transport.");
                 mcp.setTransport(val.getValue());
             } else if (match(TokenType.CMD)) {
                 consume(TokenType.COLON, "Expect ':' after cmd.");
@@ -1570,6 +2089,7 @@ public class LoomParser {
 
     /**
      * Parses a top-level audit configuration block.
+     *
      * <pre>
      * audit {
      *     logger: "file"
@@ -1583,11 +2103,13 @@ public class LoomParser {
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
             if (match(TokenType.LOGGER)) {
                 consume(TokenType.COLON, "Expect ':' after logger.");
-                Token val = consume(TokenType.STRING_LITERAL, "Expect string literal for logger type.");
+                Token val =
+                        consume(TokenType.STRING_LITERAL, "Expect string literal for logger type.");
                 cfg.setLogger(val.getValue());
             } else if (match(TokenType.PATH)) {
                 consume(TokenType.COLON, "Expect ':' after path.");
-                Token val = consume(TokenType.STRING_LITERAL, "Expect string literal for audit path.");
+                Token val =
+                        consume(TokenType.STRING_LITERAL, "Expect string literal for audit path.");
                 cfg.setPath(val.getValue());
             } else {
                 throw error(peek(), "Unexpected token in audit body: " + peek().getType());
@@ -1612,37 +2134,63 @@ public class LoomParser {
                 kb.setPath(consume(TokenType.STRING_LITERAL, "Expect path string.").getValue());
             } else if (match(TokenType.CHUNK_SIZE)) {
                 consume(TokenType.COLON, "Expect ':' after chunk_size.");
-                kb.setChunkSize(Integer.parseInt(consume(TokenType.NUMBER_LITERAL, "Expect chunk size number.").getValue()));
+                kb.setChunkSize(
+                        Integer.parseInt(
+                                consume(TokenType.NUMBER_LITERAL, "Expect chunk size number.")
+                                        .getValue()));
             } else if (match(TokenType.EMBEDDING)) {
                 consume(TokenType.COLON, "Expect ':' after embedding.");
-                kb.setEmbeddingProvider(consume(TokenType.STRING_LITERAL, "Expect embedding provider string.").getValue());
+                kb.setEmbeddingProvider(
+                        consume(TokenType.STRING_LITERAL, "Expect embedding provider string.")
+                                .getValue());
             } else if (check(TokenType.IDENTIFIER) && "source".equals(peek().getValue())) {
                 advance();
                 consume(TokenType.COLON, "Expect ':' after source.");
-                kb.setPath(consume(TokenType.STRING_LITERAL, "Expect a file or directory, e.g. source: \"docs/\"").getValue());
-            } else if (check(TokenType.IDENTIFIER) && ("overlap".equals(peek().getValue()) || "top_k".equals(peek().getValue()))) {
+                kb.setPath(
+                        consume(
+                                        TokenType.STRING_LITERAL,
+                                        "Expect a file or directory, e.g. source: \"docs/\"")
+                                .getValue());
+            } else if (check(TokenType.IDENTIFIER)
+                    && ("overlap".equals(peek().getValue()) || "top_k".equals(peek().getValue()))) {
                 Token key = advance();
                 consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
-                Token n = consume(TokenType.NUMBER_LITERAL, "Expect a whole number for " + key.getValue() + ".");
+                Token n =
+                        consume(
+                                TokenType.NUMBER_LITERAL,
+                                "Expect a whole number for " + key.getValue() + ".");
                 double v = Double.parseDouble(n.getValue());
                 boolean overlap = key.getValue().equals("overlap");
                 if (v != Math.floor(v) || v < (overlap ? 0 : 1)) {
-                    throw error(n, key.getValue() + " must be a " + (overlap ? "non-negative" : "positive") + " whole number");
+                    throw error(
+                            n,
+                            key.getValue()
+                                    + " must be a "
+                                    + (overlap ? "non-negative" : "positive")
+                                    + " whole number");
                 }
-                if (overlap) kb.setOverlap((int) v); else kb.setTopK((int) v);
+                if (overlap) kb.setOverlap((int) v);
+                else kb.setTopK((int) v);
             } else if (check(TokenType.IDENTIFIER) && "store".equals(peek().getValue())) {
                 advance();
                 consume(TokenType.COLON, "Expect ':' after store.");
                 if (match(TokenType.MEMORY)) kb.setStore(null);
-                else kb.setStore(consume(TokenType.STRING_LITERAL, "Expect an index file path, or memory").getValue());
+                else
+                    kb.setStore(
+                            consume(
+                                            TokenType.STRING_LITERAL,
+                                            "Expect an index file path, or memory")
+                                    .getValue());
             } else if (check(TokenType.IDENTIFIER) && "mode".equals(peek().getValue())) {
                 advance();
                 consume(TokenType.COLON, "Expect ':' after mode.");
                 Token m = word("Expect context or tool.");
                 switch (m.getValue()) {
-                    case "context" -> kb.setMode(io.github.llm4j.loom.ast.KnowledgeDef.Mode.CONTEXT);
+                    case "context" -> kb.setMode(
+                            io.github.llm4j.loom.ast.KnowledgeDef.Mode.CONTEXT);
                     case "tool" -> kb.setMode(io.github.llm4j.loom.ast.KnowledgeDef.Mode.TOOL);
-                    default -> throw error(m, "mode must be context or tool, got '" + m.getValue() + "'");
+                    default -> throw error(
+                            m, "mode must be context or tool, got '" + m.getValue() + "'");
                 }
             } else {
                 throw error(peek(), "Unexpected token in knowledge body: " + peek().getType());
@@ -1661,17 +2209,26 @@ public class LoomParser {
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
             if (match(TokenType.STRATEGY)) {
                 consume(TokenType.COLON, "Expect ':' after strategy.");
-                rp.setStrategy(check(TokenType.STRING_LITERAL) ? advance().getValue()
-                        : word("Expect a strategy: cost_aware or fallback").getValue());
+                rp.setStrategy(
+                        check(TokenType.STRING_LITERAL)
+                                ? advance().getValue()
+                                : word("Expect a strategy: cost_aware or fallback").getValue());
             } else if (match(TokenType.PRIMARY)) {
                 consume(TokenType.COLON, "Expect ':' after primary.");
-                rp.setPrimaryModel(consume(TokenType.STRING_LITERAL, "Expect primary model string.").getValue());
-            } else if (match(TokenType.FALLBACK) || (check(TokenType.IDENTIFIER) && "fallbacks".equals(peek().getValue()) && advance() != null)) {
+                rp.setPrimaryModel(
+                        consume(TokenType.STRING_LITERAL, "Expect primary model string.")
+                                .getValue());
+            } else if (match(TokenType.FALLBACK)
+                    || (check(TokenType.IDENTIFIER)
+                            && "fallbacks".equals(peek().getValue())
+                            && advance() != null)) {
                 consume(TokenType.COLON, "Expect ':' after fallback.");
                 consume(TokenType.LBRACKET, "Expect '['.");
                 if (!check(TokenType.RBRACKET)) {
                     do {
-                        rp.addFallbackModel(consume(TokenType.STRING_LITERAL, "Expect model string.").getValue());
+                        rp.addFallbackModel(
+                                consume(TokenType.STRING_LITERAL, "Expect model string.")
+                                        .getValue());
                     } while (match(TokenType.COMMA));
                 }
                 consume(TokenType.RBRACKET, "Expect ']'.");
@@ -1690,7 +2247,8 @@ public class LoomParser {
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
             Token key = word("Expect a " + what + " setting, e.g. key: value");
             consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
-            if (settings.has(key.getValue())) throw error(key, key.getValue() + " is given twice in " + what);
+            if (settings.has(key.getValue()))
+                throw error(key, key.getValue() + " is given twice in " + what);
             settings.put(key.getValue(), optionValue(), key.getLine());
             match(TokenType.COMMA);
         }
@@ -1698,7 +2256,10 @@ public class LoomParser {
         return settings;
     }
 
-    /** {@code context { compact: chain(a, b)  trigger: 80% … }}: like other settings blocks, but {@code compact} takes names and percentages are written with a sign. */
+    /**
+     * {@code context { compact: chain(a, b) trigger: 80% … }}: like other settings blocks, but
+     * {@code compact} takes names and percentages are written with a sign.
+     */
     private AgentDef.ContextConfig parseContextBlock(int line) {
         AgentDef.ContextConfig cfg = new AgentDef.ContextConfig();
         cfg.setLine(line);
@@ -1706,31 +2267,49 @@ public class LoomParser {
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
             Token key = word("Expect a context setting, e.g. compact: drop_oldest");
             consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
-            if (cfg.has(key.getValue())) throw error(key, key.getValue() + " is given twice in context");
+            if (cfg.has(key.getValue()))
+                throw error(key, key.getValue() + " is given twice in context");
             if (key.getValue().equals("compact")) {
                 java.util.List<String> names = cfg.compactNames();
                 if (check(TokenType.LBRACKET)) {
                     advance();
-                    do { names.add(word("Expect a strategy name.").getValue()); } while (match(TokenType.COMMA));
+                    do {
+                        names.add(word("Expect a strategy name.").getValue());
+                    } while (match(TokenType.COMMA));
                     consume(TokenType.RBRACKET, "Expect ']' after the strategies.");
                 } else {
                     Token first = word("Expect a strategy name, e.g. compact: drop_oldest");
                     if (first.getValue().equals("chain") && check(TokenType.LPAREN)) {
                         advance();
-                        if (check(TokenType.RPAREN)) throw error(peek(), "chain() needs at least one strategy name");
-                        do { names.add(word("Expect a strategy name.").getValue()); } while (match(TokenType.COMMA));
+                        if (check(TokenType.RPAREN))
+                            throw error(peek(), "chain() needs at least one strategy name");
+                        do {
+                            names.add(word("Expect a strategy name.").getValue());
+                        } while (match(TokenType.COMMA));
                         consume(TokenType.RPAREN, "Expect ')' after the strategies.");
                     } else {
                         names.add(first.getValue());
                     }
                 }
-                cfg.put(key.getValue(), io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(String.join(",", names)), key.getLine());
-            } else if (check(TokenType.NUMBER_LITERAL) && tokens.size() > current + 1 && tokens.get(current + 1).getType() == TokenType.PERCENT) {
+                cfg.put(
+                        key.getValue(),
+                        io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(
+                                String.join(",", names)),
+                        key.getLine());
+            } else if (check(TokenType.NUMBER_LITERAL)
+                    && tokens.size() > current + 1
+                    && tokens.get(current + 1).getType() == TokenType.PERCENT) {
                 String number = advance().getValue();
                 advance();
-                cfg.put(key.getValue(), io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(number + "%"), key.getLine());
+                cfg.put(
+                        key.getValue(),
+                        io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(number + "%"),
+                        key.getLine());
             } else if (check(TokenType.NUMBER_LITERAL)) {
-                cfg.put(key.getValue(), io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(advance().getValue()), key.getLine());
+                cfg.put(
+                        key.getValue(),
+                        io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(advance().getValue()),
+                        key.getLine());
             } else {
                 cfg.put(key.getValue(), optionValue(), key.getLine());
             }
@@ -1740,23 +2319,35 @@ public class LoomParser {
         return cfg;
     }
 
-    /** {@code voice {} / guard {}}: a contextual keyword followed by a block (with an optional colon). */
+    /**
+     * {@code voice {} / guard {}}: a contextual keyword followed by a block (with an optional
+     * colon).
+     */
     private boolean isSettingsBlock(String name) {
-        if (!check(TokenType.IDENTIFIER) || !name.equals(peek().getValue()) || tokens.size() <= current + 1) return false;
+        if (!check(TokenType.IDENTIFIER)
+                || !name.equals(peek().getValue())
+                || tokens.size() <= current + 1) return false;
         TokenType next = tokens.get(current + 1).getType();
         return next == TokenType.LBRACE
-                || next == TokenType.COLON && tokens.size() > current + 2 && tokens.get(current + 2).getType() == TokenType.LBRACE;
+                || next == TokenType.COLON
+                        && tokens.size() > current + 2
+                        && tokens.get(current + 2).getType() == TokenType.LBRACE;
     }
 
     /** A contextual keyword followed by a name and a block: {@code provider Box { … }}. */
     private boolean isNamedBlock(String name) {
-        return check(TokenType.IDENTIFIER) && name.equals(peek().getValue()) && tokens.size() > current + 2
+        return check(TokenType.IDENTIFIER)
+                && name.equals(peek().getValue())
+                && tokens.size() > current + 2
                 && tokens.get(current + 1).getType() == TokenType.IDENTIFIER
                 && tokens.get(current + 2).getType() == TokenType.LBRACE;
     }
 
     private ProviderDef parseProviderDef() {
-        Token name = consume(TokenType.IDENTIFIER, "Expect a provider name, e.g. provider Box { use: ollama }");
+        Token name =
+                consume(
+                        TokenType.IDENTIFIER,
+                        "Expect a provider name, e.g. provider Box { use: ollama }");
         ProviderDef provider = new ProviderDef(name.getValue());
         provider.setLine(name.getLine());
         consume(TokenType.LBRACE, "Expect '{' after provider " + name.getValue() + ".");
@@ -1764,28 +2355,337 @@ public class LoomParser {
             Token key = word("Expect a provider option, e.g. use: ollama");
             consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
             if (key.getValue().equals("use")) {
-                provider.setKind(word("Expect a provider kind after use:, e.g. use: ollama").getValue());
+                provider.setKind(
+                        word("Expect a provider kind after use:, e.g. use: ollama").getValue());
             } else {
-                if (provider.getOptions().containsKey(key.getValue())) throw error(key, "option " + key.getValue() + " is given twice");
+                if (provider.getOptions().containsKey(key.getValue()))
+                    throw error(key, "option " + key.getValue() + " is given twice");
                 provider.getOptions().put(key.getValue(), optionValue());
             }
             match(TokenType.COMMA);
         }
         consume(TokenType.RBRACE, "Expect '}' after provider " + name.getValue() + ".");
-        if (provider.getKind() == null) throw error(name, "provider " + name.getValue() + " needs use: gemini | anthropic | ollama | sarvam");
+        if (provider.getKind() == null)
+            throw error(
+                    name,
+                    "provider "
+                            + name.getValue()
+                            + " needs use: gemini | anthropic | ollama | sarvam");
         return provider;
     }
 
+    private static final java.util.List<String> CLASSIFIER_SETTINGS =
+            java.util.List.of("model", "samples", "pii", "choose", "ask", "rate", "confidence");
+
+    /**
+     * {@code intentclassifier Name { model: "…" samples: 3 choose kind: a | b ask urgent: "…" rate
+     * tone: low | high confidence at least 0.8 else escalate }}, after the word {@code
+     * intentclassifier}. The words inside are contextual: they mean something only here.
+     */
+    private io.github.llm4j.loom.ast.IntentClassifierDef parseIntentClassifier() {
+        Token name =
+                consume(
+                        TokenType.IDENTIFIER,
+                        "Expect a classifier name, e.g. intentclassifier Intent { model: \"…\"  choose kind: a | b }");
+        io.github.llm4j.loom.ast.IntentClassifierDef def =
+                new io.github.llm4j.loom.ast.IntentClassifierDef(name.getValue());
+        def.setLine(name.getLine());
+        consume(TokenType.LBRACE, "Expect '{' after intentclassifier " + name.getValue() + ".");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token key =
+                    word(
+                            "Expect a classifier setting: "
+                                    + String.join(", ", CLASSIFIER_SETTINGS)
+                                    + ".");
+            switch (key.getValue()) {
+                case "model" -> {
+                    if (def.getModel() != null)
+                        throw error(
+                                key,
+                                "model is given twice in intentclassifier "
+                                        + name.getValue()
+                                        + ".");
+                    consume(TokenType.COLON, "Expect ':' after model.");
+                    def.setModel(
+                            consume(
+                                            TokenType.STRING_LITERAL,
+                                            "Expect a quoted model, as in model: \"Jev/jev-latest\" or model: \"gemini-2.5-flash\".")
+                                    .getValue(),
+                            key.getLine());
+                }
+                case "samples" -> {
+                    if (def.getSamplesLine() != 0)
+                        throw error(
+                                key,
+                                "samples is given twice in intentclassifier "
+                                        + name.getValue()
+                                        + ".");
+                    consume(TokenType.COLON, "Expect ':' after samples.");
+                    Token n =
+                            consume(
+                                    TokenType.NUMBER_LITERAL,
+                                    "Expect how many independent calls to combine, as in samples: 3.");
+                    double v = Double.parseDouble(n.getValue());
+                    if (v < 1 || v != Math.floor(v))
+                        throw error(
+                                n,
+                                "samples is a whole number of calls, at least 1; got "
+                                        + n.getValue()
+                                        + ".");
+                    def.setSamples((int) v, key.getLine());
+                }
+                case "pii" -> {
+                    if (def.getPii() != null)
+                        throw error(
+                                key,
+                                "pii is given twice in intentclassifier " + name.getValue() + ".");
+                    consume(TokenType.COLON, "Expect ':' after pii.");
+                    def.setPii(
+                            word("Expect mask, block or warn after pii:.").getValue(),
+                            key.getLine());
+                }
+                case "choose", "rate" -> def.getQuestions()
+                        .add(parseClassifierChoice(key, "rate".equals(key.getValue())));
+                case "ask" -> def.getQuestions().add(parseClassifierAsk(key));
+                case "confidence" -> {
+                    if (def.getConfidence() != null)
+                        throw error(
+                                key,
+                                "an intentclassifier has one confidence rule; "
+                                        + name.getValue()
+                                        + " has two.");
+                    def.setConfidence(parseClassifierConfidence(key));
+                }
+                default -> throw error(key, unknownClassifierSetting(key));
+            }
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after intentclassifier " + name.getValue() + ".");
+        if (def.getModel() == null)
+            throw error(
+                    name,
+                    "intentclassifier "
+                            + name.getValue()
+                            + " needs a model, as in model: \"Jev/jev-latest\" or model: \"gemini-2.5-flash\".");
+        return def;
+    }
+
+    private static String unknownClassifierSetting(Token t) {
+        java.util.List<String> near =
+                io.github.llm4j.loom.prompt.PromptCatalog.nearest(
+                        t.getValue(), CLASSIFIER_SETTINGS);
+        return "\""
+                + t.getValue()
+                + "\" is not something an intentclassifier can have. An intentclassifier can have: "
+                + String.join(", ", CLASSIFIER_SETTINGS)
+                + "."
+                + (near.isEmpty() ? "" : " Did you mean " + String.join(" or ", near) + "?");
+    }
+
+    /**
+     * {@code choose kind ["instructions"]: a | b | c} or {@code rate tone ["instructions"]: low |
+     * high}, after the keyword.
+     */
+    private io.github.llm4j.loom.ast.IntentClassifierDef.Question parseClassifierChoice(
+            Token keyword, boolean scale) {
+        Token name =
+                word(
+                        "Expect a name for the question, as in "
+                                + keyword.getValue()
+                                + " kind: a | b.");
+        String instructions = check(TokenType.STRING_LITERAL) ? advance().getValue() : null;
+        consume(
+                TokenType.COLON,
+                "Expect ':' and the "
+                        + (scale ? "points of the scale, lowest first" : "labels")
+                        + " of "
+                        + name.getValue()
+                        + ", as in "
+                        + keyword.getValue()
+                        + " "
+                        + name.getValue()
+                        + ": a | b.");
+        java.util.List<String> labels = new java.util.ArrayList<>();
+        labels.add(classifierLabel(name));
+        while (match(TokenType.PIPE)) labels.add(classifierLabel(name));
+        return new io.github.llm4j.loom.ast.IntentClassifierDef.Question(
+                scale
+                        ? io.github.llm4j.loom.ast.IntentClassifierDef.Kind.RATE
+                        : io.github.llm4j.loom.ast.IntentClassifierDef.Kind.CHOOSE,
+                name.getValue(),
+                instructions,
+                java.util.List.copyOf(labels),
+                keyword.getLine());
+    }
+
+    private String classifierLabel(Token question) {
+        if (check(TokenType.STRING_LITERAL)) return advance().getValue();
+        return word("Expect a label for "
+                        + question.getValue()
+                        + " (a word or a quoted text) after ':' or '|'.")
+                .getValue();
+    }
+
+    /**
+     * {@code ask urgent: "Is it urgent?"} (also {@code ask urgent "…"}, or {@code ask urgent} alone
+     * for a sentence made from the name).
+     */
+    private io.github.llm4j.loom.ast.IntentClassifierDef.Question parseClassifierAsk(
+            Token keyword) {
+        Token name = word("Expect a name for the question, as in ask urgent: \"Is it urgent?\".");
+        String instructions = null;
+        if (check(TokenType.STRING_LITERAL)) {
+            instructions = advance().getValue();
+        } else if (match(TokenType.COLON)) {
+            instructions =
+                    consume(
+                                    TokenType.STRING_LITERAL,
+                                    "Expect the yes/no question in quotes after ask "
+                                            + name.getValue()
+                                            + ":.")
+                            .getValue();
+        }
+        return new io.github.llm4j.loom.ast.IntentClassifierDef.Question(
+                io.github.llm4j.loom.ast.IntentClassifierDef.Kind.ASK,
+                name.getValue(),
+                instructions,
+                java.util.List.of(),
+                keyword.getLine());
+    }
+
+    /**
+     * {@code confidence at least 0.8 else escalate | ask person | fail}, after {@code confidence};
+     * the action defaults to escalate.
+     */
+    private io.github.llm4j.loom.ast.IntentClassifierDef.Confidence parseClassifierConfidence(
+            Token keyword) {
+        expectWord("at", "Write the rule as confidence at least 0.8 else escalate.");
+        expectWord("least", "Write the rule as confidence at least 0.8 else escalate.");
+        Token n =
+                consume(
+                        TokenType.NUMBER_LITERAL,
+                        "Expect a threshold from 0 to 1, as in confidence at least 0.8.");
+        double threshold = Double.parseDouble(n.getValue());
+        if (threshold < 0 || threshold > 1)
+            throw error(n, "the confidence threshold is from 0 to 1; got " + n.getValue() + ".");
+        io.github.llm4j.loom.ast.IntentClassifierDef.Action action =
+                io.github.llm4j.loom.ast.IntentClassifierDef.Action.ESCALATE;
+        if (match(TokenType.ELSE)) {
+            if (isWord("escalate")) {
+                advance();
+            } else if (isWord("ask")) {
+                advance();
+                expectWord("person", "Write ask person to put the decision to a person.");
+                action = io.github.llm4j.loom.ast.IntentClassifierDef.Action.ASK_PERSON;
+            } else if (isWord("fail")) {
+                advance();
+                action = io.github.llm4j.loom.ast.IntentClassifierDef.Action.FAIL;
+            } else {
+                throw error(
+                        peek(),
+                        "After else write escalate (the label becomes unsure), ask person, or fail.");
+            }
+        }
+        return new io.github.llm4j.loom.ast.IntentClassifierDef.Confidence(
+                threshold, action, keyword.getLine());
+    }
+
+    /**
+     * {@code intentclassify Intent on message -> intent [retry 2] [backoff 2s] [timeout 30s]
+     * [on_failure { … }]}.
+     */
+    private io.github.llm4j.loom.ast.IntentClassifyStmt parseIntentClassify() {
+        Token keyword = advance();
+        Token classifier = consume(TokenType.IDENTIFIER, "Expect the name of an intentclassifier.");
+        if (!isWord("on"))
+            throw error(
+                    peek(),
+                    "Expect 'on' and what to classify, as in intentclassify "
+                            + classifier.getValue()
+                            + " on message -> result.");
+        advance();
+        java.util.List<RunStmt.Arg> inputs = new java.util.ArrayList<>();
+        if (match(TokenType.LBRACE)) {
+            while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                Token field =
+                        word("Expect a field name, as in on { message: message, history: past }.");
+                consume(TokenType.COLON, "Expect ':' after " + field.getValue() + ".");
+                inputs.add(classifierInput(field.getValue()));
+                match(TokenType.COMMA);
+            }
+            consume(TokenType.RBRACE, "Expect '}' after the fields.");
+            if (inputs.isEmpty())
+                throw error(
+                        previous(),
+                        "Name at least one field to classify, as in on { message: message }.");
+        } else {
+            inputs.add(classifierInput(""));
+        }
+        consume(
+                TokenType.ARROW,
+                "Expect '->' and a variable to hold the answers, as in intentclassify "
+                        + classifier.getValue()
+                        + " on message -> intent.");
+        String variable = nameOrReference("Expect a variable name for the answers.");
+        io.github.llm4j.loom.ast.IntentClassifyStmt stmt =
+                new io.github.llm4j.loom.ast.IntentClassifyStmt(classifier.getValue(), variable);
+        stmt.setLine(keyword.getLine());
+        stmt.getInputs().addAll(inputs);
+        while (true) {
+            if (match(TokenType.RETRY)) {
+                stmt.setRetryCount(
+                        (int)
+                                Double.parseDouble(
+                                        consume(
+                                                        TokenType.NUMBER_LITERAL,
+                                                        "Expect number of retries.")
+                                                .getValue()));
+            } else if (check(TokenType.IDENTIFIER)
+                    && ("backoff".equals(peek().getValue())
+                            || "timeout".equals(peek().getValue()))) {
+                String option = advance().getValue();
+                long millis = durationMillis();
+                if (option.equals("backoff")) stmt.setBackoffMillis(millis);
+                else stmt.setTimeoutMillis(millis);
+            } else {
+                break;
+            }
+        }
+        if (match(TokenType.ON_FAILURE)) {
+            consume(TokenType.LBRACE, "Expect '{' before on_failure body.");
+            while (!check(TokenType.RBRACE) && !isAtEnd())
+                stmt.getOnFailure().add(parseStatement());
+            consume(TokenType.RBRACE, "Expect '}' after on_failure body.");
+        }
+        return stmt;
+    }
+
+    /** One thing to classify: a quoted text (with {placeholders}) or a variable. */
+    private RunStmt.Arg classifierInput(String field) {
+        if (check(TokenType.STRING_LITERAL))
+            return new RunStmt.Arg(field, RunStmt.Kind.STRING, advance().getValue());
+        Token ref =
+                word(
+                        "Expect what to classify: a variable (message, request.text) or a quoted text.");
+        return new RunStmt.Arg(field, RunStmt.Kind.REFERENCE, ref.getValue());
+    }
+
     private PersonaDef parsePersonaDef() {
-        Token name = consume(TokenType.IDENTIFIER, "Expect a persona name, e.g. persona Mentor { role: \"…\" }");
+        Token name =
+                consume(
+                        TokenType.IDENTIFIER,
+                        "Expect a persona name, e.g. persona Mentor { role: \"…\" }");
         PersonaDef persona = new PersonaDef(name.getValue());
         persona.setLine(name.getLine());
         consume(TokenType.LBRACE, "Expect '{' after persona " + name.getValue() + ".");
         java.util.Set<String> seen = new java.util.HashSet<>();
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
-            Token key = word("Expect a persona field: role, expertise, tone, description or constraints");
+            Token key =
+                    word(
+                            "Expect a persona field: role, expertise, tone, description or constraints");
             consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
-            if (!seen.add(key.getValue())) throw error(key, key.getValue() + " is given twice in persona " + name.getValue());
+            if (!seen.add(key.getValue()))
+                throw error(key, key.getValue() + " is given twice in persona " + name.getValue());
             switch (key.getValue()) {
                 case "role" -> persona.setRole(personaText(key));
                 case "expertise" -> persona.setExpertise(personaText(key));
@@ -1795,23 +2695,33 @@ public class LoomParser {
                     consume(TokenType.LBRACKET, "Expect [\"…\", …] after constraints:");
                     if (!check(TokenType.RBRACKET)) {
                         do {
-                            persona.getConstraints().add(consume(TokenType.STRING_LITERAL, "Expect a constraint (string).").getValue());
+                            persona.getConstraints()
+                                    .add(
+                                            consume(
+                                                            TokenType.STRING_LITERAL,
+                                                            "Expect a constraint (string).")
+                                                    .getValue());
                         } while (match(TokenType.COMMA));
                     }
                     consume(TokenType.RBRACKET, "Expect ']' after constraints.");
                 }
-                default -> throw error(key, "unknown persona field " + key.getValue()
-                        + "; use role, expertise, tone, description or constraints");
+                default -> throw error(
+                        key,
+                        "unknown persona field "
+                                + key.getValue()
+                                + "; use role, expertise, tone, description or constraints");
             }
             match(TokenType.COMMA);
         }
         consume(TokenType.RBRACE, "Expect '}' after persona " + name.getValue() + ".");
-        if (persona.getRole() == null) throw error(name, "persona " + name.getValue() + " needs role: \"…\"");
+        if (persona.getRole() == null)
+            throw error(name, "persona " + name.getValue() + " needs role: \"…\"");
         return persona;
     }
 
     private String personaText(Token key) {
-        return consume(TokenType.STRING_LITERAL, "Expect a string after " + key.getValue() + ":").getValue();
+        return consume(TokenType.STRING_LITERAL, "Expect a string after " + key.getValue() + ":")
+                .getValue();
     }
 
     private GuardrailStmt parseGuardrailStatement() {
@@ -1848,7 +2758,8 @@ public class LoomParser {
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
             if (match(TokenType.PATTERN)) {
                 consume(TokenType.COLON, "Expect ':' after pattern.");
-                sd.setPattern(consume(TokenType.STRING_LITERAL, "Expect pattern string.").getValue());
+                sd.setPattern(
+                        consume(TokenType.STRING_LITERAL, "Expect pattern string.").getValue());
             } else if (match(TokenType.AGENT)) {
                 consume(TokenType.COLON, "Expect ':' after agent.");
                 sd.setAgentName(consume(TokenType.IDENTIFIER, "Expect agent name.").getValue());
@@ -1857,15 +2768,19 @@ public class LoomParser {
                 consume(TokenType.COLON, "Expect ':' after key.");
                 sd.setTask(consume(TokenType.STRING_LITERAL, "Expect task string.").getValue());
             } else if (match(TokenType.PATH)) { // Reuse path for delay? or just identifier
-                 consume(TokenType.COLON, "Expect ':'.");
-                 sd.setInitialDelay(consume(TokenType.STRING_LITERAL, "Expect delay string.").getValue());
+                consume(TokenType.COLON, "Expect ':'.");
+                sd.setInitialDelay(
+                        consume(TokenType.STRING_LITERAL, "Expect delay string.").getValue());
             } else if (peek().getType() == TokenType.IDENTIFIER) {
                 Token keyToken = advance();
                 String key = keyToken.getValue();
                 consume(TokenType.COLON, "Expect ':' after key.");
                 switch (key) {
                     case "cron" -> {
-                        Token v = consume(TokenType.STRING_LITERAL, "Expect a cron string, e.g. cron: \"0 7 * * *\"");
+                        Token v =
+                                consume(
+                                        TokenType.STRING_LITERAL,
+                                        "Expect a cron string, e.g. cron: \"0 7 * * *\"");
                         try {
                             io.github.llm4j.loom.trigger.CronSchedule.parse(v.getValue());
                         } catch (IllegalArgumentException e) {
@@ -1875,7 +2790,10 @@ public class LoomParser {
                     }
                     case "every" -> sd.setEvery(duration(keyToken));
                     case "timezone" -> {
-                        Token v = consume(TokenType.STRING_LITERAL, "Expect a time zone string, e.g. timezone: \"Asia/Kolkata\"");
+                        Token v =
+                                consume(
+                                        TokenType.STRING_LITERAL,
+                                        "Expect a time zone string, e.g. timezone: \"Asia/Kolkata\"");
                         try {
                             java.time.ZoneId.of(v.getValue());
                         } catch (java.time.DateTimeException e) {
@@ -1884,36 +2802,60 @@ public class LoomParser {
                         sd.setTimezone(v.getValue());
                     }
                     case "run" -> {
-                        sd.setRunWorkflow(consume(TokenType.IDENTIFIER, "Expect a workflow to run, e.g. run: Digest()").getValue());
+                        sd.setRunWorkflow(
+                                consume(
+                                                TokenType.IDENTIFIER,
+                                                "Expect a workflow to run, e.g. run: Digest()")
+                                        .getValue());
                         consume(TokenType.LPAREN, "Expect '(' after the workflow name.");
                         if (!check(TokenType.RPAREN)) {
                             do {
-                                Token argName = consume(TokenType.IDENTIFIER, "Expect argument name.");
+                                Token argName =
+                                        consume(TokenType.IDENTIFIER, "Expect argument name.");
                                 consume(TokenType.ASSIGN, "Expect '=' after argument name.");
-                                sd.getRunArgs().put(argName.getValue(),
-                                        consume(TokenType.STRING_LITERAL, "Expect a string argument value.").getValue());
+                                sd.getRunArgs()
+                                        .put(
+                                                argName.getValue(),
+                                                consume(
+                                                                TokenType.STRING_LITERAL,
+                                                                "Expect a string argument value.")
+                                                        .getValue());
                             } while (match(TokenType.COMMA));
                         }
                         consume(TokenType.RPAREN, "Expect ')' after run arguments.");
                     }
                     case "misfire" -> {
-                        Token v = consume(TokenType.IDENTIFIER, "Expect run_once or skip after misfire.");
+                        Token v =
+                                consume(
+                                        TokenType.IDENTIFIER,
+                                        "Expect run_once or skip after misfire.");
                         if (!v.getValue().equals("run_once") && !v.getValue().equals("skip")) {
-                            throw error(v, "misfire must be run_once or skip, got '" + v.getValue() + "'");
+                            throw error(
+                                    v,
+                                    "misfire must be run_once or skip, got '" + v.getValue() + "'");
                         }
                         sd.setMisfire(v.getValue());
                     }
                     case "overlap" -> {
-                        Token v = consume(TokenType.IDENTIFIER, "Expect skip or queue after overlap.");
+                        Token v =
+                                consume(
+                                        TokenType.IDENTIFIER,
+                                        "Expect skip or queue after overlap.");
                         if (!v.getValue().equals("skip") && !v.getValue().equals("queue")) {
-                            throw error(v, "overlap must be skip or queue, got '" + v.getValue() + "'");
+                            throw error(
+                                    v, "overlap must be skip or queue, got '" + v.getValue() + "'");
                         }
                         sd.setOverlap(v.getValue());
                     }
-                    case "task" -> sd.setTask(consume(TokenType.STRING_LITERAL, "Expect string value.").getValue());
-                    case "initial_delay" -> sd.setInitialDelay(consume(TokenType.STRING_LITERAL, "Expect string value.").getValue());
-                    default -> throw error(keyToken, "Unknown schedule field '" + key
-                            + "'. Use cron, every, timezone, run, misfire, overlap, agent, task, pattern or initial_delay.");
+                    case "task" -> sd.setTask(
+                            consume(TokenType.STRING_LITERAL, "Expect string value.").getValue());
+                    case "initial_delay" -> sd.setInitialDelay(
+                            consume(TokenType.STRING_LITERAL, "Expect string value.").getValue());
+                    default -> throw error(
+                            keyToken,
+                            "Unknown schedule field '"
+                                    + key
+                                    + "'. Use cron, every, timezone, run, misfire, overlap, agent, task, pattern or initial_delay.");
                 }
             } else {
                 throw error(peek(), "Unexpected token in schedule body: " + peek().getType());
@@ -1924,13 +2866,24 @@ public class LoomParser {
             throw error(nameToken, "schedule " + sd.getName() + ": use cron or every, not both");
         }
         if (sd.getRunWorkflow() != null && sd.getAgentName() != null) {
-            throw error(nameToken, "schedule " + sd.getName() + ": use run (a workflow) or agent + task, not both");
+            throw error(
+                    nameToken,
+                    "schedule "
+                            + sd.getName()
+                            + ": use run (a workflow) or agent + task, not both");
         }
         if (sd.getRunWorkflow() == null && sd.getAgentName() == null) {
-            throw error(close, "schedule " + sd.getName() + " needs run: <Workflow>(...) or agent + task");
+            throw error(
+                    close,
+                    "schedule " + sd.getName() + " needs run: <Workflow>(...) or agent + task");
         }
-        if (sd.getCron() == null && sd.getEvery() == null && sd.getPattern() == null && sd.getRunWorkflow() != null) {
-            throw error(close, "schedule " + sd.getName() + " needs cron: \"...\" or every: <duration>");
+        if (sd.getCron() == null
+                && sd.getEvery() == null
+                && sd.getPattern() == null
+                && sd.getRunWorkflow() != null) {
+            throw error(
+                    close,
+                    "schedule " + sd.getName() + " needs cron: \"...\" or every: <duration>");
         }
         return sd;
     }
@@ -2001,126 +2954,184 @@ public class LoomParser {
 
     // ── Tools ────────────────────────────────────────────────────────────────────────────────
 
-    /** {@code tool Name { use: kind  option: value … }} — after the keyword. */
+    /** {@code tool Name { use: kind option: value … }} — after the keyword. */
     private io.github.llm4j.loom.ast.ToolDef parseToolDef() {
-        Token name = consume(TokenType.IDENTIFIER, "Expect a tool name, e.g. tool Search { use: duckduckgo }");
-        io.github.llm4j.loom.ast.ToolDef tool = new io.github.llm4j.loom.ast.ToolDef(name.getValue());
+        Token name =
+                consume(
+                        TokenType.IDENTIFIER,
+                        "Expect a tool name, e.g. tool Search { use: duckduckgo }");
+        io.github.llm4j.loom.ast.ToolDef tool =
+                new io.github.llm4j.loom.ast.ToolDef(name.getValue());
         tool.setLine(name.getLine());
         consume(TokenType.LBRACE, "Expect '{' after tool " + name.getValue() + ".");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
-            // A quoted key lets option names hold characters a bare word can't: "header.X-Trace-Id": "abc"
-            Token key = check(TokenType.STRING_LITERAL) ? advance() : word("Expect a tool option, e.g. use: serpapi");
+            // A quoted key lets option names hold characters a bare word can't:
+            // "header.X-Trace-Id": "abc"
+            Token key =
+                    check(TokenType.STRING_LITERAL)
+                            ? advance()
+                            : word("Expect a tool option, e.g. use: serpapi");
             consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
             if (key.getValue().equals("use")) {
-                tool.setKind(word("Expect a tool kind after use:, e.g. use: duckduckgo").getValue());
+                tool.setKind(
+                        word("Expect a tool kind after use:, e.g. use: duckduckgo").getValue());
             } else {
-                if (tool.getOptions().containsKey(key.getValue())) throw error(key, "option " + key.getValue() + " is given twice");
+                if (tool.getOptions().containsKey(key.getValue()))
+                    throw error(key, "option " + key.getValue() + " is given twice");
                 tool.getOptions().put(key.getValue(), optionValue());
             }
             match(TokenType.COMMA);
         }
         consume(TokenType.RBRACE, "Expect '}' after tool " + name.getValue() + ".");
-        if (tool.getKind() == null) throw error(name, "tool " + name.getValue() + " needs use: <kind>");
+        if (tool.getKind() == null)
+            throw error(name, "tool " + name.getValue() + " needs use: <kind>");
         return tool;
     }
 
     /** A bare word: an identifier or a keyword (option names like path, type, class). */
     private Token word(String message) {
-        if (!isAtEnd() && peek().getValue() != null && peek().getValue().matches("[A-Za-z_][A-Za-z0-9_.]*")
+        if (!isAtEnd()
+                && peek().getValue() != null
+                && peek().getValue().matches("[A-Za-z_][A-Za-z0-9_.]*")
                 && peek().getType() != TokenType.STRING_LITERAL) {
             return advance();
         }
         throw error(peek(), message);
     }
 
-    /** A string, number, true/false, a word, or {@code env.NAME}, {@code secret.NAME} or {@code invoker.NAME}. */
+    /**
+     * A string, number, true/false, a word, or {@code env.NAME}, {@code secret.NAME} or {@code
+     * invoker.NAME}.
+     */
     private io.github.llm4j.loom.ast.ToolDef.OptionValue optionValue() {
         if (check(TokenType.NUMBER_LITERAL)) {
             Token number = advance();
-            return io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(number.getValue() + unitSuffix(number));
+            return io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(
+                    number.getValue() + unitSuffix(number));
         }
         if (check(TokenType.STRING_LITERAL)) {
             return io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(advance().getValue());
         }
-        Token w = word("Expect a value: a \"string\", a number, true/false, env.NAME, secret.NAME or invoker.NAME");
+        Token w =
+                word(
+                        "Expect a value: a \"string\", a number, true/false, env.NAME, secret.NAME or invoker.NAME");
         if (w.getValue().startsWith("env.")) {
             String var = w.getValue().substring(4);
-            if (var.isEmpty() || var.contains(".")) throw error(w, "an environment reference is env.NAME, got " + w.getValue());
+            if (var.isEmpty() || var.contains("."))
+                throw error(w, "an environment reference is env.NAME, got " + w.getValue());
             return io.github.llm4j.loom.ast.ToolDef.OptionValue.env(var);
         }
         if (w.getValue().startsWith("secret.")) {
             String name = w.getValue().substring(7);
             if (!io.github.llm4j.secret.SecretNames.isValid(name)) {
-                throw error(w, "a secret reference is secret.NAME (a letter, then letters, digits, _ or -), got " + w.getValue());
+                throw error(
+                        w,
+                        "a secret reference is secret.NAME (a letter, then letters, digits, _ or -), got "
+                                + w.getValue());
             }
             return io.github.llm4j.loom.ast.ToolDef.OptionValue.secret(name);
         }
         if (w.getValue().startsWith("invoker.")) {
             String name = w.getValue().substring(8);
             if (!io.github.llm4j.secret.SecretNames.isValid(name)) {
-                throw error(w, "an invoker reference is invoker.NAME (a letter, then letters, digits, _ or -), got " + w.getValue());
+                throw error(
+                        w,
+                        "an invoker reference is invoker.NAME (a letter, then letters, digits, _ or -), got "
+                                + w.getValue());
             }
             return io.github.llm4j.loom.ast.ToolDef.OptionValue.invoker(name);
         }
         return io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(w.getValue());
     }
 
-    private static final java.util.Set<String> UNITS = java.util.Set.of("ms", "s", "m", "h", "k", "kb", "mb");
+    private static final java.util.Set<String> UNITS =
+            java.util.Set.of("ms", "s", "m", "h", "k", "kb", "mb");
 
     /**
-     * A unit written straight after a number ({@code 20s}, {@code 64k}) belongs to it. A word that is itself
-     * a key (followed by ':') is left alone.
+     * A unit written straight after a number ({@code 20s}, {@code 64k}) belongs to it. A word that
+     * is itself a key (followed by ':') is left alone.
      */
     private String unitSuffix(Token number) {
         if (isAtEnd()) return "";
         Token next = peek();
-        boolean adjacent = next.getType() == TokenType.IDENTIFIER && next.getLine() == number.getLine()
-                && next.getColumn() == number.getColumn() + number.getValue().length();
-        boolean isKey = tokens.size() > current + 1 && tokens.get(current + 1).getType() == TokenType.COLON;
-        if (adjacent && !isKey && UNITS.contains(next.getValue().toLowerCase(java.util.Locale.ROOT))) return advance().getValue();
+        boolean adjacent =
+                next.getType() == TokenType.IDENTIFIER
+                        && next.getLine() == number.getLine()
+                        && next.getColumn() == number.getColumn() + number.getValue().length();
+        boolean isKey =
+                tokens.size() > current + 1 && tokens.get(current + 1).getType() == TokenType.COLON;
+        if (adjacent
+                && !isKey
+                && UNITS.contains(next.getValue().toLowerCase(java.util.Locale.ROOT)))
+            return advance().getValue();
         return "";
     }
 
     // ── Budgets ──────────────────────────────────────────────────────────────────────────────
 
     private boolean isBudgetKeyword() {
-        return check(TokenType.IDENTIFIER) && "budget".equals(peek().getValue())
-                && tokens.size() > current + 1 && tokens.get(current + 1).getType() == TokenType.LBRACE;
+        return check(TokenType.IDENTIFIER)
+                && "budget".equals(peek().getValue())
+                && tokens.size() > current + 1
+                && tokens.get(current + 1).getType() == TokenType.LBRACE;
     }
 
     /** {@code budget} followed by a number or a string: a statement's budget modifier. */
     private boolean isBudgetModifier() {
-        if (!check(TokenType.IDENTIFIER) || !"budget".equals(peek().getValue()) || tokens.size() <= current + 1) return false;
+        if (!check(TokenType.IDENTIFIER)
+                || !"budget".equals(peek().getValue())
+                || tokens.size() <= current + 1) return false;
         TokenType next = tokens.get(current + 1).getType();
         return next == TokenType.NUMBER_LITERAL || next == TokenType.STRING_LITERAL;
     }
 
     /** A contextual keyword opening a block: {@code name {}. */
     private boolean isBlockKeyword(String name) {
-        return check(TokenType.IDENTIFIER) && name.equals(peek().getValue())
-                && tokens.size() > current + 1 && tokens.get(current + 1).getType() == TokenType.LBRACE;
+        return check(TokenType.IDENTIFIER)
+                && name.equals(peek().getValue())
+                && tokens.size() > current + 1
+                && tokens.get(current + 1).getType() == TokenType.LBRACE;
     }
 
-    /** {@code rate_limits { on_limit: suspend|wait|fail  max_wait: 24h  max_resumes: 50 }} — after the keyword. */
+    /**
+     * {@code rate_limits { on_limit: suspend|wait|fail max_wait: 24h max_resumes: 50 }} — after the
+     * keyword.
+     */
     private io.github.llm4j.loom.ast.RateLimitDef parseRateLimits() {
         io.github.llm4j.loom.ast.RateLimitDef def = new io.github.llm4j.loom.ast.RateLimitDef();
         consume(TokenType.LBRACE, "Expect '{' after rate_limits.");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
-            Token field = consume(TokenType.IDENTIFIER, "Expect a rate_limits field: on_limit, max_wait or max_resumes.");
+            Token field =
+                    consume(
+                            TokenType.IDENTIFIER,
+                            "Expect a rate_limits field: on_limit, max_wait or max_resumes.");
             consume(TokenType.COLON, "Expect ':' after '" + field.getValue() + "'.");
             switch (field.getValue()) {
                 case "on_limit" -> {
-                    Token v = consume(TokenType.IDENTIFIER, "Expect suspend, wait or fail after on_limit.");
+                    Token v =
+                            consume(
+                                    TokenType.IDENTIFIER,
+                                    "Expect suspend, wait or fail after on_limit.");
                     try {
-                        def.setOnLimit(io.github.llm4j.loom.ast.RateLimitDef.OnLimit.valueOf(v.getValue().toUpperCase(java.util.Locale.ROOT)));
+                        def.setOnLimit(
+                                io.github.llm4j.loom.ast.RateLimitDef.OnLimit.valueOf(
+                                        v.getValue().toUpperCase(java.util.Locale.ROOT)));
                     } catch (IllegalArgumentException e) {
-                        throw error(v, "on_limit must be suspend, wait or fail, got '" + v.getValue() + "'");
+                        throw error(
+                                v,
+                                "on_limit must be suspend, wait or fail, got '"
+                                        + v.getValue()
+                                        + "'");
                     }
                 }
                 case "max_wait" -> def.setMaxWait(duration(field));
-                case "max_resumes" -> def.setMaxResumes((int) Math.min(Integer.MAX_VALUE, positiveWhole(field)));
-                default -> throw error(field, "Unknown rate_limits field '" + field.getValue()
-                        + "'. Use on_limit, max_wait or max_resumes.");
+                case "max_resumes" -> def.setMaxResumes(
+                        (int) Math.min(Integer.MAX_VALUE, positiveWhole(field)));
+                default -> throw error(
+                        field,
+                        "Unknown rate_limits field '"
+                                + field.getValue()
+                                + "'. Use on_limit, max_wait or max_resumes.");
             }
             match(TokenType.COMMA);
         }
@@ -2128,21 +3139,43 @@ public class LoomParser {
         return def;
     }
 
-    /** A positive duration: {@code 30s}, {@code 15m}, {@code 6h}, {@code 2d} (or the same as a string). */
+    /**
+     * A positive duration: {@code 30s}, {@code 15m}, {@code 6h}, {@code 2d} (or the same as a
+     * string).
+     */
     private java.time.Duration duration(Token field) {
         Token n;
         String unit;
         if (check(TokenType.STRING_LITERAL)) {
             n = advance();
-            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\s*(\\d+)\\s*([smhd])\\s*").matcher(n.getValue());
-            if (!m.matches()) throw error(n, field.getValue() + " must be a duration like 30s, 15m, 6h or 2d, got \"" + n.getValue() + "\"");
+            java.util.regex.Matcher m =
+                    java.util.regex.Pattern.compile("\\s*(\\d+)\\s*([smhd])\\s*")
+                            .matcher(n.getValue());
+            if (!m.matches())
+                throw error(
+                        n,
+                        field.getValue()
+                                + " must be a duration like 30s, 15m, 6h or 2d, got \""
+                                + n.getValue()
+                                + "\"");
             return durationOf(n, field, Long.parseLong(m.group(1)), m.group(2));
         }
-        n = consume(TokenType.NUMBER_LITERAL, "Expect a duration for " + field.getValue() + ", e.g. 30s, 15m, 6h or 2d.");
-        Token u = consume(TokenType.IDENTIFIER, "Expect a unit (s, m, h or d) after " + n.getValue() + ", e.g. " + n.getValue() + "h.");
+        n =
+                consume(
+                        TokenType.NUMBER_LITERAL,
+                        "Expect a duration for " + field.getValue() + ", e.g. 30s, 15m, 6h or 2d.");
+        Token u =
+                consume(
+                        TokenType.IDENTIFIER,
+                        "Expect a unit (s, m, h or d) after "
+                                + n.getValue()
+                                + ", e.g. "
+                                + n.getValue()
+                                + "h.");
         unit = u.getValue();
         double value = Double.parseDouble(n.getValue());
-        if (value != Math.floor(value)) throw error(n, field.getValue() + " must be a whole number of " + unit);
+        if (value != Math.floor(value))
+            throw error(n, field.getValue() + " must be a whole number of " + unit);
         return durationOf(n, field, (long) value, unit);
     }
 
@@ -2166,98 +3199,178 @@ public class LoomParser {
         try {
             window = io.github.llm4j.budget.Window.parse(w.getValue());
         } catch (IllegalArgumentException e) {
-            throw error(w, "A budget window must be per minute, per hour or per day, got 'per " + w.getValue() + "'");
+            throw error(
+                    w,
+                    "A budget window must be per minute, per hour or per day, got 'per "
+                            + w.getValue()
+                            + "'");
         }
         if (budget.getWindow() != null && budget.getWindow() != window) {
-            throw error(w, "A budget has one window: it is already per " + budget.getWindow().name().toLowerCase(java.util.Locale.ROOT));
+            throw error(
+                    w,
+                    "A budget has one window: it is already per "
+                            + budget.getWindow().name().toLowerCase(java.util.Locale.ROOT));
         }
         budget.setWindow(window);
     }
 
-    /** {@code budget { tokens: N [per day]  calls: N  cost: "$X"  warn_at: 80%  per_call: N  when_exhausted: stop }} — after the keyword. */
+    /**
+     * {@code budget { tokens: N [per day] calls: N cost: "$X" warn_at: 80% per_call: N
+     * when_exhausted: stop }} — after the keyword.
+     */
     private io.github.llm4j.loom.ast.BudgetDef parseBudgetBlock(boolean forAgent) {
         io.github.llm4j.loom.ast.BudgetDef budget = new io.github.llm4j.loom.ast.BudgetDef();
         consume(TokenType.LBRACE, "Expect '{' after budget.");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
-            Token field = consume(TokenType.IDENTIFIER, "Expect a budget field: tokens, calls, cost, warn_at, when_exhausted"
-                    + (forAgent ? " or per_call" : "") + ".");
+            Token field =
+                    consume(
+                            TokenType.IDENTIFIER,
+                            "Expect a budget field: tokens, calls, cost, warn_at, when_exhausted"
+                                    + (forAgent ? " or per_call" : "")
+                                    + ".");
             consume(TokenType.COLON, "Expect ':' after budget field '" + field.getValue() + "'.");
             switch (field.getValue()) {
-                case "tokens" -> { budget.setTokens(positiveWhole(field)); window(budget); }
-                case "calls" -> { budget.setCalls(positiveWhole(field)); window(budget); }
-                case "cost" -> { budget.setCost(money(field)); window(budget); }
+                case "tokens" -> {
+                    budget.setTokens(positiveWhole(field));
+                    window(budget);
+                }
+                case "calls" -> {
+                    budget.setCalls(positiveWhole(field));
+                    window(budget);
+                }
+                case "cost" -> {
+                    budget.setCost(money(field));
+                    window(budget);
+                }
                 case "when_exhausted" -> {
-                    Token v = consume(TokenType.IDENTIFIER, "Expect stop, suspend or ask after when_exhausted.");
+                    Token v =
+                            consume(
+                                    TokenType.IDENTIFIER,
+                                    "Expect stop, suspend or ask after when_exhausted.");
                     try {
-                        budget.setWhenExhausted(io.github.llm4j.loom.ast.BudgetDef.WhenExhausted.valueOf(
-                                v.getValue().toUpperCase(java.util.Locale.ROOT)));
+                        budget.setWhenExhausted(
+                                io.github.llm4j.loom.ast.BudgetDef.WhenExhausted.valueOf(
+                                        v.getValue().toUpperCase(java.util.Locale.ROOT)));
                     } catch (IllegalArgumentException e) {
-                        throw error(v, "when_exhausted must be stop, suspend or ask, got '" + v.getValue() + "'");
+                        throw error(
+                                v,
+                                "when_exhausted must be stop, suspend or ask, got '"
+                                        + v.getValue()
+                                        + "'");
                     }
                 }
                 case "per_call" -> {
-                    if (!forAgent) throw error(field, "per_call is only allowed in an agent's budget block.");
+                    if (!forAgent)
+                        throw error(field, "per_call is only allowed in an agent's budget block.");
                     budget.setPerCall((int) Math.min(Integer.MAX_VALUE, positiveWhole(field)));
                 }
                 case "warn_at" -> {
-                    Token n = consume(TokenType.NUMBER_LITERAL, "Expect a percentage for warn_at, e.g. warn_at: 80%");
+                    Token n =
+                            consume(
+                                    TokenType.NUMBER_LITERAL,
+                                    "Expect a percentage for warn_at, e.g. warn_at: 80%");
                     double value = Double.parseDouble(n.getValue());
                     if (match(TokenType.PERCENT) || value > 1) value = value / 100.0;
-                    if (value <= 0 || value > 1) throw error(n, "warn_at must be between 1% and 100%, got " + n.getValue());
+                    if (value <= 0 || value > 1)
+                        throw error(n, "warn_at must be between 1% and 100%, got " + n.getValue());
                     budget.setWarnAt(value);
                 }
-                default -> throw error(field, "Unknown budget field '" + field.getValue()
-                        + "'. Use tokens, calls, cost, warn_at, when_exhausted" + (forAgent ? " or per_call" : "") + ".");
+                default -> throw error(
+                        field,
+                        "Unknown budget field '"
+                                + field.getValue()
+                                + "'. Use tokens, calls, cost, warn_at, when_exhausted"
+                                + (forAgent ? " or per_call" : "")
+                                + ".");
             }
             match(TokenType.COMMA);
         }
         consume(TokenType.RBRACE, "Expect '}' after budget block.");
-        if (budget.getWhenExhausted() == io.github.llm4j.loom.ast.BudgetDef.WhenExhausted.SUSPEND && budget.getWindow() == null) {
-            throw error(previous(), "when_exhausted: suspend needs a budget that refills, e.g. tokens: 100000 per day");
+        if (budget.getWhenExhausted() == io.github.llm4j.loom.ast.BudgetDef.WhenExhausted.SUSPEND
+                && budget.getWindow() == null) {
+            throw error(
+                    previous(),
+                    "when_exhausted: suspend needs a budget that refills, e.g. tokens: 100000 per day");
         }
         return budget;
     }
 
-    /** {@code budget 5000 tokens}, {@code budget 10 calls} or {@code budget "$0.05"}, merged into {@code into}. */
-    private io.github.llm4j.loom.ast.BudgetDef parseBudgetModifier(io.github.llm4j.loom.ast.BudgetDef into) {
+    /**
+     * {@code budget 5000 tokens}, {@code budget 10 calls} or {@code budget "$0.05"}, merged into
+     * {@code into}.
+     */
+    private io.github.llm4j.loom.ast.BudgetDef parseBudgetModifier(
+            io.github.llm4j.loom.ast.BudgetDef into) {
         Token keyword = advance(); // budget
-        io.github.llm4j.loom.ast.BudgetDef budget = into != null ? into : new io.github.llm4j.loom.ast.BudgetDef();
+        io.github.llm4j.loom.ast.BudgetDef budget =
+                into != null ? into : new io.github.llm4j.loom.ast.BudgetDef();
         if (check(TokenType.STRING_LITERAL)) {
             budget.setCost(money(keyword));
             return budget;
         }
         long n = positiveWhole(keyword);
-        Token unit = consume(TokenType.IDENTIFIER, "Expect 'tokens' or 'calls' after the budget amount, e.g. budget 5000 tokens");
+        Token unit =
+                consume(
+                        TokenType.IDENTIFIER,
+                        "Expect 'tokens' or 'calls' after the budget amount, e.g. budget 5000 tokens");
         switch (unit.getValue()) {
             case "tokens" -> budget.setTokens(n);
             case "calls" -> budget.setCalls(n);
-            default -> throw error(unit, "Expect 'tokens' or 'calls' after the budget amount, got '" + unit.getValue() + "'");
+            default -> throw error(
+                    unit,
+                    "Expect 'tokens' or 'calls' after the budget amount, got '"
+                            + unit.getValue()
+                            + "'");
         }
         return budget;
     }
 
     private long positiveWhole(Token field) {
-        Token n = consume(TokenType.NUMBER_LITERAL, "Expect a whole number for budget " + field.getValue() + ".");
+        Token n =
+                consume(
+                        TokenType.NUMBER_LITERAL,
+                        "Expect a whole number for budget " + field.getValue() + ".");
         double value = Double.parseDouble(n.getValue());
         if (value <= 0 || value != Math.floor(value)) {
-            throw error(n, "budget " + field.getValue() + " must be a positive whole number, got " + n.getValue());
+            throw error(
+                    n,
+                    "budget "
+                            + field.getValue()
+                            + " must be a positive whole number, got "
+                            + n.getValue());
         }
         return (long) value;
     }
 
     /** A cost written with its currency symbol, e.g. "$0.50". */
     private java.math.BigDecimal money(Token field) {
-        Token s = consume(TokenType.STRING_LITERAL, "Expect a cost with its currency symbol, e.g. \"$0.50\".");
+        Token s =
+                consume(
+                        TokenType.STRING_LITERAL,
+                        "Expect a cost with its currency symbol, e.g. \"$0.50\".");
         String raw = s.getValue().strip();
         if (!raw.matches("[$€£₹¥]\\s*\\d+(\\.\\d+)?")) {
-            throw error(s, "budget cost must include a currency symbol, e.g. \"$0.50\", got \"" + raw + "\"");
+            throw error(
+                    s,
+                    "budget cost must include a currency symbol, e.g. \"$0.50\", got \""
+                            + raw
+                            + "\"");
         }
         java.math.BigDecimal amount = new java.math.BigDecimal(raw.substring(1).strip());
-        if (amount.signum() <= 0) throw error(s, "budget cost must be positive, got \"" + raw + "\"");
+        if (amount.signum() <= 0)
+            throw error(s, "budget cost must be positive, got \"" + raw + "\"");
         return amount;
     }
 
     private RuntimeException error(Token token, String message) {
-        return new RuntimeException("Parse error at line " + token.getLine() + " col " + token.getColumn() + " (" + token.getType() + "): " + message);
+        return new RuntimeException(
+                "Parse error at line "
+                        + token.getLine()
+                        + " col "
+                        + token.getColumn()
+                        + " ("
+                        + token.getType()
+                        + "): "
+                        + message);
     }
 }

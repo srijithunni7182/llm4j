@@ -41,7 +41,8 @@ public record ModelStats(
     }
 
     static ModelStats none(String model) {
-        return new ModelStats(model, 0, Map.of(), 0, 0, null, 0, 0, 0, Map.of(), 0, LatencyStats.EMPTY);
+        return new ModelStats(
+                model, 0, Map.of(), 0, 0, null, 0, 0, 0, Map.of(), 0, LatencyStats.EMPTY);
     }
 
     public long failed() {
@@ -50,6 +51,8 @@ public record ModelStats(
 
     /** The share of calls that produced an answer; empty when there were no calls. */
     public OptionalDouble successRate() {
-        return calls == 0 ? OptionalDouble.empty() : OptionalDouble.of((calls - failed()) / (double) calls);
+        return calls == 0
+                ? OptionalDouble.empty()
+                : OptionalDouble.of((calls - failed()) / (double) calls);
     }
 }

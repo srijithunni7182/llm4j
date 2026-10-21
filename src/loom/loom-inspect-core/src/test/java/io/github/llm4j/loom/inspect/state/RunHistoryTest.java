@@ -15,7 +15,10 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
-/** R29 to R31, R33: a run keeps the records it was built from (bounded) and can say how it looked at any point of them. */
+/**
+ * R29 to R31, R33: a run keeps the records it was built from (bounded) and can say how it looked at
+ * any point of them.
+ */
 class RunHistoryTest {
 
     static final long T0 = OtlpJson.nanos(Instant.parse("2026-10-14T10:00:00Z"));
@@ -25,7 +28,21 @@ class RunHistoryTest {
     private long n;
 
     private LogRec start() {
-        return new LogRec(T0, LogRec.INFO, "start", Map.of(Semconv.EVENT_NAME, Semconv.EV_RUN_START, Semconv.LOOM_SEQ, ++n, Semconv.LOOM_RUN_ID, RUN, Semconv.LOOM_WORKFLOW, "Main"), TRACE, null);
+        return new LogRec(
+                T0,
+                LogRec.INFO,
+                "start",
+                Map.of(
+                        Semconv.EVENT_NAME,
+                        Semconv.EV_RUN_START,
+                        Semconv.LOOM_SEQ,
+                        ++n,
+                        Semconv.LOOM_RUN_ID,
+                        RUN,
+                        Semconv.LOOM_WORKFLOW,
+                        "Main"),
+                TRACE,
+                null);
     }
 
     private SpanRec tool(int i, String category) {
@@ -36,7 +53,18 @@ class RunHistoryTest {
         a.put(Semconv.LOOM_STEP, "Main/s0");
         if (category != null) a.put(Semconv.ERROR_TYPE, category);
         long end = T0 + (long) (i + 1) * 1_000_000_000L;
-        return new SpanRec(TRACE, Ids.spanId(RUN, "s" + i), null, "Search", SpanRec.CLIENT, end - 100_000_000L, end, a, category == null ? SpanRec.STATUS_OK : SpanRec.STATUS_ERROR, null, List.of());
+        return new SpanRec(
+                TRACE,
+                Ids.spanId(RUN, "s" + i),
+                null,
+                "Search",
+                SpanRec.CLIENT,
+                end - 100_000_000L,
+                end,
+                a,
+                category == null ? SpanRec.STATUS_OK : SpanRec.STATUS_ERROR,
+                null,
+                List.of());
     }
 
     private void feed(RunState s, int calls, int failFrom) {
@@ -74,7 +102,9 @@ class RunHistoryTest {
         assertThat(s.lastSeq()).isEqualTo(11);
         assertThat(s.viewAt(3)).as("before the history").isEmpty();
         assertThat(s.viewAt(7)).isPresent();
-        assertThat(s.viewAt(7).orElseThrow().get("partial")).as("the totals miss what was dropped").isEqualTo(true);
+        assertThat(s.viewAt(7).orElseThrow().get("partial"))
+                .as("the totals miss what was dropped")
+                .isEqualTo(true);
         assertThat(new RunState("shop", TRACE).viewAt(0)).isEmpty();
         assertThat(s.viewAt(12)).as("after the end").isEmpty();
         assertThat(s.historyStartsAt()).isNotNull();
@@ -113,7 +143,10 @@ class RunHistoryTest {
         feed(s, 6, 99);
         PriceBook prices = PriceBook.parse("m = 1 / 2").book();
         s.setPrices(prices);
-        s.setCentralRules(Map.of("Writer", new InspectRules(2, null, null, null, null, null, null, null, null, null)));
+        s.setCentralRules(
+                Map.of(
+                        "Writer",
+                        new InspectRules(2, null, null, null, null, null, null, null, null, null)));
         Map<String, Object> at = s.viewAt(s.lastSeq()).orElseThrow();
         Instant asOf = Instant.parse(String.valueOf(at.get("asOf")));
         assertThat(plain(at)).isEqualTo(plain(s.view(asOf)));
@@ -141,12 +174,19 @@ class RunHistoryTest {
         marks.forEach(m -> seqs.add((Long) m.get("seq")));
         assertThat(seqs).isSorted();
         marks.forEach(m -> assertThat(m).containsKeys("seq", "at", "kind", "label"));
-        long open = marks.stream().filter(m -> "incident-open".equals(m.get("kind"))).mapToLong(m -> (Long) m.get("seq")).findFirst().orElseThrow();
+        long open =
+                marks.stream()
+                        .filter(m -> "incident-open".equals(m.get("kind")))
+                        .mapToLong(m -> (Long) m.get("seq"))
+                        .findFirst()
+                        .orElseThrow();
         // the view at the mark already has the incident; the view just before does not
         @SuppressWarnings("unchecked")
-        List<Map<String, Object>> at = (List<Map<String, Object>>) s.viewAt(open).orElseThrow().get("incidents");
+        List<Map<String, Object>> at =
+                (List<Map<String, Object>>) s.viewAt(open).orElseThrow().get("incidents");
         @SuppressWarnings("unchecked")
-        List<Map<String, Object>> before = (List<Map<String, Object>>) s.viewAt(open - 1).orElseThrow().get("incidents");
+        List<Map<String, Object>> before =
+                (List<Map<String, Object>>) s.viewAt(open - 1).orElseThrow().get("incidents");
         assertThat(at).isNotEmpty();
         assertThat(before).isEmpty();
     }

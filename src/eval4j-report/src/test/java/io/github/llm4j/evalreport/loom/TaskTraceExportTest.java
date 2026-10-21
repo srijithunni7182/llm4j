@@ -22,7 +22,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** A real Loom run with deterministic tasks, captured by the bridge: tasks are non-agent nodes in the graph, path and assertions. */
+/**
+ * A real Loom run with deterministic tasks, captured by the bridge: tasks are non-agent nodes in
+ * the graph, path and assertions.
+ */
 class TaskTraceExportTest {
 
     @TempDir Path root;
@@ -58,16 +61,31 @@ class TaskTraceExportTest {
     }
 
     private WorkflowTrace run(int amount) {
-        LoomScript script = new LoomParser(new Lexer(SCRIPT.formatted(amount, amount)).tokenize()).parseScript();
-        TaskRegistry tasks = new TaskRegistry()
-                .register(Task.pure("RefundPolicy", c -> c.requireArg("amount", Integer.class) <= 50
-                        ? TaskResult.outcome("approved")
-                        : TaskResult.rejected("over the limit")))
-                .register(Task.changes("IssueRefund", io.github.llm4j.agent.tool.EffectPolicy.DEFAULT, c -> TaskResult.value("rcpt-1")))
-                .register(Task.pure("Escalate", c -> TaskResult.ok()));
-        HarnessExecutor executor = new HarnessExecutor(script, new ToolRegistry(), model -> {
-            throw new IllegalStateException("no model in this workflow");
-        });
+        LoomScript script =
+                new LoomParser(new Lexer(SCRIPT.formatted(amount, amount)).tokenize())
+                        .parseScript();
+        TaskRegistry tasks =
+                new TaskRegistry()
+                        .register(
+                                Task.pure(
+                                        "RefundPolicy",
+                                        c ->
+                                                c.requireArg("amount", Integer.class) <= 50
+                                                        ? TaskResult.outcome("approved")
+                                                        : TaskResult.rejected("over the limit")))
+                        .register(
+                                Task.changes(
+                                        "IssueRefund",
+                                        io.github.llm4j.agent.tool.EffectPolicy.DEFAULT,
+                                        c -> TaskResult.value("rcpt-1")))
+                        .register(Task.pure("Escalate", c -> TaskResult.ok()));
+        HarnessExecutor executor =
+                new HarnessExecutor(
+                        script,
+                        new ToolRegistry(),
+                        model -> {
+                            throw new IllegalStateException("no model in this workflow");
+                        });
         executor.setTaskRegistry(tasks);
         LoomTrace trace = LoomTrace.attach(executor).workflow(script.getWorkflows().get(0));
         executor.initialize();
@@ -77,20 +95,32 @@ class TaskTraceExportTest {
 
     @Test
     void tasksAreNonAgentNodesInTheGraph() {
-        LoomScript script = new LoomParser(new Lexer(SCRIPT.formatted(1, 1)).tokenize()).parseScript();
+        LoomScript script =
+                new LoomParser(new Lexer(SCRIPT.formatted(1, 1)).tokenize()).parseScript();
         WorkflowGraph g = WorkflowGraph.of(script.getWorkflows().get(0));
-        assertThat(g.nodes()).extracting(WorkflowTrace.Node::kind).containsExactly("start", "task", "alt", "task", "task", "end");
-        assertThat(g.nodes()).extracting(WorkflowTrace.Node::label)
+        assertThat(g.nodes())
+                .extracting(WorkflowTrace.Node::kind)
+                .containsExactly("start", "task", "alt", "task", "task", "end");
+        assertThat(g.nodes())
+                .extracting(WorkflowTrace.Node::label)
                 .contains("run RefundPolicy", "run IssueRefund", "run Escalate");
-        assertThat(g.nodes()).filteredOn(n -> n.kind().equals("task")).allSatisfy(n -> assertThat(n.agent()).isNull());
+        assertThat(g.nodes())
+                .filteredOn(n -> n.kind().equals("task"))
+                .allSatisfy(n -> assertThat(n.agent()).isNull());
     }
 
     @Test
     void aRefusedRefundTakesTheElsePathAndNeverRunsThePayment() {
         WorkflowTrace wt = run(90);
         assertThat(wt.actualPath()).containsExactly("start", "n1", "n2", "n4", "end");
-        assertThat(wt.events()).filteredOn(e -> e.type().equals("decision")).extracting(WorkflowTrace.Event::text).containsExactly("else");
-        assertThat(wt.events()).filteredOn(e -> e.type().equals("task_start")).extracting(WorkflowTrace.Event::node).containsExactly("n1", "n4");
+        assertThat(wt.events())
+                .filteredOn(e -> e.type().equals("decision"))
+                .extracting(WorkflowTrace.Event::text)
+                .containsExactly("else");
+        assertThat(wt.events())
+                .filteredOn(e -> e.type().equals("task_start"))
+                .extracting(WorkflowTrace.Event::node)
+                .containsExactly("n1", "n4");
         WorkflowAssertions.assertThat(wt)
                 .runsTasksInOrder("RefundPolicy", "Escalate")
                 .runsTaskTimes("IssueRefund", 0)

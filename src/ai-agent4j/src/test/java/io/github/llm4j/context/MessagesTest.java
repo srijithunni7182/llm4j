@@ -20,14 +20,26 @@ class MessagesTest {
 
     @Test
     void pinningKeepsWhatTheMessageAlreadyCarried() {
-        Message m = Message.builder().role(Message.Role.USER).content("x").providerData(Map.of("a", 1)).build();
-        assertThat(Messages.pinned(m).getProviderData()).containsEntry("a", 1).containsEntry(Messages.PINNED, true);
+        Message m =
+                Message.builder()
+                        .role(Message.Role.USER)
+                        .content("x")
+                        .providerData(Map.of("a", 1))
+                        .build();
+        assertThat(Messages.pinned(m).getProviderData())
+                .containsEntry("a", 1)
+                .containsEntry(Messages.PINNED, true);
     }
 
     @Test
     void readsTheCompactionMarker() {
-        Message marker = Message.builder().role(Message.Role.USER).content("[3 earlier messages were removed to save space.]")
-                .providerData(Map.of(Messages.COMPACTION, "drop_oldest", Messages.DROPPED, 3)).build();
+        Message marker =
+                Message.builder()
+                        .role(Message.Role.USER)
+                        .content("[3 earlier messages were removed to save space.]")
+                        .providerData(
+                                Map.of(Messages.COMPACTION, "drop_oldest", Messages.DROPPED, 3))
+                        .build();
         assertThat(Messages.compactionOf(marker)).contains("drop_oldest");
         assertThat(Messages.dropped(marker)).isEqualTo(3);
         assertThat(Messages.compactionOf(Message.user("x"))).isEmpty();

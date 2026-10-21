@@ -12,8 +12,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * An allowance of tokens, LLM calls and (with a {@link PriceTable}) cost, with running totals of what
- * has been spent. Thread-safe. A budget with no limits only counts.
+ * An allowance of tokens, LLM calls and (with a {@link PriceTable}) cost, with running totals of
+ * what has been spent. Thread-safe. A budget with no limits only counts.
  *
  * <p>Calls don't charge a budget directly: a {@link BudgetedLLMClient} reserves the call's estimate
  * through a {@link BudgetSet} before the call and settles the actual usage after it, so concurrent
@@ -24,10 +24,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * Budget daily = Budget.builder().name("daily").tokens(100_000).window(Window.DAY).build();
  * }</pre>
  *
- * <p>A <b>windowed</b> budget's limits apply per minute, hour or day (aligned to its clock's zone): when
- * the window rolls over, spend starts again from zero. {@link #spent()} is the current window;
- * {@link #lifetimeSpent()} includes every window. Its refusals say when it refills
- * ({@link BudgetExceeded#resetAt()}).
+ * <p>A <b>windowed</b> budget's limits apply per minute, hour or day (aligned to its clock's zone):
+ * when the window rolls over, spend starts again from zero. {@link #spent()} is the current window;
+ * {@link #lifetimeSpent()} includes every window. Its refusals say when it refills ({@link
+ * BudgetExceeded#resetAt()}).
  */
 public final class Budget {
 
@@ -116,8 +116,13 @@ public final class Budget {
         lock.lock();
         try {
             rollLocked();
-            return new Spent(pastPrompt + promptTokens, pastCompletion + completionTokens, pastCalls + calls,
-                    pastCost.add(cost), estimated, 0);
+            return new Spent(
+                    pastPrompt + promptTokens,
+                    pastCompletion + completionTokens,
+                    pastCalls + calls,
+                    pastCost.add(cost),
+                    estimated,
+                    0);
         } finally {
             lock.unlock();
         }
@@ -150,9 +155,15 @@ public final class Budget {
     public Remaining remaining() {
         Spent s = spent();
         return new Remaining(
-                limits.tokens() == null ? OptionalLong.empty() : OptionalLong.of(Math.max(0, limits.tokens() - s.tokens())),
-                limits.calls() == null ? OptionalLong.empty() : OptionalLong.of(Math.max(0, limits.calls() - s.calls())),
-                limits.cost() == null ? Optional.empty() : Optional.of(limits.cost().subtract(s.cost()).max(BigDecimal.ZERO)));
+                limits.tokens() == null
+                        ? OptionalLong.empty()
+                        : OptionalLong.of(Math.max(0, limits.tokens() - s.tokens())),
+                limits.calls() == null
+                        ? OptionalLong.empty()
+                        : OptionalLong.of(Math.max(0, limits.calls() - s.calls())),
+                limits.cost() == null
+                        ? Optional.empty()
+                        : Optional.of(limits.cost().subtract(s.cost()).max(BigDecimal.ZERO)));
     }
 
     /** True once any limited dimension has nothing left. */
@@ -175,15 +186,21 @@ public final class Budget {
     }
 
     /**
-     * Raises the limits by {@code more} (its unset dimensions leave a limit unchanged) — for example after
-     * a person approves another allowance. The budget can refuse (and announce it) again afterwards.
+     * Raises the limits by {@code more} (its unset dimensions leave a limit unchanged) — for
+     * example after a person approves another allowance. The budget can refuse (and announce it)
+     * again afterwards.
      */
     public void raise(Limits more) {
         lock.lock();
         try {
             Limits l = limits;
-            limits = new Limits(plus(l.tokens(), more.tokens()), plus(l.calls(), more.calls()),
-                    l.cost() == null || more.cost() == null ? l.cost() : l.cost().add(more.cost()));
+            limits =
+                    new Limits(
+                            plus(l.tokens(), more.tokens()),
+                            plus(l.calls(), more.calls()),
+                            l.cost() == null || more.cost() == null
+                                    ? l.cost()
+                                    : l.cost().add(more.cost()));
             exhaustedFired = false;
             warned = false;
         } finally {
@@ -201,8 +218,8 @@ public final class Budget {
     }
 
     /**
-     * Adds spend recorded elsewhere at time {@code at}. For a windowed budget, spend from before the
-     * current window only counts towards {@link #lifetimeSpent()}. Never refuses.
+     * Adds spend recorded elsewhere at time {@code at}. For a windowed budget, spend from before
+     * the current window only counts towards {@link #lifetimeSpent()}. Never refuses.
      */
     public void restore(Spent already, Instant at) {
         List<BudgetEvent> events;
@@ -256,7 +273,9 @@ public final class Budget {
     }
 
     long availableTokens() {
-        return limits.tokens() == null ? Long.MAX_VALUE : limits.tokens() - promptTokens - completionTokens - reservedTokens;
+        return limits.tokens() == null
+                ? Long.MAX_VALUE
+                : limits.tokens() - promptTokens - completionTokens - reservedTokens;
     }
 
     long availableCalls() {
@@ -273,7 +292,9 @@ public final class Budget {
         reservedCost = reservedCost.add(money);
     }
 
-    /** Replaces a reservation with the actual charge; returns the events to fire after unlocking. */
+    /**
+     * Replaces a reservation with the actual charge; returns the events to fire after unlocking.
+     */
     List<BudgetEvent> settleLocked(long tokens, long callCount, BigDecimal money, Charge charge) {
         rollLocked();
         reservedTokens -= tokens;
@@ -306,7 +327,8 @@ public final class Budget {
         List<BudgetEvent> events = new ArrayList<>(1);
         if (warned || !limits.any()) return events;
         double used = 0;
-        if (limits.tokens() != null) used = Math.max(used, (double) (promptTokens + completionTokens) / limits.tokens());
+        if (limits.tokens() != null)
+            used = Math.max(used, (double) (promptTokens + completionTokens) / limits.tokens());
         if (limits.calls() != null) used = Math.max(used, (double) calls / limits.calls());
         if (limits.cost() != null && limits.cost().signum() > 0) {
             used = Math.max(used, cost.doubleValue() / limits.cost().doubleValue());
@@ -332,8 +354,14 @@ public final class Budget {
 
     @Override
     public String toString() {
-        return "Budget{" + name + ": " + limits + (window != null ? " per " + window.name().toLowerCase() : "")
-                + ", spent " + spent().tokens() + " tokens}";
+        return "Budget{"
+                + name
+                + ": "
+                + limits
+                + (window != null ? " per " + window.name().toLowerCase() : "")
+                + ", spent "
+                + spent().tokens()
+                + " tokens}";
     }
 
     public static final class Builder {
@@ -346,7 +374,7 @@ public final class Budget {
         private Window window;
         private Clock clock;
 
-        private Builder() { }
+        private Builder() {}
 
         /** Makes the limits apply per window: spend starts from zero each minute, hour or day. */
         public Builder window(Window window) {
@@ -377,7 +405,10 @@ public final class Budget {
             return this;
         }
 
-        /** A money limit, e.g. {@code "0.50"} or {@code "$0.50"}. Needs a {@link PriceTable} at call time. */
+        /**
+         * A money limit, e.g. {@code "0.50"} or {@code "$0.50"}. Needs a {@link PriceTable} at call
+         * time.
+         */
         public Builder cost(String amount) {
             return cost(new BigDecimal(amount.strip().replaceFirst("^\\$", "")));
         }
@@ -390,7 +421,8 @@ public final class Budget {
 
         /** Fraction (0–1] at which a WARNING event fires once. Default 0.8. */
         public Builder warnAt(double fraction) {
-            if (fraction <= 0 || fraction > 1) throw new IllegalArgumentException("warnAt must be in (0, 1]");
+            if (fraction <= 0 || fraction > 1)
+                throw new IllegalArgumentException("warnAt must be in (0, 1]");
             this.warnAt = fraction;
             return this;
         }

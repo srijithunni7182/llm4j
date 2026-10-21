@@ -10,7 +10,10 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** weave next: what to do next, from the files and the free checks. It never calls a model and never changes anything. */
+/**
+ * weave next: what to do next, from the files and the free checks. It never calls a model and never
+ * changes anything.
+ */
 class NextCommandTest {
 
     @TempDir Path dir;
@@ -37,7 +40,8 @@ class NextCommandTest {
 
     private Path starter(String template) {
         Path project = dir.resolve(template);
-        assertThat(WeaveCLI.commandLine().execute("init", template, project.toString(), "--flat")).isZero();
+        assertThat(WeaveCLI.commandLine().execute("init", template, project.toString(), "--flat"))
+                .isZero();
         return project;
     }
 
@@ -55,17 +59,26 @@ class NextCommandTest {
         assertThat(steps.get(0)).contains("Run the whole dataset on mock models");
         assertThat(steps.get(1)).contains(".env").contains("GEMINI_API_KEY");
         assertThat(steps.get(2)).contains("Run it for real, capped");
-        assertThat(o.out()).contains("$ weave eval main.loom --mock").contains("$ cp .env.example .env").contains("$ weave eval main.loom --max-tokens");
+        assertThat(o.out())
+                .contains("$ weave eval main.loom --mock")
+                .contains("$ cp .env.example .env")
+                .contains("$ weave eval main.loom --max-tokens");
     }
 
     @Test
     void aScriptThatDoesNotCheckIsTheOnlyThingSaidUntilItIsFixed() throws Exception {
         Path project = starter("pipeline");
-        Files.writeString(project.resolve("main.loom"), "workflow Main() {\n    delegate \"x\" to Nobody -> out_text\n    note \"{out_text}\"\n}\n");
+        Files.writeString(
+                project.resolve("main.loom"),
+                "workflow Main() {\n    delegate \"x\" to Nobody -> out_text\n    note \"{out_text}\"\n}\n");
 
         List<String> steps = numbered(next(project.toString()).out());
 
-        assertThat(steps).singleElement().asString().contains("Fix what stops the script from being valid").contains("Nobody");
+        assertThat(steps)
+                .singleElement()
+                .asString()
+                .contains("Fix what stops the script from being valid")
+                .contains("Nobody");
     }
 
     @Test
@@ -79,7 +92,9 @@ class NextCommandTest {
         Files.writeString(project.resolve("README.md"), "# x\n\nEvaluation: skipped\n");
         String after = next(project.toString()).out();
         assertThat(after).doesNotContain("Decide about tests").doesNotContain("mock models");
-        assertThat(after).contains("Run it once for real, capped").contains("$ weave run main.loom --max-tokens");
+        assertThat(after)
+                .contains("Run it once for real, capped")
+                .contains("$ weave run main.loom --max-tokens");
     }
 
     @Test
@@ -96,7 +111,9 @@ class NextCommandTest {
     @Test
     void aMissingBudgetIsSaid() throws Exception {
         Path project = starter("pipeline");
-        String script = Files.readString(project.resolve("main.loom")).replaceFirst("budget \\{[^}]*}\\n", "");
+        String script =
+                Files.readString(project.resolve("main.loom"))
+                        .replaceFirst("budget \\{[^}]*}\\n", "");
         Files.writeString(project.resolve("main.loom"), script);
 
         String text = next(project.toString()).out();
@@ -106,7 +123,9 @@ class NextCommandTest {
 
     @Test
     void aSingleScriptInAFolderIsFoundAndSeveralAreAskedWhich() throws Exception {
-        Files.writeString(dir.resolve("only.loom"), "agent A { model: \"ollama/llama3\" system: \"s\" }\nbudget { tokens: 100 calls: 2 }\nworkflow Main() { delegate \"hi\" to A -> hello_text\n note \"{hello_text}\" }\n");
+        Files.writeString(
+                dir.resolve("only.loom"),
+                "agent A { model: \"ollama/llama3\" system: \"s\" }\nbudget { tokens: 100 calls: 2 }\nworkflow Main() { delegate \"hi\" to A -> hello_text\n note \"{hello_text}\" }\n");
         assertThat(next(dir.toString()).out()).startsWith("weave next: only.loom");
 
         Files.writeString(dir.resolve("two.loom"), "workflow Main() { note \"x\" }\n");
@@ -135,7 +154,13 @@ class NextCommandTest {
 
     private static List<String> listing(Path root) throws Exception {
         try (var s = Files.walk(root)) {
-            return s.map(p -> root.relativize(p) + ":" + (Files.isRegularFile(p) ? p.toFile().length() : -1)).sorted().toList();
+            return s.map(
+                            p ->
+                                    root.relativize(p)
+                                            + ":"
+                                            + (Files.isRegularFile(p) ? p.toFile().length() : -1))
+                    .sorted()
+                    .toList();
         }
     }
 

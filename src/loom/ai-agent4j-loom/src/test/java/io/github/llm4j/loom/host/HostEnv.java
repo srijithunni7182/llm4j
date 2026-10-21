@@ -34,19 +34,23 @@ import javax.sql.DataSource;
 import org.h2.jdbcx.JdbcDataSource;
 
 /**
- * One host under test: scripted models that count their calls, a task that counts its effects, a clock the test moves, and a store of the kind under test.
- * {@link #reopen} builds a second host on the same store, as a restart would.
+ * One host under test: scripted models that count their calls, a task that counts its effects, a
+ * clock the test moves, and a store of the kind under test. {@link #reopen} builds a second host on
+ * the same store, as a restart would.
  */
 final class HostEnv {
 
-    static final String AGENTS = """
+    static final String AGENTS =
+            """
             agent Researcher { model: "test/model" system: "You are Researcher." }
             agent Drafter { model: "test/model" system: "You are Drafter." }
             agent Reviewer { model: "test/model" system: "You are Reviewer." }
             agent Writer { model: "test/model" system: "You are Writer." }
             """;
 
-    static final String THREE_STEPS = AGENTS + """
+    static final String THREE_STEPS =
+            AGENTS
+                    + """
             workflow Main() {
                 delegate "research" to Researcher -> research
                 delegate "draft {research}" to Drafter -> draft
@@ -54,7 +58,9 @@ final class HostEnv {
             }
             """;
 
-    static final String APPROVE = AGENTS + """
+    static final String APPROVE =
+            AGENTS
+                    + """
             workflow Main() {
                 delegate "draft" to Writer -> draft
                 human_prompt "Publish? (yes/no)" -> ok
@@ -62,7 +68,9 @@ final class HostEnv {
             }
             """;
 
-    static final String SLEEPY = AGENTS + """
+    static final String SLEEPY =
+            AGENTS
+                    + """
             workflow Main() {
                 delegate "research" to Researcher -> research
                 sleep 1h
@@ -70,7 +78,9 @@ final class HostEnv {
             }
             """;
 
-    static final String SCHEDULED = AGENTS + """
+    static final String SCHEDULED =
+            AGENTS
+                    + """
             workflow Digest() { delegate "digest" to Writer -> out }
             schedule Daily { cron: "0 7 * * *" run: Digest() }
             """;
@@ -99,17 +109,25 @@ final class HostEnv {
         } else {
             this.ds = null;
         }
-        tasks.register(new Task() {
-            @Override public String getName() { return "Notify"; }
-            @Override public TaskResult run(TaskContext context) {
-                effects.incrementAndGet();
-                return TaskResult.value("notified " + context.arg("msg"));
-            }
-        });
+        tasks.register(
+                new Task() {
+                    @Override
+                    public String getName() {
+                        return "Notify";
+                    }
+
+                    @Override
+                    public TaskResult run(TaskContext context) {
+                        effects.incrementAndGet();
+                        return TaskResult.value("notified " + context.arg("msg"));
+                    }
+                });
     }
 
-    /** An executor was assembled and then shut down: how a test sees that {@code shutdown()} ran. */
-    interface HarnessExecutorSpy { }
+    /**
+     * An executor was assembled and then shut down: how a test sees that {@code shutdown()} ran.
+     */
+    interface HarnessExecutorSpy {}
 
     Persistence persistence() {
         return switch (kind) {
@@ -125,12 +143,17 @@ final class HostEnv {
 
     LoomHost.Builder builder(String source) {
         return LoomHost.builder(parse(source), new ToolRegistry(), models)
-                .persistence(persistence()).clock(clock).sleeper(d -> clock.advance(d)).taskRegistry(tasks)
-                .questionListener((run, step, prompt, choices) -> questions.add(run + "|" + step + "|" + prompt));
+                .persistence(persistence())
+                .clock(clock)
+                .sleeper(d -> clock.advance(d))
+                .taskRegistry(tasks)
+                .questionListener(
+                        (run, step, prompt, choices) ->
+                                questions.add(run + "|" + step + "|" + prompt));
     }
 
     HostEnv open(String source) {
-        return open(source, b -> { });
+        return open(source, b -> {});
     }
 
     HostEnv open(String source, Consumer<LoomHost.Builder> configure) {
@@ -155,7 +178,8 @@ final class HostEnv {
     static void await(Supplier<Boolean> check, String what) {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         while (!check.get()) {
-            if (System.nanoTime() > deadline) throw new AssertionError("timed out waiting for " + what);
+            if (System.nanoTime() > deadline)
+                throw new AssertionError("timed out waiting for " + what);
             try {
                 Thread.sleep(10);
             } catch (InterruptedException e) {
@@ -165,7 +189,10 @@ final class HostEnv {
         }
     }
 
-    /** Scripted models: an agent named in "You are X." answers {@code X#n}; a gate can refuse a call; a latch can hold one. */
+    /**
+     * Scripted models: an agent named in "You are X." answers {@code X#n}; a gate can refuse a
+     * call; a latch can hold one.
+     */
     static final class Models implements LLMClientFactory {
         private final TestClock clock;
         final Map<String, AtomicInteger> calls = new ConcurrentHashMap<>();
@@ -175,7 +202,9 @@ final class HostEnv {
         volatile CountDownLatch entered;
         volatile String holdAgent;
 
-        Models(TestClock clock) { this.clock = clock; }
+        Models(TestClock clock) {
+            this.clock = clock;
+        }
 
         int calls(String agent) {
             AtomicInteger n = calls.get(agent);
@@ -192,12 +221,17 @@ final class HostEnv {
                 @Override
                 public LLMResponse chat(LLMRequest request) {
                     String system = request.getMessages().get(0).getContent();
-                    String user = request.getMessages().get(request.getMessages().size() - 1).getContent();
+                    String user =
+                            request.getMessages()
+                                    .get(request.getMessages().size() - 1)
+                                    .getContent();
                     String agent = system.replaceAll("(?s).*?You are (\\w+)\\..*", "$1");
                     BiFunction<String, String, RateLimitInfo> g = gate;
                     RateLimitInfo limit = g == null ? null : g.apply(agent, user);
                     if (limit != null) throw new RateLimitException(limit, clock.instant());
-                    if (agent.equals(failAgent)) throw new io.github.llm4j.exception.ProviderException("test", "scripted failure", (Throwable) null);
+                    if (agent.equals(failAgent))
+                        throw new io.github.llm4j.exception.ProviderException(
+                                "test", "scripted failure", (Throwable) null);
                     if (agent.equals(holdAgent) && holdAt != null) {
                         if (entered != null) entered.countDown();
                         try {
@@ -206,9 +240,19 @@ final class HostEnv {
                             Thread.currentThread().interrupt();
                         }
                     }
-                    int n = calls.computeIfAbsent(agent, k -> new AtomicInteger()).incrementAndGet();
-                    return LLMResponse.builder().content("```json\n{\"thought\": \"t\", \"final_answer\": \"" + agent + "#" + n + "\"}\n```")
-                            .model(model).tokenUsage(100, 50, 150).build();
+                    int n =
+                            calls.computeIfAbsent(agent, k -> new AtomicInteger())
+                                    .incrementAndGet();
+                    return LLMResponse.builder()
+                            .content(
+                                    "```json\n{\"thought\": \"t\", \"final_answer\": \""
+                                            + agent
+                                            + "#"
+                                            + n
+                                            + "\"}\n```")
+                            .model(model)
+                            .tokenUsage(100, 50, 150)
+                            .build();
                 }
 
                 @Override
@@ -219,8 +263,15 @@ final class HostEnv {
         }
     }
 
-    static BiFunction<String, String, RateLimitInfo> limitedUntil(TestClock clock, String agent, Instant until) {
-        return (a, task) -> a.equals(agent) && clock.instant().isBefore(until)
-                ? RateLimitInfo.at(until, RateLimitInfo.Scope.REQUESTS, "test", "limited until " + until) : null;
+    static BiFunction<String, String, RateLimitInfo> limitedUntil(
+            TestClock clock, String agent, Instant until) {
+        return (a, task) ->
+                a.equals(agent) && clock.instant().isBefore(until)
+                        ? RateLimitInfo.at(
+                                until,
+                                RateLimitInfo.Scope.REQUESTS,
+                                "test",
+                                "limited until " + until)
+                        : null;
     }
 }

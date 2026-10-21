@@ -5,10 +5,12 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 /**
- * What a {@link Task} is given: the arguments the script passed, a read-only copy of the workflow's variables, and where in the run it is.
+ * What a {@link Task} is given: the arguments the script passed, a read-only copy of the workflow's
+ * variables, and where in the run it is.
  *
- * <p>Everything here is an immutable copy. A task cannot change workflow state behind the runtime's back (the run could no longer be
- * replayed); it returns a {@link TaskResult} and the runtime binds it.
+ * <p>Everything here is an immutable copy. A task cannot change workflow state behind the runtime's
+ * back (the run could no longer be replayed); it returns a {@link TaskResult} and the runtime binds
+ * it.
  */
 public interface TaskContext {
 
@@ -22,20 +24,25 @@ public interface TaskContext {
     String stepId();
 
     /**
-     * A key that stays the same when this step is retried or the run is resumed, and differs between runs. Pass it to a payment or
-     * ticketing API as its idempotency key so a repeated call is recognised. Empty outside a Loom run.
+     * A key that stays the same when this step is retried or the run is resumed, and differs
+     * between runs. Pass it to a payment or ticketing API as its idempotency key so a repeated call
+     * is recognised. Empty outside a Loom run.
      */
     String idempotencyKey();
 
     /**
-     * The model this step was given ({@code run Name(...) model "gemini-2.5-flash" -> out}), for a task that reasons with one: classifying
-     * an intent, extracting fields, judging a draft. In a Loom run the client is the same kind an agent gets, so the call is counted against
-     * budgets, shown in the spend report and trace, and replaced by a mock under {@code weave eval}. Use this and not a client of your own.
+     * The model this step was given ({@code run Name(...) model "gemini-2.5-flash" -> out}), for a
+     * task that reasons with one: classifying an intent, extracting fields, judging a draft. In a
+     * Loom run the client is the same kind an agent gets, so the call is counted against budgets,
+     * shown in the spend report and trace, and replaced by a mock under {@code weave eval}. Use
+     * this and not a client of your own.
      *
-     * @throws TaskNotPerformed when the step names no model, or when the context was made without one
+     * @throws TaskNotPerformed when the step names no model, or when the context was made without
+     *     one
      */
     default LLMClient llm() {
-        throw new TaskNotPerformed("this step has no model: write model \"...\" on the run statement (in a test, pass a client to TaskContext.of)");
+        throw new TaskNotPerformed(
+                "this step has no model: write model \"...\" on the run statement (in a test, pass a client to TaskContext.of)");
     }
 
     /** An argument, or null when absent. */
@@ -43,7 +50,10 @@ public interface TaskContext {
         return args().get(name);
     }
 
-    /** An argument converted to {@code type} (numbers and numeric strings convert between number types); null when absent. */
+    /**
+     * An argument converted to {@code type} (numbers and numeric strings convert between number
+     * types); null when absent.
+     */
     default <T> T arg(String name, Class<T> type) {
         Object v = args().get(name);
         return v == null ? null : convert(v, type, "argument \"" + name + "\"");
@@ -61,7 +71,10 @@ public interface TaskContext {
         return convert(requireArg(name), type, "argument \"" + name + "\"");
     }
 
-    /** A workflow variable by dotted path ({@code request.order_id}, {@code items.0.sku}); null when any step of the path is missing. */
+    /**
+     * A workflow variable by dotted path ({@code request.order_id}, {@code items.0.sku}); null when
+     * any step of the path is missing.
+     */
     default Object variable(String path) {
         Object current = variables();
         for (String part : path.split("\\.")) {
@@ -90,14 +103,27 @@ public interface TaskContext {
     }
 
     /** A context with a step id and idempotency key. Inputs are copied. */
-    static TaskContext of(Map<String, ?> args, Map<String, ?> variables, String stepId, String idempotencyKey) {
+    static TaskContext of(
+            Map<String, ?> args, Map<String, ?> variables, String stepId, String idempotencyKey) {
         return of(args, variables, stepId, idempotencyKey, null);
     }
 
-    /** A context whose {@link #llm()} is {@code model}: for a unit test of a task that uses a model, pass a mock client. */
-    static TaskContext of(Map<String, ?> args, Map<String, ?> variables, String stepId, String idempotencyKey, LLMClient model) {
-        return new SimpleTaskContext(TaskValues.freezeMap(args), TaskValues.freezeMap(variables),
-                stepId == null ? "" : stepId, idempotencyKey == null ? "" : idempotencyKey, model);
+    /**
+     * A context whose {@link #llm()} is {@code model}: for a unit test of a task that uses a model,
+     * pass a mock client.
+     */
+    static TaskContext of(
+            Map<String, ?> args,
+            Map<String, ?> variables,
+            String stepId,
+            String idempotencyKey,
+            LLMClient model) {
+        return new SimpleTaskContext(
+                TaskValues.freezeMap(args),
+                TaskValues.freezeMap(variables),
+                stepId == null ? "" : stepId,
+                idempotencyKey == null ? "" : idempotencyKey,
+                model);
     }
 
     /** Converts a value for the typed accessors; {@link TaskNotPerformed} when it cannot be. */
@@ -113,7 +139,10 @@ public interface TaskContext {
                 throw new NumberFormatException("not true or false");
             }
             if (Number.class.isAssignableFrom(type)) {
-                BigDecimal number = value instanceof Number n ? new BigDecimal(n.toString()) : new BigDecimal(String.valueOf(value).trim());
+                BigDecimal number =
+                        value instanceof Number n
+                                ? new BigDecimal(n.toString())
+                                : new BigDecimal(String.valueOf(value).trim());
                 if (type == BigDecimal.class) return (T) number;
                 if (type == Double.class) return (T) Double.valueOf(number.doubleValue());
                 if (type == Float.class) return (T) Float.valueOf(number.floatValue());
@@ -122,9 +151,16 @@ public interface TaskContext {
                 if (type == Short.class) return (T) Short.valueOf(number.shortValueExact());
             }
         } catch (RuntimeException e) {
-            throw new TaskNotPerformed(what + " is " + describe(value) + ", which is not a usable " + type.getSimpleName(), e);
+            throw new TaskNotPerformed(
+                    what
+                            + " is "
+                            + describe(value)
+                            + ", which is not a usable "
+                            + type.getSimpleName(),
+                    e);
         }
-        throw new TaskNotPerformed(what + " is " + describe(value) + ", which is not a " + type.getSimpleName());
+        throw new TaskNotPerformed(
+                what + " is " + describe(value) + ", which is not a " + type.getSimpleName());
     }
 
     private static String describe(Object value) {

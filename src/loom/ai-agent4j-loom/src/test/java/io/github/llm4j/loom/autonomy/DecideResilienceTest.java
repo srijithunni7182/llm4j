@@ -11,23 +11,28 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** Crashes, a broken ledger, bad proposals, loops and rewinds (spec loom-earned-autonomy R1.5, R2, R8). */
+/**
+ * Crashes, a broken ledger, bad proposals, loops and rewinds (spec loom-earned-autonomy R1.5, R2,
+ * R8).
+ */
 class DecideResilienceTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private DecideHarness harness() {
-        return new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), Scripts2.refund(""));
+        return new DecideHarness(
+                dir, new MemoryLedger(), new MemoryLevelStore(), Scripts2.refund(""));
     }
 
     @Test
     @Tag("EA-V2.3")
-    void aRunThatCrashesAtEveryJournalWriteAndIsResumedEndsWithExactlyOneCaseOneProposalAndOneVerdict() {
+    void
+            aRunThatCrashesAtEveryJournalWriteAndIsResumedEndsWithExactlyOneCaseOneProposalAndOneVerdict() {
         // how many writes a clean case makes
         DecideHarness probe = harness();
         FaultJournal counter = new FaultJournal(RunJournal.inMemory(), 0, false);
-        probe.executor(probe.newRun(counter), "run-1").executeWorkflow("Triage", probe.inputs("gold", 20));
+        probe.executor(probe.newRun(counter), "run-1")
+                .executeWorkflow("Triage", probe.inputs("gold", 20));
         int writes = counter.puts();
         assertThat(writes).isGreaterThan(5);
 
@@ -36,7 +41,8 @@ class DecideResilienceTest {
                 DecideHarness h = harness();
                 RunJournal durable = RunJournal.inMemory();
                 try {
-                    h.executor(h.newRun(new FaultJournal(durable, crashAt, after)), "run-1").executeWorkflow("Triage", h.inputs("gold", 20));
+                    h.executor(h.newRun(new FaultJournal(durable, crashAt, after)), "run-1")
+                            .executeWorkflow("Triage", h.inputs("gold", 20));
                 } catch (FaultJournal.Crash expected) {
                     // the process died here
                 }
@@ -48,8 +54,14 @@ class DecideResilienceTest {
                 assertThat(cases).as(at).hasSize(1);
                 assertThat(cases.get(0).verdict()).as(at).isEqualTo("approve");
                 assertThat(cases.get(0).proposal()).as(at).isEqualTo("approve");
-                assertThat(h.ledger.records("Refund").stream().filter(r -> Rec.RESPONDED.equals(r.kind()))).as(at).hasSize(1);
-                assertThat(resumed.getContext().getAll().get("verdict")).as(at).isEqualTo("approve");
+                assertThat(
+                                h.ledger.records("Refund").stream()
+                                        .filter(r -> Rec.RESPONDED.equals(r.kind())))
+                        .as(at)
+                        .hasSize(1);
+                assertThat(resumed.getContext().getAll().get("verdict"))
+                        .as(at)
+                        .isEqualTo("approve");
             }
         }
     }
@@ -57,13 +69,20 @@ class DecideResilienceTest {
     @Test
     @Tag("EA-V2.3")
     void aVerdictInTheJournalIsAppendedToALedgerThatWasDownWhenItWasGiven() {
-        DecideHarness h = new DecideHarness(dir, new FaultLedger(new MemoryLedger()), new MemoryLevelStore(), Scripts2.refund(""));
+        DecideHarness h =
+                new DecideHarness(
+                        dir,
+                        new FaultLedger(new MemoryLedger()),
+                        new MemoryLevelStore(),
+                        Scripts2.refund(""));
         FaultLedger ledger = (FaultLedger) h.ledger;
         ledger.failWrites = true;
         RunJournal journal = RunJournal.inMemory();
         var first = h.executor(h.newRun(journal), "run-1");
         first.executeWorkflow("Triage", h.inputs("gold", 20));
-        assertThat(first.getContext().getAll().get("verdict")).as("the run is not stopped by the ledger").isEqualTo("approve");
+        assertThat(first.getContext().getAll().get("verdict"))
+                .as("the run is not stopped by the ledger")
+                .isEqualTo("approve");
         assertThat(h.audit).doesNotContain("x");
         assertThat(h.last.audit).contains("autonomy_degraded");
         assertThat(ledger.records("Refund")).isEmpty();
@@ -77,7 +96,8 @@ class DecideResilienceTest {
     @Test
     @Tag("EA-V8.4")
     void ifTheLedgerOrTheLevelStoreCannotBeReadTheDecisionRunsAtWatchAndSaysWhy() {
-        // the levels live in the ledger, so one store to break; it can fail to be read, to be written, or both
+        // the levels live in the ledger, so one store to break; it can fail to be read, to be
+        // written, or both
         for (String broken : List.of("reads", "writes", "both")) {
             FaultLedger ledger = new FaultLedger(new MemoryLedger());
             FaultLevels levels = new FaultLevels(new MemoryLevelStore());
@@ -99,10 +119,13 @@ class DecideResilienceTest {
     @Tag("EA-V8.4")
     void anUnreachableDeciderPausesTheRunAndNeverFallsBackToAHigherLevel() {
         DecideHarness h = harness();
-        h.person = f -> {
-            throw new io.github.llm4j.loom.runtime.RunSuspended("Triage/s0#decide-ask", "waiting");
-        };
-        assertThatThrownBy(() -> h.runCase("run-1", h.inputs("gold", 20))).isInstanceOf(io.github.llm4j.loom.runtime.RunSuspended.class);
+        h.person =
+                f -> {
+                    throw new io.github.llm4j.loom.runtime.RunSuspended(
+                            "Triage/s0#decide-ask", "waiting");
+                };
+        assertThatThrownBy(() -> h.runCase("run-1", h.inputs("gold", 20)))
+                .isInstanceOf(io.github.llm4j.loom.runtime.RunSuspended.class);
         assertThat(h.levelOf("gold")).isEqualTo(Level.WATCH);
     }
 
@@ -135,12 +158,14 @@ class DecideResilienceTest {
         assertThat(h.ledger.get("Refund", "run-1/Triage/s0").orElseThrow().malformed()).isFalse();
 
         DecideHarness broken = harness();
-        broken.agent = f -> {
-            throw new IllegalStateException("the model is down");
-        };
+        broken.agent =
+                f -> {
+                    throw new IllegalStateException("the model is down");
+                };
         Map<String, Object> failed = broken.runCase("run-2", broken.inputs("gold", 20));
         assertThat(failed.get("verdict_proposal")).isEqualTo("escalate");
-        assertThat(broken.ledger.get("Refund", "run-2/Triage/s0").orElseThrow().malformed()).isTrue();
+        assertThat(broken.ledger.get("Refund", "run-2/Triage/s0").orElseThrow().malformed())
+                .isTrue();
         assertThat(broken.asked).hasSize(1);
     }
 
@@ -149,24 +174,32 @@ class DecideResilienceTest {
     void anAnswerThatIsNotAChoiceIsAskedAgainOnceThenFailsTheStep() {
         DecideHarness h = harness();
         h.person = f -> "banana";
-        assertThatThrownBy(() -> h.runCase("run-1", h.inputs("gold", 20))).hasMessageContaining("not one of");
+        assertThatThrownBy(() -> h.runCase("run-1", h.inputs("gold", 20)))
+                .hasMessageContaining("not one of");
         assertThat(h.asked).hasSize(2);
         assertThat(h.asked.get(1)).contains("Please answer with exactly one of");
 
         DecideHarness prefix = harness();
         prefix.person = f -> "REJ";
-        assertThat(prefix.runCase("run-2", prefix.inputs("gold", 20)).get("verdict")).as("a unique prefix, any case").isEqualTo("reject");
+        assertThat(prefix.runCase("run-2", prefix.inputs("gold", 20)).get("verdict"))
+                .as("a unique prefix, any case")
+                .isEqualTo("reject");
         DecideHarness ambiguous = harness();
         ambiguous.person = f -> "e";
-        assertThat(ambiguous.runCase("run-3", ambiguous.inputs("gold", 20)).get("verdict")).isEqualTo("escalate");
+        assertThat(ambiguous.runCase("run-3", ambiguous.inputs("gold", 20)).get("verdict"))
+                .isEqualTo("escalate");
     }
 
     @Test
     @Tag("EA-V1.4")
     void eachIterationOfALoopIsItsOwnCaseWithAStableId() {
-        String script = Scripts2.refund("").replace("workflow Triage(ticket, tier, amount, reason, customer_since) {\n    decide Refund -> verdict",
-                "workflow Triage(ticket, tier, amount, reason, customer_since) {\n    loop until (verdict == \"never\") max 3 {\n    decide Refund -> verdict\n    }");
-        DecideHarness h = new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), script);
+        String script =
+                Scripts2.refund("")
+                        .replace(
+                                "workflow Triage(ticket, tier, amount, reason, customer_since) {\n    decide Refund -> verdict",
+                                "workflow Triage(ticket, tier, amount, reason, customer_since) {\n    loop until (verdict == \"never\") max 3 {\n    decide Refund -> verdict\n    }");
+        DecideHarness h =
+                new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), script);
         Map<String, String> in = h.inputs("gold", 20);
         RunJournal journal = RunJournal.inMemory();
 
@@ -175,16 +208,23 @@ class DecideResilienceTest {
         assertThat(ids).hasSize(3).doesNotHaveDuplicates();
 
         h.executor(h.newRun(journal), "run-1").executeWorkflow("Triage", in); // a resume
-        assertThat(h.ledger.cases("Refund").stream().map(Case::id).toList()).as("a resume adds nothing").isEqualTo(ids);
+        assertThat(h.ledger.cases("Refund").stream().map(Case::id).toList())
+                .as("a resume adds nothing")
+                .isEqualTo(ids);
     }
 
     @Test
     @Tag("EA-V2.9")
     void aCaseThatIsRewoundAndDecidedAgainCountsOnceAndThePersonIsNotAskedTwice() {
-        String script = Scripts2.refund("").replace("    decide Refund -> verdict\n",
-                "    checkpoint before\n    decide Refund -> verdict\n    rewind to before when (verdict == \"reject\") at most 1 time if it still fails { note \"gave up\" }\n");
-        DecideHarness h = new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), script);
-        h.person = f -> "reject"; // the person always rejects, so the workflow goes back once and decides again
+        String script =
+                Scripts2.refund("")
+                        .replace(
+                                "    decide Refund -> verdict\n",
+                                "    checkpoint before\n    decide Refund -> verdict\n    rewind to before when (verdict == \"reject\") at most 1 time if it still fails { note \"gave up\" }\n");
+        DecideHarness h =
+                new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), script);
+        h.person = f -> "reject"; // the person always rejects, so the workflow goes back once and
+        // decides again
 
         h.runCase("run-1", h.inputs("gold", 20));
 
@@ -195,6 +235,13 @@ class DecideResilienceTest {
         assertThat(all.get(1).generation()).isEqualTo(2);
         assertThat(h.asked).as("the identical question is not asked again").hasSize(1);
         assertThat(Cases.current(all)).hasSize(1);
-        assertThat(new Ladder(DecisionParseTest.parse(script).getDecisions().get(0), h.ledger, h.clock).evidence("gold", 1)).as("counts once").hasSize(1);
+        assertThat(
+                        new Ladder(
+                                        DecisionParseTest.parse(script).getDecisions().get(0),
+                                        h.ledger,
+                                        h.clock)
+                                .evidence("gold", 1))
+                .as("counts once")
+                .hasSize(1);
     }
 }

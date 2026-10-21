@@ -9,9 +9,14 @@ package io.github.llm4j.context;
 public record ContextWindow(int tokens, int reservedForOutput) {
 
     public ContextWindow {
-        if (tokens <= 0) throw new IllegalArgumentException("tokens must be positive, got " + tokens);
+        if (tokens <= 0)
+            throw new IllegalArgumentException("tokens must be positive, got " + tokens);
         if (reservedForOutput < 0 || reservedForOutput >= tokens) {
-            throw new IllegalArgumentException("reservedForOutput must be between 0 and " + (tokens - 1) + ", got " + reservedForOutput);
+            throw new IllegalArgumentException(
+                    "reservedForOutput must be between 0 and "
+                            + (tokens - 1)
+                            + ", got "
+                            + reservedForOutput);
         }
     }
 

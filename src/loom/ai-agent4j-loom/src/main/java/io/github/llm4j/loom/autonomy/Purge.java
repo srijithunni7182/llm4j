@@ -7,22 +7,28 @@ import java.util.Map;
 /** Retention: what a case record keeps once its fields have expired. */
 final class Purge {
 
-    private Purge() { }
+    private Purge() {}
 
-    /** The record without the case's remembered values and its reasoning, when it is a case, proposal or response older than {@code before}. */
+    /**
+     * The record without the case's remembered values and its reasoning, when it is a case,
+     * proposal or response older than {@code before}.
+     */
     static Rec apply(Rec r, Instant before) {
         if (!r.at().isBefore(before)) return r;
         if (Rec.BLOB.equals(r.kind())) {
             Map<String, Object> body = new LinkedHashMap<>(r.body());
             if (body.remove("text") != null) body.put("purged", true);
-            return new Rec(r.id(), r.decision(), r.kind(), r.at(), r.caseId(), r.generation(), body);
+            return new Rec(
+                    r.id(), r.decision(), r.kind(), r.at(), r.caseId(), r.generation(), body);
         }
-        if (!Rec.CASE.equals(r.kind()) && !Rec.PROPOSED.equals(r.kind()) && !Rec.RESPONDED.equals(r.kind())) return r;
+        if (!Rec.CASE.equals(r.kind())
+                && !Rec.PROPOSED.equals(r.kind())
+                && !Rec.RESPONDED.equals(r.kind())) return r;
         Map<String, Object> body = new LinkedHashMap<>(r.body());
         boolean changed = body.remove("fields") != null;
         changed |= body.remove("reasoning") != null;
-        changed |= body.remove("value") != null;          // an artifact the agent proposed
-        changed |= body.remove("final") != null;          // and the version the person ended with
+        changed |= body.remove("value") != null; // an artifact the agent proposed
+        changed |= body.remove("final") != null; // and the version the person ended with
         if (changed) body.put("purged", true);
         return new Rec(r.id(), r.decision(), r.kind(), r.at(), r.caseId(), r.generation(), body);
     }

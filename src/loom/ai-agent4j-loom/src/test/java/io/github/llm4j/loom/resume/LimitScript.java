@@ -28,31 +28,42 @@ import java.util.stream.Stream;
 
 /**
  * One run (or resume) of a script against scripted models. Agents are recognised by "You are X." in
- * their system prompt and answer {@code X#n} (n counts this instance's calls). A {@link Gate} decides,
- * per agent and task, whether a call is refused with a rate limit — tests use the shared clock to
- * model a provider whose limit lifts at a given time. Every successful call reports 100 + 50 tokens.
+ * their system prompt and answer {@code X#n} (n counts this instance's calls). A {@link Gate}
+ * decides, per agent and task, whether a call is refused with a rate limit — tests use the shared
+ * clock to model a provider whose limit lifts at a given time. Every successful call reports 100 +
+ * 50 tokens.
  */
 final class LimitScript {
 
     /** Returns the limit that refuses this call, or null to answer. */
-    interface Gate extends BiFunction<String, String, RateLimitInfo> { }
+    interface Gate extends BiFunction<String, String, RateLimitInfo> {}
 
-    static final TokenEstimator FIXED = new TokenEstimator() {
-        @Override
-        public long prompt(LLMRequest request) {
-            return 100;
-        }
+    static final TokenEstimator FIXED =
+            new TokenEstimator() {
+                @Override
+                public long prompt(LLMRequest request) {
+                    return 100;
+                }
 
-        @Override
-        public long completion(String content) {
-            return 50;
-        }
-    };
+                @Override
+                public long completion(String content) {
+                    return 50;
+                }
+            };
 
-    /** Refuses {@code agent} until {@code until} (by the clock), as a provider's per-minute limit would. */
+    /**
+     * Refuses {@code agent} until {@code until} (by the clock), as a provider's per-minute limit
+     * would.
+     */
     static Gate limitedUntil(TestClock clock, String agent, Instant until) {
-        return (a, task) -> a.equals(agent) && clock.instant().isBefore(until)
-                ? RateLimitInfo.at(until, RateLimitInfo.Scope.REQUESTS, "test", "limited until " + until) : null;
+        return (a, task) ->
+                a.equals(agent) && clock.instant().isBefore(until)
+                        ? RateLimitInfo.at(
+                                until,
+                                RateLimitInfo.Scope.REQUESTS,
+                                "test",
+                                "limited until " + until)
+                        : null;
     }
 
     final HarnessExecutor executor;
@@ -70,59 +81,83 @@ final class LimitScript {
         this(source, journal, clock, gate, null);
     }
 
-    LimitScript(String source, RunJournal journal, TestClock clock, Gate gate,
-                java.util.function.Consumer<HarnessExecutor> configure) {
+    LimitScript(
+            String source,
+            RunJournal journal,
+            TestClock clock,
+            Gate gate,
+            java.util.function.Consumer<HarnessExecutor> configure) {
         this.journal = journal;
         this.clock = clock;
         LoomScript script = new LoomParser(new Lexer(source).tokenize()).parseScript();
-        LLMClientFactory factory = model -> new LLMClient() {
-            @Override
-            public LLMResponse chat(LLMRequest request) {
-                String system = request.getMessages().get(0).getContent();
-                String user = request.getMessages().get(request.getMessages().size() - 1).getContent();
-                String agent = system.replaceAll("(?s).*?You are (\\w+)\\..*", "$1");
-                RateLimitInfo limit = gate == null ? null : gate.apply(agent, user);
-                if (limit != null) {
-                    refusals.incrementAndGet();
-                    throw new RateLimitException(limit, clock.instant());
-                }
-                calls.incrementAndGet();
-                tasks.add(user);
-                int n = callsByAgent.computeIfAbsent(agent, k -> new AtomicInteger()).incrementAndGet();
-                return LLMResponse.builder()
-                        .content("```json\n{\"thought\": \"t\", \"final_answer\": \"" + agent + "#" + n + "\"}\n```")
-                        .model(model).tokenUsage(100, 50, 150).build();
-            }
+        LLMClientFactory factory =
+                model ->
+                        new LLMClient() {
+                            @Override
+                            public LLMResponse chat(LLMRequest request) {
+                                String system = request.getMessages().get(0).getContent();
+                                String user =
+                                        request.getMessages()
+                                                .get(request.getMessages().size() - 1)
+                                                .getContent();
+                                String agent =
+                                        system.replaceAll("(?s).*?You are (\\w+)\\..*", "$1");
+                                RateLimitInfo limit = gate == null ? null : gate.apply(agent, user);
+                                if (limit != null) {
+                                    refusals.incrementAndGet();
+                                    throw new RateLimitException(limit, clock.instant());
+                                }
+                                calls.incrementAndGet();
+                                tasks.add(user);
+                                int n =
+                                        callsByAgent
+                                                .computeIfAbsent(agent, k -> new AtomicInteger())
+                                                .incrementAndGet();
+                                return LLMResponse.builder()
+                                        .content(
+                                                "```json\n{\"thought\": \"t\", \"final_answer\": \""
+                                                        + agent
+                                                        + "#"
+                                                        + n
+                                                        + "\"}\n```")
+                                        .model(model)
+                                        .tokenUsage(100, 50, 150)
+                                        .build();
+                            }
 
-            @Override
-            public Stream<LLMResponse> chatStream(LLMRequest request) {
-                return Stream.of(chat(request));
-            }
-        };
+                            @Override
+                            public Stream<LLMResponse> chatStream(LLMRequest request) {
+                                return Stream.of(chat(request));
+                            }
+                        };
         executor = new HarnessExecutor(script, new ToolRegistry(), factory);
         executor.setJournal(journal);
         executor.setClock(clock);
-        executor.setSleeper(d -> {
-            slept.add(d);
-            clock.advance(d);
-        });
+        executor.setSleeper(
+                d -> {
+                    slept.add(d);
+                    clock.advance(d);
+                });
         executor.setTokenEstimator(FIXED);
-        executor.setAuditLogger(new AuditLogger() {
-            @Override
-            public void logAgentDecision(AuditEvent event) { }
+        executor.setAuditLogger(
+                new AuditLogger() {
+                    @Override
+                    public void logAgentDecision(AuditEvent event) {}
 
-            @Override
-            public void logToolExecution(String s, String t, String i, String o, Instant ts) { }
+                    @Override
+                    public void logToolExecution(
+                            String s, String t, String i, String o, Instant ts) {}
 
-            @Override
-            public void logPromptUsage(String s, String p, String v, Instant ts) { }
+                    @Override
+                    public void logPromptUsage(String s, String p, String v, Instant ts) {}
 
-            @Override
-            public void logConversationEvent(String s, String u, String type, Map<String, Object> data) {
-                audit.add(type);
-                auditData.add(Map.copyOf(data));
-            }
-        });
+                    @Override
+                    public void logConversationEvent(
+                            String s, String u, String type, Map<String, Object> data) {
+                        audit.add(type);
+                        auditData.add(Map.copyOf(data));
+                    }
+                });
         if (configure != null) configure.accept(executor);
         executor.initialize();
     }

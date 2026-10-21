@@ -30,8 +30,9 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
- * Runs scripts against a scripted model (no network, no keys) that counts its calls, plus a trace and audit capture, a journal,
- * a task registry, and a human who says yes. The model call counter is the oracle for "deterministic".
+ * Runs scripts against a scripted model (no network, no keys) that counts its calls, plus a trace
+ * and audit capture, a journal, a task registry, and a human who says yes. The model call counter
+ * is the oracle for "deterministic".
  */
 final class TaskHarness {
 
@@ -47,11 +48,19 @@ final class TaskHarness {
     HumanInterface human = message -> "yes";
 
     static String done(String answer) {
-        return "```json\n{\"thought\": \"t\", \"final_answer\": \"" + answer.replace("\"", "\\\"") + "\"}\n```";
+        return "```json\n{\"thought\": \"t\", \"final_answer\": \""
+                + answer.replace("\"", "\\\"")
+                + "\"}\n```";
     }
 
     static String call(String tool, String inputJson) {
-        return "```json\n{\"thought\": \"use " + tool + "\", \"action\": \"" + tool + "\", \"action_input\": " + inputJson + "}\n```";
+        return "```json\n{\"thought\": \"use "
+                + tool
+                + "\", \"action\": \""
+                + tool
+                + "\", \"action_input\": "
+                + inputJson
+                + "}\n```";
     }
 
     TaskHarness answers(String... next) {
@@ -67,11 +76,16 @@ final class TaskHarness {
 
     Probe register(String name, TaskEffect effect, EffectPolicy policy, Body body) {
         Probe probe = new Probe();
-        tasks.register(Task.of(name, effect, policy, ctx -> {
-            probe.calls.incrementAndGet();
-            probe.contexts.add(ctx);
-            return body.run(ctx);
-        }));
+        tasks.register(
+                Task.of(
+                        name,
+                        effect,
+                        policy,
+                        ctx -> {
+                            probe.calls.incrementAndGet();
+                            probe.contexts.add(ctx);
+                            return body.run(ctx);
+                        }));
         return probe;
     }
 
@@ -84,7 +98,11 @@ final class TaskHarness {
     }
 
     Probe idempotent(String name, Body body) {
-        return register(name, TaskEffect.CHANGES, new EffectPolicy(EffectPolicy.OnUnknown.SKIP, true, 0), body);
+        return register(
+                name,
+                TaskEffect.CHANGES,
+                new EffectPolicy(EffectPolicy.OnUnknown.SKIP, true, 0),
+                body);
     }
 
     @FunctionalInterface
@@ -100,7 +118,11 @@ final class TaskHarness {
                 var m = request.getMessages();
                 modelPrompts.add(m.get(m.size() - 1).getContent());
                 String content = i < answers.size() ? answers.get(i) : done("ok");
-                return LLMResponse.builder().content(content).model(model).tokenUsage(10, 5, 15).build();
+                return LLMResponse.builder()
+                        .content(content)
+                        .model(model)
+                        .tokenUsage(10, 5, 15)
+                        .build();
             }
 
             @Override
@@ -115,17 +137,35 @@ final class TaskHarness {
     }
 
     HarnessExecutor executor(String source, Consumer<HarnessExecutor> configure) {
-        HarnessExecutor e = new HarnessExecutor(new LoomParser(new Lexer(source).tokenize()).parseScript(), tools, this::client);
+        HarnessExecutor e =
+                new HarnessExecutor(
+                        new LoomParser(new Lexer(source).tokenize()).parseScript(),
+                        tools,
+                        this::client);
         e.setTaskRegistry(tasks);
         e.setHumanInterface(human);
         e.setJournal(journal);
         e.setSleeper(sleeps::add);
-        e.setAuditLogger(new AuditLogger() {
-            @Override public void logAgentDecision(AuditEvent event) { }
-            @Override public void logToolExecution(String s, String t, String i, String o, Instant ts) { audit.add("tool " + t); }
-            @Override public void logPromptUsage(String s, String p, String v, Instant ts) { }
-            @Override public void logConversationEvent(String s, String u, String type, Map<String, Object> data) { audit.add(type + " " + data); }
-        });
+        e.setAuditLogger(
+                new AuditLogger() {
+                    @Override
+                    public void logAgentDecision(AuditEvent event) {}
+
+                    @Override
+                    public void logToolExecution(
+                            String s, String t, String i, String o, Instant ts) {
+                        audit.add("tool " + t);
+                    }
+
+                    @Override
+                    public void logPromptUsage(String s, String p, String v, Instant ts) {}
+
+                    @Override
+                    public void logConversationEvent(
+                            String s, String u, String type, Map<String, Object> data) {
+                        audit.add(type + " " + data);
+                    }
+                });
         e.addTraceListener(trace::add);
         if (configure != null) configure.accept(e);
         return e;

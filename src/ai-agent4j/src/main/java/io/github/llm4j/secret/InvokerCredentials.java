@@ -6,35 +6,41 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 /**
- * What a run knows about whoever started it: the credentials a tool needs in order to act <em>as that person</em> (an OAuth access token, for
- * example). The host implements it and hands it to the run; a script refers to a credential as {@code invoker.NAME}.
+ * What a run knows about whoever started it: the credentials a tool needs in order to act <em>as
+ * that person</em> (an OAuth access token, for example). The host implements it and hands it to the
+ * run; a script refers to a credential as {@code invoker.NAME}.
  *
- * <p>Nothing is kept by the caller of {@link #get}: it asks again for <em>every</em> request that needs the value. That is what lets the
- * implementation refresh an expiring token: return the cached access token while it is valid and, once it is not, use the refresh token to
- * obtain a new one.
+ * <p>Nothing is kept by the caller of {@link #get}: it asks again for <em>every</em> request that
+ * needs the value. That is what lets the implementation refresh an expiring token: return the
+ * cached access token while it is valid and, once it is not, use the refresh token to obtain a new
+ * one.
  *
- * <p>Implementations must be thread-safe and quick on the common path; they are called from any thread of the run, possibly in parallel.
- * They must not put a credential value in an exception message or in {@link #toString()}.
+ * <p>Implementations must be thread-safe and quick on the common path; they are called from any
+ * thread of the run, possibly in parallel. They must not put a credential value in an exception
+ * message or in {@link #toString()}.
  */
 public interface InvokerCredentials {
 
     /**
-     * The current value of the credential called {@code name}, for example {@code get("token")} returning {@code "Bearer eyJ…"}.
+     * The current value of the credential called {@code name}, for example {@code get("token")}
+     * returning {@code "Bearer eyJ…"}.
      *
      * @return the value, or {@code null} if this invoker has no such credential
-     * @throws SecretException if there is one but it cannot be obtained (a revoked refresh token, say)
+     * @throws SecretException if there is one but it cannot be obtained (a revoked refresh token,
+     *     say)
      */
     String get(String name);
 
     /**
-     * The server rejected the value last returned for {@code name} (HTTP 401). Drop any cached copy so that the next {@link #get} fetches a
-     * new one. The default does nothing.
+     * The server rejected the value last returned for {@code name} (HTTP 401). Drop any cached copy
+     * so that the next {@link #get} fetches a new one. The default does nothing.
      */
-    default void invalidate(String name) { }
+    default void invalidate(String name) {}
 
     /**
-     * Whether this object can ever supply {@code name}. A run asks before its first step, so a missing credential stops the run at its start
-     * instead of in the middle. A {@code true} that later turns out wrong only fails the tool call. The default is {@code true}.
+     * Whether this object can ever supply {@code name}. A run asks before its first step, so a
+     * missing credential stops the run at its start instead of in the middle. A {@code true} that
+     * later turns out wrong only fails the tool call. The default is {@code true}.
      */
     default boolean provides(String name) {
         return true;

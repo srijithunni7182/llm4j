@@ -18,19 +18,26 @@ import org.junit.jupiter.api.Test;
 @Tag("fragile")
 class TriggerRunnerTest {
 
-    static final Trigger.Target DIGEST = new Trigger.StartWorkflow("digest.loom", "DailyDigest", Map.of("topic", "AI"));
+    static final Trigger.Target DIGEST =
+            new Trigger.StartWorkflow("digest.loom", "DailyDigest", Map.of("topic", "AI"));
 
     final TestClock clock = new TestClock();
     final TriggerStore store = new InMemoryTriggerStore();
     final List<String> fired = Collections.synchronizedList(new ArrayList<>());
     final List<TriggerRunner.Fired> records = Collections.synchronizedList(new ArrayList<>());
-    BiFunction<Trigger, String, TriggerTarget.Outcome> answer = (t, run) -> TriggerTarget.Outcome.done();
+    BiFunction<Trigger, String, TriggerTarget.Outcome> answer =
+            (t, run) -> TriggerTarget.Outcome.done();
 
     TriggerRunner runner() {
-        return new TriggerRunner(store, (t, runId) -> {
-            fired.add(t.id() + (runId != null ? " " + runId : ""));
-            return answer.apply(t, runId);
-        }, clock, "test").onFired(records::add);
+        return new TriggerRunner(
+                        store,
+                        (t, runId) -> {
+                            fired.add(t.id() + (runId != null ? " " + runId : ""));
+                            return answer.apply(t, runId);
+                        },
+                        clock,
+                        "test")
+                .onFired(records::add);
     }
 
     @Test
@@ -48,49 +55,74 @@ class TriggerRunnerTest {
     void v7_2_oneResumeTriggerPerRun() {
         store.upsert(Trigger.resume("r1", Instant.parse("2026-09-27T10:05:00Z"), "a", 1));
         store.upsert(Trigger.resume("r1", Instant.parse("2026-09-27T10:30:00Z"), "b", 1));
-        assertThat(store.all()).singleElement().satisfies(t -> {
-            assertThat(t.nextFire()).isEqualTo(Instant.parse("2026-09-27T10:30:00Z"));
-            assertThat(t.note()).isEqualTo("b");
-        });
+        assertThat(store.all())
+                .singleElement()
+                .satisfies(
+                        t -> {
+                            assertThat(t.nextFire())
+                                    .isEqualTo(Instant.parse("2026-09-27T10:30:00Z"));
+                            assertThat(t.note()).isEqualTo("b");
+                        });
     }
 
     @Test
     void v7_3_aRunThatPausesAgainGetsANewResume() {
         store.upsert(Trigger.resume("r1", TestClock.T0, "limit", 1));
-        answer = (t, run) -> TriggerTarget.Outcome.suspended(Instant.parse("2026-09-27T12:00:00Z"), "again");
+        answer =
+                (t, run) ->
+                        TriggerTarget.Outcome.suspended(
+                                Instant.parse("2026-09-27T12:00:00Z"), "again");
         runner().tick();
-        assertThat(store.get("resume:r1")).get().satisfies(t -> {
-            assertThat(t.nextFire()).isEqualTo(Instant.parse("2026-09-27T12:00:00Z"));
-            assertThat(t.attempts()).isEqualTo(2);
-            assertThat(t.claimedBy()).isNull();
-        });
+        assertThat(store.get("resume:r1"))
+                .get()
+                .satisfies(
+                        t -> {
+                            assertThat(t.nextFire())
+                                    .isEqualTo(Instant.parse("2026-09-27T12:00:00Z"));
+                            assertThat(t.attempts()).isEqualTo(2);
+                            assertThat(t.claimedBy()).isNull();
+                        });
     }
 
     @Test
     void v7_3b_theHarnessReplacementWins() {
         store.upsert(Trigger.resume("r1", TestClock.T0, "limit", 1));
-        answer = (t, run) -> {
-            // what HarnessExecutor does when the resumed run pauses again (with its own jitter)
-            store.upsert(Trigger.resume("r1", Instant.parse("2026-09-27T12:00:07Z"), "harness", 2));
-            return TriggerTarget.Outcome.suspended(Instant.parse("2026-09-27T12:00:00Z"), "again");
-        };
+        answer =
+                (t, run) -> {
+                    // what HarnessExecutor does when the resumed run pauses again (with its own
+                    // jitter)
+                    store.upsert(
+                            Trigger.resume(
+                                    "r1", Instant.parse("2026-09-27T12:00:07Z"), "harness", 2));
+                    return TriggerTarget.Outcome.suspended(
+                            Instant.parse("2026-09-27T12:00:00Z"), "again");
+                };
         runner().tick();
-        assertThat(store.get("resume:r1").orElseThrow().nextFire()).isEqualTo(Instant.parse("2026-09-27T12:00:07Z"));
+        assertThat(store.get("resume:r1").orElseThrow().nextFire())
+                .isEqualTo(Instant.parse("2026-09-27T12:00:07Z"));
         assertThat(store.get("resume:r1").orElseThrow().note()).isEqualTo("harness");
     }
 
     @Test
     void v7_4_doneRemovesAResumeAndAdvancesASchedule() {
         store.upsert(Trigger.resume("r1", TestClock.T0, "limit", 1));
-        Trigger cron = Trigger.cron("schedule:digest.loom/MorningDigest", "0 7 * * *", ZoneId.of("Asia/Kolkata"),
-                clock.instant(), DIGEST, null, null);
+        Trigger cron =
+                Trigger.cron(
+                        "schedule:digest.loom/MorningDigest",
+                        "0 7 * * *",
+                        ZoneId.of("Asia/Kolkata"),
+                        clock.instant(),
+                        DIGEST,
+                        null,
+                        null);
         assertThat(cron.nextFire()).isEqualTo(Instant.parse("2026-09-28T01:30:00Z"));
         store.upsert(cron);
         runner().tick();
         assertThat(store.get("resume:r1")).isEmpty();
         clock.set("2026-09-28T01:30:00Z");
         runner().tick();
-        assertThat(fired).contains("schedule:digest.loom/MorningDigest MorningDigest@2026-09-28T01:30:00Z");
+        assertThat(fired)
+                .contains("schedule:digest.loom/MorningDigest MorningDigest@2026-09-28T01:30:00Z");
         Trigger after = store.get(cron.id()).orElseThrow();
         assertThat(after.nextFire()).isEqualTo(Instant.parse("2026-09-29T01:30:00Z"));
         assertThat(after.lastOutcome()).isEqualTo("DONE");
@@ -107,8 +139,17 @@ class TriggerRunnerTest {
     }
 
     private Trigger sixHourly(Trigger.Misfire misfire) {
-        return Trigger.every("schedule:s/Six", Duration.ofHours(6), Instant.parse("2026-09-27T06:00:00Z"), DIGEST, misfire, null)
-                .fired(Instant.parse("2026-09-27T00:00:00Z"), "DONE", Instant.parse("2026-09-27T06:00:00Z"));
+        return Trigger.every(
+                        "schedule:s/Six",
+                        Duration.ofHours(6),
+                        Instant.parse("2026-09-27T06:00:00Z"),
+                        DIGEST,
+                        misfire,
+                        null)
+                .fired(
+                        Instant.parse("2026-09-27T00:00:00Z"),
+                        "DONE",
+                        Instant.parse("2026-09-27T06:00:00Z"));
     }
 
     @Test
@@ -117,7 +158,8 @@ class TriggerRunnerTest {
         clock.set("2026-09-27T19:00:00Z");
         runner().tick();
         assertThat(fired).hasSize(1);
-        assertThat(store.get("schedule:s/Six").orElseThrow().nextFire()).isEqualTo(Instant.parse("2026-09-28T00:00:00Z"));
+        assertThat(store.get("schedule:s/Six").orElseThrow().nextFire())
+                .isEqualTo(Instant.parse("2026-09-28T00:00:00Z"));
         assertThat(records.get(0).lateMillis()).isEqualTo(Duration.ofHours(13).toMillis());
     }
 
@@ -145,26 +187,56 @@ class TriggerRunnerTest {
 
     @Test
     void v7_11_overlapSkipWaitsForThePausedRun() {
-        Trigger cron = Trigger.cron("schedule:digest.loom/MorningDigest", "0 7 * * *", ZoneId.of("Asia/Kolkata"),
-                clock.instant(), DIGEST, null, Trigger.Overlap.SKIP);
+        Trigger cron =
+                Trigger.cron(
+                        "schedule:digest.loom/MorningDigest",
+                        "0 7 * * *",
+                        ZoneId.of("Asia/Kolkata"),
+                        clock.instant(),
+                        DIGEST,
+                        null,
+                        Trigger.Overlap.SKIP);
         store.upsert(cron);
-        store.upsert(Trigger.resume("MorningDigest@2026-09-27T01:30:00Z", Instant.parse("2026-09-29T00:00:00Z"), "limit", 1));
+        store.upsert(
+                Trigger.resume(
+                        "MorningDigest@2026-09-27T01:30:00Z",
+                        Instant.parse("2026-09-29T00:00:00Z"),
+                        "limit",
+                        1));
         clock.set("2026-09-28T01:30:00Z");
         runner().tick();
         assertThat(fired).isEmpty();
-        assertThat(records).singleElement().satisfies(r ->
-                assertThat(r.outcome().status()).isEqualTo(TriggerTarget.Outcome.Status.SKIPPED_OVERLAP));
+        assertThat(records)
+                .singleElement()
+                .satisfies(
+                        r ->
+                                assertThat(r.outcome().status())
+                                        .isEqualTo(TriggerTarget.Outcome.Status.SKIPPED_OVERLAP));
     }
 
     @Test
     void v7_12_overlapQueueStartsAnotherRun() {
-        Trigger cron = Trigger.cron("schedule:digest.loom/MorningDigest", "0 7 * * *", ZoneId.of("Asia/Kolkata"),
-                clock.instant(), DIGEST, null, Trigger.Overlap.QUEUE);
+        Trigger cron =
+                Trigger.cron(
+                        "schedule:digest.loom/MorningDigest",
+                        "0 7 * * *",
+                        ZoneId.of("Asia/Kolkata"),
+                        clock.instant(),
+                        DIGEST,
+                        null,
+                        Trigger.Overlap.QUEUE);
         store.upsert(cron);
-        store.upsert(Trigger.resume("MorningDigest@2026-09-27T01:30:00Z", Instant.parse("2026-09-29T00:00:00Z"), "limit", 1));
+        store.upsert(
+                Trigger.resume(
+                        "MorningDigest@2026-09-27T01:30:00Z",
+                        Instant.parse("2026-09-29T00:00:00Z"),
+                        "limit",
+                        1));
         clock.set("2026-09-28T01:30:00Z");
         runner().tick();
-        assertThat(fired).containsExactly("schedule:digest.loom/MorningDigest MorningDigest@2026-09-28T01:30:00Z");
+        assertThat(fired)
+                .containsExactly(
+                        "schedule:digest.loom/MorningDigest MorningDigest@2026-09-28T01:30:00Z");
     }
 
     @Test
@@ -184,21 +256,31 @@ class TriggerRunnerTest {
 
     @Test
     void aFailingTargetIsRecordedAndTheRunnerCarriesOn() {
-        store.upsert(Trigger.every("schedule:s/Boom", Duration.ofHours(1), TestClock.T0, DIGEST, null, null));
+        store.upsert(
+                Trigger.every(
+                        "schedule:s/Boom", Duration.ofHours(1), TestClock.T0, DIGEST, null, null));
         store.upsert(Trigger.resume("r2", TestClock.T0, "x", 1));
-        answer = (t, run) -> {
-            if (t.id().contains("Boom")) throw new IllegalStateException("kaboom");
-            return TriggerTarget.Outcome.done();
-        };
+        answer =
+                (t, run) -> {
+                    if (t.id().contains("Boom")) throw new IllegalStateException("kaboom");
+                    return TriggerTarget.Outcome.done();
+                };
         assertThat(runner().tick()).isEqualTo(2);
-        assertThat(store.get("schedule:s/Boom").orElseThrow().lastOutcome()).isEqualTo("FAILED: kaboom");
+        assertThat(store.get("schedule:s/Boom").orElseThrow().lastOutcome())
+                .isEqualTo("FAILED: kaboom");
         assertThat(store.get("resume:r2")).isEmpty();
     }
 
     @Test
     void agentTasksHaveNoRunId() {
-        store.upsert(Trigger.every("schedule:s/Clean", Duration.ofHours(24), TestClock.T0,
-                new Trigger.AgentTask("s", "AdminBot", "purge"), null, null));
+        store.upsert(
+                Trigger.every(
+                        "schedule:s/Clean",
+                        Duration.ofHours(24),
+                        TestClock.T0,
+                        new Trigger.AgentTask("s", "AdminBot", "purge"),
+                        null,
+                        null));
         runner().tick();
         assertThat(fired).containsExactly("schedule:s/Clean");
         assertThat(store.get("schedule:s/Clean").orElseThrow().describe()).isEqualTo("every 24h");
@@ -219,20 +301,41 @@ class TriggerRunnerTest {
     @Test
     void v7_18_jitterBounds() {
         for (int i = 0; i < 1000; i++) {
-            assertThat(Schedules.jitter(Duration.ofHours(1))).isBetween(Duration.ZERO, Duration.ofSeconds(30));
-            assertThat(Schedules.jitter(Duration.ofSeconds(60))).isBetween(Duration.ZERO, Duration.ofSeconds(6));
+            assertThat(Schedules.jitter(Duration.ofHours(1)))
+                    .isBetween(Duration.ZERO, Duration.ofSeconds(30));
+            assertThat(Schedules.jitter(Duration.ofSeconds(60)))
+                    .isBetween(Duration.ZERO, Duration.ofSeconds(6));
         }
         assertThat(Schedules.jitter(Duration.ZERO)).isEqualTo(Duration.ZERO);
     }
 
     @Test
     void codecRoundTripsEveryTarget() {
-        for (Trigger.Target target : List.of(new Trigger.ResumeRun("runs/a b"), DIGEST, new Trigger.AgentTask("s", "A", "t"))) {
-            Trigger t = Trigger.every("schedule:x/" + target.hashCode(), Duration.ofMinutes(5), TestClock.T0, target,
-                    Trigger.Misfire.SKIP, Trigger.Overlap.QUEUE).withClaim("me", TestClock.T0);
+        for (Trigger.Target target :
+                List.of(
+                        new Trigger.ResumeRun("runs/a b"),
+                        DIGEST,
+                        new Trigger.AgentTask("s", "A", "t"))) {
+            Trigger t =
+                    Trigger.every(
+                                    "schedule:x/" + target.hashCode(),
+                                    Duration.ofMinutes(5),
+                                    TestClock.T0,
+                                    target,
+                                    Trigger.Misfire.SKIP,
+                                    Trigger.Overlap.QUEUE)
+                            .withClaim("me", TestClock.T0);
             assertThat(TriggerCodec.fromJson(TriggerCodec.toJson(t))).isEqualTo(t);
         }
-        Trigger cron = Trigger.cron("c", "0 7 * * *", ZoneId.of("Asia/Kolkata"), TestClock.T0, DIGEST, null, null);
+        Trigger cron =
+                Trigger.cron(
+                        "c",
+                        "0 7 * * *",
+                        ZoneId.of("Asia/Kolkata"),
+                        TestClock.T0,
+                        DIGEST,
+                        null,
+                        null);
         assertThat(TriggerCodec.fromJson(TriggerCodec.toJson(cron))).isEqualTo(cron);
         assertThat(cron.describe()).isEqualTo("cron \"0 7 * * *\" Asia/Kolkata");
     }

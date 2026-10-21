@@ -15,7 +15,13 @@ import java.util.OptionalDouble;
  * @param latency how long {@code execute} took, over the calls that reached it
  */
 public record ToolStats(
-        String tool, long calls, long successes, Map<ErrorCategory, Long> failures, long softFailures, long resultChars, LatencyStats latency) {
+        String tool,
+        long calls,
+        long successes,
+        Map<ErrorCategory, Long> failures,
+        long softFailures,
+        long resultChars,
+        LatencyStats latency) {
 
     public ToolStats {
         failures = Map.copyOf(failures);

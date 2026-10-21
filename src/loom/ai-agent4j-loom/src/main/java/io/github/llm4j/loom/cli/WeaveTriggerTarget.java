@@ -11,8 +11,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Fires triggers from a fresh process: resumes runs from their run directory, starts scheduled workflows
- * in {@code <store>/runs/<schedule>@<slot>}, and gives scheduled tasks to agents.
+ * Fires triggers from a fresh process: resumes runs from their run directory, starts scheduled
+ * workflows in {@code <store>/runs/<schedule>@<slot>}, and gives scheduled tasks to agents.
  */
 final class WeaveTriggerTarget implements TriggerTarget {
 
@@ -28,13 +28,24 @@ final class WeaveTriggerTarget implements TriggerTarget {
     public Outcome fire(Trigger trigger, String runId) throws Exception {
         if (trigger.target() instanceof Trigger.ResumeRun r) {
             Path dir = Path.of(r.runId());
-            if (!dir.isAbsolute() || !Files.exists(dir.resolve(RunSpec.FILE))) dir = Runs.scheduledRunDir(store, r.runId());
+            if (!dir.isAbsolute() || !Files.exists(dir.resolve(RunSpec.FILE)))
+                dir = Runs.scheduledRunDir(store, r.runId());
             env.out().println("⏯  Resuming " + r.runId());
             return outcome(Runs.execute(RunSpec.read(dir), dir, r.runId(), env));
         }
         if (trigger.target() instanceof Trigger.StartWorkflow w) {
             Path dir = Runs.scheduledRunDir(store, runId);
-            RunSpec spec = new RunSpec(w.script(), null, w.workflow(), w.args(), null, null, null, null, store.toString());
+            RunSpec spec =
+                    new RunSpec(
+                            w.script(),
+                            null,
+                            w.workflow(),
+                            w.args(),
+                            null,
+                            null,
+                            null,
+                            null,
+                            store.toString());
             spec.write(dir);
             env.out().println("⏰ Starting " + w.workflow() + " (" + runId + ")");
             return outcome(Runs.execute(spec, dir, runId, env));
@@ -61,7 +72,8 @@ final class WeaveTriggerTarget implements TriggerTarget {
         return switch (r.exit()) {
             case 0 -> Outcome.done();
             case 4 -> r.reason() == RunSuspended.Reason.HUMAN || r.resumeAt() == null
-                    ? Outcome.human(r.message()) : Outcome.suspended(r.resumeAt(), r.message());
+                    ? Outcome.human(r.message())
+                    : Outcome.suspended(r.resumeAt(), r.message());
             default -> Outcome.failed(r.message());
         };
     }

@@ -14,14 +14,16 @@ import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** The guide's "Steering, Stopping and Wrapping Up an Agent" section is checked against the code: every example loads. */
+/**
+ * The guide's "Steering, Stopping and Wrapping Up an Agent" section is checked against the code:
+ * every example loads.
+ */
 class StoppingGuideTest {
 
     static final Path GUIDE = Path.of("LOOM_GUIDE.md");
     static final String HEADING = "### Steering, Stopping and Wrapping Up an Agent";
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     static String section() throws Exception {
         String guide = Files.readString(GUIDE, StandardCharsets.UTF_8);
@@ -41,7 +43,8 @@ class StoppingGuideTest {
             try {
                 executor.initialize();
             } catch (RuntimeException e) {
-                throw new AssertionError("this guide example doesn't load:\n" + block + "\n→ " + e.getMessage(), e);
+                throw new AssertionError(
+                        "this guide example doesn't load:\n" + block + "\n→ " + e.getMessage(), e);
             }
         }
     }
@@ -49,8 +52,10 @@ class StoppingGuideTest {
     @Test
     void everyStopFieldAndReasonTheSectionNamesExists() throws Exception {
         String text = section();
-        for (String field : io.github.llm4j.loom.ast.InterventionDef.STOP_FIELDS) assertThat(text).contains("_stop." + field);
-        for (String reason : io.github.llm4j.loom.ast.InterventionDef.REASONS) assertThat(text).contains(reason);
+        for (String field : io.github.llm4j.loom.ast.InterventionDef.STOP_FIELDS)
+            assertThat(text).contains("_stop." + field);
+        for (String reason : io.github.llm4j.loom.ast.InterventionDef.REASONS)
+            assertThat(text).contains(reason);
     }
 
     @Test

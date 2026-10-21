@@ -20,12 +20,13 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Checks a rules file against the script it will watch: every named agent must exist, and a {@code no_progress} variable must be one the
- * workflow stores or takes. The script itself is never touched.
+ * Checks a rules file against the script it will watch: every named agent must exist, and a {@code
+ * no_progress} variable must be one the workflow stores or takes. The script itself is never
+ * touched.
  */
 public final class RulesCheck {
 
-    private RulesCheck() { }
+    private RulesCheck() {}
 
     public static List<RulesFile.Problem> check(LoomScript script, RulesFile.Parsed parsed) {
         List<RulesFile.Problem> out = new ArrayList<>(parsed.problems());
@@ -35,36 +36,56 @@ public final class RulesCheck {
         for (Map.Entry<String, InspectRules> e : parsed.rules().entrySet()) {
             int line = parsed.lines().getOrDefault(e.getKey(), 0);
             if (!RulesFile.ALL.equals(e.getKey()) && !agents.contains(e.getKey())) {
-                out.add(new RulesFile.Problem(line, true, "no agent named " + e.getKey() + " in the script" + Suggest.hint(e.getKey(), agents)));
+                out.add(
+                        new RulesFile.Problem(
+                                line,
+                                true,
+                                "no agent named "
+                                        + e.getKey()
+                                        + " in the script"
+                                        + Suggest.hint(e.getKey(), agents)));
             }
             String variable = e.getValue().noProgressVariable();
             if (variable != null) {
                 String root = variable.split("\\.")[0];
                 if (!variables.contains(root)) {
-                    out.add(new RulesFile.Problem(line, true, "no_progress: no workflow variable named " + root
-                            + " (a variable is what a step stores with ->, or a workflow parameter)" + Suggest.hint(root, variables)));
+                    out.add(
+                            new RulesFile.Problem(
+                                    line,
+                                    true,
+                                    "no_progress: no workflow variable named "
+                                            + root
+                                            + " (a variable is what a step stores with ->, or a workflow parameter)"
+                                            + Suggest.hint(root, variables)));
                 }
             }
         }
         return out;
     }
 
-    /** Every name a workflow stores a result under, and its parameters: what a rule may call a variable. */
+    /**
+     * Every name a workflow stores a result under, and its parameters: what a rule may call a
+     * variable.
+     */
     static Set<String> variablesOf(LoomScript script) {
         Set<String> names = new TreeSet<>();
         for (WorkflowDef w : script.getWorkflows()) {
             names.addAll(w.getParameters());
-            StatementWalker.walk(w.getStatements(), s -> {
-                String n = null;
-                if (s instanceof DelegateStmt d) n = d.getVariableName();
-                else if (s instanceof HumanPromptStmt h) n = h.getVariableName();
-                else if (s instanceof BroadcastStmt b) n = b.getVariableName();
-                else if (s instanceof CallStmt c) n = c.getResultVariable();
-                else if (s instanceof DecideStmt d) n = d.getVariable();
-                else if (s instanceof RunStmt r) n = r.getVariableName();
-                else if (s instanceof ForEachStmt f) n = f.getItemName();
-                if (n != null && !n.isBlank() && !n.startsWith("{")) names.add(n);
-            });
+            StatementWalker.walk(
+                    w.getStatements(),
+                    s -> {
+                        String n = null;
+                        if (s instanceof DelegateStmt d) n = d.getVariableName();
+                        else if (s instanceof HumanPromptStmt h) n = h.getVariableName();
+                        else if (s instanceof BroadcastStmt b) n = b.getVariableName();
+                        else if (s instanceof CallStmt c) n = c.getResultVariable();
+                        else if (s instanceof DecideStmt d) n = d.getVariable();
+                        else if (s instanceof RunStmt r) n = r.getVariableName();
+                        else if (s instanceof io.github.llm4j.loom.ast.IntentClassifyStmt ic)
+                            n = ic.getVariableName();
+                        else if (s instanceof ForEachStmt f) n = f.getItemName();
+                        if (n != null && !n.isBlank() && !n.startsWith("{")) names.add(n);
+                    });
         }
         return names;
     }

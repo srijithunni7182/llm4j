@@ -43,7 +43,8 @@ public class GeminiEmbeddingProvider implements EmbeddingProvider {
     }
 
     protected GeminiEmbeddingProvider(LLMConfig config, String model, OkHttpClient httpClient) {
-        // the key itself is never held here: it is fetched (from the secret store, if one was given) for each request
+        // the key itself is never held here: it is fetched (from the secret store, if one was
+        // given) for each request
         Objects.requireNonNull(config.getApiKeyRef(), "API key cannot be null");
         this.config = config;
         this.model = model != null ? model : DEFAULT_MODEL;
@@ -69,7 +70,8 @@ public class GeminiEmbeddingProvider implements EmbeddingProvider {
             Request request =
                     new Request.Builder()
                             .url(url)
-                            // a header, not ?key=...: a URL ends up in logs, proxies and exception messages
+                            // a header, not ?key=...: a URL ends up in logs, proxies and exception
+                            // messages
                             .header("x-goog-api-key", config.requireApiKey("Google", baseUrl))
                             .post(RequestBody.create(requestBody, JSON))
                             .build();

@@ -1,19 +1,19 @@
 package io.github.llm4j.loom.parser;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import io.github.llm4j.loom.ast.*;
 import io.github.llm4j.loom.lexer.Lexer;
 import io.github.llm4j.loom.lexer.Token;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 public class LoomParserTest {
 
     @Test
     public void testParseAgent() {
-        String input = """
+        String input =
+                """
             agent Researcher {
                 model: "gpt-4-turbo"
                 system: "Find facts"
@@ -38,7 +38,8 @@ public class LoomParserTest {
 
     @Test
     public void testParseWorkflow() {
-        String input = """
+        String input =
+                """
             workflow FactCheck(topic) {
                 note "Starting fact check"
                 handoff topic to Researcher
@@ -60,7 +61,8 @@ public class LoomParserTest {
         assertEquals(2, workflow.getStatements().size());
 
         assertTrue(workflow.getStatements().get(0) instanceof NoteStmt);
-        assertEquals("Starting fact check", ((NoteStmt) workflow.getStatements().get(0)).getMessage());
+        assertEquals(
+                "Starting fact check", ((NoteStmt) workflow.getStatements().get(0)).getMessage());
 
         assertTrue(workflow.getStatements().get(1) instanceof HandoffStmt);
         HandoffStmt handoff = (HandoffStmt) workflow.getStatements().get(1);

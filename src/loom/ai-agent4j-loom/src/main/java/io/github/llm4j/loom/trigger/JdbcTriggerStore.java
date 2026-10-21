@@ -14,13 +14,14 @@ import java.util.Optional;
 import javax.sql.DataSource;
 
 /**
- * Triggers in a SQL table ({@code loom_triggers}), for several instances sharing one database (e.g. Cloud
- * Run behind Cloud Scheduler). A claim is one conditional {@code UPDATE}: the instance whose update
- * changes the row owns the firing. Times are stored as epoch milliseconds.
+ * Triggers in a SQL table ({@code loom_triggers}), for several instances sharing one database (e.g.
+ * Cloud Run behind Cloud Scheduler). A claim is one conditional {@code UPDATE}: the instance whose
+ * update changes the row owns the firing. Times are stored as epoch milliseconds.
  */
 public class JdbcTriggerStore implements TriggerStore {
 
-    public static final String DDL = """
+    public static final String DDL =
+            """
             CREATE TABLE IF NOT EXISTS loom_triggers (
                 id VARCHAR(500) PRIMARY KEY,
                 kind VARCHAR(10) NOT NULL,
@@ -39,8 +40,9 @@ public class JdbcTriggerStore implements TriggerStore {
                 claimed_at BIGINT
             )""";
 
-    private static final String COLUMNS = "id, kind, spec, zone, target, next_fire, last_fire, last_outcome, note, "
-            + "attempts, misfire, overlap, enabled, claimed_by, claimed_at";
+    private static final String COLUMNS =
+            "id, kind, spec, zone, target, next_fire, last_fire, last_outcome, note, "
+                    + "attempts, misfire, overlap, enabled, claimed_by, claimed_at";
 
     private final DataSource dataSource;
 
@@ -49,7 +51,8 @@ public class JdbcTriggerStore implements TriggerStore {
     }
 
     public static void createTable(DataSource dataSource) {
-        try (Connection c = dataSource.getConnection(); var s = c.createStatement()) {
+        try (Connection c = dataSource.getConnection();
+                var s = c.createStatement()) {
             s.execute(DDL);
         } catch (SQLException e) {
             throw new IllegalStateException("Could not create loom_triggers", e);
@@ -58,9 +61,10 @@ public class JdbcTriggerStore implements TriggerStore {
 
     @Override
     public void upsert(Trigger t) {
-        String update = "UPDATE loom_triggers SET kind=?, spec=?, zone=?, target=?, next_fire=?, last_fire=?, "
-                + "last_outcome=?, note=?, attempts=?, misfire=?, overlap=?, enabled=?, claimed_by=NULL, claimed_at=NULL "
-                + "WHERE id=?";
+        String update =
+                "UPDATE loom_triggers SET kind=?, spec=?, zone=?, target=?, next_fire=?, last_fire=?, "
+                        + "last_outcome=?, note=?, attempts=?, misfire=?, overlap=?, enabled=?, claimed_by=NULL, claimed_at=NULL "
+                        + "WHERE id=?";
         try (Connection c = dataSource.getConnection()) {
             for (int attempt = 0; attempt < 3; attempt++) {
                 try (PreparedStatement ps = c.prepareStatement(update)) {
@@ -68,8 +72,11 @@ public class JdbcTriggerStore implements TriggerStore {
                     ps.setString(i, t.id());
                     if (ps.executeUpdate() == 1) return;
                 }
-                try (PreparedStatement ps = c.prepareStatement("INSERT INTO loom_triggers (" + COLUMNS
-                        + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)")) {
+                try (PreparedStatement ps =
+                        c.prepareStatement(
+                                "INSERT INTO loom_triggers ("
+                                        + COLUMNS
+                                        + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)")) {
                     ps.setString(1, t.id());
                     bindRule(ps, 2, t);
                     ps.executeUpdate();
@@ -104,7 +111,9 @@ public class JdbcTriggerStore implements TriggerStore {
     @Override
     public Optional<Trigger> get(String id) {
         try (Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement("SELECT " + COLUMNS + " FROM loom_triggers WHERE id=?")) {
+                PreparedStatement ps =
+                        c.prepareStatement(
+                                "SELECT " + COLUMNS + " FROM loom_triggers WHERE id=?")) {
             ps.setString(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? Optional.of(read(rs)) : Optional.empty();
@@ -118,8 +127,9 @@ public class JdbcTriggerStore implements TriggerStore {
     public List<Trigger> all() {
         List<Trigger> out = new ArrayList<>();
         try (Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement("SELECT " + COLUMNS + " FROM loom_triggers");
-             ResultSet rs = ps.executeQuery()) {
+                PreparedStatement ps =
+                        c.prepareStatement("SELECT " + COLUMNS + " FROM loom_triggers");
+                ResultSet rs = ps.executeQuery()) {
             while (rs.next()) out.add(read(rs));
         } catch (SQLException e) {
             throw new IllegalStateException(e);
@@ -131,8 +141,11 @@ public class JdbcTriggerStore implements TriggerStore {
     public List<Trigger> due(Instant now) {
         List<Trigger> out = new ArrayList<>();
         try (Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement("SELECT " + COLUMNS
-                     + " FROM loom_triggers WHERE enabled = TRUE AND next_fire <= ? ORDER BY next_fire")) {
+                PreparedStatement ps =
+                        c.prepareStatement(
+                                "SELECT "
+                                        + COLUMNS
+                                        + " FROM loom_triggers WHERE enabled = TRUE AND next_fire <= ? ORDER BY next_fire")) {
             ps.setLong(1, now.toEpochMilli());
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) out.add(read(rs));
@@ -151,8 +164,10 @@ public class JdbcTriggerStore implements TriggerStore {
     @Override
     public boolean claim(String id, String owner, Instant now, Duration staleAfter) {
         try (Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement("UPDATE loom_triggers SET claimed_by=?, claimed_at=? "
-                     + "WHERE id=? AND enabled = TRUE AND next_fire <= ? AND (claimed_by IS NULL OR claimed_at < ?)")) {
+                PreparedStatement ps =
+                        c.prepareStatement(
+                                "UPDATE loom_triggers SET claimed_by=?, claimed_at=? "
+                                        + "WHERE id=? AND enabled = TRUE AND next_fire <= ? AND (claimed_by IS NULL OR claimed_at < ?)")) {
             ps.setString(1, owner);
             ps.setLong(2, now.toEpochMilli());
             ps.setString(3, id);
@@ -171,9 +186,11 @@ public class JdbcTriggerStore implements TriggerStore {
             return;
         }
         try (Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement("UPDATE loom_triggers SET kind=?, spec=?, zone=?, target=?, "
-                     + "next_fire=?, last_fire=?, last_outcome=?, note=?, attempts=?, misfire=?, overlap=?, enabled=?, "
-                     + "claimed_by=NULL, claimed_at=NULL WHERE id=? AND claimed_by=?")) {
+                PreparedStatement ps =
+                        c.prepareStatement(
+                                "UPDATE loom_triggers SET kind=?, spec=?, zone=?, target=?, "
+                                        + "next_fire=?, last_fire=?, last_outcome=?, note=?, attempts=?, misfire=?, overlap=?, enabled=?, "
+                                        + "claimed_by=NULL, claimed_at=NULL WHERE id=? AND claimed_by=?")) {
             int i = bindRule(ps, 1, next);
             ps.setString(i++, id);
             ps.setString(i, owner);
@@ -184,7 +201,8 @@ public class JdbcTriggerStore implements TriggerStore {
     }
 
     private void execute(String sql, String... args) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        try (Connection c = dataSource.getConnection();
+                PreparedStatement ps = c.prepareStatement(sql)) {
             for (int i = 0; i < args.length; i++) ps.setString(i + 1, args[i]);
             ps.executeUpdate();
         } catch (SQLException e) {

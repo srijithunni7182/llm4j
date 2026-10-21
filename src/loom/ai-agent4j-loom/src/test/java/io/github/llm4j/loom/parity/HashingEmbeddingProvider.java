@@ -7,8 +7,9 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A deterministic, offline embedding for tests: a bag of words (lower-cased, trailing "s" dropped) hashed
- * into 256 dimensions and L2-normalised. Texts that share words are close. Counts every text embedded.
+ * A deterministic, offline embedding for tests: a bag of words (lower-cased, trailing "s" dropped)
+ * hashed into 256 dimensions and L2-normalised. Texts that share words are close. Counts every text
+ * embedded.
  */
 public final class HashingEmbeddingProvider implements EmbeddingProvider {
 

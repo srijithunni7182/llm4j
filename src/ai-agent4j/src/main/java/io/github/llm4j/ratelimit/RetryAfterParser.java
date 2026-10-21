@@ -21,13 +21,19 @@ public final class RetryAfterParser implements RateLimitParser {
             }
         } catch (NumberFormatException notSeconds) {
             try {
-                reset = ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant();
+                reset =
+                        ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME)
+                                .toInstant();
             } catch (RuntimeException notADate) {
                 return Optional.empty();
             }
         }
         if (reset == null) return Optional.empty();
-        return Optional.of(RateLimitInfo.at(reset, RateLimitInfo.Scope.UNKNOWN, response.provider(),
-                "Retry-After: " + value));
+        return Optional.of(
+                RateLimitInfo.at(
+                        reset,
+                        RateLimitInfo.Scope.UNKNOWN,
+                        response.provider(),
+                        "Retry-After: " + value));
     }
 }

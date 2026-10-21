@@ -1,0 +1,19 @@
+{
+ "model": "jev-1.13.0",
+ "answers": {
+  "intent": {
+   "type": "choice",
+   "choice": "refund",
+   "confidence": 1.0,
+   "probabilities": {
+    "refund": 1.0,
+    "order_status": 0.0,
+    "other": 0.0
+   }
+  }
+ },
+ "usage": {
+  "input_tokens": 357,
+  "output_tokens": 39
+ }
+}

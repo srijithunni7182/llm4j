@@ -4,26 +4,32 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
- * One mail address, parsed strictly: {@code a@example.com} or {@code Name <a@example.com>}. Anything that
- * could add a header or a second recipient (line breaks, commas, angle brackets in odd places) is rejected,
- * so what is checked is exactly what is sent.
+ * One mail address, parsed strictly: {@code a@example.com} or {@code Name <a@example.com>}.
+ * Anything that could add a header or a second recipient (line breaks, commas, angle brackets in
+ * odd places) is rejected, so what is checked is exactly what is sent.
  */
 public record MailAddress(String display, String address) {
 
     private static final String ATOM = "[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+";
     private static final Pattern LOCAL = Pattern.compile(ATOM + "(\\.(" + ATOM + "))*");
-    private static final Pattern DOMAIN = Pattern.compile("[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*");
+    private static final Pattern DOMAIN =
+            Pattern.compile(
+                    "[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*");
     private static final Pattern NAMED = Pattern.compile("([^<>\"\\\\,;@]{0,100})<([^<>\\s]+)>");
     private static final int MAX_LENGTH = 254;
 
-    /** @throws IllegalArgumentException if the text isn't a single, plain address */
+    /**
+     * @throws IllegalArgumentException if the text isn't a single, plain address
+     */
     public static MailAddress parse(String text) {
-        if (text == null || text.isBlank()) throw new IllegalArgumentException("the address is empty");
+        if (text == null || text.isBlank())
+            throw new IllegalArgumentException("the address is empty");
         String t = text.strip();
         for (int i = 0; i < t.length(); i++) {
             char c = t.charAt(i);
             if (c < 0x20 || c == 0x7f || c == 0x85 || c == 0x2028 || c == 0x2029) {
-                throw new IllegalArgumentException("the address contains a control or line-break character");
+                throw new IllegalArgumentException(
+                        "the address contains a control or line-break character");
             }
         }
         if (t.length() > MAX_LENGTH) throw new IllegalArgumentException("the address is too long");
@@ -36,16 +42,21 @@ public record MailAddress(String display, String address) {
             if (display.isEmpty()) display = null;
         }
         int at = address.lastIndexOf('@');
-        if (at <= 0 || at == address.length() - 1) throw new IllegalArgumentException("not an address: " + shorten(t));
+        if (at <= 0 || at == address.length() - 1)
+            throw new IllegalArgumentException("not an address: " + shorten(t));
         String local = address.substring(0, at);
         String domain = address.substring(at + 1);
-        if (!LOCAL.matcher(local).matches() || local.length() > 64 || !DOMAIN.matcher(domain).matches()) {
+        if (!LOCAL.matcher(local).matches()
+                || local.length() > 64
+                || !DOMAIN.matcher(domain).matches()) {
             throw new IllegalArgumentException("not an address: " + shorten(t));
         }
         return new MailAddress(display, local + "@" + domain.toLowerCase(Locale.ROOT));
     }
 
-    /** True if the address equals the pattern ({@code a@x.com}) or the pattern is {@code *@x.com}. */
+    /**
+     * True if the address equals the pattern ({@code a@x.com}) or the pattern is {@code *@x.com}.
+     */
     public boolean matches(String pattern) {
         String p = pattern.toLowerCase(Locale.ROOT).strip();
         String a = address.toLowerCase(Locale.ROOT);

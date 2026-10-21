@@ -23,13 +23,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** R2, R3, R6 at Fabric: the fleet routes answer the same as the embedded page's, behind the sign-in, from what processes reported. */
+/**
+ * R2, R3, R6 at Fabric: the fleet routes answer the same as the embedded page's, behind the
+ * sign-in, from what processes reported.
+ */
 class FabricFleetRoutesTest {
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private final HttpClient http = HttpClient.newHttpClient();
     private FabricServer server;
@@ -40,7 +42,13 @@ class FabricFleetRoutesTest {
         Vault vault = Vault.create(dir.resolve("vault.json"), "a-long-enough-master-key");
         vault.put("client.alpha", Vault.newClientKey());
         vault.put(Vault.ADMIN, "correct horse battery");
-        server = new FabricServer(new FabricServer.Settings(dir, "127.0.0.1", 0, null, false, 30, 2L << 30), vault, new PrintStream(new ByteArrayOutputStream()), 100, 200);
+        server =
+                new FabricServer(
+                        new FabricServer.Settings(dir, "127.0.0.1", 0, null, false, 30, 2L << 30),
+                        vault,
+                        new PrintStream(new ByteArrayOutputStream()),
+                        100,
+                        200);
         server.start();
         base = "http://127.0.0.1:" + server.port();
     }
@@ -51,8 +59,15 @@ class FabricFleetRoutesTest {
     }
 
     private String login() throws Exception {
-        HttpResponse<String> r = http.send(HttpRequest.newBuilder(URI.create(base + "/api/login")).header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString("{\"password\":\"correct horse battery\"}")).build(), HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> r =
+                http.send(
+                        HttpRequest.newBuilder(URI.create(base + "/api/login"))
+                                .header("Content-Type", "application/json")
+                                .POST(
+                                        HttpRequest.BodyPublishers.ofString(
+                                                "{\"password\":\"correct horse battery\"}"))
+                                .build(),
+                        HttpResponse.BodyHandlers.ofString());
         return r.headers().firstValue("Set-Cookie").orElseThrow().split(";")[0];
     }
 
@@ -62,7 +77,8 @@ class FabricFleetRoutesTest {
         return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
     }
 
-    private void tool(String run, String agent, String tool, String reach, String category, long endNanos) {
+    private void tool(
+            String run, String agent, String tool, String reach, String category, long endNanos) {
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_TOOL);
         a.put(Semconv.GEN_AI_AGENT_NAME, agent);
@@ -70,8 +86,22 @@ class FabricFleetRoutesTest {
         a.put(Semconv.LOOM_TOOL_REACH, reach);
         a.put(Semconv.LOOM_TOOL_REACH_KNOWN, true);
         if (category != null) a.put(Semconv.ERROR_TYPE, category);
-        server.registry().applySpans(Resource.of("alpha", "i_1"), List.of(new SpanRec(Ids.traceId(run), Ids.spanId(run, tool + endNanos), null, tool, SpanRec.CLIENT, endNanos - 1000, endNanos, a,
-                category == null ? SpanRec.STATUS_OK : SpanRec.STATUS_ERROR, null, List.of())));
+        server.registry()
+                .applySpans(
+                        Resource.of("alpha", "i_1"),
+                        List.of(
+                                new SpanRec(
+                                        Ids.traceId(run),
+                                        Ids.spanId(run, tool + endNanos),
+                                        null,
+                                        tool,
+                                        SpanRec.CLIENT,
+                                        endNanos - 1000,
+                                        endNanos,
+                                        a,
+                                        category == null ? SpanRec.STATUS_OK : SpanRec.STATUS_ERROR,
+                                        null,
+                                        List.of())));
     }
 
     @Test
@@ -82,16 +112,24 @@ class FabricFleetRoutesTest {
 
     @Test
     void whatProcessesReportedIsRolledUpForTheAdministrator() throws Exception {
-        for (int i = 1; i <= 4; i++) tool("r1", "Writer", "Search", "untrusted", "timeout", 1_000_000_000L * i);
+        for (int i = 1; i <= 4; i++)
+            tool("r1", "Writer", "Search", "untrusted", "timeout", 1_000_000_000L * i);
         tool("r1", "Writer", "DB", "private", null, 5_000_000_000L);
         tool("r1", "Writer", "Send", "outward", null, 6_000_000_000L);
         String cookie = login();
         JsonNode tools = JSON.readTree(api("/api/tools", cookie).body());
         assertThat(tools.get("rows").get(0).get("name").asText()).isEqualTo("Search");
-        assertThat(tools.get("rows").get(0).get("health").get("state").asText()).isEqualTo("failing");
+        assertThat(tools.get("rows").get(0).get("health").get("state").asText())
+                .isEqualTo("failing");
         assertThat(tools.get("counts").get("failing").asInt()).isEqualTo(1);
         JsonNode security = JSON.readTree(api("/api/security?client=alpha", cookie).body());
         assertThat(security.get("agents").get(0).get("verdict").asText()).isEqualTo("exercised");
-        assertThat(JSON.readTree(api("/api/runs", cookie).body()).get("runs").get(0).get("security").asInt()).isEqualTo(1);
+        assertThat(
+                        JSON.readTree(api("/api/runs", cookie).body())
+                                .get("runs")
+                                .get(0)
+                                .get("security")
+                                .asInt())
+                .isEqualTo(1);
     }
 }

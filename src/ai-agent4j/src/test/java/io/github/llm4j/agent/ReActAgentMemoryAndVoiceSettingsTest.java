@@ -20,23 +20,29 @@ import org.mockito.ArgumentCaptor;
 
 class ReActAgentMemoryAndVoiceSettingsTest {
 
-    private static final LLMClient ANSWERS = new LLMClient() {
-        @Override
-        public LLMResponse chat(LLMRequest request) {
-            return LLMResponse.builder().content("{\"final_answer\": \"done\"}").build();
-        }
+    private static final LLMClient ANSWERS =
+            new LLMClient() {
+                @Override
+                public LLMResponse chat(LLMRequest request) {
+                    return LLMResponse.builder().content("{\"final_answer\": \"done\"}").build();
+                }
 
-        @Override
-        public Stream<LLMResponse> chatStream(LLMRequest request) {
-            throw new UnsupportedOperationException();
-        }
-    };
+                @Override
+                public Stream<LLMResponse> chatStream(LLMRequest request) {
+                    throw new UnsupportedOperationException();
+                }
+            };
 
     @Test
     void recallUsesTheConfiguredTopKAndSimilarity() {
         SemanticMemoryService memory = mock(SemanticMemoryService.class);
         when(memory.recallRelevantFacts(anyString(), anyInt(), anyFloat())).thenReturn(List.of());
-        ReActAgent agent = ReActAgent.builder().llmClient(ANSWERS).semanticMemory(memory).semanticRecall(3, 0.5f).build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(ANSWERS)
+                        .semanticMemory(memory)
+                        .semanticRecall(3, 0.5f)
+                        .build();
         agent.run("what do I like?");
         verify(memory).recallRelevantFacts(anyString(), eq(3), eq(0.5f));
 
@@ -50,19 +56,29 @@ class ReActAgentMemoryAndVoiceSettingsTest {
         when(memory.recallRelevantFacts(anyString(), anyInt(), anyFloat())).thenReturn(List.of());
         ReActAgent.builder().llmClient(ANSWERS).semanticMemory(memory).build().run("q");
         verify(memory).recallRelevantFacts(anyString(), eq(5), eq(0.7f));
-        assertThrows(IllegalArgumentException.class, () -> ReActAgent.builder().semanticRecall(0, 0.5f));
-        assertThrows(IllegalArgumentException.class, () -> ReActAgent.builder().semanticRecall(1, 1.5f));
+        assertThrows(
+                IllegalArgumentException.class, () -> ReActAgent.builder().semanticRecall(0, 0.5f));
+        assertThrows(
+                IllegalArgumentException.class, () -> ReActAgent.builder().semanticRecall(1, 1.5f));
     }
 
     @Test
     void toBuilderKeepsTheSpeechLanguageAndModel() {
         TextToSpeechProvider tts = mock(TextToSpeechProvider.class);
-        when(tts.generateSpeech(any())).thenReturn(new TextToSpeechResponse(new byte[] {1}, "audio/wav"));
-        ReActAgent agent = ReActAgent.builder().llmClient(ANSWERS).ttsProvider(tts)
-                .ttsLanguage("Hindi").ttsModel("bulbul:v2").autoPlayAudio(false).build();
+        when(tts.generateSpeech(any()))
+                .thenReturn(new TextToSpeechResponse(new byte[] {1}, "audio/wav"));
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(ANSWERS)
+                        .ttsProvider(tts)
+                        .ttsLanguage("Hindi")
+                        .ttsModel("bulbul:v2")
+                        .autoPlayAudio(false)
+                        .build();
         agent.toBuilder().build().speak("namaste");
 
-        ArgumentCaptor<TextToSpeechRequest> request = ArgumentCaptor.forClass(TextToSpeechRequest.class);
+        ArgumentCaptor<TextToSpeechRequest> request =
+                ArgumentCaptor.forClass(TextToSpeechRequest.class);
         verify(tts).generateSpeech(request.capture());
         assertEquals("bulbul:v2", request.getValue().getModel().orElseThrow());
         assertEquals("hi-IN", request.getValue().getTargetLanguageCode().orElseThrow());
@@ -70,10 +86,20 @@ class ReActAgentMemoryAndVoiceSettingsTest {
 
     @Test
     void agentResultToBuilderCopiesEverything() {
-        AgentResult original = AgentResult.builder().finalAnswer("secret a@b.io").iterations(3).completed(true)
-                .uncertaintyDetected(true).uncertaintyReason("why").redundantActionCount(2).protocolFollowed(false)
-                .usage(new AgentResult.Usage(2, 10, 5, 15, false, null))
-                .addStep(new AgentResult.AgentStep("t", "a", "i", "o", AgentResult.StepOutcome.EXECUTED)).build();
+        AgentResult original =
+                AgentResult.builder()
+                        .finalAnswer("secret a@b.io")
+                        .iterations(3)
+                        .completed(true)
+                        .uncertaintyDetected(true)
+                        .uncertaintyReason("why")
+                        .redundantActionCount(2)
+                        .protocolFollowed(false)
+                        .usage(new AgentResult.Usage(2, 10, 5, 15, false, null))
+                        .addStep(
+                                new AgentResult.AgentStep(
+                                        "t", "a", "i", "o", AgentResult.StepOutcome.EXECUTED))
+                        .build();
         AgentResult copy = original.toBuilder().finalAnswer("secret [EMAIL]").build();
         assertEquals("secret [EMAIL]", copy.getFinalAnswer());
         assertEquals(3, copy.getIterations());

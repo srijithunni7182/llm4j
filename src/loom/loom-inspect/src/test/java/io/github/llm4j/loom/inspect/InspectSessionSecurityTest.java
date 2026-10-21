@@ -11,11 +11,24 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** R31, R32 in the add-on: the scan switch per agent, and what each agent can reach, from the static audit of the script. */
+/**
+ * R31, R32 in the add-on: the scan switch per agent, and what each agent can reach, from the static
+ * audit of the script.
+ */
 class InspectSessionSecurityTest {
 
     private static InspectRules scan(Boolean on) {
-        return new InspectRules(null, null, null, null, null, null, null, null, null, new InspectRules.Security(null, null, on, null));
+        return new InspectRules(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                new InspectRules.Security(null, null, on, null));
     }
 
     @Test
@@ -43,14 +56,19 @@ class InspectSessionSecurityTest {
     @Test
     @SuppressWarnings("unchecked")
     void whatEachAgentCanReachComesFromTheAuditOfTheScript() {
-        String source = """
+        String source =
+                """
                 tool Search { use: duckduckgo }
                 tool Files { use: file  root: "data"  mode: read }
                 agent Reader { model: "m" tools: [Search, Files] }
                 agent Quiet { model: "m" }
                 workflow Main() { delegate "go" to Reader -> r }
                 """;
-        HarnessExecutor e = new HarnessExecutor(new LoomParser(new Lexer(source).tokenize()).parseScript(), new ToolRegistry(), model -> null);
+        HarnessExecutor e =
+                new HarnessExecutor(
+                        new LoomParser(new Lexer(source).tokenize()).parseScript(),
+                        new ToolRegistry(),
+                        model -> null);
         List<Map<String, Object>> profile = InspectSession.securityProfile(e.observable());
         assertThat(profile).extracting(m -> m.get("agent")).containsExactly("Reader", "Quiet");
         Map<String, Object> reader = profile.get(0);
@@ -63,13 +81,20 @@ class InspectSessionSecurityTest {
     @Test
     @SuppressWarnings("unchecked")
     void aReachDeclaredInTheLootFileIsUsedNotAssumed() {
-        String source = """
+        String source =
+                """
                 agent Researcher { model: "m" tools: [Fetch, DB] }
                 workflow Main() { delegate "go" to Researcher -> r }
                 """;
-        HarnessExecutor e = new HarnessExecutor(new LoomParser(new Lexer(source).tokenize()).parseScript(), new ToolRegistry(), model -> null);
+        HarnessExecutor e =
+                new HarnessExecutor(
+                        new LoomParser(new Lexer(source).tokenize()).parseScript(),
+                        new ToolRegistry(),
+                        model -> null);
         Map<String, Object> assumed = InspectSession.securityProfile(e.observable()).get(0);
-        assertThat((List<Object>) assumed.get("outward")).as("host tools nobody described are assumed to reach everything").containsExactlyInAnyOrder("Fetch", "DB");
+        assertThat((List<Object>) assumed.get("outward"))
+                .as("host tools nobody described are assumed to reach everything")
+                .containsExactlyInAnyOrder("Fetch", "DB");
         e.setToolReach(Map.of("Fetch", "fetches", "DB", "reads"));
         Map<String, Object> declared = InspectSession.securityProfile(e.observable()).get(0);
         assertThat((List<Object>) declared.get("untrusted")).containsExactly("Fetch");

@@ -20,8 +20,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 class OpenApiKindTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     MockWebServer api = new MockWebServer();
     final OpenApiKind kind = new OpenApiKind();
@@ -29,10 +28,13 @@ class OpenApiKindTest {
     @BeforeEach
     void start() throws Exception {
         api.start();
-        Files.writeString(dir.resolve("refunds.json"), """
+        Files.writeString(
+                dir.resolve("refunds.json"),
+                """
                 {"openapi": "3.0.0", "info": {"title": "Refunds", "version": "1"}, "servers": [{"url": "%s"}],
                  "paths": {"/refunds": {"get": {"summary": "List", "responses": {"200": {"description": "ok"}}}}}}
-                """.formatted(api.url("/").toString().replaceAll("/$", "")));
+                """
+                        .formatted(api.url("/").toString().replaceAll("/$", "")));
     }
 
     @AfterEach
@@ -56,7 +58,9 @@ class OpenApiKindTest {
     @Test
     @Tag("CC-V2.10")
     void aFixedValueGoesInTheHeader() throws Exception {
-        Tool tool = kind.create("Refunds", options("auth_header", "X-Key", "auth_value", "k-123456"), dir);
+        Tool tool =
+                kind.create(
+                        "Refunds", options("auth_header", "X-Key", "auth_value", "k-123456"), dir);
 
         assertThat(call(tool).getHeader("X-Key")).isEqualTo("k-123456");
     }
@@ -64,7 +68,8 @@ class OpenApiKindTest {
     @Test
     @Tag("CC-V2.10")
     void aFixedValueGoesInTheQuery() throws Exception {
-        Tool tool = kind.create("Refunds", options("auth_query", "key", "auth_value", "k-123456"), dir);
+        Tool tool =
+                kind.create("Refunds", options("auth_query", "key", "auth_value", "k-123456"), dir);
 
         assertThat(call(tool).getRequestUrl().queryParameter("key")).isEqualTo("k-123456");
     }
@@ -74,7 +79,13 @@ class OpenApiKindTest {
     void aCredentialToAskForGoesInTheHeaderEachTime() throws Exception {
         int[] n = {0};
         CredentialSource source = () -> "Bearer t" + (++n[0]);
-        Tool tool = kind.create("Refunds", options("auth_header", "Authorization"), Map.of("auth_value", source), dir, EffectContext.noop());
+        Tool tool =
+                kind.create(
+                        "Refunds",
+                        options("auth_header", "Authorization"),
+                        Map.of("auth_value", source),
+                        dir,
+                        EffectContext.noop());
 
         assertThat(call(tool).getHeader("Authorization")).isEqualTo("Bearer t1");
         assertThat(call(tool).getHeader("Authorization")).isEqualTo("Bearer t2");
@@ -83,8 +94,13 @@ class OpenApiKindTest {
     @Test
     @Tag("CC-V2.2")
     void aCredentialToAskForGoesInTheQueryEachTime() throws Exception {
-        Tool tool = kind.create("Refunds", options("auth_query", "access_token"), Map.of("auth_value", CredentialSource.of("t1")), dir,
-                EffectContext.noop());
+        Tool tool =
+                kind.create(
+                        "Refunds",
+                        options("auth_query", "access_token"),
+                        Map.of("auth_value", CredentialSource.of("t1")),
+                        dir,
+                        EffectContext.noop());
 
         assertThat(call(tool).getRequestUrl().queryParameter("access_token")).isEqualTo("t1");
     }
@@ -104,7 +120,13 @@ class OpenApiKindTest {
         Path elsewhere = Files.createTempDirectory(dir, "other");
 
         assertThat(call(kind.create("Refunds", options(), dir)).getPath()).isEqualTo("/refunds");
-        assertThat(call(kind.create("Refunds", options("spec", dir.resolve("refunds.json").toString()), elsewhere)).getPath()).isEqualTo("/refunds");
+        assertThat(
+                        call(kind.create(
+                                        "Refunds",
+                                        options("spec", dir.resolve("refunds.json").toString()),
+                                        elsewhere))
+                                .getPath())
+                .isEqualTo("/refunds");
     }
 
     @Test
@@ -112,7 +134,8 @@ class OpenApiKindTest {
     void theKindSaysWhatItTakesAndWhatMayBeAskedFor() {
         assertThat(kind.name()).isEqualTo("openapi");
         assertThat(kind.required()).containsExactly("spec");
-        assertThat(kind.optional()).containsExactlyInAnyOrder("auth_header", "auth_query", "auth_value");
+        assertThat(kind.optional())
+                .containsExactlyInAnyOrder("auth_header", "auth_query", "auth_value");
         assertThat(kind.secrets()).containsExactly("auth_value");
         assertThat(kind.lateBound()).containsExactly("auth_value");
     }
@@ -123,8 +146,11 @@ class OpenApiKindTest {
         assertThat(kind.check(options("auth_header", "H", "auth_value", "v"))).isNull();
         assertThat(kind.check(options("auth_query", "q", "auth_value", "v"))).isNull();
         assertThat(kind.check(options())).isNull();
-        assertThat(kind.check(options("auth_header", "H", "auth_query", "q", "auth_value", "v"))).isEqualTo("use auth_header or auth_query, not both");
-        assertThat(kind.check(options("auth_value", "v"))).isEqualTo("auth_value goes with exactly one of auth_header or auth_query");
-        assertThat(kind.check(options("auth_header", "H"))).isEqualTo("auth_value goes with exactly one of auth_header or auth_query");
+        assertThat(kind.check(options("auth_header", "H", "auth_query", "q", "auth_value", "v")))
+                .isEqualTo("use auth_header or auth_query, not both");
+        assertThat(kind.check(options("auth_value", "v")))
+                .isEqualTo("auth_value goes with exactly one of auth_header or auth_query");
+        assertThat(kind.check(options("auth_header", "H")))
+                .isEqualTo("auth_value goes with exactly one of auth_header or auth_query");
     }
 }

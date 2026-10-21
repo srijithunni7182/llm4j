@@ -11,8 +11,10 @@ class ToolSummaryMergeTest {
 
     private static ToolSummary of(String agent, int ok, int bad, String category, long millis) {
         ToolTally t = new ToolTally("Wiki");
-        for (int i = 0; i < bad; i++) t.record(agent, false, category, "2026-10-14T10:01:0" + (i % 9) + "Z", millis, false);
-        for (int i = 0; i < ok; i++) t.record(agent, true, null, "2026-10-14T10:00:0" + (i % 9) + "Z", millis, false);
+        for (int i = 0; i < bad; i++)
+            t.record(agent, false, category, "2026-10-14T10:01:0" + (i % 9) + "Z", millis, false);
+        for (int i = 0; i < ok; i++)
+            t.record(agent, true, null, "2026-10-14T10:00:0" + (i % 9) + "Z", millis, false);
         return t.snapshot(T);
     }
 
@@ -57,10 +59,10 @@ class ToolSummaryMergeTest {
 
     @Test
     void healthyPartsCanStillBeDegradedTogetherWhenTheOverallRateIsLow() {
-        ToolSummary a = of("A", 3, 1, "timeout", 10);  // 75%: healthy by itself (4 calls)
-        ToolSummary b = of("B", 2, 2, "timeout", 10);  // 50% over 4 calls
+        ToolSummary a = of("A", 3, 1, "timeout", 10); // 75%: healthy by itself (4 calls)
+        ToolSummary b = of("B", 2, 2, "timeout", 10); // 50% over 4 calls
         assertThat(a.state()).isEqualTo("healthy");
-        ToolSummary m = a.merge(b, T);                 // 5 of 8 = 62%
+        ToolSummary m = a.merge(b, T); // 5 of 8 = 62%
         assertThat(m.state()).isEqualTo("degraded");
         assertThat(m.reason()).contains("5 of 8");
     }
@@ -90,6 +92,8 @@ class ToolSummaryMergeTest {
     void mergingTwoSummariesOfDifferentToolsIsAnError() {
         ToolTally other = new ToolTally("Other");
         other.record("A", true, null, "x", 1, false);
-        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> of("A", 1, 0, null, 10).merge(other.snapshot(T), T));
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> of("A", 1, 0, null, 10).merge(other.snapshot(T), T));
     }
 }

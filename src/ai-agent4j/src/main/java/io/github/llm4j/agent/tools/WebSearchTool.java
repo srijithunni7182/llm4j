@@ -2,9 +2,9 @@ package io.github.llm4j.agent.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.llm4j.agent.Tool;
 import io.github.llm4j.secret.SecretException;
 import io.github.llm4j.secret.SecretRef;
-import io.github.llm4j.agent.Tool;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -36,7 +36,10 @@ public class WebSearchTool implements Tool {
         this.objectMapper = new ObjectMapper();
     }
 
-    /** A tool whose key lives in a {@link io.github.llm4j.secret.SecretStore}: fetched for each search and not kept. */
+    /**
+     * A tool whose key lives in a {@link io.github.llm4j.secret.SecretStore}: fetched for each
+     * search and not kept.
+     */
     public static WebSearchTool withSecret(SecretRef apiKey, String cx) {
         return new WebSearchTool(apiKey, cx, new OkHttpClient(), true);
     }
@@ -67,9 +70,12 @@ public class WebSearchTool implements Tool {
             return "Error: No search 'query' provided.";
         }
 
-        if (apiKey == null || (apiKey.isLiteral() ? apiKey.resolve().isEmpty() : !apiKey.exists())) {
+        if (apiKey == null
+                || (apiKey.isLiteral() ? apiKey.resolve().isEmpty() : !apiKey.exists())) {
             return "Error: Google API key not configured for WebSearchTool"
-                    + (apiKey != null && !apiKey.isLiteral() ? " (" + apiKey + " is not in the store)." : ".");
+                    + (apiKey != null && !apiKey.isLiteral()
+                            ? " (" + apiKey + " is not in the store)."
+                            : ".");
         }
 
         if (cx == null || cx.isEmpty()) {
@@ -100,7 +106,10 @@ public class WebSearchTool implements Tool {
             if (!response.isSuccessful()) {
                 String errorBody =
                         response.body() != null ? response.body().string() : "No error body";
-                return "Search API error (HTTP " + response.code() + "): " + errorBody.replace(key, "***");
+                return "Search API error (HTTP "
+                        + response.code()
+                        + "): "
+                        + errorBody.replace(key, "***");
             }
 
             JsonNode root = objectMapper.readTree(response.body().string());
@@ -130,6 +139,8 @@ public class WebSearchTool implements Tool {
 
     @Override
     public java.util.Map<String, Object> getParametersSchema() {
-        return io.github.llm4j.model.ToolSchema.object().string("query", "What to search the web for", true).build();
+        return io.github.llm4j.model.ToolSchema.object()
+                .string("query", "What to search the web for", true)
+                .build();
     }
 }

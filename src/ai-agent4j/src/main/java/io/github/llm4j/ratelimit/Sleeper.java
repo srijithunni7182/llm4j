@@ -2,7 +2,9 @@ package io.github.llm4j.ratelimit;
 
 import java.time.Duration;
 
-/** Waits. Injectable so tests can wait "an hour" instantly and assert exactly how long was waited. */
+/**
+ * Waits. Injectable so tests can wait "an hour" instantly and assert exactly how long was waited.
+ */
 @FunctionalInterface
 public interface Sleeper {
 

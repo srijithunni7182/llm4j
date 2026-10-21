@@ -15,7 +15,10 @@ import java.util.Set;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-/** How the factory hands an {@code invoker.NAME} option to a kind: as a source to ask, never as a value. */
+/**
+ * How the factory hands an {@code invoker.NAME} option to a kind: as a source to ask, never as a
+ * value.
+ */
 class ToolFactoryInvokerTest {
 
     /** A kind that takes {@code token} from the invoker and records what it was given. */
@@ -44,7 +47,12 @@ class ToolFactoryInvokerTest {
         }
 
         @Override
-        public Tool create(String name, Map<String, String> options, Map<String, CredentialSource> lateBound, Path baseDir, EffectContext context) {
+        public Tool create(
+                String name,
+                Map<String, String> options,
+                Map<String, CredentialSource> lateBound,
+                Path baseDir,
+                EffectContext context) {
             this.options = new HashMap<>(options);
             this.lateBound = new HashMap<>(lateBound);
             return new CalculatorTool();
@@ -56,7 +64,12 @@ class ToolFactoryInvokerTest {
         def.setKind("recording");
         for (int i = 0; i < options.length; i += 2) {
             String v = options[i + 1];
-            def.getOptions().put(options[i], v.startsWith("invoker.") ? ToolDef.OptionValue.invoker(v.substring(8)) : ToolDef.OptionValue.literal(v));
+            def.getOptions()
+                    .put(
+                            options[i],
+                            v.startsWith("invoker.")
+                                    ? ToolDef.OptionValue.invoker(v.substring(8))
+                                    : ToolDef.OptionValue.literal(v));
         }
         return def;
     }
@@ -74,10 +87,15 @@ class ToolFactoryInvokerTest {
         CredentialSource source = CredentialSource.of("Bearer t");
         ToolDef def = tool("token", "invoker.token", "plain", "p");
 
-        factory.create(def, name -> null, Path.of("."), EffectContext.noop(), name -> {
-            assertThat(name).isEqualTo("token");
-            return source;
-        });
+        factory.create(
+                def,
+                name -> null,
+                Path.of("."),
+                EffectContext.noop(),
+                name -> {
+                    assertThat(name).isEqualTo("token");
+                    return source;
+                });
 
         assertThat(kind.lateBound).containsOnlyKeys("token");
         assertThat(kind.lateBound.get("token")).isSameAs(source);
@@ -97,10 +115,21 @@ class ToolFactoryInvokerTest {
     @Test
     @Tag("CC-V4.1")
     void aToolBuiltOutsideARunCannotHaveInvokerCredentials() {
-        assertThatThrownBy(() -> factory.create(tool("token", "invoker.token"), name -> null, Path.of(".")))
-                .isInstanceOf(IllegalStateException.class).hasMessage("tool T takes invoker.token, which only a run can supply");
-        assertThatThrownBy(() -> factory.create(tool("token", "invoker.token"), name -> null, Path.of("."), EffectContext.noop()))
-                .isInstanceOf(IllegalStateException.class).hasMessage("tool T takes invoker.token, which only a run can supply");
+        assertThatThrownBy(
+                        () ->
+                                factory.create(
+                                        tool("token", "invoker.token"), name -> null, Path.of(".")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("tool T takes invoker.token, which only a run can supply");
+        assertThatThrownBy(
+                        () ->
+                                factory.create(
+                                        tool("token", "invoker.token"),
+                                        name -> null,
+                                        Path.of("."),
+                                        EffectContext.noop()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("tool T takes invoker.token, which only a run can supply");
     }
 
     @Test
@@ -108,29 +137,44 @@ class ToolFactoryInvokerTest {
     void theOptionsAreCheckedWithTheInvokerTextStandingInForTheValue() {
         assertThat(factory.problems(tool("token", "invoker.token"), name -> null)).isEmpty();
         assertThat(factory.problems(tool("other", "invoker.token"), name -> null))
-                .singleElement().asString().startsWith("other can't come from invoker.token for use: recording")
+                .singleElement()
+                .asString()
+                .startsWith("other can't come from invoker.token for use: recording")
                 .contains("auth_value of use: openapi");
-        assertThat(factory.problems(tool("nope", "invoker.token"), name -> null)).singleElement().asString().contains("unknown option nope");
+        assertThat(factory.problems(tool("nope", "invoker.token"), name -> null))
+                .singleElement()
+                .asString()
+                .contains("unknown option nope");
     }
 
     @Test
     @Tag("CC-V1.3")
     void aKindThatDoesNotListTheOptionAsLateBoundCannotBeGivenOne() throws Exception {
-        ToolKind plain = new ToolKind() {
-            @Override
-            public String name() {
-                return "plain";
-            }
+        ToolKind plain =
+                new ToolKind() {
+                    @Override
+                    public String name() {
+                        return "plain";
+                    }
 
-            @Override
-            public Tool create(String name, Map<String, String> options, Path baseDir) {
-                return new CalculatorTool();
-            }
-        };
+                    @Override
+                    public Tool create(String name, Map<String, String> options, Path baseDir) {
+                        return new CalculatorTool();
+                    }
+                };
 
         assertThat(plain.lateBound()).isEmpty();
-        assertThatThrownBy(() -> plain.create("T", Map.of(), Map.of("token", CredentialSource.of("x")), Path.of("."), EffectContext.noop()))
-                .isInstanceOf(IllegalStateException.class).hasMessage("use: plain does not take [token] from the invoker");
-        assertThat(plain.create("T", Map.of(), Map.of(), Path.of("."), EffectContext.noop())).isNotNull();
+        assertThatThrownBy(
+                        () ->
+                                plain.create(
+                                        "T",
+                                        Map.of(),
+                                        Map.of("token", CredentialSource.of("x")),
+                                        Path.of("."),
+                                        EffectContext.noop()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("use: plain does not take [token] from the invoker");
+        assertThat(plain.create("T", Map.of(), Map.of(), Path.of("."), EffectContext.noop()))
+                .isNotNull();
     }
 }

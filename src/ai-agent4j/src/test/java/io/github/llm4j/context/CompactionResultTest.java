@@ -13,7 +13,8 @@ class CompactionResultTest {
 
     @Test
     void ofFillsInTheNumbers() {
-        List<Message> before = new Convo().system("s").task("t").step("a", 2_000).step("b", 2_000).build();
+        List<Message> before =
+                new Convo().system("s").task("t").step("a", 2_000).step("b", 2_000).build();
         List<Message> after = List.of(before.get(0), before.get(1), before.get(4), before.get(5));
         CompactionResult r = CompactionResult.of("x", before, after, req);
         assertThat(r.outcome()).isEqualTo(CompactionResult.Outcome.COMPACTED);
@@ -39,7 +40,9 @@ class CompactionResultTest {
     @Test
     void unchangedSaysWhy() {
         List<Message> m = new Convo().system("s").task("t").build();
-        CompactionResult r = CompactionResult.unchanged("x", m, req, CompactionResult.Outcome.SKIPPED, "already within the target");
+        CompactionResult r =
+                CompactionResult.unchanged(
+                        "x", m, req, CompactionResult.Outcome.SKIPPED, "already within the target");
         assertThat(r.messages()).isEqualTo(m);
         assertThat(r.note()).isEqualTo("already within the target");
         assertThat(r.outcome()).isEqualTo(CompactionResult.Outcome.SKIPPED);

@@ -8,12 +8,19 @@ public class DelegateStmt extends LocatedStatement {
     private final String targetAgent;
     private final String variableName;
     private int retryCount = 0;
+
     /** Wait before each retry, doubling every attempt ({@code backoff 2s}); 0 = retry at once. */
     private long backoffMillis;
+
     /** Give up an attempt after this long ({@code timeout 90s}); 0 = no limit. */
     private long timeoutMillis;
-    /** Optional per-step schema ({@code expecting { ... }}) that overrides the agent's output_schema. */
+
+    /**
+     * Optional per-step schema ({@code expecting { ... }}) that overrides the agent's
+     * output_schema.
+     */
     private SchemaDef expecting;
+
     private final List<Statement> onFailure = new ArrayList<>();
     private final List<Statement> onStopped = new ArrayList<>();
     private boolean hasOnStopped;
@@ -36,39 +43,85 @@ public class DelegateStmt extends LocatedStatement {
         return variableName;
     }
 
-    public long getBackoffMillis() { return backoffMillis; }
-    public void setBackoffMillis(long backoffMillis) { this.backoffMillis = backoffMillis; }
-    public long getTimeoutMillis() { return timeoutMillis; }
-    public void setTimeoutMillis(long timeoutMillis) { this.timeoutMillis = timeoutMillis; }
+    public long getBackoffMillis() {
+        return backoffMillis;
+    }
+
+    public void setBackoffMillis(long backoffMillis) {
+        this.backoffMillis = backoffMillis;
+    }
+
+    public long getTimeoutMillis() {
+        return timeoutMillis;
+    }
+
+    public void setTimeoutMillis(long timeoutMillis) {
+        this.timeoutMillis = timeoutMillis;
+    }
 
     /** A target written as {@code {item.owner}} is chosen at run time. */
-    public boolean hasDynamicTarget() { return targetAgent.startsWith("{"); }
-    public boolean hasDynamicVariable() { return variableName.startsWith("{"); }
+    public boolean hasDynamicTarget() {
+        return targetAgent.startsWith("{");
+    }
 
-    public SchemaDef getExpecting() { return expecting; }
-    public void setExpecting(SchemaDef expecting) { this.expecting = expecting; }
+    public boolean hasDynamicVariable() {
+        return variableName.startsWith("{");
+    }
 
-    public int getRetryCount() { return retryCount; }
-    public void setRetryCount(int retryCount) { this.retryCount = retryCount; }
+    public SchemaDef getExpecting() {
+        return expecting;
+    }
 
-    public List<Statement> getOnFailure() { return onFailure; }
+    public void setExpecting(SchemaDef expecting) {
+        this.expecting = expecting;
+    }
 
-    /** The {@code on_stopped { }} handler: what to do when the agent is stopped through its handle. Empty when there is none. */
-    public List<Statement> getOnStopped() { return onStopped; }
-    public boolean hasOnStopped() { return hasOnStopped; }
-    public void setHasOnStopped(boolean hasOnStopped) { this.hasOnStopped = hasOnStopped; }
+    public int getRetryCount() {
+        return retryCount;
+    }
+
+    public void setRetryCount(int retryCount) {
+        this.retryCount = retryCount;
+    }
+
+    public List<Statement> getOnFailure() {
+        return onFailure;
+    }
+
+    /**
+     * The {@code on_stopped { }} handler: what to do when the agent is stopped through its handle.
+     * Empty when there is none.
+     */
+    public List<Statement> getOnStopped() {
+        return onStopped;
+    }
+
+    public boolean hasOnStopped() {
+        return hasOnStopped;
+    }
+
+    public void setHasOnStopped(boolean hasOnStopped) {
+        this.hasOnStopped = hasOnStopped;
+    }
 
     private BudgetDef budget;
+
     /** This statement's own budget ({@code budget N tokens}), or null. */
-    public BudgetDef getBudget() { return budget; }
-    public void setBudget(BudgetDef budget) { this.budget = budget; }
+    public BudgetDef getBudget() {
+        return budget;
+    }
+
+    public void setBudget(BudgetDef budget) {
+        this.budget = budget;
+    }
 
     private boolean lenientSchema;
 
     /**
-     * True for a delegate the runtime builds itself and whose answer it checks on its own terms (a decision's proposal, where a missing
-     * confidence is allowed). The answer is read as JSON when it is JSON and left as text when it is not, as every schema answer used to be.
-     * A script's own delegates are never lenient: the parser does not set this.
+     * True for a delegate the runtime builds itself and whose answer it checks on its own terms (a
+     * decision's proposal, where a missing confidence is allowed). The answer is read as JSON when
+     * it is JSON and left as text when it is not, as every schema answer used to be. A script's own
+     * delegates are never lenient: the parser does not set this.
      */
     public boolean isLenientSchema() {
         return lenientSchema;

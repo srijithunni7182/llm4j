@@ -12,8 +12,9 @@ import java.time.Duration;
 import javax.net.ssl.SSLContext;
 
 /**
- * The real transport: HTTPS (or loopback HTTP) to exactly the URL it was given, no redirects followed, every request signed with the
- * client's key. The key lives here and nowhere else; it never appears in a message or a log line, and {@code toString} omits it.
+ * The real transport: HTTPS (or loopback HTTP) to exactly the URL it was given, no redirects
+ * followed, every request signed with the client's key. The key lives here and nowhere else; it
+ * never appears in a message or a log line, and {@code toString} omits it.
  */
 public final class HttpTransport implements Transport {
 
@@ -24,7 +25,10 @@ public final class HttpTransport implements Transport {
     private final Clock clock;
 
     public HttpTransport(URI base, SSLContext tls, String client, String key, Clock clock) {
-        HttpClient.Builder b = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).connectTimeout(Duration.ofSeconds(5));
+        HttpClient.Builder b =
+                HttpClient.newBuilder()
+                        .followRedirects(HttpClient.Redirect.NEVER)
+                        .connectTimeout(Duration.ofSeconds(5));
         if (tls != null) b.sslContext(tls);
         this.http = b.build();
         this.base = base;
@@ -46,20 +50,28 @@ public final class HttpTransport implements Transport {
     private Reply send(String path, String body, boolean verify) throws IOException {
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         String root = base.toString().replaceAll("/+$", "");
-        HttpRequest req = HttpRequest.newBuilder(URI.create(root + path))
-                .timeout(Duration.ofSeconds(verify ? 40 : 30))
-                .header("Content-Type", "application/json")
-                .header(Signer.CLIENT_HEADER, client)
-                .header(Signer.HEADER, Signer.sign(key, clock.instant(), bytes))
-                .POST(HttpRequest.BodyPublishers.ofByteArray(bytes))
-                .build();
+        HttpRequest req =
+                HttpRequest.newBuilder(URI.create(root + path))
+                        .timeout(Duration.ofSeconds(verify ? 40 : 30))
+                        .header("Content-Type", "application/json")
+                        .header(Signer.CLIENT_HEADER, client)
+                        .header(Signer.HEADER, Signer.sign(key, clock.instant(), bytes))
+                        .POST(HttpRequest.BodyPublishers.ofByteArray(bytes))
+                        .build();
         try {
             HttpResponse<String> r = http.send(req, HttpResponse.BodyHandlers.ofString());
-            if (verify && r.statusCode() / 100 == 2
-                    && !Signer.verify(key, r.headers().firstValue(Signer.HEADER).orElse(null), r.body().getBytes(StandardCharsets.UTF_8), clock.instant())) {
-                throw new IOException("the answer was not signed by the server with this process's key");
+            if (verify
+                    && r.statusCode() / 100 == 2
+                    && !Signer.verify(
+                            key,
+                            r.headers().firstValue(Signer.HEADER).orElse(null),
+                            r.body().getBytes(StandardCharsets.UTF_8),
+                            clock.instant())) {
+                throw new IOException(
+                        "the answer was not signed by the server with this process's key");
             }
-            long retry = r.headers().firstValue("Retry-After").map(HttpTransport::seconds).orElse(0L);
+            long retry =
+                    r.headers().firstValue("Retry-After").map(HttpTransport::seconds).orElse(0L);
             return new Reply(r.statusCode(), r.body(), retry);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

@@ -5,9 +5,10 @@ import io.github.llm4j.budget.BudgetExceeded;
 import java.time.Instant;
 
 /**
- * An agent hit a limit that lifts at a known time — a provider rate limit or quota, or a budget window
- * — too far away to wait for inline. It is an {@link AgentInterrupt}: never retried, never turned into
- * a partial answer. A harness catches it to pause the run and resume it at {@link #resetAt()}.
+ * An agent hit a limit that lifts at a known time — a provider rate limit or quota, or a budget
+ * window — too far away to wait for inline. It is an {@link AgentInterrupt}: never retried, never
+ * turned into a partial answer. A harness catches it to pause the run and resume it at {@link
+ * #resetAt()}.
  */
 public final class RateLimited extends AgentInterrupt {
 
@@ -33,14 +34,27 @@ public final class RateLimited extends AgentInterrupt {
 
     /** A budget window ran out; the limit lifts when the window rolls over. */
     public static RateLimited of(BudgetExceeded exceeded) {
-        RateLimitInfo.Scope scope = switch (exceeded.dimension()) {
-            case CALLS -> RateLimitInfo.Scope.REQUESTS;
-            case TOKENS -> RateLimitInfo.Scope.TOKENS;
-            case COST -> RateLimitInfo.Scope.UNKNOWN;
-        };
-        Instant reset = exceeded.resetAt().orElseThrow(() -> new IllegalArgumentException("budget has no window"));
-        return new RateLimited(new RateLimitInfo(reset, scope, "budget:" + exceeded.budget(), null, null, null,
-                false, exceeded.getMessage()), Reason.BUDGET_WINDOW, exceeded);
+        RateLimitInfo.Scope scope =
+                switch (exceeded.dimension()) {
+                    case CALLS -> RateLimitInfo.Scope.REQUESTS;
+                    case TOKENS -> RateLimitInfo.Scope.TOKENS;
+                    case COST -> RateLimitInfo.Scope.UNKNOWN;
+                };
+        Instant reset =
+                exceeded.resetAt()
+                        .orElseThrow(() -> new IllegalArgumentException("budget has no window"));
+        return new RateLimited(
+                new RateLimitInfo(
+                        reset,
+                        scope,
+                        "budget:" + exceeded.budget(),
+                        null,
+                        null,
+                        null,
+                        false,
+                        exceeded.getMessage()),
+                Reason.BUDGET_WINDOW,
+                exceeded);
     }
 
     public RateLimitInfo info() {

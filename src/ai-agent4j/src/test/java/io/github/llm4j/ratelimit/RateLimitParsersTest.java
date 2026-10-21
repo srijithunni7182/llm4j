@@ -14,7 +14,8 @@ import org.junit.jupiter.api.Test;
 /** Verification plan V1.1–V1.10 and N2. */
 class RateLimitParsersTest {
 
-    static final String GEMINI_PER_MINUTE = """
+    static final String GEMINI_PER_MINUTE =
+            """
             {"error": {"code": 429, "message": "Resource has been exhausted", "status": "RESOURCE_EXHAUSTED",
               "details": [
                 {"@type": "type.googleapis.com/google.rpc.QuotaFailure",
@@ -24,7 +25,8 @@ class RateLimitParsersTest {
                 {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "34s"}]}}
             """;
 
-    static final String GEMINI_PER_DAY = """
+    static final String GEMINI_PER_DAY =
+            """
             {"error": {"code": 429, "message": "You exceeded your current quota", "status": "RESOURCE_EXHAUSTED",
               "details": [
                 {"@type": "type.googleapis.com/google.rpc.QuotaFailure",
@@ -63,14 +65,17 @@ class RateLimitParsersTest {
 
     @Test
     void v1_3_anthropicPicksTheExhaustedDimension() {
-        RateLimitInfo info = parse(Map.of(
-                "anthropic-ratelimit-tokens-limit", "80000",
-                "anthropic-ratelimit-tokens-remaining", "0",
-                "anthropic-ratelimit-tokens-reset", "2026-09-27T10:00:45Z",
-                "anthropic-ratelimit-requests-limit", "50",
-                "anthropic-ratelimit-requests-remaining", "12",
-                "anthropic-ratelimit-requests-reset", "2026-09-27T10:00:05Z",
-                "retry-after", "3"), "");
+        RateLimitInfo info =
+                parse(
+                        Map.of(
+                                "anthropic-ratelimit-tokens-limit", "80000",
+                                "anthropic-ratelimit-tokens-remaining", "0",
+                                "anthropic-ratelimit-tokens-reset", "2026-09-27T10:00:45Z",
+                                "anthropic-ratelimit-requests-limit", "50",
+                                "anthropic-ratelimit-requests-remaining", "12",
+                                "anthropic-ratelimit-requests-reset", "2026-09-27T10:00:05Z",
+                                "retry-after", "3"),
+                        "");
         assertThat(info.resetAt()).isEqualTo(Instant.parse("2026-09-27T10:00:45Z"));
         assertThat(info.scope()).isEqualTo(RateLimitInfo.Scope.TOKENS);
         assertThat(info.limit()).isEqualTo(80000L);
@@ -79,22 +84,29 @@ class RateLimitParsersTest {
 
     @Test
     void v1_3b_anthropicWithoutAnExhaustedDimensionTakesTheLatestReset() {
-        RateLimitInfo info = parse(Map.of(
-                "anthropic-ratelimit-requests-remaining", "3",
-                "anthropic-ratelimit-requests-reset", "2026-09-27T10:00:05Z",
-                "anthropic-ratelimit-output-tokens-reset", "2026-09-27T10:00:30+00:00"), "");
+        RateLimitInfo info =
+                parse(
+                        Map.of(
+                                "anthropic-ratelimit-requests-remaining", "3",
+                                "anthropic-ratelimit-requests-reset", "2026-09-27T10:00:05Z",
+                                "anthropic-ratelimit-output-tokens-reset",
+                                        "2026-09-27T10:00:30+00:00"),
+                        "");
         assertThat(info.resetAt()).isEqualTo(Instant.parse("2026-09-27T10:00:30Z"));
         assertThat(info.scope()).isEqualTo(RateLimitInfo.Scope.TOKENS);
     }
 
     @Test
     void v1_4_openAiTokens() {
-        RateLimitInfo info = parse(Map.of(
-                "x-ratelimit-limit-tokens", "30000",
-                "x-ratelimit-remaining-tokens", "0",
-                "x-ratelimit-reset-tokens", "6m0s",
-                "x-ratelimit-remaining-requests", "499",
-                "x-ratelimit-reset-requests", "120ms"), "");
+        RateLimitInfo info =
+                parse(
+                        Map.of(
+                                "x-ratelimit-limit-tokens", "30000",
+                                "x-ratelimit-remaining-tokens", "0",
+                                "x-ratelimit-reset-tokens", "6m0s",
+                                "x-ratelimit-remaining-requests", "499",
+                                "x-ratelimit-reset-requests", "120ms"),
+                        "");
         assertThat(info.resetAt()).isEqualTo(Instant.parse("2026-09-27T10:06:00Z"));
         assertThat(info.scope()).isEqualTo(RateLimitInfo.Scope.TOKENS);
         assertThat(info.limit()).isEqualTo(30000L);
@@ -119,7 +131,8 @@ class RateLimitParsersTest {
         RateLimitInfo info = parse(Map.of(), GEMINI_PER_MINUTE);
         assertThat(info.resetAt()).isEqualTo(Instant.parse("2026-09-27T10:00:34Z"));
         assertThat(info.scope()).isEqualTo(RateLimitInfo.Scope.REQUESTS);
-        assertThat(info.quotaId()).isEqualTo("GenerateRequestsPerMinutePerProjectPerModel-FreeTier");
+        assertThat(info.quotaId())
+                .isEqualTo("GenerateRequestsPerMinutePerProjectPerModel-FreeTier");
     }
 
     @Test
@@ -139,8 +152,10 @@ class RateLimitParsersTest {
 
     @Test
     void v1_8_dailyResetZoneIsConfigurable() {
-        RateLimitInfo info = RateLimitParsers.standard(ZoneOffset.UTC, Duration.ofSeconds(60), Duration.ofHours(1))
-                .parse(response(Map.of(), GEMINI_PER_DAY), clock);
+        RateLimitInfo info =
+                RateLimitParsers.standard(
+                                ZoneOffset.UTC, Duration.ofSeconds(60), Duration.ofHours(1))
+                        .parse(response(Map.of(), GEMINI_PER_DAY), clock);
         assertThat(info.resetAt()).isEqualTo(Instant.parse("2026-09-28T00:00:00Z"));
     }
 
@@ -169,8 +184,16 @@ class RateLimitParsersTest {
 
     @Test
     void v1_10_malformedValuesFallThrough() {
-        RateLimitInfo info = parse(Map.of("Retry-After", "soon", "x-ratelimit-reset-tokens", "later",
-                "anthropic-ratelimit-tokens-reset", "tomorrow"), "{not json details");
+        RateLimitInfo info =
+                parse(
+                        Map.of(
+                                "Retry-After",
+                                "soon",
+                                "x-ratelimit-reset-tokens",
+                                "later",
+                                "anthropic-ratelimit-tokens-reset",
+                                "tomorrow"),
+                        "{not json details");
         assertThat(info.estimated()).isTrue();
         // a bad header does not hide a good body
         info = parse(Map.of("Retry-After", "soon"), GEMINI_PER_MINUTE);
@@ -182,8 +205,11 @@ class RateLimitParsersTest {
     @Test
     void geminiBodyAsArrayAndWithoutRetryInfo() {
         String array = "[" + GEMINI_PER_MINUTE + "]";
-        assertThat(parse(Map.of(), array).resetAt()).isEqualTo(Instant.parse("2026-09-27T10:00:34Z"));
-        String tokens = GEMINI_PER_MINUTE.replace("GenerateRequestsPerMinute", "GenerateContentInputTokensPerMinute");
+        assertThat(parse(Map.of(), array).resetAt())
+                .isEqualTo(Instant.parse("2026-09-27T10:00:34Z"));
+        String tokens =
+                GEMINI_PER_MINUTE.replace(
+                        "GenerateRequestsPerMinute", "GenerateContentInputTokensPerMinute");
         assertThat(parse(Map.of(), tokens).scope()).isEqualTo(RateLimitInfo.Scope.TOKENS);
         String noDelay = GEMINI_PER_MINUTE.replace("\"retryDelay\": \"34s\"", "\"other\": 1");
         assertThat(parse(Map.of(), noDelay).estimated()).isTrue();
@@ -192,30 +218,61 @@ class RateLimitParsersTest {
     @Test
     void n2_parsingNeverThrows() {
         Random random = new Random(42);
-        String[] names = {"Retry-After", "anthropic-ratelimit-tokens-reset", "anthropic-ratelimit-tokens-remaining",
-                "x-ratelimit-reset-tokens", "x-ratelimit-remaining-requests", "x-ratelimit-reset-requests"};
-        String[] bodies = {"", "{", "null", "[]", "{\"error\":{\"details\":5}}", "{\"error\":{\"details\":[{}]}}",
-                "{\"error\":{\"details\":[{\"@type\":\"google.rpc.RetryInfo\",\"retryDelay\":7}]}}", GEMINI_PER_DAY};
+        String[] names = {
+            "Retry-After",
+            "anthropic-ratelimit-tokens-reset",
+            "anthropic-ratelimit-tokens-remaining",
+            "x-ratelimit-reset-tokens",
+            "x-ratelimit-remaining-requests",
+            "x-ratelimit-reset-requests"
+        };
+        String[] bodies = {
+            "",
+            "{",
+            "null",
+            "[]",
+            "{\"error\":{\"details\":5}}",
+            "{\"error\":{\"details\":[{}]}}",
+            "{\"error\":{\"details\":[{\"@type\":\"google.rpc.RetryInfo\",\"retryDelay\":7}]}}",
+            GEMINI_PER_DAY
+        };
         RateLimitParsers parsers = RateLimitParsers.standard();
         for (int i = 0; i < 1000; i++) {
             Map<String, String> headers = new HashMap<>();
             for (String n : names) {
                 if (random.nextBoolean()) headers.put(n, randomValue(random));
             }
-            RateLimitInfo info = parsers.parse(response(headers, bodies[random.nextInt(bodies.length)]), clock);
+            RateLimitInfo info =
+                    parsers.parse(response(headers, bodies[random.nextInt(bodies.length)]), clock);
             assertThat(info.resetAt()).isNotNull();
         }
     }
 
     private static String randomValue(Random r) {
-        String[] pool = {"", " ", "-1", "0", "5", "1e9", "NaN", "Infinity", "6m0s", "1h", "x", "2026-13-40T99:99:99Z",
-                "2026-09-27T10:00:45Z", "Sun, 27 Sep 2026 10:05:00 GMT", "99999999999999999999"};
+        String[] pool = {
+            "",
+            " ",
+            "-1",
+            "0",
+            "5",
+            "1e9",
+            "NaN",
+            "Infinity",
+            "6m0s",
+            "1h",
+            "x",
+            "2026-13-40T99:99:99Z",
+            "2026-09-27T10:00:45Z",
+            "Sun, 27 Sep 2026 10:05:00 GMT",
+            "99999999999999999999"
+        };
         return pool[r.nextInt(pool.length)];
     }
 
     @Test
     void infoHelpers() {
-        RateLimitInfo info = RateLimitInfo.at(Instant.parse("2026-09-27T09:00:00Z"), null, null, "d");
+        RateLimitInfo info =
+                RateLimitInfo.at(Instant.parse("2026-09-27T09:00:00Z"), null, null, "d");
         assertThat(info.waitFrom(clock.instant())).isEqualTo(Duration.ZERO);
         assertThat(info.scope()).isEqualTo(RateLimitInfo.Scope.UNKNOWN);
         assertThat(info.withProvider("google").describe()).isEqualTo("google rate limit");

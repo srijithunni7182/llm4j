@@ -1,8 +1,13 @@
 package io.github.llm4j.loom.eval;
 
-/** What became of a check or a scenario. {@code UNJUDGED} is never counted as a pass: nothing confirmed it. */
+/**
+ * What became of a check or a scenario. {@code UNJUDGED} is never counted as a pass: nothing
+ * confirmed it.
+ */
 public enum Status {
-    PASS, FAIL, UNJUDGED;
+    PASS,
+    FAIL,
+    UNJUDGED;
 
     /** The worst of two: a fail beats unjudged, which beats a pass. */
     public Status and(Status other) {

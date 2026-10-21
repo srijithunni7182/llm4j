@@ -11,8 +11,8 @@ import java.util.stream.Stream;
 
 /**
  * Returns scripted content in order (the last entry repeats) and reports a fixed usage — by default
- * prompt 100 + completion 50, the verification plan's "standard call". Counts calls and records every
- * request it receives. Thread-safe.
+ * prompt 100 + completion 50, the verification plan's "standard call". Counts calls and records
+ * every request it receives. Thread-safe.
  */
 public class ScriptedLLMClient implements LLMClient {
 

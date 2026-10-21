@@ -6,7 +6,8 @@ import io.github.llm4j.telemetry.StatsAccumulator;
 import io.github.llm4j.telemetry.ToolCallEvent;
 
 /**
- * A listener that keeps statistics across runs and threads: add it once and read {@link #snapshot()} whenever you like.
+ * A listener that keeps statistics across runs and threads: add it once and read {@link
+ * #snapshot()} whenever you like.
  *
  * <pre>{@code
  * StatsCollector stats = new StatsCollector();

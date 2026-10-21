@@ -45,6 +45,8 @@ public class McpToolAdapter implements Tool {
     @Override
     public java.util.Map<String, Object> getParametersSchema() {
         // the server's own JSON Schema, when it sent one
-        return inputSchema != null && !inputSchema.isEmpty() ? inputSchema : io.github.llm4j.model.ToolSchema.permissive();
+        return inputSchema != null && !inputSchema.isEmpty()
+                ? inputSchema
+                : io.github.llm4j.model.ToolSchema.permissive();
     }
 }

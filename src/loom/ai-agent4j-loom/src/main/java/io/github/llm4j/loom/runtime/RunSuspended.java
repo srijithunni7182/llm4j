@@ -6,22 +6,30 @@ import java.time.Instant;
 
 /**
  * Thrown out of {@code executeWorkflow} when a run pauses: the run holds no thread while it waits.
+ *
  * <ul>
- *   <li>{@link Reason#HUMAN}: record the answer in the {@link RunJournal} under {@link #stepId()} and run
- *       the workflow again with the same journal.</li>
- *   <li>{@link Reason#RATE_LIMIT} / {@link Reason#BUDGET_WINDOW}: run it again at {@link #resumeAt()}
- *       (a trigger store does this for you). Everything done so far replays; the step that hit the
- *       limit runs again.</li>
- *   <li>{@link Reason#SLEEP}: a {@code sleep} step; run it again at {@link #resumeAt()}. The wake time is
- *       journaled, so a restart never lengthens the sleep, and a sleep is not counted against
- *       {@code max_resumes}.</li>
- *   <li>{@link Reason#OPERATOR}: a person asked for the run to be suspended (from an observer's control). It holds nothing and
- *       schedules nothing: run it again with the same journal when you want it to go on.</li>
+ *   <li>{@link Reason#HUMAN}: record the answer in the {@link RunJournal} under {@link #stepId()}
+ *       and run the workflow again with the same journal.
+ *   <li>{@link Reason#RATE_LIMIT} / {@link Reason#BUDGET_WINDOW}: run it again at {@link
+ *       #resumeAt()} (a trigger store does this for you). Everything done so far replays; the step
+ *       that hit the limit runs again.
+ *   <li>{@link Reason#SLEEP}: a {@code sleep} step; run it again at {@link #resumeAt()}. The wake
+ *       time is journaled, so a restart never lengthens the sleep, and a sleep is not counted
+ *       against {@code max_resumes}.
+ *   <li>{@link Reason#OPERATOR}: a person asked for the run to be suspended (from an observer's
+ *       control). It holds nothing and schedules nothing: run it again with the same journal when
+ *       you want it to go on.
  * </ul>
  */
 public class RunSuspended extends AgentInterrupt {
 
-    public enum Reason { HUMAN, RATE_LIMIT, BUDGET_WINDOW, SLEEP, OPERATOR }
+    public enum Reason {
+        HUMAN,
+        RATE_LIMIT,
+        BUDGET_WINDOW,
+        SLEEP,
+        OPERATOR
+    }
 
     private final String stepId;
     private final String prompt;
@@ -73,7 +81,10 @@ public class RunSuspended extends AgentInterrupt {
         this.detail = detail;
     }
 
-    /** What the run is waiting for, in words ({@code sleeping 90s}), or null when there is a {@link #limit()} to describe instead. */
+    /**
+     * What the run is waiting for, in words ({@code sleeping 90s}), or null when there is a {@link
+     * #limit()} to describe instead.
+     */
     public String detail() {
         return detail;
     }

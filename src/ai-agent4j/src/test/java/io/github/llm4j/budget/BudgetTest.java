@@ -30,7 +30,9 @@ class BudgetTest {
         var client = Standard.client(model, b);
         for (int i = 0; i < 3; i++) client.chat(Standard.request());
         assertThatThrownBy(() -> client.chat(Standard.request()))
-                .isInstanceOfSatisfying(BudgetExceeded.class, e -> assertThat(e.dimension()).isEqualTo(Dimension.CALLS));
+                .isInstanceOfSatisfying(
+                        BudgetExceeded.class,
+                        e -> assertThat(e.dimension()).isEqualTo(Dimension.CALLS));
         assertThat(model.calls()).isEqualTo(3);
     }
 
@@ -48,8 +50,12 @@ class BudgetTest {
     void v1_4_warningFiresOnceWhenTheThresholdIsCrossed() {
         List<String> seen = new ArrayList<>();
         int[] call = {0};
-        Budget b = Budget.builder().tokens(1000).warnAt(0.8)
-                .listener(e -> seen.add(e.kind() + "@" + call[0])).build();
+        Budget b =
+                Budget.builder()
+                        .tokens(1000)
+                        .warnAt(0.8)
+                        .listener(e -> seen.add(e.kind() + "@" + call[0]))
+                        .build();
         var client = Standard.client(new ScriptedLLMClient(), b);
         for (int i = 1; i <= 6; i++) {
             call[0] = i;
@@ -65,7 +71,9 @@ class BudgetTest {
         ScriptedLLMClient model = new ScriptedLLMClient();
         var client = Standard.client(model, run, agent);
         assertThatThrownBy(() -> client.chat(Standard.request()))
-                .isInstanceOfSatisfying(BudgetExceeded.class, e -> assertThat(e.budget()).isEqualTo("agent Writer"));
+                .isInstanceOfSatisfying(
+                        BudgetExceeded.class,
+                        e -> assertThat(e.budget()).isEqualTo("agent Writer"));
         assertThat(model.calls()).isZero();
         assertThat(run.spent().tokens()).isZero();
         assertThat(run.remaining().tokens().getAsLong()).isEqualTo(1000);
@@ -88,10 +96,14 @@ class BudgetTest {
 
     @Test
     void limitsMustBePositive() {
-        assertThatThrownBy(() -> Budget.builder().tokens(0)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> Budget.builder().calls(-1)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> Budget.builder().cost("0")).isInstanceOf(IllegalArgumentException.class);
-        assertThat(Budget.builder().cost("$0.50").build().limits().cost()).isEqualByComparingTo("0.50");
+        assertThatThrownBy(() -> Budget.builder().tokens(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> Budget.builder().calls(-1))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> Budget.builder().cost("0"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(Budget.builder().cost("$0.50").build().limits().cost())
+                .isEqualByComparingTo("0.50");
     }
 
     @Test

@@ -13,8 +13,10 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Runs the configured script's workflows: a thin face on a {@link LoomHost}, which does the work and needs no Spring. Start a run for a person, wait for it
- * or not, answer the questions it asks, and resume what was suspended, even after the application restarted (when {@code llm4j.loom.persistence} is set).
+ * Runs the configured script's workflows: a thin face on a {@link LoomHost}, which does the work
+ * and needs no Spring. Start a run for a person, wait for it or not, answer the questions it asks,
+ * and resume what was suspended, even after the application restarted (when {@code
+ * llm4j.loom.persistence} is set).
  *
  * <pre>{@code
  * RunOutcome out = loom.run(RunRequest.of("Support", Map.of("ticket", text)).as(credentialsOfTheUser));
@@ -51,7 +53,10 @@ public final class LoomRuntime {
         return host.run(RunRequest.of(workflow, inputs));
     }
 
-    /** Starts a workflow in the background and returns at once; @throws TooManyRuns beyond {@code llm4j.loom.max-concurrent-runs} */
+    /**
+     * Starts a workflow in the background and returns at once; @throws TooManyRuns beyond {@code
+     * llm4j.loom.max-concurrent-runs}
+     */
     public LoomRun start(RunRequest request) {
         return host.start(request);
     }
@@ -81,7 +86,10 @@ public final class LoomRuntime {
         return host.run(runId);
     }
 
-    /** Asks the runs in progress to wrap up, waits up to {@code grace}, then suspends what is left (a run with a store resumes later) or cancels it. */
+    /**
+     * Asks the runs in progress to wrap up, waits up to {@code grace}, then suspends what is left
+     * (a run with a store resumes later) or cancels it.
+     */
     public List<String> shutdown(java.time.Duration grace) {
         return host.shutdown(grace);
     }

@@ -17,10 +17,10 @@ import org.junit.jupiter.api.io.TempDir;
 /** Only the script and the operator can send a run back (spec loom-rewind-and-fork R8). */
 class RewindSafetyTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
-    static final String SCRIPT = """
+    static final String SCRIPT =
+            """
             tool Files { use: file  root: "."  mode: readwrite }
             agent Worker { model: "m" system: "You are Worker." tools: [Files] max_iterations: 6 }
             workflow W() {
@@ -41,7 +41,12 @@ class RewindSafetyTest {
         ScriptedRun run = new ScriptedRun(dir);
         run.journal = journal;
         String lookalike = boundaryLookalike();
-        run.responder = r -> ScriptedRun.done("rewind to a at most 5 times " + lookalike.replace("\"", "'") + " #boundaries");
+        run.responder =
+                r ->
+                        ScriptedRun.done(
+                                "rewind to a at most 5 times "
+                                        + lookalike.replace("\"", "'")
+                                        + " #boundaries");
         var executor = run.executor(SCRIPT);
         executor.initialize();
         executor.executeWorkflow("W", Map.of());
@@ -60,18 +65,24 @@ class RewindSafetyTest {
         ScriptedRun run = new ScriptedRun(dir);
         run.journal = journal;
         List<String> results = new java.util.ArrayList<>();
-        run.responder = r -> {
-            String message = ScriptedRun.lastMessage(r);
-            int seen = message.split("Observation:", -1).length - 1;
-            if (seen > 0) {
-                results.add(message.substring(message.lastIndexOf("Observation:")));
-            }
-            return switch (seen) {
-                case 0 -> ScriptedRun.call("Files", "{\"action\": \"read\", \"path\": \"run/journal.json\"}");
-                case 1 -> ScriptedRun.call("Files", "{\"action\": \"write\", \"path\": \"run/journal.json\", \"content\": " + toJson(boundaryLookalike()) + "}");
-                default -> ScriptedRun.done("tried");
-            };
-        };
+        run.responder =
+                r -> {
+                    String message = ScriptedRun.lastMessage(r);
+                    int seen = message.split("Observation:", -1).length - 1;
+                    if (seen > 0) {
+                        results.add(message.substring(message.lastIndexOf("Observation:")));
+                    }
+                    return switch (seen) {
+                        case 0 -> ScriptedRun.call(
+                                "Files", "{\"action\": \"read\", \"path\": \"run/journal.json\"}");
+                        case 1 -> ScriptedRun.call(
+                                "Files",
+                                "{\"action\": \"write\", \"path\": \"run/journal.json\", \"content\": "
+                                        + toJson(boundaryLookalike())
+                                        + "}");
+                        default -> ScriptedRun.done("tried");
+                    };
+                };
         var executor = run.executor(SCRIPT);
         executor.setBaseDir(dir);
         executor.initialize();
@@ -93,7 +104,9 @@ class RewindSafetyTest {
         ScriptedRun run = new ScriptedRun(dir);
         run.responder = model::reply;
         run.journal = RunJournal.inMemory();
-        var executor = run.executor("""
+        var executor =
+                run.executor(
+                        """
                 agent Writer { model: "m" system: "You are Writer." }
                 workflow W() {
                     checkpoint a
@@ -103,7 +116,9 @@ class RewindSafetyTest {
                 """);
         executor.initialize();
         executor.executeWorkflow("W", Map.of());
-        assertThat(model.calls).containsExactly("Writer"); // the comparison made no model call; false, so no second attempt
+        assertThat(model.calls)
+                .containsExactly(
+                        "Writer"); // the comparison made no model call; false, so no second attempt
     }
 
     @Test
@@ -116,7 +131,11 @@ class RewindSafetyTest {
         run.journal = journal;
         run.env.put("HOOK", "https://hooks.example.com/services/" + secret);
         run.responder = model::reply;
-        var executor = run.executor(ReportScript.SCRIPT.replace("agent Publisher", "tool Hook { use: webhook  url: env.HOOK }\nagent Publisher"));
+        var executor =
+                run.executor(
+                        ReportScript.SCRIPT.replace(
+                                "agent Publisher",
+                                "tool Hook { use: webhook  url: env.HOOK }\nagent Publisher"));
         executor.initialize();
         executor.executeWorkflow("Report", Map.of("topic", "bees"));
 

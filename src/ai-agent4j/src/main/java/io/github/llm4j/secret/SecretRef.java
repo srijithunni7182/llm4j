@@ -4,10 +4,12 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
- * A handle on a secret: a store and a name. Hand it to a provider or tool instead of the key itself; they call {@link #resolveFor} when they
- * make a request and keep nothing, so a secret changed in the store takes effect on the next request.
+ * A handle on a secret: a store and a name. Hand it to a provider or tool instead of the key
+ * itself; they call {@link #resolveFor} when they make a request and keep nothing, so a secret
+ * changed in the store takes effect on the next request.
  *
- * <p>{@link #toString()} is {@code secret:<name>} and never the value. A reference is deliberately not {@link java.io.Serializable}.
+ * <p>{@link #toString()} is {@code secret:<name>} and never the value. A reference is deliberately
+ * not {@link java.io.Serializable}.
  */
 public final class SecretRef implements Supplier<String> {
 
@@ -21,14 +23,19 @@ public final class SecretRef implements Supplier<String> {
         this.literal = literal;
     }
 
-    /** The secret called {@code name} in {@code store}. The secret need not exist yet; resolving it then fails. */
+    /**
+     * The secret called {@code name} in {@code store}. The secret need not exist yet; resolving it
+     * then fails.
+     */
     public static SecretRef of(SecretStore store, String name) {
-        return new SecretRef(Objects.requireNonNull(store, "store"), SecretNames.require(name), null);
+        return new SecretRef(
+                Objects.requireNonNull(store, "store"), SecretNames.require(name), null);
     }
 
     /**
-     * A reference that simply carries a value the caller already has: what the {@code String} convenience overloads use. It is exactly as secure
-     * as the string it wraps (held in memory, for the life of the reference).
+     * A reference that simply carries a value the caller already has: what the {@code String}
+     * convenience overloads use. It is exactly as secure as the string it wraps (held in memory,
+     * for the life of the reference).
      */
     public static SecretRef literal(String value) {
         return new SecretRef(null, "(literal)", Objects.requireNonNull(value, "value"));
@@ -68,9 +75,12 @@ public final class SecretRef implements Supplier<String> {
         if (this == o) return true;
         if (!(o instanceof SecretRef r)) return false;
         if (literal != null || r.literal != null) {
-            // two literals are equal when they carry the same value (compared in constant time); a literal never equals a stored secret
-            return literal != null && r.literal != null
-                    && java.security.MessageDigest.isEqual(literal.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+            // two literals are equal when they carry the same value (compared in constant time); a
+            // literal never equals a stored secret
+            return literal != null
+                    && r.literal != null
+                    && java.security.MessageDigest.isEqual(
+                            literal.getBytes(java.nio.charset.StandardCharsets.UTF_8),
                             r.literal.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         }
         return store == r.store && name.equals(r.name);

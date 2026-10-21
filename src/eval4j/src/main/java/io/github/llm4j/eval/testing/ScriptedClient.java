@@ -31,9 +31,13 @@ public final class ScriptedClient implements LLMClient {
             this.answer = answer;
         }
 
-        Predicate<String> when() { return when; }
+        Predicate<String> when() {
+            return when;
+        }
 
-        String answer() { return answer; }
+        String answer() {
+            return answer;
+        }
     }
 
     private final List<Rule> rules = new CopyOnWriteArrayList<>();
@@ -47,8 +51,10 @@ public final class ScriptedClient implements LLMClient {
     }
 
     /**
-     * Answers with the first of {@code answers} the first time a request contains {@code needle}, the second the next time, and so on; the last
-     * answer repeats. For "the first draft is blocked, the rewrite is fine" or "the researcher asks for more evidence once, then has enough".
+     * Answers with the first of {@code answers} the first time a request contains {@code needle},
+     * the second the next time, and so on; the last answer repeats. For "the first draft is
+     * blocked, the rewrite is fine" or "the researcher asks for more evidence once, then has
+     * enough".
      */
     public ScriptedClient whenSeenThen(String needle, String first, String... then) {
         return whenThen(t -> t.contains(needle), first, then);
@@ -59,23 +65,33 @@ public final class ScriptedClient implements LLMClient {
         List<String> answers = new java.util.ArrayList<>();
         answers.add(first);
         answers.addAll(List.of(then));
-        java.util.concurrent.atomic.AtomicInteger turn = new java.util.concurrent.atomic.AtomicInteger();
-        rules.add(new Rule(predicate, null) {
-            @Override public String answer() { return answers.get(Math.min(turn.getAndIncrement(), answers.size() - 1)); }
-        });
+        java.util.concurrent.atomic.AtomicInteger turn =
+                new java.util.concurrent.atomic.AtomicInteger();
+        rules.add(
+                new Rule(predicate, null) {
+                    @Override
+                    public String answer() {
+                        return answers.get(Math.min(turn.getAndIncrement(), answers.size() - 1));
+                    }
+                });
         return this;
     }
 
     /**
-     * Answers when the agent's <em>current task</em> contains {@code needle}. A Loom agent's request also carries the earlier agents' tasks and
-     * answers ("Conversation History"), so {@link #whenSeen} can match a later request because of what an earlier agent said; this looks only
-     * at the part after the last {@code Current Task:} marker (or at the whole text when there is none).
+     * Answers when the agent's <em>current task</em> contains {@code needle}. A Loom agent's
+     * request also carries the earlier agents' tasks and answers ("Conversation History"), so
+     * {@link #whenSeen} can match a later request because of what an earlier agent said; this looks
+     * only at the part after the last {@code Current Task:} marker (or at the whole text when there
+     * is none).
      */
     public ScriptedClient whenTaskSeen(String needle, String answer) {
         return when(t -> currentTask(t).contains(needle), answer);
     }
 
-    /** The part of a request text that is the agent's own task: after the last {@code Current Task:} marker, or all of it. */
+    /**
+     * The part of a request text that is the agent's own task: after the last {@code Current Task:}
+     * marker, or all of it.
+     */
     public static String currentTask(String requestText) {
         int at = requestText.lastIndexOf("Current Task:");
         return at < 0 ? requestText : requestText.substring(at);

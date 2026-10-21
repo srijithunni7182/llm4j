@@ -35,11 +35,22 @@ final class Scripted implements LLMClient {
     }
 
     static LLMResponse text(String content) {
-        return LLMResponse.builder().content(content).model("m").tokenUsage(10, 5, 15).finishReason("stop").build();
+        return LLMResponse.builder()
+                .content(content)
+                .model("m")
+                .tokenUsage(10, 5, 15)
+                .finishReason("stop")
+                .build();
     }
 
     static LLMResponse calls(String note, ToolCall... calls) {
-        return LLMResponse.builder().content(note).model("m").tokenUsage(10, 5, 15).finishReason("tool_calls").toolCalls(List.of(calls)).build();
+        return LLMResponse.builder()
+                .content(note)
+                .model("m")
+                .tokenUsage(10, 5, 15)
+                .finishReason("tool_calls")
+                .toolCalls(List.of(calls))
+                .build();
     }
 
     static ToolCall call(String id, String name, Map<String, Object> args) {
@@ -49,7 +60,9 @@ final class Scripted implements LLMClient {
     @Override
     public LLMResponse chat(LLMRequest request) {
         requests.add(request);
-        if (script.isEmpty()) throw new IllegalStateException("the script ran out after " + requests.size() + " requests");
+        if (script.isEmpty())
+            throw new IllegalStateException(
+                    "the script ran out after " + requests.size() + " requests");
         return script.poll();
     }
 
@@ -80,10 +93,25 @@ final class Scripted implements LLMClient {
             this.reply = reply;
         }
 
-        @Override public String getName() { return name; }
-        @Override public String getDescription() { return "test tool " + name; }
-        @Override public Map<String, Object> getParametersSchema() { return schema; }
-        @Override public boolean requiresApproval(Map<String, Object> args) { return needsApproval; }
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public String getDescription() {
+            return "test tool " + name;
+        }
+
+        @Override
+        public Map<String, Object> getParametersSchema() {
+            return schema;
+        }
+
+        @Override
+        public boolean requiresApproval(Map<String, Object> args) {
+            return needsApproval;
+        }
 
         @Override
         public String execute(Map<String, Object> args) {

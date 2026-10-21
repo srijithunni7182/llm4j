@@ -18,7 +18,8 @@ class TaskJournalTest {
 
     private final TaskHarness h = new TaskHarness();
 
-    private static final String PAY = """
+    private static final String PAY =
+            """
             workflow Main() {
                 run Pay(amount = 40) -> receipt
             }
@@ -54,7 +55,11 @@ class TaskJournalTest {
         assertEquals(1, c3.calls.get());
         assertEquals(first.getContext().getVariable("b"), second.getContext().getVariable("b"));
         assertEquals(3, map(second.getContext().getVariable("c")).get("value"));
-        assertEquals(List.of(TraceEvent.TASK_REPLAYED, TraceEvent.TASK_REPLAYED, TraceEvent.TASK_REPLAYED),
+        assertEquals(
+                List.of(
+                        TraceEvent.TASK_REPLAYED,
+                        TraceEvent.TASK_REPLAYED,
+                        TraceEvent.TASK_REPLAYED),
                 h.traceTypes().stream().filter(t -> t.startsWith("task")).toList());
         assertEquals("ok", h.traceOf(TraceEvent.TASK_REPLAYED).get(0).data().get("outcome"));
         assertEquals(0, h.modelCalls.get());
@@ -70,7 +75,8 @@ class TaskJournalTest {
     }
 
     @Test
-    void replayAcrossAFileJournalGivesTheSameVariable(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) {
+    void replayAcrossAFileJournalGivesTheSameVariable(
+            @org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) {
         h.pure("A", c -> TaskResult.rejected("no").with("n", 2).with("list", List.of(1, "x")));
         h.journal = new io.github.llm4j.loom.runtime.FileRunJournal(dir.resolve("run.json"));
         HarnessExecutor first = h.run("workflow Main() { run A() -> a }");
@@ -85,9 +91,20 @@ class TaskJournalTest {
     @Test
     void failedRecorded() {
         AtomicInteger handled = new AtomicInteger();
-        TaskHarness.Probe flaky = h.pure("Flaky", c -> { throw new IllegalStateException("db down"); });
-        h.pure("Handle", c -> { handled.incrementAndGet(); return TaskResult.value(c.requireArg("why", String.class)); });
-        String script = """
+        TaskHarness.Probe flaky =
+                h.pure(
+                        "Flaky",
+                        c -> {
+                            throw new IllegalStateException("db down");
+                        });
+        h.pure(
+                "Handle",
+                c -> {
+                    handled.incrementAndGet();
+                    return TaskResult.value(c.requireArg("why", String.class));
+                });
+        String script =
+                """
                 workflow Main() {
                     run Flaky() -> r on_failure { run Handle(why = "{_error}") -> h }
                 }
@@ -97,27 +114,42 @@ class TaskJournalTest {
         assertEquals("failed", h.journal.get(stepKey()).orElseThrow().kind());
         again(script);
         assertEquals(1, flaky.calls.get(), "a recorded failure is not re-run on resume");
-        assertEquals(1, handled.get(), "the handler's own step was journaled too, so it is replayed, not run twice");
+        assertEquals(
+                1,
+                handled.get(),
+                "the handler's own step was journaled too, so it is replayed, not run twice");
         assertEquals(1, h.traceOf(TraceEvent.TASK_REPLAYED).size());
     }
 
     @Test
     void failureWithoutHandlerIsNotRecordedSoAResumeTriesAgain() {
         AtomicInteger n = new AtomicInteger();
-        TaskHarness.Probe flaky = h.pure("Flaky", c -> {
-            if (n.getAndIncrement() == 0) throw new IllegalStateException("db down");
-            return TaskResult.ok();
-        });
+        TaskHarness.Probe flaky =
+                h.pure(
+                        "Flaky",
+                        c -> {
+                            if (n.getAndIncrement() == 0)
+                                throw new IllegalStateException("db down");
+                            return TaskResult.ok();
+                        });
         String script = "workflow Main() { run Flaky() -> r }";
         assertThrows(RuntimeException.class, () -> h.run(script));
-        assertTrue(h.journal.all().isEmpty() || h.journal.all().values().stream().noneMatch(e -> e.kind().equals("failed")));
+        assertTrue(
+                h.journal.all().isEmpty()
+                        || h.journal.all().values().stream()
+                                .noneMatch(e -> e.kind().equals("failed")));
         again(script);
         assertEquals(2, flaky.calls.get());
     }
 
     @Test
     void operatorRetry() {
-        TaskHarness.Probe flaky = h.pure("Flaky", c -> { throw new IllegalStateException("db down"); });
+        TaskHarness.Probe flaky =
+                h.pure(
+                        "Flaky",
+                        c -> {
+                            throw new IllegalStateException("db down");
+                        });
         String script = "workflow Main() { run Flaky() -> r on_failure { note \"x\" } }";
         h.run(script);
         String key = stepKey();
@@ -143,8 +175,11 @@ class TaskJournalTest {
         RuntimeException e = assertThrows(RuntimeException.class, () -> again(PAY));
         assertEquals(1, pay.calls.get(), "never repeated");
         assertTrue(e.getMessage().contains("outcome is unknown"), e.getMessage());
-        assertTrue(e.getMessage().contains("retry"), "tells the operator what to do: " + e.getMessage());
-        assertTrue(h.audit.stream().anyMatch(a -> a.startsWith("task_unknown")), h.audit.toString());
+        assertTrue(
+                e.getMessage().contains("retry"),
+                "tells the operator what to do: " + e.getMessage());
+        assertTrue(
+                h.audit.stream().anyMatch(a -> a.startsWith("task_unknown")), h.audit.toString());
     }
 
     @Test
@@ -163,8 +198,12 @@ class TaskJournalTest {
 
     @Test
     void crashWindowOnUnknownRetryRunsAgain() {
-        TaskHarness.Probe pay = h.register("Pay", TaskEffect.CHANGES, new EffectPolicy(EffectPolicy.OnUnknown.RETRY, false, 0),
-                c -> TaskResult.value("paid"));
+        TaskHarness.Probe pay =
+                h.register(
+                        "Pay",
+                        TaskEffect.CHANGES,
+                        new EffectPolicy(EffectPolicy.OnUnknown.RETRY, false, 0),
+                        c -> TaskResult.value("paid"));
         h.journal = dieAfterTheEffect();
         assertThrows(CrashingJournal.Crash.class, () -> h.run(PAY));
         h.journal = ((CrashingJournal) h.journal).delegateForTest();
@@ -194,34 +233,58 @@ class TaskJournalTest {
         assertThrows(CrashingJournal.Crash.class, () -> h.run(PAY));
         h.journal = ((CrashingJournal) h.journal).delegateForTest();
         again(PAY);
-        assertEquals(1, pay.calls.get(), "effect_done was written, so the result is reused and the payment is not repeated");
+        assertEquals(
+                1,
+                pay.calls.get(),
+                "effect_done was written, so the result is reused and the payment is not repeated");
         assertEquals(1, h.traceOf(TraceEvent.TASK_REPLAYED).size());
     }
 
     @Test
     void notPerformedIsSafeToRepeatEvenForANonIdempotentChange() {
         AtomicInteger n = new AtomicInteger();
-        TaskHarness.Probe pay = h.changes("Pay", c -> {
-            if (n.getAndIncrement() == 0) throw new io.github.llm4j.agent.task.TaskNotPerformed("card declined before charging");
-            return TaskResult.value("paid");
-        });
-        // `weave check` refuses retry on such a task (see TaskValidationTest); the runtime is safe even when validation is bypassed
+        TaskHarness.Probe pay =
+                h.changes(
+                        "Pay",
+                        c -> {
+                            if (n.getAndIncrement() == 0)
+                                throw new io.github.llm4j.agent.task.TaskNotPerformed(
+                                        "card declined before charging");
+                            return TaskResult.value("paid");
+                        });
+        // `weave check` refuses retry on such a task (see TaskValidationTest); the runtime is safe
+        // even when validation is bypassed
         HarnessExecutor e = h.executor("workflow Main() { run Pay(amount = 1) -> r retry 2 }");
         e.executeWorkflow("Main", new HashMap<>());
         assertEquals(2, pay.calls.get(), "retried after TaskNotPerformed: nothing had happened");
         assertEquals(0, h.sleeps.size());
         assertEquals("paid", map(e.getContext().getVariable("r")).get("value"));
-        assertTrue(h.journal.all().values().stream().anyMatch(en -> en.kind().equals("effect_done")));
+        assertTrue(
+                h.journal.all().values().stream().anyMatch(en -> en.kind().equals("effect_done")));
     }
 
     @Test
     void anUnknownFailureOfANonIdempotentChangeIsNeverRetriedEvenIfAskedTo() {
-        TaskHarness.Probe pay = h.changes("Pay", c -> { throw new IllegalStateException("connection reset after sending"); });
+        TaskHarness.Probe pay =
+                h.changes(
+                        "Pay",
+                        c -> {
+                            throw new IllegalStateException("connection reset after sending");
+                        });
         HarnessExecutor e = h.executor("workflow Main() { run Pay(amount = 1) -> r retry 3 }");
-        RuntimeException failure = assertThrows(RuntimeException.class, () -> e.executeWorkflow("Main", new HashMap<>()));
+        RuntimeException failure =
+                assertThrows(
+                        RuntimeException.class, () -> e.executeWorkflow("Main", new HashMap<>()));
         assertEquals(1, pay.calls.get());
         assertTrue(failure.getMessage().contains("outcome is unknown"), failure.getMessage());
-        assertEquals("effect_pending", h.journal.all().entrySet().stream().filter(en -> en.getKey().contains("#effect:Pay")).findFirst().orElseThrow().getValue().kind(),
+        assertEquals(
+                "effect_pending",
+                h.journal.all().entrySet().stream()
+                        .filter(en -> en.getKey().contains("#effect:Pay"))
+                        .findFirst()
+                        .orElseThrow()
+                        .getValue()
+                        .kind(),
                 "stays pending: the next run applies the policy");
     }
 
@@ -229,13 +292,23 @@ class TaskJournalTest {
     void idempotencyKeyRules() {
         TaskHarness.Probe nonEffect = h.pure("Pure", c -> TaskResult.ok());
         AtomicInteger n = new AtomicInteger();
-        TaskHarness.Probe pay = h.register("Pay", TaskEffect.CHANGES, new EffectPolicy(EffectPolicy.OnUnknown.SKIP, true, 0), c -> {
-            if (n.getAndIncrement() == 0) throw new IllegalStateException("timeout talking to the provider");
-            return TaskResult.ok();
-        });
-        String script = "workflow Main() { run Pure() -> p  run Pay(a = 1) -> x retry 2  run Pay(a = 2) -> y }";
+        TaskHarness.Probe pay =
+                h.register(
+                        "Pay",
+                        TaskEffect.CHANGES,
+                        new EffectPolicy(EffectPolicy.OnUnknown.SKIP, true, 0),
+                        c -> {
+                            if (n.getAndIncrement() == 0)
+                                throw new IllegalStateException("timeout talking to the provider");
+                            return TaskResult.ok();
+                        });
+        String script =
+                "workflow Main() { run Pure() -> p  run Pay(a = 1) -> x retry 2  run Pay(a = 2) -> y }";
         h.run(script);
-        assertEquals("", nonEffect.contexts.get(0).idempotencyKey(), "only a task that changes things gets a key");
+        assertEquals(
+                "",
+                nonEffect.contexts.get(0).idempotencyKey(),
+                "only a task that changes things gets a key");
         String attempt1 = pay.contexts.get(0).idempotencyKey();
         String attempt2 = pay.contexts.get(1).idempotencyKey();
         String otherStep = pay.contexts.get(2).idempotencyKey();
@@ -257,9 +330,16 @@ class TaskJournalTest {
         TaskHarness.Probe pay = h.idempotent("Pay", c -> TaskResult.value(round.incrementAndGet()));
         h.run("workflow Main() { loop until (r.value == \"3\") max 5 { run Pay(a = 1) -> r } }");
         assertEquals(3, pay.calls.get());
-        assertEquals(3, pay.contexts.stream().map(c -> c.idempotencyKey()).distinct().count(), "same arguments, three rounds, three keys");
+        assertEquals(
+                3,
+                pay.contexts.stream().map(c -> c.idempotencyKey()).distinct().count(),
+                "same arguments, three rounds, three keys");
         assertEquals(3, pay.contexts.stream().map(c -> c.stepId()).distinct().count());
-        assertEquals(3, h.journal.all().entrySet().stream().filter(en -> en.getValue().kind().equals("effect_done")).count());
+        assertEquals(
+                3,
+                h.journal.all().entrySet().stream()
+                        .filter(en -> en.getValue().kind().equals("effect_done"))
+                        .count());
         // and a resume replays all three rounds without a single new payment
         again("workflow Main() { loop until (r.value == \"3\") max 5 { run Pay(a = 1) -> r } }");
         assertEquals(3, pay.calls.get());

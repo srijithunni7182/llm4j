@@ -17,48 +17,124 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** What the proposing agent's tools do when a case is replayed: reads from the record, everything else stubbed (spec loom-earned-autonomy R7.3). */
+/**
+ * What the proposing agent's tools do when a case is replayed: reads from the record, everything
+ * else stubbed (spec loom-earned-autonomy R7.3).
+ */
 class ReplayToolsTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     static final class Lookup implements Effectful {
         final AtomicInteger calls = new AtomicInteger();
 
-        @Override public String getName() { return "Lookup"; }
-        @Override public String getDescription() { return "looks a customer up"; }
-        @Override public String execute(Map<String, Object> args) { calls.incrementAndGet(); return "customer since 2019"; }
-        @Override public boolean isEffect(Map<String, Object> args) { return false; }
-        @Override public EffectPolicy policy() { return EffectPolicy.DEFAULT; }
-        @Override public String target(Map<String, Object> args) { return "crm"; }
-        @Override public Outcome perform(Map<String, Object> args, String key) { throw new UnsupportedOperationException(); }
+        @Override
+        public String getName() {
+            return "Lookup";
+        }
+
+        @Override
+        public String getDescription() {
+            return "looks a customer up";
+        }
+
+        @Override
+        public String execute(Map<String, Object> args) {
+            calls.incrementAndGet();
+            return "customer since 2019";
+        }
+
+        @Override
+        public boolean isEffect(Map<String, Object> args) {
+            return false;
+        }
+
+        @Override
+        public EffectPolicy policy() {
+            return EffectPolicy.DEFAULT;
+        }
+
+        @Override
+        public String target(Map<String, Object> args) {
+            return "crm";
+        }
+
+        @Override
+        public Outcome perform(Map<String, Object> args, String key) {
+            throw new UnsupportedOperationException();
+        }
     }
 
     /** A tool kind the runtime has never heard of, that changes something. */
     static final class Mystery implements Effectful {
         final AtomicInteger calls = new AtomicInteger();
 
-        @Override public String getName() { return "Mystery"; }
-        @Override public String getDescription() { return "does something"; }
-        @Override public String execute(Map<String, Object> args) { calls.incrementAndGet(); return "did it"; }
-        @Override public boolean isEffect(Map<String, Object> args) { return true; }
-        @Override public EffectPolicy policy() { return EffectPolicy.DEFAULT; }
-        @Override public String target(Map<String, Object> args) { return "world"; }
-        @Override public Outcome perform(Map<String, Object> args, String key) { calls.incrementAndGet(); return Outcome.ok("did it"); }
+        @Override
+        public String getName() {
+            return "Mystery";
+        }
+
+        @Override
+        public String getDescription() {
+            return "does something";
+        }
+
+        @Override
+        public String execute(Map<String, Object> args) {
+            calls.incrementAndGet();
+            return "did it";
+        }
+
+        @Override
+        public boolean isEffect(Map<String, Object> args) {
+            return true;
+        }
+
+        @Override
+        public EffectPolicy policy() {
+            return EffectPolicy.DEFAULT;
+        }
+
+        @Override
+        public String target(Map<String, Object> args) {
+            return "world";
+        }
+
+        @Override
+        public Outcome perform(Map<String, Object> args, String key) {
+            calls.incrementAndGet();
+            return Outcome.ok("did it");
+        }
     }
 
     static final class Plain implements Tool {
         final AtomicInteger calls = new AtomicInteger();
 
-        @Override public String getName() { return "Plain"; }
-        @Override public String getDescription() { return "plain"; }
-        @Override public String execute(Map<String, Object> args) { calls.incrementAndGet(); return "plain did it"; }
+        @Override
+        public String getName() {
+            return "Plain";
+        }
+
+        @Override
+        public String getDescription() {
+            return "plain";
+        }
+
+        @Override
+        public String execute(Map<String, Object> args) {
+            calls.incrementAndGet();
+            return "plain did it";
+        }
     }
 
-    /** Cases decided by an agent that read Lookup(c-1) while proposing; a harness whose candidate has its own tool instances. */
+    /**
+     * Cases decided by an agent that read Lookup(c-1) while proposing; a harness whose candidate
+     * has its own tool instances.
+     */
     private ReplayHarness harness(String tools, int cases) throws Exception {
-        DecideHarness live = new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), Scripts2.withTools(tools));
+        DecideHarness live =
+                new DecideHarness(
+                        dir, new MemoryLedger(), new MemoryLevelStore(), Scripts2.withTools(tools));
         live.tools.put("Lookup", new Lookup());
         live.tools.put("Mystery", new Mystery());
         live.tools.put("Plain", new Plain());
@@ -85,7 +161,8 @@ class ReplayToolsTest {
 
     @Test
     @Tag("EA-V7.5")
-    void aReadWithOtherArgumentsMakesTheCaseUnreplayableOrRunsLiveAndFlaggedWhenAsked() throws Exception {
+    void aReadWithOtherArgumentsMakesTheCaseUnreplayableOrRunsLiveAndFlaggedWhenAsked()
+            throws Exception {
         ReplayHarness h = harness("Lookup", 4);
         Lookup lookup = new Lookup();
         h.candidateTools.put("Lookup", lookup);
@@ -97,7 +174,23 @@ class ReplayToolsTest {
         assertThat(strict.skips.get(0).detail()).contains("Lookup");
         assertThat(lookup.calls.get()).isZero();
 
-        ReplayReport live = h.engine.run("Refund", new ReplayOptions(h.incumbent(), null, null, 500, 1, 1, true, false, false, 0, null, null), null);
+        ReplayReport live =
+                h.engine.run(
+                        "Refund",
+                        new ReplayOptions(
+                                h.incumbent(),
+                                null,
+                                null,
+                                500,
+                                1,
+                                1,
+                                true,
+                                false,
+                                false,
+                                0,
+                                null,
+                                null),
+                        null);
         assertThat(live.replayed).isEqualTo(4);
         assertThat(lookup.calls.get()).as("ran live").isEqualTo(4);
         assertThat(live.toolsLive).hasSize(4);
@@ -107,7 +200,8 @@ class ReplayToolsTest {
     @Test
     @Tag("EA-V7.5")
     @Tag("EA-V7.6")
-    void anEffectAndAnUnknownKindAreSimulatedNeverRunAndTheProposalsAfterThemAreCountedSeparately() throws Exception {
+    void anEffectAndAnUnknownKindAreSimulatedNeverRunAndTheProposalsAfterThemAreCountedSeparately()
+            throws Exception {
         ReplayHarness h = harness("Lookup, Mystery, Plain", 5);
         Mystery mystery = new Mystery();
         Plain plain = new Plain();
@@ -125,7 +219,9 @@ class ReplayToolsTest {
         assertThat(plain.calls.get()).isZero();
         assertThat(report.afterSimulationCount).isEqualTo(5);
         assertThat(report.toolsSimulated).contains("Mystery", "Plain");
-        assertThat(report.markdown()).contains("simulated (not performed): Mystery, Plain").contains("5 proposals were made after a simulated call");
+        assertThat(report.markdown())
+                .contains("simulated (not performed): Mystery, Plain")
+                .contains("5 proposals were made after a simulated call");
     }
 
     @Test
@@ -133,17 +229,25 @@ class ReplayToolsTest {
     void aToolDeclaredReplayAllowRunsAndIsListedAtTheTopOfTheReport() throws Exception {
         List<String> posts = new CopyOnWriteArrayList<>();
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/", ex -> {
-            posts.add(new String(ex.getRequestBody().readAllBytes()));
-            ex.sendResponseHeaders(200, -1);
-            ex.close();
-        });
+        server.createContext(
+                "/",
+                ex -> {
+                    posts.add(new String(ex.getRequestBody().readAllBytes()));
+                    ex.sendResponseHeaders(200, -1);
+                    ex.close();
+                });
         server.start();
         try {
-            String live = Scripts2.withTools("Lookup").replace("workflow Triage", "tool Notify { use: webhook url: env.NOTIFY_URL allow_http: true allow_private: true }\nworkflow Triage");
-            DecideHarness harness = new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), live);
+            String live =
+                    Scripts2.withTools("Lookup")
+                            .replace(
+                                    "workflow Triage",
+                                    "tool Notify { use: webhook url: env.NOTIFY_URL allow_http: true allow_private: true }\nworkflow Triage");
+            DecideHarness harness =
+                    new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), live);
             harness.tools.put("Lookup", new Lookup());
-            harness.env.put("NOTIFY_URL", "http://127.0.0.1:" + server.getAddress().getPort() + "/hook");
+            harness.env.put(
+                    "NOTIFY_URL", "http://127.0.0.1:" + server.getAddress().getPort() + "/hook");
             harness.toolCalls.add(new String[] {"Lookup", "{\"id\": \"c-1\"}"});
             ReplayHarness h = new ReplayHarness(harness, dir);
             h.seedCases(3);
@@ -152,9 +256,16 @@ class ReplayToolsTest {
             h.candidateToolCalls.add(new String[] {"Notify", "{\"text\": \"hello\"}"});
             String candidate = live.replace("tools: [Lookup]", "tools: [Lookup, Notify]");
             Path simulated = h.script("sim.loom", candidate);
-            Path allowed = h.script("allow.loom", candidate.replace("allow_private: true }", "allow_private: true replay: allow }"));
-            // the candidate reads NOTIFY_URL from the process environment of the test: a host sets it for the replay
-            h.envForCandidates.put("NOTIFY_URL", "http://127.0.0.1:" + server.getAddress().getPort() + "/hook");
+            Path allowed =
+                    h.script(
+                            "allow.loom",
+                            candidate.replace(
+                                    "allow_private: true }",
+                                    "allow_private: true replay: allow }"));
+            // the candidate reads NOTIFY_URL from the process environment of the test: a host sets
+            // it for the replay
+            h.envForCandidates.put(
+                    "NOTIFY_URL", "http://127.0.0.1:" + server.getAddress().getPort() + "/hook");
 
             ReplayReport off = h.engine.run("Refund", h.options(simulated), null);
             assertThat(off.replayed).isEqualTo(3);
@@ -176,7 +287,11 @@ class ReplayToolsTest {
     void aPureBuiltInRunsAndTheClockToolAnswersWhenTheCaseWasDecided() throws Exception {
         ReplayHarness h = harness("Lookup", 3);
         h.candidateTools.put("Lookup", new Lookup());
-        Path candidate = h.script("calc.loom", h.live.script.replace("tools: [Lookup]", "tools: [Lookup, calculator, current_time]"));
+        Path candidate =
+                h.script(
+                        "calc.loom",
+                        h.live.script.replace(
+                                "tools: [Lookup]", "tools: [Lookup, calculator, current_time]"));
         h.candidateToolCalls.add(new String[] {"calculator", "{\"expression\": \"2 + 3\"}"});
         h.candidateToolCalls.add(new String[] {"current_time", "{}"});
 
