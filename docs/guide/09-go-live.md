@@ -1,6 +1,6 @@
 # 9. Go live: real APIs, budgets and cost checks
 
-**Goal:** run the workflow on real models in stages, with limits at three levels, and compare the bill with your model.
+**Goal:** run the workflow on real models in stages, with limits at three levels, and compare the bill with your model. (Choosing the models and estimating the bill first: [chapter 16](16-cost-and-model-choice.md).)
 
 ## Three nets, from outside in
 

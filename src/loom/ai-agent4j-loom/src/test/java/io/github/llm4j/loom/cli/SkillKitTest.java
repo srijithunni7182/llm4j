@@ -64,7 +64,7 @@ class SkillKitTest {
             found++;
             assertThat(Guide.find(chapters.group(1))).as(chapters.group(1)).isPresent();
         }
-        assertThat(found).isEqualTo(15);
+        assertThat(found).isEqualTo(16);
         Matcher pages = Pattern.compile("weave guide ([a-z0-9]+)").matcher(s);
         while (pages.find()) {
             if (pages.group(1).equals("lists")) continue;

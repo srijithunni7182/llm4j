@@ -20,6 +20,7 @@ this skill's `references/` folder and in the tools:
 - `references/failure-modes.md`: the ways harnesses go wrong in practice, each with its symptom, cause and fix.
 - `references/loom-mapping.md`: each decision, the Loom construct that carries it, the `weave guide` chapter that builds it, and
   what Loom does not cover.
+- `references/cost-and-models.md`: how to suggest models for each step, estimate and cap the cost, and what to record. Read it whenever the user asks about models or cost.
 - `references/design-record.md`: the `HARNESS.md` template you fill in with the user.
 - If `weave` is installed, `weave guide loom` and `weave <command> --help` are the truth about Loom's names and options. Do not
   guess a construct; look. If `weave` is not installed, design anyway and leave the mapping column for the build.
