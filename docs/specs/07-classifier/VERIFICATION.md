@@ -79,9 +79,9 @@ One row per requirement. A requirement with no row blocks the phase. "pending" n
 ## 5. Manual and live checks (owed, opt-in)
 
 - [x] A recorded session against the real Jev API replaces the fixtures (Q1), and the contract suite still passes. Done 2026-10-21: `scripts/record-jev-fixtures.py` recorded success replies for each question kind and a multi-question call, a 422 and a 401 (`src/ai-agent4j/src/test/resources/jev/`); the 429, 529 and malformed cases are hand-written, named in `JevProviderTest`. The recordings are what `JevWireTest` pins.
-- [ ] The live study (TEST_STRATEGY §5): `Classifier.using(jev)` against a strong and a cheap chat model on the judging, intent and safe/unsafe tasks. Results recorded in §7 and the Jev recommendations in the guide and wiki written from them.
-- [ ] An end-to-end triage workflow in Loom with Jev, run once with `--observe` to see the call events in Fabric.
-- [ ] The VS Code extension on the new syntax: highlighting, completion, diagnostics.
+- [x] The live study (TEST_STRATEGY §5), run with the Python harness (7.0): results in §7 and STUDY_REPORT.md, the Jev recommendations in the guide and wiki written from them. The Java port (7c-live) is owed.
+- [ ] An end-to-end triage workflow in Loom with Jev, run once with `--observe` to see the call events in Fabric. Owed: no live API was used after the study (budget rule); `src/examples/ticket-triage` passes `weave check` and `weave audit` and the execution is covered with a scripted classifier and recorded Jev fixtures.
+- [x] The VS Code extension on the new syntax: highlighting, hover, snippets (typed through `weave check` by the snippet tests), the graph node (renderer tests); diagnostics come from the bundled `weave check`. Not opened in a desktop VS Code by hand; the extension's own suites (45 for grammar, snippets and docs) pass.
 
 ## 6. Documentation owed
 
@@ -115,3 +115,19 @@ Full report: [STUDY_REPORT.md](STUDY_REPORT.md); raw data in [study/](study/). C
 
 A17 is satisfied by the harness run for 7.0; the Java port (7c-live) is owed.
 
+### 7.1 Build and test results (2026-10-21), phases 7a to 7e
+
+| Module | Tests (all green) | Gates |
+|---|---|---|
+| ai-agent4j | 2,883 | `mvn verify` incl. JaCoCo rules (the `classify` package has its own rule) |
+| eval4j | 540 | `mvn verify` incl. JaCoCo |
+| ai-agent4j-loom | 2,207 | `mvn verify` incl. class-level JaCoCo gates; CTK conformance for `classify_basic`, `classify_unsure` |
+| eval4j-report, loom-inspect-core, loom-inspect, loom-fabric | 68, 333, 56, 210 (6 skipped, as before) | `mvn test` |
+| graph-render (node) | 74 | `node --test`; copies in sync (`check-graph-render-sync.sh`) |
+| vscode-loom | grammar, snippets, docs suites: 45 | snippets typed through `weave check` |
+
+Skills: `scripts/package-skill.sh` and `scripts/verify-skill-package.sh` pass for the workflow-guide, loom-deployer and harness-design packages (the verify script
+was failing on a sentence of `docs/guide/README.md` that the packager's pattern no longer matched; the pattern was fixed, not the check).
+
+Not done, stated plainly: the Java port of the study (7c-live), PIT mutation runs on the classifier validators, a live end-to-end Loom run with `--observe`,
+and `make format-check` (its baseline already fails on files this phase did not touch; new files were formatted individually). Spend: about $0.96 in total, all in 7.0.

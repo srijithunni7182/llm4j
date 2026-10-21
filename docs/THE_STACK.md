@@ -126,6 +126,10 @@ every result, and a journal so a crash never repeats a send. Use them from Java,
 The contracts they implement (`ToolKind`, `Effectful`, `EffectJournal`) live in the core `ai-agent4j`; this module is the
 implementations, with [its own documentation](../src/ai-agent4j-tools/docs/README.md).
 
+### 🏷️ Classification (6.1.0, in preparation): *"Which of these is it?"*
+
+Routing a message and judging a reply need an answer from a fixed set, not prose. A `Classifier` takes typed questions (a choice from your labels, a yes/no, a point on a scale) and returns typed answers that can never contain a label you did not offer. It is in ai-agent4j ([Classification](../src/ai-agent4j/wiki/Classification.md)), runs on any chat model or on Jev, TypeSafe AI's decision model, through one model string; Loom scripts use it as `intentclassifier` and `intentclassify` ([guide](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md)); eval4j judges and compares backends with it ([LLM-as-judge](../src/eval4j/docs/LLM-AS-JUDGE.md)). On our own sets Jev matched the chat models on routing and judging at a fraction of the time and cost, and is not recommended as the only guard on a dangerous action ([the study](specs/07-classifier/STUDY_REPORT.md)).
+
 ### 🧪 [eval4j](../src/eval4j/): *"How do I know it works, and keeps working?"*
 
 Agents are non-deterministic, which is no excuse for not testing them. eval4j is a testing framework

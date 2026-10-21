@@ -16,6 +16,7 @@ Key facts:
 - [Quick start](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Getting-Started.md): a first agent in five minutes
 - [Security overview](https://github.com/srijithunni7182/llm4j/blob/main/SECURITY.md): threat model, principles, limits, how to report a vulnerability
 - [Security: building blocks](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/building-blocks.md), [securing a Loom workflow](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/securing-workflows.md), [`weave audit`](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/weave-audit.md), [OWASP Top 10 for LLM Applications and the gaps](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/owasp-llm-top-10.md)
+- [Classifying in Loom](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/LOOM_GUIDE.md): `intentclassifier` / `intentclassify` route or judge with a `Classifier` (Jev or a chat model); a doubtful answer becomes `unsure`; the text is data; not a sole safety guard. Example: src/examples/ticket-triage.
 - [LOOM_PROMPT.md](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/LOOM_PROMPT.md): the Loom language for language models; how to write correct scripts
 
 ## ai-agent4j (core library, about 440 KB)
