@@ -84,6 +84,15 @@ and a fixture:
 | `extraRequest`, `extraResponse` | vendor fields added to the request or read from the response | Qwen's thinking switch; Perplexity's `citations`/`search_results` (Part B) |
 | `keyEnv`, `baseUrlEnv`, `hosts` | environment names for key and URL; hosts a secret may be sent to | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `api.openai.com` |
 
+**Verified against each vendor's published API reference on 2026-10-22 (decision Q1); this corrects the draft table above:**
+
+| Vendor | Facts used by the dialect (source: the vendor's chat-completions reference) |
+|---|---|
+| OpenAI | `POST /v1/chat/completions`; output limit `max_completion_tokens` (`max_tokens` is deprecated and rejected by the o-series); `reasoning_effort` for reasoning models (passed through `additionalParameters`); o-series and gpt-5+ (not the `-chat` variants) reject a custom `temperature`/`top_p`/`stop`; reasoning text is not returned on this endpoint; usage has `prompt_tokens_details.cached_tokens` and `completion_tokens_details.reasoning_tokens`; a refusal is `message.refusal`; `stream_options.include_usage` sends usage in a last chunk with no choices |
+| xAI | `POST https://api.x.ai/v1/chat/completions`, now documented as **legacy** (the Responses API is the recommended path and where tools such as `web_search` live, §4.3); `max_completion_tokens`; `reasoning_effort`; reasoning models (grok-4+, grok-3-mini) reject `stop` and penalties; `message.reasoning_content`; usage adds `cost_in_usd_ticks` and `server_side_tool_usage_details.web_search_calls` |
+| Kimi | `https://api.moonshot.ai/v1/chat/completions`, bearer; `max_completion_tokens` (`max_tokens` deprecated); K2.5+ and K3 fix `temperature`/`top_p`/`n` (any other value is an error); K2.5/K2.6 take `thinking: {type: enabled\|disabled}`, K2.7-code is always thinking, K3 takes top-level `reasoning_effort` (`low`/`high`/`max`); `reasoning_content` must be passed back with tool turns; `$web_search` is **deprecated** in favour of `/v1/tools/search` and the Kimi Responses API (§4.3) |
+| Qwen | OpenAI-compatible mode; the documented base URL is now a **workspace domain** (`https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1`), the DashScope domain (`dashscope-intl.aliyuncs.com`) is for existing integrations and gets no new features after 2026-09-30; hybrid models take top-level `enable_thinking`, thinking text is `reasoning_content`; `max_tokens`. The preset defaults to the DashScope domain and takes the workspace URL from `base_url` / `DASHSCOPE_BASE_URL` |
+
 Model-specific differences inside a vendor (an OpenAI reasoning model vs a classic one) are decided by a small, tested `ModelTraits` lookup beside
 the dialect, driven by name patterns and overridable with `LLMConfig`/request parameters, so that an unknown new model degrades to the safe default
 rather than failing.

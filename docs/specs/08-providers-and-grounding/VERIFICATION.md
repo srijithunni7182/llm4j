@@ -86,4 +86,21 @@ the root README are updated; the publish steps in `docs/PUBLISHING.md` are follo
 
 ## 7. Result
 
-_Not started._ Smoke-run results, fixture dates and models, and live spend per vendor go here.
+Progress log, newest sub-phase last. Resume from the last entry.
+
+### 7.0 Step 0: environment (2026-10-22)
+
+- Keys present (names only): `OPENAI_API_KEY`, `PERPLEXITY_API_KEY`, `XAI_API_KEY`. Absent: `MOONSHOT_API_KEY`, `DASHSCOPE_API_KEY`, `GEMINI_API_KEY`, `SMOKE_GEMINI_API_KEY`, `SPIKE_ANTHROPIC_KEY`, `ANTHROPIC_API_KEY`. The smoke runner accepts `SPIKE_ANTHROPIC_KEY` for `ANTHROPIC_API_KEY` and `SMOKE_GEMINI_API_KEY` for `GEMINI_API_KEY`.
+- Hosts reachable (an HTTP status came back): api.openai.com, api.x.ai, api.perplexity.ai, docs.perplexity.ai, api.anthropic.com, generativelanguage.googleapis.com, api.moonshot.ai, dashscope-intl.aliyuncs.com. None blocked.
+- Consequence: OpenAI, xAI and Perplexity can be recorded and become "supported"; Kimi and Qwen are **preview** (documentation-derived fixtures); Anthropic and Gemini have no key here, so their existing providers keep their current status and their grounding stays "preview" unless a key appears.
+- Phase 7 is merged on `main` and was merged into this branch (4908290), so sub-phase 8k applies.
+
+### Follow-up when keys are available
+
+- **Kimi** (`MOONSHOT_API_KEY`): run `ProviderSmokeIntegrationTest`; replace `src/test/resources/providers/kimi/*` with scrubbed recordings; confirm `max_completion_tokens`, fixed sampling per model, the `thinking` switch on K2.5/K2.6 and `reasoning_effort` on K3, and `reasoning_content` round trip; decide the grounding route (Responses API server-side search, §4.3); drop the "preview" label.
+- **Qwen** (`DASHSCOPE_API_KEY`): the same; confirm the `enable_thinking` switch for hybrid models (and whether `false` is accepted by thinking-only models), the workspace-domain base URL, the `max_tokens` field and `search_info` for grounding; drop "preview".
+- **Anthropic / Gemini** (`ANTHROPIC_API_KEY` or `SPIKE_ANTHROPIC_KEY`, `GEMINI_API_KEY` or `SMOKE_GEMINI_API_KEY`): run the smoke and the grounding payload script; record the payloads before the grounding mapping is called supported.
+
+### 7.1 8a: core (OpenAI)
+
+Built: `Dialect`, `ModelTraits`, `OpenAiCompatibleProvider` (+ package-private `ChatRequestWriter`, `ChatResponseReader`), `ChatCompletionsContract` (shared contract), `OpenAiContractTest`, `DialectTest`. ai-agent4j suite: 2939 tests, 0 failures. Fixtures recorded from the real API: **owed to 8c-live**.
