@@ -1,0 +1,4 @@
+POST /models/gemini-2.5-flash:streamGenerateContent?alt=sse
+content-type: application/json; charset=utf-8
+
+{"contents":[{"role":"user","parts":[{"text":"weather in Pune?"}]},{"role":"model","parts":[{"functionCall":{"name":"get_weather","args":{"city":"Pune"}}}]},{"role":"user","parts":[{"functionResponse":{"name":"get_weather","response":{"result":"{\"temp\":31}"}}}]}],"tools":[{"functionDeclarations":[{"name":"get_weather","description":"Weather for a city","parameters":{"required":["city"],"type":"object","properties":{"city":{"type":"string","description":"the city"}}}}]}],"toolConfig":{"functionCallingConfig":{"mode":"AUTO"}},"generationConfig":{}}

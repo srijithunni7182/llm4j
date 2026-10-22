@@ -1,0 +1,5 @@
+POST /v1/messages
+content-type: application/json; charset=utf-8
+anthropic-version: 2023-06-01
+
+{"model":"claude-haiku-4-5","max_tokens":16000,"messages":[{"role":"user","content":"weather in Pune?"}],"tools":[{"name":"get_weather","description":"Weather for a city","input_schema":{"required":["city"],"type":"object","properties":{"city":{"type":"string","description":"the city"}}}}],"tool_choice":{"type":"auto"}}

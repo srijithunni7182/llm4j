@@ -1,0 +1,4 @@
+POST /v1/chat/completions
+content-type: application/json; charset=utf-8
+
+{"model":"sarvam-m","messages":[{"role":"user","content":"weather in Pune?"},{"role":"assistant","content":""},{"role":"tool","content":"{\"temp\":31}"}]}
