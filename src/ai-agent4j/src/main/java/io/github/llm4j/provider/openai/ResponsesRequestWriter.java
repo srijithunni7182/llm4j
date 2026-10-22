@@ -4,12 +4,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.github.llm4j.exception.InvalidRequestException;
+import io.github.llm4j.grounding.Grounding;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.Message;
 import io.github.llm4j.model.ToolCall;
 import io.github.llm4j.model.ToolSpec;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,6 +79,7 @@ final class ResponsesRequestWriter {
             if (request.getToolChoice() == LLMRequest.ToolChoice.NONE)
                 root.put("tool_choice", "none");
         }
+        if (request.getGrounding() != null) grounding(dialect, request.getGrounding(), root);
         if (stream && request.isReasoning() && dialect.reasoningSummary()) {
             ((ObjectNode) root.with("reasoning")).put("summary", "auto");
         }
@@ -89,6 +95,85 @@ final class ResponsesRequestWriter {
                             else root.set(k, value);
                         });
         return JSON.writeValueAsString(root);
+    }
+
+    /**
+     * Adds the vendor's search tool and the settings of the grounding, following the dialect's
+     * {@link ResponsesGrounding}. A provider used without the client's central check still refuses
+     * what it cannot do.
+     */
+    private static void grounding(ResponsesDialect dialect, Grounding grounding, ObjectNode root) {
+        ResponsesGrounding spec = dialect.grounding();
+        if (spec == null) {
+            throw new InvalidRequestException(
+                    "Provider " + dialect.name() + " does not support grounding");
+        }
+        ArrayNode tools =
+                root.has("tools") ? (ArrayNode) root.get("tools") : root.putArray("tools");
+        ObjectNode tool = tools.addObject().put("type", spec.toolType());
+        List<String> allow = new ArrayList<>(grounding.allowDomains());
+        List<String> block = new ArrayList<>(grounding.blockDomains());
+        if (spec.blockPrefix() != null) {
+            // blocked domains share the allowed list, spelled with a prefix
+            for (String d : block) allow.add(spec.blockPrefix() + d);
+            block = List.of();
+        }
+        if (allow.size() > spec.maxAllowDomains())
+            throw tooMany(dialect, "domains", allow.size(), spec.maxAllowDomains());
+        if (block.size() > spec.maxBlockDomains())
+            throw tooMany(dialect, "blocked domains", block.size(), spec.maxBlockDomains());
+        if (!allow.isEmpty()) set(tool, spec.allowPath(), strings(allow));
+        if (!block.isEmpty()) set(tool, spec.blockPath(), strings(block));
+        if (grounding.recency() != null) {
+            set(
+                    tool,
+                    spec.recencyPath(),
+                    JSON.getNodeFactory().textNode(spec.recencyValues().get(grounding.recency())));
+        }
+        if (grounding.country() != null) {
+            set(tool, spec.countryPath(), JSON.getNodeFactory().textNode(grounding.country()));
+            spec.countryExtras()
+                    .forEach(
+                            (path, value) ->
+                                    set(tool, path, JSON.getNodeFactory().textNode(value)));
+        }
+        if (grounding.maxSearches() != null)
+            root.put(spec.maxSearchesField(), grounding.maxSearches());
+        if (!spec.include().isEmpty()) {
+            Set<String> include = new LinkedHashSet<>();
+            if (root.has("include")) root.get("include").forEach(n -> include.add(n.asText()));
+            include.addAll(spec.include());
+            root.set("include", strings(new ArrayList<>(include)));
+        }
+    }
+
+    private static InvalidRequestException tooMany(
+            ResponsesDialect dialect, String what, int given, int limit) {
+        return new InvalidRequestException(
+                dialect.name()
+                        + " accepts at most "
+                        + limit
+                        + " "
+                        + what
+                        + " in a search, got "
+                        + given);
+    }
+
+    private static ArrayNode strings(List<String> values) {
+        ArrayNode a = JSON.createArrayNode();
+        values.forEach(a::add);
+        return a;
+    }
+
+    /** Sets {@code value} at a dotted path inside {@code node}, creating the objects on the way. */
+    private static void set(ObjectNode node, String path, JsonNode value) {
+        String[] parts = path.split("\\.");
+        ObjectNode at = node;
+        for (int i = 0; i < parts.length - 1; i++) {
+            JsonNode next = at.get(parts[i]);
+            at = next instanceof ObjectNode o ? o : at.putObject(parts[i]);
+        }
+        at.set(parts[parts.length - 1], value);
     }
 
     private static ArrayNode input(

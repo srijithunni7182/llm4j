@@ -9,11 +9,14 @@ import io.github.llm4j.agent.Tool;
 import io.github.llm4j.budget.Budget;
 import io.github.llm4j.budget.BudgetExceeded;
 import io.github.llm4j.budget.BudgetedLLMClient;
+import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.exception.InvalidRequestException;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.ToolCall;
 import io.github.llm4j.provider.LLMProvider;
+import io.github.llm4j.provider.fixtures.Fixtures;
+import io.github.llm4j.provider.openai.OpenAiResponsesProvider;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -21,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -220,6 +225,40 @@ class GroundingDocsExamplesTest {
     }
 
     @Test
+    void perplexity() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            server.start();
+            // a response recorded from the real API on 2026-10-22
+            server.enqueue(
+                    new MockResponse()
+                            .setHeader("Content-Type", "application/json")
+                            .setBody(Fixtures.load("perplexity-agent/grounded.fixture").body()));
+            LLMConfig config =
+                    LLMConfig.builder()
+                            .apiKey("key-for-the-examples")
+                            .baseUrl(server.url("/v1").toString())
+                            .defaultModel("openai/gpt-6-luna")
+                            .build();
+            // --- sample: perplexity
+            LLMClient perplexity = new DefaultLLMClient(OpenAiResponsesProvider.perplexity(config));
+            LLMResponse r =
+                    perplexity.chat(
+                            LLMRequest.builder()
+                                    .addUserMessage("What is the RBI's current policy repo rate?")
+                                    .grounding(Grounding.webSearch().recency(Recency.YEAR).country("IN"))
+                                    .build());
+            String basis = (String) r.getMetadata().get("grounding.citation_basis"); // consulted
+            Double cost = r.getSearches().estimatedCostUsd(); // 0.0025: Perplexity reports it
+            // --- end sample
+            assertThat(basis).isEqualTo("consulted");
+            assertThat(cost).isEqualTo(0.0025);
+            assertThat(r.getCitations()).hasSize(3);
+            String sent = server.takeRequest().getBody().readUtf8();
+            assertThat(sent).contains("\"type\":\"web_search\"").contains("\"search_recency_filter\":\"year\"");
+        }
+    }
+
+    @Test
     void thePageShowsEverySampleVerbatim() throws Exception {
         String source = Files.readString(Path.of("src/test/java/io/github/llm4j/grounding/GroundingDocsExamplesTest.java"));
         String page = Files.readString(Path.of("wiki/Web-Search-Grounding.md"));
@@ -230,6 +269,6 @@ class GroundingDocsExamplesTest {
             n++;
             assertThat(page).as("the page shows the '" + m.group(1) + "' sample").contains(m.group(2).stripIndent().strip());
         }
-        assertThat(n).isEqualTo(6);
+        assertThat(n).isEqualTo(7);
     }
 }

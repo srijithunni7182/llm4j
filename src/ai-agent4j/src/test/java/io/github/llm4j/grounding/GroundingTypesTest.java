@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.llm4j.agent.tools.CalculatorTool;
+import io.github.llm4j.model.LLMResponse;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -188,5 +189,13 @@ class GroundingTypesTest {
                 .containsExactlyInAnyOrder(GroundingSupport.NONE, GroundingSupport.NATIVE);
         assertThat(Recency.values())
                 .containsExactly(Recency.DAY, Recency.WEEK, Recency.MONTH, Recency.YEAR);
+    }
+
+    @Test
+    void aCopyOfAResponseCanGainMetadataWithoutTouchingTheOriginal() {
+        LLMResponse original = LLMResponse.builder().content("x").addMetadata("a", 1).build();
+        LLMResponse copy = original.toBuilder().addMetadata("b", 2).build();
+        assertThat(copy.getMetadata()).containsEntry("a", 1).containsEntry("b", 2);
+        assertThat(original.getMetadata()).containsOnlyKeys("a");
     }
 }

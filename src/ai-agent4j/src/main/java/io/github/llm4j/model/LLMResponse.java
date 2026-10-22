@@ -192,7 +192,7 @@ public final class LLMResponse {
                         .model(model)
                         .tokenUsage(tokenUsage)
                         .finishReason(finishReason)
-                        .metadata(metadata)
+                        .metadata(new HashMap<>(metadata))
                         .toolCalls(toolCalls)
                         .providerData(providerData)
                         .reasoning(reasoning)

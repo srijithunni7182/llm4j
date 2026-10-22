@@ -188,8 +188,9 @@ final class ExecutorValidation {
     }
 
     /**
-     * {@code api} (OpenAI: chat or responses), {@code header} and {@code query} (the generic kind
-     * only): the settings the OpenAI-family kinds accept beyond the address and the key.
+     * {@code api} (OpenAI and xAI: chat or responses), {@code header} and {@code query} (the
+     * generic kind only): the settings the OpenAI-family kinds accept beyond the address and the
+     * key.
      */
     private void checkVendorOption(
             ScriptValidator.Checker c,
@@ -197,9 +198,18 @@ final class ExecutorValidation {
             String who,
             String option,
             io.github.llm4j.loom.ast.ToolDef.OptionValue value) {
-        String owner = option.equals("api") ? "openai" : "openai_compatible";
-        if (!p.getKind().equals(owner)) {
-            c.error(p.getLine(), who, "the option " + option + " is only for use: " + owner);
+        boolean allowed =
+                option.equals("api")
+                        ? p.getKind().equals("openai") || p.getKind().equals("xai")
+                        : p.getKind().equals("openai_compatible");
+        if (!allowed) {
+            c.error(
+                    p.getLine(),
+                    who,
+                    "the option "
+                            + option
+                            + " is only for use: "
+                            + (option.equals("api") ? "openai or xai" : "openai_compatible"));
             return;
         }
         if (value.isReference()) {

@@ -175,6 +175,40 @@ class OpenAiFamilyProvidersTest {
     }
 
     @Test
+    void anXaiProviderCanUseTheResponsesApiToo() throws Exception {
+        Harness h = new Harness(dir);
+        h.env.put("XAI_TEST_KEY", "xai-key-123");
+        server.enqueue(responses());
+        var e =
+                h.executor(
+                        """
+                provider Grok { use: xai  base_url: "%s/v1"  api_key: env.XAI_TEST_KEY  api: responses }
+                agent A { model: "Grok/grok-4.3" }
+                workflow Main() { delegate "hello" to A -> out }
+                """
+                                .formatted(base()),
+                        new DefaultLLMClientFactory(n -> null),
+                        null);
+        e.initialize();
+        e.executeWorkflow("Main", Map.of());
+        assertThat(server.takeRequest().getPath()).isEqualTo("/v1/responses");
+        assertThat(e.getContext().getVariable("out")).isEqualTo("hi");
+    }
+
+    @Test
+    void theApiOptionIsRefusedForTheOtherKinds() {
+        Harness h = new Harness(dir);
+        assertThatThrownBy(
+                        () ->
+                                h.ready(
+                                        """
+                provider K { use: kimi  api_key: env.NOPE  api: responses }
+                """))
+                .hasMessageContaining(
+                        "line 1: provider K: the option api is only for use: openai or xai");
+    }
+
+    @Test
     void declarationsAreChecked() {
         Harness h = new Harness(dir);
         assertThatThrownBy(

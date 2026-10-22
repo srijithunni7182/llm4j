@@ -23,8 +23,8 @@ import java.util.stream.Stream;
 public enum Vendor {
     /** OpenAI (chat completions; {@code api: responses} selects the Responses API). */
     OPENAI("openai", Dialect.OPENAI, ResponsesDialect.OPENAI, false),
-    /** xAI (Grok). */
-    XAI("xai", Dialect.XAI, null, false),
+    /** xAI (Grok); {@code api: responses} selects the Responses API, which has web search. */
+    XAI("xai", Dialect.XAI, ResponsesDialect.XAI, false),
     /** Moonshot's Kimi. Preview until its fixtures are recorded from the real API. */
     KIMI("kimi", Dialect.KIMI, null, true),
     /**
@@ -165,15 +165,15 @@ public enum Vendor {
 
     /**
      * The provider for this vendor. {@code options} are those a script can give: {@code api}
-     * ({@code chat} or {@code responses}) for OpenAI, and {@code header} and {@code query} ({@code
-     * name=value&…}) for the generic kind. Anything else is refused by name.
+     * ({@code chat} or {@code responses}) for OpenAI and xAI, and {@code header} and {@code query}
+     * ({@code name=value&…}) for the generic kind. Anything else is refused by name.
      */
     public LLMProvider create(LLMConfig config, Map<String, String> options) {
         Map<String, String> o = new LinkedHashMap<>(options == null ? Map.of() : options);
         String api = o.remove("api");
-        if (api != null && this != OPENAI)
+        if (api != null && this != OPENAI && this != XAI)
             throw new IllegalArgumentException(
-                    "the option api is only for use: openai (chat or responses)");
+                    "the option api is only for use: openai or xai (chat or responses)");
         if (api != null && !api.equals("chat") && !api.equals("responses")) {
             throw new IllegalArgumentException("api must be chat or responses, got " + api);
         }
@@ -194,7 +194,7 @@ public enum Vendor {
                             + (this == OPENAI_COMPATIBLE
                                     ? "; use base_url, api_key, "
                                             + String.join(", ", GENERIC_OPTIONS)
-                                    : this == OPENAI
+                                    : this == OPENAI || this == XAI
                                             ? "; use base_url, api_key, api"
                                             : "; use base_url, api_key"));
         }

@@ -1,0 +1,9 @@
+# source: documentation-derived
+# vendor: google
+# model: gemini-3.7-flash
+# endpoint: POST /v1beta/models/gemini-3.7-flash:generateContent
+# step: grounded
+# prompt: In one sentence: what is the Reserve Bank of India's current policy repo rate, and when was it last changed?
+# note: not recorded from the real API: written from the vendor's reference (read 2026-10-22) because no key was available; PREVIEW until replaced by a recording
+---
+{"candidates":[{"content":{"role":"model","parts":[{"text":"The RBI's policy repo rate is 5.50% (up ₹ policy-wise), last changed on October 7, 2026."}]},"finishReason":"STOP","index":0,"groundingMetadata":{"webSearchQueries":["RBI repo rate October 2026","Reserve Bank of India repo rate last changed"],"searchEntryPoint":{"renderedContent":"<style></style>"},"groundingChunks":[{"web":{"uri":"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AbCdEf0001","title":"rbi.org.in"}},{"web":{"uri":"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AbCdEf0002","title":"business-standard.com"}},{"web":{"uri":"https://vertexaisearch.cloud.google.com/grounding-api-redirect/AbCdEf0003","title":"example.org"}}],"groundingSupports":[{"segment":{"startIndex":0,"endIndex":35,"text":"The RBI's policy repo rate is 5.50%"},"groundingChunkIndices":[0]},{"segment":{"startIndex":35,"endIndex":90,"text":" (up ₹ policy-wise), last changed on October 7, 2026."},"groundingChunkIndices":[0,1]}]}}],"usageMetadata":{"promptTokenCount":21,"candidatesTokenCount":34,"totalTokenCount":55},"modelVersion":"gemini-3.7-flash"}

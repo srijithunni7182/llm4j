@@ -6,6 +6,8 @@ import io.github.llm4j.exception.AuthenticationException;
 import io.github.llm4j.exception.InvalidRequestException;
 import io.github.llm4j.exception.LLMException;
 import io.github.llm4j.exception.ProviderException;
+import io.github.llm4j.grounding.GroundingOption;
+import io.github.llm4j.grounding.GroundingSupport;
 import io.github.llm4j.http.HttpClientWrapper;
 import io.github.llm4j.http.StreamingBody;
 import io.github.llm4j.model.LLMRequest;
@@ -17,6 +19,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
 import okhttp3.Headers;
 import org.slf4j.Logger;
@@ -26,7 +29,10 @@ import org.slf4j.LoggerFactory;
  * A provider for APIs that speak the OpenAI <b>Responses</b> schema: {@code instructions} and an
  * {@code input} list in, {@code output[]} items out, typed server-sent events when streaming. It
  * serves Perplexity's Agent API ({@code POST /v1/agent}, one key for OpenAI, Anthropic, Google and
- * xAI models) and OpenAI's own Responses API; what differs is data in a {@link ResponsesDialect}.
+ * xAI models), xAI's and OpenAI's own Responses APIs; what differs is data in a {@link
+ * ResponsesDialect}. Where the dialect has a {@link ResponsesGrounding}, a request with {@link
+ * LLMRequest#getGrounding()} gets the vendor's web-search tool and the answer carries typed
+ * citations and search usage.
  *
  * <pre>{@code
  * LLMConfig cfg = LLMConfig.builder().apiKey(System.getenv("PERPLEXITY_API_KEY")).defaultModel("openai/gpt-5.6-sol").build();
@@ -79,6 +85,11 @@ public class OpenAiResponsesProvider implements LLMProvider {
         return new OpenAiResponsesProvider(ResponsesDialect.PERPLEXITY, config);
     }
 
+    /** xAI's Responses API (the one with web search). */
+    public static OpenAiResponsesProvider xai(LLMConfig config) {
+        return new OpenAiResponsesProvider(ResponsesDialect.XAI, config);
+    }
+
     /** OpenAI's own Responses API. */
     public static OpenAiResponsesProvider openai(LLMConfig config) {
         return new OpenAiResponsesProvider(ResponsesDialect.OPENAI, config);
@@ -93,7 +104,11 @@ public class OpenAiResponsesProvider implements LLMProvider {
                             url(),
                             ResponsesRequestWriter.write(dialect, request, model, false),
                             headers());
-            return ResponsesReader.read(dialect, ResponsesReader.parse(dialect, body), model);
+            return ResponsesReader.read(
+                    dialect,
+                    ResponsesReader.parse(dialect, body),
+                    model,
+                    request.getGrounding() != null);
         } catch (IOException | LLMException e) {
             throw Providers.typed(getProviderName(), "Failed to process chat request", e);
         }
@@ -195,7 +210,8 @@ public class OpenAiResponsesProvider implements LLMProvider {
                                                     ResponsesReader.read(
                                                             dialect,
                                                             data.path("response"),
-                                                            answering[0]);
+                                                            answering[0],
+                                                            request.getGrounding() != null);
                                             finished[0] = true;
                                             return Stream.of(finalChunk(whole, sawCall[0]));
                                         }
@@ -252,6 +268,8 @@ public class OpenAiResponsesProvider implements LLMProvider {
                         .model(whole.getModel())
                         .finishReason(reason)
                         .providerData(whole.getProviderData())
+                        .citations(whole.getCitations())
+                        .searches(whole.getSearches())
                         .metadata(whole.getMetadata());
         if (whole.getTokenUsage() != null) b.tokenUsage(whole.getTokenUsage());
         return b.build();
@@ -278,6 +296,16 @@ public class OpenAiResponsesProvider implements LLMProvider {
                                             ? ""
                                             : " (" + dialect.keyEnv() + ")")));
         }
+    }
+
+    @Override
+    public GroundingSupport groundingSupport() {
+        return dialect.grounding() == null ? GroundingSupport.NONE : GroundingSupport.NATIVE;
+    }
+
+    @Override
+    public Set<GroundingOption> groundingOptions() {
+        return dialect.grounding() == null ? Set.of() : dialect.grounding().options();
     }
 
     /** The dialect this provider speaks. */

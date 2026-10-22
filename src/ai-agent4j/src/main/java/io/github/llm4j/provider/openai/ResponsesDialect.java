@@ -1,5 +1,6 @@
 package io.github.llm4j.provider.openai;
 
+import io.github.llm4j.grounding.Recency;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,6 +35,7 @@ public final class ResponsesDialect {
     private final Set<String> replayTypes;
     private final boolean reasoningSummary;
     private final Map<String, Object> extraRequest;
+    private final ResponsesGrounding grounding;
 
     private ResponsesDialect(Builder b) {
         this.name = Objects.requireNonNull(b.name, "name cannot be null");
@@ -50,6 +52,7 @@ public final class ResponsesDialect {
         this.replayTypes = Set.copyOf(b.replayTypes);
         this.reasoningSummary = b.reasoningSummary;
         this.extraRequest = Map.copyOf(b.extraRequest);
+        this.grounding = b.grounding;
     }
 
     /**
@@ -151,6 +154,11 @@ public final class ResponsesDialect {
         return extraRequest;
     }
 
+    /** How this vendor does web-search grounding, or null when it offers none. */
+    public ResponsesGrounding grounding() {
+        return grounding;
+    }
+
     public static Builder builder(String name) {
         return new Builder(name);
     }
@@ -171,6 +179,38 @@ public final class ResponsesDialect {
                     .traits(ModelTraits::openai)
                     .replayTypes(Set.of("message", "reasoning", "function_call", "web_search_call"))
                     .reasoningSummary(true)
+                    .grounding(
+                            ResponsesGrounding.builder("web_search")
+                                    .allowDomains("filters.allowed_domains", 100)
+                                    .blockDomains("filters.blocked_domains", 100)
+                                    .country(
+                                            "user_location.country",
+                                            Map.of("user_location.type", "approximate"))
+                                    .maxSearches("max_tool_calls")
+                                    .include(List.of("web_search_call.action.sources"))
+                                    .citedSources()
+                                    .callItems("web_search_call")
+                                    .build())
+                    .build();
+
+    /** xAI's Responses API (the chat-completions API of the same vendor is {@link Dialect#XAI}). */
+    public static final ResponsesDialect XAI =
+            builder("xai")
+                    .defaultBaseUrl("https://api.x.ai/v1")
+                    .path("/responses")
+                    .keyEnv("XAI_API_KEY")
+                    .baseUrlEnv("XAI_BASE_URL")
+                    .hosts(List.of("api.x.ai"))
+                    .traits(ModelTraits::xai)
+                    .grounding(
+                            ResponsesGrounding.builder("web_search")
+                                    .allowDomains("filters.allowed_domains", 5)
+                                    .blockDomains("filters.excluded_domains", 5)
+                                    .citedSources()
+                                    .callItems("web_search_call")
+                                    .countPath(
+                                            "usage.server_side_tool_usage_details.web_search_calls")
+                                    .build())
                     .build();
 
     /**
@@ -188,6 +228,26 @@ public final class ResponsesDialect {
                     .requiredMaxTokens(m -> m.startsWith("anthropic/") ? 8_000 : null)
                     .modelFieldByPrefix(Map.of("preset:", "preset"))
                     .replayTypes(Set.of("message", "function_call"))
+                    .grounding(
+                            ResponsesGrounding.builder("web_search")
+                                    .allowDomains("filters.search_domain_filter", 20)
+                                    .blockDomainsWithPrefix("-", 20)
+                                    .recency(
+                                            "filters.search_recency_filter",
+                                            Map.of(
+                                                    Recency.DAY,
+                                                    "day",
+                                                    Recency.WEEK,
+                                                    "week",
+                                                    Recency.MONTH,
+                                                    "month",
+                                                    Recency.YEAR,
+                                                    "year"))
+                                    .country("user_location.country", Map.of())
+                                    .consultedSources("search_results")
+                                    .countPath("usage.tool_calls_details.search_web.invocation")
+                                    .costPath("usage.tool_calls_details.search_web.cost_usd")
+                                    .build())
                     .build();
 
     /** Builds a {@link ResponsesDialect}. */
@@ -206,6 +266,7 @@ public final class ResponsesDialect {
         private Set<String> replayTypes = Set.of("message", "reasoning", "function_call");
         private boolean reasoningSummary;
         private Map<String, Object> extraRequest = Map.of();
+        private ResponsesGrounding grounding;
 
         private Builder(String name) {
             this.name = name;
@@ -273,6 +334,12 @@ public final class ResponsesDialect {
 
         public Builder extraRequest(Map<String, Object> fields) {
             this.extraRequest = fields == null ? Map.of() : new LinkedHashMap<>(fields);
+            return this;
+        }
+
+        /** How the vendor does web-search grounding; leave unset for a vendor that has none. */
+        public Builder grounding(ResponsesGrounding grounding) {
+            this.grounding = grounding;
             return this;
         }
 
