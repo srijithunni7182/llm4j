@@ -1,0 +1,22 @@
+// A researcher that searches the web and a writer that does not.
+// The researcher reads the open web, so it has no tools and sees no private data (weave audit rule LA20).
+
+budget { searches: 10  tokens: 200000 }
+
+agent Researcher {
+    model: "perplexity/openai/gpt-5.6-sol"
+    system: "Find current, sourced facts. Answer in a few sentences."
+    grounding: web { allow: ["who.int", "nih.gov"]  recency: year }
+    budget { searches: 4 }
+}
+
+agent Writer {
+    model: "claude-haiku-5-5"
+    system: "Write two clear sentences from the notes. Keep the numbered source list as given."
+}
+
+workflow Main(question) {
+    delegate "{question}" to Researcher -> notes budget 2 searches
+    delegate "Notes: {notes}\nSources: {notes_citations}" to Writer -> article
+    note "{article}"
+}

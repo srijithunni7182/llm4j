@@ -72,6 +72,10 @@ Name a vendor with its prefix (`openai/`, `xai/`, `kimi/`, `qwen/`, `perplexity/
 a bare `qwen3` is not guessed because it usually means a local Ollama model. `weave check` reports a missing key by its variable name before anything runs.
 Keep keys in the secret store: `weave secret set OPENAI_API_KEY` binds the key to `api.openai.com`, so a script cannot send it anywhere else.
 
+## Current information: `grounding: web`
+
+When an agent needs facts newer than its model, give it `grounding: web` rather than a search tool, if its provider can (Perplexity, Claude, Gemini, or OpenAI and xAI through a provider with `api: responses`). The sources come back typed in `{name_citations}`, searches are capped with `budget { searches: N }`, and `weave check` refuses a model or setting that cannot ground. It is a new way to read untrusted content: `weave audit` counts the agent as exposed (LA20) whatever its `allow:` list says, so keep it away from private data and from tools that send or act. Test it offline with `ScriptedClient.sources(...)` and assert with `citesOnlyFrom(...)`. Details: the Loom guide, "Searching the web".
+
 ## Tasks: the steps with no model
 
 Hexamind has no step that needs one, but most business workflows do. A support bot that refunds orders lets a model read the message and lets **code** decide and pay:

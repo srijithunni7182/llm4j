@@ -1159,6 +1159,31 @@ From Java, `MarkdownFolderPromptRegistry` reads the same folder and implements `
 
 ---
 
+### Searching the web: `grounding:`
+
+An agent can let its model search the web inside its own calls. The answer then comes back with its sources, and the script can read them.
+
+```loom
+agent Researcher {
+    model: "perplexity/openai/gpt-5.6-sol"
+    grounding: web { allow: ["who.int", "nih.gov"]  recency: year  country: "IN" }
+    budget { searches: 6 }
+}
+agent Writer { model: "claude-haiku-5-5" }
+
+workflow Main(topic) {
+    delegate "What is new about {topic}?" to Researcher -> notes budget 2 searches
+    delegate "Write it up. Sources: {notes_citations}" to Writer -> article
+}
+```
+
+- `grounding: web` alone turns it on; the block narrows it. `allow: [...]` or `block: [...]` (not both) limit the sites, `recency:` is `day`, `week`, `month` or `year`, `country:` a two-letter code, `max_searches:` a cap per call. Lists are written in brackets, like `tools:`.
+- **Who can search.** Perplexity (`perplexity/...`), Claude (`claude-...`, preview), Gemini (preview), and OpenAI or xAI through a provider declared with `api: responses`. Each honours only some settings; Perplexity and Gemini have no search cap, Gemini only `recency`, xAI only `allow` and `block`. `weave check` refuses, by name, grounding on a model that cannot search and a setting its provider cannot honour. There is no `lenient` in a script: you see every limit.
+- **The sources.** After `delegate ... -> notes`, `{notes_citations}` is a list of `index`, `url`, `title` and `snippet` (a missing title or snippet is left out). It is saved with the step, so a resumed run still has it. Some vendors list what they *cited* in the answer, Perplexity lists what it *consulted*.
+- **Budgets.** `budget { searches: 20 }` at the top, in an agent, or `budget 2 searches` on a step. A grounded call is refused before it is made when no search is left; a plain call still runs. `_budget.searches` reads the run's count.
+- **The trace** shows `searches` and `citations` counts on each model call and `searches` on the run's end. Queries, addresses and text are never in the trace.
+- **Audit.** A grounded agent reads the open web, so `weave audit` counts it as reading untrusted content for the lethal trifecta whatever its `allow:` list says (rule LA20). Keep it away from private data and from tools that send or act, and check its sources in tests (`citesOnlyFrom(...)`).
+
 ### A Prompt Every Agent Starts With
 
 Rules, a glossary or the brief that every agent of the workflow needs belong in one place, not pasted into each agent. `shared_prompt` puts that text in front of every agent's own prompt:

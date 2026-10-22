@@ -37,11 +37,11 @@ recorded in §7. Part A is shippable on its own; Part B starts only when Part A 
 | A9 | Citations are typed, indices stable, spans in range | R7 | grounding provider tests | ✅ `ResponsesGroundingTest` (recorded Perplexity, OpenAI and xAI answers: typed citations, indices 1..n, urls kept as given, spans in range, code-point to Java-offset conversion, duplicate sources merged, numeric titles dropped); `NativeGroundingPreviewTest` (Anthropic by text block, Google by byte offsets; **preview**) |
 | A10 | Search usage is as the vendor reports; unknown stays unknown | R8 | grounding provider tests | ✅ the count is the vendor's: Perplexity `invocation`, xAI `web_search_calls`, OpenAI completed search items (an item still `searching` is not counted), Anthropic usage, Google queries; a response with usage and no word of a search ran none; no usage at all stays `null` (`ResponsesGroundingTest`, `NativeGroundingPreviewTest`) |
 | A11 | Streaming and non-streaming agree on citations and search usage | R9 | parity tests | ✅ the same response delivered whole and streamed gives equal citations and search usage, for Perplexity, OpenAI, xAI (`ResponsesGroundingTest.aStreamedAnswerAgreesWithTheWholeOne`), Anthropic and Google (preview); the recorded streams end with citations and searches in their final chunk |
-| A12 | A grounded agent is untrusted-content exposure in `weave audit`, with or without `allow:` | R10 | Loom audit tests | ⏳ 8g |
+| A12 | A grounded agent is untrusted-content exposure in `weave audit`, with or without `allow:` | R10 | Loom audit tests | ✅ `GroundingLoomTest` (LA20 listed with or without `allow:`; an allow list does not remove the untrusted leg, so LA01 still fires) |
 | A13 | Searches are charged to the `searches` budget; a breach halts | R11 | budget tests | ✅ `SearchBudgetTest` (count, refusal before the call while a plain call still runs, unknown count, ignored cap, streams, windows, restore, per-1000 prices, old shapes) |
 | A14 | A grounded turn followed by a tool turn is valid for Anthropic and Kimi | R12 | provider tests | ◐ Anthropic ✅ **preview** (`NativeGroundingPreviewTest.aGroundedTurnThatEndsInAToolCallIsSentBackWithItsSearchBlocksUntouched`: every block, `encrypted_content` included, is sent back verbatim). Kimi: left out (no key). Responses vendors keep their `web_search_call` items for OpenAI's replay |
 | A15 | Fallback to a client-side tool yields citations in the same shape | §8.3 | grounding unit tests | ✅ `GroundingCheckTest` (fallback runs the tool, citations built from the URLs it returned, bounded by `maxSearches`, same shape on a stream, never used when the provider has native grounding) |
-| A16 | eval4j citation assertions pass and fail correctly; scripted citations work offline | §6 | eval4j tests | ⏳ 8g |
+| A16 | eval4j citation assertions pass and fail correctly; scripted citations work offline | §6 | eval4j tests | ✅ `CitationAssertionsTest` (11 tests: pass and fail for each assertion on `AgentResult` and `LLMResponse`, domain matching, scripted sources, replay keeps sources) |
 | A17 | The live smoke run passes for every vendor with a key, within its spend cap, and recorded fixtures replace the hand-written ones | §5 of the test strategy | `ProviderSmokeIntegrationTest` (live) | ◐ run for OpenAI (chat and Responses), xAI and Perplexity on 2026-10-22, within the cap; Anthropic and Gemini have no key here, Kimi and Qwen no key: owed (see §7 follow-up) |
 | A18 | All documentation samples execute in tests | docs | docs examples test | ◐ 8a to 8c samples execute (`ProvidersDocsExamplesTest`); the 8e grounding samples execute (`GroundingDocsExamplesTest`, which also checks the page shows them verbatim); vendor samples with 8f |
 | A19 | `OpenAiResponsesProvider` passes `ProviderContract` for the Perplexity Agent API and OpenAI Responses; `web_search` results map to typed citations | §3.4, R1, R7 | contract and grounding provider tests | ✅ contract: both Responses dialects pass `ProviderContract` and replay recorded real payloads; `web_search` results map to typed citations (Perplexity `search_results`, OpenAI and xAI `url_citation`), `ResponsesGroundingTest` |
@@ -64,7 +64,7 @@ Filled in as tests are written: one row per requirement `R1`…`R12`, naming the
 | R8 | `ResponsesGroundingTest`, `NativeGroundingPreviewTest` |
 | R9 | `ResponsesGroundingTest.aStreamedAnswerAgreesWithTheWholeOne`, `NativeGroundingPreviewTest` (stream parity) |
 | R12 | `NativeGroundingPreviewTest` (Anthropic tool turn, preview) |
-| R10 | _8g_ |
+| R10 | `GroundingLoomTest.anAllowListDoesNotRemoveTheUntrustedLegOfTheTrifecta` |
 
 ## 4. Quality gates
 
@@ -187,4 +187,15 @@ Decisions and deviations:
 - A bug found by the new tests: `LLMResponse.toBuilder()` shared its unmodifiable metadata map, so adding a key to a copy threw. Fixed (a copy of the map), with a test.
 - The wiki claim that a domain loses `www.` was wrong; the page now says what `Grounding` really does (scheme and trailing slash dropped, lower-cased).
 - Not done: Anthropic `pause_turn` continuation (a long server-tool turn) and Gemini's combination of search with function declarations on models older than Gemini 3; both are preview-only paths with no key to check.
+
+### 7.9 8g and 8h: agent, Loom, eval4j, tooling (done 2026-10-22)
+
+Built and tested:
+- **Agent.** `ReActAgent.Builder.grounding(...)` puts the grounding on every main model call (not the tools-off wrap-up call); `AgentResult.getCitations()` is the union by URL, numbered from 1, without spans; streaming keeps the final chunk's sources. `ReActAgentGroundingTest`.
+- **eval4j.** `hasCitations`, `citesAtLeast`, `citesDomain`, `citesOnlyFrom`, `usedSearches` on `AgentResultAssert` and `LlmResponseAssert`; `ScriptedClient.sources/searches/groundedCalls`; `AgentReplay` keeps sources. Docs: ASSERTIONS, OFFLINE-AND-BUDGETED-RUNS, LLM-AS-JUDGE (faithfulness against cited snippets, no new metric).
+- **Loom.** `grounding: web {...}` (parser, AST, `weave check`, executor), `budget { searches }` at run, agent and step level, `<name>_citations` with journal replay, trace counts (`searches`, `citations`), `run_end.searches`, graph JSON and schema, explain text, audit rule LA20 and the untrusted leg of the trifecta. `GroundingLoomTest` (17), `GroundingDeclarationsCtkTest`, `GraphJsonTest`.
+- **Inspect.** `loom.model.searches`, `loom.model.citations`, `loom.run.searches`; per-model `searches` and `citations` in the state JSON.
+- **Tooling (8h).** VS Code grammar keywords, hover text, an `agent-grounded` snippet (checked with the real `weave graph`); diagnostics come from `weave check`. The VS Code test suite could not be run here (no `node_modules`). Example `src/examples/grounded-research` (verified with the real `weave check` and `weave audit`; not run live).
+
+Spec deviations: domain lists in `grounding:` are bracketed (`allow: ["who.int"]`), as `tools:` is; sources are the variable `<name>_citations`, not `step.citations`, following the `<name>_audio` and `_proposal` precedent; the Loom `grounding:` name overlaps in the docs with inspect's older "ungrounded figures" rule (`loom.grounding.*`), which is a different thing (numbers in an answer not found in tool results).
 

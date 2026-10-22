@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- Providers: the hover text of `provider` lists the new kinds (`openai`, `xai`, `kimi`, `qwen`, `perplexity`, `openai_compatible`) and their options (`api:` for OpenAI, `header:` and `query:` for the generic kind). `weave check` reports their mistakes on the line it names. `grounding:` support comes with the grounding sub-phase.
+- Providers: the hover text of `provider` lists the new kinds (`openai`, `xai`, `kimi`, `qwen`, `perplexity`, `openai_compatible`) and their options (`api:` for OpenAI, `header:` and `query:` for the generic kind). `weave check` reports their mistakes on the line it names. 
+
+- Web grounding: `grounding`, `recency`, `max_searches` and `searches` are highlighted, `grounding` and `searches` have hover text, and there is an `agent-grounded` snippet. `weave check` (which draws the squiggles) refuses a model or setting that cannot ground, on the line it names, and `weave audit` shows rule LA20.
 
 - Classification: `intentclassifier`, `intentclassify`, `choose`, `samples` (and `rate` and `confidence` where they are a classifier's) are highlighted and have hover text, there are two snippets (`intentclassifier`, `intentclassify`), and the workflow graph draws a classify step with its backend (`Jev · calibrated` or `chat model · uncalibrated`) and its labels.
 
