@@ -1,0 +1,122 @@
+{
+  "background": false,
+  "completed_at": 1792663374,
+  "created_at": 1792663374,
+  "error": null,
+  "frequency_penalty": 0,
+  "id": "resp_scrubbed",
+  "incomplete_details": null,
+  "instructions": null,
+  "max_output_tokens": 500,
+  "max_tool_calls": null,
+  "metadata": {},
+  "model": "openai/gpt-6-luna",
+  "object": "response",
+  "output": [
+    {
+      "queries": [
+        "RBI current policy repo rate October 2026 latest MPC decision",
+        "Reserve Bank of India repo rate last changed 2026"
+      ],
+      "results": [
+        {
+          "date": "2026-10-22",
+          "id": 1,
+          "last_updated": "2026-10-22",
+          "snippet": "# RBI Repo Rate\n### Higher EMIs ahead: PNB, Bank of India, Bank of Baroda and Indian Bank raise lending rates; check details\nThe Reserve Bank of India increased the repo rate by 25 basis points during its monetary policy meeting.\n...\n### RBI Repo Rate 2026: Malhotra & Co hike repo rate by 25 bps to 5.50% for first time in nearly 4 years as inflation pressures build\nRepo Rate Hike: The RBI raised the repo rate by 25 basis points to 5.50%, its first hike in nearly four years, as rising oil prices, a weak monsoon and a weaker rupee threaten to push inflation higher.\nThe move was widely expected by economists.\n...\n### RBI Repo Rate 2026: Why RBI MPC lifted repo rates for the first time in nearly four years in October policy\nRBI Repo Rate: The Reserve Bank of India increased the repo rate by 25 basis points to 5.50% after recent inflation concerns.\nEconomic growth has exceeded expectations, prompting the central bank to adjust its monetary policy.\nInflation risks are rising due to higher crude prices and weaker agricultural output affecting projections.\nGlobal interest rate changes and narrowing differentials also pressure capital flows and emerging markets.\n...\n### RBI rate hike to raise home, car loan borrowing costs\nThe Reserve Bank of India increased its policy rate by 25 basis points to 5.50% on Wednesday.\n...\nThe monetary policy committee unanimously adopted a stance of 'calibrated tightening' with future increases possible.\n...\n### RBI likely to hold repo rate in Oct policy, begin 50-75 bps hike cycle in Dec: BoB\nThe Reserve Bank of India is set to maintain the repo rate at 5.25% during the upcoming policy meeting.\nDespite rising inflation pressures and global economic uncertainty, the rate is expected to remain unchanged.\n...\n### RBI raises repo rate to 5.5% in first hike under Governor Sanjay Malhotra, shifts stance to ‘calibrated tightening’\nThe RBI raised its benchmark repo rate by 25 basis points to 5.5%, its first hike since February 2023, and shifted its policy stance to ‘calibrated tightening’.\n...\n### RBI MPC Repo Rate News Highlights: Malhotra & co rules out rate cut chances in near term, says RBI to ensure rupee finds its ‘correct value’\nRBI Repo Rate Highlights: RBI MPC hikes repo rate by 25 bps to 5.50% as war creeps into Indian retail inflation, marking its first increase since February 2023.\nGovernor Sanjay Malhotra noted that further rate cuts are off the table in near term.\n...\n### RBI MPC Meeting at a Glance: Your one step guide for all decisions\nRBI Monetary Policy Meeting Highlights: The Monetary Policy Committee has raised the policy repo rate by 25 basis points to 5.50%.\nRBI Governor Sanjay Malhotra indicated that inflation pressures are increasing and rate cuts are not expected soon.\n...\n### Can banks raise FD interest rates now as RBI increases repo rate by 25 bps?\nRBI MPC October 2026: The Reserve Bank of India has increased the repo rate by 25 bps from 5.25% to 5.50%, signaling a shift.\n...\n### Federal Bank revises savings account interest rates\nAt present, the RBI repo rate is 6.25%.\n...\n### Timeline: How RBI's repo rate has changed since June 2000\nThe Reserve Bank of India kept the repo rate unchanged at 5.25% and retained its \"neutral\" policy stance, in line with market expectations, as it awaits more data to assess the impact of higher oil prices on inflation.\n...\n### RBI repo rate: Is the party of home loan borrowers over after RBI pauses repo rate for second time in a row?\nThe Reserve Bank of India maintained the repo rate at 5.5% on October 1, 2025, for the second consecutive meeting, following earlier rate cuts this year.\n...\n### RBI hikes repo rate by 50 bps as inflationary pressures intensify; retains GDP forecast\nThe Reserve Bank of India (RBI) Governor on Wednesday announced that the Monetary Policy Committee voted unanimously to hike the benchmark interest rate by 50 bps with immediate effect.",
+          "source": "web",
+          "title": "economictimes.indiatimes.com › markets › rbi-repo-rateRBI Repo Rate - RBI repo rate news, RBI rate cut announcement ...",
+          "url": "https://economictimes.indiatimes.com/markets/rbi-repo-rate"
+        },
+        {
+          "date": "2026-10-22",
+          "id": 2,
+          "last_updated": "2026-10-22",
+          "snippet": "# Repo Rate\nFor new buyers, higher borrowing costs could reduce their loan eligibility and increase the cost of buying a home\n- ## RBI Policy Highlights October 2026: Repo rate hiked to 5.5%, GDP forecast raised to 7.1%, inflation estimate up at 5.2%\nThe Reserve Bank of India’s Monetary Policy Committee (MPC) on Wednesday unanimously raised the repo rate by 25 basis points to 5.5 percent, its first increase since February 2023, while changing its policy stance from ‘neutral’ to ‘calibrated tightening’.\n...\nRBI's Monetary Policy Committee (MPC) kept its repo rate unchanged at 5.25% after a cumulative cut of 125 basis points since February 2025.\n- ## Steady repo rate to aid housing demand, affordable segment awaits boost\n...\n- ## RBI revises FY26 growth forecast upwards to 7.4%, holds rate steady",
+          "source": "web",
+          "title": "Repo Rate | Latest & Breaking News on Repo Rate | Photos, Videos, Breaking Stories and Articles on Repo Rate",
+          "url": "https://www.moneycontrol.com/news/tags/repo-rate.html/news/"
+        },
+        {
+          "date": "2026-10-22",
+          "id": 3,
+          "last_updated": "2026-10-22",
+          "snippet": "### RBI policy rate hike to immediately pinch retail customers\nThe RBI has raised the repo rate by 25 basis points to 5.50%, its first hike since February 2023, which could make floating-rate home, car and personal loans more expensive.\nBorrowers on repo-linked loans may face higher EMIs or longer tenures at their next reset, while fixed-rate loans will remain unaffected.\n...\nThe Reserve Bank of India has unanimously decided to increase the benchmark repo rate by 25 basis points.\nThis decision was made amid rising inflation projections and increasing US bond yields.\n...\nRBI Repo Rate Highlights: RBI MPC hikes repo rate by 25 bps to 5.50% as war creeps into Indian retail inflation, marking its first increase since February 2023.\nGovernor Sanjay Malhotra noted that further rate cuts are off the table in near term.\nGoing forward, how deep the rate hike or shallow the rate hike will be will depend on the evolving macroeconomic conditions and the growth inflation dynamics, he said.\n...\nRBI rate hike in October monetary policy marks a sharp shift to calibrated tightening, raising the repo rate to 5.5%.\n...\nRBI MPC Meeting October 2026: RBI officials are holding a three-day Monetary Policy Committee meeting amid inflationary pressures and rising crude oil prices.\nThe repo rate has remained unchanged at 5.25 per cent for consecutive meetings after a series of cuts.\n...\nRBI Monetary Policy Meeting Highlights: The Monetary Policy Committee has raised the policy repo rate by 25 basis points to 5.50%.\nRBI Governor Sanjay Malhotra indicated that inflation pressures are increasing and rate cuts are not expected soon.\n...\nRBI MPC October 2026: The Reserve Bank of India has increased the repo rate by 25 bps from 5.25% to 5.50%, signaling a shift.\n...\nRBI Monetary Policy 2026 Takeaways: The Reserve Bank of India raised the repo rate by 25 basis points to 5.50%, the first increase since February 2023.\n...\nThe Reserve Bank of India is set to maintain the repo rate at 5.25% during the upcoming policy meeting.\n...\nThe RBI's decision to keep the repo rate unchanged and retain a neutral stance signals policy continuity over pre-emptive action.\n...\nThe banking regulator kept the repo rate unchanged for the third time at 6.5% while retaining the FY24 GDP forecasts of 6.5%.\n...\nRBI MPC repo rate: The Reserve Bank of India maintained its repo rate at 5.25 percent today.\n...\nThe Reserve Bank of India maintained its benchmark repo rate at 5.25 percent.\n...\nRBI MPC Meeting 2026 Highlights: Sanjay Malhotra & co kept the repo rate unchanged at 5.25 per cent and decided to continue with a 'neutral' stance.",
+          "source": "web",
+          "title": "RBI Monetary Policy Meet, RBI Policy News, Latest ...",
+          "url": "https://economictimes.indiatimes.com/markets/rbi-policy"
+        }
+      ],
+      "type": "search_results"
+    },
+    {
+      "content": [
+        {
+          "annotations": [],
+          "text": "The RBI’s policy repo rate is **5.50%**, last changed on **October 21, 2026**, when it was raised by 25 basis points.",
+          "type": "output_text"
+        }
+      ],
+      "id": "msg_scrubbed",
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "reasoning": null,
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "store": true,
+  "temperature": 1,
+  "text": {
+    "format": {
+      "type": "text"
+    }
+  },
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "type": "web_search",
+      "max_results": 3
+    }
+  ],
+  "top_logprobs": 0,
+  "top_p": 1,
+  "truncation": "",
+  "usage": {
+    "cost": {
+      "cache_creation_cost": 0.00029,
+      "currency": "USD",
+      "input_cost": 6e-05,
+      "output_cost": 0.00014,
+      "tool_calls_cost": 0.0025,
+      "tool_calls_cost_details": {
+        "search_web": 0.0025
+      },
+      "total_cost": 0.00299
+    },
+    "input_tokens": 2870,
+    "input_tokens_details": {
+      "cache_creation_input_tokens": 2310,
+      "cache_read_input_tokens": 0,
+      "cached_tokens": 0
+    },
+    "output_tokens": 273,
+    "output_tokens_details": {
+      "reasoning_tokens": 160
+    },
+    "tool_calls_details": {
+      "search_web": {
+        "cost_usd": 0.0025,
+        "invocation": 1
+      }
+    },
+    "total_tokens": 3143
+  },
+  "user": null
+}

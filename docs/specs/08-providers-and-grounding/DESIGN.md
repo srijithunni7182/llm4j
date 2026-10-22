@@ -176,33 +176,39 @@ public final class Grounding {                         // immutable; built with 
 }
 public enum Recency { DAY, WEEK, MONTH, YEAR }
 
-public record Citation(int index, String url, String title, String snippet, List<Span> spans) { }   // spans may be empty
+public record Citation(int index, String url, String title, String snippet, List<Span> spans) { }   // index counts from 1, as in "[1]"; spans may be empty
 public record Span(int start, int end) { }             // character range in the answer this source supports
 
-public record SearchUsage(int count, List<String> queries, Double estimatedCostUsd) { }   // queries only at the detail level that allows text
+public record SearchUsage(Integer count, List<String> queries, Double estimatedCostUsd) { }   // count null = the vendor did not say; queries only at the detail level that allows text
 
 public enum GroundingSupport { NONE, NATIVE }
+public enum GroundingOption { MAX_SEARCHES, ALLOW_DOMAINS, BLOCK_DOMAINS, RECENCY, COUNTRY }   // what a provider can honour, for the central check
 ```
 
-`LLMProvider` gains `default GroundingSupport groundingSupport() { return NONE; }` and, to keep the SPI additive, grounding is read from
+`LLMProvider` gains `default GroundingSupport groundingSupport() { return NONE; }` and `default Set<GroundingOption> groundingOptions()` (empty) and, to keep the SPI additive, grounding is read from
 `LLMRequest.getGrounding()` (null when not asked for). `LLMResponse` gains `getCitations()` (never null; empty when none) and `getSearches()`
 (null when no search ran). Streaming delivers citations and search usage in the **final chunk**, like usage and finish reason today.
 
 ### 4.3 How each vendor is mapped
 
-This table is the plan, to be **re-verified against each vendor's current documentation at the start of the sub-phase that builds it** (Q1). The
-vendors change these interfaces often, and this draft was written from memory.
+Revised in sub-phase 8d from the vendors' **real grounded responses** ([`grounding-payloads/`](grounding-payloads/README.md), captured 2026-10-22) for Perplexity, OpenAI and xAI, and from
+the vendors' reference pages (read 2026-10-22) for Anthropic and Google, which could not be called (no key) and so stay **preview**. The draft table written from memory is replaced.
 
-| Provider | Mechanism | Maps `maxSearches` | Maps domains / recency / country | Citations come from | Notes |
+| Provider | Mechanism | `maxSearches` | Domains / recency / country | Citations come from | Search count and cost come from |
 |---|---|---|---|---|---|
-| Google | the `google_search` tool on the request | not offered natively: refused unless `lenient` | no | `groundingMetadata` (sources and the spans they support) | Existing `GoogleProvider` gains it. Tool calling and grounding in one request may be limited per model: checked at build time |
-| Anthropic | the server-side web search tool | `max_uses` | allowed/blocked domains; user location | citations on text blocks | Existing `AnthropicProvider` gains it; the tool-result blocks must be preserved in `providerData` so a continued turn works |
-| Perplexity (Agent API) | the `web_search` tool on `POST /v1/agent` (Responses schema; also `fetch_url`, `finance_search`) | per its documented tool options | per its documented tool options | `search_results` items and URL `annotations` on `output_text` | Verified against Perplexity's published docs on 2026-10-22 (§3.4). One key reaches OpenAI, Anthropic, Google and xAI models through it, with the same grounding |
-| OpenAI | the web search tool, which is in its Responses API, not in classic chat completions | per-tool limit if offered | domains and location if offered | annotations on the output text | Needs an `OpenAiResponsesProvider` (Q2) |
-| xAI | provider-side search | per vendor | per vendor | per vendor | Interface has been changing: checked at build time |
-| Kimi | the built-in `$web_search` function, which the client must round-trip as a tool call | via the loop's iteration cap | no | tool-call results | A client-driven loop inside the provider: a request is one logical call to the caller |
-| Qwen | a request flag (`enable_search`) and search options | strategy option | no | `search_info` in the response | Behaviour differs between regions |
+| **Perplexity** Agent API (`OpenAiResponsesProvider`, Responses schema) | `tools: [{type: web_search}]`, opt-in; options in the tool: `filters.search_domain_filter` (up to 20; a `-` prefix excludes), `filters.search_recency_filter` (`hour` … `year`), `user_location.country` | **not offered** (`max_steps` is a loop bound; it did not limit searches): refused unless `lenient` | allow ✓, block ✓ (as `-domain`), recency ✓ (`DAY`…`YEAR`), country ✓ | the `search_results` output item (id, url, title, snippet): what it **consulted**; message `annotations` is empty | `usage.tool_calls_details.search_web.invocation` (one invocation can run several queries; they are in `search_results.queries`); real cost `…search_web.cost_usd` |
+| **OpenAI** Responses (`api: responses`) | `tools: [{type: web_search, filters: {allowed_domains \| blocked_domains}, user_location: {type: approximate, country}}]` plus `include: [web_search_call.action.sources]` | `max_tool_calls` ✓ (2 ran, the third item stayed `searching`) | allow ✓ (up to 100), block ✓, country ✓, recency ✗ | `url_citation` annotations on the message (url, title, range): what it **cites** | **no usage field**: the number of `web_search_call` items with status `completed`; queries in `action.queries`; cost from the user's `PriceTable` |
+| **xAI** Responses | `tools: [{type: web_search, filters: {allowed_domains \| excluded_domains}}]` | not tested: refused unless `lenient` | allow ✓ (up to 5), block ✓ (up to 5), recency ✗, country ✗ | `url_citation` annotations (title is only the citation number: dropped); the text has `[[N]](url)` markers | `usage.server_side_tool_usage_details.web_search_calls`; total cost `cost_in_usd_ticks` (10¹⁰ per dollar) |
+| **Anthropic** (preview, from the reference) | server tool `{type: web_search_20250305, name: web_search, max_uses, allowed_domains \| blocked_domains, user_location}` | `max_uses` ✓ | allow ✓, block ✓, country ✓ (`user_location.country`), recency ✗ | `citations` on text blocks (`web_search_result_location`: url, title, `cited_text`) and the `web_search_tool_result` blocks; the blocks (with `encrypted_content`) must be sent back verbatim | `usage.server_tool_use.web_search_requests`; $10 per 1,000 searches |
+| **Google** (preview, from the reference; `generateContent`) | `tools: [{googleSearch: {timeRangeFilter?}}]` | not offered: refused unless `lenient` | recency ✓ (`timeRangeFilter`: an interval ending now), allow ✗, block ✗, country ✗ | `groundingMetadata.groundingChunks[].web` (uri, title) and `groundingSupports` (segment byte offsets, chunk indices) | `groundingMetadata.webSearchQueries` (the count is the number of queries); $14 per 1,000 searches (Gemini 3 and newer) |
+| Kimi | its `$web_search` function is **deprecated**; Moonshot now offers `/v1/tools/search` and server-side search in its Responses API | | | | **left out** of this release: no key, so nothing to record |
+| Qwen | `enable_search` and `web_search` in the Responses API | | | | **left out** of this release: no key |
 | Sarvam, Ollama | none | | | | `groundingSupport() == NONE` |
+
+What the payloads settled (full list in the payloads README): citations mean *what the vendor attributes the answer to*, so each response says whether they were **cited** or **consulted**
+(`LLMResponse.getMetadata()` key `grounding.citation_basis`); a search is what the vendor counts, not a query (queries are listed separately); spans mean the link the model wrote into the text
+(code points, converted to Java offsets; out of range are dropped; Google's are UTF-8 byte offsets, converted); streaming and whole responses agree because both read the final response object;
+the answer text keeps the markdown links the model wrote.
 
 ### 4.4 Capability and refusal
 

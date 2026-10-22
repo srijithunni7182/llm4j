@@ -1,0 +1,252 @@
+event: response.created
+data: {"sequence_number":0,"type":"response.created","response":{"created_at":1792663430,"completed_at":null,"id":"00000000-0000-0000-0000-000000000000","max_output_tokens":800,"model":"grok-4.3","object":"response","output":[],"parallel_tool_calls":true,"previous_response_id":null,"reasoning":{"effort":null,"summary":null},"temperature":0.7,"text":{"format":{"type":"text"}},"tool_choice":"auto","tools":[{"type":"web_search"}],"top_p":0.95,"usage":null,"user":null,"incomplete_details":null,"status":"in_progress","store":true,"metadata":{"system_fingerprint":"fp_scrubbed"},"background":false,"service_tier":"default","truncation":"disabled","top_logprobs":0,"presence_penalty":0.0,"frequency_penalty":0.0,"prompt_cache_key":null,"max_tool_calls":null,"safety_identifier":null,"error":null,"instructions":null}}
+
+event: response.in_progress
+data: {"sequence_number":1,"type":"response.in_progress","response":{"created_at":1792663430,"completed_at":null,"id":"00000000-0000-0000-0000-000000000000","max_output_tokens":800,"model":"grok-4.3","object":"response","output":[],"parallel_tool_calls":true,"previous_response_id":null,"reasoning":{"effort":null,"summary":null},"temperature":0.7,"text":{"format":{"type":"text"}},"tool_choice":"auto","tools":[{"type":"web_search"}],"top_p":0.95,"usage":null,"user":null,"incomplete_details":null,"status":"in_progress","store":true,"metadata":{"system_fingerprint":"fp_scrubbed"},"background":false,"service_tier":"default","truncation":"disabled","top_logprobs":0,"presence_penalty":0.0,"frequency_penalty":0.0,"prompt_cache_key":null,"max_tool_calls":null,"safety_identifier":null,"error":null,"instructions":null}}
+
+event: response.output_item.added
+data: {"sequence_number":2,"type":"response.output_item.added","item":{"id":"ws_scrubbed","type":"web_search_call","status":"in_progress","action":{"type":"search","query":"","sources":[]}},"output_index":0}
+
+event: response.web_search_call.in_progress
+data: {"sequence_number":3,"type":"response.web_search_call.in_progress","item_id":"ws_scrubbed","output_index":0}
+
+event: response.web_search_call.searching
+data: {"sequence_number":4,"type":"response.web_search_call.searching","item_id":"ws_scrubbed","output_index":0}
+
+event: response.output_item.added
+data: {"sequence_number":5,"type":"response.output_item.added","item":{"id":"ws_scrubbed","type":"web_search_call","status":"in_progress","action":{"type":"search","query":"","sources":[]}},"output_index":1}
+
+event: response.web_search_call.in_progress
+data: {"sequence_number":6,"type":"response.web_search_call.in_progress","item_id":"ws_scrubbed","output_index":1}
+
+event: response.web_search_call.searching
+data: {"sequence_number":7,"type":"response.web_search_call.searching","item_id":"ws_scrubbed","output_index":1}
+
+event: response.web_search_call.completed
+data: {"sequence_number":8,"type":"response.web_search_call.completed","item_id":"ws_scrubbed","output_index":0}
+
+event: response.output_item.done
+data: {"sequence_number":9,"type":"response.output_item.done","item":{"id":"ws_scrubbed","type":"web_search_call","status":"completed","action":{"type":"search","query":"Reserve Bank of India current policy repo rate latest","sources":[{"type":"url","url":"https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63742"},{"type":"url","url":"https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63839"},{"type":"url","url":"https://www.rbi.org.in/Home.aspx/Webservice/scripts/Scripts/Scripts/femaview.aspx?femaid=66"},{"type":"url","url":"https://m.economictimes.com/news/economy/policy/extent-of-rate-hike-cycle-to-depend-on-growth-inflation-outlook-rbi-governor/articleshow/135092338.cms"},{"type":"url","url":"https://indianexpress.com/article/business/rbi-repo-rate-hike-mpc-minutes-rate-cuts-inflation-10931112/"},{"type":"url","url":"https://economictimes.indiatimes.com/topic/rbi-monetary-policy-2026/news"},{"type":"url","url":"https://www.thehindu.com/business/Economy/rbi-hikes-repo-rate-by-25-basis-points-to-55/article71554369.ece"},{"type":"url","url":"https://www.business-standard.com/finance/news/rbi-policy-highlights-repo-rate-rises-25-bps-as-inflation-risks-broaden-126100700304_1.html"},{"type":"url","url":"https://x.com/livemint/status/2112918466005184688"},{"type":"url","url":"https://economictimes.indiatimes.com/rbi-credit-policy-benchmark-interest-rates-raised-by-25-bps-to-cool-inflation/opinions/8872907.cms"}]}},"output_index":0}
+
+event: response.web_search_call.completed
+data: {"sequence_number":10,"type":"response.web_search_call.completed","item_id":"ws_scrubbed","output_index":1}
+
+event: response.output_item.done
+data: {"sequence_number":11,"type":"response.output_item.done","item":{"id":"ws_scrubbed","type":"web_search_call","status":"completed","action":{"type":"search","query":"RBI repo rate last change date","sources":[{"type":"url","url":"https://www.business-standard.com/finance/news/rbi-mpc-repo-rate-october-2026-last-hikes-sanjay-malhotra-gdp-inflation-126100700290_1.html"},{"type":"url","url":"https://www.reuters.com/world/india/changes-indias-repo-rate-since-june-2000-2025-12-05/"},{"type":"url","url":"https://www.bookofexams.in/notes/repo-rate-history-year-wise/"},{"type":"url","url":"https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63742"},{"type":"url","url":"https://m.economictimes.com/news/economy/policy/timeline-changes-to-indias-repo-rate-since-june-2000/articleshow/132891165.cms"}]}},"output_index":1}
+
+event: response.output_item.added
+data: {"sequence_number":12,"type":"response.output_item.added","item":{"content":[],"id":"msg_scrubbed","role":"assistant","type":"message","status":"in_progress"},"output_index":2}
+
+event: response.content_part.added
+data: {"sequence_number":13,"type":"response.content_part.added","content_index":0,"item_id":"msg_scrubbed","output_index":2,"part":{"type":"output_text","text":"","logprobs":[],"annotations":[]}}
+
+event: response.output_text.delta
+data: {"sequence_number":14,"type":"response.output_text.delta","content_index":0,"delta":"**","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":15,"type":"response.output_text.delta","content_index":0,"delta":"The","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":16,"type":"response.output_text.delta","content_index":0,"delta":" Reserve","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":17,"type":"response.output_text.delta","content_index":0,"delta":" Bank","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":18,"type":"response.output_text.delta","content_index":0,"delta":" of","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":19,"type":"response.output_text.delta","content_index":0,"delta":" India's","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":20,"type":"response.output_text.delta","content_index":0,"delta":" current","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":21,"type":"response.output_text.delta","content_index":0,"delta":" policy","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":22,"type":"response.output_text.delta","content_index":0,"delta":" repo","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":23,"type":"response.output_text.delta","content_index":0,"delta":" rate","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":24,"type":"response.output_text.delta","content_index":0,"delta":" is","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":25,"type":"response.output_text.delta","content_index":0,"delta":" ","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":26,"type":"response.output_text.delta","content_index":0,"delta":"5","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":27,"type":"response.output_text.delta","content_index":0,"delta":".","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":28,"type":"response.output_text.delta","content_index":0,"delta":"50","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":29,"type":"response.output_text.delta","content_index":0,"delta":"%,","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":30,"type":"response.output_text.delta","content_index":0,"delta":" last","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":31,"type":"response.output_text.delta","content_index":0,"delta":" changed","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":32,"type":"response.output_text.delta","content_index":0,"delta":" on","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":33,"type":"response.output_text.delta","content_index":0,"delta":" October","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":34,"type":"response.output_text.delta","content_index":0,"delta":" ","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":35,"type":"response.output_text.delta","content_index":0,"delta":"7","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":36,"type":"response.output_text.delta","content_index":0,"delta":",","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":37,"type":"response.output_text.delta","content_index":0,"delta":" ","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":38,"type":"response.output_text.delta","content_index":0,"delta":"202","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":39,"type":"response.output_text.delta","content_index":0,"delta":"6","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":40,"type":"response.output_text.delta","content_index":0,"delta":",","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":41,"type":"response.output_text.delta","content_index":0,"delta":" when","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":42,"type":"response.output_text.delta","content_index":0,"delta":" the","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":43,"type":"response.output_text.delta","content_index":0,"delta":" MPC","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":44,"type":"response.output_text.delta","content_index":0,"delta":" unanimously","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":45,"type":"response.output_text.delta","content_index":0,"delta":" raised","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":46,"type":"response.output_text.delta","content_index":0,"delta":" it","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":47,"type":"response.output_text.delta","content_index":0,"delta":" by","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":48,"type":"response.output_text.delta","content_index":0,"delta":" ","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":49,"type":"response.output_text.delta","content_index":0,"delta":"25","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":50,"type":"response.output_text.delta","content_index":0,"delta":" basis","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":51,"type":"response.output_text.delta","content_index":0,"delta":" points","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":52,"type":"response.output_text.delta","content_index":0,"delta":" from","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":53,"type":"response.output_text.delta","content_index":0,"delta":" ","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":54,"type":"response.output_text.delta","content_index":0,"delta":"5","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":55,"type":"response.output_text.delta","content_index":0,"delta":".","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":56,"type":"response.output_text.delta","content_index":0,"delta":"25","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":57,"type":"response.output_text.delta","content_index":0,"delta":"%.","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":58,"type":"response.output_text.delta","content_index":0,"delta":"**","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":59,"type":"response.output_text.delta","content_index":0,"delta":"[[1]](https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63742)","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.annotation.added
+data: {"sequence_number":60,"type":"response.output_text.annotation.added","annotation":{"type":"url_citation","url":"https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63742","start_index":165,"end_index":237,"title":"1"},"annotation_index":0,"content_index":0,"item_id":"msg_scrubbed","output_index":2}
+
+event: response.output_text.delta
+data: {"sequence_number":61,"type":"response.output_text.delta","content_index":0,"delta":"[[2]](https://www.rbi.org.in/Home.aspx/Webservice/scripts/Scripts/Scripts/femaview.aspx?femaid=66)","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.annotation.added
+data: {"sequence_number":62,"type":"response.output_text.annotation.added","annotation":{"type":"url_citation","url":"https://www.rbi.org.in/Home.aspx/Webservice/scripts/Scripts/Scripts/femaview.aspx?femaid=66","start_index":237,"end_index":335,"title":"2"},"annotation_index":1,"content_index":0,"item_id":"msg_scrubbed","output_index":2}
+
+event: response.output_text.delta
+data: {"sequence_number":63,"type":"response.output_text.delta","content_index":0,"delta":"\n\n","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":64,"type":"response.output_text.delta","content_index":0,"delta":"This","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":65,"type":"response.output_text.delta","content_index":0,"delta":" is","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":66,"type":"response.output_text.delta","content_index":0,"delta":" confirmed","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":67,"type":"response.output_text.delta","content_index":0,"delta":" on","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":68,"type":"response.output_text.delta","content_index":0,"delta":" the","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":69,"type":"response.output_text.delta","content_index":0,"delta":" RBI","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":70,"type":"response.output_text.delta","content_index":0,"delta":"'s","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":71,"type":"response.output_text.delta","content_index":0,"delta":" official","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":72,"type":"response.output_text.delta","content_index":0,"delta":" website","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":73,"type":"response.output_text.delta","content_index":0,"delta":" and","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":74,"type":"response.output_text.delta","content_index":0,"delta":" recent","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":75,"type":"response.output_text.delta","content_index":0,"delta":" policy","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":76,"type":"response.output_text.delta","content_index":0,"delta":" statements","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":77,"type":"response.output_text.delta","content_index":0,"delta":"/min","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":78,"type":"response.output_text.delta","content_index":0,"delta":"utes","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.delta
+data: {"sequence_number":79,"type":"response.output_text.delta","content_index":0,"delta":".","item_id":"msg_scrubbed","output_index":2,"logprobs":[]}
+
+event: response.output_text.done
+data: {"sequence_number":80,"type":"response.output_text.done","content_index":0,"item_id":"msg_scrubbed","output_index":2,"text":"**The Reserve Bank of India's current policy repo rate is 5.50%, last changed on October 7, 2026, when the MPC unanimously raised it by 25 basis points from 5.25%.**[[1]](https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63742)[[2]](https://www.rbi.org.in/Home.aspx/Webservice/scripts/Scripts/Scripts/femaview.aspx?femaid=66)\n\nThis is confirmed on the RBI's official website and recent policy statements/minutes.","logprobs":[]}
+
+event: response.content_part.done
+data: {"sequence_number":81,"type":"response.content_part.done","content_index":0,"item_id":"msg_scrubbed","output_index":2,"part":{"type":"output_text","text":"**The Reserve Bank of India's current policy repo rate is 5.50%, last changed on October 7, 2026, when the MPC unanimously raised it by 25 basis points from 5.25%.**[[1]](https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63742)[[2]](https://www.rbi.org.in/Home.aspx/Webservice/scripts/Scripts/Scripts/femaview.aspx?femaid=66)\n\nThis is confirmed on the RBI's official website and recent policy statements/minutes.","logprobs":[],"annotations":[{"type":"url_citation","url":"https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63742","start_index":165,"end_index":237,"title":"1"},{"type":"url_citation","url":"https://www.rbi.org.in/Home.aspx/Webservice/scripts/Scripts/Scripts/femaview.aspx?femaid=66","start_index":237,"end_index":335,"title":"2"}]}}
+
+event: response.output_item.done
+data: {"sequence_number":82,"type":"response.output_item.done","item":{"content":[{"type":"output_text","text":"**The Reserve Bank of India's current policy repo rate is 5.50%, last changed on October 7, 2026, when the MPC unanimously raised it by 25 basis points from 5.25%.**[[1]](https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63742)[[2]](https://www.rbi.org.in/Home.aspx/Webservice/scripts/Scripts/Scripts/femaview.aspx?femaid=66)\n\nThis is confirmed on the RBI's official website and recent policy statements/minutes.","logprobs":[],"annotations":[{"type":"url_citation","url":"https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63742","start_index":165,"end_index":237,"title":"1"},{"type":"url_citation","url":"https://www.rbi.org.in/Home.aspx/Webservice/scripts/Scripts/Scripts/femaview.aspx?femaid=66","start_index":237,"end_index":335,"title":"2"}]}],"id":"msg_scrubbed","role":"assistant","type":"message","status":"completed"},"output_index":2}
+
+event: response.completed
+data: {"sequence_number":83,"type":"response.completed","response":{"created_at":1792663430,"completed_at":1792663434,"id":"00000000-0000-0000-0000-000000000000","max_output_tokens":800,"model":"grok-4.3","object":"response","output":[{"id":"ws_scrubbed","type":"web_search_call","status":"completed","action":{"type":"search","query":"Reserve Bank of India current policy repo rate latest","sources":[{"type":"url","url":"https://indianexpress.com/article/business/rbi-repo-rate-hike-mpc-minutes-rate-cuts-inflation-10931112/"},{"type":"url","url":"https://www.thehindu.com/business/Economy/rbi-hikes-repo-rate-by-25-basis-points-to-55/article71554369.ece"},{"type":"url","url":"https://m.economictimes.com/news/economy/policy/extent-of-rate-hike-cycle-to-depend-on-growth-inflation-outlook-rbi-governor/articleshow/135092338.cms"},{"type":"url","url":"https://x.com/livemint/status/2112918466005184688"},{"type":"url","url":"https://economictimes.indiatimes.com/topic/rbi-monetary-policy-2026/news"},{"type":"url","url":"https://economictimes.indiatimes.com/rbi-credit-policy-benchmark-interest-rates-raised-by-25-bps-to-cool-inflation/opinions/8872907.cms"},{"type":"url","url":"https://www.business-standard.com/finance/news/rbi-mpc-repo-rate-october-2026-last-hikes-sanjay-malhotra-gdp-inflation-126100700290_1.html"},{"type":"url","url":"https://www.reuters.com/world/india/changes-indias-repo-rate-since-june-2000-2025-12-05/"},{"type":"url","url":"https://www.bookofexams.in/notes/repo-rate-history-year-wise/"},{"type":"url","url":"https://m.economictimes.com/news/economy/policy/timeline-changes-to-indias-repo-rate-since-june-2000/articleshow/132891165.cms"},{"type":"url","url":"https://www.rbi.org.in/Home.aspx/Webservice/scripts/Scripts/Scripts/femaview.aspx?femaid=66"},{"type":"url","url":"https://www.business-standard.com/finance/news/rbi-policy-highlights-repo-rate-rises-25-bps-as-inflation-risks-broaden-126100700304_1.html"},{"type":"url","url":"https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63839"},{"type":"url","url":"https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63742"}]}},{"id":"ws_scrubbed","type":"web_search_call","status":"completed","action":{"type":"search","query":"RBI repo rate last change date","sources":[{"type":"url","url":"https://indianexpress.com/article/business/rbi-repo-rate-hike-mpc-minutes-rate-cuts-inflation-10931112/"},{"type":"url","url":"https://www.thehindu.com/business/Economy/rbi-hikes-repo-rate-by-25-basis-points-to-55/article71554369.ece"},{"type":"url","url":"https://m.economictimes.com/news/economy/policy/extent-of-rate-hike-cycle-to-depend-on-growth-inflation-outlook-rbi-governor/articleshow/135092338.cms"},{"type":"url","url":"https://x.com/livemint/status/2112918466005184688"},{"type":"url","url":"https://economictimes.indiatimes.com/topic/rbi-monetary-policy-2026/news"},{"type":"url","url":"https://economictimes.indiatimes.com/rbi-credit-policy-benchmark-interest-rates-raised-by-25-bps-to-cool-inflation/opinions/8872907.cms"},{"type":"url","url":"https://www.business-standard.com/finance/news/rbi-mpc-repo-rate-october-2026-last-hikes-sanjay-malhotra-gdp-inflation-126100700290_1.html"},{"type":"url","url":"https://www.reuters.com/world/india/changes-indias-repo-rate-since-june-2000-2025-12-05/"},{"type":"url","url":"https://www.bookofexams.in/notes/repo-rate-history-year-wise/"},{"type":"url","url":"https://m.economictimes.com/news/economy/policy/timeline-changes-to-indias-repo-rate-since-june-2000/articleshow/132891165.cms"},{"type":"url","url":"https://www.rbi.org.in/Home.aspx/Webservice/scripts/Scripts/Scripts/femaview.aspx?femaid=66"},{"type":"url","url":"https://www.business-standard.com/finance/news/rbi-policy-highlights-repo-rate-rises-25-bps-as-inflation-risks-broaden-126100700304_1.html"},{"type":"url","url":"https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63839"},{"type":"url","url":"https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63742"}]}},{"content":[{"type":"output_text","text":"**The Reserve Bank of India's current policy repo rate is 5.50%, last changed on October 7, 2026, when the MPC unanimously raised it by 25 basis points from 5.25%.**[[1]](https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63742)[[2]](https://www.rbi.org.in/Home.aspx/Webservice/scripts/Scripts/Scripts/femaview.aspx?femaid=66)\n\nThis is confirmed on the RBI's official website and recent policy statements/minutes.","logprobs":[],"annotations":[{"type":"url_citation","url":"https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx?prid=63742","start_index":165,"end_index":237,"title":"1"},{"type":"url_citation","url":"https://www.rbi.org.in/Home.aspx/Webservice/scripts/Scripts/Scripts/femaview.aspx?femaid=66","start_index":237,"end_index":335,"title":"2"}]}],"id":"msg_scrubbed","role":"assistant","type":"message","status":"completed"}],"parallel_tool_calls":true,"previous_response_id":null,"reasoning":{"effort":null,"summary":null},"temperature":0.7,"text":{"format":{"type":"text"}},"tool_choice":"auto","tools":[{"type":"web_search"}],"top_p":0.95,"usage":{"input_tokens":11832,"input_tokens_details":{"cached_tokens":2048},"output_tokens":374,"output_tokens_details":{"reasoning_tokens":247},"total_tokens":12206,"num_sources_used":0,"num_server_side_tools_used":2,"cost_in_usd_ticks":235746000,"server_side_tool_usage_details":{"web_search_calls":2,"x_search_calls":0,"x_posts_fetched":0,"x_users_fetched":0,"code_interpreter_calls":0,"file_search_calls":0,"mcp_calls":0,"document_search_calls":0,"image_generation_calls":0},"context_details":{"input_tokens":10771,"output_tokens":248}},"user":null,"incomplete_details":null,"status":"completed","store":true,"metadata":{"system_fingerprint":"fp_scrubbed"},"background":false,"service_tier":"default","truncation":"disabled","top_logprobs":0,"presence_penalty":0.0,"frequency_penalty":0.0,"prompt_cache_key":null,"max_tool_calls":null,"safety_identifier":null,"error":null,"instructions":null}}
+

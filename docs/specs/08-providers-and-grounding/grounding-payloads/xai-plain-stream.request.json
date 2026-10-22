@@ -1,0 +1,11 @@
+{
+  "model": "grok-4.3",
+  "input": "In one sentence: what is the Reserve Bank of India's current policy repo rate, and when was it last changed?",
+  "max_output_tokens": 800,
+  "tools": [
+    {
+      "type": "web_search"
+    }
+  ],
+  "stream": true
+}
