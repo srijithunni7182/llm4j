@@ -43,6 +43,17 @@ final class Llm4jConditions {
         }
     }
 
+    /** {@code llm4j.classifiers.*}. */
+    static class ClassifiersConfigured extends SpringBootCondition {
+        @Override
+        public ConditionOutcome getMatchOutcome(
+                ConditionContext context, AnnotatedTypeMetadata metadata) {
+            return anyUnder(context.getEnvironment(), "llm4j.classifiers")
+                    ? ConditionOutcome.match("a classifier backend is configured")
+                    : ConditionOutcome.noMatch("no classifier backend is configured");
+        }
+    }
+
     /** {@code llm4j.pricing.file} or {@code llm4j.pricing.models.*}. */
     static class PricingConfigured extends SpringBootCondition {
         @Override
@@ -79,6 +90,9 @@ final class Llm4jConditions {
 
         @ConditionalOnProperty(prefix = "llm4j.budget", name = "calls")
         static class Calls {}
+
+        @ConditionalOnProperty(prefix = "llm4j.budget", name = "searches")
+        static class Searches {}
 
         @ConditionalOnProperty(prefix = "llm4j.budget", name = "cost")
         static class Cost {}

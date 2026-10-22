@@ -35,7 +35,7 @@ or key. The Java runtime runs them in `ClassifyCtkConformanceTest` (module `ai-a
 ## Provider declarations
 
 `scripts/provider_declarations.loom` declares one provider of every kind the language accepts: `openai` (with `api: responses`), `xai`, `kimi`, `qwen`, `perplexity`,
-`perplexity_router` and `openai_compatible` (with `header:` and `query:`, and a local server with no key), beside the older `gemini`, `anthropic`, `ollama`, `sarvam`
+`perplexity_router`, `perplexity_decisions` (a classifier backend) and `openai_compatible` (with `header:` and `query:`, and a local server with no key), beside the older `gemini`, `anthropic`, `ollama`, `sarvam`
 and `jev`. A conforming runtime accepts the script at load time and refuses a bad option by name (`api` is `chat` or `responses`; `header` and `query` are only for
 `openai_compatible`; `openai_compatible` needs `base_url`; a key is `env.NAME` or `secret.NAME`, never a literal). The scenario has no trace: no model is called. The Java
 runtime checks it in `ProviderDeclarationsCtkTest` (module `ai-agent4j-loom`), and `RepositoryScriptsTest` loads it with every other script.

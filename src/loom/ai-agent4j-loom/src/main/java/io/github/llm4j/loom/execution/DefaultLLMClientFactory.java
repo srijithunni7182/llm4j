@@ -222,8 +222,9 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
                     case "sarvam" -> new SarvamChatProvider(config.build());
                     case "anthropic" -> new io.github.llm4j.provider.anthropic.AnthropicProvider(
                             config.build());
-                    case "jev" -> throw new IllegalArgumentException(
-                            "Jev answers typed questions; it does not chat. Use it in an intentclassifier (model: \""
+                    case "jev", "perplexity_decisions" -> throw new IllegalArgumentException(
+                            spec.kind()
+                                    + " answers typed questions; it does not chat. Use it in an intentclassifier (model: \""
                                     + spec.name()
                                     + "/<model>\").");
                     default -> {

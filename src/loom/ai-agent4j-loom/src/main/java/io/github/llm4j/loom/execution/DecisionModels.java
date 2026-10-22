@@ -12,6 +12,14 @@ public final class DecisionModels {
 
     private DecisionModels() {}
 
+    /**
+     * True for a provider kind that serves a decision model: Jev ({@code use: jev}) or Perplexity's
+     * Decisions API ({@code use: perplexity_decisions}).
+     */
+    public static boolean isDecisionKind(String kind) {
+        return "jev".equals(kind) || "perplexity_decisions".equals(kind);
+    }
+
     /** True for a {@code pplx-decider-…} model name. */
     public static boolean isPerplexityDecider(String model) {
         if (model == null) return false;

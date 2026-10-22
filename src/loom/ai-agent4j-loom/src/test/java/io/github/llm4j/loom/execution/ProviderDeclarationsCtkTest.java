@@ -29,7 +29,8 @@ class ProviderDeclarationsCtkTest {
                         "perplexity",
                         "perplexity_router",
                         "openai_compatible",
-                        "openai_compatible");
+                        "openai_compatible",
+                        "perplexity_decisions");
 
         HarnessExecutor e =
                 new HarnessExecutor(

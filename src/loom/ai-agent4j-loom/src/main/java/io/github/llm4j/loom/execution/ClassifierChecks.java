@@ -199,7 +199,10 @@ final class ClassifierChecks {
         if (slash <= 0) return false;
         String alias = model.substring(0, slash);
         return c.script().getProviders().stream()
-                .anyMatch(p -> p.getName().equals(alias) && "jev".equals(p.getKind()));
+                .anyMatch(
+                        p ->
+                                p.getName().equals(alias)
+                                        && DecisionModels.isDecisionKind(p.getKind()));
     }
 
     // ---- what an answer has

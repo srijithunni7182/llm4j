@@ -9,6 +9,7 @@ provider Pplx  { use: perplexity        api_key: env.PERPLEXITY_API_KEY }
 provider Orch  { use: perplexity_router api_key: env.PERPLEXITY_API_KEY }
 provider Gate  { use: openai_compatible base_url: "https://gateway.example/v1"  api_key: env.GATE_KEY  header: "api-key"  query: "api-version=2025-01-01" }
 provider Local { use: openai_compatible base_url: "http://localhost:8000/v1" }
+provider Decide { use: perplexity_decisions api_key: env.PERPLEXITY_API_KEY }
 
 agent Writer { model: "Local/llama-3.3-70b" }
 

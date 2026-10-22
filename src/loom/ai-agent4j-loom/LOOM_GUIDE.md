@@ -1092,7 +1092,7 @@ agent Local  { model: "Box/llama3" }
 agent Indic  { model: "Team/sarvam-m" }
 ```
 
-- `use:` is `gemini`, `anthropic`, `ollama`, `sarvam`, `openai`, `xai`, `kimi`, `qwen`, `perplexity`, `perplexity_router` (private preview) or `openai_compatible`.
+- `use:` is `gemini`, `anthropic`, `ollama`, `sarvam`, `openai`, `xai`, `kimi`, `qwen`, `perplexity`, `perplexity_router` (private preview), `openai_compatible`, or one of the two decision-model kinds for an `intentclassifier` (they do not chat): `jev` and `perplexity_decisions`.
 - `api_key` must come from the environment or the secret store (`env.NAME`, `secret.NAME`), never written in the script.
 - `openai_compatible` reaches any OpenAI-style server (DeepSeek, Groq, Together, vLLM, LM Studio). It needs `base_url`, takes `api_key` only if the server wants one,
   and has two more options: `header:` (the header that carries the key, when it is not `Authorization`) and `query:` (fixed query parameters, `name=value&name=value`).

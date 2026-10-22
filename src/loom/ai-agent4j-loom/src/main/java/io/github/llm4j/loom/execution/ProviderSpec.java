@@ -46,7 +46,13 @@ public record ProviderSpec(
     private static java.util.Set<String> kinds() {
         java.util.Set<String> kinds =
                 new java.util.LinkedHashSet<>(
-                        java.util.List.of("gemini", "anthropic", "ollama", "sarvam", "jev"));
+                        java.util.List.of(
+                                "gemini",
+                                "anthropic",
+                                "ollama",
+                                "sarvam",
+                                "jev",
+                                "perplexity_decisions"));
         for (io.github.llm4j.provider.openai.Vendor v :
                 io.github.llm4j.provider.openai.Vendor.values()) kinds.add(v.kind());
         return java.util.Collections.unmodifiableSet(kinds);

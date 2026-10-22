@@ -149,4 +149,72 @@ class PerplexityDecisionsLoomTest {
         assertThat(f.risk()).contains("Perplexity's Decisions API").contains("api.perplexity.ai");
         assertThat(f.risk()).doesNotContain("uncalibrated");
     }
+
+    private static final String DECLARED =
+            """
+            provider Decide { use: perplexity_decisions  api_key: env.DECIDE_KEY  base_url: "%s" }
+            intentclassifier Intent {
+                model: "Decide/pplx-decider-flash-latest"
+                choose kind: refund | order_status | other
+                ask urgent: "Is the customer threatening to leave?"
+            }
+            workflow Triage(message) {
+                intentclassify Intent on message -> intent
+                note "route:{intent.kind}"
+            }
+            """;
+
+    @Test
+    void aProviderDeclaredWithUsePerplexityDecisionsIsAClassifierBackendToo() throws Exception {
+        server.enqueue(
+                new MockResponse().setHeader("Content-Type", "application/json").setBody(REPLY));
+        String base = server.url("/").toString().replaceAll("/$", "");
+        LoomScript parsed =
+                new LoomParser(new Lexer(DECLARED.formatted(base)).tokenize()).parseScript();
+        HarnessExecutor e =
+                new HarnessExecutor(
+                        parsed,
+                        new ToolRegistry(),
+                        m -> {
+                            throw new IllegalStateException("no chat model is used");
+                        });
+        e.setEnvLookup(Map.of("DECIDE_KEY", "pplx-declared-key")::get);
+        java.util.List<TraceEvent> events =
+                java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        e.addTraceListener(events::add);
+        e.initialize();
+        e.executeWorkflow("Triage", Map.of("message", "I want my money back"));
+
+        var sent = server.takeRequest();
+        assertThat(sent.getPath()).isEqualTo("/v1/decisions");
+        assertThat(sent.getHeader("Authorization")).isEqualTo("Bearer pplx-declared-key");
+        assertThat(sent.getBody().readUtf8()).contains("\"model\":\"pplx-decider-flash-latest\"");
+        assertThat(events).anyMatch(ev -> "route:refund".equals(ev.text()));
+    }
+
+    @Test
+    void aDeclaredDeciderIsNotAChatModelAndIsAuditedAndDrawnAsADecisionModel() throws Exception {
+        String script =
+                DECLARED.formatted("https://api.perplexity.ai")
+                        + "agent A { model: \"Decide/pplx-decider-latest\" }\n";
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        assertThat(check(script, Map.of("DECIDE_KEY", "x"), out)).isNotZero();
+        assertThat(out.toString()).contains("Perplexity decision model");
+
+        LoomScript parsed =
+                new LoomParser(
+                                new Lexer(DECLARED.formatted("https://api.perplexity.ai"))
+                                        .tokenize())
+                        .parseScript();
+        Finding f =
+                SecurityAudit.audit(parsed, "w.loom").findings().stream()
+                        .filter(x -> x.rule().equals("LA19"))
+                        .findFirst()
+                        .orElseThrow();
+        assertThat(f.risk()).contains("Perplexity's Decisions API").contains("api.perplexity.ai");
+        assertThat(f.risk()).doesNotContain("uncalibrated");
+        var info = io.github.llm4j.loom.graph.GraphBuilder.classifiersOf(parsed).get("Intent");
+        assertThat(info.jev()).isTrue();
+        assertThat(info.perplexity()).isTrue();
+    }
 }

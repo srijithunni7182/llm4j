@@ -521,18 +521,22 @@ public final class SecurityAudit {
             String kind =
                     "jev".equals(declared.getKind())
                             ? "TypeSafe AI's Jev API"
-                            : vendor.isPresent()
-                                    ? vendor.get().displayName()
-                                    : "the " + declared.getKind() + " API";
+                            : "perplexity_decisions".equals(declared.getKind())
+                                    ? "Perplexity's Decisions API"
+                                    : vendor.isPresent()
+                                            ? vendor.get().displayName()
+                                            : "the " + declared.getKind() + " API";
             return kind
                     + " at "
                     + (host != null
                             ? host
                             : "jev".equals(declared.getKind())
                                     ? "api.typesafe.ai"
-                                    : vendor.isPresent() && !vendor.get().hosts().isEmpty()
-                                            ? vendor.get().hosts().get(0)
-                                            : "its default address")
+                                    : "perplexity_decisions".equals(declared.getKind())
+                                            ? "api.perplexity.ai"
+                                            : vendor.isPresent() && !vendor.get().hosts().isEmpty()
+                                                    ? vendor.get().hosts().get(0)
+                                                    : "its default address")
                     + " (provider "
                     + declared.getName()
                     + ")";
@@ -568,7 +572,8 @@ public final class SecurityAudit {
                         .anyMatch(
                                 p ->
                                         p.getName().equals(model.substring(0, slash))
-                                                && "jev".equals(p.getKind()));
+                                                && io.github.llm4j.loom.execution.DecisionModels
+                                                        .isDecisionKind(p.getKind()));
     }
 
     /**

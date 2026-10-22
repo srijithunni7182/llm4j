@@ -109,6 +109,10 @@
       "description": "Largest single call allowed (needed with a token cap)."
     },
     {
+      "name": "llm4j.budget.searches",
+      "description": "Web-search cap (grounded calls)."
+    },
+    {
       "name": "llm4j.budget.tokens",
       "description": "Token cap."
     },
@@ -119,6 +123,10 @@
     {
       "name": "llm4j.budget.window",
       "description": "minute, hour or day; unset means a total for the life of the application."
+    },
+    {
+      "name": "llm4j.classifiers",
+      "description": "The decision-model backends for typed questions (Jev, Perplexity Decisions), by name."
     },
     {
       "name": "llm4j.clients",

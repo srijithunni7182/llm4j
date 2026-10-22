@@ -3218,7 +3218,7 @@ public class HarnessExecutor implements LoomEngine {
         boolean builtInJev =
                 model.toLowerCase(java.util.Locale.ROOT).startsWith("jev/")
                         || model.toLowerCase(java.util.Locale.ROOT).startsWith("jev-");
-        if ((declared != null && "jev".equals(declared.getKind()))
+        if ((declared != null && DecisionModels.isDecisionKind(declared.getKind()))
                 || (declared == null && builtInJev)) {
             return budgets.meteredClassifier(jevClassifier(declared, model), who, model);
         }
@@ -3278,6 +3278,10 @@ public class HarnessExecutor implements LoomEngine {
             if (baseUrl != null && !baseUrl.isBlank()) config.baseUrl(baseUrl);
             config.defaultModel(model.substring(model.indexOf('/') + 1));
         }
+        if (declared != null && "perplexity_decisions".equals(declared.getKind()))
+            return io.github.llm4j.classify.Classifier.using(
+                    new io.github.llm4j.provider.perplexity.PerplexityDecisionsProvider(
+                            config.build()));
         return io.github.llm4j.classify.Classifier.using(
                 new io.github.llm4j.provider.typesafe.JevProvider(config.build()));
     }

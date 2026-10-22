@@ -29,7 +29,9 @@ DESCRIPTIONS = {
     "other": "Anything else, including general questions",
 }
 # $ per million tokens (input, output). Jev: input only, output is free (docs.typesafe.ai/models). Anthropic: published list prices.
-PRICES = {"jev": (0.042, 0.0), "claude-opus-5-5": (4.0, 20.0), "claude-sonnet-5-5": (2.0, 10.0), "claude-haiku-5-5": (0.10, 0.50)}
+PPLX_URL = os.environ.get("PERPLEXITY_BASE_URL", "https://api.perplexity.ai") + "/v1/decisions"
+# Perplexity Decisions (docs.perplexity.ai, read 2026-10-22): $0.02 per million input tokens for the 27B, $0.01 for flash; output free. Same wire format as Jev.
+PRICES = {"pplx-decider-latest": (0.02, 0.0), "pplx-decider-flash-latest": (0.01, 0.0), "jev": (0.042, 0.0), "claude-opus-5-5": (4.0, 20.0), "claude-sonnet-5-5": (2.0, 10.0), "claude-haiku-5-5": (0.10, 0.50)}
 
 
 class Spend:
@@ -105,6 +107,9 @@ def num(x):
 # ---------- contenders: ask(case) -> dict(pred | p_yes, conf, ms, in_tok, out_tok, raw, valid) ----------
 class Jev:
     name = "jev"
+    url = JEV_URL
+    model = JEV_MODEL
+    price_key = "jev"
 
     def __init__(self, key):
         self.key = key
@@ -114,13 +119,13 @@ class Jev:
             q = {"type": "choice", "instructions": c["q"], "criteria": {o: DESCRIPTIONS[o] for o in c["options"]}}
         else:
             q = {"type": JEV_YESNO_TYPE, "instructions": c["q"]}
-        return {"model": JEV_MODEL, "state": c["state"], "questions": {"q": q}}
+        return {"model": self.model, "state": c["state"], "questions": {"q": q}}
 
     def ask(self, c):
-        resp, ms = post(JEV_URL, {"Authorization": "Bearer " + self.key}, self.body(c))
+        resp, ms = post(self.url, {"Authorization": "Bearer " + self.key}, self.body(c))
         ans = (resp.get("answers") or {}).get("q")
         u = resp.get("usage") or {}
-        SPEND.add(self.name, "jev", u.get("input_tokens") or 0, u.get("output_tokens") or 0)
+        SPEND.add(self.name, self.price_key, u.get("input_tokens") or 0, u.get("output_tokens") or 0)
         out = dict(ms=ms, raw=json.dumps(resp, ensure_ascii=False)[:400],
                    in_tok=u.get("input_tokens") or u.get("prompt_tokens") or 0, out_tok=u.get("output_tokens") or 0, valid=False)
         if ans is None:
@@ -177,6 +182,15 @@ def parse_llm(text, c):
         return dict(valid=False)
     cf = conf if conf is not None else 1.0
     return dict(p_yes=cf if a == "yes" else 1 - cf, valid=True)
+
+
+class PerplexityDecisions(Jev):
+    """Perplexity's Decisions API: the same wire format as Jev (added for sub-phase 8k)."""
+    url = PPLX_URL
+
+    def __init__(self, key, model):
+        super().__init__(key)
+        self.model, self.price_key, self.name = model, model, "pplx:" + model
 
 
 class Anthropic:
@@ -298,7 +312,7 @@ def run(contenders, cases, repeats, workers):
 
 
 def model_of(name):
-    return "jev" if name.startswith("jev") else name.split(":", 1)[-1]
+    return "jev" if name.startswith("jev") else name.split(":", 1)[-1]  # "pplx:pplx-decider-latest" -> its price key
 
 
 def cost_per_1000(rs, name):
@@ -413,6 +427,8 @@ def main():
     ap.add_argument("--claude-strong", default=os.environ.get("CLAUDE_STRONG", "claude-opus-5-5"))
     ap.add_argument("--claude-cheap", default=os.environ.get("CLAUDE_CHEAP", "claude-haiku-5-5"))
     ap.add_argument("--gemini", default=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"))
+    ap.add_argument("--perplexity", action="store_true", help="add Perplexity Decisions (PERPLEXITY_API_KEY): the 27B and flash")
+    ap.add_argument("--no-jev", action="store_true", help="leave Jev out (it is the anchor of the first study; keep it to see drift)")
     ap.add_argument("--repeats", type=int, default=1)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--only", choices=["intent", "safety", "judge"])
@@ -437,22 +453,29 @@ def main():
     else:
         cts = []
         jk, ak, gk = os.environ.get("JEV_API_KEY"), os.environ.get("SPIKE_ANTHROPIC_API_KEY") or os.environ.get("SPIKE_ANTHROPIC_KEY") or os.environ.get("ANTHROPIC_API_KEY"), os.environ.get("GEMINI_API_KEY")
-        if not jk:
+        if not jk and not a.no_jev:
             sys.exit("JEV_API_KEY is not set (use --dry-run to test the script offline)")
-        cts.append(Jev(jk))
+        if not a.no_jev:
+            cts.append(Jev(jk))
+        pk = os.environ.get("PERPLEXITY_API_KEY")
+        if a.perplexity:
+            if not pk:
+                sys.exit("PERPLEXITY_API_KEY is not set")
+            cts.append(PerplexityDecisions(pk, "pplx-decider-latest"))
+            cts.append(PerplexityDecisions(pk, "pplx-decider-flash-latest"))
         if ak:
             if not a.no_strong:
                 cts.append(Anthropic(ak, a.claude_strong, "strong:" + a.claude_strong))
             cts.append(Anthropic(ak, a.claude_cheap, "cheap:" + a.claude_cheap))
         if gk:
             cts.append(Gemini(gk, a.gemini))
-        if len(cts) < 2:
+        if len(cts) < 2 and not a.perplexity:
             sys.exit("Need at least one chat key too: SPIKE_ANTHROPIC_API_KEY (or ANTHROPIC_API_KEY) and/or GEMINI_API_KEY")
     if a.probe:
-        for ct in cts[1:]:
+        for ct in [x for x in cts if not isinstance(x, Jev)]:
             c = next(c for c in cases if c["kind"] == "choice")
             print(f"--- {ct.name} (one choice case) ---\n{ct.ask(c)}")
-        jev = cts[0]
+        jev = next(x for x in cts if isinstance(x, Jev))
         for kind in ("choice", "yesno"):
             c = next(c for c in cases if c["kind"] == kind)
             if isinstance(jev, Jev):

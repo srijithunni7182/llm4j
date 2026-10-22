@@ -303,7 +303,7 @@ final class ExecutorValidation {
         String m = model.toLowerCase(java.util.Locale.ROOT);
         if (m.startsWith("jev/") || m.startsWith("jev-")) return true;
         io.github.llm4j.loom.ast.ProviderDef declared = host.declaredProvider(model);
-        return declared != null && "jev".equals(declared.getKind());
+        return declared != null && DecisionModels.isDecisionKind(declared.getKind());
     }
 
     /**
@@ -361,6 +361,16 @@ final class ExecutorValidation {
             return;
         }
         if (isJevModel(model)) {
+            io.github.llm4j.loom.ast.ProviderDef declared = host.declaredProvider(model);
+            if (declared != null && "perplexity_decisions".equals(declared.getKind())) {
+                c.error(
+                        line,
+                        who,
+                        "model "
+                                + model
+                                + " is a Perplexity decision model: it answers typed questions, it does not chat. Use it in an intentclassifier, and give this a chat model");
+                return;
+            }
             c.error(
                     line,
                     who,

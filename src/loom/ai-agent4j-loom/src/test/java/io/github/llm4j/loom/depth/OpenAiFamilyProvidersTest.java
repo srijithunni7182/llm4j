@@ -241,7 +241,7 @@ class OpenAiFamilyProvidersTest {
                                         .contains(
                                                 "line 6: provider F: base_url http://remote.example/v1 is not https")
                                         .contains(
-                                                "line 7: provider G: unknown use: nonesuch; use one of gemini, anthropic, ollama, sarvam, jev, openai, xai, kimi, qwen, perplexity, perplexity_router, openai_compatible")
+                                                "line 7: provider G: unknown use: nonesuch; use one of gemini, anthropic, ollama, sarvam, jev, perplexity_decisions, openai, xai, kimi, qwen, perplexity, perplexity_router, openai_compatible")
                                         .contains(
                                                 "line 8: provider openai: the name openai is reserved"));
     }
