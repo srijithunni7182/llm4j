@@ -117,6 +117,7 @@ final class StreamedReply {
         if (last != null) {
             out.tokenUsage(last.getTokenUsage()).providerData(last.getProviderData());
             out.finishReason(last.getFinishReason());
+            out.citations(last.getCitations()).searches(last.getSearches());
         }
         return out.toolCalls(parsed).metadata(metadata).build();
     }

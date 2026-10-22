@@ -32,6 +32,10 @@ know (`.isNotNull()`, `.satisfies(...)`, `.is(Condition)`), plus these eval4j-sp
 | `usesFewerTokensThan(int)` | `AgentResult.getUsage().getTotalTokens()` is under a budget |
 | `hasRedundantActionCountAtMost(int)` | Looping/dithering budget — repeated identical action+input pairs |
 | `hasValidJson(Class<?>)` | Final answer parses as the given JSON shape |
+| `hasCitations()` / `citesAtLeast(int)` | A grounded run's sources (`AgentResult.getCitations()`, de-duplicated by URL) number at least one / at least `n` |
+| `citesDomain(String)` | Some source is on the domain: its host is that domain or a subdomain (`www.who.int` counts for `who.int`; `notwho.int` and a path that mentions the domain do not) |
+| `citesOnlyFrom(String...)` | There is at least one source and **every** one is on one of the domains (a run that cited nothing fails: "only from" is not satisfied by saying nothing) |
+| `usedSearches(int)` | The run's model calls ran at most this many web searches, as the vendors reported them (the run's statistics) |
 
 > **`usesTool` only means the model *requested* that action — not that it ran.** `ReActAgent`
 > records a step whenever the model asks for an action, including one that named an unknown tool,
@@ -43,7 +47,7 @@ know (`.isNotNull()`, `.satisfies(...)`, `.is(Condition)`), plus these eval4j-sp
 `LlmResponseAssertions.assertThat(LLMResponse)` mirrors this for a single raw LLM call (not behind
 a `ReActAgent`) — `hasContentContaining`, `hasFinishReason`, `usesFewerTokensThan` (reads
 `LLMResponse.TokenUsage`, the natural place for a token-budget check since a `ReActAgent` run can
-span several underlying LLM calls with no single aggregate total), and `hasValidJson`.
+span several underlying LLM calls with no single aggregate total), `hasValidJson`, and the same five citation checks on `LLMResponse.getCitations()` / `getSearches()` (there, `usedSearches` fails when the vendor reported no count: an unknown number is not "at most" anything). The citation checks are deterministic and cost nothing; they appear in the report under the *Grounding* dimension.
 
 `ConversationAssertions.assertThat(List<AgentResult>)` gives you `hasTurnCount`,
 `allCompletedSuccessfully`, and `.turn(index)` (returns an `AgentResultAssert` for that turn) for

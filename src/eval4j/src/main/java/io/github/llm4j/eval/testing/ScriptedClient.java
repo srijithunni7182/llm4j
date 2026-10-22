@@ -1,6 +1,8 @@
 package io.github.llm4j.eval.testing;
 
 import io.github.llm4j.LLMClient;
+import io.github.llm4j.grounding.Citation;
+import io.github.llm4j.grounding.SearchUsage;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.Message;
@@ -44,6 +46,10 @@ public final class ScriptedClient implements LLMClient {
     private final List<String> requests = new CopyOnWriteArrayList<>();
     private volatile String fallback = reactFinal("ok");
     private volatile String modelName = "scripted";
+    private volatile List<Citation> sources = List.of();
+    private volatile Integer searches;
+    private final java.util.concurrent.atomic.AtomicInteger groundedCalls =
+            new java.util.concurrent.atomic.AtomicInteger();
 
     /** Answers with {@code answer} when the request text contains {@code needle}. */
     public ScriptedClient whenSeen(String needle, String answer) {
@@ -113,6 +119,30 @@ public final class ScriptedClient implements LLMClient {
         return this;
     }
 
+    /**
+     * Makes every <em>grounded</em> request (one that carries {@code Grounding}) come back with
+     * these sources, numbered from 1, as a provider with web search would return them. A request
+     * without grounding gets none, so a test also proves the agent asked. Unless {@link
+     * #searches(int)} says otherwise, one search is reported.
+     */
+    public ScriptedClient sources(String... urls) {
+        List<Citation> list = new java.util.ArrayList<>();
+        for (String url : urls) list.add(new Citation(list.size() + 1, url, null, null, List.of()));
+        this.sources = List.copyOf(list);
+        return this;
+    }
+
+    /** The number of searches every grounded request reports. */
+    public ScriptedClient searches(int count) {
+        this.searches = count;
+        return this;
+    }
+
+    /** How many requests carried grounding. */
+    public int groundedCalls() {
+        return groundedCalls.get();
+    }
+
     /** The ReAct final-answer envelope the library's agents expect. */
     public static String reactFinal(String answer) {
         return "```json\n{\"thought\": \"t\", \"final_answer\": \""
@@ -156,11 +186,21 @@ public final class ScriptedClient implements LLMClient {
                 break;
             }
         }
-        return LLMResponse.builder()
-                .content(answer)
-                .model(modelName)
-                .tokenUsage(Math.max(1, text.length() / 4), Math.max(1, answer.length() / 4), 0)
-                .build();
+        LLMResponse.Builder out =
+                LLMResponse.builder()
+                        .content(answer)
+                        .model(modelName)
+                        .tokenUsage(
+                                Math.max(1, text.length() / 4),
+                                Math.max(1, answer.length() / 4),
+                                0);
+        if (request.getGrounding() != null) {
+            groundedCalls.incrementAndGet();
+            if (!sources.isEmpty() || searches != null) {
+                out.citations(sources).searches(SearchUsage.of(searches != null ? searches : 1));
+            }
+        }
+        return out.build();
     }
 
     @Override

@@ -26,6 +26,7 @@ public final class AgentResult {
     private final boolean cancelled;
     private final boolean inputRejected;
     private final StopReport stop;
+    private final List<io.github.llm4j.grounding.Citation> citations;
 
     private AgentResult(Builder builder) {
         this.finalAnswer = builder.finalAnswer;
@@ -47,6 +48,7 @@ public final class AgentResult {
                 builder.cancelled
                         || (builder.stop != null && builder.stop.kind() == StopReport.Kind.CANCEL);
         this.inputRejected = builder.inputRejected;
+        this.citations = List.copyOf(builder.citations);
     }
 
     public String getFinalAnswer() {
@@ -161,6 +163,15 @@ public final class AgentResult {
         return stop;
     }
 
+    /**
+     * The sources the run's grounded model calls gave, de-duplicated by URL and numbered from 1 in
+     * the order they first appeared. Empty when the run was not grounded or nothing was cited.
+     * Their {@code spans} are left empty: a position belongs to one answer, and a run has several.
+     */
+    public List<io.github.llm4j.grounding.Citation> getCitations() {
+        return citations;
+    }
+
     public boolean isHighConfidence() {
         return confidence != null && confidence.isHigh();
     }
@@ -192,6 +203,7 @@ public final class AgentResult {
         b.cancelled = cancelled;
         b.inputRejected = inputRejected;
         b.stop = stop;
+        b.citations = new ArrayList<>(citations);
         return b;
     }
 
@@ -465,8 +477,15 @@ public final class AgentResult {
         private boolean inputRejected;
         private StopReport stop;
         private io.github.llm4j.telemetry.RunStats stats;
+        private List<io.github.llm4j.grounding.Citation> citations = new ArrayList<>();
 
         private Builder() {}
+
+        /** The sources of the run (see {@link AgentResult#getCitations()}). */
+        public Builder citations(List<io.github.llm4j.grounding.Citation> citations) {
+            this.citations = citations == null ? new ArrayList<>() : new ArrayList<>(citations);
+            return this;
+        }
 
         /** The refusal that stopped the run (also marks it budget-exhausted). */
         public Builder stats(io.github.llm4j.telemetry.RunStats stats) {
