@@ -1,6 +1,6 @@
 # Phase 10 test strategy: the editor experience
 
-Status: **draft for review**. Requirements `R1`…`R43` are in [DESIGN.md](DESIGN.md); the traceability matrix is in [VERIFICATION.md](VERIFICATION.md).
+Status: **draft for review**. Requirements `R1`…`R49` are in [DESIGN.md](DESIGN.md); the traceability matrix is in [VERIFICATION.md](VERIFICATION.md).
 
 ## 1. Principles
 
@@ -23,6 +23,7 @@ Status: **draft for review**. Requirements `R1`…`R43` are in [DESIGN.md](DESIG
 | **Review model (pure JS)** | Group by lens, filter, link finding↔node↔line, summary, staleness, ordering = engine order | `reviewModel.unit.test.js` | R3, R4, R5, R7, R9 |
 | **Panel (browser)** | Real page + fixture JSON: findings and graph rendered, click links both ways, node tint and glyph, Fix buttons by safety class, filters, stale chip, narrow width stack, keyboard walk, screen-reader names, both themes' contrast | `review.browser.test.js`, `a11y.browser.test.js` | R2 to R9, R29 |
 | **Triage (browser + TS)** | Grouping switch (severity, lens, rule, file); counts; per-finding actions by what exists (no dead Fix button); group actions state scope and number before acting; Fix all safe applies only SAFE and lists the rest; Accept dialog (scope, presets, reason, guardrails for serious findings, trifecta writes the script form); Dismiss local and instantly undoable; Handled section with restore; undo toasts; baseline dialog; every action by keyboard; screen-reader announcements | `triage.browser.test.js`, `triageActions.test.ts`, `dismissLocal.test.ts`, `triageKeyboard.browser.test.js` | R34 to R41 |
+| **Layouts** | Opens in Split by default and from the `loom.review.layout` setting; switch to Outline, List and back keeps selection, filters, group-by, expanded groups, scroll and multi-selection; all three render the same counts and findings from one model; shared controls and strip identical; Split pane toggle only in Split; narrow widths for each layout; keyboard reachable switch | `layoutSwitch.browser.test.js`, `layoutContext.unit.test.js`, `layoutSameModel.unit.test.js`, `layoutNarrow.browser.test.js`, `manifest.test.ts` (setting) | R44 to R49 |
 | **Never in the way** | Run, Run CodeLens and debug launch start with HIGH findings open and with the engine down; the message is non-modal, offers Review and Don't show again, appears once per unchanged script, never asks to proceed; no palette command has a `when` clause on review state | `runNotBlocked.test.ts`, `runNoticeOnce.test.ts`, `manifest.test.ts` (no review-state `when`) | R42, R43 |
 | **Diagnostics / code actions (TS)** | Findings → Diagnostics (source, code, range); quick fix edits equal the engine's; SAFE vs REVIEW labels; Fix-all is one WorkspaceEdit; suppress writes a reason | `reviewDiagnostics.test.ts`, `reviewCodeActions.test.ts` | R6, R10 |
 | **Semantic providers (TS)** | Each provider returns the engine's data in VS Code types; rename all-or-nothing with an injected failure; completion filtered to valid names | `semantic*.test.ts`, `renameAtomic.test.ts` | R22 to R25 |

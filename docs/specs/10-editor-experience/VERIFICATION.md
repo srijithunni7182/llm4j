@@ -23,7 +23,9 @@ Status: **not started**. Run top to bottom at the end of sub-phase 10e; the rele
 | A15 | Ignoring is never silent or lossy: handled findings stay counted and restorable, dismiss never reaches CI or the repository, serious findings need their guardrails | `dismissLocal.test.ts`, `triageActions.test.ts` |
 | A16 | The whole triage flow works from the keyboard and with a screen reader | `triageKeyboard.browser.test.js`, `a11y.browser.test.js` |
 | A17 | Open findings never stop Run, debug or any command in the editor; I see a non-modal heads-up once and a standing status-bar count | `runNotBlocked.test.ts`, `runNoticeOnce.test.ts` |
-| A18 | Documented, with screenshots | docs review (§5) |
+| A18 | The panel opens in Split and offers Outline and List in the same panel, and I can switch between them without losing my place, selection or filters | `layoutSwitch.browser.test.js`, `layoutContext.unit.test.js` |
+| A19 | All layouts show the same findings, counts and actions; layout changes nothing about what is reviewed | `layoutSameModel.unit.test.js` |
+| A20 | Documented, with screenshots (the three layouts, light and dark) | docs review (§5) |
 
 ## 2. Traceability: requirement → tests
 
@@ -72,6 +74,12 @@ Status: **not started**. Run top to bottom at the end of sub-phase 10e; the rele
 | R41 | `triageKeyboard.browser.test.js`, `a11y.browser.test.js` | ⬜ 10c |
 | R42 | `runNotBlocked.test.ts`, `runNoticeOnce.test.ts` | ⬜ 10b |
 | R43 | `reviewStatusBar.test.ts`, `manifest.test.ts` | ⬜ 10b |
+| R44 | `layoutSwitch.browser.test.js`, `manifest.test.ts` | ⬜ 10b2 |
+| R45 | `layoutContext.unit.test.js` | ⬜ 10b2 |
+| R46 | `layoutSharedControls.browser.test.js` | ⬜ 10b2 |
+| R47 | `layoutSwitch.browser.test.js` (pane toggle only in Split) | ⬜ 10b2 |
+| R48 | `layoutNarrow.browser.test.js` | ⬜ 10b2 |
+| R49 | `layoutSameModel.unit.test.js` | ⬜ 10b2 |
 
 ## 3. Quality gates
 

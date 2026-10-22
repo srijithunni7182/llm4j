@@ -1,6 +1,6 @@
 # Phase 10 design: the editor experience (review panel, semantic language features, `weave serve`)
 
-Status: **draft for review**. Layer: the VS Code extension (`src/loom/vscode-loom`) and one new CLI mode, `weave serve` (`ai-agent4j-loom`). Companion documents:
+Status: **draft for review; layouts decided (Split default, Outline and List switchable)**. Visual reference: the [review panel mockup](https://claude.ai/artifact/C5XcqreGoYEcd53pud8UKQ). Layer: the VS Code extension (`src/loom/vscode-loom`) and one new CLI mode, `weave serve` (`ai-agent4j-loom`). Companion documents:
 [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md), [program overview](../LOOM_DX.md). Builds on [Phase 9](../09-review-engine/DESIGN.md) (findings, fixes, cost) and on the extension as it is:
 `src/check/{runner,model,controller}.ts` (Problems from `weave check --format json`), `src/graph/*` and `src/views/GraphPanel.ts` (the graph panel over `weave graph --format json`),
 `src/lsp/*` (a TypeScript language server with hover, definition and completion, and its own parser `parseDocument.ts`), `media/graph-render.js`, and the bundled `bin/weave.jar` that the extension runs as `java -jar`.
@@ -64,7 +64,7 @@ Non-goals:
 +--------------------------------------------------------------------------------------------------------+
 ```
 
-- **R2** One panel (a webview, reusing `media/graph-render.js` and the existing `GraphPanel` plumbing) shows the graph on the left and the review on the right. On narrow widths it stacks (graph above), with no horizontal page scroll.
+- **R2** One panel (a webview, reusing `media/graph-render.js` and the existing `GraphPanel` plumbing). Its default layout, **Split**, shows the graph on the left and the findings on the right; **Outline** and **List** are the other two layouts of the same panel (§3.2a). On narrow widths Split stacks (graph above), with no horizontal page scroll.
 - **R3** **Linked both ways.** Clicking a finding selects its node in the graph, scrolls it into view and reveals the source line in the editor beside the panel. Clicking a node filters the list to that node's findings and shows its cost.
   Clicking a source line selection in the editor (cursor move) highlights the node and findings for that line (debounced).
 - **R4** **Nodes carry state**: a tint by worst finding severity (never colour alone: also a glyph and a text label in the tooltip and a legend), and a cost badge on model-calling steps (typical, with worst on hover).
@@ -76,6 +76,23 @@ Non-goals:
 - **R8** **Explain**: a finding's rule id opens the rule's page in a side view (rendered from `weave review --explain`), with its firing example and near-miss.
 - **R9** **Stale-aware.** The panel shows a "stale" chip as soon as the document changes, re-runs on save (setting `loom.review.on = save | type | manual`, default `save`), and never shows findings for text that no longer exists without saying so.
   While running it shows a progress indication and keeps the previous result greyed; it never clears to empty.
+
+### 3.2a Layouts: one panel, three views, Split by default (R44 to R49)
+
+The mockup ([Loom Review panel mockup](https://claude.ai/artifact/C5XcqreGoYEcd53pud8UKQ), private to the author) explored three layouts. The decision after review is that **the panel offers all of them, switchable in place, and opens in Split**. The mockup is the visual reference; this spec governs where they differ (the mockup's boards each carry their own toolbar, the panel has one, below).
+
+| Layout | What it is | Mockup board | Good for |
+|---|---|---|---|
+| **Split** (default) | Graph on the left with a severity badge and cost on each step; findings on the right, grouped by severity then lens, the selected finding expanded with its diff; lens rail at the bottom | A (light and dark) | Most work: seeing where a problem is and fixing it |
+| **Outline** | Step tree on the left with per-step severity counts; the selected step, its estimates and its findings in the centre; workflow summary, lens toggles and handled counts on the right | B | Walking a workflow step by step |
+| **List** | A dense table of findings with checkboxes, a bulk-action bar and keyboard shortcuts; a minimap and the focused finding's detail on the right | C | Many findings, bulk triage |
+
+- **R44** **One switcher.** The toolbar carries a layout switch **Split | Outline | List** (a segmented control in the same style as the graph panel's Outline | Focus | Flow). The first time a workspace opens the panel it is in **Split**; the last choice is remembered per workspace (R30) and the setting `loom.review.layout` (`split` | `outline` | `list`, default `split`) sets the starting layout.
+- **R45** **Context survives a switch.** Switching layout keeps the selected finding, the selected step, the filter text, the group-by choice, the severity and lens filters, expanded groups, scroll position within a group, and the multi-selection. A test switches through all three layouts and back and asserts nothing changed.
+- **R46** **Shared controls, one place each.** Group by (**Severity** default | Lens | Rule | File), the filter box, **Re-run review**, **Accept all existing…** and **Fix all safe (n of m)** are in the toolbar or strip in every layout; the summary strip (counts, cost, time, effects, lenses, trifecta, not evaluated) is identical in every layout. Group, finding and bulk actions behave identically everywhere (R34 to R41); only their arrangement differs.
+- **R47** **Split has a pane toggle** (**Findings | Both | Graph**, as in board A) for a developer who wants one half full width; the toggle does not exist in Outline and List, which are single-flow layouts. Graph-only is the existing Loom Graph panel's view with badges added; it opens from the same data.
+- **R48** **Narrow widths.** Below a configured width (default 900 px) Split stacks the graph above the findings, Outline hides its right-hand column behind a disclosure, and List drops the minimap, with no horizontal page scroll in any layout.
+- **R49** **Same data, same rules.** All three layouts render the same review model (`reviewModel`, R-ids above), so a finding, a count or a fix can never differ between layouts. Layout is presentation only: it adds no engine request and no setting that changes what is reviewed.
 
 ### 3.3 Live feedback while typing (R10 to R12)
 
@@ -197,7 +214,7 @@ media/
 
 - **R28** All engine access goes through `EngineClient`; one place handles the process, framing, versions, timeouts and restarts. Providers and controllers take an `EngineClient` interface, so tests use a fake with canned JSON.
 - **R29** The webview follows the existing rules: text is set with `textContent`, no HTML built from script text, CSP nonce, no remote resources, theme tokens for light/dark/high-contrast, keyboard operable (list with roving focus, graph nodes focusable), screen-reader labels with severity words.
-- **R30** The panel's state (selected node, filters) is kept across hide/show (`retainContextWhenHidden` off; state serialised), and restored after window reload.
+- **R30** The panel's state (layout, selected node, filters) is kept across hide/show (`retainContextWhenHidden` off; state serialised), and restored after window reload.
 - **R31** Settings (all in the `loom.` namespace): `loom.javaPath`, `loom.review.on`, `loom.review.lenses`, `loom.review.minSeverity`, `loom.review.codeLens`, `loom.review.statusBar`, `loom.review.failOn` (colours the status bar), `loom.serve.memoryMb`, `loom.serve.timeoutMs`. Old `loom.graph.*` keys keep working.
 - **R32** Telemetry: none. The extension makes no network calls (existing property, pinned by a test).
 
@@ -222,7 +239,8 @@ Reserved ids for later phases: `loom.test`, `loom.generate`, `loom.debug`. Each 
 | | Delivers | Tests |
 |---|---|---|
 | 10a | `weave serve` (protocol, cache, `check`/`graph`/`review` methods, cancel, shutdown), `EngineClient`, fake, restarts; the existing check/graph go through it | `ServeProtocolTest`, `ServeCacheTest`, `ServeRobustnessTest`, `engineClient.test.ts` |
-| 10b | Review panel: findings + graph linked, summary card, filters, status bar, CodeLens, Problems merge | `reviewModel.unit.test.js`, `review.browser.test.js`, `reviewDiagnostics.test.ts` |
+| 10b | Review panel in **Split** (default): findings + graph linked, summary strip, filters, status bar, CodeLens, Problems merge | `reviewModel.unit.test.js`, `review.browser.test.js`, `reviewDiagnostics.test.ts` |
+| 10b2 | The **Outline** and **List** layouts, the layout switch, context kept across switches, narrow-width behaviour (R44 to R49) | `layoutSwitch.browser.test.js`, `layoutContext.unit.test.js`, `layoutNarrow.browser.test.js` |
 | 10c | Triage in the editor (R34 to R41): grouping, per-finding and group actions, Fix all safe with preview, Accept with scopes and reasons, Dismiss, Handled section, undo toasts, baseline from the panel, keyboard map; quick fixes | `reviewCodeActions.test.ts`, `applyFix.integration.test.ts`, `triage.browser.test.js`, `triageActions.test.ts`, `dismissLocal.test.ts` |
 | 10d | `weave symbols`, semantic providers (definition, references, rename, completion, hover, symbols), TS parser frozen with comparison test | `SymbolsTest`, `semantic*.test.ts`, `renameAtomic.test.ts` |
 | 10e | Degraded modes, settings, accessibility pass, performance gates, docs | `degraded.test.ts`, `a11y.browser.test.js`, `latency.test.ts` |
