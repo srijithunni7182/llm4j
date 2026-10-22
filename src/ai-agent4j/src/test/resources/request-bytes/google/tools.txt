@@ -1,4 +1,4 @@
 POST /models/gemini-2.5-flash:generateContent
 content-type: application/json; charset=utf-8
 
-{"contents":[{"role":"user","parts":[{"text":"weather in Pune?"}]}],"tools":[{"functionDeclarations":[{"name":"get_weather","description":"Weather for a city","parameters":{"required":["city"],"type":"object","properties":{"city":{"type":"string","description":"the city"}}}}]}],"toolConfig":{"functionCallingConfig":{"mode":"AUTO"}},"generationConfig":{}}
+{"contents":[{"parts":[{"text":"weather in Pune?"}],"role":"user"}],"generationConfig":{},"toolConfig":{"functionCallingConfig":{"mode":"AUTO"}},"tools":[{"functionDeclarations":[{"description":"Weather for a city","name":"get_weather","parameters":{"properties":{"city":{"description":"the city","type":"string"}},"required":["city"],"type":"object"}}]}]}

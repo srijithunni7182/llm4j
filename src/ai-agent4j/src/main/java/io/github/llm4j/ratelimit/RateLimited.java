@@ -38,7 +38,7 @@ public final class RateLimited extends AgentInterrupt {
                 switch (exceeded.dimension()) {
                     case CALLS -> RateLimitInfo.Scope.REQUESTS;
                     case TOKENS -> RateLimitInfo.Scope.TOKENS;
-                    case COST -> RateLimitInfo.Scope.UNKNOWN;
+                    case COST, SEARCHES -> RateLimitInfo.Scope.UNKNOWN;
                 };
         Instant reset =
                 exceeded.resetAt()

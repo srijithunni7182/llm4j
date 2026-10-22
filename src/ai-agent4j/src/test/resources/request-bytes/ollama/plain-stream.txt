@@ -1,4 +1,4 @@
 POST /chat
 content-type: application/json; charset=utf-8
 
-{"model":"llama3","stream":true,"messages":[{"role":"user","content":"Hi there"}],"options":{}}
+{"messages":[{"content":"Hi there","role":"user"}],"model":"llama3","options":{},"stream":true}

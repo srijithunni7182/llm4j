@@ -1,4 +1,4 @@
 POST /v1/chat/completions
 content-type: application/json; charset=utf-8
 
-{"model":"sarvam-m","messages":[{"role":"user","content":"My name is Asha"},{"role":"assistant","content":"Hi Asha"},{"role":"user","content":"What is my name?"}]}
+{"messages":[{"content":"My name is Asha","role":"user"},{"content":"Hi Asha","role":"assistant"},{"content":"What is my name?","role":"user"}],"model":"sarvam-m"}

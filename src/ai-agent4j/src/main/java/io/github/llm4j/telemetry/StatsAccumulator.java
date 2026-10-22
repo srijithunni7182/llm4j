@@ -36,6 +36,8 @@ public final class StatsAccumulator {
         if (e.cost() != null) m.cost = m.cost == null ? e.cost() : m.cost.add(e.cost());
         if (e.finishReason() != null) m.finishReasons.merge(e.finishReason(), 1L, Long::sum);
         if (e.truncated()) m.truncated++;
+        if (e.searches() != null) m.searches += e.searches();
+        m.citations += e.citations();
     }
 
     public synchronized void onToolCall(ToolCallEvent e) {
@@ -75,7 +77,9 @@ public final class StatsAccumulator {
                                         v.waited,
                                         v.finishReasons,
                                         v.truncated,
-                                        v.latency.snapshot())));
+                                        v.latency.snapshot(),
+                                        v.searches,
+                                        v.citations)));
         Map<String, ToolStats> t = new HashMap<>();
         tools.forEach(
                 (k, v) ->
@@ -98,7 +102,7 @@ public final class StatsAccumulator {
     }
 
     private static final class Model {
-        long calls, prompt, completion, retries, failovers, waited, truncated;
+        long calls, prompt, completion, retries, failovers, waited, truncated, searches, citations;
         BigDecimal cost;
         final Map<ErrorCategory, Long> failures = new EnumMap<>(ErrorCategory.class);
         final Map<LLMResponse.FinishReason, Long> finishReasons =

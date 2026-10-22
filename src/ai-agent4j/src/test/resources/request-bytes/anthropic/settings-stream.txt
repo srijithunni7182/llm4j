@@ -2,4 +2,4 @@ POST /v1/messages
 content-type: application/json; charset=utf-8
 anthropic-version: 2023-06-01
 
-{"model":"claude-haiku-4-5","max_tokens":100,"system":"You are terse.","messages":[{"role":"user","content":"Hi"}],"temperature":0.3,"top_p":0.9,"stop_sequences":["END"],"stream":true}
+{"max_tokens":100,"messages":[{"content":"Hi","role":"user"}],"model":"claude-haiku-4-5","stop_sequences":["END"],"stream":true,"system":"You are terse.","temperature":0.3,"top_p":0.9}

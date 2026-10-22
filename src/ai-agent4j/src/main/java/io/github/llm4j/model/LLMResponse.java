@@ -81,6 +81,8 @@ public final class LLMResponse {
     private final Map<String, Object> providerData;
     private final String reasoning;
     private final ToolCallDelta toolCallDelta;
+    private final java.util.List<io.github.llm4j.grounding.Citation> citations;
+    private final io.github.llm4j.grounding.SearchUsage searches;
 
     private LLMResponse(Builder builder) {
         this.content = builder.content;
@@ -96,6 +98,11 @@ public final class LLMResponse {
                 builder.providerData == null ? Map.of() : Map.copyOf(builder.providerData);
         this.reasoning = builder.reasoning;
         this.toolCallDelta = builder.toolCallDelta;
+        this.citations =
+                builder.citations == null
+                        ? java.util.List.of()
+                        : java.util.List.copyOf(builder.citations);
+        this.searches = builder.searches;
         this.metadata =
                 builder.metadata != null
                         ? Collections.unmodifiableMap(new HashMap<>(builder.metadata))
@@ -159,6 +166,42 @@ public final class LLMResponse {
         return toolCallDelta;
     }
 
+    /**
+     * The sources a grounded answer is attributed to, as the vendor returned them (empty when the
+     * request was not grounded or the vendor named none; never null). The metadata key {@code
+     * grounding.citation_basis} says whether they are sources the answer {@code cited} or sources
+     * the search {@code consulted}. A streamed call reports them in the final chunk.
+     */
+    public java.util.List<io.github.llm4j.grounding.Citation> getCitations() {
+        return citations;
+    }
+
+    /**
+     * The web searches the call ran, as the vendor reports them; null when none ran. A streamed
+     * call reports them in the final chunk.
+     */
+    public io.github.llm4j.grounding.SearchUsage getSearches() {
+        return searches;
+    }
+
+    /** A builder holding everything of this response, so a copy never drops a field. */
+    public Builder toBuilder() {
+        Builder b =
+                builder()
+                        .content(content)
+                        .model(model)
+                        .tokenUsage(tokenUsage)
+                        .finishReason(finishReason)
+                        .metadata(metadata)
+                        .toolCalls(toolCalls)
+                        .providerData(providerData)
+                        .reasoning(reasoning)
+                        .toolCallDelta(toolCallDelta)
+                        .citations(citations)
+                        .searches(searches);
+        return b;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -176,7 +219,9 @@ public final class LLMResponse {
                 && Objects.equals(toolCalls, that.toolCalls)
                 && Objects.equals(providerData, that.providerData)
                 && Objects.equals(reasoning, that.reasoning)
-                && Objects.equals(toolCallDelta, that.toolCallDelta);
+                && Objects.equals(toolCallDelta, that.toolCallDelta)
+                && Objects.equals(citations, that.citations)
+                && Objects.equals(searches, that.searches);
     }
 
     @Override
@@ -190,7 +235,9 @@ public final class LLMResponse {
                 toolCalls,
                 providerData,
                 reasoning,
-                toolCallDelta);
+                toolCallDelta,
+                citations,
+                searches);
     }
 
     @Override
@@ -273,8 +320,22 @@ public final class LLMResponse {
         private Map<String, Object> providerData;
         private String reasoning;
         private ToolCallDelta toolCallDelta;
+        private java.util.List<io.github.llm4j.grounding.Citation> citations;
+        private io.github.llm4j.grounding.SearchUsage searches;
 
         private Builder() {}
+
+        /** The sources a grounded answer is attributed to. */
+        public Builder citations(java.util.List<io.github.llm4j.grounding.Citation> citations) {
+            this.citations = citations;
+            return this;
+        }
+
+        /** The web searches the call ran, or null. */
+        public Builder searches(io.github.llm4j.grounding.SearchUsage searches) {
+            this.searches = searches;
+            return this;
+        }
 
         public Builder reasoning(String reasoning) {
             this.reasoning = reasoning;

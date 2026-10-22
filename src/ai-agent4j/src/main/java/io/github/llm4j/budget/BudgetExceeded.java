@@ -48,6 +48,7 @@ public final class BudgetExceeded extends AgentInterrupt {
                     case TOKENS -> "tokens " + spent.tokens() + "/" + limits.tokens();
                     case CALLS -> "calls " + spent.calls() + "/" + limits.calls();
                     case COST -> "cost $" + money(spent.cost()) + "/$" + money(limits.cost());
+                    case SEARCHES -> "searches " + spent.searches() + "/" + limits.searches();
                 };
         return "budget exhausted: " + budget + " (" + detail + ")";
     }

@@ -2,4 +2,4 @@ POST /v1/messages
 content-type: application/json; charset=utf-8
 anthropic-version: 2023-06-01
 
-{"model":"claude-haiku-4-5","max_tokens":64000,"messages":[{"role":"user","content":"My name is Asha"},{"role":"assistant","content":"Hi Asha"},{"role":"user","content":"What is my name?"}],"stream":true}
+{"max_tokens":64000,"messages":[{"content":"My name is Asha","role":"user"},{"content":"Hi Asha","role":"assistant"},{"content":"What is my name?","role":"user"}],"model":"claude-haiku-4-5","stream":true}

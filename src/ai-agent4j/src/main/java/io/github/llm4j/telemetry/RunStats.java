@@ -59,6 +59,11 @@ public record RunStats(Map<String, ModelStats> models, Map<String, ToolStats> to
         return models.values().stream().mapToLong(ModelStats::failovers).sum();
     }
 
+    /** Provider-side web searches, over all models. */
+    public long totalSearches() {
+        return models.values().stream().mapToLong(ModelStats::searches).sum();
+    }
+
     /** Answers cut off by the token limit, over all models. */
     public long truncatedAnswers() {
         return models.values().stream().mapToLong(ModelStats::truncated).sum();

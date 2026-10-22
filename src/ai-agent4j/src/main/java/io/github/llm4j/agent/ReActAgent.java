@@ -1596,7 +1596,10 @@ public class ReActAgent {
         if (response != null) {
             event.model(response.getModel())
                     .finishReason(response.getFinishReason())
-                    .toolCallsRequested(response.getToolCalls().size());
+                    .toolCallsRequested(response.getToolCalls().size())
+                    .searches(
+                            response.getSearches() == null ? null : response.getSearches().count())
+                    .citations(response.getCitations().size());
             LLMResponse.TokenUsage usage = response.getTokenUsage();
             if (usage != null)
                 event.promptTokens(usage.getPromptTokens())

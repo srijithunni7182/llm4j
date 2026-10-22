@@ -1,4 +1,4 @@
 POST /chat
 content-type: application/json; charset=utf-8
 
-{"model":"llama3","stream":false,"messages":[{"role":"system","content":"You are terse."},{"role":"user","content":"Hi"}],"options":{"temperature":0.3,"num_predict":100,"top_p":0.9,"stop":["END"]}}
+{"messages":[{"content":"You are terse.","role":"system"},{"content":"Hi","role":"user"}],"model":"llama3","options":{"num_predict":100,"stop":["END"],"temperature":0.3,"top_p":0.9},"stream":false}

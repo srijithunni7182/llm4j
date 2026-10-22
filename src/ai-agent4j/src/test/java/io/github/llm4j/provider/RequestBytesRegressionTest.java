@@ -128,7 +128,10 @@ class RequestBytesRegressionTest {
                 if (r.getHeader(h) != null)
                     out.append(h).append(": ").append(r.getHeader(h)).append('\n');
             }
-            return out.append('\n').append(r.getBody().readUtf8()).append('\n').toString();
+            return out.append('\n')
+                    .append(canonical(r.getBody().readUtf8()))
+                    .append('\n')
+                    .toString();
         }
     }
 
@@ -153,6 +156,22 @@ class RequestBytesRegressionTest {
             }
         }
         assertThat(compared).isEqualTo(48);
+    }
+
+    /**
+     * The body with its object keys in alphabetical order: a schema map built from a hash map may
+     * list its keys differently from one JVM run to the next, which says nothing about grounding.
+     * Array order, values and spelling are untouched.
+     */
+    private static String canonical(String json) throws IOException {
+        if (json.isBlank()) return json;
+        com.fasterxml.jackson.databind.ObjectMapper mapper =
+                new com.fasterxml.jackson.databind.ObjectMapper()
+                        .configure(
+                                com.fasterxml.jackson.databind.SerializationFeature
+                                        .ORDER_MAP_ENTRIES_BY_KEYS,
+                                true);
+        return mapper.writeValueAsString(mapper.readValue(json, Object.class));
     }
 
     private static String readUtf8(Path file) throws IOException {

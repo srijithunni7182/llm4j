@@ -21,6 +21,7 @@ public final class LLMRequest {
     private final List<ToolSpec> tools;
     private final ToolChoice toolChoice;
     private final boolean reasoning;
+    private final io.github.llm4j.grounding.Grounding grounding;
 
     /** Whether the model may call the tools it is offered. */
     public enum ToolChoice {
@@ -49,6 +50,7 @@ public final class LLMRequest {
         this.tools = builder.tools == null ? List.of() : List.copyOf(builder.tools);
         this.toolChoice = builder.toolChoice == null ? ToolChoice.AUTO : builder.toolChoice;
         this.reasoning = builder.reasoning;
+        this.grounding = builder.grounding;
 
         validate();
     }
@@ -117,6 +119,15 @@ public final class LLMRequest {
         return reasoning;
     }
 
+    /**
+     * The grounding asked for (provider-side web search with citations), or null when the request
+     * is not grounded, which is the default: a request without it is sent exactly as it was before
+     * grounding existed.
+     */
+    public io.github.llm4j.grounding.Grounding getGrounding() {
+        return grounding;
+    }
+
     /** A builder holding everything of this request, so a copy never drops a field. */
     public Builder toBuilder() {
         Builder b =
@@ -130,7 +141,8 @@ public final class LLMRequest {
                         .complexityHint(complexityHint)
                         .tools(tools)
                         .toolChoice(toolChoice)
-                        .reasoning(reasoning);
+                        .reasoning(reasoning)
+                        .grounding(grounding);
         if (!additionalParameters.isEmpty()) b.additionalParameters(additionalParameters);
         return b;
     }
@@ -154,7 +166,8 @@ public final class LLMRequest {
                 && Objects.equals(additionalParameters, that.additionalParameters)
                 && Objects.equals(tools, that.tools)
                 && toolChoice == that.toolChoice
-                && reasoning == that.reasoning;
+                && reasoning == that.reasoning
+                && Objects.equals(grounding, that.grounding);
     }
 
     @Override
@@ -170,7 +183,8 @@ public final class LLMRequest {
                 additionalParameters,
                 tools,
                 toolChoice,
-                reasoning);
+                reasoning,
+                grounding);
     }
 
     @Override
@@ -208,6 +222,7 @@ public final class LLMRequest {
         private List<ToolSpec> tools;
         private ToolChoice toolChoice;
         private boolean reasoning;
+        private io.github.llm4j.grounding.Grounding grounding;
 
         private Builder() {}
 
@@ -218,6 +233,23 @@ public final class LLMRequest {
          * can cost more and, on some models, takes the place of settings such as temperature. A
          * provider or model that cannot show reasoning ignores this. Has no effect on {@code chat}.
          */
+        /**
+         * Asks the provider to search the web for this request and return the sources it used (see
+         * {@link io.github.llm4j.grounding.Grounding}). Null (the default) means no grounding. A
+         * provider that cannot ground, or cannot honour a setting, makes the client refuse the
+         * request before any network call.
+         */
+        public Builder grounding(io.github.llm4j.grounding.Grounding grounding) {
+            this.grounding = grounding;
+            return this;
+        }
+
+        /** As {@link #grounding(io.github.llm4j.grounding.Grounding)}, taking the builder. */
+        public Builder grounding(io.github.llm4j.grounding.Grounding.Builder grounding) {
+            this.grounding = grounding == null ? null : grounding.build();
+            return this;
+        }
+
         public Builder reasoning(boolean reasoning) {
             this.reasoning = reasoning;
             return this;

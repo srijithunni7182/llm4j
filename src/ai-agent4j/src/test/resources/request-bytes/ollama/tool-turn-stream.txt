@@ -1,4 +1,4 @@
 POST /chat
 content-type: application/json; charset=utf-8
 
-{"model":"llama3","stream":true,"messages":[{"role":"user","content":"weather in Pune?"},{"role":"assistant","content":""},{"role":"tool","content":"{\"temp\":31}"}],"options":{}}
+{"messages":[{"content":"weather in Pune?","role":"user"},{"content":"","role":"assistant"},{"content":"{\"temp\":31}","role":"tool"}],"model":"llama3","options":{},"stream":true}

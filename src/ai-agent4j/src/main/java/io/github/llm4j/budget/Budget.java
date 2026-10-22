@@ -46,10 +46,12 @@ public final class Budget {
     private long promptTokens;
     private long completionTokens;
     private long calls;
+    private long searches;
     private BigDecimal cost = BigDecimal.ZERO;
     private boolean estimated;
     private long reservedTokens;
     private long reservedCalls;
+    private long reservedSearches;
     private BigDecimal reservedCost = BigDecimal.ZERO;
     private boolean warned;
     private boolean exhaustedFired;
@@ -59,6 +61,7 @@ public final class Budget {
     private long pastPrompt;
     private long pastCompletion;
     private long pastCalls;
+    private long pastSearches;
     private BigDecimal pastCost = BigDecimal.ZERO;
 
     private Budget(Builder b) {
@@ -70,7 +73,7 @@ public final class Budget {
             windowStart = window.start(now, clock.getZone());
             windowEnd = window.end(now, clock.getZone());
         }
-        this.limits = new Limits(b.tokens, b.calls, b.cost);
+        this.limits = new Limits(b.tokens, b.calls, b.cost, b.searches);
         this.warnAt = b.warnAt;
         if (b.listener != null) listeners.add(b.listener);
     }
@@ -122,6 +125,8 @@ public final class Budget {
                     pastCalls + calls,
                     pastCost.add(cost),
                     estimated,
+                    0,
+                    pastSearches + searches,
                     0);
         } finally {
             lock.unlock();
@@ -144,9 +149,7 @@ public final class Budget {
         lock.lock();
         try {
             rollLocked();
-            long tokens = promptTokens + completionTokens;
-            long overdraw = limits.tokens() == null ? 0 : Math.max(0, tokens - limits.tokens());
-            return new Spent(promptTokens, completionTokens, calls, cost, estimated, overdraw);
+            return spentLocked();
         } finally {
             lock.unlock();
         }
@@ -163,7 +166,10 @@ public final class Budget {
                         : OptionalLong.of(Math.max(0, limits.calls() - s.calls())),
                 limits.cost() == null
                         ? Optional.empty()
-                        : Optional.of(limits.cost().subtract(s.cost()).max(BigDecimal.ZERO)));
+                        : Optional.of(limits.cost().subtract(s.cost()).max(BigDecimal.ZERO)),
+                limits.searches() == null
+                        ? OptionalLong.empty()
+                        : OptionalLong.of(Math.max(0, limits.searches() - s.searches())));
     }
 
     /** True once any limited dimension has nothing left. */
@@ -171,7 +177,8 @@ public final class Budget {
         Remaining r = remaining();
         return (r.tokens().isPresent() && r.tokens().getAsLong() == 0)
                 || (r.calls().isPresent() && r.calls().getAsLong() == 0)
-                || (r.cost().isPresent() && r.cost().get().signum() == 0);
+                || (r.cost().isPresent() && r.cost().get().signum() == 0)
+                || (r.searches().isPresent() && r.searches().getAsLong() == 0);
     }
 
     /** True once this budget has refused a call. */
@@ -200,7 +207,8 @@ public final class Budget {
                             plus(l.calls(), more.calls()),
                             l.cost() == null || more.cost() == null
                                     ? l.cost()
-                                    : l.cost().add(more.cost()));
+                                    : l.cost().add(more.cost()),
+                            plus(l.searches(), more.searches()));
             exhaustedFired = false;
             warned = false;
         } finally {
@@ -230,6 +238,7 @@ public final class Budget {
                 pastPrompt += already.promptTokens();
                 pastCompletion += already.completionTokens();
                 pastCalls += already.calls();
+                pastSearches += already.searches();
                 pastCost = pastCost.add(already.cost());
                 estimated |= already.estimated();
                 return;
@@ -237,6 +246,7 @@ public final class Budget {
             promptTokens += already.promptTokens();
             completionTokens += already.completionTokens();
             calls += already.calls();
+            searches += already.searches();
             cost = cost.add(already.cost());
             estimated |= already.estimated();
             events = checkWarning();
@@ -256,10 +266,12 @@ public final class Budget {
         pastPrompt += promptTokens;
         pastCompletion += completionTokens;
         pastCalls += calls;
+        pastSearches += searches;
         pastCost = pastCost.add(cost);
         promptTokens = 0;
         completionTokens = 0;
         calls = 0;
+        searches = 0;
         cost = BigDecimal.ZERO;
         warned = false;
         exhaustedFired = false;
@@ -282,28 +294,38 @@ public final class Budget {
         return limits.calls() == null ? Long.MAX_VALUE : limits.calls() - calls - reservedCalls;
     }
 
+    long availableSearches() {
+        return limits.searches() == null
+                ? Long.MAX_VALUE
+                : limits.searches() - searches - reservedSearches;
+    }
+
     BigDecimal availableCost() {
         return limits.cost() == null ? null : limits.cost().subtract(cost).subtract(reservedCost);
     }
 
-    void reserveLocked(long tokens, long callCount, BigDecimal money) {
+    void reserveLocked(long tokens, long callCount, long searchCount, BigDecimal money) {
         reservedTokens += tokens;
         reservedCalls += callCount;
+        reservedSearches += searchCount;
         reservedCost = reservedCost.add(money);
     }
 
     /**
      * Replaces a reservation with the actual charge; returns the events to fire after unlocking.
      */
-    List<BudgetEvent> settleLocked(long tokens, long callCount, BigDecimal money, Charge charge) {
+    List<BudgetEvent> settleLocked(
+            long tokens, long callCount, long searchCount, BigDecimal money, Charge charge) {
         rollLocked();
         reservedTokens -= tokens;
         reservedCalls -= callCount;
+        reservedSearches -= searchCount;
         reservedCost = reservedCost.subtract(money);
         if (charge != null) {
             promptTokens += charge.promptTokens();
             completionTokens += charge.completionTokens();
             calls += charge.calls();
+            searches += charge.searches();
             cost = cost.add(charge.cost());
             estimated |= charge.estimated();
         }
@@ -320,7 +342,17 @@ public final class Budget {
     Spent spentLocked() {
         long tokens = promptTokens + completionTokens;
         long overdraw = limits.tokens() == null ? 0 : Math.max(0, tokens - limits.tokens());
-        return new Spent(promptTokens, completionTokens, calls, cost, estimated, overdraw);
+        long searchOverdraw =
+                limits.searches() == null ? 0 : Math.max(0, searches - limits.searches());
+        return new Spent(
+                promptTokens,
+                completionTokens,
+                calls,
+                cost,
+                estimated,
+                overdraw,
+                searches,
+                searchOverdraw);
     }
 
     private List<BudgetEvent> checkWarning() {
@@ -333,6 +365,7 @@ public final class Budget {
         if (limits.cost() != null && limits.cost().signum() > 0) {
             used = Math.max(used, cost.doubleValue() / limits.cost().doubleValue());
         }
+        if (limits.searches() != null) used = Math.max(used, (double) searches / limits.searches());
         if (used >= warnAt) {
             warned = true;
             events.add(new BudgetEvent(BudgetEvent.Kind.WARNING, name, spentLocked(), limits));
@@ -369,6 +402,7 @@ public final class Budget {
         private Long tokens;
         private Long calls;
         private BigDecimal cost;
+        private Long searches;
         private double warnAt = 0.8;
         private BudgetListener listener;
         private Window window;
@@ -416,6 +450,13 @@ public final class Budget {
         public Builder cost(BigDecimal amount) {
             if (amount.signum() <= 0) throw new IllegalArgumentException("cost must be positive");
             this.cost = amount;
+            return this;
+        }
+
+        /** A limit on provider-side web searches (grounding), as the provider reports them. */
+        public Builder searches(long searches) {
+            if (searches <= 0) throw new IllegalArgumentException("searches must be positive");
+            this.searches = searches;
             return this;
         }
 

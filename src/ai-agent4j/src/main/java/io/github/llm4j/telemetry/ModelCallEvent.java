@@ -26,6 +26,9 @@ import java.util.List;
  * @param outcome whether the call produced an answer
  * @param category why it failed, or null
  * @param errorType the exception's simple class name, or null
+ * @param searches web searches the provider ran for the call, or null when none were asked for or
+ *     the count is unknown
+ * @param citations sources the answer cited (a count; never the addresses or the text)
  */
 public record ModelCallEvent(
         int iteration,
@@ -45,7 +48,52 @@ public record ModelCallEvent(
         int toolCallsRequested,
         Outcome outcome,
         ErrorCategory category,
-        String errorType) {
+        String errorType,
+        Integer searches,
+        int citations) {
+
+    /** An event with no searches or citations (the shape before grounding existed). */
+    public ModelCallEvent(
+            int iteration,
+            String requestedModel,
+            String model,
+            Instant startedAt,
+            long durationMillis,
+            long waitedMillis,
+            int attempts,
+            List<String> failovers,
+            long promptTokens,
+            long completionTokens,
+            long totalTokens,
+            boolean usageEstimated,
+            BigDecimal cost,
+            LLMResponse.FinishReason finishReason,
+            int toolCallsRequested,
+            Outcome outcome,
+            ErrorCategory category,
+            String errorType) {
+        this(
+                iteration,
+                requestedModel,
+                model,
+                startedAt,
+                durationMillis,
+                waitedMillis,
+                attempts,
+                failovers,
+                promptTokens,
+                completionTokens,
+                totalTokens,
+                usageEstimated,
+                cost,
+                finishReason,
+                toolCallsRequested,
+                outcome,
+                category,
+                errorType,
+                null,
+                0);
+    }
 
     public enum Outcome {
         OK,
@@ -114,6 +162,8 @@ public record ModelCallEvent(
         private Outcome outcome = Outcome.OK;
         private ErrorCategory category;
         private String errorType;
+        private Integer searches;
+        private int citations;
 
         private Builder() {}
 
@@ -192,6 +242,16 @@ public record ModelCallEvent(
             return this;
         }
 
+        public Builder searches(Integer v) {
+            this.searches = v;
+            return this;
+        }
+
+        public Builder citations(int v) {
+            this.citations = v;
+            return this;
+        }
+
         /** Marks the call as failed, with why. */
         public Builder failed(ErrorCategory category, String errorType) {
             this.outcome = Outcome.FAILED;
@@ -219,7 +279,9 @@ public record ModelCallEvent(
                     toolCallsRequested,
                     outcome,
                     category,
-                    errorType);
+                    errorType,
+                    searches,
+                    citations);
         }
     }
 }

@@ -1,4 +1,4 @@
 POST /v1/chat/completions
 content-type: application/json; charset=utf-8
 
-{"model":"sarvam-m","stream":true,"messages":[{"role":"user","content":"Hi there"}]}
+{"messages":[{"content":"Hi there","role":"user"}],"model":"sarvam-m","stream":true}
