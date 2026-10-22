@@ -24,6 +24,10 @@ no key or no access. Design: [specs/08-providers-and-grounding](specs/08-provide
 | `openai_compatible` (DeepSeek, Groq, Together, vLLM, LM Studio, a gateway with its own header or `api-version`) | **preview**: contract-tested, and the protocol is the one recorded for OpenAI and xAI, but no third-party server has been recorded |
 | Loom: `provider … { use: openai | xai | kimi | qwen | perplexity | perplexity_router | openai_compatible }`, model names (`gpt-5-mini`, `xai/grok-4`, `perplexity/openai/gpt-5.6-sol`), keys by vendor and bound to the vendor's host, `weave audit` data flows | **works now** |
 | Spring Boot starter: `llm4j.clients.<name>.provider` accepts the new providers | **works now** |
+| Spring Boot starter: `llm4j.classifiers.<name>` (`jev`, `perplexity_decisions`) as a `Classifiers` bean; `llm4j.budget.searches` and `llm4j.pricing.models.<m>.search-per-thousand` for grounded calls | **works now** (tests only; no live Spring run) |
+| Loom: `provider … { use: perplexity_decisions }` names a Decisions classifier backend, beside `jev` | **works now** |
+| `listModels()` / `getFirstAvailableModel()` (`DescribableProvider`) on `OpenAiCompatibleProvider` and `OpenAiResponsesProvider` (path in `Dialect.modelsPath()` / `ResponsesDialect.modelsPath()`) and on `AnthropicProvider`; Perplexity (no such endpoint) throws `InvalidRequestException` | **supported** for OpenAI, xAI and Anthropic: listings recorded 2026-10-22; Kimi, Qwen and generic servers use the same `/models` path (preview) |
+| Anthropic `pause_turn`: `chat` continues a paused server-tool turn (up to five times) and returns one response; streaming does not continue | **preview**: fixtures written from the reference |
 | Context-window catalog entries for the current OpenAI, xAI, Kimi and Qwen models (each checked against the vendor's documentation) | **works now** |
 | `SpendGuard` (eval4j) now meters streamed calls from their final chunk, and the opt-in `ProviderSmokeIntegrationTest` records fixtures from the real APIs under a spend cap | **works now** |
 

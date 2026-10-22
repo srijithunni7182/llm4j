@@ -24,6 +24,7 @@ public final class ResponsesDialect {
     private final String name;
     private final String defaultBaseUrl;
     private final String path;
+    private final String modelsPath;
     private final String maxTokensField;
     private final boolean keyRequired;
     private final String keyEnv;
@@ -41,6 +42,7 @@ public final class ResponsesDialect {
         this.name = Objects.requireNonNull(b.name, "name cannot be null");
         this.defaultBaseUrl = b.defaultBaseUrl;
         this.path = b.path;
+        this.modelsPath = b.modelsPath;
         this.maxTokensField = b.maxTokensField;
         this.keyRequired = b.keyRequired;
         this.keyEnv = b.keyEnv;
@@ -66,6 +68,14 @@ public final class ResponsesDialect {
     /** Where the vendor's API lives. */
     public String defaultBaseUrl() {
         return defaultBaseUrl;
+    }
+
+    /**
+     * The path that lists the vendor's models, for example {@code /models}, or null when the vendor
+     * has no such endpoint (the Agent API of Perplexity has none).
+     */
+    public String modelsPath() {
+        return modelsPath;
     }
 
     /** The path appended to the base URL, for example {@code /responses} or {@code /agent}. */
@@ -173,6 +183,7 @@ public final class ResponsesDialect {
             builder("openai")
                     .defaultBaseUrl("https://api.openai.com/v1")
                     .path("/responses")
+                    .modelsPath("/models")
                     .keyEnv("OPENAI_API_KEY")
                     .baseUrlEnv("OPENAI_BASE_URL")
                     .hosts(List.of("api.openai.com"))
@@ -198,6 +209,7 @@ public final class ResponsesDialect {
             builder("xai")
                     .defaultBaseUrl("https://api.x.ai/v1")
                     .path("/responses")
+                    .modelsPath("/models")
                     .keyEnv("XAI_API_KEY")
                     .baseUrlEnv("XAI_BASE_URL")
                     .hosts(List.of("api.x.ai"))
@@ -255,6 +267,7 @@ public final class ResponsesDialect {
         private final String name;
         private String defaultBaseUrl;
         private String path = "/responses";
+        private String modelsPath;
         private String maxTokensField = "max_output_tokens";
         private boolean keyRequired = true;
         private String keyEnv;
@@ -274,6 +287,12 @@ public final class ResponsesDialect {
 
         public Builder defaultBaseUrl(String url) {
             this.defaultBaseUrl = url;
+            return this;
+        }
+
+        /** The path that lists models; null (the default) when the vendor has no such endpoint. */
+        public Builder modelsPath(String path) {
+            this.modelsPath = path;
             return this;
         }
 

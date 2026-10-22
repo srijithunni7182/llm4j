@@ -25,6 +25,7 @@ public final class Dialect {
     private final String name;
     private final String defaultBaseUrl;
     private final String chatPath;
+    private final String modelsPath;
     private final String maxTokensField;
     private final String authHeader;
     private final String authScheme;
@@ -45,6 +46,7 @@ public final class Dialect {
         this.name = Objects.requireNonNull(b.name, "name cannot be null");
         this.defaultBaseUrl = b.defaultBaseUrl;
         this.chatPath = b.chatPath;
+        this.modelsPath = b.modelsPath;
         this.maxTokensField = b.maxTokensField;
         this.authHeader = b.authHeader;
         this.authScheme = b.authScheme;
@@ -83,6 +85,14 @@ public final class Dialect {
      */
     public String chatPath() {
         return chatPath;
+    }
+
+    /**
+     * The path that lists the vendor's models, for example {@code /models}, or null when the vendor
+     * has no such endpoint.
+     */
+    public String modelsPath() {
+        return modelsPath;
     }
 
     /**
@@ -197,6 +207,7 @@ public final class Dialect {
         return new Builder(name)
                 .defaultBaseUrl(defaultBaseUrl)
                 .chatPath(chatPath)
+                .modelsPath(modelsPath)
                 .maxTokensField(maxTokensField)
                 .authHeader(authHeader, authScheme)
                 .keyRequired(keyRequired)
@@ -296,6 +307,7 @@ public final class Dialect {
                     .maxTokensField("max_tokens")
                     .keyEnv("PERPLEXITY_API_KEY")
                     .baseUrlEnv("PERPLEXITY_ROUTER_BASE_URL")
+                    .modelsPath(null)
                     .hosts(List.of("api.perplexity.ai"))
                     .build();
 
@@ -318,6 +330,7 @@ public final class Dialect {
         private final String name;
         private String defaultBaseUrl;
         private String chatPath = "/chat/completions";
+        private String modelsPath = "/models";
         private String maxTokensField = "max_tokens";
         private String authHeader = "Authorization";
         private String authScheme = "Bearer ";
@@ -345,6 +358,12 @@ public final class Dialect {
 
         public Builder chatPath(String path) {
             this.chatPath = path;
+            return this;
+        }
+
+        /** The path that lists models; null for a vendor that has no such endpoint. */
+        public Builder modelsPath(String path) {
+            this.modelsPath = path;
             return this;
         }
 

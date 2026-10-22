@@ -138,6 +138,24 @@ class NativeGroundingPreviewTest {
         assertThat(body.path("tool_choice").path("type").asText()).isEqualTo("auto");
     }
 
+    /** The one grounded Claude answer recorded from the real API (2026-10-22). */
+    @Test
+    void aRecordedClaudeAnswerIsReadIntoTextCitationsAndASearchCount() {
+        Fixtures f = Fixtures.load("anthropic/grounded-recorded.fixture");
+        assertThat(f.recorded()).isTrue();
+        server.enqueue(
+                new MockResponse().setHeader("Content-Type", "application/json").setBody(f.body()));
+
+        LLMResponse r = anthropic().chat(ask(Grounding.webSearch()));
+
+        assertThat(r.getContent()).startsWith("The RBI's policy repo rate is 5.50%").endsWith(".");
+        assertThat(r.getCitations()).isNotEmpty();
+        assertThat(r.getCitations().get(0).url()).startsWith("https://");
+        assertThat(r.getCitations().get(0).spans()).isNotEmpty();
+        assertThat(r.getSearches().count()).isEqualTo(1);
+        assertThat(r.getSearches().queries()).containsExactly("RBI policy repo rate current");
+    }
+
     @Test
     void aClaudeAnswerHasCitationsSpannedByTheTextBlocksThatCarryThem() {
         enqueue("anthropic/grounded.fixture", "application/json");

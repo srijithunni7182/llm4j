@@ -22,7 +22,8 @@ import io.github.llm4j.model.Message;
 import io.github.llm4j.model.ToolCall;
 import io.github.llm4j.model.ToolCallDelta;
 import io.github.llm4j.model.ToolSpec;
-import io.github.llm4j.provider.LLMProvider;
+import io.github.llm4j.provider.DescribableProvider;
+import io.github.llm4j.provider.ModelListing;
 import io.github.llm4j.provider.Providers;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -45,7 +46,7 @@ import org.slf4j.LoggerFactory;
  * answer; a refusal throws {@link ContentBlockedException}; "overloaded" (529) is retried, then
  * reported as {@link ServiceUnavailableException}.
  */
-public class AnthropicProvider implements LLMProvider {
+public class AnthropicProvider implements DescribableProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(AnthropicProvider.class);
     private static final String DEFAULT_BASE_URL = "https://api.anthropic.com";
@@ -63,6 +64,9 @@ public class AnthropicProvider implements LLMProvider {
 
     /** The settings of a {@link io.github.llm4j.grounding.Grounding} this provider honours. */
     public static final Set<GroundingOption> GROUNDING_OPTIONS = AnthropicGrounding.OPTIONS;
+
+    /** How many times a paused turn is continued before its partial answer is returned. */
+    static final int MAX_CONTINUATIONS = 5;
 
     private final LLMConfig config;
     private final HttpClientWrapper http;
@@ -98,12 +102,79 @@ public class AnthropicProvider implements LLMProvider {
     public LLMResponse chat(LLMRequest request) {
         String model = model(request);
         try {
-            String json =
-                    http.post(baseUrl + "/v1/messages", body(request, model, false), headers());
-            return parse(JSON.readTree(json), model, request.getGrounding() != null);
+            return parse(
+                    completeTurn(body(request, model, false)),
+                    model,
+                    request.getGrounding() != null);
         } catch (IOException | LLMException e) {
             throw Providers.typed(getProviderName(), "Failed to process chat request", e);
         }
+    }
+
+    /**
+     * Sends the request and, while Claude answers {@code pause_turn} (a long server-tool turn, such
+     * as several web searches, that it stopped part-way), sends the same request again with the
+     * paused content as the last assistant message, as the API asks, up to {@link
+     * #MAX_CONTINUATIONS} times. The rounds are returned as one response: the content blocks in
+     * order, the usage added up, and the last round's stop reason.
+     */
+    private JsonNode completeTurn(String requestBody) throws IOException {
+        ObjectNode request = (ObjectNode) JSON.readTree(requestBody);
+        JsonNode response = JSON.readTree(post(request));
+        for (int round = 0;
+                "pause_turn".equals(response.path("stop_reason").asText())
+                        && round < MAX_CONTINUATIONS;
+                round++) {
+            ArrayNode content = JSON.createArrayNode();
+            response.path("content").forEach(content::add);
+            ((ArrayNode) request.get("messages"))
+                    .addObject()
+                    .put("role", "assistant")
+                    .set("content", content);
+            JsonNode next = JSON.readTree(post(request));
+            response = joined(response, next);
+        }
+        return response;
+    }
+
+    private String post(ObjectNode request) throws IOException {
+        return http.post(baseUrl + "/v1/messages", JSON.writeValueAsString(request), headers());
+    }
+
+    /** {@code next} with the content of {@code earlier} before its own and the usage added up. */
+    private static JsonNode joined(JsonNode earlier, JsonNode next) {
+        ObjectNode out = next.deepCopy();
+        ArrayNode content = JSON.createArrayNode();
+        earlier.path("content").forEach(content::add);
+        next.path("content").forEach(content::add);
+        out.set("content", content);
+        if (earlier.path("usage").isObject() && next.path("usage").isObject()) {
+            out.set("usage", addUsage(earlier.path("usage"), next.path("usage")));
+        }
+        return out;
+    }
+
+    private static ObjectNode addUsage(JsonNode a, JsonNode b) {
+        ObjectNode sum = JSON.createObjectNode();
+        java.util.Set<String> names = new java.util.LinkedHashSet<>();
+        a.fieldNames().forEachRemaining(names::add);
+        b.fieldNames().forEachRemaining(names::add);
+        for (String name : names) {
+            JsonNode x = a.path(name);
+            JsonNode y = b.path(name);
+            if (x.isObject() || y.isObject()) {
+                sum.set(
+                        name,
+                        addUsage(
+                                x.isObject() ? x : JSON.createObjectNode(),
+                                y.isObject() ? y : JSON.createObjectNode()));
+            } else if (x.isNumber() || y.isNumber()) {
+                sum.put(name, x.asLong(0) + y.asLong(0));
+            } else {
+                sum.set(name, y.isMissingNode() ? x : y); // service_tier and the like: the last
+            }
+        }
+        return sum;
     }
 
     /**
@@ -500,6 +571,26 @@ public class AnthropicProvider implements LLMProvider {
     @Override
     public boolean supportsToolCalling() {
         return true;
+    }
+
+    /**
+     * The ids of the models this key may use ({@code GET /v1/models}, newest first as Anthropic
+     * sends them; one page of up to 1000, which is more than exist).
+     */
+    @Override
+    public String[] listModels() {
+        try {
+            return ModelListing.ids(
+                    getProviderName(), http.get(baseUrl + "/v1/models?limit=1000", headers()));
+        } catch (LLMException e) {
+            throw Providers.typed(getProviderName(), "Failed to list models", e);
+        }
+    }
+
+    /** The newest model {@link #listModels()} returns, or null when there is none. */
+    @Override
+    public String getFirstAvailableModel() {
+        return ModelListing.first(listModels());
     }
 
     private Headers headers() {

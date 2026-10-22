@@ -7,6 +7,7 @@ import io.github.llm4j.LLMClient;
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
+import io.github.llm4j.provider.DescribableProvider;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -143,6 +144,21 @@ class ProvidersDocsExamplesTest {
     }
 
     @Test
+    void listingModels() throws Exception {
+        String list = "{\"object\":\"list\",\"data\":[{\"id\":\"gpt-5-mini\"},{\"id\":\"gpt-5\"}]}";
+        reply(list);
+        reply(list);
+        LLMConfig cfg = LLMConfig.builder().apiKey(apiKey).baseUrl(serverUrl("/v1")).build();
+        // --- sample: list-models
+        DescribableProvider provider = OpenAiCompatibleProvider.openai(cfg);
+        String[] ids = provider.listModels();               // GET /v1/models: ids, in the vendor's order
+        String first = provider.getFirstAvailableModel();   // the first id, or null when there are none
+        // --- end sample
+        assertThat(ids).containsExactly("gpt-5-mini", "gpt-5");
+        assertThat(first).isEqualTo("gpt-5-mini");
+    }
+
+    @Test
     void theVendorsRegistry() {
         // --- sample: vendors
         Vendor.ofModel("gpt-5-mini");                          // OPENAI, sends "gpt-5-mini"
@@ -166,7 +182,7 @@ class ProvidersDocsExamplesTest {
             String sample = m.group(2).stripIndent().strip();
             assertThat(page).as("the page shows the '" + m.group(1) + "' sample").contains(sample);
         }
-        assertThat(found).isEqualTo(7);
+        assertThat(found).isEqualTo(8);
     }
 
     @Test

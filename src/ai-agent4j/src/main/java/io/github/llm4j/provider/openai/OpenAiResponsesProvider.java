@@ -13,7 +13,8 @@ import io.github.llm4j.http.StreamingBody;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.ToolCallDelta;
-import io.github.llm4j.provider.LLMProvider;
+import io.github.llm4j.provider.DescribableProvider;
+import io.github.llm4j.provider.ModelListing;
 import io.github.llm4j.provider.Providers;
 import java.io.IOException;
 import java.util.HashMap;
@@ -47,7 +48,7 @@ import org.slf4j.LoggerFactory;
  * schema and are left out. Pass {@code previous_response_id} through {@code additionalParameters}
  * to continue a stored conversation (the response id is in the metadata under {@code response_id}).
  */
-public class OpenAiResponsesProvider implements LLMProvider {
+public class OpenAiResponsesProvider implements DescribableProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenAiResponsesProvider.class);
 
@@ -323,6 +324,31 @@ public class OpenAiResponsesProvider implements LLMProvider {
     private String url() {
         logger.debug("Calling {} at {}", dialect.name(), baseUrl);
         return baseUrl + dialect.path();
+    }
+
+    /**
+     * The ids of the models the vendor lists for this key ({@code GET <base>{modelsPath}}).
+     *
+     * @throws InvalidRequestException when the vendor has no listing endpoint
+     */
+    @Override
+    public String[] listModels() {
+        if (dialect.modelsPath() == null) {
+            throw new InvalidRequestException(
+                    dialect.name() + " has no endpoint that lists its models");
+        }
+        try {
+            return ModelListing.ids(
+                    getProviderName(), http.get(baseUrl + dialect.modelsPath(), headers()));
+        } catch (LLMException e) {
+            throw Providers.typed(getProviderName(), "Failed to list models", e);
+        }
+    }
+
+    /** The first model {@link #listModels()} returns, or null when there is none. */
+    @Override
+    public String getFirstAvailableModel() {
+        return ModelListing.first(listModels());
     }
 
     private Headers headers() {

@@ -93,6 +93,8 @@ new AnthropicProvider(LLMConfig.builder()
 
 - **HTTP only.** It uses the Messages API over the library's own HTTP client. There is no SDK and no extra
   dependency.
+- **Listing models.** `new AnthropicProvider(cfg).listModels()` calls `GET /v1/models?limit=1000` and returns the ids, newest first (recorded 2026-10-22). Every provider with such an endpoint implements `DescribableProvider` (Gemini, Ollama, Anthropic, and the [OpenAI family](OpenAI-Family-Providers.md#listing-the-models)); Perplexity and Sarvam have none and say so.
+- **Paused turns.** A long server-tool turn (several web searches) can end with `stop_reason: pause_turn`. `chat` continues it by sending the paused content back as the last assistant message, up to five times, and returns one response (content in order, usage added up). Streaming does not continue: it ends with the raw finish reason `pause_turn`. Tested on fixtures written from the reference (preview).
 - **Effort** can also be set per request with `LLMRequest.builder().addParameter("effort", "low")`.
 - **Sampling settings.** `AnthropicModels.acceptsSampling(model)` decides whether `temperature`/`top_p`
   are sent. It's an allowlist of older models, so new models are safe by default.

@@ -132,7 +132,7 @@ Double cost = r.getSearches().estimatedCostUsd(); // 0.0025: Perplexity reports 
 | OpenAI (Responses API) | `OpenAiResponsesProvider.openai(cfg)`; Loom `use: openai  api: responses` | **supported**: recorded 2026-10-22 | `maxSearches`, `allowDomains`, `blockDomains`, `country` |
 | xAI (Responses API) | `OpenAiResponsesProvider.xai(cfg)`; Loom `use: xai  api: responses` | **supported**: recorded 2026-10-22 | `allowDomains`, `blockDomains` (at most 5 each) |
 | Google (Gemini) | `GoogleProvider` | **preview**: written from Google's reference, no key to record with | `recency` only |
-| Anthropic (Claude) | `AnthropicProvider` | **preview**: written from Anthropic's reference, no key to record with | `maxSearches`, `allowDomains`, `blockDomains`, `country` |
+| Anthropic (Claude) | `AnthropicProvider` | **preview**: one real non-streaming answer was recorded on 2026-10-22 and read correctly (text, spanned citations, search count); streaming and the other settings are still written from Anthropic's reference. Long turns that Claude pauses are continued by `chat` | `maxSearches`, `allowDomains`, `blockDomains`, `country` |
 | Kimi, Qwen | none | left out: no key; Kimi's search function is deprecated | refused; use `fallback(tool)` |
 | Ollama, Sarvam, Jev, chat-completions OpenAI and xAI | none | refused | use `fallback(tool)` or the Responses API |
 

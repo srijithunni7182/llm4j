@@ -1,0 +1,9 @@
+# source: documentation-derived
+# vendor: anthropic
+# model: claude-haiku-5-5
+# endpoint: POST /v1/messages
+# step: pause-turn-2
+# prompt: Which city hosted the most recent Olympic Games?
+# note: not recorded from the real API: written from the vendor's reference (the continuation of pause-turn-1, read 2026-10-22); PREVIEW until replaced by a recording
+---
+{"id":"msg_01Pause2","type":"message","role":"assistant","model":"claude-haiku-5-5","content":[{"type":"web_search_tool_result","tool_use_id":"srvtoolu_01A","content":[{"type":"web_search_result","url":"https://example.org/games","title":"Games","encrypted_content":"EqgfCioIARgB","page_age":null}]},{"type":"text","text":"Paris."}],"stop_reason":"end_turn","usage":{"input_tokens":150,"output_tokens":10,"server_tool_use":{"web_search_requests":1}}}

@@ -1,0 +1,39 @@
+# source: recorded
+# vendor: anthropic
+# date: 2026-10-22
+# model: (model list)
+# endpoint: GET /v1/models?limit=1000
+# step: list-models
+# note: recorded with a throwaway GET (no tokens spent); trimmed to the first four entries; keys and account ids scrubbed
+---
+{
+ "data": [
+  {
+   "type": "model",
+   "id": "claude-haiku-5-5",
+   "display_name": "Claude Haiku 5.5",
+   "created_at": "2026-10-07T18:00:00Z"
+  },
+  {
+   "type": "model",
+   "id": "claude-sonnet-5-5",
+   "display_name": "Claude Sonnet 5.5",
+   "created_at": "2026-09-28T00:00:00Z"
+  },
+  {
+   "type": "model",
+   "id": "claude-opus-5-5",
+   "display_name": "Claude Opus 5.5",
+   "created_at": "2026-09-21T16:24:00Z"
+  },
+  {
+   "type": "model",
+   "id": "claude-fable-5-1",
+   "display_name": "Claude Fable 5.1",
+   "created_at": "2026-08-28T00:00:00Z"
+  }
+ ],
+ "has_more": false,
+ "first_id": "claude-haiku-5-5",
+ "last_id": "claude-fable-5-1"
+}

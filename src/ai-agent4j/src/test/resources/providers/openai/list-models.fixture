@@ -1,0 +1,37 @@
+# source: recorded
+# vendor: openai
+# date: 2026-10-22
+# model: (model list)
+# endpoint: GET /v1/models
+# step: list-models
+# note: recorded with a throwaway GET (no tokens spent); trimmed to the first four entries; keys and account ids scrubbed
+---
+{
+ "object": "list",
+ "data": [
+  {
+   "id": "gpt-3.5-turbo-0125",
+   "object": "model",
+   "created": 1706048358,
+   "owned_by": "system"
+  },
+  {
+   "id": "gpt-5.4-2026-03-05",
+   "object": "model",
+   "created": 1772654062,
+   "owned_by": "system"
+  },
+  {
+   "id": "gpt-5-nano",
+   "object": "model",
+   "created": 1754426384,
+   "owned_by": "system"
+  },
+  {
+   "id": "gpt-4-turbo-2024-04-09",
+   "object": "model",
+   "created": 1712601677,
+   "owned_by": "system"
+  }
+ ]
+}

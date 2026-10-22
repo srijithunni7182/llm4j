@@ -94,6 +94,16 @@ Dialect acme = Dialect.builder("acme")
 `hosts` is where a stored secret for the vendor may be sent (see [Secret Store](Secret-Store.md)); `keyEnv` and `baseUrlEnv` are the variable names
 configuration layers read.
 
+## Listing the models
+
+```java
+DescribableProvider provider = OpenAiCompatibleProvider.openai(cfg);
+String[] ids = provider.listModels();               // GET /v1/models: ids, in the vendor's order
+String first = provider.getFirstAvailableModel();   // the first id, or null when there are none
+```
+
+`OpenAiCompatibleProvider` and `OpenAiResponsesProvider` implement `DescribableProvider`, as `GoogleProvider`, `OllamaProvider` and `AnthropicProvider` do. The path is data in the dialect (`Dialect.modelsPath()`, `/models` for OpenAI, xAI, Kimi, Qwen and the generic dialect, so a vLLM or LM Studio server answers too). **Perplexity has no such endpoint** (neither the Agent API nor the Orchestrator): `listModels()` throws an `InvalidRequestException` that says so, without a network call, rather than returning a list we made up. Sarvam is not describable either. The result is what the vendor lists for your key, including models that are not for chat (embeddings, images, moderation): filter by the names you use. OpenAI and xAI listings were recorded from the real APIs on 2026-10-22 (`list-models.fixture`).
+
 ## Picking the vendor from a model name
 
 ```java
