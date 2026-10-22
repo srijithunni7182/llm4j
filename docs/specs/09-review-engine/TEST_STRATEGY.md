@@ -1,6 +1,6 @@
 # Phase 9 test strategy: the review engine
 
-Status: **draft for review**. Requirements `R1`…`R32` are in [DESIGN.md](DESIGN.md); the traceability matrix is in [VERIFICATION.md](VERIFICATION.md).
+Status: **draft for review**. Requirements `R1`…`R40` are in [DESIGN.md](DESIGN.md); the traceability matrix is in [VERIFICATION.md](VERIFICATION.md).
 
 ## 1. Principles
 
@@ -18,6 +18,12 @@ Status: **draft for review**. Requirements `R1`…`R32` are in [DESIGN.md](DESIG
 | **Model** | Record invariants, JSON round trip, version field, ranking order, de-duplication | `FindingModelTest`, `RankingTest`, `DedupTest` | R1, R2, R5, R22, R23 |
 | **Adapters** | Each old shape maps to the new one with nothing lost; old commands unchanged | `AdapterTest`, `AuditUnchangedTest`, `CheckUnchangedTest` | R3, R7 |
 | **Rules** | Per rule: fires on the minimal example (with the right line, node id, severity), quiet on a near-miss, quiet when suppressed, severity override works | `Lr03LoopMaxTest`, `Lc01ClassificationModelTest`, … (one class per rule) | R1, R18, R31 |
+| **Lens selection** | Defaults (nine on, four off); `--lens` forms (`all`, `+x`, exact list); `review.properties` `lenses =`; summary card states what ran and what is off | `LensSelectionTest`, `OptionalLensesOffByDefaultTest` | R33, R39 |
+| **Declared facts / inert rules** | A rule that needs an undeclared fact is skipped and listed under `notes`, never a pass; declaring the fact enables it; heuristics only with `heuristics = on` or named | `InertRuleNoteTest`, `HeuristicSwitchTest`, `DeclaredFactsTest` | R37, R38 |
+| **Extra inputs** | Test files, golden folder, Fabric rules file read; a coverage report is used only when its script hash matches; review never runs tests | `ReviewInputsTest`, `CoverageReportStaleTest`, `ReviewNeverRunsTestsTest` | R34 |
+| **Time and effects** | Hand-computed critical paths (sequence, `parallel`, `broadcast`, retry backoff, loops); waits reported separately; effects counts typical/worst/unbounded | `TimeEstimateTest`, `CriticalPathTest`, `EffectsEstimateTest`, `EffectsUnboundedTest` | R35, R36 |
+| **New lens rules** | One test class per rule (LO, LD, LT, LY, LG, LM, LH, LB, LC08 to LC10): fires, near-miss, suppressed, severity override; data-independence analysis for LC08 (including effect-ordering and budget cases that must not fire) | `Lo01Test` … `Lb03Test`, `Lc08ParallelDataIndependenceTest` | R1, R18, R37 |
+| **Cross-lens de-duplication** | LH vs LA, LD02 vs LA17, LT07 vs test-file validation produce one finding with `related` | `CrossLensDedupTest` | R40 |
 | **Validity classification** | Every message template in `ScriptValidator` maps to a rule (a reflection-free table test over a list of all templates the validator can emit); `LV00` count is zero | `LvClassificationTest` | R3 |
 | **Cost model** | Hand-computed expected numbers for small graphs: sequence, `alt`, bounded loop, unbounded loop, `for each`, `broadcast`, retry, rewind, sub-workflow, budget cap, unpriced model, tool rounds | `CostModelTest`, `CostBudgetCapTest`, `CostUnboundedTest`, `CostUnpricedTest` | R10 to R15 |
 | **Cost vs runtime** | The estimator's token count for a prompt equals the runtime's pre-call estimate for the same text (same function) | `EstimatorMatchesRuntimeTest` | R10 |
@@ -34,6 +40,7 @@ Status: **draft for review**. Requirements `R1`…`R32` are in [DESIGN.md](DESIG
 
 - `src/test/resources/review/rules/<RULE>/{fires.loom, near-miss.loom, expected.json}` per rule: the smallest script that fires, one that must not.
 - `src/test/resources/review/corpus/` (R30): repo examples/samples, flawed scripts with `// expect:` labels, 8+ recorded runs with usage for calibration.
+  The corpus also needs: scripts with and without test files, a coverage report (fresh and stale), a project with `review.properties` declaring and not declaring the facts of R38, scheduled workflows, parallelisable and non-parallelisable step pairs, and effectful tools in loops. Every rule of every lens, optional included, has at least one labelled firing and one labelled non-firing script.
 - `src/test/resources/review/golden/` report files, regenerated only with an explicit flag and reviewed in the diff.
 
 ## 4. Fault injection

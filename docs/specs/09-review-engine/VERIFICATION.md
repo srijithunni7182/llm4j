@@ -1,6 +1,6 @@
 # Phase 9 verification plan: the review engine
 
-Status: **not started**. Run top to bottom at the end of sub-phase 9f; the relevant rows after each sub-phase. Results in §7.
+Status: **not started**. Run top to bottom at the end of sub-phase 9i; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -18,7 +18,12 @@ Status: **not started**. Run top to bottom at the end of sub-phase 9f; the relev
 | A10 | Every rule has a generated explanation page | `ExplainEveryRuleTest` |
 | A11 | A warm review of a 300-line script takes under 1 s | `ReviewPerformanceTest` |
 | A12 | Review never runs a model, a tool or a task, never loads user classes, never touches the network | `ReviewIsStaticTest` |
-| A13 | Documented | docs review (§5) |
+| A13 | Nine lenses run by default and four optional lenses are off until enabled by `--lens` or `review.properties`; the report says which ran and which are off | `LensSelectionTest`, `OptionalLensesOffByDefaultTest` |
+| A14 | A rule that needs a fact the project has not declared says it was not evaluated; it never reports a pass | `InertRuleNoteTest`, `DeclaredFactsTest` |
+| A15 | The report estimates time (critical path, with human waits shown apart) and effects (counts per kind, unbounded when unbounded) alongside cost | `TimeEstimateTest`, `EffectsEstimateTest`, `EffectsUnboundedTest` |
+| A16 | Testability findings use the project's own test files and a fresh coverage report, never run tests, and ignore a stale report with a note | `ReviewInputsTest`, `CoverageReportStaleTest`, `ReviewNeverRunsTestsTest` |
+| A17 | Every rule of every lens, including the optional ones, has an explain page, a firing and a non-firing corpus script, and meets the precision gate or is marked heuristic | `ReviewCorpusTest`, `ExplainEveryRuleTest` |
+| A18 | Documented | docs review (§5) |
 
 ## 2. Traceability: requirement → tests
 
@@ -56,6 +61,14 @@ Status: **not started**. Run top to bottom at the end of sub-phase 9f; the relev
 | R30 | `ReviewCorpusTest`, `CorpusCostAccuracyTest` | ⬜ 9a/9c |
 | R31 | `SuppressionTest` | ⬜ 9b |
 | R32 | `ReviewRulesFileTest` | ⬜ 9a |
+| R33 | `LensSelectionTest`, `OptionalLensesOffByDefaultTest` | ⬜ 9f |
+| R34 | `ReviewInputsTest`, `CoverageReportStaleTest`, `ReviewNeverRunsTestsTest` | ⬜ 9g |
+| R35 | `TimeEstimateTest`, `CriticalPathTest` | ⬜ 9g |
+| R36 | `EffectsEstimateTest`, `EffectsUnboundedTest` | ⬜ 9g |
+| R37 | `HeuristicSwitchTest`, `ReviewCorpusTest` (precision per rule) | ⬜ 9f |
+| R38 | `InertRuleNoteTest`, `DeclaredFactsTest` | ⬜ 9f |
+| R39 | `OptionalLensesOffByDefaultTest`, `Lg*Test`, `Lm*Test`, `Lh*Test`, `Lb*Test` | ⬜ 9h |
+| R40 | `CrossLensDedupTest` | ⬜ 9h |
 
 ## 3. Quality gates
 
@@ -70,6 +83,8 @@ Status: **not started**. Run top to bottom at the end of sub-phase 9f; the relev
 2. Apply `--fix` on a flawed script, read the diff, run the workflow in `--mock` mode: behaviour matches what the finding titles said.
 3. Compare the typical cost on one real workflow against its Fabric run page after a real, capped run (live check, owed).
 4. Open the explain page of five rules and confirm the example fires and the near-miss does not.
+5. Enable all thirteen lenses on three real scripts and judge the noise: for each finding ask "would I act on this?" and record the rate per lens in §7 (a lens below 50 % moves to optional or loses its heuristic rules).
+6. Compare the time estimate on one real workflow with a real traced run, and the effects estimate with the effects Fabric recorded (live check, owed).
 
 ## 5. Documentation owed
 

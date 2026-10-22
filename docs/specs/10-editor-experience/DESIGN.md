@@ -69,10 +69,10 @@ Non-goals:
   Clicking a source line selection in the editor (cursor move) highlights the node and findings for that line (debounced).
 - **R4** **Nodes carry state**: a tint by worst finding severity (never colour alone: also a glyph and a text label in the tooltip and a legend), and a cost badge on model-calling steps (typical, with worst on hover).
   A finding with no node id (a script-level finding) appears in a "Whole script" group and lights the workflow header.
-- **R5** **Summary card** always visible: counts by severity, the cost range with its bound ("bounded by 3 loops, 2 retries" or "unbounded: LR03"), and the trifecta state.
+- **R5** **Summary card** always visible: counts by severity, the cost range with its bound ("bounded by 3 loops, 2 retries" or "unbounded: LR03"), the time range with waits shown apart, the worst-case effects, the trifecta state, and which lenses ran and which are off.
 - **R6** **Fix buttons.** A finding with a `SAFE` fix shows **Fix**; with a `REVIEW` fix shows **Review fix...**, which opens a diff preview (VS Code's own diff editor) and applies on confirmation. **Fix all safe** applies every SAFE fix as one workspace edit,
   so a single Undo reverts it (R24 of phase 9 gives atomicity; here the edit is also one undo step).
-- **R7** **Filters**: by lens, by severity, text; "Show suppressed" toggle (suppressions and their reasons are visible, not hidden). State is remembered per workspace.
+- **R7** **Filters**: by lens, by severity, text; a lens group per lens with a count, **optional lenses shown as collapsed, disabled groups with an "Enable" action** (which writes `lenses =` to `review.properties`); "Show suppressed" and "Show not evaluated" toggles (suppressions with their reasons, and rules skipped for undeclared facts, are visible, not hidden). State is remembered per workspace.
 - **R8** **Explain**: a finding's rule id opens the rule's page in a side view (rendered from `weave review --explain`), with its firing example and near-miss.
 - **R9** **Stale-aware.** The panel shows a "stale" chip as soon as the document changes, re-runs on save (setting `loom.review.on = save | type | manual`, default `save`), and never shows findings for text that no longer exists without saying so.
   While running it shows a progress indication and keeps the previous result greyed; it never clears to empty.

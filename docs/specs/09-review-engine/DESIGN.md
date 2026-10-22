@@ -25,7 +25,7 @@ The developer must know all of these exist, run them separately, and read three 
 Goals:
 
 - **One command, one ranked list**: `weave review script.loom` runs every lens and prints findings most-severe first, with a summary card (counts, cost range, trifecta state).
-- **Five lenses**: *security* (today's audit), *validity* (today's check), *cost*, *reliability*, *prompts*. Each rule has a stable id, an explanation page, and a precision target.
+- **Nine lenses on by default**: *security* (today's audit), *validity* (today's check), *cost and performance*, *reliability*, *prompts*, *observability*, *durability*, *testability*, *privacy and compliance*; and **four optional lenses**, off until asked: *model governance*, *maintainability*, *human oversight*, *blast radius* (§6.0, §6.15). Each rule has a stable id, an explanation page, and a precision target.
 - **A static cost estimate**: typical and worst-case spend per workflow and per step, from the graph, the prices and stated assumptions; unbounded cost is reported as unbounded.
 - **Machine-applicable fixes** where a fix is mechanical (`--fix`, or one click in the editor), with the rest explained in a sentence and a pointer.
 - **One finding model** that the CLI, the editor ([phase 10](../10-editor-experience/DESIGN.md)), the generator ([phase 12](../12-generate/DESIGN.md)), CI and Fabric all use.
@@ -46,7 +46,8 @@ One immutable record replaces the three shapes at the edge (the existing types s
 ```java
 public record Finding(
         String rule,            // stable id: LA01.., LV01.., LC01.., LR01.., LP01..
-        Lens lens,              // SECURITY | VALIDITY | COST | RELIABILITY | PROMPTS
+        Lens lens,              // SECURITY | VALIDITY | COST | RELIABILITY | PROMPTS | OBSERVABILITY | DURABILITY | TESTABILITY | PRIVACY
+                                // optional: GOVERNANCE | MAINTAINABILITY | OVERSIGHT | BLAST_RADIUS
         Severity severity,      // HIGH | MEDIUM | LOW | INFO  (the existing audit scale)
         Location where,         // file, line, column range, and the graph node id when there is one
         String title,           // one line: what is wrong
@@ -77,7 +78,7 @@ public record TextEdit(Path file, int startLine, int startColumn, int endLine, i
 ```
 weave review <script.loom> [options]
   --format text|md|json|sarif     text (default, on a terminal), md (a report), json (tools), sarif (code scanning)
-  --lens security,cost,...        run only these lenses (default: all)
+  --lens security,cost,...        run exactly these lenses; `all` adds the optional ones; `+oversight` adds one to the defaults (default: the nine default lenses)
   --min-severity high|medium|low|info   show at least this (default: info)
   --fail-on high|medium|low|info|none   exit 1 when a finding is at least this severe (default: high)
   --fix                           apply every SAFE fix, then review again and print what changed
@@ -99,6 +100,7 @@ weave review <script.loom> [options]
 TicketTriage   main.loom         2 high  3 medium  1 low
 Cost       typical $0.004 / run     worst case $0.06 (bounded by 3 loops, 2 retries)     [assumptions: weave review --explain cost]
 Security   trifecta: Replier can read customer data and send mail with no approval (LA05)
+Lenses     9 on · 4 optional off (weave review --lens all) · 2 rules not evaluated (declare data.regions, journal)
 Next       weave review --fix  applies 2 safe fixes     weave review --explain LR03
 ```
 
@@ -136,6 +138,10 @@ costs `tokensIn * priceIn + tokensOut * priceOut` for the agent's model.
 - **R14** The price table, the window catalog and the assumptions used are printed in the report footer (`prices: prices.properties, 2026-09-30`), so two people get the same number from the same inputs.
 - **R15** The estimator never calls a model or counts tokens with a provider; it is pure and deterministic.
 
+### 5.2a Time and effects (R35, R36)
+
+The same walk also estimates how long a run takes and how many effects it can cause; the rules and their defaults are in §6.15 (R35 for time, R36 for effects). Both appear in the cost block of the JSON and in the summary card (`Time typical 6 s · worst 41 s (+ waits: 1 person)`; `Effects worst 1 send`).
+
 ### 5.3 Defaults and overrides
 
 Assumptions are keys with documented defaults; the script's folder may set them in `review.properties` (`assume.foreach.items = 20`) and the command line overrides them. Defaults live in one table
@@ -156,6 +162,24 @@ Advice never changes the model by itself (`REVIEW` fixes only; §8).
 
 Each rule is a small class implementing `ReviewRule` (§7). Ids are stable; severities are defaults that `review.properties` may lower or raise per project.
 "Fix" says what the machine-applicable fix is: **S** = `SAFE`, **R** = `REVIEW`, **-** = prose only.
+
+### 6.0 Lenses at a glance
+
+| Lens | Rule ids | Default | Question it answers | Main inputs beyond the script |
+|---|---|---|---|---|
+| Security | LA01 to LA20 | on | What can an attacker or a mistake make this do? | tool `reach`, loot file |
+| Validity | LV | on | Is it well-formed and are the names right? | prompt files, env |
+| Cost and performance | LC | on | What will it cost and how long will it take, and where is it wasteful? | prices, windows, assumptions |
+| Reliability | LR | on | What happens when things go wrong? | tool `reach` |
+| Prompts | LP | on | Are the prompts safe and usable? | prompt files |
+| Observability | LO | on | Can people understand it once it is live? | catalogs, Fabric rules file |
+| Durability | LD | on | Does it survive a crash or a retry without repeating anything? | project journal fact |
+| Testability | LT | on | Is it tested, and where is it not? | test files, golden data, coverage report |
+| Privacy and compliance | LY | on | Where does personal data go, and who decides about people? | declared data facts |
+| Model governance | LG | **optional** | Are models current, pinned and replaceable? | model catalog |
+| Maintainability | LM | **optional** | Will the next person understand and change it? | none |
+| Human oversight | LH | **optional** | Is the person in the loop helped or burdened? | the cost walk |
+| Blast radius | LB | **optional** | How much can one bad run do? | effects estimate, schedule |
 
 ### 6.1 Security lens: `LA01` to `LA20`
 
@@ -188,6 +212,9 @@ check cannot ship unclassified). Initial set:
 | LC05 | One step is more than the configured share (default 60 %) of the workflow's typical cost | INFO | - |
 | LC06 | `retry` on an expensive step whose worst case with retries exceeds a configured amount | LOW | - |
 | LC07 | A step the prompt describes as deterministic ("calculate", "check against the policy table", "validate the format") uses a model | INFO | - (points to a `run` task; heuristic, off by default) |
+| LC08 | Two or more consecutive steps are data-independent (neither reads what the other binds, none is effect-ordered) and run sequentially although they could run in `parallel { }`; the saving on the critical path is shown | LOW | R: wrap them in `parallel { }` (budget and effect order are checked before offering) |
+| LC09 | The worst-case time (excluding waits) exceeds `assume.latency.limit` when one is declared, or the sum of declared step timeouts exceeds the caller's limit | MEDIUM | - |
+| LC10 | A workflow declared interactive (`workflow.X.interactive = true`) contains a `human_prompt` or `sleep` on its main path, or a model step on a large model with a typical time above the interactive target (default 8 s) | MEDIUM | - |
 
 ### 6.4 Reliability lens: `LR`
 
@@ -218,14 +245,122 @@ check cannot ship unclassified). Initial set:
 - **R18** A rule marked *heuristic* is off by default and says so in `--explain`. A rule that is on by default has a measured precision of at least 0.9 on the benchmark corpus (§10); a rule that cannot reach it is demoted to heuristic.
 - **R19** Every rule has an `--explain` page (what it checks, a firing example, a non-firing example, the fix, known false positives, which settings tune it), generated from the rule's own metadata, so docs cannot drift from code.
 
+### 6.6 Observability lens: `LO`
+
+Can the people who run this workflow understand it once it is live? These rules read the same inputs Fabric uses (price and window catalogs, the `.inspect` rules file, the graph).
+
+| Id | Fires when | Severity | Fix |
+|---|---|---|---|
+| LO01 | A scheduled or unattended workflow has no rules file for the incident thresholds it will be watched against (`<script>.inspect` or the project's) | MEDIUM if scheduled, else INFO | S: write a rules file with the documented defaults |
+| LO02 | A model the script uses has no price entry or no context window in the catalogs, so Fabric cannot show cost or a context gauge for it | LOW | R: add the line to `prices.properties` / the windows file (value left for the developer) |
+| LO03 | A workflow's branches end in different outcomes but nothing in the result or a `note` says which path ran, so a run in Fabric cannot be told apart from its siblings | INFO | R: add a `route:` field to the `return` or a `note` per branch |
+| LO04 | A loop's `max` is larger than the loop-incident threshold in force (default 20), so a normal bound would already be reported as a loop | LOW | R: lower the bound or raise the threshold with a stated reason |
+
+### 6.7 Durability lens: `LD`
+
+Will a crash, a restart or a retry leave the world in a state the workflow can recover from, with nothing repeated?
+
+| Id | Fires when | Severity | Fix |
+|---|---|---|---|
+| LD01 | The script pauses (`human_prompt`, `sleep`, `approve`, `decide`, a rate-limit wait) and the project declares no durable journal (`journal = none`, or none declared when `deploy` facts exist); without one a restart loses the pause | HIGH if `journal = none` is declared, INFO if undeclared | R: add the `--journal` setting to the project's run configuration |
+| LD02 | A `class` tool (your own Java) with `reach: writes` or `sends` is called by an agent: only the six generic kinds and `run` tasks journal their effects, so a resumed or retried run can repeat it | HIGH | R: switch to a generic kind, move it behind a `run` task, or make the tool idempotent and say so with `idempotent: true` |
+| LD03 | A `rewind` span contains an effectful step and the carried values differ from the first attempt, so the repeat is not "identical" and will be performed again | MEDIUM | R: move the effect after the check, or place the `checkpoint` after it |
+| LD04 | A `retry` wraps a step with an effect that is not journaled (as LD02) | HIGH | R: as LD02 |
+
+### 6.8 Testability lens: `LT`
+
+Is the workflow testable, and is it tested? Uses phase 11's files and (when fresh) its coverage report; both are read, never produced, by review (R34).
+
+| Id | Fires when | Severity | Fix |
+|---|---|---|---|
+| LT01 | No test file for the script | MEDIUM if it has effects or humans, else LOW | S: create `tests/<name>.test.yaml` with a smoke case |
+| LT02 | An agent or classifier is named in no test's `models:` | LOW | R: add a case skeleton |
+| LT03 | The last coverage report (script hash matches) lists the node or branch as unreached | LOW | R: the skeleton case from phase 11 R33 |
+| LT04 | The script has `retry`, `on_failure`, `rewind` or `on_stopped` and no test has a `fail:` entry | MEDIUM | R: add a failure-injection case skeleton |
+| LT05 | The script has `human_prompt`, `approve` or `decide` and no test supplies `humans:` | LOW | R: add a case skeleton |
+| LT06 | An agent has no golden dataset entries (`eval/golden`) | LOW | S: `weave eval --init` equivalent for that agent |
+| LT07 | A test names a step, agent or field that no longer exists (a stale test) | MEDIUM | R: nearest valid name |
+
+### 6.9 Privacy and compliance lens: `LY`
+
+Maps to the four xAI pillars the README describes (traceability, confidence and escalation, PII, bias). Rules that need project facts use `review.properties` (`data.personal`, `data.regions`), and are **inert** with a note when those are not declared (R38).
+
+| Id | Fires when | Severity | Fix |
+|---|---|---|---|
+| LY01 | A value named or declared personal (default name patterns: email, phone, name, address, dob, ssn, card; or `data.personal`) reaches a hosted model or classifier with no `guard { pii: mask }` (or `block`) on that agent | MEDIUM; HIGH if the agent also has effects | S: add `guard { pii: mask }` |
+| LY02 | `guard { pii: warn }` on an agent that has effects or feeds a decision (a warning nobody reads) | MEDIUM | S: change to `mask` |
+| LY03 | An agent's provider is not in the declared `data.regions` allow-list | HIGH | - (a decision) |
+| LY04 | A `decision`/`ladder` or an agent named as deciding about a person (approve, deny, hire, score) has no `bias:` guard | MEDIUM | S: add `bias: warn` |
+| LY05 | An `intentclassify` has no `confidence at least ... else escalate` rule, so doubtful answers are routed as if certain | MEDIUM | S: add `confidence at least 0.8 else escalate` |
+| LY06 | A prompt file contains an email, phone number or similar real-looking personal data in an example | MEDIUM | R: replace with a placeholder |
+
+### 6.10 Cost and performance: rules LC08 to LC10 (added to the table in §6.3)
+
+Time is estimated from the same walk as cost (§5.2a). Human waits and sleeps are reported separately from compute time and never added to it.
+
+### 6.11 Optional lens: model governance `LG` (off by default)
+
+| Id | Fires when | Severity | Fix |
+|---|---|---|---|
+| LG01 | A model name is not in the known-model catalog and is close to one that is (a likely typo) | LOW | R: nearest model |
+| LG02 | A model is marked deprecated or retired in the catalog (inert when the catalog carries no such flag) | MEDIUM | R: the catalog's suggested replacement |
+| LG03 | A critical-path agent has a single provider and no fallback where the agent configuration supports one (inert otherwise; confirm in §13) | LOW | R: add a fallback |
+| LG04 | A floating alias (`-latest`) is used on a decision or an effectful flow, so behaviour can change without a commit | MEDIUM | R: pin the version |
+| LG05 | Prompts are versioned for some agents (`prompts/x/v2.md`) and not others | INFO | R: version the rest |
+
+### 6.12 Optional lens: maintainability `LM` (off by default)
+
+| Id | Fires when | Severity | Fix |
+|---|---|---|---|
+| LM01 | An agent, tool, task, persona or workflow is defined and never referenced | LOW | S: delete it |
+| LM02 | An inline `system:`/`prompt:` longer than the configured length (default 12 lines) in the script | INFO | R: extract to `prompts/<agent>.md` |
+| LM03 | A workflow exceeds the configured size (default 60 statements) or nesting depth (default 5) | INFO | - |
+| LM04 | Two agents or two workflow bodies are identical apart from names | INFO | R: extract a `persona` or a `call`-ed workflow |
+| LM05 | The same literal threshold appears in many places (a confidence of 0.8 in six conditions) | INFO | - |
+
+### 6.13 Optional lens: human oversight `LH` (off by default)
+
+The earned-autonomy rules already in the security lens (a rung that climbs without a person, no `slip`; LA rules) stay there; `LH` adds the ones about the *person's* experience.
+
+| Id | Fires when | Severity | Fix |
+|---|---|---|---|
+| LH01 | A `decision` is followed by an effect and has no `ladder` or `trust` (the agent acts with no record that it earned it) | MEDIUM | R: add a starting ladder at `watch` |
+| LH02 | `approve:` is on a tool whose `reach` is `none` or `reads` (noise that trains people to click yes) | LOW | R: remove it or raise the tool's declared reach |
+| LH03 | The worst-case number of questions put to a person in one run (from the graph, with loops and `for each`) exceeds the configured limit (default 10) | MEDIUM | - |
+| LH04 | A `human_prompt` whose free-text answer is compared in a branch, with no constrained options | LOW | R: constrain the answer (an `options:` list or a yes/no) |
+
+### 6.14 Optional lens: blast radius `LB` (off by default)
+
+How much can one bad run do? Uses the effects estimate (§5.2a).
+
+| Id | Fires when | Severity | Fix |
+|---|---|---|---|
+| LB01 | An effectful tool is reachable inside a loop or `for each` with no per-run cap (a `budget` calls limit or the tool kind's own limit) | MEDIUM | R: add the cap |
+| LB02 | The worst-case number of effects per run (`sends` or `writes`) exceeds `blast.max-effects` (default 25) | MEDIUM | - |
+| LB03 | A scheduled workflow's worst-case spend per day (per-run worst case x runs per day from the schedule) exceeds `blast.max-daily-cost`, or there is no `per day` budget | MEDIUM | R: add `budget { ... per day }` |
+
+### 6.15 Lens mechanics (R33 to R40)
+
+- **R33** **Nine lenses are on by default** (security, validity, cost and performance, reliability, prompts, observability, durability, testability, privacy and compliance); **four are optional and off** (governance, maintainability, oversight, blast radius). The default set is a project choice: `lenses = +governance,-testability` in `review.properties`, or `--lens` on the command line (`--lens all` for every lens, `--lens +oversight` to add one to the defaults, `--lens security,cost` for exactly those). The summary card states which lenses ran and how many are off ("4 optional lenses off: `weave review --lens all`").
+- **R34** **Extra inputs, read-only and optional.** `ReviewInput` additionally reads: test files (`tests/*.test.yaml`), the eval dataset folder, the rules file for Fabric thresholds, and the last coverage report (`.weave/coverage.json`, written by `weave test --coverage --json`). A coverage report is used only when its recorded script hash equals the current script's; otherwise the rules that need it (LT03) are skipped with a note ("coverage report is stale"). Review never runs tests to get coverage.
+- **R35** **Time estimate.** The cost block gains `time`: `typical`, `worst` and `criticalPath` (node ids), per workflow and per step, plus `waits` (human, sleep, rate-limit) listed separately. Per-call latency defaults by model tier (`assume.latency.small|standard|large`, `assume.latency.tool`), `parallel`/`broadcast`/`parallel for each` take the longest branch, `retry` adds its backoff, loops and `for each` multiply as in §5.2. Labelled an estimate; `--calibrate` also compares time.
+- **R36** **Effects estimate.** The cost block gains `effects`: for each effectful tool kind (`sends`, `writes`), typical and worst counts per workflow, from the agents that hold the tool x tool rounds (typical `assume.react.rounds`, worst the agent's maximum) x the loop and `for each` multipliers; an unbounded construct makes the worst case `unbounded`, never a made-up number (as R12).
+- **R37** The precision rule (R18) applies to every new rule. Rules whose detection is name- or text-based (LY01, LY06, LO03, LM02, LM04, LM05, LT06) are *heuristic*: they are listed as such by `--explain`, and a heuristic rule is on only if its lens is on **and** `heuristics = on` or the rule is named in `review.properties`; the personal-data name patterns of LY01 are configurable.
+- **R38** **Declared facts, never guessed.** Some rules need facts the script cannot state (which fields are personal, which regions are allowed, whether a journal is configured, which workflows are user-facing: `workflow.Main.interactive = true`). Where the project has not declared them the rule is **inert** and listed under `notes` as "LY03 not evaluated: `data.regions` is not set", never reported as a pass.
+- **R39** **Optional means opt-in, not absent.** An optional lens's rules have ids, pages (`--explain LB02`), tests and corpus cases like any other; they are simply not run unless enabled. Findings from an optional lens that the project enabled carry the same severities and fail `--fail-on` the same way.
+- **R40** **De-duplication across lenses.** `LH` rules never repeat an `LA` finding about the same cause (R22): the engine keeps the `LA` one and links the new one as `related`. The same holds between LD02 and LA17-type findings about a tool that acts as the person, and between LT07 and phase 11's test-file validation.
+
+
 ## 7. Architecture
 
 ```
 review/
   ReviewEngine            runs lenses over a ReviewInput; collects, de-duplicates, ranks, applies settings and suppressions
-  ReviewInput             the parsed script, its import closure, prompt files, loot/tools metadata, the graph, prices, windows, assumptions
+  ReviewInput             the parsed script, its import closure, prompt files, loot/tools metadata, the graph, prices, windows, assumptions,
+                          test files, eval dataset listing, the Fabric rules file, the last coverage report (R34), declared project facts (R38)
   ReviewRule              interface: id(), lens(), defaultSeverity(), describe(), check(ReviewInput, Sink)
-  rules/{validity,security,cost,reliability,prompts}/   one class per rule; security rules wrap SecurityAudit
+  rules/{validity,security,cost,reliability,prompts,observability,durability,testability,privacy,
+         governance,maintainability,oversight,blast}/   one class per rule; security rules wrap SecurityAudit; optional lenses are ordinary packages
   adapters/               Problem -> Finding, audit Finding -> Finding, graph Diagnostic -> Finding
   cost/                   CostModel, Assumptions, Estimate, PriceBook (reads the existing price file), Calibration
   fix/                    FixApplier (applies edits, verifies with check, detects conflicts), Diff (unified diff output)
@@ -259,7 +394,7 @@ Defaults for generated text come from `review.properties` (`fix.retry = retry 2 
 ## 9. What the review cannot tell you
 
 The report ends with a fixed section (not omitted when everything is green): review reads the script and prompts, not model behaviour; it does not know what a custom tool really does beyond its declared
-`reach:`; cost is an estimate from stated assumptions; prompt rules are heuristics; a clean review is not a security certification. This mirrors the "what this cannot tell you" panel of phase 5.
+`reach:`; cost is an estimate from stated assumptions; prompt rules are heuristics; a clean review is not a security certification. This mirrors the "what this cannot tell you" panel of phase 5. It also lists the rules that were **not evaluated** because the project has not declared what they need (R38), so a silent lens is never mistaken for a clean one.
 
 ## 10. The benchmark corpus (R30)
 
@@ -276,6 +411,15 @@ LC01.severity = low                         # change a default
 LR05.suppress = Router "free text on purpose; compared with contains"   # suppress at one place, reason required
 assume.foreach.items = 20
 assume.loop.iterations = 2
+assume.latency.standard = 5s
+lenses = +governance,+blast-radius,-testability        # project choice of lenses (R33)
+heuristics = on
+data.personal = customer.email, customer.phone, message  # fields to treat as personal (LY01)
+data.regions = eu                                       # allowed provider regions (LY03); unset = LY03 not evaluated
+journal = file                                          # none | file | jdbc (LD01); unset = LD01 reports only an INFO
+workflow.Main.interactive = true                        # LC10
+blast.max-effects = 10
+blast.max-daily-cost = 5.00
 fix.retry = retry 3 backoff 1s timeout 30s
 ```
 
@@ -291,7 +435,10 @@ fix.retry = retry 3 backoff 1s timeout 30s
 | 9c | Cost estimator, assumptions, summary card, `--calibrate`, LC rules | `CostModelTest`, `CostBudgetCapTest`, `CalibrationTest`, `Lc*Test` |
 | 9d | Reliability and prompt rules (LR, LP) | one test class per rule, corpus precision gate |
 | 9e | Fixes: `FixApplier`, `--fix`, `--dry-run`, verification, idempotence | `FixApplierTest`, `FixAtomicityTest`, `FixIdempotentTest` |
-| 9f | Docs: wiki page, LOOM_GUIDE section, `llms.txt`, skill updates, rule pages generated | docs tests |
+| 9f | Observability, durability and privacy lenses (LO, LD, LY); declared facts and inert-rule notes (R38); lens selection (R33) | one test class per rule, `LensSelectionTest`, `InertRuleNoteTest`, `HeuristicSwitchTest` |
+| 9g | Time and effects estimates (R35, R36); performance rules LC08 to LC10; testability lens (LT) with its extra inputs and the coverage-report staleness rule (R34) | `TimeEstimateTest`, `EffectsEstimateTest`, `Lc08ParallelTest`, `Lt*Test`, `CoverageReportStaleTest` |
+| 9h | The four optional lenses (LG, LM, LH, LB) and their cross-lens de-duplication (R39, R40) | `Lg*Test`, `Lm*Test`, `Lh*Test`, `Lb*Test`, `OptionalLensesOffByDefaultTest`, `CrossLensDedupTest` |
+| 9i | Docs: wiki page, LOOM_GUIDE section, `llms.txt`, skill updates, rule pages generated | docs tests |
 
 ## 13. Decisions to confirm (open questions)
 
@@ -299,4 +446,7 @@ fix.retry = retry 3 backoff 1s timeout 30s
 2. **Default `--fail-on`.** `high` (as `audit`). Alternative: `medium` for `review` because it covers more. Recommendation: `high`; teams tighten in `review.properties`.
 3. **Heuristic rules on by default?** LC07, LP05, LP06 are off by default (R18). Confirm.
 4. **Price source of truth.** The estimator reads the same `prices.properties` that `weave run` uses. If none exists, a bundled default table (clearly labelled with a date) is used and the report says so. Confirm that a bundled table is acceptable, given prices change.
-5. **Where fixes may write.** Only the script, its imports and its prompt files, inside the project folder. Confirm this boundary.
+5. **Where fixes may write.** Only the script, its imports and its prompt files, inside the project folder. Confirm this boundary. (Fixes that create a test file, a rules file or a golden stub also write inside the project folder; confirm.)
+6. **Nine default lenses may be noisy.** Mitigations are the precision gate (R18), heuristics off unless enabled (R37), inert rules (R38), and `fail-on = high` by default. Confirm the default set, or start with the original five plus durability and observability and add testability and privacy once the corpus numbers are in.
+7. **Model fallbacks (LG03).** The rule is inert unless the agent configuration offers a fallback model. Confirm whether Loom should gain a `fallback:` setting (a language change) or whether LG03 should be dropped.
+8. **Interactive flag source (LC10).** A project declaration in `review.properties` is used. Alternative: a language-level workflow modifier. Recommendation: the declaration; no language change.
