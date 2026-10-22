@@ -18,7 +18,8 @@ Three ideas shape everything in the repository:
    OpenAI, xAI, Perplexity, Kimi, Qwen, Sarvam, Ollama and any OpenAI-style server over plain HTTP behind one contract. Its core runtime needs only a handful of well-known libraries
    (Jackson, OkHttp, SLF4J, Swagger Parser, Commons Math and jsoup). It does not require Spring, and it runs on Java 17+.
 3. **Make agents trustworthy.** Evaluation (eval4j), audit trails, confidence scores, PII masking, spend caps and
-   security checks (`weave audit`) ship with the stack.
+   security checks (`weave audit`) ship with the stack, and so does web search with typed citations and a search budget
+   (`Grounding`, `grounding: web` in Loom).
 
 ## The stack
 
@@ -85,6 +86,7 @@ Test code is almost as large as production code: about 111,000 test lines agains
 | 2026-10-16 | `LoomHost` runs workflows from an application and resumes them after a restart. The Spring Boot starter. |
 | 2026-10-17 | **Release 6.0.0** published to Maven Central: eleven artifacts, including the Spring Boot starter, `eval4j` and Fabric. |
 | 2026-10-21 | In preparation for 6.1.0: typed classification (`Classifier`, Jev, `intentclassify` in Loom), after a study of Jev against chat models. |
+| 2026-10-22 | In preparation for 6.1.0: OpenAI, xAI, Perplexity, Kimi, Qwen and generic OpenAI-style providers; native web-search grounding with citations and `searches` budgets across the stack (Perplexity, OpenAI and xAI recorded against the real APIs; Google and Anthropic in preview); Perplexity Decisions as a second classifier backend; model listing for the OpenAI family and Anthropic. |
 
 Release dates for 1.0 to 5.0 come from the git tags; 4.0 and 5.0 were not published to Maven Central (its only earlier version is 0.1.0), so 6.0.0 is the first Central release since then. The other entries are dates of the commits that introduced the
 feature.
