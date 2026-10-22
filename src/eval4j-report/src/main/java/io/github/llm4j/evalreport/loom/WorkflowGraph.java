@@ -15,12 +15,13 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The structure of a Loom workflow for the report: {@code start}, one node per statement in pre-order
- * ({@code n1}, {@code n2}, …, stable for a given script), and {@code end}.
+ * The structure of a Loom workflow for the report: {@code start}, one node per statement in
+ * pre-order ({@code n1}, {@code n2}, …, stable for a given script), and {@code end}.
  *
- * <p>The structure itself comes from {@link GraphBuilder}, the same builder the editor graph uses, so the report
- * and the editor never disagree. This class only maps it to the neutral {@link WorkflowTrace} shape and works out,
- * for each statement, where it sits (the enclosing {@code alt} and loop nodes) so a trace can be placed on it.
+ * <p>The structure itself comes from {@link GraphBuilder}, the same builder the editor graph uses,
+ * so the report and the editor never disagree. This class only maps it to the neutral {@link
+ * WorkflowTrace} shape and works out, for each statement, where it sits (the enclosing {@code alt}
+ * and loop nodes) so a trace can be placed on it.
  */
 public final class WorkflowGraph {
 
@@ -28,7 +29,8 @@ public final class WorkflowGraph {
     public static final String END = "end";
 
     /** Handler blocks hang off their owner; they are not branches the path has to enter. */
-    private static final Set<String> HANDLER_BRANCHES = Set.of("failure", "exhausted", "violation", "still fails", "blocked");
+    private static final Set<String> HANDLER_BRANCHES =
+            Set.of("failure", "exhausted", "violation", "still fails", "blocked");
 
     /** Node kinds whose block a statement can be inside of, for placing a trace. */
     private static final Set<String> BLOCK_KINDS = Set.of(Kinds.ALT, Kinds.LOOP, Kinds.FOREACH);
@@ -51,18 +53,29 @@ public final class WorkflowGraph {
         return of(workflow, agent -> null);
     }
 
-    /** As {@link #of(WorkflowDef)}, with {@code promptLabels} giving the prompt (id and version) an agent runs, shown on its steps. */
-    public static WorkflowGraph of(WorkflowDef workflow, java.util.function.Function<String, String> promptLabels) {
+    /**
+     * As {@link #of(WorkflowDef)}, with {@code promptLabels} giving the prompt (id and version) an
+     * agent runs, shown on its steps.
+     */
+    public static WorkflowGraph of(
+            WorkflowDef workflow, java.util.function.Function<String, String> promptLabels) {
         io.github.llm4j.loom.graph.WorkflowGraph built = new GraphBuilder().build(workflow, "");
         Map<String, GraphNode> byId = new HashMap<>();
         built.nodes().forEach(n -> byId.put(n.id(), n));
 
         WorkflowGraph g = new WorkflowGraph();
         for (GraphNode graphNode : built.nodes()) {
-            String prompt = graphNode.agent() == null ? null : promptLabels.apply(graphNode.agent());
+            String prompt =
+                    graphNode.agent() == null ? null : promptLabels.apply(graphNode.agent());
             GraphNode node = prompt == null ? graphNode : graphNode.withAttr("prompt", prompt);
-            WorkflowTrace.Node mapped = new WorkflowTrace.Node(
-                    node.id(), node.kind(), node.label(), node.agent(), node.bound(), withPlacement(node));
+            WorkflowTrace.Node mapped =
+                    new WorkflowTrace.Node(
+                            node.id(),
+                            node.kind(),
+                            node.label(),
+                            node.agent(),
+                            node.bound(),
+                            withPlacement(node));
             g.nodes.add(mapped);
             if (!node.kind().equals(Kinds.START) && !node.kind().equals(Kinds.END)) {
                 g.slots.add(slot(mapped, node, byId));
@@ -83,8 +96,9 @@ public final class WorkflowGraph {
     }
 
     /**
-     * The node's settings plus where it sits ({@code parent}, {@code branch}). A trace node has no field for the
-     * block it is in, and the report needs it to fold large blocks, so it travels with the settings.
+     * The node's settings plus where it sits ({@code parent}, {@code branch}). A trace node has no
+     * field for the block it is in, and the report needs it to fold large blocks, so it travels
+     * with the settings.
      */
     private static Map<String, Object> withPlacement(GraphNode node) {
         if (node.parent() == null) {
@@ -99,7 +113,8 @@ public final class WorkflowGraph {
     }
 
     /** Walks up from a node through the blocks it is inside of, outermost first. */
-    private static Slot slot(WorkflowTrace.Node mapped, GraphNode node, Map<String, GraphNode> byId) {
+    private static Slot slot(
+            WorkflowTrace.Node mapped, GraphNode node, Map<String, GraphNode> byId) {
         List<String> ancestors = new ArrayList<>();
         Map<String, String> branches = new HashMap<>();
         GraphNode child = node;
@@ -118,6 +133,7 @@ public final class WorkflowGraph {
             list.forEach(a -> agents.add(String.valueOf(a)));
         }
         Object task = node.attrs().get("task");
-        return new Slot(mapped, ancestors, branches, agents, task == null ? null : String.valueOf(task));
+        return new Slot(
+                mapped, ancestors, branches, agents, task == null ? null : String.valueOf(task));
     }
 }

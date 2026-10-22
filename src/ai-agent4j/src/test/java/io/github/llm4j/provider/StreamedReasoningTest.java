@@ -38,7 +38,11 @@ class StreamedReasoningTest {
     }
 
     private LLMConfig config(String model) {
-        return LLMConfig.builder().apiKey("k").baseUrl(server.url("").toString().replaceAll("/+$", "")).defaultModel(model).build();
+        return LLMConfig.builder()
+                .apiKey("k")
+                .baseUrl(server.url("").toString().replaceAll("/+$", ""))
+                .defaultModel(model)
+                .build();
     }
 
     private static MockResponse sse(String body) {
@@ -50,8 +54,11 @@ class StreamedReasoningTest {
     }
 
     private static LLMRequest ask(boolean reasoning) {
-        return LLMRequest.builder().addUserMessage("go").reasoning(reasoning)
-                .tools(List.of(new ToolSpec("lookup", "finds things", Map.of("type", "object")))).build();
+        return LLMRequest.builder()
+                .addUserMessage("go")
+                .reasoning(reasoning)
+                .tools(List.of(new ToolSpec("lookup", "finds things", Map.of("type", "object"))))
+                .build();
     }
 
     private static String answer(List<LLMResponse> chunks) {
@@ -69,24 +76,47 @@ class StreamedReasoningTest {
     // ---- Anthropic ----
 
     private String anthropicStream() {
-        return event("message_start", "{\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"usage\":{\"input_tokens\":5}}}")
-                + event("content_block_start", "{\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\"}}")
-                + event("content_block_delta", "{\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"I should \"}}")
-                + event("content_block_delta", "{\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"look it up.\"}}")
-                + event("content_block_delta", "{\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"signature_delta\",\"signature\":\"sig\"}}")
-                + event("content_block_start", "{\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}")
-                + event("content_block_delta", "{\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"Looking.\"}}")
-                + event("content_block_start", "{\"type\":\"content_block_start\",\"index\":2,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"lookup\",\"input\":{}}}")
-                + event("content_block_delta", "{\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"q\\\":\"}}")
-                + event("content_block_delta", "{\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\"cats\\\"}\"}}")
-                + event("message_delta", "{\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":9}}")
+        return event(
+                        "message_start",
+                        "{\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"usage\":{\"input_tokens\":5}}}")
+                + event(
+                        "content_block_start",
+                        "{\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\"}}")
+                + event(
+                        "content_block_delta",
+                        "{\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"I should \"}}")
+                + event(
+                        "content_block_delta",
+                        "{\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"look it up.\"}}")
+                + event(
+                        "content_block_delta",
+                        "{\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"signature_delta\",\"signature\":\"sig\"}}")
+                + event(
+                        "content_block_start",
+                        "{\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}")
+                + event(
+                        "content_block_delta",
+                        "{\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"Looking.\"}}")
+                + event(
+                        "content_block_start",
+                        "{\"type\":\"content_block_start\",\"index\":2,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_1\",\"name\":\"lookup\",\"input\":{}}}")
+                + event(
+                        "content_block_delta",
+                        "{\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"q\\\":\"}}")
+                + event(
+                        "content_block_delta",
+                        "{\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\"cats\\\"}\"}}")
+                + event(
+                        "message_delta",
+                        "{\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":9}}")
                 + event("message_stop", "{\"type\":\"message_stop\"}");
     }
 
     @Test
     void anthropicStreamsReasoningWhenAskedAndKeepsItOutOfTheAnswer() throws Exception {
         server.enqueue(sse(anthropicStream()));
-        List<LLMResponse> chunks = new AnthropicProvider(config("claude-opus-5-5")).chatStream(ask(true)).toList();
+        List<LLMResponse> chunks =
+                new AnthropicProvider(config("claude-opus-5-5")).chatStream(ask(true)).toList();
 
         assertThat(reasoning(chunks)).containsExactly("I should ", "look it up.");
         assertThat(answer(chunks)).isEqualTo("Looking.");
@@ -98,34 +128,48 @@ class StreamedReasoningTest {
     @Test
     void anthropicSendsNoThinkingAndStreamsNoReasoningByDefault() throws Exception {
         server.enqueue(sse(anthropicStream()));
-        List<LLMResponse> chunks = new AnthropicProvider(config("claude-opus-5-5")).chatStream(ask(false)).toList();
+        List<LLMResponse> chunks =
+                new AnthropicProvider(config("claude-opus-5-5")).chatStream(ask(false)).toList();
 
         assertThat(reasoning(chunks)).isEmpty();
         assertThat(answer(chunks)).isEqualTo("Looking.");
-        assertThat(JSON.readTree(server.takeRequest().getBody().readUtf8()).has("thinking")).isFalse();
+        assertThat(JSON.readTree(server.takeRequest().getBody().readUtf8()).has("thinking"))
+                .isFalse();
     }
 
     @Test
     void anthropicStreamsAToolCallInPiecesThatJoinIntoItsArguments() {
         server.enqueue(sse(anthropicStream()));
-        List<ToolCallDelta> deltas = deltas(new AnthropicProvider(config("claude-opus-5-5")).chatStream(ask(false)).toList());
+        List<ToolCallDelta> deltas =
+                deltas(
+                        new AnthropicProvider(config("claude-opus-5-5"))
+                                .chatStream(ask(false))
+                                .toList());
 
         assertThat(deltas).hasSize(3);
         assertThat(deltas.get(0).id()).isEqualTo("toolu_1");
         assertThat(deltas.get(0).name()).isEqualTo("lookup");
         assertThat(deltas).allSatisfy(d -> assertThat(d.index()).isEqualTo(2));
-        assertThat(deltas.stream().map(ToolCallDelta::argumentsFragment).collect(Collectors.joining())).isEqualTo("{\"q\":\"cats\"}");
+        assertThat(
+                        deltas.stream()
+                                .map(ToolCallDelta::argumentsFragment)
+                                .collect(Collectors.joining()))
+                .isEqualTo("{\"q\":\"cats\"}");
     }
 
     @Test
     @SuppressWarnings("unchecked")
     void theLastAnthropicChunkCarriesTheBlocksToSendBackWithTheToolResult() {
         server.enqueue(sse(anthropicStream()));
-        List<LLMResponse> chunks = new AnthropicProvider(config("claude-opus-5-5")).chatStream(ask(false)).toList();
+        List<LLMResponse> chunks =
+                new AnthropicProvider(config("claude-opus-5-5")).chatStream(ask(false)).toList();
 
         Map<String, Object> data = chunks.get(chunks.size() - 1).getProviderData();
-        List<Map<String, Object>> blocks = (List<Map<String, Object>>) data.get("anthropic.content");
-        assertThat(blocks).extracting(b -> b.get("type")).containsExactly("thinking", "text", "tool_use");
+        List<Map<String, Object>> blocks =
+                (List<Map<String, Object>>) data.get("anthropic.content");
+        assertThat(blocks)
+                .extracting(b -> b.get("type"))
+                .containsExactly("thinking", "text", "tool_use");
         assertThat(blocks.get(0).get("thinking")).isEqualTo("I should look it up.");
         assertThat(blocks.get(0).get("signature")).isEqualTo("sig");
         assertThat(blocks.get(1).get("text")).isEqualTo("Looking.");
@@ -136,7 +180,8 @@ class StreamedReasoningTest {
     void anOlderAnthropicModelIsAskedForNoThinking() throws Exception {
         server.enqueue(sse(anthropicStream()));
         new AnthropicProvider(config("claude-haiku-4-5")).chatStream(ask(true)).toList();
-        assertThat(JSON.readTree(server.takeRequest().getBody().readUtf8()).has("thinking")).isFalse();
+        assertThat(JSON.readTree(server.takeRequest().getBody().readUtf8()).has("thinking"))
+                .isFalse();
     }
 
     // ---- Gemini ----
@@ -146,46 +191,67 @@ class StreamedReasoningTest {
     }
 
     private String geminiStream() {
-        return data("{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"Need a lookup.\",\"thought\":true}]}}]}")
-                + data("{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"Looking.\"},{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"q\":\"cats\"}}}]}}]}")
-                + data("{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":5,\"candidatesTokenCount\":3}}");
+        return data(
+                        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"Need a lookup.\",\"thought\":true}]}}]}")
+                + data(
+                        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"Looking.\"},{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"q\":\"cats\"}}}]}}]}")
+                + data(
+                        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":5,\"candidatesTokenCount\":3}}");
     }
 
     @Test
     void geminiStreamsThoughtsWhenAskedAndAsksForThem() throws Exception {
         server.enqueue(sse(geminiStream()));
-        List<LLMResponse> chunks = new GoogleProvider(config("gemini-2.5-flash")).chatStream(ask(true)).toList();
+        List<LLMResponse> chunks =
+                new GoogleProvider(config("gemini-2.5-flash")).chatStream(ask(true)).toList();
 
         assertThat(reasoning(chunks)).containsExactly("Need a lookup.");
         assertThat(answer(chunks)).isEqualTo("Looking.");
         JsonNode sent = JSON.readTree(server.takeRequest().getBody().readUtf8());
-        assertThat(sent.path("generationConfig").path("thinkingConfig").path("includeThoughts").asBoolean()).isTrue();
+        assertThat(
+                        sent.path("generationConfig")
+                                .path("thinkingConfig")
+                                .path("includeThoughts")
+                                .asBoolean())
+                .isTrue();
     }
 
     @Test
     void geminiStreamsNoThoughtsByDefault() throws Exception {
         server.enqueue(sse(geminiStream()));
-        List<LLMResponse> chunks = new GoogleProvider(config("gemini-2.5-flash")).chatStream(ask(false)).toList();
+        List<LLMResponse> chunks =
+                new GoogleProvider(config("gemini-2.5-flash")).chatStream(ask(false)).toList();
 
         assertThat(reasoning(chunks)).isEmpty();
         assertThat(answer(chunks)).isEqualTo("Looking.");
-        assertThat(JSON.readTree(server.takeRequest().getBody().readUtf8()).path("generationConfig").has("thinkingConfig")).isFalse();
+        assertThat(
+                        JSON.readTree(server.takeRequest().getBody().readUtf8())
+                                .path("generationConfig")
+                                .has("thinkingConfig"))
+                .isFalse();
     }
 
     @Test
     @SuppressWarnings("unchecked")
     void theLastGeminiChunkCarriesItsPartsWhenACallWasMade() {
         server.enqueue(sse(geminiStream()));
-        List<LLMResponse> chunks = new GoogleProvider(config("gemini-2.5-flash")).chatStream(ask(false)).toList();
+        List<LLMResponse> chunks =
+                new GoogleProvider(config("gemini-2.5-flash")).chatStream(ask(false)).toList();
 
-        List<Map<String, Object>> parts = (List<Map<String, Object>>) chunks.get(chunks.size() - 1).getProviderData().get("google.parts");
+        List<Map<String, Object>> parts =
+                (List<Map<String, Object>>)
+                        chunks.get(chunks.size() - 1).getProviderData().get("google.parts");
         assertThat(parts).anyMatch(p -> p.containsKey("functionCall"));
     }
 
     @Test
     void geminiSendsAFunctionCallWholeAsOneDelta() {
         server.enqueue(sse(geminiStream()));
-        List<ToolCallDelta> deltas = deltas(new GoogleProvider(config("gemini-2.5-flash")).chatStream(ask(false)).toList());
+        List<ToolCallDelta> deltas =
+                deltas(
+                        new GoogleProvider(config("gemini-2.5-flash"))
+                                .chatStream(ask(false))
+                                .toList());
 
         assertThat(deltas).hasSize(1);
         assertThat(deltas.get(0).index()).isEqualTo(0);

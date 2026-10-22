@@ -25,39 +25,49 @@ import java.util.function.Supplier;
 import javax.net.ssl.SSLContext;
 
 /**
- * The embedded page and its read-only JSON, on the JDK's own HTTP server (no framework). It only reads; nothing here changes a run.
+ * The embedded page and its read-only JSON, on the JDK's own HTTP server (no framework). It only
+ * reads; nothing here changes a run.
  *
- * <p>It listens on a loopback address only, and refuses a request whose {@code Host} header is not a loopback name, which stops a
- * web page from another site reaching it through DNS rebinding. Other addresses wait for a login (a later phase).
+ * <p>It listens on a loopback address only, and refuses a request whose {@code Host} header is not
+ * a loopback name, which stops a web page from another site reaching it through DNS rebinding.
+ * Other addresses wait for a login (a later phase).
  */
 public final class InspectServer {
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final String UI = "/io/github/llm4j/loom/inspect/ui/";
-    private static final Map<String, String[]> ASSETS = Map.of(
-            "/", new String[] {"index.html", "text/html; charset=utf-8"},
-            "/app.css", new String[] {"app.css", "text/css; charset=utf-8"},
-            "/app.js", new String[] {"app.js", "text/javascript; charset=utf-8"},
-            "/fabric-logo.svg", new String[] {"fabric-logo.svg", "image/svg+xml"},
-            "/logo.png", new String[] {"loom-logo.png", "image/png"},
-            "/favicon.ico", new String[] {"loom-logo.png", "image/png"},
-            "/fonts/HankenGrotesk.woff2", new String[] {"fonts/HankenGrotesk.woff2", "font/woff2"},
-            "/fonts/JetBrainsMono.woff2", new String[] {"fonts/JetBrainsMono.woff2", "font/woff2"});
-    private static final String CSP = "default-src 'self'; img-src 'self'; font-src 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+    private static final Map<String, String[]> ASSETS =
+            Map.of(
+                    "/", new String[] {"index.html", "text/html; charset=utf-8"},
+                    "/app.css", new String[] {"app.css", "text/css; charset=utf-8"},
+                    "/app.js", new String[] {"app.js", "text/javascript; charset=utf-8"},
+                    "/fabric-logo.svg", new String[] {"fabric-logo.svg", "image/svg+xml"},
+                    "/logo.png", new String[] {"loom-logo.png", "image/png"},
+                    "/favicon.ico", new String[] {"loom-logo.png", "image/png"},
+                    "/fonts/HankenGrotesk.woff2",
+                            new String[] {"fonts/HankenGrotesk.woff2", "font/woff2"},
+                    "/fonts/JetBrainsMono.woff2",
+                            new String[] {"fonts/JetBrainsMono.woff2", "font/woff2"});
+    private static final String CSP =
+            "default-src 'self'; img-src 'self'; font-src 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 
     /** One extra path with its own handler. It checks its own method and credentials. */
     public interface Route {
         void handle(HttpExchange x) throws IOException;
     }
 
-    /** Decides whether a request may read the JSON API. When it says no it has already answered (a 401, say). */
+    /**
+     * Decides whether a request may read the JSON API. When it says no it has already answered (a
+     * 401, say).
+     */
     public interface Gate {
         boolean pass(HttpExchange x) throws IOException;
     }
 
     /**
-     * How a server that is not the embedded page is set up: any address (when it has a gate and TLS, or a trusted proxy in front), extra
-     * routes (a receiver's endpoints, a login), extra read-only JSON, and an optional gate in front of the API.
+     * How a server that is not the embedded page is set up: any address (when it has a gate and
+     * TLS, or a trusted proxy in front), extra routes (a receiver's endpoints, a login), extra
+     * read-only JSON, and an optional gate in front of the API.
      */
     public static final class Config {
         String bind = "127.0.0.1";
@@ -86,32 +96,47 @@ public final class InspectServer {
             return this;
         }
 
-        /** Allow a non-loopback address and any Host header. The caller has put a gate and TLS (or a trusted proxy) in front. */
+        /**
+         * Allow a non-loopback address and any Host header. The caller has put a gate and TLS (or a
+         * trusted proxy) in front.
+         */
         public Config anyAddress() {
             this.loopbackOnly = false;
             return this;
         }
 
-        /** Sign-in for the administrator: {@code POST /api/login}, {@code /api/logout} and {@code GET /api/session}. */
+        /**
+         * Sign-in for the administrator: {@code POST /api/login}, {@code /api/logout} and {@code
+         * GET /api/session}.
+         */
         public Config sessions(AdminSessions sessions) {
             this.sessions = sessions;
             return this;
         }
 
-        /** Let a signed-in administrator pause, resume, suspend and stop runs: {@code POST /api/runs/{trace}/{action}}. Needs {@link #sessions}. */
+        /**
+         * Let a signed-in administrator pause, resume, suspend and stop runs: {@code POST
+         * /api/runs/{trace}/{action}}. Needs {@link #sessions}.
+         */
         public Config controls(Controls controls, AuditSink audit) {
             this.controls = controls;
             this.audit = audit == null ? AuditSink.NONE : audit;
             return this;
         }
 
-        /** Let a signed-in administrator list secrets and rotate one: {@code GET /api/secrets}, {@code PUT /api/secrets/{name}}. Needs {@link #sessions}. */
+        /**
+         * Let a signed-in administrator list secrets and rotate one: {@code GET /api/secrets},
+         * {@code PUT /api/secrets/{name}}. Needs {@link #sessions}.
+         */
         public Config secrets(io.github.llm4j.loom.inspect.control.Secrets secrets) {
             this.secrets = secrets;
             return this;
         }
 
-        /** Let a signed-in administrator read and change the server's settings: {@code GET /api/config}, {@code PUT /api/config/{section}}. Needs {@link #sessions}. */
+        /**
+         * Let a signed-in administrator read and change the server's settings: {@code GET
+         * /api/config}, {@code PUT /api/config/{section}}. Needs {@link #sessions}.
+         */
         public Config settings(io.github.llm4j.loom.inspect.control.ServerConfig settings) {
             this.settings = settings;
             return this;
@@ -123,7 +148,10 @@ public final class InspectServer {
             return this;
         }
 
-        /** Worker threads. A server that holds requests open (Fabric's command long-poll) needs many. */
+        /**
+         * Worker threads. A server that holds requests open (Fabric's command long-poll) needs
+         * many.
+         */
         public Config threads(int threads) {
             this.threads = threads;
             return this;
@@ -173,28 +201,39 @@ public final class InspectServer {
         try {
             address = InetAddress.getByName(config.bind);
         } catch (IOException e) {
-            throw new IllegalArgumentException("cannot use '" + config.bind + "' as an address: " + e.getMessage(), e);
+            throw new IllegalArgumentException(
+                    "cannot use '" + config.bind + "' as an address: " + e.getMessage(), e);
         }
         if (config.loopbackOnly && !address.isLoopbackAddress()) {
-            throw new IllegalArgumentException("loom-inspect will not listen on " + config.bind + ": the embedded page has no login. Use 127.0.0.1 (the default) or ::1.");
+            throw new IllegalArgumentException(
+                    "loom-inspect will not listen on "
+                            + config.bind
+                            + ": the embedded page has no login. Use 127.0.0.1 (the default) or ::1.");
         }
-        this.allowedHosts = config.loopbackOnly ? Set.of("localhost", "127.0.0.1", "[::1]", "::1") : null;
+        this.allowedHosts =
+                config.loopbackOnly ? Set.of("localhost", "127.0.0.1", "[::1]", "::1") : null;
         try {
             if (config.tls != null) {
-                HttpsServer https = HttpsServer.create(new InetSocketAddress(address, config.port), 0);
+                HttpsServer https =
+                        HttpsServer.create(new InetSocketAddress(address, config.port), 0);
                 https.setHttpsConfigurator(new HttpsConfigurator(config.tls));
                 this.server = https;
             } else {
                 this.server = HttpServer.create(new InetSocketAddress(address, config.port), 0);
             }
         } catch (IOException e) {
-            throw new IllegalStateException("cannot listen on " + config.bind + ":" + config.port + ": " + e.getMessage(), e);
+            throw new IllegalStateException(
+                    "cannot listen on " + config.bind + ":" + config.port + ": " + e.getMessage(),
+                    e);
         }
-        this.pool = Executors.newFixedThreadPool(config.threads, r -> {
-            Thread t = new Thread(r, "loom-inspect-http");
-            t.setDaemon(true);
-            return t;
-        });
+        this.pool =
+                Executors.newFixedThreadPool(
+                        config.threads,
+                        r -> {
+                            Thread t = new Thread(r, "loom-inspect-http");
+                            t.setDaemon(true);
+                            return t;
+                        });
         this.server.setExecutor(pool);
         this.server.createContext("/", this::handle);
     }
@@ -236,9 +275,13 @@ public final class InspectServer {
             String[] asset = ASSETS.get(path);
             if (asset != null) {
                 byte[] body = resource(asset[0]);
-                if (body == null) send(x, 404, "application/json", json(Map.of("error", "missing asset")));
+                if (body == null)
+                    send(x, 404, "application/json", json(Map.of("error", "missing asset")));
                 else send(x, 200, asset[1], body);
-            } else if (path.startsWith("/api/") && !path.equals("/api/health") && config.gate != null && !config.gate.pass(x)) {
+            } else if (path.startsWith("/api/")
+                    && !path.equals("/api/health")
+                    && config.gate != null
+                    && !config.gate.pass(x)) {
                 return; // the gate has answered
             } else if (config.api.containsKey(path)) {
                 send(x, 200, "application/json", json(config.api.get(path).get()));
@@ -247,29 +290,61 @@ public final class InspectServer {
             } else if (path.equals("/api/security")) {
                 send(x, 200, "application/json", json(registry.securityOverview(clientParam(x))));
             } else if (path.equals("/api/health")) {
-                send(x, 200, "application/json", json(Map.of("status", "ok", "runs", registry.summaries().size())));
+                send(
+                        x,
+                        200,
+                        "application/json",
+                        json(Map.of("status", "ok", "runs", registry.summaries().size())));
             } else if (path.equals("/api/runs")) {
-                send(x, 200, "application/json", json(Map.of("runs", registry.summaries(), "fleet", Map.of("toolsFailing", registry.toolsFailing()))));
+                send(
+                        x,
+                        200,
+                        "application/json",
+                        json(
+                                Map.of(
+                                        "runs",
+                                        registry.summaries(),
+                                        "fleet",
+                                        Map.of("toolsFailing", registry.toolsFailing()))));
             } else if (path.startsWith("/api/runs/")) {
                 String trace = path.substring("/api/runs/".length());
                 boolean wantsGraph = trace.endsWith("/graph");
                 boolean wantsTimeline = trace.endsWith("/timeline");
                 if (wantsGraph) trace = trace.substring(0, trace.length() - "/graph".length());
-                if (wantsTimeline) trace = trace.substring(0, trace.length() - "/timeline".length());
-                Optional<RunState> run = trace.matches("[0-9a-f]{32}") ? registry.findByTrace(trace) : Optional.empty();
+                if (wantsTimeline)
+                    trace = trace.substring(0, trace.length() - "/timeline".length());
+                Optional<RunState> run =
+                        trace.matches("[0-9a-f]{32}")
+                                ? registry.findByTrace(trace)
+                                : Optional.empty();
                 String at = queryParam(x, "at");
-                if (run.isPresent() && wantsGraph) send(x, 200, "application/json", json(run.get().graph() == null ? Map.of() : run.get().graph()));
+                if (run.isPresent() && wantsGraph)
+                    send(
+                            x,
+                            200,
+                            "application/json",
+                            json(run.get().graph() == null ? Map.of() : run.get().graph()));
                 else if (run.isPresent() && wantsTimeline) {
                     Map<String, Object> t = new java.util.LinkedHashMap<>();
                     t.put("marks", run.get().timeline());
-                    t.put("history", Map.of("firstSeq", run.get().firstSeq(), "lastSeq", run.get().lastSeq()));
+                    t.put(
+                            "history",
+                            Map.of(
+                                    "firstSeq",
+                                    run.get().firstSeq(),
+                                    "lastSeq",
+                                    run.get().lastSeq()));
                     send(x, 200, "application/json", json(t));
                 } else if (run.isPresent() && at != null) {
                     long seq;
                     try {
                         seq = Long.parseLong(at);
                     } catch (NumberFormatException e) {
-                        send(x, 400, "application/json", json(Map.of("error", "at is the number of a record")));
+                        send(
+                                x,
+                                400,
+                                "application/json",
+                                json(Map.of("error", "at is the number of a record")));
                         return;
                     }
                     Optional<Map<String, Object>> past = run.get().viewAt(seq);
@@ -277,10 +352,16 @@ public final class InspectServer {
                     else {
                         Map<String, Object> gone = new java.util.LinkedHashMap<>();
                         gone.put("error", "no such point in this run's history");
-                        if (run.get().historyStartsAt() != null) gone.put("historyStartsAt", run.get().historyStartsAt().toString());
+                        if (run.get().historyStartsAt() != null)
+                            gone.put("historyStartsAt", run.get().historyStartsAt().toString());
                         send(x, 404, "application/json", json(gone));
                     }
-                } else if (run.isPresent()) send(x, 200, "application/json", json(withControls(run.get().view(), run.get().traceId(), x)));
+                } else if (run.isPresent())
+                    send(
+                            x,
+                            200,
+                            "application/json",
+                            json(withControls(run.get().view(), run.get().traceId(), x)));
                 else send(x, 404, "application/json", json(Map.of("error", "no such run")));
             } else {
                 send(x, 404, "application/json", json(Map.of("error", "not found")));
@@ -292,9 +373,13 @@ public final class InspectServer {
         }
     }
 
-    // ------------------------------------------------------------------------------ the administrator
+    // ------------------------------------------------------------------------------ the
+    // administrator
 
-    /** The run's view, with what the page may do to it now: nothing at all unless controls are on here. */
+    /**
+     * The run's view, with what the page may do to it now: nothing at all unless controls are on
+     * here.
+     */
     /** The {@code client} query parameter of a fleet route, or null for every client. */
     private static String clientParam(HttpExchange x) {
         return queryParam(x, "client");
@@ -306,14 +391,18 @@ public final class InspectServer {
         if (query == null) return null;
         for (String pair : query.split("&")) {
             if (pair.startsWith(name + "=")) {
-                String v = java.net.URLDecoder.decode(pair.substring(name.length() + 1), java.nio.charset.StandardCharsets.UTF_8);
+                String v =
+                        java.net.URLDecoder.decode(
+                                pair.substring(name.length() + 1),
+                                java.nio.charset.StandardCharsets.UTF_8);
                 return v.isEmpty() ? null : v;
             }
         }
         return null;
     }
 
-    private Map<String, Object> withControls(Map<String, Object> view, String trace, HttpExchange x) {
+    private Map<String, Object> withControls(
+            Map<String, Object> view, String trace, HttpExchange x) {
         if (config.controls == null) return view;
         Map<String, Object> out = new java.util.LinkedHashMap<>(view);
         Map<String, Object> c = new java.util.LinkedHashMap<>();
@@ -321,12 +410,22 @@ public final class InspectServer {
         if (!config.controls.enabled()) c.put("reason", config.controls.disabledReason());
         boolean in = config.sessions != null && config.sessions.valid(x);
         c.put("signedIn", in);
-        c.put("allowed", in ? config.controls.allowed(trace).stream().map(Controls.Action::word).sorted().toList() : java.util.List.of());
+        c.put(
+                "allowed",
+                in
+                        ? config.controls.allowed(trace).stream()
+                                .map(Controls.Action::word)
+                                .sorted()
+                                .toList()
+                        : java.util.List.of());
         out.put("controls", c);
         return out;
     }
 
-    /** Sign-in, sign-out, the session's state and the control requests. Returns true when it answered. */
+    /**
+     * Sign-in, sign-out, the session's state and the control requests. Returns true when it
+     * answered.
+     */
     private boolean handleAdmin(HttpExchange x, String path) throws IOException {
         AdminSessions admin = config.sessions;
         if (path.equals("/api/session") && "GET".equals(x.getRequestMethod())) {
@@ -340,7 +439,8 @@ public final class InspectServer {
             m.put("configEnabled", config.settings != null && admin.passwordSet());
             if (config.controls != null) {
                 m.put("controlsEnabled", config.controls.enabled());
-                if (!config.controls.enabled()) m.put("controlsReason", config.controls.disabledReason());
+                if (!config.controls.enabled())
+                    m.put("controlsReason", config.controls.disabledReason());
             }
             send(x, 200, "application/json", json(m));
             return true;
@@ -368,7 +468,9 @@ public final class InspectServer {
             secrets(x, admin, path);
             return true;
         }
-        if (config.controls != null && path.startsWith("/api/runs/") && "POST".equals(x.getRequestMethod())) {
+        if (config.controls != null
+                && path.startsWith("/api/runs/")
+                && "POST".equals(x.getRequestMethod())) {
             String rest = path.substring("/api/runs/".length());
             int slash = rest.indexOf('/');
             if (slash > 0) {
@@ -386,7 +488,11 @@ public final class InspectServer {
             return;
         }
         if (!sameSite(x) || !isJson(x)) {
-            send(x, 403, "application/json", json(Map.of("error", "cross-site or malformed login")));
+            send(
+                    x,
+                    403,
+                    "application/json",
+                    json(Map.of("error", "cross-site or malformed login")));
             return;
         }
         String password = null;
@@ -414,26 +520,39 @@ public final class InspectServer {
         }
     }
 
-    private void control(HttpExchange x, AdminSessions admin, String trace, String word) throws IOException {
+    private void control(HttpExchange x, AdminSessions admin, String trace, String word)
+            throws IOException {
         String address = x.getRemoteAddress().getAddress().getHostAddress();
         AdminSessions.Session s = admin.session(x);
         if (s == null) {
             send(x, 401, "application/json", json(Map.of("error", "sign in first")));
             return;
         }
-        if (!s.csrf().equals(x.getRequestHeaders().getFirst(AdminSessions.CSRF_HEADER)) || !sameSite(x)) {
+        if (!s.csrf().equals(x.getRequestHeaders().getFirst(AdminSessions.CSRF_HEADER))
+                || !sameSite(x)) {
             audit(word, address, trace, null, "refused: bad CSRF token or origin");
             send(x, 403, "application/json", json(Map.of("error", "cross-site request refused")));
             return;
         }
         Controls.Action action = Controls.Action.of(word);
-        if (action == null || !trace.matches("[0-9a-f]{32}") || registry.findByTrace(trace).isEmpty()) {
+        if (action == null
+                || !trace.matches("[0-9a-f]{32}")
+                || registry.findByTrace(trace).isEmpty()) {
             send(x, 404, "application/json", json(Map.of("error", "no such run or action")));
             return;
         }
         Controls.Outcome o = config.controls.request(trace, action, "admin@" + address);
-        audit(word, address, trace, registry.findByTrace(trace).map(r -> r.client()).orElse(null), o.accepted() ? "accepted" : "refused: " + o.message());
-        send(x, o.status(), "application/json", json(Map.of("ok", o.accepted(), "message", o.message())));
+        audit(
+                word,
+                address,
+                trace,
+                registry.findByTrace(trace).map(r -> r.client()).orElse(null),
+                o.accepted() ? "accepted" : "refused: " + o.message());
+        send(
+                x,
+                o.status(),
+                "application/json",
+                json(Map.of("ok", o.accepted(), "message", o.message())));
     }
 
     private static final int MAX_SECRET_BODY = 16 * 1024;
@@ -447,15 +566,29 @@ public final class InspectServer {
             return;
         }
         if (path.equals("/api/config") && "GET".equals(x.getRequestMethod())) {
-            send(x, 200, "application/json", json(Map.of("sections", config.settings.view(), "catalog", config.settings.catalog())));
+            send(
+                    x,
+                    200,
+                    "application/json",
+                    json(
+                            Map.of(
+                                    "sections",
+                                    config.settings.view(),
+                                    "catalog",
+                                    config.settings.catalog())));
             return;
         }
-        String section = path.startsWith("/api/config/") ? path.substring("/api/config/".length()) : "";
-        if (!"PUT".equals(x.getRequestMethod()) || !section.matches("[a-z]{1,20}") || !config.settings.view().containsKey(section)) {
+        String section =
+                path.startsWith("/api/config/") ? path.substring("/api/config/".length()) : "";
+        if (!"PUT".equals(x.getRequestMethod())
+                || !section.matches("[a-z]{1,20}")
+                || !config.settings.view().containsKey(section)) {
             send(x, 404, "application/json", json(Map.of("error", "not found")));
             return;
         }
-        if (!s.csrf().equals(x.getRequestHeaders().getFirst(AdminSessions.CSRF_HEADER)) || !sameSite(x) || !isJson(x)) {
+        if (!s.csrf().equals(x.getRequestHeaders().getFirst(AdminSessions.CSRF_HEADER))
+                || !sameSite(x)
+                || !isJson(x)) {
             auditConfig(address, section, "refused: bad CSRF token, origin or content type", 0);
             send(x, 403, "application/json", json(Map.of("error", "cross-site request refused")));
             return;
@@ -482,10 +615,16 @@ public final class InspectServer {
             send(x, 400, "application/json", json(Map.of("error", "give the text")));
             return;
         }
-        io.github.llm4j.loom.inspect.control.ServerConfig.Result r = structured != null
-                ? config.settings.saveStructured(section, structured, "admin@" + address)
-                : config.settings.save(section, text, "admin@" + address);
-        auditConfig(address, section, (structured != null ? "structured " : "") + (r.saved() ? "saved" : "refused: " + r.message()), structured != null ? structured.length() : text.length());
+        io.github.llm4j.loom.inspect.control.ServerConfig.Result r =
+                structured != null
+                        ? config.settings.saveStructured(section, structured, "admin@" + address)
+                        : config.settings.save(section, text, "admin@" + address);
+        auditConfig(
+                address,
+                section,
+                (structured != null ? "structured " : "")
+                        + (r.saved() ? "saved" : "refused: " + r.message()),
+                structured != null ? structured.length() : text.length());
         Map<String, Object> body = new java.util.LinkedHashMap<>();
         body.put("ok", r.saved());
         body.put("message", r.message());
@@ -519,12 +658,15 @@ public final class InspectServer {
             send(x, 200, "application/json", json(Map.of("secrets", config.secrets.list())));
             return;
         }
-        String name = path.startsWith("/api/secrets/") ? path.substring("/api/secrets/".length()) : "";
+        String name =
+                path.startsWith("/api/secrets/") ? path.substring("/api/secrets/".length()) : "";
         if (!"PUT".equals(x.getRequestMethod()) || !name.matches("[A-Za-z0-9_.-]{1,128}")) {
             send(x, 404, "application/json", json(Map.of("error", "not found")));
             return;
         }
-        if (!s.csrf().equals(x.getRequestHeaders().getFirst(AdminSessions.CSRF_HEADER)) || !sameSite(x) || !isJson(x)) {
+        if (!s.csrf().equals(x.getRequestHeaders().getFirst(AdminSessions.CSRF_HEADER))
+                || !sameSite(x)
+                || !isJson(x)) {
             auditSecret(address, name, "refused: bad CSRF token, origin or content type");
             send(x, 403, "application/json", json(Map.of("error", "cross-site request refused")));
             return;
@@ -551,9 +693,15 @@ public final class InspectServer {
             send(x, 400, "application/json", json(Map.of("error", "give the new value")));
             return;
         }
-        if (!admin.confirm(address, password)) { // the password again: a stolen session alone cannot replace a key
+        if (!admin.confirm(
+                address,
+                password)) { // the password again: a stolen session alone cannot replace a key
             auditSecret(address, name, "refused: password not confirmed");
-            send(x, 403, "application/json", json(Map.of("error", "the password was not accepted")));
+            send(
+                    x,
+                    403,
+                    "application/json",
+                    json(Map.of("error", "the password was not accepted")));
             return;
         }
         char[] chars = value.toCharArray();
@@ -564,7 +712,11 @@ public final class InspectServer {
             java.util.Arrays.fill(chars, '\0');
         }
         auditSecret(address, name, o.accepted() ? "rotated" : "refused: " + o.message());
-        send(x, o.status(), "application/json", json(Map.of("ok", o.accepted(), "message", o.message())));
+        send(
+                x,
+                o.status(),
+                "application/json",
+                json(Map.of("ok", o.accepted(), "message", o.message())));
     }
 
     private void auditSecret(String address, String name, String outcome) {
@@ -592,17 +744,22 @@ public final class InspectServer {
         try {
             config.audit.record(e);
         } catch (RuntimeException ex) {
-            // an audit that cannot be written must be seen, but must not turn a refusal into success
+            // an audit that cannot be written must be seen, but must not turn a refusal into
+            // success
             System.err.println("loom-inspect: cannot write the audit log: " + ex.getMessage());
         }
     }
 
     private static boolean isJson(HttpExchange x) {
         String type = x.getRequestHeaders().getFirst("Content-Type");
-        return type != null && type.toLowerCase(java.util.Locale.ROOT).startsWith("application/json");
+        return type != null
+                && type.toLowerCase(java.util.Locale.ROOT).startsWith("application/json");
     }
 
-    /** A write must come from this page: when the browser says where it came from, that must be this host. */
+    /**
+     * A write must come from this page: when the browser says where it came from, that must be this
+     * host.
+     */
     private static boolean sameSite(HttpExchange x) {
         String origin = x.getRequestHeaders().getFirst("Origin");
         String host = x.getRequestHeaders().getFirst("Host");
@@ -637,8 +794,12 @@ public final class InspectServer {
         }
     }
 
-    /** Answers with the standard security headers (no caching, no sniffing, no framing, strict content policy). */
-    public static void send(HttpExchange x, int status, String type, byte[] body) throws IOException {
+    /**
+     * Answers with the standard security headers (no caching, no sniffing, no framing, strict
+     * content policy).
+     */
+    public static void send(HttpExchange x, int status, String type, byte[] body)
+            throws IOException {
         x.getResponseHeaders().add("Content-Type", type);
         x.getResponseHeaders().add("Cache-Control", "no-store");
         x.getResponseHeaders().add("X-Content-Type-Options", "nosniff");

@@ -15,17 +15,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/** Turns an agent's {@code context} block into what ai-agent4j takes: a policy with the model's window, and a compaction strategy. */
+/**
+ * Turns an agent's {@code context} block into what ai-agent4j takes: a policy with the model's
+ * window, and a compaction strategy.
+ */
 final class ContextWiring {
 
-    private ContextWiring() { }
+    private ContextWiring() {}
 
-    /** The window that governs an agent that may be answered by any of these models: the smallest one known; empty when none is known. */
+    /**
+     * The window that governs an agent that may be answered by any of these models: the smallest
+     * one known; empty when none is known.
+     */
     static Optional<WindowLayers.Found> governing(WindowLayers layers, List<String> models) {
         WindowLayers.Found smallest = null;
         for (String m : models) {
             Optional<WindowLayers.Found> f = layers.find(m);
-            if (f.isPresent() && (smallest == null || f.get().window().usableInput() < smallest.window().usableInput())) smallest = f.get();
+            if (f.isPresent()
+                    && (smallest == null
+                            || f.get().window().usableInput() < smallest.window().usableInput()))
+                smallest = f.get();
         }
         return Optional.ofNullable(smallest);
     }
@@ -41,24 +50,31 @@ final class ContextWiring {
     }
 
     /**
-     * The strategy named by {@code compact:}: one, or several chained. Null for {@code none}. A strategy that calls a model gets {@code summarizer}
-     * (when there is none, {@code summarize} falls back to {@code drop_oldest}, as the check warned).
+     * The strategy named by {@code compact:}: one, or several chained. Null for {@code none}. A
+     * strategy that calls a model gets {@code summarizer} (when there is none, {@code summarize}
+     * falls back to {@code drop_oldest}, as the check warned).
      */
-    static ContextCompactor compactor(AgentDef.ContextConfig cfg, CompactorRegistry custom, LLMClient summarizer) {
+    static ContextCompactor compactor(
+            AgentDef.ContextConfig cfg, CompactorRegistry custom, LLMClient summarizer) {
         List<String> names = cfg.compactNames();
         if (names.isEmpty() || names.equals(List.of("none"))) return null;
         Map<String, String> extra = cfg.extraOptions();
         Map<String, String> unclaimed = new LinkedHashMap<>(extra);
-        ProviderContext ctx = summarizer == null ? ProviderContext.none() : ProviderContext.of(summarizer);
+        ProviderContext ctx =
+                summarizer == null ? ProviderContext.none() : ProviderContext.of(summarizer);
         List<ContextCompactor> stages = new ArrayList<>();
         for (String name : names) {
             if (name.equals("none")) continue;
-            if (name.equals("chain")) throw new IllegalArgumentException("chain needs the strategies in parentheses: chain(trim_tool_results, drop_oldest)");
+            if (name.equals("chain"))
+                throw new IllegalArgumentException(
+                        "chain needs the strategies in parentheses: chain(trim_tool_results, drop_oldest)");
             if (custom.has(name)) {
                 Map<String, String> mine = new LinkedHashMap<>();
                 boolean provider = custom.takesOptions(name).orElse(true);
                 if (provider) {
-                    for (var e : extra.entrySet()) if (!ContextSettings.BUILT_IN_OPTIONS.containsKey(e.getKey())) mine.put(e.getKey(), e.getValue());
+                    for (var e : extra.entrySet())
+                        if (!ContextSettings.BUILT_IN_OPTIONS.containsKey(e.getKey()))
+                            mine.put(e.getKey(), e.getValue());
                     unclaimed.keySet().removeAll(mine.keySet());
                 }
                 stages.add(custom.create(name, mine, ctx));
@@ -78,9 +94,15 @@ final class ContextWiring {
             }
         }
         if (!unclaimed.isEmpty()) {
-            throw new IllegalArgumentException("context option " + String.join(", ", unclaimed.keySet()) + " is not taken by any strategy in compact: " + String.join(", ", names));
+            throw new IllegalArgumentException(
+                    "context option "
+                            + String.join(", ", unclaimed.keySet())
+                            + " is not taken by any strategy in compact: "
+                            + String.join(", ", names));
         }
         if (stages.isEmpty()) return null;
-        return stages.size() == 1 ? stages.get(0) : ContextCompactors.chain(stages.toArray(new ContextCompactor[0]));
+        return stages.size() == 1
+                ? stages.get(0)
+                : ContextCompactors.chain(stages.toArray(new ContextCompactor[0]));
     }
 }

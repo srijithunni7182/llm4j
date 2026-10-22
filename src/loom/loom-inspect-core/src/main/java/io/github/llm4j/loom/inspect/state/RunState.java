@@ -16,23 +16,39 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * What the console knows about one run, built only from OpenTelemetry-shaped records: log records say a step started or the run's
- * state changed, finished spans carry what a step used. The same code serves the embedded page and the inspect server, so the two
- * cannot drift apart.
+ * What the console knows about one run, built only from OpenTelemetry-shaped records: log records
+ * say a step started or the run's state changed, finished spans carry what a step used. The same
+ * code serves the embedded page and the inspect server, so the two cannot drift apart.
  *
- * <p>It is safe to feed from one thread while others read: every method is synchronized, and {@link #view()} returns a copy.
- * Feeding is idempotent where it can be: a span is counted once however often it arrives, and a log record that repeats or goes
- * backwards in {@code loom.seq} (per process instance) is ignored; a jump forward is counted as a gap.
+ * <p>It is safe to feed from one thread while others read: every method is synchronized, and {@link
+ * #view()} returns a copy. Feeding is idempotent where it can be: a span is counted once however
+ * often it arrives, and a log record that repeats or goes backwards in {@code loom.seq} (per
+ * process instance) is ignored; a jump forward is counted as a gap.
  */
 public final class RunState {
 
-    public enum Status { RUNNING, SLEEPING, PAUSED, WAITING, FINISHED, FAILED, STOPPED }
+    public enum Status {
+        RUNNING,
+        SLEEPING,
+        PAUSED,
+        WAITING,
+        FINISHED,
+        FAILED,
+        STOPPED
+    }
 
     private static final int RECENT = 200;
     private static final int SERIES = 60;
 
     /** A step that has started and not yet ended. */
-    private record Open(String spanId, String name, String kind, String agent, String tool, String step, long startNanos) { }
+    private record Open(
+            String spanId,
+            String name,
+            String kind,
+            String agent,
+            String tool,
+            String step,
+            long startNanos) {}
 
     private static final class Agent {
         long tokens;
@@ -78,8 +94,13 @@ public final class RunState {
         final ArrayDeque<Double> series = new ArrayDeque<>();
         long calls;
         long lastNanos;
-        /** The last {@link #POINTS} model calls: call number, tokens used, and the fraction the process reported (null when it did not know the window). */
+
+        /**
+         * The last {@link #POINTS} model calls: call number, tokens used, and the fraction the
+         * process reported (null when it did not know the window).
+         */
         final ArrayDeque<Object[]> points = new ArrayDeque<>();
+
         /** The last {@link #EVENTS} compactions, each with the call number it followed. */
         final ArrayDeque<Map<String, Object>> events = new ArrayDeque<>();
     }
@@ -88,10 +109,11 @@ public final class RunState {
     private static final int EVENTS = 60;
 
     /** What an agent's window is, from the process or, failing that, from the server's catalog. */
-    private record Window(Long window, Long usable, Double fraction, String source) { }
+    private record Window(Long window, Long usable, Double fraction, String source) {}
 
     private Window windowOf(String agent, ContextStat c) {
-        if (c.window != null || c.usable != null || c.fraction != null) return new Window(c.window, c.usable, c.fraction, "process");
+        if (c.window != null || c.usable != null || c.fraction != null)
+            return new Window(c.window, c.usable, c.fraction, "process");
         Long fromCatalog = windows.usable(models.get(agent));
         if (fromCatalog == null) return new Window(null, null, null, null);
         return new Window(null, fromCatalog, c.used / (double) fromCatalog, "catalog");
@@ -108,8 +130,13 @@ public final class RunState {
     private long tokens;
     private long calls;
     private BigDecimal cost = BigDecimal.ZERO;
-    /** Cumulative spend after each finished agent step: [millis since start, tokens, cost]. Thinned past 600 points. */
+
+    /**
+     * Cumulative spend after each finished agent step: [millis since start, tokens, cost]. Thinned
+     * past 600 points.
+     */
     private final List<Object[]> spend = new ArrayList<>();
+
     private final Incidents incidents = new Incidents();
     private final Detectors detectors = new Detectors(incidents, Thresholds.defaults());
     private final SecurityState security = new SecurityState(incidents, detectors::thresholdsFor);
@@ -135,17 +162,25 @@ public final class RunState {
     private final Map<String, Tool> tasks = new LinkedHashMap<>();
     private final Map<String, ModelStat> modelStats = new LinkedHashMap<>();
     private final Map<String, ContextStat> contexts = new LinkedHashMap<>();
-    /** Where each statement of the script stands, by {@link StepPaths#normalize normalized} step id: state and how often it ran. */
+
+    /**
+     * Where each statement of the script stands, by {@link StepPaths#normalize normalized} step id:
+     * state and how often it ran.
+     */
     private final Map<String, Object[]> steps = new LinkedHashMap<>();
+
     private final Set<String> finished = new HashSet<>();
     private final Map<String, Long> lastSeq = new HashMap<>();
     private final ArrayDeque<Map<String, Object>> recent = new ArrayDeque<>();
 
-    /** The most records a run keeps of what it was built from: enough to show how the run looked at any point of it. */
+    /**
+     * The most records a run keeps of what it was built from: enough to show how the run looked at
+     * any point of it.
+     */
     public static final int HISTORY_MAX = 50_000;
 
     /** One record as it arrived, kept so the run can be shown as it was. */
-    private record Fed(long nanos, String instance, LogRec log, SpanRec span) { }
+    private record Fed(long nanos, String instance, LogRec log, SpanRec span) {}
 
     private final int historyMax;
     private final ArrayDeque<Fed> fed = new ArrayDeque<>();
@@ -156,7 +191,10 @@ public final class RunState {
         this(client, traceId, HISTORY_MAX);
     }
 
-    /** A run that keeps at most {@code historyMax} records of its history (0: none, as a scratch run for a past view does). */
+    /**
+     * A run that keeps at most {@code historyMax} records of its history (0: none, as a scratch run
+     * for a past view does).
+     */
     public RunState(String client, String traceId, int historyMax) {
         this.client = client;
         this.traceId = traceId;
@@ -171,25 +209,38 @@ public final class RunState {
         return traceId;
     }
 
-    /** The script's workflows as a graph, each node carrying the step path it runs under; null until a producer sets it. */
+    /**
+     * The script's workflows as a graph, each node carrying the step path it runs under; null until
+     * a producer sets it.
+     */
     public synchronized Map<String, Object> graph() {
         return graph;
     }
 
     /**
-     * What each agent can reach, from the static audit (one map per agent: {@code agent} and the tools of each leg, {@code untrusted}, {@code private}, {@code outward});
-     * asked for whenever the view is built, so the page can show what an agent could do next to what it did. Without it nothing is guessed.
+     * What each agent can reach, from the static audit (one map per agent: {@code agent} and the
+     * tools of each leg, {@code untrusted}, {@code private}, {@code outward}); asked for whenever
+     * the view is built, so the page can show what an agent could do next to what it did. Without
+     * it nothing is guessed.
      */
-    public synchronized void setSecurityProfile(java.util.function.Supplier<List<Map<String, Object>>> profile) {
+    public synchronized void setSecurityProfile(
+            java.util.function.Supplier<List<Map<String, Object>>> profile) {
         this.securityProfile = profile;
     }
 
-    /** Where the run's decisions stand on their autonomy ladders; asked for whenever the view is built. Embedded mode only. */
-    public synchronized void setLadders(java.util.function.Supplier<List<Map<String, Object>>> ladders) {
+    /**
+     * Where the run's decisions stand on their autonomy ladders; asked for whenever the view is
+     * built. Embedded mode only.
+     */
+    public synchronized void setLadders(
+            java.util.function.Supplier<List<Map<String, Object>>> ladders) {
         this.ladders = ladders;
     }
 
-    /** The thresholds the incident rules use (the defaults until a script's {@code inspect} blocks say otherwise). */
+    /**
+     * The thresholds the incident rules use (the defaults until a script's {@code inspect} blocks
+     * say otherwise).
+     */
     public synchronized void setThresholds(Thresholds thresholds) {
         baseThresholds = thresholds;
         detectors.thresholds(thresholds);
@@ -222,9 +273,13 @@ public final class RunState {
                 top.toolFailures() != null ? top.toolFailures() : base.toolFailures(),
                 top.ungroundedWarn() != null ? top.ungroundedWarn() : base.ungroundedWarn(),
                 top.ungroundedHigh() != null ? top.ungroundedHigh() : base.ungroundedHigh(),
-                top.pausedLongerThanSeconds() != null ? top.pausedLongerThanSeconds() : base.pausedLongerThanSeconds(),
+                top.pausedLongerThanSeconds() != null
+                        ? top.pausedLongerThanSeconds()
+                        : base.pausedLongerThanSeconds(),
                 top.noProgressRounds() != null ? top.noProgressRounds() : base.noProgressRounds(),
-                top.noProgressVariable() != null ? top.noProgressVariable() : base.noProgressVariable(),
+                top.noProgressVariable() != null
+                        ? top.noProgressVariable()
+                        : base.noProgressVariable(),
                 top.telemetry() == null ? base.telemetry() : top.telemetry().over(base.telemetry()),
                 top.security() == null ? base.security() : top.security().over(base.security()));
     }
@@ -245,8 +300,9 @@ public final class RunState {
     }
 
     /**
-     * Context windows kept at the server: an agent whose process did not report a window gets one from here, by its model, from now on and in what it already showed.
-     * What a process reports wins.
+     * Context windows kept at the server: an agent whose process did not report a window gets one
+     * from here, by its model, from now on and in what it already showed. What a process reports
+     * wins.
      */
     public synchronized void setWindows(WindowBook windows) {
         this.windows = windows == null ? WindowBook.EMPTY : windows;
@@ -254,7 +310,8 @@ public final class RunState {
             ContextStat c = e.getValue();
             if (c.calls == 0) continue;
             Window w = windowOf(e.getKey(), c);
-            detectors.onContext(e.getKey(), w.fraction(), c.used, w.usable(), c.compactions, c.lastNanos);
+            detectors.onContext(
+                    e.getKey(), w.fraction(), c.used, w.usable(), c.compactions, c.lastNanos);
         }
     }
 
@@ -305,16 +362,26 @@ public final class RunState {
             case Semconv.EV_RUN_END -> runEnd(r);
             case Semconv.EV_RUN_SUSPENDED -> runSuspended(r);
             case Semconv.EV_SPAN_START -> spanStart(r);
-            case Semconv.EV_INSPECT_SAMPLE -> detectors.onSample(r.text(Semconv.LOOM_INSPECT_AGENT), r.text(Semconv.LOOM_INSPECT_VAR), r.text(Semconv.LOOM_INSPECT_LOOP), r.text(Semconv.LOOM_INSPECT_HASH), r.timeNanos());
+            case Semconv.EV_INSPECT_SAMPLE -> detectors.onSample(
+                    r.text(Semconv.LOOM_INSPECT_AGENT),
+                    r.text(Semconv.LOOM_INSPECT_VAR),
+                    r.text(Semconv.LOOM_INSPECT_LOOP),
+                    r.text(Semconv.LOOM_INSPECT_HASH),
+                    r.timeNanos());
             case Semconv.EV_CONTROL -> control(r);
             case Semconv.EV_CONTEXT -> contextSample(r);
             case Semconv.EV_COMPACTION -> compactionSeen(r);
             case Semconv.EV_FAILURE -> failureSeen(r);
             case Semconv.EV_GUARD -> security.onGuard(r.text("loom.data.event"));
-            case Semconv.EV_BUDGET -> detectors.onBudget(String.valueOf(r.text("loom.data.budget")), r.text("loom.data.kind"), r.body(), r.timeNanos());
-            default -> { }
+            case Semconv.EV_BUDGET -> detectors.onBudget(
+                    String.valueOf(r.text("loom.data.budget")),
+                    r.text("loom.data.kind"),
+                    r.body(),
+                    r.timeNanos());
+            default -> {}
         }
-        if (!Semconv.EV_CONTEXT.equals(r.eventName())) remember(r); // one per model call: the feed would be all context lines
+        if (!Semconv.EV_CONTEXT.equals(r.eventName()))
+            remember(r); // one per model call: the feed would be all context lines
     }
 
     /** Applies a finished span. */
@@ -325,29 +392,47 @@ public final class RunState {
         Open was = open.remove(s.spanId());
         String kind = s.text(Semconv.LOOM_SPAN_KIND);
         if (kind == null) return;
-        if (Semconv.KIND_MODEL.equals(kind)) { // a model call belongs to its agent's step: it adds to the statistics, not to the steps or the feed
+        if (Semconv.KIND_MODEL.equals(
+                kind)) { // a model call belongs to its agent's step: it adds to the statistics, not
+            // to the steps or the feed
             modelEnded(s);
             return;
         }
         rememberEnd(s, kind);
-        stepState(s.text(Semconv.LOOM_STEP), kind, s.statusCode() == SpanRec.STATUS_ERROR ? "failed" : "done");
+        stepState(
+                s.text(Semconv.LOOM_STEP),
+                kind,
+                s.statusCode() == SpanRec.STATUS_ERROR ? "failed" : "done");
         switch (kind) {
             case Semconv.KIND_AGENT -> {
                 agentEnded(s);
-                detectors.onAgentEnd(s.text(Semconv.GEN_AI_AGENT_NAME), s.text(Semconv.LOOM_STEP), s.text(Semconv.LOOM_OUTPUT_HASH),
-                        number(s.attr(Semconv.LOOM_GROUNDING_FIGURES)), number(s.attr(Semconv.LOOM_GROUNDING_UNGROUNDED)), s.text(Semconv.LOOM_GROUNDING_EXAMPLES), s.endNanos());
+                detectors.onAgentEnd(
+                        s.text(Semconv.GEN_AI_AGENT_NAME),
+                        s.text(Semconv.LOOM_STEP),
+                        s.text(Semconv.LOOM_OUTPUT_HASH),
+                        number(s.attr(Semconv.LOOM_GROUNDING_FIGURES)),
+                        number(s.attr(Semconv.LOOM_GROUNDING_UNGROUNDED)),
+                        s.text(Semconv.LOOM_GROUNDING_EXAMPLES),
+                        s.endNanos());
             }
             case Semconv.KIND_TOOL -> {
                 toolEnded(s, was);
-                // a call the runtime blocked as a repeat says nothing about whether the tool works: neither a failure nor a success
-                if (!Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_NO_RESULT))) detectors.onToolEnd(s.text(Semconv.GEN_AI_AGENT_NAME), s.text(Semconv.GEN_AI_TOOL_NAME), s.statusCode() == SpanRec.STATUS_ERROR, s.text(Semconv.LOOM_STEP), s.endNanos());
+                // a call the runtime blocked as a repeat says nothing about whether the tool works:
+                // neither a failure nor a success
+                if (!Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_NO_RESULT)))
+                    detectors.onToolEnd(
+                            s.text(Semconv.GEN_AI_AGENT_NAME),
+                            s.text(Semconv.GEN_AI_TOOL_NAME),
+                            s.statusCode() == SpanRec.STATUS_ERROR,
+                            s.text(Semconv.LOOM_STEP),
+                            s.endNanos());
             }
             case Semconv.KIND_TASK -> taskEnded(s);
             case Semconv.KIND_SLEEP -> {
                 sleepWakeAt = null;
                 if (status == Status.SLEEPING) status = Status.RUNNING;
             }
-            default -> { }
+            default -> {}
         }
     }
 
@@ -371,11 +456,12 @@ public final class RunState {
         switch (outcome) {
             case Semconv.STATUS_COMPLETED -> status = Status.FINISHED;
             case Semconv.STATUS_FAILED -> status = Status.FAILED;
-            case Semconv.STATUS_STOPPED, Semconv.STATUS_BUDGET, Semconv.STATUS_HALTED -> status = Status.STOPPED;
+            case Semconv.STATUS_STOPPED, Semconv.STATUS_BUDGET, Semconv.STATUS_HALTED -> status =
+                    Status.STOPPED;
             case Semconv.STATUS_SUSPENDED -> {
                 if (status != Status.SLEEPING && status != Status.WAITING) status = Status.PAUSED;
             }
-            default -> { }
+            default -> {}
         }
         if (status == Status.FINISHED || status == Status.FAILED || status == Status.STOPPED) {
             endedNanos = r.timeNanos();
@@ -384,15 +470,22 @@ public final class RunState {
             detectors.onRunEnd(r.timeNanos());
             security.onRunEnd(r.timeNanos());
             if (status == Status.FAILED && r.text(Semconv.LOOM_RUN_FAILED_NAME) != null) {
-                detectors.onBroken(r.text(Semconv.LOOM_RUN_FAILED_KIND), r.text(Semconv.LOOM_RUN_FAILED_NAME), r.text(Semconv.LOOM_RUN_FAILED_STEP),
-                        r.text(Semconv.LOOM_RUN_FAILED_CATEGORY), r.timeNanos());
+                detectors.onBroken(
+                        r.text(Semconv.LOOM_RUN_FAILED_KIND),
+                        r.text(Semconv.LOOM_RUN_FAILED_NAME),
+                        r.text(Semconv.LOOM_RUN_FAILED_STEP),
+                        r.text(Semconv.LOOM_RUN_FAILED_CATEGORY),
+                        r.timeNanos());
             }
         }
         open.clear();
         controlPending = null;
     }
 
-    /** A pause, resume, suspend or stop an operator asked for: queued until the run reaches a step, then in effect. Not an incident: someone meant it. */
+    /**
+     * A pause, resume, suspend or stop an operator asked for: queued until the run reaches a step,
+     * then in effect. Not an incident: someone meant it.
+     */
     private void control(LogRec r) {
         String action = r.text(Semconv.LOOM_CONTROL_ACTION);
         String state = r.text(Semconv.LOOM_CONTROL_STATE);
@@ -419,8 +512,9 @@ public final class RunState {
                     }
                 }
             }
-            case "applied" -> controlPending = null; // the run ends next (stopped, or suspended by the operator)
-            default -> { }
+            case "applied" -> controlPending =
+                    null; // the run ends next (stopped, or suspended by the operator)
+            default -> {}
         }
     }
 
@@ -444,18 +538,33 @@ public final class RunState {
         String id = r.spanId();
         if (id == null || finished.contains(id)) return;
         String kind = String.valueOf(r.text(Semconv.LOOM_SPAN_KIND));
-        open.put(id, new Open(id, r.body(), kind, r.text(Semconv.GEN_AI_AGENT_NAME), r.text(Semconv.GEN_AI_TOOL_NAME),
-                r.text(Semconv.LOOM_STEP), r.timeNanos()));
+        open.put(
+                id,
+                new Open(
+                        id,
+                        r.body(),
+                        kind,
+                        r.text(Semconv.GEN_AI_AGENT_NAME),
+                        r.text(Semconv.GEN_AI_TOOL_NAME),
+                        r.text(Semconv.LOOM_STEP),
+                        r.timeNanos()));
         stepState(r.text(Semconv.LOOM_STEP), kind, "running");
         if (Semconv.KIND_SLEEP.equals(kind)) {
             sleepWakeAt = r.text(Semconv.LOOM_SLEEP_WAKE_AT);
             status = Status.SLEEPING;
-        } else if (status == Status.SLEEPING || status == Status.PAUSED || status == Status.WAITING) {
+        } else if (status == Status.SLEEPING
+                || status == Status.PAUSED
+                || status == Status.WAITING) {
             if (status == Status.PAUSED) detectors.onResumed(r.timeNanos());
             status = Status.RUNNING; // something started, so the run is going again
         }
         if (Semconv.KIND_TOOL.equals(kind)) {
-            detectors.onToolStart(r.text(Semconv.GEN_AI_AGENT_NAME), r.text(Semconv.LOOM_STEP), r.text(Semconv.GEN_AI_TOOL_NAME), r.text(Semconv.LOOM_ACTION_HASH), r.timeNanos());
+            detectors.onToolStart(
+                    r.text(Semconv.GEN_AI_AGENT_NAME),
+                    r.text(Semconv.LOOM_STEP),
+                    r.text(Semconv.GEN_AI_TOOL_NAME),
+                    r.text(Semconv.LOOM_ACTION_HASH),
+                    r.timeNanos());
         }
     }
 
@@ -467,8 +576,13 @@ public final class RunState {
         long c = number(s.attr(Semconv.LOOM_USAGE_CALLS));
         BigDecimal usd = decimal(s.attr(Semconv.LOOM_COST_USD));
         if (s.attr(Semconv.LOOM_COST_USD) == null && !prices.isEmpty()) {
-            // the process has no price file: cost the step here, from the tokens it reported and the model its agent uses
-            BigDecimal priced = prices.cost(models.get(name), number(s.attr(Semconv.GEN_AI_USAGE_INPUT_TOKENS)), number(s.attr(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS)));
+            // the process has no price file: cost the step here, from the tokens it reported and
+            // the model its agent uses
+            BigDecimal priced =
+                    prices.cost(
+                            models.get(name),
+                            number(s.attr(Semconv.GEN_AI_USAGE_INPUT_TOKENS)),
+                            number(s.attr(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS)));
             if (priced != null) usd = priced;
         }
         a.tokens += t;
@@ -478,7 +592,12 @@ public final class RunState {
         tokens += t;
         calls += c;
         cost = cost.add(usd);
-        spend.add(new Object[] {startedNanos > 0 ? Math.max(0, (s.endNanos() - startedNanos) / 1_000_000L) : 0L, tokens, cost.toPlainString()});
+        spend.add(
+                new Object[] {
+                    startedNanos > 0 ? Math.max(0, (s.endNanos() - startedNanos) / 1_000_000L) : 0L,
+                    tokens,
+                    cost.toPlainString()
+                });
         if (spend.size() > 600) {
             for (int i = spend.size() - 2; i >= 1; i -= 2) spend.remove(i);
         }
@@ -487,9 +606,17 @@ public final class RunState {
     private void toolEnded(SpanRec s, Open was) {
         String name = s.text(Semconv.GEN_AI_TOOL_NAME);
         if (name == null) return;
-        security.onTool(s.text(Semconv.GEN_AI_AGENT_NAME), name, s.text(Semconv.LOOM_TOOL_REACH), !Boolean.FALSE.equals(s.attr(Semconv.LOOM_TOOL_REACH_KNOWN)),
-                s.text(Semconv.LOOM_INJECTION_PATTERNS), number(s.attr(Semconv.LOOM_INJECTION_COUNT)), s.text(Semconv.ERROR_TYPE),
-                Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_NO_RESULT)), s.text(Semconv.LOOM_STEP), s.endNanos());
+        security.onTool(
+                s.text(Semconv.GEN_AI_AGENT_NAME),
+                name,
+                s.text(Semconv.LOOM_TOOL_REACH),
+                !Boolean.FALSE.equals(s.attr(Semconv.LOOM_TOOL_REACH_KNOWN)),
+                s.text(Semconv.LOOM_INJECTION_PATTERNS),
+                number(s.attr(Semconv.LOOM_INJECTION_COUNT)),
+                s.text(Semconv.ERROR_TYPE),
+                Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_NO_RESULT)),
+                s.text(Semconv.LOOM_STEP),
+                s.endNanos());
         Tool t = tools.computeIfAbsent(name, k -> new Tool());
         if (t.tally == null) t.tally = new ToolTally(name);
         t.calls++;
@@ -505,21 +632,42 @@ public final class RunState {
             t.successes++;
         }
         if (!noResult) {
-            long millis = s.attr(Semconv.LOOM_TOOL_DURATION_MS) != null ? number(s.attr(Semconv.LOOM_TOOL_DURATION_MS)) : nanos / 1_000_000L;
+            long millis =
+                    s.attr(Semconv.LOOM_TOOL_DURATION_MS) != null
+                            ? number(s.attr(Semconv.LOOM_TOOL_DURATION_MS))
+                            : nanos / 1_000_000L;
             boolean failed = s.statusCode() == SpanRec.STATUS_ERROR;
-            detectors.onToolCall(s.text(Semconv.GEN_AI_AGENT_NAME), name, !failed, s.text(Semconv.ERROR_TYPE), millis, t.latency.p50(), t.latency.count(), s.endNanos());
+            detectors.onToolCall(
+                    s.text(Semconv.GEN_AI_AGENT_NAME),
+                    name,
+                    !failed,
+                    s.text(Semconv.ERROR_TYPE),
+                    millis,
+                    t.latency.p50(),
+                    t.latency.count(),
+                    s.endNanos());
             t.latency.add(millis);
-            t.tally.record(s.text(Semconv.GEN_AI_AGENT_NAME), !failed, s.text(Semconv.ERROR_TYPE), OtlpJson.instant(s.endNanos()).toString(), millis,
+            t.tally.record(
+                    s.text(Semconv.GEN_AI_AGENT_NAME),
+                    !failed,
+                    s.text(Semconv.ERROR_TYPE),
+                    OtlpJson.instant(s.endNanos()).toString(),
+                    millis,
                     Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_SOFT_FAILURE)));
         } else {
             t.tally.skipped();
         }
     }
 
-    /** A task finished: it counts like a tool call (a replayed or simulated one ran nowhere, so it counts for nothing). */
+    /**
+     * A task finished: it counts like a tool call (a replayed or simulated one ran nowhere, so it
+     * counts for nothing).
+     */
     private void taskEnded(SpanRec s) {
         String name = s.text(Semconv.LOOM_TASK);
-        if (name == null || Boolean.TRUE.equals(s.attr("loom.replayed")) || "simulated".equals(s.text(Semconv.LOOM_TASK_OUTCOME))) return;
+        if (name == null
+                || Boolean.TRUE.equals(s.attr("loom.replayed"))
+                || "simulated".equals(s.text(Semconv.LOOM_TASK_OUTCOME))) return;
         Tool t = tasks.computeIfAbsent(name, k -> new Tool());
         if (t.tally == null) t.tally = new ToolTally(name, "task");
         boolean failed = s.statusCode() == SpanRec.STATUS_ERROR;
@@ -534,24 +682,42 @@ public final class RunState {
             t.successes++;
         }
         t.latency.add(millis);
-        t.tally.record(null, !failed, s.text(Semconv.ERROR_TYPE), OtlpJson.instant(s.endNanos()).toString(), millis, false);
+        t.tally.record(
+                null,
+                !failed,
+                s.text(Semconv.ERROR_TYPE),
+                OtlpJson.instant(s.endNanos()).toString(),
+                millis,
+                false);
     }
 
-    /** A task or delegate failed. If its {@code on_failure} took over, that is an incident; if not, the run's end says so. */
+    /**
+     * A task or delegate failed. If its {@code on_failure} took over, that is an incident; if not,
+     * the run's end says so.
+     */
     private void failureSeen(LogRec r) {
         if (!Boolean.TRUE.equals(r.attr(Semconv.LOOM_FAILURE_HANDLED))) return;
-        detectors.onDiverted(r.text(Semconv.LOOM_FAILURE_KIND), r.text(Semconv.LOOM_FAILURE_NAME), r.text(Semconv.LOOM_STEP), r.text(Semconv.LOOM_FAILURE_CATEGORY),
-                number(r.attr(Semconv.LOOM_FAILURE_ATTEMPTS)), r.timeNanos());
+        detectors.onDiverted(
+                r.text(Semconv.LOOM_FAILURE_KIND),
+                r.text(Semconv.LOOM_FAILURE_NAME),
+                r.text(Semconv.LOOM_STEP),
+                r.text(Semconv.LOOM_FAILURE_CATEGORY),
+                number(r.attr(Semconv.LOOM_FAILURE_ATTEMPTS)),
+                r.timeNanos());
     }
 
     private void modelEnded(SpanRec s) {
         String model = s.text(Semconv.GEN_AI_RESPONSE_MODEL);
         if (model == null) model = s.text(Semconv.GEN_AI_REQUEST_MODEL);
-        ModelStat m = modelStats.computeIfAbsent(model == null ? "unknown" : model, k -> new ModelStat());
+        ModelStat m =
+                modelStats.computeIfAbsent(model == null ? "unknown" : model, k -> new ModelStat());
         m.calls++;
         m.prompt += number(s.attr(Semconv.GEN_AI_USAGE_INPUT_TOKENS));
         m.completion += number(s.attr(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS));
-        long attempts = s.attr(Semconv.LOOM_MODEL_ATTEMPTS) == null ? 1 : number(s.attr(Semconv.LOOM_MODEL_ATTEMPTS));
+        long attempts =
+                s.attr(Semconv.LOOM_MODEL_ATTEMPTS) == null
+                        ? 1
+                        : number(s.attr(Semconv.LOOM_MODEL_ATTEMPTS));
         m.retries += Math.max(0, attempts - 1);
         m.waited += number(s.attr(Semconv.LOOM_MODEL_WAITED_MS));
         String failovers = s.text(Semconv.LOOM_MODEL_FAILOVERS);
@@ -561,11 +727,26 @@ public final class RunState {
             String category = s.text(Semconv.ERROR_TYPE);
             m.failures.merge(category == null ? "other" : category, 1L, Long::sum);
         }
-        long millis = s.attr(Semconv.LOOM_MODEL_DURATION_MS) != null ? number(s.attr(Semconv.LOOM_MODEL_DURATION_MS)) : Math.max(0, s.endNanos() - s.startNanos()) / 1_000_000L;
+        long millis =
+                s.attr(Semconv.LOOM_MODEL_DURATION_MS) != null
+                        ? number(s.attr(Semconv.LOOM_MODEL_DURATION_MS))
+                        : Math.max(0, s.endNanos() - s.startNanos()) / 1_000_000L;
         String agent = s.text(Semconv.GEN_AI_AGENT_NAME);
-        detectors.onModelCall(agent, s.text(Semconv.LOOM_STEP), Boolean.TRUE.equals(s.attr(Semconv.LOOM_MODEL_TRUNCATED)), number(s.attr(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS)),
-                s.text(Semconv.GEN_AI_RESPONSE_FINISH_REASONS), s.endNanos());
-        if (s.statusCode() != SpanRec.STATUS_ERROR) detectors.onModelDuration(model == null ? "unknown" : model, agent, millis, m.latency.p50(), m.latency.count(), s.endNanos());
+        detectors.onModelCall(
+                agent,
+                s.text(Semconv.LOOM_STEP),
+                Boolean.TRUE.equals(s.attr(Semconv.LOOM_MODEL_TRUNCATED)),
+                number(s.attr(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS)),
+                s.text(Semconv.GEN_AI_RESPONSE_FINISH_REASONS),
+                s.endNanos());
+        if (s.statusCode() != SpanRec.STATUS_ERROR)
+            detectors.onModelDuration(
+                    model == null ? "unknown" : model,
+                    agent,
+                    millis,
+                    m.latency.p50(),
+                    m.latency.count(),
+                    s.endNanos());
         m.latency.add(millis);
     }
 
@@ -574,9 +755,16 @@ public final class RunState {
         if (agent == null) return;
         ContextStat c = contexts.computeIfAbsent(agent, k -> new ContextStat());
         c.used = number(r.attr(Semconv.LOOM_CONTEXT_USED));
-        c.window = r.attr(Semconv.LOOM_CONTEXT_WINDOW) == null ? null : number(r.attr(Semconv.LOOM_CONTEXT_WINDOW));
-        c.usable = r.attr(Semconv.LOOM_CONTEXT_USABLE) == null ? null : number(r.attr(Semconv.LOOM_CONTEXT_USABLE));
-        c.fraction = r.attr(Semconv.LOOM_CONTEXT_FRACTION) instanceof Number f ? f.doubleValue() : null;
+        c.window =
+                r.attr(Semconv.LOOM_CONTEXT_WINDOW) == null
+                        ? null
+                        : number(r.attr(Semconv.LOOM_CONTEXT_WINDOW));
+        c.usable =
+                r.attr(Semconv.LOOM_CONTEXT_USABLE) == null
+                        ? null
+                        : number(r.attr(Semconv.LOOM_CONTEXT_USABLE));
+        c.fraction =
+                r.attr(Semconv.LOOM_CONTEXT_FRACTION) instanceof Number f ? f.doubleValue() : null;
         c.source = r.text(Semconv.LOOM_CONTEXT_SOURCE);
         if (c.fraction != null) {
             c.series.addLast(c.fraction);
@@ -612,12 +800,21 @@ public final class RunState {
         event.put("after", last.get("after"));
         c.events.addLast(event);
         while (c.events.size() > EVENTS) c.events.removeFirst();
-        detectors.onCompaction(agent, outcome, number(r.attr(Semconv.LOOM_COMPACTION_BEFORE)), number(r.attr(Semconv.LOOM_COMPACTION_AFTER)), r.timeNanos());
+        detectors.onCompaction(
+                agent,
+                outcome,
+                number(r.attr(Semconv.LOOM_COMPACTION_BEFORE)),
+                number(r.attr(Semconv.LOOM_COMPACTION_AFTER)),
+                r.timeNanos());
     }
 
-    /** A tool call shares its step id with the agent that made it, so only agent, task and sleep spans speak for a step. */
+    /**
+     * A tool call shares its step id with the agent that made it, so only agent, task and sleep
+     * spans speak for a step.
+     */
     private void stepState(String step, String kind, String state) {
-        if (step == null || Semconv.KIND_TOOL.equals(kind) || Semconv.KIND_WORKFLOW.equals(kind)) return;
+        if (step == null || Semconv.KIND_TOOL.equals(kind) || Semconv.KIND_WORKFLOW.equals(kind))
+            return;
         Object[] st = steps.computeIfAbsent(StepPaths.normalize(step), k -> new Object[] {"", 0});
         if ("running".equals(state)) st[1] = (Integer) st[1] + 1;
         st[0] = state;
@@ -637,14 +834,16 @@ public final class RunState {
         String kind = r.text(Semconv.LOOM_SPAN_KIND);
         if (Semconv.EV_SPAN_START.equals(r.eventName()) && kind != null) {
             line.put("kind", kind);
-            // a started step reads as what it is doing: the tool and its input, or the task given to the agent
+            // a started step reads as what it is doing: the tool and its input, or the task given
+            // to the agent
             String input = r.text(Semconv.LOOM_TEXT);
             String tool = r.text(Semconv.GEN_AI_TOOL_NAME);
             if (tool != null) text = tool + (input != null ? " " + input : "");
             else if (input != null) text = input;
             if (Semconv.KIND_SLEEP.equals(kind)) {
                 text = "sleeping";
-                if (r.text(Semconv.LOOM_SLEEP_WAKE_AT) != null) line.put("until", r.text(Semconv.LOOM_SLEEP_WAKE_AT));
+                if (r.text(Semconv.LOOM_SLEEP_WAKE_AT) != null)
+                    line.put("until", r.text(Semconv.LOOM_SLEEP_WAKE_AT));
             }
         }
         line.put("text", text);
@@ -652,7 +851,10 @@ public final class RunState {
         while (recent.size() > RECENT) recent.removeFirst();
     }
 
-    /** A finished step goes in the latest-events feed too, with its result text when the detail level allows one. */
+    /**
+     * A finished step goes in the latest-events feed too, with its result text when the detail
+     * level allows one.
+     */
     private void rememberEnd(SpanRec s, String kind) {
         if (Semconv.KIND_WORKFLOW.equals(kind)) return;
         Map<String, Object> line = new LinkedHashMap<>();
@@ -720,9 +922,11 @@ public final class RunState {
     }
 
     /**
-     * The view as it was after record number {@code seq}: the kept records up to it are fed to a scratch run set up like this one, by the very code that
-     * builds the live view, so the two cannot differ. Empty before the kept history or after its end. What the server knows now (rules, prices, windows) is
-     * applied to the past as well; a run whose earliest records were dropped is marked {@code partial}, its totals missing what was dropped.
+     * The view as it was after record number {@code seq}: the kept records up to it are fed to a
+     * scratch run set up like this one, by the very code that builds the live view, so the two
+     * cannot differ. Empty before the kept history or after its end. What the server knows now
+     * (rules, prices, windows) is applied to the past as well; a run whose earliest records were
+     * dropped is marked {@code partial}, its totals missing what was dropped.
      */
     public synchronized java.util.Optional<Map<String, Object>> viewAt(long seq) {
         if (fed.isEmpty() || seq < firstSeq() || seq > lastSeq()) return java.util.Optional.empty();
@@ -746,7 +950,10 @@ public final class RunState {
         return java.util.Optional.of(v);
     }
 
-    /** The first record at or after {@code nanos}: the point at which something that happened then is already in the view. */
+    /**
+     * The first record at or after {@code nanos}: the point at which something that happened then
+     * is already in the view.
+     */
     private long seqAtOrAfter(long nanos) {
         long at = firstSeq();
         for (Fed f : fed) {
@@ -756,7 +963,10 @@ public final class RunState {
         return lastSeq();
     }
 
-    /** The run's marks, oldest first and at most 300: its start and end, each incident opened and closed, failures, compactions and changes of state. */
+    /**
+     * The run's marks, oldest first and at most 300: its start and end, each incident opened and
+     * closed, failures, compactions and changes of state.
+     */
     public synchronized List<Map<String, Object>> timeline() {
         List<Map<String, Object>> marks = new ArrayList<>();
         long at = firstSeq();
@@ -764,22 +974,36 @@ public final class RunState {
             long seq = at++;
             LogRec r = f.log();
             if (r == null) continue;
-            String kind = switch (r.eventName() == null ? "" : r.eventName()) {
-                case Semconv.EV_RUN_START -> "start";
-                case Semconv.EV_RUN_END -> "end";
-                case Semconv.EV_FAILURE -> "failure";
-                case Semconv.EV_COMPACTION -> "compaction";
-                case Semconv.EV_RUN_SUSPENDED, Semconv.EV_CONTROL -> "state";
-                default -> null;
-            };
+            String kind =
+                    switch (r.eventName() == null ? "" : r.eventName()) {
+                        case Semconv.EV_RUN_START -> "start";
+                        case Semconv.EV_RUN_END -> "end";
+                        case Semconv.EV_FAILURE -> "failure";
+                        case Semconv.EV_COMPACTION -> "compaction";
+                        case Semconv.EV_RUN_SUSPENDED, Semconv.EV_CONTROL -> "state";
+                        default -> null;
+                    };
             if (kind != null) marks.add(mark(seq, f.nanos(), kind, r.body(), null));
         }
         for (Map<String, Object> i : incidents.view()) {
             String title = String.valueOf(i.get("title"));
-            marks.add(mark(seqAtOrAfter(OtlpJson.nanos(Instant.parse(String.valueOf(i.get("since"))))), OtlpJson.nanos(Instant.parse(String.valueOf(i.get("since")))), "incident-open", title, String.valueOf(i.get("severity"))));
+            marks.add(
+                    mark(
+                            seqAtOrAfter(
+                                    OtlpJson.nanos(Instant.parse(String.valueOf(i.get("since"))))),
+                            OtlpJson.nanos(Instant.parse(String.valueOf(i.get("since")))),
+                            "incident-open",
+                            title,
+                            String.valueOf(i.get("severity"))));
             if (i.get("closedAt") != null) {
                 long closed = OtlpJson.nanos(Instant.parse(String.valueOf(i.get("closedAt"))));
-                marks.add(mark(seqAtOrAfter(closed), closed, "incident-close", title, String.valueOf(i.get("severity"))));
+                marks.add(
+                        mark(
+                                seqAtOrAfter(closed),
+                                closed,
+                                "incident-close",
+                                title,
+                                String.valueOf(i.get("severity"))));
             }
         }
         marks.sort((a, b) -> Long.compare((Long) a.get("seq"), (Long) b.get("seq")));
@@ -788,21 +1012,29 @@ public final class RunState {
             List<Map<String, Object>> rest = new ArrayList<>();
             for (Map<String, Object> m : marks) {
                 String k = String.valueOf(m.get("kind"));
-                if (k.equals("start") || k.equals("end") || k.startsWith("incident")) keepFirst.add(m);
+                if (k.equals("start") || k.equals("end") || k.startsWith("incident"))
+                    keepFirst.add(m);
                 else rest.add(m);
             }
             int room = Math.max(0, TIMELINE_MAX - keepFirst.size());
-            if (rest.size() > room) rest = new ArrayList<>(rest.subList(rest.size() - room, rest.size())); // the newest ones
+            if (rest.size() > room)
+                rest =
+                        new ArrayList<>(
+                                rest.subList(rest.size() - room, rest.size())); // the newest ones
             keepFirst.addAll(rest);
             keepFirst.sort((a, b) -> Long.compare((Long) a.get("seq"), (Long) b.get("seq")));
-            marks = keepFirst.size() > TIMELINE_MAX ? new ArrayList<>(keepFirst.subList(0, TIMELINE_MAX)) : keepFirst;
+            marks =
+                    keepFirst.size() > TIMELINE_MAX
+                            ? new ArrayList<>(keepFirst.subList(0, TIMELINE_MAX))
+                            : keepFirst;
         }
         return marks;
     }
 
     static final int TIMELINE_MAX = 300;
 
-    private static Map<String, Object> mark(long seq, long nanos, String kind, String label, String severity) {
+    private static Map<String, Object> mark(
+            long seq, long nanos, String kind, String label, String severity) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("seq", seq);
         m.put("at", OtlpJson.instant(nanos).toString());
@@ -814,12 +1046,18 @@ public final class RunState {
 
     // ------------------------------------------------------------------------------ reading
 
-    /** A copy of everything the console shows for this run, as plain maps and lists (ready for JSON). */
+    /**
+     * A copy of everything the console shows for this run, as plain maps and lists (ready for
+     * JSON).
+     */
     public Map<String, Object> view() {
         return view(Instant.now());
     }
 
-    /** As {@link #view()}, with {@code now} as the moment of looking: a run that has not ended has been going until now, even while it sleeps. */
+    /**
+     * As {@link #view()}, with {@code now} as the moment of looking: a run that has not ended has
+     * been going until now, even while it sleeps.
+     */
     public synchronized Map<String, Object> view(Instant now) {
         detectors.refreshPaused(OtlpJson.nanos(now));
         Map<String, Object> v = new LinkedHashMap<>();
@@ -834,7 +1072,11 @@ public final class RunState {
         if (endedNanos > 0) v.put("endedAt", OtlpJson.instant(endedNanos).toString());
         if (lastEventNanos > 0) v.put("lastEventAt", OtlpJson.instant(lastEventNanos).toString());
         long until = endedNanos > 0 ? endedNanos : Math.max(lastEventNanos, OtlpJson.nanos(now));
-        v.put("elapsedMillis", startedNanos > 0 && until >= startedNanos ? (until - startedNanos) / 1_000_000L : 0L);
+        v.put(
+                "elapsedMillis",
+                startedNanos > 0 && until >= startedNanos
+                        ? (until - startedNanos) / 1_000_000L
+                        : 0L);
 
         Map<String, Object> totals = new LinkedHashMap<>();
         totals.put("tokens", tokens);
@@ -886,10 +1128,17 @@ public final class RunState {
 
         List<Map<String, Object>> toolList = new ArrayList<>();
         Set<String> toolNames = new java.util.LinkedHashSet<>(tools.keySet());
-        for (Open o : open.values()) if (Semconv.KIND_TOOL.equals(o.kind()) && o.tool() != null) toolNames.add(o.tool());
+        for (Open o : open.values())
+            if (Semconv.KIND_TOOL.equals(o.kind()) && o.tool() != null) toolNames.add(o.tool());
         for (String name : toolNames) {
             Tool t = tools.getOrDefault(name, new Tool());
-            long inFlight = open.values().stream().filter(o -> Semconv.KIND_TOOL.equals(o.kind()) && name.equals(o.tool())).count();
+            long inFlight =
+                    open.values().stream()
+                            .filter(
+                                    o ->
+                                            Semconv.KIND_TOOL.equals(o.kind())
+                                                    && name.equals(o.tool()))
+                            .count();
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("name", name);
             m.put("calls", t.calls);
@@ -897,7 +1146,10 @@ public final class RunState {
             m.put("inFlight", inFlight);
             m.put("avgMillis", t.calls == 0 ? 0L : t.totalNanos / t.calls / 1_000_000L);
             m.put("successes", t.successes);
-            long ran = t.successes + t.errors; // a call the runtime never ran says nothing about whether the tool works
+            long ran =
+                    t.successes
+                            + t.errors; // a call the runtime never ran says nothing about whether
+            // the tool works
             if (ran > 0) m.put("successRate", t.successes / (double) ran);
             m.put("softFailures", t.softFailures);
             m.put("failures", new LinkedHashMap<>(t.failures));
@@ -911,41 +1163,45 @@ public final class RunState {
             toolList.add(m);
         }
         v.put("tools", toolList);
-        v.put("security", security.view(securityProfile == null ? List.of() : securityProfile.get()));
+        v.put(
+                "security",
+                security.view(securityProfile == null ? List.of() : securityProfile.get()));
         List<Map<String, Object>> taskList = new ArrayList<>();
-        tasks.forEach((name, t) -> {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("name", name);
-            m.put("calls", t.calls);
-            m.put("errors", t.errors);
-            m.put("successes", t.successes);
-            if (t.calls > 0) m.put("successRate", t.successes / (double) t.calls);
-            m.put("avgMillis", t.calls == 0 ? 0L : t.totalNanos / t.calls / 1_000_000L);
-            m.put("failures", new LinkedHashMap<>(t.failures));
-            m.put("p50Ms", t.latency.p50());
-            m.put("p95Ms", t.latency.p95());
-            ToolSummary sum = t.tally.snapshot(detectors.thresholdsFor(null));
-            m.put("health", sum.toHealthMap());
-            recentAndHistogram(m, sum);
-            taskList.add(m);
-        });
+        tasks.forEach(
+                (name, t) -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("name", name);
+                    m.put("calls", t.calls);
+                    m.put("errors", t.errors);
+                    m.put("successes", t.successes);
+                    if (t.calls > 0) m.put("successRate", t.successes / (double) t.calls);
+                    m.put("avgMillis", t.calls == 0 ? 0L : t.totalNanos / t.calls / 1_000_000L);
+                    m.put("failures", new LinkedHashMap<>(t.failures));
+                    m.put("p50Ms", t.latency.p50());
+                    m.put("p95Ms", t.latency.p95());
+                    ToolSummary sum = t.tally.snapshot(detectors.thresholdsFor(null));
+                    m.put("health", sum.toHealthMap());
+                    recentAndHistogram(m, sum);
+                    taskList.add(m);
+                });
         v.put("tasks", taskList);
         List<Map<String, Object>> modelList = new ArrayList<>();
-        modelStats.forEach((name, ms) -> {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("name", name);
-            m.put("calls", ms.calls);
-            m.put("failures", new LinkedHashMap<>(ms.failures));
-            m.put("promptTokens", ms.prompt);
-            m.put("completionTokens", ms.completion);
-            m.put("retries", ms.retries);
-            m.put("failovers", ms.failovers);
-            m.put("truncated", ms.truncated);
-            m.put("waitedMs", ms.waited);
-            m.put("p50Ms", ms.latency.p50());
-            m.put("p95Ms", ms.latency.p95());
-            modelList.add(m);
-        });
+        modelStats.forEach(
+                (name, ms) -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("name", name);
+                    m.put("calls", ms.calls);
+                    m.put("failures", new LinkedHashMap<>(ms.failures));
+                    m.put("promptTokens", ms.prompt);
+                    m.put("completionTokens", ms.completion);
+                    m.put("retries", ms.retries);
+                    m.put("failovers", ms.failovers);
+                    m.put("truncated", ms.truncated);
+                    m.put("waitedMs", ms.waited);
+                    m.put("p50Ms", ms.latency.p50());
+                    m.put("p95Ms", ms.latency.p95());
+                    modelList.add(m);
+                });
         v.put("models", modelList);
 
         List<Map<String, Object>> steps = new ArrayList<>();
@@ -981,19 +1237,23 @@ public final class RunState {
         Map<String, Object> ctl = new LinkedHashMap<>();
         ctl.put("held", heldByOperator);
         if (controlPending != null) ctl.put("pending", controlPending);
-        if (controlBy != null && (controlPending != null || heldByOperator)) ctl.put("by", controlBy);
+        if (controlBy != null && (controlPending != null || heldByOperator))
+            ctl.put("by", controlBy);
         v.put("control", ctl);
         v.put("duplicates", duplicates);
         v.put("recent", new ArrayList<>(recent));
         return v;
     }
 
-    private static final java.util.Set<String> SECURITY_KINDS = java.util.Set.of("TRIFECTA", "INJECTION", "ACCESS");
+    private static final java.util.Set<String> SECURITY_KINDS =
+            java.util.Set.of("TRIFECTA", "INJECTION", "ACCESS");
 
     /** Open security incidents (trifecta, injection, access), as the incident view shows them. */
     private List<Map<String, Object>> openSecurityIncidents() {
         List<Map<String, Object>> out = new ArrayList<>();
-        for (Map<String, Object> i : incidents.view()) if ("open".equals(i.get("state")) && SECURITY_KINDS.contains(String.valueOf(i.get("kind")))) out.add(i);
+        for (Map<String, Object> i : incidents.view())
+            if ("open".equals(i.get("state"))
+                    && SECURITY_KINDS.contains(String.valueOf(i.get("kind")))) out.add(i);
         return out;
     }
 
@@ -1002,7 +1262,10 @@ public final class RunState {
         return openSecurityIncidents().size();
     }
 
-    /** The open security incidents of this run, each with the run it belongs to. For a server's security page. */
+    /**
+     * The open security incidents of this run, each with the run it belongs to. For a server's
+     * security page.
+     */
     public synchronized List<Map<String, Object>> securityIncidents() {
         List<Map<String, Object>> out = new ArrayList<>();
         for (Map<String, Object> i : openSecurityIncidents()) {
@@ -1016,14 +1279,22 @@ public final class RunState {
         return out;
     }
 
-    /** The agents of this run whose security verdict matters (exercised, accepted or armed), each with the run it belongs to. */
+    /**
+     * The agents of this run whose security verdict matters (exercised, accepted or armed), each
+     * with the run it belongs to.
+     */
     public synchronized List<Map<String, Object>> securityAgents() {
         List<Map<String, Object>> out = new ArrayList<>();
         @SuppressWarnings("unchecked")
-        List<Map<String, Object>> all = (List<Map<String, Object>>) security.view(securityProfile == null ? List.of() : securityProfile.get()).get("agents");
+        List<Map<String, Object>> all =
+                (List<Map<String, Object>>)
+                        security.view(securityProfile == null ? List.of() : securityProfile.get())
+                                .get("agents");
         for (Map<String, Object> a : all) {
             String verdict = String.valueOf(a.get("verdict"));
-            if (!verdict.equals("exercised") && !verdict.equals("accepted") && !verdict.equals("armed")) continue;
+            if (!verdict.equals("exercised")
+                    && !verdict.equals("accepted")
+                    && !verdict.equals("armed")) continue;
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("client", client);
             m.put("traceId", traceId);
@@ -1043,7 +1314,10 @@ public final class RunState {
         return security.counts();
     }
 
-    /** Every tool this run has seen, with its health (see {@link ToolSummary}); for a server to merge across runs. */
+    /**
+     * Every tool this run has seen, with its health (see {@link ToolSummary}); for a server to
+     * merge across runs.
+     */
     public synchronized List<ToolSummary> toolSummaries() {
         List<ToolSummary> out = new ArrayList<>();
         Thresholds t = detectors.thresholdsFor(null);
@@ -1052,7 +1326,10 @@ public final class RunState {
         return out;
     }
 
-    /** The last ten outcomes of a tool or task (an empty string is a success, anything else the failure's category) and its latency histogram with the bounds of its buckets. */
+    /**
+     * The last ten outcomes of a tool or task (an empty string is a success, anything else the
+     * failure's category) and its latency histogram with the bounds of its buckets.
+     */
     private static void recentAndHistogram(Map<String, Object> row, ToolSummary sum) {
         row.put("recent", new ArrayList<>(sum.recent()));
         row.put("histogram", new ArrayList<>(sum.histogram()));
@@ -1070,7 +1347,8 @@ public final class RunState {
         if (w.fraction() != null) m.put("fraction", w.fraction());
         if (w.source() != null) m.put("windowSource", w.source());
         Thresholds in = detectors.thresholdsFor(agent);
-        m.put("warnAt", in.contextWarn()); // where this agent's "nearly full" incident starts, and where it becomes high
+        m.put("warnAt", in.contextWarn()); // where this agent's "nearly full" incident starts, and
+        // where it becomes high
         m.put("highAt", in.contextHigh());
         if (c.source != null) m.put("source", c.source);
         m.put("compactions", c.compactions);
@@ -1084,7 +1362,8 @@ public final class RunState {
             pm.put("used", p[1]);
             Double reported = (Double) p[2];
             if (reported != null) pm.put("fraction", reported);
-            else if (w.source() != null && w.usable() != null) pm.put("fraction", ((Number) p[1]).longValue() / (double) w.usable());
+            else if (w.source() != null && w.usable() != null)
+                pm.put("fraction", ((Number) p[1]).longValue() / (double) w.usable());
             pts.add(pm);
         }
         m.put("points", pts);
@@ -1109,10 +1388,16 @@ public final class RunState {
         totals.put("calls", calls);
         totals.put("cost", cost.toPlainString());
         v.put("totals", totals);
-        v.put("runningAgents", open.values().stream().filter(o -> Semconv.KIND_AGENT.equals(o.kind())).count());
+        v.put(
+                "runningAgents",
+                open.values().stream().filter(o -> Semconv.KIND_AGENT.equals(o.kind())).count());
         v.put("incidents", incidents.openCount());
         v.put("security", openSecurityIncidents().size());
-        contexts.entrySet().stream().map(e -> windowOf(e.getKey(), e.getValue()).fraction()).filter(java.util.Objects::nonNull).max(Double::compare).ifPresent(f -> v.put("contextFraction", f));
+        contexts.entrySet().stream()
+                .map(e -> windowOf(e.getKey(), e.getValue()).fraction())
+                .filter(java.util.Objects::nonNull)
+                .max(Double::compare)
+                .ifPresent(f -> v.put("contextFraction", f));
         if (incidents.worst() != null) v.put("worstIncident", incidents.worst());
         return v;
     }

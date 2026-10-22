@@ -16,9 +16,13 @@ class TaskTest {
             assertTrue(Task.isValidName(ok), ok);
             assertEquals(ok, Task.pure(ok, c -> TaskResult.ok()).getName());
         }
-        for (String bad : new String[] {"", " ", "1Task", "_x", "-x", "has space", "dot.ted", "a{b}", "é"}) {
+        for (String bad :
+                new String[] {"", " ", "1Task", "_x", "-x", "has space", "dot.ted", "a{b}", "é"}) {
             assertFalse(Task.isValidName(bad), bad);
-            assertThrows(IllegalArgumentException.class, () -> Task.pure(bad, c -> TaskResult.ok()), bad);
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> Task.pure(bad, c -> TaskResult.ok()),
+                    bad);
         }
         assertFalse(Task.isValidName(null));
         assertThrows(IllegalArgumentException.class, () -> Task.pure(null, c -> TaskResult.ok()));
@@ -26,10 +30,18 @@ class TaskTest {
 
     @Test
     void defaults() throws Exception {
-        Task t = new Task() {
-            @Override public String getName() { return "T"; }
-            @Override public TaskResult run(TaskContext c) { return TaskResult.ok(); }
-        };
+        Task t =
+                new Task() {
+                    @Override
+                    public String getName() {
+                        return "T";
+                    }
+
+                    @Override
+                    public TaskResult run(TaskContext c) {
+                        return TaskResult.ok();
+                    }
+                };
         assertEquals("", t.getDescription());
         assertEquals(EffectPolicy.DEFAULT, t.policy());
         assertFalse(t.requiresApproval(Map.of("amount", 1)));
@@ -38,10 +50,18 @@ class TaskTest {
 
     @Test
     void defaultEffectIsChanges() {
-        Task t = new Task() {
-            @Override public String getName() { return "T"; }
-            @Override public TaskResult run(TaskContext c) { return TaskResult.ok(); }
-        };
+        Task t =
+                new Task() {
+                    @Override
+                    public String getName() {
+                        return "T";
+                    }
+
+                    @Override
+                    public TaskResult run(TaskContext c) {
+                        return TaskResult.ok();
+                    }
+                };
         assertEquals(TaskEffect.CHANGES, t.effect());
     }
 
@@ -59,14 +79,20 @@ class TaskTest {
         assertEquals(idem, changes.policy());
         assertEquals(TaskEffect.READS, custom.effect());
         assertEquals(6, pure.run(TaskContext.of(Map.of("x", 5), Map.of())).value());
-        assertThrows(NullPointerException.class, () -> Task.changes("C", null, c -> TaskResult.ok()));
+        assertThrows(
+                NullPointerException.class, () -> Task.changes("C", null, c -> TaskResult.ok()));
         assertThrows(NullPointerException.class, () -> Task.pure("P", null));
         assertTrue(pure.toString().contains("NONE"));
     }
 
     @Test
     void aTaskMayThrowChecked() {
-        Task t = Task.pure("T", c -> { throw new java.io.IOException("disk"); });
+        Task t =
+                Task.pure(
+                        "T",
+                        c -> {
+                            throw new java.io.IOException("disk");
+                        });
         assertThrows(java.io.IOException.class, () -> t.run(EMPTY));
     }
 }

@@ -1,13 +1,12 @@
 package io.github.llm4j.agent.rag.store;
 
-import io.github.llm4j.secret.SecretRef;
 import com.google.protobuf.Struct;
 import com.google.protobuf.Value;
-import io.pinecone.clients.Index;
-import io.pinecone.clients.Pinecone;
-import io.github.llm4j.agent.rag.store.VectorStore;
 import io.github.llm4j.agent.rag.store.VectorStore.SearchResult;
 import io.github.llm4j.agent.rag.store.VectorStore.VectorEntry;
+import io.github.llm4j.secret.SecretRef;
+import io.pinecone.clients.Index;
+import io.pinecone.clients.Pinecone;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -34,10 +33,12 @@ public class PineconeVectorStore implements VectorStore {
     }
 
     /**
-     * A store whose key lives in a {@link io.github.llm4j.secret.SecretStore}. The Pinecone client takes its key once, when it is built, so the key
-     * is fetched here (for {@code api.pinecone.io}) and not again: rotate it by creating a new store.
+     * A store whose key lives in a {@link io.github.llm4j.secret.SecretStore}. The Pinecone client
+     * takes its key once, when it is built, so the key is fetched here (for {@code
+     * api.pinecone.io}) and not again: rotate it by creating a new store.
      */
-    public static PineconeVectorStore withSecret(SecretRef apiKey, String indexName, String namespace) {
+    public static PineconeVectorStore withSecret(
+            SecretRef apiKey, String indexName, String namespace) {
         return new PineconeVectorStore(apiKey.resolveFor("api.pinecone.io"), indexName, namespace);
     }
 

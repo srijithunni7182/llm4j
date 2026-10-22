@@ -12,25 +12,32 @@ import org.junit.jupiter.api.Test;
 
 class ProgressSamplerTest {
 
-    private static final Map<String, InspectRules> RULES = Map.of("Lead", new InspectRules(null, null, null, null, null, null, 3, "review.score"));
+    private static final Map<String, InspectRules> RULES =
+            Map.of("Lead", new InspectRules(null, null, null, null, null, null, 3, "review.score"));
 
     private static TraceEvent ev(String step) {
         return new TraceEvent(TraceEvent.NOTE, "Lead", step, "x", Map.of(), Instant.EPOCH);
     }
 
     private final Map<String, Object> vars = new LinkedHashMap<>();
-    private final ProgressSampler sampler = new ProgressSampler(RULES, () -> new LinkedHashMap<>(vars));
+    private final ProgressSampler sampler =
+            new ProgressSampler(RULES, () -> new LinkedHashMap<>(vars));
 
     @Test
     void theVariableIsReadOnceAtEachRoundBoundary_withTheValueTheRoundEndedWith() {
         vars.put("review", Map.of("score", 5));
-        assertThat(sampler.samples(ev("W/s1/r1.0"))).isEmpty();        // the first round: nothing finished yet
-        assertThat(sampler.samples(ev("W/s1/r1.1"))).isEmpty();        // still round one
+        assertThat(sampler.samples(ev("W/s1/r1.0")))
+                .isEmpty(); // the first round: nothing finished yet
+        assertThat(sampler.samples(ev("W/s1/r1.1"))).isEmpty(); // still round one
         vars.put("review", Map.of("score", 6));
-        List<TraceEvent> first = sampler.samples(ev("W/s1/r2.0"));     // round two begins: round one's result is stored
+        List<TraceEvent> first =
+                sampler.samples(ev("W/s1/r2.0")); // round two begins: round one's result is stored
         assertThat(first).hasSize(1);
         assertThat(first.get(0).type()).isEqualTo(ProgressSampler.SAMPLE);
-        assertThat(first.get(0).data()).containsEntry("agent", "Lead").containsEntry("variable", "review.score").containsEntry("loop", "W/s1");
+        assertThat(first.get(0).data())
+                .containsEntry("agent", "Lead")
+                .containsEntry("variable", "review.score")
+                .containsEntry("loop", "W/s1");
         assertThat(first.get(0).data().get("hash")).isEqualTo(Signals.hash("6"));
         assertThat(sampler.samples(ev("W/s1/r2.1"))).isEmpty();
     }
@@ -46,14 +53,19 @@ class ProgressSamplerTest {
     @Test
     void noRoundNoSample_aMissingVariableNoSample_andNoRuleNoReading() {
         vars.put("other", 1);
-        assertThat(sampler.samples(ev("W/s1"))).isEmpty();             // not in a loop
+        assertThat(sampler.samples(ev("W/s1"))).isEmpty(); // not in a loop
         sampler.samples(ev("W/s1/r1.0"));
-        assertThat(sampler.samples(ev("W/s1/r2.0"))).isEmpty();        // the variable does not exist yet
+        assertThat(sampler.samples(ev("W/s1/r2.0"))).isEmpty(); // the variable does not exist yet
         boolean[] read = {false};
-        ProgressSampler none = new ProgressSampler(Map.of("Lead", new InspectRules(2, null, null, null, null, null, null, null)), () -> {
-            read[0] = true;
-            return vars;
-        });
+        ProgressSampler none =
+                new ProgressSampler(
+                        Map.of(
+                                "Lead",
+                                new InspectRules(2, null, null, null, null, null, null, null)),
+                        () -> {
+                            read[0] = true;
+                            return vars;
+                        });
         none.samples(ev("W/s1/r1.0"));
         none.samples(ev("W/s1/r2.0"));
         assertThat(none.active()).isFalse();
@@ -62,7 +74,12 @@ class ProgressSamplerTest {
 
     @Test
     void aFailingReadNeverReachesTheRun() {
-        ProgressSampler broken = new ProgressSampler(RULES, () -> { throw new IllegalStateException("gone"); });
+        ProgressSampler broken =
+                new ProgressSampler(
+                        RULES,
+                        () -> {
+                            throw new IllegalStateException("gone");
+                        });
         broken.samples(ev("W/s1/r1.0"));
         assertThat(broken.samples(ev("W/s1/r2.0"))).isEmpty();
     }
@@ -70,7 +87,8 @@ class ProgressSamplerTest {
     @Test
     void aPlainVariableAndANestedFieldBothResolve() {
         assertThat(ProgressSampler.path(Map.of("final", "ok"), "final")).isEqualTo("ok");
-        assertThat(ProgressSampler.path(Map.of("a", Map.of("b", Map.of("c", 3))), "a.b.c")).isEqualTo(3);
+        assertThat(ProgressSampler.path(Map.of("a", Map.of("b", Map.of("c", 3))), "a.b.c"))
+                .isEqualTo(3);
         assertThat(ProgressSampler.path(Map.of("a", "text"), "a.b")).isNull();
     }
 }

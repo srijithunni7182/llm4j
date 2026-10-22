@@ -13,12 +13,22 @@ import org.junit.jupiter.api.Test;
 class AdminSessionsTest {
 
     private static final String PASSWORD = "correct horse battery";
-    private final AtomicReference<Instant> now = new AtomicReference<>(Instant.parse("2026-10-12T10:00:00Z"));
-    private final Clock clock = new Clock() {
-        public java.time.ZoneId getZone() { return ZoneOffset.UTC; }
-        public Clock withZone(java.time.ZoneId z) { return this; }
-        public Instant instant() { return now.get(); }
-    };
+    private final AtomicReference<Instant> now =
+            new AtomicReference<>(Instant.parse("2026-10-12T10:00:00Z"));
+    private final Clock clock =
+            new Clock() {
+                public java.time.ZoneId getZone() {
+                    return ZoneOffset.UTC;
+                }
+
+                public Clock withZone(java.time.ZoneId z) {
+                    return this;
+                }
+
+                public Instant instant() {
+                    return now.get();
+                }
+            };
 
     private AdminSessions sessions(String stored) {
         return new AdminSessions(() -> stored, clock, false);
@@ -32,7 +42,8 @@ class AdminSessionsTest {
         AdminSessions s = sessions(hash);
         assertThat(s.login("1.1.1.1", PASSWORD).session()).isNotNull();
         assertThat(s.login("1.1.1.1", "not the password").session()).isNull();
-        assertThat(s.login("1.1.1.1", hash).session()).isNull(); // the hash itself is not a password
+        assertThat(s.login("1.1.1.1", hash).session())
+                .isNull(); // the hash itself is not a password
     }
 
     @Test
@@ -50,7 +61,8 @@ class AdminSessionsTest {
         AdminSessions.Attempt held = s.login("2.2.2.2", PASSWORD);
         assertThat(held.session()).isNull();
         assertThat(held.retryAfterSeconds()).isGreaterThan(0); // even the right password waits
-        assertThat(s.login("3.3.3.3", PASSWORD).session()).isNotNull(); // another address is not held
+        assertThat(s.login("3.3.3.3", PASSWORD).session())
+                .isNotNull(); // another address is not held
         now.set(now.get().plus(Duration.ofMinutes(16)));
         assertThat(s.login("2.2.2.2", PASSWORD).session()).isNotNull();
     }

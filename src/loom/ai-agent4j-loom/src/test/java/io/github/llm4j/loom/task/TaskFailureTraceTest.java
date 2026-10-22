@@ -19,7 +19,10 @@ import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
-/** A task or a delegate that fails is told in the trace: what failed, why, how often it was tried, and whether the workflow went on. */
+/**
+ * A task or a delegate that fails is told in the trace: what failed, why, how often it was tried,
+ * and whether the workflow went on.
+ */
 class TaskFailureTraceTest {
 
     private final TaskHarness h = new TaskHarness();
@@ -30,7 +33,11 @@ class TaskFailureTraceTest {
 
     @Test
     void aHandledTaskFailureSaysWhatFailedAndThatTheWorkflowWentOn() {
-        h.pure("Boom", c -> { throw new IllegalStateException("kaput"); });
+        h.pure(
+                "Boom",
+                c -> {
+                    throw new IllegalStateException("kaput");
+                });
         h.run("workflow Main() { run Boom() -> a retry 2 on_failure { note \"handled\" } }");
         List<TraceEvent> failures = h.traceOf(TraceEvent.FAILURE);
         assertEquals(1, failures.size());
@@ -47,7 +54,11 @@ class TaskFailureTraceTest {
 
     @Test
     void anUnhandledTaskFailureIsAFailureEventThenARunThatNamesTheTask() {
-        h.pure("Boom", c -> { throw new IllegalStateException("kaput"); });
+        h.pure(
+                "Boom",
+                c -> {
+                    throw new IllegalStateException("kaput");
+                });
         assertThrows(RuntimeException.class, () -> h.run("workflow Main() { run Boom() -> a }"));
         Map<String, Object> d = data(h.traceOf(TraceEvent.FAILURE).get(0));
         assertEquals(false, d.get("handled"));
@@ -61,7 +72,11 @@ class TaskFailureTraceTest {
 
     @Test
     void aFailedTaskEndCarriesTheSameVocabularyAsATool() {
-        h.pure("Boom", c -> { throw new IllegalStateException("kaput"); });
+        h.pure(
+                "Boom",
+                c -> {
+                    throw new IllegalStateException("kaput");
+                });
         h.run("workflow Main() { run Boom() -> a retry 1 on_failure { note \"handled\" } }");
         Map<String, Object> d = data(h.traceOf(TraceEvent.TASK_END).get(0));
         assertEquals("failed", d.get("outcome"));
@@ -74,12 +89,28 @@ class TaskFailureTraceTest {
     @Test
     void aFailureThatNeverStartedTheTaskIsStillAFailureEvent() {
         h.human = message -> "no";
-        h.tasks.register(new Task() {
-            @Override public String getName() { return "Pay"; }
-            @Override public TaskEffect effect() { return TaskEffect.CHANGES; }
-            @Override public boolean requiresApproval(Map<String, Object> args) { return true; }
-            @Override public TaskResult run(TaskContext c) { return TaskResult.ok(); }
-        });
+        h.tasks.register(
+                new Task() {
+                    @Override
+                    public String getName() {
+                        return "Pay";
+                    }
+
+                    @Override
+                    public TaskEffect effect() {
+                        return TaskEffect.CHANGES;
+                    }
+
+                    @Override
+                    public boolean requiresApproval(Map<String, Object> args) {
+                        return true;
+                    }
+
+                    @Override
+                    public TaskResult run(TaskContext c) {
+                        return TaskResult.ok();
+                    }
+                });
         h.run("workflow Main() { run Pay(x = 1) -> a on_failure { note \"declined\" } }");
         Map<String, Object> d = data(h.traceOf(TraceEvent.FAILURE).get(0));
         assertEquals("Pay", d.get("name"));
@@ -102,19 +133,33 @@ class TaskFailureTraceTest {
         HarnessExecutor e = h.executor("workflow Main() { note \"x\" }");
         e.initialize();
         assertThrows(RuntimeException.class, () -> e.executeWorkflow("Nope", new HashMap<>()));
-        h.traceOf(TraceEvent.RUN_END).forEach(t -> assertFalse(t.data().containsKey("failed_kind")));
+        h.traceOf(TraceEvent.RUN_END)
+                .forEach(t -> assertFalse(t.data().containsKey("failed_kind")));
     }
 
     @Test
     void anExhaustedDelegateIsAFailureEventToo() {
-        String src = """
+        String src =
+                """
                 agent Writer { model: "m" system: "You are Writer." }
                 workflow Main() { delegate "x" to Writer -> r on_failure { note "fallback" } }
                 """;
-        HarnessExecutor e = new HarnessExecutor(new LoomParser(new Lexer(src).tokenize()).parseScript(), h.tools, name -> new LLMClient() {
-            @Override public LLMResponse chat(LLMRequest request) { throw new IllegalStateException("model down"); }
-            @Override public Stream<LLMResponse> chatStream(LLMRequest request) { throw new IllegalStateException("model down"); }
-        });
+        HarnessExecutor e =
+                new HarnessExecutor(
+                        new LoomParser(new Lexer(src).tokenize()).parseScript(),
+                        h.tools,
+                        name ->
+                                new LLMClient() {
+                                    @Override
+                                    public LLMResponse chat(LLMRequest request) {
+                                        throw new IllegalStateException("model down");
+                                    }
+
+                                    @Override
+                                    public Stream<LLMResponse> chatStream(LLMRequest request) {
+                                        throw new IllegalStateException("model down");
+                                    }
+                                });
         e.addTraceListener(h.trace::add);
         e.initialize();
         e.executeWorkflow("Main", new HashMap<>());

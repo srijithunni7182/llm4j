@@ -4,21 +4,31 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * A log record. loom-inspect uses them for the live lifecycle (a step started, a run was suspended, a thought, a note): the
- * {@code event.name} attribute says which, and {@code loom.seq} orders them within a process.
+ * A log record. loom-inspect uses them for the live lifecycle (a step started, a run was suspended,
+ * a thought, a note): the {@code event.name} attribute says which, and {@code loom.seq} orders them
+ * within a process.
  *
  * @param severityNumber OpenTelemetry severity: 9 info, 13 warn, 17 error
  * @param traceId the run's trace id, or null
  * @param spanId the span the record belongs to, or null
  */
-public record LogRec(long timeNanos, int severityNumber, String body, Map<String, Object> attributes, String traceId, String spanId) {
+public record LogRec(
+        long timeNanos,
+        int severityNumber,
+        String body,
+        Map<String, Object> attributes,
+        String traceId,
+        String spanId) {
 
     public static final int INFO = 9;
     public static final int WARN = 13;
     public static final int ERROR = 17;
 
     public LogRec {
-        attributes = attributes == null ? Map.of() : java.util.Collections.unmodifiableMap(new LinkedHashMap<>(attributes));
+        attributes =
+                attributes == null
+                        ? Map.of()
+                        : java.util.Collections.unmodifiableMap(new LinkedHashMap<>(attributes));
         body = body == null ? "" : body;
     }
 

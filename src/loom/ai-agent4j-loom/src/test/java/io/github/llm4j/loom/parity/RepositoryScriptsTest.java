@@ -16,9 +16,10 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
- * Verification plan N2: every .loom script in the repository passes the load-time checks. Tools a host
- * registers from Java can't be seen from here, so the names its agents use count as registered; secrets
- * count as set (to a URL-shaped value). Everything else — unsupported syntax, knowledge, routing, skills, guardrails — is checked.
+ * Verification plan N2: every .loom script in the repository passes the load-time checks. Tools a
+ * host registers from Java can't be seen from here, so the names its agents use count as
+ * registered; secrets count as set (to a URL-shaped value). Everything else — unsupported syntax,
+ * knowledge, routing, skills, guardrails — is checked.
  */
 class RepositoryScriptsTest {
 
@@ -27,18 +28,40 @@ class RepositoryScriptsTest {
         Path repo = Path.of("../../..").toAbsolutePath().normalize();
         List<Path> scripts;
         try (Stream<Path> all = Files.walk(repo)) {
-            scripts = all.filter(p -> p.toString().endsWith(".loom") && Files.isRegularFile(p)) // a folder named .loom (a secret store) is not a script
-                    .filter(p -> !p.toString().contains("/target/") && !p.toString().contains("/node_modules/"))
-                    // scripts that are deliberately wrong: a graph fixture with an agent that is not defined, a script made to fail, and one that rewinds to a checkpoint that is not there
-                    .filter(p -> !p.toString().endsWith("graph/undefined_agent.loom") && !p.toString().endsWith("ctk/scripts/failing_test.loom")
-                            && !p.toString().endsWith("ctk/scripts/intervention_rewind_undeclared.loom"))
-                    .sorted().toList();
+            scripts =
+                    all.filter(
+                                    p ->
+                                            p.toString().endsWith(".loom")
+                                                    && Files.isRegularFile(
+                                                            p)) // a folder named .loom (a secret
+                            // store) is not a script
+                            .filter(
+                                    p ->
+                                            !p.toString().contains("/target/")
+                                                    && !p.toString().contains("/node_modules/"))
+                            // scripts that are deliberately wrong: a graph fixture with an agent
+                            // that is not defined, a script made to fail, and one that rewinds to a
+                            // checkpoint that is not there
+                            .filter(
+                                    p ->
+                                            !p.toString().endsWith("graph/undefined_agent.loom")
+                                                    && !p.toString()
+                                                            .endsWith(
+                                                                    "ctk/scripts/failing_test.loom")
+                                                    && !p.toString()
+                                                            .endsWith(
+                                                                    "ctk/scripts/intervention_rewind_undeclared.loom"))
+                            .sorted()
+                            .toList();
         }
         assertThat(scripts).hasSizeGreaterThan(5);
-        // A file another script imports is checked as part of that script (its imports are loaded with it), not on its own: an agents file
-        // has no workflow to call its agents, a flows file has no agents. Only the entry scripts are checked here.
+        // A file another script imports is checked as part of that script (its imports are loaded
+        // with it), not on its own: an agents file
+        // has no workflow to call its agents, a flows file has no agents. Only the entry scripts
+        // are checked here.
         java.util.Set<Path> imported = new java.util.HashSet<>();
-        java.util.regex.Pattern importLine = java.util.regex.Pattern.compile("(?m)^\\s*import\\s+\"([^\"]+)\"");
+        java.util.regex.Pattern importLine =
+                java.util.regex.Pattern.compile("(?m)^\\s*import\\s+\"([^\"]+)\"");
         for (Path script : scripts) {
             java.util.regex.Matcher m = importLine.matcher(Files.readString(script));
             while (m.find()) imported.add(script.getParent().resolve(m.group(1)).normalize());
@@ -50,34 +73,62 @@ class RepositoryScriptsTest {
             try {
                 parsed = new LoomLoader().load(script.toString());
             } catch (Exception e) {
-                continue; // fragments meant to be imported, and deliberately broken fixtures, are parser tests' business
+                continue; // fragments meant to be imported, and deliberately broken fixtures, are
+                // parser tests' business
             }
             ToolRegistry hostTools = new ToolRegistry();
-            for (AgentDef a : parsed.getAgents()) a.getTools().forEach(t -> hostTools.register(t, new io.github.llm4j.agent.tools.EchoTool()));
-            // Hosts resolve their own model names (GetViral's "studio", test mocks): a host factory is trusted.
-            HarnessExecutor e = new HarnessExecutor(parsed, hostTools, m -> { throw new IllegalStateException(); });
-            // Like tools, tasks are the host's: a script's `run` steps name tasks the host supplies, so stand in for the ones not on the class path.
-            io.github.llm4j.agent.task.TaskRegistry hostTasks = io.github.llm4j.agent.task.TaskRegistry.discovered();
+            for (AgentDef a : parsed.getAgents())
+                a.getTools()
+                        .forEach(
+                                t ->
+                                        hostTools.register(
+                                                t, new io.github.llm4j.agent.tools.EchoTool()));
+            // Hosts resolve their own model names (GetViral's "studio", test mocks): a host factory
+            // is trusted.
+            HarnessExecutor e =
+                    new HarnessExecutor(
+                            parsed,
+                            hostTools,
+                            m -> {
+                                throw new IllegalStateException();
+                            });
+            // Like tools, tasks are the host's: a script's `run` steps name tasks the host
+            // supplies, so stand in for the ones not on the class path.
+            io.github.llm4j.agent.task.TaskRegistry hostTasks =
+                    io.github.llm4j.agent.task.TaskRegistry.discovered();
             for (var w : parsed.getWorkflows()) {
-                io.github.llm4j.loom.ast.StatementWalker.walk(w.getStatements(), st -> {
-                    if (st instanceof io.github.llm4j.loom.ast.RunStmt r && !hostTasks.contains(r.getTaskName())) {
-                        hostTasks.register(io.github.llm4j.agent.task.Task.pure(r.getTaskName(), c -> io.github.llm4j.agent.task.TaskResult.ok()));
-                    }
-                });
+                io.github.llm4j.loom.ast.StatementWalker.walk(
+                        w.getStatements(),
+                        st -> {
+                            if (st instanceof io.github.llm4j.loom.ast.RunStmt r
+                                    && !hostTasks.contains(r.getTaskName())) {
+                                hostTasks.register(
+                                        io.github.llm4j.agent.task.Task.pure(
+                                                r.getTaskName(),
+                                                c -> io.github.llm4j.agent.task.TaskResult.ok()));
+                            }
+                        });
             }
             e.setTaskRegistry(hostTasks);
             e.setBaseDir(script.getParent());
-            // as `weave` does: a .loct file beside the script maps the names of its own compaction strategies
-            java.nio.file.Path loct = io.github.llm4j.loom.context.ContextFiles.sibling(script, "loct");
+            // as `weave` does: a .loct file beside the script maps the names of its own compaction
+            // strategies
+            java.nio.file.Path loct =
+                    io.github.llm4j.loom.context.ContextFiles.sibling(script, "loct");
             if (java.nio.file.Files.isRegularFile(loct)) e.loadCompactors(loct);
-            // as `weave` does: the prompt files a script names are the ones beside it (or the folder it names)
-            e.setPromptCatalog(io.github.llm4j.loom.prompt.PromptSupport.catalog(parsed, script, null));
-            // A value that is also a well-formed URL, since env vars feed URL options of the generic tools.
+            // as `weave` does: the prompt files a script names are the ones beside it (or the
+            // folder it names)
+            e.setPromptCatalog(
+                    io.github.llm4j.loom.prompt.PromptSupport.catalog(parsed, script, null));
+            // A value that is also a well-formed URL, since env vars feed URL options of the
+            // generic tools.
             e.setEnvLookup(name -> "https://example.invalid/set-" + name);
             e.setHumanInterface(message -> "");
             e.setEmbeddingFactory(model -> new HashingEmbeddingProvider());
-            for (ScriptValidator.Problem p : new ScriptValidator().validate(parsed, e.validationContext())) {
-                if (p.severity() == ScriptValidator.Severity.ERROR) failures.add(repo.relativize(script) + ": " + p);
+            for (ScriptValidator.Problem p :
+                    new ScriptValidator().validate(parsed, e.validationContext())) {
+                if (p.severity() == ScriptValidator.Severity.ERROR)
+                    failures.add(repo.relativize(script) + ": " + p);
             }
         }
         assertThat(failures).isEmpty();

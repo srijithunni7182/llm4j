@@ -20,40 +20,61 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
- * Which agent a decision is made by: a hash over everything that decides what the agent says, taken from the parsed script and not from its
- * text, so a comment or a changed layout is not a new agent. Evidence earned by one identity is never credited to another.
+ * Which agent a decision is made by: a hash over everything that decides what the agent says, taken
+ * from the parsed script and not from its text, so a comment or a changed layout is not a new
+ * agent. Evidence earned by one identity is never credited to another.
  *
- * <p>Secrets stay out: a tool option read from the environment contributes its name and not its value, and an option whose key says it is a
- * secret contributes nothing but its presence.
+ * <p>Secrets stay out: a tool option read from the environment contributes its name and not its
+ * value, and an option whose key says it is a secret contributes nothing but its presence.
  */
 public final class AgentIdentity {
 
-    private static final Pattern SECRETISH = Pattern.compile("(?i).*(key|token|secret|password|passwd|credential|auth).*");
+    private static final Pattern SECRETISH =
+            Pattern.compile("(?i).*(key|token|secret|password|passwd|credential|auth).*");
     private static final long MAX_FILE_BYTES = 8L * 1024 * 1024;
 
-    private AgentIdentity() { }
+    private AgentIdentity() {}
 
-    /** The identity of the agent behind {@code decision}, as the script stands; {@code baseDir} resolves the files it reads. */
+    /**
+     * The identity of the agent behind {@code decision}, as the script stands; {@code baseDir}
+     * resolves the files it reads.
+     */
     public static String of(LoomScript script, DecisionDef decision, Path baseDir) {
         return of(script, decision, baseDir, null);
     }
 
     /**
-     * As {@link #of(LoomScript, DecisionDef, Path)}, with the prompts the agent would run taken from {@code prompts}: the version and a hash of the
-     * text, so editing a prompt file (or pinning another version) is a different agent, as editing an inline prompt is.
+     * As {@link #of(LoomScript, DecisionDef, Path)}, with the prompts the agent would run taken
+     * from {@code prompts}: the version and a hash of the text, so editing a prompt file (or
+     * pinning another version) is a different agent, as editing an inline prompt is.
      */
-    public static String of(LoomScript script, DecisionDef decision, Path baseDir, io.github.llm4j.loom.prompt.PromptCatalog prompts) {
-        AgentDef agent = script.getAgents().stream().filter(a -> a.getName().equals(decision.getAgent())).findFirst().orElse(null);
+    public static String of(
+            LoomScript script,
+            DecisionDef decision,
+            Path baseDir,
+            io.github.llm4j.loom.prompt.PromptCatalog prompts) {
+        AgentDef agent =
+                script.getAgents().stream()
+                        .filter(a -> a.getName().equals(decision.getAgent()))
+                        .findFirst()
+                        .orElse(null);
         StringBuilder b = new StringBuilder();
         if (agent == null) return sha("no agent " + decision.getAgent());
         line(b, "model", agent.getModel());
         // what every agent of the workflow is told first changes what this one does
         line(b, "shared", script.getSharedPrompt());
-        if (script.getSharedPromptRef() != null) line(b, "shared.prompt", script.getSharedPromptRef() + promptContent(script.getSharedPromptRef(), prompts));
+        if (script.getSharedPromptRef() != null)
+            line(
+                    b,
+                    "shared.prompt",
+                    script.getSharedPromptRef()
+                            + promptContent(script.getSharedPromptRef(), prompts));
         line(b, "system", agent.getSystemPrompt());
         line(b, "template", agent.getSystemTemplate());
-        if (agent.getPrompt() != null) line(b, "prompt", agent.getPrompt() + promptContent(agent.getPrompt(), prompts));
-        if (agent.getSystemTemplate() != null && prompts != null) line(b, "template.content", promptContent(agent.getSystemTemplate(), prompts));
+        if (agent.getPrompt() != null)
+            line(b, "prompt", agent.getPrompt() + promptContent(agent.getPrompt(), prompts));
+        if (agent.getSystemTemplate() != null && prompts != null)
+            line(b, "template.content", promptContent(agent.getSystemTemplate(), prompts));
         line(b, "temperature", agent.getTemperature());
         line(b, "max_iterations", agent.getMaxIterations());
         line(b, "routing", agent.getRoutingPolicy());
@@ -73,39 +94,74 @@ public final class AgentIdentity {
         if (agent.getGuard() != null) settings(b, "guard", agent.getGuard());
         if (agent.getMemory() != null) settings(b, "memory", agent.getMemory());
         line(b, "approve", agent.isApproveAll() ? "all" : agent.getApprove());
-        for (String skill : agent.getSkills()) line(b, "skill", skill + "#" + contentOf(baseDir, skill));
+        for (String skill : agent.getSkills())
+            line(b, "skill", skill + "#" + contentOf(baseDir, skill));
         for (String name : agent.getKnowledgeBases()) {
             for (KnowledgeDef k : script.getKnowledgeBases()) {
-                if (k.getName().equals(name)) line(b, "knowledge", k.getName() + "|" + k.getType() + "|" + k.getPath() + "#" + contentOf(baseDir, k.getPath()) + "|" + k.getMode() + "|" + k.getChunkSize() + "|" + k.getTopK());
+                if (k.getName().equals(name))
+                    line(
+                            b,
+                            "knowledge",
+                            k.getName()
+                                    + "|"
+                                    + k.getType()
+                                    + "|"
+                                    + k.getPath()
+                                    + "#"
+                                    + contentOf(baseDir, k.getPath())
+                                    + "|"
+                                    + k.getMode()
+                                    + "|"
+                                    + k.getChunkSize()
+                                    + "|"
+                                    + k.getTopK());
             }
         }
         for (String name : agent.getMcpServers()) line(b, "mcp", name);
         for (String name : agent.getTools()) {
-            ToolDef tool = script.getTools().stream().filter(t -> t.getName().equals(name)).findFirst().orElse(null);
+            ToolDef tool =
+                    script.getTools().stream()
+                            .filter(t -> t.getName().equals(name))
+                            .findFirst()
+                            .orElse(null);
             if (tool == null) {
                 line(b, "tool", name + "|registered");
                 continue;
             }
             StringBuilder options = new StringBuilder();
-            new TreeMap<>(tool.getOptions()).forEach((k, v) -> options.append(k).append('=').append(optionValue(k, v)).append(';'));
+            new TreeMap<>(tool.getOptions())
+                    .forEach(
+                            (k, v) ->
+                                    options.append(k)
+                                            .append('=')
+                                            .append(optionValue(k, v))
+                                            .append(';'));
             line(b, "tool", name + "|" + tool.getKind() + "|" + options);
         }
         line(b, "decision.choices", decision.getChoices());
         line(b, "decision.group", decision.getGroupBy());
         line(b, "decision.remember", decision.getRemember());
         line(b, "decision.task", decision.getTask());
-        decision.getDangerous().forEach(m -> line(b, "decision.dangerous", m.proposed() + ">" + m.decided()));
+        decision.getDangerous()
+                .forEach(m -> line(b, "decision.dangerous", m.proposed() + ">" + m.decided()));
         return sha(b.toString());
     }
 
-    /** {@code @vN#<hash of the text>} for the prompt a reference resolves to, or {@code @unresolved}. */
-    private static String promptContent(String reference, io.github.llm4j.loom.prompt.PromptCatalog prompts) {
+    /**
+     * {@code @vN#<hash of the text>} for the prompt a reference resolves to, or
+     * {@code @unresolved}.
+     */
+    private static String promptContent(
+            String reference, io.github.llm4j.loom.prompt.PromptCatalog prompts) {
         if (prompts == null) return "";
-        return prompts.resolve(reference).map(r -> "@" + r.version() + "#" + sha(r.text())).orElse("@unresolved");
+        return prompts.resolve(reference)
+                .map(r -> "@" + r.version() + "#" + sha(r.text()))
+                .orElse("@unresolved");
     }
 
     private static String optionValue(String key, ToolDef.OptionValue v) {
-        if (v.isReference()) return (v.fromSecret() ? "secret:" : v.fromInvoker() ? "invoker:" : "env:") + v.value();
+        if (v.isReference())
+            return (v.fromSecret() ? "secret:" : v.fromInvoker() ? "invoker:" : "env:") + v.value();
         return SECRETISH.matcher(key).matches() ? "(secret)" : v.value();
     }
 
@@ -126,7 +182,10 @@ public final class AgentIdentity {
         if (value != null) b.append(key).append('=').append(value).append('\n');
     }
 
-    /** A hash of what a file, or the files under a directory, hold; the path itself when it is not a local file (a URL, a classpath resource). */
+    /**
+     * A hash of what a file, or the files under a directory, hold; the path itself when it is not a
+     * local file (a URL, a classpath resource).
+     */
     private static String contentOf(Path baseDir, String reference) {
         if (reference == null) return "";
         String path = reference.startsWith("fs://") ? reference.substring(5) : reference;
@@ -154,7 +213,8 @@ public final class AgentIdentity {
 
     private static void feed(MessageDigest digest, Path file) throws IOException {
         if (Files.size(file) > MAX_FILE_BYTES) {
-            digest.update((file.getFileName() + ":" + Files.size(file)).getBytes(StandardCharsets.UTF_8));
+            digest.update(
+                    (file.getFileName() + ":" + Files.size(file)).getBytes(StandardCharsets.UTF_8));
             return;
         }
         digest.update(Files.readAllBytes(file));
@@ -162,7 +222,10 @@ public final class AgentIdentity {
 
     private static String sha(String text) {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8)));
+            return HexFormat.of()
+                    .formatHex(
+                            MessageDigest.getInstance("SHA-256")
+                                    .digest(text.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }

@@ -28,11 +28,13 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Stream;
 
 /**
- * A simulated workflow for exercising loom-inspect and Fabric with no model, no network and no key. It runs the real executor and the
- * real add-on over a scripted studio workflow ({@code sim.loom}): the models are scripted, the tools are fakes (one always fails), and
- * a run takes a few minutes. Everything the console can show appears on a schedule: parallel agents, tool calls and a failing tool, a
- * sleep, a loop that never converges (so a repeated call, a repeated answer, no progress and invented figures are flagged), a rewind.
- * Pause, suspend and stop from the page work on it like on a real run.
+ * A simulated workflow for exercising loom-inspect and Fabric with no model, no network and no key.
+ * It runs the real executor and the real add-on over a scripted studio workflow ({@code sim.loom}):
+ * the models are scripted, the tools are fakes (one always fails), and a run takes a few minutes.
+ * Everything the console can show appears on a schedule: parallel agents, tool calls and a failing
+ * tool, a sleep, a loop that never converges (so a repeated call, a repeated answer, no progress
+ * and invented figures are flagged), a rewind. Pause, suspend and stop from the page work on it
+ * like on a real run.
  *
  * <pre>
  * java -cp weave-cli.jar:loom-inspect.jar:loom-inspect-core.jar io.github.llm4j.loom.inspect.sim.Simulate \
@@ -41,9 +43,10 @@ import java.util.stream.Stream;
  */
 public final class Simulate {
 
-    private Simulate() { }
+    private Simulate() {}
 
-    private static final String HELP = """
+    private static final String HELP =
+            """
             Simulated Loom workflow for trying out loom-inspect and Fabric (no model, no network).
 
               --fabric URL        report to this Fabric server (needs --name and the client key)
@@ -98,7 +101,8 @@ public final class Simulate {
                 case "--pin" -> pin = argv[++i];
                 case "--embedded" -> {
                     embedded = true;
-                    if (i + 1 < argv.length && argv[i + 1].matches("\\d+")) port = Integer.parseInt(argv[++i]);
+                    if (i + 1 < argv.length && argv[i + 1].matches("\\d+"))
+                        port = Integer.parseInt(argv[++i]);
                 }
                 case "--runs" -> runs = Integer.parseInt(argv[++i]);
                 case "--gap" -> gap = Integer.parseInt(argv[++i]);
@@ -121,10 +125,32 @@ public final class Simulate {
             }
         }
         if (fabric == null && !embedded) {
-            System.err.println("Nothing to show it on: give --fabric URL (with --name) or --embedded.\n\n" + HELP);
+            System.err.println(
+                    "Nothing to show it on: give --fabric URL (with --name) or --embedded.\n\n"
+                            + HELP);
             System.exit(2);
         }
-        System.exit(new Simulation(fabric, name, keyEnv, ca, pin, embedded, port, runs, gap, speed, topic, detail, outbox, adminEnv, System.out).withPrices(prices).withoutPrices(noPrices).withScenarios(scenario).run());
+        System.exit(
+                new Simulation(
+                                fabric,
+                                name,
+                                keyEnv,
+                                ca,
+                                pin,
+                                embedded,
+                                port,
+                                runs,
+                                gap,
+                                speed,
+                                topic,
+                                detail,
+                                outbox,
+                                adminEnv,
+                                System.out)
+                        .withPrices(prices)
+                        .withoutPrices(noPrices)
+                        .withScenarios(scenario)
+                        .run());
     }
 
     /** The simulation itself, apart from the command line so a test can run it. */
@@ -151,14 +177,30 @@ public final class Simulate {
         private boolean noPrices;
         private List<Scenarios.Scenario> scenarios = List.of();
 
-        /** Run these scenarios (comma separated names, checked now) in place of the studio workflow. */
+        /**
+         * Run these scenarios (comma separated names, checked now) in place of the studio workflow.
+         */
         public Simulation withScenarios(String names) {
             this.scenarios = Scenarios.parse(names);
             return this;
         }
 
-        public Simulation(String fabric, String name, String keyEnv, String ca, String pin, boolean embedded, int port, int runs, int gap, double speed,
-                          String topic, String detail, String outbox, String adminEnv, PrintStream out) {
+        public Simulation(
+                String fabric,
+                String name,
+                String keyEnv,
+                String ca,
+                String pin,
+                boolean embedded,
+                int port,
+                int runs,
+                int gap,
+                double speed,
+                String topic,
+                String detail,
+                String outbox,
+                String adminEnv,
+                PrintStream out) {
             this.fabric = fabric;
             this.name = name == null ? "sim" : name;
             this.keyEnv = keyEnv;
@@ -198,30 +240,65 @@ public final class Simulate {
             stop = true;
         }
 
-        /** @return the exit code: 0, or 2 when it could not start */
+        /**
+         * @return the exit code: 0, or 2 when it could not start
+         */
         public int run() throws Exception {
-            String key = fabric == null ? null : this.key != null ? this.key : System.getenv(keyEnv);
+            String key =
+                    fabric == null ? null : this.key != null ? this.key : System.getenv(keyEnv);
             if (fabric != null && (key == null || key.isBlank())) {
-                System.err.println("Put the client key in the environment variable " + keyEnv + " (the key printed by 'fabric clients add " + name + "').");
+                System.err.println(
+                        "Put the client key in the environment variable "
+                                + keyEnv
+                                + " (the key printed by 'fabric clients add "
+                                + name
+                                + "').");
                 return 2;
             }
-            FabricOptions f = fabric == null ? null : FabricOptions.parse(fabric, name, ca, false, pin, outbox, null, "3s");
-            ObserveOptions options = new ObserveOptions(embedded ? port : 0, null, detail, name, Duration.ZERO, embedded, f);
+            FabricOptions f =
+                    fabric == null
+                            ? null
+                            : FabricOptions.parse(fabric, name, ca, false, pin, outbox, null, "3s");
+            ObserveOptions options =
+                    new ObserveOptions(
+                            embedded ? port : 0, null, detail, name, Duration.ZERO, embedded, f);
             Path dir = Files.createTempDirectory("loom-sim");
             Path script = copy("sim.loom", dir);
             copy("sim.inspect", dir);
-            if (!noPrices) priceTable = io.github.llm4j.budget.PriceTable.load(prices != null ? Path.of(prices) : copy("sim.prices", dir));
+            if (!noPrices)
+                priceTable =
+                        io.github.llm4j.budget.PriceTable.load(
+                                prices != null ? Path.of(prices) : copy("sim.prices", dir));
             String text = Files.readString(script);
             InMemorySecretStore secrets = new InMemorySecretStore();
             if (key != null) secrets.put(f.keySecret(), key);
-            if (adminEnv != null && System.getenv(adminEnv) != null) secrets.put("LOOM_INSPECT_ADMIN_PASSWORD", System.getenv(adminEnv));
+            if (adminEnv != null && System.getenv(adminEnv) != null)
+                secrets.put("LOOM_INSPECT_ADMIN_PASSWORD", System.getenv(adminEnv));
             ObserveProvider.Session session = new InspectObserveProvider().open(options, out);
-            out.println("simulating " + name + (fabric != null ? " -> " + fabric : "") + (embedded ? ", page at " + session.describe() : "") + "; about four minutes a run at --speed 1");
+            out.println(
+                    "simulating "
+                            + name
+                            + (fabric != null ? " -> " + fabric : "")
+                            + (embedded ? ", page at " + session.describe() : "")
+                            + "; about four minutes a run at --speed 1");
             try {
                 for (int n = 1; !stop && (runs == 0 || n <= runs); n++) {
                     if (!scenarios.isEmpty()) {
                         for (Scenarios.Scenario sc : scenarios) {
-                            if (!stop) Scenarios.runLive(session, sc, name + "-" + sc.name() + "-" + System.currentTimeMillis() % 100000 + "-" + n, dir, out, secrets);
+                            if (!stop)
+                                Scenarios.runLive(
+                                        session,
+                                        sc,
+                                        name
+                                                + "-"
+                                                + sc.name()
+                                                + "-"
+                                                + System.currentTimeMillis() % 100000
+                                                + "-"
+                                                + n,
+                                        dir,
+                                        out,
+                                        secrets);
                         }
                     } else {
                         oneRun(session, script, text, secrets, n);
@@ -229,17 +306,36 @@ public final class Simulate {
                     if (!stop && (runs == 0 || n < runs)) pause(gap * 1000L);
                 }
             } finally {
-                if (!stop && session instanceof io.github.llm4j.loom.inspect.InspectSession live) live.awaitDelivered(Duration.ofSeconds(10)); // the last events reach the server
+                if (!stop && session instanceof io.github.llm4j.loom.inspect.InspectSession live)
+                    live.awaitDelivered(Duration.ofSeconds(10)); // the last events reach the server
                 session.close();
             }
             return 0;
         }
 
-        private void oneRun(ObserveProvider.Session session, Path script, String text, InMemorySecretStore secrets, int n) {
-            HarnessExecutor e = new HarnessExecutor(new LoomParser(new Lexer(text).tokenize()).parseScript(), tools(), factory(new Scripted(speed)));
+        private void oneRun(
+                ObserveProvider.Session session,
+                Path script,
+                String text,
+                InMemorySecretStore secrets,
+                int n) {
+            HarnessExecutor e =
+                    new HarnessExecutor(
+                            new LoomParser(new Lexer(text).tokenize()).parseScript(),
+                            tools(),
+                            factory(new Scripted(speed)));
             e.setSecretStore(secrets);
-            if (priceTable != null) e.setPriceTable(priceTable); // so each step carries a cost, as in a real run with a price file
-            e.setSleeper(d -> Thread.sleep((long) (d.toMillis() * speed))); // the workflow's sleeps shrink with the run
+            if (priceTable != null)
+                e.setPriceTable(
+                        priceTable); // so each step carries a cost, as in a real run with a price
+            // file
+            e.setSleeper(
+                    d ->
+                            Thread.sleep(
+                                    (long)
+                                            (d.toMillis()
+                                                    * speed))); // the workflow's sleeps shrink with
+            // the run
             String id = name + "-" + System.currentTimeMillis() % 100000 + "-" + n;
             e.setRunId(id);
             session.attach(e.observable(), script);
@@ -251,7 +347,12 @@ public final class Simulate {
             } catch (RunStopped s) {
                 out.println("run " + n + " stopped: " + s.getMessage());
             } catch (RunSuspended s) {
-                out.println("run " + n + " suspended: " + s.getMessage() + " (the simulator does not resume it)");
+                out.println(
+                        "run "
+                                + n
+                                + " suspended: "
+                                + s.getMessage()
+                                + " (the simulator does not resume it)");
             } catch (RuntimeException ex) {
                 out.println("run " + n + " failed: " + ex.getMessage());
             }
@@ -279,12 +380,26 @@ public final class Simulate {
         }
     }
 
-    // ---------------------------------------------------------------------------------- the scripted world
+    // ---------------------------------------------------------------------------------- the
+    // scripted world
 
     private static ToolRegistry tools() {
         ToolRegistry t = new ToolRegistry();
-        t.register("Wiki", fake("Wiki", args -> pause(150, 500, 1.0) + "Search results: 3 pages found. Top: \"Cold water immersion\" - physiological responses, vasoconstriction, mood."));
-        t.register("Example", fake("Example", args -> pause(100, 300, 1.0) + "Error: HTTP 404 Not Found for " + args)); // how a failing fetch reads
+        t.register(
+                "Wiki",
+                fake(
+                        "Wiki",
+                        args ->
+                                pause(150, 500, 1.0)
+                                        + "Search results: 3 pages found. Top: \"Cold water immersion\" - physiological responses, vasoconstriction, mood."));
+        t.register(
+                "Example",
+                fake(
+                        "Example",
+                        args ->
+                                pause(100, 300, 1.0)
+                                        + "Error: HTTP 404 Not Found for "
+                                        + args)); // how a failing fetch reads
         t.register("Notes", fake("Notes", args -> pause(100, 300, 1.0) + "saved report.md (2 KB)"));
         return t;
     }
@@ -295,9 +410,20 @@ public final class Simulate {
 
     private static Tool fake(String name, Body body) {
         return new Tool() {
-            @Override public String getName() { return name; }
-            @Override public String getDescription() { return "simulated " + name; }
-            @Override public String execute(Map<String, Object> args) { return body.run(args); }
+            @Override
+            public String getName() {
+                return name;
+            }
+
+            @Override
+            public String getDescription() {
+                return "simulated " + name;
+            }
+
+            @Override
+            public String execute(Map<String, Object> args) {
+                return body.run(args);
+            }
         };
     }
 
@@ -311,49 +437,127 @@ public final class Simulate {
     }
 
     private static LLMClientFactory factory(Scripted world) {
-        return model -> new LLMClient() {
-            @Override
-            public LLMResponse chat(LLMRequest request) {
-                pause(400, 1600, world.speed);
-                ThreadLocalRandom r = ThreadLocalRandom.current();
-                int p = 300 + r.nextInt(500);
-                int c = 80 + r.nextInt(300);
-                return LLMResponse.builder().content(world.next(model)).model(model).tokenUsage(p, c, p + c).build();
-            }
+        return model ->
+                new LLMClient() {
+                    @Override
+                    public LLMResponse chat(LLMRequest request) {
+                        pause(400, 1600, world.speed);
+                        ThreadLocalRandom r = ThreadLocalRandom.current();
+                        int p = 300 + r.nextInt(500);
+                        int c = 80 + r.nextInt(300);
+                        return LLMResponse.builder()
+                                .content(world.next(model))
+                                .model(model)
+                                .tokenUsage(p, c, p + c)
+                                .build();
+                    }
 
-            @Override
-            public Stream<LLMResponse> chatStream(LLMRequest request) {
-                return Stream.of(chat(request));
-            }
-        };
+                    @Override
+                    public Stream<LLMResponse> chatStream(LLMRequest request) {
+                        return Stream.of(chat(request));
+                    }
+                };
     }
 
-    /** What each scripted model says, in turn; the sequences are as long as one step needs, so they line up from run to run. */
+    /**
+     * What each scripted model says, in turn; the sequences are as long as one step needs, so they
+     * line up from run to run.
+     */
     static final class Scripted {
         final double speed;
         private final Map<String, int[]> turn = new java.util.concurrent.ConcurrentHashMap<>();
-        private final Map<String, List<String>> script = Map.ofEntries(
-                Map.entry("sim-showrunner", List.of(done("A 45 second video on the science of cold water, opening on the shock of the first plunge."))),
-                Map.entry("sim-researcher", List.of(call("Wiki", "{\"q\":\"cold water immersion\"}"), call("Wiki", "{\"q\":\"recovery after exercise\"}"),
-                        done("Three findings: cold exposure raises alertness; evidence for recovery is mixed; contrast therapy is popular. Pages: Cold water immersion, Cryotherapy."))),
-                Map.entry("sim-trendscout", List.of(call("Wiki", "{\"q\":\"video hook patterns\"}"), done("Angles: 1 the first plunge, 2 what the research says, 3 myths, 4 a week in the cold."))),
-                Map.entry("sim-competitor", List.of(call("Example", "{\"path\":\"/pricing\"}"), call("Example", "{\"path\":\"/blog\"}"),
-                        done("Both fetches failed with HTTP 404, so there is nothing to report about the rival."))),
-                Map.entry("sim-scriptwriter", List.of(done("Cold plunges are everywhere. 83% of regular plungers report better sleep, according to a 2021 study of 1,204 adults. "
-                        + "Recovery time drops by 37% and the market will reach $4.2 billion by 2027. Try it for 11 days and see.", false))),
-                Map.entry("sim-editor", List.of(call("Wiki", "{\"q\":\"video hook patterns\"}"), done("{\"score\":5,\"fix\":\"Strengthen the hook.\"}", true))),
-                Map.entry("sim-factchecker", List.of(call("Wiki", "{\"q\":\"cold plunge sleep study\"}"), call("Wiki", "{\"q\":\"cold plunge market size\"}"),
-                        done("{\"unsupported\":4,\"claims\":[\"83% better sleep\",\"37% faster recovery\",\"$4.2 billion\",\"11 days\"]}", true))),
-                Map.entry("sim-seo", List.of(call("Wiki", "{\"q\":\"cold plunge\"}"), done("{\"titles\":[\"The Cold Truth\",\"Plunge Science\",\"Ice and Recovery\"],\"fit\":7}", true))),
-                Map.entry("sim-lead", List.of(done("{\"verdict\":\"INCOMPLETE\",\"fix\":\"Strengthen the hook.\"}", true))),
-                Map.entry("sim-planner", List.of(done("{\"shots\":[{\"description\":\"the first plunge\",\"thumb_var\":\"thumb1\",\"caption_var\":\"cap1\"},"
-                        + "{\"description\":\"the thermometer\",\"thumb_var\":\"thumb2\",\"caption_var\":\"cap2\"},{\"description\":\"the recovery\",\"thumb_var\":\"thumb3\",\"caption_var\":\"cap3\"}]}", true))),
-                Map.entry("sim-designer", List.of(done("A close-up of a face breaking the surface of icy water, steam rising."))),
-                Map.entry("sim-captioner", List.of(done("The shock lasts a minute. What it does for you lasts longer."))),
-                // the first audit fails (so the rewind happens), the second passes
-                Map.entry("sim-auditor", List.of(done("{\"score\":3,\"notes\":\"The thumbnails lack a face close-up.\"}", true), done("{\"score\":8,\"notes\":\"ok\"}", true))),
-                Map.entry("sim-publisher", List.of(call("Notes", "{\"file\":\"report.md\"}"), done("Saved report.md.")))
-        );
+        private final Map<String, List<String>> script =
+                Map.ofEntries(
+                        Map.entry(
+                                "sim-showrunner",
+                                List.of(
+                                        done(
+                                                "A 45 second video on the science of cold water, opening on the shock of the first plunge."))),
+                        Map.entry(
+                                "sim-researcher",
+                                List.of(
+                                        call("Wiki", "{\"q\":\"cold water immersion\"}"),
+                                        call("Wiki", "{\"q\":\"recovery after exercise\"}"),
+                                        done(
+                                                "Three findings: cold exposure raises alertness; evidence for recovery is mixed; contrast therapy is popular. Pages: Cold water immersion, Cryotherapy."))),
+                        Map.entry(
+                                "sim-trendscout",
+                                List.of(
+                                        call("Wiki", "{\"q\":\"video hook patterns\"}"),
+                                        done(
+                                                "Angles: 1 the first plunge, 2 what the research says, 3 myths, 4 a week in the cold."))),
+                        Map.entry(
+                                "sim-competitor",
+                                List.of(
+                                        call("Example", "{\"path\":\"/pricing\"}"),
+                                        call("Example", "{\"path\":\"/blog\"}"),
+                                        done(
+                                                "Both fetches failed with HTTP 404, so there is nothing to report about the rival."))),
+                        Map.entry(
+                                "sim-scriptwriter",
+                                List.of(
+                                        done(
+                                                "Cold plunges are everywhere. 83% of regular plungers report better sleep, according to a 2021 study of 1,204 adults. "
+                                                        + "Recovery time drops by 37% and the market will reach $4.2 billion by 2027. Try it for 11 days and see.",
+                                                false))),
+                        Map.entry(
+                                "sim-editor",
+                                List.of(
+                                        call("Wiki", "{\"q\":\"video hook patterns\"}"),
+                                        done(
+                                                "{\"score\":5,\"fix\":\"Strengthen the hook.\"}",
+                                                true))),
+                        Map.entry(
+                                "sim-factchecker",
+                                List.of(
+                                        call("Wiki", "{\"q\":\"cold plunge sleep study\"}"),
+                                        call("Wiki", "{\"q\":\"cold plunge market size\"}"),
+                                        done(
+                                                "{\"unsupported\":4,\"claims\":[\"83% better sleep\",\"37% faster recovery\",\"$4.2 billion\",\"11 days\"]}",
+                                                true))),
+                        Map.entry(
+                                "sim-seo",
+                                List.of(
+                                        call("Wiki", "{\"q\":\"cold plunge\"}"),
+                                        done(
+                                                "{\"titles\":[\"The Cold Truth\",\"Plunge Science\",\"Ice and Recovery\"],\"fit\":7}",
+                                                true))),
+                        Map.entry(
+                                "sim-lead",
+                                List.of(
+                                        done(
+                                                "{\"verdict\":\"INCOMPLETE\",\"fix\":\"Strengthen the hook.\"}",
+                                                true))),
+                        Map.entry(
+                                "sim-planner",
+                                List.of(
+                                        done(
+                                                "{\"shots\":[{\"description\":\"the first plunge\",\"thumb_var\":\"thumb1\",\"caption_var\":\"cap1\"},"
+                                                        + "{\"description\":\"the thermometer\",\"thumb_var\":\"thumb2\",\"caption_var\":\"cap2\"},{\"description\":\"the recovery\",\"thumb_var\":\"thumb3\",\"caption_var\":\"cap3\"}]}",
+                                                true))),
+                        Map.entry(
+                                "sim-designer",
+                                List.of(
+                                        done(
+                                                "A close-up of a face breaking the surface of icy water, steam rising."))),
+                        Map.entry(
+                                "sim-captioner",
+                                List.of(
+                                        done(
+                                                "The shock lasts a minute. What it does for you lasts longer."))),
+                        // the first audit fails (so the rewind happens), the second passes
+                        Map.entry(
+                                "sim-auditor",
+                                List.of(
+                                        done(
+                                                "{\"score\":3,\"notes\":\"The thumbnails lack a face close-up.\"}",
+                                                true),
+                                        done("{\"score\":8,\"notes\":\"ok\"}", true))),
+                        Map.entry(
+                                "sim-publisher",
+                                List.of(
+                                        call("Notes", "{\"file\":\"report.md\"}"),
+                                        done("Saved report.md."))));
 
         Scripted(double speed) {
             this.speed = speed;
@@ -368,7 +572,13 @@ public final class Simulate {
         }
 
         private static String call(String tool, String args) {
-            return "```json\n{\"thought\":\"I will use " + tool + "\",\"action\":\"" + tool + "\",\"action_input\":" + args + "}\n```";
+            return "```json\n{\"thought\":\"I will use "
+                    + tool
+                    + "\",\"action\":\""
+                    + tool
+                    + "\",\"action_input\":"
+                    + args
+                    + "}\n```";
         }
 
         private static String done(String answer) {
@@ -377,7 +587,14 @@ public final class Simulate {
 
         /** {@code structured}: the answer is a JSON object, passed as one; otherwise it is text. */
         private static String done(String answer, boolean structured) {
-            String value = structured ? answer : "\"" + answer.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n") + "\"";
+            String value =
+                    structured
+                            ? answer
+                            : "\""
+                                    + answer.replace("\\", "\\\\")
+                                            .replace("\"", "\\\"")
+                                            .replace("\n", "\\n")
+                                    + "\"";
             return "```json\n{\"thought\":\"done\",\"final_answer\":" + value + "}\n```";
         }
     }

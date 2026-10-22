@@ -1,6 +1,9 @@
 package io.github.llm4j.loom.graph;
 
-/** A problem found while building a graph. The graph is still produced; the problem is reported with it. */
+/**
+ * A problem found while building a graph. The graph is still produced; the problem is reported with
+ * it.
+ */
 public record Diagnostic(Severity severity, String file, int line, String message) {
 
     public enum Severity {

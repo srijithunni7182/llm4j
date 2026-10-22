@@ -5,9 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.loom.execution.HarnessExecutor;
 import io.github.llm4j.loom.generic.support.Declared;
-import io.github.llm4j.tools.support.RecordingEffects;
 import io.github.llm4j.loom.generic.support.ScriptedRun;
 import io.github.llm4j.loom.runtime.RunJournal;
+import io.github.llm4j.tools.support.RecordingEffects;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,26 +29,25 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class ConcurrencyTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
     MockWebServer server;
     final List<String> bodies = java.util.Collections.synchronizedList(new ArrayList<>());
 
     @BeforeEach
     void start() throws IOException {
         server = new MockWebServer();
-        server.setDispatcher(new Dispatcher() {
-            @Override
-            public MockResponse dispatch(RecordedRequest r) {
-                bodies.add(r.getBody().readUtf8());
-                return new MockResponse().setBody("ok");
-            }
-        });
+        server.setDispatcher(
+                new Dispatcher() {
+                    @Override
+                    public MockResponse dispatch(RecordedRequest r) {
+                        bodies.add(r.getBody().readUtf8());
+                        return new MockResponse().setBody("ok");
+                    }
+                });
         server.start();
     }
 
@@ -60,30 +59,37 @@ class ConcurrencyTest {
     @RepeatedTest(5)
     @Tag("C1")
     @Tag("C5")
-    void thirtyTwoThreadsOnOneWebhookToolSendThirtyTwoDistinctMessagesAndRecordThirtyTwoEffects() throws Exception {
+    void thirtyTwoThreadsOnOneWebhookToolSendThirtyTwoDistinctMessagesAndRecordThirtyTwoEffects()
+            throws Exception {
         RecordingEffects ctx = new RecordingEffects();
-        Tool tool = new Declared(Map.of("HOOK", server.url("/hook").toString()), dir)
-                .create("tool Hook { use: webhook  url: env.HOOK  format: json }", ctx);
+        Tool tool =
+                new Declared(Map.of("HOOK", server.url("/hook").toString()), dir)
+                        .create("tool Hook { use: webhook  url: env.HOOK  format: json }", ctx);
         ExecutorService pool = Executors.newFixedThreadPool(16);
         for (int i = 0; i < 32; i++) {
             int n = i;
-            pool.submit(() -> {
-                try {
-                    tool.execute(Map.of("text", "message " + n));
-                } catch (Exception e) {
-                    throw new IllegalStateException(e);
-                }
-            });
+            pool.submit(
+                    () -> {
+                        try {
+                            tool.execute(Map.of("text", "message " + n));
+                        } catch (Exception e) {
+                            throw new IllegalStateException(e);
+                        }
+                    });
         }
         pool.shutdown();
         assertThat(pool.awaitTermination(60, TimeUnit.SECONDS)).isTrue();
 
         assertThat(server.getRequestCount()).isEqualTo(32);
         assertThat(bodies).doesNotHaveDuplicates();
-        assertThat(ctx.journal().all().values()).hasSize(32).extracting(io.github.llm4j.agent.tool.EffectJournal.Entry::kind).containsOnly("effect_done");
+        assertThat(ctx.journal().all().values())
+                .hasSize(32)
+                .extracting(io.github.llm4j.agent.tool.EffectJournal.Entry::kind)
+                .containsOnly("effect_done");
     }
 
-    static final String SCRIPT = """
+    static final String SCRIPT =
+            """
             tool Notify { use: webhook  url: env.HOOK  format: json }
             tool Log    { use: file  root: "out"  mode: write }
             agent Worker { model: "m" system: "You are Worker." tools: [Notify, Log]  max_iterations: 10 }
@@ -98,7 +104,10 @@ class ConcurrencyTest {
     static final int ITEMS = 20;
     static final Pattern HANDLE = Pattern.compile("Current Task:\\s*handle (\\w+)");
 
-    /** Each worker notifies, logs, then finishes: decided from how many observations are already in the task. */
+    /**
+     * Each worker notifies, logs, then finishes: decided from how many observations are already in
+     * the task.
+     */
     static String worker(io.github.llm4j.model.LLMRequest request) {
         String task = ScriptedRun.lastMessage(request);
         String system = request.getMessages().get(0).getContent();
@@ -109,14 +118,19 @@ class ConcurrencyTest {
         int observed = task.split("Observation:", -1).length - 1;
         return switch (observed) {
             case 0 -> ScriptedRun.call("Notify", "{\"text\": \"item " + id + " done\"}");
-            case 1 -> ScriptedRun.call("Log", "{\"action\": \"append\", \"path\": \"log.md\", \"content\": \"handled " + id + "\"}");
+            case 1 -> ScriptedRun.call(
+                    "Log",
+                    "{\"action\": \"append\", \"path\": \"log.md\", \"content\": \"handled "
+                            + id
+                            + "\"}");
             default -> ScriptedRun.done("finished " + id);
         };
     }
 
     static String batch(int n) {
         StringBuilder sb = new StringBuilder("{\"tasks\": [");
-        for (int i = 0; i < n; i++) sb.append(i == 0 ? "" : ",").append("{\"id\": \"i").append(i).append("\"}");
+        for (int i = 0; i < n; i++)
+            sb.append(i == 0 ? "" : ",").append("{\"id\": \"i").append(i).append("\"}");
         return sb.append("]}").toString();
     }
 
@@ -132,7 +146,6 @@ class ConcurrencyTest {
         HarnessExecutor executor = run.executor(SCRIPT);
         executor.initialize();
         executor.executeWorkflow("Main", Map.of());
-
     }
 
     @RepeatedTest(5)

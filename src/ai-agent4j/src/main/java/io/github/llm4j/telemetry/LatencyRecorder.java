@@ -4,8 +4,9 @@ import java.util.Arrays;
 import java.util.Random;
 
 /**
- * Collects durations and summarises them. Thread-safe. Up to {@code capacity} samples (10,000 by default) are kept and the percentiles are exact;
- * past that a deterministic reservoir (Algorithm R, seeded) keeps a uniform sample, so memory stays bounded while the count, minimum, maximum and
+ * Collects durations and summarises them. Thread-safe. Up to {@code capacity} samples (10,000 by
+ * default) are kept and the percentiles are exact; past that a deterministic reservoir (Algorithm
+ * R, seeded) keeps a uniform sample, so memory stays bounded while the count, minimum, maximum and
  * mean stay exact.
  */
 public final class LatencyRecorder {
@@ -25,13 +26,15 @@ public final class LatencyRecorder {
     }
 
     public LatencyRecorder(int capacity, long seed) {
-        if (capacity <= 0) throw new IllegalArgumentException("capacity must be positive, got " + capacity);
+        if (capacity <= 0)
+            throw new IllegalArgumentException("capacity must be positive, got " + capacity);
         this.sample = new long[capacity];
         this.random = new Random(seed);
     }
 
     public synchronized void add(long millis) {
-        if (millis < 0) throw new IllegalArgumentException("a duration cannot be negative, got " + millis);
+        if (millis < 0)
+            throw new IllegalArgumentException("a duration cannot be negative, got " + millis);
         count++;
         sum += millis;
         min = Math.min(min, millis);
@@ -53,7 +56,15 @@ public final class LatencyRecorder {
         if (count == 0) return LatencyStats.EMPTY;
         long[] sorted = Arrays.copyOf(sample, retained);
         Arrays.sort(sorted);
-        return new LatencyStats(count, min, max, sum / count, rank(sorted, 50), rank(sorted, 90), rank(sorted, 95), rank(sorted, 99));
+        return new LatencyStats(
+                count,
+                min,
+                max,
+                sum / count,
+                rank(sorted, 50),
+                rank(sorted, 90),
+                rank(sorted, 95),
+                rank(sorted, 99));
     }
 
     /** Nearest rank: the value at position ceil(p/100 * n), counting from 1. */

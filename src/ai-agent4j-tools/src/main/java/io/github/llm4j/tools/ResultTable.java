@@ -47,12 +47,15 @@ final class ResultTable {
     }
 
     String render(String format) {
-        String body = switch (format) {
-            case "json" -> json();
-            case "csv" -> csv();
-            default -> table();
-        };
-        return moreRows ? body + "\n(only the first " + rows.size() + " rows are shown; there are more)" : body;
+        String body =
+                switch (format) {
+                    case "json" -> json();
+                    case "csv" -> csv();
+                    default -> table();
+                };
+        return moreRows
+                ? body + "\n(only the first " + rows.size() + " rows are shown; there are more)"
+                : body;
     }
 
     private String table() {
@@ -61,7 +64,11 @@ final class ResultTable {
         sb.append("-".repeat(Math.max(3, String.join(" | ", columns).length()))).append('\n');
         for (List<Object> row : rows) {
             List<String> cells = new ArrayList<>();
-            for (Object v : row) cells.add(v == null ? "NULL" : String.valueOf(v).replace("\r", " ").replace("\n", "\\n"));
+            for (Object v : row)
+                cells.add(
+                        v == null
+                                ? "NULL"
+                                : String.valueOf(v).replace("\r", " ").replace("\n", "\\n"));
             sb.append(String.join(" | ", cells)).append('\n');
         }
         return sb.toString().stripTrailing();
@@ -82,14 +89,26 @@ final class ResultTable {
     }
 
     private String csv() {
-        StringBuilder sb = new StringBuilder(String.join(",", columns.stream().map(ResultTable::csvCell).toList())).append('\n');
+        StringBuilder sb =
+                new StringBuilder(
+                                String.join(
+                                        ",", columns.stream().map(ResultTable::csvCell).toList()))
+                        .append('\n');
         for (List<Object> row : rows) {
-            sb.append(String.join(",", row.stream().map(v -> v == null ? "" : csvCell(String.valueOf(v))).toList())).append('\n');
+            sb.append(
+                            String.join(
+                                    ",",
+                                    row.stream()
+                                            .map(v -> v == null ? "" : csvCell(String.valueOf(v)))
+                                            .toList()))
+                    .append('\n');
         }
         return sb.toString().stripTrailing();
     }
 
     private static String csvCell(String s) {
-        return s.contains(",") || s.contains("\"") || s.contains("\n") || s.contains("\r") ? "\"" + s.replace("\"", "\"\"") + "\"" : s;
+        return s.contains(",") || s.contains("\"") || s.contains("\n") || s.contains("\r")
+                ? "\"" + s.replace("\"", "\"\"") + "\""
+                : s;
     }
 }

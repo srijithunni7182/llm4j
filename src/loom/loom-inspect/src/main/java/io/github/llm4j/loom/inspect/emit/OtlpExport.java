@@ -21,15 +21,19 @@ import java.util.function.LongConsumer;
 import java.util.function.UnaryOperator;
 
 /**
- * The same traces and logs, to any OTLP/HTTP endpoint (a collector, Tempo, Honeycomb, Datadog's intake). Only OTLP: no hello, snapshot
- * or heartbeat, because a generic backend has nowhere to put them. It reads the same outbox from its own cursor, so it survives an
- * outage the same way and is independent of Fabric. Header values may be {@code ${secret:NAME}}, resolved when sent.
+ * The same traces and logs, to any OTLP/HTTP endpoint (a collector, Tempo, Honeycomb, Datadog's
+ * intake). Only OTLP: no hello, snapshot or heartbeat, because a generic backend has nowhere to put
+ * them. It reads the same outbox from its own cursor, so it survives an outage the same way and is
+ * independent of Fabric. Header values may be {@code ${secret:NAME}}, resolved when sent.
  */
 public final class OtlpExport implements AutoCloseable {
 
     private static final int BATCH = 500;
 
-    /** Sends one request; a seam for tests. Throws {@link IOException} when the endpoint cannot be reached. */
+    /**
+     * Sends one request; a seam for tests. Throws {@link IOException} when the endpoint cannot be
+     * reached.
+     */
     public interface Sender {
         int post(String path, String body) throws IOException;
     }
@@ -47,7 +51,13 @@ public final class OtlpExport implements AutoCloseable {
     private volatile long lost;
     private long lastReport;
 
-    public OtlpExport(Outbox outbox, Cursor cursor, Sender sender, ServerLink.Timing timing, PrintStream out, LongConsumer afterAck) {
+    public OtlpExport(
+            Outbox outbox,
+            Cursor cursor,
+            Sender sender,
+            ServerLink.Timing timing,
+            PrintStream out,
+            LongConsumer afterAck) {
         this.outbox = outbox;
         this.cursor = cursor;
         this.sender = sender;
@@ -60,11 +70,20 @@ public final class OtlpExport implements AutoCloseable {
 
     /** The real sender: signed by nothing, authenticated by the headers the user gave. */
     public static Sender http(URI endpoint, Map<String, String> headers) {
-        HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).connectTimeout(Duration.ofSeconds(5)).build();
+        HttpClient http =
+                HttpClient.newBuilder()
+                        .followRedirects(HttpClient.Redirect.NEVER)
+                        .connectTimeout(Duration.ofSeconds(5))
+                        .build();
         String root = endpoint.toString().replaceAll("/+$", "");
         return (path, body) -> {
-            HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(root + path)).timeout(Duration.ofSeconds(30)).header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
+            HttpRequest.Builder b =
+                    HttpRequest.newBuilder(URI.create(root + path))
+                            .timeout(Duration.ofSeconds(30))
+                            .header("Content-Type", "application/json")
+                            .POST(
+                                    HttpRequest.BodyPublishers.ofString(
+                                            body, StandardCharsets.UTF_8));
             headers.forEach(b::header);
             try {
                 HttpResponse<Void> r = http.send(b.build(), HttpResponse.BodyHandlers.discarding());
@@ -76,17 +95,27 @@ public final class OtlpExport implements AutoCloseable {
         };
     }
 
-    /** Resolves {@code ${secret:NAME}} in header values; a missing secret is a clear error, never an empty header. */
-    public static Map<String, String> resolveHeaders(List<String> headers, UnaryOperator<String> secret) {
+    /**
+     * Resolves {@code ${secret:NAME}} in header values; a missing secret is a clear error, never an
+     * empty header.
+     */
+    public static Map<String, String> resolveHeaders(
+            List<String> headers, UnaryOperator<String> secret) {
         Map<String, String> out = new LinkedHashMap<>();
         for (String h : headers) {
             int eq = h.indexOf('=');
             String value = h.substring(eq + 1);
-            var m = java.util.regex.Pattern.compile("\\$\\{secret:([A-Za-z0-9_.-]+)}").matcher(value);
+            var m =
+                    java.util.regex.Pattern.compile("\\$\\{secret:([A-Za-z0-9_.-]+)}")
+                            .matcher(value);
             StringBuilder sb = new StringBuilder();
             while (m.find()) {
                 String v = secret == null ? null : secret.apply(m.group(1));
-                if (v == null || v.isBlank()) throw new IllegalStateException("the secret " + m.group(1) + " (used in an --observe-otlp-header) is not in the secret store");
+                if (v == null || v.isBlank())
+                    throw new IllegalStateException(
+                            "the secret "
+                                    + m.group(1)
+                                    + " (used in an --observe-otlp-header) is not in the secret store");
                 m.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(v));
             }
             m.appendTail(sb);
@@ -121,8 +150,14 @@ public final class OtlpExport implements AutoCloseable {
                 if (n == 0) sleep(timing.poll().toMillis());
             } catch (IOException | RuntimeException e) {
                 if (stopping) return;
-                report("cannot reach the OTLP endpoint (" + e.getMessage() + "); events are kept on disk and will be sent when it is back");
-                sleep(backoff / 2 + ThreadLocalRandom.current().nextLong(Math.max(1, backoff / 2 + 1)));
+                report(
+                        "cannot reach the OTLP endpoint ("
+                                + e.getMessage()
+                                + "); events are kept on disk and will be sent when it is back");
+                sleep(
+                        backoff / 2
+                                + ThreadLocalRandom.current()
+                                        .nextLong(Math.max(1, backoff / 2 + 1)));
                 backoff = Math.min(backoff * 2, timing.maxBackoff().toMillis());
             }
         }
@@ -151,12 +186,24 @@ public final class OtlpExport implements AutoCloseable {
     private void send(char type, List<Outbox.Entry> entries) throws IOException {
         if (type == 'L') {
             Map<Resource, List<LogRec>> by = new LinkedHashMap<>();
-            for (Outbox.Entry e : entries) for (OtlpJson.Logs g : OtlpJson.decodeLogs(text(e))) by.computeIfAbsent(g.resource(), k -> new ArrayList<>()).addAll(g.records());
-            for (var e : by.entrySet()) deliver("/v1/logs", OtlpJson.encodeLogs(e.getKey(), "0.1", e.getValue()), entries.size());
+            for (Outbox.Entry e : entries)
+                for (OtlpJson.Logs g : OtlpJson.decodeLogs(text(e)))
+                    by.computeIfAbsent(g.resource(), k -> new ArrayList<>()).addAll(g.records());
+            for (var e : by.entrySet())
+                deliver(
+                        "/v1/logs",
+                        OtlpJson.encodeLogs(e.getKey(), "0.1", e.getValue()),
+                        entries.size());
         } else if (type == 'S') {
             Map<Resource, List<SpanRec>> by = new LinkedHashMap<>();
-            for (Outbox.Entry e : entries) for (OtlpJson.Traces g : OtlpJson.decodeTraces(text(e))) by.computeIfAbsent(g.resource(), k -> new ArrayList<>()).addAll(g.spans());
-            for (var e : by.entrySet()) deliver("/v1/traces", OtlpJson.encodeTraces(e.getKey(), "0.1", e.getValue()), entries.size());
+            for (Outbox.Entry e : entries)
+                for (OtlpJson.Traces g : OtlpJson.decodeTraces(text(e)))
+                    by.computeIfAbsent(g.resource(), k -> new ArrayList<>()).addAll(g.spans());
+            for (var e : by.entrySet())
+                deliver(
+                        "/v1/traces",
+                        OtlpJson.encodeTraces(e.getKey(), "0.1", e.getValue()),
+                        entries.size());
         } else {
             lost += entries.size();
         }
@@ -171,7 +218,10 @@ public final class OtlpExport implements AutoCloseable {
         if (status >= 200 && status < 300) return;
         if (status == 401 || status == 403) {
             // say so before the flag flips, so whoever sees the export is dead can already read why
-            out.println("loom-inspect: the OTLP endpoint rejected the credentials (HTTP " + status + "). Exporting has stopped; the workflow is not affected.");
+            out.println(
+                    "loom-inspect: the OTLP endpoint rejected the credentials (HTTP "
+                            + status
+                            + "). Exporting has stopped; the workflow is not affected.");
             dead = true;
             throw new IOException("rejected");
         }

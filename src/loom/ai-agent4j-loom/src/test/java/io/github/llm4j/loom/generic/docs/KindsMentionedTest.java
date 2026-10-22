@@ -19,7 +19,10 @@ class KindsMentionedTest {
     }
 
     private static void mentionsAll(String name, String text) {
-        for (String kind : KINDS) assertThat(text).as(name + " mentions use: " + kind).containsPattern("\\b" + kind + "\\b");
+        for (String kind : KINDS)
+            assertThat(text)
+                    .as(name + " mentions use: " + kind)
+                    .containsPattern("\\b" + kind + "\\b");
     }
 
     @Test
@@ -30,14 +33,26 @@ class KindsMentionedTest {
         mentionsAll("the Loom module README", read("README.md"));
         mentionsAll("LOOM_PROMPT.md", read("LOOM_PROMPT.md"));
         mentionsAll("the VS Code hover for use:", read("../vscode-loom/src/lsp/server.ts"));
-        assertThat(read("../../../.kiro/specs/loom-capability-parity/gap-analysis.md")).contains("webhook").contains("loom-generic-tools");
+        assertThat(read("../../../.kiro/specs/loom-capability-parity/gap-analysis.md"))
+                .contains("webhook")
+                .contains("loom-generic-tools");
     }
 
     @Test
     @Tag("V10.2")
     void theEditorKnowsTheNewOptionsToo() throws Exception {
         String server = read("../vscode-loom/src/lsp/server.ts");
-        for (String option : List.of("on_unknown", "idempotency", "allow_to", "allow_paths", "allow_private", "allow_interpreters", "unattended", "env_pass", "outbox")) {
+        for (String option :
+                List.of(
+                        "on_unknown",
+                        "idempotency",
+                        "allow_to",
+                        "allow_paths",
+                        "allow_private",
+                        "allow_interpreters",
+                        "unattended",
+                        "env_pass",
+                        "outbox")) {
             assertThat(server).as("hover for " + option).contains("    " + option + ":\n");
         }
     }

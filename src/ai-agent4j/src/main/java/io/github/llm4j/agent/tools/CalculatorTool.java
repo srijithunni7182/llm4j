@@ -120,6 +120,11 @@ public class CalculatorTool implements Tool {
 
     @Override
     public java.util.Map<String, Object> getParametersSchema() {
-        return io.github.llm4j.model.ToolSchema.object().string("expression", "The arithmetic expression to evaluate, e.g. 12 * (3 + 4)", true).build();
+        return io.github.llm4j.model.ToolSchema.object()
+                .string(
+                        "expression",
+                        "The arithmetic expression to evaluate, e.g. 12 * (3 + 4)",
+                        true)
+                .build();
     }
 }

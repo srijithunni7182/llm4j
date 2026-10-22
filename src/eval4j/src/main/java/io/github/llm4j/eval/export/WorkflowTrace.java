@@ -25,16 +25,26 @@ public record WorkflowTrace(
         Integer rewindCap) {
 
     /**
-     * A workflow statement. {@code kind}: start, end, delegate, task, handoff, broadcast, parallel, alt, loop,
-     * foreach, human_prompt, checkpoint, rewind, call, guardrail, decide, observe, note, unknown (and the older
-     * {@code statement}). {@code attrs} holds the settings written on the statement (retry, timeout, budget, …);
-     * it is empty when there are none, and eval4j does not interpret it.
+     * A workflow statement. {@code kind}: start, end, delegate, task, handoff, broadcast, parallel,
+     * alt, loop, foreach, human_prompt, checkpoint, rewind, call, guardrail, decide, observe, note,
+     * unknown (and the older {@code statement}). {@code attrs} holds the settings written on the
+     * statement (retry, timeout, budget, …); it is empty when there are none, and eval4j does not
+     * interpret it.
      */
     public record Node(
-            String id, String kind, String label, String agent, Integer bound, Map<String, Object> attrs) {
+            String id,
+            String kind,
+            String label,
+            String agent,
+            Integer bound,
+            Map<String, Object> attrs) {
 
         public Node {
-            attrs = attrs == null ? Map.of() : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(attrs));
+            attrs =
+                    attrs == null
+                            ? Map.of()
+                            : java.util.Collections.unmodifiableMap(
+                                    new java.util.LinkedHashMap<>(attrs));
         }
 
         public Node(String id, String kind, String label, String agent, Integer bound) {
@@ -120,7 +130,9 @@ public record WorkflowTrace(
 
     /** How many times {@code task} ran (every run counts; replays from a journal do not). */
     public long taskRuns(String task) {
-        return events.stream().filter(e -> isTaskStart(e) && task.equals(e.data().get("task"))).count();
+        return events.stream()
+                .filter(e -> isTaskStart(e) && task.equals(e.data().get("task")))
+                .count();
     }
 
     /** The task names in the order each ran, repeats included. */

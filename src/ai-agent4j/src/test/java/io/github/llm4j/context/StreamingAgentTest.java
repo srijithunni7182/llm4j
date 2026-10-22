@@ -29,7 +29,10 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.Test;
 
-/** The agent loop on a streamed model call: assembly, deltas to listeners, and a steer or cancel that closes the call. */
+/**
+ * The agent loop on a streamed model call: assembly, deltas to listeners, and a steer or cancel
+ * that closes the call.
+ */
 class StreamingAgentTest {
 
     /** A model whose calls are streams. */
@@ -78,84 +81,149 @@ class StreamingAgentTest {
         return Providers.toolCallChunk(new ToolCallDelta(0, null, null, fragment), "m");
     }
 
-    /** Yields {@code first}, then blocks (a silent model) until the stream is closed, which makes the read fail as a closed connection does. */
+    /**
+     * Yields {@code first}, then blocks (a silent model) until the stream is closed, which makes
+     * the read fail as a closed connection does.
+     */
     static Stream<LLMResponse> thenSilence(CountDownLatch waiting, LLMResponse... first) {
         BlockingQueue<Object> queue = new LinkedBlockingQueue<>(List.of(first));
         Object closed = new Object();
-        Iterator<LLMResponse> it = new Iterator<>() {
-            LLMResponse next;
+        Iterator<LLMResponse> it =
+                new Iterator<>() {
+                    LLMResponse next;
 
-            @Override
-            public boolean hasNext() {
-                if (next != null) return true;
-                try {
-                    if (queue.isEmpty()) waiting.countDown();
-                    Object o = queue.take();
-                    if (o == closed) throw new UncheckedIOException(new IOException("stream closed"));
-                    next = (LLMResponse) o;
-                    return true;
-                } catch (InterruptedException e) {
-                    throw new IllegalStateException(e);
-                }
-            }
+                    @Override
+                    public boolean hasNext() {
+                        if (next != null) return true;
+                        try {
+                            if (queue.isEmpty()) waiting.countDown();
+                            Object o = queue.take();
+                            if (o == closed)
+                                throw new UncheckedIOException(new IOException("stream closed"));
+                            next = (LLMResponse) o;
+                            return true;
+                        } catch (InterruptedException e) {
+                            throw new IllegalStateException(e);
+                        }
+                    }
 
-            @Override
-            public LLMResponse next() {
-                if (!hasNext()) throw new NoSuchElementException();
-                LLMResponse r = next;
-                next = null;
-                return r;
-            }
-        };
-        return StreamSupport.stream(java.util.Spliterators.spliteratorUnknownSize(it, 0), false).onClose(() -> queue.add(closed));
+                    @Override
+                    public LLMResponse next() {
+                        if (!hasNext()) throw new NoSuchElementException();
+                        LLMResponse r = next;
+                        next = null;
+                        return r;
+                    }
+                };
+        return StreamSupport.stream(java.util.Spliterators.spliteratorUnknownSize(it, 0), false)
+                .onClose(() -> queue.add(closed));
     }
 
     static ReActAgent.Builder agent(StreamingModel model) {
-        return ReActAgent.builder().llmClient(model).addTool(ReActAgentCompactionNativeTest.search(10)).streaming(true);
+        return ReActAgent.builder()
+                .llmClient(model)
+                .addTool(ReActAgentCompactionNativeTest.search(10))
+                .streaming(true);
     }
 
     @Test
     void aStreamedTurnIsPutBackTogetherAndItsToolRuns() {
-        Map<String, Object> raw = Map.of("anthropic.content", List.of(Map.of("type", "thinking", "signature", "s")));
-        StreamingModel model = new StreamingModel(n -> n == 0
-                ? chunks(Providers.textChunk("Let me ", "m"), Providers.textChunk("check.", "m"),
-                        toolStart("c0", "search"), toolArgs("{\"q\":"), toolArgs("\"cats\"}"), fin("tool_use", raw))
-                : chunks(Providers.textChunk("done", "m"), fin("end_turn", Map.of())));
+        Map<String, Object> raw =
+                Map.of("anthropic.content", List.of(Map.of("type", "thinking", "signature", "s")));
+        StreamingModel model =
+                new StreamingModel(
+                        n ->
+                                n == 0
+                                        ? chunks(
+                                                Providers.textChunk("Let me ", "m"),
+                                                Providers.textChunk("check.", "m"),
+                                                toolStart("c0", "search"),
+                                                toolArgs("{\"q\":"),
+                                                toolArgs("\"cats\"}"),
+                                                fin("tool_use", raw))
+                                        : chunks(
+                                                Providers.textChunk("done", "m"),
+                                                fin("end_turn", Map.of())));
         List<String> heard = Collections.synchronizedList(new ArrayList<>());
-        AgentEventListener listener = new AgentEventListener() {
-            public void onThought(String t) { heard.add("thought:" + t); }
-            public void onAction(String n, String i) { heard.add("action:" + n + i); }
-            public void onObservation(String o) {}
-            @Override public void onTextDelta(String p) { heard.add("text:" + p); }
-            @Override public void onToolCallStarted(String n) { heard.add("start:" + n); }
-        };
+        AgentEventListener listener =
+                new AgentEventListener() {
+                    public void onThought(String t) {
+                        heard.add("thought:" + t);
+                    }
+
+                    public void onAction(String n, String i) {
+                        heard.add("action:" + n + i);
+                    }
+
+                    public void onObservation(String o) {}
+
+                    @Override
+                    public void onTextDelta(String p) {
+                        heard.add("text:" + p);
+                    }
+
+                    @Override
+                    public void onToolCallStarted(String n) {
+                        heard.add("start:" + n);
+                    }
+                };
         ScriptedModel.FixedTool tool = ReActAgentCompactionNativeTest.search(10);
         StreamingModel m = model;
 
-        AgentResult r = ReActAgent.builder().llmClient(m).addTool(tool).streaming(true).addListener(listener).build().run("Q?");
+        AgentResult r =
+                ReActAgent.builder()
+                        .llmClient(m)
+                        .addTool(tool)
+                        .streaming(true)
+                        .addListener(listener)
+                        .build()
+                        .run("Q?");
 
         assertThat(r.isCompleted()).isTrue();
         assertThat(r.getFinalAnswer()).isEqualTo("done");
         assertThat(tool.seen).containsExactly(Map.of("q", "cats"));
-        assertThat(heard).containsSubsequence("text:Let me ", "text:check.", "start:search", "thought:Let me check.", "text:done");
-        // the provider data of the streamed turn goes back with the tool result, as for a whole call
-        Message assistant = m.requests.get(1).getMessages().stream().filter(x -> !x.getToolCalls().isEmpty()).findFirst().orElseThrow();
+        assertThat(heard)
+                .containsSubsequence(
+                        "text:Let me ",
+                        "text:check.",
+                        "start:search",
+                        "thought:Let me check.",
+                        "text:done");
+        // the provider data of the streamed turn goes back with the tool result, as for a whole
+        // call
+        Message assistant =
+                m.requests.get(1).getMessages().stream()
+                        .filter(x -> !x.getToolCalls().isEmpty())
+                        .findFirst()
+                        .orElseThrow();
         assertThat(assistant.getProviderData()).isEqualTo(raw);
         assertThat(m.requests.get(0).isReasoning()).isFalse();
     }
 
     @Test
     void reasoningIsAskedForOnlyWhenAskedAndReachesTheListener() {
-        StreamingModel model = new StreamingModel(n -> chunks(
-                Providers.reasoningChunk("thinking about ", "m"), Providers.reasoningChunk("cats", "m"),
-                Providers.textChunk("done", "m"), fin("end_turn", Map.of())));
+        StreamingModel model =
+                new StreamingModel(
+                        n ->
+                                chunks(
+                                        Providers.reasoningChunk("thinking about ", "m"),
+                                                Providers.reasoningChunk("cats", "m"),
+                                        Providers.textChunk("done", "m"),
+                                                fin("end_turn", Map.of())));
         List<String> reasoning = new ArrayList<>();
-        AgentEventListener listener = new AgentEventListener() {
-            public void onThought(String t) {}
-            public void onAction(String n, String i) {}
-            public void onObservation(String o) {}
-            @Override public void onReasoningDelta(String p) { reasoning.add(p); }
-        };
+        AgentEventListener listener =
+                new AgentEventListener() {
+                    public void onThought(String t) {}
+
+                    public void onAction(String n, String i) {}
+
+                    public void onObservation(String o) {}
+
+                    @Override
+                    public void onReasoningDelta(String p) {
+                        reasoning.add(p);
+                    }
+                };
 
         AgentResult r = agent(model).reasoning(true).addListener(listener).build().run("Q?");
 
@@ -168,9 +236,17 @@ class StreamingAgentTest {
     void aSteerClosesACallThatIsStillGoingAndTheModelHearsItNext() throws Exception {
         RunHandle handle = new RunHandle();
         CountDownLatch waiting = new CountDownLatch(1);
-        StreamingModel model = new StreamingModel(n -> n == 0
-                ? thenSilence(waiting, Providers.textChunk("I will start by deleting", "m"))
-                : chunks(Providers.textChunk("ok, not deleting", "m"), fin("end_turn", Map.of())));
+        StreamingModel model =
+                new StreamingModel(
+                        n ->
+                                n == 0
+                                        ? thenSilence(
+                                                waiting,
+                                                Providers.textChunk(
+                                                        "I will start by deleting", "m"))
+                                        : chunks(
+                                                Providers.textChunk("ok, not deleting", "m"),
+                                                fin("end_turn", Map.of())));
         AgentResult[] out = new AgentResult[1];
         Thread runner = new Thread(() -> out[0] = agent(model).build().run("Clean up", handle));
         runner.start();
@@ -181,7 +257,8 @@ class StreamingAgentTest {
 
         assertThat(out[0].getFinalAnswer()).isEqualTo("ok, not deleting");
         List<Message> second = model.requests.get(1).getMessages();
-        assertThat(second.get(second.size() - 2).getContent()).isEqualTo("I will start by deleting"); // what it had said stays
+        assertThat(second.get(second.size() - 2).getContent())
+                .isEqualTo("I will start by deleting"); // what it had said stays
         assertThat(second.get(second.size() - 1).getContent()).contains("do not delete anything");
         assertThat(second.get(second.size() - 1).getRole()).isEqualTo(Message.Role.USER);
     }
@@ -205,16 +282,32 @@ class StreamingAgentTest {
 
     @Test
     void aToolCallWhoseArgumentsAreCutOffIsNotRunAndTheModelIsToldToWriteItAgain() {
-        StreamingModel model = new StreamingModel(n -> n == 0
-                ? chunks(toolStart("c0", "search"), toolArgs("{\"q\":\"ca"), fin("max_tokens", Map.of()))
-                : chunks(Providers.textChunk("done", "m"), fin("end_turn", Map.of())));
+        StreamingModel model =
+                new StreamingModel(
+                        n ->
+                                n == 0
+                                        ? chunks(
+                                                toolStart("c0", "search"),
+                                                toolArgs("{\"q\":\"ca"),
+                                                fin("max_tokens", Map.of()))
+                                        : chunks(
+                                                Providers.textChunk("done", "m"),
+                                                fin("end_turn", Map.of())));
         ScriptedModel.FixedTool tool = ReActAgentCompactionNativeTest.search(10);
 
-        AgentResult r = ReActAgent.builder().llmClient(model).addTool(tool).streaming(true).build().run("Q?");
+        AgentResult r =
+                ReActAgent.builder()
+                        .llmClient(model)
+                        .addTool(tool)
+                        .streaming(true)
+                        .build()
+                        .run("Q?");
 
         assertThat(r.getFinalAnswer()).isEqualTo("done");
         assertThat(tool.seen).isEmpty();
         List<Message> second = model.requests.get(1).getMessages();
-        assertThat(second.get(second.size() - 1).getContent()).contains("search").contains("Call it again");
+        assertThat(second.get(second.size() - 1).getContent())
+                .contains("search")
+                .contains("Call it again");
     }
 }

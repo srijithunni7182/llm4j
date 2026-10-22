@@ -8,9 +8,11 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * The tools of an agent that proposes a decision. While it proposes, every read it makes and what came back is written to the run journal (the
- * case's <b>evidence</b>), so a replay of the case can answer the same read the same way. In a replay the wrapper does the opposite: a recorded read
- * is answered from the journal, a pure tool runs, and everything else is simulated (a tool kind added later is stubbed until it says otherwise).
+ * The tools of an agent that proposes a decision. While it proposes, every read it makes and what
+ * came back is written to the run journal (the case's <b>evidence</b>), so a replay of the case can
+ * answer the same read the same way. In a replay the wrapper does the opposite: a recorded read is
+ * answered from the journal, a pure tool runs, and everything else is simulated (a tool kind added
+ * later is stubbed until it says otherwise).
  */
 final class EvidenceTool implements Tool {
 
@@ -54,7 +56,8 @@ final class EvidenceTool implements Tool {
         return result;
     }
 
-    private String replayed(Decider.Proposing proposing, Replay replay, Map<String, Object> args) throws Exception {
+    private String replayed(Decider.Proposing proposing, Replay replay, Map<String, Object> args)
+            throws Exception {
         String name = real.getName();
         if (replay.allows(name)) {
             replay.allowedRan(name);
@@ -70,7 +73,8 @@ final class EvidenceTool implements Tool {
                 return ReadClass.runLive(real, args);
             }
             replay.unrecorded(name);
-            throw new Replay.Unreplayable("unrecorded_read", name + " was read with arguments the case had not recorded");
+            throw new Replay.Unreplayable(
+                    "unrecorded_read", name + " was read with arguments the case had not recorded");
         }
         replay.simulated(name);
         return SimulatingTool.SIMULATED;
@@ -80,14 +84,25 @@ final class EvidenceTool implements Tool {
     static String hash(Map<String, Object> args) {
         try {
             String canonical = new TreeMap<>(args == null ? Map.of() : args).toString();
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(java.nio.charset.StandardCharsets.UTF_8)), 0, 8);
+            return HexFormat.of()
+                    .formatHex(
+                            MessageDigest.getInstance("SHA-256")
+                                    .digest(
+                                            canonical.getBytes(
+                                                    java.nio.charset.StandardCharsets.UTF_8)),
+                            0,
+                            8);
         } catch (java.security.NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
     }
 
-    static void write(RunJournal journal, String step, int n, String tool, String argsHash, String result) {
-        journal.put(step + "#decide-evidence:" + n, new RunJournal.Entry("evidence", Map.of("tool", tool, "args", argsHash, "result", result)));
+    static void write(
+            RunJournal journal, String step, int n, String tool, String argsHash, String result) {
+        journal.put(
+                step + "#decide-evidence:" + n,
+                new RunJournal.Entry(
+                        "evidence", Map.of("tool", tool, "args", argsHash, "result", result)));
     }
 
     @Override

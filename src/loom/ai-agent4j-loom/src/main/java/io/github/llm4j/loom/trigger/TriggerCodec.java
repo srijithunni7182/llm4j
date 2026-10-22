@@ -11,7 +11,7 @@ public final class TriggerCodec {
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    private TriggerCodec() { }
+    private TriggerCodec() {}
 
     public static String toJson(Trigger t) {
         try {
@@ -63,8 +63,12 @@ public final class TriggerCodec {
                 (String) m.get("lastOutcome"),
                 (String) m.get("note"),
                 m.get("attempts") instanceof Number n ? n.intValue() : 0,
-                m.get("misfire") == null ? null : Trigger.Misfire.valueOf((String) m.get("misfire")),
-                m.get("overlap") == null ? null : Trigger.Overlap.valueOf((String) m.get("overlap")),
+                m.get("misfire") == null
+                        ? null
+                        : Trigger.Misfire.valueOf((String) m.get("misfire")),
+                m.get("overlap") == null
+                        ? null
+                        : Trigger.Overlap.valueOf((String) m.get("overlap")),
                 !Boolean.FALSE.equals(m.get("enabled")),
                 (String) m.get("claimedBy"),
                 instant(m.get("claimedAt")));
@@ -110,10 +114,14 @@ public final class TriggerCodec {
     public static Trigger.Target targetFromMap(Map<String, Object> m) {
         return switch (String.valueOf(m.get("type"))) {
             case "resume" -> new Trigger.ResumeRun((String) m.get("runId"));
-            case "workflow" -> new Trigger.StartWorkflow((String) m.get("script"), (String) m.get("workflow"),
+            case "workflow" -> new Trigger.StartWorkflow(
+                    (String) m.get("script"),
+                    (String) m.get("workflow"),
                     (Map<String, String>) m.get("args"));
-            case "agent" -> new Trigger.AgentTask((String) m.get("script"), (String) m.get("agent"), (String) m.get("task"));
-            default -> throw new IllegalArgumentException("Unknown trigger target type: " + m.get("type"));
+            case "agent" -> new Trigger.AgentTask(
+                    (String) m.get("script"), (String) m.get("agent"), (String) m.get("task"));
+            default -> throw new IllegalArgumentException(
+                    "Unknown trigger target type: " + m.get("type"));
         };
     }
 

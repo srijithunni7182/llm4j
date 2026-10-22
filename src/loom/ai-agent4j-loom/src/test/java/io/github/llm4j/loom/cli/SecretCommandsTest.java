@@ -19,14 +19,16 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** CLI-*: {@code weave secrets} and {@code --secrets}: values are typed or piped, never arguments, and never printed. */
+/**
+ * CLI-*: {@code weave secrets} and {@code --secrets}: values are typed or piped, never arguments,
+ * and never printed.
+ */
 class SecretCommandsTest {
 
     static final String VALUE = "ZZ-cli-secret-value-77";
     static final String PASS = "correct horse battery staple";
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     ByteArrayOutputStream err = new ByteArrayOutputStream();
@@ -55,15 +57,33 @@ class SecretCommandsTest {
     }
 
     WeaveEnv env() {
-        return new WeaveEnv(m -> null, q -> "", new PrintStream(out, true), new PrintStream(err, true), Clock.systemUTC(), d -> { },
-                c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""), List.of("weave"), vars::get, null);
+        return new WeaveEnv(
+                m -> null,
+                q -> "",
+                new PrintStream(out, true),
+                new PrintStream(err, true),
+                Clock.systemUTC(),
+                d -> {},
+                c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""),
+                List.of("weave"),
+                vars::get,
+                null);
     }
 
     /** An environment whose models come from the real default factory, so key lookups are real. */
     WeaveEnv realModels() {
         WeaveEnv e = env();
-        return new WeaveEnv(new io.github.llm4j.loom.execution.DefaultLLMClientFactory(vars::get), e.human(), e.out(), e.err(), e.clock(), e.sleeper(),
-                e.commands(), e.weave(), vars::get, null);
+        return new WeaveEnv(
+                new io.github.llm4j.loom.execution.DefaultLLMClientFactory(vars::get),
+                e.human(),
+                e.out(),
+                e.err(),
+                e.clock(),
+                e.sleeper(),
+                e.commands(),
+                e.weave(),
+                vars::get,
+                null);
     }
 
     String said() {
@@ -77,41 +97,125 @@ class SecretCommandsTest {
     @Test
     void cli_lifecycle_neverShowsOrStoresValueInTheClear() throws Exception {
         String f = file().toString();
-        assertThat(SecretCommands.run(env(), new Script(PASS, PASS), "create", "--secrets", f, "--iterations", "100000")).isZero();
-        assertThat(SecretCommands.run(env(), new Script(VALUE, PASS), "set", "GEMINI_API_KEY", "--secrets", f,
-                "--allow-host", "generativelanguage.googleapis.com", "--description", "gemini")).isZero();
+        assertThat(
+                        SecretCommands.run(
+                                env(),
+                                new Script(PASS, PASS),
+                                "create",
+                                "--secrets",
+                                f,
+                                "--iterations",
+                                "100000"))
+                .isZero();
+        assertThat(
+                        SecretCommands.run(
+                                env(),
+                                new Script(VALUE, PASS),
+                                "set",
+                                "GEMINI_API_KEY",
+                                "--secrets",
+                                f,
+                                "--allow-host",
+                                "generativelanguage.googleapis.com",
+                                "--description",
+                                "gemini"))
+                .isZero();
         assertThat(SecretCommands.run(env(), new Script(PASS), "list", "--secrets", f)).isZero();
-        assertThat(said()).contains("GEMINI_API_KEY").contains("generativelanguage.googleapis.com").doesNotContain(VALUE);
-        assertThat(Files.readString(file(), StandardCharsets.ISO_8859_1)).doesNotContain(VALUE).doesNotContain("GEMINI_API_KEY");
+        assertThat(said())
+                .contains("GEMINI_API_KEY")
+                .contains("generativelanguage.googleapis.com")
+                .doesNotContain(VALUE);
+        assertThat(Files.readString(file(), StandardCharsets.ISO_8859_1))
+                .doesNotContain(VALUE)
+                .doesNotContain("GEMINI_API_KEY");
 
-        try (EncryptedFileSecretStore s = EncryptedFileSecretStore.open(file(), MasterKey.of(PASS.toCharArray()))) {
+        try (EncryptedFileSecretStore s =
+                EncryptedFileSecretStore.open(file(), MasterKey.of(PASS.toCharArray()))) {
             assertThat(s.resolve("GEMINI_API_KEY")).isEqualTo(VALUE);
         }
-        assertThat(SecretCommands.run(env(), new Script(PASS), "remove", "GEMINI_API_KEY", "--secrets", f)).isZero();
-        assertThat(SecretCommands.run(env(), new Script(PASS), "remove", "GEMINI_API_KEY", "--secrets", f)).isEqualTo(1);
+        assertThat(
+                        SecretCommands.run(
+                                env(),
+                                new Script(PASS),
+                                "remove",
+                                "GEMINI_API_KEY",
+                                "--secrets",
+                                f))
+                .isZero();
+        assertThat(
+                        SecretCommands.run(
+                                env(),
+                                new Script(PASS),
+                                "remove",
+                                "GEMINI_API_KEY",
+                                "--secrets",
+                                f))
+                .isEqualTo(1);
     }
 
     @Test
     void cli_createRefusesDifferingEntriesAndExistingFile() {
         String f = file().toString();
-        assertThat(SecretCommands.run(env(), new Script("one", "two"), "create", "--secrets", f)).isEqualTo(1);
+        assertThat(SecretCommands.run(env(), new Script("one", "two"), "create", "--secrets", f))
+                .isEqualTo(1);
         assertThat(said()).contains("differ");
         assertThat(file()).doesNotExist();
-        assertThat(SecretCommands.run(env(), new Script(PASS, PASS), "create", "--secrets", f, "--iterations", "100000")).isZero();
-        assertThat(SecretCommands.run(env(), new Script(PASS, PASS), "create", "--secrets", f, "--iterations", "100000")).isEqualTo(1);
+        assertThat(
+                        SecretCommands.run(
+                                env(),
+                                new Script(PASS, PASS),
+                                "create",
+                                "--secrets",
+                                f,
+                                "--iterations",
+                                "100000"))
+                .isZero();
+        assertThat(
+                        SecretCommands.run(
+                                env(),
+                                new Script(PASS, PASS),
+                                "create",
+                                "--secrets",
+                                f,
+                                "--iterations",
+                                "100000"))
+                .isEqualTo(1);
     }
 
     @Test
     void cli_setReadsStdinAndKeyFromNamedVariable() throws Exception {
         String f = file().toString();
         vars.put("MY_STORE_KEY", PASS);
-        assertThat(SecretCommands.run(env(), new Script(), "create", "--secrets", f, "--secrets-key-env", "MY_STORE_KEY", "--iterations", "100000")).isZero();
+        assertThat(
+                        SecretCommands.run(
+                                env(),
+                                new Script(),
+                                "create",
+                                "--secrets",
+                                f,
+                                "--secrets-key-env",
+                                "MY_STORE_KEY",
+                                "--iterations",
+                                "100000"))
+                .isZero();
         Script piped = new Script();
         piped.line = VALUE;
-        assertThat(SecretCommands.run(env(), piped, "set", "TOKEN", "--stdin", "--secrets", f, "--secrets-key-env", "MY_STORE_KEY")).isZero();
+        assertThat(
+                        SecretCommands.run(
+                                env(),
+                                piped,
+                                "set",
+                                "TOKEN",
+                                "--stdin",
+                                "--secrets",
+                                f,
+                                "--secrets-key-env",
+                                "MY_STORE_KEY"))
+                .isZero();
         assertThat(piped.asked).isEmpty();
         assertThat(said()).doesNotContain(VALUE);
-        try (EncryptedFileSecretStore s = EncryptedFileSecretStore.open(file(), MasterKey.of(PASS.toCharArray()))) {
+        try (EncryptedFileSecretStore s =
+                EncryptedFileSecretStore.open(file(), MasterKey.of(PASS.toCharArray()))) {
             assertThat(s.resolve("TOKEN")).isEqualTo(VALUE);
         }
     }
@@ -119,11 +223,25 @@ class SecretCommandsTest {
     @Test
     void cli_importEnvCopiesWithoutEchoAndReportsMissing() throws Exception {
         String f = file().toString();
-        SecretCommands.run(env(), new Script(PASS, PASS), "create", "--secrets", f, "--iterations", "100000");
+        SecretCommands.run(
+                env(), new Script(PASS, PASS), "create", "--secrets", f, "--iterations", "100000");
         vars.put("SARVAM_API_KEY", VALUE);
-        assertThat(SecretCommands.run(env(), new Script(PASS), "import-env", "SARVAM_API_KEY", "NOPE_NOT_SET", "--secrets", f)).isEqualTo(1);
-        assertThat(said()).contains("Imported SARVAM_API_KEY").contains("NOPE_NOT_SET is not set").doesNotContain(VALUE);
-        try (EncryptedFileSecretStore s = EncryptedFileSecretStore.open(file(), MasterKey.of(PASS.toCharArray()))) {
+        assertThat(
+                        SecretCommands.run(
+                                env(),
+                                new Script(PASS),
+                                "import-env",
+                                "SARVAM_API_KEY",
+                                "NOPE_NOT_SET",
+                                "--secrets",
+                                f))
+                .isEqualTo(1);
+        assertThat(said())
+                .contains("Imported SARVAM_API_KEY")
+                .contains("NOPE_NOT_SET is not set")
+                .doesNotContain(VALUE);
+        try (EncryptedFileSecretStore s =
+                EncryptedFileSecretStore.open(file(), MasterKey.of(PASS.toCharArray()))) {
             assertThat(s.resolve("SARVAM_API_KEY")).isEqualTo(VALUE);
         }
     }
@@ -131,14 +249,24 @@ class SecretCommandsTest {
     @Test
     void cli_rekeyChangesTheMasterKey() throws Exception {
         String f = file().toString();
-        SecretCommands.run(env(), new Script(PASS, PASS), "create", "--secrets", f, "--iterations", "100000");
+        SecretCommands.run(
+                env(), new Script(PASS, PASS), "create", "--secrets", f, "--iterations", "100000");
         vars.put("SARVAM_API_KEY", VALUE);
         SecretCommands.run(env(), new Script(PASS), "import-env", "SARVAM_API_KEY", "--secrets", f);
-        assertThat(SecretCommands.run(env(), new Script(PASS, "new-pass", "new-pass"), "rekey", "--secrets", f)).isZero();
-        try (EncryptedFileSecretStore s = EncryptedFileSecretStore.open(file(), MasterKey.of("new-pass".toCharArray()))) {
+        assertThat(
+                        SecretCommands.run(
+                                env(),
+                                new Script(PASS, "new-pass", "new-pass"),
+                                "rekey",
+                                "--secrets",
+                                f))
+                .isZero();
+        try (EncryptedFileSecretStore s =
+                EncryptedFileSecretStore.open(file(), MasterKey.of("new-pass".toCharArray()))) {
             assertThat(s.resolve("SARVAM_API_KEY")).isEqualTo(VALUE);
         }
-        assertThat(SecretCommands.run(env(), new Script(PASS), "list", "--secrets", f)).isEqualTo(1);
+        assertThat(SecretCommands.run(env(), new Script(PASS), "list", "--secrets", f))
+                .isEqualTo(1);
     }
 
     @Test
@@ -146,8 +274,10 @@ class SecretCommandsTest {
         assertThat(SecretCommands.run(env(), new Script(), "list")).isEqualTo(2);
         assertThat(said()).contains("--secrets <file> is required");
         String f = file().toString();
-        SecretCommands.run(env(), new Script(PASS, PASS), "create", "--secrets", f, "--iterations", "100000");
-        assertThat(SecretCommands.run(env(), new Script("wrong-" + PASS), "list", "--secrets", f)).isEqualTo(1);
+        SecretCommands.run(
+                env(), new Script(PASS, PASS), "create", "--secrets", f, "--iterations", "100000");
+        assertThat(SecretCommands.run(env(), new Script("wrong-" + PASS), "list", "--secrets", f))
+                .isEqualTo(1);
         assertThat(said()).doesNotContain(PASS);
     }
 
@@ -155,10 +285,28 @@ class SecretCommandsTest {
     void cli_secretsOption_opensTheStoreForRunAndCheck() throws Exception {
         String f = file().toString();
         vars.put("MY_STORE_KEY", PASS);
-        SecretCommands.run(env(), new Script(), "create", "--secrets", f, "--secrets-key-env", "MY_STORE_KEY", "--iterations", "100000");
+        SecretCommands.run(
+                env(),
+                new Script(),
+                "create",
+                "--secrets",
+                f,
+                "--secrets-key-env",
+                "MY_STORE_KEY",
+                "--iterations",
+                "100000");
         Script piped = new Script();
         piped.line = VALUE;
-        SecretCommands.run(env(), piped, "set", "SARVAM_API_KEY", "--stdin", "--secrets", f, "--secrets-key-env", "MY_STORE_KEY");
+        SecretCommands.run(
+                env(),
+                piped,
+                "set",
+                "SARVAM_API_KEY",
+                "--stdin",
+                "--secrets",
+                f,
+                "--secrets-key-env",
+                "MY_STORE_KEY");
 
         SecretOptions o = new SecretOptions();
         o.file = new File(f);
@@ -168,11 +316,14 @@ class SecretCommandsTest {
         assertThat(opened.secrets().resolve("SARVAM_API_KEY")).isEqualTo(VALUE);
 
         Path script = dir.resolve("w.loom");
-        Files.writeString(script, """
+        Files.writeString(
+                script,
+                """
                 agent A { model: "sarvam/sarvam-m" }
                 workflow Main() { delegate "hi" to A -> out }
                 """);
-        // the key is only in the store, not the environment: check passes only because the store was opened
+        // the key is only in the store, not the environment: check passes only because the store
+        // was opened
         assertThat(WeaveCLI.check(script.toFile(), null, false, opened)).isZero();
         assertThat(WeaveCLI.check(script.toFile(), null, false, realModels())).isNotZero();
         assertThat(said()).doesNotContain(VALUE);
@@ -190,6 +341,7 @@ class SecretCommandsTest {
         assertThat(o.apply(env(), new Script())).isNull();
         assertThat(said()).contains("need --secrets");
         // a run's saved spec has no place for the store's path or key source
-        for (var c : RunSpec.class.getRecordComponents()) assertThat(c.getName().toLowerCase()).doesNotContain("secret").doesNotContain("master");
+        for (var c : RunSpec.class.getRecordComponents())
+            assertThat(c.getName().toLowerCase()).doesNotContain("secret").doesNotContain("master");
     }
 }

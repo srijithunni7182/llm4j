@@ -14,8 +14,23 @@ final class TestClock extends Clock {
         millis.addAndGet(ms);
     }
 
-    @Override public ZoneId getZone() { return ZoneOffset.UTC; }
-    @Override public Clock withZone(ZoneId zone) { return this; }
-    @Override public Instant instant() { return Instant.ofEpochMilli(millis.get()); }
-    @Override public long millis() { return millis.get(); }
+    @Override
+    public ZoneId getZone() {
+        return ZoneOffset.UTC;
+    }
+
+    @Override
+    public Clock withZone(ZoneId zone) {
+        return this;
+    }
+
+    @Override
+    public Instant instant() {
+        return Instant.ofEpochMilli(millis.get());
+    }
+
+    @Override
+    public long millis() {
+        return millis.get();
+    }
 }

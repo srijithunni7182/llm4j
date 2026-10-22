@@ -79,7 +79,7 @@
       "properties": {
         "id": { "type": "string" },
         "kind": {
-          "enum": ["start", "end", "delegate", "task", "handoff", "broadcast", "parallel", "alt", "loop", "foreach",
+          "enum": ["start", "end", "delegate", "task", "classify", "handoff", "broadcast", "parallel", "alt", "loop", "foreach",
                    "human_prompt", "checkpoint", "rewind", "call", "guardrail", "decide", "observe", "note", "halt", "set", "return", "sleep", "outcome", "unknown"]
         },
         "label": { "type": "string" },
@@ -110,6 +110,15 @@
             "branches": { "type": "integer", "minimum": 1 },
             "args": { "type": "integer", "minimum": 1 },
             "task": { "type": "string" },
+            "model": { "type": "string" },
+            "classifier": { "type": "string" },
+            "backend": { "enum": ["jev", "chat"] },
+            "calibrated": { "const": true },
+            "uncalibrated": { "const": true },
+            "questions": { "type": "integer", "minimum": 1 },
+            "samples": { "type": "integer", "minimum": 2 },
+            "labels": { "type": "array", "items": { "type": "string" } },
+            "confidence": { "type": "string" },
             "item": { "type": "string" },
             "collection": { "type": "string" },
             "parallel": { "const": true },

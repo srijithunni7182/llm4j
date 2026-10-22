@@ -12,13 +12,12 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * An implementation of {@link SkillRegistry} that interacts with a REST API (like SkillsMP)
- * to discover and fetch skills.
+ * An implementation of {@link SkillRegistry} that interacts with a REST API (like SkillsMP) to
+ * discover and fetch skills.
  */
 public class RestSkillRegistry implements SkillRegistry {
 
@@ -30,11 +29,16 @@ public class RestSkillRegistry implements SkillRegistry {
     private RestSkillRegistry(Builder builder) {
         this.baseUrl = Objects.requireNonNull(builder.baseUrl, "baseUrl must not be null");
         this.apiKey = builder.apiKey; // null is allowed if API doesn't require it
-        this.httpClient = builder.httpClient != null ? builder.httpClient : HttpClient.newHttpClient();
-        this.objectMapper = builder.objectMapper != null ? builder.objectMapper : new ObjectMapper();
+        this.httpClient =
+                builder.httpClient != null ? builder.httpClient : HttpClient.newHttpClient();
+        this.objectMapper =
+                builder.objectMapper != null ? builder.objectMapper : new ObjectMapper();
     }
 
-    /** Adds the credential, fetched now, and returns it (for scrubbing what the server says back); null when there is none. */
+    /**
+     * Adds the credential, fetched now, and returns it (for scrubbing what the server says back);
+     * null when there is none.
+     */
     private String authorize(HttpRequest.Builder requestBuilder, URI uri) throws IOException {
         if (apiKey == null) return null;
         String key;
@@ -57,15 +61,22 @@ public class RestSkillRegistry implements SkillRegistry {
     public List<SkillMetadata> searchSkills(String query) throws IOException {
         String encodedQuery = URLEncoder.encode(query == null ? "" : query, StandardCharsets.UTF_8);
         // We assume /search?q=query is the standard endpoint for keyword search
-        URI uri = URI.create(baseUrl + (baseUrl.endsWith("/") ? "" : "/") + "search?q=" + encodedQuery);
+        URI uri =
+                URI.create(
+                        baseUrl + (baseUrl.endsWith("/") ? "" : "/") + "search?q=" + encodedQuery);
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(uri).GET();
         String key = authorize(requestBuilder, uri);
 
         try {
-            HttpResponse<String> response = httpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response =
+                    httpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
-                throw new IOException("Failed to search skills: HTTP " + response.statusCode() + " - " + scrub(response.body(), key));
+                throw new IOException(
+                        "Failed to search skills: HTTP "
+                                + response.statusCode()
+                                + " - "
+                                + scrub(response.body(), key));
             }
 
             return parseSearchResponse(response.body());
@@ -84,9 +95,14 @@ public class RestSkillRegistry implements SkillRegistry {
         String key = authorize(requestBuilder, uri);
 
         try {
-            HttpResponse<String> response = httpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response =
+                    httpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
-                throw new IOException("Failed to fetch skill: HTTP " + response.statusCode() + " - " + scrub(response.body(), key));
+                throw new IOException(
+                        "Failed to fetch skill: HTTP "
+                                + response.statusCode()
+                                + " - "
+                                + scrub(response.body(), key));
             }
 
             return parseSkillResponse(skillId, response.body());
@@ -116,16 +132,17 @@ public class RestSkillRegistry implements SkillRegistry {
             for (JsonNode item : itemsNode) {
                 String id = item.has("id") ? item.get("id").asText() : "";
                 String name = item.has("name") ? item.get("name").asText() : id;
-                String description = item.has("description") ? item.get("description").asText() : "";
+                String description =
+                        item.has("description") ? item.get("description").asText() : "";
                 String author = item.has("author") ? item.get("author").asText() : "Unknown";
-                
+
                 List<String> tags = new ArrayList<>();
                 if (item.has("tags") && item.get("tags").isArray()) {
                     for (JsonNode tag : item.get("tags")) {
                         tags.add(tag.asText());
                     }
                 }
-                
+
                 metadataList.add(new SkillMetadata(id, name, description, author, tags));
             }
         }
@@ -135,8 +152,8 @@ public class RestSkillRegistry implements SkillRegistry {
     private AgentSkill parseSkillResponse(String fallbackId, String body) throws IOException {
         JsonNode rootNode;
         try {
-             rootNode = objectMapper.readTree(body);
-        } catch(Exception e) {
+            rootNode = objectMapper.readTree(body);
+        } catch (Exception e) {
             // It might be raw markdown, not JSON!
             return AgentSkill.of(fallbackId, body);
         }
@@ -158,7 +175,7 @@ public class RestSkillRegistry implements SkillRegistry {
             content = rootNode.get("instructions").asText();
         } else {
             // Fallback, treat entire thing as string if we can't find a content field
-            content = body; 
+            content = body;
         }
 
         if (rootNode.has("name")) {
@@ -190,7 +207,10 @@ public class RestSkillRegistry implements SkillRegistry {
             return this;
         }
 
-        /** A key kept in a {@link io.github.llm4j.secret.SecretStore}: fetched for each request and not held by the registry. */
+        /**
+         * A key kept in a {@link io.github.llm4j.secret.SecretStore}: fetched for each request and
+         * not held by the registry.
+         */
         public Builder apiKey(SecretRef apiKey) {
             this.apiKey = apiKey;
             return this;

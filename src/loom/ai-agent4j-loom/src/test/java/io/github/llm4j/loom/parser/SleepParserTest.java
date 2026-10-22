@@ -20,7 +20,10 @@ class SleepParserTest {
     }
 
     private static List<Statement> body(String statements) {
-        return parse("agent A { model: \"m\" }\nworkflow W() {\n" + statements + "\n}").getWorkflows().get(0).getStatements();
+        return parse("agent A { model: \"m\" }\nworkflow W() {\n" + statements + "\n}")
+                .getWorkflows()
+                .get(0)
+                .getStatements();
     }
 
     private static SleepStmt only(String statements) {

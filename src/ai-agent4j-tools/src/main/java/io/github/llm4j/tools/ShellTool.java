@@ -1,7 +1,7 @@
 package io.github.llm4j.tools;
+
 import io.github.llm4j.agent.tool.EffectContext;
 import io.github.llm4j.agent.tool.EffectPolicy;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,17 +21,31 @@ final class ShellTool extends GenericTool {
     private static final int MAX_ARG_LENGTH = 4096;
 
     /** A declaration, parsed and checked. */
-    record Config(Map<String, Path> programs, Path cwd, List<String> envPass, long maxOutput, Duration timeout,
-                  EffectPolicy.OnUnknown onUnknown) {
+    record Config(
+            Map<String, Path> programs,
+            Path cwd,
+            List<String> envPass,
+            long maxOutput,
+            Duration timeout,
+            EffectPolicy.OnUnknown onUnknown) {
 
         static Config parse(Options o, Path baseDir, String osName) {
-            if (osName.toLowerCase(Locale.ROOT).contains("win")) throw new OptionException("use: shell is supported on Linux and macOS, not Windows");
+            if (osName.toLowerCase(Locale.ROOT).contains("win"))
+                throw new OptionException(
+                        "use: shell is supported on Linux and macOS, not Windows");
             List<String> allow = o.list("allow");
-            if (allow.isEmpty()) throw new OptionException("allow: needs at least one program name, e.g. \"git, df\"");
-            Map<String, Path> programs = ShellKind.resolveAllowed(allow, o.bool("allow_interpreters", false));
+            if (allow.isEmpty())
+                throw new OptionException(
+                        "allow: needs at least one program name, e.g. \"git, df\"");
+            Map<String, Path> programs =
+                    ShellKind.resolveAllowed(allow, o.bool("allow_interpreters", false));
             Path cwd = ShellKind.resolveCwd(o.string("cwd", "."), baseDir);
             o.bool("unattended", false);
-            return new Config(programs, cwd, o.list("env_pass"), o.size("max_output", 64 * 1024, 4L * 1024 * 1024),
+            return new Config(
+                    programs,
+                    cwd,
+                    o.list("env_pass"),
+                    o.size("max_output", 64 * 1024, 4L * 1024 * 1024),
                     o.duration("timeout", Duration.ofSeconds(30), Duration.ofMinutes(10)),
                     EffectPolicy.parse(o.choice("on_unknown", "skip", "skip", "retry")));
         }
@@ -45,9 +59,11 @@ final class ShellTool extends GenericTool {
     }
 
     private static String description(Config c) {
-        return "Runs a program on this machine. Arguments: program (one of " + String.join(", ", c.programs().keySet())
+        return "Runs a program on this machine. Arguments: program (one of "
+                + String.join(", ", c.programs().keySet())
                 + "), args (a list of strings; no shell is involved, so quoting, pipes and wildcards have no effect). "
-                + "Returns the exit code, then standard output and standard error. Stops after " + c.timeout().toSeconds()
+                + "Returns the exit code, then standard output and standard error. Stops after "
+                + c.timeout().toSeconds()
                 + " seconds.";
     }
 
@@ -68,10 +84,17 @@ final class ShellTool extends GenericTool {
     }
 
     @Override
-    protected String run(Map<String, Object> args, String idempotencyKey) throws IOException, InterruptedException {
+    protected String run(Map<String, Object> args, String idempotencyKey)
+            throws IOException, InterruptedException {
         String program = text(args, "program");
         Path executable = config.programs().get(program);
-        if (executable == null) throw new ToolRefusal("program " + Limits.excerpt(program, 40) + " is not allowed (allowed: " + String.join(", ", config.programs().keySet()) + ")");
+        if (executable == null)
+            throw new ToolRefusal(
+                    "program "
+                            + Limits.excerpt(program, 40)
+                            + " is not allowed (allowed: "
+                            + String.join(", ", config.programs().keySet())
+                            + ")");
         List<String> command = new ArrayList<>();
         command.add(executable.toString());
         command.addAll(arguments(args.get("args")));
@@ -96,9 +119,17 @@ final class ShellTool extends GenericTool {
             process.descendants().forEach(ProcessHandle::destroyForcibly);
             process.destroyForcibly();
             process.waitFor(5, TimeUnit.SECONDS);
-            throw new ToolRefusal(program + " ran longer than " + config.timeout().toSeconds() + "s and was stopped");
+            throw new ToolRefusal(
+                    program
+                            + " ran longer than "
+                            + config.timeout().toSeconds()
+                            + "s and was stopped");
         }
-        return "exit " + process.exitValue() + "\n" + section("stdout", out.join()) + section("stderr", err.join());
+        return "exit "
+                + process.exitValue()
+                + "\n"
+                + section("stdout", out.join())
+                + section("stderr", err.join());
     }
 
     private static String orElse(String value, String fallback) {
@@ -107,33 +138,47 @@ final class ShellTool extends GenericTool {
 
     private static List<String> arguments(Object given) {
         if (given == null) return List.of();
-        if (!(given instanceof List<?> list)) throw new ToolRefusal("args must be a list of strings");
-        if (list.size() > MAX_ARGS) throw new ToolRefusal("too many arguments (the limit is " + MAX_ARGS + ")");
+        if (!(given instanceof List<?> list))
+            throw new ToolRefusal("args must be a list of strings");
+        if (list.size() > MAX_ARGS)
+            throw new ToolRefusal("too many arguments (the limit is " + MAX_ARGS + ")");
         List<String> out = new ArrayList<>();
         for (Object item : list) {
             String s = String.valueOf(item);
-            if (s.length() > MAX_ARG_LENGTH) throw new ToolRefusal("an argument is too long (the limit is " + MAX_ARG_LENGTH + " characters)");
-            if (s.indexOf('\0') >= 0 || s.indexOf('\r') >= 0 || s.indexOf('\n') >= 0) throw new ToolRefusal("arguments can't contain line breaks or NUL");
+            if (s.length() > MAX_ARG_LENGTH)
+                throw new ToolRefusal(
+                        "an argument is too long (the limit is " + MAX_ARG_LENGTH + " characters)");
+            if (s.indexOf('\0') >= 0 || s.indexOf('\r') >= 0 || s.indexOf('\n') >= 0)
+                throw new ToolRefusal("arguments can't contain line breaks or NUL");
             out.add(s);
         }
         return out;
     }
 
-    /** Reads the stream on its own thread: the first {@code maxOutput} bytes are kept, the rest discarded, so the process never blocks. */
+    /**
+     * Reads the stream on its own thread: the first {@code maxOutput} bytes are kept, the rest
+     * discarded, so the process never blocks.
+     */
     private CompletableFuture<Limits.Capped> drain(InputStream stream) {
         CompletableFuture<Limits.Capped> result = new CompletableFuture<>();
-        Thread reader = new Thread(() -> {
-            try (stream) {
-                Limits.Capped capped = Limits.readCapped(stream, config.maxOutput());
-                if (capped.truncated()) {
-                    byte[] sink = new byte[8192];
-                    while (stream.read(sink) != -1) { /* discard */ }
-                }
-                result.complete(capped);
-            } catch (IOException e) {
-                result.complete(new Limits.Capped(new byte[0], false));
-            }
-        }, "loom-shell-output");
+        Thread reader =
+                new Thread(
+                        () -> {
+                            try (stream) {
+                                Limits.Capped capped =
+                                        Limits.readCapped(stream, config.maxOutput());
+                                if (capped.truncated()) {
+                                    byte[] sink = new byte[8192];
+                                    while (stream.read(sink) != -1) {
+                                        /* discard */
+                                    }
+                                }
+                                result.complete(capped);
+                            } catch (IOException e) {
+                                result.complete(new Limits.Capped(new byte[0], false));
+                            }
+                        },
+                        "loom-shell-output");
         reader.setDaemon(true);
         reader.start();
         return result;
@@ -142,11 +187,18 @@ final class ShellTool extends GenericTool {
     private static String section(String label, Limits.Capped c) {
         String text = c.text();
         if (text.isEmpty()) return label + ": (empty)\n";
-        return label + ":\n" + text + (text.endsWith("\n") ? "" : "\n") + (c.truncated() ? Limits.markerUnknownTotal(c.bytes().length) + "\n" : "");
+        return label
+                + ":\n"
+                + text
+                + (text.endsWith("\n") ? "" : "\n")
+                + (c.truncated() ? Limits.markerUnknownTotal(c.bytes().length) + "\n" : "");
     }
 
     @Override
     public java.util.Map<String, Object> getParametersSchema() {
-        return io.github.llm4j.model.ToolSchema.object().string("program", "The program to run (one of the allowed programs)", true).stringArray("args", "The program's arguments, one string each", false).build();
+        return io.github.llm4j.model.ToolSchema.object()
+                .string("program", "The program to run (one of the allowed programs)", true)
+                .stringArray("args", "The program's arguments, one string each", false)
+                .build();
     }
 }

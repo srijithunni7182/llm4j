@@ -14,7 +14,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** R8, R9: per-agent context, per-model and per-tool statistics, and how the view shows them. Records in, view out. */
+/**
+ * R8, R9: per-agent context, per-model and per-tool statistics, and how the view shows them.
+ * Records in, view out.
+ */
 class RunStateStatsTest {
 
     private static final String RUN = "r-stats";
@@ -58,8 +61,19 @@ class RunStateStatsTest {
             if (Semconv.ERROR_TYPE.equals(kv[i])) failed = true;
         }
         long end = at(endSecond);
-        state.apply(new SpanRec(TRACE, Ids.spanId(RUN, "model" + (++spanNo)), null, "chat m1", SpanRec.CLIENT, end - durationMs * 1_000_000L, end, a,
-                failed ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK, null, List.of()));
+        state.apply(
+                new SpanRec(
+                        TRACE,
+                        Ids.spanId(RUN, "model" + (++spanNo)),
+                        null,
+                        "chat m1",
+                        SpanRec.CLIENT,
+                        end - durationMs * 1_000_000L,
+                        end,
+                        a,
+                        failed ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK,
+                        null,
+                        List.of()));
     }
 
     private void tool(double endSecond, String agent, String tool, long durationMs, Object... kv) {
@@ -74,23 +88,37 @@ class RunStateStatsTest {
             if (Semconv.ERROR_TYPE.equals(kv[i])) failed = true;
         }
         long end = at(endSecond);
-        state.apply(new SpanRec(TRACE, Ids.spanId(RUN, "tool" + (++spanNo)), null, "execute_tool " + tool, SpanRec.CLIENT, end - durationMs * 1_000_000L, end, a,
-                failed ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK, null, List.of()));
+        state.apply(
+                new SpanRec(
+                        TRACE,
+                        Ids.spanId(RUN, "tool" + (++spanNo)),
+                        null,
+                        "execute_tool " + tool,
+                        SpanRec.CLIENT,
+                        end - durationMs * 1_000_000L,
+                        end,
+                        a,
+                        failed ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK,
+                        null,
+                        List.of()));
     }
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> model(String name) {
-        return ((List<Map<String, Object>>) state.view().get("models")).stream().filter(m -> name.equals(m.get("name"))).findFirst().orElseThrow();
+        return ((List<Map<String, Object>>) state.view().get("models"))
+                .stream().filter(m -> name.equals(m.get("name"))).findFirst().orElseThrow();
     }
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> toolRow(String name) {
-        return ((List<Map<String, Object>>) state.view().get("tools")).stream().filter(m -> name.equals(m.get("name"))).findFirst().orElseThrow();
+        return ((List<Map<String, Object>>) state.view().get("tools"))
+                .stream().filter(m -> name.equals(m.get("name"))).findFirst().orElseThrow();
     }
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> agentRow(String name) {
-        return ((List<Map<String, Object>>) state.view().get("agents")).stream().filter(m -> name.equals(m.get("name"))).findFirst().orElseThrow();
+        return ((List<Map<String, Object>>) state.view().get("agents"))
+                .stream().filter(m -> name.equals(m.get("name"))).findFirst().orElseThrow();
     }
 
     // ── models ──────────────────────────────────────────────────────────────────
@@ -109,9 +137,25 @@ class RunStateStatsTest {
 
     @Test
     void failuresAreGroupedByCategoryAndRetriesAndFailoversAreAdded() {
-        chat(1, "Editor", 100, Semconv.ERROR_TYPE, "rate_limited", Semconv.LOOM_MODEL_ATTEMPTS, 3L, Semconv.LOOM_MODEL_WAITED_MS, 40L);
+        chat(
+                1,
+                "Editor",
+                100,
+                Semconv.ERROR_TYPE,
+                "rate_limited",
+                Semconv.LOOM_MODEL_ATTEMPTS,
+                3L,
+                Semconv.LOOM_MODEL_WAITED_MS,
+                40L);
         chat(2, "Editor", 100, Semconv.ERROR_TYPE, "rate_limited");
-        chat(3, "Editor", 100, Semconv.ERROR_TYPE, "timeout", Semconv.LOOM_MODEL_FAILOVERS, "Primary,Backup");
+        chat(
+                3,
+                "Editor",
+                100,
+                Semconv.ERROR_TYPE,
+                "timeout",
+                Semconv.LOOM_MODEL_FAILOVERS,
+                "Primary,Backup");
         chat(4, "Editor", 100, Semconv.LOOM_MODEL_TRUNCATED, true);
         Map<String, Object> m = model("m1");
         assertThat(m.get("calls")).isEqualTo(4L);
@@ -129,7 +173,19 @@ class RunStateStatsTest {
         a.put(Semconv.GEN_AI_AGENT_NAME, "Editor");
         a.put(Semconv.ERROR_TYPE, "authentication");
         a.put(Semconv.LOOM_STEP, "Main/s0");
-        state.apply(new SpanRec(TRACE, Ids.spanId(RUN, "nomodel"), null, "chat model", SpanRec.CLIENT, at(1), at(2), a, SpanRec.STATUS_ERROR, null, List.of()));
+        state.apply(
+                new SpanRec(
+                        TRACE,
+                        Ids.spanId(RUN, "nomodel"),
+                        null,
+                        "chat model",
+                        SpanRec.CLIENT,
+                        at(1),
+                        at(2),
+                        a,
+                        SpanRec.STATUS_ERROR,
+                        null,
+                        List.of()));
         assertThat(model("unknown").get("calls")).isEqualTo(1L);
     }
 
@@ -140,17 +196,57 @@ class RunStateStatsTest {
         Map<String, Object> after = state.view();
         assertThat(after.get("steps")).isEqualTo(before.get("steps"));
         assertThat(after.get("recent")).isEqualTo(before.get("recent"));
-        assertThat(((Map<?, ?>) after.get("totals")).get("tokens")).isEqualTo(((Map<?, ?>) before.get("totals")).get("tokens"));
+        assertThat(((Map<?, ?>) after.get("totals")).get("tokens"))
+                .isEqualTo(((Map<?, ?>) before.get("totals")).get("tokens"));
     }
 
     // ── tools ───────────────────────────────────────────────────────────────────
 
     @Test
     void toolsGetASuccessRateSoftFailuresCategoriesAndPercentiles() {
-        for (int i = 1; i <= 7; i++) tool(i, "Editor", "Wiki", i * 10L, Semconv.LOOM_TOOL_DURATION_MS, i * 10L, Semconv.LOOM_TOOL_SOFT_FAILURE, false);
-        tool(8, "Editor", "Wiki", 80, Semconv.ERROR_TYPE, "not_found", Semconv.LOOM_TOOL_SOFT_FAILURE, true, Semconv.LOOM_TOOL_DURATION_MS, 80L);
-        tool(9, "Editor", "Wiki", 90, Semconv.ERROR_TYPE, "timeout", Semconv.LOOM_TOOL_SOFT_FAILURE, false, Semconv.LOOM_TOOL_DURATION_MS, 90L);
-        tool(10, "Editor", "Wiki", 100, Semconv.ERROR_TYPE, "not_found", Semconv.LOOM_TOOL_SOFT_FAILURE, true, Semconv.LOOM_TOOL_DURATION_MS, 100L);
+        for (int i = 1; i <= 7; i++)
+            tool(
+                    i,
+                    "Editor",
+                    "Wiki",
+                    i * 10L,
+                    Semconv.LOOM_TOOL_DURATION_MS,
+                    i * 10L,
+                    Semconv.LOOM_TOOL_SOFT_FAILURE,
+                    false);
+        tool(
+                8,
+                "Editor",
+                "Wiki",
+                80,
+                Semconv.ERROR_TYPE,
+                "not_found",
+                Semconv.LOOM_TOOL_SOFT_FAILURE,
+                true,
+                Semconv.LOOM_TOOL_DURATION_MS,
+                80L);
+        tool(
+                9,
+                "Editor",
+                "Wiki",
+                90,
+                Semconv.ERROR_TYPE,
+                "timeout",
+                Semconv.LOOM_TOOL_SOFT_FAILURE,
+                false,
+                Semconv.LOOM_TOOL_DURATION_MS,
+                90L);
+        tool(
+                10,
+                "Editor",
+                "Wiki",
+                100,
+                Semconv.ERROR_TYPE,
+                "not_found",
+                Semconv.LOOM_TOOL_SOFT_FAILURE,
+                true,
+                Semconv.LOOM_TOOL_DURATION_MS,
+                100L);
         Map<String, Object> t = toolRow("Wiki");
         assertThat(t.get("calls")).isEqualTo(10L);
         assertThat(t.get("errors")).isEqualTo(3L);
@@ -185,8 +281,20 @@ class RunStateStatsTest {
     @Test
     void anAgentsContextIsTheLatestUseWithItsSeries() {
         for (int i = 1; i <= 5; i++) {
-            log(i, Semconv.EV_CONTEXT, "Editor", Semconv.LOOM_CONTEXT_USED, 400L * i, Semconv.LOOM_CONTEXT_WINDOW, 3000L, Semconv.LOOM_CONTEXT_USABLE, 2500L,
-                    Semconv.LOOM_CONTEXT_FRACTION, 400.0 * i / 2500, Semconv.LOOM_CONTEXT_SOURCE, "REPORTED");
+            log(
+                    i,
+                    Semconv.EV_CONTEXT,
+                    "Editor",
+                    Semconv.LOOM_CONTEXT_USED,
+                    400L * i,
+                    Semconv.LOOM_CONTEXT_WINDOW,
+                    3000L,
+                    Semconv.LOOM_CONTEXT_USABLE,
+                    2500L,
+                    Semconv.LOOM_CONTEXT_FRACTION,
+                    400.0 * i / 2500,
+                    Semconv.LOOM_CONTEXT_SOURCE,
+                    "REPORTED");
         }
         @SuppressWarnings("unchecked")
         Map<String, Object> c = (Map<String, Object>) agentRow("Editor").get("context");
@@ -202,7 +310,18 @@ class RunStateStatsTest {
     @Test
     void theSeriesKeepsTheLastSixtySamples() {
         for (int i = 1; i <= 100; i++) {
-            log(i, Semconv.EV_CONTEXT, "Editor", Semconv.LOOM_CONTEXT_USED, (long) i, Semconv.LOOM_CONTEXT_USABLE, 1000L, Semconv.LOOM_CONTEXT_FRACTION, i / 1000.0, Semconv.LOOM_CONTEXT_SOURCE, "ESTIMATED");
+            log(
+                    i,
+                    Semconv.EV_CONTEXT,
+                    "Editor",
+                    Semconv.LOOM_CONTEXT_USED,
+                    (long) i,
+                    Semconv.LOOM_CONTEXT_USABLE,
+                    1000L,
+                    Semconv.LOOM_CONTEXT_FRACTION,
+                    i / 1000.0,
+                    Semconv.LOOM_CONTEXT_SOURCE,
+                    "ESTIMATED");
         }
         @SuppressWarnings("unchecked")
         Map<String, Object> c = (Map<String, Object>) agentRow("Editor").get("context");
@@ -213,7 +332,14 @@ class RunStateStatsTest {
 
     @Test
     void contextWithoutAWindowHasNoFraction() {
-        log(1, Semconv.EV_CONTEXT, "Editor", Semconv.LOOM_CONTEXT_USED, 900L, Semconv.LOOM_CONTEXT_SOURCE, "ESTIMATED");
+        log(
+                1,
+                Semconv.EV_CONTEXT,
+                "Editor",
+                Semconv.LOOM_CONTEXT_USED,
+                900L,
+                Semconv.LOOM_CONTEXT_SOURCE,
+                "ESTIMATED");
         @SuppressWarnings("unchecked")
         Map<String, Object> c = (Map<String, Object>) agentRow("Editor").get("context");
         assertThat(c.get("used")).isEqualTo(900L);
@@ -222,12 +348,42 @@ class RunStateStatsTest {
 
     @Test
     void compactionsAreCountedAndTheLastOneIsKept() {
-        log(1, Semconv.EV_COMPACTION, "Editor", Semconv.LOOM_COMPACTION_STRATEGY, "drop_oldest", Semconv.LOOM_COMPACTION_OUTCOME, "COMPACTED",
-                Semconv.LOOM_COMPACTION_BEFORE, 2100L, Semconv.LOOM_COMPACTION_AFTER, 900L);
-        log(2, Semconv.EV_COMPACTION, "Editor", Semconv.LOOM_COMPACTION_STRATEGY, "drop_oldest", Semconv.LOOM_COMPACTION_OUTCOME, "NO_GAIN",
-                Semconv.LOOM_COMPACTION_BEFORE, 2000L, Semconv.LOOM_COMPACTION_AFTER, 2000L);
-        log(3, Semconv.EV_COMPACTION, "Editor", Semconv.LOOM_COMPACTION_STRATEGY, "summarize", Semconv.LOOM_COMPACTION_OUTCOME, "COMPACTED",
-                Semconv.LOOM_COMPACTION_BEFORE, 2300L, Semconv.LOOM_COMPACTION_AFTER, 800L);
+        log(
+                1,
+                Semconv.EV_COMPACTION,
+                "Editor",
+                Semconv.LOOM_COMPACTION_STRATEGY,
+                "drop_oldest",
+                Semconv.LOOM_COMPACTION_OUTCOME,
+                "COMPACTED",
+                Semconv.LOOM_COMPACTION_BEFORE,
+                2100L,
+                Semconv.LOOM_COMPACTION_AFTER,
+                900L);
+        log(
+                2,
+                Semconv.EV_COMPACTION,
+                "Editor",
+                Semconv.LOOM_COMPACTION_STRATEGY,
+                "drop_oldest",
+                Semconv.LOOM_COMPACTION_OUTCOME,
+                "NO_GAIN",
+                Semconv.LOOM_COMPACTION_BEFORE,
+                2000L,
+                Semconv.LOOM_COMPACTION_AFTER,
+                2000L);
+        log(
+                3,
+                Semconv.EV_COMPACTION,
+                "Editor",
+                Semconv.LOOM_COMPACTION_STRATEGY,
+                "summarize",
+                Semconv.LOOM_COMPACTION_OUTCOME,
+                "COMPACTED",
+                Semconv.LOOM_COMPACTION_BEFORE,
+                2300L,
+                Semconv.LOOM_COMPACTION_AFTER,
+                800L);
         @SuppressWarnings("unchecked")
         Map<String, Object> c = (Map<String, Object>) agentRow("Editor").get("context");
         assertThat(c.get("compactions")).isEqualTo(2L);
@@ -242,8 +398,30 @@ class RunStateStatsTest {
 
     @Test
     void summaryCarriesTheHighestContextFraction() {
-        log(1, Semconv.EV_CONTEXT, "A", Semconv.LOOM_CONTEXT_USED, 100L, Semconv.LOOM_CONTEXT_USABLE, 1000L, Semconv.LOOM_CONTEXT_FRACTION, 0.1, Semconv.LOOM_CONTEXT_SOURCE, "REPORTED");
-        log(2, Semconv.EV_CONTEXT, "B", Semconv.LOOM_CONTEXT_USED, 900L, Semconv.LOOM_CONTEXT_USABLE, 1000L, Semconv.LOOM_CONTEXT_FRACTION, 0.9, Semconv.LOOM_CONTEXT_SOURCE, "REPORTED");
+        log(
+                1,
+                Semconv.EV_CONTEXT,
+                "A",
+                Semconv.LOOM_CONTEXT_USED,
+                100L,
+                Semconv.LOOM_CONTEXT_USABLE,
+                1000L,
+                Semconv.LOOM_CONTEXT_FRACTION,
+                0.1,
+                Semconv.LOOM_CONTEXT_SOURCE,
+                "REPORTED");
+        log(
+                2,
+                Semconv.EV_CONTEXT,
+                "B",
+                Semconv.LOOM_CONTEXT_USED,
+                900L,
+                Semconv.LOOM_CONTEXT_USABLE,
+                1000L,
+                Semconv.LOOM_CONTEXT_FRACTION,
+                0.9,
+                Semconv.LOOM_CONTEXT_SOURCE,
+                "REPORTED");
         assertThat((double) state.summary().get("contextFraction")).isEqualTo(0.9);
     }
 
@@ -256,7 +434,15 @@ class RunStateStatsTest {
 
     @Test
     void contextLogsDoNotFloodTheRecentFeed() {
-        for (int i = 1; i <= 50; i++) log(i, Semconv.EV_CONTEXT, "Editor", Semconv.LOOM_CONTEXT_USED, (long) i, Semconv.LOOM_CONTEXT_SOURCE, "ESTIMATED");
+        for (int i = 1; i <= 50; i++)
+            log(
+                    i,
+                    Semconv.EV_CONTEXT,
+                    "Editor",
+                    Semconv.LOOM_CONTEXT_USED,
+                    (long) i,
+                    Semconv.LOOM_CONTEXT_SOURCE,
+                    "ESTIMATED");
         assertThat((List<?>) state.view().get("recent")).isEmpty();
     }
 
@@ -264,7 +450,25 @@ class RunStateStatsTest {
     void oldFieldsOfTheViewAreAllStillThere() {
         tool(1, "Editor", "Wiki", 10);
         Map<String, Object> v = state.view();
-        assertThat(v).containsKeys("client", "traceId", "runId", "workflow", "status", "totals", "agents", "tools", "openSteps", "ladders", "steps", "spend", "gaps", "incidents", "control", "duplicates", "recent");
+        assertThat(v)
+                .containsKeys(
+                        "client",
+                        "traceId",
+                        "runId",
+                        "workflow",
+                        "status",
+                        "totals",
+                        "agents",
+                        "tools",
+                        "openSteps",
+                        "ladders",
+                        "steps",
+                        "spend",
+                        "gaps",
+                        "incidents",
+                        "control",
+                        "duplicates",
+                        "recent");
         assertThat(v).containsKey("models");
     }
 
@@ -272,7 +476,13 @@ class RunStateStatsTest {
     void statisticsAreBoundedAndTotalsStayExactThroughASoak() {
         for (int i = 1; i <= 20_000; i++) {
             chat(1 + i / 1000.0, "Editor", i % 500);
-            tool(1 + i / 1000.0, "Editor", "Wiki", i % 300, Semconv.LOOM_TOOL_DURATION_MS, (long) (i % 300));
+            tool(
+                    1 + i / 1000.0,
+                    "Editor",
+                    "Wiki",
+                    i % 300,
+                    Semconv.LOOM_TOOL_DURATION_MS,
+                    (long) (i % 300));
         }
         assertThat(model("m1").get("calls")).isEqualTo(20_000L);
         assertThat(toolRow("Wiki").get("calls")).isEqualTo(20_000L);

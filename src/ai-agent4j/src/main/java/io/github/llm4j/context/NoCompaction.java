@@ -15,6 +15,7 @@ final class NoCompaction implements ContextCompactor {
 
     @Override
     public CompactionResult compact(List<Message> messages, CompactionRequest request) {
-        return CompactionResult.unchanged(NAME, messages, request, CompactionResult.Outcome.SKIPPED, "compaction is off");
+        return CompactionResult.unchanged(
+                NAME, messages, request, CompactionResult.Outcome.SKIPPED, "compaction is off");
     }
 }

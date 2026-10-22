@@ -1,0 +1,19 @@
+// Canonical CTK test: classify_basic
+// Tests a typed classification step (intentclassify): one call answers a choice and a yes/no, and the workflow branches on the label.
+// The classifier backend is supplied by the runtime; mocks/classify_basic.json defines what it answers.
+
+intentclassifier Intent {
+    model: "Jev/jev-latest"
+    choose kind: refund | order_status | complaint | other
+    ask urgent: "Is the customer threatening to leave?"
+    confidence at least 0.8 else escalate
+}
+
+workflow main(message) {
+    intentclassify Intent on message -> intent
+    alt (intent.kind == "refund") {
+        note "route:refund"
+    } else {
+        note "route:other"
+    }
+}

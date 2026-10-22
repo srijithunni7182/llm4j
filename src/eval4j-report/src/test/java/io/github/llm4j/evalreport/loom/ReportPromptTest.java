@@ -37,7 +37,9 @@ class ReportPromptTest {
 
     @Test
     void aStepOfAnAgentWithAPromptCarriesIt() {
-        WorkflowGraph g = WorkflowGraph.of(workflow(), agent -> agent.equals("Researcher") ? "researcher@v2" : null);
+        WorkflowGraph g =
+                WorkflowGraph.of(
+                        workflow(), agent -> agent.equals("Researcher") ? "researcher@v2" : null);
 
         assertThat(step(g, "Researcher").attrs()).containsEntry("prompt", "researcher@v2");
         assertThat(step(g, "Plain").attrs()).doesNotContainKey("prompt");
@@ -45,7 +47,8 @@ class ReportPromptTest {
 
     @Test
     void withoutLabelsTheGraphIsWhatItWas() {
-        assertThat(WorkflowGraph.of(workflow()).nodes()).isEqualTo(WorkflowGraph.of(workflow(), agent -> null).nodes());
+        assertThat(WorkflowGraph.of(workflow()).nodes())
+                .isEqualTo(WorkflowGraph.of(workflow(), agent -> null).nodes());
     }
 
     @Test
@@ -54,20 +57,35 @@ class ReportPromptTest {
         Files.createDirectories(file.getParent());
         Files.writeString(file, "one");
         Files.writeString(dir.resolve("prompts/researcher/v2.md"), "two");
-        LoomScript script = new LoomParser(new Lexer("""
+        LoomScript script =
+                new LoomParser(
+                                new Lexer(
+                                                """
                 agent Researcher { model: "m" prompt: "researcher" }
                 agent Plain { model: "m" system: "s" }
                 workflow Main() {
                     delegate "go" to Researcher -> a
                     delegate "then" to Plain -> b
                 }
-                """).tokenize()).parseScript();
-        HarnessExecutor executor = new HarnessExecutor(script, new ToolRegistry(), model -> { throw new IllegalStateException("no models"); });
-        executor.setPromptCatalog(new PromptCatalog(new MarkdownFolderPromptRegistry(dir.resolve("prompts")), Map.of("researcher", "v1")));
+                """)
+                                        .tokenize())
+                        .parseScript();
+        HarnessExecutor executor =
+                new HarnessExecutor(
+                        script,
+                        new ToolRegistry(),
+                        model -> {
+                            throw new IllegalStateException("no models");
+                        });
+        executor.setPromptCatalog(
+                new PromptCatalog(
+                        new MarkdownFolderPromptRegistry(dir.resolve("prompts")),
+                        Map.of("researcher", "v1")));
 
         LoomTrace trace = LoomTrace.attach(executor).workflow(script.getWorkflows().get(0));
 
-        assertThat(step(trace.graph(), "Researcher").attrs()).containsEntry("prompt", "researcher@v1");
+        assertThat(step(trace.graph(), "Researcher").attrs())
+                .containsEntry("prompt", "researcher@v1");
         assertThat(step(trace.graph(), "Plain").attrs()).doesNotContainKey("prompt");
     }
 }

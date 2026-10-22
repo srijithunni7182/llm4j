@@ -149,6 +149,10 @@
                     <version>2.43.0</version>
                     <configuration>
                         <java>
+                            <!-- these tests are compared character for character with the wiki page that shows their samples -->
+                            <excludes>
+                                <exclude>**/*Docs*Test.java</exclude>
+                            </excludes>
                             <googleJavaFormat>
                                 <version>1.17.0</version>
                                 <style>AOSP</style>

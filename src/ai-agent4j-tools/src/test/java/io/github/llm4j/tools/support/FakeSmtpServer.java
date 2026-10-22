@@ -13,10 +13,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/** A tiny scripted SMTP server: it can refuse a login or a recipient, answer the data with a failure, or hang up. */
+/**
+ * A tiny scripted SMTP server: it can refuse a login or a recipient, answer the data with a
+ * failure, or hang up.
+ */
 public final class FakeSmtpServer implements AutoCloseable {
 
-    public enum AfterData { ACCEPT, TEMPORARY_FAILURE, PERMANENT_FAILURE, HANG_UP }
+    public enum AfterData {
+        ACCEPT,
+        TEMPORARY_FAILURE,
+        PERMANENT_FAILURE,
+        HANG_UP
+    }
 
     public volatile boolean advertiseAuth = false;
     public volatile boolean authAccepts = true;
@@ -53,15 +61,23 @@ public final class FakeSmtpServer implements AutoCloseable {
     }
 
     private void serve(Socket client) {
-        try (client; BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
-             OutputStream out = client.getOutputStream()) {
+        try (client;
+                BufferedReader in =
+                        new BufferedReader(
+                                new InputStreamReader(
+                                        client.getInputStream(), StandardCharsets.UTF_8));
+                OutputStream out = client.getOutputStream()) {
             reply(out, "220 fake ESMTP");
             int recipients = 0;
             String line;
             while ((line = in.readLine()) != null) {
                 String cmd = line.toUpperCase();
                 if (cmd.startsWith("EHLO") || cmd.startsWith("HELO")) {
-                    reply(out, advertiseAuth ? "250-fake\r\n250-AUTH PLAIN\r\n250 8BITMIME" : "250 fake");
+                    reply(
+                            out,
+                            advertiseAuth
+                                    ? "250-fake\r\n250-AUTH PLAIN\r\n250 8BITMIME"
+                                    : "250 fake");
                 } else if (cmd.startsWith("AUTH")) {
                     if (cmd.equals("AUTH PLAIN")) {
                         reply(out, "334 ");
@@ -72,11 +88,16 @@ public final class FakeSmtpServer implements AutoCloseable {
                     reply(out, "250 ok");
                 } else if (cmd.startsWith("RCPT")) {
                     recipients++;
-                    reply(out, recipients == rejectRecipientNumber ? "550 5.1.1 no such user" : "250 ok");
+                    reply(
+                            out,
+                            recipients == rejectRecipientNumber
+                                    ? "550 5.1.1 no such user"
+                                    : "250 ok");
                 } else if (cmd.equals("DATA")) {
                     reply(out, "354 go ahead");
                     StringBuilder data = new StringBuilder();
-                    while ((line = in.readLine()) != null && !line.equals(".")) data.append(line).append("\n");
+                    while ((line = in.readLine()) != null && !line.equals("."))
+                        data.append(line).append("\n");
                     switch (afterData) {
                         case ACCEPT -> {
                             messages.add(data.toString());

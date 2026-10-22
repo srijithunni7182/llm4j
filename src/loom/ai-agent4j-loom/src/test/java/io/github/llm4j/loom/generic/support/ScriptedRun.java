@@ -24,24 +24,32 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
- * A real Loom executor over a scripted model: the model's replies are fixed in advance (tool calls and
- * final answers in the agent's JSON protocol), and everything the run reports is captured.
+ * A real Loom executor over a scripted model: the model's replies are fixed in advance (tool calls
+ * and final answers in the agent's JSON protocol), and everything the run reports is captured.
  */
 public final class ScriptedRun {
 
     public final Path dir;
     public final Map<String, String> env = new HashMap<>();
     public final List<String> audit = Collections.synchronizedList(new ArrayList<>());
-    public final List<Map<String, Object>> auditData = Collections.synchronizedList(new ArrayList<>());
+    public final List<Map<String, Object>> auditData =
+            Collections.synchronizedList(new ArrayList<>());
     public final List<TraceEvent> trace = Collections.synchronizedList(new ArrayList<>());
     public final List<LLMRequest> requests = Collections.synchronizedList(new ArrayList<>());
     public final List<String> questions = Collections.synchronizedList(new ArrayList<>());
     public RunJournal journal;
+
     /** Tools a host registers from Java, by name, for scripts that name them. */
     public final ToolRegistry tools = new ToolRegistry();
+
     public Function<String, String> human = q -> "yes";
-    /** When set, decides each reply from the request instead of the fixed list (for runs with parallel agents). */
+
+    /**
+     * When set, decides each reply from the request instead of the fixed list (for runs with
+     * parallel agents).
+     */
     public Function<LLMRequest, String> responder;
+
     private final List<String> replies = new ArrayList<>();
     private final AtomicInteger answered = new AtomicInteger();
 
@@ -59,52 +67,83 @@ public final class ScriptedRun {
     public volatile String served = "m";
 
     public static String call(String tool, String argsJson) {
-        return "```json\n{\"thought\": \"use " + tool + "\", \"action\": \"" + tool + "\", \"action_input\": " + argsJson + "}\n```";
+        return "```json\n{\"thought\": \"use "
+                + tool
+                + "\", \"action\": \""
+                + tool
+                + "\", \"action_input\": "
+                + argsJson
+                + "}\n```";
     }
 
     public static String done(String answer) {
-        return "```json\n{\"thought\": \"t\", \"final_answer\": \"" + answer.replace("\"", "\\\"") + "\"}\n```";
+        return "```json\n{\"thought\": \"t\", \"final_answer\": \""
+                + answer.replace("\"", "\\\"")
+                + "\"}\n```";
     }
 
     public HarnessExecutor executor(String source) {
         return executor(new LoomParser(new Lexer(source).tokenize()).parseScript());
     }
 
-    /** As {@link #executor(String)}, for a script already loaded (for example with its imports, by {@code LoomLoader}). */
+    /**
+     * As {@link #executor(String)}, for a script already loaded (for example with its imports, by
+     * {@code LoomLoader}).
+     */
     public HarnessExecutor executor(io.github.llm4j.loom.ast.LoomScript script) {
-        LLMClient model = new LLMClient() {
-            @Override
-            public LLMResponse chat(LLMRequest request) {
-                requests.add(request);
-                int i = answered.getAndIncrement();
-                String content = responder != null ? responder.apply(request) : i < replies.size() ? replies.get(i) : done("ok");
-                return LLMResponse.builder().content(content).model(served).tokenUsage(10, 5, 15).build();
-            }
+        LLMClient model =
+                new LLMClient() {
+                    @Override
+                    public LLMResponse chat(LLMRequest request) {
+                        requests.add(request);
+                        int i = answered.getAndIncrement();
+                        String content =
+                                responder != null
+                                        ? responder.apply(request)
+                                        : i < replies.size() ? replies.get(i) : done("ok");
+                        return LLMResponse.builder()
+                                .content(content)
+                                .model(served)
+                                .tokenUsage(10, 5, 15)
+                                .build();
+                    }
 
-            @Override
-            public Stream<LLMResponse> chatStream(LLMRequest request) {
-                return Stream.of(chat(request));
-            }
-        };
+                    @Override
+                    public Stream<LLMResponse> chatStream(LLMRequest request) {
+                        return Stream.of(chat(request));
+                    }
+                };
         HarnessExecutor e = new HarnessExecutor(script, tools, x -> model);
         e.setBaseDir(dir);
         e.setEnvLookup(env::get);
-        e.setHumanInterface(new HumanInterface() {
-            @Override public String promptHuman(String message) {
-                questions.add(message);
-                return human.apply(message);
-            }
-        });
+        e.setHumanInterface(
+                new HumanInterface() {
+                    @Override
+                    public String promptHuman(String message) {
+                        questions.add(message);
+                        return human.apply(message);
+                    }
+                });
         if (journal != null) e.setJournal(journal);
-        e.setAuditLogger(new AuditLogger() {
-            @Override public void logAgentDecision(AuditEvent event) { }
-            @Override public void logToolExecution(String s, String t, String i, String o, Instant ts) { }
-            @Override public void logPromptUsage(String s, String p, String v, Instant ts) { }
-            @Override public void logConversationEvent(String s, String u, String type, Map<String, Object> data) {
-                audit.add(type);
-                auditData.add(data);
-            }
-        });
+        e.setAuditLogger(
+                new AuditLogger() {
+                    @Override
+                    public void logAgentDecision(AuditEvent event) {}
+
+                    @Override
+                    public void logToolExecution(
+                            String s, String t, String i, String o, Instant ts) {}
+
+                    @Override
+                    public void logPromptUsage(String s, String p, String v, Instant ts) {}
+
+                    @Override
+                    public void logConversationEvent(
+                            String s, String u, String type, Map<String, Object> data) {
+                        audit.add(type);
+                        auditData.add(data);
+                    }
+                });
         e.addTraceListener(trace::add);
         return e;
     }
@@ -117,14 +156,21 @@ public final class ScriptedRun {
 
     /** Everything the run reported, as one string. */
     public String everything() {
-        return audit + " " + auditData + " " + trace + " " + (journal == null ? "" : journal.all().toString());
+        return audit
+                + " "
+                + auditData
+                + " "
+                + trace
+                + " "
+                + (journal == null ? "" : journal.all().toString());
     }
 
     /** What the model was sent, joined. */
     public String seen() {
         StringBuilder sb = new StringBuilder();
         synchronized (requests) {
-            for (LLMRequest r : requests) r.getMessages().forEach(m -> sb.append(m.getContent()).append('\n'));
+            for (LLMRequest r : requests)
+                r.getMessages().forEach(m -> sb.append(m.getContent()).append('\n'));
         }
         return sb.toString();
     }

@@ -8,15 +8,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Values put into a payload are never rewritten by other variables' names (found while testing guards:
- * an error message saying "task" had the task's text — with its PII — put back into it).
+ * Values put into a payload are never rewritten by other variables' names (found while testing
+ * guards: an error message saying "task" had the task's text — with its PII — put back into it).
  */
 class PayloadSubstitutionTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
-    static final String SCRIPT = """
+    static final String SCRIPT =
+            """
             agent A { model: "m" }
             workflow Main() { delegate "%s" to A -> out }
             """;
@@ -38,9 +38,11 @@ class PayloadSubstitutionTest {
 
     @Test
     void bareNamesInTheScriptsOwnTextStillWork() {
-        assertThat(sent("Greet user by name", Map.of("user", "Asha"))).endsWith("Greet Asha by name");
+        assertThat(sent("Greet user by name", Map.of("user", "Asha")))
+                .endsWith("Greet Asha by name");
         // one pass, longest first: a replacement is not replaced again
-        assertThat(sent("topic then top", Map.of("topic", "top", "top", "bottom"))).endsWith("top then bottom");
+        assertThat(sent("topic then top", Map.of("topic", "top", "top", "bottom")))
+                .endsWith("top then bottom");
     }
 
     @Test

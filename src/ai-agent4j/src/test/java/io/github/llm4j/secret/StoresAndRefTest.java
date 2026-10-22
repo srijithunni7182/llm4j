@@ -51,18 +51,27 @@ class StoresAndRefTest {
         InMemorySecretStore s = new InMemorySecretStore();
         s.put("k", FakeKeys.ONE, SecretMetadata.allowing("api.example.com"));
         assertEquals(FakeKeys.ONE, s.resolveFor("k", "api.example.com"));
-        SecretAccessDeniedException e = assertThrows(SecretAccessDeniedException.class, () -> s.resolveFor("k", "evil.example.net"));
+        SecretAccessDeniedException e =
+                assertThrows(
+                        SecretAccessDeniedException.class,
+                        () -> s.resolveFor("k", "evil.example.net"));
         assertEquals("k", e.name());
         assertEquals("evil.example.net", e.host());
         assertFalse(e.getMessage().contains(FakeKeys.ONE), e.getMessage());
         assertThrows(SecretAccessDeniedException.class, () -> s.resolveFor("k", null));
-        assertThrows(SecretNotFoundException.class, () -> s.resolveFor("missing", "api.example.com"));
-        assertEquals(FakeKeys.ONE, s.resolve("k"), "resolve without a host does not check (callers that know the host use resolveFor)");
+        assertThrows(
+                SecretNotFoundException.class, () -> s.resolveFor("missing", "api.example.com"));
+        assertEquals(
+                FakeKeys.ONE,
+                s.resolve("k"),
+                "resolve without a host does not check (callers that know the host use resolveFor)");
     }
 
     @Test
     void envStoreIsReadOnlyAndNamesAreVariables() {
-        EnvSecretStore s = EnvSecretStore.of(Map.of("GEMINI_API_KEY", FakeKeys.ONE, "EMPTY", "  ", "bad.name", "x"));
+        EnvSecretStore s =
+                EnvSecretStore.of(
+                        Map.of("GEMINI_API_KEY", FakeKeys.ONE, "EMPTY", "  ", "bad.name", "x"));
         assertEquals(FakeKeys.ONE, s.resolve("GEMINI_API_KEY"));
         assertTrue(s.contains("GEMINI_API_KEY"));
         assertFalse(s.contains("EMPTY"), "a blank variable is not a secret");
@@ -71,7 +80,10 @@ class StoresAndRefTest {
         assertThrows(UnsupportedOperationException.class, () -> s.remove("a"));
         assertThrows(SecretNotFoundException.class, () -> s.resolve("NOPE"));
         assertEquals(SecretMetadata.NONE, s.metadata("GEMINI_API_KEY").orElseThrow());
-        assertEquals(FakeKeys.ONE, EnvSecretStore.of((java.util.function.Function<String, String>) n -> FakeKeys.ONE).resolve("ANY"));
+        assertEquals(
+                FakeKeys.ONE,
+                EnvSecretStore.of((java.util.function.Function<String, String>) n -> FakeKeys.ONE)
+                        .resolve("ANY"));
         assertTrue(EnvSecretStore.system().names().stream().allMatch(SecretNames::isValid));
     }
 
@@ -87,7 +99,10 @@ class StoresAndRefTest {
         assertEquals("only-second", c.resolve("b"));
         assertEquals(Set.of("a", "b"), c.names());
         assertEquals(Set.of("one.example.com"), c.metadata("a").orElseThrow().allowedHosts());
-        assertThrows(SecretAccessDeniedException.class, () -> c.resolveFor("a", "other.example.com"), "the holder's host binding applies");
+        assertThrows(
+                SecretAccessDeniedException.class,
+                () -> c.resolveFor("a", "other.example.com"),
+                "the holder's host binding applies");
         assertThrows(SecretNotFoundException.class, () -> c.resolve("zzz"));
         assertThrows(UnsupportedOperationException.class, () -> c.put("x", "y"));
         assertThrows(IllegalArgumentException.class, ChainedSecretStore::of);
@@ -132,7 +147,10 @@ class StoresAndRefTest {
         assertNotEquals(SecretRef.of(s, "k"), SecretRef.of(s, "j"));
         SecretRef lit = SecretRef.literal("x");
         assertEquals(lit, SecretRef.literal("x"), "literals with the same value are equal");
-        assertEquals(lit.hashCode(), SecretRef.literal("y").hashCode(), "a literal's hash is constant, so it reveals nothing about the value");
+        assertEquals(
+                lit.hashCode(),
+                SecretRef.literal("y").hashCode(),
+                "a literal's hash is constant, so it reveals nothing about the value");
         assertNotEquals(lit, SecretRef.literal("y"));
         assertNotEquals(lit, SecretRef.of(s, "x"), "a literal never equals a stored secret");
         assertTrue(lit.isLiteral());

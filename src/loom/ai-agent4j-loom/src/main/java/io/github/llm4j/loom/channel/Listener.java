@@ -11,14 +11,18 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Reads replies from the channel and records them as answers; keeps unsent questions moving, reminds, and expires. */
+/**
+ * Reads replies from the channel and records them as answers; keeps unsent questions moving,
+ * reminds, and expires.
+ */
 public final class Listener {
 
     private static final Logger log = Logger.getLogger(Listener.class.getName());
-    private static final Pattern LEADING_CODE = Pattern.compile("^#?([A-Za-z0-9]{" + Codes.LENGTH + "})(?:\\s+(.*))?$", Pattern.DOTALL);
+    private static final Pattern LEADING_CODE =
+            Pattern.compile("^#?([A-Za-z0-9]{" + Codes.LENGTH + "})(?:\\s+(.*))?$", Pattern.DOTALL);
 
     /** What one poll did. */
-    public record Summary(int recorded, int refused, int ignored, int stale) { }
+    public record Summary(int recorded, int refused, int ignored, int stale) {}
 
     private final Channel channel;
     private final ChannelConfig config;
@@ -32,7 +36,13 @@ public final class Listener {
     private boolean notedStale;
     private int ignoredTotal;
 
-    public Listener(Channel channel, ChannelConfig config, PendingStore store, Answers answers, Dispatch dispatch, Clock clock) {
+    public Listener(
+            Channel channel,
+            ChannelConfig config,
+            PendingStore store,
+            Answers answers,
+            Dispatch dispatch,
+            Clock clock) {
         this.channel = channel;
         this.config = config;
         this.store = store;
@@ -42,8 +52,9 @@ public final class Listener {
     }
 
     /**
-     * Lets people who may answer also steer, wrap up, cancel, pause and resume the runs going on in this process (see {@code InterventionCommands}).
-     * A reply that answers a question (it replies to it, carries its code, or is one of its choices) is always an answer, never a command.
+     * Lets people who may answer also steer, wrap up, cancel, pause and resume the runs going on in
+     * this process (see {@code InterventionCommands}). A reply that answers a question (it replies
+     * to it, carries its code, or is one of its choices) is always an answer, never a command.
      */
     public Listener withCommands(io.github.llm4j.loom.execution.InterventionCommands commands) {
         this.commands = commands;
@@ -67,7 +78,8 @@ public final class Listener {
                 ignoredTotal++;
                 if (!noted) {
                     noted = true;
-                    log.warning("A reply from a chat or user that may not answer was ignored (this is noted once)");
+                    log.warning(
+                            "A reply from a chat or user that may not answer was ignored (this is noted once)");
                 }
                 continue;
             }
@@ -81,7 +93,8 @@ public final class Listener {
             try {
                 channel.tell(reply.chat(), h.message);
             } catch (IOException e) {
-                log.warning("Could not send a note back to " + channel.name() + ": " + e.getMessage());
+                log.warning(
+                        "Could not send a note back to " + channel.name() + ": " + e.getMessage());
             }
         }
         channel.acknowledge(batch.cursor());
@@ -91,7 +104,8 @@ public final class Listener {
     private boolean allowed(Channel.Reply reply) {
         Set<Long> ok = config.allowedIds();
         try {
-            return ok.contains(Long.parseLong(reply.chat())) && ok.contains(Long.parseLong(reply.sender()));
+            return ok.contains(Long.parseLong(reply.chat()))
+                    && ok.contains(Long.parseLong(reply.sender()));
         } catch (NumberFormatException e) {
             return false;
         }
@@ -103,15 +117,23 @@ public final class Listener {
         }
     }
 
-    /** A reply written before the question was asked is a leftover (a fresh store reading a chat's backlog), never an answer to it. */
+    /**
+     * A reply written before the question was asked is a leftover (a fresh store reading a chat's
+     * backlog), never an answer to it.
+     */
     private boolean olderThanQuestion(Channel.Reply reply, Pending target) {
         if (reply.ref() != null) {
             for (Pending.Delivery d : target.sent()) {
-                if (d.chat().equals(reply.chat()) && channel.writtenBefore(reply.ref(), d.ref())) return true;
+                if (d.chat().equals(reply.chat()) && channel.writtenBefore(reply.ref(), d.ref()))
+                    return true;
             }
         }
         if (reply.at() == null) return false;
-        Instant asked = target.sent().stream().map(Pending.Delivery::at).min(Instant::compareTo).orElse(target.createdAt());
+        Instant asked =
+                target.sent().stream()
+                        .map(Pending.Delivery::at)
+                        .min(Instant::compareTo)
+                        .orElse(target.createdAt());
         return reply.at().isBefore(asked.minus(SKEW));
     }
 
@@ -127,39 +149,75 @@ public final class Listener {
         }
         Pending target = null;
         if (reply.replyToRef() != null) {
-            target = open.stream().filter(p -> p.sent().stream().anyMatch(d -> d.chat().equals(reply.chat()) && d.ref().equals(reply.replyToRef()))).findFirst().orElse(null);
+            target =
+                    open.stream()
+                            .filter(
+                                    p ->
+                                            p.sent().stream()
+                                                    .anyMatch(
+                                                            d ->
+                                                                    d.chat().equals(reply.chat())
+                                                                            && d.ref()
+                                                                                    .equals(
+                                                                                            reply
+                                                                                                    .replyToRef())))
+                            .findFirst()
+                            .orElse(null);
         }
         if (target == null && codeToken != null) target = store.get(codeToken).orElse(null);
         if (target == null && codeToken == null && open.size() == 1) target = open.get(0);
-        if (commands != null && commands.isCommand(text) && !answersAQuestion(reply, codeToken, target, text)) {
+        if (commands != null
+                && commands.isCommand(text)
+                && !answersAQuestion(reply, codeToken, target, text)) {
             return new Handled(true, commands.handle(text, channel.name() + ":" + reply.sender()));
         }
         if (target == null) return new Handled(false, help(open, codeToken));
         if (olderThanQuestion(reply, target)) {
             if (!notedStale) {
                 notedStale = true;
-                log.warning("A reply older than the question it would answer was ignored (earlier messages in the chat are never answers; noted once)");
+                log.warning(
+                        "A reply older than the question it would answer was ignored (earlier messages in the chat are never answers; noted once)");
             }
             return new Handled(false, "", true);
         }
         boolean codeGiven = codeToken != null && codeToken.equals(target.code());
         if (target.approval() && !codeGiven) {
-            return new Handled(false, "This one needs the code in the reply, e.g. \"" + target.code() + " " + (target.choices().isEmpty() ? "yes" : target.choices().get(0)) + "\".");
+            return new Handled(
+                    false,
+                    "This one needs the code in the reply, e.g. \""
+                            + target.code()
+                            + " "
+                            + (target.choices().isEmpty() ? "yes" : target.choices().get(0))
+                            + "\".");
         }
         String answer = codeGiven ? rest : text;
-        Answers.Outcome o = answers.record(target.code(), answer, channel.name() + ":" + reply.sender());
+        Answers.Outcome o =
+                answers.record(target.code(), answer, channel.name() + ":" + reply.sender());
         return new Handled(o.recorded(), o.message());
     }
 
-    private static boolean answersAQuestion(Channel.Reply reply, String codeToken, Pending target, String text) {
+    private static boolean answersAQuestion(
+            Channel.Reply reply, String codeToken, Pending target, String text) {
         if (target == null) return false;
-        return reply.replyToRef() != null || codeToken != null || target.choices().stream().anyMatch(c -> c.equalsIgnoreCase(text.strip()));
+        return reply.replyToRef() != null
+                || codeToken != null
+                || target.choices().stream().anyMatch(c -> c.equalsIgnoreCase(text.strip()));
     }
 
     private static String help(List<Pending> open, String codeToken) {
-        if (open.isEmpty()) return codeToken != null ? "That question is no longer open." : "Nothing is waiting for an answer.";
-        StringBuilder b = new StringBuilder("Which question? Reply with its code first, e.g. \"" + open.get(0).code() + " "
-                + (open.get(0).choices().isEmpty() ? "your answer" : open.get(0).choices().get(0)) + "\". Open:");
+        if (open.isEmpty())
+            return codeToken != null
+                    ? "That question is no longer open."
+                    : "Nothing is waiting for an answer.";
+        StringBuilder b =
+                new StringBuilder(
+                        "Which question? Reply with its code first, e.g. \""
+                                + open.get(0).code()
+                                + " "
+                                + (open.get(0).choices().isEmpty()
+                                        ? "your answer"
+                                        : open.get(0).choices().get(0))
+                                + "\". Open:");
         for (Pending p : open) {
             String line = Text.safe(p.question(), false);
             b.append('\n').append(p.code()).append(": ").append(Text.cut(line, 80));
@@ -173,27 +231,37 @@ public final class Listener {
         for (Pending p : store.open()) {
             if (config.expire() != null && p.createdAt().plus(config.expire()).isBefore(now)) {
                 answers.expire(p);
-                tellAll(p, "The question " + p.code() + " expired without an answer; the run carried on.");
+                tellAll(
+                        p,
+                        "The question "
+                                + p.code()
+                                + " expired without an answer; the run carried on.");
                 continue;
             }
             if (p.sent().isEmpty()) {
-                store.locked(() -> {
-                    Pending fresh = store.get(p.code()).orElse(p);
-                    if (fresh.open() && fresh.sent().isEmpty() && dispatch.send(fresh)) store.put(fresh);
-                    return null;
-                });
+                store.locked(
+                        () -> {
+                            Pending fresh = store.get(p.code()).orElse(p);
+                            if (fresh.open() && fresh.sent().isEmpty() && dispatch.send(fresh))
+                                store.put(fresh);
+                            return null;
+                        });
                 continue;
             }
             Instant last = p.lastSentAt();
-            if (config.remindEvery() != null && p.reminders() < config.remindAtMost() && last != null && last.plus(config.remindEvery()).isBefore(now)) {
-                store.locked(() -> {
-                    Pending fresh = store.get(p.code()).orElse(p);
-                    if (fresh.open() && dispatch.send(fresh)) {
-                        fresh.reminded();
-                        store.put(fresh);
-                    }
-                    return null;
-                });
+            if (config.remindEvery() != null
+                    && p.reminders() < config.remindAtMost()
+                    && last != null
+                    && last.plus(config.remindEvery()).isBefore(now)) {
+                store.locked(
+                        () -> {
+                            Pending fresh = store.get(p.code()).orElse(p);
+                            if (fresh.open() && dispatch.send(fresh)) {
+                                fresh.reminded();
+                                store.put(fresh);
+                            }
+                            return null;
+                        });
             }
         }
     }

@@ -30,10 +30,14 @@ class LLMBiasMonitorTest {
     @Test
     void readsTheJudgesFindings() {
         List<LLMRequest> seen = new ArrayList<>();
-        LLMBiasMonitor monitor = new LLMBiasMonitor(replying("""
+        LLMBiasMonitor monitor =
+                new LLMBiasMonitor(
+                        replying(
+                                """
                 Here you go:
                 {"findings": [{"type": "gender", "severity": "HIGH", "text": "women can't code", "explanation": "stereotype"},
-                              {"type": "weird", "severity": "extreme", "text": "x", "explanation": "y"}]}""", seen));
+                              {"type": "weird", "severity": "extreme", "text": "x", "explanation": "y"}]}""",
+                                seen));
         List<BiasEvent> events = monitor.detectBias("Women can't code.", BiasContext.empty());
         assertEquals(2, events.size());
         assertEquals(BiasType.GENDER, events.get(0).getType());
@@ -49,8 +53,14 @@ class LLMBiasMonitorTest {
     @Test
     void noFindingsAndUnreadableRepliesMeanNoEvents() {
         List<LLMRequest> seen = new ArrayList<>();
-        assertTrue(new LLMBiasMonitor(replying("{\"findings\": []}", seen)).detectBias("fine").isEmpty());
-        assertTrue(new LLMBiasMonitor(replying("I think it's fine.", seen)).detectBias("fine").isEmpty());
+        assertTrue(
+                new LLMBiasMonitor(replying("{\"findings\": []}", seen))
+                        .detectBias("fine")
+                        .isEmpty());
+        assertTrue(
+                new LLMBiasMonitor(replying("I think it's fine.", seen))
+                        .detectBias("fine")
+                        .isEmpty());
         assertTrue(new LLMBiasMonitor(replying("{broken", seen)).detectBias("fine").isEmpty());
         int calls = seen.size();
         assertTrue(new LLMBiasMonitor(replying("x", seen)).detectBias("  ").isEmpty());

@@ -18,15 +18,17 @@ import org.junit.jupiter.params.provider.ValueSource;
 /** Schedules and wake-ups fired by the host. V8.19–V8.23. */
 class LoomHostTriggersTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private static long schedules(HostEnv env) {
-        return env.persistence().triggers().all().stream().filter(t -> t.id().startsWith("schedule:")).count();
+        return env.persistence().triggers().all().stream()
+                .filter(t -> t.id().startsWith("schedule:"))
+                .count();
     }
 
     @Tag("SB-V8.19")
-    @ParameterizedTest @ValueSource(strings = {"file", "jdbc"})
+    @ParameterizedTest
+    @ValueSource(strings = {"file", "jdbc"})
     void aScheduledWorkflowStartsOnceAtItsTime(String kind) {
         HostEnv env = new HostEnv(kind, dir);
         env.clock.set("2026-10-15T06:59:00Z");
@@ -35,7 +37,12 @@ class LoomHostTriggersTest {
         env.host.startTriggers(Duration.ofMillis(20), "host-1", Duration.ofMinutes(5), fired::add);
         try {
             env.clock.advance(Duration.ofMinutes(2)); // 07:01
-            HostEnv.await(() -> env.host.runs().size() == 1 && env.host.runs().get(0).status() == RunRecord.Status.COMPLETED, "the scheduled run");
+            HostEnv.await(
+                    () ->
+                            env.host.runs().size() == 1
+                                    && env.host.runs().get(0).status()
+                                            == RunRecord.Status.COMPLETED,
+                    "the scheduled run");
             assertThat(env.host.runs().get(0).runId()).startsWith("Daily@2026-10-15T07-00");
             assertThat(env.host.runs().get(0).origin()).isEqualTo("trigger");
             HostEnv.await(() -> !fired.isEmpty(), "the fired event");
@@ -48,7 +55,8 @@ class LoomHostTriggersTest {
     }
 
     @Tag("SB-V8.20")
-    @ParameterizedTest @ValueSource(strings = {"file", "jdbc"})
+    @ParameterizedTest
+    @ValueSource(strings = {"file", "jdbc"})
     void twoHostsOnOneStoreFireATriggerOnce(String kind) throws Exception {
         HostEnv env = new HostEnv(kind, dir);
         env.clock.set("2026-10-15T06:59:00Z");
@@ -58,7 +66,12 @@ class LoomHostTriggersTest {
         second.startTriggers(Duration.ofMillis(10), "host-2", Duration.ofMinutes(5), null);
         try {
             env.clock.advance(Duration.ofMinutes(2));
-            HostEnv.await(() -> env.host.runs().size() == 1 && env.host.runs().get(0).status() == RunRecord.Status.COMPLETED, "the scheduled run");
+            HostEnv.await(
+                    () ->
+                            env.host.runs().size() == 1
+                                    && env.host.runs().get(0).status()
+                                            == RunRecord.Status.COMPLETED,
+                    "the scheduled run");
             Thread.sleep(300); // a duplicate, if there were one, would have started by now
         } finally {
             env.host.stopTriggers();
@@ -69,7 +82,8 @@ class LoomHostTriggersTest {
     }
 
     @Tag("SB-V8.21")
-    @ParameterizedTest @ValueSource(strings = {"file", "jdbc"})
+    @ParameterizedTest
+    @ValueSource(strings = {"file", "jdbc"})
     void restartingTheHostDoesNotDuplicateTheSchedule(String kind) {
         HostEnv env = new HostEnv(kind, dir);
         env.clock.set("2026-10-15T06:59:00Z");
@@ -84,9 +98,12 @@ class LoomHostTriggersTest {
     }
 
     @Tag("SB-V8.23")
-    @ParameterizedTest @ValueSource(strings = {"file", "jdbc"})
+    @ParameterizedTest
+    @ValueSource(strings = {"file", "jdbc"})
     void aTaskGivenToAnAgentRunsWithoutStartingARun(String kind) {
-        String script = HostEnv.AGENTS + "schedule Sweep { every: 1h agent: Writer task: \"tidy up\" }\nworkflow Main() { note \"x\" }\n";
+        String script =
+                HostEnv.AGENTS
+                        + "schedule Sweep { every: 1h agent: Writer task: \"tidy up\" }\nworkflow Main() { note \"x\" }\n";
         HostEnv env = new HostEnv(kind, dir);
         env.open(script, b -> b.scriptRef("script-a"));
         env.host.startTriggers(Duration.ofMillis(20), "host-1", Duration.ofMinutes(5), null);

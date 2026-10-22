@@ -19,8 +19,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Telegram's Bot API over HTTPS: {@code sendMessage} and long-polled {@code getUpdates}. Text goes as plain text (no parse mode), so nothing in a case
- * can be turned into formatting or a link. The token is held in memory only and scrubbed from every error. This is the one class that knows Telegram.
+ * Telegram's Bot API over HTTPS: {@code sendMessage} and long-polled {@code getUpdates}. Text goes
+ * as plain text (no parse mode), so nothing in a case can be turned into formatting or a link. The
+ * token is held in memory only and scrubbed from every error. This is the one class that knows
+ * Telegram.
  */
 public final class TelegramChannel implements Channel {
 
@@ -33,8 +35,9 @@ public final class TelegramChannel implements Channel {
     private final HttpClient http;
 
     /**
-     * @param apiBase    {@code https://api.telegram.org}, or a test server
-     * @param offsetFile where the next update number is kept, so a restart neither repeats nor skips
+     * @param apiBase {@code https://api.telegram.org}, or a test server
+     * @param offsetFile where the next update number is kept, so a restart neither repeats nor
+     *     skips
      */
     public TelegramChannel(String apiBase, String token, Path offsetFile) {
         this.apiBase = apiBase.endsWith("/") ? apiBase.substring(0, apiBase.length() - 1) : apiBase;
@@ -50,7 +53,17 @@ public final class TelegramChannel implements Channel {
 
     @Override
     public Sent send(String chat, Outgoing q) throws IOException {
-        JsonNode result = call("sendMessage", Map.of("chat_id", Long.parseLong(chat), "text", Text.cut(q.text(), LIMIT - 20), "disable_web_page_preview", true), Duration.ofSeconds(20));
+        JsonNode result =
+                call(
+                        "sendMessage",
+                        Map.of(
+                                "chat_id",
+                                Long.parseLong(chat),
+                                "text",
+                                Text.cut(q.text(), LIMIT - 20),
+                                "disable_web_page_preview",
+                                true),
+                        Duration.ofSeconds(20));
         String ref = result.path("message_id").asText();
         return new Sent(chat, ref, Instant.now());
     }
@@ -70,8 +83,18 @@ public final class TelegramChannel implements Channel {
             JsonNode m = u.path("message");
             if (!m.hasNonNull("text")) continue;
             JsonNode reply = m.path("reply_to_message");
-            replies.add(new Reply(m.path("chat").path("id").asText(), m.path("from").path("id").asText(), m.path("text").asText(),
-                    reply.hasNonNull("message_id") ? reply.path("message_id").asText() : null, m.path("date").asLong(0) > 0 ? Instant.ofEpochSecond(m.path("date").asLong()) : null, m.path("message_id").asText(null)));
+            replies.add(
+                    new Reply(
+                            m.path("chat").path("id").asText(),
+                            m.path("from").path("id").asText(),
+                            m.path("text").asText(),
+                            reply.hasNonNull("message_id")
+                                    ? reply.path("message_id").asText()
+                                    : null,
+                            m.path("date").asLong(0) > 0
+                                    ? Instant.ofEpochSecond(m.path("date").asLong())
+                                    : null,
+                            m.path("message_id").asText(null)));
         }
         return new Batch(replies, max < 0 ? null : String.valueOf(max + 1));
     }
@@ -92,12 +115,23 @@ public final class TelegramChannel implements Channel {
         Files.createDirectories(offsetFile.getParent());
         Path tmp = Files.createTempFile(offsetFile.getParent(), ".offset", ".tmp");
         Files.writeString(tmp, "{\"offset\":" + Long.parseLong(cursor) + "}");
-        Files.move(tmp, offsetFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        Files.move(
+                tmp,
+                offsetFile,
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE);
     }
 
     @Override
     public void tell(String chat, String text) throws IOException {
-        call("sendMessage", Map.of("chat_id", Long.parseLong(chat), "text", Text.cut(Text.safe(text, true), LIMIT - 20)), Duration.ofSeconds(20));
+        call(
+                "sendMessage",
+                Map.of(
+                        "chat_id",
+                        Long.parseLong(chat),
+                        "text",
+                        Text.cut(Text.safe(text, true), LIMIT - 20)),
+                Duration.ofSeconds(20));
     }
 
     private long readOffset() {
@@ -109,26 +143,49 @@ public final class TelegramChannel implements Channel {
         }
     }
 
-    private JsonNode call(String method, Map<String, Object> body, Duration timeout) throws IOException {
+    private JsonNode call(String method, Map<String, Object> body, Duration timeout)
+            throws IOException {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(apiBase + "/bot" + token + "/" + method)).timeout(timeout)
-                    .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body), StandardCharsets.UTF_8)).build();
-            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpRequest request =
+                    HttpRequest.newBuilder(URI.create(apiBase + "/bot" + token + "/" + method))
+                            .timeout(timeout)
+                            .header("Content-Type", "application/json")
+                            .POST(
+                                    HttpRequest.BodyPublishers.ofString(
+                                            JSON.writeValueAsString(body), StandardCharsets.UTF_8))
+                            .build();
+            HttpResponse<String> response =
+                    http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             JsonNode root;
             try {
                 root = JSON.readTree(response.body());
             } catch (IOException e) {
-                throw new IOException("Telegram answered with something that is not JSON (HTTP " + response.statusCode() + ")");
+                throw new IOException(
+                        "Telegram answered with something that is not JSON (HTTP "
+                                + response.statusCode()
+                                + ")");
             }
             if (!root.path("ok").asBoolean(false)) {
-                throw new IOException("Telegram refused " + method + " (HTTP " + response.statusCode() + "): " + scrub(root.path("description").asText("no reason given")));
+                throw new IOException(
+                        "Telegram refused "
+                                + method
+                                + " (HTTP "
+                                + response.statusCode()
+                                + "): "
+                                + scrub(root.path("description").asText("no reason given")));
             }
             return root.path("result");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("interrupted while talking to Telegram");
         } catch (IOException e) {
-            throw new IOException(scrub(e.getMessage() == null ? "could not reach Telegram (" + e.getClass().getSimpleName() + ")" : e.getMessage()));
+            throw new IOException(
+                    scrub(
+                            e.getMessage() == null
+                                    ? "could not reach Telegram ("
+                                            + e.getClass().getSimpleName()
+                                            + ")"
+                                    : e.getMessage()));
         } catch (IllegalArgumentException e) {
             throw new IOException("the Telegram address is not valid");
         }

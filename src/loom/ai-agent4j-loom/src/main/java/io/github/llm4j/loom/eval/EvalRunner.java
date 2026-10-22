@@ -16,22 +16,27 @@ import java.util.Set;
 import java.util.function.Function;
 
 /**
- * Runs scenarios against a script and checks what came out. Each scenario gets a fresh executor, so one cannot leak into the next.
+ * Runs scenarios against a script and checks what came out. Each scenario gets a fresh executor, so
+ * one cannot leak into the next.
  *
- * <p>An agent scenario gives the agent the scenario's input as its task, exactly as the workflow would, and checks the answer
- * ({@code expected_output_contains}, {@code expected_output}), the tools it used ({@code expected_tools}) and each {@code rubric} line.
- * A workflow scenario runs the workflow with the input as its first parameter and checks what its last agent step produced, the tools used, the
- * {@code rubric} lines about that, and each {@code expect} line against an account of the run (the steps in order). A judged line with no
- * judge is {@link Status#UNJUDGED}, never a pass.
+ * <p>An agent scenario gives the agent the scenario's input as its task, exactly as the workflow
+ * would, and checks the answer ({@code expected_output_contains}, {@code expected_output}), the
+ * tools it used ({@code expected_tools}) and each {@code rubric} line. A workflow scenario runs the
+ * workflow with the input as its first parameter and checks what its last agent step produced, the
+ * tools used, the {@code rubric} lines about that, and each {@code expect} line against an account
+ * of the run (the steps in order). A judged line with no judge is {@link Status#UNJUDGED}, never a
+ * pass.
  */
 public final class EvalRunner {
 
     /**
-     * Makes a fresh, initialised executor for one scenario. {@code beforeInitialize} must be run on it before it is initialised: agents forward
-     * their own events (tool calls, thoughts) to a trace listener only if one is there when they are built.
+     * Makes a fresh, initialised executor for one scenario. {@code beforeInitialize} must be run on
+     * it before it is initialised: agents forward their own events (tool calls, thoughts) to a
+     * trace listener only if one is there when they are built.
      */
     public interface Executors {
-        HarnessExecutor create(java.util.function.Consumer<HarnessExecutor> beforeInitialize) throws Exception;
+        HarnessExecutor create(java.util.function.Consumer<HarnessExecutor> beforeInitialize)
+                throws Exception;
     }
 
     private static final String MOCK_NOTE = "a mock run does not check content";
@@ -45,18 +50,27 @@ public final class EvalRunner {
     private boolean stoppedByLimit;
 
     /**
-     * @param judges the judge to use for a model name, or null for none (a mock run, or no model to judge with)
+     * @param judges the judge to use for a model name, or null for none (a mock run, or no model to
+     *     judge with)
      * @param modelOf the model of an agent, so a judge defaults to the agent's own model
      */
-    public EvalRunner(Executors executors, Function<String, RubricJudge> judges, Function<String, String> modelOf) {
+    public EvalRunner(
+            Executors executors,
+            Function<String, RubricJudge> judges,
+            Function<String, String> modelOf) {
         this(executors, judges, modelOf, false);
     }
 
     /**
-     * @param mock the model is a mock: its answers say nothing about content, so checks of the answer or the tools are {@link Status#UNJUDGED}
-     *     and a scenario fails only when the run itself breaks (which is what a mock run is for)
+     * @param mock the model is a mock: its answers say nothing about content, so checks of the
+     *     answer or the tools are {@link Status#UNJUDGED} and a scenario fails only when the run
+     *     itself breaks (which is what a mock run is for)
      */
-    public EvalRunner(Executors executors, Function<String, RubricJudge> judges, Function<String, String> modelOf, boolean mock) {
+    public EvalRunner(
+            Executors executors,
+            Function<String, RubricJudge> judges,
+            Function<String, String> modelOf,
+            boolean mock) {
         this.mock = mock;
         this.executors = executors;
         this.judges = judges;
@@ -74,20 +88,29 @@ public final class EvalRunner {
         List<ScenarioResult.Check> checks = new ArrayList<>();
         HarnessExecutor executor = null;
         try {
-            executor = executors.create(e -> { });
+            executor = executors.create(e -> {});
             AgentResult result = executor.runAgentTask(agent, s.input());
             String answer = result.getFinalAnswer() == null ? "" : result.getFinalAnswer();
             Set<String> tools = new HashSet<>();
-            result.getSteps().forEach(step -> {
-                if (step.getAction() != null) tools.add(step.getAction());
-            });
+            result.getSteps()
+                    .forEach(
+                            step -> {
+                                if (step.getAction() != null) tools.add(step.getAction());
+                            });
             if (result.budgetExhausted()) stoppedByLimit = true;
             answerChecks(s, answer, tools, checks);
             judge("rubric", s.rubricLines(), answer, s, modelOf.apply(agent), checks);
             return finish("agent", agent, file, s, checks, cost(executor), null);
         } catch (BudgetExceeded e) {
             stoppedByLimit = true;
-            return finish("agent", agent, file, s, checks, cost(executor), "stopped by a limit: " + e.getMessage());
+            return finish(
+                    "agent",
+                    agent,
+                    file,
+                    s,
+                    checks,
+                    cost(executor),
+                    "stopped by a limit: " + e.getMessage());
         } catch (RuntimeException e) {
             return finish("agent", agent, file, s, checks, cost(executor), message(e));
         } catch (Exception e) {
@@ -99,29 +122,59 @@ public final class EvalRunner {
 
     // ── a workflow ───────────────────────────────────────────────────────────────────────────
 
-    public ScenarioResult workflow(String file, String workflow, String firstParameter, EvalScenario s, String judgeModel) {
-        return workflow(file, workflow, firstParameter == null ? List.of() : List.of(firstParameter), s, judgeModel);
+    public ScenarioResult workflow(
+            String file,
+            String workflow,
+            String firstParameter,
+            EvalScenario s,
+            String judgeModel) {
+        return workflow(
+                file,
+                workflow,
+                firstParameter == null ? List.of() : List.of(firstParameter),
+                s,
+                judgeModel);
     }
 
     /**
-     * What is wrong with how a scenario gives a workflow its parameters, or null: a name the workflow does not have, a parameter given twice,
-     * or one it has but nothing supplies. {@code input:} is the first parameter; {@code inputs:} gives any by name. A first parameter with
+     * What is wrong with how a scenario gives a workflow its parameters, or null: a name the
+     * workflow does not have, a parameter given twice, or one it has but nothing supplies. {@code
+     * input:} is the first parameter; {@code inputs:} gives any by name. A first parameter with
      * nothing supplied is the empty text, as it always was.
      */
     public static String inputProblem(String workflow, List<String> parameters, EvalScenario s) {
         Map<String, String> named = s.namedInputs();
         for (String name : named.keySet()) {
             if (!parameters.contains(name)) {
-                return "inputs." + name + ": workflow " + workflow + " has no parameter " + name
-                        + (parameters.isEmpty() ? " (it takes none)" : " (it has " + String.join(", ", parameters) + ")");
+                return "inputs."
+                        + name
+                        + ": workflow "
+                        + workflow
+                        + " has no parameter "
+                        + name
+                        + (parameters.isEmpty()
+                                ? " (it takes none)"
+                                : " (it has " + String.join(", ", parameters) + ")");
             }
         }
         if (!parameters.isEmpty() && s.input() != null && named.containsKey(parameters.get(0))) {
-            return "both input: and inputs." + parameters.get(0) + " give " + parameters.get(0) + ", the first parameter of " + workflow + "; use one";
+            return "both input: and inputs."
+                    + parameters.get(0)
+                    + " give "
+                    + parameters.get(0)
+                    + ", the first parameter of "
+                    + workflow
+                    + "; use one";
         }
         for (int i = 1; i < parameters.size(); i++) {
             if (!named.containsKey(parameters.get(i))) {
-                return "workflow " + workflow + " needs " + parameters.get(i) + ": give it under inputs: { " + parameters.get(i) + ": ... }";
+                return "workflow "
+                        + workflow
+                        + " needs "
+                        + parameters.get(i)
+                        + ": give it under inputs: { "
+                        + parameters.get(i)
+                        + ": ... }";
             }
         }
         return null;
@@ -137,7 +190,12 @@ public final class EvalRunner {
         return out;
     }
 
-    public ScenarioResult workflow(String file, String workflow, List<String> parameters, EvalScenario s, String judgeModel) {
+    public ScenarioResult workflow(
+            String file,
+            String workflow,
+            List<String> parameters,
+            EvalScenario s,
+            String judgeModel) {
         String bad = inputProblem(workflow, parameters, s);
         if (bad != null) return finish("workflow", workflow, file, s, new ArrayList<>(), null, bad);
         List<ScenarioResult.Check> checks = new ArrayList<>();
@@ -148,14 +206,23 @@ public final class EvalRunner {
             executor.executeWorkflow(workflow, workflowInputs(parameters, s));
             String output = lastResult(executor, events);
             Set<String> tools = new HashSet<>();
-            events.stream().filter(e -> TraceEvent.ACTION.equals(e.type()) && e.data().get("tool") != null).forEach(e -> tools.add(String.valueOf(e.data().get("tool"))));
+            events.stream()
+                    .filter(e -> TraceEvent.ACTION.equals(e.type()) && e.data().get("tool") != null)
+                    .forEach(e -> tools.add(String.valueOf(e.data().get("tool"))));
             answerChecks(s, output, tools, checks);
             judge("rubric", s.rubricLines(), output, s, judgeModel, checks);
             judge("expect", s.expectLines(), account(events), s, judgeModel, checks);
             return finish("workflow", workflow, file, s, checks, cost(executor), null);
         } catch (BudgetExceeded e) {
             stoppedByLimit = true;
-            return finish("workflow", workflow, file, s, checks, cost(executor), "stopped by a limit: " + e.getMessage());
+            return finish(
+                    "workflow",
+                    workflow,
+                    file,
+                    s,
+                    checks,
+                    cost(executor),
+                    "stopped by a limit: " + e.getMessage());
         } catch (RuntimeException e) {
             return finish("workflow", workflow, file, s, checks, cost(executor), message(e));
         } catch (Exception e) {
@@ -167,46 +234,125 @@ public final class EvalRunner {
 
     // ── checks ───────────────────────────────────────────────────────────────────────────────
 
-    private void answerChecks(EvalScenario s, String answer, Set<String> tools, List<ScenarioResult.Check> checks) {
+    private void answerChecks(
+            EvalScenario s, String answer, Set<String> tools, List<ScenarioResult.Check> checks) {
         if (mock) {
-            if (s.expectedOutputContains() != null) checks.add(new ScenarioResult.Check("answer contains", s.expectedOutputContains(), Status.UNJUDGED, MOCK_NOTE));
-            if (s.expectedOutput() != null) checks.add(new ScenarioResult.Check("answer is", s.expectedOutput(), Status.UNJUDGED, MOCK_NOTE));
-            for (String never : s.mustNotContain()) checks.add(new ScenarioResult.Check("answer never contains", never, Status.UNJUDGED, MOCK_NOTE));
-            if (s.expectedMinWords() != null) checks.add(new ScenarioResult.Check("answer has at least", s.expectedMinWords() + " words", Status.UNJUDGED, MOCK_NOTE));
-            if (s.expectedMaxWords() != null) checks.add(new ScenarioResult.Check("answer has at most", s.expectedMaxWords() + " words", Status.UNJUDGED, MOCK_NOTE));
-            if (s.expectedTools() != null && !s.expectedTools().isEmpty()) checks.add(new ScenarioResult.Check("tools used", String.join(", ", s.expectedTools()), Status.UNJUDGED, MOCK_NOTE));
+            if (s.expectedOutputContains() != null)
+                checks.add(
+                        new ScenarioResult.Check(
+                                "answer contains",
+                                s.expectedOutputContains(),
+                                Status.UNJUDGED,
+                                MOCK_NOTE));
+            if (s.expectedOutput() != null)
+                checks.add(
+                        new ScenarioResult.Check(
+                                "answer is", s.expectedOutput(), Status.UNJUDGED, MOCK_NOTE));
+            for (String never : s.mustNotContain())
+                checks.add(
+                        new ScenarioResult.Check(
+                                "answer never contains", never, Status.UNJUDGED, MOCK_NOTE));
+            if (s.expectedMinWords() != null)
+                checks.add(
+                        new ScenarioResult.Check(
+                                "answer has at least",
+                                s.expectedMinWords() + " words",
+                                Status.UNJUDGED,
+                                MOCK_NOTE));
+            if (s.expectedMaxWords() != null)
+                checks.add(
+                        new ScenarioResult.Check(
+                                "answer has at most",
+                                s.expectedMaxWords() + " words",
+                                Status.UNJUDGED,
+                                MOCK_NOTE));
+            if (s.expectedTools() != null && !s.expectedTools().isEmpty())
+                checks.add(
+                        new ScenarioResult.Check(
+                                "tools used",
+                                String.join(", ", s.expectedTools()),
+                                Status.UNJUDGED,
+                                MOCK_NOTE));
             return;
         }
         if (s.expectedOutputContains() != null) {
-            boolean ok = answer.toLowerCase(Locale.ROOT).contains(s.expectedOutputContains().toLowerCase(Locale.ROOT));
-            checks.add(new ScenarioResult.Check("answer contains", s.expectedOutputContains(), ok ? Status.PASS : Status.FAIL, ok ? null : "the answer was: " + cut(answer)));
+            boolean ok =
+                    answer.toLowerCase(Locale.ROOT)
+                            .contains(s.expectedOutputContains().toLowerCase(Locale.ROOT));
+            checks.add(
+                    new ScenarioResult.Check(
+                            "answer contains",
+                            s.expectedOutputContains(),
+                            ok ? Status.PASS : Status.FAIL,
+                            ok ? null : "the answer was: " + cut(answer)));
         }
         for (String never : s.mustNotContain()) {
             boolean ok = !answer.toLowerCase(Locale.ROOT).contains(never.toLowerCase(Locale.ROOT));
-            // the failure does not repeat the answer: what it must never contain is what it would be repeating (a card number, a name)
-            checks.add(new ScenarioResult.Check("answer never contains", never, ok ? Status.PASS : Status.FAIL, ok ? null : "the answer contains it"));
+            // the failure does not repeat the answer: what it must never contain is what it would
+            // be repeating (a card number, a name)
+            checks.add(
+                    new ScenarioResult.Check(
+                            "answer never contains",
+                            never,
+                            ok ? Status.PASS : Status.FAIL,
+                            ok ? null : "the answer contains it"));
         }
         int words = answer.isBlank() ? 0 : answer.strip().split("\\s+").length;
         if (s.expectedMinWords() != null) {
             boolean ok = words >= s.expectedMinWords();
-            checks.add(new ScenarioResult.Check("answer has at least", s.expectedMinWords() + " words", ok ? Status.PASS : Status.FAIL, ok ? null : "the answer has " + words + " words"));
+            checks.add(
+                    new ScenarioResult.Check(
+                            "answer has at least",
+                            s.expectedMinWords() + " words",
+                            ok ? Status.PASS : Status.FAIL,
+                            ok ? null : "the answer has " + words + " words"));
         }
         if (s.expectedMaxWords() != null) {
             boolean ok = words <= s.expectedMaxWords();
-            checks.add(new ScenarioResult.Check("answer has at most", s.expectedMaxWords() + " words", ok ? Status.PASS : Status.FAIL, ok ? null : "the answer has " + words + " words"));
+            checks.add(
+                    new ScenarioResult.Check(
+                            "answer has at most",
+                            s.expectedMaxWords() + " words",
+                            ok ? Status.PASS : Status.FAIL,
+                            ok ? null : "the answer has " + words + " words"));
         }
         if (s.expectedOutput() != null) {
             boolean ok = answer.strip().equals(s.expectedOutput().strip());
-            checks.add(new ScenarioResult.Check("answer is", s.expectedOutput(), ok ? Status.PASS : Status.FAIL, ok ? null : "the answer was: " + cut(answer)));
+            checks.add(
+                    new ScenarioResult.Check(
+                            "answer is",
+                            s.expectedOutput(),
+                            ok ? Status.PASS : Status.FAIL,
+                            ok ? null : "the answer was: " + cut(answer)));
         }
         if (s.expectedTools() != null && !s.expectedTools().isEmpty()) {
-            List<String> missing = s.expectedTools().stream().filter(t -> !tools.contains(t)).toList();
-            checks.add(new ScenarioResult.Check("tools used", String.join(", ", s.expectedTools()), missing.isEmpty() ? Status.PASS : Status.FAIL,
-                    missing.isEmpty() ? null : "not used: " + String.join(", ", missing) + "; used: " + (tools.isEmpty() ? "none" : String.join(", ", new java.util.TreeSet<>(tools)))));
+            List<String> missing =
+                    s.expectedTools().stream().filter(t -> !tools.contains(t)).toList();
+            checks.add(
+                    new ScenarioResult.Check(
+                            "tools used",
+                            String.join(", ", s.expectedTools()),
+                            missing.isEmpty() ? Status.PASS : Status.FAIL,
+                            missing.isEmpty()
+                                    ? null
+                                    : "not used: "
+                                            + String.join(", ", missing)
+                                            + "; used: "
+                                            + (tools.isEmpty()
+                                                    ? "none"
+                                                    : String.join(
+                                                            ", ",
+                                                            new java.util.TreeSet<>(tools)))));
         }
     }
 
-    private void judge(String kind, List<String> lines, String subject, EvalScenario s, String model, List<ScenarioResult.Check> checks) {
+    private void judge(
+            String kind,
+            List<String> lines,
+            String subject,
+            EvalScenario s,
+            String model,
+            List<ScenarioResult.Check> checks) {
         RubricJudge judge = lines.isEmpty() ? null : judges == null ? null : judges.apply(model);
         for (String line : lines) {
             if (judge == null) {
@@ -216,33 +362,56 @@ public final class EvalRunner {
             try {
                 JudgeVerdict v = judge.judge(line, subject, s);
                 boolean ok = v.score() >= RubricJudge.THRESHOLD;
-                checks.add(new ScenarioResult.Check(kind, line, ok ? Status.PASS : Status.FAIL, String.format(Locale.ROOT, "score %.2f: %s", v.score(), v.reason())));
+                checks.add(
+                        new ScenarioResult.Check(
+                                kind,
+                                line,
+                                ok ? Status.PASS : Status.FAIL,
+                                String.format(
+                                        Locale.ROOT, "score %.2f: %s", v.score(), v.reason())));
             } catch (RuntimeException e) {
-                checks.add(new ScenarioResult.Check(kind, line, Status.UNJUDGED, "the judge failed: " + message(e)));
+                checks.add(
+                        new ScenarioResult.Check(
+                                kind, line, Status.UNJUDGED, "the judge failed: " + message(e)));
             }
         }
     }
 
-    private static ScenarioResult finish(String kind, String target, String file, EvalScenario s, List<ScenarioResult.Check> checks, BigDecimal cost, String error) {
+    private static ScenarioResult finish(
+            String kind,
+            String target,
+            String file,
+            EvalScenario s,
+            List<ScenarioResult.Check> checks,
+            BigDecimal cost,
+            String error) {
         Status status = Status.PASS;
         for (ScenarioResult.Check c : checks) status = status.and(c.status());
         if (error != null) status = Status.FAIL;
         else if (checks.isEmpty()) status = Status.UNJUDGED;
         List<ScenarioResult.Check> shown = new ArrayList<>(checks);
         if (error == null && checks.isEmpty()) {
-            shown.add(new ScenarioResult.Check("nothing to check", "", Status.UNJUDGED, "the scenario has no expected_output_contains, expected_output, expected_tools, rubric or expect"));
+            shown.add(
+                    new ScenarioResult.Check(
+                            "nothing to check",
+                            "",
+                            Status.UNJUDGED,
+                            "the scenario has no expected_output_contains, expected_output, expected_tools, rubric or expect"));
         }
         return new ScenarioResult(target, kind, file, s.id(), s.name(), status, shown, cost, error);
     }
 
     // ── what a workflow run says ─────────────────────────────────────────────────────────────
 
-    /** What the last agent step that ended produced: the variable it was stored in, else its text. */
+    /**
+     * What the last agent step that ended produced: the variable it was stored in, else its text.
+     */
     private static String lastResult(HarnessExecutor executor, List<TraceEvent> events) {
         String variable = null;
         String text = "";
         for (TraceEvent e : events) {
-            if (TraceEvent.DELEGATE_START.equals(e.type()) && e.data().get("variable") != null) variable = String.valueOf(e.data().get("variable"));
+            if (TraceEvent.DELEGATE_START.equals(e.type()) && e.data().get("variable") != null)
+                variable = String.valueOf(e.data().get("variable"));
             if (TraceEvent.DELEGATE_END.equals(e.type())) text = e.text() == null ? "" : e.text();
         }
         Object value = variable == null ? null : executor.getContext().getVariable(variable);
@@ -255,9 +424,15 @@ public final class EvalRunner {
         int n = 0;
         for (TraceEvent e : events) {
             String type = e.type();
-            if (!(TraceEvent.DELEGATE_START.equals(type) || TraceEvent.DELEGATE_END.equals(type) || TraceEvent.ACTION.equals(type)
-                    || TraceEvent.APPROVAL.equals(type) || TraceEvent.GUARD.equals(type) || TraceEvent.REWIND.equals(type)
-                    || TraceEvent.CHECKPOINT.equals(type) || TraceEvent.DECISION.equals(type) || TraceEvent.TASK_START.equals(type))) {
+            if (!(TraceEvent.DELEGATE_START.equals(type)
+                    || TraceEvent.DELEGATE_END.equals(type)
+                    || TraceEvent.ACTION.equals(type)
+                    || TraceEvent.APPROVAL.equals(type)
+                    || TraceEvent.GUARD.equals(type)
+                    || TraceEvent.REWIND.equals(type)
+                    || TraceEvent.CHECKPOINT.equals(type)
+                    || TraceEvent.DECISION.equals(type)
+                    || TraceEvent.TASK_START.equals(type))) {
                 continue;
             }
             if (++n > ACCOUNT_STEPS) {
@@ -283,7 +458,11 @@ public final class EvalRunner {
 
     private static String message(Exception e) {
         Throwable t = e;
-        while (t.getCause() != null && t.getCause() != t && (t.getMessage() == null || t instanceof java.lang.reflect.InvocationTargetException)) t = t.getCause();
+        while (t.getCause() != null
+                && t.getCause() != t
+                && (t.getMessage() == null
+                        || t instanceof java.lang.reflect.InvocationTargetException))
+            t = t.getCause();
         return t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage();
     }
 

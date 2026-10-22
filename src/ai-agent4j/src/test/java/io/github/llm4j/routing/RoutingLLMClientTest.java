@@ -15,16 +15,17 @@ class RoutingLLMClientTest {
     void testSuccessfulRouting() {
         MockClient cheapClient = new MockClient("Cheap", false);
         MockClient premiumClient = new MockClient("Premium", false);
-        
-        RoutingLLMClient client = RoutingLLMClient.builder()
-                .strategy(new FallbackRoutingStrategy())
-                .addClient(ProviderTier.FAST_CHEAP, cheapClient)
-                .addClient(ProviderTier.REASONING, premiumClient)
-                .build();
-                
+
+        RoutingLLMClient client =
+                RoutingLLMClient.builder()
+                        .strategy(new FallbackRoutingStrategy())
+                        .addClient(ProviderTier.FAST_CHEAP, cheapClient)
+                        .addClient(ProviderTier.REASONING, premiumClient)
+                        .build();
+
         LLMRequest request = LLMRequest.builder().addUserMessage("Hi").build();
         LLMResponse response = client.chat(request);
-        
+
         assertEquals("Cheap", response.getContent());
     }
 
@@ -33,57 +34,61 @@ class RoutingLLMClientTest {
         // Cheap fails, premium succeeds
         MockClient cheapClient = new MockClient("Cheap", true);
         MockClient premiumClient = new MockClient("Premium", false);
-        
-        RoutingLLMClient client = RoutingLLMClient.builder()
-                .strategy(new FallbackRoutingStrategy())
-                .addClient(ProviderTier.FAST_CHEAP, cheapClient)
-                .addClient(ProviderTier.REASONING, premiumClient)
-                .build();
-                
+
+        RoutingLLMClient client =
+                RoutingLLMClient.builder()
+                        .strategy(new FallbackRoutingStrategy())
+                        .addClient(ProviderTier.FAST_CHEAP, cheapClient)
+                        .addClient(ProviderTier.REASONING, premiumClient)
+                        .build();
+
         LLMRequest request = LLMRequest.builder().addUserMessage("Hi").build();
         LLMResponse response = client.chat(request);
-        
+
         // Expected premium since cheap throws an exception
         assertEquals("Premium", response.getContent());
     }
-    
+
     @Test
     void testFatalWhenAllFail() {
         MockClient cheapClient = new MockClient("Cheap", true);
         MockClient premiumClient = new MockClient("Premium", true);
-        
-        RoutingLLMClient client = RoutingLLMClient.builder()
-                .strategy(new FallbackRoutingStrategy())
-                .addClient(ProviderTier.FAST_CHEAP, cheapClient)
-                .addClient(ProviderTier.REASONING, premiumClient)
-                .build();
-                
+
+        RoutingLLMClient client =
+                RoutingLLMClient.builder()
+                        .strategy(new FallbackRoutingStrategy())
+                        .addClient(ProviderTier.FAST_CHEAP, cheapClient)
+                        .addClient(ProviderTier.REASONING, premiumClient)
+                        .build();
+
         LLMRequest request = LLMRequest.builder().addUserMessage("Hi").build();
-        
-        assertThrows(LLMException.class, () -> {
-            client.chat(request);
-        });
+
+        assertThrows(
+                LLMException.class,
+                () -> {
+                    client.chat(request);
+                });
     }
 
     private static class MockClient implements LLMClient {
         private final String name;
         private final boolean fail;
-        
-        MockClient(String name, boolean fail) { 
-            this.name = name; 
+
+        MockClient(String name, boolean fail) {
+            this.name = name;
             this.fail = fail;
         }
-        
+
         @Override
-        public LLMResponse chat(LLMRequest request) { 
+        public LLMResponse chat(LLMRequest request) {
             if (fail) throw new RuntimeException("Simulated API failure");
-            return LLMResponse.builder().content(name).build(); 
+            return LLMResponse.builder().content(name).build();
         }
-        
+
         @Override
-        public Stream<LLMResponse> chatStream(LLMRequest request) { 
+        public Stream<LLMResponse> chatStream(LLMRequest request) {
             if (fail) throw new RuntimeException("Simulated API failure");
-            return Stream.of(LLMResponse.builder().content(name).build()); 
+            return Stream.of(LLMResponse.builder().content(name).build());
         }
     }
 }

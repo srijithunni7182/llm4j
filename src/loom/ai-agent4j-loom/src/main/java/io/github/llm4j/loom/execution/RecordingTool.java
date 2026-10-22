@@ -5,9 +5,10 @@ import io.github.llm4j.loom.runtime.RunJournal;
 import java.util.Map;
 
 /**
- * A tool whose class says nothing about whether it changes the world (one the host registered, an OpenAPI tool, an MCP tool) leaves a
- * mark in the journal each time it is called, in a script that can go back. A rewind then knows it may be crossing something it cannot
- * undo or classify, and asks first. Scripts that never rewind get no mark.
+ * A tool whose class says nothing about whether it changes the world (one the host registered, an
+ * OpenAPI tool, an MCP tool) leaves a mark in the journal each time it is called, in a script that
+ * can go back. A rewind then knows it may be crossing something it cannot undo or classify, and
+ * asks first. Scripts that never rewind get no mark.
  */
 final class RecordingTool implements Tool {
 
@@ -40,7 +41,8 @@ final class RecordingTool implements Tool {
     public String execute(Map<String, Object> args) throws Exception {
         String key = run.identityStep() + MARK + real.getName();
         RunJournal journal = run.journal();
-        if (journal.get(key).isEmpty()) journal.put(key, new RunJournal.Entry("unclassified_call", "called"));
+        if (journal.get(key).isEmpty())
+            journal.put(key, new RunJournal.Entry("unclassified_call", "called"));
         return real.execute(args);
     }
 

@@ -16,7 +16,8 @@ public enum Level {
     /** The level written as a word, or null. */
     public static Level of(String word) {
         if (word == null) return null;
-        for (Level l : values()) if (l.word().equals(word.trim().toLowerCase(java.util.Locale.ROOT))) return l;
+        for (Level l : values())
+            if (l.word().equals(word.trim().toLowerCase(java.util.Locale.ROOT))) return l;
         return null;
     }
 

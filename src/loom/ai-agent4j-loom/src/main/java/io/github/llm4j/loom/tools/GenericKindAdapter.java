@@ -7,8 +7,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Lets a script declare a tool from ai-agent4j-tools ({@code use: webhook}): the library's kinds implement
- * ai-agent4j's script-agnostic kind contract, and this presents one of them as a Loom {@link ToolKind}.
+ * Lets a script declare a tool from ai-agent4j-tools ({@code use: webhook}): the library's kinds
+ * implement ai-agent4j's script-agnostic kind contract, and this presents one of them as a Loom
+ * {@link ToolKind}.
  */
 final class GenericKindAdapter implements ToolKind {
 
@@ -18,14 +19,34 @@ final class GenericKindAdapter implements ToolKind {
         this.kind = kind;
     }
 
-    @Override public String name() { return kind.name(); }
-    @Override public Set<String> required() { return kind.required(); }
-    @Override public Set<String> optional() { return kind.optional(); }
-    @Override public Set<String> prefixes() { return kind.prefixes(); }
-    @Override public Set<String> secrets() { return kind.secrets(); }
+    @Override
+    public String name() {
+        return kind.name();
+    }
 
     @Override
-    public String agentProblem(Map<String, String> options, String toolName, String agentName, boolean approved) {
+    public Set<String> required() {
+        return kind.required();
+    }
+
+    @Override
+    public Set<String> optional() {
+        return kind.optional();
+    }
+
+    @Override
+    public Set<String> prefixes() {
+        return kind.prefixes();
+    }
+
+    @Override
+    public Set<String> secrets() {
+        return kind.secrets();
+    }
+
+    @Override
+    public String agentProblem(
+            Map<String, String> options, String toolName, String agentName, boolean approved) {
         return kind.agentProblem(options, toolName, agentName, approved);
     }
 
@@ -40,7 +61,9 @@ final class GenericKindAdapter implements ToolKind {
     }
 
     @Override
-    public Tool create(String name, Map<String, String> options, Path baseDir, EffectContext context) throws Exception {
+    public Tool create(
+            String name, Map<String, String> options, Path baseDir, EffectContext context)
+            throws Exception {
         return kind.create(name, options, baseDir, context);
     }
 }

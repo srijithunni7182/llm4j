@@ -2,6 +2,7 @@ package io.github.llm4j.eval.judge;
 
 import io.github.llm4j.LLMClient;
 import io.github.llm4j.agent.AgentResult;
+import io.github.llm4j.classify.Classifier;
 import io.github.llm4j.eval.export.JudgeTelemetry;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
@@ -55,6 +56,8 @@ public final class LlmJudgeCondition extends Condition<Object> {
     private final String name;
     private final String criteria;
     private final LLMClient judge;
+    private final Classifier classifier;
+    private final boolean graded;
     private final double threshold;
     private final String input;
     private final String expectedOutput;
@@ -76,7 +79,18 @@ public final class LlmJudgeCondition extends Condition<Object> {
         super("llm-judged \"" + builder.name + "\" (threshold=" + builder.threshold + ")");
         this.name = builder.name;
         this.criteria = Objects.requireNonNull(builder.criteria, "criteria cannot be null");
-        this.judge = Objects.requireNonNull(builder.judge, "judge cannot be null");
+        if (builder.judge != null && builder.classifier != null) {
+            throw new IllegalStateException(
+                    "set either judge(LLMClient) or classifier(Classifier) on \""
+                            + builder.name
+                            + "\", not both");
+        }
+        this.classifier = builder.classifier;
+        this.graded = builder.graded;
+        this.judge =
+                builder.classifier != null
+                        ? null
+                        : Objects.requireNonNull(builder.judge, "judge cannot be null");
         this.threshold = builder.threshold;
         this.input = builder.input;
         this.expectedOutput = builder.expectedOutput;
@@ -105,11 +119,13 @@ public final class LlmJudgeCondition extends Condition<Object> {
                         "%s",
                         String.format(
                                 java.util.Locale.ROOT,
-                                "llm-judged \"%s\" (score=%.2f, threshold=%.2f): %s",
+                                "llm-judged \"%s\" (score=%.2f, threshold=%.2f)%s",
                                 name,
                                 combined.score(),
                                 threshold,
-                                combined.reason())));
+                                classifier != null && combined.reason().isBlank()
+                                        ? ""
+                                        : ": " + combined.reason())));
         io.github.llm4j.eval.report.EvalDetails details =
                 new io.github.llm4j.eval.report.EvalDetails(
                         input,
@@ -174,7 +190,7 @@ public final class LlmJudgeCondition extends Condition<Object> {
                                 actualOutput,
                                 trajectory,
                                 temperature,
-                                judgeIdentifier)
+                                cacheIdentifier())
                         : null;
 
         List<JudgeVerdict> verdicts = new ArrayList<>(samples);
@@ -208,12 +224,55 @@ public final class LlmJudgeCondition extends Condition<Object> {
         return threshold;
     }
 
+    /**
+     * The judge identifier folded into the cache key; a classifier's verdicts never share keys with
+     * a chat judge's, nor graded with yes/no.
+     */
+    private String cacheIdentifier() {
+        if (classifier == null) return judgeIdentifier;
+        return (judgeIdentifier == null ? "" : judgeIdentifier)
+                + "#classifier:"
+                + (graded ? "graded" : "yesno");
+    }
+
     private String telemetryId() {
         return io.github.llm4j.eval.export.MetricRef.slug(
                 judgeIdentifier == null ? "judge" : judgeIdentifier);
     }
 
+    private JudgeVerdict callClassifier(String actualOutput, String trajectory) {
+        String id = telemetryId();
+        long start = System.nanoTime();
+        try {
+            ClassifierJudge.Judged judged =
+                    ClassifierJudge.judge(
+                            classifier,
+                            graded,
+                            name,
+                            criteria,
+                            input,
+                            expectedOutput,
+                            context,
+                            retrievalContext,
+                            actualOutput,
+                            trajectory);
+            io.github.llm4j.classify.ClassifyUsage usage = judged.result().usage();
+            JudgeTelemetry.callMade(
+                    id,
+                    (System.nanoTime() - start) / 1_000_000,
+                    usage.inputTokens(),
+                    usage.outputTokens(),
+                    false);
+            return judged.verdict();
+        } catch (Exception e) {
+            JudgeTelemetry.callMade(id, (System.nanoTime() - start) / 1_000_000, 0, 0, true);
+            throw new JudgeEvaluationException(
+                    "Judge call failed for criterion \"" + name + "\"", e);
+        }
+    }
+
     private JudgeVerdict callJudge(String actualOutput, String trajectory, double temperature) {
+        if (classifier != null) return callClassifier(actualOutput, trajectory);
         String userMessage =
                 JudgePrompt.buildUserMessage(
                         name,
@@ -252,12 +311,15 @@ public final class LlmJudgeCondition extends Condition<Object> {
         }
     }
 
-    private static JudgeVerdict combine(List<JudgeVerdict> verdicts) {
+    private JudgeVerdict combine(List<JudgeVerdict> verdicts) {
         if (verdicts.size() == 1) {
             return verdicts.get(0);
         }
         double averageScore =
                 verdicts.stream().mapToDouble(JudgeVerdict::score).average().orElseThrow();
+        if (classifier != null && verdicts.stream().allMatch(v -> v.reason().isBlank())) {
+            return new JudgeVerdict(averageScore, "");
+        }
         String reasons =
                 IntStream.range(0, verdicts.size())
                         .mapToObj(i -> "(" + (i + 1) + ") " + verdicts.get(i).reason())
@@ -275,6 +337,8 @@ public final class LlmJudgeCondition extends Condition<Object> {
         private final String name;
         private String criteria;
         private LLMClient judge;
+        private Classifier classifier;
+        private boolean graded;
         private double threshold = 0.5;
         private String input;
         private String expectedOutput;
@@ -297,6 +361,29 @@ public final class LlmJudgeCondition extends Condition<Object> {
 
         public Builder judge(LLMClient judge) {
             this.judge = judge;
+            return this;
+        }
+
+        /**
+         * Judges with a {@link Classifier} instead of a chat model: the criterion becomes one
+         * yes/no question (the score is the probability of yes), or one question on a five-point
+         * scale with {@link #graded(boolean)}. A judgement is then one short call, and {@code
+         * threshold}, {@code samples}, {@code cache}, telemetry and {@code dimensions} work as they
+         * do with {@link #judge(LLMClient)}. Set one of the two, not both. The verdict has no
+         * reason text unless the classifier gave a rationale ({@code
+         * LlmClassifier.builder(..).withRationale(true)}).
+         */
+        public Builder classifier(Classifier classifier) {
+            this.classifier = classifier;
+            return this;
+        }
+
+        /**
+         * With {@link #classifier(Classifier)}: grade the criterion on a five-point scale (the
+         * score is the position) rather than ask yes/no. Default false.
+         */
+        public Builder graded(boolean graded) {
+            this.graded = graded;
             return this;
         }
 

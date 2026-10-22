@@ -15,7 +15,10 @@ class CheckerTest {
 
     private static Checker checker(String... measures) {
         Map<String, Interpreter.Measure> ms = new LinkedHashMap<>();
-        for (int i = 0; i < measures.length; i += 2) ms.put(measures[i], new Interpreter.Measure(measures[i], "c", ExprParser.parse(measures[i + 1])));
+        for (int i = 0; i < measures.length; i += 2)
+            ms.put(
+                    measures[i],
+                    new Interpreter.Measure(measures[i], "c", ExprParser.parse(measures[i + 1])));
         Map<String, T> fields = new LinkedHashMap<>();
         fields.put("amount", T.NUM);
         fields.put("tier", T.STR);
@@ -32,7 +35,9 @@ class CheckerTest {
     }
 
     private static void rejects(String e, String message, String... measures) {
-        assertThatThrownBy(() -> checker(measures).type(ExprParser.parse(e))).isInstanceOf(ExprException.class).hasMessageContaining(message);
+        assertThatThrownBy(() -> checker(measures).type(ExprParser.parse(e)))
+                .isInstanceOf(ExprException.class)
+                .hasMessageContaining(message);
     }
 
     @Test
@@ -48,7 +53,8 @@ class CheckerTest {
         assertThat(type("history.by(tier).rate(shown).min()")).isEqualTo(T.NUM);
         assertThat(type("history.since(1d).count >= 50")).isEqualTo(T.BOOL);
         assertThat(type("history.last(20).mean(amount) < 0.5 * baseline")).isEqualTo(T.BOOL);
-        assertThat(type("case.amount > 200 or case.topic in [\"legal\", \"pricing\"]")).isEqualTo(T.BOOL);
+        assertThat(type("case.amount > 200 or case.topic in [\"legal\", \"pricing\"]"))
+                .isEqualTo(T.BOOL);
         assertThat(type("history.any(shown)")).isEqualTo(T.BOOL);
     }
 
@@ -56,8 +62,23 @@ class CheckerTest {
     void measuresAreTypedByTheirBodiesAndUsableAsPredicatesAndValues() {
         assertThat(type("history.count(big)", "big", "c.amount > 200")).isEqualTo(T.NUM);
         assertThat(type("history.mean(slow)", "slow", "c.review_time")).isEqualTo(T.DUR);
-        assertThat(type("history.where(big).rate(small)", "big", "c.amount > 200", "small", "c.amount < 10")).isEqualTo(T.RATIO);
-        assertThat(type("history.count(composed)", "composed", "big(c) and not small(c)", "big", "c.amount > 1", "small", "c.amount < 0"))
+        assertThat(
+                        type(
+                                "history.where(big).rate(small)",
+                                "big",
+                                "c.amount > 200",
+                                "small",
+                                "c.amount < 10"))
+                .isEqualTo(T.RATIO);
+        assertThat(
+                        type(
+                                "history.count(composed)",
+                                "composed",
+                                "big(c) and not small(c)",
+                                "big",
+                                "c.amount > 1",
+                                "small",
+                                "c.amount < 0"))
                 .isEqualTo(T.NUM);
     }
 
@@ -97,18 +118,23 @@ class CheckerTest {
         rejects("case.tier > 3", "cannot compare a text with a number");
         rejects("history.count + \"a\"", "cannot add a number and a text");
         rejects("true < false", "cannot order yes/no values");
-        rejects("history.count and true", "'and' needs yes/no values but the left side is a number");
+        rejects(
+                "history.count and true",
+                "'and' needs yes/no values but the left side is a number");
         rejects("not history.count", "'not' needs a yes/no value");
         rejects("3 in 4", "'in' needs a list on the right");
-        assertThat(type("case.response.kind == \"accept\"")).isEqualTo(T.BOOL);                 // unknown parts are allowed to be anything
+        assertThat(type("case.response.kind == \"accept\""))
+                .isEqualTo(T.BOOL); // unknown parts are allowed to be anything
     }
 
     @Test
     void aConditionMustBeYesOrNo() {
         Checker c = checker();
         assertThat(c.condition(ExprParser.parse("history.count >= 3"))).isEqualTo(T.BOOL);
-        assertThatThrownBy(() -> c.condition(ExprParser.parse("history.count"))).isInstanceOf(ExprException.class)
-                .hasMessageContaining("is not a yes/no condition").hasMessageContaining("number");
+        assertThatThrownBy(() -> c.condition(ExprParser.parse("history.count")))
+                .isInstanceOf(ExprException.class)
+                .hasMessageContaining("is not a yes/no condition")
+                .hasMessageContaining("number");
         assertThat(c.condition(ExprParser.parse("case.response.kind"))).isEqualTo(T.ANY);
     }
 

@@ -9,20 +9,28 @@ import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** R7 of loom-onboarding: the audit knows that a person acts on a workflow's output, and says so, quietly. */
+/**
+ * R7 of loom-onboarding: the audit knows that a person acts on a workflow's output, and says so,
+ * quietly.
+ */
 class PersonRunsWhatIsWrittenTest {
 
     private static List<Finding> la16(String source) {
         var script = new LoomParser(new Lexer(source).tokenize()).parseScript();
-        return SecurityAudit.audit(script, "w.loom").findings().stream().filter(f -> f.rule().equals("LA16")).toList();
+        return SecurityAudit.audit(script, "w.loom").findings().stream()
+                .filter(f -> f.rule().equals("LA16"))
+                .toList();
     }
 
-    private static final String PERSONAS = """
+    private static final String PERSONAS =
+            """
             persona AuthorPersona { role: "Remediation Script Author" expertise: "Writing the smallest shell script that fixes a diagnosed problem" }
             persona WriterPersona { role: "Newsletter writer" expertise: "Friendly prose" }
             """;
 
-    private static final String LAPTOP_DOCTOR = PERSONAS + """
+    private static final String LAPTOP_DOCTOR =
+            PERSONAS
+                    + """
             agent Researcher { model: "gemini-2.5-flash" system: "Find documented fixes." tools: [web_search] }
             agent ScriptAuthor { model: "gemini-2.5-flash" persona: AuthorPersona }
             workflow Diagnose(problem) {
@@ -33,26 +41,40 @@ class PersonRunsWhatIsWrittenTest {
             """;
 
     @Test
-    void r7_1_anAuthorFedByAnAgentThatReadsTheOutsideWorldThroughAnUntypedHandOffIsReportedAsInfo() {
+    void
+            r7_1_anAuthorFedByAnAgentThatReadsTheOutsideWorldThroughAnUntypedHandOffIsReportedAsInfo() {
         List<Finding> found = la16(LAPTOP_DOCTOR);
 
-        assertThat(found).singleElement().satisfies(f -> {
-            assertThat(f.severity()).isEqualTo(Severity.INFO);
-            assertThat(f.where()).isEqualTo("ScriptAuthor");
-            assertThat(f.title()).isEqualTo("A person will run output that was written from untrusted text");
-            assertThat(f.risk()).contains("Researcher (web_search) through research").contains("a person will");
-            assertThat(f.owasp()).containsExactly(Owasp.LLM01, Owasp.LLM05);
-        });
+        assertThat(found)
+                .singleElement()
+                .satisfies(
+                        f -> {
+                            assertThat(f.severity()).isEqualTo(Severity.INFO);
+                            assertThat(f.where()).isEqualTo("ScriptAuthor");
+                            assertThat(f.title())
+                                    .isEqualTo(
+                                            "A person will run output that was written from untrusted text");
+                            assertThat(f.risk())
+                                    .contains("Researcher (web_search) through research")
+                                    .contains("a person will");
+                            assertThat(f.owasp()).containsExactly(Owasp.LLM01, Owasp.LLM05);
+                        });
     }
 
     @Test
     void r7_2_theFindingSaysHowToReduceTheRisk() {
-        assertThat(la16(LAPTOP_DOCTOR).get(0).fix()).contains("Type the hand-off (expecting { ... })").contains("a different model").contains("free of tools");
+        assertThat(la16(LAPTOP_DOCTOR).get(0).fix())
+                .contains("Type the hand-off (expecting { ... })")
+                .contains("a different model")
+                .contains("free of tools");
     }
 
     @Test
     void r7_3_aTypedHandOffIsNotReported() {
-        String typed = LAPTOP_DOCTOR.replace("-> research\n", "-> research expecting { summary: string }\n").replace("{research}", "{research.summary}");
+        String typed =
+                LAPTOP_DOCTOR
+                        .replace("-> research\n", "-> research expecting { summary: string }\n")
+                        .replace("{research}", "{research.summary}");
 
         assertThat(la16(typed)).isEmpty();
     }
@@ -73,18 +95,23 @@ class PersonRunsWhatIsWrittenTest {
 
     @Test
     void anAuthorThatReadsTheOutsideWorldItselfIsReportedToo() {
-        String direct = PERSONAS + """
+        String direct =
+                PERSONAS
+                        + """
                 agent ScriptAuthor { model: "gemini-2.5-flash" persona: AuthorPersona tools: [web_search] }
                 workflow W(problem) { delegate "Write a script for {problem}" to ScriptAuthor -> draft
                  note "{draft}" }
                 """;
 
-        assertThat(la16(direct)).singleElement().satisfies(f -> assertThat(f.risk()).contains("ScriptAuthor itself (web_search)"));
+        assertThat(la16(direct))
+                .singleElement()
+                .satisfies(f -> assertThat(f.risk()).contains("ScriptAuthor itself (web_search)"));
     }
 
     @Test
     void thePromptCanSaySoInsteadOfAPersona() {
-        String viaSystem = """
+        String viaSystem =
+                """
                 agent Reader { model: "gemini-2.5-flash" system: "Read pages." tools: [web_search] }
                 agent Coder { model: "gemini-2.5-flash" system: "You write PowerShell scripts for the user to run." }
                 workflow W() {
@@ -99,7 +126,8 @@ class PersonRunsWhatIsWrittenTest {
 
     @Test
     void aTextThatOnlyMentionsScriptsWithoutWritingThemIsNotAnAuthor() {
-        String reads = """
+        String reads =
+                """
                 agent Reader { model: "gemini-2.5-flash" system: "Read pages." tools: [web_search] }
                 agent Summariser { model: "gemini-2.5-flash" system: "Summarise a script in plain words." }
                 workflow W() {
@@ -114,7 +142,9 @@ class PersonRunsWhatIsWrittenTest {
 
     @Test
     void aVariableThatIsNotReadByTheAuthorIsNotAHandOff() {
-        String unrelated = PERSONAS + """
+        String unrelated =
+                PERSONAS
+                        + """
                 agent Researcher { model: "gemini-2.5-flash" system: "Find." tools: [web_search] }
                 agent ScriptAuthor { model: "gemini-2.5-flash" persona: AuthorPersona }
                 workflow W() {
@@ -129,15 +159,24 @@ class PersonRunsWhatIsWrittenTest {
 
     @Test
     void itIsInfoOnlySoItNeverFailsABuildAtTheDefaultsAndIsReportedOncePerAuthor() {
-        var script = new LoomParser(new Lexer(LAPTOP_DOCTOR.replace("note \"{draft}\"", "delegate \"Again {research}\" to ScriptAuthor -> again\n note \"{draft}{again}\"")).tokenize()).parseScript();
+        var script =
+                new LoomParser(
+                                new Lexer(
+                                                LAPTOP_DOCTOR.replace(
+                                                        "note \"{draft}\"",
+                                                        "delegate \"Again {research}\" to ScriptAuthor -> again\n note \"{draft}{again}\""))
+                                        .tokenize())
+                        .parseScript();
         var report = SecurityAudit.audit(script, "w.loom");
 
         assertThat(report.findings().stream().filter(f -> f.rule().equals("LA16"))).hasSize(1);
-        assertThat(report.findings().stream().filter(f -> f.rule().equals("LA16"))).allMatch(f -> !f.severity().atLeast(Severity.LOW));
+        assertThat(report.findings().stream().filter(f -> f.rule().equals("LA16")))
+                .allMatch(f -> !f.severity().atLeast(Severity.LOW));
     }
 
     @Test
     void theGuideListsTheRule() throws Exception {
-        assertThat(Files.readString(Path.of("../../../docs/security/weave-audit.md"))).contains("| LA16 |");
+        assertThat(Files.readString(Path.of("../../../docs/security/weave-audit.md")))
+                .contains("| LA16 |");
     }
 }

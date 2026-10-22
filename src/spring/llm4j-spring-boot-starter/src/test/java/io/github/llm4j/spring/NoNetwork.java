@@ -13,8 +13,9 @@ import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
- * No default-build test may talk to a host other than this machine (V14.1). HTTP clients ask the default {@link ProxySelector} where to connect; this one
- * records any request for a non-loopback host, and the test that made it fails.
+ * No default-build test may talk to a host other than this machine (V14.1). HTTP clients ask the
+ * default {@link ProxySelector} where to connect; this one records any request for a non-loopback
+ * host, and the test that made it fails.
  */
 public final class NoNetwork implements BeforeAllCallback, BeforeEachCallback, AfterEachCallback {
 
@@ -25,17 +26,22 @@ public final class NoNetwork implements BeforeAllCallback, BeforeEachCallback, A
     public void beforeAll(ExtensionContext context) {
         synchronized (NoNetwork.class) {
             if (installed) return;
-            ProxySelector.setDefault(new ProxySelector() {
-                @Override
-                public List<Proxy> select(URI uri) {
-                    String host = uri == null ? null : uri.getHost();
-                    if (host != null && !host.equals("localhost") && !host.equals("127.0.0.1") && !host.equals("::1") && !host.equals("[::1]")) OUTSIDE.add(uri.toString());
-                    return List.of(Proxy.NO_PROXY);
-                }
+            ProxySelector.setDefault(
+                    new ProxySelector() {
+                        @Override
+                        public List<Proxy> select(URI uri) {
+                            String host = uri == null ? null : uri.getHost();
+                            if (host != null
+                                    && !host.equals("localhost")
+                                    && !host.equals("127.0.0.1")
+                                    && !host.equals("::1")
+                                    && !host.equals("[::1]")) OUTSIDE.add(uri.toString());
+                            return List.of(Proxy.NO_PROXY);
+                        }
 
-                @Override
-                public void connectFailed(URI uri, SocketAddress sa, IOException ioe) { }
-            });
+                        @Override
+                        public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {}
+                    });
             installed = true;
         }
     }

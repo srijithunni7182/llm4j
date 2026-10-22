@@ -7,9 +7,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Prices per model, as a server keeps them: {@code model = input / output} per million tokens, the same lines Loom's own price file has
- * ({@code #} starts a comment). It lets a server cost a step whose process reported tokens but no cost, because that process has no
- * price file. A model with no price has no cost; {@code ollama/*} is free, as in Loom.
+ * Prices per model, as a server keeps them: {@code model = input / output} per million tokens, the
+ * same lines Loom's own price file has ({@code #} starts a comment). It lets a server cost a step
+ * whose process reported tokens but no cost, because that process has no price file. A model with
+ * no price has no cost; {@code ollama/*} is free, as in Loom.
  */
 public final class PriceBook {
 
@@ -21,7 +22,10 @@ public final class PriceBook {
         }
     }
 
-    /** The result of reading a price file: the book, and what was wrong with it (the book is only usable when there is nothing wrong). */
+    /**
+     * The result of reading a price file: the book, and what was wrong with it (the book is only
+     * usable when there is nothing wrong).
+     */
     public record Parsed(PriceBook book, List<Problem> problems) {
         public boolean ok() {
             return problems.isEmpty();
@@ -46,7 +50,10 @@ public final class PriceBook {
             int eq = line.indexOf('=');
             String[] parts = eq < 0 ? new String[0] : line.substring(eq + 1).split("/");
             if (eq < 0 || parts.length != 2 || line.substring(0, eq).isBlank()) {
-                problems.add(new Problem(i + 1, "expected 'model = input / output', got: " + lines[i].strip()));
+                problems.add(
+                        new Problem(
+                                i + 1,
+                                "expected 'model = input / output', got: " + lines[i].strip()));
                 continue;
             }
             try {
@@ -57,17 +64,21 @@ public final class PriceBook {
                     continue;
                 }
                 if (out.put(line.substring(0, eq).strip(), new BigDecimal[] {in, outp}) != null) {
-                    problems.add(new Problem(i + 1, "'" + line.substring(0, eq).strip() + "' is priced twice"));
+                    problems.add(
+                            new Problem(
+                                    i + 1,
+                                    "'" + line.substring(0, eq).strip() + "' is priced twice"));
                 }
             } catch (NumberFormatException e) {
-                problems.add(new Problem(i + 1, "the prices must be numbers, got: " + lines[i].strip()));
+                problems.add(
+                        new Problem(i + 1, "the prices must be numbers, got: " + lines[i].strip()));
             }
         }
         return new Parsed(new PriceBook(out), problems);
     }
 
     /** One priced model: dollars per million input and output tokens. */
-    public record Entry(String model, BigDecimal input, BigDecimal output) { }
+    public record Entry(String model, BigDecimal input, BigDecimal output) {}
 
     public List<Entry> entries() {
         List<Entry> out = new ArrayList<>();
@@ -78,9 +89,16 @@ public final class PriceBook {
 
     /** The file for these entries, as {@link #parse} reads it back. */
     public static String write(List<Entry> entries) {
-        StringBuilder out = new StringBuilder("# model = input / output, dollars per million tokens\n");
-        for (Entry e : entries.stream().sorted(java.util.Comparator.comparing(Entry::model)).toList()) {
-            out.append(e.model()).append(" = ").append(e.input().stripTrailingZeros().toPlainString()).append(" / ").append(e.output().stripTrailingZeros().toPlainString()).append('\n');
+        StringBuilder out =
+                new StringBuilder("# model = input / output, dollars per million tokens\n");
+        for (Entry e :
+                entries.stream().sorted(java.util.Comparator.comparing(Entry::model)).toList()) {
+            out.append(e.model())
+                    .append(" = ")
+                    .append(e.input().stripTrailingZeros().toPlainString())
+                    .append(" / ")
+                    .append(e.output().stripTrailingZeros().toPlainString())
+                    .append('\n');
         }
         return out.toString();
     }
@@ -93,13 +111,19 @@ public final class PriceBook {
         return prices.isEmpty();
     }
 
-    /** The model's cost for these tokens, or null when it has no price: exact id, then without its provider prefix; {@code ollama/*} is free. */
+    /**
+     * The model's cost for these tokens, or null when it has no price: exact id, then without its
+     * provider prefix; {@code ollama/*} is free.
+     */
     public BigDecimal cost(String model, long promptTokens, long completionTokens) {
         if (model == null) return null;
         BigDecimal[] p = prices.get(model);
-        if (p == null && model.contains("/")) p = prices.get(model.substring(model.indexOf('/') + 1));
+        if (p == null && model.contains("/"))
+            p = prices.get(model.substring(model.indexOf('/') + 1));
         if (p == null && model.startsWith("ollama/")) return BigDecimal.ZERO;
         if (p == null) return null;
-        return p[0].multiply(BigDecimal.valueOf(promptTokens)).add(p[1].multiply(BigDecimal.valueOf(completionTokens))).movePointLeft(6);
+        return p[0].multiply(BigDecimal.valueOf(promptTokens))
+                .add(p[1].multiply(BigDecimal.valueOf(completionTokens)))
+                .movePointLeft(6);
     }
 }

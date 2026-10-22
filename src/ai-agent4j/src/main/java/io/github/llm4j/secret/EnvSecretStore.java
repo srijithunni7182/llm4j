@@ -8,8 +8,9 @@ import java.util.TreeSet;
 import java.util.function.Function;
 
 /**
- * A read-only view of environment variables, for compatibility and for {@code weave secrets import-env}: a secret's name is the variable's
- * name. It cannot restrict hosts. Prefer an encrypted store for anything you keep.
+ * A read-only view of environment variables, for compatibility and for {@code weave secrets
+ * import-env}: a secret's name is the variable's name. It cannot restrict hosts. Prefer an
+ * encrypted store for anything you keep.
  */
 public final class EnvSecretStore implements SecretStore {
 
@@ -36,7 +37,9 @@ public final class EnvSecretStore implements SecretStore {
         return new EnvSecretStore(copy::get, Collections.unmodifiableSet(names));
     }
 
-    /** Any lookup function; {@link #names()} is then empty because a function cannot be enumerated. */
+    /**
+     * Any lookup function; {@link #names()} is then empty because a function cannot be enumerated.
+     */
     public static EnvSecretStore of(Function<String, String> lookup) {
         return new EnvSecretStore(lookup, Set.of());
     }

@@ -13,13 +13,20 @@ import org.junit.jupiter.api.Test;
 @Tag("fragile")
 class GraphPerfTest {
 
-    /** Over 400 statements in nested blocks: 10 rounds of an alt with a loop, delegates and notes inside. */
+    /**
+     * Over 400 statements in nested blocks: 10 rounds of an alt with a loop, delegates and notes
+     * inside.
+     */
     static String largeScript() {
         StringBuilder s = new StringBuilder("agent A { model: \"m\" }\nworkflow Big() {\n");
         for (int round = 0; round < 10; round++) {
             s.append("  alt (x == \"").append(round).append("\") {\n");
             for (int i = 0; i < 15; i++) {
-                s.append("    delegate \"step ").append(i).append("\" to A -> v").append(i).append('\n');
+                s.append("    delegate \"step ")
+                        .append(i)
+                        .append("\" to A -> v")
+                        .append(i)
+                        .append('\n');
             }
             s.append("    loop until (done == \"yes\") max 3 {\n");
             for (int i = 0; i < 15; i++) {
@@ -58,11 +65,21 @@ class GraphPerfTest {
         long worst = 0;
         for (int run = 0; run < 3; run++) {
             long start = System.nanoTime();
-            Process process = new ProcessBuilder(java, "-cp", System.getProperty("java.class.path"),
-                    "io.github.llm4j.loom.cli.WeaveCLI", "graph", "samples/content_factory/main.loom")
-                    .redirectErrorStream(true)
-                    .redirectOutput(ProcessBuilder.Redirect.to(new File(System.getProperty("java.io.tmpdir"), "graph-perf.out")))
-                    .start();
+            Process process =
+                    new ProcessBuilder(
+                                    java,
+                                    "-cp",
+                                    System.getProperty("java.class.path"),
+                                    "io.github.llm4j.loom.cli.WeaveCLI",
+                                    "graph",
+                                    "samples/content_factory/main.loom")
+                            .redirectErrorStream(true)
+                            .redirectOutput(
+                                    ProcessBuilder.Redirect.to(
+                                            new File(
+                                                    System.getProperty("java.io.tmpdir"),
+                                                    "graph-perf.out")))
+                            .start();
             assertThat(process.waitFor(30, TimeUnit.SECONDS)).isTrue();
             assertThat(process.exitValue()).isZero();
             worst = Math.max(worst, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));

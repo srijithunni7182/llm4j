@@ -1,6 +1,9 @@
 package io.github.llm4j.agent.task;
 
-/** Listed in {@code META-INF/services} of the test resources, so {@link TaskRegistry#discovered()} finds it. */
+/**
+ * Listed in {@code META-INF/services} of the test resources, so {@link TaskRegistry#discovered()}
+ * finds it.
+ */
 public class DiscoveredTestTask implements Task {
 
     @Override

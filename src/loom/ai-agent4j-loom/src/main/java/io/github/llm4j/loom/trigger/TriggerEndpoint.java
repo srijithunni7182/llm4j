@@ -8,19 +8,20 @@ import java.util.TreeMap;
 import java.util.function.Supplier;
 
 /**
- * An HTTP tick for hosts that scale to zero: a cloud scheduler calls {@code POST /loom/tick} every few
- * minutes and this fires what is due. Framework-neutral — pass the method and headers from your servlet,
- * Spring controller or function handler and send back the response.
+ * An HTTP tick for hosts that scale to zero: a cloud scheduler calls {@code POST /loom/tick} every
+ * few minutes and this fires what is due. Framework-neutral — pass the method and headers from your
+ * servlet, Spring controller or function handler and send back the response.
  *
- * <p>Callers authenticate with {@code X-Loom-Token} (compared with a shared secret from the environment,
- * {@code LOOM_TRIGGER_TOKEN}) or {@code Authorization: Bearer <token>} checked by a {@link BearerVerifier}
- * (e.g. Google OIDC verification for Cloud Scheduler). Without either configured, every call is refused.
+ * <p>Callers authenticate with {@code X-Loom-Token} (compared with a shared secret from the
+ * environment, {@code LOOM_TRIGGER_TOKEN}) or {@code Authorization: Bearer <token>} checked by a
+ * {@link BearerVerifier} (e.g. Google OIDC verification for Cloud Scheduler). Without either
+ * configured, every call is refused.
  */
 public final class TriggerEndpoint {
 
     public static final String TOKEN_ENV = "LOOM_TRIGGER_TOKEN";
 
-    public record Response(int status, String body) { }
+    public record Response(int status, String body) {}
 
     /** Verifies a bearer token (for example an OIDC ID token's signature and audience). */
     @FunctionalInterface
@@ -32,7 +33,8 @@ public final class TriggerEndpoint {
     private final Supplier<String> sharedToken;
     private final BearerVerifier bearer;
 
-    public TriggerEndpoint(TriggerRunner runner, Supplier<String> sharedToken, BearerVerifier bearer) {
+    public TriggerEndpoint(
+            TriggerRunner runner, Supplier<String> sharedToken, BearerVerifier bearer) {
         this.runner = runner;
         this.sharedToken = sharedToken != null ? sharedToken : () -> null;
         this.bearer = bearer;
@@ -55,8 +57,12 @@ public final class TriggerEndpoint {
     private boolean authorized(Map<String, String> h) {
         String expected = sharedToken.get();
         String given = h.get("X-Loom-Token");
-        if (expected != null && !expected.isBlank() && given != null
-                && MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8), given.getBytes(StandardCharsets.UTF_8))) {
+        if (expected != null
+                && !expected.isBlank()
+                && given != null
+                && MessageDigest.isEqual(
+                        expected.getBytes(StandardCharsets.UTF_8),
+                        given.getBytes(StandardCharsets.UTF_8))) {
             return true;
         }
         String auth = h.get("Authorization");

@@ -285,7 +285,7 @@ proven. Details and gaps: [VERIFICATION-RESULTS.md](VERIFICATION-RESULTS.md).
 |---|---|
 | [**Quick start**: first test to a budgeted real run](docs/QUICKSTART.md) | Start here |
 | [Fluent assertions & pass rates](docs/ASSERTIONS.md) | Deterministic checks on agent runs |
-| [LLM-as-judge](docs/LLM-AS-JUDGE.md) | Presets, rubric scoring, sampling, caching, choosing a judge |
+| [LLM-as-judge](docs/LLM-AS-JUDGE.md) | Presets, rubric scoring, sampling, caching, choosing a judge, judging with a typed `Classifier`, comparing classifiers |
 | [RAG evaluation](docs/RAG-EVALUATION.md) | Contextual precision / recall / relevancy |
 | [Conversation metrics](docs/CONVERSATIONS.md) | Multi-turn behavior |
 | [Datasets & synthesis](docs/DATASETS.md) | YAML goldens and generated scenarios |

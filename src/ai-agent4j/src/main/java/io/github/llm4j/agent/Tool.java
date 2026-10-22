@@ -45,9 +45,10 @@ public interface Tool {
     }
 
     /**
-     * The JSON Schema of this tool's arguments, as offered to a model that supports native tool calling. The default accepts any object, which
-     * leaves the model to guess argument names from {@link #getDescription()}; declare the real parameters with
-     * {@link io.github.llm4j.model.ToolSchema} for reliable calls.
+     * The JSON Schema of this tool's arguments, as offered to a model that supports native tool
+     * calling. The default accepts any object, which leaves the model to guess argument names from
+     * {@link #getDescription()}; declare the real parameters with {@link
+     * io.github.llm4j.model.ToolSchema} for reliable calls.
      *
      * @return a JSON Schema object
      */
@@ -56,9 +57,10 @@ public interface Tool {
     }
 
     /**
-     * Whether a result this tool returned is really a failure. Many tools return their errors as text instead of throwing; the agent counts such a
-     * call as failed in its events and statistics. The default recognises the common wording ({@code "Error: …"}, {@code "Failed to …"}, an HTTP
-     * error status); override it when this tool's results have a shape of their own.
+     * Whether a result this tool returned is really a failure. Many tools return their errors as
+     * text instead of throwing; the agent counts such a call as failed in its events and
+     * statistics. The default recognises the common wording ({@code "Error: …"}, {@code "Failed to
+     * …"}, an HTTP error status); override it when this tool's results have a shape of their own.
      *
      * @param result what {@link #execute} returned
      * @return true if the result describes a failure

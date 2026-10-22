@@ -8,8 +8,8 @@ import java.net.http.HttpResponse;
 import java.util.Objects;
 
 /**
- * A {@link SkillLoader} that loads skills directly from a remote HTTP URL.
- * Intended for fetching raw markdown from a direct URL (e.g. GitHub raw file link).
+ * A {@link SkillLoader} that loads skills directly from a remote HTTP URL. Intended for fetching
+ * raw markdown from a direct URL (e.g. GitHub raw file link).
  */
 public class RemoteSkillLoader implements SkillLoader {
 
@@ -29,9 +29,14 @@ public class RemoteSkillLoader implements SkillLoader {
         HttpRequest request = HttpRequest.newBuilder(uri).GET().build();
 
         try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response =
+                    httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
-                throw new IOException("Failed to load skill from URL " + source + ": HTTP " + response.statusCode());
+                throw new IOException(
+                        "Failed to load skill from URL "
+                                + source
+                                + ": HTTP "
+                                + response.statusCode());
             }
 
             String filename = extractFilename(uri.getPath());

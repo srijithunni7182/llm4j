@@ -78,7 +78,10 @@ public final class LoomTrace {
         };
     }
 
-    /** The prompt each agent runs ({@code researcher@v2}), shown on its steps; null for an agent with an inline prompt. */
+    /**
+     * The prompt each agent runs ({@code researcher@v2}), shown on its steps; null for an agent
+     * with an inline prompt.
+     */
     private java.util.function.Function<String, String> promptLabels = agent -> null;
 
     public LoomTrace named(String workflowName) {
@@ -259,9 +262,13 @@ public final class LoomTrace {
         return out;
     }
 
-    /** Who a step belongs to: the agent of a delegation, or {@code task:Name} for a task; null for other events. */
+    /**
+     * Who a step belongs to: the agent of a delegation, or {@code task:Name} for a task; null for
+     * other events.
+     */
     private static String actorOf(WorkflowTrace.Event e) {
-        if (("delegate_start".equals(e.type()) || "delegate_replayed".equals(e.type())) && e.agent() != null) {
+        if (("delegate_start".equals(e.type()) || "delegate_replayed".equals(e.type()))
+                && e.agent() != null) {
             return e.agent();
         }
         if (("task_start".equals(e.type()) || "task_replayed".equals(e.type()))

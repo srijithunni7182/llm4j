@@ -3,7 +3,9 @@ package io.github.llm4j.context;
 import io.github.llm4j.LLMClient;
 import java.util.Optional;
 
-/** What a {@link ContextCompactorProvider} may need that a name and some text options cannot carry. */
+/**
+ * What a {@link ContextCompactorProvider} may need that a name and some text options cannot carry.
+ */
 public record ProviderContext(LLMClient client) {
 
     public static ProviderContext none() {

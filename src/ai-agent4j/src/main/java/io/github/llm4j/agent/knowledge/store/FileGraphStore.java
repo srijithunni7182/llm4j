@@ -69,20 +69,27 @@ public class FileGraphStore extends InMemoryGraphStore {
         saving = false;
         try {
             Map<String, Object> root = MAPPER.readValue(file.toFile(), Map.class);
-            List<Map<String, Object>> entities = (List<Map<String, Object>>) root.getOrDefault("entities", List.of());
-            List<Map<String, Object>> triples = (List<Map<String, Object>>) root.getOrDefault("triples", List.of());
+            List<Map<String, Object>> entities =
+                    (List<Map<String, Object>>) root.getOrDefault("entities", List.of());
+            List<Map<String, Object>> triples =
+                    (List<Map<String, Object>>) root.getOrDefault("triples", List.of());
             for (Map<String, Object> e : entities) addEntity(entity(e));
             for (Map<String, Object> t : triples) {
                 Entity subject = getEntity(String.valueOf(t.get("subject")));
                 Entity object = getEntity(String.valueOf(t.get("object")));
                 if (subject == null || object == null) {
-                    throw new IllegalStateException("a triple refers to an entity that isn't in the file: " + t);
+                    throw new IllegalStateException(
+                            "a triple refers to an entity that isn't in the file: " + t);
                 }
                 Map<String, Object> p = (Map<String, Object>) t.get("predicate");
-                Relation relation = Relation.builder()
-                        .type(String.valueOf(p.get("type")))
-                        .properties(p.get("properties") instanceof Map<?, ?> m ? (Map<String, Object>) m : Map.of())
-                        .build();
+                Relation relation =
+                        Relation.builder()
+                                .type(String.valueOf(p.get("type")))
+                                .properties(
+                                        p.get("properties") instanceof Map<?, ?> m
+                                                ? (Map<String, Object>) m
+                                                : Map.of())
+                                .build();
                 addTriple(new Triple(subject, relation, object));
             }
         } catch (IOException | ClassCastException | NullPointerException e) {
@@ -96,11 +103,15 @@ public class FileGraphStore extends InMemoryGraphStore {
     private static Entity entity(Map<String, Object> e) {
         Object id = e.get("id");
         Object type = e.get("type");
-        if (id == null || type == null) throw new IllegalStateException("an entity needs id and type: " + e);
+        if (id == null || type == null)
+            throw new IllegalStateException("an entity needs id and type: " + e);
         return Entity.builder()
                 .id(String.valueOf(id))
                 .type(String.valueOf(type))
-                .properties(e.get("properties") instanceof Map<?, ?> m ? (Map<String, Object>) m : Map.of())
+                .properties(
+                        e.get("properties") instanceof Map<?, ?> m
+                                ? (Map<String, Object>) m
+                                : Map.of())
                 .build();
     }
 
@@ -118,7 +129,13 @@ public class FileGraphStore extends InMemoryGraphStore {
         for (Triple t : getAllTriples()) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("subject", t.getSubject().getId());
-            m.put("predicate", Map.of("type", t.getPredicate().getType(), "properties", t.getPredicate().getProperties()));
+            m.put(
+                    "predicate",
+                    Map.of(
+                            "type",
+                            t.getPredicate().getType(),
+                            "properties",
+                            t.getPredicate().getProperties()));
             m.put("object", t.getObject().getId());
             triples.add(m);
         }
@@ -129,7 +146,8 @@ public class FileGraphStore extends InMemoryGraphStore {
             if (parent != null) Files.createDirectories(parent);
             Path tmp = Files.createTempFile(parent, file.getFileName().toString(), ".tmp");
             MAPPER.writerWithDefaultPrettyPrinter().writeValue(tmp.toFile(), root);
-            Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            Files.move(
+                    tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
             throw new UncheckedIOException("Can't write graph " + file + ": " + e.getMessage(), e);
         }

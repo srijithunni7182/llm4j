@@ -11,15 +11,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Where each decision of a script stands on its autonomy ladder, read from the run's level store. Read-only: it never creates a
- * level, so a decision nobody has asked yet shows at the level it would start at, marked as not started. Evidence against thresholds
- * is a later addition; this is the rung, who set it and why.
+ * Where each decision of a script stands on its autonomy ladder, read from the run's level store.
+ * Read-only: it never creates a level, so a decision nobody has asked yet shows at the level it
+ * would start at, marked as not started. Evidence against thresholds is a later addition; this is
+ * the rung, who set it and why.
  */
 public final class AutonomyView {
 
     private static final int MAX_SCOPES = 20;
 
-    private AutonomyView() { }
+    private AutonomyView() {}
 
     public static List<Map<String, Object>> of(LoomScript script, LevelStore levels) {
         List<Map<String, Object>> out = new ArrayList<>();
@@ -34,7 +35,8 @@ public final class AutonomyView {
             List<Map<String, Object>> list = new ArrayList<>();
             for (Map.Entry<String, LevelState> e : scopes.entrySet()) {
                 LevelState s = e.getValue();
-                Level shown = Level.min(s.level(), d.getCeiling() == null ? Level.ACT : d.getCeiling());
+                Level shown =
+                        Level.min(s.level(), d.getCeiling() == null ? Level.ACT : d.getCeiling());
                 if (lowest == null || shown.compareTo(lowest) < 0) lowest = shown;
                 if (list.size() < MAX_SCOPES) {
                     Map<String, Object> sm = new LinkedHashMap<>();

@@ -3,14 +3,18 @@ package io.github.llm4j.loom.ast;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * AST node for an LLM Routing Policy.
- */
+/** AST node for an LLM Routing Policy. */
 public class RoutingPolicyDef implements Node {
     private int line;
+
     /** The line it was declared on, for error messages. */
-    public int getLine() { return line; }
-    public void setLine(int line) { this.line = line; }
+    public int getLine() {
+        return line;
+    }
+
+    public void setLine(int line) {
+        this.line = line;
+    }
 
     private final String name;
     private String strategy;
@@ -21,11 +25,31 @@ public class RoutingPolicyDef implements Node {
         this.name = name;
     }
 
-    public String getName() { return name; }
-    public String getStrategy() { return strategy; }
-    public void setStrategy(String strategy) { this.strategy = strategy; }
-    public String getPrimaryModel() { return primaryModel; }
-    public void setPrimaryModel(String primaryModel) { this.primaryModel = primaryModel; }
-    public List<String> getFallbackModels() { return fallbackModels; }
-    public void addFallbackModel(String model) { this.fallbackModels.add(model); }
+    public String getName() {
+        return name;
+    }
+
+    public String getStrategy() {
+        return strategy;
+    }
+
+    public void setStrategy(String strategy) {
+        this.strategy = strategy;
+    }
+
+    public String getPrimaryModel() {
+        return primaryModel;
+    }
+
+    public void setPrimaryModel(String primaryModel) {
+        this.primaryModel = primaryModel;
+    }
+
+    public List<String> getFallbackModels() {
+        return fallbackModels;
+    }
+
+    public void addFallbackModel(String model) {
+        this.fallbackModels.add(model);
+    }
 }

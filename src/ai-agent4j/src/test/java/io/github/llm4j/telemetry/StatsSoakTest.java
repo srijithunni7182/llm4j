@@ -7,19 +7,24 @@ import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.agent.StatsCollector;
 import org.junit.jupiter.api.Test;
 
-/** R16, R17 at scale: a thousand calls of each kind through one collector; totals are exact and the retained samples are bounded. */
+/**
+ * R16, R17 at scale: a thousand calls of each kind through one collector; totals are exact and the
+ * retained samples are bounded.
+ */
 class StatsSoakTest {
 
     @Test
     void aThousandToolCallsAndModelCallsAreCountedExactly() {
         StatsCollector collector = new StatsCollector();
         int steps = 1_000;
-        AgentResult result = ReActAgent.builder()
-                .llmClient(Scripts.toolSteps(true, "search", steps))
-                .addTool(TestTool.returning("search", "ok"))
-                .maxIterations(steps + 5)
-                .addListener(collector)
-                .build().run("Go.");
+        AgentResult result =
+                ReActAgent.builder()
+                        .llmClient(Scripts.toolSteps(true, "search", steps))
+                        .addTool(TestTool.returning("search", "ok"))
+                        .maxIterations(steps + 5)
+                        .addListener(collector)
+                        .build()
+                        .run("Go.");
         RunStats s = collector.snapshot();
         assertThat(s.totalToolCalls()).isEqualTo(steps);
         assertThat(s.totalModelCalls()).isEqualTo(steps + 1);

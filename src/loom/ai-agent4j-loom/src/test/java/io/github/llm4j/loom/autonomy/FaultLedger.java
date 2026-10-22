@@ -19,7 +19,8 @@ final class FaultLedger implements Ledger {
     @Override
     public void append(Rec record) {
         writes++;
-        if (failWrites || writes == failWriteNumber) throw new IllegalStateException("the ledger is down (write " + writes + ")");
+        if (failWrites || writes == failWriteNumber)
+            throw new IllegalStateException("the ledger is down (write " + writes + ")");
         delegate.append(record);
     }
 

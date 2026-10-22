@@ -111,7 +111,7 @@ class TaskDocsTest {
         assertThat(read(LOOM.resolve("LOOM_PROMPT.md"))).contains("Deterministic Task (no model)").contains("run <TaskName>(");
         assertThat(read(ROOT.resolve("llms.txt"))).contains("Creating-Tasks.md").contains("`run Task(arg = value) -> result`");
         assertThat(read(ROOT.resolve("src/ai-agent4j/llms.txt"))).contains("`Task` (`io.github.llm4j.agent.task`)");
-        assertThat(read(ROOT.resolve("docs/guide/01-decide-your-agents.md"))).contains("## Agent or task?");
+        assertThat(read(ROOT.resolve("docs/guide/01-decide-your-agents.md"))).contains("## Agent, classifier or task?");
         assertThat(read(ROOT.resolve("docs/guide/06-build-the-workflow.md"))).contains("## Tasks: the steps with no model");
         assertThat(read(ROOT.resolve("docs/guide/07-validate-and-audit.md"))).contains("not registered").contains("not idempotent");
         assertThat(read(ROOT.resolve("docs/guide/08-trajectory-tests.md"))).contains("runsTasksInOrder", "runsTaskTimes", "taskEndedWith");

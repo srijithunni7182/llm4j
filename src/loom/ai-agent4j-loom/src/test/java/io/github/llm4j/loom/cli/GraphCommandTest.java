@@ -15,17 +15,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** V3.1 to V3.5: {@code weave graph} prints only the result on stdout and touches nothing outside the files. */
+/**
+ * V3.1 to V3.5: {@code weave graph} prints only the result on stdout and touches nothing outside
+ * the files.
+ */
 class GraphCommandTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private final ByteArrayOutputStream out = new ByteArrayOutputStream();
     private final ByteArrayOutputStream err = new ByteArrayOutputStream();
     private final AtomicInteger outsideCalls = new AtomicInteger();
 
-    /** Anything beyond output streams (models, people, secrets, environment, commands) counts as a call. */
+    /**
+     * Anything beyond output streams (models, people, secrets, environment, commands) counts as a
+     * call.
+     */
     private WeaveEnv env() {
         return new WeaveEnv(
                 m -> {
@@ -61,7 +66,9 @@ class GraphCommandTest {
 
     @Test
     void jsonIsTheDefaultAndStdoutHoldsNothingElse() throws Exception {
-        int code = GraphCommand.graph(command("samples/content_factory/main.loom", "json", null), env());
+        int code =
+                GraphCommand.graph(
+                        command("samples/content_factory/main.loom", "json", null), env());
 
         assertThat(code).isZero();
         JsonNode json = new ObjectMapper().readTree(out.toString());
@@ -72,7 +79,9 @@ class GraphCommandTest {
 
     @Test
     void mermaidPrintsAFlowchartPerWorkflowWithACommentNamingIt() {
-        int code = GraphCommand.graph(command("src/test/resources/graph/diamond/a.loom", "mermaid", null), env());
+        int code =
+                GraphCommand.graph(
+                        command("src/test/resources/graph/diamond/a.loom", "mermaid", null), env());
 
         assertThat(code).isZero();
         assertThat(out.toString()).contains("%% workflow A (").contains("%% workflow D (");
@@ -81,13 +90,21 @@ class GraphCommandTest {
 
     @Test
     void oneWorkflowCanBeChosenAndAnUnknownNameListsTheValidOnes() throws Exception {
-        assertThat(GraphCommand.graph(command("src/test/resources/graph/diamond/a.loom", "json", "D"), env())).isZero();
+        assertThat(
+                        GraphCommand.graph(
+                                command("src/test/resources/graph/diamond/a.loom", "json", "D"),
+                                env()))
+                .isZero();
         JsonNode json = new ObjectMapper().readTree(out.toString());
         assertThat(json.get("workflows").size()).isEqualTo(1);
         assertThat(json.get("workflows").get(0).get("name").asText()).isEqualTo("D");
 
         out.reset();
-        assertThat(GraphCommand.graph(command("src/test/resources/graph/diamond/a.loom", "json", "Nope"), env())).isEqualTo(2);
+        assertThat(
+                        GraphCommand.graph(
+                                command("src/test/resources/graph/diamond/a.loom", "json", "Nope"),
+                                env()))
+                .isEqualTo(2);
         assertThat(out.toString()).isEmpty();
         assertThat(err.toString()).contains("no workflow named Nope").contains("A, B, D, C");
     }
@@ -102,7 +119,9 @@ class GraphCommandTest {
 
     @Test
     void aMissingEntryFileExitsTwoWithNothingOnStdout() {
-        int code = GraphCommand.graph(command(dir.resolve("none.loom").toString(), "json", null), env());
+        int code =
+                GraphCommand.graph(
+                        command(dir.resolve("none.loom").toString(), "json", null), env());
 
         assertThat(code).isEqualTo(2);
         assertThat(out.toString()).isEmpty();
@@ -111,7 +130,9 @@ class GraphCommandTest {
 
     @Test
     void aSyntaxErrorInTheEntryFileExitsTwoWithTheLineAndNoPartialJson() throws Exception {
-        Path bad = Files.writeString(dir.resolve("bad.loom"), "workflow W() {\n  delegate \"x\" to A }\n");
+        Path bad =
+                Files.writeString(
+                        dir.resolve("bad.loom"), "workflow W() {\n  delegate \"x\" to A }\n");
 
         int code = GraphCommand.graph(command(bad.toString(), "json", null), env());
 
@@ -122,7 +143,10 @@ class GraphCommandTest {
 
     @Test
     void aPartialGraphExitsZeroAndKeepsTheProblemInsideTheJson() throws Exception {
-        int code = GraphCommand.graph(command("src/test/resources/graph/missing_import.loom", "json", null), env());
+        int code =
+                GraphCommand.graph(
+                        command("src/test/resources/graph/missing_import.loom", "json", null),
+                        env());
 
         assertThat(code).isZero();
         JsonNode json = new ObjectMapper().readTree(out.toString());
@@ -132,7 +156,10 @@ class GraphCommandTest {
 
     @Test
     void anUnknownFormatIsRefused() {
-        assertThat(GraphCommand.graph(command("samples/content_factory/main.loom", "svg", null), env())).isEqualTo(2);
+        assertThat(
+                        GraphCommand.graph(
+                                command("samples/content_factory/main.loom", "svg", null), env()))
+                .isEqualTo(2);
         assertThat(err.toString()).contains("--format takes json or mermaid");
     }
 

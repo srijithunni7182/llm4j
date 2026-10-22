@@ -11,8 +11,8 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * Google's error body ({@code error.details[]}): {@code google.rpc.RetryInfo.retryDelay} and
- * {@code google.rpc.QuotaFailure.violations[].quotaId}. A per-day quota resets at the next midnight in
+ * Google's error body ({@code error.details[]}): {@code google.rpc.RetryInfo.retryDelay} and {@code
+ * google.rpc.QuotaFailure.violations[].quotaId}. A per-day quota resets at the next midnight in
  * {@code dailyResetZone} (Pacific time by default), whatever the short {@code retryDelay} says.
  */
 public final class GoogleRpcBody implements RateLimitParser {
@@ -37,7 +37,10 @@ public final class GoogleRpcBody implements RateLimitParser {
         JsonNode details;
         try {
             JsonNode root = JSON.readTree(body);
-            JsonNode error = root.isArray() && root.size() > 0 ? root.get(0).path("error") : root.path("error");
+            JsonNode error =
+                    root.isArray() && root.size() > 0
+                            ? root.get(0).path("error")
+                            : root.path("error");
             details = error.path("details");
         } catch (Exception e) {
             return Optional.empty();
@@ -48,7 +51,8 @@ public final class GoogleRpcBody implements RateLimitParser {
         for (JsonNode d : details) {
             String type = d.path("@type").asText("");
             if (type.endsWith("google.rpc.RetryInfo")) {
-                retryDelay = d.path("retryDelay").isTextual() ? d.path("retryDelay").asText() : null;
+                retryDelay =
+                        d.path("retryDelay").isTextual() ? d.path("retryDelay").asText() : null;
             } else if (type.endsWith("google.rpc.QuotaFailure")) {
                 for (JsonNode v : d.path("violations")) {
                     String id = v.path("quotaId").asText(null);
@@ -58,17 +62,40 @@ public final class GoogleRpcBody implements RateLimitParser {
         }
         Instant now = clock.instant();
         if (quotaId != null && isDaily(quotaId)) {
-            Instant midnight = LocalDate.ofInstant(now, dailyResetZone).plusDays(1).atStartOfDay(dailyResetZone).toInstant();
-            return Optional.of(new RateLimitInfo(midnight, RateLimitInfo.Scope.DAILY_QUOTA, response.provider(),
-                    quotaId, null, null, false, "quotaId " + quotaId));
+            Instant midnight =
+                    LocalDate.ofInstant(now, dailyResetZone)
+                            .plusDays(1)
+                            .atStartOfDay(dailyResetZone)
+                            .toInstant();
+            return Optional.of(
+                    new RateLimitInfo(
+                            midnight,
+                            RateLimitInfo.Scope.DAILY_QUOTA,
+                            response.provider(),
+                            quotaId,
+                            null,
+                            null,
+                            false,
+                            "quotaId " + quotaId));
         }
         Duration delay = Durations.parse(retryDelay);
         if (delay == null) return Optional.empty();
-        RateLimitInfo.Scope scope = quotaId == null ? RateLimitInfo.Scope.UNKNOWN
-                : quotaId.toLowerCase(Locale.ROOT).contains("token") ? RateLimitInfo.Scope.TOKENS
-                : RateLimitInfo.Scope.REQUESTS;
-        return Optional.of(new RateLimitInfo(now.plus(delay), scope, response.provider(), quotaId, null, null,
-                false, "retryDelay " + retryDelay));
+        RateLimitInfo.Scope scope =
+                quotaId == null
+                        ? RateLimitInfo.Scope.UNKNOWN
+                        : quotaId.toLowerCase(Locale.ROOT).contains("token")
+                                ? RateLimitInfo.Scope.TOKENS
+                                : RateLimitInfo.Scope.REQUESTS;
+        return Optional.of(
+                new RateLimitInfo(
+                        now.plus(delay),
+                        scope,
+                        response.provider(),
+                        quotaId,
+                        null,
+                        null,
+                        false,
+                        "retryDelay " + retryDelay));
     }
 
     static boolean isDaily(String quotaId) {

@@ -2,7 +2,6 @@ package io.github.llm4j.loom.rewind;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.llm4j.loom.execution.LoomLoader;
 import io.github.llm4j.loom.generic.support.ScriptedRun;
 import io.github.llm4j.loom.lexer.Lexer;
 import io.github.llm4j.loom.parser.LoomParser;
@@ -20,11 +19,13 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** What a run reports about going back, and that the new words do not disturb existing scripts (spec loom-rewind-and-fork R7, R8.3, R9.1). */
+/**
+ * What a run reports about going back, and that the new words do not disturb existing scripts (spec
+ * loom-rewind-and-fork R7, R8.3, R9.1).
+ */
 class RewindObservabilityTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     @Test
     @Tag("RW-V7.2")
@@ -34,8 +35,11 @@ class RewindObservabilityTest {
         ScriptedRun run = new ScriptedRun(dir);
         run.journal = RunJournal.inMemory();
         run.responder = model::reply;
-        var executor = run.executor(ReportScript.SCRIPT.replace("delegate \"Write the report from {analysis}\" to Writer -> draft",
-                "delegate \"Write the report from {analysis} (attempt {_generation})\" to Writer -> draft"));
+        var executor =
+                run.executor(
+                        ReportScript.SCRIPT.replace(
+                                "delegate \"Write the report from {analysis}\" to Writer -> draft",
+                                "delegate \"Write the report from {analysis} (attempt {_generation})\" to Writer -> draft"));
         executor.initialize();
         executor.executeWorkflow("Report", Map.of("topic", "bees"));
 
@@ -47,9 +51,19 @@ class RewindObservabilityTest {
         assertThat(rewound.get("statement")).isEqualTo("Report/s5");
         Map<String, Object> checkpoint = run.auditData.get(run.audit.indexOf("checkpoint_reached"));
         assertThat(checkpoint).containsEntry("checkpoint", "collected");
-        assertThat(run.trace.stream().filter(t -> t.type().equals("rewind")).map(t -> t.text()).toList())
-                .hasSize(2).allMatch(t -> t.contains("rewind to collected") && t.contains("generation"));
-        assertThat(model.tasks.stream().filter(t -> t.startsWith("Writer")).reduce((a, b) -> b).orElse("")).contains("attempt 3");
+        assertThat(
+                        run.trace.stream()
+                                .filter(t -> t.type().equals("rewind"))
+                                .map(t -> t.text())
+                                .toList())
+                .hasSize(2)
+                .allMatch(t -> t.contains("rewind to collected") && t.contains("generation"));
+        assertThat(
+                        model.tasks.stream()
+                                .filter(t -> t.startsWith("Writer"))
+                                .reduce((a, b) -> b)
+                                .orElse(""))
+                .contains("attempt 3");
     }
 
     @Test
@@ -57,15 +71,28 @@ class RewindObservabilityTest {
     void theTraceOfARewindListsTheApprovedCallsThatRanAndWillNotBeAskedAgain() {
         ScriptedRun run = new ScriptedRun(dir);
         run.journal = RunJournal.inMemory();
-        run.responder = r -> {
-            String system = r.getMessages().get(0).getContent();
-            String message = ScriptedRun.lastMessage(r);
-            if (system.contains("Reviewer")) return "```json\n{\"score\": " + (message.contains("sent(fix") ? 9 : 1) + ", \"notes\": \"fix1\"}\n```";
-            String tail = message.substring(Math.max(0, message.lastIndexOf("Send. Feedback")));
-            if (tail.contains("Observation:")) return ScriptedRun.done("sent(" + (tail.contains("Feedback: fix1") ? "fix1" : "none") + ")");
-            return ScriptedRun.call("Log", "{\"action\": \"append\", \"path\": \"n.md\", \"content\": \"hello\"}");
-        };
-        var executor = run.executor("""
+        run.responder =
+                r -> {
+                    String system = r.getMessages().get(0).getContent();
+                    String message = ScriptedRun.lastMessage(r);
+                    if (system.contains("Reviewer"))
+                        return "```json\n{\"score\": "
+                                + (message.contains("sent(fix") ? 9 : 1)
+                                + ", \"notes\": \"fix1\"}\n```";
+                    String tail =
+                            message.substring(Math.max(0, message.lastIndexOf("Send. Feedback")));
+                    if (tail.contains("Observation:"))
+                        return ScriptedRun.done(
+                                "sent("
+                                        + (tail.contains("Feedback: fix1") ? "fix1" : "none")
+                                        + ")");
+                    return ScriptedRun.call(
+                            "Log",
+                            "{\"action\": \"append\", \"path\": \"n.md\", \"content\": \"hello\"}");
+                };
+        var executor =
+                run.executor(
+                        """
                 tool Log { use: file  root: "out"  mode: write }
                 agent Sender { model: "m" system: "You are Sender." tools: [Log] approve: [Log] max_iterations: 6 }
                 agent Reviewer { model: "m" system: "You are Reviewer." }
@@ -79,8 +106,15 @@ class RewindObservabilityTest {
         executor.initialize();
         executor.executeWorkflow("W", Map.of());
 
-        assertThat(run.trace.stream().filter(t -> t.type().equals("rewind")).map(t -> t.text()).toList())
-                .anyMatch(t -> t.contains("approved calls that ran and will not be asked again: Log at W/s1"));
+        assertThat(
+                        run.trace.stream()
+                                .filter(t -> t.type().equals("rewind"))
+                                .map(t -> t.text())
+                                .toList())
+                .anyMatch(
+                        t ->
+                                t.contains(
+                                        "approved calls that ran and will not be asked again: Log at W/s1"));
     }
 
     @Test
@@ -88,7 +122,16 @@ class RewindObservabilityTest {
     void whatAPersonIsShownOfARewindHasItsControlCharactersNeutralised() {
         RunJournal journal = RunJournal.inMemory();
         var generations = new io.github.llm4j.loom.runtime.Generations(journal);
-        generations.start("W/s", 0, "start\nline", "operator:ada x", null, "bad\u0007reason", Map.of("k", "v\r\nforged: line"), "keep", false);
+        generations.start(
+                "W/s",
+                0,
+                "start\nline",
+                "operator:ada x",
+                null,
+                "bad\u0007reason",
+                Map.of("k", "v\r\nforged: line"),
+                "keep",
+                false);
 
         String text = RunTravel.timeline(journal).text();
 
@@ -100,12 +143,19 @@ class RewindObservabilityTest {
 
     @Test
     @Tag("RW-V9.1")
-    void theNewWordsAreKeywordsOnlyWhereAStatementStartsSoEveryScriptInTheRepositoryStillParses() throws Exception {
+    void theNewWordsAreKeywordsOnlyWhereAStatementStartsSoEveryScriptInTheRepositoryStillParses()
+            throws Exception {
         Path repo = Path.of("../../..").toAbsolutePath().normalize();
         List<Path> scripts;
         try (Stream<Path> all = Files.walk(repo)) {
-            scripts = all.filter(p -> p.toString().endsWith(".loom") && Files.isRegularFile(p))
-                    .filter(p -> !p.toString().contains("/target/") && !p.toString().contains("/node_modules/")).sorted().toList();
+            scripts =
+                    all.filter(p -> p.toString().endsWith(".loom") && Files.isRegularFile(p))
+                            .filter(
+                                    p ->
+                                            !p.toString().contains("/target/")
+                                                    && !p.toString().contains("/node_modules/"))
+                            .sorted()
+                            .toList();
         }
         assertThat(scripts).hasSizeGreaterThan(5);
         Pattern result = Pattern.compile("->\\s*([A-Za-z_]\\w*)");
@@ -117,30 +167,48 @@ class RewindObservabilityTest {
             } catch (RuntimeException notAWholeScript) {
                 continue; // a fragment meant to be imported: the parser tests' business
             }
-            // every variable a script assigns is called "checkpoint" (and then "rewind"), wherever it is mentioned
+            // every variable a script assigns is called "checkpoint" (and then "rewind"), wherever
+            // it is mentioned
             for (String word : List.of("checkpoint", "rewind")) {
                 Matcher m = result.matcher(text);
                 String changed = text;
                 while (m.find()) {
                     String name = m.group(1);
                     if (name.equals(word) || name.length() < 2) continue;
-                    changed = changed.replaceAll("\\{" + Pattern.quote(name) + "(\\.[\\w.]+)?\\}", "{" + word + "$1}").replaceAll("->\\s*" + Pattern.quote(name) + "\\b", "-> " + word);
+                    changed =
+                            changed.replaceAll(
+                                            "\\{" + Pattern.quote(name) + "(\\.[\\w.]+)?\\}",
+                                            "{" + word + "$1}")
+                                    .replaceAll(
+                                            "->\\s*" + Pattern.quote(name) + "\\b", "-> " + word);
                     renamed++;
                 }
                 try {
                     new LoomParser(new Lexer(changed).tokenize()).parseScript();
                 } catch (RuntimeException e) {
-                    throw new AssertionError(script + " no longer parses with its variables named " + word + ": " + e.getMessage(), e);
+                    throw new AssertionError(
+                            script
+                                    + " no longer parses with its variables named "
+                                    + word
+                                    + ": "
+                                    + e.getMessage(),
+                            e);
                 }
             }
         }
-        assertThat(renamed).as("variables renamed across the repository's scripts").isGreaterThan(5);
+        assertThat(renamed)
+                .as("variables renamed across the repository's scripts")
+                .isGreaterThan(5);
         // and as the name of an agent, a tool and a workflow parameter
-        new LoomParser(new Lexer("""
+        new LoomParser(
+                        new Lexer(
+                                        """
                 tool rewind { use: calculator }
                 agent checkpoint { model: "m" system: "s" tools: [rewind] }
                 workflow W(rewind, checkpoint) { delegate "{rewind} {checkpoint}" to checkpoint -> rewind }
-                """).tokenize()).parseScript();
+                """)
+                                .tokenize())
+                .parseScript();
         List<String> unused = new ArrayList<>();
         assertThat(unused).isEmpty();
     }

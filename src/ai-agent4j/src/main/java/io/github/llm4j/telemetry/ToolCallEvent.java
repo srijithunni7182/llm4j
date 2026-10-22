@@ -9,7 +9,8 @@ import java.util.Objects;
  * @param iteration the agent iteration (0-based) the call belongs to
  * @param tool the tool's name as the model gave it
  * @param startedAt when the call began
- * @param durationMillis how long the tool's own {@code execute} took; zero for a call that never reached it
+ * @param durationMillis how long the tool's own {@code execute} took; zero for a call that never
+ *     reached it
  * @param approvalMillis how long a person took to approve or reject, when approval was asked for
  * @param outcome what happened to the call
  * @param softFailure whether the tool returned normally but its result says it failed
@@ -33,8 +34,12 @@ public record ToolCallEvent(
 
     public ToolCallEvent {
         Objects.requireNonNull(tool, "tool cannot be null");
-        if (durationMillis < 0) throw new IllegalArgumentException("durationMillis must not be negative, got " + durationMillis);
-        if (approvalMillis < 0) throw new IllegalArgumentException("approvalMillis must not be negative, got " + approvalMillis);
+        if (durationMillis < 0)
+            throw new IllegalArgumentException(
+                    "durationMillis must not be negative, got " + durationMillis);
+        if (approvalMillis < 0)
+            throw new IllegalArgumentException(
+                    "approvalMillis must not be negative, got " + approvalMillis);
         if (outcome == null) outcome = ToolOutcome.EXECUTED;
     }
 
@@ -42,12 +47,18 @@ public record ToolCallEvent(
         return new Builder();
     }
 
-    /** Whether the call did not do what was asked: it did not run, it threw, or it returned an error as text. */
+    /**
+     * Whether the call did not do what was asked: it did not run, it threw, or it returned an error
+     * as text.
+     */
     public boolean failed() {
         return outcome != ToolOutcome.EXECUTED || softFailure;
     }
 
-    /** Whether the tool's own code was reached, so that {@link #durationMillis()} is a measurement of it. */
+    /**
+     * Whether the tool's own code was reached, so that {@link #durationMillis()} is a measurement
+     * of it.
+     */
     public boolean ran() {
         return outcome.ran();
     }
@@ -67,15 +78,45 @@ public record ToolCallEvent(
 
         private Builder() {}
 
-        public Builder iteration(int v) { this.iteration = v; return this; }
-        public Builder tool(String v) { this.tool = v; return this; }
-        public Builder startedAt(Instant v) { this.startedAt = v; return this; }
-        public Builder durationMillis(long v) { this.durationMillis = v; return this; }
-        public Builder approvalMillis(long v) { this.approvalMillis = v; return this; }
-        public Builder argumentChars(int v) { this.argumentChars = v; return this; }
-        public Builder resultChars(int v) { this.resultChars = v; return this; }
+        public Builder iteration(int v) {
+            this.iteration = v;
+            return this;
+        }
 
-        /** The call did not run to a result: what happened, why, and the exception's type if there was one. */
+        public Builder tool(String v) {
+            this.tool = v;
+            return this;
+        }
+
+        public Builder startedAt(Instant v) {
+            this.startedAt = v;
+            return this;
+        }
+
+        public Builder durationMillis(long v) {
+            this.durationMillis = v;
+            return this;
+        }
+
+        public Builder approvalMillis(long v) {
+            this.approvalMillis = v;
+            return this;
+        }
+
+        public Builder argumentChars(int v) {
+            this.argumentChars = v;
+            return this;
+        }
+
+        public Builder resultChars(int v) {
+            this.resultChars = v;
+            return this;
+        }
+
+        /**
+         * The call did not run to a result: what happened, why, and the exception's type if there
+         * was one.
+         */
         public Builder outcome(ToolOutcome outcome, ErrorCategory category, String errorType) {
             this.outcome = outcome;
             this.category = category;
@@ -91,7 +132,18 @@ public record ToolCallEvent(
         }
 
         public ToolCallEvent build() {
-            return new ToolCallEvent(iteration, tool, startedAt, durationMillis, approvalMillis, outcome, softFailure, category, errorType, argumentChars, resultChars);
+            return new ToolCallEvent(
+                    iteration,
+                    tool,
+                    startedAt,
+                    durationMillis,
+                    approvalMillis,
+                    outcome,
+                    softFailure,
+                    category,
+                    errorType,
+                    argumentChars,
+                    resultChars);
         }
     }
 }

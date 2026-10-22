@@ -7,13 +7,14 @@ final class FakeKeys {
     static final String TWO = "test-key-0002";
     static final String PASSPHRASE = "correct horse battery staple (test)";
 
-    private FakeKeys() { }
+    private FakeKeys() {}
 
     static MasterKey master() {
         return MasterKey.of(PASSPHRASE.toCharArray());
     }
 
     static EncryptedFileSecretStore.Options fast() {
-        return EncryptedFileSecretStore.Options.defaults().kdfIterations(EncryptedFileSecretStore.MIN_ITERATIONS);
+        return EncryptedFileSecretStore.Options.defaults()
+                .kdfIterations(EncryptedFileSecretStore.MIN_ITERATIONS);
     }
 }

@@ -44,7 +44,8 @@ class FileMemoryVectorStoreTest {
     void aCorruptFileIsReported() throws Exception {
         Path file = dir.resolve("bad.json");
         Files.writeString(file, "{not json");
-        UncheckedIOException e = assertThrows(UncheckedIOException.class, () -> new FileMemoryVectorStore(file));
+        UncheckedIOException e =
+                assertThrows(UncheckedIOException.class, () -> new FileMemoryVectorStore(file));
         assertTrue(e.getMessage().contains("bad.json"));
     }
 }

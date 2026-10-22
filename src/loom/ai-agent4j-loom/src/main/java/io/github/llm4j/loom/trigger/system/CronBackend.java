@@ -7,8 +7,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The user's crontab: one tagged heartbeat line ({@code *}{@code /5 * * * * <weave> tick <store> # loom:<id>});
- * in exact mode also one line per pending trigger, at its minute. Other lines are never touched.
+ * The user's crontab: one tagged heartbeat line ({@code *}{@code /5 * * * * <weave> tick <store> #
+ * loom:<id>}); in exact mode also one line per pending trigger, at its minute. Other lines are
+ * never touched.
  */
 public final class CronBackend implements SystemTriggerBackend {
 
@@ -40,7 +41,9 @@ public final class CronBackend implements SystemTriggerBackend {
     String command(InstallRequest r) {
         String tick = Quote.shell(r.tickCommand());
         if (r.envFile() == null) return tick;
-        return "/bin/sh -c " + Quote.shell("set -a; . " + Quote.shell(r.envFile().toString()) + "; exec " + tick);
+        return "/bin/sh -c "
+                + Quote.shell(
+                        "set -a; . " + Quote.shell(r.envFile().toString()) + "; exec " + tick);
     }
 
     @Override
@@ -56,14 +59,33 @@ public final class CronBackend implements SystemTriggerBackend {
                 if (!t.enabled() || t.nextFire() == null) continue;
                 ZonedDateTime at = t.nextFire().atZone(r.zone());
                 // cron has minute resolution: round up so it never fires before the trigger is due
-                if (at.getSecond() > 0 || at.getNano() > 0) at = at.plusMinutes(1).withSecond(0).withNano(0);
-                lines.add(at.getMinute() + " " + at.getHour() + " " + at.getDayOfMonth() + " " + at.getMonthValue()
-                        + " * " + command(r) + " " + tag + " " + t.id());
+                if (at.getSecond() > 0 || at.getNano() > 0)
+                    at = at.plusMinutes(1).withSecond(0).withNano(0);
+                lines.add(
+                        at.getMinute()
+                                + " "
+                                + at.getHour()
+                                + " "
+                                + at.getDayOfMonth()
+                                + " "
+                                + at.getMonthValue()
+                                + " * "
+                                + command(r)
+                                + " "
+                                + tag
+                                + " "
+                                + t.id());
             }
-            notes.add("exact lines are re-synced after every tick; the heartbeat stays as a safety net");
+            notes.add(
+                    "exact lines are re-synced after every tick; the heartbeat stays as a safety net");
         }
         String content = String.join("\n", lines) + "\n";
-        return new Plan(name(), List.of(), List.of(), List.of(new Plan.Command(List.of("crontab", "-"), content, false)), notes);
+        return new Plan(
+                name(),
+                List.of(),
+                List.of(),
+                List.of(new Plan.Command(List.of("crontab", "-"), content, false)),
+                notes);
     }
 
     @Override
@@ -71,7 +93,18 @@ public final class CronBackend implements SystemTriggerBackend {
         String before = current(runner);
         List<String> lines = othersLines(before, tag(r));
         String content = lines.isEmpty() ? "" : String.join("\n", lines) + "\n";
-        if (content.equals(before)) return new Plan(name(), List.of(), List.of(), List.of(), List.of("no loom entries in the crontab"));
-        return new Plan(name(), List.of(), List.of(), List.of(new Plan.Command(List.of("crontab", "-"), content, false)), List.of());
+        if (content.equals(before))
+            return new Plan(
+                    name(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of("no loom entries in the crontab"));
+        return new Plan(
+                name(),
+                List.of(),
+                List.of(),
+                List.of(new Plan.Command(List.of("crontab", "-"), content, false)),
+                List.of());
     }
 }

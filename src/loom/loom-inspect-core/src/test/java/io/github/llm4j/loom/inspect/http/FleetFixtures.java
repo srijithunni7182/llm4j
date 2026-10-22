@@ -19,7 +19,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** A registry with runs in it, a real loopback server over it, and a way to ask it: for the fleet routes' tests. */
+/**
+ * A registry with runs in it, a real loopback server over it, and a way to ask it: for the fleet
+ * routes' tests.
+ */
 final class FleetFixtures implements AutoCloseable {
 
     static final ObjectMapper JSON = new ObjectMapper();
@@ -55,12 +58,35 @@ final class FleetFixtures implements AutoCloseable {
     }
 
     void runStart(String client, String runId) {
-        registry.applyLogs(Resource.of(client, "i_1"), List.of(new LogRec(T0 + (++n) * 1_000L, LogRec.INFO, "start",
-                Map.of(Semconv.EVENT_NAME, Semconv.EV_RUN_START, Semconv.LOOM_SEQ, n, Semconv.LOOM_RUN_ID, runId, Semconv.LOOM_WORKFLOW, "Main"), trace(runId), null)));
+        registry.applyLogs(
+                Resource.of(client, "i_1"),
+                List.of(
+                        new LogRec(
+                                T0 + (++n) * 1_000L,
+                                LogRec.INFO,
+                                "start",
+                                Map.of(
+                                        Semconv.EVENT_NAME,
+                                        Semconv.EV_RUN_START,
+                                        Semconv.LOOM_SEQ,
+                                        n,
+                                        Semconv.LOOM_RUN_ID,
+                                        runId,
+                                        Semconv.LOOM_WORKFLOW,
+                                        "Main"),
+                                trace(runId),
+                                null)));
     }
 
     /** A tool span that ran and worked, or failed with a category. */
-    void tool(String client, String runId, String agent, String tool, String reach, String category, double sec) {
+    void tool(
+            String client,
+            String runId,
+            String agent,
+            String tool,
+            String reach,
+            String category,
+            double sec) {
         span(client, runId, Semconv.KIND_TOOL, agent, tool, reach, category, sec);
     }
 
@@ -69,7 +95,15 @@ final class FleetFixtures implements AutoCloseable {
         span(client, runId, Semconv.KIND_TASK, null, task, null, category, sec);
     }
 
-    private void span(String client, String runId, String kind, String agent, String name, String reach, String category, double sec) {
+    private void span(
+            String client,
+            String runId,
+            String kind,
+            String agent,
+            String name,
+            String reach,
+            String category,
+            double sec) {
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.LOOM_SPAN_KIND, kind);
         if (agent != null) a.put(Semconv.GEN_AI_AGENT_NAME, agent);
@@ -82,21 +116,52 @@ final class FleetFixtures implements AutoCloseable {
         }
         if (category != null) a.put(Semconv.ERROR_TYPE, category);
         long end = T0 + (long) (sec * 1_000_000_000L);
-        registry.applySpans(Resource.of(client, "i_1"), List.of(new SpanRec(trace(runId), Ids.spanId(runId, "s" + (++n)), null, name, SpanRec.CLIENT, end - 100_000_000L, end, a,
-                category == null ? SpanRec.STATUS_OK : SpanRec.STATUS_ERROR, null, List.of())));
+        registry.applySpans(
+                Resource.of(client, "i_1"),
+                List.of(
+                        new SpanRec(
+                                trace(runId),
+                                Ids.spanId(runId, "s" + (++n)),
+                                null,
+                                name,
+                                SpanRec.CLIENT,
+                                end - 100_000_000L,
+                                end,
+                                a,
+                                category == null ? SpanRec.STATUS_OK : SpanRec.STATUS_ERROR,
+                                null,
+                                List.of())));
     }
 
     void accept(String client, String runId, String agent, String reason) {
-        registry.setRules(client, trace(runId), Map.of(agent, new InspectRules(null, null, null, null, null, null, null, null, null, new InspectRules.Security(null, null, null, reason))));
+        registry.setRules(
+                client,
+                trace(runId),
+                Map.of(
+                        agent,
+                        new InspectRules(
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                new InspectRules.Security(null, null, null, reason))));
     }
 
     HttpResponse<String> get(String path) throws Exception {
-        return http.send(HttpRequest.newBuilder(URI.create(base + path)).GET().build(), HttpResponse.BodyHandlers.ofString());
+        return http.send(
+                HttpRequest.newBuilder(URI.create(base + path)).GET().build(),
+                HttpResponse.BodyHandlers.ofString());
     }
 
     JsonNode json(String path) throws Exception {
         HttpResponse<String> r = get(path);
-        if (r.statusCode() != 200) throw new IllegalStateException(path + " answered " + r.statusCode() + ": " + r.body());
+        if (r.statusCode() != 200)
+            throw new IllegalStateException(path + " answered " + r.statusCode() + ": " + r.body());
         return JSON.readTree(r.body());
     }
 }

@@ -11,17 +11,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A central registry for managing available Agent Tools.
- * This allows an orchestrating agent to resolve specific tools by name and pass them
- * to dynamically spawned sub-agents.
+ * A central registry for managing available Agent Tools. This allows an orchestrating agent to
+ * resolve specific tools by name and pass them to dynamically spawned sub-agents.
  */
 public class ToolRegistry {
     private static final Logger logger = LoggerFactory.getLogger(ToolRegistry.class);
-    
+
     private final Map<String, Tool> registry = new HashMap<>();
 
     /**
      * Registers a tool. If a tool with the same name exists, it will be overwritten.
+     *
      * @param tool the tool to register
      */
     public void register(Tool tool) {
@@ -33,15 +33,17 @@ public class ToolRegistry {
 
     /**
      * Retrieves a tool by its exact name.
+     *
      * @param toolName the name of the tool
      * @return the Tool, or null if not found
      */
     public Tool getTool(String toolName) {
         return registry.get(toolName);
     }
-    
+
     /**
      * Retrieves a list of all currently registered tools.
+     *
      * @return an unmodifiable list of tools
      */
     public List<Tool> getAllTools() {
@@ -50,6 +52,7 @@ public class ToolRegistry {
 
     /**
      * Resolves a list of tools by their names. Ignores names that are not found in the registry.
+     *
      * @param toolNames list of tool names to resolve
      * @return list of resolved Tools
      */
@@ -57,7 +60,7 @@ public class ToolRegistry {
         if (toolNames == null || toolNames.isEmpty()) {
             return Collections.emptyList();
         }
-        
+
         List<Tool> resolved = new ArrayList<>();
         for (String name : toolNames) {
             Tool tool = getTool(name);

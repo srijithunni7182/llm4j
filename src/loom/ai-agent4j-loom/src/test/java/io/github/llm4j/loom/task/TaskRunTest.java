@@ -20,7 +20,9 @@ class TaskRunTest {
     void noModelCalls() {
         h.pure("Amount", c -> TaskResult.value(40));
         h.pure("Double", c -> TaskResult.value(c.requireArg("n", Integer.class) * 2));
-        HarnessExecutor e = h.run("""
+        HarnessExecutor e =
+                h.run(
+                        """
                 workflow Main() {
                     run Amount() -> a
                     run Double(n = a.value) -> b
@@ -34,7 +36,9 @@ class TaskRunTest {
     void mixedWorkflowCallsTheModelOnlyForAgentSteps() {
         h.pure("Check", c -> TaskResult.outcome("approved"));
         h.answers(TaskHarness.done("first"), TaskHarness.done("second"));
-        HarnessExecutor e = h.run("""
+        HarnessExecutor e =
+                h.run(
+                        """
                 agent Writer { model: "m" system: "You are Writer." }
                 workflow Main() {
                     delegate "draft" to Writer -> d1
@@ -44,16 +48,32 @@ class TaskRunTest {
                     run Check() -> v3
                 }
                 """);
-        assertEquals(2, h.modelCalls.get(), "one call per agent step, none for the three task steps");
+        assertEquals(
+                2, h.modelCalls.get(), "one call per agent step, none for the three task steps");
         assertEquals("approved", map(e.getContext().getVariable("v3")).get("outcome"));
     }
 
     @Test
     void typedArguments() {
-        h.pure("Source", c -> TaskResult.ok(Map.of("amount", 40, "price", 12.5, "ids", List.of(1, 2), "meta", Map.of("k", "v"), "flag", true))
-                .withValue("seven"));
+        h.pure(
+                "Source",
+                c ->
+                        TaskResult.ok(
+                                        Map.of(
+                                                "amount",
+                                                40,
+                                                "price",
+                                                12.5,
+                                                "ids",
+                                                List.of(1, 2),
+                                                "meta",
+                                                Map.of("k", "v"),
+                                                "flag",
+                                                true))
+                                .withValue("seven"));
         TaskHarness.Probe p = h.pure("Sink", c -> TaskResult.ok());
-        h.run("""
+        h.run(
+                """
                 workflow Main() {
                     run Source() -> s
                     run Sink(amount = s.amount, price = s.price, ids = s.ids, meta = s.meta, flag = s.flag,
@@ -74,17 +94,31 @@ class TaskRunTest {
         assertEquals(true, args.get("yes"));
         assertEquals(false, args.get("no"));
         assertEquals(-2L, args.get("neg"));
-        assertEquals("ok", map(args.get("whole")).get("outcome"), "a whole variable is passed as itself");
-        assertEquals(List.of("amount", "price", "ids", "meta", "flag", "text", "lit", "dec", "yes", "no", "neg", "whole"),
-                new ArrayList<>(args.keySet()), "in the order written");
+        assertEquals(
+                "ok",
+                map(args.get("whole")).get("outcome"),
+                "a whole variable is passed as itself");
+        assertEquals(
+                List.of(
+                        "amount", "price", "ids", "meta", "flag", "text", "lit", "dec", "yes", "no",
+                        "neg", "whole"),
+                new ArrayList<>(args.keySet()),
+                "in the order written");
     }
 
     @Test
     void workflowInputsAreVisibleAsVariables() {
         TaskHarness.Probe p = h.pure("Echo", c -> TaskResult.value(c.variable("msg")));
-        HarnessExecutor e = h.run("workflow Main(msg) { run Echo(m = msg) -> out }", "Main", new HashMap<>(Map.of("msg", "hello")));
+        HarnessExecutor e =
+                h.run(
+                        "workflow Main(msg) { run Echo(m = msg) -> out }",
+                        "Main",
+                        new HashMap<>(Map.of("msg", "hello")));
         assertEquals("hello", p.contexts.get(0).args().get("m"));
-        assertEquals("hello", p.contexts.get(0).variable("msg"), "the whole variable snapshot is readable");
+        assertEquals(
+                "hello",
+                p.contexts.get(0).variable("msg"),
+                "the whole variable snapshot is readable");
         assertEquals("hello", map(e.getContext().getVariable("out")).get("value"));
     }
 
@@ -92,22 +126,32 @@ class TaskRunTest {
     void resultMapBound() {
         h.pure("Policy", c -> TaskResult.rejected("over limit").with("max", 25));
         TaskHarness.Probe p = h.pure("Sink", c -> TaskResult.ok());
-        HarnessExecutor e = h.run("""
+        HarnessExecutor e =
+                h.run(
+                        """
                 workflow Main() {
                     run Policy() -> verdict
                     run Sink(why = "{verdict.reason} (max {verdict.max})") -> out
                 }
                 """);
-        assertEquals(Map.of("outcome", "rejected", "reason", "over limit", "max", 25), e.getContext().getVariable("verdict"));
+        assertEquals(
+                Map.of("outcome", "rejected", "reason", "over limit", "max", 25),
+                e.getContext().getVariable("verdict"));
         assertEquals("over limit (max 25)", p.contexts.get(0).args().get("why"));
     }
 
     @Test
     void altOnOutcome() {
-        h.pure("Policy", c -> c.requireArg("amount", Integer.class) <= 50 ? TaskResult.outcome("approved") : TaskResult.rejected("over limit"));
+        h.pure(
+                "Policy",
+                c ->
+                        c.requireArg("amount", Integer.class) <= 50
+                                ? TaskResult.outcome("approved")
+                                : TaskResult.rejected("over limit"));
         TaskHarness.Probe issue = h.changes("Issue", c -> TaskResult.ok());
         TaskHarness.Probe escalate = h.pure("Escalate", c -> TaskResult.ok());
-        String script = """
+        String script =
+                """
                 workflow Main() {
                     run Policy(amount = %d) -> verdict
                     alt (verdict.outcome == "approved") {
@@ -130,61 +174,87 @@ class TaskRunTest {
     @Test
     void missingArgumentFailsClosed() {
         TaskHarness.Probe p = h.pure("T", c -> TaskResult.ok());
-        RuntimeException e = assertThrows(RuntimeException.class, () -> h.run("""
+        RuntimeException e =
+                assertThrows(
+                        RuntimeException.class,
+                        () ->
+                                h.run(
+                                        """
                 workflow Main() { run T(a = nothing.here) -> r retry 3 }
                 """));
-        assertTrue(e.getMessage().contains("nothing.here") && e.getMessage().contains("no value"), e.getMessage());
+        assertTrue(
+                e.getMessage().contains("nothing.here") && e.getMessage().contains("no value"),
+                e.getMessage());
         assertEquals(0, p.calls.get(), "not invoked, and never retried");
         assertTrue(h.sleeps.isEmpty());
 
-        // a plain name that was never set reads as "" elsewhere in Loom; a task must not be handed that
+        // a plain name that was never set reads as "" elsewhere in Loom; a task must not be handed
+        // that
         for (String reference : new String[] {"never_set", "never_set.field", "x.y.z"}) {
-            RuntimeException plain = assertThrows(RuntimeException.class,
-                    () -> h.run("workflow Main() { run T(a = " + reference + ") -> r }"), reference);
+            RuntimeException plain =
+                    assertThrows(
+                            RuntimeException.class,
+                            () -> h.run("workflow Main() { run T(a = " + reference + ") -> r }"),
+                            reference);
             assertTrue(plain.getMessage().contains("no value"), plain.getMessage());
         }
         assertEquals(0, p.calls.get());
 
         // with on_failure the run goes on, with the reason in _error
-        TaskHarness.Probe after = h.pure("After", c -> TaskResult.value(c.requireArg("why", String.class)));
-        HarnessExecutor ok = h.run("""
+        TaskHarness.Probe after =
+                h.pure("After", c -> TaskResult.value(c.requireArg("why", String.class)));
+        HarnessExecutor ok =
+                h.run(
+                        """
                 workflow Main() {
                     run T(a = nothing.here) -> r on_failure { run After(why = "{_error}") -> handled }
                 }
                 """);
         assertEquals(0, p.calls.get());
         assertEquals(1, after.calls.get());
-        assertTrue(String.valueOf(map(ok.getContext().getVariable("handled")).get("value")).contains("nothing.here"));
+        assertTrue(
+                String.valueOf(map(ok.getContext().getVariable("handled")).get("value"))
+                        .contains("nothing.here"));
     }
 
     @Test
     void immutableInputs() {
         Map<String, Object> seen = new HashMap<>();
         h.pure("Source", c -> TaskResult.ok(Map.of("list", List.of("a"), "map", Map.of("k", "v"))));
-        h.pure("Mutator", c -> {
-            for (Runnable attempt : List.<Runnable>of(
-                    () -> c.args().put("x", 1),
-                    () -> c.variables().put("x", 1),
-                    () -> ((Map<String, Object>) c.arg("m")).put("x", 1),
-                    () -> ((List<Object>) c.arg("l")).add("b"),
-                    () -> ((Map<String, Object>) c.variable("src.map")).clear())) {
-                try {
-                    attempt.run();
-                    seen.put("mutated" + seen.size(), true);
-                } catch (UnsupportedOperationException expected) {
-                    seen.put("blocked" + seen.size(), true);
-                }
-            }
-            return TaskResult.ok();
-        });
-        HarnessExecutor e = h.run("""
+        h.pure(
+                "Mutator",
+                c -> {
+                    for (Runnable attempt :
+                            List.<Runnable>of(
+                                    () -> c.args().put("x", 1),
+                                    () -> c.variables().put("x", 1),
+                                    () -> ((Map<String, Object>) c.arg("m")).put("x", 1),
+                                    () -> ((List<Object>) c.arg("l")).add("b"),
+                                    () -> ((Map<String, Object>) c.variable("src.map")).clear())) {
+                        try {
+                            attempt.run();
+                            seen.put("mutated" + seen.size(), true);
+                        } catch (UnsupportedOperationException expected) {
+                            seen.put("blocked" + seen.size(), true);
+                        }
+                    }
+                    return TaskResult.ok();
+                });
+        HarnessExecutor e =
+                h.run(
+                        """
                 workflow Main() {
                     run Source() -> src
                     run Mutator(m = src.map, l = src.list) -> out
                 }
                 """);
-        assertEquals(5, seen.keySet().stream().filter(k -> k.startsWith("blocked")).count(), seen.toString());
-        assertEquals(Map.of("outcome", "ok", "list", List.of("a"), "map", Map.of("k", "v")), e.getContext().getVariable("src"));
+        assertEquals(
+                5,
+                seen.keySet().stream().filter(k -> k.startsWith("blocked")).count(),
+                seen.toString());
+        assertEquals(
+                Map.of("outcome", "ok", "list", List.of("a"), "map", Map.of("k", "v")),
+                e.getContext().getVariable("src"));
     }
 
     @Test
@@ -199,7 +269,9 @@ class TaskRunTest {
     @Test
     void dynamicResultVariableInForEach() {
         h.pure("Echo", c -> TaskResult.value(c.requireArg("id", String.class)));
-        HarnessExecutor e = h.executor("""
+        HarnessExecutor e =
+                h.executor(
+                        """
                 workflow Main() {
                     run Echo(id = "x") -> items
                     for each item in things { run Echo(id = item.id) -> {item.id} }
@@ -215,7 +287,10 @@ class TaskRunTest {
     @Test
     void taskReturningNullFailsTheStep() {
         h.pure("Nothing", c -> null);
-        RuntimeException e = assertThrows(RuntimeException.class, () -> h.run("workflow Main() { run Nothing() -> r }"));
+        RuntimeException e =
+                assertThrows(
+                        RuntimeException.class,
+                        () -> h.run("workflow Main() { run Nothing() -> r }"));
         assertTrue(e.getMessage().contains("returned no result"), e.getMessage());
     }
 
@@ -232,7 +307,14 @@ class TaskRunTest {
         assertNull(start.agent(), "a task has no agent");
         assertEquals("approved", end.data().get("outcome"));
         assertTrue(end.step().contains("/s0"), end.step());
-        assertTrue(h.audit.stream().anyMatch(a -> a.startsWith("task_run") && a.contains("Policy") && a.contains("approved")), h.audit.toString());
+        assertTrue(
+                h.audit.stream()
+                        .anyMatch(
+                                a ->
+                                        a.startsWith("task_run")
+                                                && a.contains("Policy")
+                                                && a.contains("approved")),
+                h.audit.toString());
     }
 
     @Test
@@ -241,6 +323,7 @@ class TaskRunTest {
         h.run("workflow Main() { run Notify(to = \"ada.lovelace@example.com\") -> r }");
         String everything = h.audit + " " + h.trace.stream().map(t -> t.text() + t.data()).toList();
         assertFalse(everything.contains("ada.lovelace@example.com"), everything);
-        assertTrue(h.traceOf(TraceEvent.TASK_START).get(0).data().get("args").toString().length() > 0);
+        assertTrue(
+                h.traceOf(TraceEvent.TASK_START).get(0).data().get("args").toString().length() > 0);
     }
 }

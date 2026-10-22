@@ -21,7 +21,8 @@ class LadderScriptTest {
         return new LoomParser(new Lexer(source).tokenize()).parseScript();
     }
 
-    static final String SCRIPT = """
+    static final String SCRIPT =
+            """
             agent Triager {
                 model: "ollama/fake"
                 system: "Propose."
@@ -67,9 +68,12 @@ class LadderScriptTest {
     @Test
     void aScriptWithMeasuresALadderAndABindingParses() {
         LoomScript s = parse(SCRIPT);
-        assertThat(s.getMeasures()).extracting(m -> m.getName()).containsExactly("edit_size", "agrees");
+        assertThat(s.getMeasures())
+                .extracting(m -> m.getName())
+                .containsExactly("edit_size", "agrees");
         assertThat(s.getMeasures().get(0).getLine()).isEqualTo(8);
-        assertThat(s.getMeasures().get(0).getBody().show()).isEqualTo("distance(c.proposal.value, c.response.final)");
+        assertThat(s.getMeasures().get(0).getBody().show())
+                .isEqualTo("distance(c.proposal.value, c.response.final)");
         assertThat(s.getLadders()).hasSize(1);
         assertThat(s.getLadders().get(0).getName()).isEqualTo("Cautious");
         assertThat(s.getLadders().get(0).getLine()).isEqualTo(12);
@@ -89,16 +93,29 @@ class LadderScriptTest {
     @Test
     void linesAfterADeclarationAreStillNumberedCorrectly() {
         List<Token> tokens = new Lexer(SCRIPT).tokenize();
-        Token decision = tokens.stream().filter(t -> t.getType() == TokenType.IDENTIFIER && t.getValue().equals("decision")).findFirst().orElseThrow();
+        Token decision =
+                tokens.stream()
+                        .filter(
+                                t ->
+                                        t.getType() == TokenType.IDENTIFIER
+                                                && t.getValue().equals("decision"))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(decision.getLine()).isEqualTo(27);
-        Token workflow = tokens.stream().filter(t -> t.getType() == TokenType.WORKFLOW).findFirst().orElseThrow();
+        Token workflow =
+                tokens.stream()
+                        .filter(t -> t.getType() == TokenType.WORKFLOW)
+                        .findFirst()
+                        .orElseThrow();
         assertThat(workflow.getLine()).isEqualTo(37);
         assertThat(parse(SCRIPT).getDecisions().get(0).getLine()).isEqualTo(27);
     }
 
     @Test
     void bindingArgumentsAreLiteralsOfAnyKind() {
-        LoomScript s = parse("""
+        LoomScript s =
+                parse(
+                        """
                 ladder L(a, b, c, d) { rung x { mode: blind } }
                 agent A { model: "m" system: "s" output_schema: { choice: string, reasoning: string } }
                 decision D {
@@ -117,7 +134,9 @@ class LadderScriptTest {
 
     @Test
     void anArtifactDecisionProposesInsteadOfChoosing() {
-        LoomScript s = parse("""
+        LoomScript s =
+                parse(
+                        """
                 agent W { model: "m" system: "s" output_schema: { body: string, reasoning: string } }
                 decision Publish {
                     proposed by: W
@@ -131,7 +150,9 @@ class LadderScriptTest {
 
     @Test
     void wordsLikeLadderAndMeasureStayUsableAsOrdinaryNamesEverywhereElse() {
-        LoomScript s = parse("""
+        LoomScript s =
+                parse(
+                        """
                 agent ladder { model: "m" system: "s" }
                 workflow W(measure, ladder, history) {
                     note "{measure} {ladder} {history}"
@@ -145,7 +166,9 @@ class LadderScriptTest {
 
     @Test
     void aLadderInTheMiddleOfAScriptDoesNotDisturbTheBracesAroundIt() {
-        LoomScript s = parse("""
+        LoomScript s =
+                parse(
+                        """
                 agent A { model: "m" system: "s" }
                 ladder L { rung a { mode: blind } }
                 agent B { model: "m" system: "s" }
@@ -165,30 +188,65 @@ class LadderScriptTest {
 
     @Test
     void errorsInsideADeclarationNameTheLineInTheWholeFile() {
-        String bad = "agent A { model: \"m\" system: \"s\" }\n\nladder L {\n  rung a { mode: blind }\n  rung b { mode: confirm\n    climb when history.count >= }\n}\n";
-        assertThatThrownBy(() -> parse(bad)).hasMessageContaining("line 6").hasMessageContaining("expected a value");
+        String bad =
+                "agent A { model: \"m\" system: \"s\" }\n\nladder L {\n  rung a { mode: blind }\n  rung b { mode: confirm\n    climb when history.count >= }\n}\n";
+        assertThatThrownBy(() -> parse(bad))
+                .hasMessageContaining("line 6")
+                .hasMessageContaining("expected a value");
     }
 
     @Test
     void aLadderThatNeverClosesIsReported() {
-        assertThatThrownBy(() -> parse("ladder L {\n rung a { mode: blind }\n")).hasMessageContaining("never closed").hasMessageContaining("line 1");
+        assertThatThrownBy(() -> parse("ladder L {\n rung a { mode: blind }\n"))
+                .hasMessageContaining("never closed")
+                .hasMessageContaining("line 1");
     }
 
     @Test
     void bindingMistakesAreReported() {
-        String agent = "agent A { model: \"m\" system: \"s\" output_schema: { choice: string, reasoning: string } }\n";
-        assertThatThrownBy(() -> parse(agent + "decision D { proposed by: A choices: a, b ladder: L(x 1) }")).hasMessageContaining("name: value");
-        assertThatThrownBy(() -> parse(agent + "decision D { proposed by: A choices: a, b ladder: L(x: ) }")).hasMessageContaining("Expect a value");
-        assertThatThrownBy(() -> parse(agent + "decision D { proposed by: A choices: a, b ceiling: }")).hasMessageContaining("name of a rung");
-        assertThatThrownBy(() -> parse(agent + "decision D { proposed by: A choices: a, b ladder: }")).hasMessageContaining("name of a ladder");
+        String agent =
+                "agent A { model: \"m\" system: \"s\" output_schema: { choice: string, reasoning: string } }\n";
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        agent
+                                                + "decision D { proposed by: A choices: a, b ladder: L(x 1) }"))
+                .hasMessageContaining("name: value");
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        agent
+                                                + "decision D { proposed by: A choices: a, b ladder: L(x: ) }"))
+                .hasMessageContaining("Expect a value");
+        assertThatThrownBy(
+                        () -> parse(agent + "decision D { proposed by: A choices: a, b ceiling: }"))
+                .hasMessageContaining("name of a rung");
+        assertThatThrownBy(
+                        () -> parse(agent + "decision D { proposed by: A choices: a, b ladder: }"))
+                .hasMessageContaining("name of a ladder");
     }
 
     @Test
     void rememberedValuesMayDeclareATypeAndAWrongOneIsReported() {
-        String agent = "agent A { model: \"m\" system: \"s\" output_schema: { choice: string, reasoning: string } }\n";
-        DecisionDef d = parse(agent + "decision D { proposed by: A choices: a, b remember: amount: number, tier: text, vip: flag, memo ask: x }").getDecisions().get(0);
+        String agent =
+                "agent A { model: \"m\" system: \"s\" output_schema: { choice: string, reasoning: string } }\n";
+        DecisionDef d =
+                parse(
+                                agent
+                                        + "decision D { proposed by: A choices: a, b remember: amount: number, tier: text, vip: flag, memo ask: x }")
+                        .getDecisions()
+                        .get(0);
         assertThat(d.getRemember()).containsExactly("amount", "tier", "vip", "memo");
-        assertThat(d.getRememberTypes()).containsOnly(Map.entry("amount", "number"), Map.entry("tier", "text"), Map.entry("vip", "flag"));
-        assertThatThrownBy(() -> parse(agent + "decision D { proposed by: A choices: a, b remember: amount: numbr }")).hasMessageContaining("write number, text or flag");
+        assertThat(d.getRememberTypes())
+                .containsOnly(
+                        Map.entry("amount", "number"),
+                        Map.entry("tier", "text"),
+                        Map.entry("vip", "flag"));
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        agent
+                                                + "decision D { proposed by: A choices: a, b remember: amount: numbr }"))
+                .hasMessageContaining("write number, text or flag");
     }
 }

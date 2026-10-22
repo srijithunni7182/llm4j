@@ -16,8 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
 /** Declared rewinds (spec loom-rewind-and-fork, requirements R1 to R3). */
 class RewindTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private HarnessExecutor start(ScriptedRun run, String script) {
         HarnessExecutor executor = run.executor(script);
@@ -54,7 +53,8 @@ class RewindTest {
         start(run, ReportScript.SCRIPT).executeWorkflow("Report", Map.of("topic", "bees"));
 
         assertThat(model.count("Reviewer")).isEqualTo(3); // the first, plus two rewinds
-        assertThat(model.count("Publisher")).isEqualTo(1); // "if it still fails" ran, then the workflow went on
+        assertThat(model.count("Publisher"))
+                .isEqualTo(1); // "if it still fails" ran, then the workflow went on
     }
 
     @Test
@@ -66,10 +66,11 @@ class RewindTest {
 
         assertThat(model.tasks.stream().filter(t -> t.startsWith("Collector")).toList())
                 .hasSize(2)
-                .satisfies(t -> {
-                    assertThat(t.get(0)).contains("Feedback so far: none");
-                    assertThat(t.get(1)).contains("Feedback so far: fix1");
-                });
+                .satisfies(
+                        t -> {
+                            assertThat(t.get(0)).contains("Feedback so far: none");
+                            assertThat(t.get(1)).contains("Feedback so far: fix1");
+                        });
     }
 
     @Test
@@ -95,7 +96,10 @@ class RewindTest {
     void variablesFromTheDiscardedAttemptAreGoneButThoseFromBeforeTheCheckpointRemain() {
         ReportScript model = new ReportScript(5, 8);
         ScriptedRun run = run(model, RunJournal.inMemory());
-        HarnessExecutor executor = start(run, """
+        HarnessExecutor executor =
+                start(
+                        run,
+                        """
                 agent Collector { model: "m" system: "You are Collector." }
                 agent Reviewer { model: "m" system: "You are Reviewer." }
                 agent Writer { model: "m" system: "You are Writer." }
@@ -112,7 +116,10 @@ class RewindTest {
 
         var collections = model.tasks.stream().filter(t -> t.startsWith("Collector")).toList();
         assertThat(collections).hasSize(2);
-        assertThat(collections.get(1)).contains("Feedback so far: fix1").contains("Setup: draft from").doesNotContain("Earlier draft: draft from");
+        assertThat(collections.get(1))
+                .contains("Feedback so far: fix1")
+                .contains("Setup: draft from")
+                .doesNotContain("Earlier draft: draft from");
     }
 
     @Test
@@ -123,7 +130,9 @@ class RewindTest {
         String script = ReportScript.SCRIPT.replace("if it still fails { note \"gave up\" }", "");
         HarnessExecutor executor = start(run, script);
         assertThatThrownBy(() -> executor.executeWorkflow("Report", Map.of("topic", "bees")))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("still fails").hasMessageContaining("2 time");
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("still fails")
+                .hasMessageContaining("2 time");
     }
 
     /** A way to make a fresh durable journal; the crash test runs once for each. */
@@ -136,7 +145,9 @@ class RewindTest {
     }
 
     private Journals file() {
-        return n -> new io.github.llm4j.loom.runtime.FileRunJournal(dir.resolve("journal-" + n + ".json"));
+        return n ->
+                new io.github.llm4j.loom.runtime.FileRunJournal(
+                        dir.resolve("journal-" + n + ".json"));
     }
 
     private Journals jdbc() {
@@ -151,14 +162,17 @@ class RewindTest {
     @Test
     @Tag("RW-V3.4")
     void aCrashAtAnyWriteDuringARewindResumesToTheSameStateOnEveryJournal() throws Exception {
-        for (Journals journals : new Journals[] {memory(), file(), jdbc()}) crashAtEveryWrite(journals);
+        for (Journals journals : new Journals[] {memory(), file(), jdbc()})
+            crashAtEveryWrite(journals);
     }
 
     private void crashAtEveryWrite(Journals journals) throws Exception {
-        // The uninterrupted run is the reference: its journal and the number of model calls it needed.
+        // The uninterrupted run is the reference: its journal and the number of model calls it
+        // needed.
         ReportScript reference = new ReportScript(5, 6, 8);
         FaultRunJournal counting = new FaultRunJournal(journals.fresh(0), 0, false);
-        start(run(reference, counting), ReportScript.SCRIPT).executeWorkflow("Report", Map.of("topic", "bees"));
+        start(run(reference, counting), ReportScript.SCRIPT)
+                .executeWorkflow("Report", Map.of("topic", "bees"));
         Map<String, Object> expected = values(counting.all());
         int writes = counting.puts();
         assertThat(writes).isGreaterThan(10);
@@ -168,16 +182,27 @@ class RewindTest {
                 RunJournal durable = journals.fresh(crashAt * 2 + (afterWrite ? 1 : 0));
                 ReportScript model = new ReportScript(5, 6, 8);
                 try {
-                    start(run(model, new FaultRunJournal(durable, crashAt, afterWrite)), ReportScript.SCRIPT).executeWorkflow("Report", Map.of("topic", "bees"));
+                    start(
+                                    run(model, new FaultRunJournal(durable, crashAt, afterWrite)),
+                                    ReportScript.SCRIPT)
+                            .executeWorkflow("Report", Map.of("topic", "bees"));
                 } catch (FaultRunJournal.Crash expectedCrash) {
                     // the process "died" here; a new one resumes on whatever reached the journal
                 }
-                start(run(model, durable), ReportScript.SCRIPT).executeWorkflow("Report", Map.of("topic", "bees"));
+                start(run(model, durable), ReportScript.SCRIPT)
+                        .executeWorkflow("Report", Map.of("topic", "bees"));
 
-                String where = durable.getClass().getSimpleName() + ", crash " + (afterWrite ? "after" : "instead of") + " write " + crashAt;
+                String where =
+                        durable.getClass().getSimpleName()
+                                + ", crash "
+                                + (afterWrite ? "after" : "instead of")
+                                + " write "
+                                + crashAt;
                 assertThat(values(durable.all())).as(where).isEqualTo(expected);
                 // only the call that was in flight when the process died may be made twice
-                assertThat(model.calls.size()).as(where + ": model calls").isLessThanOrEqualTo(reference.calls.size() + 1);
+                assertThat(model.calls.size())
+                        .as(where + ": model calls")
+                        .isLessThanOrEqualTo(reference.calls.size() + 1);
             }
         }
     }
@@ -185,10 +210,13 @@ class RewindTest {
     /** The journal's values by key, without the clock-dependent entries. */
     private static Map<String, Object> values(Map<String, RunJournal.Entry> journal) {
         Map<String, Object> out = new LinkedHashMap<>();
-        journal.forEach((k, e) -> {
-            if (k.contains("#usage") || k.endsWith("#checkpoint") || k.equals("#boundaries")) return;
-            out.put(k, e.value());
-        });
+        journal.forEach(
+                (k, e) -> {
+                    if (k.contains("#usage")
+                            || k.endsWith("#checkpoint")
+                            || k.equals("#boundaries")) return;
+                    out.put(k, e.value());
+                });
         return out;
     }
 

@@ -19,16 +19,40 @@ class RoutingCallTraceTest {
 
     static class Flaky implements LLMClient {
         private final boolean fail;
-        Flaky(boolean fail) { this.fail = fail; }
-        @Override public LLMResponse chat(LLMRequest r) {
+
+        Flaky(boolean fail) {
+            this.fail = fail;
+        }
+
+        @Override
+        public LLMResponse chat(LLMRequest r) {
             if (fail) throw new RuntimeException("down");
             return LLMResponse.builder().content("ok").build();
         }
-        @Override public Stream<LLMResponse> chatStream(LLMRequest r) { return Stream.of(chat(r)); }
+
+        @Override
+        public Stream<LLMResponse> chatStream(LLMRequest r) {
+            return Stream.of(chat(r));
+        }
     }
-    static final class Second extends LLMClientBase { Second(boolean f) { super(f); } }
-    static final class Third extends LLMClientBase { Third(boolean f) { super(f); } }
-    static class LLMClientBase extends Flaky { LLMClientBase(boolean f) { super(f); } }
+
+    static final class Second extends LLMClientBase {
+        Second(boolean f) {
+            super(f);
+        }
+    }
+
+    static final class Third extends LLMClientBase {
+        Third(boolean f) {
+            super(f);
+        }
+    }
+
+    static class LLMClientBase extends Flaky {
+        LLMClientBase(boolean f) {
+            super(f);
+        }
+    }
 
     private static final LLMRequest REQUEST = LLMRequest.builder().addUserMessage("hi").build();
 
@@ -38,7 +62,8 @@ class RoutingCallTraceTest {
     }
 
     private RoutingLLMClient route(LLMClient a, LLMClient b, LLMClient c) {
-        return RoutingLLMClient.builder().strategy(new FallbackRoutingStrategy())
+        return RoutingLLMClient.builder()
+                .strategy(new FallbackRoutingStrategy())
                 .addClient(ProviderTier.FAST_CHEAP, a)
                 .addClient(ProviderTier.BALANCED, b)
                 .addClient(ProviderTier.REASONING, c)
@@ -63,7 +88,10 @@ class RoutingCallTraceTest {
     @Test
     void whenEveryClientFailsTheyAreAllListedAndTheErrorStillPropagates() {
         CallTrace.begin();
-        assertThatThrownBy(() -> route(new Flaky(true), new Second(true), new Third(true)).chat(REQUEST))
+        assertThatThrownBy(
+                        () ->
+                                route(new Flaky(true), new Second(true), new Third(true))
+                                        .chat(REQUEST))
                 .isInstanceOf(LLMException.class);
         assertThat(CallTrace.end().failovers()).containsExactly("Flaky", "Second", "Third");
     }
@@ -77,12 +105,24 @@ class RoutingCallTraceTest {
 
     @Test
     void anAnonymousClientIsStillNamed() {
-        LLMClient anonymous = new LLMClient() {
-            @Override public LLMResponse chat(LLMRequest r) { throw new RuntimeException("down"); }
-            @Override public Stream<LLMResponse> chatStream(LLMRequest r) { return Stream.empty(); }
-        };
+        LLMClient anonymous =
+                new LLMClient() {
+                    @Override
+                    public LLMResponse chat(LLMRequest r) {
+                        throw new RuntimeException("down");
+                    }
+
+                    @Override
+                    public Stream<LLMResponse> chatStream(LLMRequest r) {
+                        return Stream.empty();
+                    }
+                };
         CallTrace.begin();
         route(anonymous, new Second(false), new Third(false)).chat(REQUEST);
-        assertThat(CallTrace.end().failovers()).singleElement().asString().isNotBlank().contains("RoutingCallTraceTest");
+        assertThat(CallTrace.end().failovers())
+                .singleElement()
+                .asString()
+                .isNotBlank()
+                .contains("RoutingCallTraceTest");
     }
 }

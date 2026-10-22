@@ -62,3 +62,6 @@ Before introducing a breaking change:
 1. Document the impact in `MIGRATION_GUIDE_5_0.md` (or next migration guide).
 2. Add compatibility notes in PR description.
 3. Update examples and wiki pages in the same change set.
+
+`io.github.llm4j.classify` (new in 6.1.0) and `io.github.llm4j.provider.ClassificationProvider` are additive: `Classifier`, `ClassifyRequest`, `Question`, `Option`, `Scale`, `ClassifyResult`, the answer records, `ClassifyUsage`, `ClassifyEvent`,
+`ClassifyListener`, `ClassificationException`, `LlmClassifier`, `ClassifierResolver`, and `io.github.llm4j.provider.typesafe.JevProvider`. Nothing existing changes; an agent, judge or workflow that does not use a classifier behaves exactly as before. In Loom the additions are the words `intentclassifier` and `intentclassify` (contextual: a script that uses them as names keeps working), the trace event type `classify`, the graph node kind `classify` (the graph and trace schemas gain it; a consumer that ignores unknown kinds is unaffected), and audit rule LA19. The answer records grow by adding components at the end, keeping the previous constructor.

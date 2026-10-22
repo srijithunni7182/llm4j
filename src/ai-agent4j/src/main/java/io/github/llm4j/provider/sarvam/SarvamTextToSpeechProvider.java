@@ -70,7 +70,8 @@ public class SarvamTextToSpeechProvider implements TextToSpeechProvider {
         } catch (io.github.llm4j.exception.RateLimitException e) {
             throw e;
         } catch (IOException | io.github.llm4j.exception.LLMException e) {
-            throw io.github.llm4j.provider.Providers.typed(getProviderName(), "Failed to process TTS request", e);
+            throw io.github.llm4j.provider.Providers.typed(
+                    getProviderName(), "Failed to process TTS request", e);
         }
     }
 
@@ -82,7 +83,8 @@ public class SarvamTextToSpeechProvider implements TextToSpeechProvider {
     @Override
     public void validate() {
         if (!config.hasApiKey()) {
-            throw new AuthenticationException(config.missingApiKeyMessage("Sarvam API key is required"));
+            throw new AuthenticationException(
+                    config.missingApiKeyMessage("Sarvam API key is required"));
         }
     }
 

@@ -8,7 +8,7 @@ final class Quote {
 
     private static final Pattern SAFE = Pattern.compile("[A-Za-z0-9_@%+=:,./-]+");
 
-    private Quote() { }
+    private Quote() {}
 
     /** POSIX shell: as is when safe, else single-quoted. */
     static String shell(String arg) {
@@ -33,6 +33,9 @@ final class Quote {
     }
 
     static String xml(String text) {
-        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
+        return text.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
     }
 }

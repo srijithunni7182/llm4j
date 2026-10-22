@@ -15,7 +15,10 @@ public final class Message {
         SYSTEM("system"),
         USER("user"),
         ASSISTANT("assistant"),
-        /** The result of a tool call, answering one of an assistant message's {@link #getToolCalls() tool calls}. */
+        /**
+         * The result of a tool call, answering one of an assistant message's {@link #getToolCalls()
+         * tool calls}.
+         */
         TOOL("tool");
 
         private final String value;
@@ -51,9 +54,15 @@ public final class Message {
         this.role = Objects.requireNonNull(builder.role, "role cannot be null");
         this.content = Objects.requireNonNull(builder.content, "content cannot be null");
         this.name = builder.name;
-        this.toolCalls = builder.toolCalls == null ? java.util.List.of() : java.util.List.copyOf(builder.toolCalls);
+        this.toolCalls =
+                builder.toolCalls == null
+                        ? java.util.List.of()
+                        : java.util.List.copyOf(builder.toolCalls);
         this.toolCallId = builder.toolCallId;
-        this.providerData = builder.providerData == null ? java.util.Map.of() : java.util.Map.copyOf(builder.providerData);
+        this.providerData =
+                builder.providerData == null
+                        ? java.util.Map.of()
+                        : java.util.Map.copyOf(builder.providerData);
     }
 
     @JsonCreator
@@ -82,22 +91,25 @@ public final class Message {
     }
 
     /** The tools an assistant message asked for (empty for every other message). */
-    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY)
+    @com.fasterxml.jackson.annotation.JsonInclude(
+            com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY)
     public java.util.List<ToolCall> getToolCalls() {
         return toolCalls;
     }
 
     /** For a {@link Role#TOOL} message, the id of the call it answers. */
-    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    @com.fasterxml.jackson.annotation.JsonInclude(
+            com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     public String getToolCallId() {
         return toolCallId;
     }
 
     /**
-     * What a provider needs sent back unchanged with the tool results (Claude's thinking blocks, Gemini's thought signatures). Opaque to
-     * everything but the provider that produced it.
+     * What a provider needs sent back unchanged with the tool results (Claude's thinking blocks,
+     * Gemini's thought signatures). Opaque to everything but the provider that produced it.
      */
-    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY)
+    @com.fasterxml.jackson.annotation.JsonInclude(
+            com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY)
     public java.util.Map<String, Object> getProviderData() {
         return providerData;
     }
@@ -108,7 +120,13 @@ public final class Message {
     }
 
     public Builder toBuilder() {
-        return builder().role(role).content(content).name(name).toolCalls(toolCalls).toolCallId(toolCallId).providerData(providerData);
+        return builder()
+                .role(role)
+                .content(content)
+                .name(name)
+                .toolCalls(toolCalls)
+                .toolCallId(toolCallId)
+                .providerData(providerData);
     }
 
     public static Builder builder() {
@@ -127,14 +145,30 @@ public final class Message {
         return builder().role(Role.ASSISTANT).content(content).build();
     }
 
-    /** An assistant turn that asks for tools. {@code text} is whatever the model said alongside; {@code providerData} may be null. */
-    public static Message assistantToolCalls(String text, java.util.List<ToolCall> calls, java.util.Map<String, Object> providerData) {
-        return builder().role(Role.ASSISTANT).content(text == null ? "" : text).toolCalls(calls).providerData(providerData).build();
+    /**
+     * An assistant turn that asks for tools. {@code text} is whatever the model said alongside;
+     * {@code providerData} may be null.
+     */
+    public static Message assistantToolCalls(
+            String text,
+            java.util.List<ToolCall> calls,
+            java.util.Map<String, Object> providerData) {
+        return builder()
+                .role(Role.ASSISTANT)
+                .content(text == null ? "" : text)
+                .toolCalls(calls)
+                .providerData(providerData)
+                .build();
     }
 
     /** The result of tool call {@code callId} (null when the provider issues no ids). */
     public static Message toolResult(String callId, String toolName, String content) {
-        return builder().role(Role.TOOL).content(content == null ? "" : content).name(toolName).toolCallId(callId).build();
+        return builder()
+                .role(Role.TOOL)
+                .content(content == null ? "" : content)
+                .name(toolName)
+                .toolCallId(callId)
+                .build();
     }
 
     @Override

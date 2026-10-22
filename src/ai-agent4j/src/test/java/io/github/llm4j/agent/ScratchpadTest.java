@@ -12,7 +12,10 @@ import java.util.List;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 
-/** The text protocol's scratchpad keeps its turns as messages so they can be compacted, and renders exactly as the old string did (R17). */
+/**
+ * The text protocol's scratchpad keeps its turns as messages so they can be compacted, and renders
+ * exactly as the old string did (R17).
+ */
 class ScratchpadTest {
 
     /** The code the scratchpad replaced, kept here as the reference. */
@@ -35,7 +38,10 @@ class ScratchpadTest {
         }
 
         void error(String llmOutput, String message) {
-            sb.append(llmOutput).append("\nObservation: System Error: ").append(message).append("\n");
+            sb.append(llmOutput)
+                    .append("\nObservation: System Error: ")
+                    .append(message)
+                    .append("\n");
         }
     }
 
@@ -112,13 +118,17 @@ class ScratchpadTest {
         pad.noAction("garbled\n");
         List<Message> m = pad.messages();
         assertThat(m).hasSize(4);
-        assertThat(m.get(0).getRole()).isEqualTo(Message.Role.USER);          // the question: the task a compactor protects
-        assertThat(m.get(1).getRole()).isEqualTo(Message.Role.ASSISTANT);     // the plan and the action
+        assertThat(m.get(0).getRole())
+                .isEqualTo(Message.Role.USER); // the question: the task a compactor protects
+        assertThat(m.get(1).getRole()).isEqualTo(Message.Role.ASSISTANT); // the plan and the action
         assertThat(m.get(1).getToolCalls()).hasSize(1);
         assertThat(m.get(1).getToolCalls().get(0).name()).isEqualTo("search");
-        assertThat(m.get(2).getRole()).isEqualTo(Message.Role.TOOL);          // its observation, a tool result strategies can shorten
+        assertThat(m.get(2).getRole())
+                .isEqualTo(
+                        Message.Role.TOOL); // its observation, a tool result strategies can shorten
         assertThat(m.get(2).getToolCallId()).isEqualTo(m.get(1).getToolCalls().get(0).id());
-        assertThat(m.get(3).getRole()).isEqualTo(Message.Role.ASSISTANT);     // a turn with no valid action stands alone
+        assertThat(m.get(3).getRole())
+                .isEqualTo(Message.Role.ASSISTANT); // a turn with no valid action stands alone
         assertThat(m.get(3).getToolCalls()).isEmpty();
         assertThat(pad.size()).isEqualTo(4);
     }
@@ -126,40 +136,64 @@ class ScratchpadTest {
     @Test
     void compactingAndRenderingGivesTheQuestionTheLatestTurnsAndAnEarlierStepsLine() {
         Scratchpad pad = new Scratchpad("Q?");
-        for (int i = 0; i < 12; i++) pad.step("plan " + i, "search", "{\"q\":" + i + "}", "obs " + i + " " + "x".repeat(400));
+        for (int i = 0; i < 12; i++)
+            pad.step(
+                    "plan " + i, "search", "{\"q\":" + i + "}", "obs " + i + " " + "x".repeat(400));
         long size = CompactionRequest.of(1).sizeOf(pad.messages());
-        CompactionResult r = ContextCompactors.dropOldest().compact(pad.messages(), CompactionRequest.builder(size / 3).keepRecent(2).build());
+        CompactionResult r =
+                ContextCompactors.dropOldest()
+                        .compact(
+                                pad.messages(),
+                                CompactionRequest.builder(size / 3).keepRecent(2).build());
         assertThat(r.outcome()).isEqualTo(CompactionResult.Outcome.COMPACTED);
         pad.replace(r.messages());
         String text = pad.render();
         assertThat(text).startsWith("Question: Q?\n");
-        assertThat(text).contains("Earlier steps: [").contains("earlier messages were removed to save space.]");
-        assertThat(text).contains("Plan: plan 11\nAction: search\nAction Input: {\"q\":11}\nObservation: obs 11 ");
+        assertThat(text)
+                .contains("Earlier steps: [")
+                .contains("earlier messages were removed to save space.]");
+        assertThat(text)
+                .contains(
+                        "Plan: plan 11\nAction: search\nAction Input: {\"q\":11}\nObservation: obs 11 ");
         assertThat(text).doesNotContain("Plan: plan 0\n");
     }
 
     @Test
     void aShortenedObservationRendersInPlace() {
         Scratchpad pad = new Scratchpad("Q?");
-        for (int i = 0; i < 6; i++) pad.step("plan " + i, "fetch", "{\"u\":" + i + "}", ("page " + i + " ").repeat(500));
+        for (int i = 0; i < 6; i++)
+            pad.step("plan " + i, "fetch", "{\"u\":" + i + "}", ("page " + i + " ").repeat(500));
         long size = CompactionRequest.of(1).sizeOf(pad.messages());
-        CompactionResult r = ContextCompactors.trimToolResults(300).compact(pad.messages(), CompactionRequest.builder(size / 2).keepRecent(2).build());
+        CompactionResult r =
+                ContextCompactors.trimToolResults(300)
+                        .compact(
+                                pad.messages(),
+                                CompactionRequest.builder(size / 2).keepRecent(2).build());
         assertThat(r.outcome()).isEqualTo(CompactionResult.Outcome.COMPACTED);
         pad.replace(r.messages());
         String text = pad.render();
         assertThat(text).contains("characters omitted");
-        assertThat(text).contains("Plan: plan 0\nAction: fetch\nAction Input: {\"u\":0}\nObservation: page 0 "); // the turn is still there, only shorter
+        assertThat(text)
+                .contains(
+                        "Plan: plan 0\nAction: fetch\nAction Input: {\"u\":0}\nObservation: page 0 "); // the turn is still there, only shorter
         assertThat(text.length()).isLessThan(6 * 2_500);
     }
 
     @Test
     void newTurnsCanBeAddedAfterACompaction() {
         Scratchpad pad = new Scratchpad("Q?");
-        for (int i = 0; i < 8; i++) pad.step("plan " + i, "search", "{\"q\":" + i + "}", "obs " + "x".repeat(300));
-        CompactionResult r = ContextCompactors.dropOldest().compact(pad.messages(), CompactionRequest.builder(200).keepRecent(2).build());
+        for (int i = 0; i < 8; i++)
+            pad.step("plan " + i, "search", "{\"q\":" + i + "}", "obs " + "x".repeat(300));
+        CompactionResult r =
+                ContextCompactors.dropOldest()
+                        .compact(
+                                pad.messages(),
+                                CompactionRequest.builder(200).keepRecent(2).build());
         pad.replace(r.messages());
         pad.step("later", "search", "{\"q\":99}", "fresh");
-        assertThat(pad.render()).endsWith("Plan: later\nAction: search\nAction Input: {\"q\":99}\nObservation: fresh\n");
+        assertThat(pad.render())
+                .endsWith(
+                        "Plan: later\nAction: search\nAction Input: {\"q\":99}\nObservation: fresh\n");
         List<String> ids = new ArrayList<>();
         for (Message m : pad.messages()) m.getToolCalls().forEach(c -> ids.add(c.id()));
         assertThat(ids).doesNotHaveDuplicates();
@@ -168,7 +202,11 @@ class ScratchpadTest {
     @Test
     void aMessageFromAStrategyThatIsNotAMarkerStillRendersSensibly() {
         Scratchpad pad = new Scratchpad("Q?");
-        pad.replace(List.of(pad.messages().get(0), Messages.marked(Message.user("Summary of what happened."), "summarize")));
-        assertThat(pad.render()).isEqualTo("Question: Q?\nEarlier steps: Summary of what happened.\n");
+        pad.replace(
+                List.of(
+                        pad.messages().get(0),
+                        Messages.marked(Message.user("Summary of what happened."), "summarize")));
+        assertThat(pad.render())
+                .isEqualTo("Question: Q?\nEarlier steps: Summary of what happened.\n");
     }
 }

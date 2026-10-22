@@ -17,8 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 class OutboxTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private static byte[] b(String s) {
         return s.getBytes(StandardCharsets.UTF_8);
@@ -57,21 +56,29 @@ class OutboxTest {
     }
 
     @Test
-    void reopeningContinuesTheOffsets_andARecordCutOffByACrashIsDroppedWithTheRestIntact() throws Exception {
+    void reopeningContinuesTheOffsets_andARecordCutOffByACrashIsDroppedWithTheRestIntact()
+            throws Exception {
         try (Outbox o = open()) {
             o.append(b("one"));
             o.append(b("two"));
             o.append(b("three"));
             o.flush();
         }
-        Path seg = Files.list(dir).filter(p -> p.getFileName().toString().startsWith("seg-")).findFirst().orElseThrow();
+        Path seg =
+                Files.list(dir)
+                        .filter(p -> p.getFileName().toString().startsWith("seg-"))
+                        .findFirst()
+                        .orElseThrow();
         try (RandomAccessFile f = new RandomAccessFile(seg.toFile(), "rw")) {
             f.setLength(f.length() - 2); // the last record is cut off mid-write
         }
         try (Outbox o = open()) {
             assertThat(o.read(0, 10)).extracting(OutboxTest::s).containsExactly("one", "two");
-            assertThat(o.append(b("four"))).isEqualTo(3); // the cut record's offset is reused: it was never delivered
-            assertThat(o.read(0, 10)).extracting(OutboxTest::s).containsExactly("one", "two", "four");
+            assertThat(o.append(b("four")))
+                    .isEqualTo(3); // the cut record's offset is reused: it was never delivered
+            assertThat(o.read(0, 10))
+                    .extracting(OutboxTest::s)
+                    .containsExactly("one", "two", "four");
         }
     }
 
@@ -81,7 +88,11 @@ class OutboxTest {
             o.append(b("one"));
             o.append(b("two"));
             o.flush();
-            Path seg = Files.list(dir).filter(p -> p.getFileName().toString().startsWith("seg-")).findFirst().orElseThrow();
+            Path seg =
+                    Files.list(dir)
+                            .filter(p -> p.getFileName().toString().startsWith("seg-"))
+                            .findFirst()
+                            .orElseThrow();
             try (RandomAccessFile f = new RandomAccessFile(seg.toFile(), "rw")) {
                 f.seek(f.length() - 1);
                 f.write('X');
@@ -122,7 +133,10 @@ class OutboxTest {
             o.flush();
             o.trim(10);
             assertThat(o.firstOffset()).isLessThanOrEqualTo(11);
-            assertThat(o.read(10, 100)).extracting(Outbox.Entry::offset).startsWith(11L).endsWith(20L);
+            assertThat(o.read(10, 100))
+                    .extracting(Outbox.Entry::offset)
+                    .startsWith(11L)
+                    .endsWith(20L);
         }
     }
 
@@ -130,7 +144,9 @@ class OutboxTest {
     void aSecondOpenOfTheSameDirectoryIsRefused_andAFinishedOneReadsAsNotInUse() {
         Outbox o = open();
         assertThat(Outbox.inUse(dir)).isTrue();
-        assertThatThrownBy(this::open).isInstanceOf(IllegalStateException.class).hasMessageContaining("in use");
+        assertThatThrownBy(this::open)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("in use");
         o.close();
         assertThat(Outbox.inUse(dir)).isFalse();
     }

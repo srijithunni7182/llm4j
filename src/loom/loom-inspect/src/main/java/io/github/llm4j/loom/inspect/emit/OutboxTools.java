@@ -14,8 +14,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The outbox by hand: deliver what a process that is gone left behind ({@code weave observe flush}), or throw it away
- * ({@code weave observe purge}). Neither touches a directory a running process holds.
+ * The outbox by hand: deliver what a process that is gone left behind ({@code weave observe
+ * flush}), or throw it away ({@code weave observe purge}). Neither touches a directory a running
+ * process holds.
  */
 public final class OutboxTools {
 
@@ -23,7 +24,7 @@ public final class OutboxTools {
     private static final long CAP_BYTES = 256L * 1024 * 1024;
     private static final Duration CAP_AGE = Duration.ofDays(7);
 
-    private OutboxTools() { }
+    private OutboxTools() {}
 
     /** The directories of {@code name} under {@code root} that no running process holds. */
     private static List<Path> idle(Path root, String name) {
@@ -31,7 +32,10 @@ public final class OutboxTools {
         List<Path> out = new ArrayList<>();
         if (!Files.isDirectory(dir)) return out;
         try (var list = Files.list(dir)) {
-            list.filter(Files::isDirectory).filter(d -> !Outbox.inUse(d)).sorted(Comparator.comparingLong(Outbox::lastWrite)).forEach(out::add);
+            list.filter(Files::isDirectory)
+                    .filter(d -> !Outbox.inUse(d))
+                    .sorted(Comparator.comparingLong(Outbox::lastWrite))
+                    .forEach(out::add);
         } catch (IOException e) {
             // nothing to find
         }
@@ -39,13 +43,25 @@ public final class OutboxTools {
     }
 
     /**
-     * Sends everything the idle outboxes of {@code name} hold, oldest first, removing each once it is empty. Gives up after
-     * {@code timeout}. Returns how many records are still undelivered.
+     * Sends everything the idle outboxes of {@code name} hold, oldest first, removing each once it
+     * is empty. Gives up after {@code timeout}. Returns how many records are still undelivered.
      */
-    public static long flush(String name, Path root, Transport transport, Duration timeout, Clock clock, PrintStream out, ServerLink.Timing timing) {
+    public static long flush(
+            String name,
+            Path root,
+            Transport transport,
+            Duration timeout,
+            Clock clock,
+            PrintStream out,
+            ServerLink.Timing timing) {
         List<Path> dirs = idle(root, name);
         if (dirs.isEmpty()) {
-            out.println("Nothing to flush: no outbox of '" + name + "' under " + root.toAbsolutePath() + ".");
+            out.println(
+                    "Nothing to flush: no outbox of '"
+                            + name
+                            + "' under "
+                            + root.toAbsolutePath()
+                            + ".");
             return 0;
         }
         List<ServerLink.Source> sources = new ArrayList<>();
@@ -58,9 +74,32 @@ public final class OutboxTools {
             }
         }
         if (sources.isEmpty()) return 0;
-        ServerLink.Source newest = sources.get(sources.size() - 1); // the link drains its "own" log last, so the newest goes there
-        Hello hello = new Hello(name, "flush", "", ProcessHandle.current().pid(), "", "", Wire.VERSION, List.of());
-        ServerLink link = new ServerLink(name, transport, newest, sources.subList(0, sources.size() - 1), hello, Map::of, timing, clock, out);
+        ServerLink.Source newest =
+                sources.get(
+                        sources.size()
+                                - 1); // the link drains its "own" log last, so the newest goes
+        // there
+        Hello hello =
+                new Hello(
+                        name,
+                        "flush",
+                        "",
+                        ProcessHandle.current().pid(),
+                        "",
+                        "",
+                        Wire.VERSION,
+                        List.of());
+        ServerLink link =
+                new ServerLink(
+                        name,
+                        transport,
+                        newest,
+                        sources.subList(0, sources.size() - 1),
+                        hello,
+                        Map::of,
+                        timing,
+                        clock,
+                        out);
         long before = link.backlog();
         link.start();
         long end = System.currentTimeMillis() + timeout.toMillis();
@@ -81,7 +120,14 @@ public final class OutboxTools {
                 // already closed when it was emptied and removed
             }
         }
-        out.println("Delivered " + Math.max(0, before - remaining) + " record(s); " + remaining + " remain" + (link.dead() ? " (the server refused this process's key)" : "") + ".");
+        out.println(
+                "Delivered "
+                        + Math.max(0, before - remaining)
+                        + " record(s); "
+                        + remaining
+                        + " remain"
+                        + (link.dead() ? " (the server refused this process's key)" : "")
+                        + ".");
         return remaining;
     }
 
@@ -98,7 +144,14 @@ public final class OutboxTools {
             }
             deleteTree(d);
         }
-        out.println("Removed " + dirs.size() + " outbox(es) of '" + name + "' (" + records + " undelivered record(s)).");
+        out.println(
+                "Removed "
+                        + dirs.size()
+                        + " outbox(es) of '"
+                        + name
+                        + "' ("
+                        + records
+                        + " undelivered record(s)).");
         return records;
     }
 

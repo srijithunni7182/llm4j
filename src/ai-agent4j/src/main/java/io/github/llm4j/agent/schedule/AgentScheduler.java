@@ -12,9 +12,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A scheduler that allows ReActAgents to register background tasks to be executed in the future
- * or on a recurring basis. This is critical for building autonomous assistants that perform 
- * actions while the user is absent.
+ * A scheduler that allows ReActAgents to register background tasks to be executed in the future or
+ * on a recurring basis. This is critical for building autonomous assistants that perform actions
+ * while the user is absent.
  */
 public class AgentScheduler {
 
@@ -25,6 +25,7 @@ public class AgentScheduler {
 
     /**
      * Constructs an AgentScheduler.
+     *
      * @param agent the agent instance used to fulfill scheduled background tasks
      * @param threadPoolSize the number of threads for background execution
      */
@@ -32,9 +33,10 @@ public class AgentScheduler {
         this.agent = Objects.requireNonNull(agent, "agent cannot be null");
         this.executorService = Executors.newScheduledThreadPool(threadPoolSize);
     }
-    
+
     /**
      * Constructs an AgentScheduler with a default single-thread pool.
+     *
      * @param agent the agent instance used to fulfill scheduled background tasks
      */
     public AgentScheduler(ReActAgent agent) {
@@ -45,7 +47,7 @@ public class AgentScheduler {
      * Schedules a task to be executed once after a designated delay.
      *
      * @param instructions the problem or instructions for the agent to resolve
-     * @param delay        the time from now to delay execution
+     * @param delay the time from now to delay execution
      * @return a ScheduledFuture representing pending completion of the task
      */
     public ScheduledFuture<?> scheduleTask(String instructions, Duration delay) {
@@ -53,9 +55,15 @@ public class AgentScheduler {
         Objects.requireNonNull(delay, "delay cannot be null");
 
         String taskId = UUID.randomUUID().toString();
-        logger.info("Scheduling Agent execution (taskId: {}) to run in {} seconds.", taskId, delay.getSeconds());
+        logger.info(
+                "Scheduling Agent execution (taskId: {}) to run in {} seconds.",
+                taskId,
+                delay.getSeconds());
 
-        return executorService.schedule(() -> executeBackgroundAgent(taskId, instructions), delay.toMillis(), TimeUnit.MILLISECONDS);
+        return executorService.schedule(
+                () -> executeBackgroundAgent(taskId, instructions),
+                delay.toMillis(),
+                TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -63,20 +71,25 @@ public class AgentScheduler {
      *
      * @param instructions the problem or instructions for the agent to resolve
      * @param initialDelay the time to delay first execution
-     * @param period       the period between successive executions
+     * @param period the period between successive executions
      * @return a ScheduledFuture representing pending completion of the task
      */
-    public ScheduledFuture<?> scheduleRecurringTask(String instructions, Duration initialDelay, Duration period) {
+    public ScheduledFuture<?> scheduleRecurringTask(
+            String instructions, Duration initialDelay, Duration period) {
         Objects.requireNonNull(instructions, "instructions cannot be null");
         Objects.requireNonNull(initialDelay, "initialDelay cannot be null");
         Objects.requireNonNull(period, "period cannot be null");
 
         String taskId = UUID.randomUUID().toString();
-        logger.info("Scheduling recurring Agent execution (taskId: {}) every {} seconds.", taskId, period.getSeconds());
+        logger.info(
+                "Scheduling recurring Agent execution (taskId: {}) every {} seconds.",
+                taskId,
+                period.getSeconds());
 
-        return executorService.scheduleAtFixedRate(() -> executeBackgroundAgent(taskId, instructions), 
-                initialDelay.toMillis(), 
-                period.toMillis(), 
+        return executorService.scheduleAtFixedRate(
+                () -> executeBackgroundAgent(taskId, instructions),
+                initialDelay.toMillis(),
+                period.toMillis(),
                 TimeUnit.MILLISECONDS);
     }
 
@@ -87,13 +100,12 @@ public class AgentScheduler {
             agent.run(instructions);
             logger.info("Background task {} completed successfully.", taskId);
         } catch (Exception e) {
-            logger.error("Background task {} failed due to exception: {}", taskId, e.getMessage(), e);
+            logger.error(
+                    "Background task {} failed due to exception: {}", taskId, e.getMessage(), e);
         }
     }
 
-    /**
-     * Shuts down the scheduler gracefully.
-     */
+    /** Shuts down the scheduler gracefully. */
     public void shutdown() {
         logger.info("Shutting down AgentScheduler...");
         executorService.shutdown();

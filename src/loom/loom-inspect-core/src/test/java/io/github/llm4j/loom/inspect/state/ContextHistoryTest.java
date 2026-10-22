@@ -7,7 +7,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** R1: the history of an agent's context, for the timeline: points per model call, events per compaction, bounded. */
+/**
+ * R1: the history of an agent's context, for the timeline: points per model call, events per
+ * compaction, bounded.
+ */
 class ContextHistoryTest {
 
     private final ContextFixtures f = new ContextFixtures();
@@ -27,8 +30,14 @@ class ContextHistoryTest {
         f.context(1, "Editor", 400, 1200L, 1000L);
         f.context(2, "Editor", 700, 1200L, 1000L);
         assertThat(points("Editor")).hasSize(2);
-        assertThat(points("Editor").get(0)).containsEntry("n", 1L).containsEntry("used", 400L).containsEntry("fraction", 0.4);
-        assertThat(points("Editor").get(1)).containsEntry("n", 2L).containsEntry("used", 700L).containsEntry("fraction", 0.7);
+        assertThat(points("Editor").get(0))
+                .containsEntry("n", 1L)
+                .containsEntry("used", 400L)
+                .containsEntry("fraction", 0.4);
+        assertThat(points("Editor").get(1))
+                .containsEntry("n", 2L)
+                .containsEntry("used", 700L)
+                .containsEntry("fraction", 0.7);
     }
 
     @Test
@@ -36,16 +45,26 @@ class ContextHistoryTest {
         f.context(1, "Editor", 900, 1200L, 1000L);
         f.compaction(1.5, "Editor", "COMPACTED", 900, 500);
         f.context(2, "Editor", 520, 1200L, 1000L);
-        assertThat(events("Editor")).singleElement().satisfies(e -> {
-            assertThat(e).containsEntry("n", 1L).containsEntry("strategy", "drop_oldest").containsEntry("outcome", "COMPACTED").containsEntry("before", 900L).containsEntry("after", 500L);
-        });
+        assertThat(events("Editor"))
+                .singleElement()
+                .satisfies(
+                        e -> {
+                            assertThat(e)
+                                    .containsEntry("n", 1L)
+                                    .containsEntry("strategy", "drop_oldest")
+                                    .containsEntry("outcome", "COMPACTED")
+                                    .containsEntry("before", 900L)
+                                    .containsEntry("after", 500L);
+                        });
     }
 
     @Test
     void aCompactionThatFreedNothingIsStillAnEventWithItsOutcome() {
         f.context(1, "Editor", 900, 1200L, 1000L);
         f.compaction(2, "Editor", "NO_GAIN", 900, 900);
-        assertThat(events("Editor")).singleElement().satisfies(e -> assertThat(e).containsEntry("outcome", "NO_GAIN"));
+        assertThat(events("Editor"))
+                .singleElement()
+                .satisfies(e -> assertThat(e).containsEntry("outcome", "NO_GAIN"));
     }
 
     @Test
@@ -63,7 +82,13 @@ class ContextHistoryTest {
     @Test
     void anAgentWithNoWindowStillHasPointsOfTokensWithoutAFraction() {
         f.context(1, "Writer", 400, null, null);
-        assertThat(points("Writer")).singleElement().satisfies(p -> assertThat(p).containsEntry("used", 400L).doesNotContainKey("fraction"));
+        assertThat(points("Writer"))
+                .singleElement()
+                .satisfies(
+                        p ->
+                                assertThat(p)
+                                        .containsEntry("used", 400L)
+                                        .doesNotContainKey("fraction"));
     }
 
     @Test

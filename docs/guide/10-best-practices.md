@@ -46,6 +46,7 @@ Lessons from building and evaluating Hexamind, in the order they would have save
 - [ ] Every agent holding the lethal trifecta is split or accepted in writing; tools declare their `reach`
 - [ ] Every `run` and `delegate` that can fail says what happens (`retry`, `on_failure`, or a decision to stop)
 - [ ] A run someone else will watch reports with `--observe` or `--observe-fabric`, set up with the `llm4j-loom-deployer` skill
+- [ ] Every step's model was chosen from measured numbers on your own cases, with the date, and the cost per run and per month is estimated ([chapter 16](16-cost-and-model-choice.md))
 - [ ] Smoke run done; first real run within twice the model; report reviewed
 
 Start again at [the map](README.md) whenever a stage fails its gate: the order is the point.

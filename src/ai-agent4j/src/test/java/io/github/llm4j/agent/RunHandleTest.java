@@ -18,19 +18,23 @@ import org.mockito.Mockito;
 
 class RunHandleTest {
 
-    private static final String ECHO = "Thought: look.\nAction: echo\nAction Input: {\"input\":\"hi\"}\n";
+    private static final String ECHO =
+            "Thought: look.\nAction: echo\nAction Input: {\"input\":\"hi\"}\n";
     private static final String DONE = "Thought: done.\nFinal Answer: finished";
 
     /** Replies from a script, one per call, and records what it was sent. */
-    private static LLMClient scripted(List<LLMRequest> seen, Runnable beforeReply, String... replies) {
+    private static LLMClient scripted(
+            List<LLMRequest> seen, Runnable beforeReply, String... replies) {
         LLMClient client = Mockito.mock(LLMClient.class);
         AtomicInteger n = new AtomicInteger();
-        Mockito.when(client.chat(Mockito.any(LLMRequest.class))).thenAnswer(call -> {
-            seen.add(call.getArgument(0));
-            beforeReply.run();
-            int i = Math.min(n.getAndIncrement(), replies.length - 1);
-            return LLMResponse.builder().content(replies[i]).build();
-        });
+        Mockito.when(client.chat(Mockito.any(LLMRequest.class)))
+                .thenAnswer(
+                        call -> {
+                            seen.add(call.getArgument(0));
+                            beforeReply.run();
+                            int i = Math.min(n.getAndIncrement(), replies.length - 1);
+                            return LLMResponse.builder().content(replies[i]).build();
+                        });
         return client;
     }
 
@@ -52,13 +56,27 @@ class RunHandleTest {
         List<LLMRequest> seen = new ArrayList<>();
         List<String> events = new CopyOnWriteArrayList<>();
         // the user speaks while the first model call is being answered
-        LLMClient client = scripted(seen, () -> { if (seen.size() == 1) handle.steer("use the other tool"); }, ECHO, DONE);
-        AgentEventListener listener = new AgentEventListener() {
-            public void onThought(String t) {}
-            public void onAction(String n, String i) {}
-            public void onObservation(String o) {}
-            @Override public void onSteered(String m) { events.add(m); }
-        };
+        LLMClient client =
+                scripted(
+                        seen,
+                        () -> {
+                            if (seen.size() == 1) handle.steer("use the other tool");
+                        },
+                        ECHO,
+                        DONE);
+        AgentEventListener listener =
+                new AgentEventListener() {
+                    public void onThought(String t) {}
+
+                    public void onAction(String n, String i) {}
+
+                    public void onObservation(String o) {}
+
+                    @Override
+                    public void onSteered(String m) {
+                        events.add(m);
+                    }
+                };
 
         AgentResult result = agent(client, listener).run("do it", handle);
 
@@ -75,12 +93,19 @@ class RunHandleTest {
         List<LLMRequest> seen = new ArrayList<>();
         List<String> events = new CopyOnWriteArrayList<>();
         LLMClient client = scripted(seen, () -> handle.cancel(), ECHO, ECHO, DONE);
-        AgentEventListener listener = new AgentEventListener() {
-            public void onThought(String t) {}
-            public void onAction(String n, String i) {}
-            public void onObservation(String o) {}
-            @Override public void onCancelled() { events.add("cancelled"); }
-        };
+        AgentEventListener listener =
+                new AgentEventListener() {
+                    public void onThought(String t) {}
+
+                    public void onAction(String n, String i) {}
+
+                    public void onObservation(String o) {}
+
+                    @Override
+                    public void onCancelled() {
+                        events.add("cancelled");
+                    }
+                };
 
         AgentResult result = agent(client, listener).run("do it", handle);
 
@@ -97,14 +122,33 @@ class RunHandleTest {
         List<LLMRequest> seen = new CopyOnWriteArrayList<>();
         CountDownLatch paused = new CountDownLatch(1);
         List<String> events = new CopyOnWriteArrayList<>();
-        LLMClient client = scripted(seen, () -> { if (seen.size() == 1) handle.pause(); }, ECHO, DONE);
-        AgentEventListener listener = new AgentEventListener() {
-            public void onThought(String t) {}
-            public void onAction(String n, String i) {}
-            public void onObservation(String o) {}
-            @Override public void onPaused() { events.add("paused"); paused.countDown(); }
-            @Override public void onResumed() { events.add("resumed"); }
-        };
+        LLMClient client =
+                scripted(
+                        seen,
+                        () -> {
+                            if (seen.size() == 1) handle.pause();
+                        },
+                        ECHO,
+                        DONE);
+        AgentEventListener listener =
+                new AgentEventListener() {
+                    public void onThought(String t) {}
+
+                    public void onAction(String n, String i) {}
+
+                    public void onObservation(String o) {}
+
+                    @Override
+                    public void onPaused() {
+                        events.add("paused");
+                        paused.countDown();
+                    }
+
+                    @Override
+                    public void onResumed() {
+                        events.add("resumed");
+                    }
+                };
         ReActAgent agent = agent(client, listener);
         AgentResult[] out = new AgentResult[1];
         Thread runner = new Thread(() -> out[0] = agent.run("do it", handle));
@@ -129,12 +173,19 @@ class RunHandleTest {
         List<LLMRequest> seen = new CopyOnWriteArrayList<>();
         CountDownLatch paused = new CountDownLatch(1);
         LLMClient client = scripted(seen, () -> handle.pause(), ECHO, DONE);
-        AgentEventListener listener = new AgentEventListener() {
-            public void onThought(String t) {}
-            public void onAction(String n, String i) {}
-            public void onObservation(String o) {}
-            @Override public void onPaused() { paused.countDown(); }
-        };
+        AgentEventListener listener =
+                new AgentEventListener() {
+                    public void onThought(String t) {}
+
+                    public void onAction(String n, String i) {}
+
+                    public void onObservation(String o) {}
+
+                    @Override
+                    public void onPaused() {
+                        paused.countDown();
+                    }
+                };
         ReActAgent agent = agent(client, listener);
         AgentResult[] out = new AgentResult[1];
         Thread runner = new Thread(() -> out[0] = agent.run("do it", handle));
@@ -166,15 +217,24 @@ class RunHandleTest {
         RunHandle handle = new RunHandle();
         CountDownLatch inside = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        LLMClient client = scripted(new ArrayList<>(), () -> {
-            inside.countDown();
-            try { release.await(5, TimeUnit.SECONDS); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-        }, DONE);
+        LLMClient client =
+                scripted(
+                        new ArrayList<>(),
+                        () -> {
+                            inside.countDown();
+                            try {
+                                release.await(5, TimeUnit.SECONDS);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
+                        },
+                        DONE);
         Thread first = new Thread(() -> agent(client).run("x", handle));
         first.start();
         assertThat(inside.await(5, TimeUnit.SECONDS)).isTrue();
 
-        assertThatThrownBy(() -> agent(client).run("y", handle)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> agent(client).run("y", handle))
+                .isInstanceOf(IllegalStateException.class);
         release.countDown();
         first.join(5000);
     }

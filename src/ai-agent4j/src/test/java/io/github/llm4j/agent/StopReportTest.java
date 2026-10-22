@@ -13,21 +13,28 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-/** What an agent reports when it is stopped or asked to wrap up (text protocol; the native loop is in {@code StopReportNativeTest}). */
+/**
+ * What an agent reports when it is stopped or asked to wrap up (text protocol; the native loop is
+ * in {@code StopReportNativeTest}).
+ */
 class StopReportTest {
 
-    private static final String ECHO = "Thought: look.\nAction: echo\nAction Input: {\"input\":\"hi\"}\n";
+    private static final String ECHO =
+            "Thought: look.\nAction: echo\nAction Input: {\"input\":\"hi\"}\n";
     private static final String DONE = "Thought: done.\nFinal Answer: finished";
 
-    private static LLMClient scripted(List<LLMRequest> seen, Runnable beforeReply, String... replies) {
+    private static LLMClient scripted(
+            List<LLMRequest> seen, Runnable beforeReply, String... replies) {
         LLMClient client = Mockito.mock(LLMClient.class);
         AtomicInteger n = new AtomicInteger();
-        Mockito.when(client.chat(Mockito.any(LLMRequest.class))).thenAnswer(call -> {
-            seen.add(call.getArgument(0));
-            if (seen.size() == 1) beforeReply.run();
-            int i = Math.min(n.getAndIncrement(), replies.length - 1);
-            return LLMResponse.builder().content(replies[i]).build();
-        });
+        Mockito.when(client.chat(Mockito.any(LLMRequest.class)))
+                .thenAnswer(
+                        call -> {
+                            seen.add(call.getArgument(0));
+                            if (seen.size() == 1) beforeReply.run();
+                            int i = Math.min(n.getAndIncrement(), replies.length - 1);
+                            return LLMResponse.builder().content(replies[i]).build();
+                        });
         return client;
     }
 
@@ -43,7 +50,13 @@ class StopReportTest {
     void aCancelCarriesItsReasonItsOriginWhereItStoppedAndWhatWasDone() {
         RunHandle handle = new RunHandle();
         List<LLMRequest> seen = new ArrayList<>();
-        LLMClient client = scripted(seen, () -> handle.cancel("the input was wrong", "alice"), ECHO, ECHO, DONE);
+        LLMClient client =
+                scripted(
+                        seen,
+                        () -> handle.cancel("the input was wrong", "alice"),
+                        ECHO,
+                        ECHO,
+                        DONE);
 
         AgentResult result = agent(client).run("do it", handle);
 
@@ -61,13 +74,22 @@ class StopReportTest {
     @Test
     void aToolThatIsNotKnownToOnlyReadMeansThingsMayHaveChangedUnlessTheHostSaysOtherwise() {
         RunHandle cautious = new RunHandle();
-        AgentResult a = agent(scripted(new ArrayList<>(), () -> cautious.cancel("x"), ECHO, ECHO, DONE)).run("do it", cautious);
-        assertThat(a.getStop().mayHaveChangedThings()).as("an unclassified tool is assumed to change things").isTrue();
+        AgentResult a =
+                agent(scripted(new ArrayList<>(), () -> cautious.cancel("x"), ECHO, ECHO, DONE))
+                        .run("do it", cautious);
+        assertThat(a.getStop().mayHaveChangedThings())
+                .as("an unclassified tool is assumed to change things")
+                .isTrue();
 
         RunHandle told = new RunHandle();
-        AgentResult b = builder(scripted(new ArrayList<>(), () -> told.cancel("x"), ECHO, ECHO, DONE))
-                .effectClassifier((tool, args) -> false).build().run("do it", told);
-        assertThat(b.getStop().mayHaveChangedThings()).as("the host knows echo only reads").isFalse();
+        AgentResult b =
+                builder(scripted(new ArrayList<>(), () -> told.cancel("x"), ECHO, ECHO, DONE))
+                        .effectClassifier((tool, args) -> false)
+                        .build()
+                        .run("do it", told);
+        assertThat(b.getStop().mayHaveChangedThings())
+                .as("the host knows echo only reads")
+                .isFalse();
     }
 
     @Test
@@ -98,15 +120,27 @@ class StopReportTest {
     void aWrapUpMakesOneLastCallAndTakesItsAnswer() {
         RunHandle handle = new RunHandle();
         List<LLMRequest> seen = new ArrayList<>();
-        LLMClient client = scripted(seen, () -> handle.wrapUp("budget is low", "supervisor"),
-                ECHO, "Thought: enough.\nFinal Answer: what I have so far", DONE);
+        LLMClient client =
+                scripted(
+                        seen,
+                        () -> handle.wrapUp("budget is low", "supervisor"),
+                        ECHO,
+                        "Thought: enough.\nFinal Answer: what I have so far",
+                        DONE);
         List<String> events = new ArrayList<>();
-        AgentEventListener listener = new AgentEventListener() {
-            public void onThought(String t) {}
-            public void onAction(String n, String i) {}
-            public void onObservation(String o) {}
-            @Override public void onWrappedUp() { events.add("wrapped"); }
-        };
+        AgentEventListener listener =
+                new AgentEventListener() {
+                    public void onThought(String t) {}
+
+                    public void onAction(String n, String i) {}
+
+                    public void onObservation(String o) {}
+
+                    @Override
+                    public void onWrappedUp() {
+                        events.add("wrapped");
+                    }
+                };
 
         AgentResult result = builder(client).addListener(listener).build().run("do it", handle);
 
@@ -120,7 +154,9 @@ class StopReportTest {
         assertThat(seen).hasSize(2); // the call under way, and the one wrap-up call
         assertThat(seen.get(1).getMessages().get(1).getContent()).contains("Stop using tools now");
         assertThat(events).containsExactly("wrapped");
-        assertThat(result.getUsage().getLlmCalls()).as("the call under way and the wrap-up call").isEqualTo(2);
+        assertThat(result.getUsage().getLlmCalls())
+                .as("the call under way and the wrap-up call")
+                .isEqualTo(2);
     }
 
     @Test
@@ -139,8 +175,12 @@ class StopReportTest {
         RunHandle handle = new RunHandle();
         handle.steer("focus on the EU", "alice");
         handle.steer("and be brief");
-        assertThat(handle.steers()).extracting(RunHandle.Steer::text).containsExactly("focus on the EU", "and be brief");
-        assertThat(handle.steers()).extracting(RunHandle.Steer::origin).containsExactly("alice", null);
+        assertThat(handle.steers())
+                .extracting(RunHandle.Steer::text)
+                .containsExactly("focus on the EU", "and be brief");
+        assertThat(handle.steers())
+                .extracting(RunHandle.Steer::origin)
+                .containsExactly("alice", null);
     }
 
     @SuppressWarnings("unused")

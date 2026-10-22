@@ -2,10 +2,7 @@ package io.github.llm4j.loom.ast;
 
 import java.util.Map;
 
-/**
- * Represents a call to a sub-workflow.
- * Form: call WorkflowName(arg1=val1, ...) -> resultVar
- */
+/** Represents a call to a sub-workflow. Form: call WorkflowName(arg1=val1, ...) -> resultVar */
 public class CallStmt extends LocatedStatement {
     private final String workflowName;
     private final Map<String, String> arguments;
@@ -17,7 +14,15 @@ public class CallStmt extends LocatedStatement {
         this.resultVariable = resultVariable;
     }
 
-    public String getWorkflowName() { return workflowName; }
-    public Map<String, String> getArguments() { return arguments; }
-    public String getResultVariable() { return resultVariable; }
+    public String getWorkflowName() {
+        return workflowName;
+    }
+
+    public Map<String, String> getArguments() {
+        return arguments;
+    }
+
+    public String getResultVariable() {
+        return resultVariable;
+    }
 }

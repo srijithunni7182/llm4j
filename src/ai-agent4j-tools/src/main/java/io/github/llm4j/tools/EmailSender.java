@@ -15,7 +15,10 @@ public interface EmailSender {
         TRANSIENT,
         /** The server answered with a permanent failure after the data: not accepted. */
         REJECTED,
-        /** The connection was lost after the data was sent: the message may or may not have been accepted. */
+        /**
+         * The connection was lost after the data was sent: the message may or may not have been
+         * accepted.
+         */
         LOST
     }
 
@@ -33,6 +36,8 @@ public interface EmailSender {
         }
     }
 
-    /** @throws EmailFailure when it can't be delivered */
+    /**
+     * @throws EmailFailure when it can't be delivered
+     */
     void send(EmailMessage message) throws EmailFailure;
 }

@@ -10,8 +10,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 class ContextWindowsTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     @Test
     void anEmptyCatalogueKnowsNothingAndIsWhatYouGetUnlessYouAskForTheSeed() {
@@ -22,23 +21,37 @@ class ContextWindowsTest {
     @Test
     void theSeedHoldsOnlyModelsCheckedAgainstTheProvidersDocumentation() throws Exception {
         ContextWindows seed = ContextWindows.defaults();
-        for (String model : new String[] {"claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"}) {
-            ContextWindow w = seed.window(model).orElseThrow(() -> new AssertionError(model + " is missing from the seed"));
+        for (String model :
+                new String[] {
+                    "claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"
+                }) {
+            ContextWindow w =
+                    seed.window(model)
+                            .orElseThrow(
+                                    () -> new AssertionError(model + " is missing from the seed"));
             assertThat(w.tokens()).as(model).isEqualTo(1_000_000);
             assertThat(w.reservedForOutput()).as(model).isEqualTo(128_000);
             assertThat(w.usableInput()).as(model).isEqualTo(872_000);
         }
-        assertThat(seed.window("anthropic/claude-opus-5-5")).isPresent(); // with a provider prefix, as the library names models elsewhere
-        assertThat(seed.window("gemini-2.5-flash")).as("not seeded until checked against Google's documentation").isEmpty();
+        assertThat(seed.window("anthropic/claude-opus-5-5"))
+                .isPresent(); // with a provider prefix, as the library names models elsewhere
+        assertThat(seed.window("gemini-2.5-flash"))
+                .as("not seeded until checked against Google's documentation")
+                .isEmpty();
         assertThat(seed.window("some-model-nobody-checked")).isEmpty();
     }
 
     @Test
     void theSeedFileSaysWhenAndAgainstWhatEachEntryWasChecked() throws Exception {
-        try (java.io.InputStream in = getClass().getClassLoader().getResourceAsStream("io/github/llm4j/context/windows.properties")) {
+        try (java.io.InputStream in =
+                getClass()
+                        .getClassLoader()
+                        .getResourceAsStream("io/github/llm4j/context/windows.properties")) {
             assertThat(in).isNotNull();
             String text = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-            assertThat(text).contains("Checked against https://platform.claude.com/docs/en/about-claude/models/overview on 2026-10-14");
+            assertThat(text)
+                    .contains(
+                            "Checked against https://platform.claude.com/docs/en/about-claude/models/overview on 2026-10-14");
             long entries = text.lines().filter(l -> !l.isBlank() && !l.startsWith("#")).count();
             assertThat(entries).isEqualTo(4);
         }
@@ -46,19 +59,26 @@ class ContextWindowsTest {
 
     @Test
     void theSeedCanBeExtendedAndOverriddenWithoutChangingIt() {
-        ContextWindows mine = ContextWindows.defaults().with("claude-opus-5-5", ContextWindow.of(200_000)).with("acme/x", ContextWindow.of(32_000));
+        ContextWindows mine =
+                ContextWindows.defaults()
+                        .with("claude-opus-5-5", ContextWindow.of(200_000))
+                        .with("acme/x", ContextWindow.of(32_000));
         assertThat(mine.window("claude-opus-5-5").orElseThrow().tokens()).isEqualTo(200_000);
         assertThat(mine.window("acme/x")).isPresent();
-        assertThat(ContextWindows.defaults().window("claude-opus-5-5").orElseThrow().tokens()).isEqualTo(1_000_000);
+        assertThat(ContextWindows.defaults().window("claude-opus-5-5").orElseThrow().tokens())
+                .isEqualTo(1_000_000);
         assertThat(ContextWindows.defaults().window("acme/x")).isEmpty();
     }
 
     @Test
     void loadsTheDevelopersOwnWindows() throws Exception {
         Path f = dir.resolve("windows.properties");
-        Files.writeString(f, "# my models\ntest/big = 200000 / 8192\ntest/plain = 32000   # no output reserve\n\n");
+        Files.writeString(
+                f,
+                "# my models\ntest/big = 200000 / 8192\ntest/plain = 32000   # no output reserve\n\n");
         ContextWindows w = ContextWindows.load(f);
-        assertThat(w.window("test/big")).hasValue(ContextWindow.of(200_000).reservingForOutput(8_192));
+        assertThat(w.window("test/big"))
+                .hasValue(ContextWindow.of(200_000).reservingForOutput(8_192));
         assertThat(w.window("test/plain")).hasValue(ContextWindow.of(32_000));
         assertThat(w.window("test/unknown")).isEmpty();
     }
@@ -77,8 +97,10 @@ class ContextWindowsTest {
     void anExactEntryBeatsTheOneWithoutAPrefix() throws Exception {
         Path f = dir.resolve("w.properties");
         Files.writeString(f, "gpt-test = 1000\nacme/gpt-test = 2000\n");
-        assertThat(ContextWindows.load(f).window("acme/gpt-test").orElseThrow().tokens()).isEqualTo(2_000);
-        assertThat(ContextWindows.load(f).window("other/gpt-test").orElseThrow().tokens()).isEqualTo(1_000);
+        assertThat(ContextWindows.load(f).window("acme/gpt-test").orElseThrow().tokens())
+                .isEqualTo(2_000);
+        assertThat(ContextWindows.load(f).window("other/gpt-test").orElseThrow().tokens())
+                .isEqualTo(1_000);
     }
 
     @Test
@@ -105,12 +127,16 @@ class ContextWindowsTest {
 
     @Test
     void aMissingFileIsAnError() {
-        assertThatThrownBy(() -> ContextWindows.load(dir.resolve("nope"))).isInstanceOf(java.io.IOException.class);
+        assertThatThrownBy(() -> ContextWindows.load(dir.resolve("nope")))
+                .isInstanceOf(java.io.IOException.class);
     }
 
     private void assertBad(String text, String where) throws Exception {
         Path f = dir.resolve("bad.properties");
         Files.writeString(f, text);
-        assertThatThrownBy(() -> ContextWindows.load(f)).as(text).isInstanceOf(IllegalArgumentException.class).hasMessageContaining(where);
+        assertThatThrownBy(() -> ContextWindows.load(f))
+                .as(text)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(where);
     }
 }

@@ -31,24 +31,33 @@ class EventSinkTest {
             for (int i = 0; i < 50; i++) sink.onEvent(ev(i));
             assertThat(sink.awaitIdle(Duration.ofSeconds(2))).isTrue();
         }
-        assertThat(texts(got)).containsExactlyElementsOf(java.util.stream.IntStream.range(0, 50).mapToObj(i -> "e" + i).toList());
+        assertThat(texts(got))
+                .containsExactlyElementsOf(
+                        java.util.stream.IntStream.range(0, 50).mapToObj(i -> "e" + i).toList());
     }
 
     @Test
     void aFullQueueNeverBlocksTheRunAndDropsTheOldestEvents() throws Exception {
         CountDownLatch release = new CountDownLatch(1);
         List<TraceEvent> got = Collections.synchronizedList(new ArrayList<>());
-        try (EventSink sink = new EventSink("t", 3, e -> {
-            try {
-                release.await();
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-            }
-            got.add(e);
-        })) {
+        try (EventSink sink =
+                new EventSink(
+                        "t",
+                        3,
+                        e -> {
+                            try {
+                                release.await();
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                            }
+                            got.add(e);
+                        })) {
             long start = System.nanoTime();
-            for (int i = 0; i < 1000; i++) sink.onEvent(ev(i)); // the consumer is stuck the whole time
-            assertThat(Duration.ofNanos(System.nanoTime() - start)).as("the run was not held up").isLessThan(Duration.ofSeconds(1));
+            for (int i = 0; i < 1000; i++)
+                sink.onEvent(ev(i)); // the consumer is stuck the whole time
+            assertThat(Duration.ofNanos(System.nanoTime() - start))
+                    .as("the run was not held up")
+                    .isLessThan(Duration.ofSeconds(1));
             assertThat(sink.dropped()).isPositive();
             release.countDown();
             assertThat(sink.awaitIdle(Duration.ofSeconds(2))).isTrue();
@@ -61,10 +70,14 @@ class EventSinkTest {
     @Test
     void aFailingConsumerDoesNotStopLaterEvents() {
         List<TraceEvent> got = Collections.synchronizedList(new ArrayList<>());
-        try (EventSink sink = new EventSink("t", 10, e -> {
-            if (e.text().equals("e0")) throw new IllegalStateException("boom");
-            got.add(e);
-        })) {
+        try (EventSink sink =
+                new EventSink(
+                        "t",
+                        10,
+                        e -> {
+                            if (e.text().equals("e0")) throw new IllegalStateException("boom");
+                            got.add(e);
+                        })) {
             sink.onEvent(ev(0));
             sink.onEvent(ev(1));
             assertThat(sink.awaitIdle(Duration.ofSeconds(2))).isTrue();
@@ -87,10 +100,14 @@ class EventSinkTest {
     void aSinkTheConsumerEndsStopsItsThreadOnceDrained_andLaterEventsAreIgnored() throws Exception {
         List<TraceEvent> got = Collections.synchronizedList(new ArrayList<>());
         EventSink[] self = new EventSink[1];
-        self[0] = new EventSink("t", 100, e -> {
-            got.add(e);
-            if (e.text().equals("e2")) self[0].finishWhenDrained();
-        });
+        self[0] =
+                new EventSink(
+                        "t",
+                        100,
+                        e -> {
+                            got.add(e);
+                            if (e.text().equals("e2")) self[0].finishWhenDrained();
+                        });
         for (int i = 0; i < 3; i++) self[0].onEvent(ev(i));
         long end = System.currentTimeMillis() + 3000;
         while (!self[0].ended() && System.currentTimeMillis() < end) Thread.sleep(5);

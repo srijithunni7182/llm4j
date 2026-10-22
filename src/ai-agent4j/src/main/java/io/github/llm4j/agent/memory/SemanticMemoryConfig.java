@@ -4,16 +4,18 @@ import io.github.llm4j.secret.SecretRef;
 import java.util.Objects;
 
 /**
- * Configuration for setting up Semantic Memory in a {@link io.github.llm4j.agent.ReActAgent}.
- * Pass to the agent builder via {@code .semanticMemoryConfig(config)} to get automatic
- * long-term memory with no additional boilerplate.
+ * Configuration for setting up Semantic Memory in a {@link io.github.llm4j.agent.ReActAgent}. Pass
+ * to the agent builder via {@code .semanticMemoryConfig(config)} to get automatic long-term memory
+ * with no additional boilerplate.
  *
- * <b>In-Memory (Development)</b>
+ * <p><b>In-Memory (Development)</b>
+ *
  * <pre>
  * SemanticMemoryConfig config = SemanticMemoryConfig.inMemory("user-123");
  * </pre>
  *
  * <b>Production (pgvector + ONNX)</b>
+ *
  * <pre>
  * SemanticMemoryConfig config = SemanticMemoryConfig.builder()
  *     .userId("user-123")
@@ -27,6 +29,7 @@ import java.util.Objects;
  * </pre>
  *
  * <b>Production (Gemini Cloud Embeddings)</b>
+ *
  * <pre>
  * SemanticMemoryConfig config = SemanticMemoryConfig.builder()
  *     .userId("user-123")
@@ -36,8 +39,16 @@ import java.util.Objects;
  */
 public class SemanticMemoryConfig {
 
-    public enum EmbeddingMode { IN_MEMORY, ONNX, GEMINI }
-    public enum StoreMode { IN_MEMORY, PGVECTOR }
+    public enum EmbeddingMode {
+        IN_MEMORY,
+        ONNX,
+        GEMINI
+    }
+
+    public enum StoreMode {
+        IN_MEMORY,
+        PGVECTOR
+    }
 
     private final String userId;
     private final EmbeddingMode embeddingMode;
@@ -84,27 +95,77 @@ public class SemanticMemoryConfig {
         return new Builder().userId(userId).build();
     }
 
-    public String getUserId() { return userId; }
-    public EmbeddingMode getEmbeddingMode() { return embeddingMode; }
-    public StoreMode getStoreMode() { return storeMode; }
-    public String getOnnxModelPath() { return onnxModelPath; }
-    public String getOnnxTokenizerPath() { return onnxTokenizerPath; }
-    /** The Gemini key, fetched now. Prefer {@link #getGeminiApiKeyRef()}: components fetch it themselves, per request. */
-    public String getGeminiApiKey() { return geminiApiKey == null ? null : geminiApiKey.resolve(); }
+    public String getUserId() {
+        return userId;
+    }
 
-    public SecretRef getGeminiApiKeyRef() { return geminiApiKey; }
-    public String getGeminiEmbeddingModel() { return geminiEmbeddingModel; }
-    public String getPgUrl() { return pgUrl; }
-    public String getPgUser() { return pgUser; }
-    public String getPgPassword() { return pgPassword == null ? null : pgPassword.resolve(); }
+    public EmbeddingMode getEmbeddingMode() {
+        return embeddingMode;
+    }
 
-    public SecretRef getPgPasswordRef() { return pgPassword; }
-    public String getPgTable() { return pgTable; }
-    public int getPgDimension() { return pgDimension; }
-    public int getTopK() { return topK; }
-    public float getSimilarityThreshold() { return similarityThreshold; }
+    public StoreMode getStoreMode() {
+        return storeMode;
+    }
 
-    public static Builder builder() { return new Builder(); }
+    public String getOnnxModelPath() {
+        return onnxModelPath;
+    }
+
+    public String getOnnxTokenizerPath() {
+        return onnxTokenizerPath;
+    }
+
+    /**
+     * The Gemini key, fetched now. Prefer {@link #getGeminiApiKeyRef()}: components fetch it
+     * themselves, per request.
+     */
+    public String getGeminiApiKey() {
+        return geminiApiKey == null ? null : geminiApiKey.resolve();
+    }
+
+    public SecretRef getGeminiApiKeyRef() {
+        return geminiApiKey;
+    }
+
+    public String getGeminiEmbeddingModel() {
+        return geminiEmbeddingModel;
+    }
+
+    public String getPgUrl() {
+        return pgUrl;
+    }
+
+    public String getPgUser() {
+        return pgUser;
+    }
+
+    public String getPgPassword() {
+        return pgPassword == null ? null : pgPassword.resolve();
+    }
+
+    public SecretRef getPgPasswordRef() {
+        return pgPassword;
+    }
+
+    public String getPgTable() {
+        return pgTable;
+    }
+
+    public int getPgDimension() {
+        return pgDimension;
+    }
+
+    public int getTopK() {
+        return topK;
+    }
+
+    public float getSimilarityThreshold() {
+        return similarityThreshold;
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
 
     public static class Builder {
         private String userId;
@@ -122,25 +183,87 @@ public class SemanticMemoryConfig {
         private int topK = 5;
         private float similarityThreshold = 0.7f;
 
-        public Builder userId(String userId) { this.userId = userId; return this; }
-        public Builder onnxModelPath(String path) { this.onnxModelPath = path; this.embeddingMode = EmbeddingMode.ONNX; return this; }
-        public Builder onnxTokenizerPath(String path) { this.onnxTokenizerPath = path; return this; }
-        public Builder geminiApiKey(String key) { this.geminiApiKey = key == null ? null : SecretRef.literal(key); this.embeddingMode = EmbeddingMode.GEMINI; return this; }
+        public Builder userId(String userId) {
+            this.userId = userId;
+            return this;
+        }
 
-        /** A key kept in a {@link io.github.llm4j.secret.SecretStore}, fetched for each embedding request. */
-        public Builder geminiApiKey(SecretRef key) { this.geminiApiKey = key; this.embeddingMode = EmbeddingMode.GEMINI; return this; }
-        public Builder geminiEmbeddingModel(String model) { this.geminiEmbeddingModel = model; return this; }
-        public Builder pgUrl(String url) { this.pgUrl = url; this.storeMode = StoreMode.PGVECTOR; return this; }
-        public Builder pgUser(String user) { this.pgUser = user; return this; }
-        public Builder pgPassword(String password) { this.pgPassword = password == null ? null : SecretRef.literal(password); return this; }
+        public Builder onnxModelPath(String path) {
+            this.onnxModelPath = path;
+            this.embeddingMode = EmbeddingMode.ONNX;
+            return this;
+        }
+
+        public Builder onnxTokenizerPath(String path) {
+            this.onnxTokenizerPath = path;
+            return this;
+        }
+
+        public Builder geminiApiKey(String key) {
+            this.geminiApiKey = key == null ? null : SecretRef.literal(key);
+            this.embeddingMode = EmbeddingMode.GEMINI;
+            return this;
+        }
+
+        /**
+         * A key kept in a {@link io.github.llm4j.secret.SecretStore}, fetched for each embedding
+         * request.
+         */
+        public Builder geminiApiKey(SecretRef key) {
+            this.geminiApiKey = key;
+            this.embeddingMode = EmbeddingMode.GEMINI;
+            return this;
+        }
+
+        public Builder geminiEmbeddingModel(String model) {
+            this.geminiEmbeddingModel = model;
+            return this;
+        }
+
+        public Builder pgUrl(String url) {
+            this.pgUrl = url;
+            this.storeMode = StoreMode.PGVECTOR;
+            return this;
+        }
+
+        public Builder pgUser(String user) {
+            this.pgUser = user;
+            return this;
+        }
+
+        public Builder pgPassword(String password) {
+            this.pgPassword = password == null ? null : SecretRef.literal(password);
+            return this;
+        }
 
         /** The database password, kept in a store and fetched for each connection. */
-        public Builder pgPassword(SecretRef password) { this.pgPassword = password; return this; }
-        public Builder pgTable(String table) { this.pgTable = table; return this; }
-        public Builder pgDimension(int dimension) { this.pgDimension = dimension; return this; }
-        public Builder topK(int topK) { this.topK = topK; return this; }
-        public Builder similarityThreshold(float threshold) { this.similarityThreshold = threshold; return this; }
+        public Builder pgPassword(SecretRef password) {
+            this.pgPassword = password;
+            return this;
+        }
 
-        public SemanticMemoryConfig build() { return new SemanticMemoryConfig(this); }
+        public Builder pgTable(String table) {
+            this.pgTable = table;
+            return this;
+        }
+
+        public Builder pgDimension(int dimension) {
+            this.pgDimension = dimension;
+            return this;
+        }
+
+        public Builder topK(int topK) {
+            this.topK = topK;
+            return this;
+        }
+
+        public Builder similarityThreshold(float threshold) {
+            this.similarityThreshold = threshold;
+            return this;
+        }
+
+        public SemanticMemoryConfig build() {
+            return new SemanticMemoryConfig(this);
+        }
     }
 }

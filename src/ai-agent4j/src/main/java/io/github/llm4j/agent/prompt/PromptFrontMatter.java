@@ -4,8 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The front matter of a prompt file: {@code description:} (one line) and {@code variables:} (a list, written {@code [a, b]} or as {@code - a}
- * lines). Other keys are ignored. It is read by hand, not with a YAML library, so a prompt file means the same on every classpath.
+ * The front matter of a prompt file: {@code description:} (one line) and {@code variables:} (a
+ * list, written {@code [a, b]} or as {@code - a} lines). Other keys are ignored. It is read by
+ * hand, not with a YAML library, so a prompt file means the same on every classpath.
  */
 final class PromptFrontMatter {
 
@@ -49,22 +50,31 @@ final class PromptFrontMatter {
                     if (value.isEmpty()) {
                         inVariables = true;
                     } else if (value.startsWith("[")) {
-                        if (!value.endsWith("]")) throw new Invalid("variables: the list is not closed with ]");
+                        if (!value.endsWith("]"))
+                            throw new Invalid("variables: the list is not closed with ]");
                         String inner = value.substring(1, value.length() - 1).strip();
-                        if (!inner.isEmpty()) for (String part : inner.split(",")) variables.add(unquote(part.strip()));
+                        if (!inner.isEmpty())
+                            for (String part : inner.split(","))
+                                variables.add(unquote(part.strip()));
                     } else {
                         throw new Invalid("variables must be a list such as [topic, region]");
                     }
                 }
-                default -> { /* another key: not ours */ }
+                default -> {
+                    /* another key: not ours */
+                }
             }
         }
         variables.removeIf(String::isEmpty);
-        return new Parsed(description == null || description.isEmpty() ? null : description, List.copyOf(variables));
+        return new Parsed(
+                description == null || description.isEmpty() ? null : description,
+                List.copyOf(variables));
     }
 
     private static String unquote(String s) {
-        if (s.length() >= 2 && ((s.startsWith("\"") && s.endsWith("\"")) || (s.startsWith("'") && s.endsWith("'")))) {
+        if (s.length() >= 2
+                && ((s.startsWith("\"") && s.endsWith("\""))
+                        || (s.startsWith("'") && s.endsWith("'")))) {
             return s.substring(1, s.length() - 1);
         }
         return s;

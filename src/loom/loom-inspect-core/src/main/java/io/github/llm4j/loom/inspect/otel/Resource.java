@@ -3,11 +3,17 @@ package io.github.llm4j.loom.inspect.otel;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Who is reporting: the attributes of an OpenTelemetry resource ({@code service.name}, {@code service.instance.id}, …). */
+/**
+ * Who is reporting: the attributes of an OpenTelemetry resource ({@code service.name}, {@code
+ * service.instance.id}, …).
+ */
 public record Resource(Map<String, Object> attributes) {
 
     public Resource {
-        attributes = attributes == null ? Map.of() : java.util.Collections.unmodifiableMap(new LinkedHashMap<>(attributes));
+        attributes =
+                attributes == null
+                        ? Map.of()
+                        : java.util.Collections.unmodifiableMap(new LinkedHashMap<>(attributes));
     }
 
     public static Resource of(String serviceName, String instanceId) {

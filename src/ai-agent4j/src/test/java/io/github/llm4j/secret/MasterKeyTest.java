@@ -11,8 +11,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 class MasterKeyTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     @Test
     void passphraseIsCopiedAndWipedOnDestroy() {
@@ -53,7 +52,10 @@ class MasterKeyTest {
 
     @Test
     void fromEnvUsesTheVariableTheConsumerNames() {
-        MasterKey k = MasterKey.fromEnv("MY_APP_VAULT_PASSPHRASE", Map.of("MY_APP_VAULT_PASSPHRASE", "from-env")::get);
+        MasterKey k =
+                MasterKey.fromEnv(
+                        "MY_APP_VAULT_PASSPHRASE",
+                        Map.of("MY_APP_VAULT_PASSPHRASE", "from-env")::get);
         assertEquals("from-env", new String(k.passphrase()));
         assertTrue(k.toString().contains("MY_APP_VAULT_PASSPHRASE"));
         MasterKey unset = MasterKey.fromEnv("NOT_SET", name -> null);
@@ -64,10 +66,12 @@ class MasterKeyTest {
     @Test
     void supplierSourceIsCalledEachTime() {
         int[] calls = {0};
-        MasterKey k = MasterKey.from(() -> {
-            calls[0]++;
-            return ("p" + calls[0]).toCharArray();
-        });
+        MasterKey k =
+                MasterKey.from(
+                        () -> {
+                            calls[0]++;
+                            return ("p" + calls[0]).toCharArray();
+                        });
         assertEquals("p1", new String(k.passphrase()));
         assertEquals("p2", new String(k.passphrase()));
         assertThrows(SecretStoreException.class, MasterKey.from(() -> new char[0])::passphrase);

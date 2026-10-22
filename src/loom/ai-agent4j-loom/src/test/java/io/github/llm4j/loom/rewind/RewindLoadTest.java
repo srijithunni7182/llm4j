@@ -17,11 +17,13 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** Reading and checking checkpoints and rewinds when a script loads (spec loom-rewind-and-fork R1, R2.1, R2.7, R2.9). */
+/**
+ * Reading and checking checkpoints and rewinds when a script loads (spec loom-rewind-and-fork R1,
+ * R2.1, R2.7, R2.9).
+ */
 class RewindLoadTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private static LoomScript parse(String source) {
         return new LoomParser(new Lexer(source).tokenize()).parseScript();
@@ -29,7 +31,10 @@ class RewindLoadTest {
 
     private List<String> problems(String source) {
         var executor = new ScriptedRun(dir).executor(source);
-        return new ScriptValidator().validate(parse(source), executor.validationContext()).stream().map(ScriptValidator.Problem::toString).collect(Collectors.toList());
+        return new ScriptValidator()
+                .validate(parse(source), executor.validationContext()).stream()
+                        .map(ScriptValidator.Problem::toString)
+                        .collect(Collectors.toList());
     }
 
     private static String workflow(String body) {
@@ -40,13 +45,17 @@ class RewindLoadTest {
                 workflow W() {
                 %s
                 }
-                """.formatted(body);
+                """
+                .formatted(body);
     }
 
     @Test
     @Tag("RW-V1.1")
     void checkpointsAndRewindsParseAsSentences() {
-        LoomScript script = parse(workflow("""
+        LoomScript script =
+                parse(
+                        workflow(
+                                """
                 checkpoint a
                 checkpoint b  starting with x = "1", y = "{topic}"
                 delegate "t" to Writer -> r
@@ -76,7 +85,9 @@ class RewindLoadTest {
     @Test
     @Tag("RW-V1.1")
     void theWordsAreOnlyKeywordsWhereAStatementStarts() {
-        LoomScript script = parse("""
+        LoomScript script =
+                parse(
+                        """
                 agent checkpoint { model: "m" system: "s" }
                 agent rewind { model: "m" system: "s" }
                 workflow W(checkpoint) {
@@ -84,72 +95,151 @@ class RewindLoadTest {
                     note "{rewind}"
                 }
                 """);
-        assertThat(script.getAgents()).extracting(a -> a.getName()).containsExactly("checkpoint", "rewind");
+        assertThat(script.getAgents())
+                .extracting(a -> a.getName())
+                .containsExactly("checkpoint", "rewind");
     }
 
     @Test
     @Tag("RW-V2.1")
     void parseErrorsSayWhatToWriteInTheAuthorsOwnWords() {
-        assertThatThrownBy(() -> parse(workflow("rewind to a when (x < 1)"))).hasMessageContaining("needs a limit").hasMessageContaining("at most 2 times");
-        assertThatThrownBy(() -> parse(workflow("rewind to a at most 0 times"))).hasMessageContaining("at least 1");
-        assertThatThrownBy(() -> parse(workflow("rewind to a at most 2"))).hasMessageContaining("at most 2 times");
-        assertThatThrownBy(() -> parse(workflow("rewind to a when x < 1 at most 2 times"))).hasMessageContaining("brackets");
-        assertThatThrownBy(() -> parse(workflow("rewind to a at most 2 times side effects: sometimes"))).hasMessageContaining("ask first, keep or repeat");
-        assertThatThrownBy(() -> parse(workflow("rewind to a at most 2 times if nothing { }"))).hasMessageContaining("if it still fails");
-        assertThatThrownBy(() -> parse(workflow("checkpoint a starting with x"))).hasMessageContaining("'='");
+        assertThatThrownBy(() -> parse(workflow("rewind to a when (x < 1)")))
+                .hasMessageContaining("needs a limit")
+                .hasMessageContaining("at most 2 times");
+        assertThatThrownBy(() -> parse(workflow("rewind to a at most 0 times")))
+                .hasMessageContaining("at least 1");
+        assertThatThrownBy(() -> parse(workflow("rewind to a at most 2")))
+                .hasMessageContaining("at most 2 times");
+        assertThatThrownBy(() -> parse(workflow("rewind to a when x < 1 at most 2 times")))
+                .hasMessageContaining("brackets");
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        workflow(
+                                                "rewind to a at most 2 times side effects: sometimes")))
+                .hasMessageContaining("ask first, keep or repeat");
+        assertThatThrownBy(() -> parse(workflow("rewind to a at most 2 times if nothing { }")))
+                .hasMessageContaining("if it still fails");
+        assertThatThrownBy(() -> parse(workflow("checkpoint a starting with x")))
+                .hasMessageContaining("'='");
     }
 
     @Test
     @Tag("RW-V1.2")
     void checkpointNamesMustBeUniqueAndNotStart() {
-        assertThat(problems(workflow("checkpoint a\ncheckpoint a"))).anyMatch(p -> p.contains("already exists"));
+        assertThat(problems(workflow("checkpoint a\ncheckpoint a")))
+                .anyMatch(p -> p.contains("already exists"));
         assertThat(problems(workflow("checkpoint start"))).anyMatch(p -> p.contains("\"start\""));
-        assertThat(problems(workflow("checkpoint a\ncheckpoint b"))).noneMatch(p -> p.contains("checkpoint"));
+        assertThat(problems(workflow("checkpoint a\ncheckpoint b")))
+                .noneMatch(p -> p.contains("checkpoint"));
     }
 
     @Test
     @Tag("RW-V2.6")
     void aRewindMustPointToACheckpointThatComesEarlierInItsOwnBlockOrOneAroundIt() {
-        assertThat(problems(workflow("rewind to nowhere at most 1 time"))).anyMatch(p -> p.contains("no checkpoint named nowhere"));
-        assertThat(problems(workflow("rewind to later at most 1 time\ncheckpoint later"))).anyMatch(p -> p.contains("must come earlier"));
-        assertThat(problems(workflow("alt (1 == 1) { checkpoint inner }\nrewind to inner at most 1 time"))).anyMatch(p -> p.contains("must come earlier"));
-        assertThat(problems(workflow("alt (1 == 1) { checkpoint a1 } else { rewind to a1 at most 1 time }"))).anyMatch(p -> p.contains("must come earlier"));
+        assertThat(problems(workflow("rewind to nowhere at most 1 time")))
+                .anyMatch(p -> p.contains("no checkpoint named nowhere"));
+        assertThat(problems(workflow("rewind to later at most 1 time\ncheckpoint later")))
+                .anyMatch(p -> p.contains("must come earlier"));
+        assertThat(
+                        problems(
+                                workflow(
+                                        "alt (1 == 1) { checkpoint inner }\nrewind to inner at most 1 time")))
+                .anyMatch(p -> p.contains("must come earlier"));
+        assertThat(
+                        problems(
+                                workflow(
+                                        "alt (1 == 1) { checkpoint a1 } else { rewind to a1 at most 1 time }")))
+                .anyMatch(p -> p.contains("must come earlier"));
 
-        assertThat(problems(workflow("checkpoint a\nrewind to a at most 1 time"))).noneMatch(p -> p.contains("rewind"));
-        assertThat(problems(workflow("rewind to start at most 1 time"))).noneMatch(p -> p.contains("rewind"));
-        assertThat(problems(workflow("checkpoint a\nalt (1 == 1) { rewind to a at most 1 time }"))).noneMatch(p -> p.contains("rewind"));
-        assertThat(problems(workflow("checkpoint a\nloop until (done == \"yes\") max 2 { rewind to a at most 1 time }"))).noneMatch(p -> p.contains("rewind"));
-        assertThat(problems(workflow("checkpoint a\ndelegate \"t\" to Writer -> r on_failure { rewind to a at most 1 time }"))).noneMatch(p -> p.contains("rewind"));
-        assertThat(problems(workflow("checkpoint a\nrewind to a at most 1 time if it still fails { rewind to start at most 1 time }"))).noneMatch(p -> p.contains("no checkpoint"));
+        assertThat(problems(workflow("checkpoint a\nrewind to a at most 1 time")))
+                .noneMatch(p -> p.contains("rewind"));
+        assertThat(problems(workflow("rewind to start at most 1 time")))
+                .noneMatch(p -> p.contains("rewind"));
+        assertThat(problems(workflow("checkpoint a\nalt (1 == 1) { rewind to a at most 1 time }")))
+                .noneMatch(p -> p.contains("rewind"));
+        assertThat(
+                        problems(
+                                workflow(
+                                        "checkpoint a\nloop until (done == \"yes\") max 2 { rewind to a at most 1 time }")))
+                .noneMatch(p -> p.contains("rewind"));
+        assertThat(
+                        problems(
+                                workflow(
+                                        "checkpoint a\ndelegate \"t\" to Writer -> r on_failure { rewind to a at most 1 time }")))
+                .noneMatch(p -> p.contains("rewind"));
+        assertThat(
+                        problems(
+                                workflow(
+                                        "checkpoint a\nrewind to a at most 1 time if it still fails { rewind to start at most 1 time }")))
+                .noneMatch(p -> p.contains("no checkpoint"));
     }
 
     @Test
     @Tag("RW-V2.6")
     void aRewindCannotLeaveAParallelBranchOrAForEachBody() {
         String branch = "checkpoint a\nparallel { rewind to a at most 1 time }";
-        assertThat(problems(workflow(branch))).anyMatch(p -> p.contains("can't leave the parallel branch"));
-        assertThat(problems(workflow("checkpoint a\nparallel for each item in items { rewind to a at most 1 time }"))).anyMatch(p -> p.contains("can't leave"));
-        assertThat(problems(workflow("checkpoint a\nparallel for each item in items { rewind to start at most 1 time }"))).anyMatch(p -> p.contains("can't leave"));
-        assertThat(problems(workflow("parallel { checkpoint inner\nrewind to inner at most 1 time }"))).noneMatch(p -> p.contains("can't leave") || p.contains("no checkpoint"));
+        assertThat(problems(workflow(branch)))
+                .anyMatch(p -> p.contains("can't leave the parallel branch"));
+        assertThat(
+                        problems(
+                                workflow(
+                                        "checkpoint a\nparallel for each item in items { rewind to a at most 1 time }")))
+                .anyMatch(p -> p.contains("can't leave"));
+        assertThat(
+                        problems(
+                                workflow(
+                                        "checkpoint a\nparallel for each item in items { rewind to start at most 1 time }")))
+                .anyMatch(p -> p.contains("can't leave"));
+        assertThat(
+                        problems(
+                                workflow(
+                                        "parallel { checkpoint inner\nrewind to inner at most 1 time }")))
+                .noneMatch(p -> p.contains("can't leave") || p.contains("no checkpoint"));
     }
 
     @Test
     @Tag("RW-V2.12")
     void aConditionIsOneComparisonNotACombination() {
-        assertThatThrownBy(() -> parse(workflow("checkpoint a\nrewind to a when (x < 1 or y > 2) at most 1 time"))).hasMessageContaining("one comparison");
-        assertThatThrownBy(() -> parse(workflow("checkpoint a\nrewind to a when (x < 1 and y > 2) at most 1 time"))).hasMessageContaining("one comparison");
-        assertThat(problems(workflow("checkpoint a\nrewind to a when (x < 1) at most 1 time"))).noneMatch(p -> p.contains("one comparison"));
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        workflow(
+                                                "checkpoint a\nrewind to a when (x < 1 or y > 2) at most 1 time")))
+                .hasMessageContaining("one comparison");
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        workflow(
+                                                "checkpoint a\nrewind to a when (x < 1 and y > 2) at most 1 time")))
+                .hasMessageContaining("one comparison");
+        assertThat(problems(workflow("checkpoint a\nrewind to a when (x < 1) at most 1 time")))
+                .noneMatch(p -> p.contains("one comparison"));
     }
 
     @Test
     @Tag("RW-V2.9")
     void stepsThatCanChangeThingsNeedASaidPolicyAndRepeatNeedsApproval() {
-        String crossing = "checkpoint a\ndelegate \"send\" to Sender -> r\nrewind to a at most 1 time %s";
-        assertThat(problems(workflow(crossing.formatted("")))).anyMatch(p -> p.contains("can change things outside the run") && p.contains("Notify") && p.contains("(warning)"));
-        assertThat(problems(workflow(crossing.formatted("side effects: keep")))).noneMatch(p -> p.contains("can change things"));
-        assertThat(problems(workflow(crossing.formatted("side effects: repeat")))).anyMatch(p -> p.contains("must be approved"));
-        assertThat(problems(workflow("checkpoint a\ndelegate \"w\" to Writer -> r\nrewind to a at most 1 time"))).noneMatch(p -> p.contains("can change things"));
-        String approved = workflow(crossing.formatted("side effects: repeat")).replace("tools: [Notify] }", "tools: [Notify] approve: [Notify] }");
+        String crossing =
+                "checkpoint a\ndelegate \"send\" to Sender -> r\nrewind to a at most 1 time %s";
+        assertThat(problems(workflow(crossing.formatted(""))))
+                .anyMatch(
+                        p ->
+                                p.contains("can change things outside the run")
+                                        && p.contains("Notify")
+                                        && p.contains("(warning)"));
+        assertThat(problems(workflow(crossing.formatted("side effects: keep"))))
+                .noneMatch(p -> p.contains("can change things"));
+        assertThat(problems(workflow(crossing.formatted("side effects: repeat"))))
+                .anyMatch(p -> p.contains("must be approved"));
+        assertThat(
+                        problems(
+                                workflow(
+                                        "checkpoint a\ndelegate \"w\" to Writer -> r\nrewind to a at most 1 time")))
+                .noneMatch(p -> p.contains("can change things"));
+        String approved =
+                workflow(crossing.formatted("side effects: repeat"))
+                        .replace("tools: [Notify] }", "tools: [Notify] approve: [Notify] }");
         assertThat(problems(approved)).noneMatch(p -> p.contains("must be approved"));
     }
 }

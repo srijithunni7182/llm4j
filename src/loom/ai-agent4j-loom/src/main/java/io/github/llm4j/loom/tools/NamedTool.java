@@ -3,7 +3,10 @@ package io.github.llm4j.loom.tools;
 import io.github.llm4j.agent.Tool;
 import java.util.Map;
 
-/** Presents a tool under the name the script gave it, so prompts and approvals use the script's names. */
+/**
+ * Presents a tool under the name the script gave it, so prompts and approvals use the script's
+ * names.
+ */
 public final class NamedTool implements Tool {
 
     private final String name;

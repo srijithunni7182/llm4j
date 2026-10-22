@@ -9,15 +9,18 @@ import io.github.llm4j.model.LLMResponse;
 /** Small helpers every provider uses to keep the contract uniform. */
 public final class Providers {
 
-    /** Metadata key holding the provider's own finish reason ({@code end_turn}, {@code MAX_TOKENS}, …). */
+    /**
+     * Metadata key holding the provider's own finish reason ({@code end_turn}, {@code MAX_TOKENS},
+     * …).
+     */
     public static final String FINISH_REASON_RAW = "finish_reason_raw";
 
     private Providers() {}
 
     /**
      * Keeps a typed failure as it is — authentication, invalid request, rate limit, or any provider
-     * failure (unavailable, content blocked) — so callers can tell them apart whichever provider they
-     * use; wraps anything else (parsing errors, I/O) in a {@link ProviderException} as before.
+     * failure (unavailable, content blocked) — so callers can tell them apart whichever provider
+     * they use; wraps anything else (parsing errors, I/O) in a {@link ProviderException} as before.
      */
     public static RuntimeException typed(String provider, String message, Exception e) {
         if (e instanceof AuthenticationException
@@ -39,27 +42,41 @@ public final class Providers {
         return LLMResponse.builder().content("").reasoning(reasoning).model(model).build();
     }
 
-    /** One piece of a streamed tool call: no answer text, only {@link LLMResponse#getToolCallDelta()}. */
-    public static LLMResponse toolCallChunk(io.github.llm4j.model.ToolCallDelta delta, String model) {
+    /**
+     * One piece of a streamed tool call: no answer text, only {@link
+     * LLMResponse#getToolCallDelta()}.
+     */
+    public static LLMResponse toolCallChunk(
+            io.github.llm4j.model.ToolCallDelta delta, String model) {
         return LLMResponse.builder().content("").toolCallDelta(delta).model(model).build();
     }
 
     /**
-     * The last chunk of a stream: no text, the (normalised) finish reason with the provider's raw value,
-     * and the token usage when the provider reported it (null counts as unreported).
+     * The last chunk of a stream: no text, the (normalised) finish reason with the provider's raw
+     * value, and the token usage when the provider reported it (null counts as unreported).
      */
-    public static LLMResponse finalChunk(String rawFinishReason, Integer promptTokens, Integer completionTokens,
-                                         String model) {
-        return finalChunk(rawFinishReason, promptTokens, completionTokens, model, java.util.Map.of());
+    public static LLMResponse finalChunk(
+            String rawFinishReason, Integer promptTokens, Integer completionTokens, String model) {
+        return finalChunk(
+                rawFinishReason, promptTokens, completionTokens, model, java.util.Map.of());
     }
 
     /**
-     * As above, plus the provider data a tool turn needs sent back unchanged (as on a whole response), so a streamed turn can be continued
-     * exactly like one that was not streamed.
+     * As above, plus the provider data a tool turn needs sent back unchanged (as on a whole
+     * response), so a streamed turn can be continued exactly like one that was not streamed.
      */
-    public static LLMResponse finalChunk(String rawFinishReason, Integer promptTokens, Integer completionTokens,
-                                         String model, java.util.Map<String, Object> providerData) {
-        LLMResponse.Builder b = LLMResponse.builder().content("").model(model).finishReason(rawFinishReason).providerData(providerData);
+    public static LLMResponse finalChunk(
+            String rawFinishReason,
+            Integer promptTokens,
+            Integer completionTokens,
+            String model,
+            java.util.Map<String, Object> providerData) {
+        LLMResponse.Builder b =
+                LLMResponse.builder()
+                        .content("")
+                        .model(model)
+                        .finishReason(rawFinishReason)
+                        .providerData(providerData);
         if (rawFinishReason != null) b.addMetadata(FINISH_REASON_RAW, rawFinishReason);
         if (promptTokens != null || completionTokens != null) {
             int p = promptTokens == null ? 0 : promptTokens;

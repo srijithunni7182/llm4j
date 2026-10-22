@@ -2,14 +2,14 @@ package io.github.llm4j.agent.tool;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import io.github.llm4j.LLMClient;
 import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.agent.schedule.AgentScheduler;
-import io.github.llm4j.LLMClient;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
-import java.util.stream.Stream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,12 +22,18 @@ class ScheduledActionToolTest {
     @BeforeEach
     void setup() {
         // We just need a dummy agent to pass to the scheduler
-        LLMClient dummyClient = new LLMClient() {
-            @Override
-            public LLMResponse chat(LLMRequest request) { return null; }
-            @Override
-            public Stream<LLMResponse> chatStream(LLMRequest request) { return Stream.empty(); }
-        };
+        LLMClient dummyClient =
+                new LLMClient() {
+                    @Override
+                    public LLMResponse chat(LLMRequest request) {
+                        return null;
+                    }
+
+                    @Override
+                    public Stream<LLMResponse> chatStream(LLMRequest request) {
+                        return Stream.empty();
+                    }
+                };
         ReActAgent dummyAgent = ReActAgent.builder().llmClient(dummyClient).build();
         scheduler = new AgentScheduler(dummyAgent, 1);
         tool = new ScheduledActionTool(scheduler);

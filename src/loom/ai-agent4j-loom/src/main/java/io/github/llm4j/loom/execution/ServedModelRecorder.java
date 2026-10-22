@@ -18,7 +18,8 @@ final class ServedModelRecorder implements LLMClient {
     }
 
     private void note(LLMResponse response) {
-        if (response != null && response.getModel() != null && !response.getModel().isBlank()) served.accept(response.getModel());
+        if (response != null && response.getModel() != null && !response.getModel().isBlank())
+            served.accept(response.getModel());
     }
 
     @Override

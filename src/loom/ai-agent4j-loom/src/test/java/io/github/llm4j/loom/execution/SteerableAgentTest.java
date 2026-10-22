@@ -16,7 +16,10 @@ class SteerableAgentTest {
 
     @Test
     void anAgentCanBeDeclaredStreamingReasoningAndSteerable() {
-        AgentDef a = parse("agent A { model: \"m\" streaming: true reasoning: true steerable: true }").getAgents().get(0);
+        AgentDef a =
+                parse("agent A { model: \"m\" streaming: true reasoning: true steerable: true }")
+                        .getAgents()
+                        .get(0);
         assertTrue(a.isStreaming());
         assertTrue(a.isReasoning());
         assertTrue(a.isSteerable());
@@ -28,30 +31,47 @@ class SteerableAgentTest {
         assertFalse(a.isStreaming());
         assertFalse(a.isReasoning());
         assertFalse(a.isSteerable());
-        assertFalse(parse("agent A { model: \"m\" steerable: false }").getAgents().get(0).isSteerable());
+        assertFalse(
+                parse("agent A { model: \"m\" steerable: false }")
+                        .getAgents()
+                        .get(0)
+                        .isSteerable());
     }
 
     @Test
     void aValueThatIsNotTrueOrFalseIsRefused() {
-        RuntimeException e = assertThrows(RuntimeException.class, () -> parse("agent A { model: \"m\" steerable: yes }"));
+        RuntimeException e =
+                assertThrows(
+                        RuntimeException.class,
+                        () -> parse("agent A { model: \"m\" steerable: yes }"));
         assertTrue(e.getMessage().contains("steerable must be true or false"), e.getMessage());
     }
 
     @Test
     void theUnknownSettingHintListsTheNewOnes() {
-        RuntimeException e = assertThrows(RuntimeException.class, () -> parse("agent A { model: \"m\" steerabel: true }"));
+        RuntimeException e =
+                assertThrows(
+                        RuntimeException.class,
+                        () -> parse("agent A { model: \"m\" steerabel: true }"));
         assertTrue(e.getMessage().contains("steerable"), e.getMessage());
     }
 
     private static java.util.List<String> warnings(String source) {
-        return new ScriptValidator().validate(parse(source), new ScriptValidator.Context()).stream()
-                .filter(p -> p.severity() == ScriptValidator.Severity.WARNING).map(ScriptValidator.Problem::message).toList();
+        return new ScriptValidator()
+                .validate(parse(source), new ScriptValidator.Context()).stream()
+                        .filter(p -> p.severity() == ScriptValidator.Severity.WARNING)
+                        .map(ScriptValidator.Problem::message)
+                        .toList();
     }
 
     @Test
     void steerableWithoutStreamingIsWarnedAbout() {
-        assertTrue(warnings("agent A { model: \"m\" steerable: true }").stream().anyMatch(m -> m.contains("without streaming")));
+        assertTrue(
+                warnings("agent A { model: \"m\" steerable: true }").stream()
+                        .anyMatch(m -> m.contains("without streaming")));
         assertTrue(warnings("agent A { model: \"m\" steerable: true streaming: true }").isEmpty());
-        assertTrue(warnings("agent A { model: \"m\" reasoning: true }").stream().anyMatch(m -> m.contains("no effect without streaming")));
+        assertTrue(
+                warnings("agent A { model: \"m\" reasoning: true }").stream()
+                        .anyMatch(m -> m.contains("no effect without streaming")));
     }
 }

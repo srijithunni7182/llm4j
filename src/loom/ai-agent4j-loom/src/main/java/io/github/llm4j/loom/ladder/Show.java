@@ -2,10 +2,13 @@ package io.github.llm4j.loom.ladder;
 
 import io.github.llm4j.loom.autonomy.expr.V;
 
-/** Values and expressions as short text for people: the status of a ladder, the reason a level changed. */
+/**
+ * Values and expressions as short text for people: the status of a ladder, the reason a level
+ * changed.
+ */
 final class Show {
 
-    private Show() { }
+    private Show() {}
 
     static String number(double d) {
         if (d == Math.rint(d) && Math.abs(d) < 1e15) return String.valueOf((long) d);
@@ -29,13 +32,22 @@ final class Show {
         if (v instanceof V.Num n) return number(n.value());
         if (v instanceof V.Str s) return "\"" + s.value() + "\"";
         if (v instanceof V.Dur d) return duration(d.millis());
-        if (v instanceof V.Rat r) return number(r.value()) + " (" + r.n() + " cases, lower bound " + number(r.lower95()) + ")";
+        if (v instanceof V.Rat r)
+            return number(r.value())
+                    + " ("
+                    + r.n()
+                    + " cases, lower bound "
+                    + number(r.lower95())
+                    + ")";
         if (v instanceof V.Lst l) return l.items().size() + " values";
         if (v instanceof V.Cs c) return c.cases().size() + " cases";
         return v.getClass().getSimpleName();
     }
 
-    /** One pair of parentheses around the whole text removed: {@code (a >= 1)} becomes {@code a >= 1}. */
+    /**
+     * One pair of parentheses around the whole text removed: {@code (a >= 1)} becomes {@code a >=
+     * 1}.
+     */
     static String unwrapped(String s) {
         if (s.length() < 2 || s.charAt(0) != '(' || s.charAt(s.length() - 1) != ')') return s;
         int depth = 0;

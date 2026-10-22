@@ -7,8 +7,10 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.SmartLifecycle;
 
 /**
- * Starts the trigger runner after the context is up (when {@code llm4j.loom.triggers.enabled}) and, on shutdown, stops it first, asks running workflows to
- * wrap up, waits {@code llm4j.loom.shutdown-grace}, then suspends what is left (a run with a store resumes later) or cancels it.
+ * Starts the trigger runner after the context is up (when {@code llm4j.loom.triggers.enabled}) and,
+ * on shutdown, stops it first, asks running workflows to wrap up, waits {@code
+ * llm4j.loom.shutdown-grace}, then suspends what is left (a run with a store resumes later) or
+ * cancels it.
  */
 final class Llm4jLoomLifecycle implements SmartLifecycle {
 
@@ -19,7 +21,8 @@ final class Llm4jLoomLifecycle implements SmartLifecycle {
     private final ApplicationEventPublisher events;
     private volatile boolean running;
 
-    Llm4jLoomLifecycle(LoomRuntime runtime, Llm4jProperties.Loom settings, ApplicationEventPublisher events) {
+    Llm4jLoomLifecycle(
+            LoomRuntime runtime, Llm4jProperties.Loom settings, ApplicationEventPublisher events) {
         this.runtime = runtime;
         this.settings = settings;
         this.events = events;
@@ -28,19 +31,27 @@ final class Llm4jLoomLifecycle implements SmartLifecycle {
     @Override
     public void start() {
         if (settings.triggers().enabled()) {
-            runtime.host().startTriggers(settings.triggers().pollInterval(), settings.triggers().owner(), settings.triggers().staleAfter(), this::fired);
+            runtime.host()
+                    .startTriggers(
+                            settings.triggers().pollInterval(),
+                            settings.triggers().owner(),
+                            settings.triggers().staleAfter(),
+                            this::fired);
         }
         running = true;
     }
 
     private void fired(TriggerRunner.Fired f) {
-        events.publishEvent(new TriggerFiredEvent(f.trigger().id(), f.runId(), String.valueOf(f.outcome()), f.lateMillis()));
+        events.publishEvent(
+                new TriggerFiredEvent(
+                        f.trigger().id(), f.runId(), String.valueOf(f.outcome()), f.lateMillis()));
     }
 
     @Override
     public void stop() {
         List<String> left = runtime.shutdown(settings.shutdownGrace());
-        if (!left.isEmpty()) log.info("workflow runs still going when the application stopped: " + left);
+        if (!left.isEmpty())
+            log.info("workflow runs still going when the application stopped: " + left);
         running = false;
     }
 

@@ -39,6 +39,7 @@ class DetailTest {
         assertThat(Detail.parse("FULL")).isEqualTo(Detail.FULL);
         assertThat(Detail.parse("metadata")).isEqualTo(Detail.METADATA);
         assertThat(Detail.parse(null)).isEqualTo(Detail.TRUNCATED);
-        assertThatThrownBy(() -> Detail.parse("lots")).hasMessageContaining("full, truncated or metadata");
+        assertThatThrownBy(() -> Detail.parse("lots"))
+                .hasMessageContaining("full, truncated or metadata");
     }
 }

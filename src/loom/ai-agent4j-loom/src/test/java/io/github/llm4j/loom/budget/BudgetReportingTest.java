@@ -16,7 +16,9 @@ class BudgetReportingTest {
 
     @Test
     void v8_1_totalsAgreeByAgentAndByStep() {
-        BudgetScript run = new BudgetScript("""
+        BudgetScript run =
+                new BudgetScript(
+                                """
                 budget { tokens: 5000 }
                 agent Writer { model: "test/model" system: "You are Writer." budget { per_call: 50 } }
                 agent Critic { model: "test/model" system: "You are Critic." budget { per_call: 50 } }
@@ -28,7 +30,9 @@ class BudgetReportingTest {
                     delegate "w3" to Writer -> w3
                     delegate "c3" to Critic -> c3
                 }
-                """, e -> e.setPriceTable(BudgetScript.PRICES)).run();
+                """,
+                                e -> e.setPriceTable(BudgetScript.PRICES))
+                        .run();
         SpendReport report = run.executor.spend();
         SpendReport.Totals total = report.total();
         assertThat(total.tokens()).isEqualTo(900);
@@ -38,21 +42,32 @@ class BudgetReportingTest {
         assertThat(report.byAgent()).containsOnlyKeys("Writer", "Critic");
         assertThat(report.byStep()).hasSize(6);
         for (Map<String, SpendReport.Totals> split : List.of(report.byAgent(), report.byStep())) {
-            assertThat(split.values().stream().mapToLong(SpendReport.Totals::tokens).sum()).isEqualTo(total.tokens());
-            assertThat(split.values().stream().mapToLong(SpendReport.Totals::calls).sum()).isEqualTo(total.calls());
-            assertThat(split.values().stream().map(SpendReport.Totals::cost).reduce(java.math.BigDecimal.ZERO,
-                    java.math.BigDecimal::add)).isEqualByComparingTo(total.cost());
+            assertThat(split.values().stream().mapToLong(SpendReport.Totals::tokens).sum())
+                    .isEqualTo(total.tokens());
+            assertThat(split.values().stream().mapToLong(SpendReport.Totals::calls).sum())
+                    .isEqualTo(total.calls());
+            assertThat(
+                            split.values().stream()
+                                    .map(SpendReport.Totals::cost)
+                                    .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add))
+                    .isEqualByComparingTo(total.cost());
         }
         assertThat(report.byAgent().get("Writer").tokens()).isEqualTo(450);
     }
 
     @Test
     void v8_1b_estimatedChargesAreMarked() {
-        io.github.llm4j.budget.Charge reported = new io.github.llm4j.budget.Charge(100, 50, 1, null, false);
-        io.github.llm4j.budget.Charge estimated = new io.github.llm4j.budget.Charge(100, 110, 1, null, true);
-        SpendReport clean = new SpendReport(List.of(new SpendReport.Line("Main/s0", "Writer", "m", reported)));
-        SpendReport mixed = new SpendReport(List.of(new SpendReport.Line("Main/s0", "Writer", "m", reported),
-                new SpendReport.Line("Main/s1", "Local", "ollama/x", estimated)));
+        io.github.llm4j.budget.Charge reported =
+                new io.github.llm4j.budget.Charge(100, 50, 1, null, false);
+        io.github.llm4j.budget.Charge estimated =
+                new io.github.llm4j.budget.Charge(100, 110, 1, null, true);
+        SpendReport clean =
+                new SpendReport(List.of(new SpendReport.Line("Main/s0", "Writer", "m", reported)));
+        SpendReport mixed =
+                new SpendReport(
+                        List.of(
+                                new SpendReport.Line("Main/s0", "Writer", "m", reported),
+                                new SpendReport.Line("Main/s1", "Local", "ollama/x", estimated)));
         assertThat(clean.total().estimated()).isFalse();
         assertThat(clean.table()).doesNotContain("estimated");
         assertThat(mixed.total().estimated()).isTrue();
@@ -65,16 +80,23 @@ class BudgetReportingTest {
     void v8_2_warningAndRefusalAreAudited() {
         List<String> events = new CopyOnWriteArrayList<>();
         List<Map<String, Object>> data = new CopyOnWriteArrayList<>();
-        NoOpAuditLogger audit = new NoOpAuditLogger() {
-            @Override
-            public void logConversationEvent(String sessionId, String userId, String eventType, Map<String, Object> metadata) {
-                if (eventType.startsWith("budget_")) {
-                    events.add(eventType);
-                    data.add(metadata);
-                }
-            }
-        };
-        BudgetScript run = new BudgetScript("""
+        NoOpAuditLogger audit =
+                new NoOpAuditLogger() {
+                    @Override
+                    public void logConversationEvent(
+                            String sessionId,
+                            String userId,
+                            String eventType,
+                            Map<String, Object> metadata) {
+                        if (eventType.startsWith("budget_")) {
+                            events.add(eventType);
+                            data.add(metadata);
+                        }
+                    }
+                };
+        BudgetScript run =
+                new BudgetScript(
+                        """
                 budget { tokens: 300 warn_at: 50% }
                 agent Writer { model: "test/model" system: "You are Writer." budget { per_call: 50 } }
                 workflow Main() {
@@ -82,17 +104,31 @@ class BudgetReportingTest {
                     delegate "two" to Writer -> b
                     delegate "three" to Writer -> c
                 }
-                """, e -> e.setAuditLogger(audit));
+                """,
+                        e -> e.setAuditLogger(audit));
         assertThatThrownBy(run::run).isInstanceOf(BudgetExceeded.class);
         assertThat(events).containsExactly("budget_warning", "budget_refused");
-        assertThat(data).allSatisfy(d -> assertThat(d).containsKeys("budget", "spentTokens", "spentCalls", "spentCost", "limits"));
+        assertThat(data)
+                .allSatisfy(
+                        d ->
+                                assertThat(d)
+                                        .containsKeys(
+                                                "budget",
+                                                "spentTokens",
+                                                "spentCalls",
+                                                "spentCost",
+                                                "limits"));
         assertThat(data.get(0)).containsEntry("budget", "run").containsEntry("spentTokens", "150");
-        assertThat(data.get(1)).containsEntry("spentTokens", "300").containsEntry("limits", "tokens 300");
+        assertThat(data.get(1))
+                .containsEntry("spentTokens", "300")
+                .containsEntry("limits", "tokens 300");
     }
 
     @Test
     void theTableHasARowPerAgentAndATotal() {
-        BudgetScript run = new BudgetScript("""
+        BudgetScript run =
+                new BudgetScript(
+                                """
                 budget { tokens: 5000 }
                 agent Writer { model: "test/model" system: "You are Writer." budget { per_call: 50 } }
                 agent Critic { model: "test/model" system: "You are Critic." budget { per_call: 50 } }
@@ -100,7 +136,8 @@ class BudgetReportingTest {
                     delegate "w" to Writer -> w
                     delegate "c" to Critic -> c
                 }
-                """).run();
+                """)
+                        .run();
         String[] lines = run.executor.spend().table().split("\n");
         assertThat(lines[0]).matches("agent\\s+calls\\s+prompt\\s+completion\\s+cost");
         assertThat(lines[1]).matches("Writer\\s+1\\s+100\\s+50\\s+\\$0");

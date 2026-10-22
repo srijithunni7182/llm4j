@@ -6,8 +6,8 @@ import java.nio.file.Path;
 
 /**
  * Keeps file access inside the script's directory: agents choose paths (what to transcribe, where
- * speech is written), so a path that climbs out ({@code ..}), is absolute elsewhere, or escapes through
- * a symbolic link is refused.
+ * speech is written), so a path that climbs out ({@code ..}), is absolute elsewhere, or escapes
+ * through a symbolic link is refused.
  */
 public final class SafePaths {
 
@@ -21,9 +21,11 @@ public final class SafePaths {
         if (path == null || path.isBlank()) throw new IllegalArgumentException("no path given");
         Path root = base.toAbsolutePath().normalize();
         Path p = root.resolve(path).normalize();
-        if (!p.startsWith(root)) throw new IllegalArgumentException(path + " is outside the script's directory");
+        if (!p.startsWith(root))
+            throw new IllegalArgumentException(path + " is outside the script's directory");
         try {
-            // Neither the root nor the target has to exist yet (a write creates them): compare where each really
+            // Neither the root nor the target has to exist yet (a write creates them): compare
+            // where each really
             // is, using the nearest part that does exist plus the part that doesn't.
             if (!realLocation(p).startsWith(realLocation(root))) {
                 throw new IllegalArgumentException(path + " leads outside the script's directory");
@@ -37,8 +39,10 @@ public final class SafePaths {
     /** The real (symlink-free) location of a path, even if its last parts don't exist yet. */
     private static Path realLocation(Path path) throws IOException {
         Path existing = path;
-        // A symbolic link counts as existing even when its target doesn't (it would be followed on a write).
-        while (existing != null && !Files.exists(existing, java.nio.file.LinkOption.NOFOLLOW_LINKS)) existing = existing.getParent();
+        // A symbolic link counts as existing even when its target doesn't (it would be followed on
+        // a write).
+        while (existing != null && !Files.exists(existing, java.nio.file.LinkOption.NOFOLLOW_LINKS))
+            existing = existing.getParent();
         if (existing == null) return path;
         return existing.toRealPath().resolve(existing.relativize(path)).normalize();
     }

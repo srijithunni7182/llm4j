@@ -18,13 +18,16 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** What a rewind does about things that already happened outside the run (spec loom-rewind-and-fork R4). */
+/**
+ * What a rewind does about things that already happened outside the run (spec loom-rewind-and-fork
+ * R4).
+ */
 class EffectsAcrossRewindTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
-    static final String SCRIPT = """
+    static final String SCRIPT =
+            """
             tool Log { use: file  root: "out"  mode: write }
             agent Sender   { model: "m" system: "You are Sender."   tools: [Log] max_iterations: 6 }
             agent Reviewer { model: "m" system: "You are Reviewer." }
@@ -40,12 +43,16 @@ class EffectsAcrossRewindTest {
     private static final Pattern FEEDBACK = Pattern.compile("Feedback: (\\S+)");
     final List<String> calls = Collections.synchronizedList(new ArrayList<>());
 
-    /** The sender writes one line (its text is the feedback it was given if {@code vary}) and says what it wrote. */
+    /**
+     * The sender writes one line (its text is the feedback it was given if {@code vary}) and says
+     * what it wrote.
+     */
     String model(io.github.llm4j.model.LLMRequest request, boolean vary) {
         String system = request.getMessages().get(0).getContent();
         String message = ScriptedRun.lastMessage(request);
         int marker = message.lastIndexOf("Current Task:");
-        String task = marker < 0 ? message : message.substring(marker + "Current Task:".length()).trim();
+        String task =
+                marker < 0 ? message : message.substring(marker + "Current Task:".length()).trim();
         if (system.contains("Reviewer")) {
             calls.add("Reviewer");
             boolean second = task.contains("fix1");
@@ -54,9 +61,12 @@ class EffectsAcrossRewindTest {
         calls.add("Sender");
         Matcher m = FEEDBACK.matcher(task);
         String feedback = m.find() ? m.group(1) : "none";
-        if (message.contains("Observation:") && message.lastIndexOf("Observation:") > marker) return ScriptedRun.done("sent[" + feedback + "]");
+        if (message.contains("Observation:") && message.lastIndexOf("Observation:") > marker)
+            return ScriptedRun.done("sent[" + feedback + "]");
         String text = vary ? "line-" + feedback : "same-line";
-        return ScriptedRun.call("Log", "{\"action\": \"append\", \"path\": \"notes.md\", \"content\": \"" + text + "\"}");
+        return ScriptedRun.call(
+                "Log",
+                "{\"action\": \"append\", \"path\": \"notes.md\", \"content\": \"" + text + "\"}");
     }
 
     ScriptedRun run(RunJournal journal, boolean vary) {
@@ -74,7 +84,9 @@ class EffectsAcrossRewindTest {
 
     long lines() throws IOException {
         Path f = dir.resolve("out/notes.md");
-        return Files.exists(f) ? Files.readAllLines(f).stream().filter(l -> !l.isBlank()).count() : 0;
+        return Files.exists(f)
+                ? Files.readAllLines(f).stream().filter(l -> !l.isBlank()).count()
+                : 0;
     }
 
     @Test
@@ -83,7 +95,8 @@ class EffectsAcrossRewindTest {
         ScriptedRun run = run(RunJournal.inMemory(), false);
         start(run, "if blocked { note \"held back\" }").executeWorkflow("W", Map.of());
 
-        assertThat(calls.stream().filter("Sender"::equals)).hasSize(2); // the model call and the tool-using turn of one attempt
+        assertThat(calls.stream().filter("Sender"::equals))
+                .hasSize(2); // the model call and the tool-using turn of one attempt
         assertThat(lines()).isEqualTo(1);
         assertThat(run.journal.all()).doesNotContainKey("#boundaries");
         assertThat(run.audit).contains("rewind_blocked").doesNotContain("run_rewound");
@@ -91,15 +104,22 @@ class EffectsAcrossRewindTest {
 
     @Test
     @Tag("RW-V4.4")
-    void withNoHandlerThePersonIsAskedAndKeepGoesBackWithoutSendingTheSameLineAgain() throws IOException {
+    void withNoHandlerThePersonIsAskedAndKeepGoesBackWithoutSendingTheSameLineAgain()
+            throws IOException {
         ScriptedRun run = run(RunJournal.inMemory(), false);
         run.human = q -> "keep";
         start(run, "").executeWorkflow("W", Map.of());
 
         assertThat(run.questions).hasSize(1);
-        assertThat(run.questions.get(0)).contains("side effects").contains("Log").contains("keep").contains("repeat").contains("cancel");
+        assertThat(run.questions.get(0))
+                .contains("side effects")
+                .contains("Log")
+                .contains("keep")
+                .contains("repeat")
+                .contains("cancel");
         assertThat(run.audit).contains("run_rewound");
-        assertThat(calls.stream().filter("Reviewer"::equals)).hasSize(2); // the second attempt really ran
+        assertThat(calls.stream().filter("Reviewer"::equals))
+                .hasSize(2); // the second attempt really ran
         assertThat(lines()).isEqualTo(1); // ... and the identical line was not written again
     }
 
@@ -132,7 +152,8 @@ class EffectsAcrossRewindTest {
         start(run, "side effects: keep").executeWorkflow("W", Map.of());
 
         assertThat(lines()).isEqualTo(2);
-        assertThat(run.trace.stream().map(t -> t.text()).toList()).anyMatch(t -> t.startsWith("a different effect after a rewind: Log"));
+        assertThat(run.trace.stream().map(t -> t.text()).toList())
+                .anyMatch(t -> t.startsWith("a different effect after a rewind: Log"));
         assertThat(run.audit).contains("effect_after_rewind");
     }
 
@@ -143,9 +164,12 @@ class EffectsAcrossRewindTest {
         start(run, "side effects: keep").executeWorkflow("W", Map.of());
 
         assertThat(lines()).isEqualTo(1);
-        assertThat(calls.stream().filter("Sender"::equals).count()).isGreaterThanOrEqualTo(3); // each attempt's tool turn and answer
-        assertThat(run.trace.stream().map(t -> t.text()).toList()).anyMatch(t -> t.contains("replayed") || t.contains("already"));
-        assertThat(run.journal.all().keySet().stream().filter(k -> k.contains("#effect:")).toList()).hasSize(1);
+        assertThat(calls.stream().filter("Sender"::equals).count())
+                .isGreaterThanOrEqualTo(3); // each attempt's tool turn and answer
+        assertThat(run.trace.stream().map(t -> t.text()).toList())
+                .anyMatch(t -> t.contains("replayed") || t.contains("already"));
+        assertThat(run.journal.all().keySet().stream().filter(k -> k.contains("#effect:")).toList())
+                .hasSize(1);
     }
 
     @Test

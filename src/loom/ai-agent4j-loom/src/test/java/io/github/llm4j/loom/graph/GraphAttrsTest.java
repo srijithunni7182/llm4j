@@ -22,7 +22,10 @@ class GraphAttrsTest {
     }
 
     private static GraphNode byLabel(String label) {
-        return everything.nodes().stream().filter(n -> n.label().equals(label)).findFirst().orElseThrow();
+        return everything.nodes().stream()
+                .filter(n -> n.label().equals(label))
+                .findFirst()
+                .orElseThrow();
     }
 
     @Test
@@ -30,45 +33,53 @@ class GraphAttrsTest {
         Map<String, Object> budget = new LinkedHashMap<>();
         budget.put("tokens", 5000L);
 
-        assertThat(byLabel("delegate Researcher").attrs()).containsExactly(
-                entry("variable", "research"),
-                entry("retry", 3L),
-                entry("backoffMs", 2000L),
-                entry("timeoutMs", 90000L),
-                entry("budget", budget),
-                entry("text", "Research {topic}"));
+        assertThat(byLabel("delegate Researcher").attrs())
+                .containsExactly(
+                        entry("variable", "research"),
+                        entry("retry", 3L),
+                        entry("backoffMs", 2000L),
+                        entry("timeoutMs", 90000L),
+                        entry("budget", budget),
+                        entry("text", "Research {topic}"));
     }
 
     @Test
     void aDelegateCarriesTheOutlineOfTheSchemaItExpects() {
-        GraphNode review = everything.nodes().stream()
-                .filter(n -> "Review {draft}".equals(n.attrs().get("text")))
-                .findFirst()
-                .orElseThrow();
+        GraphNode review =
+                everything.nodes().stream()
+                        .filter(n -> "Review {draft}".equals(n.attrs().get("text")))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(review.attrs()).containsEntry("expecting", "{score, notes}");
     }
 
     @Test
     void aRunCarriesItsTaskArgumentsAndRetry() {
-        assertThat(byLabel("run RefundPolicy").attrs()).containsExactly(
-                entry("task", "RefundPolicy"),
-                entry("variable", "verdict"),
-                entry("args", 1L),
-                entry("retry", 2L),
-                entry("timeoutMs", 30000L));
+        assertThat(byLabel("run RefundPolicy").attrs())
+                .containsExactly(
+                        entry("task", "RefundPolicy"),
+                        entry("variable", "verdict"),
+                        entry("args", 1L),
+                        entry("retry", 2L),
+                        entry("timeoutMs", 30000L));
     }
 
     @Test
     void aBroadcastAndAParallelRoundListTheirAgents() {
-        assertThat(byLabel("broadcast").attrs()).containsEntry("agents", List.of("Critic", "Copywriter"));
+        assertThat(byLabel("broadcast").attrs())
+                .containsEntry("agents", List.of("Critic", "Copywriter"));
         assertThat(byLabel("in parallel: Copywriter").attrs())
                 .containsExactly(entry("agents", List.of("Copywriter")), entry("branches", 2L));
     }
 
     @Test
     void aLoopCarriesItsBoundAndBudgetAndAForEachItsItemAndCollection() {
-        GraphNode loop = everything.nodes().stream().filter(n -> n.kind().equals("loop")).findFirst().orElseThrow();
+        GraphNode loop =
+                everything.nodes().stream()
+                        .filter(n -> n.kind().equals("loop"))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(loop.bound()).isEqualTo(3);
         assertThat(loop.attrs()).containsKey("budget").doesNotContainKey("maxIterations");
 
@@ -87,17 +98,25 @@ class GraphAttrsTest {
 
     @Test
     void aCallAGuardrailAndADecisionCarryTheirNames() {
-        assertThat(byLabel("call Helper").attrs()).containsEntry("variable", "helped").containsEntry("args", 1L);
+        assertThat(byLabel("call Helper").attrs())
+                .containsEntry("variable", "helped")
+                .containsEntry("args", 1L);
         assertThat(byLabel("call Helper").call()).isEqualTo(new CallLink("Helper", null));
         assertThat(byLabel("guardrail PII").attrs()).containsExactly(entry("type", "PII"));
-        assertThat(byLabel("decide Refund").attrs()).containsEntry("decision", "Refund").containsEntry("variable", "choice");
+        assertThat(byLabel("decide Refund").attrs())
+                .containsEntry("decision", "Refund")
+                .containsEntry("variable", "choice");
     }
 
     @Test
     void aDecisionShowsTheLevelItStartsAtWhenTheScriptDeclaresIt() {
         GraphBuilder builder = new GraphBuilder(Map.of("Refund", "suggest"));
-        WorkflowGraph graph = builder.build(
-                GraphTestSupport.parse("workflow W() { decide Refund -> choice }").getWorkflows().get(0), "t.loom");
+        WorkflowGraph graph =
+                builder.build(
+                        GraphTestSupport.parse("workflow W() { decide Refund -> choice }")
+                                .getWorkflows()
+                                .get(0),
+                        "t.loom");
 
         assertThat(graph.nodes().get(1).attrs()).containsEntry("level", "suggest");
     }
@@ -108,7 +127,8 @@ class GraphAttrsTest {
 
         GraphNode delegate = graph.nodes().get(1);
         assertThat(delegate.attrs().keySet()).containsExactly("variable", "text");
-        assertThat(everything.nodes()).allSatisfy(n -> assertThat(n.attrs().values()).doesNotContainNull());
+        assertThat(everything.nodes())
+                .allSatisfy(n -> assertThat(n.attrs().values()).doesNotContainNull());
     }
 
     @Test

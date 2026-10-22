@@ -12,9 +12,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Builds the graphs of a script and everything it imports: loads the import closure, draws each workflow, links
- * {@code call} nodes to their callees and collects the settings of the agents the graphs name. Nothing is run, and
- * no model, secret or network is touched.
+ * Builds the graphs of a script and everything it imports: loads the import closure, draws each
+ * workflow, links {@code call} nodes to their callees and collects the settings of the agents the
+ * graphs name. Nothing is run, and no model, secret or network is touched.
  */
 public final class GraphService {
 
@@ -30,11 +30,24 @@ public final class GraphService {
         ImportClosure closure = loader.load(entryFile);
         List<Diagnostic> diagnostics = new ArrayList<>(closure.diagnostics());
         if (!closure.hasEntry()) {
-            return new GraphResult(GraphResult.VERSION, closure.entry().toString(), List.of(), List.of(), List.of(), Map.of(), diagnostics);
+            return new GraphResult(
+                    GraphResult.VERSION,
+                    closure.entry().toString(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    Map.of(),
+                    diagnostics);
         }
         List<Path> runOrder = new ArrayList<>(closure.scripts().keySet());
 
-        GraphBuilder builder = new GraphBuilder(decisionLevels(closure, runOrder));
+        GraphBuilder builder =
+                new GraphBuilder(
+                        decisionLevels(closure, runOrder),
+                        GraphBuilder.classifiersOf(
+                                runOrder.stream()
+                                        .map(file -> closure.scripts().get(file))
+                                        .toList()));
         List<WorkflowGraph> graphs = new ArrayList<>();
         Map<String, AgentCatalog.Located> agents = new LinkedHashMap<>();
         for (Path file : runOrder) {
@@ -43,7 +56,8 @@ public final class GraphService {
                 graphs.add(builder.build(workflow, file.toString()));
             }
             for (AgentDef agent : script.getAgents()) {
-                agents.putIfAbsent(agent.getName(), new AgentCatalog.Located(agent, file.toString()));
+                agents.putIfAbsent(
+                        agent.getName(), new AgentCatalog.Located(agent, file.toString()));
             }
         }
 
@@ -51,8 +65,14 @@ public final class GraphService {
         diagnostics.addAll(resolution.diagnostics());
         AgentCatalog.Found found = AgentCatalog.describe(resolution.workflows(), agents);
         diagnostics.addAll(found.diagnostics());
-        PromptAnnotator.Annotated annotated = PromptAnnotator.annotate(
-                closure.scripts().get(closure.entry()), closure.entry(), prompts, resolution.workflows(), found.agents(), agents);
+        PromptAnnotator.Annotated annotated =
+                PromptAnnotator.annotate(
+                        closure.scripts().get(closure.entry()),
+                        closure.entry(),
+                        prompts,
+                        resolution.workflows(),
+                        found.agents(),
+                        agents);
 
         List<String> discovery = closure.discovery().stream().map(Path::toString).toList();
         List<WorkflowGraph> ordered = new ArrayList<>(annotated.workflows());
@@ -60,8 +80,10 @@ public final class GraphService {
 
         List<ImportFile> files = new ArrayList<>();
         for (Path file : closure.discovery()) {
-            files.add(new ImportFile(
-                    file.toString(), closure.imports().get(file).stream().map(Path::toString).toList()));
+            files.add(
+                    new ImportFile(
+                            file.toString(),
+                            closure.imports().get(file).stream().map(Path::toString).toList()));
         }
         return new GraphResult(
                 GraphResult.VERSION,
@@ -85,7 +107,10 @@ public final class GraphService {
         return levels;
     }
 
-    /** The run budget, from the first file in run order that declares one, as the harness merges them. */
+    /**
+     * The run budget, from the first file in run order that declares one, as the harness merges
+     * them.
+     */
     private static Map<String, Object> runBudget(ImportClosure closure, List<Path> runOrder) {
         for (Path file : runOrder) {
             var budget = closure.scripts().get(file).getBudget();

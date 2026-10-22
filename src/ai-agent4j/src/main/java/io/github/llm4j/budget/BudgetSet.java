@@ -9,16 +9,20 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The budgets that apply to one LLM call — for example run + agent + step. A call is allowed only if
- * every member can afford it, and it is charged to every member. Reservation is all-or-nothing: the
- * members are locked in one global order (so parallel callers can't deadlock), checked, and either all
- * reserved or none.
+ * The budgets that apply to one LLM call — for example run + agent + step. A call is allowed only
+ * if every member can afford it, and it is charged to every member. Reservation is all-or-nothing:
+ * the members are locked in one global order (so parallel callers can't deadlock), checked, and
+ * either all reserved or none.
  */
 public final class BudgetSet {
 
     /** Output tokens reserved when nothing else says how long the answer may be. */
     public static final long DEFAULT_OUTPUT = 1024;
-    /** Below this many affordable output tokens (or the requested amount, if smaller) a call is refused. */
+
+    /**
+     * Below this many affordable output tokens (or the requested amount, if smaller) a call is
+     * refused.
+     */
     public static final long MIN_OUTPUT = 64;
 
     private static final BudgetSet EMPTY = new BudgetSet(List.of());
@@ -73,12 +77,13 @@ public final class BudgetSet {
     }
 
     /**
-     * Reserves one call. With token or cost limits in the set, the output is capped to what every member
-     * can still afford (at most {@code wanted}, or {@link #DEFAULT_OUTPUT} when {@code wanted} is null)
-     * and the call is refused if that is below {@code min(wanted, MIN_OUTPUT)}. Without them, the output
-     * is left as {@code wanted} (possibly null: no cap).
+     * Reserves one call. With token or cost limits in the set, the output is capped to what every
+     * member can still afford (at most {@code wanted}, or {@link #DEFAULT_OUTPUT} when {@code
+     * wanted} is null) and the call is refused if that is below {@code min(wanted, MIN_OUTPUT)}.
+     * Without them, the output is left as {@code wanted} (possibly null: no cap).
      *
-     * @throws BudgetExceeded naming the first member that can't afford the call; nothing is reserved
+     * @throws BudgetExceeded naming the first member that can't afford the call; nothing is
+     *     reserved
      */
     public Lease reserve(long promptTokens, Long wanted, Pricing pricing) {
         if (members.isEmpty()) return new Lease(this, wanted, 0, 0, BigDecimal.ZERO);
@@ -90,17 +95,30 @@ public final class BudgetSet {
             // Calls.
             for (Budget b : members) {
                 if (b.availableCalls() < 1) {
-                    refusing = b; exhausted = b.exhaustedLocked();
-                    throw new BudgetExceeded(b.name(), Dimension.CALLS, b.spentLocked(), b.limits(), b.windowEndLocked());
+                    refusing = b;
+                    exhausted = b.exhaustedLocked();
+                    throw new BudgetExceeded(
+                            b.name(),
+                            Dimension.CALLS,
+                            b.spentLocked(),
+                            b.limits(),
+                            b.windowEndLocked());
                 }
             }
-            BigDecimal promptCost = pricing == null ? BigDecimal.ZERO : pricing.cost(promptTokens, 0);
+            BigDecimal promptCost =
+                    pricing == null ? BigDecimal.ZERO : pricing.cost(promptTokens, 0);
             // Cost of the prompt alone must fit.
             for (Budget b : members) {
                 BigDecimal left = b.availableCost();
                 if (left != null && left.compareTo(promptCost) < 0) {
-                    refusing = b; exhausted = b.exhaustedLocked();
-                    throw new BudgetExceeded(b.name(), Dimension.COST, b.spentLocked(), b.limits(), b.windowEndLocked());
+                    refusing = b;
+                    exhausted = b.exhaustedLocked();
+                    throw new BudgetExceeded(
+                            b.name(),
+                            Dimension.COST,
+                            b.spentLocked(),
+                            b.limits(),
+                            b.windowEndLocked());
                 }
             }
             Long output = wanted;
@@ -113,23 +131,42 @@ public final class BudgetSet {
                 for (Budget b : members) {
                     if (b.limits().tokens() != null) {
                         long byTokens = b.availableTokens() - promptTokens;
-                        if (byTokens < out) { out = byTokens; binding = b; bindingDim = Dimension.TOKENS; }
+                        if (byTokens < out) {
+                            out = byTokens;
+                            binding = b;
+                            bindingDim = Dimension.TOKENS;
+                        }
                     }
                     BigDecimal left = b.availableCost();
                     if (left != null && pricing != null && pricing.perOutputToken().signum() > 0) {
-                        long byCost = left.subtract(promptCost)
-                                .divide(pricing.perOutputToken(), 0, RoundingMode.FLOOR).longValue();
-                        if (byCost < out) { out = byCost; binding = b; bindingDim = Dimension.COST; }
+                        long byCost =
+                                left.subtract(promptCost)
+                                        .divide(pricing.perOutputToken(), 0, RoundingMode.FLOOR)
+                                        .longValue();
+                        if (byCost < out) {
+                            out = byCost;
+                            binding = b;
+                            bindingDim = Dimension.COST;
+                        }
                     }
                 }
                 if (out < need) {
-                    refusing = binding; exhausted = binding.exhaustedLocked();
-                    throw new BudgetExceeded(binding.name(), bindingDim, binding.spentLocked(), binding.limits(), binding.windowEndLocked());
+                    refusing = binding;
+                    exhausted = binding.exhaustedLocked();
+                    throw new BudgetExceeded(
+                            binding.name(),
+                            bindingDim,
+                            binding.spentLocked(),
+                            binding.limits(),
+                            binding.windowEndLocked());
                 }
                 output = out;
             }
             long reservedTokens = promptTokens + (output == null ? 0 : output);
-            BigDecimal reservedCost = pricing == null ? BigDecimal.ZERO : pricing.cost(promptTokens, output == null ? 0 : output);
+            BigDecimal reservedCost =
+                    pricing == null
+                            ? BigDecimal.ZERO
+                            : pricing.cost(promptTokens, output == null ? 0 : output);
             for (Budget b : members) b.reserveLocked(reservedTokens, 1, reservedCost);
             return new Lease(this, output, reservedTokens, 1, reservedCost);
         } finally {
@@ -138,7 +175,9 @@ public final class BudgetSet {
         }
     }
 
-    /** One reserved call, to be settled with its actual usage (or released if it never happened). */
+    /**
+     * One reserved call, to be settled with its actual usage (or released if it never happened).
+     */
     public static final class Lease {
         private final BudgetSet set;
         private final Long output;

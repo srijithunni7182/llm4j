@@ -132,10 +132,14 @@ public class RegexPIIDetector implements PIIDetector {
         return resultBuilder.build();
     }
 
-    private static final Pattern ISO_DATE = Pattern.compile("\\d{4}-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\\d|3[01])");
-    private static final Pattern DMY_DATE = Pattern.compile("(0?[1-9]|[12]\\d|3[01])-(0?[1-9]|1[0-2])-(\\d{2}|\\d{4})");
+    private static final Pattern ISO_DATE =
+            Pattern.compile("\\d{4}-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\\d|3[01])");
+    private static final Pattern DMY_DATE =
+            Pattern.compile("(0?[1-9]|[12]\\d|3[01])-(0?[1-9]|1[0-2])-(\\d{2}|\\d{4})");
 
-    /** The international phone pattern also matches ISO and day-month-year dates; those are not PII. */
+    /**
+     * The international phone pattern also matches ISO and day-month-year dates; those are not PII.
+     */
     static boolean looksLikeDate(String match) {
         String candidate = match.strip().replaceAll("[-\\s]+$", "");
         return ISO_DATE.matcher(candidate).matches() || DMY_DATE.matcher(candidate).matches();

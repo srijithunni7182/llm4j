@@ -14,8 +14,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 
 /**
- * A downstream API on localhost for tests: it records every request and answers from a queue of replies (200 {@code {}} when the queue is
- * empty), or by a function of the request. The only network these tests touch.
+ * A downstream API on localhost for tests: it records every request and answers from a queue of
+ * replies (200 {@code {}} when the queue is empty), or by a function of the request. The only
+ * network these tests touch.
  */
 final class FakeApi implements AutoCloseable {
 
@@ -46,27 +47,39 @@ final class FakeApi implements AutoCloseable {
 
     FakeApi() {
         try {
-            server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+            server =
+                    HttpServer.create(
+                            new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
-        server.createContext("/", exchange -> {
-            Request request = new Request(exchange.getRequestMethod(), exchange.getRequestURI().toString(), lowerCased(exchange.getRequestHeaders()),
-                    new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-            requests.add(request);
-            Reply reply = next(request);
-            reply.headers().forEach((k, v) -> exchange.getResponseHeaders().add(k, v));
-            byte[] bytes = reply.body().getBytes(StandardCharsets.UTF_8);
-            exchange.sendResponseHeaders(reply.status(), bytes.length == 0 ? -1 : bytes.length);
-            if (bytes.length > 0) exchange.getResponseBody().write(bytes);
-            exchange.close();
-        });
+        server.createContext(
+                "/",
+                exchange -> {
+                    Request request =
+                            new Request(
+                                    exchange.getRequestMethod(),
+                                    exchange.getRequestURI().toString(),
+                                    lowerCased(exchange.getRequestHeaders()),
+                                    new String(
+                                            exchange.getRequestBody().readAllBytes(),
+                                            StandardCharsets.UTF_8));
+                    requests.add(request);
+                    Reply reply = next(request);
+                    reply.headers().forEach((k, v) -> exchange.getResponseHeaders().add(k, v));
+                    byte[] bytes = reply.body().getBytes(StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(
+                            reply.status(), bytes.length == 0 ? -1 : bytes.length);
+                    if (bytes.length > 0) exchange.getResponseBody().write(bytes);
+                    exchange.close();
+                });
         server.start();
     }
 
     private static Map<String, String> lowerCased(com.sun.net.httpserver.Headers headers) {
         Map<String, String> out = new java.util.HashMap<>();
-        headers.forEach((k, v) -> out.put(k.toLowerCase(java.util.Locale.ROOT), String.join(",", v)));
+        headers.forEach(
+                (k, v) -> out.put(k.toLowerCase(java.util.Locale.ROOT), String.join(",", v)));
         return out;
     }
 

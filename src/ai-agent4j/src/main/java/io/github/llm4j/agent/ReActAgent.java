@@ -22,13 +22,6 @@ import io.github.llm4j.budget.BudgetedLLMClient;
 import io.github.llm4j.budget.PriceTable;
 import io.github.llm4j.budget.TokenEstimator;
 import io.github.llm4j.context.CompactionEvent;
-import io.github.llm4j.telemetry.CallTrace;
-import io.github.llm4j.telemetry.ErrorCategory;
-import io.github.llm4j.telemetry.ModelCallEvent;
-import io.github.llm4j.telemetry.RunStats;
-import io.github.llm4j.telemetry.StatsAccumulator;
-import io.github.llm4j.telemetry.ToolCallEvent;
-import io.github.llm4j.telemetry.ToolOutcome;
 import io.github.llm4j.context.ContextCompactor;
 import io.github.llm4j.context.ContextEvents;
 import io.github.llm4j.context.ContextManager;
@@ -46,14 +39,21 @@ import io.github.llm4j.model.ConfidenceScore;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.Message;
-import io.github.llm4j.model.ToolCall;
-import io.github.llm4j.model.ToolSpec;
 import io.github.llm4j.model.TextToSpeechRequest;
 import io.github.llm4j.model.TextToSpeechResponse;
+import io.github.llm4j.model.ToolCall;
+import io.github.llm4j.model.ToolSpec;
 import io.github.llm4j.model.TranscriptionRequest;
 import io.github.llm4j.model.TranscriptionResponse;
 import io.github.llm4j.provider.SpeechToTextProvider;
 import io.github.llm4j.provider.TextToSpeechProvider;
+import io.github.llm4j.telemetry.CallTrace;
+import io.github.llm4j.telemetry.ErrorCategory;
+import io.github.llm4j.telemetry.ModelCallEvent;
+import io.github.llm4j.telemetry.RunStats;
+import io.github.llm4j.telemetry.StatsAccumulator;
+import io.github.llm4j.telemetry.ToolCallEvent;
+import io.github.llm4j.telemetry.ToolOutcome;
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -98,22 +98,36 @@ public class ReActAgent {
             Pattern.compile("(?:Thought|Plan):\\s*(.+?)(?=\\r?\\n|$)", Pattern.CASE_INSENSITIVE);
     private static final Pattern ACTION_PATTERN =
             Pattern.compile("Action:\\s*(.+?)(?=\\r?\\n|$)", Pattern.CASE_INSENSITIVE);
-    /** The input runs to the next protocol line (or the end), so a multi-line JSON input survives. */
+
+    /**
+     * The input runs to the next protocol line (or the end), so a multi-line JSON input survives.
+     */
     private static final Pattern ACTION_INPUT_PATTERN =
             Pattern.compile(
                     "Action Input:\\s*(.+?)(?=\\r?\\n\\s*(?:Observation|Thought|Plan|Action|Final Answer)\\s*:|\\z)",
                     Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+
     private static final Pattern FINAL_ANSWER_PATTERN =
             Pattern.compile("Final Answer:\\s*(.*)", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-    /** A fenced JSON block: any case of {@code json}, spaces, LF or CRLF, with or without a newline before the closing fence. */
+
+    /**
+     * A fenced JSON block: any case of {@code json}, spaces, LF or CRLF, with or without a newline
+     * before the closing fence.
+     */
     private static final Pattern JSON_PATTERN =
-            Pattern.compile("```[ \\t]*json\\b\\s*(.*?)\\s*```", Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
+            Pattern.compile(
+                    "```[ \\t]*json\\b\\s*(.*?)\\s*```", Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
 
     /** How the agent asks the model to use tools. */
     public enum ToolCalling {
-        /** Native tool calling when the client supports it and the default prompt is used; otherwise the text protocol. The default. */
+        /**
+         * Native tool calling when the client supports it and the default prompt is used; otherwise
+         * the text protocol. The default.
+         */
         AUTO,
-        /** Always native; building the agent fails when the client or the tools cannot support it. */
+        /**
+         * Always native; building the agent fails when the client or the tools cannot support it.
+         */
         NATIVE,
         /** The text protocol: the model writes a JSON block that the agent parses. */
         TEXT
@@ -199,8 +213,14 @@ public class ReActAgent {
         this.promptRegistry = builder.promptRegistry;
         this.systemPromptId = builder.systemPromptId;
         this.systemPrompt = resolveSystemPrompt(builder);
-        this.customPrompt = builder.inheritedPrompt ? false : builder.systemPrompt != null || usesRegistryTemplate(builder);
-        this.nativePrompt = builder.inheritedPrompt ? builder.inheritedNativePrompt : buildNativePrompt(builder);
+        this.customPrompt =
+                builder.inheritedPrompt
+                        ? false
+                        : builder.systemPrompt != null || usesRegistryTemplate(builder);
+        this.nativePrompt =
+                builder.inheritedPrompt
+                        ? builder.inheritedNativePrompt
+                        : buildNativePrompt(builder);
         this.toolCalling = builder.toolCalling;
         this.nativeCalling = decideNative(builder);
         this.maxIterations = builder.maxIterations;
@@ -228,7 +248,10 @@ public class ReActAgent {
         this.autoPlayAudio = builder.autoPlayAudio;
         this.streaming = builder.streaming;
         this.reasoning = builder.reasoning;
-        this.effectClassifier = builder.effectClassifier != null ? builder.effectClassifier : EffectClassifier.CAUTIOUS;
+        this.effectClassifier =
+                builder.effectClassifier != null
+                        ? builder.effectClassifier
+                        : EffectClassifier.CAUTIOUS;
         this.toolHooks = List.copyOf(builder.toolHooks);
         this.runHooks = List.copyOf(builder.runHooks);
         this.maxSettleRetries = builder.maxSettleRetries;
@@ -246,35 +269,54 @@ public class ReActAgent {
     private String buildNativePrompt(Builder builder) {
         if (builder.systemPrompt != null) return builder.systemPrompt; // their prompt, as given
         StringBuilder prompt = new StringBuilder();
-        if (builder.instructions != null && !builder.instructions.isBlank()) prompt.append(builder.instructions.trim()).append("\n\n");
+        if (builder.instructions != null && !builder.instructions.isBlank())
+            prompt.append(builder.instructions.trim()).append("\n\n");
         if (persona != null) prompt.append(persona.toSystemPromptAddition()).append("\n\n");
         if (!skills.isEmpty()) {
             prompt.append("## Skills\n\n");
-            for (AgentSkill skill : skills) prompt.append(skill.toSystemPromptSection()).append("\n\n");
+            for (AgentSkill skill : skills)
+                prompt.append(skill.toSystemPromptSection()).append("\n\n");
         }
         return prompt.append(NATIVE_SYSTEM_PROMPT).toString();
     }
 
-    /** Native calling needs a client that supports it, at least one tool, and function-legal tool names. */
+    /**
+     * Native calling needs a client that supports it, at least one tool, and function-legal tool
+     * names.
+     */
     private boolean decideNative(Builder builder) {
         if (builder.toolCalling == ToolCalling.TEXT) return false;
         boolean supported = llmClient.supportsToolCalling();
         boolean hasTools = !tools.isEmpty();
         boolean legal = tools.values().stream().allMatch(t -> ToolSpec.isLegalName(t.getName()));
         if (builder.toolCalling == ToolCalling.NATIVE) {
-            if (!supported) throw new IllegalStateException("toolCalling(NATIVE) needs an LLMClient that supports tool calling (Gemini or Claude); this one does not");
-            if (!hasTools) throw new IllegalStateException("toolCalling(NATIVE) needs at least one tool");
-            if (!legal) throw new IllegalStateException("toolCalling(NATIVE) needs tool names of letters, digits, _ or - (at most 64): " + tools.values().stream().map(Tool::getName).filter(n -> !ToolSpec.isLegalName(n)).toList());
+            if (!supported)
+                throw new IllegalStateException(
+                        "toolCalling(NATIVE) needs an LLMClient that supports tool calling (Gemini or Claude); this one does not");
+            if (!hasTools)
+                throw new IllegalStateException("toolCalling(NATIVE) needs at least one tool");
+            if (!legal)
+                throw new IllegalStateException(
+                        "toolCalling(NATIVE) needs tool names of letters, digits, _ or - (at most 64): "
+                                + tools.values().stream()
+                                        .map(Tool::getName)
+                                        .filter(n -> !ToolSpec.isLegalName(n))
+                                        .toList());
             return true;
         }
         if (supported && hasTools && legal && !customPrompt) return true;
-        if (supported && hasTools && !legal) logger.info("Using the text protocol: some tool names are not legal function names");
+        if (supported && hasTools && !legal)
+            logger.info("Using the text protocol: some tool names are not legal function names");
         return false;
     }
 
-    /** The policy with its window settled: the policy's own, else the shorthand, else the catalogue entry for the model name. */
+    /**
+     * The policy with its window settled: the policy's own, else the shorthand, else the catalogue
+     * entry for the model name.
+     */
     private static ContextPolicy resolveContextPolicy(Builder b) {
-        ContextPolicy policy = b.contextPolicy != null ? b.contextPolicy : ContextPolicy.builder().build();
+        ContextPolicy policy =
+                b.contextPolicy != null ? b.contextPolicy : ContextPolicy.builder().build();
         if (policy.window() != null) return policy;
         if (b.contextWindow != null) return policy.withWindow(ContextWindow.of(b.contextWindow));
         if (b.contextWindows != null && b.budgetModel != null) {
@@ -283,32 +325,55 @@ public class ReActAgent {
         return policy;
     }
 
-    /** A manager for one run, or null when nothing about context was asked for (then the loop behaves exactly as it always has). */
+    /**
+     * A manager for one run, or null when nothing about context was asked for (then the loop
+     * behaves exactly as it always has).
+     */
     private ContextManager newContextManager(List<ToolSpec> specs) {
         if (compactor == null && listeners.isEmpty() && contextPolicy.window() == null) return null;
-        TokenEstimator estimator = tokenEstimator != null ? tokenEstimator : io.github.llm4j.budget.CharsPerTokenEstimator.INSTANCE;
-        long overhead = specs.isEmpty() ? 0 : estimator.prompt(LLMRequest.builder().messages(List.of(Message.user(""))).tools(specs).build());
-        return new ContextManager(contextPolicy, compactor, estimator, overhead, new ContextEvents() {
-            @Override
-            public void onUsage(ContextUsage usage) {
-                notifyContextUsage(usage);
-            }
+        TokenEstimator estimator =
+                tokenEstimator != null
+                        ? tokenEstimator
+                        : io.github.llm4j.budget.CharsPerTokenEstimator.INSTANCE;
+        long overhead =
+                specs.isEmpty()
+                        ? 0
+                        : estimator.prompt(
+                                LLMRequest.builder()
+                                        .messages(List.of(Message.user("")))
+                                        .tools(specs)
+                                        .build());
+        return new ContextManager(
+                contextPolicy,
+                compactor,
+                estimator,
+                overhead,
+                new ContextEvents() {
+                    @Override
+                    public void onUsage(ContextUsage usage) {
+                        notifyContextUsage(usage);
+                    }
 
-            @Override
-            public void onCompaction(CompactionEvent event) {
-                notifyCompaction(event);
-            }
-        });
+                    @Override
+                    public void onCompaction(CompactionEvent event) {
+                        notifyCompaction(event);
+                    }
+                });
     }
 
-    /** Wraps the client in a {@link BudgetedLLMClient} when this agent has a budget or a per-call cap. */
+    /**
+     * Wraps the client in a {@link BudgetedLLMClient} when this agent has a budget or a per-call
+     * cap.
+     */
     private LLMClient budgeted(LLMClient client) {
-        if ((budget == null && maxTokensPerCall == null) || client instanceof BudgetedLLMClient) return client;
-        BudgetedLLMClient.Builder b = BudgetedLLMClient.builder(client)
-                .perCallCap(maxTokensPerCall)
-                .prices(priceTable)
-                .model(budgetModel)
-                .estimator(tokenEstimator);
+        if ((budget == null && maxTokensPerCall == null) || client instanceof BudgetedLLMClient)
+            return client;
+        BudgetedLLMClient.Builder b =
+                BudgetedLLMClient.builder(client)
+                        .perCallCap(maxTokensPerCall)
+                        .prices(priceTable)
+                        .model(budgetModel)
+                        .estimator(tokenEstimator);
         if (budget != null) b.budget(budget);
         return b.build();
     }
@@ -318,8 +383,9 @@ public class ReActAgent {
     }
 
     /**
-     * Runs the agent under the control of {@code handle}: while this call blocks, another thread can steer, pause, resume or cancel the run
-     * through the handle. See {@link RunHandle} for when each takes effect.
+     * Runs the agent under the control of {@code handle}: while this call blocks, another thread
+     * can steer, pause, resume or cancel the run through the handle. See {@link RunHandle} for when
+     * each takes effect.
      *
      * @param handle the run's remote control; {@code null} for a run nobody controls
      */
@@ -334,19 +400,30 @@ public class ReActAgent {
                     decision = hook.onInput(question);
                 } catch (RuntimeException e) {
                     logger.error("A run hook failed to check the question; it is refused", e);
-                    decision = RunHook.Input.reject("The question could not be checked, so it was not run.");
+                    decision =
+                            RunHook.Input.reject(
+                                    "The question could not be checked, so it was not run.");
                 }
                 if (decision == null || decision.kind() == RunHook.Input.Kind.ALLOW) continue;
                 if (decision.kind() == RunHook.Input.Kind.REJECT) {
                     notifyRunHook("input", "rejected", decision.text());
-                    return AgentResult.builder().finalAnswer(decision.text()).completed(false).inputRejected(true).iterations(0)
-                            .confidence(ConfidenceScore.low("Question refused by a hook")).uncertaintyDetected(true)
-                            .uncertaintyReason("Question refused by a hook").build();
+                    return AgentResult.builder()
+                            .finalAnswer(decision.text())
+                            .completed(false)
+                            .inputRejected(true)
+                            .iterations(0)
+                            .confidence(ConfidenceScore.low("Question refused by a hook"))
+                            .uncertaintyDetected(true)
+                            .uncertaintyReason("Question refused by a hook")
+                            .build();
                 }
                 notifyRunHook("input", "replaced", decision.text());
                 question = decision.text();
             }
-            AgentResult result = nativeCalling ? runNative(question, telemetry, handle) : runText(question, telemetry, handle);
+            AgentResult result =
+                    nativeCalling
+                            ? runNative(question, telemetry, handle)
+                            : runText(question, telemetry, handle);
             return result.toBuilder().stats(telemetry.snapshot()).build();
         } finally {
             if (handle != null) handle.release();
@@ -368,10 +445,16 @@ public class ReActAgent {
         return note.toString();
     }
 
-    /** What became of an answer the model was about to finish with: the answer to use, or the message to send back (when {@code sendBack} is set). */
-    private record Settled(String answer, String sendBack) { }
+    /**
+     * What became of an answer the model was about to finish with: the answer to use, or the
+     * message to send back (when {@code sendBack} is set).
+     */
+    private record Settled(String answer, String sendBack) {}
 
-    /** The conversation as one call sees it: with the hooks' note as a last message, which is not kept. */
+    /**
+     * The conversation as one call sees it: with the hooks' note as a last message, which is not
+     * kept.
+     */
     private static List<Message> withNote(List<Message> conversation, String note) {
         if (note.isEmpty()) return conversation;
         List<Message> shown = new ArrayList<>(conversation);
@@ -411,22 +494,33 @@ public class ReActAgent {
 
     /** The loop's checkpoint: go on, end (cancelled), or wrap up. A paused run waits here. */
     private RunHandle.Signal checkpoint(RunHandle handle) {
-        return handle == null ? RunHandle.Signal.GO : handle.proceed(this::notifyPaused, this::notifyResumed);
+        return handle == null
+                ? RunHandle.Signal.GO
+                : handle.proceed(this::notifyPaused, this::notifyResumed);
     }
 
-    private static final String WRAP_UP_NOTE = "Stop using tools now. Give your best final answer from what you have so far; say what you could not finish.";
+    private static final String WRAP_UP_NOTE =
+            "Stop using tools now. Give your best final answer from what you have so far; say what you could not finish.";
 
-    /** Whether any step that ran may have changed something outside the process, as the {@link EffectClassifier} sees it. */
+    /**
+     * Whether any step that ran may have changed something outside the process, as the {@link
+     * EffectClassifier} sees it.
+     */
     private boolean mayHaveChanged(List<AgentResult.AgentStep> steps) {
         for (AgentResult.AgentStep step : steps) {
             if (step.getAction() == null) continue;
-            if (step.getOutcome() != AgentResult.StepOutcome.EXECUTED && step.getOutcome() != AgentResult.StepOutcome.EXECUTION_ERROR) continue;
+            if (step.getOutcome() != AgentResult.StepOutcome.EXECUTED
+                    && step.getOutcome() != AgentResult.StepOutcome.EXECUTION_ERROR) continue;
             Tool tool = tools.get(step.getAction().toLowerCase());
             if (tool == null) continue;
             Map<String, Object> args;
             try {
-                args = step.getActionInput() == null || step.getActionInput().isBlank() ? Map.of()
-                        : objectMapper.readValue(step.getActionInput(), new TypeReference<Map<String, Object>>() {});
+                args =
+                        step.getActionInput() == null || step.getActionInput().isBlank()
+                                ? Map.of()
+                                : objectMapper.readValue(
+                                        step.getActionInput(),
+                                        new TypeReference<Map<String, Object>>() {});
             } catch (Exception e) {
                 args = Map.of("input", step.getActionInput());
             }
@@ -439,16 +533,34 @@ public class ReActAgent {
         return false;
     }
 
-    private StopReport stopReport(RunHandle handle, StopReport.Kind kind, StopReport.Phase phase, String partial, List<AgentResult.AgentStep> steps) {
-        return new StopReport(kind, handle.stopReason(), handle.stopOrigin(), phase, partial, steps, mayHaveChanged(steps));
+    private StopReport stopReport(
+            RunHandle handle,
+            StopReport.Kind kind,
+            StopReport.Phase phase,
+            String partial,
+            List<AgentResult.AgentStep> steps) {
+        return new StopReport(
+                kind,
+                handle.stopReason(),
+                handle.stopOrigin(),
+                phase,
+                partial,
+                steps,
+                mayHaveChanged(steps));
     }
 
-    private static StopReport.Phase phaseAtCheckpoint(StopReport.Phase aborted, int iteration, List<AgentResult.AgentStep> steps) {
+    private static StopReport.Phase phaseAtCheckpoint(
+            StopReport.Phase aborted, int iteration, List<AgentResult.AgentStep> steps) {
         if (aborted != null) return aborted;
-        return iteration == 0 && steps.isEmpty() ? StopReport.Phase.BEFORE_START : StopReport.Phase.BETWEEN_STEPS;
+        return iteration == 0 && steps.isEmpty()
+                ? StopReport.Phase.BEFORE_START
+                : StopReport.Phase.BETWEEN_STEPS;
     }
 
-    /** The messages sent through the handle since the last model call, oldest first, each announced to the listeners. */
+    /**
+     * The messages sent through the handle since the last model call, oldest first, each announced
+     * to the listeners.
+     */
     private List<String> steering(RunHandle handle) {
         if (handle == null) return List.of();
         List<String> messages = handle.drainSteering();
@@ -457,14 +569,22 @@ public class ReActAgent {
     }
 
     private AgentResult buildCancelledResult(
-            RunHandle handle, StopReport.Phase phase,
-            List<AgentResult.AgentStep> steps, String bestSoFar, int iteration, AgentResult.Usage usage,
-            int redundantActionCount, boolean protocolFollowed) {
+            RunHandle handle,
+            StopReport.Phase phase,
+            List<AgentResult.AgentStep> steps,
+            String bestSoFar,
+            int iteration,
+            AgentResult.Usage usage,
+            int redundantActionCount,
+            boolean protocolFollowed) {
         logger.info("Agent run cancelled after {} iteration(s)", iteration);
         notifyCancelled();
         AgentResult result =
                 AgentResult.builder()
-                        .finalAnswer(bestSoFar == null || bestSoFar.isBlank() ? "Run cancelled." : bestSoFar)
+                        .finalAnswer(
+                                bestSoFar == null || bestSoFar.isBlank()
+                                        ? "Run cancelled."
+                                        : bestSoFar)
                         .steps(steps)
                         .iterations(iteration)
                         .completed(false)
@@ -481,13 +601,34 @@ public class ReActAgent {
         return result;
     }
 
-    /** The wrap-up in the text protocol: tell the model to stop using tools, ask once more, and take whatever final answer it gives. */
+    /**
+     * The wrap-up in the text protocol: tell the model to stop using tools, ask once more, and take
+     * whatever final answer it gives.
+     */
     private AgentResult wrapUpText(
-            RunHandle handle, StopReport.Phase phase, Scratchpad scratchpad, List<AgentResult.AgentStep> steps, String best, int iteration,
-            AgentResult.Usage usageNow, int redundantActionCount, boolean protocolFollowed, RunTelemetry telemetry) {
+            RunHandle handle,
+            StopReport.Phase phase,
+            Scratchpad scratchpad,
+            List<AgentResult.AgentStep> steps,
+            String best,
+            int iteration,
+            AgentResult.Usage usageNow,
+            int redundantActionCount,
+            boolean protocolFollowed,
+            RunTelemetry telemetry) {
         scratchpad.steer(WRAP_UP_NOTE);
-        String history = conversationHistory == null ? "" : "Previous conversation history:\n" + conversationHistory.getFormattedHistory() + "\n\n";
-        LLMRequest request = LLMRequest.builder().addSystemMessage(systemPrompt).addUserMessage(history + scratchpad.render()).temperature(temperature).build();
+        String history =
+                conversationHistory == null
+                        ? ""
+                        : "Previous conversation history:\n"
+                                + conversationHistory.getFormattedHistory()
+                                + "\n\n";
+        LLMRequest request =
+                LLMRequest.builder()
+                        .addSystemMessage(systemPrompt)
+                        .addUserMessage(history + scratchpad.render())
+                        .temperature(temperature)
+                        .build();
         String answer = best;
         AgentResult.Usage usage = usageNow;
         try {
@@ -496,7 +637,8 @@ public class ReActAgent {
             answer = out;
             try {
                 Map<String, Object> json = parseResponse(out);
-                if (json.get("final_answer") != null) answer = asAnswerText(json.get("final_answer"));
+                if (json.get("final_answer") != null)
+                    answer = asAnswerText(json.get("final_answer"));
             } catch (Exception notJson) {
                 // the model answered in plain words: that is the answer
             }
@@ -504,24 +646,57 @@ public class ReActAgent {
         } catch (BudgetExceeded exhausted) {
             // there is no budget for the last call: what the agent had stands
         }
-        return buildWrappedUpResult(handle, phase, steps, answer, best, iteration, usage, redundantActionCount, protocolFollowed);
+        return buildWrappedUpResult(
+                handle,
+                phase,
+                steps,
+                answer,
+                best,
+                iteration,
+                usage,
+                redundantActionCount,
+                protocolFollowed);
     }
 
     /** The wrap-up with native tool calling: one more call with tools switched off. */
     private AgentResult wrapUpNative(
-            RunHandle handle, StopReport.Phase phase, List<Message> conversation, List<ToolSpec> specs, List<AgentResult.AgentStep> steps,
-            String best, int iteration, Tally tally, int redundantActionCount, RunTelemetry telemetry) {
+            RunHandle handle,
+            StopReport.Phase phase,
+            List<Message> conversation,
+            List<ToolSpec> specs,
+            List<AgentResult.AgentStep> steps,
+            String best,
+            int iteration,
+            Tally tally,
+            int redundantActionCount,
+            RunTelemetry telemetry) {
         conversation.add(Message.user(Scratchpad.STEER + WRAP_UP_NOTE));
-        LLMRequest request = LLMRequest.builder().messages(conversation).tools(specs).toolChoice(LLMRequest.ToolChoice.NONE).temperature(temperature).build();
+        LLMRequest request =
+                LLMRequest.builder()
+                        .messages(conversation)
+                        .tools(specs)
+                        .toolChoice(LLMRequest.ToolChoice.NONE)
+                        .temperature(temperature)
+                        .build();
         String answer = best;
         try {
             LLMResponse response = chatObserved(request, iteration, telemetry);
             tally.add(response);
-            if (response.getContent() != null && !response.getContent().isBlank()) answer = response.getContent();
+            if (response.getContent() != null && !response.getContent().isBlank())
+                answer = response.getContent();
         } catch (BudgetExceeded exhausted) {
             // there is no budget for the last call: what the agent had stands
         }
-        return buildWrappedUpResult(handle, phase, steps, answer, best, iteration, tally.usage(), redundantActionCount, true);
+        return buildWrappedUpResult(
+                handle,
+                phase,
+                steps,
+                answer,
+                best,
+                iteration,
+                tally.usage(),
+                redundantActionCount,
+                true);
     }
 
     /** The usage so far plus one more call. */
@@ -530,23 +705,38 @@ public class ReActAgent {
         java.math.BigDecimal cost = before.getCost();
         boolean estimated = before.isEstimated();
         if (response.getMetadata() != null) {
-            if (Boolean.TRUE.equals(response.getMetadata().get(BudgetedLLMClient.ESTIMATED))) estimated = true;
-            if (response.getMetadata().get(BudgetedLLMClient.COST) instanceof java.math.BigDecimal c) cost = cost == null ? c : cost.add(c);
+            if (Boolean.TRUE.equals(response.getMetadata().get(BudgetedLLMClient.ESTIMATED)))
+                estimated = true;
+            if (response.getMetadata().get(BudgetedLLMClient.COST)
+                    instanceof java.math.BigDecimal c) cost = cost == null ? c : cost.add(c);
         }
-        return new AgentResult.Usage(before.getLlmCalls() + 1,
+        return new AgentResult.Usage(
+                before.getLlmCalls() + 1,
                 before.getPromptTokens() + (u == null ? 0 : u.getPromptTokens()),
                 before.getCompletionTokens() + (u == null ? 0 : u.getCompletionTokens()),
-                before.getTotalTokens() + (u == null ? 0 : u.getTotalTokens()), estimated, cost);
+                before.getTotalTokens() + (u == null ? 0 : u.getTotalTokens()),
+                estimated,
+                cost);
     }
 
     private AgentResult buildWrappedUpResult(
-            RunHandle handle, StopReport.Phase phase, List<AgentResult.AgentStep> steps, String answer, String bestSoFar, int iteration,
-            AgentResult.Usage usage, int redundantActionCount, boolean protocolFollowed) {
+            RunHandle handle,
+            StopReport.Phase phase,
+            List<AgentResult.AgentStep> steps,
+            String answer,
+            String bestSoFar,
+            int iteration,
+            AgentResult.Usage usage,
+            int redundantActionCount,
+            boolean protocolFollowed) {
         logger.info("Agent run wrapped up after {} iteration(s)", iteration);
         notifyWrappedUp();
         AgentResult result =
                 AgentResult.builder()
-                        .finalAnswer(answer == null || answer.isBlank() ? (bestSoFar == null ? "" : bestSoFar) : answer)
+                        .finalAnswer(
+                                answer == null || answer.isBlank()
+                                        ? (bestSoFar == null ? "" : bestSoFar)
+                                        : answer)
                         .steps(steps)
                         .iterations(iteration)
                         .completed(false)
@@ -563,7 +753,10 @@ public class ReActAgent {
         return result;
     }
 
-    /** What one run measures about its calls: the statistics that go on its result, and the events its listeners hear. */
+    /**
+     * What one run measures about its calls: the statistics that go on its result, and the events
+     * its listeners hear.
+     */
     private final class RunTelemetry {
         private final StatsAccumulator stats = new StatsAccumulator();
 
@@ -609,29 +802,57 @@ public class ReActAgent {
             logger.debug("Agent iteration {}/{}", i + 1, maxIterations);
             RunHandle.Signal signal = checkpoint(handle);
             if (signal != RunHandle.Signal.GO) {
-                AgentResult.Usage usageNow = new AgentResult.Usage(
-                        llmCallCount, totalPromptTokens, totalCompletionTokens, totalTokens, usageEstimated, totalCost);
+                AgentResult.Usage usageNow =
+                        new AgentResult.Usage(
+                                llmCallCount,
+                                totalPromptTokens,
+                                totalCompletionTokens,
+                                totalTokens,
+                                usageEstimated,
+                                totalCost);
                 String best = lastThought != null ? lastThought : lastObservation;
                 StopReport.Phase phase = phaseAtCheckpoint(null, i, steps);
                 if (signal == RunHandle.Signal.CANCEL) {
-                    return buildCancelledResult(handle, phase, steps, best, i, usageNow, redundantActionCount.get(), protocolFollowed);
+                    return buildCancelledResult(
+                            handle,
+                            phase,
+                            steps,
+                            best,
+                            i,
+                            usageNow,
+                            redundantActionCount.get(),
+                            protocolFollowed);
                 }
-                return wrapUpText(handle, phase, scratchpad, steps, best, i, usageNow, redundantActionCount.get(), protocolFollowed, telemetry);
+                return wrapUpText(
+                        handle,
+                        phase,
+                        scratchpad,
+                        steps,
+                        best,
+                        i,
+                        usageNow,
+                        redundantActionCount.get(),
+                        protocolFollowed,
+                        telemetry);
             }
             for (String said : steering(handle)) scratchpad.steer(said);
 
             // ... (request building is the same)
             String context = "";
             if (conversationHistory != null) {
-                context += "Previous conversation history:\n"
-                        + conversationHistory.getFormattedHistory()
-                        + "\n\n";
+                context +=
+                        "Previous conversation history:\n"
+                                + conversationHistory.getFormattedHistory()
+                                + "\n\n";
             }
             if (semanticMemoryService != null && i == 0) {
                 // Only recall on the very first iteration to save embedding tokens/time
                 // Use a truncated version of the question to avoid massive embedding queries
-                String memoryQuery = question.length() > 500 ? question.substring(0, 500) : question;
-                List<String> facts = semanticMemoryService.recallRelevantFacts(memoryQuery, recallTopK, recallMinSimilarity);
+                String memoryQuery =
+                        question.length() > 500 ? question.substring(0, 500) : question;
+                List<String> facts =
+                        semanticMemoryService.recallRelevantFacts(
+                                memoryQuery, recallTopK, recallMinSimilarity);
                 if (!facts.isEmpty()) {
                     context += "Relevant context from user's long-term memory:\n";
                     for (String fact : facts) {
@@ -641,10 +862,20 @@ public class ReActAgent {
                 }
             }
             if (contextManager != null) {
-                // the system prompt (which lists the tools) and the history are part of the prompt too
-                TokenEstimator estimator = tokenEstimator != null ? tokenEstimator : io.github.llm4j.budget.CharsPerTokenEstimator.INSTANCE;
-                long overhead = estimator.prompt(LLMRequest.builder().addSystemMessage(systemPrompt).addUserMessage(context).build());
-                ContextManager.Prepared prepared = contextManager.prepare(scratchpad.messages(), i, overhead);
+                // the system prompt (which lists the tools) and the history are part of the prompt
+                // too
+                TokenEstimator estimator =
+                        tokenEstimator != null
+                                ? tokenEstimator
+                                : io.github.llm4j.budget.CharsPerTokenEstimator.INSTANCE;
+                long overhead =
+                        estimator.prompt(
+                                LLMRequest.builder()
+                                        .addSystemMessage(systemPrompt)
+                                        .addUserMessage(context)
+                                        .build());
+                ContextManager.Prepared prepared =
+                        contextManager.prepare(scratchpad.messages(), i, overhead);
                 if (prepared.changed()) scratchpad.replace(prepared.messages());
                 io.github.llm4j.context.CompactionUsage spent = prepared.summarizerUsage();
                 if (spent != null) {
@@ -652,7 +883,8 @@ public class ReActAgent {
                     totalPromptTokens += (int) spent.promptTokens();
                     totalCompletionTokens += (int) spent.completionTokens();
                     totalTokens += (int) (spent.promptTokens() + spent.completionTokens());
-                    if (spent.cost() != null) totalCost = totalCost == null ? spent.cost() : totalCost.add(spent.cost());
+                    if (spent.cost() != null)
+                        totalCost = totalCost == null ? spent.cost() : totalCost.add(spent.cost());
                 }
             }
             int sent = scratchpad.size();
@@ -660,7 +892,10 @@ public class ReActAgent {
             LLMRequest request =
                     LLMRequest.builder()
                             .addSystemMessage(systemPrompt)
-                            .addUserMessage(context + scratchpad.render() + (hookNote.isEmpty() ? "" : "\n\n" + hookNote))
+                            .addUserMessage(
+                                    context
+                                            + scratchpad.render()
+                                            + (hookNote.isEmpty() ? "" : "\n\n" + hookNote))
                             .temperature(temperature)
                             .build();
             LLMResponse response;
@@ -668,11 +903,25 @@ public class ReActAgent {
                 try {
                     response = chatObserved(request, i, telemetry);
                 } catch (io.github.llm4j.exception.ContextOverflowException overflow) {
-                    // the provider says the prompt is too long: compact harder, once, and try again once
-                    TokenEstimator estimator = tokenEstimator != null ? tokenEstimator : io.github.llm4j.budget.CharsPerTokenEstimator.INSTANCE;
-                    long overhead = contextManager == null ? 0
-                            : estimator.prompt(LLMRequest.builder().addSystemMessage(systemPrompt).addUserMessage(context).build());
-                    ContextManager.Prepared again = contextManager == null ? null : contextManager.recoverFromOverflow(scratchpad.messages(), i, overhead);
+                    // the provider says the prompt is too long: compact harder, once, and try again
+                    // once
+                    TokenEstimator estimator =
+                            tokenEstimator != null
+                                    ? tokenEstimator
+                                    : io.github.llm4j.budget.CharsPerTokenEstimator.INSTANCE;
+                    long overhead =
+                            contextManager == null
+                                    ? 0
+                                    : estimator.prompt(
+                                            LLMRequest.builder()
+                                                    .addSystemMessage(systemPrompt)
+                                                    .addUserMessage(context)
+                                                    .build());
+                    ContextManager.Prepared again =
+                            contextManager == null
+                                    ? null
+                                    : contextManager.recoverFromOverflow(
+                                            scratchpad.messages(), i, overhead);
                     if (again == null || !again.changed()) throw overflow;
                     scratchpad.replace(again.messages());
                     io.github.llm4j.context.CompactionUsage spent = again.summarizerUsage();
@@ -681,17 +930,26 @@ public class ReActAgent {
                         totalPromptTokens += (int) spent.promptTokens();
                         totalCompletionTokens += (int) spent.completionTokens();
                         totalTokens += (int) (spent.promptTokens() + spent.completionTokens());
-                        if (spent.cost() != null) totalCost = totalCost == null ? spent.cost() : totalCost.add(spent.cost());
+                        if (spent.cost() != null)
+                            totalCost =
+                                    totalCost == null ? spent.cost() : totalCost.add(spent.cost());
                     }
                     sent = scratchpad.size();
-                    request = LLMRequest.builder().addSystemMessage(systemPrompt).addUserMessage(context + scratchpad.render()).temperature(temperature).build();
+                    request =
+                            LLMRequest.builder()
+                                    .addSystemMessage(systemPrompt)
+                                    .addUserMessage(context + scratchpad.render())
+                                    .temperature(temperature)
+                                    .build();
                     response = chatObserved(request, i, telemetry);
                 }
             } catch (io.github.llm4j.exception.RateLimitException limited) {
-                // Too long to wait inline (the HTTP layer already waited out short limits): hand the
+                // Too long to wait inline (the HTTP layer already waited out short limits): hand
+                // the
                 // reset time to the caller instead of retrying or answering half-way.
                 throw new io.github.llm4j.ratelimit.RateLimited(
-                        limited.infoOrEstimate(java.time.Instant.now(), java.time.Duration.ofSeconds(60)),
+                        limited.infoOrEstimate(
+                                java.time.Instant.now(), java.time.Duration.ofSeconds(60)),
                         io.github.llm4j.ratelimit.RateLimited.Reason.PROVIDER_LIMIT);
             } catch (BudgetExceeded exhausted) {
                 if (budgetPolicy == BudgetPolicy.FAIL) throw exhausted;
@@ -700,11 +958,18 @@ public class ReActAgent {
                 }
                 return buildBudgetExhaustedResult(
                         exhausted,
-                        lastThought != null ? lastThought : lastObservation != null ? lastObservation : "",
+                        lastThought != null
+                                ? lastThought
+                                : lastObservation != null ? lastObservation : "",
                         steps,
                         i,
-                        new AgentResult.Usage(llmCallCount, totalPromptTokens, totalCompletionTokens,
-                                totalTokens, usageEstimated, totalCost),
+                        new AgentResult.Usage(
+                                llmCallCount,
+                                totalPromptTokens,
+                                totalCompletionTokens,
+                                totalTokens,
+                                usageEstimated,
+                                totalCost),
                         redundantActionCount.get(),
                         protocolFollowed);
             }
@@ -713,15 +978,18 @@ public class ReActAgent {
 
             llmCallCount++;
             LLMResponse.TokenUsage tokenUsage = response.getTokenUsage();
-            if (contextManager != null && tokenUsage != null) contextManager.reported(tokenUsage.getPromptTokens(), sent);
+            if (contextManager != null && tokenUsage != null)
+                contextManager.reported(tokenUsage.getPromptTokens(), sent);
             if (tokenUsage != null) {
                 totalPromptTokens += tokenUsage.getPromptTokens();
                 totalCompletionTokens += tokenUsage.getCompletionTokens();
                 totalTokens += tokenUsage.getTotalTokens();
             }
             if (response.getMetadata() != null) {
-                if (Boolean.TRUE.equals(response.getMetadata().get(BudgetedLLMClient.ESTIMATED))) usageEstimated = true;
-                if (response.getMetadata().get(BudgetedLLMClient.COST) instanceof java.math.BigDecimal c) {
+                if (Boolean.TRUE.equals(response.getMetadata().get(BudgetedLLMClient.ESTIMATED)))
+                    usageEstimated = true;
+                if (response.getMetadata().get(BudgetedLLMClient.COST)
+                        instanceof java.math.BigDecimal c) {
                     totalCost = totalCost == null ? c : totalCost.add(c);
                 }
             }
@@ -746,10 +1014,14 @@ public class ReActAgent {
                 if (!responseJson.containsKey("final_answer")
                         && !responseJson.containsKey("action")
                         && !responseJson.containsKey("thought")) {
-                    // ("plan" alone is not the protocol: a structured answer may well have a "plan" field)
+                    // ("plan" alone is not the protocol: a structured answer may well have a "plan"
+                    // field)
                     // A bare JSON payload (e.g. a structured-output reply) is the answer itself.
-                    responseJson = new HashMap<>(Map.of(
-                            "final_answer", objectMapper.writeValueAsString(responseJson)));
+                    responseJson =
+                            new HashMap<>(
+                                    Map.of(
+                                            "final_answer",
+                                            objectMapper.writeValueAsString(responseJson)));
                 }
 
                 if (responseJson.containsKey("final_answer")) {
@@ -769,8 +1041,12 @@ public class ReActAgent {
                             steps,
                             i,
                             new AgentResult.Usage(
-                                    llmCallCount, totalPromptTokens, totalCompletionTokens, totalTokens,
-                                    usageEstimated, totalCost),
+                                    llmCallCount,
+                                    totalPromptTokens,
+                                    totalCompletionTokens,
+                                    totalTokens,
+                                    usageEstimated,
+                                    totalCost),
                             redundantActionCount.get(),
                             protocolFollowed);
                 }
@@ -801,7 +1077,14 @@ public class ReActAgent {
                 }
 
                 ActionExecution execution =
-                        executeAction(action, actionInput, actionHistory, thought, redundantActionCount, telemetry, i);
+                        executeAction(
+                                action,
+                                actionInput,
+                                actionHistory,
+                                thought,
+                                redundantActionCount,
+                                telemetry,
+                                i);
                 String observation = execution.observation();
                 lastObservation = observation;
 
@@ -822,23 +1105,31 @@ public class ReActAgent {
         return buildFailureResult(
                 steps,
                 new AgentResult.Usage(
-                        llmCallCount, totalPromptTokens, totalCompletionTokens, totalTokens,
-                        usageEstimated, totalCost),
+                        llmCallCount,
+                        totalPromptTokens,
+                        totalCompletionTokens,
+                        totalTokens,
+                        usageEstimated,
+                        totalCost),
                 redundantActionCount.get(),
                 protocolFollowed);
     }
-
 
     /** The tools as offered to a model that supports native tool calling. */
     private List<ToolSpec> toolSpecs() {
         List<ToolSpec> specs = new ArrayList<>();
         for (Tool tool : tools.values()) {
-            specs.add(new ToolSpec(tool.getName(), tool.getDescription(), tool.getParametersSchema()));
+            specs.add(
+                    new ToolSpec(
+                            tool.getName(), tool.getDescription(), tool.getParametersSchema()));
         }
         return specs;
     }
 
-    /** What a tool with no declared parameters is sent as: a free-form {@code input} string, which may hold a JSON object. */
+    /**
+     * What a tool with no declared parameters is sent as: a free-form {@code input} string, which
+     * may hold a JSON object.
+     */
     private static Map<String, Object> unwrapFreeForm(Tool tool, Map<String, Object> args) {
         Object declared = tool.getParametersSchema().get("properties");
         boolean none = !(declared instanceof Map<?, ?> m) || m.isEmpty();
@@ -870,8 +1161,10 @@ public class ReActAgent {
                 total += u.getTotalTokens();
             }
             if (response.getMetadata() != null) {
-                if (Boolean.TRUE.equals(response.getMetadata().get(BudgetedLLMClient.ESTIMATED))) estimated = true;
-                if (response.getMetadata().get(BudgetedLLMClient.COST) instanceof java.math.BigDecimal c) cost = cost == null ? c : cost.add(c);
+                if (Boolean.TRUE.equals(response.getMetadata().get(BudgetedLLMClient.ESTIMATED)))
+                    estimated = true;
+                if (response.getMetadata().get(BudgetedLLMClient.COST)
+                        instanceof java.math.BigDecimal c) cost = cost == null ? c : cost.add(c);
             }
         }
 
@@ -891,8 +1184,9 @@ public class ReActAgent {
     }
 
     /**
-     * The loop on native tool calling: the model gets the tools as definitions and answers with tool calls; each result goes back as a tool
-     * message, and a reply with no tool calls is the final answer. Approvals, budgets, rate limits, duplicate blocking, listeners, audit and the
+     * The loop on native tool calling: the model gets the tools as definitions and answers with
+     * tool calls; each result goes back as a tool message, and a reply with no tool calls is the
+     * final answer. Approvals, budgets, rate limits, duplicate blocking, listeners, audit and the
      * result are the same as on the text protocol.
      */
     private AgentResult runNative(String question, RunTelemetry telemetry, RunHandle handle) {
@@ -907,11 +1201,16 @@ public class ReActAgent {
 
         String context = "";
         if (conversationHistory != null) {
-            context += "Previous conversation history:\n" + conversationHistory.getFormattedHistory() + "\n\n";
+            context +=
+                    "Previous conversation history:\n"
+                            + conversationHistory.getFormattedHistory()
+                            + "\n\n";
         }
         if (semanticMemoryService != null) {
             String memoryQuery = question.length() > 500 ? question.substring(0, 500) : question;
-            List<String> facts = semanticMemoryService.recallRelevantFacts(memoryQuery, recallTopK, recallMinSimilarity);
+            List<String> facts =
+                    semanticMemoryService.recallRelevantFacts(
+                            memoryQuery, recallTopK, recallMinSimilarity);
             if (!facts.isEmpty()) {
                 context += "Relevant context from user's long-term memory:\n";
                 for (String fact : facts) context += "- " + fact + "\n";
@@ -923,7 +1222,9 @@ public class ReActAgent {
         conversation.add(Message.user(context + question));
         List<ToolSpec> specs = toolSpecs();
         ContextManager contextManager = newContextManager(specs);
-        StopReport.Phase abortedIn = null; // set when a steer or wrap-up closed a streaming call, so a stop right after says where it happened
+        StopReport.Phase abortedIn =
+                null; // set when a steer or wrap-up closed a streaming call, so a stop right after
+        // says where it happened
 
         for (int i = 0; i < maxIterations; i++) {
             logger.debug("Agent iteration {}/{} (native tool calling)", i + 1, maxIterations);
@@ -931,14 +1232,31 @@ public class ReActAgent {
             StopReport.Phase phase = phaseAtCheckpoint(abortedIn, i, steps);
             abortedIn = null;
             if (signal == RunHandle.Signal.CANCEL) {
-                return buildCancelledResult(handle, phase, steps, lastThought != null ? lastThought : lastObservation, i,
-                        tally.usage(), redundantActionCount.get(), true);
+                return buildCancelledResult(
+                        handle,
+                        phase,
+                        steps,
+                        lastThought != null ? lastThought : lastObservation,
+                        i,
+                        tally.usage(),
+                        redundantActionCount.get(),
+                        true);
             }
             if (signal == RunHandle.Signal.WRAP_UP) {
-                return wrapUpNative(handle, phase, conversation, specs, steps, lastThought != null ? lastThought : lastObservation, i,
-                        tally, redundantActionCount.get(), telemetry);
+                return wrapUpNative(
+                        handle,
+                        phase,
+                        conversation,
+                        specs,
+                        steps,
+                        lastThought != null ? lastThought : lastObservation,
+                        i,
+                        tally,
+                        redundantActionCount.get(),
+                        telemetry);
             }
-            for (String said : steering(handle)) conversation.add(Message.user(Scratchpad.STEER + said));
+            for (String said : steering(handle))
+                conversation.add(Message.user(Scratchpad.STEER + said));
             if (contextManager != null) {
                 ContextManager.Prepared prepared = contextManager.prepare(conversation, i);
                 if (prepared.changed()) conversation = new ArrayList<>(prepared.messages());
@@ -946,24 +1264,41 @@ public class ReActAgent {
             }
             int sent = conversation.size();
             String hookNote = modelNote(i, steps);
-            LLMRequest request = LLMRequest.builder().messages(withNote(conversation, hookNote)).tools(specs).temperature(temperature).reasoning(streaming && reasoning).build();
+            LLMRequest request =
+                    LLMRequest.builder()
+                            .messages(withNote(conversation, hookNote))
+                            .tools(specs)
+                            .temperature(temperature)
+                            .reasoning(streaming && reasoning)
+                            .build();
             LLMResponse response;
             try {
                 try {
                     response = modelCall(request, i, telemetry, handle);
                 } catch (io.github.llm4j.exception.ContextOverflowException overflow) {
-                    // the provider says the prompt is too long: compact harder, once, and try again once
-                    ContextManager.Prepared again = contextManager == null ? null : contextManager.recoverFromOverflow(conversation, i, 0);
+                    // the provider says the prompt is too long: compact harder, once, and try again
+                    // once
+                    ContextManager.Prepared again =
+                            contextManager == null
+                                    ? null
+                                    : contextManager.recoverFromOverflow(conversation, i, 0);
                     if (again == null || !again.changed()) throw overflow;
                     tally.add(again.summarizerUsage());
                     conversation = new ArrayList<>(again.messages());
                     sent = conversation.size();
-                    request = LLMRequest.builder().messages(withNote(conversation, hookNote)).tools(specs).temperature(temperature).reasoning(streaming && reasoning).build();
+                    request =
+                            LLMRequest.builder()
+                                    .messages(withNote(conversation, hookNote))
+                                    .tools(specs)
+                                    .temperature(temperature)
+                                    .reasoning(streaming && reasoning)
+                                    .build();
                     response = modelCall(request, i, telemetry, handle);
                 }
             } catch (io.github.llm4j.exception.RateLimitException limited) {
                 throw new io.github.llm4j.ratelimit.RateLimited(
-                        limited.infoOrEstimate(java.time.Instant.now(), java.time.Duration.ofSeconds(60)),
+                        limited.infoOrEstimate(
+                                java.time.Instant.now(), java.time.Duration.ofSeconds(60)),
                         io.github.llm4j.ratelimit.RateLimited.Reason.PROVIDER_LIMIT);
             } catch (BudgetExceeded exhausted) {
                 if (budgetPolicy == BudgetPolicy.FAIL) throw exhausted;
@@ -972,14 +1307,23 @@ public class ReActAgent {
                 }
                 return buildBudgetExhaustedResult(
                         exhausted,
-                        lastThought != null ? lastThought : lastObservation != null ? lastObservation : "",
-                        steps, i, tally.usage(), redundantActionCount.get(), true);
+                        lastThought != null
+                                ? lastThought
+                                : lastObservation != null ? lastObservation : "",
+                        steps,
+                        i,
+                        tally.usage(),
+                        redundantActionCount.get(),
+                        true);
             }
             if (response.getMetadata().containsKey(StreamedReply.INTERRUPTED)) {
-                // a steer or cancel closed the call. What the model had said so far stays in the conversation; half a tool call does not.
-                // The checkpoint at the top of the loop then ends the run (cancel) or delivers the steering (steer).
+                // a steer or cancel closed the call. What the model had said so far stays in the
+                // conversation; half a tool call does not.
+                // The checkpoint at the top of the loop then ends the run (cancel) or delivers the
+                // steering (steer).
                 tally.add(response);
-                if (!response.getContent().isBlank()) conversation.add(Message.assistant(response.getContent()));
+                if (!response.getContent().isBlank())
+                    conversation.add(Message.assistant(response.getContent()));
                 abortedIn = StopReport.Phase.MODEL_CALL;
                 continue;
             }
@@ -988,21 +1332,36 @@ public class ReActAgent {
                 contextManager.reported(response.getTokenUsage().getPromptTokens(), sent);
             }
             String text = response.getContent() == null ? "" : response.getContent();
-            logger.info("=== LLM Response (Iteration {}) ===\n{}{}", i + 1, text, response.hasToolCalls() ? "\n[tool calls: " + response.getToolCalls().size() + "]" : "");
+            logger.info(
+                    "=== LLM Response (Iteration {}) ===\n{}{}",
+                    i + 1,
+                    text,
+                    response.hasToolCalls()
+                            ? "\n[tool calls: " + response.getToolCalls().size() + "]"
+                            : "");
 
-            if (response.getMetadata().get(StreamedReply.MALFORMED) instanceof List<?> broken && !broken.isEmpty()) {
-                // a call's arguments were cut off or not JSON: nothing from this turn runs (the calls that did parse are dropped with it,
+            if (response.getMetadata().get(StreamedReply.MALFORMED) instanceof List<?> broken
+                    && !broken.isEmpty()) {
+                // a call's arguments were cut off or not JSON: nothing from this turn runs (the
+                // calls that did parse are dropped with it,
                 // so the model writes them all again); say so, and let the model try again
                 if (!text.isBlank()) conversation.add(Message.assistant(text));
-                conversation.add(Message.user("Your call to " + String.join(", ", broken.stream().map(String::valueOf).toList())
-                        + " could not be read: its arguments were cut off or not valid JSON. Call it again."));
+                conversation.add(
+                        Message.user(
+                                "Your call to "
+                                        + String.join(
+                                                ", ", broken.stream().map(String::valueOf).toList())
+                                        + " could not be read: its arguments were cut off or not valid JSON. Call it again."));
                 continue;
             }
 
             if (!response.hasToolCalls()) {
                 if (text.isBlank()) {
-                    // an empty reply is not an answer: say so and let the model try again (this counts as an iteration)
-                    conversation.add(Message.user("Your last reply was empty. Call a tool, or give your final answer."));
+                    // an empty reply is not an answer: say so and let the model try again (this
+                    // counts as an iteration)
+                    conversation.add(
+                            Message.user(
+                                    "Your last reply was empty. Call a tool, or give your final answer."));
                     continue;
                 }
                 Settled settled = settle(text, steps, sentBack);
@@ -1012,7 +1371,15 @@ public class ReActAgent {
                     conversation.add(Message.user(Scratchpad.SETTLE + settled.sendBack()));
                     continue;
                 }
-                return processFinalAnswer(question, settled.answer(), null, steps, i, tally.usage(), redundantActionCount.get(), true);
+                return processFinalAnswer(
+                        question,
+                        settled.answer(),
+                        null,
+                        steps,
+                        i,
+                        tally.usage(),
+                        redundantActionCount.get(),
+                        true);
             }
 
             String thought = text.isBlank() ? null : text.trim();
@@ -1021,20 +1388,34 @@ public class ReActAgent {
                 lastThought = thought;
             }
             List<ToolCall> calls = new ArrayList<>();
-            for (ToolCall c : response.getToolCalls()) calls.add(c.id() == null || c.id().isBlank() ? c.withId("call_" + (++callNumber)) : c);
+            for (ToolCall c : response.getToolCalls())
+                calls.add(
+                        c.id() == null || c.id().isBlank()
+                                ? c.withId("call_" + (++callNumber))
+                                : c);
             conversation.add(Message.assistantToolCalls(text, calls, response.getProviderData()));
 
             boolean firstCall = true;
             for (ToolCall call : calls) {
                 if (!firstCall && checkpoint(handle) == RunHandle.Signal.CANCEL) {
-                    // cancelled between the calls of one turn: the rest are not run, and the run ends here. (A wrap-up waits for the end of the
-                    // turn: the conversation cannot take another message while calls of this one still lack their results.)
-                    return buildCancelledResult(handle, StopReport.Phase.BETWEEN_TOOLS, steps, lastObservation, i + 1,
-                            tally.usage(), redundantActionCount.get(), true);
+                    // cancelled between the calls of one turn: the rest are not run, and the run
+                    // ends here. (A wrap-up waits for the end of the
+                    // turn: the conversation cannot take another message while calls of this one
+                    // still lack their results.)
+                    return buildCancelledResult(
+                            handle,
+                            StopReport.Phase.BETWEEN_TOOLS,
+                            steps,
+                            lastObservation,
+                            i + 1,
+                            tally.usage(),
+                            redundantActionCount.get(),
+                            true);
                 }
                 firstCall = false;
                 Tool tool = tools.get(call.name().toLowerCase());
-                Map<String, Object> args = tool == null ? call.arguments() : unwrapFreeForm(tool, call.arguments());
+                Map<String, Object> args =
+                        tool == null ? call.arguments() : unwrapFreeForm(tool, call.arguments());
                 String actionInput;
                 try {
                     actionInput = objectMapper.writeValueAsString(args);
@@ -1042,10 +1423,25 @@ public class ReActAgent {
                     actionInput = String.valueOf(args);
                 }
                 notifyAction(call.name(), actionInput);
-                ActionExecution execution = executeAction(call.name(), actionInput, actionHistory, thought, redundantActionCount, telemetry, i);
+                ActionExecution execution =
+                        executeAction(
+                                call.name(),
+                                actionInput,
+                                actionHistory,
+                                thought,
+                                redundantActionCount,
+                                telemetry,
+                                i);
                 lastObservation = execution.observation();
-                steps.add(new AgentResult.AgentStep(thought, call.name(), actionInput, execution.observation(), execution.outcome()));
-                conversation.add(Message.toolResult(call.id(), call.name(), execution.observation()));
+                steps.add(
+                        new AgentResult.AgentStep(
+                                thought,
+                                call.name(),
+                                actionInput,
+                                execution.observation(),
+                                execution.outcome()));
+                conversation.add(
+                        Message.toolResult(call.id(), call.name(), execution.observation()));
                 thought = null; // the model's note belongs to the first call of the turn
             }
         }
@@ -1053,8 +1449,8 @@ public class ReActAgent {
     }
 
     /**
-     * Models asked for structured output often put a JSON object (rather than a string) in
-     * {@code final_answer}; keep it as JSON text instead of failing the iteration.
+     * Models asked for structured output often put a JSON object (rather than a string) in {@code
+     * final_answer}; keep it as JSON text instead of failing the iteration.
      */
     private static String asAnswerText(Object finalAnswer) throws JsonProcessingException {
         if (finalAnswer == null) return "";
@@ -1083,7 +1479,8 @@ public class ReActAgent {
         String trimmed = llmOutput.trim();
         if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
             try {
-                Map<String, Object> bare = objectMapper.readValue(trimmed, new TypeReference<>() {});
+                Map<String, Object> bare =
+                        objectMapper.readValue(trimmed, new TypeReference<>() {});
                 if (bare.containsKey("action") || bare.containsKey("final_answer")) return bare;
             } catch (JsonProcessingException notProtocolJson) {
                 // fall through to the line formats
@@ -1110,7 +1507,10 @@ public class ReActAgent {
         throw new Exception("No valid JSON block or legacy format found in LLM output.");
     }
 
-    /** Pairs a step's observation text with what actually happened, and with what was measured about the call. */
+    /**
+     * Pairs a step's observation text with what actually happened, and with what was measured about
+     * the call.
+     */
     private record ActionExecution(
             String observation,
             AgentResult.StepOutcome outcome,
@@ -1126,34 +1526,66 @@ public class ReActAgent {
     }
 
     /**
-     * One model call, timed and reported: an event for an answer and for a failure alike, and a failure still propagates exactly as it would have. The
-     * summariser of a compaction strategy has its own client and is not a call of the run (its usage is reported with the compaction).
+     * One model call, timed and reported: an event for an answer and for a failure alike, and a
+     * failure still propagates exactly as it would have. The summariser of a compaction strategy
+     * has its own client and is not a call of the run (its usage is reported with the compaction).
      */
     private LLMResponse chatObserved(LLMRequest request, int iteration, RunTelemetry telemetry) {
         return observed(request, iteration, telemetry, () -> llmClient.chat(request));
     }
 
-    /** The model call as the loop makes it: streamed and put back together when streaming is on, otherwise whole. */
-    private LLMResponse modelCall(LLMRequest request, int iteration, RunTelemetry telemetry, RunHandle handle) {
+    /**
+     * The model call as the loop makes it: streamed and put back together when streaming is on,
+     * otherwise whole.
+     */
+    private LLMResponse modelCall(
+            LLMRequest request, int iteration, RunTelemetry telemetry, RunHandle handle) {
         if (!streaming) return chatObserved(request, iteration, telemetry);
-        return observed(request, iteration, telemetry, () -> StreamedReply.read(llmClient.chatStream(request), handle, new StreamedReply.Sink() {
-            public void reasoning(String piece) { notifyReasoningDelta(piece); }
-            public void text(String piece) { notifyTextDelta(piece); }
-            public void toolCallStarted(String name) { notifyToolCallStarted(name); }
-        }));
+        return observed(
+                request,
+                iteration,
+                telemetry,
+                () ->
+                        StreamedReply.read(
+                                llmClient.chatStream(request),
+                                handle,
+                                new StreamedReply.Sink() {
+                                    public void reasoning(String piece) {
+                                        notifyReasoningDelta(piece);
+                                    }
+
+                                    public void text(String piece) {
+                                        notifyTextDelta(piece);
+                                    }
+
+                                    public void toolCallStarted(String name) {
+                                        notifyToolCallStarted(name);
+                                    }
+                                }));
     }
 
-    private LLMResponse observed(LLMRequest request, int iteration, RunTelemetry telemetry, java.util.function.Supplier<LLMResponse> call) {
+    private LLMResponse observed(
+            LLMRequest request,
+            int iteration,
+            RunTelemetry telemetry,
+            java.util.function.Supplier<LLMResponse> call) {
         java.time.Instant startedAt = clock.instant();
         long started = clock.millis();
-        ModelCallEvent.Builder event = ModelCallEvent.builder().iteration(iteration).requestedModel(request.getModel()).startedAt(startedAt);
+        ModelCallEvent.Builder event =
+                ModelCallEvent.builder()
+                        .iteration(iteration)
+                        .requestedModel(request.getModel())
+                        .startedAt(startedAt);
         LLMResponse response;
         CallTrace.begin();
         try {
             response = call.get();
         } catch (RuntimeException e) {
             long duration = Math.max(0, clock.millis() - started);
-            telemetry.model(traced(event, duration, CallTrace.end()).failed(ErrorCategory.of(e), e.getClass().getSimpleName()).build());
+            telemetry.model(
+                    traced(event, duration, CallTrace.end())
+                            .failed(ErrorCategory.of(e), e.getClass().getSimpleName())
+                            .build());
             throw e;
         } catch (Error e) {
             CallTrace.end();
@@ -1162,25 +1594,41 @@ public class ReActAgent {
         long duration = Math.max(0, clock.millis() - started);
         traced(event, duration, CallTrace.end());
         if (response != null) {
-            event.model(response.getModel()).finishReason(response.getFinishReason()).toolCallsRequested(response.getToolCalls().size());
+            event.model(response.getModel())
+                    .finishReason(response.getFinishReason())
+                    .toolCallsRequested(response.getToolCalls().size());
             LLMResponse.TokenUsage usage = response.getTokenUsage();
-            if (usage != null) event.promptTokens(usage.getPromptTokens()).completionTokens(usage.getCompletionTokens()).totalTokens(usage.getTotalTokens());
+            if (usage != null)
+                event.promptTokens(usage.getPromptTokens())
+                        .completionTokens(usage.getCompletionTokens())
+                        .totalTokens(usage.getTotalTokens());
             Map<String, Object> meta = response.getMetadata();
             if (meta != null) {
                 event.usageEstimated(Boolean.TRUE.equals(meta.get(BudgetedLLMClient.ESTIMATED)));
-                if (meta.get(BudgetedLLMClient.COST) instanceof java.math.BigDecimal cost) event.cost(cost);
+                if (meta.get(BudgetedLLMClient.COST) instanceof java.math.BigDecimal cost)
+                    event.cost(cost);
             }
         }
         telemetry.model(event.build());
         return response;
     }
 
-    /** Puts the duration and what the layers below reported on the event; the wait can never exceed the time the agent saw. */
-    private static ModelCallEvent.Builder traced(ModelCallEvent.Builder event, long duration, CallTrace.Totals t) {
-        return event.durationMillis(duration).attempts(t.attempts()).waitedMillis(Math.min(t.waitedMillis(), duration)).failovers(t.failovers());
+    /**
+     * Puts the duration and what the layers below reported on the event; the wait can never exceed
+     * the time the agent saw.
+     */
+    private static ModelCallEvent.Builder traced(
+            ModelCallEvent.Builder event, long duration, CallTrace.Totals t) {
+        return event.durationMillis(duration)
+                .attempts(t.attempts())
+                .waitedMillis(Math.min(t.waitedMillis(), duration))
+                .failovers(t.failovers());
     }
 
-    /** Runs one action and reports it: one {@link ToolCallEvent} for whatever happened, a deliberate interrupt excepted. */
+    /**
+     * Runs one action and reports it: one {@link ToolCallEvent} for whatever happened, a deliberate
+     * interrupt excepted.
+     */
     private ActionExecution executeAction(
             String action,
             String actionInput,
@@ -1190,20 +1638,25 @@ public class ReActAgent {
             RunTelemetry telemetry,
             int iteration) {
         java.time.Instant startedAt = clock.instant();
-        ActionExecution x = performAction(action, actionInput, actionHistory, thought, redundantActionCount);
+        ActionExecution x =
+                performAction(action, actionInput, actionHistory, thought, redundantActionCount);
         ToolOutcome outcome = toolOutcome(x.outcome());
-        ToolCallEvent.Builder event = ToolCallEvent.builder()
-                .iteration(iteration)
-                .tool(action)
-                .startedAt(startedAt)
-                .durationMillis(x.durationMillis())
-                .approvalMillis(x.approvalMillis())
-                .argumentChars(actionInput == null ? 0 : actionInput.length())
-                .resultChars(x.observation() == null ? 0 : x.observation().length());
+        ToolCallEvent.Builder event =
+                ToolCallEvent.builder()
+                        .iteration(iteration)
+                        .tool(action)
+                        .startedAt(startedAt)
+                        .durationMillis(x.durationMillis())
+                        .approvalMillis(x.approvalMillis())
+                        .argumentChars(actionInput == null ? 0 : actionInput.length())
+                        .resultChars(x.observation() == null ? 0 : x.observation().length());
         if (outcome == ToolOutcome.EXECUTED) {
             if (x.softFailure()) event.softFailure(x.category());
         } else {
-            event.outcome(outcome, x.category() != null ? x.category() : outcome.defaultCategory(), x.errorType());
+            event.outcome(
+                    outcome,
+                    x.category() != null ? x.category() : outcome.defaultCategory(),
+                    x.errorType());
         }
         telemetry.tool(event.build());
         return x;
@@ -1255,7 +1708,12 @@ public class ReActAgent {
             if (validateToolArguments) {
                 String problems = ArgumentCheck.problems(tool.getParametersSchema(), args);
                 if (problems != null) {
-                    return rejectedByHook(action, "the arguments do not fit the tool: " + problems + ". Write the call again.", ErrorCategory.INVALID_ARGUMENTS);
+                    return rejectedByHook(
+                            action,
+                            "the arguments do not fit the tool: "
+                                    + problems
+                                    + ". Write the call again.",
+                            ErrorCategory.INVALID_ARGUMENTS);
                 }
             }
             for (ToolHook hook : toolHooks) {
@@ -1263,11 +1721,19 @@ public class ReActAgent {
                 try {
                     decision = hook.beforeCall(action, args);
                 } catch (RuntimeException e) {
-                    logger.error("Tool hook {} failed on '{}': {}", hook.getClass().getSimpleName(), action, e.toString());
-                    return rejectedByHook(action, "a check on this call could not be completed, so it was not run.", ErrorCategory.OTHER);
+                    logger.error(
+                            "Tool hook {} failed on '{}': {}",
+                            hook.getClass().getSimpleName(),
+                            action,
+                            e.toString());
+                    return rejectedByHook(
+                            action,
+                            "a check on this call could not be completed, so it was not run.",
+                            ErrorCategory.OTHER);
                 }
                 if (decision == null || decision.kind() == ToolHook.Decision.Kind.ALLOW) continue;
-                if (decision.kind() == ToolHook.Decision.Kind.REJECT) return rejectedByHook(action, decision.message(), decision.category());
+                if (decision.kind() == ToolHook.Decision.Kind.REJECT)
+                    return rejectedByHook(action, decision.message(), decision.category());
                 args = new HashMap<>(decision.arguments());
             }
 
@@ -1275,15 +1741,19 @@ public class ReActAgent {
             if (tool.requiresApproval(args)) {
                 notifyApprovalRequired(action, args, thought);
                 if (approvalCallback == null) {
-                    logger.warn("Tool '{}' requires approval but no ApprovalCallback is set. Blocking.", action);
+                    logger.warn(
+                            "Tool '{}' requires approval but no ApprovalCallback is set. Blocking.",
+                            action);
                     return new ActionExecution(
-                            "Error: Action '" + action
+                            "Error: Action '"
+                                    + action
                                     + "' requires human approval, but no ApprovalCallback is configured."
                                     + " Add one via ReActAgent.Builder#approvalCallback().",
                             AgentResult.StepOutcome.APPROVAL_UNAVAILABLE);
                 }
                 long asked = clock.millis();
-                boolean approved = approvalCallback.approve(action, args, thought != null ? thought : "");
+                boolean approved =
+                        approvalCallback.approve(action, args, thought != null ? thought : "");
                 approvalMillis = Math.max(0, clock.millis() - asked);
                 if (!approved) {
                     logger.info("Human rejected action '{}'. Feeding back to agent.", action);
@@ -1291,7 +1761,11 @@ public class ReActAgent {
                             "Observation: A human supervisor rejected this action. "
                                     + "Do not attempt it again. Choose a different approach to accomplish the goal.",
                             AgentResult.StepOutcome.REJECTED_BY_HUMAN,
-                            0, approvalMillis, false, null, null);
+                            0,
+                            approvalMillis,
+                            false,
+                            null,
+                            null);
                 }
                 logger.info("Human approved action '{}'.", action);
             }
@@ -1305,40 +1779,70 @@ public class ReActAgent {
                     String shown = hook.afterCall(action, args, observation);
                     observation = shown == null ? "" : shown;
                 } catch (RuntimeException e) {
-                    logger.error("Tool hook {} failed on the result of '{}': {}", hook.getClass().getSimpleName(), action, e.toString());
-                    observation = "Error: the result was withheld because a check on it could not be completed.";
+                    logger.error(
+                            "Tool hook {} failed on the result of '{}': {}",
+                            hook.getClass().getSimpleName(),
+                            action,
+                            e.toString());
+                    observation =
+                            "Error: the result was withheld because a check on it could not be completed.";
                     break;
                 }
             }
             logger.info("Tool '{}' returned observation: {}", action, observation);
             try {
-                auditLogger.logToolExecution(sessionId, action, String.valueOf(args), observation, java.time.Instant.now());
+                auditLogger.logToolExecution(
+                        sessionId,
+                        action,
+                        String.valueOf(args),
+                        observation,
+                        java.time.Instant.now());
             } catch (RuntimeException auditFailure) {
-                logger.warn("Audit logging of tool '{}' failed: {}", action, auditFailure.getMessage());
+                logger.warn(
+                        "Audit logging of tool '{}' failed: {}", action, auditFailure.getMessage());
             }
             notifyObservation(observation);
             boolean soft = readsAsFailure(tool, observation);
-            return new ActionExecution(observation, AgentResult.StepOutcome.EXECUTED, durationMillis, approvalMillis, soft,
-                    soft ? ToolResults.categoryOf(observation) : null, null);
+            return new ActionExecution(
+                    observation,
+                    AgentResult.StepOutcome.EXECUTED,
+                    durationMillis,
+                    approvalMillis,
+                    soft,
+                    soft ? ToolResults.categoryOf(observation) : null,
+                    null);
         } catch (AgentInterrupt interrupt) {
             throw interrupt; // a deliberate stop (e.g. waiting for a human) is never a tool error
         } catch (Exception e) {
             logger.error("Error executing tool {}: {}", action, e.getMessage(), e);
-            long durationMillis = executeStarted < 0 ? 0 : Math.max(0, clock.millis() - executeStarted);
+            long durationMillis =
+                    executeStarted < 0 ? 0 : Math.max(0, clock.millis() - executeStarted);
             return new ActionExecution(
-                    "Error executing tool: " + e.getMessage(), AgentResult.StepOutcome.EXECUTION_ERROR,
-                    durationMillis, approvalMillis, false, ErrorCategory.of(e), e.getClass().getSimpleName());
+                    "Error executing tool: " + e.getMessage(),
+                    AgentResult.StepOutcome.EXECUTION_ERROR,
+                    durationMillis,
+                    approvalMillis,
+                    false,
+                    ErrorCategory.of(e),
+                    e.getClass().getSimpleName());
         }
     }
 
-    /** A call refused before it ran: the model is shown the reason as the result, and listeners are told. */
+    /**
+     * A call refused before it ran: the model is shown the reason as the result, and listeners are
+     * told.
+     */
     private ActionExecution rejectedByHook(String action, String message, ErrorCategory category) {
         String shown = "Error: the call to '" + action + "' was not run: " + message;
         notifyToolRejected(action, shown);
-        return new ActionExecution(shown, AgentResult.StepOutcome.REJECTED_BY_HOOK, 0, 0, false, category, "ToolHook");
+        return new ActionExecution(
+                shown, AgentResult.StepOutcome.REJECTED_BY_HOOK, 0, 0, false, category, "ToolHook");
     }
 
-    /** The telemetry name for a step outcome; a switch with no default, so a new outcome cannot be added without deciding what it is called here. */
+    /**
+     * The telemetry name for a step outcome; a switch with no default, so a new outcome cannot be
+     * added without deciding what it is called here.
+     */
     private static ToolOutcome toolOutcome(AgentResult.StepOutcome outcome) {
         return switch (outcome) {
             case EXECUTED -> ToolOutcome.EXECUTED;
@@ -1352,12 +1856,18 @@ public class ReActAgent {
         };
     }
 
-    /** Whether the tool says its own result is a failure; a tool whose check itself breaks is taken to have succeeded. */
+    /**
+     * Whether the tool says its own result is a failure; a tool whose check itself breaks is taken
+     * to have succeeded.
+     */
     private static boolean readsAsFailure(Tool tool, String observation) {
         try {
             return observation != null && tool.isFailure(observation);
         } catch (RuntimeException e) {
-            logger.warn("Tool '{}' could not tell whether its result is a failure: {}", tool.getName(), e.toString());
+            logger.warn(
+                    "Tool '{}' could not tell whether its result is a failure: {}",
+                    tool.getName(),
+                    e.toString());
             return false;
         }
     }
@@ -1419,8 +1929,13 @@ public class ReActAgent {
             boolean protocolFollowed) {
         logger.warn("Agent stopped: {}", exhausted.getMessage());
         List<AgentResult.AgentStep> all = new ArrayList<>(steps);
-        all.add(new AgentResult.AgentStep(null, null, null, exhausted.getMessage(),
-                AgentResult.StepOutcome.BUDGET_EXHAUSTED));
+        all.add(
+                new AgentResult.AgentStep(
+                        null,
+                        null,
+                        null,
+                        exhausted.getMessage(),
+                        AgentResult.StepOutcome.BUDGET_EXHAUSTED));
         AgentResult result =
                 AgentResult.builder()
                         .finalAnswer(bestSoFar)
@@ -1786,7 +2301,8 @@ public class ReActAgent {
         } else if (iterationRatio > 0.5) {
             baseScore -= 0.1;
         }
-        // What happened, not what the text says: a tool may legitimately return text that begins "Error".
+        // What happened, not what the text says: a tool may legitimately return text that begins
+        // "Error".
         long failureCount =
                 steps.stream()
                         .filter(step -> step.getOutcome() != null && isFailure(step.getOutcome()))
@@ -1924,7 +2440,8 @@ public class ReActAgent {
         }
 
         /**
-         * The clock that times model and tool calls in events and statistics: the system clock by default; a test passes one it controls.
+         * The clock that times model and tool calls in events and statistics: the system clock by
+         * default; a test passes one it controls.
          */
         public Builder clock(java.time.Clock clock) {
             this.clock = clock;
@@ -1932,8 +2449,8 @@ public class ReActAgent {
         }
 
         /**
-         * When to compact the conversation and how far, and what must never be touched. Without a compactor ({@link #compaction}) the
-         * agent only reports its context use to listeners.
+         * When to compact the conversation and how far, and what must never be touched. Without a
+         * compactor ({@link #compaction}) the agent only reports its context use to listeners.
          */
         public Builder contextPolicy(ContextPolicy policy) {
             this.contextPolicy = policy;
@@ -1941,9 +2458,10 @@ public class ReActAgent {
         }
 
         /**
-         * The model's context window in tokens; shorthand for a policy with this window. A window in the policy wins over this. With a window the
-         * agent refuses, with a {@link io.github.llm4j.exception.ContextOverflowException} and without calling the model, a prompt that is still
-         * more than 25 % over it after any compaction.
+         * The model's context window in tokens; shorthand for a policy with this window. A window
+         * in the policy wins over this. With a window the agent refuses, with a {@link
+         * io.github.llm4j.exception.ContextOverflowException} and without calling the model, a
+         * prompt that is still more than 25 % over it after any compaction.
          */
         public Builder contextWindow(int tokens) {
             this.contextWindow = tokens;
@@ -1951,8 +2469,8 @@ public class ReActAgent {
         }
 
         /**
-         * Where to look up the window by the model name set with {@link #budgetModel}, when neither the policy nor
-         * {@link #contextWindow} gives one.
+         * Where to look up the window by the model name set with {@link #budgetModel}, when neither
+         * the policy nor {@link #contextWindow} gives one.
          */
         public Builder contextWindows(ContextWindows windows) {
             this.contextWindows = windows;
@@ -1960,8 +2478,9 @@ public class ReActAgent {
         }
 
         /**
-         * How to make the conversation smaller when it nears the window; see {@code ContextCompactors} for the built-in strategies. Needs a
-         * window to act (from the policy, {@link #contextWindow} or {@link #contextWindows}); without one it is never called.
+         * How to make the conversation smaller when it nears the window; see {@code
+         * ContextCompactors} for the built-in strategies. Needs a window to act (from the policy,
+         * {@link #contextWindow} or {@link #contextWindows}); without one it is never called.
          *
          * <p>It applies to both loops: native tool calling and the text protocol.
          */
@@ -1999,10 +2518,10 @@ public class ReActAgent {
         }
 
         /**
-         * Role-specific instructions placed ahead of the default ReAct protocol. Unlike
-         * {@link #systemPrompt(String)}, which replaces the whole prompt verbatim, this keeps the
-         * tool descriptions and JSON response format, so tool-using agents can be given a role
-         * without re-stating the protocol. Ignored when {@code systemPrompt} is set.
+         * Role-specific instructions placed ahead of the default ReAct protocol. Unlike {@link
+         * #systemPrompt(String)}, which replaces the whole prompt verbatim, this keeps the tool
+         * descriptions and JSON response format, so tool-using agents can be given a role without
+         * re-stating the protocol. Ignored when {@code systemPrompt} is set.
          */
         public Builder instructions(String instructions) {
             this.instructions = instructions;
@@ -2056,12 +2575,13 @@ public class ReActAgent {
         }
 
         /**
-         * How many long-term facts are recalled before a task, and how similar (0–1) a fact must be to
-         * the task to be included. Defaults: 5 and 0.7.
+         * How many long-term facts are recalled before a task, and how similar (0–1) a fact must be
+         * to the task to be included. Defaults: 5 and 0.7.
          */
         public Builder semanticRecall(int topK, float minSimilarity) {
             if (topK < 1) throw new IllegalArgumentException("topK must be positive");
-            if (minSimilarity < 0 || minSimilarity > 1) throw new IllegalArgumentException("minSimilarity must be between 0 and 1");
+            if (minSimilarity < 0 || minSimilarity > 1)
+                throw new IllegalArgumentException("minSimilarity must be between 0 and 1");
             this.recallTopK = topK;
             this.recallMinSimilarity = minSimilarity;
             return this;
@@ -2073,9 +2593,9 @@ public class ReActAgent {
         }
 
         /**
-         * One-liner convenience method that creates and wires up the full Semantic Memory
-         * stack from a config object, and automatically registers the
-         * {@link io.github.llm4j.agent.tool.MemoryManagementTool} so the agent can save facts.
+         * One-liner convenience method that creates and wires up the full Semantic Memory stack
+         * from a config object, and automatically registers the {@link
+         * io.github.llm4j.agent.tool.MemoryManagementTool} so the agent can save facts.
          */
         public Builder semanticMemoryConfig(SemanticMemoryConfig config) {
             SemanticMemoryService service = SemanticMemoryFactory.create(config);
@@ -2111,10 +2631,10 @@ public class ReActAgent {
         }
 
         /**
-         * Sets the Human-in-the-Loop approval callback. When set, any tool that returns
-         * {@code true} from {@link Tool#requiresApproval(java.util.Map)} will be gated on this
-         * callback before execution. If no callback is set and a tool requires approval, the agent
-         * will refuse to execute it and inform the LLM to try an alternative.
+         * Sets the Human-in-the-Loop approval callback. When set, any tool that returns {@code
+         * true} from {@link Tool#requiresApproval(java.util.Map)} will be gated on this callback
+         * before execution. If no callback is set and a tool requires approval, the agent will
+         * refuse to execute it and inform the LLM to try an alternative.
          *
          * @param approvalCallback the callback to invoke for sensitive tool calls
          * @return this builder
@@ -2135,10 +2655,13 @@ public class ReActAgent {
         }
 
         /**
-         * Streams each model call (native tool calling only; the text protocol parses a whole reply). Listeners then hear the reply as it is
-         * written ({@link AgentEventListener#onTextDelta}, {@link AgentEventListener#onToolCallStarted}), and a {@link RunHandle#steer steer} or
-         * {@link RunHandle#cancel cancel} ends the call in progress at once instead of after it finishes. Off by default: a streamed call
-         * is billed for what was generated before it was cut off, and a stream that fails half-way is not retried.
+         * Streams each model call (native tool calling only; the text protocol parses a whole
+         * reply). Listeners then hear the reply as it is written ({@link
+         * AgentEventListener#onTextDelta}, {@link AgentEventListener#onToolCallStarted}), and a
+         * {@link RunHandle#steer steer} or {@link RunHandle#cancel cancel} ends the call in
+         * progress at once instead of after it finishes. Off by default: a streamed call is billed
+         * for what was generated before it was cut off, and a stream that fails half-way is not
+         * retried.
          */
         public Builder streaming(boolean streaming) {
             this.streaming = streaming;
@@ -2146,8 +2669,10 @@ public class ReActAgent {
         }
 
         /**
-         * With {@link #streaming}, asks the model to show its reasoning, delivered to {@link AgentEventListener#onReasoningDelta}. Off by
-         * default: it makes the provider think and report it, which can cost more. Providers and models that cannot show reasoning ignore it.
+         * With {@link #streaming}, asks the model to show its reasoning, delivered to {@link
+         * AgentEventListener#onReasoningDelta}. Off by default: it makes the provider think and
+         * report it, which can cost more. Providers and models that cannot show reasoning ignore
+         * it.
          */
         public Builder reasoning(boolean reasoning) {
             this.reasoning = reasoning;
@@ -2155,8 +2680,9 @@ public class ReActAgent {
         }
 
         /**
-         * Adds a check on every tool call; see {@link ToolHook}. Hooks run in the order added, on the arguments as the model wrote them (or as
-         * an earlier hook replaced them), before approval and before the tool runs.
+         * Adds a check on every tool call; see {@link ToolHook}. Hooks run in the order added, on
+         * the arguments as the model wrote them (or as an earlier hook replaced them), before
+         * approval and before the tool runs.
          */
         public Builder effectClassifier(EffectClassifier classifier) {
             this.effectClassifier = classifier;
@@ -2164,17 +2690,22 @@ public class ReActAgent {
         }
 
         /**
-         * Adds a check at the start of a run, before each model call, and before the agent settles on an answer; see {@link RunHook}. Hooks run
-         * in the order added.
+         * Adds a check at the start of a run, before each model call, and before the agent settles
+         * on an answer; see {@link RunHook}. Hooks run in the order added.
          */
         public Builder addRunHook(RunHook hook) {
             this.runHooks.add(Objects.requireNonNull(hook, "hook cannot be null"));
             return this;
         }
 
-        /** The most times a {@link RunHook} may send an answer back in one run (default 2); after that the answer is accepted. */
+        /**
+         * The most times a {@link RunHook} may send an answer back in one run (default 2); after
+         * that the answer is accepted.
+         */
         public Builder maxSettleRetries(int max) {
-            if (max < 0) throw new IllegalArgumentException("maxSettleRetries must not be negative, got " + max);
+            if (max < 0)
+                throw new IllegalArgumentException(
+                        "maxSettleRetries must not be negative, got " + max);
             this.maxSettleRetries = max;
             return this;
         }
@@ -2185,9 +2716,11 @@ public class ReActAgent {
         }
 
         /**
-         * Checks each call's arguments against the tool's own parameter schema before anything else: required arguments present, declared
-         * types and allowed values respected. A call that fails is not run, and the model is told what is wrong so it can write the call
-         * again. Off by default, since tools that declare no schema, or declare one loosely, would then be held to it.
+         * Checks each call's arguments against the tool's own parameter schema before anything
+         * else: required arguments present, declared types and allowed values respected. A call
+         * that fails is not run, and the model is told what is wrong so it can write the call
+         * again. Off by default, since tools that declare no schema, or declare one loosely, would
+         * then be held to it.
          */
         public Builder validateToolArguments(boolean validate) {
             this.validateToolArguments = validate;
@@ -2217,12 +2750,16 @@ public class ReActAgent {
 
         /** Caps every answer's output tokens. */
         public Builder maxTokensPerCall(int maxTokens) {
-            if (maxTokens <= 0) throw new IllegalArgumentException("maxTokensPerCall must be positive");
+            if (maxTokens <= 0)
+                throw new IllegalArgumentException("maxTokensPerCall must be positive");
             this.maxTokensPerCall = maxTokens;
             return this;
         }
 
-        /** What to do when the budget runs out mid-task. Default {@link BudgetPolicy#RETURN_PARTIAL}. */
+        /**
+         * What to do when the budget runs out mid-task. Default {@link
+         * BudgetPolicy#RETURN_PARTIAL}.
+         */
         public Builder onBudgetExhausted(BudgetPolicy policy) {
             this.budgetPolicy = Objects.requireNonNull(policy);
             return this;

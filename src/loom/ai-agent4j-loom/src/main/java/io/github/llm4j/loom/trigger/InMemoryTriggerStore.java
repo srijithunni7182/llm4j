@@ -36,8 +36,11 @@ public class InMemoryTriggerStore implements TriggerStore {
     @Override
     public synchronized boolean claim(String id, String owner, Instant now, Duration staleAfter) {
         Trigger t = triggers.get(id);
-        if (t == null || !t.enabled() || t.nextFire() == null || t.nextFire().isAfter(now)) return false;
-        if (t.claimedBy() != null && t.claimedAt() != null && t.claimedAt().isAfter(now.minus(staleAfter))) return false;
+        if (t == null || !t.enabled() || t.nextFire() == null || t.nextFire().isAfter(now))
+            return false;
+        if (t.claimedBy() != null
+                && t.claimedAt() != null
+                && t.claimedAt().isAfter(now.minus(staleAfter))) return false;
         triggers.put(id, t.withClaim(owner, now));
         return true;
     }

@@ -10,11 +10,13 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** R10, R13 at the server: the new rules can be set centrally, in the page's structured form and as text, and old rules still load. */
+/**
+ * R10, R13 at the server: the new rules can be set centrally, in the page's structured form and as
+ * text, and old rules still load.
+ */
 class FabricConfigTelemetryRulesTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private final RunRegistry registry = new RunRegistry();
 
@@ -31,7 +33,13 @@ class FabricConfigTelemetryRulesTest {
     void theDefaultsShownToThePageIncludeTheNewRules() {
         @SuppressWarnings("unchecked")
         Map<String, Object> defaults = (Map<String, Object>) rules(config().view()).get("defaults");
-        assertThat(defaults).containsKeys("context_nearly_full", "truncated_answers", "compaction_thrash", "tool_success_rate", "latency_spike");
+        assertThat(defaults)
+                .containsKeys(
+                        "context_nearly_full",
+                        "truncated_answers",
+                        "compaction_thrash",
+                        "tool_success_rate",
+                        "latency_spike");
         assertThat(((Map<?, ?>) defaults.get("context_nearly_full")).get("warn")).isEqualTo(85);
         assertThat(((Map<?, ?>) defaults.get("tool_success_rate")).get("below")).isEqualTo(70);
     }
@@ -39,8 +47,9 @@ class FabricConfigTelemetryRulesTest {
     @Test
     void theStructuredFormCarriesTheNewRulesBothWays() {
         FabricConfig c = config();
-        String json = "{\"Researcher\":{\"same_action\":3,\"context_nearly_full\":{\"warn\":80,\"high\":92},\"truncated_answers\":2,"
-                + "\"compaction_thrash\":{\"count\":5,\"of_calls\":12},\"tool_success_rate\":{\"below\":60,\"over_calls\":20},\"latency_spike\":3}}";
+        String json =
+                "{\"Researcher\":{\"same_action\":3,\"context_nearly_full\":{\"warn\":80,\"high\":92},\"truncated_answers\":2,"
+                        + "\"compaction_thrash\":{\"count\":5,\"of_calls\":12},\"tool_success_rate\":{\"below\":60,\"over_calls\":20},\"latency_spike\":3}}";
         var result = c.saveStructured("rules", json, "admin");
         assertThat(result.saved()).isTrue();
         @SuppressWarnings("unchecked")
@@ -53,7 +62,9 @@ class FabricConfigTelemetryRulesTest {
         assertThat(((Map<?, ?>) r.get("compaction_thrash")).get("of_calls")).isEqualTo(12);
         assertThat(((Map<?, ?>) r.get("tool_success_rate")).get("over_calls")).isEqualTo(20);
         assertThat(r.get("latency_spike")).isEqualTo(3.0);
-        assertThat((String) rules(c.view()).get("text")).contains("context_nearly_full: warn at 80%, high at 92%").contains("latency_spike: 3x p50");
+        assertThat((String) rules(c.view()).get("text"))
+                .contains("context_nearly_full: warn at 80%, high at 92%")
+                .contains("latency_spike: 3x p50");
     }
 
     @Test
@@ -63,19 +74,30 @@ class FabricConfigTelemetryRulesTest {
         assertThat(result.saved()).isTrue();
         FabricConfig again = config();
         again.load();
-        assertThat((String) rules(again.view()).get("text")).contains("tool_success_rate: below 50% over 10 calls");
+        assertThat((String) rules(again.view()).get("text"))
+                .contains("tool_success_rate: below 50% over 10 calls");
     }
 
     @Test
     void aBadNewRuleIsRefusedLikeAnyOther() {
-        var result = config().save("rules", "* { context_nearly_full: warn at 95%, high at 90% }\n", "admin");
+        var result =
+                config().save(
+                                "rules",
+                                "* { context_nearly_full: warn at 95%, high at 90% }\n",
+                                "admin");
         assertThat(result.saved()).isFalse();
     }
 
     @Test
     void oldRulesFilesAndOldStructuredFormsStillWork() {
         FabricConfig c = config();
-        assertThat(c.saveStructured("rules", "{\"Editor\":{\"same_action\":4,\"ungrounded_figures\":{\"warn\":2,\"high\":4}}}", "admin").saved()).isTrue();
+        assertThat(
+                        c.saveStructured(
+                                        "rules",
+                                        "{\"Editor\":{\"same_action\":4,\"ungrounded_figures\":{\"warn\":2,\"high\":4}}}",
+                                        "admin")
+                                .saved())
+                .isTrue();
         @SuppressWarnings("unchecked")
         Map<String, Object> structured = (Map<String, Object>) rules(c.view()).get("structured");
         Map<?, ?> editor = (Map<?, ?>) structured.get("Editor");

@@ -3,8 +3,9 @@ package io.github.llm4j.loom.ast;
 import java.time.Duration;
 
 /**
- * {@code sleep 90s}: the workflow waits for a fixed time, then carries on. With a durable journal the run
- * pauses (it holds no thread) and is woken at the recorded time; without one it waits in place.
+ * {@code sleep 90s}: the workflow waits for a fixed time, then carries on. With a durable journal
+ * the run pauses (it holds no thread) and is woken at the recorded time; without one it waits in
+ * place.
  */
 public class SleepStmt extends LocatedStatement {
     private final Duration duration;

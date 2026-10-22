@@ -1,17 +1,17 @@
 package io.github.llm4j.tools;
-import io.github.llm4j.agent.tool.EffectContext;
-import io.github.llm4j.agent.tool.Effectful;
-import io.github.llm4j.agent.tool.EffectPolicy;
-import io.github.llm4j.agent.tool.Outcome;
 
+import io.github.llm4j.agent.tool.EffectContext;
+import io.github.llm4j.agent.tool.EffectPolicy;
+import io.github.llm4j.agent.tool.Effectful;
+import io.github.llm4j.agent.tool.Outcome;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * Base of the generic tools. It turns every failure into an {@code Error:} result (a tool never throws
- * at the agent), removes secrets from whatever is returned, and reports each call to the run's audit log
- * and trace.
+ * Base of the generic tools. It turns every failure into an {@code Error:} result (a tool never
+ * throws at the agent), removes secrets from whatever is returned, and reports each call to the
+ * run's audit log and trace.
  *
  * <p>Subclasses implement {@link #run}: throw {@link ToolRefusal} for a call they won't make and
  * {@link UnknownOutcomeException} when an action may have happened.
@@ -24,7 +24,12 @@ public abstract class GenericTool implements Effectful {
     private final Redactor redactor;
     private final EffectContext context;
 
-    protected GenericTool(String name, String kind, String description, Redactor redactor, EffectContext context) {
+    protected GenericTool(
+            String name,
+            String kind,
+            String description,
+            Redactor redactor,
+            EffectContext context) {
         this.name = name;
         this.kind = kind;
         this.description = description;
@@ -81,13 +86,21 @@ public abstract class GenericTool implements Effectful {
         long started = context.clock().millis();
         Outcome outcome = perform(args, null);
         if (!isEffect(args == null ? Map.of() : args)) {
-            report("tool_call", args, outcome.status().name().toLowerCase(Locale.ROOT), context.clock().millis() - started);
+            report(
+                    "tool_call",
+                    args,
+                    outcome.status().name().toLowerCase(Locale.ROOT),
+                    context.clock().millis() - started);
         }
         return outcome.text();
     }
 
-    /** Records one call: the tool, its kind, what it touched and how it ended. Never a body or a result. */
-    protected final void report(String event, Map<String, Object> args, String outcome, long millis) {
+    /**
+     * Records one call: the tool, its kind, what it touched and how it ended. Never a body or a
+     * result.
+     */
+    protected final void report(
+            String event, Map<String, Object> args, String outcome, long millis) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("tool", name);
         data.put("kind", kind);
@@ -96,7 +109,9 @@ public abstract class GenericTool implements Effectful {
         data.put("outcome", outcome);
         data.put("millis", millis);
         context.audit(event, data);
-        context.trace(event.replace('_', ' ') + ": " + name + " " + data.get("target") + " → " + outcome, data);
+        context.trace(
+                event.replace('_', ' ') + ": " + name + " " + data.get("target") + " → " + outcome,
+                data);
     }
 
     private String safeTarget(Map<String, Object> args) {
@@ -114,7 +129,10 @@ public abstract class GenericTool implements Effectful {
 
     // ── Reading arguments ────────────────────────────────────────────────────────────────────
 
-    /** A required, non-blank text argument. Numbers and booleans are read as text; lists and objects are not text. */
+    /**
+     * A required, non-blank text argument. Numbers and booleans are read as text; lists and objects
+     * are not text.
+     */
     protected static String text(Map<String, Object> args, String key) {
         String v = optionalText(args, key);
         if (v == null) throw new ToolRefusal(key + " is required");
@@ -125,7 +143,8 @@ public abstract class GenericTool implements Effectful {
     protected static String optionalText(Map<String, Object> args, String key) {
         Object v = args.get(key);
         if (v == null) return null;
-        if (!(v instanceof CharSequence || v instanceof Number || v instanceof Boolean)) throw new ToolRefusal(key + " must be text");
+        if (!(v instanceof CharSequence || v instanceof Number || v instanceof Boolean))
+            throw new ToolRefusal(key + " must be text");
         String s = String.valueOf(v);
         return s.isBlank() ? null : s;
     }

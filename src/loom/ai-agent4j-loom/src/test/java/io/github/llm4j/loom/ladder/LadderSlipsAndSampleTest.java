@@ -21,7 +21,8 @@ import org.junit.jupiter.api.Test;
 @Tag("L4")
 class LadderSlipsAndSampleTest {
 
-    static final String SCRIPT = """
+    static final String SCRIPT =
+            """
             agent T { model: "m" system: "s" output_schema: { choice: string, reasoning: string } }
             measure agrees(c) = c.response.choice == c.proposal.choice
             ladder L {
@@ -65,21 +66,27 @@ class LadderSlipsAndSampleTest {
         LoomScript s = new LoomParser(new Lexer(SCRIPT).tokenize()).parseScript();
         RungDef act = s.getLadders().get(0).rung("act");
         assertThat(act.getSlips()).extracting(RungDef.Slip::to).containsExactly("suggest", "watch");
-        assertThat(act.getSlipTo()).isEqualTo("suggest");                              // the first, for callers that ask for one
+        assertThat(act.getSlipTo()).isEqualTo("suggest"); // the first, for callers that ask for one
     }
 
     @Test
     void whenOnlyTheMilderWayDownHoldsTheAgentDropsOneRung() {
         LadderPolicy p = policy(SCRIPT);
         List<V.Rec> h = new ArrayList<>(history(10, 0).cases());
-        for (int i = 0; i < 10; i++) h.add(c(0.1 * (i + 1), "reject", "approve"));      // disagreements, but not the dangerous kind
-        assertThat(p.slip(2, V.cases(h), NOW)).contains(1);                           // agreement 50%: to suggest
+        for (int i = 0; i < 10; i++)
+            h.add(
+                    c(
+                            0.1 * (i + 1),
+                            "reject",
+                            "approve")); // disagreements, but not the dangerous kind
+        assertThat(p.slip(2, V.cases(h), NOW)).contains(1); // agreement 50%: to suggest
     }
 
     @Test
     void whenOnlyTheHarsherWayDownHoldsTheAgentDropsFurther() {
         LadderPolicy p = policy(SCRIPT);
-        assertThat(p.slip(2, dangerous(60, 2), NOW)).contains(0);                     // 60 of 62 agree (97%), but two dangerous mistakes
+        assertThat(p.slip(2, dangerous(60, 2), NOW))
+                .contains(0); // 60 of 62 agree (97%), but two dangerous mistakes
     }
 
     @Test
@@ -101,7 +108,8 @@ class LadderSlipsAndSampleTest {
     void theHitSaysWhichConditionsMadeItHold() {
         LadderPolicy p = policy(SCRIPT);
         LadderPolicy.SlipHit hit = p.slipHit(2, dangerous(60, 2), NOW).orElseThrow();
-        assertThat(hit.because()).anyMatch(t -> t.text().contains("count(dangerous)") && t.met().orElse(false));
+        assertThat(hit.because())
+                .anyMatch(t -> t.text().contains("count(dangerous)") && t.met().orElse(false));
         assertThat(hit.because()).noneMatch(t -> t.text().contains("agrees"));
     }
 
@@ -129,22 +137,35 @@ class LadderSlipsAndSampleTest {
 
     @Test
     void aSecondWayDownThatDoesNotGoDownIsReported() {
-        assertThat(String.join("\n", LadderChecksTest.errors(SCRIPT.replace("slip to watch", "slip to act")))).contains("must go down");
+        assertThat(
+                        String.join(
+                                "\n",
+                                LadderChecksTest.errors(
+                                        SCRIPT.replace("slip to watch", "slip to act"))))
+                .contains("must go down");
     }
 
     @Test
     void aMistypedConditionInASecondWayDownIsReported() {
-        assertThat(String.join("\n", LadderChecksTest.errors(SCRIPT.replace("count(dangerous) >= 2", "count(dangerus) >= 2")))).contains("dangerus");
+        assertThat(
+                        String.join(
+                                "\n",
+                                LadderChecksTest.errors(
+                                        SCRIPT.replace(
+                                                "count(dangerous) >= 2", "count(dangerus) >= 2"))))
+                .contains("dangerus");
     }
 
     @Test
     void theLaterWayDownIsDescribedToo() {
         LoomScript script = new LoomParser(new Lexer(SCRIPT).tokenize()).parseScript();
-        String text = LadderDescriber.describe(script.getLadders().get(0), script.getDecisions().get(0));
+        String text =
+                LadderDescriber.describe(script.getLadders().get(0), script.getDecisions().get(0));
         assertThat(text).contains("slips from act to suggest").contains("slips from act to watch");
     }
 
-    // ---- sampling a confirm rung ----------------------------------------------------------------------------------------------
+    // ---- sampling a confirm rung
+    // ----------------------------------------------------------------------------------------------
 
     @Test
     void aConfirmRungWithASampleSendsThatShareToAPersonBlind() {
@@ -156,7 +177,14 @@ class LadderSlipsAndSampleTest {
         assertThat(s.rungName()).isEqualTo("suggest");
         int blind = 0, confirm = 0;
         for (int i = 0; i < 2000; i++) {
-            LadderEngine.Plan p = h.engine.plan("all", "run-" + i, s, V.rec(Map.of()), h.engine.history("all", 1), h.clock.millis());
+            LadderEngine.Plan p =
+                    h.engine.plan(
+                            "all",
+                            "run-" + i,
+                            s,
+                            V.rec(Map.of()),
+                            h.engine.history("all", 1),
+                            h.clock.millis());
             assertThat(p.rung()).isEqualTo("suggest");
             if (p.mode() == RungDef.Mode.BLIND) {
                 blind++;
@@ -178,7 +206,17 @@ class LadderSlipsAndSampleTest {
         h.engine.afterResponse("all");
         io.github.llm4j.loom.ladder.LevelLog.Standing s = h.engine.standing("all", "id-a", "m-1");
         for (int i = 0; i < 300; i++) {
-            assertThat(h.engine.plan("all", "run-" + i, s, V.rec(Map.of()), h.engine.history("all", 1), h.clock.millis()).mode()).isEqualTo(RungDef.Mode.CONFIRM);
+            assertThat(
+                            h.engine
+                                    .plan(
+                                            "all",
+                                            "run-" + i,
+                                            s,
+                                            V.rec(Map.of()),
+                                            h.engine.history("all", 1),
+                                            h.clock.millis())
+                                    .mode())
+                    .isEqualTo(RungDef.Mode.CONFIRM);
         }
     }
 }

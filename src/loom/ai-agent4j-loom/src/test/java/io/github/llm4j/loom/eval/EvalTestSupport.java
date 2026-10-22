@@ -15,17 +15,25 @@ import java.util.List;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
-/** Models that answer from a function of what they are asked, and a record of what they were asked. */
+/**
+ * Models that answer from a function of what they are asked, and a record of what they were asked.
+ */
 final class EvalTestSupport {
 
     private EvalTestSupport() {}
 
     static String finalAnswer(String answer) {
-        return "```json\n{\"thought\": \"t\", \"final_answer\": \"" + answer.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n") + "\"}\n```";
+        return "```json\n{\"thought\": \"t\", \"final_answer\": \""
+                + answer.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+                + "\"}\n```";
     }
 
     static String useTool(String tool, String queryJson) {
-        return "```json\n{\"thought\": \"look\", \"action\": \"" + tool + "\", \"action_input\": " + queryJson + "}\n```";
+        return "```json\n{\"thought\": \"look\", \"action\": \""
+                + tool
+                + "\", \"action_input\": "
+                + queryJson
+                + "}\n```";
     }
 
     /** Answers by (system prompt, number of the call so far). */
@@ -55,7 +63,11 @@ final class EvalTestSupport {
                     synchronized (Models.this) {
                         n = calls++;
                     }
-                    return LLMResponse.builder().content(answer.apply(system, n)).model(model).tokenUsage(10, 5, 15).build();
+                    return LLMResponse.builder()
+                            .content(answer.apply(system, n))
+                            .model(model)
+                            .tokenUsage(10, 5, 15)
+                            .build();
                 }
 
                 @Override
@@ -70,16 +82,29 @@ final class EvalTestSupport {
         return new EvalScenario(name, input, null, null, null, null, null, null, null, null);
     }
 
-    static EvalScenario with(EvalScenario s, String contains, List<String> tools, List<String> rubric, List<String> expect) {
-        return new EvalScenario(s.name(), s.input(), contains, null, tools, null, null, s.id(), null, null, rubric, expect);
+    static EvalScenario with(
+            EvalScenario s,
+            String contains,
+            List<String> tools,
+            List<String> rubric,
+            List<String> expect) {
+        return new EvalScenario(
+                s.name(), s.input(), contains, null, tools, null, null, s.id(), null, null, rubric,
+                expect);
     }
 
     static HarnessExecutor executor(String source, LLMClientFactory models, ToolRegistry tools) {
-        return executor(source, models, tools, e -> { });
+        return executor(source, models, tools, e -> {});
     }
 
-    static HarnessExecutor executor(String source, LLMClientFactory models, ToolRegistry tools, java.util.function.Consumer<HarnessExecutor> beforeInitialize) {
-        HarnessExecutor e = new HarnessExecutor(new LoomParser(new Lexer(source).tokenize()).parseScript(), tools, models);
+    static HarnessExecutor executor(
+            String source,
+            LLMClientFactory models,
+            ToolRegistry tools,
+            java.util.function.Consumer<HarnessExecutor> beforeInitialize) {
+        HarnessExecutor e =
+                new HarnessExecutor(
+                        new LoomParser(new Lexer(source).tokenize()).parseScript(), tools, models);
         e.setHumanInterface(m -> "yes");
         e.setEnvLookup(name -> "x");
         beforeInitialize.accept(e);

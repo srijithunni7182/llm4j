@@ -8,7 +8,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-/** The terminal as a channel: questions are printed, replies are lines of {@code <code> <answer>} read from the input. */
+/**
+ * The terminal as a channel: questions are printed, replies are lines of {@code <code> <answer>}
+ * read from the input.
+ */
 public final class ConsoleChannel implements Channel {
 
     private final PrintStream out;
@@ -42,7 +45,7 @@ public final class ConsoleChannel implements Channel {
     }
 
     @Override
-    public void acknowledge(String cursor) { }
+    public void acknowledge(String cursor) {}
 
     @Override
     public void tell(String chat, String text) {

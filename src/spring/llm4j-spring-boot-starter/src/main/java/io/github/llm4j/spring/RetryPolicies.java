@@ -5,20 +5,36 @@ import io.github.llm4j.ratelimit.Sleeper;
 import java.time.Clock;
 import java.util.Set;
 
-/** {@code llm4j.clients.<name>.retry.*} as a {@link RetryPolicy}: what is set replaces the library's default, what is not keeps it. */
+/**
+ * {@code llm4j.clients.<name>.retry.*} as a {@link RetryPolicy}: what is set replaces the library's
+ * default, what is not keeps it.
+ */
 final class RetryPolicies {
 
     private static final Set<Integer> DEFAULT_CODES = Set.of(429, 500, 502, 503, 504, 529);
 
-    private RetryPolicies() { }
+    private RetryPolicies() {}
 
     static RetryPolicy from(Llm4jProperties.Retry r, Clock clock, Sleeper sleeper) {
         if (r != null && Boolean.FALSE.equals(r.enabled())) return RetryPolicy.noRetry();
-        boolean custom = clock != null || sleeper != null || (r != null && (r.maxRetries() != null || r.initialBackoff() != null || r.maxBackoff() != null
-                || r.retryableStatusCodes() != null || r.inlineWaitThreshold() != null || r.fallbackDelay() != null || r.maxFallbackDelay() != null || r.dailyResetZone() != null));
+        boolean custom =
+                clock != null
+                        || sleeper != null
+                        || (r != null
+                                && (r.maxRetries() != null
+                                        || r.initialBackoff() != null
+                                        || r.maxBackoff() != null
+                                        || r.retryableStatusCodes() != null
+                                        || r.inlineWaitThreshold() != null
+                                        || r.fallbackDelay() != null
+                                        || r.maxFallbackDelay() != null
+                                        || r.dailyResetZone() != null));
         if (!custom) return RetryPolicy.defaultPolicy();
         RetryPolicy.Builder b = RetryPolicy.builder();
-        for (int code : r != null && r.retryableStatusCodes() != null ? r.retryableStatusCodes() : DEFAULT_CODES) b.addRetryableStatusCode(code);
+        for (int code :
+                r != null && r.retryableStatusCodes() != null
+                        ? r.retryableStatusCodes()
+                        : DEFAULT_CODES) b.addRetryableStatusCode(code);
         if (r != null) {
             if (r.maxRetries() != null) b.maxRetries(r.maxRetries());
             if (r.initialBackoff() != null) b.initialBackoff(r.initialBackoff());

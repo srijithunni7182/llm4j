@@ -1,6 +1,9 @@
 package io.github.llm4j.loom.autonomy.expr;
 
-/** A ladder expression that cannot be read or does not check. The message names the column and says what was expected. */
+/**
+ * A ladder expression that cannot be read or does not check. The message names the column and says
+ * what was expected.
+ */
 public class ExprException extends RuntimeException {
 
     private final int column;

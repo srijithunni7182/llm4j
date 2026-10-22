@@ -7,15 +7,36 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** The result of {@link SecurityAudit}: who can do what, what was found, and how it lines up with the OWASP Top 10 for LLM Applications. */
-public record AuditReport(String script, List<SecurityAudit.AgentProfile> agents, List<Finding> findings, Map<Owasp, List<String>> controls,
-                          List<io.github.llm4j.loom.prompt.PromptUse> prompts, List<ContextUse> contexts, List<CustomStrategy> strategies) {
+/**
+ * The result of {@link SecurityAudit}: who can do what, what was found, and how it lines up with
+ * the OWASP Top 10 for LLM Applications.
+ */
+public record AuditReport(
+        String script,
+        List<SecurityAudit.AgentProfile> agents,
+        List<Finding> findings,
+        Map<Owasp, List<String>> controls,
+        List<io.github.llm4j.loom.prompt.PromptUse> prompts,
+        List<ContextUse> contexts,
+        List<CustomStrategy> strategies) {
 
-    /** How one agent keeps its prompt inside the window: its strategies, the window of its model and the file that window comes from. */
-    public record ContextUse(String agent, int line, String strategies, String window, String source, String summarizer) { }
+    /**
+     * How one agent keeps its prompt inside the window: its strategies, the window of its model and
+     * the file that window comes from.
+     */
+    public record ContextUse(
+            String agent,
+            int line,
+            String strategies,
+            String window,
+            String source,
+            String summarizer) {}
 
-    /** A strategy mapped in a {@code .loct} file, as written (the class is never loaded by the audit). */
-    public record CustomStrategy(String name, String className, String file, int line) { }
+    /**
+     * A strategy mapped in a {@code .loct} file, as written (the class is never loaded by the
+     * audit).
+     */
+    public record CustomStrategy(String name, String className, String file, int line) {}
 
     public AuditReport {
         prompts = prompts == null ? List.of() : List.copyOf(prompts);
@@ -23,21 +44,35 @@ public record AuditReport(String script, List<SecurityAudit.AgentProfile> agents
         strategies = strategies == null ? List.of() : List.copyOf(strategies);
     }
 
-    public AuditReport(String script, List<SecurityAudit.AgentProfile> agents, List<Finding> findings, Map<Owasp, List<String>> controls,
-                       List<io.github.llm4j.loom.prompt.PromptUse> prompts) {
+    public AuditReport(
+            String script,
+            List<SecurityAudit.AgentProfile> agents,
+            List<Finding> findings,
+            Map<Owasp, List<String>> controls,
+            List<io.github.llm4j.loom.prompt.PromptUse> prompts) {
         this(script, agents, findings, controls, prompts, List.of(), List.of());
     }
 
-    public AuditReport(String script, List<SecurityAudit.AgentProfile> agents, List<Finding> findings, Map<Owasp, List<String>> controls) {
+    public AuditReport(
+            String script,
+            List<SecurityAudit.AgentProfile> agents,
+            List<Finding> findings,
+            Map<Owasp, List<String>> controls) {
         this(script, agents, findings, controls, List.of(), List.of(), List.of());
     }
 
-    /** The same report listing which prompt each agent would run (id, version and a hash, never the text). */
+    /**
+     * The same report listing which prompt each agent would run (id, version and a hash, never the
+     * text).
+     */
     public AuditReport withPrompts(List<io.github.llm4j.loom.prompt.PromptUse> uses) {
         return new AuditReport(script, agents, findings, controls, uses, contexts, strategies);
     }
 
-    /** The same report listing each agent's compaction strategy and window, and the strategies mapped in {@code .loct} files. */
+    /**
+     * The same report listing each agent's compaction strategy and window, and the strategies
+     * mapped in {@code .loct} files.
+     */
     public AuditReport withContext(List<ContextUse> uses, List<CustomStrategy> mapped) {
         return new AuditReport(script, agents, findings, controls, prompts, uses, mapped);
     }
@@ -56,75 +91,172 @@ public record AuditReport(String script, List<SecurityAudit.AgentProfile> agents
     public String markdown() {
         StringBuilder b = new StringBuilder();
         b.append("# Security audit: ").append(script).append("\n\n");
-        b.append("**").append(findings.size()).append(findings.size() == 1 ? " finding" : " findings").append("**: ")
-                .append(count(Severity.HIGH)).append(" high, ").append(count(Severity.MEDIUM)).append(" medium, ")
-                .append(count(Severity.LOW)).append(" low, ").append(count(Severity.INFO)).append(" info.\n\n");
-        b.append(count(Severity.HIGH) > 0 ? "> Fix the high findings before this script runs unattended.\n\n"
-                : count(Severity.MEDIUM) > 0 ? "> No high findings. Review the medium ones.\n\n" : "> No high or medium findings.\n\n");
+        b.append("**")
+                .append(findings.size())
+                .append(findings.size() == 1 ? " finding" : " findings")
+                .append("**: ")
+                .append(count(Severity.HIGH))
+                .append(" high, ")
+                .append(count(Severity.MEDIUM))
+                .append(" medium, ")
+                .append(count(Severity.LOW))
+                .append(" low, ")
+                .append(count(Severity.INFO))
+                .append(" info.\n\n");
+        b.append(
+                count(Severity.HIGH) > 0
+                        ? "> Fix the high findings before this script runs unattended.\n\n"
+                        : count(Severity.MEDIUM) > 0
+                                ? "> No high findings. Review the medium ones.\n\n"
+                                : "> No high or medium findings.\n\n");
 
         b.append("## What each agent can do\n\n");
-        b.append("The *lethal trifecta* is one agent that reads untrusted content, reaches private data and can send or act. ")
+        b.append(
+                        "The *lethal trifecta* is one agent that reads untrusted content, reaches private data and can send or act. ")
                 .append("Text it reads can then tell it to send your data out.\n\n");
-        b.append("| Agent | Reads untrusted content | Reaches private data | Can send or act | Effects without approval | Budget | PII guard | Trifecta |\n");
+        b.append(
+                "| Agent | Reads untrusted content | Reaches private data | Can send or act | Effects without approval | Budget | PII guard | Trifecta |\n");
         b.append("|---|---|---|---|---|---|---|---|\n");
         for (SecurityAudit.AgentProfile p : agents) {
-            b.append("| ").append(p.agent()).append(" (line ").append(p.line()).append(") | ").append(list(p.untrusted())).append(" | ").append(list(p.privateData()))
-                    .append(" | ").append(list(p.outward())).append(" | ").append(p.approveAll() ? "none (approve: all)" : list(p.unapprovedEffects()))
-                    .append(" | ").append(p.budget()).append(" | ").append(p.pii() == null ? "none" : p.pii())
-                    .append(" | ").append(p.trifecta() ? "**yes**" : "no").append(" |\n");
+            b.append("| ")
+                    .append(p.agent())
+                    .append(" (line ")
+                    .append(p.line())
+                    .append(") | ")
+                    .append(list(p.untrusted()))
+                    .append(" | ")
+                    .append(list(p.privateData()))
+                    .append(" | ")
+                    .append(list(p.outward()))
+                    .append(" | ")
+                    .append(p.approveAll() ? "none (approve: all)" : list(p.unapprovedEffects()))
+                    .append(" | ")
+                    .append(p.budget())
+                    .append(" | ")
+                    .append(p.pii() == null ? "none" : p.pii())
+                    .append(" | ")
+                    .append(p.trifecta() ? "**yes**" : "no")
+                    .append(" |\n");
         }
         b.append('\n');
 
         if (!prompts.isEmpty()) {
             b.append("## Prompts\n\n| Agent | Prompt | Version | Text hash |\n|---|---|---|---|\n");
             for (var u : prompts) {
-                b.append("| ").append(u.agent()).append(" (line ").append(u.line()).append(") | ").append(u.reference()).append(" | ")
-                        .append(u.resolved() ? u.version() : "**not found**").append(" | ").append(u.resolved() ? u.hash() : "-").append(" |\n");
+                b.append("| ")
+                        .append(u.agent())
+                        .append(" (line ")
+                        .append(u.line())
+                        .append(") | ")
+                        .append(u.reference())
+                        .append(" | ")
+                        .append(u.resolved() ? u.version() : "**not found**")
+                        .append(" | ")
+                        .append(u.resolved() ? u.hash() : "-")
+                        .append(" |\n");
             }
             b.append('\n');
         }
 
         if (!contexts.isEmpty()) {
-            b.append("## Context and compaction\n\n| Agent | Strategy | Window | Where the window comes from | Summarizer |\n|---|---|---|---|---|\n");
+            b.append(
+                    "## Context and compaction\n\n| Agent | Strategy | Window | Where the window comes from | Summarizer |\n|---|---|---|---|---|\n");
             for (var u : contexts) {
-                b.append("| ").append(u.agent()).append(" (line ").append(u.line()).append(") | ").append(u.strategies()).append(" | ").append(u.window())
-                        .append(" | ").append(u.source()).append(" | ").append(u.summarizer() == null ? "-" : u.summarizer()).append(" |\n");
+                b.append("| ")
+                        .append(u.agent())
+                        .append(" (line ")
+                        .append(u.line())
+                        .append(") | ")
+                        .append(u.strategies())
+                        .append(" | ")
+                        .append(u.window())
+                        .append(" | ")
+                        .append(u.source())
+                        .append(" | ")
+                        .append(u.summarizer() == null ? "-" : u.summarizer())
+                        .append(" |\n");
             }
             b.append('\n');
         }
         if (!strategies.isEmpty()) {
-            b.append("## Your own compaction strategies\n\nMapped in `.loct` files; the audit never loads the classes.\n\n| Name | Class | Mapped at |\n|---|---|---|\n");
-            for (var c : strategies) b.append("| ").append(c.name()).append(" | ").append(c.className()).append(" | ").append(c.file()).append(" line ").append(c.line()).append(" |\n");
+            b.append(
+                    "## Your own compaction strategies\n\nMapped in `.loct` files; the audit never loads the classes.\n\n| Name | Class | Mapped at |\n|---|---|---|\n");
+            for (var c : strategies)
+                b.append("| ")
+                        .append(c.name())
+                        .append(" | ")
+                        .append(c.className())
+                        .append(" | ")
+                        .append(c.file())
+                        .append(" line ")
+                        .append(c.line())
+                        .append(" |\n");
             b.append('\n');
         }
 
         b.append("## Findings\n\n");
         if (findings.isEmpty()) b.append("None.\n\n");
         for (Finding f : findings) {
-            b.append("### ").append(f.severity().name()).append(" | ").append(f.rule()).append(" | ").append(f.title()).append("\n\n");
-            b.append("- **Where:** ").append(f.where()).append(f.line() > 0 ? " (line " + f.line() + ")" : "").append('\n');
-            b.append("- **OWASP:** ").append(String.join(", ", f.owasp().stream().map(o -> o.id() + " " + o.title()).toList())).append('\n');
+            b.append("### ")
+                    .append(f.severity().name())
+                    .append(" | ")
+                    .append(f.rule())
+                    .append(" | ")
+                    .append(f.title())
+                    .append("\n\n");
+            b.append("- **Where:** ")
+                    .append(f.where())
+                    .append(f.line() > 0 ? " (line " + f.line() + ")" : "")
+                    .append('\n');
+            b.append("- **OWASP:** ")
+                    .append(
+                            String.join(
+                                    ", ",
+                                    f.owasp().stream().map(o -> o.id() + " " + o.title()).toList()))
+                    .append('\n');
             b.append("- **Risk:** ").append(f.risk()).append('\n');
             b.append("- **Fix:** ").append(f.fix()).append("\n\n");
         }
 
         b.append("## OWASP Top 10 for LLM Applications (2025)\n\n");
-        b.append("| Risk | Findings here | In this script | Always enforced by the runtime |\n|---|---|---|---|\n");
+        b.append(
+                "| Risk | Findings here | In this script | Always enforced by the runtime |\n|---|---|---|---|\n");
         for (Owasp o : Owasp.values()) {
             long n = findings.stream().filter(f -> f.owasp().contains(o)).count();
-            b.append("| ").append(o.id()).append(" ").append(o.title()).append(" | ").append(n).append(" | ")
-                    .append(String.join("; ", controls.getOrDefault(o, List.of()))).append(" | ").append(RUNTIME.get(o)).append(" |\n");
+            b.append("| ")
+                    .append(o.id())
+                    .append(" ")
+                    .append(o.title())
+                    .append(" | ")
+                    .append(n)
+                    .append(" | ")
+                    .append(String.join("; ", controls.getOrDefault(o, List.of())))
+                    .append(" | ")
+                    .append(RUNTIME.get(o))
+                    .append(" |\n");
         }
         b.append("\n## Not covered by this audit\n\n");
-        b.append("It reads the script only. It does not see: what host-registered, Java and MCP tools do; operating-system and database permissions; ")
-                .append("what is in indexed documents or memory; provider settings; or the content agents produce. See SECURITY.md for the full threat model.\n");
+        b.append(
+                        "It reads the script only. It does not see: what host-registered, Java and MCP tools do; operating-system and database permissions; ")
+                .append(
+                        "what is in indexed documents or memory; provider settings; or the content agents produce. See SECURITY.md for the full threat model.\n");
         return b.toString();
     }
 
     public String json() {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("script", script);
-        m.put("summary", Map.of("high", count(Severity.HIGH), "medium", count(Severity.MEDIUM), "low", count(Severity.LOW), "info", count(Severity.INFO)));
+        m.put(
+                "summary",
+                Map.of(
+                        "high",
+                        count(Severity.HIGH),
+                        "medium",
+                        count(Severity.MEDIUM),
+                        "low",
+                        count(Severity.LOW),
+                        "info",
+                        count(Severity.INFO)));
         List<Map<String, Object>> as = new ArrayList<>();
         for (SecurityAudit.AgentProfile p : agents) {
             Map<String, Object> a = new LinkedHashMap<>();
@@ -205,15 +337,23 @@ public record AuditReport(String script, List<SecurityAudit.AgentProfile> agents
     }
 
     /** What Loom enforces whatever the script says. */
-    static final Map<Owasp, String> RUNTIME = Map.of(
-            Owasp.LLM01, "tools only as declared per agent; nothing the model says widens them",
-            Owasp.LLM02, "secrets scrubbed from results, errors, traces, journals and audit logs",
-            Owasp.LLM03, "no tool, skill or server exists unless the script or host declares it",
-            Owasp.LLM04, "none (content is not inspected)",
-            Owasp.LLM05, "tool fences: no shell syntax, no header or path injection, read-only SQL, bound parameters",
-            Owasp.LLM06, "shell needs approval or an explicit unattended; effects journaled and never repeated; a missing approver blocks",
-            Owasp.LLM07, "credentials cannot be written into a script, so not into a prompt",
-            Owasp.LLM08, "none (retrieval has no per-user access control)",
-            Owasp.LLM09, "none (answers are not checked against sources at run time)",
-            Owasp.LLM10, "budgets checked before each model call; every loop and agent bounded; timeouts and size caps on tools");
+    static final Map<Owasp, String> RUNTIME =
+            Map.of(
+                    Owasp.LLM01,
+                            "tools only as declared per agent; nothing the model says widens them",
+                    Owasp.LLM02,
+                            "secrets scrubbed from results, errors, traces, journals and audit logs",
+                    Owasp.LLM03,
+                            "no tool, skill or server exists unless the script or host declares it",
+                    Owasp.LLM04, "none (content is not inspected)",
+                    Owasp.LLM05,
+                            "tool fences: no shell syntax, no header or path injection, read-only SQL, bound parameters",
+                    Owasp.LLM06,
+                            "shell needs approval or an explicit unattended; effects journaled and never repeated; a missing approver blocks",
+                    Owasp.LLM07,
+                            "credentials cannot be written into a script, so not into a prompt",
+                    Owasp.LLM08, "none (retrieval has no per-user access control)",
+                    Owasp.LLM09, "none (answers are not checked against sources at run time)",
+                    Owasp.LLM10,
+                            "budgets checked before each model call; every loop and agent bounded; timeouts and size caps on tools");
 }

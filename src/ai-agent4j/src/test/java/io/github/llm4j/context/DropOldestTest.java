@@ -30,13 +30,15 @@ class DropOldestTest {
         assertThat(r.outcome()).isEqualTo(CompactionResult.Outcome.COMPACTED);
         assertThat(r.strategy()).isEqualTo("drop_oldest");
         List<Message> out = r.messages();
-        assertThat(out.get(0)).isSameAs(in.get(0));          // system
-        assertThat(out.get(1)).isSameAs(in.get(1));          // task
+        assertThat(out.get(0)).isSameAs(in.get(0)); // system
+        assertThat(out.get(1)).isSameAs(in.get(1)); // task
         assertThat(out.get(2).getContent()).contains("earlier messages were removed");
         assertThat(Messages.compactionOf(out.get(2))).contains("drop_oldest");
-        assertThat(out.subList(out.size() - 2, out.size())).containsExactlyElementsOf(in.subList(in.size() - 2, in.size()));
+        assertThat(out.subList(out.size() - 2, out.size()))
+                .containsExactlyElementsOf(in.subList(in.size() - 2, in.size()));
         assertThat(req(1).sizeOf(out)).isLessThanOrEqualTo(size / 2);
-        // what was removed is the oldest part: the first surviving exchange is later than the first original one
+        // what was removed is the oldest part: the first surviving exchange is later than the first
+        // original one
         assertThat(out.get(3)).isNotEqualTo(in.get(2));
         assertThat(r.droppedMessages()).isEqualTo(in.size() - (out.size() - 1));
         assertThat(Messages.dropped(out.get(2))).isEqualTo(r.droppedMessages());
@@ -71,17 +73,34 @@ class DropOldestTest {
         List<Message> out = second.messages();
         long markers = out.stream().filter(m -> Messages.compactionOf(m).isPresent()).count();
         assertThat(markers).isEqualTo(1);
-        Message marker = out.stream().filter(m -> Messages.compactionOf(m).isPresent()).findFirst().orElseThrow();
+        Message marker =
+                out.stream()
+                        .filter(m -> Messages.compactionOf(m).isPresent())
+                        .findFirst()
+                        .orElseThrow();
         assertThat(Messages.dropped(marker)).isGreaterThan(firstDropped);
         assertThat(marker.getContent()).contains(String.valueOf(Messages.dropped(marker)));
     }
 
     @Test
     void aPinnedMessageSurvivesAndItsNeighboursAreStillRemovable() {
-        Message pinned = Message.builder().role(Message.Role.USER).content("Budget is 500.")
-                .providerData(Map.of(Messages.PINNED, true)).build();
-        List<Message> in = new Convo().system("sys").task("task").step("a", 400).add(pinned).step("b", 400).step("c", 400)
-                .step("d", 400).step("e", 400).build();
+        Message pinned =
+                Message.builder()
+                        .role(Message.Role.USER)
+                        .content("Budget is 500.")
+                        .providerData(Map.of(Messages.PINNED, true))
+                        .build();
+        List<Message> in =
+                new Convo()
+                        .system("sys")
+                        .task("task")
+                        .step("a", 400)
+                        .add(pinned)
+                        .step("b", 400)
+                        .step("c", 400)
+                        .step("d", 400)
+                        .step("e", 400)
+                        .build();
         CompactionResult r = drop.compact(in, req(req(1).sizeOf(in) / 3));
         assertThat(r.messages()).contains(pinned);
         assertThat(r.outcome()).isEqualTo(CompactionResult.Outcome.COMPACTED);
@@ -89,29 +108,65 @@ class DropOldestTest {
 
     @Test
     void anExchangeHoldingAPinnedResultIsKeptWhole() {
-        Message result = Message.builder().role(Message.Role.TOOL).name("a").toolCallId("keep").content("important")
-                .providerData(Map.of(Messages.PINNED, true)).build();
-        Message call = Message.assistantToolCalls("t", List.of(new io.github.llm4j.model.ToolCall("keep", "a", Map.of())), Map.of());
-        List<Message> in = new Convo().system("sys").task("task").add(call).add(result).step("b", 500).step("c", 500)
-                .step("d", 500).step("e", 500).build();
+        Message result =
+                Message.builder()
+                        .role(Message.Role.TOOL)
+                        .name("a")
+                        .toolCallId("keep")
+                        .content("important")
+                        .providerData(Map.of(Messages.PINNED, true))
+                        .build();
+        Message call =
+                Message.assistantToolCalls(
+                        "t",
+                        List.of(new io.github.llm4j.model.ToolCall("keep", "a", Map.of())),
+                        Map.of());
+        List<Message> in =
+                new Convo()
+                        .system("sys")
+                        .task("task")
+                        .add(call)
+                        .add(result)
+                        .step("b", 500)
+                        .step("c", 500)
+                        .step("d", 500)
+                        .step("e", 500)
+                        .build();
         CompactionResult r = drop.compact(in, req(1));
         assertThat(r.messages()).contains(call, result);
     }
 
     @Test
     void theBoundaryOfTheRecentWindowNeverSplitsAnExchange() {
-        // keepRecent 2 would start the tail at the second result of a parallel turn: the whole turn is kept
-        List<Message> in = new Convo().system("sys").task("task").step("a", 500).step("b", 500).parallel(2, 500, "p").build();
+        // keepRecent 2 would start the tail at the second result of a parallel turn: the whole turn
+        // is kept
+        List<Message> in =
+                new Convo()
+                        .system("sys")
+                        .task("task")
+                        .step("a", 500)
+                        .step("b", 500)
+                        .parallel(2, 500, "p")
+                        .build();
         CompactionResult r = drop.compact(in, req(1));
         List<Message> out = r.messages();
-        assertThat(out.subList(out.size() - 3, out.size())).containsExactlyElementsOf(in.subList(in.size() - 3, in.size()));
+        assertThat(out.subList(out.size() - 3, out.size()))
+                .containsExactlyElementsOf(in.subList(in.size() - 3, in.size()));
     }
 
     @Test
     void parallelCallsAreRemovedTogether() {
-        List<Message> in = new Convo().system("sys").task("task").parallel(4, 800, "p").step("a", 800).step("b", 800).build();
+        List<Message> in =
+                new Convo()
+                        .system("sys")
+                        .task("task")
+                        .parallel(4, 800, "p")
+                        .step("a", 800)
+                        .step("b", 800)
+                        .build();
         CompactionResult r = drop.compact(in, req(req(1).sizeOf(in) - 100));
-        long toolsLeft = r.messages().stream().filter(m -> m.getRole() == Message.Role.TOOL).count();
+        long toolsLeft =
+                r.messages().stream().filter(m -> m.getRole() == Message.Role.TOOL).count();
         long callsLeft = r.messages().stream().mapToLong(m -> m.getToolCalls().size()).sum();
         assertThat(toolsLeft).isEqualTo(callsLeft);
     }
@@ -119,7 +174,14 @@ class DropOldestTest {
     @Test
     void anOrphanToolResultIsRemovedOnItsOwn() {
         Message orphan = Message.toolResult("nobody", "x", "x".repeat(2_000));
-        List<Message> in = new Convo().system("sys").task("task").add(orphan).step("a", 100).step("b", 100).build();
+        List<Message> in =
+                new Convo()
+                        .system("sys")
+                        .task("task")
+                        .add(orphan)
+                        .step("a", 100)
+                        .step("b", 100)
+                        .build();
         CompactionResult r = drop.compact(in, req(req(1).sizeOf(in) - 200));
         assertThat(r.messages()).doesNotContain(orphan);
     }
@@ -146,12 +208,23 @@ class DropOldestTest {
 
     @Test
     void theFirstUserMessageCanGoWhenItIsNotTheTask() {
-        List<Message> in = new Convo().task("hello").answer("hi " + "x".repeat(400)).task("and?").answer("more " + "y".repeat(400)).task("ok").answer("done").build();
-        CompactionRequest req = CompactionRequest.builder(30).keepRecent(2).protectTask(false).build();
+        List<Message> in =
+                new Convo()
+                        .task("hello")
+                        .answer("hi " + "x".repeat(400))
+                        .task("and?")
+                        .answer("more " + "y".repeat(400))
+                        .task("ok")
+                        .answer("done")
+                        .build();
+        CompactionRequest req =
+                CompactionRequest.builder(30).keepRecent(2).protectTask(false).build();
         CompactionResult r = drop.compact(in, req);
         assertThat(r.messages()).doesNotContain(in.get(0));
-        assertThat(r.messages().subList(r.messages().size() - 2, r.messages().size())).containsExactlyElementsOf(in.subList(in.size() - 2, in.size()));
+        assertThat(r.messages().subList(r.messages().size() - 2, r.messages().size()))
+                .containsExactlyElementsOf(in.subList(in.size() - 2, in.size()));
         // and with the task protected (the default) the first message stays
-        assertThat(drop.compact(in, CompactionRequest.builder(30).keepRecent(2).build()).messages()).contains(in.get(0));
+        assertThat(drop.compact(in, CompactionRequest.builder(30).keepRecent(2).build()).messages())
+                .contains(in.get(0));
     }
 }

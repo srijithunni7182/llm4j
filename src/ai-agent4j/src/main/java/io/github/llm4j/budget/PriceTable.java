@@ -23,13 +23,15 @@ import java.util.Optional;
 public final class PriceTable {
 
     /** A model's price per million input and output tokens. */
-    public record Price(BigDecimal inputPerMillion, BigDecimal outputPerMillion) implements BudgetSet.Pricing {
+    public record Price(BigDecimal inputPerMillion, BigDecimal outputPerMillion)
+            implements BudgetSet.Pricing {
 
         public static final Price FREE = new Price(BigDecimal.ZERO, BigDecimal.ZERO);
 
         @Override
         public BigDecimal cost(long promptTokens, long completionTokens) {
-            return inputPerMillion.multiply(BigDecimal.valueOf(promptTokens))
+            return inputPerMillion
+                    .multiply(BigDecimal.valueOf(promptTokens))
                     .add(outputPerMillion.multiply(BigDecimal.valueOf(completionTokens)))
                     .movePointLeft(6);
         }
@@ -61,19 +63,25 @@ public final class PriceTable {
             int eq = line.indexOf('=');
             String[] parts = eq < 0 ? new String[0] : line.substring(eq + 1).split("/");
             if (eq < 0 || parts.length != 2) {
-                throw new IllegalArgumentException(file + ":" + n + ": expected 'model = input / output', got: " + raw);
+                throw new IllegalArgumentException(
+                        file + ":" + n + ": expected 'model = input / output', got: " + raw);
             }
-            prices.put(line.substring(0, eq).strip(),
+            prices.put(
+                    line.substring(0, eq).strip(),
                     new Price(new BigDecimal(parts[0].strip()), new BigDecimal(parts[1].strip())));
         }
         return new PriceTable(prices);
     }
 
-    /** The model's price: exact id, then the id without its provider prefix; {@code ollama/*} is free. */
+    /**
+     * The model's price: exact id, then the id without its provider prefix; {@code ollama/*} is
+     * free.
+     */
     public Optional<Price> price(String model) {
         if (model == null) return Optional.empty();
         Price p = prices.get(model);
-        if (p == null && model.contains("/")) p = prices.get(model.substring(model.indexOf('/') + 1));
+        if (p == null && model.contains("/"))
+            p = prices.get(model.substring(model.indexOf('/') + 1));
         if (p == null && model.startsWith("ollama/")) p = Price.FREE;
         return Optional.ofNullable(p);
     }

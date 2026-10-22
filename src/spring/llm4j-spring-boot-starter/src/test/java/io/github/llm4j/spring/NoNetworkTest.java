@@ -17,9 +17,11 @@ class NoNetworkTest {
         ProxySelector selector = ProxySelector.getDefault();
         selector.select(URI.create("http://127.0.0.1:8080/x"));
         selector.select(URI.create("http://localhost:8080/x"));
-        new NoNetwork().afterEach(null);                       // nothing outside: no failure
+        new NoNetwork().afterEach(null); // nothing outside: no failure
         selector.select(URI.create("https://api.example.com/v1/chat"));
-        assertThatThrownBy(() -> new NoNetwork().afterEach(null)).isInstanceOf(AssertionError.class).hasMessageContaining("api.example.com");
+        assertThatThrownBy(() -> new NoNetwork().afterEach(null))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("api.example.com");
         assertThat(selector.getClass().getName()).contains("NoNetwork");
     }
 }

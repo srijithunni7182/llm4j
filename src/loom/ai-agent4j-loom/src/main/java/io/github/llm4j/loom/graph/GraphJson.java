@@ -11,19 +11,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Writes a {@link GraphResult} as JSON (schema version 1, {@code graph-result.schema.json}). Keys that are not set are
- * left out, never written as {@code null}, and key order is fixed so the same script always gives the same text.
+ * Writes a {@link GraphResult} as JSON (schema version 1, {@code graph-result.schema.json}). Keys
+ * that are not set are left out, never written as {@code null}, and key order is fixed so the same
+ * script always gives the same text.
  */
 public final class GraphJson {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final DefaultPrettyPrinter PRINTER = new DefaultPrettyPrinter()
-            .withSeparators(Separators.createDefaultInstance().withObjectFieldValueSpacing(Separators.Spacing.AFTER))
-            .withObjectIndenter(new DefaultIndenter("  ", "\n"))
-            .withArrayIndenter(new DefaultIndenter("  ", "\n"));
+    private static final DefaultPrettyPrinter PRINTER =
+            new DefaultPrettyPrinter()
+                    .withSeparators(
+                            Separators.createDefaultInstance()
+                                    .withObjectFieldValueSpacing(Separators.Spacing.AFTER))
+                    .withObjectIndenter(new DefaultIndenter("  ", "\n"))
+                    .withArrayIndenter(new DefaultIndenter("  ", "\n"));
 
-    private GraphJson() {
-    }
+    private GraphJson() {}
 
     public static String write(GraphResult result) {
         try {

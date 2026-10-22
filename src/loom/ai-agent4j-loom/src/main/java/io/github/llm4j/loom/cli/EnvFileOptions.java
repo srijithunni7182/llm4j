@@ -5,22 +5,35 @@ import java.nio.file.Path;
 import picocli.CommandLine.Option;
 
 /**
- * The developer's keys: a {@code .env} file beside the script, ignored by git, read when you run or evaluate the project. {@code --env-file} names another
- * file; {@code --no-env-file} reads none. A variable already set in the shell wins over the file. For a deployed application use the secret store instead.
+ * The developer's keys: a {@code .env} file beside the script, ignored by git, read when you run or
+ * evaluate the project. {@code --env-file} names another file; {@code --no-env-file} reads none. A
+ * variable already set in the shell wins over the file. For a deployed application use the secret
+ * store instead.
  */
 final class EnvFileOptions {
 
-    @Option(names = "--env-file", paramLabel = "<file>",
-            description = "Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.")
+    @Option(
+            names = "--env-file",
+            paramLabel = "<file>",
+            description =
+                    "Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.")
     File file;
 
-    @Option(names = "--no-env-file", description = "Do not read a .env file, even if one is beside the script.")
+    @Option(
+            names = "--no-env-file",
+            description = "Do not read a .env file, even if one is beside the script.")
     boolean none;
 
-    /** The environment with the keys of the file added, or null (after saying why) when the file is refused. */
+    /**
+     * The environment with the keys of the file added, or null (after saying why) when the file is
+     * refused.
+     */
     WeaveEnv apply(WeaveEnv env, Path script) {
         if (none) return env;
-        Path chosen = file != null ? file.toPath() : io.github.llm4j.loom.init.ProjectLayout.envFile(script);
+        Path chosen =
+                file != null
+                        ? file.toPath()
+                        : io.github.llm4j.loom.init.ProjectLayout.envFile(script);
         if (file == null && !java.nio.file.Files.isRegularFile(chosen)) return env;
         return EnvFile.apply(env, chosen, file != null);
     }

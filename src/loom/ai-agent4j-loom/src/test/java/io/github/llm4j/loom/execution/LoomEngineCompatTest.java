@@ -13,12 +13,14 @@ import org.junit.jupiter.api.Test;
 
 class LoomEngineCompatTest {
 
-    /** An engine written before invoker credentials: it implements only the four original methods. */
+    /**
+     * An engine written before invoker credentials: it implements only the four original methods.
+     */
     private static final class OldEngine implements LoomEngine {
         final List<String> ran = new ArrayList<>();
 
         @Override
-        public void initialize() { }
+        public void initialize() {}
 
         @Override
         public void executeWorkflow(String workflowName, Map<String, String> initialContext) {
@@ -26,7 +28,7 @@ class LoomEngineCompatTest {
         }
 
         @Override
-        public void shutdown() { }
+        public void shutdown() {}
 
         @Override
         public VariableContext getContext() {

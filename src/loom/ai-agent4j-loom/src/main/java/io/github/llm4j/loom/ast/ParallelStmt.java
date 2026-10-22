@@ -4,12 +4,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * AST node for a parallel execution block.
- * Each statement within the body is executed concurrently.
+ * AST node for a parallel execution block. Each statement within the body is executed concurrently.
  */
 public class ParallelStmt extends LocatedStatement {
     private final List<Statement> body = new ArrayList<>();
 
-    public List<Statement> getBody() { return body; }
-    public void addStatement(Statement stmt) { this.body.add(stmt); }
+    public List<Statement> getBody() {
+        return body;
+    }
+
+    public void addStatement(Statement stmt) {
+        this.body.add(stmt);
+    }
 }

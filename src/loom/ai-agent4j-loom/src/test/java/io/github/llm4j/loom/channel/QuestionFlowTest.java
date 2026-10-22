@@ -21,8 +21,7 @@ import org.junit.jupiter.api.io.TempDir;
 /** A question that waits, and the ways it is answered (spec loom-remote-answers R1, R2, R4). */
 class QuestionFlowTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     ChannelHarness h;
     HumanInterface person;
@@ -47,8 +46,12 @@ class QuestionFlowTest {
     @Test
     @Tag("RA-V1.1")
     void aQuestionIsRecordedSentOnceAndTheRunSuspendsHoldingNothing() {
-        assertThatThrownBy(() -> person.promptHuman("Main/s0", "Publish today's digest? (yes/no)")).isInstanceOf(RunSuspended.class)
-                .satisfies(e -> assertThat(((RunSuspended) e).reason()).isEqualTo(RunSuspended.Reason.HUMAN));
+        assertThatThrownBy(() -> person.promptHuman("Main/s0", "Publish today's digest? (yes/no)"))
+                .isInstanceOf(RunSuspended.class)
+                .satisfies(
+                        e ->
+                                assertThat(((RunSuspended) e).reason())
+                                        .isEqualTo(RunSuspended.Reason.HUMAN));
 
         Pending p = only();
         assertThat(p.state()).isEqualTo(Pending.State.OPEN);
@@ -62,11 +65,23 @@ class QuestionFlowTest {
     void everyKindOfQuestionTakesTheSamePath() {
         Hints approval = new Hints(Hints.Kind.APPROVAL, List.of("yes", "no"), null);
         Hints decide = new Hints(Hints.Kind.DECIDE, List.of("approve", "reject"), "support-lead");
-        for (Object[] q : new Object[][] {{"A/s0", "free text?", Hints.none()}, {"A/s1#approve:Mail:1", "Agent wants to call Mail. Approve? yes/no", approval},
-                {"A/s2#decide-ask", "Decide Refund", decide}, {"A/s3#rewind-ask", "Going back would repeat effects", new Hints(Hints.Kind.APPROVAL, List.of("keep", "repeat", "cancel"), null)}}) {
-            assertThatThrownBy(() -> person.promptHuman((String) q[0], (String) q[1], (Hints) q[2])).isInstanceOf(RunSuspended.class);
+        for (Object[] q :
+                new Object[][] {
+                    {"A/s0", "free text?", Hints.none()},
+                    {"A/s1#approve:Mail:1", "Agent wants to call Mail. Approve? yes/no", approval},
+                    {"A/s2#decide-ask", "Decide Refund", decide},
+                    {
+                        "A/s3#rewind-ask",
+                        "Going back would repeat effects",
+                        new Hints(Hints.Kind.APPROVAL, List.of("keep", "repeat", "cancel"), null)
+                    }
+                }) {
+            assertThatThrownBy(() -> person.promptHuman((String) q[0], (String) q[1], (Hints) q[2]))
+                    .isInstanceOf(RunSuspended.class);
         }
-        assertThat(h.pending.all()).extracting(Pending::kind).containsExactlyInAnyOrder("prompt", "approval", "decide", "approval");
+        assertThat(h.pending.all())
+                .extracting(Pending::kind)
+                .containsExactlyInAnyOrder("prompt", "approval", "decide", "approval");
         assertThat(h.telegram.sent).hasSize(4);
     }
 
@@ -74,8 +89,10 @@ class QuestionFlowTest {
     @Tag("RA-V1.3")
     @Tag("RA-V1.4")
     void resumingWithoutAnAnswerSendsNothingAndWithOneReturnsItWithoutSendingAgain() {
-        assertThatThrownBy(() -> person.promptHuman("Main/s0", "Publish?")).isInstanceOf(RunSuspended.class);
-        assertThatThrownBy(() -> person.promptHuman("Main/s0", "Publish?")).isInstanceOf(RunSuspended.class);
+        assertThatThrownBy(() -> person.promptHuman("Main/s0", "Publish?"))
+                .isInstanceOf(RunSuspended.class);
+        assertThatThrownBy(() -> person.promptHuman("Main/s0", "Publish?"))
+                .isInstanceOf(RunSuspended.class);
         assertThat(h.telegram.sent).as("no second message while it waits").hasSize(1);
 
         assertThat(h.answers.record(only().code(), "yes", "test").recorded()).isTrue();
@@ -87,11 +104,22 @@ class QuestionFlowTest {
     @Test
     @Tag("RA-V1.5")
     void theMessageNamesTheRunHoldsTheQuestionTheCodeAndTheWordsToReplyWith() {
-        assertThatThrownBy(() -> person.promptHuman("Triage/s0#decide-ask", "support-lead, please decide Refund (approve / reject / escalate)\namount = 50",
-                new Hints(Hints.Kind.DECIDE, List.of("approve", "reject", "escalate"), "support-lead"))).isInstanceOf(RunSuspended.class);
+        assertThatThrownBy(
+                        () ->
+                                person.promptHuman(
+                                        "Triage/s0#decide-ask",
+                                        "support-lead, please decide Refund (approve / reject / escalate)\namount = 50",
+                                        new Hints(
+                                                Hints.Kind.DECIDE,
+                                                List.of("approve", "reject", "escalate"),
+                                                "support-lead")))
+                .isInstanceOf(RunSuspended.class);
 
         String text = h.telegram.last().text();
-        assertThat(text).startsWith("[triage-42] support-lead, please decide Refund").contains("amount = 50").contains(only().code() + " approve | reject | escalate");
+        assertThat(text)
+                .startsWith("[triage-42] support-lead, please decide Refund")
+                .contains("amount = 50")
+                .contains(only().code() + " approve | reject | escalate");
         assertThat(only().code()).hasSize(Codes.LENGTH);
     }
 
@@ -99,22 +127,47 @@ class QuestionFlowTest {
     @Tag("RA-V1.8")
     void everyCrashPointLeavesOneAnswerAndAtMostADuplicateMessageWithTheSameCode() {
         // killed after the record was written and before the send: the next ask sends it
-        Pending unsent = new Pending(h.pending.freshCode(), RUN, "run:" + RUN, "Main/s9", "Q9?", List.of(), "prompt", null, ChannelHarness.T0);
-        h.pending.locked(() -> {
-            h.pending.put(unsent);
-            return null;
-        });
-        assertThatThrownBy(() -> person.promptHuman("Main/s9", "Q9?")).isInstanceOf(RunSuspended.class);
+        Pending unsent =
+                new Pending(
+                        h.pending.freshCode(),
+                        RUN,
+                        "run:" + RUN,
+                        "Main/s9",
+                        "Q9?",
+                        List.of(),
+                        "prompt",
+                        null,
+                        ChannelHarness.T0);
+        h.pending.locked(
+                () -> {
+                    h.pending.put(unsent);
+                    return null;
+                });
+        assertThatThrownBy(() -> person.promptHuman("Main/s9", "Q9?"))
+                .isInstanceOf(RunSuspended.class);
         assertThat(h.telegram.sent).hasSize(1);
 
-        // killed after the send and before it was marked sent: the next ask sends the same code again
+        // killed after the send and before it was marked sent: the next ask sends the same code
+        // again
         Pending lost = h.pending.get(unsent.code()).orElseThrow();
-        h.pending.locked(() -> {
-            Pending fresh = new Pending(lost.code(), lost.run(), lost.runId(), lost.step(), lost.question(), lost.choices(), lost.kind(), lost.to(), lost.createdAt());
-            h.pending.put(fresh);
-            return null;
-        });
-        assertThatThrownBy(() -> person.promptHuman("Main/s9", "Q9?")).isInstanceOf(RunSuspended.class);
+        h.pending.locked(
+                () -> {
+                    Pending fresh =
+                            new Pending(
+                                    lost.code(),
+                                    lost.run(),
+                                    lost.runId(),
+                                    lost.step(),
+                                    lost.question(),
+                                    lost.choices(),
+                                    lost.kind(),
+                                    lost.to(),
+                                    lost.createdAt());
+                    h.pending.put(fresh);
+                    return null;
+                });
+        assertThatThrownBy(() -> person.promptHuman("Main/s9", "Q9?"))
+                .isInstanceOf(RunSuspended.class);
         assertThat(h.telegram.sent).hasSize(2);
         assertThat(h.telegram.sent.get(0).text()).contains(unsent.code());
         assertThat(h.telegram.sent.get(1).text()).contains(unsent.code());
@@ -129,7 +182,8 @@ class QuestionFlowTest {
     @Test
     @Tag("RA-V2.1")
     void anAnswerLeavesOneResumeTriggerForTheRun() {
-        assertThatThrownBy(() -> person.promptHuman("Main/s0", "Publish?")).isInstanceOf(RunSuspended.class);
+        assertThatThrownBy(() -> person.promptHuman("Main/s0", "Publish?"))
+                .isInstanceOf(RunSuspended.class);
 
         h.answers.record(only().code(), "yes", "operator:me");
         h.answers.record(only().code(), "yes", "operator:me");
@@ -143,7 +197,8 @@ class QuestionFlowTest {
     @Test
     @Tag("RA-V2.3")
     void aSecondAnswerIsRefusedAndNamesWhoWasFirst() {
-        assertThatThrownBy(() -> person.promptHuman("Main/s0", "Publish?")).isInstanceOf(RunSuspended.class);
+        assertThatThrownBy(() -> person.promptHuman("Main/s0", "Publish?"))
+                .isInstanceOf(RunSuspended.class);
         String code = only().code();
 
         assertThat(h.answers.record(code, "yes", "telegram:1").recorded()).isTrue();
@@ -157,7 +212,16 @@ class QuestionFlowTest {
     @Test
     @Tag("RA-V2.4")
     void aTextThatMatchesNoChoiceIsNotRecordedAndAUniquePrefixIs() {
-        assertThatThrownBy(() -> person.promptHuman("D/s0#decide-ask", "Decide?", new Hints(Hints.Kind.DECIDE, List.of("approve", "reject", "escalate"), null))).isInstanceOf(RunSuspended.class);
+        assertThatThrownBy(
+                        () ->
+                                person.promptHuman(
+                                        "D/s0#decide-ask",
+                                        "Decide?",
+                                        new Hints(
+                                                Hints.Kind.DECIDE,
+                                                List.of("approve", "reject", "escalate"),
+                                                null)))
+                .isInstanceOf(RunSuspended.class);
         String code = only().code();
 
         Answers.Outcome bad = h.answers.record(code, "maybe", "t");
@@ -171,24 +235,33 @@ class QuestionFlowTest {
     @Test
     @Tag("RA-V2.5")
     void anAcceptedAnswerIsAuditedWithWhoWhenAndWhat() throws Exception {
-        assertThatThrownBy(() -> person.promptHuman("Main/s0", "Publish?")).isInstanceOf(RunSuspended.class);
+        assertThatThrownBy(() -> person.promptHuman("Main/s0", "Publish?"))
+                .isInstanceOf(RunSuspended.class);
         h.clock.advance(Duration.ofMinutes(3));
 
         h.answers.record(only().code(), "yes", "telegram:5550001");
 
         String audit = Files.readString(h.pending.root().resolve("audit.jsonl"));
-        assertThat(audit).contains("\"event\":\"answered\"").contains(only().code()).contains("telegram:5550001").contains("\"answer\":\"yes\"").contains("2026-04-01T08:03:00Z");
+        assertThat(audit)
+                .contains("\"event\":\"answered\"")
+                .contains(only().code())
+                .contains("telegram:5550001")
+                .contains("\"answer\":\"yes\"")
+                .contains("2026-04-01T08:03:00Z");
         assertThat(person.promptHuman("Main/s0", "Publish?")).isEqualTo("yes");
     }
 
     @Test
     @Tag("RA-V2.6")
     void anUnknownExpiredOrAnsweredCodeChangesNothingAndSaysWhy() {
-        assertThatThrownBy(() -> person.promptHuman("Main/s0", "Publish?")).isInstanceOf(RunSuspended.class);
+        assertThatThrownBy(() -> person.promptHuman("Main/s0", "Publish?"))
+                .isInstanceOf(RunSuspended.class);
         Pending p = only();
 
-        assertThat(h.answers.record("ZZZZZZ", "yes", "t").message()).contains("No question has the code");
-        assertThat(h.answers.record("../../etc", "yes", "t").message()).contains("No question has the code");
+        assertThat(h.answers.record("ZZZZZZ", "yes", "t").message())
+                .contains("No question has the code");
+        assertThat(h.answers.record("../../etc", "yes", "t").message())
+                .contains("No question has the code");
         h.answers.expire(p);
         assertThat(h.answers.record(p.code(), "yes", "t").message()).contains("expired");
         assertThat(only().state()).isEqualTo(Pending.State.EXPIRED);
@@ -198,8 +271,18 @@ class QuestionFlowTest {
     @Test
     @Tag("RA-V4.4")
     void aQuestionIsRemindedUnderTheSameCodeAtMostTheConfiguredNumberOfTimes() throws Exception {
-        Channels.Runtime rt = h.runtimeWith(h.config(Duration.ofHours(6), 2, null, Map.of("default", List.of(ChannelHarness.ME))));
-        assertThatThrownBy(() -> rt.humanFor(Path.of(RUN), "run:" + RUN).promptHuman("Main/s0", "Publish?")).isInstanceOf(RunSuspended.class);
+        Channels.Runtime rt =
+                h.runtimeWith(
+                        h.config(
+                                Duration.ofHours(6),
+                                2,
+                                null,
+                                Map.of("default", List.of(ChannelHarness.ME))));
+        assertThatThrownBy(
+                        () ->
+                                rt.humanFor(Path.of(RUN), "run:" + RUN)
+                                        .promptHuman("Main/s0", "Publish?"))
+                .isInstanceOf(RunSuspended.class);
         String code = only().code();
 
         for (int hours : new int[] {5, 7, 14, 21, 28}) {
@@ -214,10 +297,18 @@ class QuestionFlowTest {
 
     @Test
     @Tag("RA-V4.5")
-    void anExpiredQuestionIsClosedTheRunIsToldToCarryOnAndTheStepGetsAnEmptyAnswer() throws Exception {
-        Channels.Runtime rt = h.runtimeWith(h.config(null, 0, Duration.ofDays(3), Map.of("default", List.of(ChannelHarness.ME))));
+    void anExpiredQuestionIsClosedTheRunIsToldToCarryOnAndTheStepGetsAnEmptyAnswer()
+            throws Exception {
+        Channels.Runtime rt =
+                h.runtimeWith(
+                        h.config(
+                                null,
+                                0,
+                                Duration.ofDays(3),
+                                Map.of("default", List.of(ChannelHarness.ME))));
         HumanInterface asker = rt.humanFor(Path.of(RUN), "run:" + RUN);
-        assertThatThrownBy(() -> asker.promptHuman("Main/s0", "Publish?")).isInstanceOf(RunSuspended.class);
+        assertThatThrownBy(() -> asker.promptHuman("Main/s0", "Publish?"))
+                .isInstanceOf(RunSuspended.class);
         String code = only().code();
 
         h.clock.advance(Duration.ofDays(4));
@@ -233,14 +324,44 @@ class QuestionFlowTest {
     @Test
     @Tag("RA-V4.7")
     void theNameAScriptAsksIsRoutedToItsChatsAndAnUnmappedNameGoesToTheDefault() throws Exception {
-        Channels.Runtime rt = h.runtimeWith(h.config(null, 0, null, Map.of("default", List.of(ChannelHarness.ME), "support-lead", List.of(777L, 778L))));
+        Channels.Runtime rt =
+                h.runtimeWith(
+                        h.config(
+                                null,
+                                0,
+                                null,
+                                Map.of(
+                                        "default",
+                                        List.of(ChannelHarness.ME),
+                                        "support-lead",
+                                        List.of(777L, 778L))));
         HumanInterface asker = rt.humanFor(Path.of(RUN), "run:" + RUN);
 
-        assertThatThrownBy(() -> asker.promptHuman("A/s0", "to the lead", new Hints(Hints.Kind.DECIDE, List.of("approve"), "support-lead"))).isInstanceOf(RunSuspended.class);
-        assertThatThrownBy(() -> asker.promptHuman("A/s1", "to nobody in particular", new Hints(Hints.Kind.DECIDE, List.of("approve"), "someone-else"))).isInstanceOf(RunSuspended.class);
+        assertThatThrownBy(
+                        () ->
+                                asker.promptHuman(
+                                        "A/s0",
+                                        "to the lead",
+                                        new Hints(
+                                                Hints.Kind.DECIDE,
+                                                List.of("approve"),
+                                                "support-lead")))
+                .isInstanceOf(RunSuspended.class);
+        assertThatThrownBy(
+                        () ->
+                                asker.promptHuman(
+                                        "A/s1",
+                                        "to nobody in particular",
+                                        new Hints(
+                                                Hints.Kind.DECIDE,
+                                                List.of("approve"),
+                                                "someone-else")))
+                .isInstanceOf(RunSuspended.class);
 
         assertThat(h.telegram.sentTo(777)).hasSize(1);
         assertThat(h.telegram.sentTo(778)).hasSize(1);
-        assertThat(h.telegram.sentTo(ChannelHarness.ME)).hasSize(1).allSatisfy(s -> assertThat(s.text()).contains("to nobody in particular"));
+        assertThat(h.telegram.sentTo(ChannelHarness.ME))
+                .hasSize(1)
+                .allSatisfy(s -> assertThat(s.text()).contains("to nobody in particular"));
     }
 }

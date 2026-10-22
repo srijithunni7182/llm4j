@@ -4,14 +4,18 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-/** The built-in strategies, registered through the same {@code ServiceLoader} path as a developer's own. Not for direct use. */
+/**
+ * The built-in strategies, registered through the same {@code ServiceLoader} path as a developer's
+ * own. Not for direct use.
+ */
 public final class BuiltInProviders {
 
     private BuiltInProviders() {}
 
     static void noOptions(String strategy, Map<String, String> options) {
         if (!options.isEmpty()) {
-            throw new IllegalArgumentException(strategy + " takes no options, got: " + String.join(", ", options.keySet()));
+            throw new IllegalArgumentException(
+                    strategy + " takes no options, got: " + String.join(", ", options.keySet()));
         }
     }
 
@@ -53,7 +57,8 @@ public final class BuiltInProviders {
         public ContextCompactor create(Map<String, String> options, ProviderContext context) {
             for (String key : options.keySet()) {
                 if (!key.equals("max_chars")) {
-                    throw new IllegalArgumentException(name() + " has no option '" + key + "'; its option is max_chars");
+                    throw new IllegalArgumentException(
+                            name() + " has no option '" + key + "'; its option is max_chars");
                 }
             }
             int max = DEFAULT_MAX_CHARS;
@@ -62,7 +67,8 @@ public final class BuiltInProviders {
                 try {
                     max = Integer.parseInt(text.strip());
                 } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException(name() + " option max_chars: '" + text + "' is not a whole number");
+                    throw new IllegalArgumentException(
+                            name() + " option max_chars: '" + text + "' is not a whole number");
                 }
             }
             return ContextCompactors.trimToolResults(max);
@@ -78,17 +84,31 @@ public final class BuiltInProviders {
         @Override
         public ContextCompactor create(Map<String, String> options, ProviderContext context) {
             for (String key : options.keySet()) {
-                if (!key.equals("max_summary_tokens")) throw new IllegalArgumentException(name() + " has no option '" + key + "'; its option is max_summary_tokens");
+                if (!key.equals("max_summary_tokens"))
+                    throw new IllegalArgumentException(
+                            name()
+                                    + " has no option '"
+                                    + key
+                                    + "'; its option is max_summary_tokens");
             }
-            io.github.llm4j.LLMClient client = context.llmClient().orElseThrow(() ->
-                    new IllegalArgumentException(name() + " needs a model client to write the summary: pass ProviderContext.of(client)"));
+            io.github.llm4j.LLMClient client =
+                    context.llmClient()
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalArgumentException(
+                                                    name()
+                                                            + " needs a model client to write the summary: pass ProviderContext.of(client)"));
             int max = Summarize.DEFAULT_MAX_SUMMARY_TOKENS;
             String text = options.get("max_summary_tokens");
             if (text != null) {
                 try {
                     max = Integer.parseInt(text.strip());
                 } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException(name() + " option max_summary_tokens: '" + text + "' is not a whole number");
+                    throw new IllegalArgumentException(
+                            name()
+                                    + " option max_summary_tokens: '"
+                                    + text
+                                    + "' is not a whole number");
                 }
             }
             return ContextCompactors.summarize(client, max);
@@ -104,17 +124,21 @@ public final class BuiltInProviders {
         @Override
         public ContextCompactor create(Map<String, String> options, ProviderContext context) {
             for (String key : options.keySet()) {
-                if (!key.equals("strategies")) throw new IllegalArgumentException("chain has no option '" + key + "'; its option is strategies");
+                if (!key.equals("strategies"))
+                    throw new IllegalArgumentException(
+                            "chain has no option '" + key + "'; its option is strategies");
             }
             String list = options.get("strategies");
             if (list == null || list.isBlank()) {
-                throw new IllegalArgumentException("chain needs the option 'strategies', such as strategies = trim_tool_results, drop_oldest");
+                throw new IllegalArgumentException(
+                        "chain needs the option 'strategies', such as strategies = trim_tool_results, drop_oldest");
             }
-            List<ContextCompactor> stages = Arrays.stream(list.split(","))
-                    .map(String::strip)
-                    .filter(s -> !s.isEmpty())
-                    .map(s -> ContextCompactors.byName(s, Map.of(), context))
-                    .toList();
+            List<ContextCompactor> stages =
+                    Arrays.stream(list.split(","))
+                            .map(String::strip)
+                            .filter(s -> !s.isEmpty())
+                            .map(s -> ContextCompactors.byName(s, Map.of(), context))
+                            .toList();
             return ContextCompactors.chain(stages.toArray(new ContextCompactor[0]));
         }
     }

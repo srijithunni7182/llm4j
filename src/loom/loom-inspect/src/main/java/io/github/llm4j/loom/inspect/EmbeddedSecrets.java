@@ -19,9 +19,10 @@ import java.util.TreeSet;
 import java.util.function.Supplier;
 
 /**
- * The secrets of the running app, from the store the run itself uses (so the page and the run agree about which keys exist). Lists names,
- * hosts, last update, a fingerprint and which agents use each; the one write replaces the value of a secret that is already there,
- * keeping its allowed hosts. It cannot add or remove a secret or change where one may be sent.
+ * The secrets of the running app, from the store the run itself uses (so the page and the run agree
+ * about which keys exist). Lists names, hosts, last update, a fingerprint and which agents use
+ * each; the one write replaces the value of a secret that is already there, keeping its allowed
+ * hosts. It cannot add or remove a secret or change where one may be sent.
  */
 final class EmbeddedSecrets implements Secrets {
 
@@ -67,27 +68,44 @@ final class EmbeddedSecrets implements Secrets {
         ObservableRun r = run.get();
         SecretStore store = r == null ? null : r.secretStore();
         if (store == null) return Controls.Outcome.refused(409, "this run has no secret store");
-        if (!store.contains(name)) return Controls.Outcome.refused(404, "there is no secret called '" + name + "' in the store; this page replaces values, it does not add secrets");
+        if (!store.contains(name))
+            return Controls.Outcome.refused(
+                    404,
+                    "there is no secret called '"
+                            + name
+                            + "' in the store; this page replaces values, it does not add secrets");
         SecretMetadata md = store.metadata(name).orElse(SecretMetadata.NONE);
         try {
             store.put(name, value, md.withUpdatedAt(clock.instant()));
         } catch (UnsupportedOperationException readOnly) {
-            return Controls.Outcome.refused(409, "this store is read-only; change the value where it lives");
+            return Controls.Outcome.refused(
+                    409, "this store is read-only; change the value where it lives");
         } catch (RuntimeException e) {
-            return Controls.Outcome.refused(500, "the store could not save it"); // never the exception's text: it could quote the value
+            return Controls.Outcome.refused(
+                    500,
+                    "the store could not save it"); // never the exception's text: it could quote
+            // the value
         }
         String fp = Secrets.fingerprint(new String(value));
-        return Controls.Outcome.taken("rotated; the new value is " + fp + ". A provider key applies from the next request, a tool option from the next run.");
+        return Controls.Outcome.taken(
+                "rotated; the new value is "
+                        + fp
+                        + ". A provider key applies from the next request, a tool option from the next run.");
     }
 
-    /** secret name -> the agents that depend on it, from the script alone: {@code secret.NAME} in a provider or tool, mapped through the agents that use it. */
+    /**
+     * secret name -> the agents that depend on it, from the script alone: {@code secret.NAME} in a
+     * provider or tool, mapped through the agents that use it.
+     */
     static Map<String, Set<String>> usedBy(LoomScript script) {
         Map<String, Set<String>> out = new TreeMap<>();
         if (script == null) return out;
         for (ToolDef t : script.getProviders()) {
             for (String n : secretsOf(t)) {
                 for (AgentDef a : script.getAgents()) {
-                    if (a.getModel() != null && a.getModel().startsWith(t.getName() + "/")) out.computeIfAbsent(n, k -> new TreeSet<>()).add(a.getName() + " (provider " + t.getName() + ")");
+                    if (a.getModel() != null && a.getModel().startsWith(t.getName() + "/"))
+                        out.computeIfAbsent(n, k -> new TreeSet<>())
+                                .add(a.getName() + " (provider " + t.getName() + ")");
                 }
                 out.computeIfAbsent(n, k -> new TreeSet<>());
             }
@@ -95,7 +113,9 @@ final class EmbeddedSecrets implements Secrets {
         for (ToolDef t : script.getTools()) {
             for (String n : secretsOf(t)) {
                 for (AgentDef a : script.getAgents()) {
-                    if (a.getTools() != null && a.getTools().contains(t.getName())) out.computeIfAbsent(n, k -> new TreeSet<>()).add(a.getName() + " (tool " + t.getName() + ")");
+                    if (a.getTools() != null && a.getTools().contains(t.getName()))
+                        out.computeIfAbsent(n, k -> new TreeSet<>())
+                                .add(a.getName() + " (tool " + t.getName() + ")");
                 }
                 out.computeIfAbsent(n, k -> new TreeSet<>());
             }
@@ -105,9 +125,12 @@ final class EmbeddedSecrets implements Secrets {
 
     private static List<String> secretsOf(ToolDef t) {
         List<String> names = new ArrayList<>();
-        t.getOptions().values().forEach(v -> {
-            if (v.fromSecret()) names.add(v.value());
-        });
+        t.getOptions()
+                .values()
+                .forEach(
+                        v -> {
+                            if (v.fromSecret()) names.add(v.value());
+                        });
         return names;
     }
 }

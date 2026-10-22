@@ -16,8 +16,7 @@ import org.junit.jupiter.api.io.TempDir;
 @Tag("integration")
 class TaskIntegrationTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private final TaskHarness h = new TaskHarness();
 
@@ -37,9 +36,19 @@ class TaskIntegrationTest {
 
     @Test
     void travelTimelineShowsAFailedTaskStep() {
-        h.pure("Boom", c -> { throw new IllegalStateException("x"); });
+        h.pure(
+                "Boom",
+                c -> {
+                    throw new IllegalStateException("x");
+                });
         h.run("workflow Main() { run Boom() -> a on_failure { note \"handled\" } }");
-        assertEquals("failed", RunTravel.timeline(h.journal).steps().stream().filter(r -> r.id().equals("Main/s0")).findFirst().orElseThrow().state());
+        assertEquals(
+                "failed",
+                RunTravel.timeline(h.journal).steps().stream()
+                        .filter(r -> r.id().equals("Main/s0"))
+                        .findFirst()
+                        .orElseThrow()
+                        .state());
     }
 
     @Test
@@ -63,7 +72,8 @@ class TaskIntegrationTest {
         assertNotNull(task);
         assertTrue(task.contains("LaxPolicy"), task);
         // a change after the fork point is fine
-        assertNull(ScriptDrift.between(original, changedArgs, journal, "Main", "Main/s0"),
+        assertNull(
+                ScriptDrift.between(original, changedArgs, journal, "Main", "Main/s0"),
                 "only statements before the fork point count; here the fork is before the changed call");
     }
 }

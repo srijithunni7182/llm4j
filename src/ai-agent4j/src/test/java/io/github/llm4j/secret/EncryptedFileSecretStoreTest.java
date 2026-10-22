@@ -23,8 +23,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 class EncryptedFileSecretStoreTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private final ObjectMapper json = new ObjectMapper();
 
@@ -46,17 +45,24 @@ class EncryptedFileSecretStoreTest {
         return out;
     }
 
-    // ---- round trip ---------------------------------------------------------------------------------------------
+    // ---- round trip
+    // ---------------------------------------------------------------------------------------------
 
     @Test
     void roundTripSurvivesReopening() {
         try (EncryptedFileSecretStore s = create()) {
-            s.put("gemini", FakeKeys.ONE, SecretMetadata.allowing("generativelanguage.googleapis.com").withDescription("prod"));
+            s.put(
+                    "gemini",
+                    FakeKeys.ONE,
+                    SecretMetadata.allowing("generativelanguage.googleapis.com")
+                            .withDescription("prod"));
             s.put("sarvam", FakeKeys.TWO);
         }
         try (EncryptedFileSecretStore s = open()) {
             assertEquals(Map.of("gemini", FakeKeys.ONE, "sarvam", FakeKeys.TWO), snapshot(s));
-            assertEquals(Set.of("generativelanguage.googleapis.com"), s.metadata("gemini").orElseThrow().allowedHosts());
+            assertEquals(
+                    Set.of("generativelanguage.googleapis.com"),
+                    s.metadata("gemini").orElseThrow().allowedHosts());
             assertEquals("prod", s.metadata("gemini").orElseThrow().description());
             assertNotNull(s.metadata("sarvam").orElseThrow().updatedAt());
         }
@@ -64,19 +70,31 @@ class EncryptedFileSecretStoreTest {
 
     @Test
     void awkwardValuesRoundTrip() {
-        String[] values = {"a", "with \"quotes\" and \\ backslash", "line1\nline2\r\nline3", "unicode: é中😀", "{\"json\":true}", "  spaces  ", "x".repeat(10_000)};
+        String[] values = {
+            "a",
+            "with \"quotes\" and \\ backslash",
+            "line1\nline2\r\nline3",
+            "unicode: é中😀",
+            "{\"json\":true}",
+            "  spaces  ",
+            "x".repeat(10_000)
+        };
         try (EncryptedFileSecretStore s = create()) {
             for (int i = 0; i < values.length; i++) s.put("k" + i, values[i]);
         }
         try (EncryptedFileSecretStore s = open()) {
-            for (int i = 0; i < values.length; i++) assertEquals(values[i], s.resolve("k" + i), "value " + i);
+            for (int i = 0; i < values.length; i++)
+                assertEquals(values[i], s.resolve("k" + i), "value " + i);
         }
     }
 
     @Test
     void theFileHoldsNoPlaintextAndNoSecretNames() throws Exception {
         try (EncryptedFileSecretStore s = create()) {
-            s.put("my-very-recognisable-name", "my-very-recognisable-value", SecretMetadata.allowing("api.secret-host.example"));
+            s.put(
+                    "my-very-recognisable-name",
+                    "my-very-recognisable-value",
+                    SecretMetadata.allowing("api.secret-host.example"));
         }
         String text = Files.readString(file());
         assertFalse(text.contains("my-very-recognisable-name"), "names are encrypted too");
@@ -92,11 +110,14 @@ class EncryptedFileSecretStoreTest {
 
     @Test
     void defaultIterationsAreSixHundredThousand() throws Exception {
-        try (EncryptedFileSecretStore s = EncryptedFileSecretStore.create(file(), FakeKeys.master())) {
+        try (EncryptedFileSecretStore s =
+                EncryptedFileSecretStore.create(file(), FakeKeys.master())) {
             s.put("a", "b");
         }
-        assertEquals(600_000, json.readTree(Files.readString(file())).at("/kdf/iterations").asInt());
-        try (EncryptedFileSecretStore s = EncryptedFileSecretStore.open(file(), FakeKeys.master())) {
+        assertEquals(
+                600_000, json.readTree(Files.readString(file())).at("/kdf/iterations").asInt());
+        try (EncryptedFileSecretStore s =
+                EncryptedFileSecretStore.open(file(), FakeKeys.master())) {
             assertEquals("b", s.resolve("a"), "an existing file keeps its own iteration count");
         }
     }
@@ -124,14 +145,22 @@ class EncryptedFileSecretStoreTest {
         }
     }
 
-    // ---- wrong key, tampering, damage ---------------------------------------------------------------------------
+    // ---- wrong key, tampering, damage
+    // ---------------------------------------------------------------------------
 
     @Test
     void aWrongMasterKeyIsRefusedWithoutSayingWhy() {
         create().close();
-        SecretStoreException e = assertThrows(SecretStoreException.class,
-                () -> EncryptedFileSecretStore.open(file(), MasterKey.of("not the key".toCharArray()), FakeKeys.fast()));
-        assertTrue(e.getMessage().contains("wrong master key or the file is damaged"), e.getMessage());
+        SecretStoreException e =
+                assertThrows(
+                        SecretStoreException.class,
+                        () ->
+                                EncryptedFileSecretStore.open(
+                                        file(),
+                                        MasterKey.of("not the key".toCharArray()),
+                                        FakeKeys.fast()));
+        assertTrue(
+                e.getMessage().contains("wrong master key or the file is damaged"), e.getMessage());
         assertFalse(e.getMessage().contains("not the key"));
     }
 
@@ -154,22 +183,26 @@ class EncryptedFileSecretStoreTest {
             s.put("k", FakeKeys.ONE);
         }
         String original = Files.readString(file());
-        // lowering the iteration count (a downgrade attack) must fail authentication, not just be accepted
+        // lowering the iteration count (a downgrade attack) must fail authentication, not just be
+        // accepted
         ObjectNode d = (ObjectNode) json.readTree(original);
         ((ObjectNode) d.get("kdf")).put("iterations", EncryptedFileSecretStore.MIN_ITERATIONS + 1);
         write(d);
         assertRefused("iteration count");
         // a different (but valid) salt
         d = (ObjectNode) json.readTree(original);
-        ((ObjectNode) d.get("kdf")).put("salt", java.util.Base64.getEncoder().encodeToString(new byte[16]));
+        ((ObjectNode) d.get("kdf"))
+                .put("salt", java.util.Base64.getEncoder().encodeToString(new byte[16]));
         write(d);
         assertRefused("salt");
         // a different nonce
         d = (ObjectNode) json.readTree(original);
-        ((ObjectNode) d.get("cipher")).put("nonce", java.util.Base64.getEncoder().encodeToString(new byte[12]));
+        ((ObjectNode) d.get("cipher"))
+                .put("nonce", java.util.Base64.getEncoder().encodeToString(new byte[12]));
         write(d);
         assertRefused("nonce");
-        // the header names are not what is authenticated for the format string itself: an unknown format is refused outright
+        // the header names are not what is authenticated for the format string itself: an unknown
+        // format is refused outright
         d = (ObjectNode) json.readTree(original);
         d.put("format", "something-else");
         write(d);
@@ -243,7 +276,10 @@ class EncryptedFileSecretStoreTest {
             s.put("k", FakeKeys.ONE);
         }
         byte[] bytes = Files.readAllBytes(file());
-        for (int keep : new int[] {0, 1, bytes.length / 4, bytes.length / 2, bytes.length - 20, bytes.length - 2}) {
+        for (int keep :
+                new int[] {
+                    0, 1, bytes.length / 4, bytes.length / 2, bytes.length - 20, bytes.length - 2
+                }) {
             Files.write(file(), java.util.Arrays.copyOf(bytes, keep));
             assertRefused("truncated to " + keep);
         }
@@ -268,8 +304,9 @@ class EncryptedFileSecretStoreTest {
     }
 
     /**
-     * The integrity property: whatever one bit flip anywhere in the file does, opening either fails with a SecretStoreException or yields exactly
-     * the original secrets. It must never succeed with different contents, and must never fail with anything else.
+     * The integrity property: whatever one bit flip anywhere in the file does, opening either fails
+     * with a SecretStoreException or yields exactly the original secrets. It must never succeed
+     * with different contents, and must never fail with anything else.
      */
     @Test
     void anyBitFlipInTheFileEitherFailsOrChangesNothing() throws Exception {
@@ -282,14 +319,21 @@ class EncryptedFileSecretStoreTest {
         Random random = new Random(42);
         int tested = 0;
         for (int n = 0; n < 150; n++) {
-            int pos = n < 100 ? random.nextInt(original.length) : n - 100; // 100 random positions, then the first 50 bytes
+            int pos =
+                    n < 100
+                            ? random.nextInt(original.length)
+                            : n - 100; // 100 random positions, then the first 50 bytes
             byte[] bad = original.clone();
             bad[pos] ^= (byte) (1 << random.nextInt(8));
             Files.write(file(), bad);
             tested++;
             try (EncryptedFileSecretStore s = open()) {
-                assertEquals(expected, snapshot(s), "a flip at byte " + pos + " changed the contents");
-                assertEquals(Set.of("a.example.com"), s.metadata("k1").orElseThrow().allowedHosts(), "a flip at byte " + pos + " changed the metadata");
+                assertEquals(
+                        expected, snapshot(s), "a flip at byte " + pos + " changed the contents");
+                assertEquals(
+                        Set.of("a.example.com"),
+                        s.metadata("k1").orElseThrow().allowedHosts(),
+                        "a flip at byte " + pos + " changed the metadata");
             } catch (SecretStoreException refused) {
                 assertFalse(refused.getMessage().contains(FakeKeys.ONE));
             }
@@ -297,23 +341,34 @@ class EncryptedFileSecretStoreTest {
         assertEquals(150, tested);
     }
 
-    // ---- create/open rules --------------------------------------------------------------------------------------
+    // ---- create/open rules
+    // --------------------------------------------------------------------------------------
 
     @Test
     void createRefusesAnExistingFileAndOpenRefusesAMissingOne() {
         create().close();
-        assertThrows(SecretStoreException.class, () -> EncryptedFileSecretStore.create(file(), FakeKeys.master(), FakeKeys.fast()));
-        SecretStoreException e = assertThrows(SecretStoreException.class,
-                () -> EncryptedFileSecretStore.open(dir.resolve("missing.json"), FakeKeys.master(), FakeKeys.fast()));
+        assertThrows(
+                SecretStoreException.class,
+                () -> EncryptedFileSecretStore.create(file(), FakeKeys.master(), FakeKeys.fast()));
+        SecretStoreException e =
+                assertThrows(
+                        SecretStoreException.class,
+                        () ->
+                                EncryptedFileSecretStore.open(
+                                        dir.resolve("missing.json"),
+                                        FakeKeys.master(),
+                                        FakeKeys.fast()));
         assertTrue(e.getMessage().contains("missing.json"));
     }
 
     @Test
     void openOrCreateDoesWhicheverApplies() {
-        try (EncryptedFileSecretStore s = EncryptedFileSecretStore.openOrCreate(file(), FakeKeys.master(), FakeKeys.fast())) {
+        try (EncryptedFileSecretStore s =
+                EncryptedFileSecretStore.openOrCreate(file(), FakeKeys.master(), FakeKeys.fast())) {
             s.put("a", "one");
         }
-        try (EncryptedFileSecretStore s = EncryptedFileSecretStore.openOrCreate(file(), FakeKeys.master(), FakeKeys.fast())) {
+        try (EncryptedFileSecretStore s =
+                EncryptedFileSecretStore.openOrCreate(file(), FakeKeys.master(), FakeKeys.fast())) {
             assertEquals("one", s.resolve("a"));
         }
     }
@@ -321,26 +376,36 @@ class EncryptedFileSecretStoreTest {
     @Test
     void theLibraryDoesNotCreateTheConsumersDirectory() {
         Path nested = dir.resolve("no-such-dir").resolve("vault.json");
-        SecretStoreException e = assertThrows(SecretStoreException.class, () -> EncryptedFileSecretStore.create(nested, FakeKeys.master(), FakeKeys.fast()));
+        SecretStoreException e =
+                assertThrows(
+                        SecretStoreException.class,
+                        () ->
+                                EncryptedFileSecretStore.create(
+                                        nested, FakeKeys.master(), FakeKeys.fast()));
         assertTrue(e.getMessage().contains("consumer"), e.getMessage());
         assertFalse(Files.exists(dir.resolve("no-such-dir")));
     }
 
     @Test
     void iterationFloorIsEnforced() {
-        assertThrows(IllegalArgumentException.class, () -> EncryptedFileSecretStore.Options.defaults().kdfIterations(99_999));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> EncryptedFileSecretStore.Options.defaults().kdfIterations(99_999));
     }
 
-    // ---- writes -------------------------------------------------------------------------------------------------
+    // ---- writes
+    // -------------------------------------------------------------------------------------------------
 
     @Test
     void aFailedWriteLeavesTheFileIntactAndNoTemporaryFile() throws Exception {
         try (EncryptedFileSecretStore s = create()) {
             s.put("a", "before");
             byte[] bytes = Files.readAllBytes(file());
-            s.beforeMoveHook = () -> {
-                throw new SecretStoreException("simulated crash between the temporary write and the move");
-            };
+            s.beforeMoveHook =
+                    () -> {
+                        throw new SecretStoreException(
+                                "simulated crash between the temporary write and the move");
+                    };
             assertThrows(SecretStoreException.class, () -> s.put("a", "after"));
             assertThrows(SecretStoreException.class, () -> s.put("b", "new"));
             assertThrows(SecretStoreException.class, () -> s.remove("a"));
@@ -364,12 +429,16 @@ class EncryptedFileSecretStoreTest {
                 second.put("b", "from-second");
             }
             // first still believes the file is as it left it
-            SecretStoreException e = assertThrows(SecretStoreException.class, () -> first.put("c", "late"));
+            SecretStoreException e =
+                    assertThrows(SecretStoreException.class, () -> first.put("c", "late"));
             assertTrue(e.getMessage().contains("changed by someone else"), e.getMessage());
-            assertTrue(first.contains("b"), "reads pick up the other writer's change (the file's size changed)");
+            assertTrue(
+                    first.contains("b"),
+                    "reads pick up the other writer's change (the file's size changed)");
             first.reload();
             first.put("c", "late");
-            assertEquals(Set.of("a", "b", "c"), first.names(), "nothing the other writer did was lost");
+            assertEquals(
+                    Set.of("a", "b", "c"), first.names(), "nothing the other writer did was lost");
         }
     }
 
@@ -388,13 +457,23 @@ class EncryptedFileSecretStoreTest {
     void aFileRekeyedElsewhereIsFollowedWhenTheKeyFileMatches() throws Exception {
         Path keyFile = dir.resolve("master.key");
         Files.writeString(keyFile, "key-one\n");
-        try (EncryptedFileSecretStore s = EncryptedFileSecretStore.create(file(), MasterKey.fromFile(keyFile), FakeKeys.fast())) {
+        try (EncryptedFileSecretStore s =
+                EncryptedFileSecretStore.create(
+                        file(), MasterKey.fromFile(keyFile), FakeKeys.fast())) {
             s.put("k", "v");
-            try (EncryptedFileSecretStore other = EncryptedFileSecretStore.open(file(), MasterKey.fromFile(keyFile), FakeKeys.fast())) {
+            try (EncryptedFileSecretStore other =
+                    EncryptedFileSecretStore.open(
+                            file(), MasterKey.fromFile(keyFile), FakeKeys.fast())) {
                 Files.writeString(keyFile, "key-two\n");
-                other.rekey(MasterKey.fromFile(keyFile)); // the key file now holds the new key; the file is re-encrypted under it
+                other.rekey(
+                        MasterKey.fromFile(
+                                keyFile)); // the key file now holds the new key; the file is
+                // re-encrypted under it
             }
-            assertEquals("v", s.resolve("k"), "the first store re-derives from the key file, which now holds the new key");
+            assertEquals(
+                    "v",
+                    s.resolve("k"),
+                    "the first store re-derives from the key file, which now holds the new key");
         }
     }
 
@@ -407,9 +486,14 @@ class EncryptedFileSecretStoreTest {
             s.rekey(MasterKey.of("a brand new passphrase".toCharArray()));
             assertEquals(FakeKeys.ONE, s.resolve("k"));
         }
-        assertNotEquals(saltBefore, json.readTree(Files.readString(file())).at("/kdf/salt").asText());
+        assertNotEquals(
+                saltBefore, json.readTree(Files.readString(file())).at("/kdf/salt").asText());
         assertThrows(SecretStoreException.class, this::open, "the old key stops working");
-        try (EncryptedFileSecretStore s = EncryptedFileSecretStore.open(file(), MasterKey.of("a brand new passphrase".toCharArray()), FakeKeys.fast())) {
+        try (EncryptedFileSecretStore s =
+                EncryptedFileSecretStore.open(
+                        file(),
+                        MasterKey.of("a brand new passphrase".toCharArray()),
+                        FakeKeys.fast())) {
             assertEquals(FakeKeys.ONE, s.resolve("k"));
         }
     }
@@ -428,7 +512,8 @@ class EncryptedFileSecretStoreTest {
         }
     }
 
-    // ---- closing, leaks ------------------------------------------------------------------------------------------
+    // ---- closing, leaks
+    // ------------------------------------------------------------------------------------------
 
     @Test
     void closeWipesAndLaterUseFails() {
@@ -447,7 +532,8 @@ class EncryptedFileSecretStoreTest {
             s.put("k", FakeKeys.ONE);
             assertFalse(s.toString().contains(FakeKeys.ONE));
             assertFalse(s.toString().contains(FakeKeys.PASSPHRASE));
-            SecretNotFoundException e = assertThrows(SecretNotFoundException.class, () -> s.resolve("other"));
+            SecretNotFoundException e =
+                    assertThrows(SecretNotFoundException.class, () -> s.resolve("other"));
             assertFalse(e.getMessage().contains(FakeKeys.ONE));
         }
     }
@@ -469,13 +555,17 @@ class EncryptedFileSecretStoreTest {
             java.util.List<Future<?>> work = new java.util.ArrayList<>();
             for (int t = 0; t < 8; t++) {
                 int id = t;
-                work.add(pool.submit(() -> {
-                    for (int i = 0; i < 5; i++) {
-                        s.put("t" + id + "-" + i, "value-" + id + "-" + i);
-                        assertEquals("value-" + id + "-" + i, s.resolve("t" + id + "-" + i));
-                    }
-                    return null;
-                }));
+                work.add(
+                        pool.submit(
+                                () -> {
+                                    for (int i = 0; i < 5; i++) {
+                                        s.put("t" + id + "-" + i, "value-" + id + "-" + i);
+                                        assertEquals(
+                                                "value-" + id + "-" + i,
+                                                s.resolve("t" + id + "-" + i));
+                                    }
+                                    return null;
+                                }));
             }
             for (Future<?> f : work) f.get();
             pool.shutdown();
@@ -486,7 +576,8 @@ class EncryptedFileSecretStoreTest {
         }
     }
 
-    // ---- permissions: the consumer's responsibility ----------------------------------------------------------------
+    // ---- permissions: the consumer's responsibility
+    // ----------------------------------------------------------------
 
     private boolean posix() throws Exception {
         return Files.getFileStore(dir).supportsFileAttributeView("posix");
@@ -494,23 +585,29 @@ class EncryptedFileSecretStoreTest {
 
     @Test
     void thereIsNoPermissionRequirementByDefault() throws Exception {
-        org.junit.jupiter.api.Assumptions.assumeTrue(posix(), "POSIX file permissions are not available on this file system");
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                posix(), "POSIX file permissions are not available on this file system");
         try (EncryptedFileSecretStore s = create()) {
             s.put("k", FakeKeys.ONE);
         }
         Files.setPosixFilePermissions(file(), PosixFilePermissions.fromString("rw-r--r--"));
-        try (EncryptedFileSecretStore s = open()) { // opens (and logs a warning): protecting the file is the consumer's job
+        try (EncryptedFileSecretStore s =
+                open()) { // opens (and logs a warning): protecting the file is the consumer's job
             assertEquals(FakeKeys.ONE, s.resolve("k"));
         }
     }
 
     @Test
     void requirePrivateFileRefusesAFileOthersCanRead() throws Exception {
-        org.junit.jupiter.api.Assumptions.assumeTrue(posix(), "POSIX file permissions are not available on this file system");
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                posix(), "POSIX file permissions are not available on this file system");
         create().close();
         EncryptedFileSecretStore.Options strict = FakeKeys.fast().requirePrivateFile();
         Files.setPosixFilePermissions(file(), PosixFilePermissions.fromString("rw-r-----"));
-        SecretStoreException e = assertThrows(SecretStoreException.class, () -> EncryptedFileSecretStore.open(file(), FakeKeys.master(), strict));
+        SecretStoreException e =
+                assertThrows(
+                        SecretStoreException.class,
+                        () -> EncryptedFileSecretStore.open(file(), FakeKeys.master(), strict));
         assertTrue(e.getMessage().contains("readable by group or others"), e.getMessage());
         Files.setPosixFilePermissions(file(), PosixFilePermissions.fromString("rw-------"));
         EncryptedFileSecretStore.open(file(), FakeKeys.master(), strict).close();
@@ -518,13 +615,20 @@ class EncryptedFileSecretStoreTest {
 
     @Test
     void theLibraryCreatesTheFileOwnerOnlyAndKeepsWhatTheConsumerSets() throws Exception {
-        org.junit.jupiter.api.Assumptions.assumeTrue(posix(), "POSIX file permissions are not available on this file system");
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                posix(), "POSIX file permissions are not available on this file system");
         try (EncryptedFileSecretStore s = create()) {
             s.put("k", "v");
-            assertEquals("rw-------", PosixFilePermissions.toString(Files.getPosixFilePermissions(file())), "created owner-only");
+            assertEquals(
+                    "rw-------",
+                    PosixFilePermissions.toString(Files.getPosixFilePermissions(file())),
+                    "created owner-only");
             Files.setPosixFilePermissions(file(), PosixFilePermissions.fromString("rw-rw----"));
             s.put("k2", "v2");
-            assertEquals("rw-rw----", PosixFilePermissions.toString(Files.getPosixFilePermissions(file())), "the replacement keeps the consumer's setting");
+            assertEquals(
+                    "rw-rw----",
+                    PosixFilePermissions.toString(Files.getPosixFilePermissions(file())),
+                    "the replacement keeps the consumer's setting");
         }
     }
 
@@ -535,11 +639,16 @@ class EncryptedFileSecretStoreTest {
         try (EncryptedFileSecretStore s = create()) {
             s.put("k", FakeKeys.ONE);
         }
-        for (MasterKey key : new MasterKey[] {
-                MasterKey.fromFile(keyFile),
-                MasterKey.fromEnv("ANY_NAME_THE_CONSUMER_CHOSE", Map.of("ANY_NAME_THE_CONSUMER_CHOSE", FakeKeys.PASSPHRASE)::get),
-                MasterKey.from(FakeKeys.PASSPHRASE::toCharArray)}) {
-            try (EncryptedFileSecretStore s = EncryptedFileSecretStore.open(file(), key, FakeKeys.fast())) {
+        for (MasterKey key :
+                new MasterKey[] {
+                    MasterKey.fromFile(keyFile),
+                    MasterKey.fromEnv(
+                            "ANY_NAME_THE_CONSUMER_CHOSE",
+                            Map.of("ANY_NAME_THE_CONSUMER_CHOSE", FakeKeys.PASSPHRASE)::get),
+                    MasterKey.from(FakeKeys.PASSPHRASE::toCharArray)
+                }) {
+            try (EncryptedFileSecretStore s =
+                    EncryptedFileSecretStore.open(file(), key, FakeKeys.fast())) {
                 assertEquals(FakeKeys.ONE, s.resolve("k"), key.toString());
             }
         }

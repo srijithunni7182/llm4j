@@ -1,8 +1,9 @@
 package io.github.llm4j.loom.runtime;
 
 /**
- * Thrown out of {@code executeWorkflow} when a script's own {@code halt} ended the run. It is deliberately not a step failure:
- * {@code retry}, {@code on_failure}, {@code rewind} and a loop's {@code on_exhausted} all let it through.
+ * Thrown out of {@code executeWorkflow} when a script's own {@code halt} ended the run. It is
+ * deliberately not a step failure: {@code retry}, {@code on_failure}, {@code rewind} and a loop's
+ * {@code on_exhausted} all let it through.
  */
 public class RunHalted extends RuntimeException {
 

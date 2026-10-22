@@ -25,7 +25,8 @@ final class FaultLevels implements LevelStore {
     }
 
     @Override
-    public boolean compareAndSet(String decision, String scope, LevelState expected, LevelState next) {
+    public boolean compareAndSet(
+            String decision, String scope, LevelState expected, LevelState next) {
         if (failWrites) throw new IllegalStateException("the level store is down (write)");
         return delegate.compareAndSet(decision, scope, expected, next);
     }

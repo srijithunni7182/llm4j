@@ -30,7 +30,15 @@ class LatencyStatsTest {
     void oneSampleIsEveryPercentile() {
         LatencyStats s = of(250);
         assertThat(s.isEmpty()).isFalse();
-        assertThat(s).extracting(LatencyStats::count, LatencyStats::min, LatencyStats::max, LatencyStats::p50, LatencyStats::p90, LatencyStats::p95, LatencyStats::p99)
+        assertThat(s)
+                .extracting(
+                        LatencyStats::count,
+                        LatencyStats::min,
+                        LatencyStats::max,
+                        LatencyStats::p50,
+                        LatencyStats::p90,
+                        LatencyStats::p95,
+                        LatencyStats::p99)
                 .containsExactly(1L, 250L, 250L, 250L, 250L, 250L, 250L);
         assertThat(s.mean()).isEqualTo(250.0);
     }
@@ -70,7 +78,9 @@ class LatencyStatsTest {
 
     @Test
     void aNegativeSampleIsRefused() {
-        assertThatThrownBy(() -> new LatencyRecorder().add(-1)).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("negative");
+        assertThatThrownBy(() -> new LatencyRecorder().add(-1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("negative");
     }
 
     @Test
@@ -87,7 +97,8 @@ class LatencyStatsTest {
         assertThat(s.max()).isEqualTo(50_000);
         assertThat(s.mean()).isEqualTo(sum / 50_000.0);
         assertThat(r.retained()).isEqualTo(1_000);
-        // percentiles come from the sample, so they are approximate: within 8 % of the true rank on a uniform stream
+        // percentiles come from the sample, so they are approximate: within 8 % of the true rank on
+        // a uniform stream
         assertThat((double) s.p50()).isBetween(25_000 * 0.92, 25_000 * 1.08);
         assertThat((double) s.p95()).isBetween(47_500 * 0.95, 47_500 * 1.05);
     }
@@ -126,7 +137,9 @@ class LatencyStatsTest {
 
     @Test
     void theCapacityMustBePositive() {
-        assertThatThrownBy(() -> new LatencyRecorder(0, 1)).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("capacity");
+        assertThatThrownBy(() -> new LatencyRecorder(0, 1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("capacity");
     }
 
     @Test

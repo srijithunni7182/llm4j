@@ -23,7 +23,10 @@ final class ContextFixtures {
         return T0 + (long) (seconds * 1_000_000_000L);
     }
 
-    /** One model call's context: {@code window} and {@code usable} null when the process did not know them. */
+    /**
+     * One model call's context: {@code window} and {@code usable} null when the process did not
+     * know them.
+     */
     void context(double sec, String agent, long used, Long window, Long usable) {
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.EVENT_NAME, Semconv.EV_CONTEXT);
@@ -54,11 +57,17 @@ final class ContextFixtures {
     @SuppressWarnings("unchecked")
     Map<String, Object> context(String agent) {
         List<Map<String, Object>> agents = (List<Map<String, Object>>) state.view().get("agents");
-        return (Map<String, Object>) agents.stream().filter(m -> agent.equals(m.get("name"))).findFirst().orElseThrow().get("context");
+        return (Map<String, Object>)
+                agents.stream()
+                        .filter(m -> agent.equals(m.get("name")))
+                        .findFirst()
+                        .orElseThrow()
+                        .get("context");
     }
 
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> incidents(String kind) {
-        return ((List<Map<String, Object>>) state.view().get("incidents")).stream().filter(m -> kind.equals(m.get("kind"))).toList();
+        return ((List<Map<String, Object>>) state.view().get("incidents"))
+                .stream().filter(m -> kind.equals(m.get("kind"))).toList();
     }
 }
