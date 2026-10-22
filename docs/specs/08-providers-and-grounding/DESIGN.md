@@ -222,7 +222,10 @@ the answer text keeps the markdown links the model wrote.
 
 - `ModelCallEvent` (Phase 2) gains `searches` (count) and `citations` (count); queries and URLs are text and appear only at the detail level that
   allows text, as for other events.
-- `Budget` gains a `searches` dimension next to tokens and cost; a breach behaves as for the others. `PriceTable` gets per-search prices where the
+- `Budget` gains a `searches` dimension next to tokens and cost; a breach behaves as for the others. A grounded call reserves `max(1, maxSearches)` and is
+  refused (before it is made) only when a member has less than one search left; it settles with the vendor's reported count. An unknown count is charged the
+  reserved amount and marked estimated; a vendor that ignores the cap is counted truthfully and the overrun is `Spent.searchOverdraw()`. The cost of the
+  searches is the vendor's own figure where it reports one, else the price table's rate. `PriceTable` gets per-search prices where the
   vendors publish them (some bill per request, some per 1,000), so the cost of a grounded call is tokens **plus** searches.
 - `StatsCollector`/`RunStats` aggregate searches per model.
 

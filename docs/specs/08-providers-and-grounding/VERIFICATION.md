@@ -32,18 +32,18 @@ recorded in §7. Part A is shippable on its own; Part B starts only when Part A 
 | A4 | Keys never appear in exceptions, logs, events or traces; secrets go only to bound hosts | R4 | canary-key and host-binding tests | ✅ `ProviderContract` (C7, C11, C12 for every new provider), `OpenAiFamilySecretTest` (per-request fetch, header only, host binding, no key in errors, Chat and Responses), `FixtureProvenanceTest` (no key or id in any fixture), `ScrubTest` |
 | A5 | Loom `use:` kinds, resolver prefixes, bare-name inference and the ambiguous-name behaviour are as specified | §3.3 | wiring tests | ✅ Loom `OpenAiFamilyProvidersTest` (prefixes, bare names, ambiguous `qwen3`/`gpt-oss`, kinds, options, checks, host-bound stored key), `ProvidersTest`; Spring `ClientsTest`; `VendorTest` |
 | A6 | Windows and prices exist for the listed models; unknown models fall back | §3.3 | catalog tests | ✅ `ContextWindowsTest` (19 entries for OpenAI, xAI, Kimi and Qwen models, each checked against the vendor's page on 2026-10-22; unknown models and nested slugs resolve or fall back). Prices: not shipped by design (`PriceTable` is user-supplied); per-search prices come with 8e |
-| A7 | Requests without `grounding` are byte-identical to the previous release for Gemini, Anthropic, Sarvam, Ollama | R5 | request-bytes regression test | ⏳ 8e |
-| A8 | Grounding on an unsupported provider or option is refused before any network call, naming both | R6 | grounding unit tests | ⏳ 8e |
+| A7 | Requests without `grounding` are byte-identical to the previous release for Gemini, Anthropic, Sarvam, Ollama | R5 | request-bytes regression test | ✅ `RequestBytesRegressionTest`: 48 recorded requests (Google, Anthropic, Sarvam, Ollama; plain, system, multi-turn, tools, reasoning; whole and streamed), recorded **before** any grounding change, compared as JSON with sorted keys because a tool schema built from a hash map lists its keys differently from one JVM run to the next |
+| A8 | Grounding on an unsupported provider or option is refused before any network call, naming both | R6 | grounding unit tests | ✅ `GroundingCheckTest` (refused before any call for `chat` and `chatStream`, naming provider and option; `lenient()` and `grounding.ignored`; lenient does not rescue an unsupported provider), `GroundingTypesTest` |
 | A9 | Citations are typed, indices stable, spans in range | R7 | grounding provider tests | ⏳ 8f |
 | A10 | Search usage is as the vendor reports; unknown stays unknown | R8 | grounding provider tests | ⏳ 8f |
 | A11 | Streaming and non-streaming agree on citations and search usage | R9 | parity tests | ⏳ 8f |
 | A12 | A grounded agent is untrusted-content exposure in `weave audit`, with or without `allow:` | R10 | Loom audit tests | ⏳ 8g |
-| A13 | Searches are charged to the `searches` budget; a breach halts | R11 | budget tests | ⏳ 8e |
+| A13 | Searches are charged to the `searches` budget; a breach halts | R11 | budget tests | ✅ `SearchBudgetTest` (count, refusal before the call while a plain call still runs, unknown count, ignored cap, streams, windows, restore, per-1000 prices, old shapes) |
 | A14 | A grounded turn followed by a tool turn is valid for Anthropic and Kimi | R12 | provider tests | ⏳ 8f |
-| A15 | Fallback to a client-side tool yields citations in the same shape | §8.3 | grounding unit tests | ⏳ 8e |
+| A15 | Fallback to a client-side tool yields citations in the same shape | §8.3 | grounding unit tests | ✅ `GroundingCheckTest` (fallback runs the tool, citations built from the URLs it returned, bounded by `maxSearches`, same shape on a stream, never used when the provider has native grounding) |
 | A16 | eval4j citation assertions pass and fail correctly; scripted citations work offline | §6 | eval4j tests | ⏳ 8g |
 | A17 | The live smoke run passes for every vendor with a key, within its spend cap, and recorded fixtures replace the hand-written ones | §5 of the test strategy | `ProviderSmokeIntegrationTest` (live) | ◐ run for OpenAI (chat and Responses), xAI and Perplexity on 2026-10-22, within the cap; Anthropic and Gemini have no key here, Kimi and Qwen no key: owed (see §7 follow-up) |
-| A18 | All documentation samples execute in tests | docs | docs examples test | ◐ 8a to 8c samples execute (`ProvidersDocsExamplesTest`); grounding samples with 8e |
+| A18 | All documentation samples execute in tests | docs | docs examples test | ◐ 8a to 8c samples execute (`ProvidersDocsExamplesTest`); the 8e grounding samples execute (`GroundingDocsExamplesTest`, which also checks the page shows them verbatim); vendor samples with 8f |
 | A19 | `OpenAiResponsesProvider` passes `ProviderContract` for the Perplexity Agent API and OpenAI Responses; `web_search` results map to typed citations | §3.4, R1, R7 | contract and grounding provider tests | ◐ contract: ✅ both Responses dialects pass `ProviderContract` and replay recorded real payloads; `web_search` citations: ⏳ 8f |
 | A20 | (If Phase 7 is merged) `PerplexityDecisionsProvider` passes `ClassifierContract` and shares `DecisionWire` with `JevWire` | §3.5 | classifier contract tests | ⏳ 8k |
 
@@ -57,7 +57,10 @@ Filled in as tests are written: one row per requirement `R1`…`R12`, naming the
 | R2 | `NoVendorLogicTest`, `DialectTest.aMadeUpDialectNeedsNoProviderChange` |
 | R3 | `DialectTest`, `OpenAiContractTest.anUnknownFutureModelDegradesToTheSafeDefaults` |
 | R4 | `ProviderContract` C12 and the `noSecret` checks, `OpenAiFamilySecretTest`, Loom `OpenAiFamilyProvidersTest.aStoredKeyKeepsItsHostBindingForTheVendor`, `SecretCommandsTest` (vendor host binding), `FixtureProvenanceTest`, `ScrubTest` |
-| R5–R12 | _listed as 8e to 8g are built_ |
+| R5 | `RequestBytesRegressionTest` |
+| R6 | `GroundingCheckTest` |
+| R11 | `SearchBudgetTest`; `SearchTelemetryTest` (counts per model, never text) |
+| R7–R10, R12 | _listed as 8f and 8g are built_ |
 
 ## 4. Quality gates
 
@@ -144,3 +147,15 @@ Findings: the first OpenAI pass failed on the tool steps with `HTTP 400 Function
 
 `grounding-payloads/capture.py` (a throwaway script, kept) printed and saved the raw grounded responses of Perplexity's Agent API, OpenAI's Responses API and xAI's Responses API, whole and streamed, with and without the search options we plan to map (10 calls, all HTTP 200; the script's own conservative estimate US$0.089, Perplexity's reported cost about US$0.003 a call). Anthropic and Gemini: not captured (no key). DESIGN §4.3 was rewritten from the payloads **before** any grounding Java (see `grounding-payloads/README.md` for the nine findings: sources are *cited* for OpenAI and xAI but only *consulted* for Perplexity, whose `annotations` is empty; a search is not a query; OpenAI reports no search count in `usage`; Perplexity and xAI have no usable search cap while OpenAI's `max_tool_calls` works; spans cover the link the model wrote; the final `response.completed` event carries everything, so streaming parity follows).
 Spend so far, all live calls: smoke runs about US$0.003, payload capture about US$0.03 to 0.09 (upper bound), total well under the few dollars planned.
+
+### 7.7 8e: the contract (done 2026-10-22)
+
+Built in `ai-agent4j`: `Grounding` (builder, `lenient()`, `fallback(Tool)`), `Citation`, `Span`, `SearchUsage`, `GroundingSupport`, `GroundingOption`, `Recency`; `LLMRequest.grounding`; `LLMResponse.getCitations/getSearches`; `LLMProvider`/`LLMClient` defaults (`NONE`); the central check and the fallback loop in `DefaultLLMClient`; the `searches` budget dimension (`Limits`, `Spent`, `Remaining`, `Charge`, `BudgetSet.reserve(..., searches)`, `Dimension.SEARCHES`); `PriceTable` per-1000 search price (optional third number); `ModelCallEvent`/`ModelStats`/`RunStats` search and citation counts. Every old constructor and shape is kept (additive).
+
+Decisions and deviations:
+- The request-bytes baselines are compared as JSON with sorted keys. The first attempt compared raw bytes and failed intermittently on `google/tools.txt`: the tool-schema map prints its keys in a different order from one JVM run to the next, in the code as released, so a raw-byte baseline cannot be stable. All 48 re-recorded files were checked equal to the originals once keys are sorted.
+- A grounded call reserves `max(1, maxSearches)` searches and refuses only when fewer than one is left (DESIGN §4.5 updated).
+- No provider declares grounding yet: that is 8f. The wiki page lists the vendors as "coming".
+
+Docs: new wiki page `Web-Search-Grounding.md` (six samples, executed and checked verbatim); budgets, telemetry, providers pages, Home, README and `llms.txt` link it. Full `ai-agent4j` suite: 3,310 tests, 0 failures; Loom, eval4j and Spring compile against the changes.
+

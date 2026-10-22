@@ -79,7 +79,7 @@ try (Stream<LLMResponse> chunks = client.chatStream(request)) {
 
 ## OpenAI, xAI, Kimi, Qwen, Perplexity and any OpenAI-style server
 
-One provider, `OpenAiCompatibleProvider`, serves the chat-completions family, and `OpenAiResponsesProvider` serves the Responses schema (Perplexity's Agent API, OpenAI's Responses API). Both pass the same contract. See [OpenAI, xAI, Kimi, Qwen and any OpenAI-style server](OpenAI-Family-Providers.md) and [The Responses schema, and Perplexity's Agent API](Responses-Schema-and-Perplexity.md).
+One provider, `OpenAiCompatibleProvider`, serves the chat-completions family, and `OpenAiResponsesProvider` serves the Responses schema (Perplexity's Agent API, OpenAI's Responses API). Both pass the same contract. See [OpenAI, xAI, Kimi, Qwen and any OpenAI-style server](OpenAI-Family-Providers.md) and [The Responses schema, and Perplexity's Agent API](Responses-Schema-and-Perplexity.md). Providers that can search the web declare it; see [Web-search grounding](Web-Search-Grounding.md).
 
 ## Anthropic (Claude)
 

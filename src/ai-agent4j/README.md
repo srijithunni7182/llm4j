@@ -35,6 +35,7 @@ Explore the full capabilities of the framework through our detailed guides:
 - [**Memory & Persistence**](wiki/Memory-and-Persistence.md) — Managing conversation history and long-term storage.
 - [**Real-time Streaming**](wiki/Thought-Streaming.md) — Capturing agent "thoughts" for responsive UIs via SSE/WebSockets.
 - [**OpenAI, xAI, Kimi, Qwen and any OpenAI-style server**](wiki/OpenAI-Family-Providers.md) and [**the Responses schema and Perplexity**](wiki/Responses-Schema-and-Perplexity.md) — one provider for the whole OpenAI family, vendors as data (OpenAI, xAI, Perplexity supported once recorded; Kimi and Qwen preview).
+- [**Web-search grounding**](wiki/Web-Search-Grounding.md) — one request option, typed citations and search counts, a `searches` budget; refused before any network call where a provider cannot do it.
 - [**Providers and the Uniform Contract**](wiki/Providers-and-the-Uniform-Contract.md) — Switch between Gemini, Claude, Sarvam, Ollama and the OpenAI family by changing a name; streaming, finish reasons and exceptions that mean the same everywhere.
 - [**Advanced Configuration**](wiki/Advanced-Configuration.md) — Retry policies, custom tools, and error handling.
 - [**Budgets and Rate Limits**](wiki/Budgets-and-Rate-Limits.md) — Cap tokens, calls or money; budgets that refill; reading 429s and pausing until the limit lifts.

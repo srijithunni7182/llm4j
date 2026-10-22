@@ -63,6 +63,7 @@ Maven: `io.github.srijithunni7182:ai-agent4j:5.0`. This file covers the core lib
 - [Providers and the Uniform Contract](wiki/Providers-and-the-Uniform-Contract.md)
 - [OpenAI, xAI, Kimi, Qwen and any OpenAI-style server](wiki/OpenAI-Family-Providers.md)
 - [The Responses schema, and Perplexity's Agent API](wiki/Responses-Schema-and-Perplexity.md)
+- [Web-search grounding: one option, typed citations](wiki/Web-Search-Grounding.md)
 - [Creating Custom Tools](wiki/Creating-Custom-Tools.md)
 - [Budgets and Rate Limits](wiki/Budgets-and-Rate-Limits.md)
 - [Context and Compaction](wiki/Context-and-Compaction.md)

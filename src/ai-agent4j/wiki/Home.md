@@ -21,7 +21,7 @@ calls tools, and the building blocks around them: memory, RAG, knowledge graphs,
 | Guide | Description |
 |-------|-------------|
 | **[🚀 Getting Started](Getting-Started.md)** | Installation, configuration, and your first program. |
-| **[🔌 Providers](Providers-and-the-Uniform-Contract.md)** | Gemini, Claude, Sarvam, Ollama and the OpenAI family behind one contract; see [OpenAI, xAI, Kimi, Qwen and any OpenAI-style server](OpenAI-Family-Providers.md) and [the Responses schema and Perplexity](Responses-Schema-and-Perplexity.md). See also the [Sarvam](../docs/SARVAM.md) and [Ollama](../docs/OLLAMA.md) guides. |
+| **[🔌 Providers](Providers-and-the-Uniform-Contract.md)** | Gemini, Claude, Sarvam, Ollama and the OpenAI family behind one contract; see [OpenAI, xAI, Kimi, Qwen and any OpenAI-style server](OpenAI-Family-Providers.md) and [the Responses schema and Perplexity](Responses-Schema-and-Perplexity.md); web search with citations is [one option](Web-Search-Grounding.md). See also the [Sarvam](../docs/SARVAM.md) and [Ollama](../docs/OLLAMA.md) guides. |
 | **[🤖 ReAct Agent](ReAct-Agent.md)** | Build agents that reason, plan, and use tools. ([Short guide](ReAct-Agent-Guide.md)) |
 | **[🛠️ Custom Tools](Creating-Custom-Tools.md)** | Extend an agent with your own logic, including approvals. |
 | **[🛠️ Native Tool Calling](Native-Tool-Calling.md)** | Agents use Gemini and Claude's structured tool calls instead of parsing text, with the text protocol as the fallback. |
