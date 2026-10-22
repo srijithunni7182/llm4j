@@ -1,23 +1,23 @@
 # OpenAI, xAI, Kimi, Qwen and any OpenAI-style server
 
-> **Status (phase 8, sub-phases 8a to 8c done).** `OpenAiCompatibleProvider` and its dialects pass the shared provider contract
-> (`ProviderContract` plus tools, reasoning text and odd-response checks) on wire formats written from each vendor's published API
-> reference. **Supported** means the contract also passes on fixtures *recorded from the real API*; until those recordings are committed
-> (sub-phase 8c-live) every provider on this page is **preview**, and the release notes say which are which. **Kimi and Qwen stay preview**
-> until their keys are used once. Web grounding (provider-side search with citations) is *coming*; it is not on this page.
+> **Status (phase 8, sub-phases 8a to 8c-live done).** `OpenAiCompatibleProvider` and its dialects pass the shared provider contract
+> (`ProviderContract` plus tools, reasoning text and odd-response checks). **Supported** means the contract also passes on responses *recorded
+> from the real API* (each fixture states its date and model): **OpenAI and xAI are supported** (recorded 2026-10-22). **Kimi, Qwen, the
+> Perplexity Orchestrator and the generic kind are preview**: their fixtures are written from documentation, or no third-party server was recorded.
+> Web grounding (provider-side search with citations) is *coming*; it is not on this page.
 
 One provider, `OpenAiCompatibleProvider`, speaks the whole family that uses `POST …/chat/completions`. What differs between vendors is **data** in a
 `Dialect`; what differs between one vendor's models is in `ModelTraits`. Adding the next vendor is a constant, not a class.
 
 | Provider | Factory | Key | Base URL (override) | Status |
 |---|---|---|---|---|
-| OpenAI | `OpenAiCompatibleProvider.openai(cfg)` | `OPENAI_API_KEY` | `https://api.openai.com/v1` (`OPENAI_BASE_URL`) | preview until recorded |
-| xAI (Grok) | `.xai(cfg)` | `XAI_API_KEY` | `https://api.x.ai/v1` (`XAI_BASE_URL`) | preview until recorded |
+| OpenAI | `OpenAiCompatibleProvider.openai(cfg)` | `OPENAI_API_KEY` | `https://api.openai.com/v1` (`OPENAI_BASE_URL`) | **supported** (recorded 2026-10-22, `gpt-6-luna`) |
+| xAI (Grok) | `.xai(cfg)` | `XAI_API_KEY` | `https://api.x.ai/v1` (`XAI_BASE_URL`) | **supported** (recorded 2026-10-22, `grok-4.20-0309-non-reasoning`) |
 | Moonshot Kimi | `.kimi(cfg)` | `MOONSHOT_API_KEY` | `https://api.moonshot.ai/v1` (`MOONSHOT_BASE_URL`) | **preview** (documentation-derived fixtures) |
 | Alibaba Qwen (DashScope) | `.qwen(cfg)` | `DASHSCOPE_API_KEY` | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` (`DASHSCOPE_BASE_URL`) | **preview** (documentation-derived fixtures) |
 | Perplexity Orchestrator | `.of(Dialect.PERPLEXITY_ROUTER, cfg)` | `PERPLEXITY_API_KEY` | `https://api.perplexity.ai/router/v1` | **preview** (private preview at Perplexity; no live fixtures) |
-| Any OpenAI-style server | `.of(Dialect.GENERIC, cfg)` | optional | **you give it** (`baseUrl`) | preview until recorded |
-| Perplexity Agent API | `OpenAiResponsesProvider.perplexity(cfg)` | `PERPLEXITY_API_KEY` | see [Responses schema and Perplexity](Responses-Schema-and-Perplexity.md) | |
+| Any OpenAI-style server | `.of(Dialect.GENERIC, cfg)` | optional | **you give it** (`baseUrl`) | **preview** (the protocol is the one recorded for OpenAI and xAI; no third-party server recorded) |
+| Perplexity Agent API | `OpenAiResponsesProvider.perplexity(cfg)` | `PERPLEXITY_API_KEY` | see [Responses schema and Perplexity](Responses-Schema-and-Perplexity.md) | **supported** (recorded 2026-10-22) |
 
 The Orchestrator is a gateway in private preview; the Agent API above is Perplexity's grounded path.
 
@@ -47,6 +47,10 @@ LLMResponse answer = client.chat(request);
 OpenAI's o-series and gpt-5 and later models (not the `-chat` variants) reject a custom `temperature`, `top_p` and `stop`, so those are **left out**
 (logged at debug) instead of failing the call; the output limit is sent as `max_completion_tokens`. A model name nobody has heard of gets the
 safe defaults for its vendor and never fails because a catalog does not list it. `addParameter` is the escape hatch for anything vendor-specific.
+
+> **Found against the real API (2026-10-22):** the gpt-6 models refuse *function tools* on chat completions unless `reasoning_effort` is `none`
+> (`HTTP 400: Function tools with reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions`). Either pass
+> `.addParameter("reasoning_effort", "none")` on a request that offers tools, or use [OpenAI's Responses API](Responses-Schema-and-Perplexity.md#openais-own-responses-api).
 
 ## xAI, Kimi and Qwen
 

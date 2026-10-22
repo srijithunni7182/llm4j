@@ -3,6 +3,35 @@
 This page is written as the release is built. Each item says whether it **works now** on the release branch or is **coming**; nothing
 that is not finished is described as working. The API policy is in [API_COMPATIBILITY.md](API_COMPATIBILITY.md).
 
+## More providers: OpenAI, xAI, Perplexity, Kimi, Qwen and any OpenAI-style server
+
+6.1.0 adds one provider for the whole OpenAI family (`OpenAiCompatibleProvider`, vendors as data in a `Dialect` and `ModelTraits`) and one for the OpenAI **Responses**
+schema (`OpenAiResponsesProvider`: Perplexity's Agent API and OpenAI's own Responses API). Every one passes the shared provider contract. A provider is called
+**supported** only when it also passes on responses *recorded from the real API* (a fixture states its date and model); **preview** means documentation-derived fixtures,
+no key or no access. Design: [specs/08-providers-and-grounding](specs/08-providers-and-grounding/DESIGN.md). Wiki: [OpenAI, xAI, Kimi, Qwen and any OpenAI-style server](../src/ai-agent4j/wiki/OpenAI-Family-Providers.md),
+[the Responses schema and Perplexity](../src/ai-agent4j/wiki/Responses-Schema-and-Perplexity.md).
+
+| Provider | Status |
+|---|---|
+| OpenAI, chat completions (`gpt-…`, `o3`, …) | **supported**: recorded 2026-10-22 with `gpt-6-luna` (plain, stream, tool call and answer, streamed tool call, reasoning) |
+| OpenAI, Responses API (`use: openai  api: responses`) | **supported**: recorded 2026-10-22 with `gpt-6-luna` |
+| xAI (Grok) | **supported**: recorded 2026-10-22 with `grok-4.20-0309-non-reasoning` (chat completions, which xAI now calls legacy) |
+| Perplexity Agent API (`perplexity/openai/gpt-5.6-sol`, `perplexity/preset:medium`) | **supported**: recorded 2026-10-22 (plain model access; web search is *coming*, see below) |
+| Kimi (Moonshot) | **preview**: fixtures are written from Moonshot's documentation; no key was available |
+| Qwen (Alibaba DashScope) | **preview**: fixtures are written from Alibaba's documentation; no key was available |
+| Perplexity Orchestrator (`perplexity_router`) | **preview**: Perplexity's API is itself in private preview; no access, no live fixtures |
+| `openai_compatible` (DeepSeek, Groq, Together, vLLM, LM Studio, a gateway with its own header or `api-version`) | **preview**: contract-tested, and the protocol is the one recorded for OpenAI and xAI, but no third-party server has been recorded |
+| Loom: `provider … { use: openai | xai | kimi | qwen | perplexity | perplexity_router | openai_compatible }`, model names (`gpt-5-mini`, `xai/grok-4`, `perplexity/openai/gpt-5.6-sol`), keys by vendor and bound to the vendor's host, `weave audit` data flows | **works now** |
+| Spring Boot starter: `llm4j.clients.<name>.provider` accepts the new providers | **works now** |
+| Context-window catalog entries for the current OpenAI, xAI, Kimi and Qwen models (each checked against the vendor's documentation) | **works now** |
+| `SpendGuard` (eval4j) now meters streamed calls from their final chunk, and the opt-in `ProviderSmokeIntegrationTest` records fixtures from the real APIs under a spend cap | **works now** |
+
+What we found against the real APIs: OpenAI's `gpt-6` models refuse function tools on chat completions unless `reasoning_effort` is `none` (pass
+`addParameter("reasoning_effort", "none")`, or use `api: responses`); xAI returns its reasoning text in `reasoning_content`; Perplexity's Agent API returns its price in
+`usage.cost`. A bare `qwen3` or `gpt-oss` is not resolved to a vendor (it usually means a local Ollama model): write `qwen/qwen3-max` or `ollama/qwen3`.
+
+**Coming (not in this build):** native web grounding (provider-side search with typed citations, search budgets, the `weave audit` rule), for Perplexity, Google and Anthropic first.
+
 ## Classification: typed questions, typed answers
 
 Two jobs in an agent system need an answer from a fixed set: routing a message (what does the customer want?) and judging an output

@@ -1,0 +1,288 @@
+# source: recorded
+# vendor: openai-responses
+# date: 2026-10-22
+# model: gpt-6-luna
+# endpoint: POST /v1/responses
+# step: reasoning-stream
+# prompt: What is 17 * 23? Think it through, then give the number.
+# note: recorded by ProviderSmokeIntegrationTest; keys, account ids and request ids scrubbed
+---
+event: response.created
+data: {"type":"response.created","response":{"id":"resp_scrubbed","object":"response","created_at":1792662732,"status":"in_progress","access_programs":null,"background":false,"completed_at":null,"error":null,"frequency_penalty":0.0,"incomplete_details":null,"instructions":null,"max_output_tokens":1500,"max_tool_calls":null,"model":"gpt-6-luna","moderation":null,"output":[],"parallel_tool_calls":true,"presence_penalty":0.0,"previous_response_id":null,"prompt_cache_key":null,"prompt_cache_retention":"24h","reasoning":{"context":"all_turns","effort":"medium","mode":"standard","summary":"detailed"},"safety_identifier":null,"service_tier":"auto","store":true,"temperature":1.0,"text":{"format":{"type":"text"},"verbosity":"medium"},"tool_choice":"auto","tool_usage":{"image_gen":{"input_tokens":0,"input_tokens_details":{"image_tokens":0,"text_tokens":0},"output_tokens":0,"output_tokens_details":{"image_tokens":0,"text_tokens":0},"total_tokens":0},"web_search":{"num_requests":0}},"tools":[],"top_logprobs":0,"top_p":0.98,"truncation":"disabled","usage":null,"user":null,"metadata":{}},"sequence_number":0}
+
+event: response.in_progress
+data: {"type":"response.in_progress","response":{"id":"resp_scrubbed","object":"response","created_at":1792662732,"status":"in_progress","access_programs":null,"background":false,"completed_at":null,"error":null,"frequency_penalty":0.0,"incomplete_details":null,"instructions":null,"max_output_tokens":1500,"max_tool_calls":null,"model":"gpt-6-luna","moderation":null,"output":[],"parallel_tool_calls":true,"presence_penalty":0.0,"previous_response_id":null,"prompt_cache_key":null,"prompt_cache_retention":"24h","reasoning":{"context":"all_turns","effort":"medium","mode":"standard","summary":"detailed"},"safety_identifier":null,"service_tier":"auto","store":true,"temperature":1.0,"text":{"format":{"type":"text"},"verbosity":"medium"},"tool_choice":"auto","tool_usage":{"image_gen":{"input_tokens":0,"input_tokens_details":{"image_tokens":0,"text_tokens":0},"output_tokens":0,"output_tokens_details":{"image_tokens":0,"text_tokens":0},"total_tokens":0},"web_search":{"num_requests":0}},"tools":[],"top_logprobs":0,"top_p":0.98,"truncation":"disabled","usage":null,"user":null,"metadata":{}},"sequence_number":1}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","item":{"id":"rs_scrubbed","type":"reasoning","content":[],"encrypted_content":"gAAAAABq2dzMC0CuJTrz630fhUWAMX757CwbrjnSeIgfjp5VI1vkhBrX13jbAzgqmVUb0OpsHcnbAQuQcxDhOaqAZ5RpQhWPl0ArlAkJmd4aHBmFrvGB8ih7Q76YoCBslbm_OWCcOzyA3GthjCcu09lazE5Gr8fDjwXM2khj08AAtAZZMJ33hMDeeoj8cLmy3RI71Pa7ZpgyVj0i5-qnVaTxSt9DfPWRoYHn8rToy65zVw3QPQWT_VJPjZ--ZRSbM2DU7K6e6DGq3KtOg5tcm1gxts7RF-YlEjsrkVWrZNpsAifp1rresgxRhOVZ9Fv-ly2JrnPPkTC5ipXj7gKKrgL0zEVefvA9GUSL_fx6bW59FzVlT1hxFjxQcI7i_nrd0U8Qu8YphNSYSOrbtltznEMqFVwn1IQySOkFW_Us69sBExofmW3pzRWF3r53pD0Mlv70nKpS3od-ll9wLOli7YW2-ZbVkrP1k1qUVE0FyvGIdm3AzP4sffD1YVsUENPTjZ585pVvB5RGSt4_dHyE-wI8ZzFIElZbFCWZdOQ7N2VD1n-siI7D2USsoHoMswdEyt51zQvDy1Glme--CsOX9NN3jkv-HgW-Bg7TwYXf9ryni1UbX3klnVMUd2AA1xxPAEmpKqrExn-BsPfUjRcUMqoPHwWvDFKwI493oz_yTI5_ehFU12GudCINMALXz3TgH8uEBZFx4-wkBfvd85uT83yRs0ZUl35hI12-CJ7mJQwNHZ-gkldVtA563CkgQIkQJaGGSkX3EbzS0D_5MJwmjyuaVyqFDEEfA933la-7satdRvM64QVzH3gmxzu0JIiIZd5HCXBTiwSnQeq7uej1N0NZAn5Xv-6_6dHlSH10KtXbGWHPUlCb3zkUEnazy1xNfLQKkAqYEJ2loEQzsxwGVLDN43oQ15x4v9J1KC3Skq5u7v1T_CM8tOtxe3zRArGrGkB3pEVKebNCqILJFs5dstM1JC-u_MFPZqj7fIJiQHOX2DwXOVUs21bnc6IMVIj1oQRuGeXe-wXGNgsSFhOmp-IfkieHRuz3XltEHtXLf7PU7E_7LWhbfQVqYVGp3cQxgVXcUy8xg12XzYyZkmt_cJrMIExQi5NPvabspRYBZCPsCBQZphW3JU7jBJbo1z33i6oN1OwCGdy5OK4FhUI7eXyDNzwflliVFAEAc4vbFc2ilk0wwyRJSV-h85plzb9a3Ed5a9frKilr","summary":[]},"output_index":0,"sequence_number":2}
+
+event: response.reasoning_summary_part.added
+data: {"type":"response.reasoning_summary_part.added","item_id":"rs_scrubbed","output_index":0,"part":{"type":"summary_text","text":""},"sequence_number":3,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":"**Calculating the answer**\n\nI","item_id":"rs_scrubbed","obfuscation":"ejg","output_index":0,"sequence_number":4,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" need","item_id":"rs_scrubbed","obfuscation":"F5eQ2CpkVoL","output_index":0,"sequence_number":5,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" to","item_id":"rs_scrubbed","obfuscation":"mbGajN1P4NwmQ","output_index":0,"sequence_number":6,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" think","item_id":"rs_scrubbed","obfuscation":"LCcIyQZ40c","output_index":0,"sequence_number":7,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" through","item_id":"rs_scrubbed","obfuscation":"qnnzgPPL","output_index":0,"sequence_number":8,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" the","item_id":"rs_scrubbed","obfuscation":"pymeeMexwUy4","output_index":0,"sequence_number":9,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" calculation","item_id":"rs_scrubbed","obfuscation":"Ddmg","output_index":0,"sequence_number":10,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" step","item_id":"rs_scrubbed","obfuscation":"z6g7xMAtB1L","output_index":0,"sequence_number":11,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":"-by","item_id":"rs_scrubbed","obfuscation":"IwB4TNO5ioCHA","output_index":0,"sequence_number":12,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":"-step","item_id":"rs_scrubbed","obfuscation":"wRyPhld5g25","output_index":0,"sequence_number":13,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":".","item_id":"rs_scrubbed","obfuscation":"SFGMAGmR4Euj0fs","output_index":0,"sequence_number":14,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" The","item_id":"rs_scrubbed","obfuscation":"XIEbv40ZFptX","output_index":0,"sequence_number":15,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" user","item_id":"rs_scrubbed","obfuscation":"9FrE2nlQ1Ee","output_index":0,"sequence_number":16,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" likely","item_id":"rs_scrubbed","obfuscation":"92c0ZUkm0","output_index":0,"sequence_number":17,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" wants","item_id":"rs_scrubbed","obfuscation":"r0Zthyri0V","output_index":0,"sequence_number":18,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" me","item_id":"rs_scrubbed","obfuscation":"3QEjThhvL7tuC","output_index":0,"sequence_number":19,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" to","item_id":"rs_scrubbed","obfuscation":"vwGObBFvWDuzp","output_index":0,"sequence_number":20,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" arrive","item_id":"rs_scrubbed","obfuscation":"M0DTGFv57","output_index":0,"sequence_number":21,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" at","item_id":"rs_scrubbed","obfuscation":"l8v4Vypdiv9xd","output_index":0,"sequence_number":22,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" the","item_id":"rs_scrubbed","obfuscation":"IZK0470yqv9i","output_index":0,"sequence_number":23,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" answer","item_id":"rs_scrubbed","obfuscation":"xmui7dUdH","output_index":0,"sequence_number":24,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" 391","item_id":"rs_scrubbed","obfuscation":"5DtbSs4pcXYu","output_index":0,"sequence_number":25,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":".","item_id":"rs_scrubbed","obfuscation":"kJSIPRlbQyuRnAL","output_index":0,"sequence_number":26,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" I","item_id":"rs_scrubbed","obfuscation":"GrECbU35r2YmvK","output_index":0,"sequence_number":27,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" can","item_id":"rs_scrubbed","obfuscation":"zOjwqn84dPw0","output_index":0,"sequence_number":28,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" show","item_id":"rs_scrubbed","obfuscation":"ZZVbPxLNmEj","output_index":0,"sequence_number":29,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" my","item_id":"rs_scrubbed","obfuscation":"GAcV6GkM3FpPy","output_index":0,"sequence_number":30,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" workings","item_id":"rs_scrubbed","obfuscation":"AeJ53p1","output_index":0,"sequence_number":31,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" by","item_id":"rs_scrubbed","obfuscation":"l8bHWsUcHLEFS","output_index":0,"sequence_number":32,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" calculating","item_id":"rs_scrubbed","obfuscation":"zcsf","output_index":0,"sequence_number":33,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" it","item_id":"rs_scrubbed","obfuscation":"6rxIhQul5h0gc","output_index":0,"sequence_number":34,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" like","item_id":"rs_scrubbed","obfuscation":"CKIoFzBqjUA","output_index":0,"sequence_number":35,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" this","item_id":"rs_scrubbed","obfuscation":"tR9NbkQyoKr","output_index":0,"sequence_number":36,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":":","item_id":"rs_scrubbed","obfuscation":"jE4HYhKfmSp74yW","output_index":0,"sequence_number":37,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" 17","item_id":"rs_scrubbed","obfuscation":"s7VG2OlbmNC81","output_index":0,"sequence_number":38,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" times","item_id":"rs_scrubbed","obfuscation":"8X3Rov20Mm","output_index":0,"sequence_number":39,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" 23","item_id":"rs_scrubbed","obfuscation":"ECbMUsd5mvKlj","output_index":0,"sequence_number":40,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" equals","item_id":"rs_scrubbed","obfuscation":"fjki22Dk4","output_index":0,"sequence_number":41,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" 17","item_id":"rs_scrubbed","obfuscation":"ngU1YOesWbOc7","output_index":0,"sequence_number":42,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" times","item_id":"rs_scrubbed","obfuscation":"xkVGREkPXE","output_index":0,"sequence_number":43,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" 20","item_id":"rs_scrubbed","obfuscation":"u9w24pcXOmhe7","output_index":0,"sequence_number":44,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" plus","item_id":"rs_scrubbed","obfuscation":"xQO4kdvzZTZ","output_index":0,"sequence_number":45,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" 17","item_id":"rs_scrubbed","obfuscation":"9ivaMfu8UDppO","output_index":0,"sequence_number":46,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" times","item_id":"rs_scrubbed","obfuscation":"FhdjNoNImw","output_index":0,"sequence_number":47,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" 3","item_id":"rs_scrubbed","obfuscation":"YXUKTJHAQxAEfj","output_index":0,"sequence_number":48,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":",","item_id":"rs_scrubbed","obfuscation":"ZgTr2DS4EUxeVa6","output_index":0,"sequence_number":49,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" which","item_id":"rs_scrubbed","obfuscation":"CqrNK1JG2J","output_index":0,"sequence_number":50,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" is","item_id":"rs_scrubbed","obfuscation":"l6z4Lg7d0GCXo","output_index":0,"sequence_number":51,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" 340","item_id":"rs_scrubbed","obfuscation":"ESPpHatUYsYr","output_index":0,"sequence_number":52,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" plus","item_id":"rs_scrubbed","obfuscation":"SbGWluBvzlJ","output_index":0,"sequence_number":53,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" 51","item_id":"rs_scrubbed","obfuscation":"rMfSXwweuzTiC","output_index":0,"sequence_number":54,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":",","item_id":"rs_scrubbed","obfuscation":"6WX3aVIYTPyRpWZ","output_index":0,"sequence_number":55,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" giving","item_id":"rs_scrubbed","obfuscation":"ovMAEOcbF","output_index":0,"sequence_number":56,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" us","item_id":"rs_scrubbed","obfuscation":"5z5fxQXBQCTU6","output_index":0,"sequence_number":57,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" 391","item_id":"rs_scrubbed","obfuscation":"kMOLak2KT8xW","output_index":0,"sequence_number":58,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":".","item_id":"rs_scrubbed","obfuscation":"IWYsgvIDCjVXnHW","output_index":0,"sequence_number":59,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" However","item_id":"rs_scrubbed","obfuscation":"CSsLPNbf","output_index":0,"sequence_number":60,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":",","item_id":"rs_scrubbed","obfuscation":"RNccZ81PZJA9OTD","output_index":0,"sequence_number":61,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" the","item_id":"rs_scrubbed","obfuscation":"vOIUR7FM9YLs","output_index":0,"sequence_number":62,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" user","item_id":"rs_scrubbed","obfuscation":"HJOnBalFcw4","output_index":0,"sequence_number":63,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" just","item_id":"rs_scrubbed","obfuscation":"hJ3zutazQf4","output_index":0,"sequence_number":64,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" wants","item_id":"rs_scrubbed","obfuscation":"FpCk2BduuM","output_index":0,"sequence_number":65,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" the","item_id":"rs_scrubbed","obfuscation":"vfni6nhQxquN","output_index":0,"sequence_number":66,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" final","item_id":"rs_scrubbed","obfuscation":"UjHo2cLRrA","output_index":0,"sequence_number":67,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" number","item_id":"rs_scrubbed","obfuscation":"eQ28cwxVY","output_index":0,"sequence_number":68,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":",","item_id":"rs_scrubbed","obfuscation":"ckVwYkoHyHKA8n5","output_index":0,"sequence_number":69,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" so","item_id":"rs_scrubbed","obfuscation":"w5mjGFbhaY6aq","output_index":0,"sequence_number":70,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" I","item_id":"rs_scrubbed","obfuscation":"lghM7H1YU3CbrW","output_index":0,"sequence_number":71,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":"’ll","item_id":"rs_scrubbed","obfuscation":"cZacU8dAZLFq4","output_index":0,"sequence_number":72,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" keep","item_id":"rs_scrubbed","obfuscation":"enGxpLWM96h","output_index":0,"sequence_number":73,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" it","item_id":"rs_scrubbed","obfuscation":"jZpnU9hID3gDS","output_index":0,"sequence_number":74,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" straightforward","item_id":"rs_scrubbed","obfuscation":"","output_index":0,"sequence_number":75,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" and","item_id":"rs_scrubbed","obfuscation":"MYAr4LWsiYuX","output_index":0,"sequence_number":76,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" provide","item_id":"rs_scrubbed","obfuscation":"PYS6GXQ5","output_index":0,"sequence_number":77,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" 391","item_id":"rs_scrubbed","obfuscation":"BI8hmAvwhiqf","output_index":0,"sequence_number":78,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" as","item_id":"rs_scrubbed","obfuscation":"mlze4W6OBJ9tC","output_index":0,"sequence_number":79,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" the","item_id":"rs_scrubbed","obfuscation":"ODFlmfo2oJyZ","output_index":0,"sequence_number":80,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":" answer","item_id":"rs_scrubbed","obfuscation":"2zu3bihog","output_index":0,"sequence_number":81,"summary_index":0}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","delta":".","item_id":"rs_scrubbed","obfuscation":"tLOO7nDbWVbfSB9","output_index":0,"sequence_number":82,"summary_index":0}
+
+event: response.reasoning_summary_text.done
+data: {"type":"response.reasoning_summary_text.done","item_id":"rs_scrubbed","output_index":0,"sequence_number":83,"summary_index":0,"text":"**Calculating the answer**\n\nI need to think through the calculation step-by-step. The user likely wants me to arrive at the answer 391. I can show my workings by calculating it like this: 17 times 23 equals 17 times 20 plus 17 times 3, which is 340 plus 51, giving us 391. However, the user just wants the final number, so I’ll keep it straightforward and provide 391 as the answer."}
+
+event: response.reasoning_summary_part.done
+data: {"type":"response.reasoning_summary_part.done","item_id":"rs_scrubbed","output_index":0,"part":{"type":"summary_text","text":"**Calculating the answer**\n\nI need to think through the calculation step-by-step. The user likely wants me to arrive at the answer 391. I can show my workings by calculating it like this: 17 times 23 equals 17 times 20 plus 17 times 3, which is 340 plus 51, giving us 391. However, the user just wants the final number, so I’ll keep it straightforward and provide 391 as the answer."},"sequence_number":84,"summary_index":0}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","item":{"id":"rs_scrubbed","type":"reasoning","content":[],"encrypted_content":"gAAAAABq2dzOloV9LPMif9Hhc1tsywlvwsWbTLU_MJLHXuV42r_vwwBs26PJppGpt1Ce818dgN5nUV92dX57NtuedkHbl0gwJD039NR9AF_32WtcKstCPhVfGtOfUv1-u1FSlYlfBB0weijBvOHmBF4gIObI46uHy7SJkG-fwVNVV09G9oZRfm_tAjtlrfmbkwt3Ely-Z4xRGxrjxkDEPkhZ9gqCksDruaqM2tIYhFk5AxhyI19vl7Bx95DYZj62Q1C2HDb3PAoAB0IdZCqw294gIzjR--IO_g6FOXEWmBYfH3rxYX76IBzyDY0jSCkIyLoRmp3FTgGu92N8idilh5LD5Nm1EPMNuGLVg_r5FOOUlQ0vbeM0l2rkdUKDCt4rGulJRfbkXSgvNW7qqSYOrxOFNKgIUbonkV_RGcVkeBvOpGA_Su9rMTTsJNtKBXGG_O6QvqZFDolqYwOJVEkcK89eN-bHBsuQTgTbnOiyYTZeUPydMRF_P0HzhWrBMYKww9elLtJ-5bh00cOwrrCoqZtnegJwvFw2hLmwSkdFP9k9qU89XGyZHbHwtTXNlnRRYSv0NKAefVcjleLhag_C9E9-hFYMmwwfI0_Ym4Em0_RfaWSRWj-dGk6ocvkMQEDfZLwZxMrjRRdnZK0U0hDs5lorzG_seyzL3CY_QtpB7v1AdnIuh9FZFAZPMXYN8fIOCDFeuxxARreYI2HaGO-fKZRO6BtEK7krrTCgympG2kyZHI0xRih7A3EDBHJUXVpz_nZFgGcR1RLt9bnsNPakGOshqpgXCYrPJgT70v0CYIIDDs-zlavjgz_YQwdyU1x02xy8u80CjRhPtJ0KRxK__Md19DyWO_Jrtn62PntqszGNFSFA-2XsYKhLp_4lDGmFz9nLUTGsTGI3nYbhuWZ5iWQ96i2sHUmzZDwIqwIBreqCrU1B-bp4cO6CbZbPZYroc8vy29T2g2jexFCKdOSbeC6bLBEswpISkMtbnUYamz7WQ2H_RSb6QR7fH_HXs2vcHmzby6bvz5RKb7lPAow5yMi1MVmmirRG8jl7LJ2omtt0ZzZCBGLNR8HQrTXK6UknW-ORii8DWNhffJ5U9HZsH843wyY2XL9EJdx0rk1ZWCLg8-Q5HbtXSwF3J760WGhRg21Jooq12JwQG0CNJMkE4yKuSWZ-LrUxB2QzC91ue1DnERtY4xDsBZUSMdPipFajoPoCJIvCpm79fxu_pOpZkFe91sjncwLb8YO0AVJLUgzf67igNXP-2NQ-vw0klj7r2lm01lrgLBAzvrF3L-RzxqaEJORm1nZqZgDdR6vRuF-VmrwUo9pcrIW0zyKOSiaixEHQgLncPOttmzYc-qqCRS2EnzaTeSyTSDBecJJcLc8Mpp0hyfc39f8s0kMcWzVd3vx_0IYCAwsGG4L289dx2cFM6JRjG6NGoVch3zQfDlOn8ynsocdcxbp1iaPylp4Mung28zZ_LNquueohWU2uDS3oNnzI1njGh4SSXXgZEm5d-tJToirmS0-5xV3gpX6-ttF8UoSVwnj_hPVyQoW3hIef8e2-0_qVctVYZoZcvf1a05gMbJ4AhtlN1nqi3u5lYc9PNoTOw3i4nLrkGK8oDL1fEJbGn_vzi-20lebfmOILHgUxv2GH68ogPgjJxZvlbu6FFqPLskk-Y2Ee1sThf0JTs7Px1rxMiTFjZ0wywM6nFxQCLJwMcYinfAD2KmuN1NkpGW8ocVx-VI5UQvMLcR7OhFotnYgUdQqJGVk73E7ZmrdwtPZ1PuVYakSdNyMJ9Em5JjyCmBt8EyF0_pVCsyNTbuDldU3pKQfDup4UnWpW_T60QSASXwDVHWp8tqmm_eKfK6mw4KcFzJyAJiKRlti8Ly8K8pFI-vKiRyNKgxG8gsehmn5rW8a78UhnydG7uaJHpREnaLCvtzHv5El5F018WZ-a8fmDSgY4stT5OJKd486ElwHqXiROdIBqupc_0GPeXVl5S414NGCxqjIZ14XVETQ71vRUHxixML69EaiG_9_BSGnUa8IOKWOTuYCY1CqRzrZdc55FlP3RwgSjUSZcJYBwvwjNa37W0qjIPit6x8jZYrrAHKZ0hOhw_zvxuwcXp7H7Y4NWMY0hhZP5tph9-aelI6LNpfZB9XyBJSUZoZKrLXmgzrGngMMqbhhyVT6KuDIbwKExIHCLzKOtzKdLG8sOKd4CjZgotWs4sZtw7vyg_T-7LNqYH08Dt9IZKh94A27svHdG1s-X6r1dvjnxZvwMyYm_id6ylMOvV_Ie3pJlJi3P7r81RYTeaIOy4boGjKqB2rOQGN_DBOlGFVFHkPYhuzNRY1cSGzUioJp6t29y5aaAojFmIHaXi2JKCMIoL2xVO4kbiHMxEyAi0lcSDRQn52NyxhTjSSJGqafs-1n4ByUuvgvv-EEf77jPir-qzXjTIOkC","summary":[{"type":"summary_text","text":"**Calculating the answer**\n\nI need to think through the calculation step-by-step. The user likely wants me to arrive at the answer 391. I can show my workings by calculating it like this: 17 times 23 equals 17 times 20 plus 17 times 3, which is 340 plus 51, giving us 391. However, the user just wants the final number, so I’ll keep it straightforward and provide 391 as the answer."}]},"output_index":0,"sequence_number":85}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","item":{"id":"msg_scrubbed","type":"message","status":"in_progress","content":[],"phase":"final_answer","role":"assistant"},"output_index":1,"sequence_number":86}
+
+event: response.content_part.added
+data: {"type":"response.content_part.added","content_index":0,"item_id":"msg_scrubbed","output_index":1,"part":{"type":"output_text","annotations":[],"logprobs":[],"text":""},"sequence_number":87}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","content_index":0,"delta":"391","item_id":"msg_scrubbed","logprobs":[],"obfuscation":"aZ1X6qXpxELQi","output_index":1,"sequence_number":88}
+
+event: response.output_text.done
+data: {"type":"response.output_text.done","content_index":0,"item_id":"msg_scrubbed","logprobs":[],"output_index":1,"sequence_number":89,"text":"391"}
+
+event: response.content_part.done
+data: {"type":"response.content_part.done","content_index":0,"item_id":"msg_scrubbed","output_index":1,"part":{"type":"output_text","annotations":[],"logprobs":[],"text":"391"},"sequence_number":90}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","item":{"id":"msg_scrubbed","type":"message","status":"completed","content":[{"type":"output_text","annotations":[],"logprobs":[],"text":"391"}],"phase":"final_answer","role":"assistant"},"output_index":1,"sequence_number":91}
+
+event: response.completed
+data: {"type":"response.completed","response":{"id":"resp_scrubbed","object":"response","created_at":1792662732,"status":"completed","access_programs":null,"background":false,"completed_at":1792662735,"error":null,"frequency_penalty":0.0,"incomplete_details":null,"instructions":null,"max_output_tokens":1500,"max_tool_calls":null,"model":"gpt-6-luna","moderation":null,"output":[{"id":"rs_scrubbed","type":"reasoning","content":[],"encrypted_content":"gAAAAABq2dzPxg-Y3E92ROpgn76aG60kWMuaxv8YkfwDGJxtRf0All2yQl7y5eVE2VdQH233jpnCGdDETebcU6qusd6zldaJp4WfAlQJiX3Cp3BqU1RERv42Qb_115g17P7KYWUvIb0WrlXSIgT4qQS9eK6JL4yxcyWJs2CazGDKOVXB0NYXplYhMRqQWybutrUGrTGL6dRQf5MNgmZDcSNL_JOSaNDpxMkUUreDami0g2NC0vzFdQlJV42-Jqxbs9wWISPPRxOEgNCDm5LzD5Ul31W_BQB3hm_-DXysXKZaxIhcwMLvZ5-KdVBk04o8ZfEyVAiK-ZciqiWSzXduxJwY_SjxEfp_QzpktHuCKH4BCN2VHqKbnxyBSDo8zdUYxQF-5IMLiv6pZ1l4X2jqrGuNClPK0q6H5HqURNSC5g7_cqVt-Gsm_l-KYGczaRcvH_m6ifXF977xYZ7BIWoj6wHBToXCX9sZfLh5THzEhwjjuylzSDdJA_2W0FHVq86Tg7nWELRSSOoCWt90Oxy4TxP_uwEEK4RAgTqoJ1qyUsiDUR2LtN7JKXyKonMKatki6vAI2qgY1tElOYp82lr1n3HerY0CFUW2v542NIdkD4o7QYNB3CixjD0_vBprc1sS4qTNHONR6FvRl783Dzl96d2QwXQR9lZKspYqr01tiqxWVvEQ-GbHeF02FWTODJY6vDFu_-YJP4m3UmegjAOjRHO-sUgC2rfL1wjqb-pbXDKYlfCT5vWbXwfi1BmmWv_TLTIInAuACnK1WJTHObw-JdQdkLBrQzT8MwISMwn_zdlleeyrEjYFOd4MrSdNrtmr8LT-9Gt1XEruB1ApxoVLWiHpqn0_21zN7yH1LoUya3QpgP0x7PQJemgCf4OktJV7s6aw9Fu3ko8E6-XYMsXjaIEwNbAP0d7AdnZ-qabmuWZYT4DPrSN263HqI6zyWByYNKGbZzYMW59TEhtu_1927xGrRYVlqORr7qa0ml_3RPMW-l7-WqZrnaoJRtOwgWpgyxh2K1TIa7M0gajtkkkU6v8iA8cTUd31wjI1NndYNitNDXBBEsPg2Gl9XKR7Bh-gv5nin2wUjfBaQ8EaS5_0kGHVy_FjcH0l536sVxGLz3SBiSClsguRtl1lK01snuKZTisEDcGsM3sGw0JlljH7UtzsSp9BOgj4g66cBdMet75tVU5y4rHjvIEJsBWrEeEPg7ZX3DU7YOdU_bquuwhB7TqloLqf_ucT4VZvQt7WS11X2yZWbeTWakkwE6SceCwETFgh5tWmAgNDaivUspj9EmTMJes85Coh-Y3gKnKmCP-SOcdUQJQFIJMDdsHbocGiuKV9kMvWx5nrd5OIKnruYje6q6piW_CDnZi0nI8cNUI0cfMuQ4eg5nNb8JN4ORHvlpQk7V_D1VvSzD_b21sTGFhsUiJOv2ZnPI0jdjwCTzpSpqJbJFaeeSKO9wtaCZbFoWsSwkQif2Evt_t01mN_WHWwjx1mMSKgE5UgJwbArGL7mViXW_4P8p8Jdh72VR8It6mYAApG0i-WFq2-8BrvnFHOBrse62Vg9alW66oAwDduQx-APdNRLV6FOiQKuXKogBJxcy70Ws-tOXpsB3THuBbQ-8cbHb5doBupB0g-gNuf6eKrOIRNZqjXMZQHIEWLtAWD552gYhHIqNXmNmFhR_vJ4Fh7I4PEvcB-2GJ8v4S0yvHk9gMF8pZ8MMuOGwVQfNH4fdKhJtGW8Ud8loZDBABtRQ14X9OIahLBchDvv-zPL4m5XwwYzvbDg_I8uVsjTRF6HV8cf3rs5GLfnmGoFE42--J6LJU86tP07jVEhGDKN0dYHs8ulKqLSotZP7UI4tA9RCc1qWLW1fvh6lJEfNaqWvoaNBpGpiTD9L0_gUZNllToDQff7LVHe6ZzCjVbNYKSFRf-i8da0EJ1K1AC2TExBMOC97k7kcuHAcCxSFtUVXV-K_u7hlB97oobLcvha0iQniTyG_em-P8fOzhRZY8CQoOGFSqAhJ9IIguW58UMV2qJvGOafb3gjztGd2m3WfOhE2Nz29FDFqNHeoz0YmVMbGEwGWdQHNjPiRs2n3NqJu7Qz2q259590AAuGmsI7xt7qtPrrfvUA1ulZ5UW-yYvFfcsM6e1JtKlrHSwxIkcvR8dWo5xOM49JhNiPqPRuYg-2HhWmUlh8GWVwIulANtHvL1BLWp4MB2RC4nkS6VI3yp1-pVPLyRPndNKg9cKfQv2EMxgnRB5ZuVGaJ8nS-L7HtEAeaZCMX7DZt-31I8I8w-1bRjIPjL2FzsEWJjwg98Jqf3Tm9z2oyIlYI6r9hhTjeKVyc3GJv1uEdrUJptrC61AEr-I2Is0N-kFXEtgXa3LwqOanapnyMTvRP93wMUvvDGaoq7Ai5RnpQjES9HZoicB3saRMb9QNT-Hh2tHSaj7o3OevH4e","summary":[{"type":"summary_text","text":"**Calculating the answer**\n\nI need to think through the calculation step-by-step. The user likely wants me to arrive at the answer 391. I can show my workings by calculating it like this: 17 times 23 equals 17 times 20 plus 17 times 3, which is 340 plus 51, giving us 391. However, the user just wants the final number, so I’ll keep it straightforward and provide 391 as the answer."}]},{"id":"msg_scrubbed","type":"message","status":"completed","content":[{"type":"output_text","annotations":[],"logprobs":[],"text":"391"}],"phase":"final_answer","role":"assistant"}],"parallel_tool_calls":true,"presence_penalty":0.0,"previous_response_id":null,"prompt_cache_key":null,"prompt_cache_retention":"24h","reasoning":{"context":"all_turns","effort":"medium","mode":"standard","summary":"detailed"},"safety_identifier":null,"service_tier":"default","store":true,"temperature":1.0,"text":{"format":{"type":"text"},"verbosity":"medium"},"tool_choice":"auto","tool_usage":{"image_gen":{"input_tokens":0,"input_tokens_details":{"image_tokens":0,"text_tokens":0},"output_tokens":0,"output_tokens_details":{"image_tokens":0,"text_tokens":0},"total_tokens":0},"web_search":{"num_requests":0}},"tools":[],"top_logprobs":0,"top_p":0.98,"truncation":"disabled","usage":{"input_tokens":23,"input_tokens_details":{"cache_write_tokens":0,"cached_tokens":0},"output_tokens":94,"output_tokens_details":{"reasoning_tokens":87},"total_tokens":117},"user":null,"metadata":{}},"sequence_number":92}
+

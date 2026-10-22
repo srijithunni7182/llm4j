@@ -1,0 +1,10 @@
+# source: recorded
+# vendor: xai
+# date: 2026-10-22
+# model: grok-4.20-0309-non-reasoning
+# endpoint: POST /v1/chat/completions
+# step: tool-1
+# prompt: What is the weather in Pune right now? Use the get_weather tool.
+# note: recorded by ProviderSmokeIntegrationTest; keys, account ids and request ids scrubbed
+---
+{"id":"00000000-0000-0000-0000-000000000000","object":"chat.completion","created":1792662736,"model":"grok-4.20-0309-non-reasoning","choices":[{"index":0,"message":{"role":"assistant","content":"","tool_calls":[{"id":"call-scrubbed","function":{"name":"get_weather","arguments":"{\"city\":\"Pune\"}"},"type":"function"}],"refusal":null},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":281,"completion_tokens":11,"total_tokens":292,"prompt_tokens_details":{"text_tokens":281,"audio_tokens":0,"image_tokens":0,"cached_tokens":128},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0},"num_sources_used":0,"cost_in_usd_ticks":2443500},"system_fingerprint":"fp_scrubbed","service_tier":"default"}

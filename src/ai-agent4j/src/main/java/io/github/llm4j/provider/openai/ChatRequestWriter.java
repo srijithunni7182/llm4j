@@ -22,7 +22,7 @@ final class ChatRequestWriter {
      * Key in {@link Message#getProviderData()} holding the reasoning text that came with a tool
      * call, to be sent back with the tool results.
      */
-    static final String REASONING = "openai.reasoning_content";
+    static final String REASONING = "chat.reasoning_content";
 
     private static final Logger logger = LoggerFactory.getLogger(ChatRequestWriter.class);
     private static final ObjectMapper JSON = new ObjectMapper();

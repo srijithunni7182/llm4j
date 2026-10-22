@@ -24,28 +24,28 @@ recorded in §7. Part A is shippable on its own; Part B starts only when Part A 
 
 ## 2. Acceptance criteria
 
-| # | Criterion | Requirement | Test |
-|---|---|---|---|
-| A1 | Each new provider passes the full `ProviderContract` | R1 | six `*ContractTest` classes |
-| A2 | Adding a dialect needs no change to `OpenAiCompatibleProvider` outside its constants and `ModelTraits` | R2 | code review checklist + a test that registers a made-up dialect |
-| A3 | Unknown model names at a known vendor work with safe defaults | R3 | `ModelTraits` tests |
-| A4 | Keys never appear in exceptions, logs, events or traces; secrets go only to bound hosts | R4 | canary-key and host-binding tests |
-| A5 | Loom `use:` kinds, resolver prefixes, bare-name inference and the ambiguous-name behaviour are as specified | §3.3 | wiring tests |
-| A6 | Windows and prices exist for the listed models; unknown models fall back | §3.3 | catalog tests |
-| A7 | Requests without `grounding` are byte-identical to the previous release for Gemini, Anthropic, Sarvam, Ollama | R5 | request-bytes regression test |
-| A8 | Grounding on an unsupported provider or option is refused before any network call, naming both | R6 | grounding unit tests |
-| A9 | Citations are typed, indices stable, spans in range | R7 | grounding provider tests |
-| A10 | Search usage is as the vendor reports; unknown stays unknown | R8 | grounding provider tests |
-| A11 | Streaming and non-streaming agree on citations and search usage | R9 | parity tests |
-| A12 | A grounded agent is untrusted-content exposure in `weave audit`, with or without `allow:` | R10 | Loom audit tests |
-| A13 | Searches are charged to the `searches` budget; a breach halts | R11 | budget tests |
-| A14 | A grounded turn followed by a tool turn is valid for Anthropic and Kimi | R12 | provider tests |
-| A15 | Fallback to a client-side tool yields citations in the same shape | §8.3 | grounding unit tests |
-| A16 | eval4j citation assertions pass and fail correctly; scripted citations work offline | §6 | eval4j tests |
-| A17 | The live smoke run passes for every vendor with a key, within its spend cap, and recorded fixtures replace the hand-written ones | §5 of the test strategy | `ProviderSmokeIntegrationTest` (live) |
-| A18 | All documentation samples execute in tests | docs | docs examples test |
-| A19 | `OpenAiResponsesProvider` passes `ProviderContract` for the Perplexity Agent API and OpenAI Responses; `web_search` results map to typed citations | §3.4, R1, R7 | contract and grounding provider tests |
-| A20 | (If Phase 7 is merged) `PerplexityDecisionsProvider` passes `ClassifierContract` and shares `DecisionWire` with `JevWire` | §3.5 | classifier contract tests |
+| # | Criterion | Requirement | Test | Result |
+|---|---|---|---|---|
+| A1 | Each new provider passes the full `ProviderContract` | R1 | six `*ContractTest` classes | ✅ 8 provider contract classes (`OpenAiContractTest`, `XaiContractTest`, `KimiContractTest`, `QwenContractTest`, `OpenAiCompatibleContractTest`, `PerplexityRouterContractTest`, `OpenAiResponsesContractTest`, `PerplexityAgentContractTest`) extend `ProviderContract`: 35–37 tests each, green |
+| A2 | Adding a dialect needs no change to `OpenAiCompatibleProvider` outside its constants and `ModelTraits` | R2 | code review checklist + a test that registers a made-up dialect | ✅ `DialectTest.aMadeUpDialectNeedsNoProviderChange`; `NoVendorLogicTest` (no string literal in the shared code names a vendor) |
+| A3 | Unknown model names at a known vendor work with safe defaults | R3 | `ModelTraits` tests | ✅ `DialectTest` (`openAiReasoningModelsRejectSamplingSettings`, `anUnrecognisedModelAtAnyVendorGetsTheSafeDefaults`), `OpenAiContractTest.anUnknownFutureModelDegradesToTheSafeDefaults` |
+| A4 | Keys never appear in exceptions, logs, events or traces; secrets go only to bound hosts | R4 | canary-key and host-binding tests | ✅ `ProviderContract` (C7, C11, C12 for every new provider), `OpenAiFamilySecretTest` (per-request fetch, header only, host binding, no key in errors, Chat and Responses), `FixtureProvenanceTest` (no key or id in any fixture), `ScrubTest` |
+| A5 | Loom `use:` kinds, resolver prefixes, bare-name inference and the ambiguous-name behaviour are as specified | §3.3 | wiring tests | ✅ Loom `OpenAiFamilyProvidersTest` (prefixes, bare names, ambiguous `qwen3`/`gpt-oss`, kinds, options, checks, host-bound stored key), `ProvidersTest`; Spring `ClientsTest`; `VendorTest` |
+| A6 | Windows and prices exist for the listed models; unknown models fall back | §3.3 | catalog tests | ✅ `ContextWindowsTest` (19 entries for OpenAI, xAI, Kimi and Qwen models, each checked against the vendor's page on 2026-10-22; unknown models and nested slugs resolve or fall back). Prices: not shipped by design (`PriceTable` is user-supplied); per-search prices come with 8e |
+| A7 | Requests without `grounding` are byte-identical to the previous release for Gemini, Anthropic, Sarvam, Ollama | R5 | request-bytes regression test | ⏳ 8e |
+| A8 | Grounding on an unsupported provider or option is refused before any network call, naming both | R6 | grounding unit tests | ⏳ 8e |
+| A9 | Citations are typed, indices stable, spans in range | R7 | grounding provider tests | ⏳ 8f |
+| A10 | Search usage is as the vendor reports; unknown stays unknown | R8 | grounding provider tests | ⏳ 8f |
+| A11 | Streaming and non-streaming agree on citations and search usage | R9 | parity tests | ⏳ 8f |
+| A12 | A grounded agent is untrusted-content exposure in `weave audit`, with or without `allow:` | R10 | Loom audit tests | ⏳ 8g |
+| A13 | Searches are charged to the `searches` budget; a breach halts | R11 | budget tests | ⏳ 8e |
+| A14 | A grounded turn followed by a tool turn is valid for Anthropic and Kimi | R12 | provider tests | ⏳ 8f |
+| A15 | Fallback to a client-side tool yields citations in the same shape | §8.3 | grounding unit tests | ⏳ 8e |
+| A16 | eval4j citation assertions pass and fail correctly; scripted citations work offline | §6 | eval4j tests | ⏳ 8g |
+| A17 | The live smoke run passes for every vendor with a key, within its spend cap, and recorded fixtures replace the hand-written ones | §5 of the test strategy | `ProviderSmokeIntegrationTest` (live) | ◐ run for OpenAI (chat and Responses), xAI and Perplexity on 2026-10-22, within the cap; Anthropic and Gemini have no key here, Kimi and Qwen no key: owed (see §7 follow-up) |
+| A18 | All documentation samples execute in tests | docs | docs examples test | ◐ 8a to 8c samples execute (`ProvidersDocsExamplesTest`); grounding samples with 8e |
+| A19 | `OpenAiResponsesProvider` passes `ProviderContract` for the Perplexity Agent API and OpenAI Responses; `web_search` results map to typed citations | §3.4, R1, R7 | contract and grounding provider tests | ◐ contract: ✅ both Responses dialects pass `ProviderContract` and replay recorded real payloads; `web_search` citations: ⏳ 8f |
+| A20 | (If Phase 7 is merged) `PerplexityDecisionsProvider` passes `ClassifierContract` and shares `DecisionWire` with `JevWire` | §3.5 | classifier contract tests | ⏳ 8k |
 
 ## 3. Traceability
 
@@ -53,7 +53,11 @@ Filled in as tests are written: one row per requirement `R1`…`R12`, naming the
 
 | Req | Tests |
 |---|---|
-| R1–R12 | _to be listed when the tests are written_ |
+| R1 | `OpenAiContractTest`, `XaiContractTest`, `KimiContractTest`, `QwenContractTest`, `OpenAiCompatibleContractTest`, `PerplexityRouterContractTest`, `OpenAiResponsesContractTest`, `PerplexityAgentContractTest` (via `ChatCompletionsContract` / `ResponsesContract`, which extend `ProviderContract`); `RecordedFixturesTest` on real payloads |
+| R2 | `NoVendorLogicTest`, `DialectTest.aMadeUpDialectNeedsNoProviderChange` |
+| R3 | `DialectTest`, `OpenAiContractTest.anUnknownFutureModelDegradesToTheSafeDefaults` |
+| R4 | `ProviderContract` C12 and the `noSecret` checks, `OpenAiFamilySecretTest`, Loom `OpenAiFamilyProvidersTest.aStoredKeyKeepsItsHostBindingForTheVendor`, `SecretCommandsTest` (vendor host binding), `FixtureProvenanceTest`, `ScrubTest` |
+| R5–R12 | _listed as 8e to 8g are built_ |
 
 ## 4. Quality gates
 
@@ -115,3 +119,23 @@ Test that caught a gap: `<think>` removal for the generic dialect was specified 
 Built: `OpenAiResponsesProvider`, `ResponsesDialect` (`OPENAI`, `PERPLEXITY`; model field by prefix so `preset:medium` is sent as `preset`; an output limit Perplexity requires for `anthropic/*`; which output items are replayed with a tool result), package-private `ResponsesRequestWriter` and `ResponsesReader`, `ModelTraits.perplexity` (the rules of the model behind a `creator/model` slug). Tests: `ResponsesContract` (shared; extends `ProviderContract`, with a new `supportsStopSequences()` hook because the schema has no stop sequences), `OpenAiResponsesContractTest`, `PerplexityAgentContractTest`, and the Responses cases of `OpenAiFamilySecretTest`. Covered: `instructions`/`input` mapping, `previous_response_id` (sends only what follows the last answer, reports `response_id`), `output[]` parsing, refusal, incomplete/content-filter, function-call round trip with the turn's output items kept in `providerData`, streaming events (text, reasoning summary, function-call arguments, completed/incomplete/failed/error, a stream cut before completion), usage with cached and reasoning tokens.
 Findings from the docs that shaped it: Perplexity's `output_text.annotations` was an empty array in its own streaming example while the text carried `[web:N]` markers and a `search_results` item held the sources (to be checked in 8d); `web_search` has no search-count cap (only `max_results` per call and a loop bound `max_steps`); the search count is `usage.tool_calls_details.search_web.invocation`.
 Fixtures: recorded from the real APIs in 8c-live.
+
+### 7.4 8c: wiring (done 2026-10-22)
+
+Built and tested: `Vendor` (kinds, prefixes, key and base-URL variables, hosts, bare-name inference, `create`) shared by every layer; Loom: `ProviderSpec.KINDS` and the new `options` component (old constructors kept), `DefaultLLMClientFactory` (explicit prefixes before the `contains(...)` rules, so `perplexity/google/gemini-…` is Perplexity's; keys from the store first, then the environment; per-vendor `*_BASE_URL`; the "unknown model" message lists the new forms), `ExecutorValidation` (option checks: `api`, `header`, `query`, `base_url` required for `openai_compatible`, key optional there), `HarnessExecutor.clientFor`, `weave audit` data flows (`SecurityAudit.hostedService`), `weave secret set` binds a vendor's key to the vendor's hosts unless `--allow-host` says otherwise, `weave eval` key hint; Spring `ClientFactory`; `HttpClientWrapper.providerOf`; `windows.properties` (19 entries) and `ContextWindows` (a second provider prefix is dropped: `perplexity/openai/gpt-5.6-sol`); CTK `provider_declarations.loom` and `ProviderDeclarationsCtkTest`; example `src/examples/provider-switching`; VS Code hover and CHANGELOG; Loom guide, prompt, README, `docs/guide` chapters 6, 9, 10; release notes.
+Deviations from the draft, recorded here: (1) PriceTable ships no prices by design, so there are no price entries to add (prices for the smoke run are in `eval4j/src/test/resources/smoke-prices.properties`; per-search prices arrive with 8e); (2) loom-inspect and Fabric hold no provider lists (their price book and windows come from the user's files and `ContextWindows`), so 8c changes nothing there; their model-call fields come with 8e; (3) two existing assertions encoded the old behaviour (`gpt-5` and `use: openai` were "unknown") and now use genuinely unknown names (`ProvidersTest`, spring `ClientsTest`).
+Full suites after 8c: ai-agent4j 3,248 tests, Loom 2,234 (before the last additions, rerun below), Spring 136, eval4j 541, all green. A mistake caught on the way: several early runs filtered Maven output with `grep` and a compile error looked like a pass; a helper that counts the surefire reports replaced it.
+
+### 7.5 8c-live: smoke run (done 2026-10-22)
+
+`ProviderSmokeIntegrationTest` (eval4j, tag `live`, opt-in): a recording reverse proxy keeps the vendor's real bytes; per vendor one plain chat, one stream, one tool call plus its answer, one streamed tool call and one streamed call asking for reasoning; `SpendGuard` cap US$0.25 per vendor (default); fixtures written scrubbed (`Scrub`: keys, ids, fingerprints) under `ai-agent4j/src/test/resources/providers/<vendor>/` with date and model. It accepts `SPIKE_ANTHROPIC_KEY` for `ANTHROPIC_API_KEY` and `SMOKE_GEMINI_API_KEY` for `GEMINI_API_KEY`, skips a vendor with no key, and refuses to run a vendor with no known price (the cap would protect nothing).
+
+| Vendor | Model | Result | Calls | Tokens in / out | Spend (token prices) |
+|---|---|---|---|---|---|
+| OpenAI chat completions | `gpt-6-luna` | 5/5 steps (after passing `reasoning_effort: none` for tool steps, see below) | 6 | 517 / 110 | US$0.0001 |
+| OpenAI Responses | `gpt-6-luna` | 5/5 | 6 | 272 / 168 | US$0.0001 |
+| xAI | `grok-4.20-0309-non-reasoning` | 5/5 | 6 | 1,460 / 129 | US$0.0021 |
+| Perplexity Agent API | `openai/gpt-6-luna` | 5/5 | 6 | 388 / 93 | US$0.0001 (Perplexity's own `usage.cost` agrees: a few thousandths of a cent per call) |
+| **Total** | | | 24 (+3 in the first failed OpenAI pass) | | **about US$0.003** |
+
+Findings: the first OpenAI pass failed on the tool steps with `HTTP 400 Function tools with reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions` (use `reasoning_effort: none` or the Responses API); documented in the wiki and release notes. `RecordedFixturesTest` replays every recorded fixture through its provider (22 tests); the OpenAI, xAI and Perplexity providers are therefore **supported**. Kimi and Qwen: no key (skipped by the runner); Anthropic and Gemini: no key here (skipped). Account balances were not read; the spend above is computed from the reported token counts and the published prices.

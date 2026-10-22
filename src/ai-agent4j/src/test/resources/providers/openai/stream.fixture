@@ -1,0 +1,19 @@
+# source: recorded
+# vendor: openai
+# date: 2026-10-22
+# model: gpt-6-luna
+# endpoint: POST /v1/chat/completions
+# step: stream
+# prompt: Reply with exactly the word: ready
+# note: recorded by ProviderSmokeIntegrationTest; keys, account ids and request ids scrubbed
+---
+data: {"id":"chatcmpl-scrubbed","object":"chat.completion.chunk","created":1792662713,"model":"gpt-6-luna","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"finish_reason":null}],"usage":null,"obfuscation":""}
+
+data: {"id":"chatcmpl-scrubbed","object":"chat.completion.chunk","created":1792662713,"model":"gpt-6-luna","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{"content":"ready"},"finish_reason":null}],"usage":null,"obfuscation":"5iD43CNUOY3Da"}
+
+data: {"id":"chatcmpl-scrubbed","object":"chat.completion.chunk","created":1792662713,"model":"gpt-6-luna","service_tier":"default","system_fingerprint":null,"choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":null,"obfuscation":"5fcfqDiQ55Ac"}
+
+data: {"id":"chatcmpl-scrubbed","object":"chat.completion.chunk","created":1792662713,"model":"gpt-6-luna","service_tier":"default","system_fingerprint":null,"choices":[],"usage":{"prompt_tokens":13,"completion_tokens":4,"total_tokens":17,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0}},"obfuscation":"KCjAFCYar4K"}
+
+data: [DONE]
+

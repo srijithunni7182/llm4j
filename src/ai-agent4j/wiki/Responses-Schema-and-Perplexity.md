@@ -1,8 +1,9 @@
 # The Responses schema, and Perplexity's Agent API
 
-> **Status (phase 8, sub-phase 8b2 done).** `OpenAiResponsesProvider` passes the shared provider contract on wire formats written from the
-> published references of OpenAI's Responses API and Perplexity's Agent API. Until fixtures recorded from the real APIs are committed (sub-phase
-> 8c-live) both are **preview**. Web grounding (`web_search` with typed citations) is *coming*: this page shows plain model access.
+> **Status (phase 8, sub-phases 8b2 and 8c-live done).** `OpenAiResponsesProvider` passes the shared provider contract, and its responses
+> recorded from the real APIs on 2026-10-22 (plain, streamed, tool call and answer, streamed tool call, reasoning) replay through it: the Perplexity
+> Agent API (`openai/gpt-6-luna`) and OpenAI's Responses API (`gpt-6-luna`) are **supported**. Web grounding (`web_search` with typed citations) is
+> *coming*: this page shows plain model access.
 
 Some APIs have moved from *messages in, choices out* to the OpenAI **Responses** schema: `instructions` and an `input` list in, `output[]` items out,
 typed server-sent events when streaming. `OpenAiResponsesProvider` speaks it, with a `ResponsesDialect` for what differs:

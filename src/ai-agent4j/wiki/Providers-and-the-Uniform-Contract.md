@@ -132,6 +132,6 @@ US$0.50.
 | Sarvam | ✅ | ✅ Verified by the maintainer against the real Sarvam API |
 | Ollama | ✅ | ✅ Verified by the maintainer against a local Ollama server |
 | Anthropic | ✅ | ✅ Full live suite, L1–L11, on `claude-opus-5-5` and `claude-haiku-4-5` (2026-09-29) |
-| OpenAI, xAI, Perplexity (Agent API) | ✅ the shared `ChatCompletionsContract` / `ResponsesContract` suites on wire formats from the vendors' references | ⏳ Fixtures recorded from the real APIs are owed (phase 8, sub-phase 8c-live); until then **preview** |
-| Kimi, Qwen, Perplexity Orchestrator | ✅ the same suites | **Preview**: fixtures are documentation-derived; no key or no access yet |
+| OpenAI (chat completions and Responses), xAI, Perplexity (Agent API) | ✅ the shared `ChatCompletionsContract` / `ResponsesContract` suites | ✅ Responses recorded from the real APIs on 2026-10-22 (plain, stream, tool call and answer, streamed tool call, reasoning) and replayed by `RecordedFixturesTest`; spend about US$0.003 |
+| Kimi, Qwen, Perplexity Orchestrator, generic OpenAI-style servers | ✅ the same suites | **Preview**: fixtures are documentation-derived (no key or no access), or no third-party server was recorded |
 | Jev (TypeSafe AI) | ✅ the `ClassifierContract` suite, against a local server replaying recorded wire fixtures | ✅ Fixtures recorded from the real API and a head-to-head study with real keys (2026-10-21). Jev does not chat: it is a [`ClassificationProvider`](Classification.md#5-use-jev), not an `LLMProvider` |
