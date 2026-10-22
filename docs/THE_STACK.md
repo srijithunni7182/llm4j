@@ -35,6 +35,7 @@ The core library, about 440 KB with no vendor SDKs.
   - Memory: [short-term and semantic](../src/ai-agent4j/wiki/Memory-and-Persistence.md).
   - Knowledge: [RAG](../src/ai-agent4j/wiki/RAG-Support.md) and [knowledge graphs](../src/ai-agent4j/wiki/Knowledge-Graphs.md).
   - Behaviour: [personas](../src/ai-agent4j/wiki/Agent-Personas.md), delegation between agents, and scheduling.
+- **Providers and grounding.** Nine hosted vendors and any OpenAI-style server behind one contract, and web search with typed citations as a request option ([Web-search grounding](../src/ai-agent4j/wiki/Web-Search-Grounding.md)).
 - **Voice.** Speech-to-text and text-to-speech in Indian languages, through Sarvam.
 - **Built to see inside.** Every agent explains itself, with audit trails, PII masking and confidence
   scores ([xAI](../src/ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md)).

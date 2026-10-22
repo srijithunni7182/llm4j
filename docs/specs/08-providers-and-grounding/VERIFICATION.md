@@ -209,3 +209,16 @@ Phase 7 is merged, so 8k applies. Built: `DecisionWire` (public, `io.github.llm4
 
 **Not done:** the Phase 7 study re-run with Perplexity Decisions as a third contender (it needs the study's labelled sets and a larger spend than 8k allows without a decision from you); no accuracy claim is made. The Loom `use: perplexity_decisions` provider kind from DESIGN §3.5 is not built: a decider is reached by model name only. Spring has no wiring for it.
 
+### 7.11 Final result and where to resume (2026-10-22)
+
+**Build:** the whole reactor `mvn verify` passes (about 9,100 test executions; per module: ai-agent4j 3,392, eval4j 554, Loom 2,261, loom-inspect-core 333, loom-inspect 212, Spring 136, plus addons, tools, eval4j-report, Fabric). `make format-check` and `scripts/doctor.sh` pass; `scripts/package-skill.sh` and `verify-skill-package.sh` pass with the three skills updated. Not run here: the VS Code extension's own test suite (no `node_modules`), the opt-in live smoke runner again after the code changed, and the 6.1.0 release steps (no version bump, no publish, no PR, by instruction).
+
+**Per vendor (providers):** supported (recorded 2026-10-22): OpenAI chat and Responses, xAI, Perplexity Agent API. Preview: Kimi, Qwen, Perplexity Orchestrator, generic `openai_compatible`.
+**Grounding:** supported (recorded): Perplexity, OpenAI Responses, xAI Responses. Preview (documentation-derived): Google, Anthropic. Left out: Kimi, Qwen. **Classifier backend:** Perplexity Decisions supported (recorded).
+
+**Live spend, all calls:** smoke runs about US$0.003; 8d payload capture about US$0.03 to 0.09 (script's upper bound); the three blocked-domain calls US$0.022 (upper bound); Decisions one real call about US$0.000004. Total at most about US$0.12, none retried in a loop, no billing or permission error met. Account balances were not read.
+
+**Spec changes made in the same commits as the code:** DESIGN §3.2, §4.2, §4.3, §4.5 (reservation rule); VERIFICATION §2, §3, §7; `grounding:` lists in brackets and `<name>_citations` instead of `step.citations`; `Vendor.XAI` gains `api: responses`; the request-bytes test compares sorted-key JSON.
+
+**To resume (not started):** (1) the Phase 7 study re-run with Perplexity Decisions as a third contender; (2) Loom `use: perplexity_decisions` and Spring wiring for it; (3) recorded fixtures for Anthropic and Gemini grounding and for Kimi and Qwen when keys exist (see the follow-up list in §7.0); (4) model listing (`listModels`) for the OpenAI family and Anthropic, building on `DescribableProvider` (Gemini and Ollama already have it); (5) Anthropic `pause_turn` continuation.
+
