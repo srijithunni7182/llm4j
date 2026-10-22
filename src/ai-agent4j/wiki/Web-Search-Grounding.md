@@ -2,7 +2,7 @@
 
 Some models can search the web inside a call and hand back the sources they used. llm4j makes that **one option on the request**, and the sources **typed fields on the response**, so the code that asks and the code that checks the answer does not change with the vendor.
 
-> **Status.** The contract (`Grounding`, `Citation`, `SearchUsage`, the central check, the `searches` budget, telemetry) and native grounding for Perplexity, OpenAI and xAI are supported (recorded from the real APIs); Google and Anthropic are preview; see [Vendors](#vendors). A provider that cannot ground is refused before any network call, never silently ignored. Grounding in the agent loop, in Loom scripts and in eval4j is *coming*.
+> **Status.** The contract (`Grounding`, `Citation`, `SearchUsage`, the central check, the `searches` budget, telemetry) and native grounding for Perplexity, OpenAI, xAI, Google and Anthropic are supported (recorded from the real APIs, with the exceptions listed under [Vendors](#vendors)); A provider that cannot ground is refused before any network call, never silently ignored. Grounding in the agent loop, in Loom scripts and in eval4j is *coming*.
 
 ## Ask
 
@@ -131,8 +131,8 @@ Double cost = r.getSearches().estimatedCostUsd(); // 0.0025: Perplexity reports 
 | Perplexity Agent API | `OpenAiResponsesProvider.perplexity(cfg)`; Loom `use: perplexity` | **supported**: recorded 2026-10-22 | `allowDomains`, `blockDomains`, `recency`, `country` (no `maxSearches`) |
 | OpenAI (Responses API) | `OpenAiResponsesProvider.openai(cfg)`; Loom `use: openai  api: responses` | **supported**: recorded 2026-10-22 | `maxSearches`, `allowDomains`, `blockDomains`, `country` |
 | xAI (Responses API) | `OpenAiResponsesProvider.xai(cfg)`; Loom `use: xai  api: responses` | **supported**: recorded 2026-10-22 | `allowDomains`, `blockDomains` (at most 5 each) |
-| Google (Gemini) | `GoogleProvider` | **preview**: written from Google's reference, no key to record with | `recency` only |
-| Anthropic (Claude) | `AnthropicProvider` | **preview**: one real non-streaming answer was recorded on 2026-10-22 and read correctly (text, spanned citations, search count); streaming and the other settings are still written from Anthropic's reference. Long turns that Claude pauses are continued by `chat` | `maxSearches`, `allowDomains`, `blockDomains`, `country` |
+| Google (Gemini) | `GoogleProvider` | **supported**: answer and stream recorded 2026-10-22 with `gemini-3.1-flash-lite`; a request with a recency interval was accepted by the API | `recency` only |
+| Anthropic (Claude) | `AnthropicProvider` | **supported** for search, streaming, `maxSearches` and `allowDomains`: answer, stream and an allowed-domain call recorded 2026-10-22 with `claude-haiku-5-5`. Still written from the reference: `blockDomains`, `country`, sending a tool turn back with its search blocks, and `pause_turn` continuation | `maxSearches`, `allowDomains`, `blockDomains`, `country` |
 | Kimi, Qwen | none | left out: no key; Kimi's search function is deprecated | refused; use `fallback(tool)` |
 | Ollama, Sarvam, Jev, chat-completions OpenAI and xAI | none | refused | use `fallback(tool)` or the Responses API |
 

@@ -47,7 +47,7 @@ cannot do it, or cannot honour one setting, is refused before any network call, 
 | `Grounding`, `Citation`, `Span`, `SearchUsage`, `LLMRequest.grounding`, `LLMResponse.getCitations/getSearches`, the central capability check, `fallback(tool)` (a client-side search tool when the provider cannot search), streaming parity | **works now** |
 | A `searches` budget dimension (`Budget.builder().searches(n)`), a per-1000 search price in the price table, search and citation counts in model-call events and run statistics | **works now** |
 | Perplexity Agent API, OpenAI Responses, xAI Responses: native grounding | **supported**: tested on responses recorded 2026-10-22 (allow and block lists, recency and country where the vendor has them, OpenAI's search cap) |
-| Google (Gemini) and Anthropic (Claude) native grounding | **preview**: written from the vendors' reference pages, tested on documentation-derived fixtures; no key was available to record real responses |
+| Google (Gemini) and Anthropic (Claude) native grounding | **supported**: a grounded answer and stream recorded from each real API on 2026-10-22, and an allowed-domain call for Claude. Not yet checked against the real API: Claude's `blockDomains` and `country`, a Claude tool turn sent back with its search blocks, and Gemini's recency beyond one accepted request |
 | Kimi and Qwen grounding | **left out**: no key, and Kimi's search function is deprecated |
 | Grounding in `ReActAgent` and `AgentResult.citations`, Loom `grounding:` with its `weave check` and `weave audit` rules, eval4j citation assertions | **coming** |
 

@@ -9,6 +9,7 @@ import io.github.llm4j.exception.AuthenticationException;
 import io.github.llm4j.exception.InvalidRequestException;
 import io.github.llm4j.provider.anthropic.AnthropicProvider;
 import io.github.llm4j.provider.fixtures.Fixtures;
+import io.github.llm4j.provider.google.GoogleProvider;
 import io.github.llm4j.provider.openai.Dialect;
 import io.github.llm4j.provider.openai.OpenAiCompatibleProvider;
 import io.github.llm4j.provider.openai.OpenAiResponsesProvider;
@@ -102,6 +103,28 @@ class ListModelsTest {
 
         assertThat(OpenAiCompatibleProvider.openai(config()).getFirstAvailableModel())
                 .isEqualTo("gpt-3.5-turbo-0125");
+    }
+
+    @Test
+    void geminiListsTheModelIdsFromTheRecordedAnswerWithoutThePrefix() throws Exception {
+        reply("google/list-models.fixture");
+        GoogleProvider p =
+                new GoogleProvider(
+                        LLMConfig.builder()
+                                .apiKey(CANARY)
+                                .baseUrl(server.url("/v1beta").toString())
+                                .retryPolicy(RetryPolicy.builder().maxRetries(0).build())
+                                .build());
+
+        assertThat(p.listModels())
+                .containsExactly(
+                        "gemini-2.5-flash",
+                        "gemini-2.5-pro",
+                        "gemini-2.5-flash-preview-tts",
+                        "gemini-2.5-pro-preview-tts");
+        RecordedRequest r = server.takeRequest();
+        assertThat(r.getPath()).startsWith("/v1beta/models");
+        assertThat(r.getHeader("x-goog-api-key")).isEqualTo(CANARY);
     }
 
     @Test

@@ -54,7 +54,7 @@ block=$(cat <<EOF
 
 By module, in lines of Java (nearest 500): ${modules}.
 
-Test code is almost as large as production code: about $(fmt "$(round "$jtest")") test lines against about $(fmt "$(round "$jmain")") main lines.
+Test code is $([ "$jtest" -gt "$jmain" ] && echo larger than || echo almost as large as) production code: about $(fmt "$(round "$jtest")") test lines against about $(fmt "$(round "$jmain")") main lines.
 <!-- stats:end -->
 EOF
 )

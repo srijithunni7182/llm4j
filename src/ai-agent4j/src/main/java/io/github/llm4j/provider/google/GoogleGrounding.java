@@ -21,8 +21,9 @@ import java.util.Set;
 
 /**
  * Grounding with Google Search for Gemini: the {@code googleSearch} tool in the request and the
- * sources read from the candidate's {@code groundingMetadata}. Preview: written from Google's
- * reference, not from recorded responses (no key was available).
+ * sources read from the candidate's {@code groundingMetadata}. Checked against a grounded answer
+ * and stream recorded from the real API (2026-10-22), and the request with a recency interval was
+ * accepted by it.
  *
  * <p>Gemini's supports give segment positions as <b>UTF-8 byte offsets</b> into the answer; they
  * become Java string offsets here, and a segment that does not fit the answer is dropped. The

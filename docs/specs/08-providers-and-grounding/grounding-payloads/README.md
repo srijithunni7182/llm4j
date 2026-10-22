@@ -16,7 +16,7 @@ Bank of India's current policy repo rate, and when it was last changed") was ask
 
 Added in 8f: `*-block.json` for each of the three, a blocked domain (`economictimes.indiatimes.com`, which the first Perplexity answer had used): Perplexity as a `-` prefix in `search_domain_filter`, OpenAI as `filters.blocked_domains`, xAI as `filters.excluded_domains`. All three answered 200 and none returned the blocked domain (xAI listed `m.economictimes.com`, a different domain), so block is **supported** for all three. Estimated spend for the three calls US$0.022.
 
-Not captured: **Anthropic** and **Gemini** (no key in this environment). Their rows in DESIGN §4.3 come from the vendors' reference pages (read 2026-10-22) and are **preview** until a key exists.
+Not captured here: **Anthropic** and **Gemini** payloads. They were recorded later as test fixtures (`src/ai-agent4j/src/test/resources/providers/{anthropic,google}/*-recorded.fixture`, 2026-10-22; VERIFICATION §7.13); their rows in DESIGN §4.3 came from the vendors' reference pages first.
 
 ## What the payloads settled
 

@@ -1,0 +1,19 @@
+# source: recorded
+# vendor: google
+# date: 2026-10-22
+# model: gemini-3.1-flash-lite
+# endpoint: POST /v1beta/models/gemini-3.1-flash-lite:streamGenerateContent?alt=sse
+# step: grounded-stream-recorded
+# prompt: In one sentence: what is the Reserve Bank of India policy repo rate right now?
+# note: recorded with one throwaway call; shortened like grounded-recorded
+---
+data: {"candidates": [{"content": {"parts": [{"text": "The Reserve"}], "role": "model"}, "index": 0}], "usageMetadata": {"promptTokenCount": 18, "candidatesTokenCount": 2, "totalTokenCount": 20, "promptTokensDetails": [{"modality": "TEXT", "tokenCount": 18}], "serviceTier": "standard"}, "modelVersion": "gemini-3.1-flash-lite", "responseId": "iCraasjBKNaj5NoPsOCR6QY"}
+
+data: {"candidates": [{"content": {"parts": [{"text": " Bank of India's current policy repo rate is 5.50%,"}], "role": "model"}, "index": 0}], "usageMetadata": {"promptTokenCount": 18, "candidatesTokenCount": 18, "totalTokenCount": 36, "promptTokensDetails": [{"modality": "TEXT", "tokenCount": 18}], "serviceTier": "standard"}, "modelVersion": "gemini-3.1-flash-lite", "responseId": "iCraasjBKNaj5NoPsOCR6QY"}
+
+data: {"candidates": [{"content": {"parts": [{"text": " following a 25 basis point increase announced by the Monetary Policy Committee on October 7, 2026"}], "role": "model"}, "index": 0}], "usageMetadata": {"promptTokenCount": 18, "candidatesTokenCount": 46, "totalTokenCount": 64, "promptTokensDetails": [{"modality": "TEXT", "tokenCount": 18}], "serviceTier": "standard"}, "modelVersion": "gemini-3.1-flash-lite", "responseId": "iCraasjBKNaj5NoPsOCR6QY"}
+
+data: {"candidates": [{"content": {"parts": [{"text": "."}], "role": "model"}, "index": 0}], "usageMetadata": {"promptTokenCount": 18, "candidatesTokenCount": 46, "totalTokenCount": 64, "promptTokensDetails": [{"modality": "TEXT", "tokenCount": 18}], "serviceTier": "standard"}, "modelVersion": "gemini-3.1-flash-lite", "responseId": "iCraasjBKNaj5NoPsOCR6QY"}
+
+data: {"candidates": [{"content": {"parts": [{"text": "", "thoughtSignature": "EnMKcQFpFH0T\u2026"}], "role": "model"}, "finishReason": "STOP", "index": 0, "groundingMetadata": {"searchEntryPoint": {"renderedContent": "(trimmed)"}, "groundingChunks": [{"web": {"uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHMKSuzaoVTr\u2026", "title": "scconline.com"}}, {"web": {"uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEBMVge26C_C\u2026", "title": "arthzo.com"}}, {"web": {"uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGLIG3wUGOqH\u2026", "title": "durgeshchavda.com"}}], "groundingSupports": [{"segment": {"endIndex": 160, "text": "The Reserve Bank of India's current policy repo rate is 5.50%, following a 25 basis point increase announced by the Monetary Policy Committee on October 7, 2026"}, "groundingChunkIndices": [0, 1, 2]}], "webSearchQueries": ["current RBI policy repo rate October 2026"]}}], "usageMetadata": {"promptTokenCount": 18, "candidatesTokenCount": 63, "totalTokenCount": 81, "promptTokensDetails": [{"modality": "TEXT", "tokenCount": 18}], "serviceTier": "standard"}, "modelVersion": "gemini-3.1-flash-lite", "responseId": "iCraasjBKNaj5NoPsOCR6QY"}
+

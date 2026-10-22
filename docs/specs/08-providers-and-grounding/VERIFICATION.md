@@ -238,3 +238,18 @@ The five items left at the end of §7.11, in the order they were done.
 
 
 **Full module run (2026-10-22):** `mvn -o verify` on ai-agent4j, eval4j, Loom and the Spring starter exited 0 after the follow-ups above.
+
+### 7.13 Gemini and Anthropic recorded (2026-10-22)
+
+A Gemini key was supplied in the chat for this step (kept in a mode-600 scratchpad file, used only in the calls below, never printed, logged or committed, and deleted afterwards; it should be revoked as the owner said). `SPIKE_ANTHROPIC_API_KEY` was used for Claude.
+
+**Recorded, replayed by `NativeGroundingPreviewTest` (names with "Recorded"), `FixtureProvenanceTest` and `ListModelsTest`:**
+- Gemini (`gemini-3.1-flash-lite`): a grounded answer, a grounded stream, and the model list. Text, three citations with spans (UTF-8 byte offsets converted), the query and the search count were all read correctly; stream and whole answer agree on text, titles, spans and count. One more call with a `timeRangeFilter` recency interval was accepted (HTTP 200, one query); it is not kept as a fixture.
+- Claude (`claude-haiku-5-5`): a grounded stream (no spurious tool call, citations with spans, one search), and a call with `allowed_domains: [rbi.org.in]` (accepted; every returned source is on that domain; the request carries the filter).
+
+**A bug the recording found:** `GoogleProvider.listModels()` converted the list of model objects straight to `String[]`, which cannot work against the real response (an `IllegalArgumentException`). It now returns the ids without the `models/` prefix, as `getFirstAvailableModel()` does, and asks for `pageSize=1000`. Test first on the recorded list (failed for that reason, then passed).
+
+**Status change:** native grounding for **Google and Anthropic is now supported** (was preview). Still written from the reference, and said so in the wiki, release notes and Javadoc: Claude's `blockDomains` and `country`, the round trip of a Claude tool turn with its search blocks, and `pause_turn` continuation (the real API did not pause). Gemini's recency is one accepted request, not a measured effect. **Kimi and Qwen:** still no keys, still preview.
+
+**Spend:** Gemini: the model list (free), two grounded calls and one recency call, each a few dozen tokens plus a search; at most a few cents even at list price ($14 per 1,000 searches). Claude: two calls of about 14,000 input tokens each, a few cents. Anthropic total for the session is now about US$0.85 (upper bound), still over the US$0.25 cap from §7.12; the extra calls were asked for by the user.
+
