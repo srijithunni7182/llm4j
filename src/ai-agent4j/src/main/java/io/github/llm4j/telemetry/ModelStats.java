@@ -20,6 +20,8 @@ import java.util.OptionalDouble;
  * @param finishReasons how the answers ended
  * @param truncated answers cut off by the token limit
  * @param latency how long calls took, failed ones included
+ * @param searches provider-side web searches, summed over the calls that reported a count
+ * @param citations sources cited by the answers, summed
  */
 public record ModelStats(
         String model,
@@ -33,7 +35,40 @@ public record ModelStats(
         long waitedMillis,
         Map<LLMResponse.FinishReason, Long> finishReasons,
         long truncated,
-        LatencyStats latency) {
+        LatencyStats latency,
+        long searches,
+        long citations) {
+
+    /** Statistics with no searches or citations (the shape before grounding existed). */
+    public ModelStats(
+            String model,
+            long calls,
+            Map<ErrorCategory, Long> failures,
+            long promptTokens,
+            long completionTokens,
+            BigDecimal cost,
+            long retries,
+            long failovers,
+            long waitedMillis,
+            Map<LLMResponse.FinishReason, Long> finishReasons,
+            long truncated,
+            LatencyStats latency) {
+        this(
+                model,
+                calls,
+                failures,
+                promptTokens,
+                completionTokens,
+                cost,
+                retries,
+                failovers,
+                waitedMillis,
+                finishReasons,
+                truncated,
+                latency,
+                0,
+                0);
+    }
 
     public ModelStats {
         failures = Map.copyOf(failures);
@@ -42,7 +77,7 @@ public record ModelStats(
 
     static ModelStats none(String model) {
         return new ModelStats(
-                model, 0, Map.of(), 0, 0, null, 0, 0, 0, Map.of(), 0, LatencyStats.EMPTY);
+                model, 0, Map.of(), 0, 0, null, 0, 0, 0, Map.of(), 0, LatencyStats.EMPTY, 0, 0);
     }
 
     public long failed() {

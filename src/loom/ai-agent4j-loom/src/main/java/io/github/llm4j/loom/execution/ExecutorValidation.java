@@ -87,7 +87,8 @@ final class ExecutorValidation {
                         who,
                         "unknown use: "
                                 + p.getKind()
-                                + "; use one of gemini, anthropic, ollama, sarvam, jev");
+                                + "; use one of "
+                                + String.join(", ", ProviderSpec.KINDS));
                 continue;
             }
             for (var e : p.getOptions().entrySet()) {
@@ -103,6 +104,8 @@ final class ExecutorValidation {
                 }
                 switch (e.getKey()) {
                     case "base_url" -> {}
+                    case "api", "header", "query" -> checkVendorOption(
+                            c, p, who, e.getKey(), e.getValue());
                     case "api_key" -> {
                         if (!e.getValue().isReference()) {
                             c.error(
@@ -131,10 +134,24 @@ final class ExecutorValidation {
                     default -> c.error(
                             p.getLine(),
                             who,
-                            "unknown option " + e.getKey() + "; use base_url or api_key");
+                            "unknown option "
+                                    + e.getKey()
+                                    + "; use base_url, api_key"
+                                    + (p.getKind().equals("openai_compatible")
+                                            ? ", header, query"
+                                            : p.getKind().equals("openai") ? ", api" : ""));
                 }
             }
-            if (!p.getKind().equals("ollama") && !p.getOptions().containsKey("api_key")) {
+            if (p.getKind().equals("openai_compatible")
+                    && !p.getOptions().containsKey("base_url")) {
+                c.error(
+                        p.getLine(),
+                        who,
+                        "openai_compatible needs base_url (the address of the server, e.g. https://api.groq.com/openai/v1)");
+            }
+            if (!p.getKind().equals("ollama")
+                    && !p.getKind().equals("openai_compatible")
+                    && !p.getOptions().containsKey("api_key")) {
                 c.error(
                         p.getLine(),
                         who,
@@ -167,6 +184,65 @@ final class ExecutorValidation {
                 checkModel(c, r.getLine(), "routing " + r.getName(), r.getPrimaryModel());
             for (String fb : r.getFallbackModels())
                 checkModel(c, r.getLine(), "routing " + r.getName(), fb);
+        }
+    }
+
+    /**
+     * {@code api} (OpenAI and xAI: chat or responses), {@code header} and {@code query} (the
+     * generic kind only): the settings the OpenAI-family kinds accept beyond the address and the
+     * key.
+     */
+    private void checkVendorOption(
+            ScriptValidator.Checker c,
+            io.github.llm4j.loom.ast.ProviderDef p,
+            String who,
+            String option,
+            io.github.llm4j.loom.ast.ToolDef.OptionValue value) {
+        boolean allowed =
+                option.equals("api")
+                        ? p.getKind().equals("openai") || p.getKind().equals("xai")
+                        : p.getKind().equals("openai_compatible");
+        if (!allowed) {
+            c.error(
+                    p.getLine(),
+                    who,
+                    "the option "
+                            + option
+                            + " is only for use: "
+                            + (option.equals("api") ? "openai or xai" : "openai_compatible"));
+            return;
+        }
+        if (value.isReference()) {
+            c.error(
+                    p.getLine(),
+                    who,
+                    option + " is written in the script, not read from env or secret");
+            return;
+        }
+        String v = value.value();
+        switch (option) {
+            case "api" -> {
+                if (!v.equals("chat") && !v.equals("responses"))
+                    c.error(p.getLine(), who, "api must be chat or responses, got " + v);
+            }
+            case "header" -> {
+                if (!v.matches("[A-Za-z0-9-]{1,64}"))
+                    c.error(
+                            p.getLine(),
+                            who,
+                            "header must be a header name (letters, digits, -), got " + v);
+            }
+            default -> {
+                for (String pair : v.split("&")) {
+                    if (!pair.isBlank() && pair.indexOf('=') <= 0) {
+                        c.error(
+                                p.getLine(),
+                                who,
+                                "query must be name=value pairs joined with &, got " + pair);
+                        break;
+                    }
+                }
+            }
         }
     }
 
@@ -227,7 +303,7 @@ final class ExecutorValidation {
         String m = model.toLowerCase(java.util.Locale.ROOT);
         if (m.startsWith("jev/") || m.startsWith("jev-")) return true;
         io.github.llm4j.loom.ast.ProviderDef declared = host.declaredProvider(model);
-        return declared != null && "jev".equals(declared.getKind());
+        return declared != null && DecisionModels.isDecisionKind(declared.getKind());
     }
 
     /**
@@ -245,6 +321,16 @@ final class ExecutorValidation {
             if (declared != null) {
                 if (model.substring(model.indexOf('/') + 1).isBlank())
                     c.error(line, who, "model " + model + " names no model after the provider");
+            } else if (DecisionModels.isPerplexityDecider(model)) {
+                if (host.credential("PERPLEXITY_API_KEY") == null
+                        || host.credential("PERPLEXITY_API_KEY").isBlank()) {
+                    c.error(
+                            line,
+                            who,
+                            "model "
+                                    + model
+                                    + " needs PERPLEXITY_API_KEY in the environment or the secret store");
+                }
             } else if (isJevModel(model)) {
                 if (model.indexOf('/') >= 0 && model.substring(model.indexOf('/') + 1).isBlank()) {
                     c.error(line, who, "model " + model + " names no model after the provider");
@@ -265,7 +351,26 @@ final class ExecutorValidation {
     }
 
     void checkModel(ScriptValidator.Checker c, int line, String who, String model) {
+        if (DecisionModels.isPerplexityDecider(model)) {
+            c.error(
+                    line,
+                    who,
+                    "model "
+                            + model
+                            + " is a Perplexity decision model: it answers typed questions, it does not chat. Use it in an intentclassifier, and give this a chat model");
+            return;
+        }
         if (isJevModel(model)) {
+            io.github.llm4j.loom.ast.ProviderDef declared = host.declaredProvider(model);
+            if (declared != null && "perplexity_decisions".equals(declared.getKind())) {
+                c.error(
+                        line,
+                        who,
+                        "model "
+                                + model
+                                + " is a Perplexity decision model: it answers typed questions, it does not chat. Use it in an intentclassifier, and give this a chat model");
+                return;
+            }
             c.error(
                     line,
                     who,
@@ -299,9 +404,29 @@ final class ExecutorValidation {
     private static final java.util.Set<String> GUARD_KEYS =
             java.util.Set.of("pii", "bias", "bias_model");
 
+    private static final java.util.Set<String> GROUNDING_KEYS =
+            java.util.Set.of("allow", "block", "recency", "country", "max_searches");
+
+    /** The script's name for each setting of a grounding, in the order they are listed. */
+    private static final java.util.Map<String, io.github.llm4j.grounding.GroundingOption>
+            GROUNDING_OPTIONS =
+                    new java.util.LinkedHashMap<>(
+                            java.util.Map.of(
+                                    "max_searches",
+                                    io.github.llm4j.grounding.GroundingOption.MAX_SEARCHES,
+                                    "allow",
+                                    io.github.llm4j.grounding.GroundingOption.ALLOW_DOMAINS));
+
+    static {
+        GROUNDING_OPTIONS.put("block", io.github.llm4j.grounding.GroundingOption.BLOCK_DOMAINS);
+        GROUNDING_OPTIONS.put("recency", io.github.llm4j.grounding.GroundingOption.RECENCY);
+        GROUNDING_OPTIONS.put("country", io.github.llm4j.grounding.GroundingOption.COUNTRY);
+    }
+
     void checkAgentSettings(ScriptValidator.Checker c) {
         for (AgentDef a : host.script().getAgents()) {
             String who = "agent " + a.getName();
+            if (a.getGrounding() != null) checkGrounding(c, who, a);
             if (a.getMemory() != null) checkMemory(c, who, a.getMemory());
             if (a.getVoice() != null) checkVoice(c, who, a.getVoice());
             if (a.getGuard() != null) checkGuard(c, who, a.getGuard());
@@ -313,6 +438,105 @@ final class ExecutorValidation {
                         host.customCompactorNames(),
                         (line, model) -> checkModel(c, line, who, model));
         }
+    }
+
+    /**
+     * {@code grounding:} is refused where it cannot work, naming the model and the setting: a model
+     * whose provider cannot search the web, or a setting that provider cannot honour (a script has
+     * no {@code lenient}: its author sees every limit).
+     */
+    void checkGrounding(ScriptValidator.Checker c, String who, AgentDef a) {
+        AgentDef.GroundingConfig g = a.getGrounding();
+        checkKeys(c, who, "grounding", g, GROUNDING_KEYS);
+        if (g.has("allow") && g.has("block"))
+            c.error(g.getLine(), who, "grounding takes allow or block, not both");
+        for (String key : new String[] {"allow", "block"}) {
+            if (g.has(key) && (g.get(key) == null || g.get(key).isBlank()))
+                c.error(g.lineOf(key), who, "grounding " + key + " names no domain");
+        }
+        String recency = g.getRecency();
+        if (g.has("recency")
+                && (recency == null
+                        || !java.util.Set.of("day", "week", "month", "year").contains(recency)))
+            c.error(
+                    g.lineOf("recency"),
+                    who,
+                    "grounding recency must be day, week, month or year, got " + recency);
+        String country = g.getCountry();
+        if (g.has("country") && (country == null || !country.matches("[A-Za-z]{2}")))
+            c.error(
+                    g.lineOf("country"),
+                    who,
+                    "grounding country is a two-letter country code such as \"IN\", got "
+                            + country);
+        if (g.has("max_searches") && g.getMaxSearches() == null)
+            c.error(
+                    g.lineOf("max_searches"),
+                    who,
+                    "grounding max_searches must be a whole number of at least 1");
+        for (String model : host.modelsOf(a)) {
+            io.github.llm4j.loom.ast.ProviderDef declared = host.declaredProvider(model);
+            String kind;
+            boolean responses = false;
+            String label;
+            if (declared != null) {
+                kind = declared.getKind();
+                var api = declared.getOptions().get("api");
+                responses = api != null && !api.isReference() && "responses".equals(api.value());
+                label = "provider " + declared.getName() + " (use: " + kind + ")";
+            } else {
+                kind = ModelKinds.kindOf(model);
+                label = kind == null ? "an unknown provider" : "the " + kind + " provider";
+            }
+            var options =
+                    kind == null
+                            ? java.util.Optional
+                                    .<java.util.Set<io.github.llm4j.grounding.GroundingOption>>
+                                            empty()
+                            : io.github.llm4j.provider.GroundingCapabilities.options(
+                                    kind, responses);
+            if (options.isEmpty()) {
+                if (kind != null) {
+                    c.error(
+                            g.getLine(),
+                            who,
+                            "grounding needs a model whose provider can search the web, and "
+                                    + model
+                                    + " ("
+                                    + label
+                                    + ") cannot; "
+                                    + groundingHint(kind));
+                }
+                continue;
+            }
+            for (var e : GROUNDING_OPTIONS.entrySet()) {
+                if (g.has(e.getKey()) && !options.get().contains(e.getValue())) {
+                    c.error(
+                            g.lineOf(e.getKey()),
+                            who,
+                            "grounding "
+                                    + e.getKey()
+                                    + " is not supported by "
+                                    + model
+                                    + " ("
+                                    + label
+                                    + "); it honours "
+                                    + GROUNDING_OPTIONS.entrySet().stream()
+                                            .filter(x -> options.get().contains(x.getValue()))
+                                            .map(java.util.Map.Entry::getKey)
+                                            .toList());
+                }
+            }
+        }
+    }
+
+    private static String groundingHint(String kind) {
+        return switch (kind) {
+            case "openai", "xai" -> "declare a provider with use: "
+                    + kind
+                    + "  api: responses and name it in the model (\"Name/<model>\"), or use a perplexity/…, claude-… or gemini-… model";
+            default -> "use a perplexity/<creator>/<model>, a claude-… or a gemini-… model, or an openai or xai provider with api: responses";
+        };
     }
 
     /** Unknown keys and env references (these settings are written in the script, not secrets). */

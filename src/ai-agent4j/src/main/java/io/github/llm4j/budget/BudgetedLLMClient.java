@@ -1,6 +1,7 @@
 package io.github.llm4j.budget;
 
 import io.github.llm4j.LLMClient;
+import io.github.llm4j.grounding.SearchUsage;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import java.math.BigDecimal;
@@ -152,14 +153,22 @@ public final class BudgetedLLMClient implements LLMClient {
         }
         long prompt = estimator.prompt(request);
         Long wanted = min(request.getMaxTokens(), perCallCap);
-        BudgetSet.Lease lease = set.reserve(prompt, wanted, price);
+        long searchCap =
+                request.getGrounding() == null
+                        ? 0
+                        : Math.max(
+                                1,
+                                request.getGrounding().maxSearches() == null
+                                        ? 1
+                                        : request.getGrounding().maxSearches());
+        BudgetSet.Lease lease = set.reserve(prompt, wanted, price, searchCap);
         LLMRequest sent = request;
         if (lease.output() != null) {
             int cap = (int) Math.min(Integer.MAX_VALUE, lease.output());
             if (request.getMaxTokens() == null || request.getMaxTokens() != cap)
                 sent = withMaxTokens(request, cap);
         }
-        return new Call(sent, lease, prompt, price, modelId);
+        return new Call(sent, lease, prompt, price, modelId, searchCap);
     }
 
     private final class Call {
@@ -168,6 +177,7 @@ public final class BudgetedLLMClient implements LLMClient {
         final long prompt;
         final PriceTable.Price price;
         final String modelId;
+        final long searchCap;
         private boolean settled;
 
         Call(
@@ -175,12 +185,14 @@ public final class BudgetedLLMClient implements LLMClient {
                 BudgetSet.Lease lease,
                 long prompt,
                 PriceTable.Price price,
-                String modelId) {
+                String modelId,
+                long searchCap) {
             this.request = request;
             this.lease = lease;
             this.prompt = prompt;
             this.price = price;
             this.modelId = modelId;
+            this.searchCap = searchCap;
         }
 
         /**
@@ -203,26 +215,21 @@ public final class BudgetedLLMClient implements LLMClient {
                     estimated
                             ? estimator.completion(content + toolCallText(response))
                             : usage.getCompletionTokens();
-            BigDecimal money = cost(p, c);
-            charge(new Charge(p, c, 1, money, estimated));
-            if (response == null || (!estimated && price == null)) return response;
+            SearchUsage found = response == null ? null : response.getSearches();
+            boolean searchesEstimated = searchCap > 0 && found != null && !found.countKnown();
+            long searches = found == null ? 0 : searchesEstimated ? searchCap : found.count();
+            BigDecimal money = cost(p, c).add(searchCost(found, searches));
+            charge(new Charge(p, c, 1, money, estimated || searchesEstimated, searches));
+            if (response == null || (!estimated && price == null && found == null)) return response;
             Map<String, Object> meta =
                     new HashMap<>(
                             response.getMetadata() == null ? Map.of() : response.getMetadata());
-            if (estimated) meta.put(ESTIMATED, true);
+            if (estimated || searchesEstimated) meta.put(ESTIMATED, true);
             if (price != null) meta.put(COST, money);
-            return LLMResponse.builder()
-                    .content(response.getContent())
-                    .model(response.getModel())
-                    .tokenUsage(
-                            estimated
-                                    ? new LLMResponse.TokenUsage((int) p, (int) c, (int) (p + c))
-                                    : usage)
-                    .finishReason(response.getFinishReason())
-                    .toolCalls(response.getToolCalls())
-                    .providerData(response.getProviderData())
-                    .metadata(meta)
-                    .build();
+            LLMResponse.Builder out = response.toBuilder().metadata(meta);
+            if (estimated)
+                out.tokenUsage(new LLMResponse.TokenUsage((int) p, (int) c, (int) (p + c)));
+            return out.build();
         }
 
         private synchronized void charge(Charge charge) {
@@ -236,6 +243,14 @@ public final class BudgetedLLMClient implements LLMClient {
                     // reporting must never break a call
                 }
             }
+        }
+
+        /** What the vendor says the searches cost, else the price table's rate. */
+        private BigDecimal searchCost(SearchUsage found, long searches) {
+            if (searches == 0) return BigDecimal.ZERO;
+            if (found != null && found.estimatedCostUsd() != null)
+                return BigDecimal.valueOf(found.estimatedCostUsd());
+            return price == null ? BigDecimal.ZERO : price.searchCost(searches);
         }
 
         private BigDecimal cost(long p, long c) {

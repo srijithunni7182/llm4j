@@ -12,6 +12,8 @@ import io.github.llm4j.exception.LLMException;
 import io.github.llm4j.exception.ProviderException;
 import io.github.llm4j.exception.RateLimitException;
 import io.github.llm4j.exception.ServiceUnavailableException;
+import io.github.llm4j.grounding.GroundingOption;
+import io.github.llm4j.grounding.GroundingSupport;
 import io.github.llm4j.http.HttpClientWrapper;
 import io.github.llm4j.http.StreamingBody;
 import io.github.llm4j.model.LLMRequest;
@@ -20,7 +22,8 @@ import io.github.llm4j.model.Message;
 import io.github.llm4j.model.ToolCall;
 import io.github.llm4j.model.ToolCallDelta;
 import io.github.llm4j.model.ToolSpec;
-import io.github.llm4j.provider.LLMProvider;
+import io.github.llm4j.provider.DescribableProvider;
+import io.github.llm4j.provider.ModelListing;
 import io.github.llm4j.provider.Providers;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -43,7 +46,7 @@ import org.slf4j.LoggerFactory;
  * answer; a refusal throws {@link ContentBlockedException}; "overloaded" (529) is retried, then
  * reported as {@link ServiceUnavailableException}.
  */
-public class AnthropicProvider implements LLMProvider {
+public class AnthropicProvider implements DescribableProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(AnthropicProvider.class);
     private static final String DEFAULT_BASE_URL = "https://api.anthropic.com";
@@ -58,6 +61,12 @@ public class AnthropicProvider implements LLMProvider {
      * tool-call reply, to be sent back verbatim.
      */
     static final String RAW_CONTENT = "anthropic.content";
+
+    /** The settings of a {@link io.github.llm4j.grounding.Grounding} this provider honours. */
+    public static final Set<GroundingOption> GROUNDING_OPTIONS = AnthropicGrounding.OPTIONS;
+
+    /** How many times a paused turn is continued before its partial answer is returned. */
+    static final int MAX_CONTINUATIONS = 5;
 
     private final LLMConfig config;
     private final HttpClientWrapper http;
@@ -93,12 +102,79 @@ public class AnthropicProvider implements LLMProvider {
     public LLMResponse chat(LLMRequest request) {
         String model = model(request);
         try {
-            String json =
-                    http.post(baseUrl + "/v1/messages", body(request, model, false), headers());
-            return parse(JSON.readTree(json), model);
+            return parse(
+                    completeTurn(body(request, model, false)),
+                    model,
+                    request.getGrounding() != null);
         } catch (IOException | LLMException e) {
             throw Providers.typed(getProviderName(), "Failed to process chat request", e);
         }
+    }
+
+    /**
+     * Sends the request and, while Claude answers {@code pause_turn} (a long server-tool turn, such
+     * as several web searches, that it stopped part-way), sends the same request again with the
+     * paused content as the last assistant message, as the API asks, up to {@link
+     * #MAX_CONTINUATIONS} times. The rounds are returned as one response: the content blocks in
+     * order, the usage added up, and the last round's stop reason.
+     */
+    private JsonNode completeTurn(String requestBody) throws IOException {
+        ObjectNode request = (ObjectNode) JSON.readTree(requestBody);
+        JsonNode response = JSON.readTree(post(request));
+        for (int round = 0;
+                "pause_turn".equals(response.path("stop_reason").asText())
+                        && round < MAX_CONTINUATIONS;
+                round++) {
+            ArrayNode content = JSON.createArrayNode();
+            response.path("content").forEach(content::add);
+            ((ArrayNode) request.get("messages"))
+                    .addObject()
+                    .put("role", "assistant")
+                    .set("content", content);
+            JsonNode next = JSON.readTree(post(request));
+            response = joined(response, next);
+        }
+        return response;
+    }
+
+    private String post(ObjectNode request) throws IOException {
+        return http.post(baseUrl + "/v1/messages", JSON.writeValueAsString(request), headers());
+    }
+
+    /** {@code next} with the content of {@code earlier} before its own and the usage added up. */
+    private static JsonNode joined(JsonNode earlier, JsonNode next) {
+        ObjectNode out = next.deepCopy();
+        ArrayNode content = JSON.createArrayNode();
+        earlier.path("content").forEach(content::add);
+        next.path("content").forEach(content::add);
+        out.set("content", content);
+        if (earlier.path("usage").isObject() && next.path("usage").isObject()) {
+            out.set("usage", addUsage(earlier.path("usage"), next.path("usage")));
+        }
+        return out;
+    }
+
+    private static ObjectNode addUsage(JsonNode a, JsonNode b) {
+        ObjectNode sum = JSON.createObjectNode();
+        java.util.Set<String> names = new java.util.LinkedHashSet<>();
+        a.fieldNames().forEachRemaining(names::add);
+        b.fieldNames().forEachRemaining(names::add);
+        for (String name : names) {
+            JsonNode x = a.path(name);
+            JsonNode y = b.path(name);
+            if (x.isObject() || y.isObject()) {
+                sum.set(
+                        name,
+                        addUsage(
+                                x.isObject() ? x : JSON.createObjectNode(),
+                                y.isObject() ? y : JSON.createObjectNode()));
+            } else if (x.isNumber() || y.isNumber()) {
+                sum.put(name, x.asLong(0) + y.asLong(0));
+            } else {
+                sum.set(name, y.isMissingNode() ? x : y); // service_tier and the like: the last
+            }
+        }
+        return sum;
     }
 
     /**
@@ -122,6 +198,7 @@ public class AnthropicProvider implements LLMProvider {
         String[] stop = {null};
         JsonNode[] stopDetails = {null};
         Integer[] usage = {null, null};
+        JsonNode[] serverTools = {null}; // usage.server_tool_use, with the search count
         // the content blocks as Claude sends them, built up, so a tool turn can be continued with
         // its thinking blocks intact
         java.util.Map<Integer, ObjectNode> blocks = new java.util.TreeMap<>();
@@ -147,6 +224,9 @@ public class AnthropicProvider implements LLMProvider {
                                     if (message.hasNonNull("model"))
                                         answering[0] = message.get("model").asText();
                                     usage[0] = inputTokens(message.path("usage"));
+                                    if (message.path("usage").has("server_tool_use"))
+                                        serverTools[0] =
+                                                message.path("usage").get("server_tool_use");
                                     return Stream.empty();
                                 }
                                 case "content_block_start" -> {
@@ -200,12 +280,26 @@ public class AnthropicProvider implements LLMProvider {
                                                         "signature",
                                                         delta.path("signature").asText(""));
                                             return Stream.empty();
+                                        case "citations_delta":
+                                            if (mine != null) {
+                                                if (!mine.has("citations"))
+                                                    mine.putArray("citations");
+                                                ((ArrayNode) mine.get("citations"))
+                                                        .add(delta.path("citation"));
+                                            }
+                                            return Stream.empty();
                                         case "input_json_delta":
                                             toolInput
                                                     .computeIfAbsent(
                                                             data.path("index").asInt(),
                                                             k -> new StringBuilder())
                                                     .append(delta.path("partial_json").asText(""));
+                                            // the search query of a server tool is not a call for
+                                            // the caller to run
+                                            if (mine != null
+                                                    && "server_tool_use"
+                                                            .equals(mine.path("type").asText()))
+                                                return Stream.empty();
                                             return Stream.of(
                                                     Providers.toolCallChunk(
                                                             new ToolCallDelta(
@@ -228,6 +322,8 @@ public class AnthropicProvider implements LLMProvider {
                                     JsonNode u = data.path("usage");
                                     if (u.has("output_tokens"))
                                         usage[1] = u.get("output_tokens").asInt();
+                                    if (u.has("server_tool_use"))
+                                        serverTools[0] = u.get("server_tool_use");
                                     if (u.has("input_tokens")) usage[0] = inputTokens(u);
                                     return Stream.empty();
                                 }
@@ -237,9 +333,10 @@ public class AnthropicProvider implements LLMProvider {
                                     boolean calls = false;
                                     for (java.util.Map.Entry<Integer, ObjectNode> b :
                                             blocks.entrySet()) {
-                                        if (!"tool_use".equals(b.getValue().path("type").asText()))
-                                            continue;
-                                        calls = true;
+                                        String blockType = b.getValue().path("type").asText();
+                                        if (!"tool_use".equals(blockType)
+                                                && !"server_tool_use".equals(blockType)) continue;
+                                        if (blockType.equals("tool_use")) calls = true;
                                         StringBuilder json = toolInput.get(b.getKey());
                                         if (json != null && json.length() > 0) {
                                             try {
@@ -265,13 +362,21 @@ public class AnthropicProvider implements LLMProvider {
                                                                                 java.util.Map<
                                                                                         String,
                                                                                         Object>>>() {}));
-                                    return Stream.of(
+                                    LLMResponse last =
                                             Providers.finalChunk(
-                                                    stop[0],
-                                                    usage[0],
-                                                    usage[1],
-                                                    answering[0],
-                                                    raw));
+                                                    stop[0], usage[0], usage[1], answering[0], raw);
+                                    if (request.getGrounding() == null) return Stream.of(last);
+                                    LLMResponse.Builder out = last.toBuilder();
+                                    AnthropicGrounding.read(
+                                            JSON.valueToTree(blocks.values()),
+                                            JSON.createObjectNode()
+                                                    .set(
+                                                            "server_tool_use",
+                                                            serverTools[0] == null
+                                                                    ? JSON.createObjectNode()
+                                                                    : serverTools[0]),
+                                            out);
+                                    return Stream.of(out.build());
                                 }
                                 case "error" -> throw streamError(data.path("error"));
                                 default -> {
@@ -371,6 +476,11 @@ public class AnthropicProvider implements LLMProvider {
                                     ? "none"
                                     : "auto");
         }
+        if (request.getGrounding() != null) {
+            ArrayNode tools =
+                    root.has("tools") ? (ArrayNode) root.get("tools") : root.putArray("tools");
+            AnthropicGrounding.addTool(tools, request.getGrounding());
+        }
 
         if (AnthropicModels.acceptsSampling(model)) {
             if (request.getTemperature() != null) root.put("temperature", request.getTemperature());
@@ -449,8 +559,38 @@ public class AnthropicProvider implements LLMProvider {
     }
 
     @Override
+    public GroundingSupport groundingSupport() {
+        return GroundingSupport.NATIVE;
+    }
+
+    @Override
+    public Set<GroundingOption> groundingOptions() {
+        return GROUNDING_OPTIONS;
+    }
+
+    @Override
     public boolean supportsToolCalling() {
         return true;
+    }
+
+    /**
+     * The ids of the models this key may use ({@code GET /v1/models}, newest first as Anthropic
+     * sends them; one page of up to 1000, which is more than exist).
+     */
+    @Override
+    public String[] listModels() {
+        try {
+            return ModelListing.ids(
+                    getProviderName(), http.get(baseUrl + "/v1/models?limit=1000", headers()));
+        } catch (LLMException e) {
+            throw Providers.typed(getProviderName(), "Failed to list models", e);
+        }
+    }
+
+    /** The newest model {@link #listModels()} returns, or null when there is none. */
+    @Override
+    public String getFirstAvailableModel() {
+        return ModelListing.first(listModels());
     }
 
     private Headers headers() {
@@ -464,6 +604,10 @@ public class AnthropicProvider implements LLMProvider {
     // ── response ────────────────────────────────────────────────────────────────────────────
 
     LLMResponse parse(JsonNode root, String model) {
+        return parse(root, model, false);
+    }
+
+    LLMResponse parse(JsonNode root, String model, boolean grounded) {
         if ("error".equals(root.path("type").asText())) throw streamError(root.path("error"));
         String stop = root.path("stop_reason").asText(null);
         if ("refusal".equals(stop)) throw refusal(root.path("stop_details"));
@@ -500,16 +644,18 @@ public class AnthropicProvider implements LLMProvider {
                                     new com.fasterxml.jackson.core.type.TypeReference<
                                             List<java.util.Map<String, Object>>>() {}));
         }
-        return LLMResponse.builder()
-                .content(text.toString())
-                .model(root.path("model").asText(model))
-                .tokenUsage(input, output, input + output)
-                .toolCalls(calls)
-                .providerData(raw)
-                .finishReason(calls.isEmpty() ? stop : "tool_use")
-                .addMetadata(Providers.FINISH_REASON_RAW, stop)
-                .addMetadata("id", root.path("id").asText(null))
-                .build();
+        LLMResponse.Builder out =
+                LLMResponse.builder()
+                        .content(text.toString())
+                        .model(root.path("model").asText(model))
+                        .tokenUsage(input, output, input + output)
+                        .toolCalls(calls)
+                        .providerData(raw)
+                        .finishReason(calls.isEmpty() ? stop : "tool_use")
+                        .addMetadata(Providers.FINISH_REASON_RAW, stop)
+                        .addMetadata("id", root.path("id").asText(null));
+        if (grounded) AnthropicGrounding.read(root.path("content"), u, out);
+        return out.build();
     }
 
     /** Input tokens including those written to or read from the prompt cache. */

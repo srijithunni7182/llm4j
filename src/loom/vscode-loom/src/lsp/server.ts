@@ -173,7 +173,7 @@ const LOOM_KEYWORDS: Record<string, string> = {
     source:
         '**source** `: "docs/"`\n\nIn a `knowledge` block: a file or directory of md, txt, html, json or csv files.',
     provider:
-        '**provider** `Name { use: gemini | ollama | sarvam  base_url: "…"  api_key: env.X }`\n\nA model endpoint with its own key. Agents use it as `model: "Name/<model>"`.',
+        '**provider** `Name { use: gemini | anthropic | ollama | sarvam | openai | xai | kimi | qwen | perplexity | openai_compatible  base_url: "…"  api_key: env.X }`\n\nA model endpoint with its own key. Agents use it as `model: "Name/<model>"`. `openai_compatible` needs `base_url` and takes `header:` and `query:`; `openai` takes `api: responses`.',
     persona:
         '**persona** `Name { role: "…" expertise: "…" tone: "…" constraints: ["…"] }`\n\nA persona for agents (`persona: Name`); an agent\'s `system:` prompt follows it.',
     memory:
@@ -246,6 +246,10 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**on_stopped** `{ ... }`\n\nOn a `delegate`: what to do when its agent is stopped through its handle (cancelled or wrapped up). `_stop` holds `reason`, `note`, `kind`, `phase`, `partial`, `changed` and `origin`. The first outcome reached decides: `use partial`, `skip`, `discard`, `retry`, `suspend`, `conclude`, `ask`, or a `rewind to` a declared checkpoint.',
     intervention:
         '**intervention** `{ reason: outcome ... }`\n\nScript-wide defaults for what happens when an agent is stopped, by reason (`user`, `operator`, `timeout`, `budget`, `limit`, `sibling`, `supervision`, `safety`, `shutdown`). A step\'s own `on_stopped` wins.',
+    grounding:
+        '**grounding** `: web { allow: ["who.int"]  recency: year  country: "IN"  max_searches: 3 }`\n\nInside an agent: the model may search the web inside its calls, and a `delegate ... -> notes` step gets its sources in `{notes_citations}`. Only Perplexity, Claude, Gemini, and OpenAI or xAI through a provider with `api: responses` can; `weave check` refuses a model or setting that cannot. `allow` and `block` are lists in brackets (not both). `weave audit` counts the agent as reading untrusted content (LA20) whatever `allow` says.',
+    searches:
+        '**searches** `: N`\n\nIn a `budget { }` block (or `budget N searches` on a step): the most web searches grounded calls may run. A grounded call is refused before it is made when none is left.',
     steerable:
         '**steerable** `: true`\n\nInside an agent: the person the run serves may steer it while it works. A steer corrects the agent\'s reasoning and never changes the workflow. Off unless declared; `weave audit` lists it as an input channel.',
     shared_prompt:

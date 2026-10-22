@@ -7,5 +7,7 @@ public enum Dimension {
     /** Number of LLM calls. */
     CALLS,
     /** Money, computed from a {@link PriceTable}. */
-    COST
+    COST,
+    /** Provider-side web searches (grounding), as the provider reports them. */
+    SEARCHES
 }

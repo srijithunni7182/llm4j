@@ -32,6 +32,23 @@ no model text. `scripts/classify_basic.loom` and `scripts/classify_unsure.loom` 
 text the workflow is started with to what the backend answers (`label` and `probability` for a choice, `yes` for a yes/no, `position` for a score), so a runtime needs no network
 or key. The Java runtime runs them in `ClassifyCtkConformanceTest` (module `ai-agent4j-loom`).
 
+## Provider declarations
+
+`scripts/provider_declarations.loom` declares one provider of every kind the language accepts: `openai` (with `api: responses`), `xai`, `kimi`, `qwen`, `perplexity`,
+`perplexity_router`, `perplexity_decisions` (a classifier backend) and `openai_compatible` (with `header:` and `query:`, and a local server with no key), beside the older `gemini`, `anthropic`, `ollama`, `sarvam`
+and `jev`. A conforming runtime accepts the script at load time and refuses a bad option by name (`api` is `chat` or `responses`; `header` and `query` are only for
+`openai_compatible`; `openai_compatible` needs `base_url`; a key is `env.NAME` or `secret.NAME`, never a literal). The scenario has no trace: no model is called. The Java
+runtime checks it in `ProviderDeclarationsCtkTest` (module `ai-agent4j-loom`), and `RepositoryScriptsTest` loads it with every other script.
+
+## Web grounding
+
+`scripts/grounding_declarations.loom` has one grounded agent per provider that can search (Perplexity, Claude, Gemini, OpenAI on the Responses API), a `budget { searches }`
+at run, agent and step level, and a step that reads `{news_citations}`. A conforming runtime accepts it at load time and refuses, by name and line: `grounding` on a model
+whose provider cannot search (Ollama, Sarvam, OpenAI or xAI on chat completions); a setting the provider cannot honour (`max_searches` on Perplexity or Gemini, `recency`
+on Claude or OpenAI, `country` on xAI or Gemini); `allow` and `block` together; a `recency` that is not `day|week|month|year`; a `country` that is not two letters; a
+`max_searches` below 1; an unknown setting or a second `grounding:`. The scenario has no trace: no model is called. The Java runtime checks it in
+`GroundingDeclarationsCtkTest` and `GroundingLoomTest`.
+
 ## Interventions (steering, stopping, wrapping up)
 
 Interventions are part of the conformance contract: a runtime that claims conformance passes these scenarios. They are **scripted, not timed**, so a

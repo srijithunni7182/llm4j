@@ -104,14 +104,18 @@ public final class ContextWindows {
     }
 
     /**
-     * The model's window: the exact id, then the id without its provider prefix; empty when
-     * unknown.
+     * The model's window: the exact id, then the id without its provider prefix (and without a
+     * second one, as in {@code perplexity/openai/gpt-5.6-sol}); empty when unknown.
      */
     public Optional<ContextWindow> window(String model) {
         if (model == null) return Optional.empty();
         String key = model.toLowerCase(Locale.ROOT);
         ContextWindow w = windows.get(key);
-        if (w == null && key.contains("/")) w = windows.get(key.substring(key.indexOf('/') + 1));
+        // a provider prefix is dropped, and so is a second one (perplexity/openai/gpt-5.6-sol)
+        for (int slash = key.indexOf('/'); w == null && slash >= 0; slash = key.indexOf('/')) {
+            key = key.substring(slash + 1);
+            w = windows.get(key);
+        }
         return Optional.ofNullable(w);
     }
 }

@@ -13,7 +13,7 @@
   <a href="https://central.sonatype.com/artifact/io.github.srijithunni7182/ai-agent4j"><img alt="Maven Central" src="https://img.shields.io/maven-central/v/io.github.srijithunni7182/ai-agent4j.svg?label=Maven%20Central"></a>
   <a href="https://www.oracle.com/java/technologies/downloads/#java17"><img alt="Java 17+" src="https://img.shields.io/badge/Java-17%2B-orange"></a>
   <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg"></a>
-  <img alt="Providers" src="https://img.shields.io/badge/LLMs-Gemini%20%7C%20Sarvam%20%7C%20Ollama%20%7C%20Claude-blueviolet">
+  <img alt="Providers" src="https://img.shields.io/badge/LLMs-Gemini%20%7C%20Claude%20%7C%20OpenAI%20%7C%20xAI%20%7C%20Perplexity%20%7C%20Kimi%20%7C%20Qwen%20%7C%20Sarvam%20%7C%20Ollama-blueviolet">
 </p>
 
 <p align="center">
@@ -50,7 +50,7 @@ agents need too. llm4j is a complete AI stack in idiomatic Java with no vendor S
 
 ```java
 ReActAgent support = ReActAgent.builder()
-        .llmClient(client)                                   // Gemini, Claude, Sarvam or Ollama: one contract
+        .llmClient(client)                                   // Gemini, Claude, OpenAI, xAI, Perplexity, Sarvam, Ollama and more: one contract
         .addSkill(AgentSkill.fromClasspath("skills/refund-policy.md"))
         .addTool(new RefundTool(payments))                   // requiresApproval(args) puts a person in the loop
         .budget(Budget.builder().tokens(20_000).build())     // it cannot overspend
@@ -86,7 +86,7 @@ see [API keys in the Quick Start](src/ai-agent4j/wiki/Getting-Started.md#set-up-
 
 | Module | Answers | |
 |---|---|---|
-| 🏗️ [**ai-agent4j**](src/ai-agent4j/) | How do I build an agent? | ReAct agents, tools, skills, memory, RAG, budgets, one contract over Gemini, Claude, Sarvam and Ollama |
+| 🏗️ [**ai-agent4j**](src/ai-agent4j/) | How do I build an agent? | ReAct agents, tools, skills, memory, RAG, budgets, one contract over Gemini, Claude, OpenAI, xAI, Perplexity, Kimi, Qwen, Sarvam, Ollama and any OpenAI-style server, with web-search grounding and typed citations |
 | 🧵 [**Loom**](src/loom/ai-agent4j-loom/) | How do many agents work together, reliably, for days? | A small workflow language: journaled, resumable, budgeted, scheduled, with deterministic tasks and earned autonomy ([why](src/loom/ai-agent4j-loom/WHY_LOOM.md)) |
 | 🔭 [**loom-inspect and Fabric**](src/loom/loom-inspect/) | What is a workflow doing right now, and has it gone wrong? | A live page per process or one server for many ([Fabric](src/loom/loom-fabric/)): cost, active agents, the running step, each agent's context window and what compaction cut, tool and task health, the lethal trifecta and suspected injection, incidents (loops, failing tools, a run that broke and why), a time bar to see a run as it was, pause / suspend / stop. A coding agent can set it up with you (the [deployer skill](docs/PUBLISHING_SKILL.md)). No model needed to [try it](src/examples/fabric-sim/README.md) ([guide](docs/OBSERVABILITY.md)) |
 | 🧠 [**Engram**](src/engram/engram-core/) | How does an agent remember without drowning in context? | Retrieve-and-synthesise memory that keeps prompts small |

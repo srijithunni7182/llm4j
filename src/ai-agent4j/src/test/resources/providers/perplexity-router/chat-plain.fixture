@@ -1,0 +1,7 @@
+# source: documentation-derived
+# note: hand-written from the vendor documentation; not recorded from the real API
+# vendor: perplexity-router
+# document: https://docs.perplexity.ai/api-reference/gateway-chat-completions-post.md (read 2026-10-22; private preview, no access to record)
+# model: perplexity/kimi-k3
+---
+{"id":"chatcmpl-r1","object":"chat.completion","created":1760000000,"model":"perplexity/kimi-k3","choices":[{"index":0,"message":{"role":"assistant","content":"Paris."},"finish_reason":"stop"}],"usage":{"prompt_tokens":8,"completion_tokens":3,"total_tokens":11}}

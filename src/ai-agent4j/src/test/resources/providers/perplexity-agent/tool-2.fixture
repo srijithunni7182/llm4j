@@ -1,0 +1,10 @@
+# source: recorded
+# vendor: perplexity
+# date: 2026-10-22
+# model: openai/gpt-6-luna
+# endpoint: POST /v1/agent
+# step: tool-2
+# prompt: What is the weather in Pune right now? Use the get_weather tool.
+# note: recorded by ProviderSmokeIntegrationTest; keys, account ids and request ids scrubbed
+---
+{"background":false,"completed_at":1792662746,"created_at":1792662746,"error":null,"frequency_penalty":0,"id":"resp_scrubbed","incomplete_details":null,"instructions":null,"max_output_tokens":800,"max_tool_calls":null,"metadata":{},"model":"openai/gpt-6-luna","object":"response","output":[{"content":[{"annotations":[],"text":"It’s currently 31°C and clear in Pune.","type":"output_text"}],"id":"msg_scrubbed","role":"assistant","status":"completed","type":"message"}],"parallel_tool_calls":true,"presence_penalty":0,"previous_response_id":null,"prompt_cache_key":null,"reasoning":null,"safety_identifier":null,"service_tier":"default","status":"completed","store":true,"temperature":1,"text":{"format":{"type":"text"}},"tool_choice":"auto","tools":[{"type":"function","name":"get_weather","description":"Current weather for a city","parameters":{"properties":{"city":{"description":"the city","type":"string"}},"required":["city"],"type":"object"},"strict":null}],"top_logprobs":0,"top_p":1,"truncation":"","usage":{"cost":{"currency":"USD","input_cost":0.00001,"output_cost":0.00001,"total_cost":0.00002},"input_tokens":120,"input_tokens_details":{"cached_tokens":0},"output_tokens":15,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":135},"user":null}

@@ -91,8 +91,114 @@ public class AgentResultAssert extends AbstractObjectAssert<AgentResultAssert, A
             MetricRef.assertion(
                     "valid-json", "Valid JSON output", "agents", "answers", "reliability");
 
+    private static final MetricRef M_HASCITATIONS =
+            MetricRef.assertion("has-citations", "Has citations", "agents", "answers", "grounding");
+    private static final MetricRef M_CITESATLEAST =
+            MetricRef.assertion(
+                    "cites-at-least", "Cites at least", "agents", "answers", "grounding");
+    private static final MetricRef M_CITESDOMAIN =
+            MetricRef.assertion("cites-domain", "Cites a domain", "agents", "answers", "grounding");
+    private static final MetricRef M_CITESONLYFROM =
+            MetricRef.assertion(
+                    "cites-only-from", "Cites only from", "agents", "answers", "grounding");
+    private static final MetricRef M_USEDSEARCHES =
+            MetricRef.measured(
+                    "searches", "Web searches", "agents", "answers", "efficiency", "searches");
+
     public AgentResultAssert(AgentResult actual) {
         super(actual, AgentResultAssert.class);
+    }
+
+    /** The run's answer carries at least one source (see {@link AgentResult#getCitations()}). */
+    public AgentResultAssert hasCitations() {
+        return atLeast(M_HASCITATIONS, 1);
+    }
+
+    /** At least {@code n} different sources (by URL) across the run. */
+    public AgentResultAssert citesAtLeast(int n) {
+        return atLeast(M_CITESATLEAST, n);
+    }
+
+    private AgentResultAssert atLeast(MetricRef metric, int n) {
+        EvalChecks.check(
+                metric,
+                () -> {
+                    isNotNull();
+                    if (actual.getCitations().size() < n) {
+                        failWithMessage(
+                                "Expected the run to cite at least <%s> sources but it cited <%s>: %s",
+                                n,
+                                actual.getCitations().size(),
+                                CitationChecks.urls(actual.getCitations()));
+                    }
+                });
+        return this;
+    }
+
+    /**
+     * Some source is on {@code domain}: its host is that domain or a subdomain ({@code www.who.int}
+     * counts for {@code who.int}).
+     */
+    public AgentResultAssert citesDomain(String domain) {
+        EvalChecks.check(
+                M_CITESDOMAIN,
+                () -> {
+                    isNotNull();
+                    if (actual.getCitations().stream()
+                            .noneMatch(c -> CitationChecks.matches(c, domain))) {
+                        failWithMessage(
+                                "Expected a source on <%s> but the sources were %s",
+                                domain, CitationChecks.urls(actual.getCitations()));
+                    }
+                });
+        return this;
+    }
+
+    /**
+     * There is at least one source, and every one is on one of {@code domains}. An answer with no
+     * sources fails: "only from" is not satisfied by saying nothing.
+     */
+    public AgentResultAssert citesOnlyFrom(String... domains) {
+        List<String> allowed = List.of(domains);
+        EvalChecks.check(
+                M_CITESONLYFROM,
+                () -> {
+                    isNotNull();
+                    if (actual.getCitations().isEmpty()) {
+                        failWithMessage(
+                                "Expected sources only from %s but the run cited nothing", allowed);
+                        return;
+                    }
+                    List<String> outside =
+                            actual.getCitations().stream()
+                                    .filter(c -> !CitationChecks.anyMatches(c, allowed))
+                                    .map(io.github.llm4j.grounding.Citation::url)
+                                    .toList();
+                    if (!outside.isEmpty()) {
+                        failWithMessage(
+                                "Expected sources only from %s but found %s", allowed, outside);
+                    }
+                });
+        return this;
+    }
+
+    /** The run's model calls ran at most {@code atMost} web searches (as the vendors reported). */
+    public AgentResultAssert usedSearches(int atMost) {
+        EvalChecks.checkMeasured(
+                M_USEDSEARCHES,
+                actual == null ? null : (double) actual.getStats().totalSearches(),
+                "searches",
+                (double) atMost,
+                () -> {
+                    isNotNull();
+                    long ran = actual.getStats().totalSearches();
+                    if (ran > atMost) {
+                        failWithMessage(
+                                "Expected at most <%s> web searches but the run used <%s>",
+                                atMost, ran);
+                    }
+                });
+        return this;
     }
 
     public AgentResultAssert hasFinalAnswerContaining(String expectedSubstring) {

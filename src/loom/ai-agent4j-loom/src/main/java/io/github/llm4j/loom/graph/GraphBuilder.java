@@ -43,7 +43,13 @@ public final class GraphBuilder {
      * What the graph shows of a declared classifier: the declaration, and whether its backend is
      * Jev (calibrated) or a chat model.
      */
-    public record ClassifierInfo(io.github.llm4j.loom.ast.IntentClassifierDef def, boolean jev) {}
+    public record ClassifierInfo(
+            io.github.llm4j.loom.ast.IntentClassifierDef def, boolean jev, boolean perplexity) {
+
+        public ClassifierInfo(io.github.llm4j.loom.ast.IntentClassifierDef def, boolean jev) {
+            this(def, jev, false);
+        }
+    }
 
     /**
      * @param decisionLevels decision name to the level it starts at, shown on {@code decide} nodes
@@ -78,9 +84,14 @@ public final class GraphBuilder {
     public static Map<String, ClassifierInfo> classifiersOf(
             List<io.github.llm4j.loom.ast.LoomScript> scripts) {
         java.util.Set<String> jevProviders = new java.util.HashSet<>();
+        java.util.Set<String> perplexityProviders = new java.util.HashSet<>();
         for (io.github.llm4j.loom.ast.LoomScript s : scripts) {
             for (io.github.llm4j.loom.ast.ProviderDef p : s.getProviders())
-                if ("jev".equals(p.getKind())) jevProviders.add(p.getName());
+                if (io.github.llm4j.loom.execution.DecisionModels.isDecisionKind(p.getKind()))
+                    jevProviders.add(p.getName());
+            for (io.github.llm4j.loom.ast.ProviderDef p : s.getProviders())
+                if ("perplexity_decisions".equals(p.getKind()))
+                    perplexityProviders.add(p.getName());
         }
         Map<String, ClassifierInfo> out = new java.util.LinkedHashMap<>();
         for (io.github.llm4j.loom.ast.LoomScript s : scripts) {
@@ -91,8 +102,14 @@ public final class GraphBuilder {
                 boolean jev =
                         lower.startsWith("jev/")
                                 || lower.startsWith("jev-")
+                                || io.github.llm4j.loom.execution.DecisionModels
+                                        .isPerplexityDecider(model)
                                 || (slash > 0 && jevProviders.contains(model.substring(0, slash)));
-                out.putIfAbsent(def.getName(), new ClassifierInfo(def, jev));
+                boolean perplexity =
+                        io.github.llm4j.loom.execution.DecisionModels.isPerplexityDecider(model)
+                                || (slash > 0
+                                        && perplexityProviders.contains(model.substring(0, slash)));
+                out.putIfAbsent(def.getName(), new ClassifierInfo(def, jev, perplexity));
             }
         }
         return out;

@@ -151,7 +151,7 @@ class ProvidersTest {
                                         """
                 provider P { use: gemini api_key: "literal" }
                 provider Q { use: sarvam api_key: env.MISSING }
-                provider R { use: openai }
+                provider R { use: nonesuch }
                 provider gemini { use: ollama }
                 provider S { use: ollama colour: "x" }
                 provider S { use: ollama }
@@ -166,7 +166,7 @@ class ProvidersTest {
                                         .contains(
                                                 "line 2: provider Q: environment variable MISSING is not set (and there is no secret of that name)")
                                         .contains(
-                                                "line 3: provider R: unknown use: openai; use one of gemini, anthropic, ollama, sarvam")
+                                                "line 3: provider R: unknown use: nonesuch; use one of gemini, anthropic, ollama, sarvam")
                                         .contains(
                                                 "line 4: provider gemini: the name gemini is reserved")
                                         .contains("line 5: provider S: unknown option colour")
@@ -181,7 +181,7 @@ class ProvidersTest {
     void v3_4_unknownModelsFailWithTheDefaultFactoryOnly() throws Exception {
         String script =
                 """
-                agent A { model: "gpt-5" }
+                agent A { model: "nonesuch-1" }
                 agent B { model: "gemini-2.5-flash" }
                 agent C { model: "sarvam/sarvam-m" }
                 agent D { }
@@ -200,7 +200,7 @@ class ProvidersTest {
                         LoomLoadException.class,
                         e ->
                                 assertThat(e.getMessage())
-                                        .contains("agent A: unknown model \"gpt-5\"")
+                                        .contains("agent A: unknown model \"nonesuch-1\"")
                                         .contains(
                                                 "agent B: model gemini-2.5-flash needs GEMINI_API_KEY")
                                         .contains(
@@ -214,7 +214,7 @@ class ProvidersTest {
 
         // weave check uses the environment's factory to check names, and never creates a client
         Path f = dir.resolve("s.loom");
-        Files.writeString(f, "agent A { model: \"gpt-5\" }\n");
+        Files.writeString(f, "agent A { model: \"nonesuch-1\" }\n");
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         assertThat(
                         CliProbe.check(
@@ -223,7 +223,7 @@ class ProvidersTest {
                                 n -> null,
                                 new DefaultLLMClientFactory(n -> null)))
                 .isEqualTo(2);
-        assertThat(out.toString()).contains("line 1: agent A: unknown model \"gpt-5\"");
+        assertThat(out.toString()).contains("line 1: agent A: unknown model \"nonesuch-1\"");
         AtomicInteger created = new AtomicInteger();
         Files.writeString(f, "agent A { model: \"gemini-2.5-flash\" }\n");
         assertThat(
@@ -255,14 +255,15 @@ class ProvidersTest {
         assertThat(f.createClient("gemini-2.5-flash")).isNotNull();
         assertThat(f.createClient("ollama/llama3")).isNotNull();
         assertThat(f.createClient("sarvam/sarvam-m")).isNotNull();
-        assertThatThrownBy(() -> f.createClient("gpt-5")).hasMessageContaining("unknown model");
+        assertThatThrownBy(() -> f.createClient("nonesuch-1"))
+                .hasMessageContaining("unknown model");
         DefaultLLMClientFactory none = new DefaultLLMClientFactory(n -> null);
         assertThatThrownBy(() -> none.createClient("sarvam/x"))
                 .hasMessageContaining("SARVAM_API_KEY");
         assertThatThrownBy(
                         () ->
                                 DefaultLLMClientFactory.forProvider(
-                                        new ProviderSpec("X", "openai", null, "k"), "m"))
+                                        new ProviderSpec("X", "nonesuch", null, "k"), "m"))
                 .hasMessageContaining("unknown provider kind");
         assertThat(
                         DefaultLLMClientFactory.forProvider(

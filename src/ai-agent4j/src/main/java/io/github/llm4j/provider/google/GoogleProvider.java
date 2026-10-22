@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.exception.*;
+import io.github.llm4j.grounding.GroundingOption;
+import io.github.llm4j.grounding.GroundingSupport;
 import io.github.llm4j.http.HttpClientWrapper;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
@@ -16,6 +18,7 @@ import io.github.llm4j.provider.DescribableProvider;
 import io.github.llm4j.provider.Providers;
 import java.io.IOException;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
 import okhttp3.Headers;
 import org.slf4j.Logger;
@@ -31,6 +34,9 @@ public class GoogleProvider implements DescribableProvider {
      * reply, to be sent back verbatim.
      */
     static final String RAW_PARTS = "google.parts";
+
+    /** The settings of a {@link io.github.llm4j.grounding.Grounding} this provider honours. */
+    public static final Set<GroundingOption> GROUNDING_OPTIONS = GoogleGrounding.OPTIONS;
 
     private static final Logger logger = LoggerFactory.getLogger(GoogleProvider.class);
     private static final String DEFAULT_BASE_URL =
@@ -70,7 +76,7 @@ public class GoogleProvider implements DescribableProvider {
 
             logger.debug("Calling Google API URL: {}", url);
             String responseJson = httpClient.post(url, requestJson, headers);
-            return parseResponse(responseJson, model);
+            return parseResponse(responseJson, model, request.getGrounding() != null);
         } catch (ProviderException e) {
             throw e;
         } catch (io.github.llm4j.exception.RateLimitException e) {
@@ -101,6 +107,8 @@ public class GoogleProvider implements DescribableProvider {
         String[] finish = {null};
         Integer[] usage = {null, null};
         int[] calls = {0}; // tool calls seen so far, to number the next
+        StringBuilder answer = new StringBuilder(); // the answer text, for grounding offsets
+        JsonNode[] grounding = {null}; // the last groundingMetadata Gemini sent
         java.util.List<JsonNode> allParts =
                 new java.util
                         .ArrayList<>(); // every part, as Gemini sent it, to send back with tool
@@ -138,6 +146,9 @@ public class GoogleProvider implements DescribableProvider {
                                     }
                                     JsonNode parts = candidate.path("content").path("parts");
                                     if (parts.isArray()) parts.forEach(allParts::add);
+                                    if (candidate.has("groundingMetadata"))
+                                        grounding[0] = candidate.get("groundingMetadata");
+                                    answer.append(answerText(parts));
                                     return chunksOf(parts, model, request.isReasoning(), calls)
                                             .stream();
                                 });
@@ -162,8 +173,24 @@ public class GoogleProvider implements DescribableProvider {
                                                                                                 String,
                                                                                                 Object>>>() {}));
                                             }
-                                            return Providers.finalChunk(
-                                                    finish[0], usage[0], usage[1], model, raw);
+                                            LLMResponse last =
+                                                    Providers.finalChunk(
+                                                            finish[0], usage[0], usage[1], model,
+                                                            raw);
+                                            if (request.getGrounding() == null) return last;
+                                            LLMResponse.Builder out = last.toBuilder();
+                                            GoogleGrounding.read(
+                                                    objectMapper
+                                                            .createObjectNode()
+                                                            .set(
+                                                                    "groundingMetadata",
+                                                                    grounding[0] == null
+                                                                            ? objectMapper
+                                                                                    .createObjectNode()
+                                                                            : grounding[0]),
+                                                    answer.toString(),
+                                                    out);
+                                            return out.build();
                                         }))
                 .onClose(body::close);
     }
@@ -379,6 +406,12 @@ public class GoogleProvider implements DescribableProvider {
                                     : "AUTO");
         }
 
+        if (request.getGrounding() != null) {
+            ArrayNode tools =
+                    root.has("tools") ? (ArrayNode) root.get("tools") : root.putArray("tools");
+            GoogleGrounding.addTool(tools, request.getGrounding(), java.time.Instant.now());
+        }
+
         ObjectNode generationConfig = root.putObject("generationConfig");
         if (request.getTemperature() != null)
             generationConfig.put("temperature", request.getTemperature());
@@ -475,6 +508,16 @@ public class GoogleProvider implements DescribableProvider {
     }
 
     @Override
+    public GroundingSupport groundingSupport() {
+        return GroundingSupport.NATIVE;
+    }
+
+    @Override
+    public Set<GroundingOption> groundingOptions() {
+        return GROUNDING_OPTIONS;
+    }
+
+    @Override
     public boolean supportsToolCalling() {
         return true;
     }
@@ -486,7 +529,8 @@ public class GoogleProvider implements DescribableProvider {
                 .build();
     }
 
-    private LLMResponse parseResponse(String responseJson, String model) throws IOException {
+    private LLMResponse parseResponse(String responseJson, String model, boolean grounded)
+            throws IOException {
         JsonNode root = objectMapper.readTree(responseJson);
 
         if (root.has("error")) {
@@ -579,14 +623,16 @@ public class GoogleProvider implements DescribableProvider {
                             usage.path("totalTokenCount").asInt(0));
         }
 
-        return LLMResponse.builder()
-                .content(textContent)
-                .model(model)
-                .tokenUsage(tokenUsage)
-                .toolCalls(calls)
-                .providerData(rawParts)
-                .finishReason(calls.isEmpty() ? finishReason : "tool_calls")
-                .addMetadata(Providers.FINISH_REASON_RAW, finishReason)
-                .build();
+        LLMResponse.Builder out =
+                LLMResponse.builder()
+                        .content(textContent)
+                        .model(model)
+                        .tokenUsage(tokenUsage)
+                        .toolCalls(calls)
+                        .providerData(rawParts)
+                        .finishReason(calls.isEmpty() ? finishReason : "tool_calls")
+                        .addMetadata(Providers.FINISH_REASON_RAW, finishReason);
+        if (grounded) GoogleGrounding.read(candidate, textContent, out);
+        return out.build();
     }
 }

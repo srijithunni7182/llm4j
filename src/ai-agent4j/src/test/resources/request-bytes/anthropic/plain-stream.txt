@@ -1,0 +1,5 @@
+POST /v1/messages
+content-type: application/json; charset=utf-8
+anthropic-version: 2023-06-01
+
+{"max_tokens":64000,"messages":[{"content":"Hi there","role":"user"}],"model":"claude-haiku-4-5","stream":true}

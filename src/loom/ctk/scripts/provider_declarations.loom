@@ -1,0 +1,19 @@
+// Provider declarations: every kind a runtime must accept in `provider Name { use: ... }`.
+// The runtime checks (weave check) the options of each kind; nothing here calls a model.
+
+provider Oai   { use: openai            api_key: env.OPENAI_API_KEY      api: responses }
+provider Grok  { use: xai               api_key: env.XAI_API_KEY }
+provider Moon  { use: kimi              api_key: env.MOONSHOT_API_KEY }
+provider Dash  { use: qwen              api_key: env.DASHSCOPE_API_KEY   base_url: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1" }
+provider Pplx  { use: perplexity        api_key: env.PERPLEXITY_API_KEY }
+provider Orch  { use: perplexity_router api_key: env.PERPLEXITY_API_KEY }
+provider Gate  { use: openai_compatible base_url: "https://gateway.example/v1"  api_key: env.GATE_KEY  header: "api-key"  query: "api-version=2025-01-01" }
+provider Local { use: openai_compatible base_url: "http://localhost:8000/v1" }
+provider Decide { use: perplexity_decisions api_key: env.PERPLEXITY_API_KEY }
+
+agent Writer { model: "Local/llama-3.3-70b" }
+
+workflow Main() {
+    delegate "Say hello." to Writer -> out
+    note "{out}"
+}

@@ -94,6 +94,7 @@ Two immutable records, each built with a builder, hold what is known about a cal
 | `attempts`, `retries()`, `failovers` | requests sent, attempts beyond the first, clients that failed before one answered |
 | `promptTokens`, `completionTokens`, `totalTokens`, `usageEstimated`, `cost` | usage |
 | `finishReason`, `truncated()`, `toolCallsRequested` | how the answer ended |
+| `searches()`, `citations()` | web searches the provider ran (null when unknown) and sources cited: counts only, see [Web-search grounding](Web-Search-Grounding.md) |
 | `outcome`, `category`, `errorType` | `OK` or `FAILED`, and why |
 
 | `ToolCallEvent` | |

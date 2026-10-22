@@ -1,0 +1,23 @@
+// One question, asked of whichever vendor you name, with a fallback to another vendor when the first is down or out of quota.
+// Run: ./run.sh "What is the capital of France?"            (needs OPENAI_API_KEY and/or XAI_API_KEY and/or PERPLEXITY_API_KEY)
+
+// A declared provider: any OpenAI-style server. Delete it if you have none.
+provider Local { use: openai_compatible  base_url: "http://localhost:8000/v1" }
+
+agent Answerer {
+    model: "gpt-5-mini"                      // OpenAI, found by its name; "xai/grok-4" and "perplexity/openai/gpt-5.6-terra" work the same way
+    temperature: 0.2                         // left out for models that reject it (gpt-5 reasoning models do)
+}
+
+routing Vendors {
+    strategy: fallback
+    primary: "gpt-5-mini"
+    fallbacks: ["xai/grok-3", "perplexity/openai/gpt-5.6-terra", "Local/llama-3.3-70b"]
+}
+
+agent Resilient { routing: Vendors }
+
+workflow Main(question) {
+    delegate "{question}" to Resilient -> answer
+    note "{answer}"
+}

@@ -77,8 +77,10 @@ llm4j:
       claude-sonnet-5-5:
         input-per-million: 3
         output-per-million: 15
+        search-per-thousand: 10      # per 1000 web searches (grounded calls); optional
   budget:
     tokens: 2000000
+    searches: 200                    # web-search cap for grounded calls; optional
     per-call-max-tokens: 8000        # required with a token cap
     window: day                      # minute, hour or day
   privacy:
@@ -101,6 +103,34 @@ import io.github.llm4j.privacy.MaskingLLMClient;
 LLMClient inner = null; // the client from above
 Budget budget = Budget.builder().tokens(2_000_000).build();
 LLMClient guarded = new MaskingLLMClient(BudgetedLLMClient.builder(inner).budget(budget).perCallCap(8000).build());
+```
+
+## Decision models
+
+```yaml
+llm4j:
+  classifiers:
+    router:
+      provider: perplexity_decisions # perplexity_decisions or jev
+      model: pplx-decider-flash-latest
+      api-key-secret: PERPLEXITY_API_KEY
+```
+
+**Bean:** `io.github.llm4j.spring.Classifiers` (every named `Classifier`, in the order declared; `get("router")`).
+A `jev` or `perplexity_decisions` classifier needs a key; a missing key, or any other provider, stops the application
+at start with the property that is wrong.
+
+Without Spring:
+
+```java
+import io.github.llm4j.classify.Classifier;
+import io.github.llm4j.config.LLMConfig;
+import io.github.llm4j.provider.perplexity.PerplexityDecisionsProvider;
+
+Classifier router = Classifier.using(new PerplexityDecisionsProvider(LLMConfig.builder()
+        .defaultModel("pplx-decider-flash-latest")
+        .apiKey(System.getenv("PERPLEXITY_API_KEY"))
+        .build()));
 ```
 
 ## Agents, memory, prompts and skills

@@ -1,12 +1,12 @@
 # Providers and the Uniform Contract
 
-ai-agent4j talks to **Google Gemini, Anthropic Claude, Sarvam and Ollama** behind one interface. Switch
+ai-agent4j talks to **Google Gemini, Anthropic Claude, Sarvam, Ollama, OpenAI, xAI, Kimi, Qwen and Perplexity** (and any OpenAI-style server) behind one interface. Switch
 between them by changing the provider or the model name; the rest of your code stays the same:
 
 ```java
 LLMClient client = new DefaultLLMClient(new GoogleProvider(
         LLMConfig.builder().apiKey(System.getenv("GEMINI_API_KEY")).defaultModel("gemini-2.5-flash").build()));
-// …or SarvamChatProvider / OllamaProvider / AnthropicProvider: nothing below changes
+// …or SarvamChatProvider / OllamaProvider / AnthropicProvider / OpenAiCompatibleProvider: nothing below changes
 
 AgentResult result = ReActAgent.builder().llmClient(client).addTool(new CalculatorTool()).build()
         .run("What is 1234 * 5678?");
@@ -52,7 +52,7 @@ Messages carry the HTTP status, the provider's error text and its request id, an
 
 ### Tool calling
 
-`client.supportsToolCalling()` tells you whether a client can offer tools natively: Gemini and Claude yes, Sarvam and Ollama no (agents use the
+`client.supportsToolCalling()` tells you whether a client can offer tools natively: Gemini, Claude and the [OpenAI family](OpenAI-Family-Providers.md) (OpenAI, xAI, Kimi, Qwen, Perplexity) yes, Sarvam and Ollama no (agents use the
 text protocol with them). See [Native Tool Calling](Native-Tool-Calling.md).
 
 ### Streaming works everywhere
@@ -77,6 +77,10 @@ try (Stream<LLMResponse> chunks = client.chatStream(request)) {
 - **Errors**: before the stream starts, errors are thrown from `chatStream`. During the stream, they end it
   with the same exception types as above.
 
+## OpenAI, xAI, Kimi, Qwen, Perplexity and any OpenAI-style server
+
+One provider, `OpenAiCompatibleProvider`, serves the chat-completions family, and `OpenAiResponsesProvider` serves the Responses schema (Perplexity's Agent API, OpenAI's Responses API). Both pass the same contract. See [OpenAI, xAI, Kimi, Qwen and any OpenAI-style server](OpenAI-Family-Providers.md) and [The Responses schema, and Perplexity's Agent API](Responses-Schema-and-Perplexity.md). Providers that can search the web declare it; see [Web-search grounding](Web-Search-Grounding.md).
+
 ## Anthropic (Claude)
 
 ```java
@@ -89,6 +93,8 @@ new AnthropicProvider(LLMConfig.builder()
 
 - **HTTP only.** It uses the Messages API over the library's own HTTP client. There is no SDK and no extra
   dependency.
+- **Listing models.** `new AnthropicProvider(cfg).listModels()` calls `GET /v1/models?limit=1000` and returns the ids, newest first (recorded 2026-10-22). Every provider with such an endpoint implements `DescribableProvider` (Gemini, Ollama, Anthropic, and the [OpenAI family](OpenAI-Family-Providers.md#listing-the-models)); Perplexity and Sarvam have none and say so.
+- **Paused turns.** A long server-tool turn (several web searches) can end with `stop_reason: pause_turn`. `chat` continues it by sending the paused content back as the last assistant message, up to five times, and returns one response (content in order, usage added up). Streaming does not continue: it ends with the raw finish reason `pause_turn`. Tested on fixtures written from the reference (preview).
 - **Effort** can also be set per request with `LLMRequest.builder().addParameter("effort", "low")`.
 - **Sampling settings.** `AnthropicModels.acceptsSampling(model)` decides whether `temperature`/`top_p`
   are sent. It's an allowlist of older models, so new models are safe by default.
@@ -128,4 +134,6 @@ US$0.50.
 | Sarvam | ✅ | ✅ Verified by the maintainer against the real Sarvam API |
 | Ollama | ✅ | ✅ Verified by the maintainer against a local Ollama server |
 | Anthropic | ✅ | ✅ Full live suite, L1–L11, on `claude-opus-5-5` and `claude-haiku-4-5` (2026-09-29) |
+| OpenAI (chat completions and Responses), xAI, Perplexity (Agent API) | ✅ the shared `ChatCompletionsContract` / `ResponsesContract` suites | ✅ Responses recorded from the real APIs on 2026-10-22 (plain, stream, tool call and answer, streamed tool call, reasoning) and replayed by `RecordedFixturesTest`; spend about US$0.003 |
+| Kimi, Qwen, Perplexity Orchestrator, generic OpenAI-style servers | ✅ the same suites | **Preview**: fixtures are documentation-derived (no key or no access), or no third-party server was recorded |
 | Jev (TypeSafe AI) | ✅ the `ClassifierContract` suite, against a local server replaying recorded wire fixtures | ✅ Fixtures recorded from the real API and a head-to-head study with real keys (2026-10-21). Jev does not chat: it is a [`ClassificationProvider`](Classification.md#5-use-jev), not an `LLMProvider` |

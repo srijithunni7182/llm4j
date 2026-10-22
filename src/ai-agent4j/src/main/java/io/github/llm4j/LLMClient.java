@@ -38,4 +38,17 @@ public interface LLMClient {
     default boolean supportsToolCalling() {
         return false;
     }
+
+    /**
+     * Whether this client can ground a request (search the web and return its sources); {@link
+     * io.github.llm4j.grounding.GroundingSupport#NONE} unless it says so.
+     */
+    default io.github.llm4j.grounding.GroundingSupport groundingSupport() {
+        return io.github.llm4j.grounding.GroundingSupport.NONE;
+    }
+
+    /** The grounding settings this client can honour; empty unless it says so. */
+    default java.util.Set<io.github.llm4j.grounding.GroundingOption> groundingOptions() {
+        return java.util.Set.of();
+    }
 }

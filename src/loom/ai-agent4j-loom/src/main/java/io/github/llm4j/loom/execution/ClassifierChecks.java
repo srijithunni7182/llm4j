@@ -156,7 +156,7 @@ final class ClassifierChecks {
                             who,
                             "samples: "
                                     + def.getSamples()
-                                    + " has no effect on Jev, which gives the same answer every time; remove it");
+                                    + " has no effect on a decision model, which gives the same answer every time; remove it");
                 }
             } else if (rule != null && def.getSamples() == 1) {
                 c.warn(
@@ -194,11 +194,15 @@ final class ClassifierChecks {
     static boolean isJev(ScriptValidator.Checker c, String model) {
         String m = model.toLowerCase(Locale.ROOT);
         if (m.startsWith("jev/") || m.startsWith("jev-")) return true;
+        if (DecisionModels.isPerplexityDecider(model)) return true;
         int slash = model.indexOf('/');
         if (slash <= 0) return false;
         String alias = model.substring(0, slash);
         return c.script().getProviders().stream()
-                .anyMatch(p -> p.getName().equals(alias) && "jev".equals(p.getKind()));
+                .anyMatch(
+                        p ->
+                                p.getName().equals(alias)
+                                        && DecisionModels.isDecisionKind(p.getKind()));
     }
 
     // ---- what an answer has

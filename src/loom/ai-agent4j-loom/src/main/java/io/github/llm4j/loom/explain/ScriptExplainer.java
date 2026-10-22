@@ -218,6 +218,19 @@ public final class ScriptExplainer {
         if (a.isApproveAll()) parts.add("a person approves every tool call");
         else if (!a.getApprove().isEmpty())
             parts.add("a person approves " + String.join(", ", a.getApprove()));
+        if (a.getGrounding() != null)
+            parts.add(
+                    "searches the web inside its model calls"
+                            + (a.getGrounding().getAllow().isEmpty()
+                                    ? ""
+                                    : " (only "
+                                            + String.join(", ", a.getGrounding().getAllow())
+                                            + ")")
+                            + (a.getGrounding().getMaxSearches() == null
+                                    ? ""
+                                    : ", at most "
+                                            + a.getGrounding().getMaxSearches()
+                                            + " searches a call"));
         if (a.isSteerable())
             parts.add(
                     "a person may steer it while it works"
@@ -233,6 +246,7 @@ public final class ScriptExplainer {
         if (b.getTokens() != null)
             limits.add(String.format(Locale.ROOT, "%,d tokens", b.getTokens()));
         if (b.getCalls() != null) limits.add(b.getCalls() + " model calls");
+        if (b.getSearches() != null) limits.add(b.getSearches() + " web searches");
         if (b.getCost() != null) limits.add(b.getCost().toPlainString() + " in cost");
         return limits.isEmpty()
                 ? "A budget is set without limits."

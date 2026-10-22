@@ -192,6 +192,7 @@ agent Writer   { model: "gemini-2.5-flash" }          // GEMINI_API_KEY
 agent Indic    { model: "sarvam/sarvam-m" }           // SARVAM_API_KEY
 agent Local    { model: "ollama/llama3" }             // OLLAMA_BASE_URL, default localhost
 agent Planner  { model: "claude-opus-5-5" }           // ANTHROPIC_API_KEY
+agent Chat     { model: "gpt-5-mini" }                // OPENAI_API_KEY; also xai/…, kimi/… and qwen/… (preview), perplexity/openai/gpt-5.6-sol
 
 provider Box   { use: ollama  base_url: "http://gpu-box:11434" }
 provider Team  { use: sarvam  api_key: env.TEAM_SARVAM_KEY }

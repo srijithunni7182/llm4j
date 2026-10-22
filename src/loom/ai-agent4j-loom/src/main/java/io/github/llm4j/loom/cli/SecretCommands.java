@@ -130,17 +130,27 @@ final class SecretCommands implements Callable<Integer> {
             MasterKey key = secrets.masterKey(env, prompts, "Master key: ");
             try (EncryptedFileSecretStore store =
                     EncryptedFileSecretStore.open(secrets.file.toPath(), key)) {
+                // a vendor's key is offered the vendor's hosts, so it cannot be sent anywhere else
+                // by accident
+                List<String> hosts =
+                        allowHosts.isEmpty()
+                                ? io.github.llm4j.provider.openai.Vendor.hostsOfKey(name)
+                                : allowHosts;
                 SecretMetadata meta =
-                        SecretMetadata.allowing(allowHosts.toArray(new String[0]))
+                        SecretMetadata.allowing(hosts.toArray(new String[0]))
                                 .withDescription(description);
                 store.put(name, value, meta);
                 env.out()
                         .println(
                                 "Stored "
                                         + name
-                                        + (allowHosts.isEmpty()
+                                        + (hosts.isEmpty()
                                                 ? " (any host: consider --allow-host)"
-                                                : " for " + String.join(", ", allowHosts)));
+                                                : " for "
+                                                        + String.join(", ", hosts)
+                                                        + (allowHosts.isEmpty()
+                                                                ? " (the vendor's host; --allow-host sets another, for a gateway)"
+                                                                : "")));
             } finally {
                 SecretOptions.wipe(value);
                 key.destroy();

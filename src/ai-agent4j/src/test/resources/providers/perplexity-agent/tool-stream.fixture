@@ -1,0 +1,24 @@
+# source: recorded
+# vendor: perplexity
+# date: 2026-10-22
+# model: openai/gpt-6-luna
+# endpoint: POST /v1/agent
+# step: tool-stream
+# prompt: What is the weather in Pune right now? Use the get_weather tool.
+# note: recorded by ProviderSmokeIntegrationTest; keys, account ids and request ids scrubbed
+---
+event: response.created
+data: {"response":{"background":false,"completed_at":null,"created_at":1792662748,"error":null,"frequency_penalty":0,"id":"resp_scrubbed","incomplete_details":null,"instructions":null,"max_output_tokens":800,"max_tool_calls":null,"metadata":{},"model":"openai/gpt-6-luna","object":"response","output":[],"parallel_tool_calls":true,"presence_penalty":0,"previous_response_id":null,"prompt_cache_key":null,"reasoning":null,"safety_identifier":null,"service_tier":"default","status":"in_progress","store":true,"temperature":1,"text":{"format":{"type":"text"}},"tool_choice":"auto","tools":[{"type":"function","name":"get_weather","description":"Current weather for a city","parameters":{"properties":{"city":{"description":"the city","type":"string"}},"required":["city"],"type":"object"},"strict":null}],"top_logprobs":0,"top_p":1,"truncation":"","usage":null,"user":null},"sequence_number":0,"type":"response.created"}
+
+event: response.in_progress
+data: {"response":{"background":false,"completed_at":null,"created_at":1792662748,"error":null,"frequency_penalty":0,"id":"resp_scrubbed","incomplete_details":null,"instructions":null,"max_output_tokens":800,"max_tool_calls":null,"metadata":{},"model":"openai/gpt-6-luna","object":"response","output":[],"parallel_tool_calls":true,"presence_penalty":0,"previous_response_id":null,"prompt_cache_key":null,"reasoning":null,"safety_identifier":null,"service_tier":"default","status":"in_progress","store":true,"temperature":1,"text":{"format":{"type":"text"}},"tool_choice":"auto","tools":[{"type":"function","name":"get_weather","description":"Current weather for a city","parameters":{"properties":{"city":{"description":"the city","type":"string"}},"required":["city"],"type":"object"},"strict":null}],"top_logprobs":0,"top_p":1,"truncation":"","usage":null,"user":null},"sequence_number":1,"type":"response.in_progress"}
+
+event: response.output_item.added
+data: {"item":{"arguments":"{\"city\":\"Pune\"}","call_id":"call_scrubbed","id":"fc_scrubbed","name":"get_weather","status":"completed","type":"function_call"},"output_index":0,"sequence_number":4,"type":"response.output_item.added"}
+
+event: response.output_item.done
+data: {"item":{"arguments":"{\"city\":\"Pune\"}","call_id":"call_scrubbed","id":"fc_scrubbed","name":"get_weather","status":"completed","type":"function_call"},"output_index":0,"sequence_number":5,"type":"response.output_item.done"}
+
+event: response.completed
+data: {"response":{"background":false,"completed_at":1792662748,"created_at":1792662748,"error":null,"frequency_penalty":0,"id":"resp_scrubbed","incomplete_details":null,"instructions":null,"max_output_tokens":800,"max_tool_calls":null,"metadata":{},"model":"openai/gpt-6-luna","object":"response","output":[{"arguments":"{\"city\":\"Pune\"}","call_id":"call_scrubbed","id":"fc_scrubbed","name":"get_weather","status":"completed","type":"function_call"}],"parallel_tool_calls":true,"presence_penalty":0,"previous_response_id":null,"prompt_cache_key":null,"reasoning":null,"safety_identifier":null,"service_tier":"default","status":"completed","store":true,"temperature":1,"text":{"format":{"type":"text"}},"tool_choice":"auto","tools":[{"type":"function","name":"get_weather","description":"Current weather for a city","parameters":{"properties":{"city":{"description":"the city","type":"string"}},"required":["city"],"type":"object"},"strict":null}],"top_logprobs":0,"top_p":1,"truncation":"","usage":{"cost":{"currency":"USD","input_cost":0.00001,"output_cost":0.00001,"total_cost":0.00002},"input_tokens":80,"input_tokens_details":{"cached_tokens":0},"output_tokens":19,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":99},"user":null},"sequence_number":6,"type":"response.completed"}
+

@@ -40,6 +40,19 @@ LlmJudgeCondition.llmJudged("Correctness").criteria("...").judge(FakeJudge.varie
 
 `FakeJudge` verdicts are deterministic and meaningless; use them to check wiring, never to read results.
 
+### Scripted sources: test a grounded agent offline
+
+```java
+ScriptedClient model = new ScriptedClient()
+        .sources("https://www.who.int/news/item/sodium", "https://www.nih.gov/sodium")   // returned to grounded requests only
+        .searches(2)                                                                     // what the "vendor" reports
+        .otherwise(ScriptedClient.reactFinal("Under 2 g a day."));
+AgentResult r = ReActAgent.builder().llmClient(model).grounding(Grounding.webSearch()).build().run("Daily sodium limit?");
+AgentAssertions.assertThat(r).citesOnlyFrom("who.int", "nih.gov").usedSearches(2);
+```
+
+Sources go only to a request that carries `Grounding`, so the test also proves the agent asked for it (`model.groundedCalls()` counts those requests).
+
 ## Pay once for the same case
 
 ```java
@@ -48,7 +61,7 @@ String key = AgentReplay.key(scenario.id(), "prompt-v1", "gemini-3.5-flash", fix
 AgentResult result = replay.run(key, () -> agent.run(task));   // runs once; later runs read it back, steps included
 ```
 
-A `CURRENT TIME: ...` line is ignored in keys, because personas that embed the clock would otherwise never hit the store.
+A `CURRENT TIME: ...` line is ignored in keys, because personas that embed the clock would otherwise never hit the store. A stored run keeps the answer, the steps and the sources (not the run's statistics, so a replayed run reports no searches).
 
 ## Deterministic search
 

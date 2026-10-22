@@ -168,6 +168,22 @@ cheap chat model. It was **not** good enough to be the only safety guardrail for
 with confidence 0.95): use it as one signal there, not the only one. The sets were small and ours, and a difference of one or two cases is noise, so rerun the comparison on
 your own cases ([how](../../eval4j/docs/LLM-AS-JUDGE.md#compare-classifiers-on-your-own-cases)) before you depend on it.
 
+### Perplexity's Decisions API
+
+Perplexity offers the same kind of model: `POST /v1/decisions` takes a `state` and typed questions (`noul`, `choice`, `score`) and returns probabilities, a
+`confidence` and token usage, and writes no text. `PerplexityDecisionsProvider` is a second `ClassificationProvider`; it shares Jev's wire format (`DecisionWire`) and keeps
+only what is Perplexity's: the endpoint, bearer authentication (an `x-api-key` header is not read), the models, and the error body.
+
+```java
+LLMConfig cfg = LLMConfig.builder().apiKey(System.getenv("PERPLEXITY_API_KEY")).defaultModel("pplx-decider-flash-latest").build();
+Classifier decider = Classifier.using(new PerplexityDecisionsProvider(cfg));        // calibrated, like Jev
+```
+
+`pplx-decider-latest` is the 27B model (US$0.02 per million input tokens) and `pplx-decider-flash-latest` the 4B (US$0.01); output tokens are free. Flash is built for one question per
+request: with several, each is answered alone and the state is sent and billed again for each. The resolver sends `pplx-decider-…` names (also `Perplexity/pplx-decider-…`) here,
+with `PERPLEXITY_API_KEY` and optionally `PERPLEXITY_BASE_URL`. Status: **supported**: a real answer and a real 400, recorded 2026-10-22, are replayed in the tests. The
+head-to-head study of Phase 7 has not been re-run with it as a third contender; until it is, no accuracy claim is made for it.
+
 ## 6. Choose the backend by name
 
 Providers are chosen by name everywhere in llm4j; classifiers are too. A `ClassifierResolver` turns a model name into a `Classifier`, so changing the backend is
@@ -181,7 +197,7 @@ Classifier cheap = resolver.resolve("gemini-2.5-flash");   // any other name: a 
 Classifier jev = resolver.resolve("Jev/jev-latest");       // Jev: one word different, same Classifier
 ```
 
-`Jev/jev-latest` (the alias `jev` in any case, an alias you declare with `jevAlias`, or a bare `jev-…` name) is Jev. Anything else is passed as written to the chat
+`Jev/jev-latest` (the alias `jev` in any case, an alias you declare with `jevAlias`, or a bare `jev-…` name) is Jev; `pplx-decider-…` is Perplexity's Decisions API (`isPerplexityDecisions(name)`). Anything else is passed as written to the chat
 clients you provide. `isJev(name)` says which, so a caller can warn that the state leaves for a hosted service. The resolver reads nothing by itself: the host says what a name
 means, which is what lets Loom use the providers a script declares.
 

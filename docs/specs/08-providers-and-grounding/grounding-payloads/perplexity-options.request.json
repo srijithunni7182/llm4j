@@ -1,0 +1,20 @@
+{
+  "model": "openai/gpt-6-luna",
+  "input": "In one sentence: what is the Reserve Bank of India's current policy repo rate, and when was it last changed?",
+  "max_output_tokens": 500,
+  "tools": [
+    {
+      "type": "web_search",
+      "max_results": 3,
+      "filters": {
+        "search_domain_filter": [
+          "rbi.org.in"
+        ],
+        "search_recency_filter": "year"
+      },
+      "user_location": {
+        "country": "IN"
+      }
+    }
+  ]
+}

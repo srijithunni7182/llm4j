@@ -101,6 +101,33 @@ class ClassifierResolverTest {
     }
 
     @Test
+    void aDeciderNameResolvesToPerplexityDecisionsWithoutTheVendorPrefixToo() throws Exception {
+        List<String> seen = new ArrayList<>();
+        ClassifierResolver resolver =
+                ClassifierResolver.builder().perplexityDecisions(jevAt(seen)).build();
+        server.enqueue(new MockResponse().setBody(JEV_REPLY));
+
+        ClassifyResult r = resolver.resolve("pplx-decider-flash-latest").classify(ASK);
+        resolver.resolve("Perplexity/pplx-decider-latest").classify(ASK);
+
+        assertThat(r.usage().backend()).isEqualTo("perplexity_decisions");
+        assertThat(r.yesNo("q").calibrated()).isTrue();
+        assertThat(seen).containsExactly("pplx-decider-flash-latest", "pplx-decider-latest");
+        assertThat(resolver.isPerplexityDecisions("PPLX-decider-latest")).isTrue();
+        // a Perplexity chat model is not a decider, and Jev is not either
+        assertThat(resolver.isPerplexityDecisions("perplexity/openai/gpt-5.6-sol")).isFalse();
+        assertThat(resolver.isPerplexityDecisions("Jev/jev-latest")).isFalse();
+    }
+
+    @Test
+    void aDeciderNameWithoutPerplexitySettingsSaysWhatIsMissing() {
+        assertThatThrownBy(
+                        () -> ClassifierResolver.builder().build().resolve("pplx-decider-latest"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no Perplexity settings");
+    }
+
+    @Test
     void anyOtherNameGoesToTheHostsChatClientsAsWritten() {
         List<String> asked = new ArrayList<>();
         ClassifierResolver resolver =

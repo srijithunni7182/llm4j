@@ -18,6 +18,7 @@
 | | [**Observability**](OBSERVABILITY.md): watch runs live · [**Deploying it**](OBSERVABILITY_DEPLOYMENT.md) · [Fabric server](../wiki/Fabric-Server.md) · [Deployer skill](../wiki/Deployer-Skill.md) · [Agent skills](PUBLISHING_SKILL.md) | |
 | | [Incidents and rules](../wiki/Observability-Incidents-and-Rules.md) · [Controls and security](../wiki/Observability-Controls-and-Security.md) · [Reference](../wiki/Observability-Reference.md) | |
 | [MCP](../src/ai-agent4j/wiki/MCP-Integration.md) · [OpenAPI Tool](../src/ai-agent4j/wiki/OpenAPI-Tool.md) · [Prompt Registry](../src/ai-agent4j/wiki/Prompt-Registry-Guide.md) | | |
+| [Web-search grounding](../src/ai-agent4j/wiki/Web-Search-Grounding.md) · [OpenAI, xAI, Kimi, Qwen](../src/ai-agent4j/wiki/OpenAI-Family-Providers.md) · [Responses and Perplexity](../src/ai-agent4j/wiki/Responses-Schema-and-Perplexity.md) | | |
 | [Sarvam](../src/ai-agent4j/docs/SARVAM.md) · [Ollama](../src/ai-agent4j/docs/OLLAMA.md) | | |
 
 > [!TIP]

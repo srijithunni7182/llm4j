@@ -151,7 +151,10 @@ public final class SpendGuard {
         }
     }
 
-    /** A client that refuses once the run is stopped and counts every response it returns. */
+    /**
+     * A client that refuses once the run is stopped and counts every response it returns, a
+     * stream's by its final chunk.
+     */
     public LLMClient guard(LLMClient delegate, String model) {
         return new LLMClient() {
             @Override
@@ -168,7 +171,16 @@ public final class SpendGuard {
             @Override
             public Stream<LLMResponse> chatStream(LLMRequest request) {
                 check();
-                return delegate.chatStream(request);
+                // a stream's usage arrives with its final chunk, so that is where the spend is
+                // counted
+                return delegate.chatStream(request)
+                        .peek(
+                                chunk -> {
+                                    LLMResponse.TokenUsage u = chunk.getTokenUsage();
+                                    if (u != null) {
+                                        record(model, u.getPromptTokens(), u.getCompletionTokens());
+                                    }
+                                });
             }
 
             @Override

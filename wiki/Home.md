@@ -3,7 +3,7 @@
 **AI agents, written the Java way.** Typed, testable, observable: from a single tool call to autonomous
 workflows that run for days. llm4j is a complete AI stack in idiomatic Java, with no vendor SDKs.
 
-Gemini, Claude, Sarvam and Ollama sit behind [one contract](../src/ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md).
+Gemini, Claude, OpenAI, xAI, Perplexity, Kimi, Qwen, Sarvam, Ollama and any OpenAI-style server sit behind [one contract](../src/ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md).
 Start with the [project README](../README.md) for the overview, then use this page to find your way around.
 
 **New here?** [Build a multi-agent workflow step by step](../docs/guide/README.md), from choosing agents to a
@@ -33,7 +33,7 @@ Each module answers the question the previous one raises.
 
 - [Quick Start](../src/ai-agent4j/wiki/Getting-Started.md)
 - [ReAct Agent Guide](../src/ai-agent4j/wiki/ReAct-Agent-Guide.md)
-- [Providers and the Uniform Contract](../src/ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md) · [Sarvam](../src/ai-agent4j/docs/SARVAM.md) · [Ollama](../src/ai-agent4j/docs/OLLAMA.md)
+- [Providers and the Uniform Contract](../src/ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md) · [Web-search grounding](../src/ai-agent4j/wiki/Web-Search-Grounding.md) · [Sarvam](../src/ai-agent4j/docs/SARVAM.md) · [Ollama](../src/ai-agent4j/docs/OLLAMA.md)
 - [Creating Custom Tools](../src/ai-agent4j/wiki/Creating-Custom-Tools.md) · [Ready-made tools](../src/ai-agent4j-tools/docs/README.md)
 - [Agent Skills](../src/ai-agent4j/wiki/Agent-Skills-Guide.md) · [Personas](../src/ai-agent4j/wiki/Agent-Personas.md) · [Prompt Registry](../src/ai-agent4j/wiki/Prompt-Registry-Guide.md)
 - [Memory](../src/ai-agent4j/wiki/Memory-and-Persistence.md) · [Semantic Memory](../src/ai-agent4j/wiki/SEMANTIC_MEMORY.md)

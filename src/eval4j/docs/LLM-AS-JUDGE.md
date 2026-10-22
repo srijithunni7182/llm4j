@@ -152,6 +152,20 @@ assertThat(result).is(
 
 `OutputExtractor.extract(actual)` returns the text a judge grades from an `AgentResult`, `LLMResponse` or `String`.
 
+### Judge a grounded answer against its sources
+
+A web-grounded answer comes with its sources (`AgentResult.getCitations()`, `LLMResponse.getCitations()`). Pass what the sources said as the
+retrieval context and the *faithfulness* preset asks whether every claim in the answer is supported by a cited source:
+
+```java
+List<String> evidence = result.getCitations().stream().map(c -> c.snippet() == null ? c.title() : c.snippet()).filter(Objects::nonNull).toList();
+assertThat(result).is(LlmJudgePresets.using(judge).faithfulness(evidence));
+```
+
+Check the deterministic things first (`hasCitations()`, `citesOnlyFrom(...)`, see [Assertions](ASSERTIONS.md)); they are free. A purpose-built metric for
+claims against cited pages is not part of this release. Only some vendors give a snippet (Perplexity and Anthropic do; OpenAI and xAI give a title or nothing):
+with no text the check has nothing to compare, so read the snippet-less case as "not evaluated", not as "supported".
+
 ## Judge with a classifier
 
 > **Status:** works with any chat model through `Classifier.using(chatClient)`. A Jev-backed classifier plugs in the same way once the Jev provider ships

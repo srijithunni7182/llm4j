@@ -90,6 +90,28 @@ public class Llm4jClientsAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @Conditional(Llm4jConditions.ClassifiersConfigured.class)
+    public Classifiers llm4jClassifiers(
+            Llm4jProperties properties,
+            ObjectProvider<SecretStore> secrets,
+            ObjectProvider<Clock> clock,
+            ObjectProvider<Sleeper> sleeper) {
+        Map<String, io.github.llm4j.classify.Classifier> all = new LinkedHashMap<>();
+        for (Map.Entry<String, Llm4jProperties.Decider> e : properties.classifiers().entrySet()) {
+            all.put(
+                    e.getKey(),
+                    ClassifierFactory.create(
+                            e.getKey(),
+                            e.getValue(),
+                            secrets.getIfAvailable(),
+                            clock.getIfAvailable(),
+                            sleeper.getIfAvailable()));
+        }
+        return new Classifiers(all);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     @Conditional(Llm4jConditions.PricingConfigured.class)
     public PriceTable llm4jPriceTable(Llm4jProperties properties, ResourceLoader resources)
             throws IOException {
@@ -117,7 +139,8 @@ public class Llm4jClientsAutoConfiguration {
                                         model,
                                         new PriceTable.Price(
                                                 price.inputPerMillion(),
-                                                price.outputPerMillion())));
+                                                price.outputPerMillion(),
+                                                price.searchPerThousand())));
         return PriceTable.of(prices);
     }
 
@@ -138,6 +161,7 @@ public class Llm4jClientsAutoConfiguration {
         Budget.Builder builder = Budget.builder().name("llm4j");
         if (b.tokens() != null) builder.tokens(b.tokens());
         if (b.calls() != null) builder.calls(b.calls());
+        if (b.searches() != null) builder.searches(b.searches());
         if (b.cost() != null)
             builder.cost(new BigDecimal(b.cost().strip().replaceFirst("^\\$", "")));
         if (b.warnAt() != null) builder.warnAt(b.warnAt());

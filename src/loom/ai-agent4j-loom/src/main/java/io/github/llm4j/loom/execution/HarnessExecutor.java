@@ -1655,8 +1655,13 @@ public class HarnessExecutor implements LoomEngine {
         // a key in the store is handed over by reference: the provider fetches it for each request,
         // and the secret's host binding applies
         String key = ref != null || keyOption == null ? null : option(declared, "api_key");
+        java.util.Map<String, String> options = new java.util.LinkedHashMap<>();
+        for (String name : java.util.List.of("api", "header", "query")) {
+            if (declared.getOptions().containsKey(name)) options.put(name, option(declared, name));
+        }
         return llmClientFactory.createClient(
-                new ProviderSpec(declared.getName(), declared.getKind(), baseUrl, key, ref),
+                new ProviderSpec(
+                        declared.getName(), declared.getKind(), baseUrl, key, ref, options),
                 model.substring(declared.getName().length() + 1));
     }
 
@@ -1776,6 +1781,21 @@ public class HarnessExecutor implements LoomEngine {
      * Gives an agent with a {@code context} block its policy, its model's window and its compaction
      * strategy. Agents without one are left as they were.
      */
+    /** The library's {@code Grounding} for an agent's {@code grounding:} setting. */
+    static io.github.llm4j.grounding.Grounding groundingOf(AgentDef.GroundingConfig g) {
+        io.github.llm4j.grounding.Grounding.Builder b =
+                io.github.llm4j.grounding.Grounding.webSearch();
+        if (!g.getAllow().isEmpty()) b.allowDomains(g.getAllow().toArray(String[]::new));
+        if (!g.getBlock().isEmpty()) b.blockDomains(g.getBlock().toArray(String[]::new));
+        if (g.getRecency() != null)
+            b.recency(
+                    io.github.llm4j.grounding.Recency.valueOf(
+                            g.getRecency().toUpperCase(java.util.Locale.ROOT)));
+        if (g.getCountry() != null) b.country(g.getCountry());
+        if (g.getMaxSearches() != null) b.maxSearches(g.getMaxSearches());
+        return b.build();
+    }
+
     private void applyContext(AgentDef agentDef, ReActAgent.Builder builder) {
         AgentDef.ContextConfig cfg = agentDef.getContext();
         if (cfg == null) return;
@@ -2286,6 +2306,8 @@ public class HarnessExecutor implements LoomEngine {
                 agentBuilder.maxIterations(agentDef.getMaxIterations());
             if (agentDef.isStreaming()) agentBuilder.streaming(true);
             if (agentDef.isReasoning()) agentBuilder.reasoning(true);
+            if (agentDef.getGrounding() != null)
+                agentBuilder.grounding(groundingOf(agentDef.getGrounding()));
             List<io.github.llm4j.loom.knowledge.KnowledgeIndex> inContext =
                     new java.util.ArrayList<>();
             for (String kbName : agentDef.getKnowledgeBases()) {
@@ -2556,6 +2578,7 @@ public class HarnessExecutor implements LoomEngine {
                 endData.put("retries", totals.totalRetries());
                 endData.put("failovers", totals.totalFailovers());
                 endData.put("compactions", tracing.compactions());
+                if (totals.totalSearches() > 0) endData.put("searches", totals.totalSearches());
                 trace(TraceEvent.RUN_END, null, "workflow " + workflowName + " " + ended, endData);
             }
         }
@@ -3195,9 +3218,33 @@ public class HarnessExecutor implements LoomEngine {
         boolean builtInJev =
                 model.toLowerCase(java.util.Locale.ROOT).startsWith("jev/")
                         || model.toLowerCase(java.util.Locale.ROOT).startsWith("jev-");
-        if ((declared != null && "jev".equals(declared.getKind()))
+        if ((declared != null && DecisionModels.isDecisionKind(declared.getKind()))
                 || (declared == null && builtInJev)) {
             return budgets.meteredClassifier(jevClassifier(declared, model), who, model);
+        }
+        if (declared == null && DecisionModels.isPerplexityDecider(model)) {
+            String key = envValue("PERPLEXITY_API_KEY");
+            io.github.llm4j.config.LLMConfig.Builder config =
+                    io.github.llm4j.config.LLMConfig.builder()
+                            .defaultModel(model.substring(model.indexOf('/') + 1));
+            io.github.llm4j.secret.SecretRef ref =
+                    storedKey(
+                            io.github.llm4j.loom.ast.ToolDef.OptionValue.secret(
+                                    "PERPLEXITY_API_KEY"));
+            if (ref != null) config.apiKey(ref);
+            else if (key != null && !key.isBlank()) config.apiKey(key);
+            else
+                throw new IllegalStateException(
+                        "PERPLEXITY_API_KEY (an environment variable or a secret) is required for model: "
+                                + model);
+            String baseUrl = envValue("PERPLEXITY_BASE_URL");
+            if (baseUrl != null && !baseUrl.isBlank()) config.baseUrl(baseUrl);
+            return budgets.meteredClassifier(
+                    io.github.llm4j.classify.Classifier.using(
+                            new io.github.llm4j.provider.perplexity.PerplexityDecisionsProvider(
+                                    config.build())),
+                    who,
+                    model);
         }
         // a chat model: each sample is a model call, metered as one
         io.github.llm4j.classify.LlmClassifier.Builder chat =
@@ -3231,6 +3278,10 @@ public class HarnessExecutor implements LoomEngine {
             if (baseUrl != null && !baseUrl.isBlank()) config.baseUrl(baseUrl);
             config.defaultModel(model.substring(model.indexOf('/') + 1));
         }
+        if (declared != null && "perplexity_decisions".equals(declared.getKind()))
+            return io.github.llm4j.classify.Classifier.using(
+                    new io.github.llm4j.provider.perplexity.PerplexityDecisionsProvider(
+                            config.build()));
         return io.github.llm4j.classify.Classifier.using(
                 new io.github.llm4j.provider.typesafe.JevProvider(config.build()));
     }

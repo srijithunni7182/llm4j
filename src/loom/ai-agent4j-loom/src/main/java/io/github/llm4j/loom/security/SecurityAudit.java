@@ -192,6 +192,15 @@ public final class SecurityAudit {
                 if (!a.isApproveAll()) unapprovedOutward.add("mcp " + mcp);
             }
         }
+        // a grounded agent reads pages it did not choose, whatever its allow list says
+        if (a.getGrounding() != null) {
+            java.util.List<String> allowed = a.getGrounding().getAllow();
+            untrusted.add(
+                    "grounding web"
+                            + (allowed.isEmpty()
+                                    ? ""
+                                    : " (allow: " + String.join(", ", allowed) + ")"));
+        }
         String pii = a.getGuard() == null ? null : a.getGuard().getPii();
         AgentProfile profile =
                 new AgentProfile(
@@ -208,6 +217,28 @@ public final class SecurityAudit {
                         pii,
                         memory);
 
+        if (a.getGrounding() != null) {
+            java.util.List<String> allowed = a.getGrounding().getAllow();
+            String service = a.getModel() == null ? null : hostedService(script, a.getModel());
+            findings.add(
+                    new Finding(
+                            "LA20",
+                            allowed.isEmpty() ? Severity.LOW : Severity.INFO,
+                            List.of(Owasp.LLM01, Owasp.LLM02),
+                            a.getName(),
+                            a.getGrounding().getLine(),
+                            "A grounded agent reads the open web",
+                            a.getName()
+                                    + " searches the web inside its model calls"
+                                    + (service == null ? "" : " (" + service + ")")
+                                    + ": any page it finds can carry instructions, and the search service sees the queries the model writes from your prompt. "
+                                    + (allowed.isEmpty()
+                                            ? "Nothing narrows where it may read."
+                                            : "Its allow list ("
+                                                    + String.join(", ", allowed)
+                                                    + ") narrows where it reads but does not make those pages trusted, so the audit still counts it as reading untrusted content."),
+                            "Keep a grounded agent away from private data and from tools that send or act (the lethal trifecta), narrow it with allow: [\"…\"], mask personal data with guard { pii: mask }, and check sources in tests with citesOnlyFrom(...)."));
+        }
         if (a.isSteerable()) {
             boolean exposed =
                     profile.trifecta()
@@ -486,23 +517,40 @@ public final class SecurityAudit {
                     && (host.equals("localhost") || host.equals("127.0.0.1") || host.equals("::1")))
                 return null;
             if ("ollama".equals(declared.getKind()) && url == null) return null;
+            var vendor = io.github.llm4j.provider.openai.Vendor.ofKind(declared.getKind());
             String kind =
                     "jev".equals(declared.getKind())
                             ? "TypeSafe AI's Jev API"
-                            : "the " + declared.getKind() + " API";
+                            : "perplexity_decisions".equals(declared.getKind())
+                                    ? "Perplexity's Decisions API"
+                                    : vendor.isPresent()
+                                            ? vendor.get().displayName()
+                                            : "the " + declared.getKind() + " API";
             return kind
                     + " at "
                     + (host != null
                             ? host
                             : "jev".equals(declared.getKind())
                                     ? "api.typesafe.ai"
-                                    : "its default address")
+                                    : "perplexity_decisions".equals(declared.getKind())
+                                            ? "api.perplexity.ai"
+                                            : vendor.isPresent() && !vendor.get().hosts().isEmpty()
+                                                    ? vendor.get().hosts().get(0)
+                                                    : "its default address")
                     + " (provider "
                     + declared.getName()
                     + ")";
         }
         if (lower.startsWith("jev/") || lower.startsWith("jev-"))
             return "TypeSafe AI's Jev API (api.typesafe.ai)";
+        if (io.github.llm4j.loom.execution.DecisionModels.isPerplexityDecider(model))
+            return "Perplexity's Decisions API (api.perplexity.ai)";
+        var vendor = io.github.llm4j.provider.openai.Vendor.ofModel(model);
+        if (vendor.isPresent())
+            return vendor.get().vendor().displayName()
+                    + " ("
+                    + vendor.get().vendor().hosts().get(0)
+                    + ")";
         if (lower.startsWith("ollama/")
                 || lower.contains("llama")
                 || lower.contains("gemma")
@@ -517,13 +565,15 @@ public final class SecurityAudit {
     private static boolean isJev(LoomScript script, String model) {
         String lower = model.toLowerCase(java.util.Locale.ROOT);
         if (lower.startsWith("jev/") || lower.startsWith("jev-")) return true;
+        if (io.github.llm4j.loom.execution.DecisionModels.isPerplexityDecider(model)) return true;
         int slash = model.indexOf('/');
         return slash > 0
                 && script.getProviders().stream()
                         .anyMatch(
                                 p ->
                                         p.getName().equals(model.substring(0, slash))
-                                                && "jev".equals(p.getKind()));
+                                                && io.github.llm4j.loom.execution.DecisionModels
+                                                        .isDecisionKind(p.getKind()));
     }
 
     /**

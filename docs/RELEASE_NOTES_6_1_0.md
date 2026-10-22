@@ -3,6 +3,58 @@
 This page is written as the release is built. Each item says whether it **works now** on the release branch or is **coming**; nothing
 that is not finished is described as working. The API policy is in [API_COMPATIBILITY.md](API_COMPATIBILITY.md).
 
+## More providers: OpenAI, xAI, Perplexity, Kimi, Qwen and any OpenAI-style server
+
+6.1.0 adds one provider for the whole OpenAI family (`OpenAiCompatibleProvider`, vendors as data in a `Dialect` and `ModelTraits`) and one for the OpenAI **Responses**
+schema (`OpenAiResponsesProvider`: Perplexity's Agent API and OpenAI's own Responses API). Every one passes the shared provider contract. A provider is called
+**supported** only when it also passes on responses *recorded from the real API* (a fixture states its date and model); **preview** means documentation-derived fixtures,
+no key or no access. Design: [specs/08-providers-and-grounding](specs/08-providers-and-grounding/DESIGN.md). Wiki: [OpenAI, xAI, Kimi, Qwen and any OpenAI-style server](../src/ai-agent4j/wiki/OpenAI-Family-Providers.md),
+[the Responses schema and Perplexity](../src/ai-agent4j/wiki/Responses-Schema-and-Perplexity.md).
+
+| Provider | Status |
+|---|---|
+| OpenAI, chat completions (`gpt-…`, `o3`, …) | **supported**: recorded 2026-10-22 with `gpt-6-luna` (plain, stream, tool call and answer, streamed tool call, reasoning) |
+| OpenAI, Responses API (`use: openai  api: responses`) | **supported**: recorded 2026-10-22 with `gpt-6-luna` |
+| xAI (Grok) | **supported**: recorded 2026-10-22 with `grok-4.20-0309-non-reasoning` (chat completions, which xAI now calls legacy) |
+| Perplexity Agent API (`perplexity/openai/gpt-5.6-sol`, `perplexity/preset:medium`) | **supported**: recorded 2026-10-22 (plain model access and web grounding, see below) |
+| xAI, Responses API (`use: xai  api: responses`) | **supported for web grounding**: recorded 2026-10-22 with `grok-4.3` |
+| Kimi (Moonshot) | **preview**: fixtures are written from Moonshot's documentation; no key was available |
+| Qwen (Alibaba DashScope) | **preview**: fixtures are written from Alibaba's documentation; no key was available |
+| Perplexity Orchestrator (`perplexity_router`) | **preview**: Perplexity's API is itself in private preview; no access, no live fixtures |
+| `openai_compatible` (DeepSeek, Groq, Together, vLLM, LM Studio, a gateway with its own header or `api-version`) | **preview**: contract-tested, and the protocol is the one recorded for OpenAI and xAI, but no third-party server has been recorded |
+| Loom: `provider … { use: openai | xai | kimi | qwen | perplexity | perplexity_router | openai_compatible }`, model names (`gpt-5-mini`, `xai/grok-4`, `perplexity/openai/gpt-5.6-sol`), keys by vendor and bound to the vendor's host, `weave audit` data flows | **works now** |
+| Spring Boot starter: `llm4j.clients.<name>.provider` accepts the new providers | **works now** |
+| Spring Boot starter: `llm4j.classifiers.<name>` (`jev`, `perplexity_decisions`) as a `Classifiers` bean; `llm4j.budget.searches` and `llm4j.pricing.models.<m>.search-per-thousand` for grounded calls | **works now** (tests only; no live Spring run) |
+| Loom: `provider … { use: perplexity_decisions }` names a Decisions classifier backend, beside `jev` | **works now** |
+| `listModels()` / `getFirstAvailableModel()` (`DescribableProvider`) on `OpenAiCompatibleProvider` and `OpenAiResponsesProvider` (path in `Dialect.modelsPath()` / `ResponsesDialect.modelsPath()`) and on `AnthropicProvider`; Perplexity (no such endpoint) throws `InvalidRequestException` | **supported** for OpenAI, xAI and Anthropic: listings recorded 2026-10-22; Kimi, Qwen and generic servers use the same `/models` path (preview) |
+| Anthropic `pause_turn`: `chat` continues a paused server-tool turn (up to five times) and returns one response; streaming does not continue | **preview**: fixtures written from the reference |
+| Context-window catalog entries for the current OpenAI, xAI, Kimi and Qwen models (each checked against the vendor's documentation) | **works now** |
+| `SpendGuard` (eval4j) now meters streamed calls from their final chunk, and the opt-in `ProviderSmokeIntegrationTest` records fixtures from the real APIs under a spend cap | **works now** |
+
+What we found against the real APIs: OpenAI's `gpt-6` models refuse function tools on chat completions unless `reasoning_effort` is `none` (pass
+`addParameter("reasoning_effort", "none")`, or use `api: responses`); xAI returns its reasoning text in `reasoning_content`; Perplexity's Agent API returns its price in
+`usage.cost`. A bare `qwen3` or `gpt-oss` is not resolved to a vendor (it usually means a local Ollama model): write `qwen/qwen3-max` or `ollama/qwen3`.
+
+## Web-search grounding: one option, typed citations
+
+A request can now carry `Grounding.webSearch()`: the model searches the web inside the call, and the answer comes back with typed `Citation`s (url, title, snippet,
+character spans), the number of searches the vendor ran, and a `grounding.citation_basis` that says whether the sources were *cited* or only *consulted*. A provider that
+cannot do it, or cannot honour one setting, is refused before any network call, naming both (or, with `lenient()`, drops the setting and says so). Design:
+[specs/08-providers-and-grounding](specs/08-providers-and-grounding/DESIGN.md). Wiki: [Web-search grounding](../src/ai-agent4j/wiki/Web-Search-Grounding.md).
+
+| Piece | Status |
+|---|---|
+| `Grounding`, `Citation`, `Span`, `SearchUsage`, `LLMRequest.grounding`, `LLMResponse.getCitations/getSearches`, the central capability check, `fallback(tool)` (a client-side search tool when the provider cannot search), streaming parity | **works now** |
+| A `searches` budget dimension (`Budget.builder().searches(n)`), a per-1000 search price in the price table, search and citation counts in model-call events and run statistics | **works now** |
+| Perplexity Agent API, OpenAI Responses, xAI Responses: native grounding | **supported**: tested on responses recorded 2026-10-22 (allow and block lists, recency and country where the vendor has them, OpenAI's search cap) |
+| Google (Gemini) and Anthropic (Claude) native grounding | **preview**: written from the vendors' reference pages, tested on documentation-derived fixtures; no key was available to record real responses |
+| Kimi and Qwen grounding | **left out**: no key, and Kimi's search function is deprecated |
+| Grounding in `ReActAgent` and `AgentResult.citations`, Loom `grounding:` with its `weave check` and `weave audit` rules, eval4j citation assertions | **coming** |
+
+Found against the real APIs: Perplexity lists what it *consulted* and leaves the message's `annotations` empty, while OpenAI and xAI *cite* with spans; OpenAI reports
+no search count, so completed search items are counted; only Perplexity reports what the searches cost; Perplexity has no cap on searches and xAI's was not tested, so
+`maxSearches` is refused there unless `lenient()`; xAI gives only the citation number as a title (dropped).
+
 ## Classification: typed questions, typed answers
 
 Two jobs in an agent system need an answer from a fixed set: routing a message (what does the customer want?) and judging an output
@@ -17,6 +69,7 @@ never contain a label you did not offer. Design: [specs/07-classifier](specs/07-
 | `JevProvider` (TypeSafe AI's Jev), `ClassifierResolver` (`Jev/jev-latest` or any chat model name: one string to switch backends) | **works now** |
 | Loom `intentclassifier` / `intentclassify`: typed questions in a script, a confidence rule (`else escalate` / `ask person` / `fail`), `pii:`, budget, trace step, `weave check`, `weave audit` rule LA19, the workflow graph and the conformance kit. Guide: [Loom guide, "Classifying"](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md); example: [ticket-triage](../src/examples/ticket-triage/README.md) | **works now** |
 | VS Code support for the new Loom syntax (highlighting, hover, snippets, graph node) | **works now** |
+| `PerplexityDecisionsProvider` (Perplexity's Decisions API, `pplx-decider-latest` and `pplx-decider-flash-latest`) as a second calibrated classifier backend, sharing Jev's wire format; `ClassifierResolver` and Loom `intentclassifier { model: "pplx-decider-flash-latest" }` (key `PERPLEXITY_API_KEY`, audit LA19, `weave check`) | **supported**: a real answer and a real error recorded 2026-10-22. Not yet measured against Jev and chat models: no accuracy claim |
 
 ### What Jev is, and what we found
 

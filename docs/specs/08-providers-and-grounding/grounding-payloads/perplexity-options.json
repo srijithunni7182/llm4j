@@ -1,0 +1,117 @@
+{
+  "background": false,
+  "completed_at": null,
+  "created_at": 1792663388,
+  "error": null,
+  "frequency_penalty": 0,
+  "id": "resp_scrubbed",
+  "incomplete_details": {
+    "reason": "max_output_tokens"
+  },
+  "instructions": null,
+  "max_output_tokens": 500,
+  "max_tool_calls": null,
+  "metadata": {},
+  "model": "openai/gpt-6-luna",
+  "object": "response",
+  "output": [
+    {
+      "queries": [
+        "RBI current policy repo rate October 2026 last changed",
+        "RBI monetary policy October 2026 repo rate decision"
+      ],
+      "results": [
+        {
+          "date": "2026-07-07",
+          "id": 1,
+          "last_updated": "2026-07-07",
+          "snippet": "#### वर्तमान दरें\n|### नीति दरें|### नीति दरें|\n|--|--|\n|नीति रेपो दर|5.25%|\n|स्थायी जमा सुविधा दर|5.00%|\n...\n|बैंक दर|5.50%|\n|प्रत्‍यावर्तनीय रेपो दर|3.35%|\n...\n|### विनिमय दरें|### विनिमय दरें|\n|--|--|\n|(7 जुलाई 2026 को दोपहर 1.00 बजे तक)|(7 जुलाई 2026 को दोपहर 1.00 बजे तक)|\n...\n|#### मुद्रा बाजार दरें मांग दरें4.20% - 5.30%* * 6 जुलाई 2026 तक",
+          "source": "web",
+          "title": "Untitled",
+          "url": "https://m.rbi.org.in/hindi/"
+        },
+        {
+          "date": "2026-09-30",
+          "id": 2,
+          "last_updated": "2026-10-19",
+          "snippet": "Reserve Bank of India\n|<table><tr><td> <table><tr><td> <table><tr><td> Home >> Notification - Display </td></tr><tr><td> <table><tr><td> <table></table></td></tr></table></td></tr></table></td></tr></table></td></tr></table>|",
+          "source": "web",
+          "title": "old.rbi.org.in › commonman › englishReserve Bank of India - old.rbi.org.in",
+          "url": "https://old.rbi.org.in/commonman/english/Scripts/Notification.aspx?Id=1264"
+        },
+        {
+          "date": "2026-03-31",
+          "id": 3,
+          "last_updated": "2026-03-31",
+          "snippet": "®µ…[bdP¸R…V ÈÁL`iø ²T…FyÑÁÈýÁ NRP¬dsxqs NSÌÁ xmsLji„sV¼½ 15 L][ÇÁÙÌÁ ƒ«sVLiÀÁ 7 L][ ÇÁÙÌÁNRPV »R½gæjiLixmso",
+          "source": "web",
+          "title": "Reserve Bank of India - RBI",
+          "url": "https://www.rbi.org.in/commonman/Telugu/scripts/Notification.aspx"
+        }
+      ],
+      "type": "search_results"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "reasoning": null,
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "incomplete",
+  "store": true,
+  "temperature": 1,
+  "text": {
+    "format": {
+      "type": "text"
+    }
+  },
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "type": "web_search",
+      "max_results": 3,
+      "filters": {
+        "search_domain_filter": [
+          "rbi.org.in"
+        ],
+        "search_recency_filter": "year"
+      },
+      "user_location": {
+        "country": "IN"
+      }
+    }
+  ],
+  "top_logprobs": 0,
+  "top_p": 1,
+  "truncation": "",
+  "usage": {
+    "cost": {
+      "currency": "USD",
+      "input_cost": 0.00015,
+      "output_cost": 0.00025,
+      "tool_calls_cost": 0.0025,
+      "tool_calls_cost_details": {
+        "search_web": 0.0025
+      },
+      "total_cost": 0.0029
+    },
+    "input_tokens": 1508,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 500,
+    "output_tokens_details": {
+      "reasoning_tokens": 423
+    },
+    "tool_calls_details": {
+      "search_web": {
+        "cost_usd": 0.0025,
+        "invocation": 1
+      }
+    },
+    "total_tokens": 2008
+  },
+  "user": null
+}

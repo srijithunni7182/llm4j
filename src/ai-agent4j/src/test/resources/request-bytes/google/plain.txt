@@ -1,0 +1,4 @@
+POST /models/gemini-2.5-flash:generateContent
+content-type: application/json; charset=utf-8
+
+{"contents":[{"parts":[{"text":"Hi there"}],"role":"user"}],"generationConfig":{}}

@@ -240,6 +240,7 @@ class MetadataAndReadmeTest {
         Set<String> maps =
                 Set.of(
                         "llm4j.clients",
+                        "llm4j.classifiers",
                         "llm4j.pricing.models",
                         "llm4j.tools.custom",
                         "llm4j.agent.context.compaction-options");

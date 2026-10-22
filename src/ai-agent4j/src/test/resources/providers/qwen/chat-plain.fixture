@@ -1,0 +1,7 @@
+# source: documentation-derived
+# note: hand-written from the vendor documentation; not recorded from the real API
+# vendor: qwen
+# document: https://www.alibabacloud.com/help/en/model-studio/text-generation.md (read 2026-10-22)
+# model: qwen3.8-max
+---
+{"id":"chatcmpl-8f2c","object":"chat.completion","created":1760000000,"model":"qwen3.8-max","choices":[{"index":0,"message":{"role":"assistant","content":"I am Qwen, a large language model."},"finish_reason":"stop"}],"usage":{"prompt_tokens":12,"completion_tokens":10,"total_tokens":22}}

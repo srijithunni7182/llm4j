@@ -1,0 +1,4 @@
+POST /models/gemini-2.5-flash:generateContent
+content-type: application/json; charset=utf-8
+
+{"contents":[{"parts":[{"text":"Hi"}],"role":"user"}],"generationConfig":{"maxOutputTokens":100,"stopSequences":["END"],"temperature":0.3,"topP":0.9},"systemInstruction":{"parts":[{"text":"You are terse."}]}}

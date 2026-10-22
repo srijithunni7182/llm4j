@@ -18,10 +18,11 @@ import java.util.regex.Pattern;
 
 /**
  * Remembers what an agent produced for a case, so a repeated or resumed evaluation pays only for
- * what is missing. The key covers whatever you pass to {@link #key(String...)}: usually the
- * scenario id, the prompt version, the model and the recorded fixtures. A {@code CURRENT TIME: ...}
- * line is ignored in keys, because personas that embed the clock would otherwise never hit the
- * store.
+ * what is missing. A stored run keeps the answer, the steps and the sources (not statistics, so a
+ * replayed run reports no searches). The key covers whatever you pass to {@link #key(String...)}:
+ * usually the scenario id, the prompt version, the model and the recorded fixtures. A {@code
+ * CURRENT TIME: ...} line is ignored in keys, because personas that embed the clock would otherwise
+ * never hit the store.
  *
  * <pre>{@code
  * AgentReplay replay = AgentReplay.at(Path.of("target/eval/replay"));
@@ -93,6 +94,12 @@ public final class AgentReplay {
             o.put("input", st.getActionInput());
             o.put("observation", st.getObservation());
         }
+        ArrayNode sources = n.putArray("sources");
+        for (io.github.llm4j.grounding.Citation c : r.getCitations()) {
+            ObjectNode o = sources.addObject().put("url", c.url());
+            if (c.title() != null) o.put("title", c.title());
+            if (c.snippet() != null) o.put("snippet", c.snippet());
+        }
         try {
             Files.createDirectories(dir);
             Files.writeString(file(key), n.toString());
@@ -117,7 +124,18 @@ public final class AgentReplay {
                                 text(o, "input"),
                                 text(o, "observation")));
             }
-            return b.build();
+            java.util.List<io.github.llm4j.grounding.Citation> sources =
+                    new java.util.ArrayList<>();
+            for (JsonNode o : n.path("sources")) {
+                sources.add(
+                        new io.github.llm4j.grounding.Citation(
+                                sources.size() + 1,
+                                o.path("url").asText(),
+                                text(o, "title"),
+                                text(o, "snippet"),
+                                java.util.List.of()));
+            }
+            return b.citations(sources).build();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

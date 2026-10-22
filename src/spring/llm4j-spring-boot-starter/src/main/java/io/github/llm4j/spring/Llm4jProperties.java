@@ -27,6 +27,8 @@ import org.springframework.util.unit.DataSize;
  * @param connectTimeout Shorthand for llm4j.clients.default.connect-timeout.
  * @param secrets Where API keys and passwords come from.
  * @param clients The provider clients, by name.
+ * @param classifiers The decision-model backends for typed questions (Jev, Perplexity Decisions),
+ *     by name.
  * @param routing How the named clients are combined into one.
  * @param pricing Prices per model, for cost budgets and cost-aware routing.
  * @param budget A hard cap on every model call.
@@ -54,6 +56,7 @@ public record Llm4jProperties(
         Duration connectTimeout,
         @DefaultValue Secrets secrets,
         Map<String, Client> clients,
+        Map<String, Decider> classifiers,
         @DefaultValue Routing routing,
         @DefaultValue Pricing pricing,
         @DefaultValue Budget budget,
@@ -128,6 +131,45 @@ public record Llm4jProperties(
     }
 
     /**
+     * One decision-model backend: it answers typed questions (a choice, a yes/no, a score) with
+     * probabilities and does not chat. Give the key as {@code api-key-secret}.
+     *
+     * @param provider jev or perplexity_decisions.
+     * @param model The model (jev-latest, pplx-decider-latest or pplx-decider-flash-latest); unset
+     *     uses the provider's default.
+     * @param apiKey The key itself (a literal; avoid in files that are committed).
+     * @param apiKeySecret Name of the key in the secret store.
+     * @param baseUrl Override the provider address.
+     * @param timeout Request timeout.
+     * @param connectTimeout Connection timeout.
+     * @param retry Retries and rate-limit waits.
+     */
+    public record Decider(
+            String provider,
+            String model,
+            String apiKey,
+            String apiKeySecret,
+            String baseUrl,
+            Duration timeout,
+            Duration connectTimeout,
+            @DefaultValue Retry retry) {
+        @Override
+        public String toString() {
+            return "Decider[provider="
+                    + provider
+                    + ", model="
+                    + model
+                    + ", apiKey="
+                    + (apiKey == null ? "null" : "***")
+                    + ", apiKeySecret="
+                    + apiKeySecret
+                    + ", baseUrl="
+                    + baseUrl
+                    + "]";
+        }
+    }
+
+    /**
      * Retries and rate-limit waits; unset fields keep the library defaults.
      *
      * @param enabled Retry failed calls.
@@ -171,8 +213,13 @@ public record Llm4jProperties(
          *
          * @param inputPerMillion Price per million input tokens.
          * @param outputPerMillion Price per million output tokens.
+         * @param searchPerThousand Price per thousand web searches (grounded calls); unset means
+         *     free or reported by the provider.
          */
-        public record Price(BigDecimal inputPerMillion, BigDecimal outputPerMillion) {}
+        public record Price(
+                BigDecimal inputPerMillion,
+                BigDecimal outputPerMillion,
+                BigDecimal searchPerThousand) {}
     }
 
     /**
@@ -180,6 +227,7 @@ public record Llm4jProperties(
      *
      * @param tokens Token cap.
      * @param calls Call cap.
+     * @param searches Web-search cap (grounded calls).
      * @param cost Cost cap, for example 5.00 (needs prices).
      * @param warnAt Fraction of the cap at which a warning is logged.
      * @param window minute, hour or day; unset means a total for the life of the application.
@@ -188,12 +236,13 @@ public record Llm4jProperties(
     public record Budget(
             Long tokens,
             Long calls,
+            Long searches,
             String cost,
             Double warnAt,
             String window,
             Integer perCallMaxTokens) {
         boolean set() {
-            return tokens != null || calls != null || cost != null;
+            return tokens != null || calls != null || searches != null || cost != null;
         }
     }
 

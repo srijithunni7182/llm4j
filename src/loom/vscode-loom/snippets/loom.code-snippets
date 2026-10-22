@@ -211,6 +211,18 @@
     ],
     "description": "Bring in the agents and workflows of another file (paths are relative to this file)."
   },
+  "agent-grounded": {
+    "prefix": "agent-grounded",
+    "body": [
+      "agent ${1:Researcher} {",
+      "\tmodel: \"${2:perplexity/openai/gpt-5.6-sol}\"",
+      "\tsystem: \"${3:Find current, sourced facts.}\"",
+      "\tgrounding: web { allow: [\"${4:who.int}\"]  recency: ${5|year,month,week,day|} }",
+      "\tbudget { searches: ${6:6} }",
+      "}"
+    ],
+    "description": "An agent that may search the web inside its calls. A step that delegates to it gets the sources in {name_citations}. weave audit counts it as reading untrusted content (LA20)."
+  },
   "agent-steerable": {
     "prefix": "agent-steerable",
     "body": [

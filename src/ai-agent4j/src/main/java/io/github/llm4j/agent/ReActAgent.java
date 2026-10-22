@@ -163,6 +163,7 @@ public class ReActAgent {
     private final String systemPrompt;
     private final int maxIterations;
     private final double temperature;
+    private final io.github.llm4j.grounding.Grounding grounding;
     private final AgentPersona persona;
     private final List<AgentSkill> skills;
     private final PromptRegistry promptRegistry;
@@ -225,6 +226,7 @@ public class ReActAgent {
         this.nativeCalling = decideNative(builder);
         this.maxIterations = builder.maxIterations;
         this.temperature = builder.temperature;
+        this.grounding = builder.grounding;
         this.conversationHistory = builder.conversationHistory;
         this.semanticMemoryService = builder.semanticMemoryService;
         this.recallTopK = builder.recallTopK;
@@ -424,7 +426,10 @@ public class ReActAgent {
                     nativeCalling
                             ? runNative(question, telemetry, handle)
                             : runText(question, telemetry, handle);
-            return result.toBuilder().stats(telemetry.snapshot()).build();
+            return result.toBuilder()
+                    .stats(telemetry.snapshot())
+                    .citations(telemetry.citations())
+                    .build();
         } finally {
             if (handle != null) handle.release();
         }
@@ -773,6 +778,25 @@ public class ReActAgent {
         RunStats snapshot() {
             return stats.snapshot();
         }
+
+        private final Map<String, io.github.llm4j.grounding.Citation> sources =
+                new java.util.LinkedHashMap<>();
+
+        /** Remembers the sources of one answer; a URL seen again keeps its first entry. */
+        synchronized void sources(LLMResponse response) {
+            for (io.github.llm4j.grounding.Citation c : response.getCitations())
+                sources.putIfAbsent(c.url(), c);
+        }
+
+        /** The run's sources, numbered from 1 in order of first appearance, without spans. */
+        synchronized List<io.github.llm4j.grounding.Citation> citations() {
+            List<io.github.llm4j.grounding.Citation> out = new ArrayList<>();
+            for (io.github.llm4j.grounding.Citation c : sources.values())
+                out.add(
+                        new io.github.llm4j.grounding.Citation(
+                                out.size() + 1, c.url(), c.title(), c.snippet(), List.of()));
+            return out;
+        }
     }
 
     /** The loop on the text protocol: the model writes a JSON block that the agent parses. */
@@ -897,6 +921,7 @@ public class ReActAgent {
                                             + scratchpad.render()
                                             + (hookNote.isEmpty() ? "" : "\n\n" + hookNote))
                             .temperature(temperature)
+                            .grounding(grounding)
                             .build();
             LLMResponse response;
             try {
@@ -940,6 +965,7 @@ public class ReActAgent {
                                     .addSystemMessage(systemPrompt)
                                     .addUserMessage(context + scratchpad.render())
                                     .temperature(temperature)
+                                    .grounding(grounding)
                                     .build();
                     response = chatObserved(request, i, telemetry);
                 }
@@ -1269,6 +1295,7 @@ public class ReActAgent {
                             .messages(withNote(conversation, hookNote))
                             .tools(specs)
                             .temperature(temperature)
+                            .grounding(grounding)
                             .reasoning(streaming && reasoning)
                             .build();
             LLMResponse response;
@@ -1291,6 +1318,7 @@ public class ReActAgent {
                                     .messages(withNote(conversation, hookNote))
                                     .tools(specs)
                                     .temperature(temperature)
+                                    .grounding(grounding)
                                     .reasoning(streaming && reasoning)
                                     .build();
                     response = modelCall(request, i, telemetry, handle);
@@ -1594,9 +1622,13 @@ public class ReActAgent {
         long duration = Math.max(0, clock.millis() - started);
         traced(event, duration, CallTrace.end());
         if (response != null) {
+            telemetry.sources(response);
             event.model(response.getModel())
                     .finishReason(response.getFinishReason())
-                    .toolCallsRequested(response.getToolCalls().size());
+                    .toolCallsRequested(response.getToolCalls().size())
+                    .searches(
+                            response.getSearches() == null ? null : response.getSearches().count())
+                    .citations(response.getCitations().size());
             LLMResponse.TokenUsage usage = response.getTokenUsage();
             if (usage != null)
                 event.promptTokens(usage.getPromptTokens())
@@ -2341,6 +2373,7 @@ public class ReActAgent {
         private String instructions;
         private int maxIterations = 10;
         private double temperature = 0.7;
+        private io.github.llm4j.grounding.Grounding grounding;
         private AgentPersona persona;
         private List<AgentSkill> skills = new ArrayList<>();
         private PromptRegistry promptRegistry;
@@ -2401,6 +2434,7 @@ public class ReActAgent {
             this.systemPrompt = agent.systemPrompt;
             this.maxIterations = agent.maxIterations;
             this.temperature = agent.temperature;
+            this.grounding = agent.grounding;
             this.persona = agent.persona;
             this.skills = new ArrayList<>(agent.skills);
             this.promptRegistry = agent.promptRegistry;
@@ -2535,6 +2569,22 @@ public class ReActAgent {
 
         public Builder temperature(double temperature) {
             this.temperature = temperature;
+            return this;
+        }
+
+        /**
+         * Lets the model search the web in every model call of the run (except the final wrap-up
+         * call, which has no tools). The run's sources are in {@link AgentResult#getCitations()}
+         * and the searches in its statistics. A model client that cannot ground refuses the first
+         * call, naming the provider; see {@link io.github.llm4j.grounding.Grounding}.
+         */
+        public Builder grounding(io.github.llm4j.grounding.Grounding grounding) {
+            this.grounding = grounding;
+            return this;
+        }
+
+        public Builder grounding(io.github.llm4j.grounding.Grounding.Builder grounding) {
+            this.grounding = grounding == null ? null : grounding.build();
             return this;
         }
 

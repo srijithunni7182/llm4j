@@ -61,6 +61,12 @@ class ZeroMagicTest {
                 new Capability("clients", LLMClients.class, List.of(base, model)),
                 new Capability("client", LLMClient.class, List.of(base, model)),
                 new Capability(
+                        "classifiers",
+                        Classifiers.class,
+                        List.of(
+                                "llm4j.classifiers.d.provider=jev",
+                                "llm4j.classifiers.d.api-key=literal-for-the-test")),
+                new Capability(
                         "prices",
                         PriceTable.class,
                         List.of(

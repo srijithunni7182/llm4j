@@ -1,0 +1,4 @@
+POST /chat
+content-type: application/json; charset=utf-8
+
+{"messages":[{"content":"weather in Pune?","role":"user"}],"model":"llama3","options":{},"stream":true}

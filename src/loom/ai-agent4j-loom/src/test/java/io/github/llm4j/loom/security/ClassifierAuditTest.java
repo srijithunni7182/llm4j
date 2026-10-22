@@ -111,4 +111,38 @@ class ClassifierAuditTest {
         assertThat(Files.readString(Path.of("../../../docs/security/weave-audit.md")))
                 .contains("| LA19 |");
     }
+
+    @Test
+    void theOpenAiFamilyVendorsAreListedWithTheirHosts() {
+        assertThat(la19(classifier("gpt-5-mini", "")).get(0).risk())
+                .contains("OpenAI")
+                .contains("api.openai.com");
+        assertThat(la19(classifier("grok-4", "")).get(0).risk())
+                .contains("xAI")
+                .contains("api.x.ai");
+        assertThat(la19(classifier("kimi/kimi-k3", "")).get(0).risk())
+                .contains("Kimi")
+                .contains("api.moonshot.ai");
+        assertThat(la19(classifier("qwen/qwen3-max", "")).get(0).risk())
+                .contains("Qwen")
+                .contains("dashscope-intl.aliyuncs.com");
+        assertThat(la19(classifier("perplexity/openai/gpt-5.6-sol", "")).get(0).risk())
+                .contains("Perplexity")
+                .contains("api.perplexity.ai");
+    }
+
+    @Test
+    void aDeclaredVendorProviderNamesItsDefaultHostAndALocalServerIsNotListed() {
+        String declared =
+                "provider Mine { use: kimi  api_key: env.K }\n" + classifier("Mine/kimi-k3", "");
+        assertThat(la19(declared).get(0).risk()).contains("Kimi").contains("api.moonshot.ai");
+        String local =
+                "provider Box { use: openai_compatible  base_url: \"http://localhost:8000/v1\" }\n"
+                        + classifier("Box/qwen3", "");
+        assertThat(la19(local)).isEmpty();
+        String remote =
+                "provider Box { use: openai_compatible  base_url: \"https://gpu.example/v1\" }\n"
+                        + classifier("Box/qwen3", "");
+        assertThat(la19(remote).get(0).risk()).contains("gpu.example");
+    }
 }

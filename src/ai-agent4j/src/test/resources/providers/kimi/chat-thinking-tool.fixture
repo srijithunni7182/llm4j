@@ -1,0 +1,7 @@
+# source: documentation-derived
+# note: hand-written from the vendor documentation; not recorded from the real API
+# vendor: kimi
+# document: https://platform.kimi.ai/docs/guide/use-thinking-models.md (read 2026-10-22)
+# model: kimi-k3
+---
+{"id":"cmpl-2","object":"chat.completion","created":1698999497,"model":"kimi-k3","choices":[{"index":0,"message":{"role":"assistant","content":null,"reasoning_content":"I need the weather, so I will call the tool.","tool_calls":[{"id":"get_weather:0","type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Pune\"}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":120,"completion_tokens":40,"total_tokens":160}}

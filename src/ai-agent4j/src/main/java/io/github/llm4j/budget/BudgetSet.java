@@ -74,6 +74,11 @@ public final class BudgetSet {
 
         /** Price of one output token. */
         BigDecimal perOutputToken();
+
+        /** Price of {@code searches} provider-side web searches; zero when none is known. */
+        default BigDecimal searchCost(long searches) {
+            return BigDecimal.ZERO;
+        }
     }
 
     /**
@@ -86,7 +91,17 @@ public final class BudgetSet {
      *     reserved
      */
     public Lease reserve(long promptTokens, Long wanted, Pricing pricing) {
-        if (members.isEmpty()) return new Lease(this, wanted, 0, 0, BigDecimal.ZERO);
+        return reserve(promptTokens, wanted, pricing, 0);
+    }
+
+    /**
+     * As {@link #reserve(long, Long, Pricing)} for a call that may run up to {@code searches}
+     * provider-side web searches (0 for a call that runs none). The call is refused when a member
+     * has no search left; the reservation is the requested cap, and what is settled is what the
+     * provider reports.
+     */
+    public Lease reserve(long promptTokens, Long wanted, Pricing pricing, long searches) {
+        if (members.isEmpty()) return new Lease(this, wanted, 0, 0, 0, BigDecimal.ZERO);
         members.forEach(b -> b.lock.lock());
         BudgetEvent exhausted = null;
         Budget refusing = null;
@@ -105,8 +120,24 @@ public final class BudgetSet {
                             b.windowEndLocked());
                 }
             }
+            if (searches > 0) {
+                for (Budget b : members) {
+                    if (b.availableSearches() < 1) {
+                        refusing = b;
+                        exhausted = b.exhaustedLocked();
+                        throw new BudgetExceeded(
+                                b.name(),
+                                Dimension.SEARCHES,
+                                b.spentLocked(),
+                                b.limits(),
+                                b.windowEndLocked());
+                    }
+                }
+            }
             BigDecimal promptCost =
-                    pricing == null ? BigDecimal.ZERO : pricing.cost(promptTokens, 0);
+                    pricing == null
+                            ? BigDecimal.ZERO
+                            : pricing.cost(promptTokens, 0).add(pricing.searchCost(searches));
             // Cost of the prompt alone must fit.
             for (Budget b : members) {
                 BigDecimal left = b.availableCost();
@@ -166,9 +197,10 @@ public final class BudgetSet {
             BigDecimal reservedCost =
                     pricing == null
                             ? BigDecimal.ZERO
-                            : pricing.cost(promptTokens, output == null ? 0 : output);
-            for (Budget b : members) b.reserveLocked(reservedTokens, 1, reservedCost);
-            return new Lease(this, output, reservedTokens, 1, reservedCost);
+                            : pricing.cost(promptTokens, output == null ? 0 : output)
+                                    .add(pricing.searchCost(searches));
+            for (Budget b : members) b.reserveLocked(reservedTokens, 1, searches, reservedCost);
+            return new Lease(this, output, reservedTokens, 1, searches, reservedCost);
         } finally {
             for (int i = members.size() - 1; i >= 0; i--) members.get(i).lock.unlock();
             if (exhausted != null) refusing.fire(List.of(exhausted));
@@ -183,14 +215,22 @@ public final class BudgetSet {
         private final Long output;
         private final long tokens;
         private final long calls;
+        private final long searches;
         private final BigDecimal cost;
         private boolean done;
 
-        private Lease(BudgetSet set, Long output, long tokens, long calls, BigDecimal cost) {
+        private Lease(
+                BudgetSet set,
+                Long output,
+                long tokens,
+                long calls,
+                long searches,
+                BigDecimal cost) {
             this.set = set;
             this.output = output;
             this.tokens = tokens;
             this.calls = calls;
+            this.searches = searches;
             this.cost = cost;
         }
 
@@ -216,7 +256,8 @@ public final class BudgetSet {
             List<List<BudgetEvent>> events = new ArrayList<>(members.size());
             members.forEach(b -> b.lock.lock());
             try {
-                for (Budget b : members) events.add(b.settleLocked(tokens, calls, cost, charge));
+                for (Budget b : members)
+                    events.add(b.settleLocked(tokens, calls, searches, cost, charge));
             } finally {
                 for (int i = members.size() - 1; i >= 0; i--) members.get(i).lock.unlock();
             }

@@ -15,7 +15,7 @@ Three ideas shape everything in the repository:
    several agents are the same work in every project. Loom, the workflow DSL, takes them over, so a multi-agent
    workflow is a short `.loom` script and not a few thousand lines of glue code.
 2. **Stay lightweight.** There are no vendor SDKs and no application framework. `ai-agent4j` talks to Gemini, Claude,
-   Sarvam and Ollama over plain HTTP behind one contract. Its core runtime needs only a handful of well-known libraries
+   OpenAI, xAI, Perplexity, Kimi, Qwen, Sarvam, Ollama and any OpenAI-style server over plain HTTP behind one contract. Its core runtime needs only a handful of well-known libraries
    (Jackson, OkHttp, SLF4J, Swagger Parser, Commons Math and jsoup). It does not require Spring, and it runs on Java 17+.
 3. **Make agents trustworthy.** Evaluation (eval4j), audit trails, confidence scores, PII masking, spend caps and
    security checks (`weave audit`) ship with the stack.

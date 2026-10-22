@@ -53,7 +53,8 @@ class ContextWindowsTest {
                     .contains(
                             "Checked against https://platform.claude.com/docs/en/about-claude/models/overview on 2026-10-14");
             long entries = text.lines().filter(l -> !l.isBlank() && !l.startsWith("#")).count();
-            assertThat(entries).isEqualTo(4);
+            assertThat(entries).isEqualTo(23);
+            assertThat(text).contains("checked 2026-10-22");
         }
     }
 
@@ -138,5 +139,20 @@ class ContextWindowsTest {
                 .as(text)
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(where);
+    }
+
+    @Test
+    void theNewVendorsAreSeededFromTheirDocumentationAndSlugsResolve() {
+        ContextWindows seed = ContextWindows.defaults();
+        assertThat(seed.window("gpt-6.1-sol").orElseThrow().tokens()).isEqualTo(1_050_000);
+        assertThat(seed.window("gpt-6.1-sol").orElseThrow().reservedForOutput()).isEqualTo(128_000);
+        assertThat(seed.window("grok-4.7").orElseThrow().tokens()).isEqualTo(500_000);
+        assertThat(seed.window("kimi-k3").orElseThrow().tokens()).isEqualTo(1_000_000);
+        assertThat(seed.window("qwen3.8-max").orElseThrow().tokens()).isEqualTo(1_000_000);
+        // Perplexity names models creator/model, and the client adds its own prefix
+        assertThat(seed.window("openai/gpt-5.6-sol")).isPresent();
+        assertThat(seed.window("perplexity/openai/gpt-5.6-sol")).isPresent();
+        assertThat(seed.window("perplexity/xai/grok-4.7")).isPresent();
+        assertThat(seed.window("perplexity/openai/gpt-nobody-checked")).isEmpty();
     }
 }

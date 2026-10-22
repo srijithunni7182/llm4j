@@ -68,4 +68,25 @@ public interface LLMProvider {
     default boolean supportsToolCalling() {
         return false;
     }
+
+    /**
+     * Whether this provider can search the web inside a call and return the sources, for a request
+     * that carries {@link LLMRequest#getGrounding()}. The default is {@link
+     * io.github.llm4j.grounding.GroundingSupport#NONE}: the client refuses a grounded request
+     * before any network call. A provider that returns {@code NATIVE} must also say which settings
+     * it honours in {@link #groundingOptions()} and fill {@link LLMResponse#getCitations()} and
+     * {@link LLMResponse#getSearches()}.
+     */
+    default io.github.llm4j.grounding.GroundingSupport groundingSupport() {
+        return io.github.llm4j.grounding.GroundingSupport.NONE;
+    }
+
+    /**
+     * The settings of a {@link io.github.llm4j.grounding.Grounding} this provider can honour (the
+     * others are refused by the client, or dropped when the grounding is lenient). Empty by
+     * default.
+     */
+    default java.util.Set<io.github.llm4j.grounding.GroundingOption> groundingOptions() {
+        return java.util.Set.of();
+    }
 }

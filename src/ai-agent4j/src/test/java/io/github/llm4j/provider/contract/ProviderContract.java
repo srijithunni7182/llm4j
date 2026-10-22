@@ -76,6 +76,13 @@ public abstract class ProviderContract {
     /** The settings as sent: max tokens, temperature, top_p, stop sequences (null when absent). */
     protected abstract Settings settings(JsonNode request);
 
+    /**
+     * Whether the provider's wire format has stop sequences at all (the Responses schema has none).
+     */
+    protected boolean supportsStopSequences() {
+        return true;
+    }
+
     protected record Settings(
             Integer maxTokens, Double temperature, Double topP, List<String> stops) {}
 
@@ -221,7 +228,7 @@ public abstract class ProviderContract {
         assertThat(s.maxTokens()).isEqualTo(123);
         assertThat(s.temperature()).isEqualTo(0.2);
         assertThat(s.topP()).isEqualTo(0.9);
-        assertThat(s.stops()).containsExactly("END");
+        if (supportsStopSequences()) assertThat(s.stops()).containsExactly("END");
     }
 
     // ── C4–C6: responses mean the same ──────────────────────────────────────────────────────

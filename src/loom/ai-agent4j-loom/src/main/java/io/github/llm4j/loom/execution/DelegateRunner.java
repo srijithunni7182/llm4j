@@ -203,6 +203,14 @@ final class DelegateRunner {
                                         host.context()
                                                 .setVariable(
                                                         variableName + "_audio", audio.value()));
+                host.journal()
+                        .get(stepId + "#citations")
+                        .ifPresent(
+                                sources ->
+                                        host.context()
+                                                .setVariable(
+                                                        variableName + "_citations",
+                                                        sources.value()));
                 host.onDelegateReplayed(del, agentDef, entry.value());
                 host.trace(
                         TraceEvent.DELEGATE_REPLAYED,
@@ -512,6 +520,15 @@ final class DelegateRunner {
                             (agentResult, value) -> {
                                 host.context().setVariable(variableName, value);
                                 host.journal().put(stepId, new RunJournal.Entry("delegate", value));
+                                if (!agentResult.getCitations().isEmpty()) {
+                                    List<Map<String, Object>> sources = citationsOf(agentResult);
+                                    host.context()
+                                            .setVariable(variableName + "_citations", sources);
+                                    host.journal()
+                                            .put(
+                                                    stepId + "#citations",
+                                                    new RunJournal.Entry("citations", sources));
+                                }
                                 if (audio != null) {
                                     host.context().setVariable(variableName + "_audio", audio);
                                     host.journal()
@@ -785,6 +802,24 @@ final class DelegateRunner {
         }
     }
 
+    /**
+     * The sources of a grounded run as the script sees them in {@code <name>_citations}: a list of
+     * {@code index}, {@code url}, {@code title} and {@code snippet} (a missing title or snippet is
+     * left out).
+     */
+    static List<Map<String, Object>> citationsOf(io.github.llm4j.agent.AgentResult r) {
+        List<Map<String, Object>> out = new java.util.ArrayList<>();
+        for (io.github.llm4j.grounding.Citation c : r.getCitations()) {
+            Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("index", c.index());
+            m.put("url", c.url());
+            if (c.title() != null) m.put("title", c.title());
+            if (c.snippet() != null) m.put("snippet", c.snippet());
+            out.add(m);
+        }
+        return out;
+    }
+
     static Map<String, Object> usageData(io.github.llm4j.agent.AgentResult r) {
         Map<String, Object> data = new java.util.LinkedHashMap<>();
         if (r == null || r.getUsage() == null) return data;
@@ -798,6 +833,9 @@ final class DelegateRunner {
         data.put("completionTokens", r.getUsage().getCompletionTokens());
         if (r.getUsage().getCost() != null)
             data.put("cost", r.getUsage().getCost().toPlainString());
+        long searches = r.getStats() == null ? 0 : r.getStats().totalSearches();
+        if (searches > 0) data.put("searches", searches);
+        if (!r.getCitations().isEmpty()) data.put("citations", r.getCitations().size());
         return data;
     }
 

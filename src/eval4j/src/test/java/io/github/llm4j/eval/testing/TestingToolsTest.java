@@ -60,6 +60,39 @@ class TestingToolsTest {
     }
 
     @Test
+    void spendGuardMetersAStreamFromItsFinalChunkAndStopsAtTheCap(@TempDir Path dir)
+            throws Exception {
+        SpendGuard g = SpendGuard.withPrices(prices(dir)).cap(1.0);
+        LLMClient streaming =
+                new LLMClient() {
+                    @Override
+                    public LLMResponse chat(LLMRequest r) {
+                        throw new UnsupportedOperationException();
+                    }
+
+                    @Override
+                    public Stream<LLMResponse> chatStream(LLMRequest r) {
+                        return Stream.of(
+                                LLMResponse.builder().content("a").build(),
+                                LLMResponse.builder()
+                                        .content("")
+                                        .tokenUsage(0, 10_000, 10_000)
+                                        .build());
+                    }
+                };
+        LLMClient c = g.guard(streaming, "gemini-3.5-flash"); // $0.09 a call
+        int made = 0;
+        while (!g.stopped() && made < 100) {
+            c.chatStream(REQ).forEach(chunk -> {});
+            made++;
+        }
+        assertThat(g.reason()).contains("cap");
+        assertThat(made).isBetween(10, 13);
+        assertThat(g.tokensOut()).isEqualTo(made * 10_000L);
+        assertThatThrownBy(() -> c.chatStream(REQ)).isInstanceOf(SpendGuard.SpendStopped.class);
+    }
+
+    @Test
     void aFreeModelCostsNothingAndStageCeilingsTripBeforeTheCap(@TempDir Path dir)
             throws Exception {
         SpendGuard free = SpendGuard.withPrices(prices(dir)).cap(0.01);

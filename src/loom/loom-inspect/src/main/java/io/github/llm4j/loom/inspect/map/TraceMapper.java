@@ -661,6 +661,10 @@ public final class TraceMapper {
         a.put(
                 Semconv.LOOM_MODEL_TRUNCATED,
                 Boolean.parseBoolean(String.valueOf(data.get("truncated"))));
+        if (data.get("searches") != null)
+            a.put(Semconv.LOOM_MODEL_SEARCHES, number(data.get("searches")));
+        if (data.get("citations") != null)
+            a.put(Semconv.LOOM_MODEL_CITATIONS, number(data.get("citations")));
         boolean failed = "FAILED".equals(String.valueOf(data.get("outcome")));
         String category =
                 data.get("category") == null
@@ -796,7 +800,8 @@ public final class TraceMapper {
             {"tool_failures", Semconv.LOOM_RUN_TOOL_FAILURES},
             {"retries", Semconv.LOOM_RUN_RETRIES},
             {"failovers", Semconv.LOOM_RUN_FAILOVERS},
-            {"compactions", Semconv.LOOM_RUN_COMPACTIONS}
+            {"compactions", Semconv.LOOM_RUN_COMPACTIONS},
+            {"searches", Semconv.LOOM_RUN_SEARCHES}
         };
         for (String[] k : keys) if (data.get(k[0]) != null) t.put(k[1], number(data.get(k[0])));
         return t;

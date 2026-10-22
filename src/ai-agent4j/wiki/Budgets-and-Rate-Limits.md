@@ -56,7 +56,7 @@ if (result.budgetExhausted()) {
     System.out.println("Partial: " + result.getFinalAnswer());
     System.out.println("Because: " + result.getBudgetExceeded().getMessage());
 }
-System.out.println(budget.spent());      // tokens, calls, cost, and whether any usage was estimated
+System.out.println(budget.spent());      // tokens, calls, cost, searches, and whether any usage was estimated
 System.out.println(budget.remaining());  // what is left of each limited dimension
 ```
 
@@ -108,11 +108,11 @@ Unset dimensions are unlimited. `Budget.unlimited("run")` only counts, which is 
 **Reading a budget.**
 
 ```java
-Spent s = budget.spent();          // promptTokens, completionTokens, tokens(), calls, cost, estimated, overdraw
-Remaining r = budget.remaining();  // OptionalLong tokens/calls, Optional<BigDecimal> cost (empty = unlimited)
+Spent s = budget.spent();          // promptTokens, completionTokens, tokens(), calls, cost, estimated, overdraw, searches, searchOverdraw
+Remaining r = budget.remaining();  // OptionalLong tokens/calls/searches, Optional<BigDecimal> cost (empty = unlimited)
 budget.exhausted();                // true once any limited dimension has nothing left
 budget.refused();                  // true once it has refused a call
-budget.limits();                   // Limits(tokens, calls, cost)
+budget.limits();                   // Limits(tokens, calls, cost, searches)
 ```
 
 **Changing a budget.**
@@ -138,7 +138,7 @@ Prices change often, so **none ship with the library**. Write your own file, in 
 million tokens:
 
 ```properties
-# prices.properties — model = input / output (per million tokens)
+# prices.properties — model = input / output [/ searches per 1000]  (tokens per million)
 gemini/gemini-2.5-flash = 0.30 / 2.50
 gemini/gemini-2.5-pro   = 1.25 / 10.00
 anthropic/claude-sonnet = 3.00 / 15.00
@@ -415,3 +415,7 @@ use [Loom](../../loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md). It builds on e
 
 `io.github.llm4j.exception.RateLimitException` is raised by the HTTP layer: `info()`,
 `getRetryAfterSeconds()`, `infoOrEstimate(now, fallback)`.
+
+## Searches
+
+`Budget.builder().searches(n)` limits the web searches a model runs inside grounded calls (`Grounding.webSearch()`); a grounded call is refused before it is made when none is left, and the price table takes an optional third number, the price per 1,000 searches. See [Web-search grounding](Web-Search-Grounding.md).

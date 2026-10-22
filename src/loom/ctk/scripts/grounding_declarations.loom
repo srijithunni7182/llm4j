@@ -1,0 +1,18 @@
+// Web grounding: what a runtime must accept in `grounding:` and refuse at load time.
+// Nothing here calls a model. A conforming runtime accepts this script; the refusals are listed in ctk/README.md.
+
+budget { searches: 20 }
+
+provider Oai  { use: openai  api_key: env.OPENAI_API_KEY  api: responses }
+
+agent Pplx   { model: "perplexity/openai/gpt-5.6-sol"  grounding: web { allow: ["who.int", "nih.gov"]  recency: year  country: "IN" }  budget { searches: 6 } }
+agent Claude { model: "claude-haiku-5-5"               grounding: web { block: ["example.com"]  max_searches: 3  country: "IN" } }
+agent Gem    { model: "gemini-3.7-flash"                grounding: web { recency: week } }
+agent Gpt    { model: "Oai/gpt-6-luna"                  grounding: web { allow: ["who.int"]  max_searches: 2 } }
+agent Plain  { model: "claude-haiku-5-5" }
+
+workflow Main() {
+    delegate "What changed this week?" to Pplx -> news budget 2 searches
+    delegate "Summarise {news} citing {news_citations}" to Plain -> summary
+    note "{summary}"
+}
