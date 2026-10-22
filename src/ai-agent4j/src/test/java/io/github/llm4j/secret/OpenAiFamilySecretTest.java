@@ -9,6 +9,8 @@ import io.github.llm4j.exception.AuthenticationException;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.provider.openai.Dialect;
 import io.github.llm4j.provider.openai.OpenAiCompatibleProvider;
+import io.github.llm4j.provider.openai.OpenAiResponsesProvider;
+import io.github.llm4j.provider.openai.ResponsesDialect;
 import java.util.List;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -144,5 +146,44 @@ class OpenAiFamilySecretTest {
                     .isInstanceOf(AuthenticationException.class)
                     .hasMessageNotContaining(CANARY);
         }
+    }
+
+    @Test
+    void theResponsesProvidersKeepTheSameRules() throws Exception {
+        for (ResponsesDialect d : List.of(ResponsesDialect.OPENAI, ResponsesDialect.PERPLEXITY)) {
+            store.put("k", CANARY);
+            var cfg =
+                    LLMConfig.builder()
+                            .apiKey(SecretRef.of(store, "k"))
+                            .baseUrl(server.url("/v1").toString())
+                            .defaultModel("m")
+                            .retryPolicy(RetryPolicy.builder().maxRetries(0).build())
+                            .build();
+            server.enqueue(new MockResponse().setBody("{}"));
+            try {
+                new OpenAiResponsesProvider(d, cfg)
+                        .chat(LLMRequest.builder().addUserMessage("hi").build());
+            } catch (RuntimeException ignored) {
+                // the canned body is not an answer
+            }
+            RecordedRequest r = server.takeRequest();
+            assertThat(r.getHeader("Authorization")).as(d.name()).isEqualTo("Bearer " + CANARY);
+            assertThat(r.getRequestUrl().toString() + r.getBody().readUtf8())
+                    .as(d.name())
+                    .doesNotContain(CANARY);
+
+            store.put("k", CANARY, SecretMetadata.allowing("api.example.com"));
+            assertThatThrownBy(
+                            () ->
+                                    new OpenAiResponsesProvider(d, cfg)
+                                            .chat(
+                                                    LLMRequest.builder()
+                                                            .addUserMessage("hi")
+                                                            .build()))
+                    .as(d.name())
+                    .isInstanceOf(AuthenticationException.class)
+                    .hasMessageNotContaining(CANARY);
+        }
+        assertThat(server.getRequestCount()).isEqualTo(2);
     }
 }

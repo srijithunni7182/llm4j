@@ -127,6 +127,29 @@ public record ModelTraits(
         return DEFAULT;
     }
 
+    // ── Perplexity (Agent API) ──────────────────────────────────────────────────────────────
+
+    /**
+     * Perplexity's Agent API names models {@code creator/model}; the model behind the slug decides
+     * what is accepted, so OpenAI's and Anthropic's rules apply to their slugs and every other
+     * creator gets the defaults.
+     */
+    public static ModelTraits perplexity(String slug) {
+        String m = lower(slug);
+        int slash = m.indexOf('/');
+        if (slash < 0) return DEFAULT;
+        String creator = m.substring(0, slash);
+        String model = m.substring(slash + 1);
+        return switch (creator) {
+            case "openai" -> openai(model);
+            case "anthropic" -> io.github.llm4j.provider.anthropic.AnthropicModels.acceptsSampling(
+                            model)
+                    ? DEFAULT
+                    : DEFAULT.withoutSampling();
+            default -> DEFAULT;
+        };
+    }
+
     private static String lower(String model) {
         return model == null ? "" : model.toLowerCase(Locale.ROOT);
     }
