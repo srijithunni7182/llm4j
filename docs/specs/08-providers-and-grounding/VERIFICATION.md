@@ -236,3 +236,5 @@ The five items left at the end of §7.11, in the order they were done.
 
 **Checks run:** `mvn -o spotless:apply` on the touched modules; targeted suites above green; the full module suites are run in the next step (recorded below when done).
 
+
+**Full module run (2026-10-22):** `mvn -o verify` on ai-agent4j, eval4j, Loom and the Spring starter exited 0 after the follow-ups above.
