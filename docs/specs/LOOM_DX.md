@@ -22,7 +22,7 @@ The goal of this program is stated as measurable promises (§3), not as features
 
 | # | Phase | One line | Depends on |
 |---|---|---|---|
-| 9 | [Review engine](09-review-engine/DESIGN.md) | `weave review`: nine default lenses (security, validity, cost and performance, reliability, prompts, observability, durability, testability, privacy) and four optional (governance, maintainability, oversight, blast radius) in one ranked list, each finding with a fix; static cost, time and effects estimates | existing `check`, `audit`, `graph`, price tables |
+| 9 | [Review engine](09-review-engine/DESIGN.md) | `weave review`: nine default lenses (security, validity, cost and performance, reliability, prompts, observability, durability, testability, privacy) and four optional (governance, maintainability, oversight, blast radius) in one ranked list, each finding with a fix; static cost, time and effects estimates; **the rules are data in versioned rule packs over a small fact model, so adding one is a file change, not a release** | existing `check`, `audit`, `graph`, price tables |
 | 10 | [Editor experience](10-editor-experience/DESIGN.md) | A VS Code review panel beside the graph; quick fixes; cost lenses; a semantic layer (references, rename, typed completion) fed by one parser; a long-lived `weave serve` so feedback is instant | 9 |
 | 11 | [Workflow tests](11-workflow-tests/DESIGN.md) | `weave test`: scripted models, tasks, tools and humans; assert the route taken; branch coverage; failure injection; no model, no keys | graph, existing eval mock |
 | 12 | [Generate from a description](12-generate/DESIGN.md) | `weave generate`: a description becomes a script, prompts, tests and a review summary, and is never shown until it passes the gates | 9, 11 |

@@ -181,6 +181,8 @@ Each rule is a small class implementing `ReviewRule` (§7). Ids are stable; seve
 | Human oversight | LH | **optional** | Is the person in the loop helped or burdened? | the cost walk |
 | Blast radius | LB | **optional** | How much can one bad run do? | effects estimate, schedule |
 
+**Form.** Every rule below except `LA` and `LV` is a *data rule* in the bundled `core` rule pack, evaluated over a small fact model (§6.16, R57). The severity, title and fix columns in the tables are what the rule files say; adding or changing a rule is a file change, not a Java change.
+
 ### 6.1 Security lens: `LA01` to `LA20`
 
 Unchanged: `SecurityAudit`'s rules, mapped through the adapter (R3). New rules go in the LA namespace only when they are about security (none are added in this phase).
@@ -351,6 +353,125 @@ How much can one bad run do? Uses the effects estimate (§5.2a).
 - **R40** **De-duplication across lenses.** `LH` rules never repeat an `LA` finding about the same cause (R22): the engine keeps the `LA` one and links the new one as `related`. The same holds between LD02 and LA17-type findings about a tool that acts as the person, and between LT07 and phase 11's test-file validation.
 
 
+### 6.16 Rules as data: rule packs over a small fact model (R57 to R74)
+
+Rules change faster than code should. A periodic review of what Loom workflows get wrong should end in a **new file in a rule pack**, not a Java change, a release and a rebuilt extension. So the rules in §6 are not written as Java classes. They are **documents** that ask questions of a small, fixed **fact model**. Java computes the facts; data decides what to say about them. Anything the fact model cannot express stays Java, as before.
+
+**The principle: no new language.** A rule is a YAML (or JSON) document with a closed vocabulary. There are no variables, no functions, no loops, no user-defined operators and no expression strings to parse. If a proposed rule needs one of those, the answer is a new *fact* or a Java rule (R73), never a richer rule syntax.
+
+#### A rule, as data
+
+```yaml
+# review-rules/core/reliability/LR01.yaml
+id: LR01
+lens: reliability
+severity: medium
+about: step                       # the kind of thing it looks at; the rule runs once per such thing
+when:
+  all:
+    - { field: kind, is: delegate }
+    - { field: agent.hasTools, is: true }
+    - { field: retry, is: false }
+    - { field: timeout, is: false }
+title: "{label} has a tool but no retry or timeout"
+why: "A tool call can fail or hang. Without a retry and a timeout one slow call stalls the whole run."
+fixHint: "Add a retry and a timeout to this step."
+fix:
+  safety: safe
+  label: "Add retry and timeout"
+  insertAfter: { anchor: statementEnd, text: " {setting.fix.retry}" }
+examples:
+  fires: [ { file: examples/lr01-fires.loom, expect: 1 } ]
+  quiet: [ { file: examples/lr01-near-miss.loom } ]
+```
+
+```yaml
+# a rule over tools, using a list relation and a count
+id: LD02
+lens: durability
+severity: high
+about: tool
+when:
+  all:
+    - { field: kind, is: class }                 # your own Java, not one of the six journaled generic kinds
+    - { field: reach, in: [writes, sends] }
+    - { field: idempotentDeclared, is: false }
+    - { field: usedBy, count: { gt: 0 } }
+title: "Tool {name} is your own Java: a resumed run can repeat what it does"
+```
+
+```yaml
+# a rule that needs a fact the project must declare, so it is inert until it does
+id: LY03
+lens: privacy
+severity: high
+about: agent
+requires: [ setting.data.regions ]
+when: { field: model.provider.region, notIn: { setting: data.regions } }
+title: "Agent {name} uses {model.provider.name}, which is outside the allowed regions"
+```
+
+#### The fact model (R59, R60)
+
+A deliberately small catalog of things and what is known about them. Version 1 targets **about a hundred fields in total**, and a field is added only when a rule needs it. The published catalog (`weave rules facts`, and `fact-model.json`) is the complete list; this table is its shape.
+
+| Entity | `about:` | Examples of fields (name: type) |
+|---|---|---|
+| script | `script` | `hasBudget`, `budgetTokens`, `isScheduled`, `usesPausing`, `hasTests`, `hasGoldenData`, `statementCount` |
+| workflow | `workflow` | `name`, `statementCount`, `maxDepth`, `interactive` (declared), `hasReturn`, `estimate.*` |
+| step | `step` | `kind`, `label`, `line`, `inLoop`, `inForEach`, `inParallel`, `retry`, `retryCount`, `timeout`, `onFailure`, `loopMax`, `agent` (ref), `readsUntypedField`, `parallelizableWithPrevious`, `estimate.*` |
+| agent | `agent` | `name`, `model` (ref), `tools` (list of tool), `approve`, `hasSchema`, `hasContext`, `guardPii` (none, warn, mask, block), `guardBias`, `promptSource` (file, inline), `inlinePromptLines`, `hasEffects`, `maxReach` |
+| tool | `tool` | `name`, `kind`, `reach`, `approved`, `journaled`, `idempotentDeclared`, `usedBy` (list of agent), `calledInLoop` |
+| classifier | `classifier` | `name`, `model`, `questionCount`, `hasConfidenceRule`, `calibrated` |
+| model | `model` | `id`, `known`, `nearestKnown`, `priced`, `windowKnown`, `tier` (small, standard, large), `floatingAlias`, `deprecated`, `provider` (ref with `name`, `region`) |
+| prompt | `prompt` | `name`, `file`, `tokens`, `lines`, `version`, `untrustedInterpolations` (list), `looksLikeSecret`, `containsPersonalData`, `text` (for bounded `matches`) |
+| decision | `decision` | `name`, `hasLadder`, `hasSlipCondition`, `hasEffectAfter` |
+| test | `test` | `file`, `workflow`, `agentsNamed`, `hasFailCase`, `hasHumansCase`, `stale` |
+| estimate | (a field group on workflow and step) | `typicalCost`, `worstCost`, `worstIsUnbounded`, `shareOfRun`, `typicalSeconds`, `worstSeconds`, `worstEffects`, `worstQuestions` |
+| setting | `setting.<key>` | any value from `review.properties`, including declared facts (`data.personal`, `data.regions`, `journal`, `blast.*`) |
+
+- **R59** The fact model is a published, versioned catalog (`factModel: 1`). Each field has a name, a type (`bool`, `number`, `string`, `enum`, `list`, a reference to another entity), a one-line description and the version it appeared in. The catalog, its docs page and the rule validator are generated from the same Java declaration, so they cannot disagree. Adding a field is backward compatible; renaming or removing one is a new `factModel` major.
+- **R60** **Java computes the facts; rules never compute.** Facts are produced by pure Java *fact providers* over `ReviewInput`: the cost, time and effects walk (R35, R36), the data-independence analysis behind `parallelizableWithPrevious`, the untrusted-variable analysis behind `untrustedInterpolations`, prompt similarity, coverage joins, the existing audit's profiles. A fact that cannot be known (no coverage report, no declared region) is **unknown**: a condition on an unknown fact is simply not satisfied, and a rule that lists it under `requires:` is reported as **not evaluated** (R38), never as a pass.
+
+#### The vocabulary (R61, R62)
+
+- **R61** A rule document has: `id`, `lens`, `severity`, `about`, `when`, optional `requires`, `title`, optional `why`, `fixHint`, optional `fix`, optional `heuristic: true`, `since`, optional `references` (OWASP and others), optional `explain` text, and `examples` (R68). `title`, `why` and `fixHint` may contain `{field}` placeholders (and `{setting.key}`) that are filled in from the entity; that is the only substitution, and it is not evaluated as an expression.
+- **R62** `when` is a tree of conditions from a **closed vocabulary**:
+  - combinators: `all`, `any`, `not`;
+  - a leaf names a `field` (a dotted path through declared references, such as `agent.tools`, at most three hops) and **one** operator: `is`, `isNot`, `in`, `notIn`, `gt`, `gte`, `lt`, `lte`, `contains`, `startsWith`, `matches` (a regular expression with a step limit), `exists`, `missing`;
+  - over a list field: `some`, `every`, `none` (each with a nested condition) and `count` (with a comparator);
+  - a compared value is a literal, `{ setting: key }`, or `{ field: other }` (another field of the same entity).
+  There is nothing else. No arithmetic, no string building, no calls. Because of this the engine **terminates by construction** and can say, for any rule on any node, exactly which leaf was true or false (R70).
+
+#### Fixes as templates (R67)
+
+- **R67** A fix is a declared list of edit operations from a closed set: `insertAfter`, `insertBefore`, `replaceText`, `deleteLines`, `createFile`. Anchors come from a closed list that the engine resolves from the parsed script (`statementStart`, `statementEnd`, `blockEnd`, `lineOf: <field>`, `file`). Text is a literal with `{setting.*}` and `{field}` placeholders. The fix declares its safety class (`safe` or `review`).
+  **Every edit set is verified by the engine** exactly as a Java fix is (R25): applied to a copy, re-parsed, checked, no new HIGH finding. A template that produces a broken script is withheld, shown as a note on the rule ("fix withheld: verification failed"), and fails the pack's tests. A fix that needs more than these operations is a Java rule.
+
+#### Packs (R63 to R66)
+
+A **rule pack** is a folder: `pack.yaml` (name, version, `factModel` required, rule schema version, id prefix, license, authors), `rules/**/*.yaml` (one rule per file, or several), `examples/` and `CHANGELOG.md` (generated, R74).
+
+- **R63** **Which packs are in force.** The bundled **`core`** pack (every rule in §6 except the `LA` and `LV` rules, R57) ships inside the jar and is on by default. Project packs live under `review-rules/<name>/` and are named in `review.properties` with a pinned version and, optionally, a hash: `packs = core@1, acme-policy@2.0.1 sha256:9c1e…`. A pack that is present but not listed, or whose hash differs from the pin, is a load error that says what it expected. An org's pack can be a folder vendored into the repository or a jar passed with `--rules-jar`.
+- **R64** **Never downloaded.** Neither the engine nor `weave rules` fetches a pack from a network. A pack arrives as files, by copy or `weave rules add <path>`, and updating one is an explicit, reviewable change in version control. This keeps the "review never touches the network" guarantee intact.
+- **R65** **Inert and bounded.** A pack cannot read files outside its folder, run code, read the environment or the clock. Limits apply and produce clear errors: rules per pack, condition depth, regular-expression steps, entities visited per rule, and total evaluation time (a pack that exceeds it is skipped with a note, never a hang). Evaluating all packs on a 2,000-line script stays inside the review performance budget.
+- **R66** **Validation at load.** Schema validation (JSON Schema, published) and semantic validation against the fact model: an unknown field is an error naming the nearest field (as R32); an operator that does not fit a field's type, an unknown lens, a `{placeholder}` that is not a field of the entity, a duplicate id, and an id outside the pack's declared prefix are all errors. A third-party pack declares an id prefix (for example `ACME-001`); the core ids (`L` followed by a letter and digits) are reserved. A project may change a rule's severity or turn it off in `review.properties`, but may not silently redefine it.
+- **R68** **Examples are mandatory.** Every rule has at least one `fires` and one `quiet` example (a snippet inline or a file, with the expected finding count and location), and `weave rules test` runs them. A pack containing a rule without both fails to load. For the bundled pack the corpus precision gate (R18, R30) applies on top, unchanged.
+
+#### Tooling and evolution (R69 to R74)
+
+- **R69** Explain pages (R19), the short rule catalog the generator uses (phase 12), the `--explain` text and the docs under `docs/review/rules/` are generated from the pack metadata. A new rule needs no separate documentation work.
+- **R70** `weave rules` commands, all offline: `list` (packs, rules, lens, on or off, source), `facts` (the fact catalog), `check <pack>` (validate), `test <pack> [--corpus]` (examples and, optionally, the corpus precision table), `new <ID>` (scaffold a rule and its two example files), `add <path>` (copy a pack in and pin it, showing the diff), and **`explain <ID> --at <file>:<line>`**, which evaluates the rule's condition tree on that node and prints every leaf with the value it saw ("agent.hasTools: true; retry: false; timeout: false, so it fired"), which is how a rule is debugged without reading engine code.
+- **R71** **Provenance.** Each finding carries `pack: name@version` and the rule's own `since`/`changed` marker; the text report shows it on request, JSON and SARIF always include it. Accepts, dismissals and baselines (R41 to R46) key on the rule id and fingerprint, not on the pack version, so upgrading a pack does not resurface what was already handled.
+- **R72** **Migration is proven, not trusted.** Rules written first in Java (`LA` and `LV` stay Java, R57) or ported are checked by a **parity test**: the Java and the data version run on the whole corpus and must produce identical findings (rule, node, line, severity) before the Java version is removed. After that the corpus labels are the oracle.
+- **R73** **Java remains the escape hatch.** A rule that needs a loop, arithmetic across entities, text analysis beyond a bounded regular expression, or a new kind of analysis is a **fact provider** (when the new thing is a question about the script that data rules can then use) or a **Java rule** through the `ServiceLoader` mechanism (R21). Both produce the same findings and are indistinguishable to users except for the pack or jar shown as provenance. The documented guidance is: **do not make the rule syntax richer; add a fact or write Java.**
+- **R74** **Upgrading a pack is predictable.** Pack versions follow semver: a new rule or a tightened or loosened `when` is a minor version with a changelog entry; a removed rule or an incompatible fact-model requirement is a major. `weave rules diff core@1.4 core@1.5 --on main.loom` lists rules added, changed and removed and **the findings that would appear or disappear on your script**, by running both versions, so a team reads the effect of a rule change before it lands in CI. This is the review-and-evolve loop: propose a rule file, run `weave rules test` and `weave rules diff`, merge.
+
+#### What stays in Java, and what is data (R57, R58)
+
+- **R57** **Form of every rule.** Every rule in §6 is a **data rule** in the `core` pack, except: the security lens's `LA01` to `LA20` (the existing audit, adapted, which stays Java because it is existing, security-critical code), and the validity lens's `LV` rules (adapters over the validator's own messages). Rules that need a computed analysis are still data rules: they read a fact whose provider is Java. The facts that do not exist yet and must be written as providers are: `step.parallelizableWithPrevious` (LC08), `agent.classificationShaped` (LC01), `prompt.untrustedInterpolations` (LP01), `prompt.looksLikeSecret` and `prompt.containsPersonalData` (LP04, LY06), `agent.duplicateOf` and `prompt.duplicateOf` (LM04, LP06), `step.writesSameVariableAsSibling` (LR09), `model.nearestKnown`, `model.deprecated` and `model.floatingAlias` (LG), `test.stale` and the coverage joins (LT), and the estimate groups. Everything else in the tables is a condition over facts that the existing code already knows.
+- **R58** The engine, the fact providers, the fix verifier, fingerprints, de-duplication and the report formats are Java and are not data. A pack can only add or change **what is said about the facts**.
+
 ## 7. Architecture
 
 ```
@@ -358,9 +479,10 @@ review/
   ReviewEngine            runs lenses over a ReviewInput; collects, de-duplicates, ranks, applies settings and suppressions
   ReviewInput             the parsed script, its import closure, prompt files, loot/tools metadata, the graph, prices, windows, assumptions,
                           test files, eval dataset listing, the Fabric rules file, the last coverage report (R34), declared project facts (R38)
-  ReviewRule              interface: id(), lens(), defaultSeverity(), describe(), check(ReviewInput, Sink)
-  rules/{validity,security,cost,reliability,prompts,observability,durability,testability,privacy,
-         governance,maintainability,oversight,blast}/   one class per rule; security rules wrap SecurityAudit; optional lenses are ordinary packages
+  ReviewRule              interface: id(), lens(), defaultSeverity(), describe(), check(ReviewInput, Sink)   (the Java escape hatch, R73)
+  pack/                   PackLoader (validate, pin, hash), FactModel (the published catalog), FactProviders (pure Java), DataRule + RuleEngine (the closed vocabulary),
+                          FixTemplates, PackTests, RulesCommand (weave rules ...), the bundled core pack under resources/review-rules/core
+  rules/                  Java rules only: the LA adapter over SecurityAudit and the LV adapter over the validator, plus any rule a team writes in Java (R73)
   adapters/               Problem -> Finding, audit Finding -> Finding, graph Diagnostic -> Finding
   cost/                   CostModel, Assumptions, Estimate, PriceBook (reads the existing price file), Calibration
   fix/                    FixApplier (applies edits, verifies with check, detects conflicts), Diff (unified diff output)
@@ -369,7 +491,7 @@ review/
 ```
 
 - **R20** `ReviewRule` implementations are pure functions of `ReviewInput`: no clock, no environment, no I/O, no randomness. The engine passes everything in, so rules are unit-testable without files.
-- **R21** Third parties can add rules through `ServiceLoader<ReviewRule>` (an org that wants "no `shell` tool ever" writes a rule in ten lines); a rule from outside carries its jar in the report so findings are attributable. Loading is opt-in (`--rules-jar`), never from the script's folder by default.
+- **R21** Third parties can add rules as **rule packs** (R63, the normal way) or, for what data cannot express, through `ServiceLoader<ReviewRule>` (R73) (an org that wants "no `shell` tool ever" writes a rule in ten lines); a rule from outside carries its jar in the report so findings are attributable. Loading is opt-in (`--rules-jar`), never from the script's folder by default.
 - **R22** De-duplication: when `weave audit` and a new rule describe the same cause (for example LR07 and LA17 on one tool call), the engine shows the more specific one first and links the other (`related`), never two lines saying the same thing.
 - **R23** Ranking: severity, then lens priority (security, reliability, cost, validity, prompts), then location. Stable and deterministic.
 
@@ -420,6 +542,7 @@ journal = file                                          # none | file | jdbc (LD
 workflow.Main.interactive = true                        # LC10
 blast.max-effects = 10
 blast.max-daily-cost = 5.00
+packs = core@1, acme-policy@2.0.1 sha256:9c1e…            # rule packs in force, pinned (R63); unset = the bundled core pack only
 fix.retry = retry 3 backoff 1s timeout 30s
 ```
 
@@ -470,15 +593,15 @@ The noise answer is not fewer rules but a fast, safe, *durable* way to deal with
 
 | | Delivers | Tests |
 |---|---|---|
-| 9a | Finding model, adapters for check/audit/graph, `ReviewEngine`, `weave review` (text, md, json), exit codes, `--explain` for existing rules, the corpus skeleton, `review.properties` | `FindingModelTest`, `AdapterTest`, `ReviewCommandTest`, `ReviewSupersetOfAuditTest` |
-| 9b | LV classification of all check messages; SARIF; de-duplication; suppressions | `LvClassificationTest`, `SarifTest`, `SuppressionTest` |
+| 9a | Finding model, adapters for check/audit/graph, `ReviewEngine`, `weave review` (text, md, json), exit codes, `--explain` for existing rules, the corpus skeleton, `review.properties`; **the fact model v1, the first fact providers, the data-rule engine and the pack format with the bundled `core` pack skeleton (R57 to R66, R68)** | `FindingModelTest`, `AdapterTest`, `ReviewCommandTest`, `ReviewSupersetOfAuditTest` |
+| 9b | **`weave rules` (list, facts, check, test, new, add, explain --at), pack pinning and hashes, parity tests for any rule written twice (R63, R70 to R72)**; LV classification of all check messages; SARIF; de-duplication; suppressions | `LvClassificationTest`, `SarifTest`, `SuppressionTest` |
 | 9c | Cost estimator, assumptions, summary card, `--calibrate`, LC rules | `CostModelTest`, `CostBudgetCapTest`, `CalibrationTest`, `Lc*Test` |
-| 9d | Reliability and prompt rules (LR, LP) | one test class per rule, corpus precision gate |
+| 9d | Reliability and prompt rules (LR, LP) **as data rules in the core pack, with their fact providers** | one test class per rule, corpus precision gate |
 | 9e | Advisory behaviour (R49 to R56): the one-line notice, open-count definition, cache and time cap, no change to output or exit codes, review failure isolation; Fixes: `FixApplier`, `--fix`, `--dry-run`, verification, idempotence; stable fingerprints, accept with scopes and expiry, baseline, noise report (R41 to R48) | `FixApplierTest`, `FixAtomicityTest`, `FixIdempotentTest`, `FingerprintStabilityTest`, `AcceptScopesTest`, `BaselineTest`, `NoiseReportTest` |
 | 9f | Observability, durability and privacy lenses (LO, LD, LY); declared facts and inert-rule notes (R38); lens selection (R33) | one test class per rule, `LensSelectionTest`, `InertRuleNoteTest`, `HeuristicSwitchTest` |
 | 9g | Time and effects estimates (R35, R36); performance rules LC08 to LC10; testability lens (LT) with its extra inputs and the coverage-report staleness rule (R34) | `TimeEstimateTest`, `EffectsEstimateTest`, `Lc08ParallelTest`, `Lt*Test`, `CoverageReportStaleTest` |
 | 9h | The four optional lenses (LG, LM, LH, LB) and their cross-lens de-duplication (R39, R40) | `Lg*Test`, `Lm*Test`, `Lh*Test`, `Lb*Test`, `OptionalLensesOffByDefaultTest`, `CrossLensDedupTest` |
-| 9i | Docs: wiki page, LOOM_GUIDE section, `llms.txt`, skill updates, rule pages generated | docs tests |
+| 9i | Docs: wiki page, LOOM_GUIDE section, `llms.txt`, skill updates, rule pages generated from the packs; **`weave rules diff` and pack versioning policy (R74); the guide for writing a rule** | docs tests, `RulesDiffTest` |
 
 ## 13. Decisions to confirm (open questions)
 
@@ -492,3 +615,6 @@ The noise answer is not fewer rules but a fast, safe, *durable* way to deal with
 8. **Interactive flag source (LC10).** A project declaration in `review.properties` is used. Alternative: a language-level workflow modifier. Recommendation: the declaration; no language change.
 9. **Where durable ignores live.** `review.properties` (one file, easy to read in review) vs a separate `review.ignore` file (keeps rule tuning apart from decisions). Recommendation: `review.properties` for rule settings and accepts, `review.baseline.json` for baselines.
 10. **Bulk accept of HIGH.** R44 allows it with a per-entry reason and a count confirmation. Alternative: forbid bulk accept for HIGH altogether. Recommendation: allow with the guardrails; forbidding it pushes people to the baseline, which is less visible.
+11. **YAML or JSON for rules.** Both load (one schema). Recommendation: YAML for authoring (comments, readability, matches the repo's test and golden files), JSON accepted for generated packs.
+12. **Do the LV rules become data?** They adapt the validator's own messages, so they stay Java for now. A later phase could make the message-to-rule table a data file. Confirm leaving it.
+13. **How rich the first fact model is.** About a hundred fields is a target, not a promise; the rule is to add a field only when a rule needs it. Confirm that adding facts is a normal, small Java change and that no rule syntax will be added.

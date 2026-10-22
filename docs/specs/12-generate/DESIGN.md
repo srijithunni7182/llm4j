@@ -73,7 +73,7 @@ Workflow TicketTriage
 - **R9** Prompts are separate files (`prompt: "replier"`), one per agent, each with a short header comment saying what it is for and what it must not do; the script stays about control flow, as the repo's guidance says.
 - **R10** **Generated code uses the language's own safety features by default**: `budget`; `retry/timeout/on_failure` on tool-using steps; `max N on_exhausted` on every loop; `output_schema` or `intentclassify` for anything a branch reads; `approve:` on every tool whose `reach` is `sends` or `writes`; `guard { pii: mask }` where the plan marks data as personal;
   no secrets in text (`env.NAME` only); no `shell` tool unless the description demands it and the plan says why. A generated script that omits one of these without a recorded reason in the plan fails the gate (§3.4).
-- **R11** The model sees: the language reference (`LOOM_PROMPT.md`, `llms.txt`), the **phase 9 rule catalog in short form** (so it avoids known flaws rather than repairing them), two or three few-shot example projects chosen by the plan's shape, and the plan. It does not see the developer's other files unless `--context <path>` is given (prompts of existing agents, an existing `tools.loot`).
+- **R11** The model sees: the language reference (`LOOM_PROMPT.md`, `llms.txt`), the **phase 9 rule catalog in short form** (generated from the loaded rule packs, so a rule added to a pack reaches the generator without a code change) (so it avoids known flaws rather than repairing them), two or three few-shot example projects chosen by the plan's shape, and the plan. It does not see the developer's other files unless `--context <path>` is given (prompts of existing agents, an existing `tools.loot`).
 
 ### 3.4 The gate loop (R12 to R17)
 

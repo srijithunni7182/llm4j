@@ -32,7 +32,13 @@ Status: **not started**. Run top to bottom at the end of sub-phase 9i; the relev
 | A24 | The notice and the review engine can never slow or fail a command beyond a stated cap | `NoticeCacheAndTimeCapTest`, `ReviewCrashDoesNotFailRunTest` |
 | A25 | Only commands chosen for enforcement exit non-zero on findings | `OnlyExplicitCommandsFailTest` |
 | A26 | The skills report findings and carry on, never withholding a run or deploy | `SkillAdvisoryTextTest` |
-| A27 | Documented | docs review (§5) |
+| A27 | Adding or changing a rule is a file change in a rule pack, with no Java change, release or extension rebuild; a rule cannot load without its examples | `PackExamplesRequiredTest`, `RulesNewScaffoldTest` |
+| A28 | There is no new language: a rule is a document over a closed vocabulary and a published fact model, it always terminates, and what it cannot say needs a new fact or a Java rule | `RuleVocabularyTest`, `RuleTerminationTest`, `RuleSchemaRejectsExpressionsTest` |
+| A29 | Packs are safe: inert, bounded, pinned and never downloaded; a project cannot silently redefine a core rule | `PackSandboxTest`, `PackNoNetworkTest`, `PackPinHashTest`, `PackPrefixTest` |
+| A30 | A rule can be debugged and a pack upgrade previewed: `explain --at` shows each condition's value, and `rules diff` shows the findings an upgrade would change on my script | `RulesExplainAtTest`, `RulesDiffTest` |
+| A31 | Rules moved from Java to data change nothing: identical findings on the corpus, and handled findings survive an upgrade | `RuleParityTest`, `PackUpgradeKeepsHandledTest` |
+| A32 | Java rules and fact providers still work beside packs | `JavaRuleAlongsidePackTest`, `JavaFactProviderTest` |
+| A33 | Documented, including a guide for writing a rule | docs review (§5) |
 
 ## 2. Traceability: requirement → tests
 
@@ -94,6 +100,24 @@ Status: **not started**. Run top to bottom at the end of sub-phase 9i; the relev
 | R54 | `ReviewCrashDoesNotFailRunTest` | ⬜ 9e |
 | R55 | `FabricReviewAttributeTest` | ⬜ 9h |
 | R56 | `SkillAdvisoryTextTest` | ⬜ 9i |
+| R57 | `CoreRulesAreDataTest`, `RuleParityTest` | ⬜ 9a/9d |
+| R58 | `RuleSchemaRejectsExpressionsTest` | ⬜ 9a |
+| R59 | `FactCatalogTest`, `FactCatalogMatchesValidatorTest` | ⬜ 9a |
+| R60 | `UnknownFactTest`, `Fact*ProviderTest` | ⬜ 9a/9d |
+| R61 | `RuleDocumentShapeTest`, `PlaceholderSubstitutionTest` | ⬜ 9a |
+| R62 | `RuleVocabularyTest`, `RuleRelationsTest`, `RuleRegexLimitTest`, `RuleTerminationTest` | ⬜ 9a |
+| R63 | `PackPinHashTest`, `PackLoadOrderTest` | ⬜ 9b |
+| R64 | `PackNoNetworkTest` | ⬜ 9b |
+| R65 | `PackSandboxTest`, `PackLimitsTest` | ⬜ 9b |
+| R66 | `PackValidationTest`, `PackPrefixTest` | ⬜ 9a/9b |
+| R67 | `FixTemplateOpsTest`, `FixTemplateVerifiedTest`, `FixTemplateParityTest` | ⬜ 9e |
+| R68 | `PackExamplesRequiredTest`, `ReviewCorpusTest` | ⬜ 9a |
+| R69 | `RuleDocsGeneratedTest` | ⬜ 9i |
+| R70 | `RulesListTest`, `RulesExplainAtTest`, `RulesNewScaffoldTest`, `RulesAddPinsTest` | ⬜ 9b |
+| R71 | `ProvenanceTest`, `PackUpgradeKeepsHandledTest` | ⬜ 9b |
+| R72 | `RuleParityTest` | ⬜ 9d |
+| R73 | `JavaRuleAlongsidePackTest`, `JavaFactProviderTest` | ⬜ 9b |
+| R74 | `RulesDiffTest`, `PackSemverTest` | ⬜ 9i |
 
 ## 3. Quality gates
 
