@@ -9,15 +9,18 @@ recorded in §7. Part A is shippable on its own; Part B starts only when Part A 
 |---|---|---|
 | **Part A: providers** | | |
 | 8a | Core | `OpenAiCompatibleProvider`, `Dialect`, `ModelTraits`; the OpenAI preset; `OpenAiContractTest`; fixtures recorded from the real API |
-| 8b | Presets | xAI, Kimi, Qwen, Perplexity and the generic `openai_compatible`, each with its contract test and fixtures |
+| 8b | Presets | xAI, Kimi, Qwen, the generic `openai_compatible` and the preview `perplexity_router`, each with its contract test and fixtures |
+| 8b2 | Responses provider | `OpenAiResponsesProvider` (DESIGN §3.4): the OpenAI Responses schema, the Perplexity Agent API preset (`perplexity`) and OpenAI's `api: responses`; contract test; fixtures |
 | 8c | Wiring | Loom kinds, resolver, key lookup and secret host binding, window and price catalogs, rate-limit names, audit data flows, `windows.properties`/`PriceTable`, docs |
 | 8c-live | Smoke | `ProviderSmokeIntegrationTest` run for each vendor with real keys; fixtures replaced by recordings; results in §7 |
 | **Part B: grounding** | | |
 | 8d | Payload look | The throwaway script that prints each vendor's raw grounded response (design Q9); the spec's §4.3 table is revised from it **before** any Java |
 | 8e | Contract | `Grounding`, `Citation`, `SearchUsage`, `GroundingSupport`, `LLMRequest.grounding`, `LLMResponse.getCitations/getSearches`, the central check in `DefaultLLMClient`, telemetry and the `searches` budget dimension |
-| 8f | Vendors | Grounding in Google, Anthropic, Perplexity first; then OpenAI (Responses API provider), xAI, Kimi, Qwen; each with fixtures and parity tests |
+| 8f | Vendors | Grounding in Google, Anthropic, Perplexity (Agent API `web_search`) first; then OpenAI Responses, xAI, Kimi, Qwen; each with fixtures and parity tests |
 | 8g | Agent, Loom, eval4j | `ReActAgent.grounding`, `AgentResult.citations`; Loom `grounding:` with checks, audit, trace, budget; eval4j citation assertions and scripted citations |
 | 8h | Docs and tooling | Wiki pages, Loom guide chapter, `llms.txt`, examples, VS Code grammar/diagnostics, skills |
+
+| 8k | Perplexity Decisions (**conditional on Phase 7 merged**) | `PerplexityDecisionsProvider` and the shared `DecisionWire` (DESIGN §3.5); contract tests (`ClassifierContract`); fixtures; Phase 7's study re-run with it as a third contender |
 
 ## 2. Acceptance criteria
 
@@ -41,6 +44,8 @@ recorded in §7. Part A is shippable on its own; Part B starts only when Part A 
 | A16 | eval4j citation assertions pass and fail correctly; scripted citations work offline | §6 | eval4j tests |
 | A17 | The live smoke run passes for every vendor with a key, within its spend cap, and recorded fixtures replace the hand-written ones | §5 of the test strategy | `ProviderSmokeIntegrationTest` (live) |
 | A18 | All documentation samples execute in tests | docs | docs examples test |
+| A19 | `OpenAiResponsesProvider` passes `ProviderContract` for the Perplexity Agent API and OpenAI Responses; `web_search` results map to typed citations | §3.4, R1, R7 | contract and grounding provider tests |
+| A20 | (If Phase 7 is merged) `PerplexityDecisionsProvider` passes `ClassifierContract` and shares `DecisionWire` with `JevWire` | §3.5 | classifier contract tests |
 
 ## 3. Traceability
 

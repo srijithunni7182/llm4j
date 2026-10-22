@@ -6,7 +6,7 @@ Builds on the provider SPI and `ProviderContract` tests, the model-window catalo
 ([Phase 2](../02-call-telemetry/DESIGN.md)) and Loom's provider declarations ([Phase 3](../03-loom-integration/DESIGN.md)).
 Independent of Phase 7 (classification, on branch `feature/classifier-jev`); the two can proceed in either order.
 
-The work is in two parts, in this order: **Part A** adds the providers (OpenAI, xAI, Kimi, Qwen, Perplexity, and a generic OpenAI-compatible one);
+The work is in two parts, in this order: **Part A** adds the providers (OpenAI, xAI, Kimi, Qwen, Perplexity, and a generic OpenAI-compatible one; Perplexity and OpenAI's grounded path use a second, Responses-schema provider, §3.4);
 **Part B** adds provider-neutral **grounding** (web search done by the provider, with citations) on top of them and the existing Google and
 Anthropic providers. One spec, because grounding is specified across all providers and its design depends on what each one can do.
 
@@ -30,7 +30,7 @@ option, no typed citations, no capability check, no cost accounting for searches
 
 - G1. One `OpenAiCompatibleProvider` that covers the whole OpenAI-style family, with a small **dialect** per vendor for its differences, so adding
   the next vendor is a few lines and a fixture, not a new provider.
-- G2. First-class presets for OpenAI, xAI, Kimi, Qwen and Perplexity, plus a generic `openai_compatible` kind with a `base_url`, wired through the
+- G2. First-class presets for OpenAI, xAI, Kimi and Qwen (chat completions), OpenAI and Perplexity (Responses schema, §3.4), plus a generic `openai_compatible` kind with a `base_url`, wired through the
   Loom provider declarations, the model-name resolver, the secret store (with per-vendor host binding), the window catalog and the price table.
 - G3. Behaviour **equal to the existing providers**: tool calling, streaming, reasoning text, finish-reason and usage normalisation, typed errors,
   retries and 429 handling, call telemetry. Each new provider passes `ProviderContract`.
@@ -61,7 +61,7 @@ LLMClient openai     = new DefaultLLMClient(OpenAiCompatibleProvider.openai(cfg)
 LLMClient grok       = new DefaultLLMClient(OpenAiCompatibleProvider.xai(cfg2));
 LLMClient kimi       = new DefaultLLMClient(OpenAiCompatibleProvider.kimi(cfg3));
 LLMClient qwen       = new DefaultLLMClient(OpenAiCompatibleProvider.qwen(cfg4));          // DashScope
-LLMClient perplexity = new DefaultLLMClient(OpenAiCompatibleProvider.perplexity(cfg5));
+LLMClient perplexity = new DefaultLLMClient(OpenAiResponsesProvider.perplexity(cfg5));   // Agent API, §3.4
 LLMClient any        = new DefaultLLMClient(OpenAiCompatibleProvider.of(Dialect.GENERIC, cfg6)); // cfg6 has a baseUrl (DeepSeek, Groq, vLLM, …)
 ```
 
@@ -79,7 +79,7 @@ and a fixture:
 | `maxTokensField` | which request field limits output | `max_tokens`; `max_completion_tokens` for OpenAI's newer and reasoning models |
 | `temperaturePolicy` | whether a custom temperature is sent | OpenAI reasoning models reject it: the provider omits it for those models rather than failing |
 | `reasoning` | where reasoning text comes back and how it is switched on | a `reasoning_content` field (xAI, Kimi, Qwen), `<think>` tags (Sarvam style), an effort parameter (OpenAI) |
-| `tools` | whether native tool calling is offered | yes for OpenAI, xAI, Kimi, Qwen; **no** for Perplexity: `supportsToolCalling()` is false |
+| `tools` | whether native tool calling is offered | yes for OpenAI, xAI, Kimi, Qwen |
 | `usage` | how token usage and any extra counts appear | cached-token and reasoning-token details are read when present |
 | `extraRequest`, `extraResponse` | vendor fields added to the request or read from the response | Qwen's thinking switch; Perplexity's `citations`/`search_results` (Part B) |
 | `keyEnv`, `baseUrlEnv`, `hosts` | environment names for key and URL; hosts a secret may be sent to | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `api.openai.com` |
@@ -92,13 +92,50 @@ rather than failing.
 
 | Place | Change |
 |---|---|
-| **Loom `provider` kinds** | `ProviderSpec.KINDS` gains `openai`, `xai`, `kimi`, `qwen`, `perplexity`, `openai_compatible`. `provider Box { use: openai_compatible  base_url: "http://gpu:8000/v1"  api_key: env.KEY }` works like the existing kinds |
-| **Model-name resolver** (`DefaultLLMClientFactory`) | Explicit prefixes always work: `openai/gpt-5-mini`, `xai/grok-4`, `kimi/kimi-k2`, `qwen/qwen3-max`, `perplexity/sonar`. Bare names resolve only when unambiguous: `gpt-*`, `o1*/o3*/o4*`, `chatgpt-*` → openai; `grok-*` → xai; `kimi-*`, `moonshot-*` → kimi; `sonar*` → perplexity. A bare `qwen3` stays unresolved (it means a local Ollama model to most people); use `qwen/…` or `ollama/…`. The "unknown model" message lists the new forms |
+| **Loom `provider` kinds** | `ProviderSpec.KINDS` gains `openai`, `xai`, `kimi`, `qwen`, `perplexity` (the Agent API, §3.4), `perplexity_router` (preview, §3.4), `openai_compatible`. `provider Box { use: openai_compatible  base_url: "http://gpu:8000/v1"  api_key: env.KEY }` works like the existing kinds |
+| **Model-name resolver** (`DefaultLLMClientFactory`) | Explicit prefixes always work: `openai/gpt-5-mini`, `xai/grok-4`, `kimi/kimi-k2`, `qwen/qwen3-max`, `perplexity/openai/gpt-5.6-sol` (the Agent API slug, §3.4). Bare names resolve only when unambiguous: `gpt-*`, `o1*/o3*/o4*`, `chatgpt-*` → openai; `grok-*` → xai; `kimi-*`, `moonshot-*` → kimi. A bare `qwen3` stays unresolved (it means a local Ollama model to most people); use `qwen/…` or `ollama/…`. The "unknown model" message lists the new forms |
 | **Keys** | `OPENAI_API_KEY`, `XAI_API_KEY`, `MOONSHOT_API_KEY`, `DASHSCOPE_API_KEY`, `PERPLEXITY_API_KEY`, and `*_BASE_URL` for each; looked up in the secret store first, as for existing keys. A stored secret keeps the **host binding** it was stored with, and the presets' `hosts` are what `weave` offers when a secret is created for a vendor |
 | **Catalogs** | `windows.properties` (context windows) and `PriceTable`/`Pricing` (prices) get entries for the common models of each vendor. An unknown model is not an error: windows fall back to a configured default and prices to "unknown", as today |
 | **Rate-limit reports** | `HttpClientWrapper.providerOf` maps the new hosts to their names |
 | **Provider tiers / routing** | The new providers can be used in `routing` exactly like the others; no new tier logic |
 | **`weave audit`** | The new hosted vendors are listed as data flows, as Gemini and Anthropic are |
+
+### 3.4 Perplexity, and the Responses-schema provider (revised from Perplexity's published documentation, read 2026-10-22)
+
+The draft assumed Perplexity was a Sonar chat-completions vendor that always grounds. Its current documentation says otherwise
+([docs index](https://docs.perplexity.ai/llms.txt)): the platform is one key over five APIs, and Sonar chat completions is the legacy path
+(*Migrate from Sonar to the Agent API*). What matters here:
+
+| Perplexity API | Endpoint | What llm4j does with it |
+|---|---|---|
+| **Agent API** | `POST https://api.perplexity.ai/v1/agent` (alias `/v1/responses`, OpenAI **Responses** schema). Models are `creator/model` slugs (for example `openai/gpt-5.6-sol`); web grounding is the `web_search` tool; presets bundle model, tools and limits; multi-turn by replaying input or `previous_response_id`; answer text is in `output[]` items of type `message` → `content[]` of type `output_text`; sources are `search_results` items and URL `annotations` | `OpenAiResponsesProvider.perplexity(cfg)`, kind `perplexity`. This is Perplexity's grounded path (Part B) and also its plain chat path |
+| **Orchestrator API** (formerly "Router") | `https://api.perplexity.ai/router/v1` (chat completions, Responses, Anthropic Messages). Open-weight models. **Private preview**: access is by email request | `OpenAiCompatibleProvider` dialect `perplexity_router`, kind `perplexity_router`, **preview**, no live fixtures unless access is granted. No grounding |
+| **Decisions API** | `POST https://api.perplexity.ai/v1/decisions`; `noul`, `choice` and `score` questions on a `state`, probabilities back; `pplx-decider-v1.2` (27B, $0.02 per million input tokens) and `pplx-decider-flash-v1.2` (4B, $0.01); output tokens free | Not a chat provider. It is a **second backend for the Phase 7 `Classifier`** (§3.5) |
+| Search, Embeddings | `/search`, embeddings endpoints | Out of scope for this phase |
+
+Consequences for this spec:
+- A new class, **`OpenAiResponsesProvider`** (package `io.github.llm4j.provider.openai`), speaks the OpenAI Responses schema with the same dialect idea as
+  §3.2: request mapping (`input`, `instructions`, `tools`, `previous_response_id`, `max_output_tokens`), response parsing (`output[]`, `output_text`,
+  `annotations`, `search_results`), streaming events, usage, finish reasons, reasoning items. It serves **Perplexity's Agent API** and **OpenAI's own
+  Responses API** (for its web search), so both share one implementation.
+- A Perplexity request without `grounding(...)` runs the Agent API **without** `web_search`, so it is plain model access; grounding is opt-in like everywhere else
+  (the "always on" idea is dropped, and `GroundingSupport.ALWAYS_ON` with it).
+- Model names: `perplexity/<creator>/<model>` (for example `perplexity/openai/gpt-5.6-sol`) or a preset, `perplexity/preset:medium`; the resolver passes the slug through
+  untouched. The catalog (windows, prices) is keyed by the slug and falls back safely for unknown ones (R3).
+- Perplexity auth is a bearer key; an `x-api-key` header is not read. Rate-limit headers (`x-ratelimit-*`, `Retry-After`) feed the existing 429 handling.
+- Because the Agent API reaches OpenAI, Anthropic, Google and xAI models with one key, a Perplexity key is also a cheap way to smoke-test the Responses
+  provider and grounding across model families. Fixtures recorded that way are labelled as recorded **through Perplexity**, and do not count as proof for a
+  vendor's own endpoint.
+
+### 3.5 Perplexity Decisions as a classifier backend (depends on Phase 7)
+
+The Decisions API's wire format is the one Phase 7 describes for Jev (`state`, named `questions`, types `noul`/`choice`/`score`, answers with `probabilities`,
+`confidence`, and a legend for scores; bearer auth; `usage.input_tokens`/`output_tokens`). Phase 7's `ClassificationProvider` therefore gets a second
+implementation, **`PerplexityDecisionsProvider`** (package `io.github.llm4j.provider.perplexity`, kind `perplexity_decisions`), with these points from its published reference:
+`state` may be a string, an object or an array (images allowed); 1 to 128 questions per request; an unknown field in the body returns `400`; the model is required (`pplx-decider-latest`,
+`pplx-decider-flash-latest`, or the versioned names); `x-api-key` is not read. Because both vendors share the shape, the shared parts live in one
+`DecisionWire` class used by `JevWire` and `PerplexityDecisionsWire`, with each vendor's differences kept as data. It is **conditional on Phase 7 being merged**
+(sub-phase 8k); its acceptance criteria are in VERIFICATION. It also makes the Phase 7 head-to-head study a three-way one (Jev, Perplexity Decisions, chat models).
 
 ## 4. Part B: grounding
 
@@ -135,7 +172,7 @@ public record Span(int start, int end) { }             // character range in the
 
 public record SearchUsage(int count, List<String> queries, Double estimatedCostUsd) { }   // queries only at the detail level that allows text
 
-public enum GroundingSupport { NONE, NATIVE, ALWAYS_ON }    // ALWAYS_ON: the provider grounds every answer (Perplexity)
+public enum GroundingSupport { NONE, NATIVE }
 ```
 
 `LLMProvider` gains `default GroundingSupport groundingSupport() { return NONE; }` and, to keep the SPI additive, grounding is read from
@@ -151,7 +188,7 @@ vendors change these interfaces often, and this draft was written from memory.
 |---|---|---|---|---|---|
 | Google | the `google_search` tool on the request | not offered natively: refused unless `lenient` | no | `groundingMetadata` (sources and the spans they support) | Existing `GoogleProvider` gains it. Tool calling and grounding in one request may be limited per model: checked at build time |
 | Anthropic | the server-side web search tool | `max_uses` | allowed/blocked domains; user location | citations on text blocks | Existing `AnthropicProvider` gains it; the tool-result blocks must be preserved in `providerData` so a continued turn works |
-| Perplexity | always on | not offered: refused unless `lenient` | `search_domain_filter`, `search_recency_filter`, region | `citations` / `search_results` | `ALWAYS_ON`. `Grounding` on this provider only tunes it. Without `grounding(...)` the answer is still grounded and citations are still returned |
+| Perplexity (Agent API) | the `web_search` tool on `POST /v1/agent` (Responses schema; also `fetch_url`, `finance_search`) | per its documented tool options | per its documented tool options | `search_results` items and URL `annotations` on `output_text` | Verified against Perplexity's published docs on 2026-10-22 (§3.4). One key reaches OpenAI, Anthropic, Google and xAI models through it, with the same grounding |
 | OpenAI | the web search tool, which is in its Responses API, not in classic chat completions | per-tool limit if offered | domains and location if offered | annotations on the output text | Needs an `OpenAiResponsesProvider` (Q2) |
 | xAI | provider-side search | per vendor | per vendor | per vendor | Interface has been changing: checked at build time |
 | Kimi | the built-in `$web_search` function, which the client must round-trip as a tool call | via the loop's iteration cap | no | tool-call results | A client-driven loop inside the provider: a request is one logical call to the caller |
@@ -183,7 +220,7 @@ copied onto every model call) or on the request when the agent is not used. `Age
 ## 5. Loom
 
 - **Providers**: the new kinds (§3.3). Nothing else is needed to use them.
-- **Grounding**: `agent Researcher { model: "perplexity/sonar"  grounding: web }`, and with options:
+- **Grounding**: `agent Researcher { model: "perplexity/openai/gpt-5.6-sol"  grounding: web }`, and with options:
   `grounding: web { allow: "who.int", "nih.gov"  recency: year  max_searches: 3 }`. `weave check` refuses `grounding:` on a model whose provider has no
   grounding support, and refuses an option the provider cannot honour (no `lenient` in scripts: an author sees every limit).
 - **Audit**: a grounded agent counts as **exposed to untrusted content** for the lethal trifecta, exactly like an agent with a web-fetching tool. An
@@ -255,12 +292,12 @@ The questions raised in the draft, answered. Nothing starts with a question open
 | # | Decision |
 |---|---|
 | Q1 | The per-vendor facts (§3.2 dialect fields, §4.3 table) are a *precondition task* for each sub-phase, not a design question: the first step of 8a/8b is reading the vendor's current API reference and correcting this spec's table in the same commit; fixtures are recorded from the real API (8c-live). A vendor whose documentation cannot be read or whose API cannot be called waits; the others proceed |
-| Q2 | **OpenAI**: Part A ships chat completions. Grounding for OpenAI is a separate `OpenAiResponsesProvider` in Part B, selected with `use: openai { api: responses }`; `openai` alone stays on chat completions |
+| Q2 | **OpenAI**: `openai` stays on chat completions. A Responses-schema provider, `OpenAiResponsesProvider`, is built in Part A (sub-phase 8b2) because Perplexity's Agent API is a Responses-schema API (§3.4); OpenAI's own Responses API (and so its web search) reuses it, selected with `use: openai { api: responses }` |
 | Q3 | **Kimi** `$web_search` is run as a bounded loop inside the provider (bound = `maxSearches`, default 3), returning one response; a test covers a model that never stops asking |
 | Q4 | Citation `spans` stay **optional**; no assertion or Loom feature depends on them |
 | Q5 | `lenient()` is **kept, default off** (it exists so one `Grounding` can be shared across providers in a router). Loom scripts have no `lenient` |
 | Q6 | No dedicated "claims supported by cited sources" metric in this phase; reuse the RAG metrics with citation snippets as `retrievalContext` (§6) |
-| Q7 | Part A builds **all five presets and the generic kind in one contract-tested sweep** (8a OpenAI first, 8b the rest) |
+| Q7 | Part A builds **all five presets and the generic kind in one contract-tested sweep** (8a OpenAI first, 8b the rest; Perplexity on the Responses provider, 8b2) |
 | Q8 | The generic kind supports a configurable **header name** and **static query parameters** only; no Azure-specific preset |
 | Q9 | Part B begins (8d) with a throwaway script that prints each vendor's raw grounded response; the §4.3 table is revised from it before any Java for 8e/8f |
 
@@ -270,9 +307,9 @@ The release does not wait for everything in this phase. In priority order:
 
 | Tier | Contents | Why |
 |---|---|---|
-| **Must** | Part A: 8a, 8b, 8c (OpenAI, xAI, Kimi, Qwen, Perplexity, generic; Loom kinds; resolver; secrets; catalogs; docs) | The providers are independently useful and low risk: one shared class, proven by `ProviderContract` |
+| **Must** | Part A: 8a, 8b, 8b2, 8c (OpenAI, xAI, Kimi, Qwen, Perplexity via the Agent API, generic; Loom kinds; resolver; secrets; catalogs; docs) | The providers are independently useful and low risk: one shared class, proven by `ProviderContract` |
 | **Should** | 8d (payload look), 8e (grounding contract: types, capability check, citations, telemetry, `searches` budget), 8f for Google, Anthropic and Perplexity | The grounding feature on the three vendors with the simplest, best-documented interfaces |
-| **Stretch** | 8f for OpenAI (Responses API), xAI, Kimi, Qwen; 8g (`ReActAgent.grounding`, Loom `grounding:`, eval4j assertions); 8c-live; 8h tooling | Can follow in 6.1.x |
+| **Stretch** | 8f for xAI, Kimi, Qwen and OpenAI's own Responses grounding; 8g (`ReActAgent.grounding`, Loom `grounding:`, eval4j assertions); 8c-live; 8h tooling | Can follow in 6.1.x |
 
 Rules for the release:
 - Grounding **does not ship without** its Java-API refusal checks (R6) and budget/telemetry (R11); a vendor that cannot meet R7–R9 is left out of the release, not released partially.
