@@ -91,6 +91,8 @@ public final class GraphBuilder {
                 boolean jev =
                         lower.startsWith("jev/")
                                 || lower.startsWith("jev-")
+                                || io.github.llm4j.loom.execution.DecisionModels
+                                        .isPerplexityDecider(model)
                                 || (slash > 0 && jevProviders.contains(model.substring(0, slash)));
                 out.putIfAbsent(def.getName(), new ClassifierInfo(def, jev));
             }

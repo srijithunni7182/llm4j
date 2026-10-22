@@ -45,7 +45,7 @@ recorded in §7. Part A is shippable on its own; Part B starts only when Part A 
 | A17 | The live smoke run passes for every vendor with a key, within its spend cap, and recorded fixtures replace the hand-written ones | §5 of the test strategy | `ProviderSmokeIntegrationTest` (live) | ◐ run for OpenAI (chat and Responses), xAI and Perplexity on 2026-10-22, within the cap; Anthropic and Gemini have no key here, Kimi and Qwen no key: owed (see §7 follow-up) |
 | A18 | All documentation samples execute in tests | docs | docs examples test | ◐ 8a to 8c samples execute (`ProvidersDocsExamplesTest`); the 8e grounding samples execute (`GroundingDocsExamplesTest`, which also checks the page shows them verbatim); vendor samples with 8f |
 | A19 | `OpenAiResponsesProvider` passes `ProviderContract` for the Perplexity Agent API and OpenAI Responses; `web_search` results map to typed citations | §3.4, R1, R7 | contract and grounding provider tests | ✅ contract: both Responses dialects pass `ProviderContract` and replay recorded real payloads; `web_search` results map to typed citations (Perplexity `search_results`, OpenAI and xAI `url_citation`), `ResponsesGroundingTest` |
-| A20 | (If Phase 7 is merged) `PerplexityDecisionsProvider` passes `ClassifierContract` and shares `DecisionWire` with `JevWire` | §3.5 | classifier contract tests | ⏳ 8k |
+| A20 | (If Phase 7 is merged) `PerplexityDecisionsProvider` passes `ClassifierContract` and shares `DecisionWire` with `JevWire` | §3.5 | classifier contract tests | ✅ `PerplexityDecisionsContractTest` (the shared `ClassifierContract`), `PerplexityDecisionsProviderTest` (a real answer and a real 400, recorded 2026-10-22), `JevWireTest`/`JevProviderTest` unchanged after the wire moved to `DecisionWire` |
 
 ## 3. Traceability
 
@@ -198,4 +198,14 @@ Built and tested:
 - **Tooling (8h).** VS Code grammar keywords, hover text, an `agent-grounded` snippet (checked with the real `weave graph`); diagnostics come from `weave check`. The VS Code test suite could not be run here (no `node_modules`). Example `src/examples/grounded-research` (verified with the real `weave check` and `weave audit`; not run live).
 
 Spec deviations: domain lists in `grounding:` are bracketed (`allow: ["who.int"]`), as `tools:` is; sources are the variable `<name>_citations`, not `step.citations`, following the `<name>_audio` and `_proposal` precedent; the Loom `grounding:` name overlaps in the docs with inspect's older "ungrounded figures" rule (`loom.grounding.*`), which is a different thing (numbers in an answer not found in tool results).
+
+### 7.10 8k: Perplexity Decisions (done 2026-10-22)
+
+Phase 7 is merged, so 8k applies. Built: `DecisionWire` (public, `io.github.llm4j.provider`) holds the request body and reply parsing that Jev and Perplexity share, with a `Flavor` (name in messages, backend id, how an option with no description is written: Jev describes it by its name, Perplexity sends `null`); `JevWire` now delegates to it and its tests passed unchanged. `PerplexityDecisionsProvider` (`io.github.llm4j.provider.perplexity`, backend `perplexity_decisions`): `POST /v1/decisions`, bearer only, `pplx-decider-latest` by default, a 400 keeps the API's `error.message` and nothing else. `ClassifierResolver` routes `pplx-decider-…` and `Perplexity/pplx-decider-…` to it. Loom: such a model is a valid `intentclassifier` backend (key `PERPLEXITY_API_KEY` checked by `weave check`), is refused as an agent's model, is listed by audit LA19 as Perplexity's Decisions API, counts as calibrated and shows as backend `decisions` in the graph (`PerplexityDecisionsLoomTest`).
+
+**Live calls:** two, from the throwaway `decisions-payloads/capture.py`: the quickstart request on `pplx-decider-flash-latest` (354 input tokens, about US$0.000004) and one misspelt model (a free 400). The recorded answer matched the reference page in every field we read, so the provider is **supported**. Spend: negligible.
+
+**Spec facts corrected from the reference:** the reply has no `id`; score answers carry a `legend` (we read the probabilities and ignore it); `x-api-key` is not read; flash answers each question alone and bills the state per question; the model names in the pages disagree (`decider-27b`, `pplx-decider-v1.1-27b`), so the aliases are used.
+
+**Not done:** the Phase 7 study re-run with Perplexity Decisions as a third contender (it needs the study's labelled sets and a larger spend than 8k allows without a decision from you); no accuracy claim is made. The Loom `use: perplexity_decisions` provider kind from DESIGN §3.5 is not built: a decider is reached by model name only. Spring has no wiring for it.
 

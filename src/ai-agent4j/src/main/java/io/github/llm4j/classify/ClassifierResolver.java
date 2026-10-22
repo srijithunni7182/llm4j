@@ -2,6 +2,7 @@ package io.github.llm4j.classify;
 
 import io.github.llm4j.LLMClient;
 import io.github.llm4j.config.LLMConfig;
+import io.github.llm4j.provider.perplexity.PerplexityDecisionsProvider;
 import io.github.llm4j.provider.typesafe.JevProvider;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -17,6 +18,9 @@ import java.util.function.Function;
  * <ul>
  *   <li>{@code Jev/jev-latest} (the alias {@code jev}, any case), a bare {@code jev-…} name, or an
  *       alias declared with {@link Builder#jevAlias}: a {@link JevProvider}, calibrated.
+ *   <li>{@code pplx-decider-latest}, {@code pplx-decider-flash-latest} or any {@code
+ *       pplx-decider-…} name (also as {@code Perplexity/pplx-decider-…}): a {@link
+ *       PerplexityDecisionsProvider}, calibrated.
  *   <li>Any other name, such as {@code gemini-2.5-flash} or {@code Box/llama3}: handed as written
  *       to the chat clients the host provides ({@link Builder#chat}), and wrapped in an {@link
  *       LlmClassifier}.
@@ -32,11 +36,13 @@ public final class ClassifierResolver {
     private static final String JEV = "jev";
 
     private final Function<String, LLMConfig> jev;
+    private final Function<String, LLMConfig> perplexity;
     private final Map<String, Function<String, LLMConfig>> jevAliases;
     private final Function<String, LLMClient> chat;
 
     private ClassifierResolver(Builder b) {
         this.jev = b.jev;
+        this.perplexity = b.perplexity;
         this.jevAliases = Map.copyOf(b.jevAliases);
         this.chat = b.chat;
     }
@@ -54,6 +60,15 @@ public final class ClassifierResolver {
             Function<String, String> env, Function<String, LLMClient> chat) {
         return builder()
                 .chat(chat)
+                .perplexityDecisions(
+                        model -> {
+                            LLMConfig.Builder c = LLMConfig.builder().defaultModel(model);
+                            String key = env.apply("PERPLEXITY_API_KEY");
+                            if (key != null && !key.isBlank()) c.apiKey(key);
+                            String base = env.apply("PERPLEXITY_BASE_URL");
+                            if (base != null && !base.isBlank()) c.baseUrl(base);
+                            return c.build();
+                        })
                 .jev(
                         model -> {
                             LLMConfig.Builder c = LLMConfig.builder().defaultModel(model);
@@ -79,6 +94,16 @@ public final class ClassifierResolver {
                             + model
                             + " is a Jev model but no Jev settings were given (the key and endpoint): configure them with jev(..) or fromEnvironment(..)");
         }
+        if (isDecisionsName(model)) {
+            if (perplexity == null) {
+                throw new IllegalArgumentException(
+                        "model "
+                                + model
+                                + " is a Perplexity Decisions model but no Perplexity settings were given (the key and endpoint): configure them with perplexityDecisions(..) or fromEnvironment(..)");
+            }
+            return Classifier.using(
+                    new PerplexityDecisionsProvider(perplexity.apply(modelPart(model))));
+        }
         if (chat == null) {
             throw new IllegalArgumentException(
                     "model "
@@ -94,6 +119,21 @@ public final class ClassifierResolver {
      */
     public boolean isJev(String model) {
         return model != null && (jevAliases.containsKey(alias(model)) || isJevName(model));
+    }
+
+    /**
+     * Whether the name resolves to Perplexity's Decisions API: it sends the state to Perplexity's
+     * hosted API and its probabilities are calibrated.
+     */
+    public boolean isPerplexityDecisions(String model) {
+        return model != null && isDecisionsName(model);
+    }
+
+    private static boolean isDecisionsName(String model) {
+        String m = model.toLowerCase(Locale.ROOT);
+        return m.startsWith("pplx-decider")
+                || (alias(model).equals("perplexity")
+                        && modelPart(model).toLowerCase(Locale.ROOT).startsWith("pplx-decider"));
     }
 
     private Function<String, LLMConfig> jevSettings(String model) {
@@ -122,6 +162,7 @@ public final class ClassifierResolver {
     public static final class Builder {
 
         private Function<String, LLMConfig> jev;
+        private Function<String, LLMConfig> perplexity;
         private final Map<String, Function<String, LLMConfig>> jevAliases = new LinkedHashMap<>();
         private Function<String, LLMClient> chat;
 
@@ -133,6 +174,15 @@ public final class ClassifierResolver {
          */
         public Builder jev(Function<String, LLMConfig> settings) {
             this.jev = settings;
+            return this;
+        }
+
+        /**
+         * The settings (key, endpoint, timeouts) for {@code pplx-decider-…} and {@code
+         * Perplexity/pplx-decider-…} names, given the model part of the name.
+         */
+        public Builder perplexityDecisions(Function<String, LLMConfig> settings) {
+            this.perplexity = settings;
             return this;
         }
 

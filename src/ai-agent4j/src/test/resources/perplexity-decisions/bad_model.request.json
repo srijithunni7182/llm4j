@@ -1,0 +1,31 @@
+{
+  "model": "pplx-decidr-latest",
+  "state": {
+    "title": "Battery died after two weeks",
+    "review": "The headphones sound great, but the battery stopped charging after two weeks."
+  },
+  "questions": {
+    "defect": {
+      "type": "noul",
+      "instructions": "Does the review report a product defect?"
+    },
+    "sentiment": {
+      "type": "choice",
+      "instructions": "What is the overall sentiment of the review?",
+      "criteria": {
+        "positive": "Mostly satisfied",
+        "mixed": "Praise and complaints in one review",
+        "negative": null
+      }
+    },
+    "severity": {
+      "type": "score",
+      "instructions": "How severe is the reported problem?",
+      "criteria": [
+        "Cosmetic",
+        "Inconvenient",
+        "Product unusable"
+      ]
+    }
+  }
+}

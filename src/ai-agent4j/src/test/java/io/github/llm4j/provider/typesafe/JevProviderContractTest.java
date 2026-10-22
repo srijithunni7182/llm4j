@@ -17,7 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
  * {@link JevProvider} meets the same {@link ClassifierContract} as the chat backend, against a
  * local server speaking Jev's wire format.
  */
-class JevProviderContractTest extends ClassifierContract {
+public class JevProviderContractTest extends ClassifierContract {
 
     private MockWebServer server;
 
@@ -60,7 +60,7 @@ class JevProviderContractTest extends ClassifierContract {
     private static final List<String> SCALE = List.of("calm", "annoyed", "angry");
 
     /** The neutral answers of the contract, as Jev would write them. */
-    static String wire(List<A> answers) {
+    public static String wire(List<A> answers) {
         return "{\"model\": \"jev-1.13.0\", \"answers\": {"
                 + answers.stream()
                         .map(JevProviderContractTest::one)

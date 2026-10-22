@@ -539,6 +539,8 @@ public final class SecurityAudit {
         }
         if (lower.startsWith("jev/") || lower.startsWith("jev-"))
             return "TypeSafe AI's Jev API (api.typesafe.ai)";
+        if (io.github.llm4j.loom.execution.DecisionModels.isPerplexityDecider(model))
+            return "Perplexity's Decisions API (api.perplexity.ai)";
         var vendor = io.github.llm4j.provider.openai.Vendor.ofModel(model);
         if (vendor.isPresent())
             return vendor.get().vendor().displayName()
@@ -559,6 +561,7 @@ public final class SecurityAudit {
     private static boolean isJev(LoomScript script, String model) {
         String lower = model.toLowerCase(java.util.Locale.ROOT);
         if (lower.startsWith("jev/") || lower.startsWith("jev-")) return true;
+        if (io.github.llm4j.loom.execution.DecisionModels.isPerplexityDecider(model)) return true;
         int slash = model.indexOf('/');
         return slash > 0
                 && script.getProviders().stream()

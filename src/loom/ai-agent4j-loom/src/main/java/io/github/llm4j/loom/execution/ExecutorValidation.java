@@ -321,6 +321,16 @@ final class ExecutorValidation {
             if (declared != null) {
                 if (model.substring(model.indexOf('/') + 1).isBlank())
                     c.error(line, who, "model " + model + " names no model after the provider");
+            } else if (DecisionModels.isPerplexityDecider(model)) {
+                if (host.credential("PERPLEXITY_API_KEY") == null
+                        || host.credential("PERPLEXITY_API_KEY").isBlank()) {
+                    c.error(
+                            line,
+                            who,
+                            "model "
+                                    + model
+                                    + " needs PERPLEXITY_API_KEY in the environment or the secret store");
+                }
             } else if (isJevModel(model)) {
                 if (model.indexOf('/') >= 0 && model.substring(model.indexOf('/') + 1).isBlank()) {
                     c.error(line, who, "model " + model + " names no model after the provider");
@@ -341,6 +351,15 @@ final class ExecutorValidation {
     }
 
     void checkModel(ScriptValidator.Checker c, int line, String who, String model) {
+        if (DecisionModels.isPerplexityDecider(model)) {
+            c.error(
+                    line,
+                    who,
+                    "model "
+                            + model
+                            + " is a Perplexity decision model: it answers typed questions, it does not chat. Use it in an intentclassifier, and give this a chat model");
+            return;
+        }
         if (isJevModel(model)) {
             c.error(
                     line,

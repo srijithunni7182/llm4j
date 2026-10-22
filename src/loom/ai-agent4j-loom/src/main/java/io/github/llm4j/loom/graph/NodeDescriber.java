@@ -233,7 +233,16 @@ final class NodeDescriber {
             }
             io.github.llm4j.loom.ast.IntentClassifierDef.Confidence rule = def.getConfidence();
             attrs.text("model", def.getModel())
-                    .text("backend", info.jev() ? "jev" : "chat")
+                    .text(
+                            "backend",
+                            !info.jev()
+                                    ? "chat"
+                                    : info.def().getModel() != null
+                                                    && io.github.llm4j.loom.execution.DecisionModels
+                                                            .isPerplexityDecider(
+                                                                    info.def().getModel())
+                                            ? "decisions"
+                                            : "jev")
                     .flag("calibrated", info.jev())
                     .flag("uncalibrated", !info.jev())
                     .positive("questions", def.getQuestions().size())

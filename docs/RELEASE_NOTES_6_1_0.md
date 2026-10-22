@@ -65,6 +65,7 @@ never contain a label you did not offer. Design: [specs/07-classifier](specs/07-
 | `JevProvider` (TypeSafe AI's Jev), `ClassifierResolver` (`Jev/jev-latest` or any chat model name: one string to switch backends) | **works now** |
 | Loom `intentclassifier` / `intentclassify`: typed questions in a script, a confidence rule (`else escalate` / `ask person` / `fail`), `pii:`, budget, trace step, `weave check`, `weave audit` rule LA19, the workflow graph and the conformance kit. Guide: [Loom guide, "Classifying"](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md); example: [ticket-triage](../src/examples/ticket-triage/README.md) | **works now** |
 | VS Code support for the new Loom syntax (highlighting, hover, snippets, graph node) | **works now** |
+| `PerplexityDecisionsProvider` (Perplexity's Decisions API, `pplx-decider-latest` and `pplx-decider-flash-latest`) as a second calibrated classifier backend, sharing Jev's wire format; `ClassifierResolver` and Loom `intentclassifier { model: "pplx-decider-flash-latest" }` (key `PERPLEXITY_API_KEY`, audit LA19, `weave check`) | **supported**: a real answer and a real error recorded 2026-10-22. Not yet measured against Jev and chat models: no accuracy claim |
 
 ### What Jev is, and what we found
 

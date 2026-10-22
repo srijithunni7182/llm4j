@@ -3222,6 +3222,30 @@ public class HarnessExecutor implements LoomEngine {
                 || (declared == null && builtInJev)) {
             return budgets.meteredClassifier(jevClassifier(declared, model), who, model);
         }
+        if (declared == null && DecisionModels.isPerplexityDecider(model)) {
+            String key = envValue("PERPLEXITY_API_KEY");
+            io.github.llm4j.config.LLMConfig.Builder config =
+                    io.github.llm4j.config.LLMConfig.builder()
+                            .defaultModel(model.substring(model.indexOf('/') + 1));
+            io.github.llm4j.secret.SecretRef ref =
+                    storedKey(
+                            io.github.llm4j.loom.ast.ToolDef.OptionValue.secret(
+                                    "PERPLEXITY_API_KEY"));
+            if (ref != null) config.apiKey(ref);
+            else if (key != null && !key.isBlank()) config.apiKey(key);
+            else
+                throw new IllegalStateException(
+                        "PERPLEXITY_API_KEY (an environment variable or a secret) is required for model: "
+                                + model);
+            String baseUrl = envValue("PERPLEXITY_BASE_URL");
+            if (baseUrl != null && !baseUrl.isBlank()) config.baseUrl(baseUrl);
+            return budgets.meteredClassifier(
+                    io.github.llm4j.classify.Classifier.using(
+                            new io.github.llm4j.provider.perplexity.PerplexityDecisionsProvider(
+                                    config.build())),
+                    who,
+                    model);
+        }
         // a chat model: each sample is a model call, metered as one
         io.github.llm4j.classify.LlmClassifier.Builder chat =
                 io.github.llm4j.classify.LlmClassifier.builder(

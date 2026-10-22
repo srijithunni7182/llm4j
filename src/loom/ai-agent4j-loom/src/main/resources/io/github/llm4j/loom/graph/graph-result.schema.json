@@ -113,7 +113,7 @@
             "task": { "type": "string" },
             "model": { "type": "string" },
             "classifier": { "type": "string" },
-            "backend": { "enum": ["jev", "chat"] },
+            "backend": { "enum": ["jev", "decisions", "chat"] },
             "calibrated": { "const": true },
             "uncalibrated": { "const": true },
             "questions": { "type": "integer", "minimum": 1 },
