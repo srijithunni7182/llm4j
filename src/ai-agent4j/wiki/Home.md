@@ -7,7 +7,7 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-orange)](https://www.oracle.com/java/technologies/downloads/#java17)
 
 `ai-agent4j` is the core of the [llm4j](../../../README.md) stack. It gives you an `LLMClient` that speaks to
-**Google Gemini, Anthropic Claude, Sarvam and Ollama** through one contract, a `ReActAgent` that reasons and
+**Google Gemini, Anthropic Claude, Sarvam, Ollama, OpenAI, xAI, Kimi, Qwen and Perplexity** (and any OpenAI-style server) through one contract, a `ReActAgent` that reasons and
 calls tools, and the building blocks around them: memory, RAG, knowledge graphs, budgets and rate limits.
 
 > **Verified, not assumed.** Every provider passes one shared conformance suite on every build, and a
@@ -21,7 +21,7 @@ calls tools, and the building blocks around them: memory, RAG, knowledge graphs,
 | Guide | Description |
 |-------|-------------|
 | **[🚀 Getting Started](Getting-Started.md)** | Installation, configuration, and your first program. |
-| **[🔌 Providers](Providers-and-the-Uniform-Contract.md)** | Gemini, Claude, Sarvam and Ollama behind one contract. See also the [Sarvam](../docs/SARVAM.md) and [Ollama](../docs/OLLAMA.md) guides. |
+| **[🔌 Providers](Providers-and-the-Uniform-Contract.md)** | Gemini, Claude, Sarvam, Ollama and the OpenAI family behind one contract; see [OpenAI, xAI, Kimi, Qwen and any OpenAI-style server](OpenAI-Family-Providers.md) and [the Responses schema and Perplexity](Responses-Schema-and-Perplexity.md). See also the [Sarvam](../docs/SARVAM.md) and [Ollama](../docs/OLLAMA.md) guides. |
 | **[🤖 ReAct Agent](ReAct-Agent.md)** | Build agents that reason, plan, and use tools. ([Short guide](ReAct-Agent-Guide.md)) |
 | **[🛠️ Custom Tools](Creating-Custom-Tools.md)** | Extend an agent with your own logic, including approvals. |
 | **[🛠️ Native Tool Calling](Native-Tool-Calling.md)** | Agents use Gemini and Claude's structured tool calls instead of parsing text, with the text protocol as the fallback. |
@@ -70,7 +70,7 @@ calls tools, and the building blocks around them: memory, RAG, knowledge graphs,
 
 ### 🔌 One contract, four providers
 
-- **Switch with one line.** Gemini, Claude, Sarvam and Ollama share request, response, error and streaming
+- **Switch with one line.** Gemini, Claude, Sarvam, Ollama and the OpenAI family share request, response, error and streaming
   behaviour.
 - **No vendor SDKs.** Each provider is a small HTTP client, so there is no dependency tree to manage.
 - **Local models.** Run Gemma, Llama or Mistral on your own machine with [Ollama](../docs/OLLAMA.md).

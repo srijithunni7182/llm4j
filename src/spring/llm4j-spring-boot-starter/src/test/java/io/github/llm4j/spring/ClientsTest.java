@@ -33,6 +33,91 @@ class ClientsTest {
 
     @Tag("SB-V3.1")
     @Test
+    void theOpenAiFamilyProvidersAreConfigurable() throws Exception {
+        try (var chat = new Fixtures.Provider("sarvam");
+                var agent = new Fixtures.Provider("perplexity")) {
+            agent.responder =
+                    r ->
+                            new MockResponse()
+                                    .setHeader("Content-Type", "application/json")
+                                    .setBody(
+                                            "{\"id\":\"r1\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}],"
+                                                    + "\"usage\":{\"input_tokens\":10,\"output_tokens\":5,\"total_tokens\":15}}");
+            var runner =
+                    Fixtures.runner()
+                            .withBean(SecretStore.class, () -> keys("K"))
+                            .withPropertyValues("llm4j.primary=oa");
+            List<String> props = new ArrayList<>();
+            for (String name : List.of("oa", "xa", "ki", "qw", "gw")) {
+                String provider =
+                        switch (name) {
+                            case "oa" -> "openai";
+                            case "xa" -> "xai";
+                            case "ki" -> "kimi";
+                            case "qw" -> "qwen";
+                            default -> "openai-compatible";
+                        };
+                props.add("llm4j.clients." + name + ".provider=" + provider);
+                props.add("llm4j.clients." + name + ".model=m");
+                props.add("llm4j.clients." + name + ".api-key-secret=K");
+                props.add("llm4j.clients." + name + ".base-url=" + chat.url() + "/v1");
+                props.add("llm4j.clients." + name + ".retry.enabled=false");
+            }
+            props.add("llm4j.clients.pp.provider=perplexity");
+            props.add("llm4j.clients.pp.model=openai/gpt-4.1");
+            props.add("llm4j.clients.pp.api-key-secret=K");
+            props.add("llm4j.clients.pp.base-url=" + agent.url() + "/v1");
+            props.add("llm4j.clients.pp.retry.enabled=false");
+            runner.withPropertyValues(props.toArray(String[]::new))
+                    .run(
+                            ctx -> {
+                                assertThat(ctx).hasNotFailed();
+                                LLMClients all = ctx.getBean(LLMClients.class);
+                                for (String name : List.of("oa", "xa", "ki", "qw", "gw", "pp"))
+                                    assertThat(ask(all.get(name), "hi").getContent())
+                                            .as(name)
+                                            .isEqualTo("hello");
+                                assertThat(chat.seen).hasSize(5);
+                                assertThat(chat.lastPath()).isEqualTo("/v1/chat/completions");
+                                assertThat(chat.seen.get(0).getHeader("Authorization"))
+                                        .isEqualTo("Bearer key-K");
+                                assertThat(agent.lastPath()).isEqualTo("/v1/agent");
+                            });
+        }
+    }
+
+    @Test
+    void anOpenAiCompatibleClientNeedsABaseUrlButNoKeyAndTheErrorsListTheProviders() {
+        Fixtures.runner()
+                .withPropertyValues(
+                        "llm4j.primary=l",
+                        "llm4j.clients.l.provider=openai_compatible",
+                        "llm4j.clients.l.model=m")
+                .run(
+                        ctx ->
+                                assertThat(ctx.getStartupFailure())
+                                        .hasStackTraceContaining("llm4j.clients.l")
+                                        .hasStackTraceContaining("base-url"));
+        Fixtures.runner()
+                .withPropertyValues(
+                        "llm4j.primary=l",
+                        "llm4j.clients.l.provider=openai_compatible",
+                        "llm4j.clients.l.model=m",
+                        "llm4j.clients.l.base-url=http://localhost:1/v1")
+                .run(ctx -> assertThat(ctx).hasNotFailed());
+        Fixtures.runner()
+                .withPropertyValues("llm4j.primary=l", "llm4j.clients.l.provider=nonesuch")
+                .run(
+                        ctx ->
+                                assertThat(
+                                                rootConfigurationProblem(ctx.getStartupFailure())
+                                                        .action())
+                                        .contains(
+                                                "gemini, anthropic, ollama, sarvam, openai, xai, kimi, qwen, perplexity"));
+    }
+
+    @Tag("SB-V3.1")
+    @Test
     void eachProviderIsReachedOnItsOwnServerAndPath() throws Exception {
         try (var gemini = new Fixtures.Provider("gemini");
                 var anthropic = new Fixtures.Provider("anthropic");
@@ -230,12 +315,13 @@ class ClientsTest {
                                     .contains("llm4j.clients.default.api-key-secret");
                         });
         Fixtures.runner()
-                .withPropertyValues("llm4j.clients.default.provider=openai")
+                .withPropertyValues("llm4j.clients.default.provider=nonesuch")
                 .run(
                         ctx -> {
                             assertThat(ctx).hasFailed();
                             assertThat(rootConfigurationProblem(ctx.getStartupFailure()).action())
-                                    .contains("gemini, anthropic, ollama or sarvam");
+                                    .contains(
+                                            "gemini, anthropic, ollama, sarvam, openai, xai, kimi, qwen, perplexity");
                         });
     }
 

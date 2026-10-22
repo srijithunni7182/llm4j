@@ -20,7 +20,14 @@ import java.util.function.Function;
  *       OLLAMA_BASE_URL} (default {@code http://localhost:11434});
  *   <li>{@code sarvam/<model>}: Sarvam, {@code SARVAM_API_KEY}, optionally {@code SARVAM_BASE_URL};
  *   <li>{@code anthropic/<model>} or {@code claude-*}: Anthropic, {@code ANTHROPIC_API_KEY},
- *       optionally {@code ANTHROPIC_BASE_URL}.
+ *       optionally {@code ANTHROPIC_BASE_URL};
+ *   <li>{@code openai/<model>}, {@code xai/<model>}, {@code kimi/<model>}, {@code qwen/<model>} and
+ *       {@code perplexity/<creator>/<model>} (the Agent API): the vendor's key ({@code
+ *       OPENAI_API_KEY}, {@code XAI_API_KEY}, {@code MOONSHOT_API_KEY}, {@code DASHSCOPE_API_KEY},
+ *       {@code PERPLEXITY_API_KEY}) and optionally its {@code *_BASE_URL}. A bare name works when
+ *       no other vendor could own it: {@code gpt-*}, {@code o1}/{@code o3}/{@code o4}, {@code
+ *       chatgpt-*} (OpenAI), {@code grok-*} (xAI), {@code kimi-*}, {@code moonshot-*} (Kimi). A
+ *       bare {@code qwen3} is not guessed: it usually means a local Ollama model.
  * </ul>
  */
 public class DefaultLLMClientFactory implements LLMClientFactory {
@@ -69,13 +76,18 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
         GEMINI,
         OLLAMA,
         SARVAM,
-        ANTHROPIC
+        ANTHROPIC,
+        VENDOR
     }
 
     private static Kind kindOf(String modelName) {
         String m = modelName.toLowerCase(Locale.ROOT);
         if (m.startsWith("sarvam/")) return Kind.SARVAM;
         if (m.startsWith("anthropic/") || m.startsWith("claude-")) return Kind.ANTHROPIC;
+        // before the contains() rules: a Perplexity slug such as perplexity/google/gemini-3.7-flash
+        // is Perplexity's
+        if (io.github.llm4j.provider.openai.Vendor.ofModel(modelName).isPresent())
+            return Kind.VENDOR;
         if (m.contains("gemini")) return Kind.GEMINI;
         if (m.startsWith("ollama/")
                 || m.contains("llama")
@@ -101,6 +113,7 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
             return "unknown model \""
                     + modelName
                     + "\": use gemini-…, claude-… (or anthropic/<model>), ollama/<model>, sarvam/<model>, "
+                    + "openai/<model>, xai/<model>, kimi/<model>, qwen/<model>, perplexity/<creator>/<model>, "
                     + "or a provider declared in the script (provider Name { use: … }, then \"Name/<model>\")";
         }
         if (kind == Kind.GEMINI && !hasGeminiKey())
@@ -115,6 +128,18 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
             return "model "
                     + modelName
                     + " needs ANTHROPIC_API_KEY in the environment or the secret store";
+        if (kind == Kind.VENDOR) {
+            io.github.llm4j.provider.openai.Vendor vendor =
+                    io.github.llm4j.provider.openai.Vendor.ofModel(modelName)
+                            .orElseThrow()
+                            .vendor();
+            if (!hasKey(vendor.keyEnv()))
+                return "model "
+                        + modelName
+                        + " needs "
+                        + vendor.keyEnv()
+                        + " in the environment or the secret store";
+        }
         return null;
     }
 
@@ -154,6 +179,18 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
                                     + modelName);
                 yield forProvider(spec, modelName.substring("sarvam/".length()));
             }
+            case VENDOR -> {
+                var resolved =
+                        io.github.llm4j.provider.openai.Vendor.ofModel(modelName).orElseThrow();
+                var vendor = resolved.vendor();
+                ProviderSpec spec = spec(vendor.kind(), env(vendor.baseUrlEnv()), vendor.keyEnv());
+                if (spec == null)
+                    throw new IllegalStateException(
+                            vendor.keyEnv()
+                                    + " (an environment variable or a secret) is required for model: "
+                                    + modelName);
+                yield forProvider(spec, resolved.model());
+            }
             case ANTHROPIC -> {
                 ProviderSpec spec =
                         spec("anthropic", env("ANTHROPIC_BASE_URL"), "ANTHROPIC_API_KEY");
@@ -189,11 +226,16 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
                             "Jev answers typed questions; it does not chat. Use it in an intentclassifier (model: \""
                                     + spec.name()
                                     + "/<model>\").");
-                    default -> throw new IllegalArgumentException(
-                            "unknown provider kind "
-                                    + spec.kind()
-                                    + "; use one of "
-                                    + ProviderSpec.KINDS);
+                    default -> {
+                        var vendor = io.github.llm4j.provider.openai.Vendor.ofKind(spec.kind());
+                        if (vendor.isEmpty())
+                            throw new IllegalArgumentException(
+                                    "unknown provider kind "
+                                            + spec.kind()
+                                            + "; use one of "
+                                            + ProviderSpec.KINDS);
+                        yield vendor.get().create(config.build(), spec.options());
+                    }
                 };
         return wrap(provider);
     }

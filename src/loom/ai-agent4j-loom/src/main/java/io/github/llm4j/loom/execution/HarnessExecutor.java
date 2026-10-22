@@ -1655,8 +1655,13 @@ public class HarnessExecutor implements LoomEngine {
         // a key in the store is handed over by reference: the provider fetches it for each request,
         // and the secret's host binding applies
         String key = ref != null || keyOption == null ? null : option(declared, "api_key");
+        java.util.Map<String, String> options = new java.util.LinkedHashMap<>();
+        for (String name : java.util.List.of("api", "header", "query")) {
+            if (declared.getOptions().containsKey(name)) options.put(name, option(declared, name));
+        }
         return llmClientFactory.createClient(
-                new ProviderSpec(declared.getName(), declared.getKind(), baseUrl, key, ref),
+                new ProviderSpec(
+                        declared.getName(), declared.getKind(), baseUrl, key, ref, options),
                 model.substring(declared.getName().length() + 1));
     }
 

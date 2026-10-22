@@ -7,6 +7,7 @@ import io.github.llm4j.provider.LLMProvider;
 import io.github.llm4j.provider.anthropic.AnthropicProvider;
 import io.github.llm4j.provider.google.GoogleProvider;
 import io.github.llm4j.provider.ollama.OllamaProvider;
+import io.github.llm4j.provider.openai.Vendor;
 import io.github.llm4j.provider.sarvam.SarvamChatProvider;
 import io.github.llm4j.ratelimit.Sleeper;
 import io.github.llm4j.secret.SecretRef;
@@ -20,6 +21,9 @@ import java.util.Locale;
  */
 final class ClientFactory {
 
+    private static final String KNOWN =
+            "gemini, anthropic, ollama, sarvam, openai, xai, kimi, qwen, perplexity, perplexity_router or openai_compatible";
+
     private ClientFactory() {}
 
     static LLMClient create(
@@ -31,18 +35,29 @@ final class ClientFactory {
         String where = "llm4j.clients." + name;
         if (c.provider() == null || c.provider().isBlank()) {
             throw new Llm4jConfigurationException(
-                    where + ".provider is not set",
-                    "Set it to gemini, anthropic, ollama or sarvam.");
+                    where + ".provider is not set", "Set it to " + KNOWN + ".");
         }
-        String provider = c.provider().trim().toLowerCase(Locale.ROOT);
-        if (!java.util.List.of("gemini", "anthropic", "ollama", "sarvam").contains(provider)) {
+        String provider = c.provider().trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        Vendor vendor = Vendor.ofKind(provider).orElse(null);
+        if (vendor == null
+                && !java.util.List.of("gemini", "anthropic", "ollama", "sarvam")
+                        .contains(provider)) {
             throw new Llm4jConfigurationException(
                     where + ".provider=" + c.provider() + " is not known",
-                    "Use gemini, anthropic, ollama or sarvam, or declare your own LLMClient bean.");
+                    "Use " + KNOWN + ", or declare your own LLMClient bean.");
+        }
+        if (vendor == Vendor.OPENAI_COMPATIBLE && (c.baseUrl() == null || c.baseUrl().isBlank())) {
+            throw new Llm4jConfigurationException(
+                    where + " (openai_compatible) has no base-url",
+                    "Set "
+                            + where
+                            + ".base-url to the address of the server, for example http://localhost:8000/v1.");
         }
         SecretRef key =
                 CredentialProperty.ref(where + ".api-key", c.apiKey(), c.apiKeySecret(), secrets);
-        if (key == null && !provider.equals("ollama")) {
+        if (key == null
+                && !provider.equals("ollama")
+                && !(vendor != null && vendor.keyOptional())) {
             throw new Llm4jConfigurationException(
                     where + " (" + provider + ") has no API key",
                     "Set "
@@ -67,7 +82,8 @@ final class ClientFactory {
                             ? new AnthropicProvider(built)
                             : new AnthropicProvider(built, c.effort());
                     case "ollama" -> new OllamaProvider(built);
-                    default -> new SarvamChatProvider(built);
+                    case "sarvam" -> new SarvamChatProvider(built);
+                    default -> vendor.create(built, java.util.Map.of());
                 };
         return new DefaultLLMClient(llm);
     }

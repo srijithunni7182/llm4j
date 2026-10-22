@@ -681,6 +681,8 @@ final class EvalCommand implements Callable<Integer> {
         if (m.startsWith("gemini")) return "GEMINI_API_KEY";
         if (m.startsWith("claude")) return "ANTHROPIC_API_KEY";
         if (m.startsWith("sarvam")) return "SARVAM_API_KEY";
-        return null;
+        return io.github.llm4j.provider.openai.Vendor.ofModel(model)
+                .map(r -> r.vendor().keyEnv())
+                .orElse(null);
     }
 }

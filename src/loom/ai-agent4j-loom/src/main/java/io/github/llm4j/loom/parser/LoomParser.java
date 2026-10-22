@@ -2370,7 +2370,7 @@ public class LoomParser {
                     name,
                     "provider "
                             + name.getValue()
-                            + " needs use: gemini | anthropic | ollama | sarvam");
+                            + " needs use: gemini | anthropic | ollama | sarvam | openai | xai | kimi | qwen | perplexity | openai_compatible");
         return provider;
     }
 

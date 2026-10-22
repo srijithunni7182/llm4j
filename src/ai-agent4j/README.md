@@ -6,7 +6,7 @@
 
 <img src="docs/images/hero.png" width="50%" alt="AI Agent4J Hero">
 
-**Build autonomous agents, RAG pipelines, and specialized tools with Google Gemini, Anthropic Claude, Sarvam AI, and local LLMs.**
+**Build autonomous agents, RAG pipelines, and specialized tools with Google Gemini, Anthropic Claude, OpenAI, xAI, Perplexity, Sarvam AI, and local LLMs.**
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.srijithunni7182/ai-agent4j.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.srijithunni7182/ai-agent4j)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
@@ -34,7 +34,8 @@ Explore the full capabilities of the framework through our detailed guides:
 - [**ReAct Agent Guide**](wiki/ReAct-Agent-Guide.md) — Reasoning, tool-use, and the Thought-Action-Observation loop.
 - [**Memory & Persistence**](wiki/Memory-and-Persistence.md) — Managing conversation history and long-term storage.
 - [**Real-time Streaming**](wiki/Thought-Streaming.md) — Capturing agent "thoughts" for responsive UIs via SSE/WebSockets.
-- [**Providers and the Uniform Contract**](wiki/Providers-and-the-Uniform-Contract.md) — Switch between Gemini, Claude, Sarvam and Ollama by changing a name; streaming, finish reasons and exceptions that mean the same everywhere.
+- [**OpenAI, xAI, Kimi, Qwen and any OpenAI-style server**](wiki/OpenAI-Family-Providers.md) and [**the Responses schema and Perplexity**](wiki/Responses-Schema-and-Perplexity.md) — one provider for the whole OpenAI family, vendors as data (OpenAI, xAI, Perplexity supported once recorded; Kimi and Qwen preview).
+- [**Providers and the Uniform Contract**](wiki/Providers-and-the-Uniform-Contract.md) — Switch between Gemini, Claude, Sarvam, Ollama and the OpenAI family by changing a name; streaming, finish reasons and exceptions that mean the same everywhere.
 - [**Advanced Configuration**](wiki/Advanced-Configuration.md) — Retry policies, custom tools, and error handling.
 - [**Budgets and Rate Limits**](wiki/Budgets-and-Rate-Limits.md) — Cap tokens, calls or money; budgets that refill; reading 429s and pausing until the limit lifts.
 - [**Telemetry and Statistics**](wiki/Telemetry-and-Statistics.md) — One failure vocabulary for models and tools, `ToolException`, reading a tool's text result as a failure, latency percentiles, a thread-safe `StatsCollector`. *Complete for ai-agent4j: the agent reports every tool call and every model call (with the retries, waits and fail-overs beneath it) and puts per-run statistics on its result.*
@@ -60,7 +61,7 @@ Explore the full capabilities of the framework through our detailed guides:
 
 ## 🚀 Key Features
 
-- **🔁 One Contract, Any Provider**: Gemini, Claude, Sarvam and Ollama behave the same — requests, finish reasons, exceptions, token usage and streaming — checked by a shared conformance suite and a key-gated live suite. See [Providers and the Uniform Contract](wiki/Providers-and-the-Uniform-Contract.md).
+- **🔁 One Contract, Any Provider**: Gemini, Claude, Sarvam, Ollama, OpenAI, xAI, Kimi, Qwen and Perplexity behave the same — requests, finish reasons, exceptions, token usage and streaming — checked by a shared conformance suite and a key-gated live suite. See [Providers and the Uniform Contract](wiki/Providers-and-the-Uniform-Contract.md).
 - **🔌 Four Native Providers, No SDKs**: each over plain HTTP, with its quirks handled inside the provider:
   - **Google Gemini**: native system instructions, thinking-aware usage, a bad key reported as an auth error;
   - **Anthropic Claude**: required `max_tokens`, models that reject `temperature`, refusals, 529 "overloaded";

@@ -87,7 +87,8 @@ final class ExecutorValidation {
                         who,
                         "unknown use: "
                                 + p.getKind()
-                                + "; use one of gemini, anthropic, ollama, sarvam, jev");
+                                + "; use one of "
+                                + String.join(", ", ProviderSpec.KINDS));
                 continue;
             }
             for (var e : p.getOptions().entrySet()) {
@@ -103,6 +104,8 @@ final class ExecutorValidation {
                 }
                 switch (e.getKey()) {
                     case "base_url" -> {}
+                    case "api", "header", "query" -> checkVendorOption(
+                            c, p, who, e.getKey(), e.getValue());
                     case "api_key" -> {
                         if (!e.getValue().isReference()) {
                             c.error(
@@ -131,10 +134,24 @@ final class ExecutorValidation {
                     default -> c.error(
                             p.getLine(),
                             who,
-                            "unknown option " + e.getKey() + "; use base_url or api_key");
+                            "unknown option "
+                                    + e.getKey()
+                                    + "; use base_url, api_key"
+                                    + (p.getKind().equals("openai_compatible")
+                                            ? ", header, query"
+                                            : p.getKind().equals("openai") ? ", api" : ""));
                 }
             }
-            if (!p.getKind().equals("ollama") && !p.getOptions().containsKey("api_key")) {
+            if (p.getKind().equals("openai_compatible")
+                    && !p.getOptions().containsKey("base_url")) {
+                c.error(
+                        p.getLine(),
+                        who,
+                        "openai_compatible needs base_url (the address of the server, e.g. https://api.groq.com/openai/v1)");
+            }
+            if (!p.getKind().equals("ollama")
+                    && !p.getKind().equals("openai_compatible")
+                    && !p.getOptions().containsKey("api_key")) {
                 c.error(
                         p.getLine(),
                         who,
@@ -167,6 +184,55 @@ final class ExecutorValidation {
                 checkModel(c, r.getLine(), "routing " + r.getName(), r.getPrimaryModel());
             for (String fb : r.getFallbackModels())
                 checkModel(c, r.getLine(), "routing " + r.getName(), fb);
+        }
+    }
+
+    /**
+     * {@code api} (OpenAI: chat or responses), {@code header} and {@code query} (the generic kind
+     * only): the settings the OpenAI-family kinds accept beyond the address and the key.
+     */
+    private void checkVendorOption(
+            ScriptValidator.Checker c,
+            io.github.llm4j.loom.ast.ProviderDef p,
+            String who,
+            String option,
+            io.github.llm4j.loom.ast.ToolDef.OptionValue value) {
+        String owner = option.equals("api") ? "openai" : "openai_compatible";
+        if (!p.getKind().equals(owner)) {
+            c.error(p.getLine(), who, "the option " + option + " is only for use: " + owner);
+            return;
+        }
+        if (value.isReference()) {
+            c.error(
+                    p.getLine(),
+                    who,
+                    option + " is written in the script, not read from env or secret");
+            return;
+        }
+        String v = value.value();
+        switch (option) {
+            case "api" -> {
+                if (!v.equals("chat") && !v.equals("responses"))
+                    c.error(p.getLine(), who, "api must be chat or responses, got " + v);
+            }
+            case "header" -> {
+                if (!v.matches("[A-Za-z0-9-]{1,64}"))
+                    c.error(
+                            p.getLine(),
+                            who,
+                            "header must be a header name (letters, digits, -), got " + v);
+            }
+            default -> {
+                for (String pair : v.split("&")) {
+                    if (!pair.isBlank() && pair.indexOf('=') <= 0) {
+                        c.error(
+                                p.getLine(),
+                                who,
+                                "query must be name=value pairs joined with &, got " + pair);
+                        break;
+                    }
+                }
+            }
         }
     }
 

@@ -344,4 +344,67 @@ class SecretCommandsTest {
         for (var c : RunSpec.class.getRecordComponents())
             assertThat(c.getName().toLowerCase()).doesNotContain("secret").doesNotContain("master");
     }
+
+    @Test
+    void cli_setBindsAVendorsKeyToTheVendorsHostsUnlessToldOtherwise() throws Exception {
+        String f = file().toString();
+        vars.put("MY_STORE_KEY", PASS);
+        SecretCommands.run(
+                env(),
+                new Script(),
+                "create",
+                "--secrets",
+                f,
+                "--secrets-key-env",
+                "MY_STORE_KEY",
+                "--iterations",
+                "100000");
+        for (String[] key :
+                new String[][] {
+                    {"OPENAI_API_KEY", "api.openai.com"},
+                    {"XAI_API_KEY", "api.x.ai"},
+                    {"MOONSHOT_API_KEY", "api.moonshot.ai"},
+                    {"PERPLEXITY_API_KEY", "api.perplexity.ai"}
+                }) {
+            Script piped = new Script();
+            piped.line = VALUE;
+            assertThat(
+                            SecretCommands.run(
+                                    env(),
+                                    piped,
+                                    "set",
+                                    key[0],
+                                    "--stdin",
+                                    "--secrets",
+                                    f,
+                                    "--secrets-key-env",
+                                    "MY_STORE_KEY"))
+                    .isZero();
+            assertThat(said())
+                    .contains("Stored " + key[0] + " for " + key[1])
+                    .doesNotContain(VALUE);
+        }
+        // a gateway in front of the vendor: the author says so, and the binding follows
+        Script gateway = new Script();
+        gateway.line = VALUE;
+        SecretCommands.run(
+                env(),
+                gateway,
+                "set",
+                "OPENAI_API_KEY",
+                "--stdin",
+                "--allow-host",
+                "llm.corp.example",
+                "--secrets",
+                f,
+                "--secrets-key-env",
+                "MY_STORE_KEY");
+        try (EncryptedFileSecretStore s =
+                EncryptedFileSecretStore.open(file(), MasterKey.of(PASS.toCharArray()))) {
+            assertThat(s.metadata("OPENAI_API_KEY").orElseThrow().allowedHosts())
+                    .containsExactly("llm.corp.example");
+            assertThat(s.metadata("XAI_API_KEY").orElseThrow().allowedHosts())
+                    .containsExactly("api.x.ai");
+        }
+    }
 }

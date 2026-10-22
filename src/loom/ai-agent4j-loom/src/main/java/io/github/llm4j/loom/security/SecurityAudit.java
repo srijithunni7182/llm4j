@@ -486,23 +486,34 @@ public final class SecurityAudit {
                     && (host.equals("localhost") || host.equals("127.0.0.1") || host.equals("::1")))
                 return null;
             if ("ollama".equals(declared.getKind()) && url == null) return null;
+            var vendor = io.github.llm4j.provider.openai.Vendor.ofKind(declared.getKind());
             String kind =
                     "jev".equals(declared.getKind())
                             ? "TypeSafe AI's Jev API"
-                            : "the " + declared.getKind() + " API";
+                            : vendor.isPresent()
+                                    ? vendor.get().displayName()
+                                    : "the " + declared.getKind() + " API";
             return kind
                     + " at "
                     + (host != null
                             ? host
                             : "jev".equals(declared.getKind())
                                     ? "api.typesafe.ai"
-                                    : "its default address")
+                                    : vendor.isPresent() && !vendor.get().hosts().isEmpty()
+                                            ? vendor.get().hosts().get(0)
+                                            : "its default address")
                     + " (provider "
                     + declared.getName()
                     + ")";
         }
         if (lower.startsWith("jev/") || lower.startsWith("jev-"))
             return "TypeSafe AI's Jev API (api.typesafe.ai)";
+        var vendor = io.github.llm4j.provider.openai.Vendor.ofModel(model);
+        if (vendor.isPresent())
+            return vendor.get().vendor().displayName()
+                    + " ("
+                    + vendor.get().vendor().hosts().get(0)
+                    + ")";
         if (lower.startsWith("ollama/")
                 || lower.contains("llama")
                 || lower.contains("gemma")
