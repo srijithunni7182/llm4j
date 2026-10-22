@@ -302,14 +302,17 @@ public class GoogleProvider implements DescribableProvider {
     @Override
     public String[] listModels() {
         try {
-            String url = baseUrl + "/models";
+            String url = baseUrl + "/models?pageSize=1000";
             String responseJson = httpClient.get(url, buildHeaders());
             JsonNode root = objectMapper.readTree(responseJson);
 
-            if (root.has("models")) {
-                return objectMapper.convertValue(root.get("models"), String[].class);
+            // each entry is an object; its name is "models/<id>" and the id is what a request takes
+            java.util.List<String> ids = new java.util.ArrayList<>();
+            for (JsonNode model : root.path("models")) {
+                String name = model.path("name").asText("");
+                if (!name.isEmpty()) ids.add(name.substring(name.lastIndexOf('/') + 1));
             }
-            return new String[0];
+            return ids.toArray(new String[0]);
         } catch (ProviderException e) {
             throw e;
         } catch (io.github.llm4j.exception.RateLimitException e) {

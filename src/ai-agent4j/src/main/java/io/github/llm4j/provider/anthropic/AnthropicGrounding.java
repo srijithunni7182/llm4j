@@ -18,8 +18,10 @@ import java.util.Set;
 
 /**
  * Web-search grounding for Claude: the server tool {@code web_search_20250305} in the request, and
- * the sources and search count read from the content blocks of the answer. Preview: written from
- * Anthropic's reference, not from recorded responses (no key was available).
+ * the sources and search count read from the content blocks of the answer. Checked against a
+ * grounded answer, a grounded stream and an allowed-domain answer recorded from the real API
+ * (2026-10-22); blocked domains, the country and the round trip of a tool turn are still written
+ * from Anthropic's reference.
  *
  * <p>Claude cites by text block: a {@code text} block carries {@code citations} for the sentence it
  * holds, so a citation's span is that block's range in the answer. Searches are counted as the

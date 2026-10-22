@@ -33,10 +33,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Grounding for Anthropic and Google (8f; A9 to A11, A14; R7 to R9, R12). <b>Preview:</b> these run
- * on fixtures written from the vendors' reference pages (their headers say so), because no key was
- * available to record real responses. They pin the mapping; they do not prove the vendors send
- * exactly this.
+ * Grounding for Anthropic and Google (8f; A9 to A11, A14; R7 to R9, R12). Most tests run on
+ * fixtures written from the vendors' reference pages (their headers say so) and pin the mapping.
+ * The tests named "Recorded" run on responses recorded from the real APIs on 2026-10-22: a grounded
+ * answer for both vendors, a grounded stream for both, and an allowed-domain call for Anthropic.
  */
 class NativeGroundingPreviewTest {
 
@@ -154,6 +154,50 @@ class NativeGroundingPreviewTest {
         assertThat(r.getCitations().get(0).spans()).isNotEmpty();
         assertThat(r.getSearches().count()).isEqualTo(1);
         assertThat(r.getSearches().queries()).containsExactly("RBI policy repo rate current");
+    }
+
+    /** The grounded Claude stream recorded from the real API (2026-10-22). */
+    @Test
+    void aRecordedClaudeStreamHasTheTextCitationsAndSearchAndNoToolCall() {
+        assertThat(Fixtures.load("anthropic/grounded-stream-recorded.fixture").recorded()).isTrue();
+        server.enqueue(
+                new MockResponse()
+                        .setHeader("Content-Type", "text/event-stream")
+                        .setBody(
+                                Fixtures.load("anthropic/grounded-stream-recorded.fixture")
+                                        .body()));
+
+        List<LLMResponse> chunks = anthropic().chatStream(ask(Grounding.webSearch())).toList();
+        LLMResponse last = chunks.get(chunks.size() - 1);
+
+        assertThat(text(chunks)).startsWith("The RBI's policy repo rate is 5.50%").endsWith(".");
+        assertThat(chunks).allSatisfy(c -> assertThat(c.getToolCalls()).isEmpty());
+        assertThat(last.getCitations()).isNotEmpty();
+        assertThat(last.getCitations().get(0).url()).startsWith("https://");
+        assertThat(last.getCitations().get(0).spans()).isNotEmpty();
+        assertThat(last.getSearches().count()).isEqualTo(1);
+    }
+
+    /** A call with an allowed domain, recorded from the real API: the filter was accepted. */
+    @Test
+    void aRecordedAnswerFromAnAllowedDomainIsReadAndTheRequestCarriesTheFilter() throws Exception {
+        assertThat(Fixtures.load("anthropic/grounded-domains-recorded.fixture").recorded())
+                .isTrue();
+        server.enqueue(
+                new MockResponse()
+                        .setHeader("Content-Type", "application/json")
+                        .setBody(
+                                Fixtures.load("anthropic/grounded-domains-recorded.fixture")
+                                        .body()));
+
+        LLMResponse r = anthropic().chat(ask(Grounding.webSearch().allowDomains("rbi.org.in")));
+
+        assertThat(r.getContent()).isNotBlank();
+        assertThat(r.getCitations()).isNotEmpty();
+        assertThat(r.getCitations()).allSatisfy(c -> assertThat(c.url()).contains("rbi.org.in"));
+        assertThat(r.getSearches().count()).isEqualTo(1);
+        assertThat(sent().path("tools").get(0).path("allowed_domains").get(0).asText())
+                .isEqualTo("rbi.org.in");
     }
 
     @Test
@@ -388,6 +432,53 @@ class NativeGroundingPreviewTest {
         assertThat(text(chunks)).isEqualTo(whole.getContent());
         assertThat(last.getCitations()).isEqualTo(whole.getCitations());
         assertThat(last.getSearches()).isEqualTo(whole.getSearches());
+    }
+
+    /** The grounded Gemini answer and stream recorded from the real API (2026-10-22). */
+    @Test
+    void aRecordedGeminiAnswerAndStreamAgree() {
+        for (String f :
+                List.of(
+                        "google/grounded-recorded.fixture",
+                        "google/grounded-stream-recorded.fixture")) {
+            assertThat(Fixtures.load(f).recorded()).as(f).isTrue();
+        }
+        server.enqueue(
+                new MockResponse()
+                        .setHeader("Content-Type", "application/json")
+                        .setBody(Fixtures.load("google/grounded-recorded.fixture").body()));
+        LLMResponse whole = google().chat(ask(Grounding.webSearch()));
+        server.enqueue(
+                new MockResponse()
+                        .setHeader("Content-Type", "text/event-stream")
+                        .setBody(Fixtures.load("google/grounded-stream-recorded.fixture").body()));
+        List<LLMResponse> chunks = google().chatStream(ask(Grounding.webSearch())).toList();
+        LLMResponse last = chunks.get(chunks.size() - 1);
+
+        assertThat(whole.getContent())
+                .startsWith("The Reserve Bank of India's current policy repo rate is 5.50%");
+        assertThat(whole.getCitations()).hasSize(3);
+        Citation first = whole.getCitations().get(0);
+        assertThat(first.spans()).isNotEmpty();
+        assertThat(
+                        whole.getContent()
+                                .substring(
+                                        first.spans().get(0).start(), first.spans().get(0).end()))
+                .startsWith("The Reserve Bank of India's current policy repo rate is 5.50%");
+        assertThat(whole.getSearches().count()).isEqualTo(1);
+        assertThat(whole.getSearches().queries())
+                .containsExactly("current RBI policy repo rate October 2026");
+        assertThat(text(chunks)).isEqualTo(whole.getContent());
+        // two separate calls: Google puts a different redirect token in each url
+        assertThat(last.getCitations())
+                .extracting(Citation::title)
+                .containsExactlyElementsOf(
+                        whole.getCitations().stream().map(Citation::title).toList());
+        assertThat(last.getCitations())
+                .extracting(Citation::spans)
+                .containsExactlyElementsOf(
+                        whole.getCitations().stream().map(Citation::spans).toList());
+        assertThat(last.getSearches().count()).isEqualTo(whole.getSearches().count());
     }
 
     @Test

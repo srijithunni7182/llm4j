@@ -1,0 +1,81 @@
+# source: recorded
+# vendor: google
+# date: 2026-10-22
+# model: gemini-3.1-flash-lite
+# endpoint: POST /v1beta/models/gemini-3.1-flash-lite:generateContent
+# step: grounded-recorded
+# prompt: In one sentence: what is the Reserve Bank of India policy repo rate right now?
+# note: recorded with one throwaway call; thought signatures and redirect tokens shortened, search widget HTML trimmed; no key or account id
+---
+{
+ "candidates": [
+  {
+   "content": {
+    "parts": [
+     {
+      "text": "The Reserve Bank of India's current policy repo rate is 5.50%, following a 25 basis point increase announced by the Monetary Policy Committee on October 7, 2026.",
+      "thoughtSignature": "EnMKcQFpFH0T\u2026"
+     }
+    ],
+    "role": "model"
+   },
+   "finishReason": "STOP",
+   "index": 0,
+   "groundingMetadata": {
+    "searchEntryPoint": {
+     "renderedContent": "(trimmed)"
+    },
+    "groundingChunks": [
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFwtRLdrCEmP\u2026",
+       "title": "scconline.com"
+      }
+     },
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFZT3RrGd-Ov\u2026",
+       "title": "arthzo.com"
+      }
+     },
+     {
+      "web": {
+       "uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFh-nMI-VhAt\u2026",
+       "title": "durgeshchavda.com"
+      }
+     }
+    ],
+    "groundingSupports": [
+     {
+      "segment": {
+       "endIndex": 160,
+       "text": "The Reserve Bank of India's current policy repo rate is 5.50%, following a 25 basis point increase announced by the Monetary Policy Committee on October 7, 2026"
+      },
+      "groundingChunkIndices": [
+       0,
+       1,
+       2
+      ]
+     }
+    ],
+    "webSearchQueries": [
+     "current RBI policy repo rate October 2026"
+    ]
+   }
+  }
+ ],
+ "usageMetadata": {
+  "promptTokenCount": 18,
+  "candidatesTokenCount": 63,
+  "totalTokenCount": 81,
+  "promptTokensDetails": [
+   {
+    "modality": "TEXT",
+    "tokenCount": 18
+   }
+  ],
+  "serviceTier": "standard"
+ },
+ "modelVersion": "gemini-3.1-flash-lite",
+ "responseId": "hiraau2oHMjw5NoP9qKw6QE"
+}
