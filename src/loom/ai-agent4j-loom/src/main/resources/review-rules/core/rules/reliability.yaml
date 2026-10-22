@@ -1,0 +1,49 @@
+- id: LR01
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, is: delegate }
+      - { field: agent.hasTools, is: true }
+      - { field: retry, is: false }
+      - { field: timeout, is: false }
+  title: "{label} has a tool but no retry or timeout"
+  why: "A tool call can fail or hang. Without a retry and a timeout one slow or failing call stalls or ends the whole run."
+  fixHint: "Add a retry and a timeout to this step."
+  fix:
+    safety: safe
+    label: "Add retry and timeout"
+    insertAfter: { anchor: statementEnd, text: " {setting.fix.retry}" }
+  since: "1.0.0"
+  explain: >
+    A delegate to an agent that has tools can fail in ways a plain model call does not: a tool
+    times out, an API rate-limits, a network drops. A retry gives the step another chance and a
+    timeout stops one call from holding the run forever. The fix adds the retry and timeout your
+    project prefers (fix.retry in review.properties).
+  examples:
+    fires: [ { file: examples/lr01-fires.loom, expect: 1 } ]
+    quiet: [ examples/lr01-quiet.loom, examples/lr01-quiet-no-tools.loom ]
+
+- id: LR03
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, is: loop }
+      - { field: hasMax, is: false }
+  title: "{label} has no maximum number of rounds"
+  why: "A loop that only stops when its condition becomes true can run for ever if the condition never does, and every round may call a model."
+  fixHint: "Add a maximum, such as max 5, and say what happens when it is reached."
+  fix:
+    safety: safe
+    label: "Add a maximum number of rounds"
+    insertAfter: { anchor: { lineOf: line }, text: " {setting.fix.loop.max}" }
+  since: "1.0.0"
+  explain: >
+    Bound every loop. With max N the runtime stops after N rounds and runs the on_exhausted block,
+    so the cost of the loop has an upper limit and the run cannot spin unnoticed.
+  examples:
+    fires: [ examples/lr03-fires.loom ]
+    quiet: [ examples/lr03-quiet.loom ]

@@ -1,0 +1,24 @@
+- id: LD02
+  lens: durability
+  severity: high
+  about: tool
+  when:
+    all:
+      - { field: kind, is: class }
+      - { field: reachKnown, is: true }
+      - { field: reach, in: [writes, sends] }
+      - { field: idempotentDeclared, is: false }
+      - { field: usedBy, count: { gt: 0 } }
+  title: "Tool {name} is your own Java: a resumed run can repeat what it does"
+  why: "Only the built-in tool kinds and run tasks journal their effects. A resumed or retried run can call your Java tool a second time and repeat what it did, such as sending the same message twice."
+  fixHint: "Move the effect behind a run task, use a built-in kind that journals, or make the tool safe to repeat and say so."
+  since: "1.0.0"
+  references: [LLM06]
+  explain: >
+    When a run is stopped by a crash or a restart and resumed, the steps that finished are replayed
+    from the journal instead of being done again. That holds for effects the runtime knows about
+    (webhook, email, http, file, shell, sql) and for run tasks. It cannot hold for a Java class the
+    runtime never looks inside. If the class sends or writes, resuming can do it twice.
+  examples:
+    fires: [ examples/ld02-fires.loom ]
+    quiet: [ examples/ld02-quiet-reads.loom, examples/ld02-quiet-journaled.loom ]

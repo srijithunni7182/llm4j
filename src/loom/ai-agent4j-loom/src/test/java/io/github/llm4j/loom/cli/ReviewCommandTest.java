@@ -234,6 +234,173 @@ class ReviewCommandTest {
         }
     }
 
+    static final String SLOPPY =
+            """
+            agent Researcher { model: "m"  system: "s"  tools: [web_search] }
+            agent Idle { model: "gemini-flash-latest"  system: "never used" }
+            workflow Main(q) {
+                delegate "{q}" to Researcher -> r
+                loop until (x == "yes") { delegate "{q}" to Researcher -> x }
+                note "{r}"
+            }
+            """;
+
+    private com.fasterxml.jackson.databind.JsonNode json(String source, String... args)
+            throws Exception {
+        List<String> all = new java.util.ArrayList<>(List.of("--format", "json"));
+        all.addAll(List.of(args));
+        out.reset();
+        assertThat(run(source, all.toArray(new String[0]))).isZero();
+        return new ObjectMapper().readTree(out.toString());
+    }
+
+    private static List<String> rules(com.fasterxml.jackson.databind.JsonNode report) {
+        List<String> ids = new java.util.ArrayList<>();
+        report.get("findings").forEach(f -> ids.add(f.get("rule").asText()));
+        return ids;
+    }
+
+    @Test
+    void rulesFromTheCorePackAppearBesideTheAuditAndTheyNameTheirPackAndNode() throws Exception {
+        JsonNode report = json(SLOPPY);
+        assertThat(rules(report)).contains("LR01", "LR03");
+        for (JsonNode f : report.get("findings")) {
+            if (f.get("rule").asText().equals("LR01")) {
+                assertThat(f.get("source").asText()).isEqualTo("pack core@1.0.0");
+                assertThat(f.get("lens").asText()).isEqualTo("reliability");
+                assertThat(f.get("location").get("node").asText()).matches("n\\d+");
+                assertThat(f.get("title").asText()).contains("delegate Researcher");
+            }
+        }
+    }
+
+    @Test
+    void optionalLensRulesStayOffUntilAskedForOnTheCommandLineOrInTheSettingsFile()
+            throws Exception {
+        assertThat(rules(json(SLOPPY))).doesNotContain("LM01", "LG04");
+        assertThat(rules(json(SLOPPY, "--lens", "+maintainability"))).contains("LM01");
+        Files.writeString(dir.resolve("review.properties"), "lenses = +maintainability\n");
+        assertThat(rules(json(SLOPPY))).contains("LM01");
+        assertThat(json(SLOPPY).get("summary").get("lenses").get("off"))
+                .extracting(JsonNode::asText)
+                .doesNotContain("maintainability");
+    }
+
+    @Test
+    void aRuleCanBeTurnedOffAndItsSeverityChangedFromTheSettingsFile() throws Exception {
+        Files.writeString(dir.resolve("review.properties"), "LR01 = off\nLR03.severity = high\n");
+        JsonNode report = json(SLOPPY);
+        assertThat(rules(report)).doesNotContain("LR01").contains("LR03");
+        for (JsonNode f : report.get("findings"))
+            if (f.get("rule").asText().equals("LR03"))
+                assertThat(f.get("severity").asText()).isEqualTo("high");
+    }
+
+    @Test
+    void everyRuleOfTheCorePackCanBeExplainedWithItsPackAndOptionalLensNote() throws Exception {
+        assertThat(run(SLOPPY, "--explain", "LR01")).isZero();
+        assertThat(out.toString())
+                .contains("LR01")
+                .contains("Lens: Reliability")
+                .contains("Severity: medium")
+                .contains("From: pack core@1.0.0")
+                .contains("Why it matters")
+                .contains("What to do");
+        out.reset();
+        assertThat(run(SLOPPY, "--explain", "lm01")).isZero();
+        assertThat(out.toString()).contains("optional lens").contains("--lens +maintainability");
+        for (var rule : io.github.llm4j.loom.review.Reviews.corePack().rules()) {
+            out.reset();
+            assertThat(run(SLOPPY, "--explain", rule.id())).as(rule.id()).isZero();
+        }
+    }
+
+    @Test
+    void reviewingEveryExampleScriptNeverCrashesAndAlwaysProducesTheDocumentedJson()
+            throws Exception {
+        java.nio.file.Path examples = java.nio.file.Path.of("../../examples");
+        int reviewed = 0;
+        try (var walk = Files.walk(examples, 3)) {
+            for (java.nio.file.Path p :
+                    walk.filter(x -> x.toString().endsWith(".loom")).sorted().toList()) {
+                ReviewCommand c = new ReviewCommand();
+                new CommandLine(c).parseArgs(p.toString(), "--format", "json", "--no-env");
+                out.reset();
+                err.reset();
+                int code = ReviewCommand.review(c, env());
+                if (code == 2)
+                    continue; // a script that cannot be read is exit 2, which is the documented
+                // answer
+                assertThat(code).as(p.toString()).isZero();
+                assertThat(new ObjectMapper().readTree(out.toString()).get("version").asInt())
+                        .isEqualTo(1);
+                reviewed++;
+            }
+        }
+        assertThat(reviewed).isGreaterThan(3);
+    }
+
+    @Test
+    void aMissingOrBrokenLootFileIsExitTwoAndAValidOneIsUsedForReach() throws Exception {
+        ReviewCommand missing = command(RISKY);
+        missing.lootFile = new File(dir.toFile(), "nope.loot");
+        assertThat(ReviewCommand.review(missing, env())).isEqualTo(2);
+        assertThat(err.toString()).contains("does not exist");
+        err.reset();
+        Path loot = dir.resolve("tools.loot");
+        Files.writeString(loot, "Mailer = com.acme.MailTool\nMailer.reach = nonsense\n");
+        ReviewCommand broken = command(RISKY);
+        broken.lootFile = loot.toFile();
+        assertThat(ReviewCommand.review(broken, env())).isEqualTo(2);
+        assertThat(err.toString()).contains("nonsense");
+        err.reset();
+        Files.writeString(loot, "Mailer = com.acme.MailTool\nMailer.reach = sends\n");
+        ReviewCommand fine =
+                command(
+                        "agent A { model: \"m\"  system: \"s\"  tools: [Mailer] }\nworkflow Main(q) { delegate \"{q}\" to A -> r  note \"{r}\" }\n",
+                        "--format",
+                        "json");
+        fine.lootFile = loot.toFile();
+        assertThat(ReviewCommand.review(fine, env())).isZero();
+        assertThat(rules(new ObjectMapper().readTree(out.toString()))).contains("LD02");
+    }
+
+    @Test
+    void anUnwritableOutFileIsExitTwoAfterTheReportWasShown() throws Exception {
+        assertThat(run(RISKY, "--out", dir.toString()))
+                .isEqualTo(2); // a folder cannot be written as a file
+        assertThat(err.toString()).contains("could not write");
+        assertThat(out.toString()).contains("LA01");
+    }
+
+    @Test
+    void theCommandRunsThroughPicocliWithTheRealEnvironment() throws Exception {
+        java.io.PrintStream real = System.out;
+        ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(captured, true));
+        try {
+            int code = WeaveCLI.commandLine().execute("review", "--explain", "LA01");
+            assertThat(code).isZero();
+        } finally {
+            System.setOut(real);
+        }
+        assertThat(captured.toString()).contains("lethal trifecta");
+        Path f = dir.resolve("w.loom");
+        Files.writeString(f, CALM);
+        captured.reset();
+        System.setOut(new PrintStream(captured, true));
+        try {
+            assertThat(
+                            WeaveCLI.commandLine()
+                                    .execute(
+                                            "review", f.toString(), "--no-env", "--format", "json"))
+                    .isZero();
+        } finally {
+            System.setOut(real);
+        }
+        assertThat(captured.toString()).contains("\"version\" : 1");
+    }
+
     @Test
     void theCommandIsRegisteredInTheWeaveCli() {
         CommandLine weave = WeaveCLI.commandLine();

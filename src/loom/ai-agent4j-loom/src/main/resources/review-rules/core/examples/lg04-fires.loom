@@ -1,0 +1,3 @@
+tool Hook { use: webhook  url: env.HOOK_URL }
+agent A { model: "gemini-flash-latest"  system: "s"  tools: [Hook] }
+workflow Main(q) { delegate "{q}" to A -> r  note "{r}" }

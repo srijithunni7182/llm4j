@@ -1,0 +1,3 @@
+tool Lookup { use: class  class: "com.acme.LookupTool"  reach: reads }
+agent A { model: "m"  system: "s"  tools: [Lookup] }
+workflow Main(q) { delegate "{q}" to A -> r  note "{r}" }

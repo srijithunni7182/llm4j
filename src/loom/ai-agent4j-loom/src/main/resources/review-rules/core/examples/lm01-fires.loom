@@ -1,0 +1,3 @@
+agent Used { model: "m"  system: "s" }
+agent Idle { model: "m"  system: "never called" }
+workflow Main(q) { delegate "{q}" to Used -> r  note "{r}" }

@@ -1,0 +1,2 @@
+agent A { model: "m"  system: "s"  guard { pii: warn } }
+workflow Main(q) { delegate "{q}" to A -> r  note "{r}" }

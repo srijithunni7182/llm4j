@@ -1,0 +1,16 @@
+- id: LY02
+  lens: privacy
+  severity: medium
+  about: agent
+  when:
+    all:
+      - { field: guardPii, is: warn }
+      - { field: hasEffects, is: true }
+  title: "Agent {name} only warns about personal data but can write or send"
+  why: "A warning is written to a log and nothing stops the data. An agent that can write or send can pass personal data on."
+  fixHint: "Change the guard to pii: mask (or block) so personal data is removed before it reaches the model or a tool."
+  since: "1.0.0"
+  references: [LLM02]
+  examples:
+    fires: [ examples/ly02-fires.loom ]
+    quiet: [ examples/ly02-quiet-mask.loom, examples/ly02-quiet-no-effects.loom ]

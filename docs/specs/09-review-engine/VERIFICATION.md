@@ -1,6 +1,6 @@
 # Phase 9 verification plan: the review engine
 
-Status: **not started**. Run top to bottom at the end of sub-phase 9i; the relevant rows after each sub-phase. Results in §7.
+Status: **9a in progress** (sub-phase 9a complete; 9b–9i not started). Run top to bottom at the end of sub-phase 9i; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -44,13 +44,13 @@ Status: **not started**. Run top to bottom at the end of sub-phase 9i; the relev
 
 | Req | Tests | Status |
 |---|---|---|
-| R1 | `FindingModelTest`, one test per rule | ⬜ 9a |
-| R2 | `FindingModelTest`, `NodeIdLinkTest` (ids equal `weave graph` ids) | ⬜ 9a |
-| R3 | `AdapterTest`, `LvClassificationTest`, `AuditUnchangedTest`, `CheckUnchangedTest` | ⬜ 9a/9b |
+| R1 | `FindingModelTest.aFindingNeedsARuleIdAndAFixHint`, `CorePackTest.everyRuleAnswersWhyAndWhatToDo…` | ✅ 9a |
+| R2 | `FindingModelTest.aLocationKnowsWhen…`, `DataRuleSourceTest.stepFindingsAreTiedToTheirGraphNode` | ✅ 9a |
+| R3 | `AdapterTest` (LV classification and unchanged-command tests land in 9b) | ◐ 9a done, rest later |
 | R4 | `FixApplierTest` | ⬜ 9e |
-| R5 | `FindingModelTest` (JSON round trip, version), `ReportGoldenTest` | ⬜ 9a |
-| R6 | `ReviewCommandTest` (exit codes) | ⬜ 9a |
-| R7 | `ReviewSupersetOfAuditTest` | ⬜ 9a |
+| R5 | `ReportFormatsTest.theJsonIsVersionedAndCarriesEveryFieldTheEditorNeeds`, `hostileTextRoundTripsThroughJsonUnchanged` | ✅ 9a |
+| R6 | `ReviewCommandTest` (exit codes, `--fail-on`, bad input = 2) | ✅ 9a |
+| R7 | `ReviewSupersetOfAuditTest` | ✅ 9a |
 | R8 | `SarifSchemaTest` | ⬜ 9b |
 | R9 | `ReportGoldenTest` | ⬜ 9c |
 | R10 | `CostModelTest`, `EstimatorMatchesRuntimeTest` | ⬜ 9c |
@@ -62,11 +62,11 @@ Status: **not started**. Run top to bottom at the end of sub-phase 9i; the relev
 | R16 | `CalibrationTest` | ⬜ 9c |
 | R17 | `CorpusCostAccuracyTest` | ⬜ 9c |
 | R18 | `ReviewCorpusTest` | ⬜ 9d |
-| R19 | `ExplainEveryRuleTest` | ⬜ 9a/9d |
-| R20 | `RulePurityTest` (rules run twice with different clocks/env give the same findings) | ⬜ 9a |
+| R19 | `ReviewCommandTest` (`--explain` for every rule) | ✅ 9a |
+| R20 | `ReviewEngineTest.theSameInputGivesTheSameList…` (clock/env purity test lands in 9b) | ◐ 9a done, rest later |
 | R21 | `RulePluginTest`, `ThrowingRuleTest` | ⬜ 9b |
 | R22 | `DedupTest` | ⬜ 9b |
-| R23 | `RankingTest` | ⬜ 9a |
+| R23 | `ReviewEngineTest.findingsAreRankedBySeverityThenLensThenLineThenRule` | ✅ 9a |
 | R24 | `FixAtomicityTest` | ⬜ 9e |
 | R25 | `FixApplierTest` (verification) | ⬜ 9e |
 | R26 | `FixOverlapTest` | ⬜ 9e |
@@ -75,7 +75,7 @@ Status: **not started**. Run top to bottom at the end of sub-phase 9i; the relev
 | R29 | `FixPreservesFormattingTest` | ⬜ 9e |
 | R30 | `ReviewCorpusTest`, `CorpusCostAccuracyTest` | ⬜ 9a/9c |
 | R31 | `SuppressionTest` | ⬜ 9b |
-| R32 | `ReviewRulesFileTest` | ⬜ 9a |
+| R32 | `ReviewSettingsTest.aMisspeltKeyIsAnErrorThatNamesTheNearestKey` | ✅ 9a |
 | R33 | `LensSelectionTest`, `OptionalLensesOffByDefaultTest` | ⬜ 9f |
 | R34 | `ReviewInputsTest`, `CoverageReportStaleTest`, `ReviewNeverRunsTestsTest` | ⬜ 9g |
 | R35 | `TimeEstimateTest`, `CriticalPathTest` | ⬜ 9g |
@@ -100,18 +100,18 @@ Status: **not started**. Run top to bottom at the end of sub-phase 9i; the relev
 | R54 | `ReviewCrashDoesNotFailRunTest` | ⬜ 9e |
 | R55 | `FabricReviewAttributeTest` | ⬜ 9h |
 | R56 | `SkillAdvisoryTextTest` | ⬜ 9i |
-| R57 | `CoreRulesAreDataTest`, `RuleParityTest` | ⬜ 9a/9d |
-| R58 | `RuleSchemaRejectsExpressionsTest` | ⬜ 9a |
-| R59 | `FactCatalogTest`, `FactCatalogMatchesValidatorTest` | ⬜ 9a |
-| R60 | `UnknownFactTest`, `Fact*ProviderTest` | ⬜ 9a/9d |
-| R61 | `RuleDocumentShapeTest`, `PlaceholderSubstitutionTest` | ⬜ 9a |
-| R62 | `RuleVocabularyTest`, `RuleRelationsTest`, `RuleRegexLimitTest`, `RuleTerminationTest` | ⬜ 9a |
+| R57 | `CorePackTest` (6 rules as data so far; parity with Java moves in 9d) | ◐ 9a done, rest later |
+| R58 | `RuleParserTest.thereIsNoWayToWriteAnExpressionOrACall` | ✅ 9a |
+| R59 | `FactBuilderTest.theCatalogDescribesEveryField…`, `RuleValidatorTest` (unknown entity / fact) | ✅ 9a |
+| R60 | `RuleEvaluatorTest` (three-valued), `DataRuleSourceTest.aConditionOnAnUnknownFactDoesNotFire…` | ✅ 9a |
+| R61 | `RuleParserTest`, `RuleEvaluatorTest.templatesFillFacts…` | ✅ 9a |
+| R62 | `RuleEvaluatorTest` (vocabulary, relations, regex step limit), `RuleParserTest.conditionsAreBoundedInDepthAndSize` | ✅ 9a |
 | R63 | `PackPinHashTest`, `PackLoadOrderTest` | ⬜ 9b |
 | R64 | `PackNoNetworkTest` | ⬜ 9b |
 | R65 | `PackSandboxTest`, `PackLimitsTest` | ⬜ 9b |
-| R66 | `PackValidationTest`, `PackPrefixTest` | ⬜ 9a/9b |
+| R66 | `PackLoaderTest` (pack validation and prefixes ✅; third-party pins in 9b) | ◐ 9a done, rest later |
 | R67 | `FixTemplateOpsTest`, `FixTemplateVerifiedTest`, `FixTemplateParityTest` | ⬜ 9e |
-| R68 | `PackExamplesRequiredTest`, `ReviewCorpusTest` | ⬜ 9a |
+| R68 | `PackLoaderTest.aRuleWithoutExamplesRefusesThePack`, `PackTesterTest`, `CorePackTest.everyRuleCarriesAtLeastOneFiringAndOneQuietExample` | ✅ 9a |
 | R69 | `RuleDocsGeneratedTest` | ⬜ 9i |
 | R70 | `RulesListTest`, `RulesExplainAtTest`, `RulesNewScaffoldTest`, `RulesAddPinsTest` | ⬜ 9b |
 | R71 | `ProvenanceTest`, `PackUpgradeKeepsHandledTest` | ⬜ 9b |
@@ -150,3 +150,10 @@ Wiki page "Reviewing a workflow"; `LOOM_GUIDE.md` section on `weave review` and 
 ## 7. Results
 
 *(filled in at the end of each sub-phase: corpus precision/recall per rule, estimator error table, review time, fix verification counts)*
+
+### 9a (2026-10-22)
+
+- Built: finding model, settings (`review.properties`), engine, adapters for audit (LA01–LA20) and validity (LV00), text/markdown/JSON reports, `weave review`, fact model v1 with six fact providers, data-rule parser, validator, three-valued evaluator, pack loader and tester, and a bundled core pack of six rules (LR01, LR03, LD02, LY02, LM01 optional, LG04 optional) with 17 example scripts.
+- Tests: all review tests and the full loom module (2,400 tests) pass. The one failure on the first full run, `RepositoryScriptsTest`, was real: the bundled examples used a literal webhook URL; fixed to `env.HOOK_URL`.
+- Review is a superset of audit on every bundled example (`ReviewSupersetOfAuditTest`); `weave check` and `weave audit` untouched apart from extracting `WeaveCLI.validate`.
+- Not yet measured: coverage gate, corpus precision (needs 9d), performance (A11).

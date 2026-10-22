@@ -612,7 +612,8 @@ public class WeaveCLI implements Callable<Integer> {
         java.util.List<String> keyWarnings = validation.keyWarnings();
         java.util.List<String> reachProblems = validation.reachProblems();
         java.util.Set<String> notSetYet = validation.notSetYet();
-        List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems = validation.problems();
+        List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems =
+                validation.problems();
         var error = io.github.llm4j.loom.execution.ScriptValidator.Severity.ERROR;
         long errors =
                 problems.stream().filter(p -> p.severity() == error || settings.strict()).count()

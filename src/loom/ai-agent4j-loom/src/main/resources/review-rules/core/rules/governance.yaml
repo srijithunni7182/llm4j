@@ -1,0 +1,15 @@
+- id: LG04
+  lens: governance
+  severity: medium
+  about: agent
+  when:
+    all:
+      - { field: model.floatingAlias, is: true }
+      - { field: hasEffects, is: true }
+  title: "Agent {name} acts on {model.id}, an alias that can change without a commit"
+  why: "A floating alias such as -latest points at a different model when the vendor moves it, so what the agent does can change with no change to the repository."
+  fixHint: "Pin the exact model version for an agent that writes or sends."
+  since: "1.0.0"
+  examples:
+    fires: [ examples/lg04-fires.loom ]
+    quiet: [ examples/lg04-quiet-pinned.loom, examples/lg04-quiet-no-effects.loom ]

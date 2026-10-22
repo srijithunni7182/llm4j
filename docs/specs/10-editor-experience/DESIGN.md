@@ -53,10 +53,10 @@ Non-goals:
 |                                                              |  2 high   3 medium   1 low   0 info   |
 |   graph (existing renderer)                                  |  Cost  typical $0.004  worst $0.06    |
 |   [start]-->(intentclassify Intent)--+--(delegate Replier)   |        bounded by: 3 loops, 2 retries |
-|                  ! LR05              |        ! LA05 ! LC01  |  Security  trifecta present (LA05)    |
+|                  ! LR05              |        ! LA01 ! LC01  |  Security  trifecta present (LA01)    |
 |                                      +--(return)             |  ---------------------------------    |
 |   nodes tinted by worst finding; cost badge per step;        |  SECURITY (1)                         |
-|   selected node outlined                                     |   HIGH  LA05 Replier reads customer…  |
+|   selected node outlined                                     |   HIGH  LA01 Replier reads customer…  |
 |                                                              |         why / fix / [Fix] [Explain]   |
 |                                                              |  RELIABILITY (2)  COST (2)  VALIDITY… |
 +--------------------------------------------------------------+---------------------------------------+
@@ -107,7 +107,7 @@ Noise is handled by making each decision one click, safe, and durable where it s
 ```
 Group by [ severity | lens | rule | file ]                              Fix all safe (5 of 8)   Accept all…   Dismiss all
 ▾ HIGH  (2)                                                              Fix all safe (1 of 2)   Accept all…   Dismiss all
-    LA05  Replier reads customer data and can send mail with no approval          [Fix] [Accept…] [Dismiss] [Explain]
+    LA01  Replier reads untrusted text and customer data and can send mail          [Fix] [Accept…] [Dismiss] [Explain]
     LD02  Tool 'Mailer' (your Java) can repeat a send on resume                    [Review fix…] [Accept…] [Dismiss] [Explain]
 ▾ MEDIUM (6)  ▸ by lens: Reliability (3) · Cost (2) · Prompts (1)
 ▸ Handled (11)   accepted 4 · dismissed 5 · baselined 2    [Show] [Restore all dismissed]

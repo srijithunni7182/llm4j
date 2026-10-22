@@ -1,0 +1,3 @@
+tool Hook { use: webhook  url: env.HOOK_URL }
+agent A { model: "m"  system: "s"  tools: [Hook]  guard { pii: mask } }
+workflow Main(q) { delegate "{q}" to A -> r  note "{r}" }

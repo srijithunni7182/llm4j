@@ -172,12 +172,22 @@ public final class ReviewSettings {
         return rules.getOrDefault(ruleId, RuleSetting.NONE);
     }
 
-    /** A declared value such as {@code data.regions}, or empty when not declared. */
+    /** Values a project need not declare: the text fixes insert, which a project may override. */
+    private static final Map<String, String> DEFAULTS =
+            Map.of(
+                    "fix.retry", "retry 2 backoff 2s timeout 60s",
+                    "fix.loop.max", "max 5");
+
+    /**
+     * A value such as {@code data.regions}: what the project declared, else the built-in default
+     * for the few settings that have one, else empty.
+     */
     public Optional<String> value(String key) {
-        return Optional.ofNullable(values.get(key));
+        String declared = values.get(key);
+        return Optional.ofNullable(declared != null ? declared : DEFAULTS.get(key));
     }
 
-    /** Every declared key and value, in file order. */
+    /** Every key and value the project declared, in file order (not the defaults). */
     public Map<String, String> values() {
         return values;
     }
