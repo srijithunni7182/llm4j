@@ -2,8 +2,8 @@
 
 > **Status (phase 8, sub-phases 8b2 and 8c-live done).** `OpenAiResponsesProvider` passes the shared provider contract, and its responses
 > recorded from the real APIs on 2026-10-22 (plain, streamed, tool call and answer, streamed tool call, reasoning) replay through it: the Perplexity
-> Agent API (`openai/gpt-6-luna`) and OpenAI's Responses API (`gpt-6-luna`) are **supported**. Web grounding (`web_search` with typed citations) is
-> *coming*: this page shows plain model access.
+> Agent API (`openai/gpt-6-luna`) and OpenAI's Responses API (`gpt-6-luna`) are **supported**. Web grounding (typed citations and search counts) is
+> built on the same classes and described in [Web-search grounding](Web-Search-Grounding.md); xAI's Responses API is the third dialect, supported for grounding.
 
 Some APIs have moved from *messages in, choices out* to the OpenAI **Responses** schema: `instructions` and an `input` list in, `output[]` items out,
 typed server-sent events when streaming. `OpenAiResponsesProvider` speaks it, with a `ResponsesDialect` for what differs:
@@ -12,6 +12,7 @@ typed server-sent events when streaming. `OpenAiResponsesProvider` speaks it, wi
 |---|---|---|---|
 | Perplexity Agent API | `OpenAiResponsesProvider.perplexity(cfg)` | `POST https://api.perplexity.ai/v1/agent` (alias `/v1/responses`) | `PERPLEXITY_API_KEY` |
 | OpenAI Responses API | `OpenAiResponsesProvider.openai(cfg)` | `POST https://api.openai.com/v1/responses` | `OPENAI_API_KEY` |
+| xAI Responses API | `OpenAiResponsesProvider.xai(cfg)` | `POST https://api.x.ai/v1/responses` | `XAI_API_KEY` |
 
 ## Perplexity
 
@@ -22,7 +23,7 @@ LLMClient perplexity = new DefaultLLMClient(OpenAiResponsesProvider.perplexity(c
 
 One Perplexity key reaches OpenAI, Anthropic, Google and xAI models. Models are `creator/model` slugs (`openai/gpt-5.6-sol`,
 `anthropic/claude-sonnet-5-5`), and a **preset** (a bundle of model, tools and limits) is named `preset:medium`: it is sent as `preset`, not as a model.
-Without a tool in the request the Agent API is plain model access: nothing searches the web unless you ask for it (grounding is opt-in everywhere in llm4j).
+Without a tool in the request the Agent API is plain model access: nothing searches the web unless you ask for it (grounding is opt-in everywhere in llm4j: add `.grounding(Grounding.webSearch())` to the request, see [Web-search grounding](Web-Search-Grounding.md)).
 
 What the dialect does for you:
 
@@ -37,7 +38,7 @@ What the dialect does for you:
 ## OpenAI's own Responses API
 
 `OpenAiResponsesProvider.openai(cfg)` is the same class with OpenAI's dialect: reasoning models take `reasoning` configuration through `addParameter`
-(`Map.of("effort", "low")`), and a streamed call that asks to see reasoning requests summaries. In a Loom script it is `use: openai  api: responses`.
+(`Map.of("effort", "low")`), and a streamed call that asks to see reasoning requests summaries. In a Loom script it is `use: openai  api: responses` (and `use: xai  api: responses` for xAI's).
 
 ## Perplexity's other APIs
 

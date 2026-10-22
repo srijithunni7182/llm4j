@@ -47,6 +47,10 @@ VENDORS = {
                                    "user_location": {"country": "IN"}}]},
             "cap": {"model": "openai/gpt-6-luna", "input": QUESTION, "max_output_tokens": 500, "max_steps": 2,
                     "tools": [{"type": "web_search", "max_results": 3}]},
+            # added in 8f: is a blocked domain honoured (a "-" prefix in the same list)?
+            "block": {"model": "openai/gpt-6-luna", "input": QUESTION, "max_output_tokens": 500,
+                      "tools": [{"type": "web_search", "max_results": 3,
+                                 "filters": {"search_domain_filter": ["-economictimes.indiatimes.com"]}}]},
         }),
     "openai": dict(
         key=key("OPENAI_API_KEY"), url="https://api.openai.com/v1/responses", auth="bearer",
@@ -57,6 +61,9 @@ VENDORS = {
                         "tools": [{"type": "web_search", "filters": {"allowed_domains": ["rbi.org.in"]},
                                    "user_location": {"type": "approximate", "country": "IN"}}],
                         "include": ["web_search_call.action.sources"]},
+            "block": {"model": "gpt-6-luna", "input": QUESTION, "max_output_tokens": 800, "reasoning": {"effort": "low"},
+                      "tools": [{"type": "web_search", "filters": {"blocked_domains": ["economictimes.indiatimes.com"]}}],
+                      "include": ["web_search_call.action.sources"]},
         }),
     "xai": dict(
         key=key("XAI_API_KEY"), url="https://api.x.ai/v1/responses", auth="bearer",
@@ -64,6 +71,8 @@ VENDORS = {
             "plain": {"model": "grok-4.3", "input": QUESTION, "max_output_tokens": 800, "tools": [{"type": "web_search"}]},
             "options": {"model": "grok-4.3", "input": QUESTION, "max_output_tokens": 800,
                         "tools": [{"type": "web_search", "filters": {"allowed_domains": ["rbi.org.in"]}}]},
+            "block": {"model": "grok-4.3", "input": QUESTION, "max_output_tokens": 800,
+                      "tools": [{"type": "web_search", "filters": {"excluded_domains": ["economictimes.indiatimes.com"]}}]},
         }),
     "anthropic": dict(
         key=key("ANTHROPIC_API_KEY", "SPIKE_ANTHROPIC_KEY"), url="https://api.anthropic.com/v1/messages", auth="x-api-key",
@@ -120,9 +129,10 @@ def call(name, spec, variant, body, stream):
 
 def main():
     only = [s for s in os.environ.get("SMOKE_ONLY", "").split(",") if s]
+    only_variants = [s for s in os.environ.get("ONLY_VARIANTS", "").split(",") if s]
     listing = "--list" in sys.argv
     spent = 0.0
-    log = ["# Grounding payloads, captured %s\n" % datetime.date.today()]
+    log = ["# Grounding payloads, captured %s\n" % datetime.date.today()] if not only_variants else ["\n## Added in 8f (%s): %s\n" % (datetime.date.today(), ",".join(only_variants))]
     for name, spec in VENDORS.items():
         if only and name not in only:
             continue
@@ -131,6 +141,8 @@ def main():
             print("[%s] no key; skipped" % name)
             continue
         for variant, body in spec["variants"].items():
+            if only_variants and variant not in only_variants:
+                continue
             for stream in (False, True) if variant == "plain" else (False,):
                 label = "%s-%s%s" % (name, variant, "-stream" if stream else "")
                 if listing:
@@ -157,7 +169,7 @@ def main():
                     break
     if not listing:
         log.append("\nEstimated spend for the cap: US$%.3f\n" % spent)
-        with open(os.path.join(HERE, "CAPTURE_LOG.md"), "w") as f:
+        with open(os.path.join(HERE, "CAPTURE_LOG.md"), "a" if only_variants else "w") as f:
             f.write("".join(log))
 
 main()

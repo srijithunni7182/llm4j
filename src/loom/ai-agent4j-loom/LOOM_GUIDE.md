@@ -1096,7 +1096,7 @@ agent Indic  { model: "Team/sarvam-m" }
 - `api_key` must come from the environment or the secret store (`env.NAME`, `secret.NAME`), never written in the script.
 - `openai_compatible` reaches any OpenAI-style server (DeepSeek, Groq, Together, vLLM, LM Studio). It needs `base_url`, takes `api_key` only if the server wants one,
   and has two more options: `header:` (the header that carries the key, when it is not `Authorization`) and `query:` (fixed query parameters, `name=value&name=value`).
-- `openai` takes `api: responses` to use OpenAI's Responses API instead of chat completions.
+- `openai` and `xai` take `api: responses` to use the vendor's Responses API instead of chat completions.
 - A key in the secret store keeps the hosts it was stored for: `weave secret set OPENAI_API_KEY` binds it to `api.openai.com` unless you give `--allow-host`.
 - `weave audit` lists each hosted vendor as a data flow.
 - Declared providers work in routing policies too.

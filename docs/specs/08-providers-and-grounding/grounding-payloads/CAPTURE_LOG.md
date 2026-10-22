@@ -13,3 +13,12 @@
 - **gemini**: not captured (no key in the environment)
 
 Estimated spend for the cap: US$0.089
+
+## Added in 8f (2026-10-22): block
+- **perplexity-block**: HTTP 200, 5488 bytes
+- **openai-block**: HTTP 200, 7876 bytes
+- **xai-block**: HTTP 200, 5084 bytes
+- **anthropic**: not captured (no key in the environment)
+- **gemini**: not captured (no key in the environment)
+
+Estimated spend for the cap: US$0.022

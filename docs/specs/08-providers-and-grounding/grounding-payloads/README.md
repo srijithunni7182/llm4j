@@ -14,6 +14,8 @@ Bank of India's current policy repo rate, and when it was last changed") was ask
 | `xai-plain.json`, `xai-plain-stream.sse` | xAI Responses, `grok-4.3` | `web_search_call` items; `url_citation` annotations whose `title` is just `"1"`, `"2"`; `usage.server_side_tool_usage_details.web_search_calls` and `cost_in_usd_ticks`; text carries `[[N]](url)` markers |
 | `xai-options.json` | the same with `filters.allowed_domains` | honoured |
 
+Added in 8f: `*-block.json` for each of the three, a blocked domain (`economictimes.indiatimes.com`, which the first Perplexity answer had used): Perplexity as a `-` prefix in `search_domain_filter`, OpenAI as `filters.blocked_domains`, xAI as `filters.excluded_domains`. All three answered 200 and none returned the blocked domain (xAI listed `m.economictimes.com`, a different domain), so block is **supported** for all three. Estimated spend for the three calls US$0.022.
+
 Not captured: **Anthropic** and **Gemini** (no key in this environment). Their rows in DESIGN §4.3 come from the vendors' reference pages (read 2026-10-22) and are **preview** until a key exists.
 
 ## What the payloads settled

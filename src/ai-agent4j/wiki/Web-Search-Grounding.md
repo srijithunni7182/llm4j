@@ -2,7 +2,7 @@
 
 Some models can search the web inside a call and hand back the sources they used. llm4j makes that **one option on the request**, and the sources **typed fields on the response**, so the code that asks and the code that checks the answer does not change with the vendor.
 
-> **Status.** This page describes the contract (`Grounding`, `Citation`, `SearchUsage`, the central check, the `searches` budget, telemetry). Which vendors implement it natively is listed in [Vendors](#vendors); a provider that does not is refused before any network call, never silently ignored.
+> **Status.** The contract (`Grounding`, `Citation`, `SearchUsage`, the central check, the `searches` budget, telemetry) and native grounding for Perplexity, OpenAI and xAI are supported (recorded from the real APIs); Google and Anthropic are preview; see [Vendors](#vendors). A provider that cannot ground is refused before any network call, never silently ignored. Grounding in the agent loop, in Loom scripts and in eval4j is *coming*.
 
 ## Ask
 
@@ -20,7 +20,7 @@ LLMResponse answer = client.chat(request);
 | Setting | Meaning |
 |---|---|
 | `maxSearches(n)` | The most searches the model may run for this call (`n >= 1`). |
-| `allowDomains(...)` / `blockDomains(...)` | Search only these sites, or never these. Mutually exclusive. Domains are normalised (`https://WWW.Who.int/x` becomes `who.int`). |
+| `allowDomains(...)` / `blockDomains(...)` | Search only these sites, or never these. Mutually exclusive. Domains are normalised: the scheme and a trailing slash are dropped and the name is lower-cased (`https://WHO.int/` becomes `who.int`); a path is kept, for vendors that accept one. |
 | `recency(Recency)` | Only sources from the last day, week, month or year. |
 | `country("IN")` | Bias results to a country (ISO code). |
 | `lenient()` | Drop settings the provider cannot honour instead of refusing (see below). |
@@ -114,10 +114,38 @@ Each model-call event carries two numbers and nothing else: `searches()` (an `In
 
 ## Vendors
 
-| Provider | Native grounding | Status |
-|---|---|---|
-| Perplexity (Agent API), OpenAI (Responses), xAI | wired in the next step of this release | coming |
-| Google (Gemini), Anthropic | wired as documentation-derived previews | coming |
-| Kimi, Qwen, Ollama, Sarvam, Jev | not offered | refused; use `fallback(tool)` |
+```java
+LLMClient perplexity = new DefaultLLMClient(OpenAiResponsesProvider.perplexity(config));
+LLMResponse r =
+        perplexity.chat(
+                LLMRequest.builder()
+                        .addUserMessage("What is the RBI's current policy repo rate?")
+                        .grounding(Grounding.webSearch().recency(Recency.YEAR).country("IN"))
+                        .build());
+String basis = (String) r.getMetadata().get("grounding.citation_basis"); // consulted
+Double cost = r.getSearches().estimatedCostUsd(); // 0.0025: Perplexity reports it
+```
+
+| Provider | How | Status | Settings it honours |
+|---|---|---|---|
+| Perplexity Agent API | `OpenAiResponsesProvider.perplexity(cfg)`; Loom `use: perplexity` | **supported**: recorded 2026-10-22 | `allowDomains`, `blockDomains`, `recency`, `country` (no `maxSearches`) |
+| OpenAI (Responses API) | `OpenAiResponsesProvider.openai(cfg)`; Loom `use: openai  api: responses` | **supported**: recorded 2026-10-22 | `maxSearches`, `allowDomains`, `blockDomains`, `country` |
+| xAI (Responses API) | `OpenAiResponsesProvider.xai(cfg)`; Loom `use: xai  api: responses` | **supported**: recorded 2026-10-22 | `allowDomains`, `blockDomains` (at most 5 each) |
+| Google (Gemini) | `GoogleProvider` | **preview**: written from Google's reference, no key to record with | `recency` only |
+| Anthropic (Claude) | `AnthropicProvider` | **preview**: written from Anthropic's reference, no key to record with | `maxSearches`, `allowDomains`, `blockDomains`, `country` |
+| Kimi, Qwen | none | left out: no key; Kimi's search function is deprecated | refused; use `fallback(tool)` |
+| Ollama, Sarvam, Jev, chat-completions OpenAI and xAI | none | refused | use `fallback(tool)` or the Responses API |
+
+"Supported" means the mapping is tested on responses recorded from the vendor's real API (the files are in `src/test/resources/providers`, each with its date and model). "Preview" means it is tested only on fixtures written from the vendor's documentation, so it may need a correction the first time it meets the real service.
+
+What the recordings showed, and the code follows:
+
+* **Cited or consulted.** OpenAI and xAI cite sources in the answer (`grounding.citation_basis` = `cited`, with spans); Perplexity lists what it consulted (`consulted`, no spans).
+* **A search is what the vendor counts.** Perplexity counts an *invocation* that may run several queries; OpenAI reports no count, so the completed search items are counted; xAI and Anthropic report one in the usage.
+* **Cost.** Only Perplexity reports what the searches cost (`SearchUsage.estimatedCostUsd()`); for the others put the price in your price table.
+* **Titles.** xAI gives only the citation number as a title; it is dropped, not shown as a title.
+* **The answer keeps the links the model wrote**; `getContent()` is not rewritten.
+
+Spans are character offsets: OpenAI and xAI count Unicode code points and Google counts UTF-8 bytes; both are converted, and a range that does not fit the answer is dropped.
 
 This table changes only when a vendor's grounding passes its tests against recorded responses.

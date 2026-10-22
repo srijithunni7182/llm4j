@@ -16,7 +16,8 @@ no key or no access. Design: [specs/08-providers-and-grounding](specs/08-provide
 | OpenAI, chat completions (`gpt-…`, `o3`, …) | **supported**: recorded 2026-10-22 with `gpt-6-luna` (plain, stream, tool call and answer, streamed tool call, reasoning) |
 | OpenAI, Responses API (`use: openai  api: responses`) | **supported**: recorded 2026-10-22 with `gpt-6-luna` |
 | xAI (Grok) | **supported**: recorded 2026-10-22 with `grok-4.20-0309-non-reasoning` (chat completions, which xAI now calls legacy) |
-| Perplexity Agent API (`perplexity/openai/gpt-5.6-sol`, `perplexity/preset:medium`) | **supported**: recorded 2026-10-22 (plain model access; web search is *coming*, see below) |
+| Perplexity Agent API (`perplexity/openai/gpt-5.6-sol`, `perplexity/preset:medium`) | **supported**: recorded 2026-10-22 (plain model access and web grounding, see below) |
+| xAI, Responses API (`use: xai  api: responses`) | **supported for web grounding**: recorded 2026-10-22 with `grok-4.3` |
 | Kimi (Moonshot) | **preview**: fixtures are written from Moonshot's documentation; no key was available |
 | Qwen (Alibaba DashScope) | **preview**: fixtures are written from Alibaba's documentation; no key was available |
 | Perplexity Orchestrator (`perplexity_router`) | **preview**: Perplexity's API is itself in private preview; no access, no live fixtures |
@@ -30,7 +31,25 @@ What we found against the real APIs: OpenAI's `gpt-6` models refuse function too
 `addParameter("reasoning_effort", "none")`, or use `api: responses`); xAI returns its reasoning text in `reasoning_content`; Perplexity's Agent API returns its price in
 `usage.cost`. A bare `qwen3` or `gpt-oss` is not resolved to a vendor (it usually means a local Ollama model): write `qwen/qwen3-max` or `ollama/qwen3`.
 
-**Coming (not in this build):** native web grounding (provider-side search with typed citations, search budgets, the `weave audit` rule), for Perplexity, Google and Anthropic first.
+## Web-search grounding: one option, typed citations
+
+A request can now carry `Grounding.webSearch()`: the model searches the web inside the call, and the answer comes back with typed `Citation`s (url, title, snippet,
+character spans), the number of searches the vendor ran, and a `grounding.citation_basis` that says whether the sources were *cited* or only *consulted*. A provider that
+cannot do it, or cannot honour one setting, is refused before any network call, naming both (or, with `lenient()`, drops the setting and says so). Design:
+[specs/08-providers-and-grounding](specs/08-providers-and-grounding/DESIGN.md). Wiki: [Web-search grounding](../src/ai-agent4j/wiki/Web-Search-Grounding.md).
+
+| Piece | Status |
+|---|---|
+| `Grounding`, `Citation`, `Span`, `SearchUsage`, `LLMRequest.grounding`, `LLMResponse.getCitations/getSearches`, the central capability check, `fallback(tool)` (a client-side search tool when the provider cannot search), streaming parity | **works now** |
+| A `searches` budget dimension (`Budget.builder().searches(n)`), a per-1000 search price in the price table, search and citation counts in model-call events and run statistics | **works now** |
+| Perplexity Agent API, OpenAI Responses, xAI Responses: native grounding | **supported**: tested on responses recorded 2026-10-22 (allow and block lists, recency and country where the vendor has them, OpenAI's search cap) |
+| Google (Gemini) and Anthropic (Claude) native grounding | **preview**: written from the vendors' reference pages, tested on documentation-derived fixtures; no key was available to record real responses |
+| Kimi and Qwen grounding | **left out**: no key, and Kimi's search function is deprecated |
+| Grounding in `ReActAgent` and `AgentResult.citations`, Loom `grounding:` with its `weave check` and `weave audit` rules, eval4j citation assertions | **coming** |
+
+Found against the real APIs: Perplexity lists what it *consulted* and leaves the message's `annotations` empty, while OpenAI and xAI *cite* with spans; OpenAI reports
+no search count, so completed search items are counted; only Perplexity reports what the searches cost; Perplexity has no cap on searches and xAI's was not tested, so
+`maxSearches` is refused there unless `lenient()`; xAI gives only the citation number as a title (dropped).
 
 ## Classification: typed questions, typed answers
 

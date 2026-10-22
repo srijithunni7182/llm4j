@@ -91,7 +91,7 @@ agent <AgentName> {
 *   **Agent extras**: `approve: [Tool]` (or `all`) makes those tool calls wait for a person; `max_iterations: 8` bounds reasoning; `knowledge: [Handbook]`; `memory { … }`, `voice { … }` and `guard { … }` as above. Never put API keys in a script: use `env.NAME` (environment) or `secret.NAME` (encrypted secret store, `weave run --secrets <file>`).
 *   **Language and voice tools** (Sarvam; `SARVAM_API_KEY`): `translate`, `transliterate`, `detect_language`, `speak`, `transcribe` work by name; declare one to set defaults: `tool Hindi { use: translate  target: "hi-IN" }`.
 *   **Knowledge graphs and skill discovery**: `tool Graph { use: knowledge_graph  store: "graphs/x.json" }`, `tool Skills { use: skill_registry  url: "https://…" }`.
-*   **Providers** (a specific endpoint or key): `provider Box { use: ollama  base_url: "http://gpu-box:11434" }`, then `model: "Box/llama3"`. `use:` is gemini, anthropic, ollama, sarvam, openai (option `api: responses`), xai, kimi, qwen, perplexity, perplexity_router or openai_compatible (needs `base_url`; options `header:` and `query:`).
+*   **Providers** (a specific endpoint or key): `provider Box { use: ollama  base_url: "http://gpu-box:11434" }`, then `model: "Box/llama3"`. `use:` is gemini, anthropic, ollama, sarvam, openai or xai (option `api: responses`), kimi, qwen, perplexity, perplexity_router or openai_compatible (needs `base_url`; options `header:` and `query:`).
 *   **Personas**: `persona Mentor { role: "…"  tone: "…"  constraints: ["…"] }`, then `persona: Mentor` on an agent.
 *   **Rate Limits** (pause and resume instead of failing):
     ```loom

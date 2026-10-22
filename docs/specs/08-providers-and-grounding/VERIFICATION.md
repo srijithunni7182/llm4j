@@ -34,17 +34,17 @@ recorded in §7. Part A is shippable on its own; Part B starts only when Part A 
 | A6 | Windows and prices exist for the listed models; unknown models fall back | §3.3 | catalog tests | ✅ `ContextWindowsTest` (19 entries for OpenAI, xAI, Kimi and Qwen models, each checked against the vendor's page on 2026-10-22; unknown models and nested slugs resolve or fall back). Prices: not shipped by design (`PriceTable` is user-supplied); per-search prices come with 8e |
 | A7 | Requests without `grounding` are byte-identical to the previous release for Gemini, Anthropic, Sarvam, Ollama | R5 | request-bytes regression test | ✅ `RequestBytesRegressionTest`: 48 recorded requests (Google, Anthropic, Sarvam, Ollama; plain, system, multi-turn, tools, reasoning; whole and streamed), recorded **before** any grounding change, compared as JSON with sorted keys because a tool schema built from a hash map lists its keys differently from one JVM run to the next |
 | A8 | Grounding on an unsupported provider or option is refused before any network call, naming both | R6 | grounding unit tests | ✅ `GroundingCheckTest` (refused before any call for `chat` and `chatStream`, naming provider and option; `lenient()` and `grounding.ignored`; lenient does not rescue an unsupported provider), `GroundingTypesTest` |
-| A9 | Citations are typed, indices stable, spans in range | R7 | grounding provider tests | ⏳ 8f |
-| A10 | Search usage is as the vendor reports; unknown stays unknown | R8 | grounding provider tests | ⏳ 8f |
-| A11 | Streaming and non-streaming agree on citations and search usage | R9 | parity tests | ⏳ 8f |
+| A9 | Citations are typed, indices stable, spans in range | R7 | grounding provider tests | ✅ `ResponsesGroundingTest` (recorded Perplexity, OpenAI and xAI answers: typed citations, indices 1..n, urls kept as given, spans in range, code-point to Java-offset conversion, duplicate sources merged, numeric titles dropped); `NativeGroundingPreviewTest` (Anthropic by text block, Google by byte offsets; **preview**) |
+| A10 | Search usage is as the vendor reports; unknown stays unknown | R8 | grounding provider tests | ✅ the count is the vendor's: Perplexity `invocation`, xAI `web_search_calls`, OpenAI completed search items (an item still `searching` is not counted), Anthropic usage, Google queries; a response with usage and no word of a search ran none; no usage at all stays `null` (`ResponsesGroundingTest`, `NativeGroundingPreviewTest`) |
+| A11 | Streaming and non-streaming agree on citations and search usage | R9 | parity tests | ✅ the same response delivered whole and streamed gives equal citations and search usage, for Perplexity, OpenAI, xAI (`ResponsesGroundingTest.aStreamedAnswerAgreesWithTheWholeOne`), Anthropic and Google (preview); the recorded streams end with citations and searches in their final chunk |
 | A12 | A grounded agent is untrusted-content exposure in `weave audit`, with or without `allow:` | R10 | Loom audit tests | ⏳ 8g |
 | A13 | Searches are charged to the `searches` budget; a breach halts | R11 | budget tests | ✅ `SearchBudgetTest` (count, refusal before the call while a plain call still runs, unknown count, ignored cap, streams, windows, restore, per-1000 prices, old shapes) |
-| A14 | A grounded turn followed by a tool turn is valid for Anthropic and Kimi | R12 | provider tests | ⏳ 8f |
+| A14 | A grounded turn followed by a tool turn is valid for Anthropic and Kimi | R12 | provider tests | ◐ Anthropic ✅ **preview** (`NativeGroundingPreviewTest.aGroundedTurnThatEndsInAToolCallIsSentBackWithItsSearchBlocksUntouched`: every block, `encrypted_content` included, is sent back verbatim). Kimi: left out (no key). Responses vendors keep their `web_search_call` items for OpenAI's replay |
 | A15 | Fallback to a client-side tool yields citations in the same shape | §8.3 | grounding unit tests | ✅ `GroundingCheckTest` (fallback runs the tool, citations built from the URLs it returned, bounded by `maxSearches`, same shape on a stream, never used when the provider has native grounding) |
 | A16 | eval4j citation assertions pass and fail correctly; scripted citations work offline | §6 | eval4j tests | ⏳ 8g |
 | A17 | The live smoke run passes for every vendor with a key, within its spend cap, and recorded fixtures replace the hand-written ones | §5 of the test strategy | `ProviderSmokeIntegrationTest` (live) | ◐ run for OpenAI (chat and Responses), xAI and Perplexity on 2026-10-22, within the cap; Anthropic and Gemini have no key here, Kimi and Qwen no key: owed (see §7 follow-up) |
 | A18 | All documentation samples execute in tests | docs | docs examples test | ◐ 8a to 8c samples execute (`ProvidersDocsExamplesTest`); the 8e grounding samples execute (`GroundingDocsExamplesTest`, which also checks the page shows them verbatim); vendor samples with 8f |
-| A19 | `OpenAiResponsesProvider` passes `ProviderContract` for the Perplexity Agent API and OpenAI Responses; `web_search` results map to typed citations | §3.4, R1, R7 | contract and grounding provider tests | ◐ contract: ✅ both Responses dialects pass `ProviderContract` and replay recorded real payloads; `web_search` citations: ⏳ 8f |
+| A19 | `OpenAiResponsesProvider` passes `ProviderContract` for the Perplexity Agent API and OpenAI Responses; `web_search` results map to typed citations | §3.4, R1, R7 | contract and grounding provider tests | ✅ contract: both Responses dialects pass `ProviderContract` and replay recorded real payloads; `web_search` results map to typed citations (Perplexity `search_results`, OpenAI and xAI `url_citation`), `ResponsesGroundingTest` |
 | A20 | (If Phase 7 is merged) `PerplexityDecisionsProvider` passes `ClassifierContract` and shares `DecisionWire` with `JevWire` | §3.5 | classifier contract tests | ⏳ 8k |
 
 ## 3. Traceability
@@ -60,7 +60,11 @@ Filled in as tests are written: one row per requirement `R1`…`R12`, naming the
 | R5 | `RequestBytesRegressionTest` |
 | R6 | `GroundingCheckTest` |
 | R11 | `SearchBudgetTest`; `SearchTelemetryTest` (counts per model, never text) |
-| R7–R10, R12 | _listed as 8f and 8g are built_ |
+| R7 | `ResponsesGroundingTest`, `NativeGroundingPreviewTest`, `GroundingTypesTest` |
+| R8 | `ResponsesGroundingTest`, `NativeGroundingPreviewTest` |
+| R9 | `ResponsesGroundingTest.aStreamedAnswerAgreesWithTheWholeOne`, `NativeGroundingPreviewTest` (stream parity) |
+| R12 | `NativeGroundingPreviewTest` (Anthropic tool turn, preview) |
+| R10 | _8g_ |
 
 ## 4. Quality gates
 
@@ -158,4 +162,29 @@ Decisions and deviations:
 - No provider declares grounding yet: that is 8f. The wiki page lists the vendors as "coming".
 
 Docs: new wiki page `Web-Search-Grounding.md` (six samples, executed and checked verbatim); budgets, telemetry, providers pages, Home, README and `llms.txt` link it. Full `ai-agent4j` suite: 3,310 tests, 0 failures; Loom, eval4j and Spring compile against the changes.
+
+### 7.8 8f: vendors (done 2026-10-22)
+
+Native grounding built and tested:
+
+| Vendor | Mechanism | Status |
+|---|---|---|
+| Perplexity Agent API | `ResponsesGrounding` data on `ResponsesDialect.PERPLEXITY` (`web_search` tool, `search_domain_filter` with a `-` prefix to block, `search_recency_filter`, `user_location.country`; sources from the `search_results` item; count and cost from `usage.tool_calls_details.search_web`) | **supported**: recorded answers (whole, streamed, with options, with a blocked domain) |
+| OpenAI Responses | `ResponsesDialect.OPENAI` (`filters.allowed_domains` / `blocked_domains`, `user_location`, `max_tool_calls`, `include`; `url_citation` annotations; completed `web_search_call` items counted) | **supported**: recorded |
+| xAI Responses | new `ResponsesDialect.XAI` and `Vendor.XAI` `api: responses` (also `OpenAiResponsesProvider.xai`, Loom `use: xai  api: responses`) | **supported**: recorded |
+| Google | `GoogleGrounding` (`googleSearch`, `timeRangeFilter`; `groundingChunks` and `groundingSupports` with byte offsets) | **preview**: documentation-derived fixtures |
+| Anthropic | `AnthropicGrounding` (`web_search_20250305`; citations per text block; `server_tool_use`/`web_search_tool_result` blocks sent back verbatim; `citations_delta` in streams) | **preview**: documentation-derived fixtures |
+| Kimi, Qwen | none | **left out** (no key; Kimi's search function is deprecated) |
+
+Live calls in this sub-phase: three tiny ones from the 8d script (`ONLY_VARIANTS=block python3 capture.py`), one blocked-domain question per vendor, all HTTP 200, script estimate US$0.022 (see `grounding-payloads/CAPTURE_LOG.md`). They settled that block lists work on all three, so they are offered. Everything else ran on fixtures.
+
+Decisions and deviations:
+- **Vendor differences are data.** `ResponsesGrounding` (tool type, paths for each setting, limits on list sizes, where the sources, the count and the cost come from) lives on the dialect; `ResponsesRequestWriter` and `ResponsesReader` name no vendor (`NoVendorLogicTest` still passes).
+- xAI's search needs its Responses API (the chat-completions API of the same vendor has none that we recorded), so grounded xAI is `api: responses`; chat-completions xAI refuses grounding.
+- Perplexity and xAI refuse `maxSearches` (Perplexity has no cap; xAI's was not tested). xAI refuses `recency` and `country`. A list longer than the vendor accepts (xAI 5, Perplexity 20, OpenAI 100) is refused with the limit named.
+- A count is the vendor's: when it reports none and lists no search items but gives usage, the count is 0; with no usage at all it stays unknown.
+- The xAI `cost_in_usd_ticks` is the whole call's cost, not the searches', so it is not reported as the cost of searches.
+- A bug found by the new tests: `LLMResponse.toBuilder()` shared its unmodifiable metadata map, so adding a key to a copy threw. Fixed (a copy of the map), with a test.
+- The wiki claim that a domain loses `www.` was wrong; the page now says what `Grounding` really does (scheme and trailing slash dropped, lower-cased).
+- Not done: Anthropic `pause_turn` continuation (a long server-tool turn) and Gemini's combination of search with function declarations on models older than Gemini 3; both are preview-only paths with no key to check.
 

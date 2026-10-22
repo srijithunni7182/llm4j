@@ -4,7 +4,7 @@
 > (`ProviderContract` plus tools, reasoning text and odd-response checks). **Supported** means the contract also passes on responses *recorded
 > from the real API* (each fixture states its date and model): **OpenAI and xAI are supported** (recorded 2026-10-22). **Kimi, Qwen, the
 > Perplexity Orchestrator and the generic kind are preview**: their fixtures are written from documentation, or no third-party server was recorded.
-> Web grounding (provider-side search with citations) is *coming*; it is not on this page.
+> Web grounding (provider-side search with citations) needs the Responses API for OpenAI and xAI and is described in [Web-search grounding](Web-Search-Grounding.md); this page shows plain model access over chat completions.
 
 One provider, `OpenAiCompatibleProvider`, speaks the whole family that uses `POST …/chat/completions`. What differs between vendors is **data** in a
 `Dialect`; what differs between one vendor's models is in `ModelTraits`. Adding the next vendor is a constant, not a class.
