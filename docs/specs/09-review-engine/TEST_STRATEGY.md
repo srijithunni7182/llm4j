@@ -1,6 +1,6 @@
 # Phase 9 test strategy: the review engine
 
-Status: **draft for review**. Requirements `R1`…`R40` are in [DESIGN.md](DESIGN.md); the traceability matrix is in [VERIFICATION.md](VERIFICATION.md).
+Status: **draft for review**. Requirements `R1`…`R48` are in [DESIGN.md](DESIGN.md); the traceability matrix is in [VERIFICATION.md](VERIFICATION.md).
 
 ## 1. Principles
 
@@ -18,6 +18,10 @@ Status: **draft for review**. Requirements `R1`…`R40` are in [DESIGN.md](DESIG
 | **Model** | Record invariants, JSON round trip, version field, ranking order, de-duplication | `FindingModelTest`, `RankingTest`, `DedupTest` | R1, R2, R5, R22, R23 |
 | **Adapters** | Each old shape maps to the new one with nothing lost; old commands unchanged | `AdapterTest`, `AuditUnchangedTest`, `CheckUnchangedTest` | R3, R7 |
 | **Rules** | Per rule: fires on the minimal example (with the right line, node id, severity), quiet on a near-miss, quiet when suppressed, severity override works | `Lr03LoopMaxTest`, `Lc01ClassificationModelTest`, … (one class per rule) | R1, R18, R31 |
+| **Fingerprints** | Stable under edits above, whitespace changes and reordering of unrelated statements; changes when the subject changes (a different agent's finding is not hidden by an old accept); name > semantic path > line anchoring order | `FingerprintStabilityTest`, `FingerprintAnchorOrderTest`, `AcceptDoesNotHideOtherFindingTest` | R41 |
+| **Accept / dismiss** | Reason required; who/when recorded; expiry resurfaces the finding with a note; each scope hides exactly the count shown; lens-wide accept refused; HIGH and security/durability/privacy guardrails (per-entry reasons, count confirmation, `--strict-accepts`); trifecta accept writes the in-script form; dismiss never changes JSON, SARIF or exit codes | `AcceptScopesTest`, `AcceptExpiryTest`, `AcceptGuardrailsTest`, `TrifectaAcceptWritesScriptTest`, `DismissDoesNotAffectCiTest` | R42 to R45 |
+| **Baseline / noise report** | Baseline write, new-only counting, HIGH exclusion unless flagged, prune, never hides a new instance; noise report counts and thresholds | `BaselineTest`, `BaselineNewOnlyFailsTest`, `BaselineHighExcludedTest`, `NoiseReportTest` | R46, R47 |
+| **Fix groups** | Group fix applies only SAFE; REVIEW fixes need the combined preview; re-review after fixing shows fixed findings gone and no new HIGH | `FixGroupSafeOnlyTest`, `FixGroupReviewPreviewTest`, `FixRereviewTest` | R48 |
 | **Lens selection** | Defaults (nine on, four off); `--lens` forms (`all`, `+x`, exact list); `review.properties` `lenses =`; summary card states what ran and what is off | `LensSelectionTest`, `OptionalLensesOffByDefaultTest` | R33, R39 |
 | **Declared facts / inert rules** | A rule that needs an undeclared fact is skipped and listed under `notes`, never a pass; declaring the fact enables it; heuristics only with `heuristics = on` or named | `InertRuleNoteTest`, `HeuristicSwitchTest`, `DeclaredFactsTest` | R37, R38 |
 | **Extra inputs** | Test files, golden folder, Fabric rules file read; a coverage report is used only when its script hash matches; review never runs tests | `ReviewInputsTest`, `CoverageReportStaleTest`, `ReviewNeverRunsTestsTest` | R34 |

@@ -23,7 +23,11 @@ Status: **not started**. Run top to bottom at the end of sub-phase 9i; the relev
 | A15 | The report estimates time (critical path, with human waits shown apart) and effects (counts per kind, unbounded when unbounded) alongside cost | `TimeEstimateTest`, `EffectsEstimateTest`, `EffectsUnboundedTest` |
 | A16 | Testability findings use the project's own test files and a fresh coverage report, never run tests, and ignore a stale report with a note | `ReviewInputsTest`, `CoverageReportStaleTest`, `ReviewNeverRunsTestsTest` |
 | A17 | Every rule of every lens, including the optional ones, has an explain page, a firing and a non-firing corpus script, and meets the precision gate or is marked heuristic | `ReviewCorpusTest`, `ExplainEveryRuleTest` |
-| A18 | Documented | docs review (§5) |
+| A18 | Every finding can be fixed, accepted (with a reason, a scope shown by count, optional expiry, kept in the repository), dismissed (local only) or baselined, and an ignore survives edits elsewhere without hiding a different finding | `FingerprintStabilityTest`, `AcceptScopesTest`, `AcceptDoesNotHideOtherFindingTest`, `BaselineTest` |
+| A19 | Serious findings cannot be ignored casually: per-entry reasons, count confirmation, accepted highs stay visible, strict mode counts them, trifecta acceptance is written in the script | `AcceptGuardrailsTest`, `TrifectaAcceptWritesScriptTest` |
+| A20 | Dismissing never changes what CI or a teammate sees; a baseline makes CI count only new findings | `DismissDoesNotAffectCiTest`, `BaselineNewOnlyFailsTest` |
+| A21 | A team can see which rules are noisy in practice | `NoiseReportTest` |
+| A22 | Documented | docs review (§5) |
 
 ## 2. Traceability: requirement → tests
 
@@ -69,6 +73,14 @@ Status: **not started**. Run top to bottom at the end of sub-phase 9i; the relev
 | R38 | `InertRuleNoteTest`, `DeclaredFactsTest` | ⬜ 9f |
 | R39 | `OptionalLensesOffByDefaultTest`, `Lg*Test`, `Lm*Test`, `Lh*Test`, `Lb*Test` | ⬜ 9h |
 | R40 | `CrossLensDedupTest` | ⬜ 9h |
+| R41 | `FingerprintStabilityTest`, `FingerprintAnchorOrderTest`, `AcceptDoesNotHideOtherFindingTest` | ⬜ 9e |
+| R42 | `AcceptScopesTest`, `AcceptExpiryTest` | ⬜ 9e |
+| R43 | `AcceptScopesTest` (counts, no lens-wide accept) | ⬜ 9e |
+| R44 | `AcceptGuardrailsTest`, `TrifectaAcceptWritesScriptTest` | ⬜ 9e |
+| R45 | `DismissDoesNotAffectCiTest` | ⬜ 10c |
+| R46 | `BaselineTest`, `BaselineNewOnlyFailsTest`, `BaselineHighExcludedTest` | ⬜ 9e |
+| R47 | `NoiseReportTest` | ⬜ 9e |
+| R48 | `FixGroupSafeOnlyTest`, `FixGroupReviewPreviewTest`, `FixRereviewTest` | ⬜ 9e |
 
 ## 3. Quality gates
 

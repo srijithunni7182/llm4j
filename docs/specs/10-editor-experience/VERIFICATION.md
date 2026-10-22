@@ -19,7 +19,10 @@ Status: **not started**. Run top to bottom at the end of sub-phase 10e; the rele
 | A11 | `weave serve` runs nothing, writes nothing and reads only the workspace | `ServeIsStaticTest`, `ServeWorkspaceBoundaryTest` |
 | A12 | Existing graph, Problems, outline, snippets and guide commands behave as before | existing tests, unmodified |
 | A13 | No network use, no telemetry | `noNetwork.test.ts` |
-| A14 | Documented, with screenshots | docs review (§5) |
+| A14 | I can triage by severity and lens: fix one, fix all safe in a group, accept (with a reason and a scope shown by count), dismiss locally, or accept all existing as a baseline, each in one or two clicks and each undoable | `triage.browser.test.js`, `triageActions.test.ts` |
+| A15 | Ignoring is never silent or lossy: handled findings stay counted and restorable, dismiss never reaches CI or the repository, serious findings need their guardrails | `dismissLocal.test.ts`, `triageActions.test.ts` |
+| A16 | The whole triage flow works from the keyboard and with a screen reader | `triageKeyboard.browser.test.js`, `a11y.browser.test.js` |
+| A17 | Documented, with screenshots | docs review (§5) |
 
 ## 2. Traceability: requirement → tests
 
@@ -58,6 +61,14 @@ Status: **not started**. Run top to bottom at the end of sub-phase 10e; the rele
 | R31 | `manifest.test.ts` | ⬜ 10e |
 | R32 | `noNetwork.test.ts` | ⬜ 10e |
 | R33 | `degraded.test.ts` | ⬜ 10e |
+| R34 | `triage.browser.test.js` (grouping) | ⬜ 10c |
+| R35 | `triage.browser.test.js` (actions by availability) | ⬜ 10c |
+| R36 | `triageActions.test.ts`, `triage.browser.test.js` | ⬜ 10c |
+| R37 | `triageActions.test.ts` (undo), `triage.browser.test.js` (Handled) | ⬜ 10c |
+| R38 | `triageActions.test.ts` (accept targets) | ⬜ 10c |
+| R39 | `triageActions.test.ts` (baseline) | ⬜ 10c |
+| R40 | `dismissLocal.test.ts` | ⬜ 10c |
+| R41 | `triageKeyboard.browser.test.js`, `a11y.browser.test.js` | ⬜ 10c |
 
 ## 3. Quality gates
 

@@ -1,6 +1,6 @@
 # Phase 10 test strategy: the editor experience
 
-Status: **draft for review**. Requirements `R1`…`R33` are in [DESIGN.md](DESIGN.md); the traceability matrix is in [VERIFICATION.md](VERIFICATION.md).
+Status: **draft for review**. Requirements `R1`…`R41` are in [DESIGN.md](DESIGN.md); the traceability matrix is in [VERIFICATION.md](VERIFICATION.md).
 
 ## 1. Principles
 
@@ -22,6 +22,7 @@ Status: **draft for review**. Requirements `R1`…`R33` are in [DESIGN.md](DESIG
 | **Engine client (TS)** | Spawn, handshake, requests, cancel on newer, stale-version discard, restart with backoff, protocol-major mismatch | `engineClient.test.ts` | R11, R13, R16, R28 |
 | **Review model (pure JS)** | Group by lens, filter, link finding↔node↔line, summary, staleness, ordering = engine order | `reviewModel.unit.test.js` | R3, R4, R5, R7, R9 |
 | **Panel (browser)** | Real page + fixture JSON: findings and graph rendered, click links both ways, node tint and glyph, Fix buttons by safety class, filters, stale chip, narrow width stack, keyboard walk, screen-reader names, both themes' contrast | `review.browser.test.js`, `a11y.browser.test.js` | R2 to R9, R29 |
+| **Triage (browser + TS)** | Grouping switch (severity, lens, rule, file); counts; per-finding actions by what exists (no dead Fix button); group actions state scope and number before acting; Fix all safe applies only SAFE and lists the rest; Accept dialog (scope, presets, reason, guardrails for serious findings, trifecta writes the script form); Dismiss local and instantly undoable; Handled section with restore; undo toasts; baseline dialog; every action by keyboard; screen-reader announcements | `triage.browser.test.js`, `triageActions.test.ts`, `dismissLocal.test.ts`, `triageKeyboard.browser.test.js` | R34 to R41 |
 | **Diagnostics / code actions (TS)** | Findings → Diagnostics (source, code, range); quick fix edits equal the engine's; SAFE vs REVIEW labels; Fix-all is one WorkspaceEdit; suppress writes a reason | `reviewDiagnostics.test.ts`, `reviewCodeActions.test.ts` | R6, R10 |
 | **Semantic providers (TS)** | Each provider returns the engine's data in VS Code types; rename all-or-nothing with an injected failure; completion filtered to valid names | `semantic*.test.ts`, `renameAtomic.test.ts` | R22 to R25 |
 | **Fallback parity** | TS parser vs Java index over the corpus: deltas counted and bounded (frozen) | `parserParity.test.ts` | R25 |

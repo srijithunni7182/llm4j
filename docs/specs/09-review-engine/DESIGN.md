@@ -426,6 +426,27 @@ fix.retry = retry 3 backoff 1s timeout 30s
 - **R31** A suppression requires a reason and names a place (agent/node/line); a suppression without a reason is itself a finding (`LV08`). Suppressed findings are listed in the report's `suppressed[]` with their reasons, never hidden.
 - **R32** An unknown key in `review.properties` is an error naming the nearest key.
 
+### 11.1 Handling findings: fix, accept, dismiss, baseline (R41 to R48)
+
+The noise answer is not fewer rules but a fast, safe, *durable* way to deal with each finding. A developer triages by severity and lens, and for any finding or group of findings does exactly one of four things:
+
+| Action | Meaning | Durable? | Committed? | Counted by CI (`--fail-on`)? |
+|---|---|---|---|---|
+| **Fix** | Apply the change; the finding disappears because it is gone | n/a | the edit is | no longer present |
+| **Accept** (ignore with a reason) | "This is intended here" — a decision the team can review | yes | yes (`review.properties`) | no, but listed as accepted |
+| **Dismiss** | "Not now / not for me" — a personal, local hide | no (session or workspace) | never | **yes** (CI is unaffected) |
+| **Baseline** | "Everything that exists today is known; tell me only about new problems" | yes | yes (`review.baseline.json`) | only new findings count |
+
+- **R41** **Stable fingerprints.** Every finding has a `fingerprint` (in the JSON): a hash of the rule id, the most stable anchor available and the normalised subject. The anchor is, in order of preference, a **name** (agent, tool, task, classifier, workflow), a **semantic path** (workflow + construct kind + ordinal within its block), and only as a last resort a line. Line numbers, whitespace and edits elsewhere in the file do not change it. Accepts, dismissals and baselines are keyed by fingerprint, so an ignore survives an edit above it and does not silently hide a *different* finding that moved into its place.
+- **R42** **Accept** (the durable ignore) requires a reason, records who and when (git identity when available), may carry an expiry (`until 2026-12-31`), and is written to `review.properties` as `RULE.accept = <scope> "reason" [until DATE]`. This is the R31 mechanism; "suppress" in earlier text means accept. An expired accept stops hiding the finding and says it expired. Accepted findings stay visible in the report (`accepted[]`) and in the summary ("3 high accepted"); they never vanish.
+- **R43** **Scopes.** Accept, dismiss and fix all share the same scope choices, always shown with the number of findings they will affect before anything happens: *this finding*; *this rule on this agent/workflow*; *this rule in this script*; *this rule in the project*; *every finding in this group* (the severity-and-lens group on screen). A scope is never wider than the group being viewed unless chosen explicitly. Ignoring a whole lens is done by turning the lens off (R33), not by accepting its findings.
+- **R44** **Guardrails for serious findings.** For findings of severity HIGH, or in the security, durability or privacy lenses: accept needs a reason **per finding** (a shared reason typed once is allowed for a bulk accept but is stored on each entry), bulk accept asks the developer to confirm the number ("accept 4 high findings?"), and `--fail-on` can be told to count accepted ones (`--strict-accepts`) for regulated projects. The **lethal trifecta** is accepted in the language (`trifecta: accepted "reason"`), because audit and Fabric read that form: accepting LA05-type findings writes that statement into the script, not `review.properties`.
+- **R45** **Dismiss** needs no reason, is stored outside the repository (editor workspace storage; the CLI has no dismiss), defaults to the current session, and can be extended to the workspace. It never changes the report, the JSON, SARIF output or exit codes, so it cannot mask a problem from CI or a teammate; it only quiets the developer's own panel.
+- **R46** **Baseline.** `weave review --baseline-write` (and the editor's **Accept all existing**) records the fingerprints of all current findings in `review.baseline.json` with the date and a single note; later reviews mark them `baselined`, show them in a collapsed group, and count only **new** findings against `--fail-on`. This is how a team adopts review on a large existing script without drowning. Baselines exclude HIGH findings in security, durability and privacy unless `--baseline-include-high` is given, and entries whose finding is gone are removed by `--baseline-prune`. A baseline never hides a new instance of the same rule.
+- **R47** **Noise report.** `weave review --noise-report` summarises, per rule, how many findings there are now, how many are accepted, baselined and expired, and which rules are accepted in more than a configured share of places (default 50 %), with the suggestion "tune or turn off". It reads only the project's files; nothing is sent anywhere. This is the feedback loop that tells maintainers which rules are noisy in practice.
+- **R48** **Fix semantics.** After any fix (single or group), the engine re-reviews the touched files; the fixed findings are gone, no new HIGH finding appeared (R25), and anything that did change is reported. **Fix all** in a group applies only the group's SAFE fixes; REVIEW fixes are never applied in bulk without a combined preview (one diff for all of them) and an explicit confirmation. Fixing and accepting are separate actions; a finding with no fix offers Accept and Explain only.
+
+
 ## 12. Sub-phases
 
 | | Delivers | Tests |
@@ -434,7 +455,7 @@ fix.retry = retry 3 backoff 1s timeout 30s
 | 9b | LV classification of all check messages; SARIF; de-duplication; suppressions | `LvClassificationTest`, `SarifTest`, `SuppressionTest` |
 | 9c | Cost estimator, assumptions, summary card, `--calibrate`, LC rules | `CostModelTest`, `CostBudgetCapTest`, `CalibrationTest`, `Lc*Test` |
 | 9d | Reliability and prompt rules (LR, LP) | one test class per rule, corpus precision gate |
-| 9e | Fixes: `FixApplier`, `--fix`, `--dry-run`, verification, idempotence | `FixApplierTest`, `FixAtomicityTest`, `FixIdempotentTest` |
+| 9e | Fixes: `FixApplier`, `--fix`, `--dry-run`, verification, idempotence; stable fingerprints, accept with scopes and expiry, baseline, noise report (R41 to R48) | `FixApplierTest`, `FixAtomicityTest`, `FixIdempotentTest`, `FingerprintStabilityTest`, `AcceptScopesTest`, `BaselineTest`, `NoiseReportTest` |
 | 9f | Observability, durability and privacy lenses (LO, LD, LY); declared facts and inert-rule notes (R38); lens selection (R33) | one test class per rule, `LensSelectionTest`, `InertRuleNoteTest`, `HeuristicSwitchTest` |
 | 9g | Time and effects estimates (R35, R36); performance rules LC08 to LC10; testability lens (LT) with its extra inputs and the coverage-report staleness rule (R34) | `TimeEstimateTest`, `EffectsEstimateTest`, `Lc08ParallelTest`, `Lt*Test`, `CoverageReportStaleTest` |
 | 9h | The four optional lenses (LG, LM, LH, LB) and their cross-lens de-duplication (R39, R40) | `Lg*Test`, `Lm*Test`, `Lh*Test`, `Lb*Test`, `OptionalLensesOffByDefaultTest`, `CrossLensDedupTest` |
@@ -450,3 +471,5 @@ fix.retry = retry 3 backoff 1s timeout 30s
 6. **Nine default lenses may be noisy.** Mitigations are the precision gate (R18), heuristics off unless enabled (R37), inert rules (R38), and `fail-on = high` by default. Confirm the default set, or start with the original five plus durability and observability and add testability and privacy once the corpus numbers are in.
 7. **Model fallbacks (LG03).** The rule is inert unless the agent configuration offers a fallback model. Confirm whether Loom should gain a `fallback:` setting (a language change) or whether LG03 should be dropped.
 8. **Interactive flag source (LC10).** A project declaration in `review.properties` is used. Alternative: a language-level workflow modifier. Recommendation: the declaration; no language change.
+9. **Where durable ignores live.** `review.properties` (one file, easy to read in review) vs a separate `review.ignore` file (keeps rule tuning apart from decisions). Recommendation: `review.properties` for rule settings and accepts, `review.baseline.json` for baselines.
+10. **Bulk accept of HIGH.** R44 allows it with a per-entry reason and a count confirmation. Alternative: forbid bulk accept for HIGH altogether. Recommendation: allow with the guardrails; forbidding it pushes people to the baseline, which is less visible.

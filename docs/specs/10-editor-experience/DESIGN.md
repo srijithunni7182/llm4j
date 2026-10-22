@@ -83,6 +83,28 @@ Non-goals:
 - **R11** A request in flight is cancelled when a newer one for the same file arrives; a result for an older document version is discarded (version numbers on every request).
 - **R12** Budget: warm instant tier p95 under 150 ms for a 300-line script; full review p95 under 1 s; cold start of `weave serve` under 4 s. The panel and status bar show "starting Loom engine..." during cold start; nothing blocks typing.
 
+### 3.4 Triage: fix, accept, dismiss (R34 to R41)
+
+Noise is handled by making each decision one click, safe, and durable where it should be (the actions and their guardrails are defined in [phase 9 §11.1](../09-review-engine/DESIGN.md)). The panel is a triage board:
+
+```
+Group by [ severity | lens | rule | file ]                              Fix all safe (5 of 8)   Accept all…   Dismiss all
+▾ HIGH  (2)                                                              Fix all safe (1 of 2)   Accept all…   Dismiss all
+    LA05  Replier reads customer data and can send mail with no approval          [Fix] [Accept…] [Dismiss] [Explain]
+    LD02  Tool 'Mailer' (your Java) can repeat a send on resume                    [Review fix…] [Accept…] [Dismiss] [Explain]
+▾ MEDIUM (6)  ▸ by lens: Reliability (3) · Cost (2) · Prompts (1)
+▸ Handled (11)   accepted 4 · dismissed 5 · baselined 2    [Show] [Restore all dismissed]
+```
+
+- **R34** **Two-level grouping, switchable.** The list is grouped by severity and, within it, by lens (default); the developer can switch the primary grouping to lens, rule or file. Each group header shows its count and carries group actions (below). Optional lenses that are off appear as collapsed, disabled groups with an Enable action (R7).
+- **R35** **Per-finding actions** depend on what exists: **Fix** (SAFE fix), **Review fix…** (REVIEW fix, opens the diff), **Accept…** (durable, with reason), **Dismiss** (local), **Explain**. A finding with no fix shows Accept and Explain only, never a disabled Fix button without a reason ("No automatic fix: see the hint").
+- **R36** **Group actions** act on the group on screen and always state the scope and number first: **Fix all safe (n of m)** applies only the SAFE fixes in the group (the rest are listed as needing review); **Accept all…** asks for the scope (this rule here / in this script / in the project), a reason (quick-pick presets: *false positive*, *intended here*, *handled elsewhere*, *will fix later, until…*, or free text) and, for serious findings, applies the guardrails of R44; **Dismiss all** hides the group for this session or workspace. Nothing is applied until the dialog (or, for Fix all safe, the preview) is confirmed, except Dismiss, which is undoable instantly.
+- **R37** **Feedback and undo.** After an action the finding leaves the list immediately, a toast says what happened with an **Undo** ("Fixed 5 · Undo", "Accepted 3 for LR05 in this script · Undo"). Fixes are one workspace edit (one Ctrl+Z); accepts and baselines are edits to project files and are undone by the same toast or by the editor's undo. Handled findings move to a **Handled** section with counts, where each can be restored, so nothing silently disappears.
+- **R38** **Accept writes the right thing.** Accept writes `review.properties` (with the reason, who, when, optional `until`), except trifecta acceptance, which writes `trifecta: accepted "reason"` in the script (phase 9 R44). The edit is shown in the editor's normal diff and goes through version control like any other change; the extension never commits.
+- **R39** **Baseline from the panel.** **Accept all existing…** (shown prominently when a script has more than a configured number of findings the first time it is reviewed) writes `review.baseline.json` after showing what it will include and exclude (phase 9 R46), and the panel then shows only new findings with the baselined group collapsed.
+- **R40** **Dismiss is local.** It is stored in editor workspace storage, never in the repository, never changes the engine's result, the Problems panel entries for errors (validity errors cannot be dismissed), or CI; the status bar says "n dismissed" so a hidden count is always visible.
+- **R41** **Keyboard first.** Every action has a keyboard path in the list (arrow keys to move, `F` fix, `A` accept, `D` dismiss, `E` explain, `Enter` reveal in the editor), shown in a help line, and group actions are reachable from the group header by keyboard. Screen readers announce "high, durability, fix available" and the result of every action.
+
 ## 4. `weave serve` (R13 to R19)
 
 A long-lived process: `java -jar weave.jar serve --stdio`, started once per VS Code window by the extension.
@@ -187,7 +209,7 @@ media/
 
 ## 8. Commands added
 
-`loom.review` (Review Workflow), `loom.review.fixAll` (Apply Safe Fixes), `loom.review.explain`, `loom.review.suppress` (asks for the reason, writes `review.properties`), `loom.restartEngine`, `loom.showEngineLog`.
+`loom.review` (Review Workflow), `loom.review.fixAll` (Apply Safe Fixes), `loom.review.explain`, `loom.review.accept` (scope and reason, writes `review.properties` or the script's trifecta statement), `loom.review.dismiss`, `loom.review.restore`, `loom.review.baseline`, `loom.restartEngine`, `loom.showEngineLog`.
 Reserved ids for later phases: `loom.test`, `loom.generate`, `loom.debug`. Each command has a palette title, a `when` clause and appears in the manifest test.
 
 ## 9. Sub-phases
@@ -196,7 +218,7 @@ Reserved ids for later phases: `loom.test`, `loom.generate`, `loom.debug`. Each 
 |---|---|---|
 | 10a | `weave serve` (protocol, cache, `check`/`graph`/`review` methods, cancel, shutdown), `EngineClient`, fake, restarts; the existing check/graph go through it | `ServeProtocolTest`, `ServeCacheTest`, `ServeRobustnessTest`, `engineClient.test.ts` |
 | 10b | Review panel: findings + graph linked, summary card, filters, status bar, CodeLens, Problems merge | `reviewModel.unit.test.js`, `review.browser.test.js`, `reviewDiagnostics.test.ts` |
-| 10c | Fixes in the editor: quick fixes, Fix all safe, preview for REVIEW fixes, suppress with reason | `reviewCodeActions.test.ts`, `applyFix.integration.test.ts` |
+| 10c | Triage in the editor (R34 to R41): grouping, per-finding and group actions, Fix all safe with preview, Accept with scopes and reasons, Dismiss, Handled section, undo toasts, baseline from the panel, keyboard map; quick fixes | `reviewCodeActions.test.ts`, `applyFix.integration.test.ts`, `triage.browser.test.js`, `triageActions.test.ts`, `dismissLocal.test.ts` |
 | 10d | `weave symbols`, semantic providers (definition, references, rename, completion, hover, symbols), TS parser frozen with comparison test | `SymbolsTest`, `semantic*.test.ts`, `renameAtomic.test.ts` |
 | 10e | Degraded modes, settings, accessibility pass, performance gates, docs | `degraded.test.ts`, `a11y.browser.test.js`, `latency.test.ts` |
 
