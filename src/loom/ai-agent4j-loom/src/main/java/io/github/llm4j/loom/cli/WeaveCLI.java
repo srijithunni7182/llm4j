@@ -608,74 +608,11 @@ public class WeaveCLI implements Callable<Integer> {
             }
             return 2;
         }
-        io.github.llm4j.loom.context.ContextFiles.beside(scriptFile.toPath());
-        ToolRegistry registry = new ToolRegistry();
-        if (lootFile != null && lootFile.exists())
-            new LootLoader().loadIntoRegistry(lootFile.getAbsolutePath(), registry);
-        java.util.List<String> keyWarnings = new java.util.ArrayList<>();
-        java.util.List<String> keyNames = EnvExampleCheck.namesWithValues(scriptFile.toPath());
-        if (!keyNames.isEmpty()) keyWarnings.add(EnvExampleCheck.warning(keyNames));
-        java.util.List<String> reachProblems =
-                lootFile != null && lootFile.exists()
-                        ? LootLoader.reachProblems(lootFile.toPath())
-                        : java.util.List.of();
-        LLMClientFactory models = env.models();
-        java.util.Set<String> notSetYet = new java.util.TreeSet<>();
-        HarnessExecutor executor =
-                new HarnessExecutor(
-                        script,
-                        registry,
-                        new LLMClientFactory() {
-                            @Override
-                            public io.github.llm4j.LLMClient createClient(String model) {
-                                throw new IllegalStateException(
-                                        "weave check never creates model clients");
-                            }
-
-                            @Override
-                            public String problem(String model) {
-                                String problem =
-                                        models.problem(
-                                                model); // names and keys are checked; nothing is
-                                // contacted
-                                if (problem != null && settings.noEnv()) {
-                                    var m = NEEDS_KEY.matcher(problem);
-                                    if (m.find()) {
-                                        notSetYet.add(m.group(1));
-                                        return null;
-                                    }
-                                }
-                                return problem;
-                            }
-                        });
-        executor.setLenient(settings.lenient());
-        if (lootFile != null && lootFile.exists())
-            executor.setToolReach(LootLoader.reaches(lootFile.toPath()));
-        executor.setBaseDir(scriptFile.getAbsoluteFile().getParentFile().toPath());
-        java.util.function.Function<String, String> lookup = env.env();
-        executor.setEnvLookup(
-                settings.noEnv()
-                        ? name -> {
-                            String value = lookup.apply(name);
-                            if (value == null) {
-                                notSetYet.add(name);
-                                return "not-set-yet";
-                            }
-                            return value;
-                        }
-                        : lookup);
-        executor.setSecretStore(env.secrets());
-        executor.setPromptCatalog(
-                io.github.llm4j.loom.prompt.PromptSupport.catalog(
-                        script, scriptFile.toPath(), env.prompts()));
-        executor.setHumanInterface(env.human()); // the CLI always has a console
-        List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems =
-                new io.github.llm4j.loom.execution.ScriptValidator()
-                        .validate(script, executor.validationContext());
-        // With --no-env a name that is not set stands in as "not-set-yet", which is not an address
-        // or a number: what the stand-in breaks is already said as "not set yet".
-        if (settings.noEnv())
-            problems = problems.stream().filter(p -> !p.message().contains("not-set-yet")).toList();
+        Validation validation = validate(scriptFile, lootFile, settings, env, script);
+        java.util.List<String> keyWarnings = validation.keyWarnings();
+        java.util.List<String> reachProblems = validation.reachProblems();
+        java.util.Set<String> notSetYet = validation.notSetYet();
+        List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems = validation.problems();
         var error = io.github.llm4j.loom.execution.ScriptValidator.Severity.ERROR;
         long errors =
                 problems.stream().filter(p -> p.severity() == error || settings.strict()).count()
@@ -764,6 +701,95 @@ public class WeaveCLI implements Callable<Integer> {
                                 + " in "
                                 + scriptFile.getName());
         return 2;
+    }
+
+    /** What validating a script found, before anything is printed. */
+    record Validation(
+            List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems,
+            java.util.List<String> keyWarnings,
+            java.util.List<String> reachProblems,
+            java.util.Set<String> notSetYet) {}
+
+    /**
+     * Everything {@code weave check} verifies about a loaded script, without printing: the
+     * validator's problems, key warnings, tool-reach problems and the names not set yet. Calls no
+     * model and starts nothing. {@code weave review} reads the same findings through this.
+     */
+    static Validation validate(
+            File scriptFile,
+            File lootFile,
+            CheckSettings settings,
+            WeaveEnv env,
+            io.github.llm4j.loom.ast.LoomScript script) {
+        io.github.llm4j.loom.context.ContextFiles.beside(scriptFile.toPath());
+        ToolRegistry registry = new ToolRegistry();
+        if (lootFile != null && lootFile.exists())
+            new LootLoader().loadIntoRegistry(lootFile.getAbsolutePath(), registry);
+        java.util.List<String> keyWarnings = new java.util.ArrayList<>();
+        java.util.List<String> keyNames = EnvExampleCheck.namesWithValues(scriptFile.toPath());
+        if (!keyNames.isEmpty()) keyWarnings.add(EnvExampleCheck.warning(keyNames));
+        java.util.List<String> reachProblems =
+                lootFile != null && lootFile.exists()
+                        ? LootLoader.reachProblems(lootFile.toPath())
+                        : java.util.List.of();
+        LLMClientFactory models = env.models();
+        java.util.Set<String> notSetYet = new java.util.TreeSet<>();
+        HarnessExecutor executor =
+                new HarnessExecutor(
+                        script,
+                        registry,
+                        new LLMClientFactory() {
+                            @Override
+                            public io.github.llm4j.LLMClient createClient(String model) {
+                                throw new IllegalStateException(
+                                        "weave check never creates model clients");
+                            }
+
+                            @Override
+                            public String problem(String model) {
+                                String problem =
+                                        models.problem(
+                                                model); // names and keys are checked; nothing is
+                                // contacted
+                                if (problem != null && settings.noEnv()) {
+                                    var m = NEEDS_KEY.matcher(problem);
+                                    if (m.find()) {
+                                        notSetYet.add(m.group(1));
+                                        return null;
+                                    }
+                                }
+                                return problem;
+                            }
+                        });
+        executor.setLenient(settings.lenient());
+        if (lootFile != null && lootFile.exists())
+            executor.setToolReach(LootLoader.reaches(lootFile.toPath()));
+        executor.setBaseDir(scriptFile.getAbsoluteFile().getParentFile().toPath());
+        java.util.function.Function<String, String> lookup = env.env();
+        executor.setEnvLookup(
+                settings.noEnv()
+                        ? name -> {
+                            String value = lookup.apply(name);
+                            if (value == null) {
+                                notSetYet.add(name);
+                                return "not-set-yet";
+                            }
+                            return value;
+                        }
+                        : lookup);
+        executor.setSecretStore(env.secrets());
+        executor.setPromptCatalog(
+                io.github.llm4j.loom.prompt.PromptSupport.catalog(
+                        script, scriptFile.toPath(), env.prompts()));
+        executor.setHumanInterface(env.human()); // the CLI always has a console
+        List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems =
+                new io.github.llm4j.loom.execution.ScriptValidator()
+                        .validate(script, executor.validationContext());
+        // With --no-env a name that is not set stands in as "not-set-yet", which is not an address
+        // or a number: what the stand-in breaks is already said as "not set yet".
+        if (settings.noEnv())
+            problems = problems.stream().filter(p -> !p.message().contains("not-set-yet")).toList();
+        return new Validation(problems, keyWarnings, reachProblems, notSetYet);
     }
 
     /** One problem as the JSON of {@code weave check --format json} carries it. */
@@ -1534,6 +1560,7 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new LadderCliCommand())
                 .addSubcommand(new ReplayCommand())
                 .addSubcommand(new AuditCommand())
+                .addSubcommand(new ReviewCommand())
                 .addSubcommand(new GraphCommand())
                 .addSubcommand(new ExplainCommand())
                 .addSubcommand(new NextCommand())
