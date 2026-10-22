@@ -438,9 +438,74 @@ public class AgentDef implements Node {
         }
     }
 
+    /**
+     * {@code grounding: web { allow: ["who.int"] recency: year max_searches: 3 }}: the model may
+     * search the web inside its calls, and its answers carry their sources. Domain lists are
+     * written in brackets and kept here as one comma-joined value; use {@link #getAllow()} and
+     * {@link #getBlock()}.
+     */
+    public static class GroundingConfig extends Settings {
+        private String kind = "web";
+
+        /** What kind of grounding: only {@code web} exists. */
+        public String getKind() {
+            return kind;
+        }
+
+        public void setKind(String kind) {
+            this.kind = kind;
+        }
+
+        public java.util.List<String> getAllow() {
+            return list("allow");
+        }
+
+        public java.util.List<String> getBlock() {
+            return list("block");
+        }
+
+        public String getRecency() {
+            return get("recency");
+        }
+
+        public String getCountry() {
+            return get("country");
+        }
+
+        /**
+         * The cap on searches, or null when none is written (a non-number is reported by the
+         * check).
+         */
+        public Integer getMaxSearches() {
+            String v = get("max_searches");
+            if (v == null) return null;
+            try {
+                double d = Double.parseDouble(v);
+                return d == Math.floor(d) && d >= 1 ? (int) d : null;
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+
+        private java.util.List<String> list(String key) {
+            String v = get(key);
+            if (v == null || v.isEmpty()) return java.util.List.of();
+            return java.util.Arrays.stream(v.split(",")).map(String::strip).toList();
+        }
+    }
+
     private VoiceConfig voice;
     private GuardConfig guard;
     private ContextConfig context;
+    private GroundingConfig grounding;
+
+    public GroundingConfig getGrounding() {
+        return grounding;
+    }
+
+    public void setGrounding(GroundingConfig grounding) {
+        this.grounding = grounding;
+    }
 
     public VoiceConfig getVoice() {
         return voice;

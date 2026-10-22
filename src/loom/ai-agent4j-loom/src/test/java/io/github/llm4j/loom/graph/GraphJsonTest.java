@@ -38,6 +38,7 @@ class GraphJsonTest {
                 "src/test/resources/imports/parent.loom",
                 "src/test/resources/graph/all_statements.loom",
                 "src/test/resources/graph/handlers.loom",
+                "src/test/resources/graph/grounded.loom",
                 "src/test/resources/graph/unresolved_call.loom",
                 "src/test/resources/graph/diamond/a.loom",
                 "src/test/resources/graph/missing_import.loom",
@@ -48,6 +49,26 @@ class GraphJsonTest {
 
         assertThat(schema().validate(json)).isEmpty();
         assertThat(json.get("version").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    void aGroundedAgentShowsItsSettingsAndTheSearchBudgets() throws Exception {
+        JsonNode json =
+                MAPPER.readTree(
+                        GraphJson.write(
+                                service.graph(Path.of("src/test/resources/graph/grounded.loom"))));
+        JsonNode researcher = null;
+        JsonNode writer = null;
+        for (JsonNode a : json.get("agents")) {
+            if (a.get("name").asText().equals("Researcher")) researcher = a;
+            if (a.get("name").asText().equals("Writer")) writer = a;
+        }
+        assertThat(researcher.get("grounding").toString())
+                .isEqualTo(
+                        "{\"kind\":\"web\",\"allow\":[\"who.int\",\"nih.gov\"],\"recency\":\"year\",\"country\":\"IN\"}");
+        assertThat(researcher.get("budget").get("searches").asInt()).isEqualTo(6);
+        assertThat(writer.has("grounding")).isFalse();
+        assertThat(json.toString()).contains("\"searches\":2");
     }
 
     @Test

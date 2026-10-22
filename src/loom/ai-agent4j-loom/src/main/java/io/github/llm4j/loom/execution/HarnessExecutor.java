@@ -1781,6 +1781,21 @@ public class HarnessExecutor implements LoomEngine {
      * Gives an agent with a {@code context} block its policy, its model's window and its compaction
      * strategy. Agents without one are left as they were.
      */
+    /** The library's {@code Grounding} for an agent's {@code grounding:} setting. */
+    static io.github.llm4j.grounding.Grounding groundingOf(AgentDef.GroundingConfig g) {
+        io.github.llm4j.grounding.Grounding.Builder b =
+                io.github.llm4j.grounding.Grounding.webSearch();
+        if (!g.getAllow().isEmpty()) b.allowDomains(g.getAllow().toArray(String[]::new));
+        if (!g.getBlock().isEmpty()) b.blockDomains(g.getBlock().toArray(String[]::new));
+        if (g.getRecency() != null)
+            b.recency(
+                    io.github.llm4j.grounding.Recency.valueOf(
+                            g.getRecency().toUpperCase(java.util.Locale.ROOT)));
+        if (g.getCountry() != null) b.country(g.getCountry());
+        if (g.getMaxSearches() != null) b.maxSearches(g.getMaxSearches());
+        return b.build();
+    }
+
     private void applyContext(AgentDef agentDef, ReActAgent.Builder builder) {
         AgentDef.ContextConfig cfg = agentDef.getContext();
         if (cfg == null) return;
@@ -2291,6 +2306,8 @@ public class HarnessExecutor implements LoomEngine {
                 agentBuilder.maxIterations(agentDef.getMaxIterations());
             if (agentDef.isStreaming()) agentBuilder.streaming(true);
             if (agentDef.isReasoning()) agentBuilder.reasoning(true);
+            if (agentDef.getGrounding() != null)
+                agentBuilder.grounding(groundingOf(agentDef.getGrounding()));
             List<io.github.llm4j.loom.knowledge.KnowledgeIndex> inContext =
                     new java.util.ArrayList<>();
             for (String kbName : agentDef.getKnowledgeBases()) {
@@ -2561,6 +2578,7 @@ public class HarnessExecutor implements LoomEngine {
                 endData.put("retries", totals.totalRetries());
                 endData.put("failovers", totals.totalFailovers());
                 endData.put("compactions", tracing.compactions());
+                if (totals.totalSearches() > 0) endData.put("searches", totals.totalSearches());
                 trace(TraceEvent.RUN_END, null, "workflow " + workflowName + " " + ended, endData);
             }
         }

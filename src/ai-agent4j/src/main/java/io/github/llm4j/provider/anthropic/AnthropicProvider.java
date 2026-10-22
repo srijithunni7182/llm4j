@@ -61,6 +61,9 @@ public class AnthropicProvider implements LLMProvider {
      */
     static final String RAW_CONTENT = "anthropic.content";
 
+    /** The settings of a {@link io.github.llm4j.grounding.Grounding} this provider honours. */
+    public static final Set<GroundingOption> GROUNDING_OPTIONS = AnthropicGrounding.OPTIONS;
+
     private final LLMConfig config;
     private final HttpClientWrapper http;
     private final String baseUrl;
@@ -491,7 +494,7 @@ public class AnthropicProvider implements LLMProvider {
 
     @Override
     public Set<GroundingOption> groundingOptions() {
-        return AnthropicGrounding.OPTIONS;
+        return GROUNDING_OPTIONS;
     }
 
     @Override

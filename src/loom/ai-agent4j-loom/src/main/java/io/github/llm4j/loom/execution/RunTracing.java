@@ -214,6 +214,9 @@ final class RunTracing {
                 d.put("completion_tokens", e.completionTokens());
                 d.put("finish_reason", e.finishReason());
                 d.put("truncated", e.truncated());
+                // counts only: the queries, the addresses and the text stay out of the trace
+                if (e.searches() != null) d.put("searches", e.searches());
+                if (e.citations() > 0) d.put("citations", e.citations());
                 d.put("outcome", e.outcome().name());
                 if (e.failed()) {
                     d.put("category", e.category().name());

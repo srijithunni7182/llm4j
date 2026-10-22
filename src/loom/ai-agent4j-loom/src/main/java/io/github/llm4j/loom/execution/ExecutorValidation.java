@@ -375,9 +375,29 @@ final class ExecutorValidation {
     private static final java.util.Set<String> GUARD_KEYS =
             java.util.Set.of("pii", "bias", "bias_model");
 
+    private static final java.util.Set<String> GROUNDING_KEYS =
+            java.util.Set.of("allow", "block", "recency", "country", "max_searches");
+
+    /** The script's name for each setting of a grounding, in the order they are listed. */
+    private static final java.util.Map<String, io.github.llm4j.grounding.GroundingOption>
+            GROUNDING_OPTIONS =
+                    new java.util.LinkedHashMap<>(
+                            java.util.Map.of(
+                                    "max_searches",
+                                    io.github.llm4j.grounding.GroundingOption.MAX_SEARCHES,
+                                    "allow",
+                                    io.github.llm4j.grounding.GroundingOption.ALLOW_DOMAINS));
+
+    static {
+        GROUNDING_OPTIONS.put("block", io.github.llm4j.grounding.GroundingOption.BLOCK_DOMAINS);
+        GROUNDING_OPTIONS.put("recency", io.github.llm4j.grounding.GroundingOption.RECENCY);
+        GROUNDING_OPTIONS.put("country", io.github.llm4j.grounding.GroundingOption.COUNTRY);
+    }
+
     void checkAgentSettings(ScriptValidator.Checker c) {
         for (AgentDef a : host.script().getAgents()) {
             String who = "agent " + a.getName();
+            if (a.getGrounding() != null) checkGrounding(c, who, a);
             if (a.getMemory() != null) checkMemory(c, who, a.getMemory());
             if (a.getVoice() != null) checkVoice(c, who, a.getVoice());
             if (a.getGuard() != null) checkGuard(c, who, a.getGuard());
@@ -389,6 +409,105 @@ final class ExecutorValidation {
                         host.customCompactorNames(),
                         (line, model) -> checkModel(c, line, who, model));
         }
+    }
+
+    /**
+     * {@code grounding:} is refused where it cannot work, naming the model and the setting: a model
+     * whose provider cannot search the web, or a setting that provider cannot honour (a script has
+     * no {@code lenient}: its author sees every limit).
+     */
+    void checkGrounding(ScriptValidator.Checker c, String who, AgentDef a) {
+        AgentDef.GroundingConfig g = a.getGrounding();
+        checkKeys(c, who, "grounding", g, GROUNDING_KEYS);
+        if (g.has("allow") && g.has("block"))
+            c.error(g.getLine(), who, "grounding takes allow or block, not both");
+        for (String key : new String[] {"allow", "block"}) {
+            if (g.has(key) && (g.get(key) == null || g.get(key).isBlank()))
+                c.error(g.lineOf(key), who, "grounding " + key + " names no domain");
+        }
+        String recency = g.getRecency();
+        if (g.has("recency")
+                && (recency == null
+                        || !java.util.Set.of("day", "week", "month", "year").contains(recency)))
+            c.error(
+                    g.lineOf("recency"),
+                    who,
+                    "grounding recency must be day, week, month or year, got " + recency);
+        String country = g.getCountry();
+        if (g.has("country") && (country == null || !country.matches("[A-Za-z]{2}")))
+            c.error(
+                    g.lineOf("country"),
+                    who,
+                    "grounding country is a two-letter country code such as \"IN\", got "
+                            + country);
+        if (g.has("max_searches") && g.getMaxSearches() == null)
+            c.error(
+                    g.lineOf("max_searches"),
+                    who,
+                    "grounding max_searches must be a whole number of at least 1");
+        for (String model : host.modelsOf(a)) {
+            io.github.llm4j.loom.ast.ProviderDef declared = host.declaredProvider(model);
+            String kind;
+            boolean responses = false;
+            String label;
+            if (declared != null) {
+                kind = declared.getKind();
+                var api = declared.getOptions().get("api");
+                responses = api != null && !api.isReference() && "responses".equals(api.value());
+                label = "provider " + declared.getName() + " (use: " + kind + ")";
+            } else {
+                kind = ModelKinds.kindOf(model);
+                label = kind == null ? "an unknown provider" : "the " + kind + " provider";
+            }
+            var options =
+                    kind == null
+                            ? java.util.Optional
+                                    .<java.util.Set<io.github.llm4j.grounding.GroundingOption>>
+                                            empty()
+                            : io.github.llm4j.provider.GroundingCapabilities.options(
+                                    kind, responses);
+            if (options.isEmpty()) {
+                if (kind != null) {
+                    c.error(
+                            g.getLine(),
+                            who,
+                            "grounding needs a model whose provider can search the web, and "
+                                    + model
+                                    + " ("
+                                    + label
+                                    + ") cannot; "
+                                    + groundingHint(kind));
+                }
+                continue;
+            }
+            for (var e : GROUNDING_OPTIONS.entrySet()) {
+                if (g.has(e.getKey()) && !options.get().contains(e.getValue())) {
+                    c.error(
+                            g.lineOf(e.getKey()),
+                            who,
+                            "grounding "
+                                    + e.getKey()
+                                    + " is not supported by "
+                                    + model
+                                    + " ("
+                                    + label
+                                    + "); it honours "
+                                    + GROUNDING_OPTIONS.entrySet().stream()
+                                            .filter(x -> options.get().contains(x.getValue()))
+                                            .map(java.util.Map.Entry::getKey)
+                                            .toList());
+                }
+            }
+        }
+    }
+
+    private static String groundingHint(String kind) {
+        return switch (kind) {
+            case "openai", "xai" -> "declare a provider with use: "
+                    + kind
+                    + "  api: responses and name it in the model (\"Name/<model>\"), or use a perplexity/…, claude-… or gemini-… model";
+            default -> "use a perplexity/<creator>/<model>, a claude-… or a gemini-… model, or an openai or xai provider with api: responses";
+        };
     }
 
     /** Unknown keys and env references (these settings are written in the script, not secrets). */

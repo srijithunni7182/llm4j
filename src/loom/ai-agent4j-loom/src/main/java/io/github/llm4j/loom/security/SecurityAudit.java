@@ -192,6 +192,15 @@ public final class SecurityAudit {
                 if (!a.isApproveAll()) unapprovedOutward.add("mcp " + mcp);
             }
         }
+        // a grounded agent reads pages it did not choose, whatever its allow list says
+        if (a.getGrounding() != null) {
+            java.util.List<String> allowed = a.getGrounding().getAllow();
+            untrusted.add(
+                    "grounding web"
+                            + (allowed.isEmpty()
+                                    ? ""
+                                    : " (allow: " + String.join(", ", allowed) + ")"));
+        }
         String pii = a.getGuard() == null ? null : a.getGuard().getPii();
         AgentProfile profile =
                 new AgentProfile(
@@ -208,6 +217,28 @@ public final class SecurityAudit {
                         pii,
                         memory);
 
+        if (a.getGrounding() != null) {
+            java.util.List<String> allowed = a.getGrounding().getAllow();
+            String service = a.getModel() == null ? null : hostedService(script, a.getModel());
+            findings.add(
+                    new Finding(
+                            "LA20",
+                            allowed.isEmpty() ? Severity.LOW : Severity.INFO,
+                            List.of(Owasp.LLM01, Owasp.LLM02),
+                            a.getName(),
+                            a.getGrounding().getLine(),
+                            "A grounded agent reads the open web",
+                            a.getName()
+                                    + " searches the web inside its model calls"
+                                    + (service == null ? "" : " (" + service + ")")
+                                    + ": any page it finds can carry instructions, and the search service sees the queries the model writes from your prompt. "
+                                    + (allowed.isEmpty()
+                                            ? "Nothing narrows where it may read."
+                                            : "Its allow list ("
+                                                    + String.join(", ", allowed)
+                                                    + ") narrows where it reads but does not make those pages trusted, so the audit still counts it as reading untrusted content."),
+                            "Keep a grounded agent away from private data and from tools that send or act (the lethal trifecta), narrow it with allow: [\"…\"], mask personal data with guard { pii: mask }, and check sources in tests with citesOnlyFrom(...)."));
+        }
         if (a.isSteerable()) {
             boolean exposed =
                     profile.trifecta()

@@ -35,6 +35,9 @@ public class GoogleProvider implements DescribableProvider {
      */
     static final String RAW_PARTS = "google.parts";
 
+    /** The settings of a {@link io.github.llm4j.grounding.Grounding} this provider honours. */
+    public static final Set<GroundingOption> GROUNDING_OPTIONS = GoogleGrounding.OPTIONS;
+
     private static final Logger logger = LoggerFactory.getLogger(GoogleProvider.class);
     private static final String DEFAULT_BASE_URL =
             "https://generativelanguage.googleapis.com/v1beta";
@@ -511,7 +514,7 @@ public class GoogleProvider implements DescribableProvider {
 
     @Override
     public Set<GroundingOption> groundingOptions() {
-        return GoogleGrounding.OPTIONS;
+        return GROUNDING_OPTIONS;
     }
 
     @Override

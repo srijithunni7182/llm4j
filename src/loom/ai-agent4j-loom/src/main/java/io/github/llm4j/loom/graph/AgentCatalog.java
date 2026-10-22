@@ -90,7 +90,20 @@ final class AgentCatalog {
                 null,
                 a.isStreaming(),
                 a.isReasoning(),
-                a.isSteerable());
+                a.isSteerable(),
+                groundingSummary(a.getGrounding()));
+    }
+
+    private static java.util.Map<String, Object> groundingSummary(AgentDef.GroundingConfig g) {
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        if (g == null) return out;
+        out.put("kind", g.getKind());
+        if (!g.getAllow().isEmpty()) out.put("allow", g.getAllow());
+        if (!g.getBlock().isEmpty()) out.put("block", g.getBlock());
+        if (g.getRecency() != null) out.put("recency", g.getRecency());
+        if (g.getCountry() != null) out.put("country", g.getCountry());
+        if (g.getMaxSearches() != null) out.put("maxSearches", g.getMaxSearches());
+        return out;
     }
 
     /** An agent definition and the file it is written in. */

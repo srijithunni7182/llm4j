@@ -1,0 +1,14 @@
+budget { searches: 20 }
+
+agent Researcher {
+    model: "perplexity/openai/gpt-5.6-sol"
+    grounding: web { allow: ["who.int", "nih.gov"]  recency: year  country: "IN" }
+    budget { searches: 6 }
+}
+
+agent Writer { model: "claude-haiku-5-5" }
+
+workflow Main(topic) {
+    delegate "What is new about {topic}?" to Researcher -> notes budget 2 searches
+    delegate "Write it up using {notes_citations}" to Writer -> article
+}

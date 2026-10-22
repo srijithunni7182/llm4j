@@ -16,6 +16,7 @@ final class BudgetSummary {
         }
         put(out, "tokens", budget.getTokens());
         put(out, "calls", budget.getCalls());
+        put(out, "searches", budget.getSearches());
         put(out, "cost", budget.getCost() == null ? null : budget.getCost().toPlainString());
         put(out, "perCall", budget.getPerCall());
         put(out, "warnAt", budget.getWarnAt());

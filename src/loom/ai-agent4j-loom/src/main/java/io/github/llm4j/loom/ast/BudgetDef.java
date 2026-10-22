@@ -21,6 +21,7 @@ public class BudgetDef {
 
     private Long tokens;
     private Long calls;
+    private Long searches;
     private BigDecimal cost;
     private Integer perCall;
     private Double warnAt;
@@ -41,6 +42,15 @@ public class BudgetDef {
 
     public void setCalls(Long calls) {
         this.calls = calls;
+    }
+
+    /** The most provider-side web searches (grounding) allowed, or null for no limit. */
+    public Long getSearches() {
+        return searches;
+    }
+
+    public void setSearches(Long searches) {
+        this.searches = searches;
     }
 
     public BigDecimal getCost() {
@@ -87,8 +97,11 @@ public class BudgetDef {
         this.whenExhausted = whenExhausted;
     }
 
-    /** True if this limits tokens, calls or cost (a {@code per_call} cap alone limits nothing). */
+    /**
+     * True if this limits tokens, calls, searches or cost (a {@code per_call} cap alone limits
+     * nothing).
+     */
     public boolean hasLimits() {
-        return tokens != null || calls != null || cost != null;
+        return tokens != null || calls != null || cost != null || searches != null;
     }
 }

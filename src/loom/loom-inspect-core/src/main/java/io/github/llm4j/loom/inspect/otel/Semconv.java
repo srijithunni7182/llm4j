@@ -103,6 +103,13 @@ public final class Semconv {
     public static final String LOOM_MODEL_WAITED_MS = "loom.model.waited_ms";
     public static final String LOOM_MODEL_FAILOVERS = "loom.model.failovers";
     public static final String LOOM_MODEL_TRUNCATED = "loom.model.truncated";
+
+    /** Web searches the provider ran for the call (a count; the queries never travel). */
+    public static final String LOOM_MODEL_SEARCHES = "loom.model.searches";
+
+    /** Sources the answer cited (a count; never the addresses or the text). */
+    public static final String LOOM_MODEL_CITATIONS = "loom.model.citations";
+
     public static final String LOOM_MODEL_DURATION_MS = "loom.model.duration_ms";
     public static final String LOOM_TOOL_OUTCOME = "loom.tool.outcome";
 
@@ -143,6 +150,7 @@ public final class Semconv {
     public static final String LOOM_RUN_RETRIES = "loom.run.retries";
     public static final String LOOM_RUN_FAILOVERS = "loom.run.failovers";
     public static final String LOOM_RUN_COMPACTIONS = "loom.run.compactions";
+    public static final String LOOM_RUN_SEARCHES = "loom.run.searches";
 
     // ---- Values of loom.span.kind ----
     public static final String KIND_WORKFLOW = "workflow";

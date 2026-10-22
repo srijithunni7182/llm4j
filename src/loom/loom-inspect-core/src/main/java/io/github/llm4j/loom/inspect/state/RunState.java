@@ -77,6 +77,8 @@ public final class RunState {
         long failovers;
         long truncated;
         long waited;
+        long searches;
+        long citations;
         final Map<String, Long> failures = new java.util.TreeMap<>();
         final Percentiles latency = new Percentiles();
     }
@@ -723,6 +725,8 @@ public final class RunState {
         String failovers = s.text(Semconv.LOOM_MODEL_FAILOVERS);
         if (failovers != null && !failovers.isBlank()) m.failovers += failovers.split(",").length;
         if (Boolean.TRUE.equals(s.attr(Semconv.LOOM_MODEL_TRUNCATED))) m.truncated++;
+        m.searches += number(s.attr(Semconv.LOOM_MODEL_SEARCHES));
+        m.citations += number(s.attr(Semconv.LOOM_MODEL_CITATIONS));
         if (s.statusCode() == SpanRec.STATUS_ERROR) {
             String category = s.text(Semconv.ERROR_TYPE);
             m.failures.merge(category == null ? "other" : category, 1L, Long::sum);
@@ -1198,6 +1202,8 @@ public final class RunState {
                     m.put("failovers", ms.failovers);
                     m.put("truncated", ms.truncated);
                     m.put("waitedMs", ms.waited);
+                    m.put("searches", ms.searches);
+                    m.put("citations", ms.citations);
                     m.put("p50Ms", ms.latency.p50());
                     m.put("p95Ms", ms.latency.p95());
                     modelList.add(m);

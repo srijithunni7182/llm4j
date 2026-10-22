@@ -52,6 +52,7 @@
       "properties": {
         "tokens": { "type": "integer" },
         "calls": { "type": "integer" },
+        "searches": { "type": "integer" },
         "cost": { "type": "string" },
         "perCall": { "type": "integer" },
         "warnAt": { "type": "number" },
@@ -160,6 +161,18 @@
         "streaming": { "const": true },
         "reasoning": { "const": true },
         "steerable": { "const": true },
+        "grounding": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "web" },
+            "allow": { "type": "array", "items": { "type": "string" } },
+            "block": { "type": "array", "items": { "type": "string" } },
+            "recency": { "enum": ["day", "week", "month", "year"] },
+            "country": { "type": "string" },
+            "maxSearches": { "type": "integer", "minimum": 1 }
+          }
+        },
         "budget": { "$ref": "#/$defs/budget" },
         "maxIterations": { "type": "integer" },
         "source": { "$ref": "#/$defs/source" }

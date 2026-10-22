@@ -160,7 +160,8 @@ public class LoomParser {
                     "context",
                     "streaming",
                     "reasoning",
-                    "steerable");
+                    "steerable",
+                    "grounding");
 
     /**
      * What to say when something that is not a setting turns up inside an agent: the word itself,
@@ -369,6 +370,12 @@ public class LoomParser {
                 if (agent.getBudget() != null)
                     throw error(keyword, "An agent can have only one budget block.");
                 agent.setBudget(parseBudgetBlock(true));
+            } else if (isNamedAttribute("grounding")) {
+                Token keyword = advance();
+                advance(); // the colon
+                if (agent.getGrounding() != null)
+                    throw error(keyword, "An agent can have only one grounding.");
+                agent.setGrounding(parseGrounding(keyword.getLine()));
             } else if (isNamedAttribute("ladder")) {
                 Token keyword = advance();
                 advance(); // the colon
@@ -2257,6 +2264,63 @@ public class LoomParser {
     }
 
     /**
+     * {@code grounding: web} or {@code grounding: web { allow: ["who.int"] recency: year … }}: like
+     * other settings blocks, but {@code allow} and {@code block} take a bracketed list of domains.
+     */
+    private AgentDef.GroundingConfig parseGrounding(int line) {
+        AgentDef.GroundingConfig cfg = new AgentDef.GroundingConfig();
+        cfg.setLine(line);
+        Token kind = word("Expect the kind of grounding, e.g. grounding: web");
+        if (!kind.getValue().equals("web")) {
+            throw error(
+                    kind,
+                    "The only kind of grounding is web (grounding: web), got " + kind.getValue());
+        }
+        if (!check(TokenType.LBRACE)) return cfg;
+        advance();
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token key = word("Expect a grounding setting, e.g. recency: year");
+            consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
+            if (cfg.has(key.getValue()))
+                throw error(key, key.getValue() + " is given twice in grounding");
+            if (key.getValue().equals("allow") || key.getValue().equals("block")) {
+                java.util.List<String> domains = new java.util.ArrayList<>();
+                if (check(TokenType.LBRACKET)) {
+                    advance();
+                    if (!check(TokenType.RBRACKET)) {
+                        do {
+                            domains.add(
+                                    consume(
+                                                    TokenType.STRING_LITERAL,
+                                                    "Expect a domain in quotes, e.g. \"who.int\".")
+                                            .getValue());
+                        } while (match(TokenType.COMMA));
+                    }
+                    consume(TokenType.RBRACKET, "Expect ']' after the domains.");
+                } else {
+                    domains.add(
+                            consume(
+                                            TokenType.STRING_LITERAL,
+                                            "Write the domains in brackets, e.g. "
+                                                    + key.getValue()
+                                                    + ": [\"who.int\", \"nih.gov\"]")
+                                    .getValue());
+                }
+                cfg.put(
+                        key.getValue(),
+                        io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(
+                                String.join(",", domains)),
+                        key.getLine());
+            } else {
+                cfg.put(key.getValue(), optionValue(), key.getLine());
+            }
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after grounding settings.");
+        return cfg;
+    }
+
+    /**
      * {@code context { compact: chain(a, b) trigger: 80% … }}: like other settings blocks, but
      * {@code compact} takes names and percentages are written with a sign.
      */
@@ -3225,7 +3289,7 @@ public class LoomParser {
             Token field =
                     consume(
                             TokenType.IDENTIFIER,
-                            "Expect a budget field: tokens, calls, cost, warn_at, when_exhausted"
+                            "Expect a budget field: tokens, calls, searches, cost, warn_at, when_exhausted"
                                     + (forAgent ? " or per_call" : "")
                                     + ".");
             consume(TokenType.COLON, "Expect ':' after budget field '" + field.getValue() + "'.");
@@ -3236,6 +3300,10 @@ public class LoomParser {
                 }
                 case "calls" -> {
                     budget.setCalls(positiveWhole(field));
+                    window(budget);
+                }
+                case "searches" -> {
+                    budget.setSearches(positiveWhole(field));
                     window(budget);
                 }
                 case "cost" -> {
@@ -3279,7 +3347,7 @@ public class LoomParser {
                         field,
                         "Unknown budget field '"
                                 + field.getValue()
-                                + "'. Use tokens, calls, cost, warn_at, when_exhausted"
+                                + "'. Use tokens, calls, searches, cost, warn_at, when_exhausted"
                                 + (forAgent ? " or per_call" : "")
                                 + ".");
             }
@@ -3312,13 +3380,14 @@ public class LoomParser {
         Token unit =
                 consume(
                         TokenType.IDENTIFIER,
-                        "Expect 'tokens' or 'calls' after the budget amount, e.g. budget 5000 tokens");
+                        "Expect 'tokens', 'calls' or 'searches' after the budget amount, e.g. budget 5000 tokens");
         switch (unit.getValue()) {
             case "tokens" -> budget.setTokens(n);
             case "calls" -> budget.setCalls(n);
+            case "searches" -> budget.setSearches(n);
             default -> throw error(
                     unit,
-                    "Expect 'tokens' or 'calls' after the budget amount, got '"
+                    "Expect 'tokens', 'calls' or 'searches' after the budget amount, got '"
                             + unit.getValue()
                             + "'");
         }

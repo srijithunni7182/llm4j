@@ -155,6 +155,7 @@ final class BudgetCoordinator {
         if (runDef != null) {
             merged.setTokens(runDef.getTokens());
             merged.setCalls(runDef.getCalls());
+            merged.setSearches(runDef.getSearches());
             merged.setCost(runDef.getCost());
             merged.setWarnAt(runDef.getWarnAt());
             merged.setWindow(runDef.getWindow());
@@ -343,6 +344,7 @@ final class BudgetCoordinator {
                 io.github.llm4j.budget.Budget.builder().name(name);
         if (def.getTokens() != null) b.tokens(def.getTokens());
         if (def.getCalls() != null) b.calls(def.getCalls());
+        if (def.getSearches() != null) b.searches(def.getSearches());
         if (def.getCost() != null) b.cost(def.getCost());
         if (def.getWarnAt() != null) b.warnAt(def.getWarnAt());
         if (def.getWindow() != null) b.window(def.getWindow());
@@ -471,6 +473,7 @@ final class BudgetCoordinator {
             view.put("spent", spent.tokens());
             view.put("remaining", left.isPresent() ? (Object) left.getAsLong() : "unlimited");
             view.put("calls", spent.calls());
+            view.put("searches", spent.searches());
             view.put("cost", spent.cost().stripTrailingZeros().toPlainString());
             view.put("exhausted", String.valueOf(budgetExhausted.get() || runBudget.exhausted()));
             return view.entrySet();
