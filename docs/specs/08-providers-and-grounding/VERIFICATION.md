@@ -104,3 +104,8 @@ Progress log, newest sub-phase last. Resume from the last entry.
 ### 7.1 8a: core (OpenAI)
 
 Built: `Dialect`, `ModelTraits`, `OpenAiCompatibleProvider` (+ package-private `ChatRequestWriter`, `ChatResponseReader`), `ChatCompletionsContract` (shared contract), `OpenAiContractTest`, `DialectTest`. ai-agent4j suite: 2939 tests, 0 failures. Fixtures recorded from the real API: **owed to 8c-live**.
+
+### 7.2 8b: presets
+
+Built: xAI, Kimi (preview), Qwen (preview), the generic `openai_compatible` dialect (header name, fixed query parameters, `<think>` removal) and the preview `perplexity_router` dialect, each with a contract test extending `ChatCompletionsContract` (`XaiContractTest`, `KimiContractTest`, `QwenContractTest`, `OpenAiCompatibleContractTest`, `PerplexityRouterContractTest`); `Fixtures` and `FixtureProvenanceTest` (every fixture states its source; recorded ones their date and model; none holds a key); `PresetFixturesTest` replays the Kimi, Qwen and Orchestrator fixtures (all `documentation-derived`, header says so); `OpenAiFamilySecretTest` (R4: per-request key fetch, header only, host binding, no key in errors); `ProviderNamesTest` (`HttpClientWrapper.providerOf` knows xai, kimi, qwen, perplexity).
+Test that caught a gap: `<think>` removal for the generic dialect was specified but not built until its test failed. Fixtures for OpenAI and xAI: recorded in 8c-live.

@@ -14,6 +14,7 @@ import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.ToolCallDelta;
 import io.github.llm4j.provider.LLMProvider;
 import io.github.llm4j.provider.Providers;
+import io.github.llm4j.provider.ThinkTags;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
@@ -142,6 +143,7 @@ public class OpenAiCompatibleProvider implements LLMProvider {
         Integer[] usage = {null, null};
         StringBuilder reasoning = new StringBuilder();
         TreeSet<Integer> openCalls = new TreeSet<>();
+        ThinkTags.StreamFilter thinking = dialect.thinkTags() ? new ThinkTags.StreamFilter() : null;
         Stream<LLMResponse> events =
                 body.events()
                         .takeWhile(event -> !"[DONE]".equals(event.data().strip()))
@@ -172,6 +174,7 @@ public class OpenAiCompatibleProvider implements LLMProvider {
                                                             thought, answering[0]));
                                     }
                                     String text = delta.path("content").asText("");
+                                    if (thinking != null) text = thinking.accept(text);
                                     if (!text.isEmpty())
                                         out.add(Providers.textChunk(text, answering[0]));
                                     for (JsonNode call : delta.path("tool_calls")) {
@@ -190,6 +193,11 @@ public class OpenAiCompatibleProvider implements LLMProvider {
                                     }
                                     return out.build();
                                 });
+        Stream<LLMResponse> held =
+                Stream.of(0)
+                        .map(x -> thinking == null ? "" : thinking.flush())
+                        .filter(s -> !s.isEmpty())
+                        .map(s -> Providers.textChunk(s, answering[0]));
         Stream<LLMResponse> tail =
                 Stream.of(0)
                         .map(
@@ -208,7 +216,7 @@ public class OpenAiCompatibleProvider implements LLMProvider {
                                     return Providers.finalChunk(
                                             finish[0], usage[0], usage[1], answering[0], data);
                                 });
-        return Stream.concat(events, tail).onClose(body::close);
+        return Stream.concat(Stream.concat(events, held), tail).onClose(body::close);
     }
 
     private JsonNode parse(String data) {

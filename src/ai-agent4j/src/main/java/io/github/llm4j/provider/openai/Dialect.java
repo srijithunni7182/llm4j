@@ -31,6 +31,7 @@ public final class Dialect {
     private final boolean keyRequired;
     private final boolean toolCalling;
     private final boolean streamUsage;
+    private final boolean thinkTags;
     private final List<String> reasoningFields;
     private final Map<String, Object> extraRequest;
     private final Map<String, String> queryParams;
@@ -50,6 +51,7 @@ public final class Dialect {
         this.keyRequired = b.keyRequired;
         this.toolCalling = b.toolCalling;
         this.streamUsage = b.streamUsage;
+        this.thinkTags = b.thinkTags;
         this.reasoningFields = List.copyOf(b.reasoningFields);
         this.extraRequest = Map.copyOf(b.extraRequest);
         this.queryParams = Map.copyOf(b.queryParams);
@@ -119,6 +121,14 @@ public final class Dialect {
     /** Whether a streamed request asks for token usage ({@code stream_options.include_usage}). */
     public boolean streamUsage() {
         return streamUsage;
+    }
+
+    /**
+     * Whether models may write their reasoning into the answer as a leading {@code <think>} block,
+     * which is then removed.
+     */
+    public boolean thinkTags() {
+        return thinkTags;
     }
 
     /**
@@ -192,6 +202,7 @@ public final class Dialect {
                 .keyRequired(keyRequired)
                 .toolCalling(toolCalling)
                 .streamUsage(streamUsage)
+                .thinkTags(thinkTags)
                 .reasoningFields(reasoningFields)
                 .extraRequest(extraRequest)
                 .queryParams(queryParams)
@@ -296,6 +307,7 @@ public final class Dialect {
             builder("openai-compatible")
                     .maxTokensField("max_tokens")
                     .keyRequired(false)
+                    .thinkTags(true)
                     .reasoningFields(List.of("reasoning_content", "reasoning"))
                     .keyEnv("OPENAI_COMPATIBLE_API_KEY")
                     .baseUrlEnv("OPENAI_COMPATIBLE_BASE_URL")
@@ -312,6 +324,7 @@ public final class Dialect {
         private boolean keyRequired = true;
         private boolean toolCalling = true;
         private boolean streamUsage = true;
+        private boolean thinkTags;
         private List<String> reasoningFields = List.of("reasoning_content");
         private Map<String, Object> extraRequest = Map.of();
         private Map<String, String> queryParams = Map.of();
@@ -362,6 +375,11 @@ public final class Dialect {
 
         public Builder streamUsage(boolean streamUsage) {
             this.streamUsage = streamUsage;
+            return this;
+        }
+
+        public Builder thinkTags(boolean thinkTags) {
+            this.thinkTags = thinkTags;
             return this;
         }
 

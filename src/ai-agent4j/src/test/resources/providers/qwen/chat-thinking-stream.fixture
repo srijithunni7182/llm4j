@@ -1,0 +1,18 @@
+# source: documentation-derived
+# note: hand-written from the vendor documentation; not recorded from the real API
+# vendor: qwen
+# document: https://www.alibabacloud.com/help/en/model-studio/deep-thinking.md (read 2026-10-22)
+# model: qwen3.8-max
+---
+data: {"id":"chatcmpl-1","object":"chat.completion.chunk","model":"qwen3.8-max","choices":[{"index":0,"delta":{"role":"assistant","content":null,"reasoning_content":"9.9 is 9.90, "},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-1","object":"chat.completion.chunk","model":"qwen3.8-max","choices":[{"index":0,"delta":{"content":null,"reasoning_content":"which is larger than 9.11."},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-1","object":"chat.completion.chunk","model":"qwen3.8-max","choices":[{"index":0,"delta":{"content":"9.9 is larger."},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-1","object":"chat.completion.chunk","model":"qwen3.8-max","choices":[{"index":0,"delta":{"content":""},"finish_reason":"stop"}]}
+
+data: {"id":"chatcmpl-1","object":"chat.completion.chunk","model":"qwen3.8-max","choices":[],"usage":{"prompt_tokens":24,"completion_tokens":60,"total_tokens":84}}
+
+data: [DONE]
+

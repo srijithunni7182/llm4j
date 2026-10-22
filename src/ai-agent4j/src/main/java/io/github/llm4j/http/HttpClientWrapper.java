@@ -383,6 +383,10 @@ public class HttpClientWrapper {
         if (host.contains("anthropic")) return "anthropic";
         if (host.contains("openai")) return "openai";
         if (host.contains("sarvam")) return "sarvam";
+        if (host.equals("api.x.ai") || host.endsWith(".x.ai")) return "xai";
+        if (host.contains("moonshot") || host.contains("kimi")) return "kimi";
+        if (host.contains("aliyuncs") || host.contains("dashscope")) return "qwen";
+        if (host.contains("perplexity")) return "perplexity";
         if (request.url().port() == 11434 || host.contains("ollama")) return "ollama";
         return host;
     }

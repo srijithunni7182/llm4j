@@ -8,6 +8,7 @@ import io.github.llm4j.exception.ProviderException;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.ToolCall;
 import io.github.llm4j.provider.Providers;
+import io.github.llm4j.provider.ThinkTags;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,6 +45,7 @@ final class ChatResponseReader {
                     dialect.name(), "refused: " + message.path("refusal").asText());
         }
         String content = message.path("content").asText("");
+        if (dialect.thinkTags()) content = ThinkTags.strip(content);
         List<ToolCall> calls = new ArrayList<>();
         for (JsonNode call : message.path("tool_calls")) {
             JsonNode function = call.path("function");
