@@ -28,7 +28,7 @@ Status: **draft for review**. Requirements `R1`…`R33` are in [DESIGN.md](DESIG
 | **Renderers** | Dockerfile, compose, k8s goldens; structural safety assertions (non-root, read-only fs, caps dropped, no host network/privileged, ports, internal networks, probes, limits) | `DockerfileGoldenTest`, `ComposeGoldenTest`, `K8sGoldenTest`, `SafetyPropertiesTest` | R22, R26, R27 |
 | **Secrets** | Seeded env secrets never appear in any generated file; `.env.example` placeholders only | `NoSecretsInDeployFilesTest` | R23 |
 | **Reproducibility / idempotence** | Byte-identical; digest pinning note; edited file detected, never overwritten silently; `--verify` drift | `DeployReproducibleTest`, `DeployNoOverwriteTest`, `DeployVerifyTest` | R24, R29, R30 |
-| **Pre-flight** | HIGH finding stops; `--yes` continues and README records it; accepted trifecta carried | `DeployPreflightTest`, `TrifectaAcceptanceCarriedTest` | R25 |
+| **Review notice** | Open findings of every severity (including an unaccepted trifecta) print the warning, generation continues, exit 0, README records the counts; `--require-clean` exits 1; accepted trifecta carried | `DeployPreflightTest`, `TrifectaAcceptanceCarriedTest` | R25 |
 | **Network posture** | Unsafe bind refused; default internal | `UnsafeBindRefusedTest` | R26 |
 | **Skill** | Skill text matches commands/flags (drift test) | `SkillDriftTest` | R31 |
 | **Architecture** | `bind/` and `deploy/` use the shared validator/graph/symbols and no parser; `deploy/` has no Docker/K8s/network dependency | `BindDeployDependencyTest` | R32, R33 |

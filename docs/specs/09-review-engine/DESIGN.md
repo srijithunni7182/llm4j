@@ -80,7 +80,7 @@ weave review <script.loom> [options]
   --format text|md|json|sarif     text (default, on a terminal), md (a report), json (tools), sarif (code scanning)
   --lens security,cost,...        run exactly these lenses; `all` adds the optional ones; `+oversight` adds one to the defaults (default: the nine default lenses)
   --min-severity high|medium|low|info   show at least this (default: info)
-  --fail-on high|medium|low|info|none   exit 1 when a finding is at least this severe (default: high)
+  --fail-on high|medium|low|info|none   exit 1 when a finding is at least this severe (default: none: review is advisory, R49; CI sets it)
   --fix                           apply every SAFE fix, then review again and print what changed
   --fix --dry-run                 print the diff, change nothing
   --explain <RULE>                the rule's page: what it checks, an example that fires, one that does not, the fix, known false positives
@@ -91,7 +91,7 @@ weave review <script.loom> [options]
   --calibrate <run-dir>           compare the cost estimate with what a journaled run really spent (§5.5)
 ```
 
-- **R6** Exit codes: `0` nothing at or above `--fail-on`; `1` a finding at or above it; `2` the script could not be read or parsed (the existing convention). `--fix` exits by what remains after fixing.
+- **R6** Exit codes: `0` (always, unless `--fail-on` or a project `fail-on =` is set) or nothing at or above `--fail-on`; `1` a finding at or above it; `2` the script could not be read or parsed (the existing convention). `--fix` exits by what remains after fixing.
 - **R7** `weave audit` and `weave check` are unchanged. `weave review` runs both internally, so `review` is a superset: no finding they produce is missing from `review` (a test pins this).
 - **R8** SARIF output (version 2.1.0) so the same findings appear in GitHub code scanning. Rule ids map to SARIF rule ids; fixes map to SARIF `fixes`.
 - **R9** The text report ends with a summary card:
@@ -447,6 +447,25 @@ The noise answer is not fewer rules but a fast, safe, *durable* way to deal with
 - **R48** **Fix semantics.** After any fix (single or group), the engine re-reviews the touched files; the fixed findings are gone, no new HIGH finding appeared (R25), and anything that did change is reported. **Fix all** in a group applies only the group's SAFE fixes; REVIEW fixes are never applied in bulk without a combined preview (one diff for all of them) and an explicit confirmation. Fixing and accepting are separate actions; a finding with no fix offers Accept and Explain only.
 
 
+### 11.2 Advisory, never blocking (R49 to R56)
+
+**Review informs; it does not gate.** An open finding never stops a developer from running, resuming, packaging, serving or deploying a workflow, whether they use the command line, the VS Code extension or a coding agent with the skills. They are told, once and briefly, that open findings exist, and the choice is theirs.
+
+- **R49** **The rule.** `weave run`, `resume`, `tick`, `daemon`, `package`, `serve`, `deploy`, the extension's Run and the skills' run/deploy steps **never** refuse, prompt, delay beyond R52, or change their exit code because of review findings. The only things that exit non-zero on findings are commands the developer or their CI chose for that purpose: `weave review --fail-on <level>` (exit 1), `weave gate` (phase 14), `weave deploy --require-clean` (phase 15), and `weave audit` as it behaves today. No setting, file or environment variable makes `run` block.
+- **R50** **The notice.** Commands that start something (`run`, `daemon` at start, `package`, `deploy`) print **one line to standard error** when open findings exist, and nothing when there are none:
+
+  ```
+  ⚠ weave review: 2 high · 3 medium · 1 low open (5 accepted, 2 baselined) — not blocking. Details: weave review   Silence: review.properties notice = off
+  ```
+
+  The line is plain text (no colour needed), appears once per process, goes to standard error only, and is never printed by `resume`, `tick`, `check`, `graph`, `explain`, `test`, `why` and other commands that are not starting a workflow or shipping one. For `daemon` it appears once at start, not on each tick. A `deploy` also records the open counts in the generated README (phase 15).
+- **R51** **What counts as open.** A finding of a lens that is on, at or above the notice threshold, that is not fixed, **accepted** (R42) or **baselined** (R46). Dismissed findings are local to an editor and invisible to the CLI, so the CLI counts them as open. Accepted-but-expired entries are open. The threshold is `notice = high | medium | low | off` in `review.properties` (default `low`: info-level findings never produce a notice), overridable by `--review-notice <level>` on the starting commands and by the environment variable `LOOM_REVIEW_NOTICE`.
+- **R52** **Never in the way.** The notice is computed from a cache keyed by (script and prompt content hash, rules, lens set, review version), so it is normally free. On a cache miss the review runs **concurrently with the command's own start-up**, with a time cap (default 1 s, `notice.timeout`); if it has not finished by then the notice is skipped and a single `review skipped (slow)` line is printed only with `--verbose`. A run never waits for review beyond that cap.
+- **R53** **Nothing else changes.** With the notice on or off: standard output, exit code, the journal, trace events and the run directory are byte-identical (this is the exact meaning of program promise P10 for this feature). The notice is never read as input and never asks a question. It is the same single plain line whether or not standard error is a terminal (a CI log is where a warning is most useful), with no colour or escape sequences; `notice = off` or `LOOM_REVIEW_NOTICE=off` silences it.
+- **R54** **Review failure is not a run failure.** A crash, a timeout or an unreadable rules file in the review engine at most turns the notice into `review unavailable (<reason>)` on standard error, once. It never fails or delays the command beyond R52.
+- **R55** **Observability (optional).** When a run reports to Fabric (`--observe-fabric`), the open counts by severity travel as run attributes (`loom.review.open.high`, ...), so Fabric can show a badge on the run. Counts only: no finding text, no script content.
+- **R56** **Skills and coding agents follow the same rule.** The `llm4j-workflow-guide`, `llm4j-harness-design` and `llm4j-loom-deployer` skills tell the agent to: run `weave review` after writing or changing a workflow; report the open counts and the top findings in a sentence; offer to fix or accept them; and **carry on with whatever the user asked** (run, test, package, deploy) without withholding it because findings are open. The skills may recommend fixing first, and must say plainly when a finding is HIGH, but the decision is the user's. Only when the user asks for a gate ("don't deploy unless review is clean") does the agent use `--fail-on` / `--require-clean`. A skill text test (`SkillAdvisoryTextTest`) checks the sentences are present and that no skill instructs the agent to stop on findings.
+
 ## 12. Sub-phases
 
 | | Delivers | Tests |
@@ -455,7 +474,7 @@ The noise answer is not fewer rules but a fast, safe, *durable* way to deal with
 | 9b | LV classification of all check messages; SARIF; de-duplication; suppressions | `LvClassificationTest`, `SarifTest`, `SuppressionTest` |
 | 9c | Cost estimator, assumptions, summary card, `--calibrate`, LC rules | `CostModelTest`, `CostBudgetCapTest`, `CalibrationTest`, `Lc*Test` |
 | 9d | Reliability and prompt rules (LR, LP) | one test class per rule, corpus precision gate |
-| 9e | Fixes: `FixApplier`, `--fix`, `--dry-run`, verification, idempotence; stable fingerprints, accept with scopes and expiry, baseline, noise report (R41 to R48) | `FixApplierTest`, `FixAtomicityTest`, `FixIdempotentTest`, `FingerprintStabilityTest`, `AcceptScopesTest`, `BaselineTest`, `NoiseReportTest` |
+| 9e | Advisory behaviour (R49 to R56): the one-line notice, open-count definition, cache and time cap, no change to output or exit codes, review failure isolation; Fixes: `FixApplier`, `--fix`, `--dry-run`, verification, idempotence; stable fingerprints, accept with scopes and expiry, baseline, noise report (R41 to R48) | `FixApplierTest`, `FixAtomicityTest`, `FixIdempotentTest`, `FingerprintStabilityTest`, `AcceptScopesTest`, `BaselineTest`, `NoiseReportTest` |
 | 9f | Observability, durability and privacy lenses (LO, LD, LY); declared facts and inert-rule notes (R38); lens selection (R33) | one test class per rule, `LensSelectionTest`, `InertRuleNoteTest`, `HeuristicSwitchTest` |
 | 9g | Time and effects estimates (R35, R36); performance rules LC08 to LC10; testability lens (LT) with its extra inputs and the coverage-report staleness rule (R34) | `TimeEstimateTest`, `EffectsEstimateTest`, `Lc08ParallelTest`, `Lt*Test`, `CoverageReportStaleTest` |
 | 9h | The four optional lenses (LG, LM, LH, LB) and their cross-lens de-duplication (R39, R40) | `Lg*Test`, `Lm*Test`, `Lh*Test`, `Lb*Test`, `OptionalLensesOffByDefaultTest`, `CrossLensDedupTest` |
@@ -464,7 +483,7 @@ The noise answer is not fewer rules but a fast, safe, *durable* way to deal with
 ## 13. Decisions to confirm (open questions)
 
 1. **Rule namespace.** LV/LC/LR/LP beside the existing LA. Alternative: one `LRxx` space for everything. Recommendation: keep LA as is (it is already published in reports and docs) and add the four families.
-2. **Default `--fail-on`.** `high` (as `audit`). Alternative: `medium` for `review` because it covers more. Recommendation: `high`; teams tighten in `review.properties`.
+2. **Default `--fail-on`.** `none`: `weave review` is advisory and exits 0 on findings, so it can never be the thing that stops a `&&` chain by surprise (R49); CI and teams that want a gate set `--fail-on high` or `fail-on = high` in `review.properties`. `weave audit` keeps its existing default (`high`). Confirm.
 3. **Heuristic rules on by default?** LC07, LP05, LP06 are off by default (R18). Confirm.
 4. **Price source of truth.** The estimator reads the same `prices.properties` that `weave run` uses. If none exists, a bundled default table (clearly labelled with a date) is used and the report says so. Confirm that a bundled table is acceptable, given prices change.
 5. **Where fixes may write.** Only the script, its imports and its prompt files, inside the project folder. Confirm this boundary. (Fixes that create a test file, a rules file or a golden stub also write inside the project folder; confirm.)

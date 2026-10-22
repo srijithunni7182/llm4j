@@ -27,7 +27,12 @@ Status: **not started**. Run top to bottom at the end of sub-phase 9i; the relev
 | A19 | Serious findings cannot be ignored casually: per-entry reasons, count confirmation, accepted highs stay visible, strict mode counts them, trifecta acceptance is written in the script | `AcceptGuardrailsTest`, `TrifectaAcceptWritesScriptTest` |
 | A20 | Dismissing never changes what CI or a teammate sees; a baseline makes CI count only new findings | `DismissDoesNotAffectCiTest`, `BaselineNewOnlyFailsTest` |
 | A21 | A team can see which rules are noisy in practice | `NoiseReportTest` |
-| A22 | Documented | docs review (§5) |
+| A22 | Open review findings never stop a run, resume, package, serve or deploy from the CLI, the extension or the skills; the developer is told in one stderr line and the output, exit code and journal are unchanged | `RunNeverBlockedByFindingsTest`, `RunUnchangedWithNoticeTest`, `NoticeStderrOnlyTest` |
+| A23 | The notice is accurate and quiet: counts only open findings, once per process, configurable, silent when nothing is open, absent on non-starting commands | `NoticeCountsOpenOnlyTest`, `NoticeOncePerProcessTest`, `NoticeThresholdTest` |
+| A24 | The notice and the review engine can never slow or fail a command beyond a stated cap | `NoticeCacheAndTimeCapTest`, `ReviewCrashDoesNotFailRunTest` |
+| A25 | Only commands chosen for enforcement exit non-zero on findings | `OnlyExplicitCommandsFailTest` |
+| A26 | The skills report findings and carry on, never withholding a run or deploy | `SkillAdvisoryTextTest` |
+| A27 | Documented | docs review (§5) |
 
 ## 2. Traceability: requirement → tests
 
@@ -81,6 +86,14 @@ Status: **not started**. Run top to bottom at the end of sub-phase 9i; the relev
 | R46 | `BaselineTest`, `BaselineNewOnlyFailsTest`, `BaselineHighExcludedTest` | ⬜ 9e |
 | R47 | `NoiseReportTest` | ⬜ 9e |
 | R48 | `FixGroupSafeOnlyTest`, `FixGroupReviewPreviewTest`, `FixRereviewTest` | ⬜ 9e |
+| R49 | `RunNeverBlockedByFindingsTest`, `OnlyExplicitCommandsFailTest` | ⬜ 9e |
+| R50 | `NoticeStderrOnlyTest`, `NoticeOncePerProcessTest`, `NoticeNotOnNonStartingCommandsTest` | ⬜ 9e |
+| R51 | `NoticeCountsOpenOnlyTest`, `NoticeThresholdTest` | ⬜ 9e |
+| R52 | `NoticeCacheAndTimeCapTest` | ⬜ 9e |
+| R53 | `RunUnchangedWithNoticeTest`, `NoticeNonTerminalPlainTest` | ⬜ 9e |
+| R54 | `ReviewCrashDoesNotFailRunTest` | ⬜ 9e |
+| R55 | `FabricReviewAttributeTest` | ⬜ 9h |
+| R56 | `SkillAdvisoryTextTest` | ⬜ 9i |
 
 ## 3. Quality gates
 

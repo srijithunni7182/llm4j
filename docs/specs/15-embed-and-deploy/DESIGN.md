@@ -135,7 +135,7 @@ weave deploy <script.loom> --target docker|compose|k8s [options]
   --env-file-template         write .env.example (names only)
   --expose none|http:<port>   whether the app listens (default: none: it is a worker)
   --schedule keep|none        keep Loom's own schedules (the app runs weave daemon) or run once per start
-  --yes                       do not stop on review warnings (see R25)
+  --require-clean             exit 1 when open review findings remain (opt-in; by default deploy warns and carries on, R25)
   --dry-run                   print the file list and contents, write nothing
 ```
 
@@ -150,7 +150,7 @@ weave deploy <script.loom> --target docker|compose|k8s [options]
 - **R22** Everything is derived from the script: the **environment variable names** from `env.NAME` uses (the `weave check` credential list), the **egress allow-list** from the providers/tools the script uses (`weave audit`'s data-flow list), the **volumes** from the journal/triggers/knowledge/memory settings, the **schedules** from `schedule` statements.
 - **R23** **No secret in an image, a compose file or a manifest.** Values never appear; only names. Keys come from environment, files mounted from a secret store, or Kubernetes `Secret` references the operator fills. A test seeds secret-shaped values in the environment and greps every generated file. `.env.example` follows the existing `EnvExampleCheck` rule (placeholders only).
 - **R24** **Reproducible.** The same script and options produce byte-identical files (stable ordering, no timestamps); base images are referenced by tag *and* digest when `--base-image` carries one, and the output says when it does not ("pin this before production").
-- **R25** **Pre-flight.** `deploy` runs `weave review --fail-on high` and prints the summary; a HIGH finding (including an unaccepted lethal trifecta) stops generation unless `--yes`, and the output notes the acceptance in the README (`trifecta: accepted "reason"` is carried through). The generated README lists the review summary it was generated under.
+- **R25** **Review notice, never a gate.** `deploy` runs the review (cached) and prints the summary and, as for every starting command (phase 9 R50), one warning line when findings are open; **generation always continues and the exit code is 0** (phase 9 R49). An open HIGH finding, including an unaccepted lethal trifecta, is stated in plain words in that warning and in the generated README, which lists the review summary it was generated under and any `trifecta: accepted "reason"` that was carried through. A team that wants a gate passes `--require-clean` (exit 1 when findings at or above the review's `fail-on` remain) or uses `weave gate`. The one thing `deploy` still refuses is the unsafe Fabric bind of R26: that is a configuration safety rule about exposing Fabric without access control, not a review finding, and is unchanged.
 - **R26** **Network posture.** Fabric is not exposed beyond localhost/cluster-internal by default; if `--expose http` is requested the generated config includes the bind address and a note that Fabric access control must be configured (links to the deployer guide), and `deploy` refuses an unsafe bind exactly as the deployer scripts do today.
 - **R27** **Observability wired.** The app starts with `--observe-fabric <url>` and the key via file/env; the compose file includes the Fabric `healthcheck` and the app `depends_on` it; the k8s manifests include the same.
 - **R28** **State.** Journals/trigger stores on a volume (or JDBC) so a restart resumes runs; the generated README explains the three failure cases (restart, node loss, volume loss) and what each does to in-flight runs.
@@ -159,7 +159,7 @@ weave deploy <script.loom> --target docker|compose|k8s [options]
 
 ### 5.2 Relationship to the deployer skill
 
-- **R31** The `llm4j-loom-deployer` skill is updated so a coding agent *uses* `weave deploy` to produce the files and then teaches the developer to read them; the skill keeps owning the *decisions* (security acceptance, `.inspect` rules, who may sign in) and the guidance on operating Fabric. The existing bundled scripts (`fabric-up`, `run-observed`, ...) remain for the non-container path. The skill's drift test (`SkillDriftTest`) covers the new commands.
+- **R31** The `llm4j-loom-deployer` skill is updated so a coding agent *uses* `weave deploy` (and, like the other skills, reports open review findings in a sentence and carries on with the deployment the user asked for: phase 9 R56) to produce the files and then teaches the developer to read them; the skill keeps owning the *decisions* (security acceptance, `.inspect` rules, who may sign in) and the guidance on operating Fabric. The existing bundled scripts (`fabric-up`, `run-observed`, ...) remain for the non-container path. The skill's drift test (`SkillDriftTest`) covers the new commands.
 
 ## 6. Architecture
 

@@ -91,6 +91,7 @@ Gates, in order; each failure is fed back to the model as structured text (rule 
 - **R13** Generation has its own **spend cap** (`--max-cost`, default $0.50; `--max-tokens`), enforced before each call using the same budget machinery as a Loom run. Exceeding it stops with the best draft kept in a `.draft` folder and the cap message.
 - **R14** The loop is monotone: an attempt that increases the number of failing gates or HIGH findings is discarded and the previous best draft is retried with the feedback, so the loop cannot oscillate.
 - **R15** `SAFE` fixes from phase 9 are applied by the tool, not the model (cheaper, deterministic); the model is only asked to repair what has no safe fix.
+- **R15a** **Gates decide only what generation calls "done".** They are acceptance criteria for what the generator produces, not a gate on the developer: a project from a failed generation can always be taken (`--keep-failing`) and run, and a hand-written project is never held to them unless the developer runs `--gate-only`. Review findings in any project follow the advisory rule of [phase 9 §11.2](../09-review-engine/DESIGN.md).
 - **R16** If the loop ends without passing, the generator reports **which gate failed, the last failure and the draft's location**, never a partial success. Exit code 3.
 - **R17** G3 uses only scripted collaborators (phase 11): generation makes **no real calls to the generated agents**; their prompts are not validated against a live model (that is `weave eval`'s job and the summary says so).
 

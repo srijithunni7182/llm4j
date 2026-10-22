@@ -180,7 +180,7 @@ Stated in every report and in the docs: it does not know how a *changed* prompt 
 
 ## 6. `weave gate` (R31 to R35)
 
-`weave gate` is the CI command: it runs, in order, the checks a team has configured, prints one verdict, and exits non-zero on failure.
+`weave gate` is the CI command, chosen by a team on purpose and never implied by running or deploying (phase 9 R49): it runs, in order, the checks a team has configured, prints one verdict, and exits non-zero on failure.
 
 ```
 weave gate [script.loom] [--config gate.properties] [--candidate-ref HEAD] [--base-ref origin/main]

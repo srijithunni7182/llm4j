@@ -16,7 +16,7 @@ Status: **not started**. Run top to bottom at the end of sub-phase 15e; the rele
 | A8 | `weave deploy` produces a container recipe, compose and Kubernetes files from the script, with env names, egress, volumes and schedules derived from it | `DeployPlanTest`, `DockerfileGoldenTest`, `ComposeGoldenTest`, `K8sGoldenTest` |
 | A9 | No secret value ever appears in a generated file, an image recipe or a manifest | `NoSecretsInDeployFilesTest` |
 | A10 | Generated deployments are safe by default: non-root, read-only root filesystem, dropped capabilities, internal Fabric, egress limited to the script's providers | `SafetyPropertiesTest`, `NetworkPolicyFromScriptTest`, `UnsafeBindRefusedTest` |
-| A11 | A deployment cannot be generated over a HIGH review finding without saying so; an accepted trifecta is carried into the README | `DeployPreflightTest`, `TrifectaAcceptanceCarriedTest` |
+| A11 | Review findings never block a deployment: open ones are shown as a warning and recorded in the README, `--require-clean` is the opt-in gate, and an accepted trifecta is carried into the README | `DeployPreflightTest`, `TrifectaAcceptanceCarriedTest` |
 | A12 | Generation is reproducible, idempotent, non-destructive and verifiable | `DeployReproducibleTest`, `DeployNoOverwriteTest`, `DeployVerifyTest` |
 | A13 | The existing corpus parses identically after optional typed parameters (if approved) | `CorpusParsesIdenticallyTest` |
 | A14 | Documented; the deployer skill uses `weave deploy` | docs review (§5), `SkillDriftTest` |

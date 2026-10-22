@@ -105,6 +105,11 @@ Group by [ severity | lens | rule | file ]                              Fix all 
 - **R40** **Dismiss is local.** It is stored in editor workspace storage, never in the repository, never changes the engine's result, the Problems panel entries for errors (validity errors cannot be dismissed), or CI; the status bar says "n dismissed" so a hidden count is always visible.
 - **R41** **Keyboard first.** Every action has a keyboard path in the list (arrow keys to move, `F` fix, `A` accept, `D` dismiss, `E` explain, `Enter` reveal in the editor), shown in a help line, and group actions are reachable from the group header by keyboard. Screen readers announce "high, durability, fix available" and the result of every action.
 
+### 3.5 Never in the way (R42, R43)
+
+- **R42** **Run is never blocked.** The editor's Run Workflow, the Run CodeLens and the debugger launch start the workflow immediately whatever the review says (phase 9 R49). When open findings exist, a **non-modal** information message offers *Review* and *Don't show again for this workspace*; it never asks for confirmation to proceed, never disables Run, and never appears twice for the same unchanged script. The terminal shows the CLI's one-line notice as usual.
+- **R43** **The status bar is the standing indicator**, not a gate: it shows the open counts (`Loom ⚠ 2 high · 3 medium`), turns neutral when everything is handled, and a click opens the panel. Colours never carry meaning alone (R4). No command in the extension's palette is conditional on a clean review.
+
 ## 4. `weave serve` (R13 to R19)
 
 A long-lived process: `java -jar weave.jar serve --stdio`, started once per VS Code window by the extension.

@@ -77,7 +77,8 @@ corpus (§5), not claims.
 | P7 | A production failure becomes **a regression test in one command**, and a prompt change is checked against **real history** before it ships | 14 |
 | P8 | Calling a workflow from Java is **typed**: no strings for inputs, results or workflow names | 15 |
 | P9 | From nothing installed but Java to a **running, traced workflow in under two minutes with no API key** | 16 |
-| P10 | **No new surprise**: nothing here changes how an existing script runs. Every phase is opt-in, additive, and leaves `weave run` behaviour byte-for-byte | all |
+| P10 | **No new surprise**: nothing here changes how an existing script runs. Every phase is opt-in, additive, and leaves `weave run` standard output, exit code and journal byte-for-byte (the one addition is a single review notice line on standard error, P11) | all |
+| P11 | **Advisory, never blocking**: open review findings never stop a run, resume, package, serve or deploy from the CLI, the editor or the skills; the developer is told in one line and decides. Only commands chosen for enforcement (`weave review --fail-on`, `weave gate`, `weave deploy --require-clean`) exit non-zero on findings | 9, 10, 15 |
 
 ## 4. Principles for this program
 
@@ -93,6 +94,7 @@ These extend the [principles](README.md#principles) of the roadmap.
 6. **Same engine everywhere.** The CLI, the editor, CI, the generator and Fabric call the same code and show the same rule ids.
 7. **Fast enough to be used.** Feedback that takes a minute is not used. Speed is a requirement with a number, not a hope.
 8. **Hostile text is data.** Prompts, run transcripts, captured cases and generated files are all treated as untrusted when displayed or re-used, as in earlier phases.
+9. **Advise, never gate.** Review, the notice and the skills inform and offer fixes; they do not stand between the developer and running or shipping their workflow. Enforcement is a team's explicit choice made in a command or CI job, never a default and never a hidden setting.
 
 ## 5. Shared infrastructure the phases need
 
