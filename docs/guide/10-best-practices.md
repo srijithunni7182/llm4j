@@ -15,6 +15,7 @@ Lessons from building and evaluating Hexamind, in the order they would have save
 - **Keep roles without tools wherever you can.** They cannot be hijacked into acting.
 - **Put money, policy and side effects in tasks, not agents.** Plain Java behind a `run` step is exact, free and unit-testable, and a model can never call it. Let agents read and propose; let code decide and act.
 - **Make a task that changes things idempotent**, and hand its `idempotencyKey()` to the provider, so a crash between the payment and the journal never pays twice.
+- **Keep a second vendor behind the first.** A `routing` policy with `strategy: fallback` across two vendors (`gpt-5-mini`, then `xai/grok-3`) turns one vendor's outage or quota into a slower answer instead of a failed run; the model name is the only thing that changes.
 - **Pin the expected path** of the workflow and the exact number of calls; a refactor that changes either should be a conscious decision.
 - **Treat failures as findings.** A failing check is information; read the case, fix the prompt or tool, re-run from cache.
 

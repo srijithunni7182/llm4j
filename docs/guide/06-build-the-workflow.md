@@ -52,6 +52,26 @@ workflow Collaborate(problem) {
 
 Full script: [`hexamind.loom`](https://github.com/srijithunni7182/llm4j/blob/main/src/examples/hexamind-hub/eval/hexamind.loom) *(repository only)*.
 
+## Which vendor's model: a name, and a key
+
+A model is chosen by its name, so changing vendor is a one-word change and nothing else in the script moves. Gemini, Claude, OpenAI, xAI, Perplexity, Sarvam and
+local Ollama are built in; Kimi and Qwen are **preview** (their fixtures are not yet recorded from the real APIs); any OpenAI-style server (DeepSeek, Groq, Together,
+vLLM, LM Studio) is one `provider` declaration:
+
+```loom
+provider Local { use: openai_compatible  base_url: "http://localhost:8000/v1" }          // no key needed
+provider Gate  { use: openai_compatible  base_url: "https://gateway.example/v1"  api_key: secret.GATE_KEY  header: "api-key"  query: "api-version=2025-01-01" }
+
+agent Draft    { model: "gpt-5-mini" }                       // OPENAI_API_KEY
+agent Check    { model: "xai/grok-4" }                       // XAI_API_KEY
+agent Research { model: "perplexity/openai/gpt-5.6-sol" }    // PERPLEXITY_API_KEY: plain model access unless the step asks for web grounding (coming)
+agent Offline  { model: "Local/llama-3.3-70b" }
+```
+
+Name a vendor with its prefix (`openai/`, `xai/`, `kimi/`, `qwen/`, `perplexity/`), or write a bare name only one vendor could own (`gpt-…`, `grok-…`, `kimi-…`);
+a bare `qwen3` is not guessed because it usually means a local Ollama model. `weave check` reports a missing key by its variable name before anything runs.
+Keep keys in the secret store: `weave secret set OPENAI_API_KEY` binds the key to `api.openai.com`, so a script cannot send it anywhere else.
+
 ## Tasks: the steps with no model
 
 Hexamind has no step that needs one, but most business workflows do. A support bot that refunds orders lets a model read the message and lets **code** decide and pay:

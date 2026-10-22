@@ -43,6 +43,8 @@ A **journal** makes the run durable: re-running with the same journal replays fi
 There is no `weave estimate`; keep a small cost model (calls x tokens x price) and compare. Hexamind's is [`cost_model.py`](https://github.com/srijithunni7182/llm4j/blob/main/src/examples/hexamind-hub/eval/cost_model.py) *(repository only)*: expected a full debate at
 about 121 model calls, measured against the spend report. When reality and model disagree, change the model, not just the cap.
 
+Keys: each vendor has its own variable (`OPENAI_API_KEY`, `XAI_API_KEY`, `MOONSHOT_API_KEY`, `DASHSCOPE_API_KEY`, `PERPLEXITY_API_KEY`, besides `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` and `SARVAM_API_KEY`); a stored key is bound to its vendor's host. A hosted model sends your prompt out of the machine, which `weave audit` lists as a data flow; a local server (`openai_compatible` at localhost) does not.
+
 Rate limits: a 429 with a short reset is waited out inside the call; a long one reaches Loom's `rate_limits`. A free-tier key will hit them: pace the calls (Hexamind's evaluation used
 about 10 a minute) rather than hammering.
 

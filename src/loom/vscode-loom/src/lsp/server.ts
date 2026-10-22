@@ -173,7 +173,7 @@ const LOOM_KEYWORDS: Record<string, string> = {
     source:
         '**source** `: "docs/"`\n\nIn a `knowledge` block: a file or directory of md, txt, html, json or csv files.',
     provider:
-        '**provider** `Name { use: gemini | ollama | sarvam  base_url: "…"  api_key: env.X }`\n\nA model endpoint with its own key. Agents use it as `model: "Name/<model>"`.',
+        '**provider** `Name { use: gemini | anthropic | ollama | sarvam | openai | xai | kimi | qwen | perplexity | openai_compatible  base_url: "…"  api_key: env.X }`\n\nA model endpoint with its own key. Agents use it as `model: "Name/<model>"`. `openai_compatible` needs `base_url` and takes `header:` and `query:`; `openai` takes `api: responses`.',
     persona:
         '**persona** `Name { role: "…" expertise: "…" tone: "…" constraints: ["…"] }`\n\nA persona for agents (`persona: Name`); an agent\'s `system:` prompt follows it.',
     memory:

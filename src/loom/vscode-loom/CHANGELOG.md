@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Providers: the hover text of `provider` lists the new kinds (`openai`, `xai`, `kimi`, `qwen`, `perplexity`, `openai_compatible`) and their options (`api:` for OpenAI, `header:` and `query:` for the generic kind). `weave check` reports their mistakes on the line it names. `grounding:` support comes with the grounding sub-phase.
+
 - Classification: `intentclassifier`, `intentclassify`, `choose`, `samples` (and `rate` and `confidence` where they are a classifier's) are highlighted and have hover text, there are two snippets (`intentclassifier`, `intentclassify`), and the workflow graph draws a classify step with its backend (`Jev · calibrated` or `chat model · uncalibrated`) and its labels.
 
 - `halt`, `set` and `return` are highlighted, `is ok` / `is not ok` read as a condition, and there are four snippets (`halt`, `set`, `return`, `isok`). The graph draws a halt as an "Ends the run" step that goes straight to the end, and `set` and `return` as steps of their own.

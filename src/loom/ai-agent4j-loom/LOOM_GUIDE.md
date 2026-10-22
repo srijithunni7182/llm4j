@@ -1072,9 +1072,14 @@ workflow Main(recording) {
 - `gemini-…` (key in `GEMINI_API_KEY`, in the environment or the secret store);
 - `claude-…` or `anthropic/<model>` (`ANTHROPIC_API_KEY`), e.g. `claude-opus-5-5`, `claude-haiku-4-5`;
 - `ollama/<model>` (at `OLLAMA_BASE_URL`, default `http://localhost:11434`);
-- `sarvam/<model>` (`SARVAM_API_KEY`).
+- `sarvam/<model>` (`SARVAM_API_KEY`);
+- `openai/<model>` (`OPENAI_API_KEY`), `xai/<model>` (`XAI_API_KEY`), `kimi/<model>` (`MOONSHOT_API_KEY`, **preview**), `qwen/<model>` (`DASHSCOPE_API_KEY`, **preview**)
+  and `perplexity/<creator>/<model>` or `perplexity/preset:<name>` (`PERPLEXITY_API_KEY`; Perplexity's Agent API, e.g. `perplexity/openai/gpt-5.6-sol`). Each vendor's
+  address can be overridden with `OPENAI_BASE_URL`, `XAI_BASE_URL`, `MOONSHOT_BASE_URL`, `DASHSCOPE_BASE_URL` and `PERPLEXITY_BASE_URL`;
+- a bare name that only one vendor could own works without a prefix: `gpt-…`, `o1`, `o3`, `o4`, `chatgpt-…` (OpenAI), `grok-…` (xAI), `kimi-…`, `moonshot-…` (Kimi).
+  A bare `qwen3` or `gpt-oss` is **not** guessed (they usually mean a local Ollama model): write `qwen/qwen3-max` or `ollama/qwen3`.
 
-Agents that use tools talk to Gemini and Claude through their native tool calling (structured calls, not parsed text); Sarvam and Ollama use the
+Agents that use tools talk to Gemini, Claude and the OpenAI-family vendors through their native tool calling (structured calls, not parsed text); Sarvam and Ollama use the
 text protocol. See [Native Tool Calling](../../ai-agent4j/wiki/Native-Tool-Calling.md).
 
 To reach a specific endpoint with its own key, declare a **provider**:
@@ -1087,10 +1092,27 @@ agent Local  { model: "Box/llama3" }
 agent Indic  { model: "Team/sarvam-m" }
 ```
 
-- `use:` is `gemini`, `anthropic`, `ollama` or `sarvam`.
-- `api_key` must come from the environment.
+- `use:` is `gemini`, `anthropic`, `ollama`, `sarvam`, `openai`, `xai`, `kimi`, `qwen`, `perplexity`, `perplexity_router` (private preview) or `openai_compatible`.
+- `api_key` must come from the environment or the secret store (`env.NAME`, `secret.NAME`), never written in the script.
+- `openai_compatible` reaches any OpenAI-style server (DeepSeek, Groq, Together, vLLM, LM Studio). It needs `base_url`, takes `api_key` only if the server wants one,
+  and has two more options: `header:` (the header that carries the key, when it is not `Authorization`) and `query:` (fixed query parameters, `name=value&name=value`).
+- `openai` takes `api: responses` to use OpenAI's Responses API instead of chat completions.
+- A key in the secret store keeps the hosts it was stored for: `weave secret set OPENAI_API_KEY` binds it to `api.openai.com` unless you give `--allow-host`.
+- `weave audit` lists each hosted vendor as a data flow.
 - Declared providers work in routing policies too.
 - An unknown model, or a missing key, is reported when the script loads.
+
+```loom
+provider Gate  { use: openai_compatible  base_url: "https://gateway.example/v1"  api_key: env.GATE_KEY  header: "api-key"  query: "api-version=2025-01-01" }
+provider Local { use: openai_compatible  base_url: "http://localhost:8000/v1" }          // no key needed
+provider Oai   { use: openai  api_key: env.OPENAI_API_KEY  api: responses }
+
+agent Grok   { model: "xai/grok-4" }
+agent Search { model: "perplexity/openai/gpt-5.6-sol" }      // the Agent API: plain model access, no web search unless asked for
+agent Vllm   { model: "Local/qwen3" }
+```
+
+Kimi and Qwen are **preview** until their fixtures are recorded from the real APIs; Perplexity's Orchestrator (`perplexity_router`) is in private preview at Perplexity.
 
 ### Model Routing Policies
 Define global policies to manage costs and reliability across different LLM providers.
