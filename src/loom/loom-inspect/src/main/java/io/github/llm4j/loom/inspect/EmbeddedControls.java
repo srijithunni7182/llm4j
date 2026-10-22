@@ -11,8 +11,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * The page's controls for runs of this very process: a request goes straight to the run's {@link RunControl}. They are on only when the
- * app's secret store holds an admin password; without one the page says how to switch them on and offers none.
+ * The page's controls for runs of this very process: a request goes straight to the run's {@link
+ * RunControl}. They are on only when the app's secret store holds an admin password; without one
+ * the page says how to switch them on and offers none.
  */
 final class EmbeddedControls implements Controls {
 
@@ -38,12 +39,18 @@ final class EmbeddedControls implements Controls {
         return latest;
     }
 
-    /** The run has ended (or is suspended to resume under a new attach): nothing can be asked of it now. */
+    /**
+     * The run has ended (or is suspended to resume under a new attach): nothing can be asked of it
+     * now.
+     */
     void unregister(String traceId) {
         runs.remove(traceId);
     }
 
-    /** The admin password, read from the app's own secret store each time, so rotating it takes effect at once. */
+    /**
+     * The admin password, read from the app's own secret store each time, so rotating it takes
+     * effect at once.
+     */
     String password() {
         ObservableRun run = latest;
         if (run == null || run.secretStore() == null) return null;
@@ -62,7 +69,11 @@ final class EmbeddedControls implements Controls {
 
     @Override
     public String disabledReason() {
-        return "set " + PASSWORD_SECRET + " in this app's secret store to enable pause, suspend and stop (weave secrets set " + PASSWORD_SECRET + ")";
+        return "set "
+                + PASSWORD_SECRET
+                + " in this app's secret store to enable pause, suspend and stop (weave secrets set "
+                + PASSWORD_SECRET
+                + ")";
     }
 
     @Override
@@ -70,7 +81,10 @@ final class EmbeddedControls implements Controls {
         return enabled() ? possible(traceId) : EnumSet.noneOf(Action.class);
     }
 
-    /** What the run itself can do now, whether or not the page's password is set (Fabric commands arrive without it). */
+    /**
+     * What the run itself can do now, whether or not the page's password is set (Fabric commands
+     * arrive without it).
+     */
     Set<Action> possible(String traceId) {
         Set<Action> out = EnumSet.noneOf(Action.class);
         ObservableRun run = runs.get(traceId);
@@ -78,11 +92,14 @@ final class EmbeddedControls implements Controls {
         RunState state = registry.findByTrace(traceId).orElse(null);
         if (state != null) {
             RunState.Status st = state.status();
-            if (st == RunState.Status.FINISHED || st == RunState.Status.FAILED || st == RunState.Status.STOPPED) return out;
+            if (st == RunState.Status.FINISHED
+                    || st == RunState.Status.FAILED
+                    || st == RunState.Status.STOPPED) return out;
         }
         RunControl.State c = run.control().state();
         out.add(Action.STOP);
-        if (run.journal() != null) out.add(Action.SUSPEND); // suspending needs a journal to resume from
+        if (run.journal() != null)
+            out.add(Action.SUSPEND); // suspending needs a journal to resume from
         if (!c.paused()) out.add(Action.PAUSE);
         if (c.paused() || c.pending() != null) out.add(Action.RESUME);
         return out;
@@ -94,24 +111,43 @@ final class EmbeddedControls implements Controls {
         return perform(traceId, action, who);
     }
 
-    /** Carries the request out for a caller already authorised (the signed Fabric channel, or the page after its sign-in). */
+    /**
+     * Carries the request out for a caller already authorised (the signed Fabric channel, or the
+     * page after its sign-in).
+     */
     Outcome perform(String traceId, Action action, String who) {
-        if (!possible(traceId).contains(action)) return Outcome.refused(409, "'" + action.word() + "' is not available for this run now" + (action == Action.SUSPEND ? " (a run without a journal cannot be suspended)" : ""));
+        if (!possible(traceId).contains(action))
+            return Outcome.refused(
+                    409,
+                    "'"
+                            + action.word()
+                            + "' is not available for this run now"
+                            + (action == Action.SUSPEND
+                                    ? " (a run without a journal cannot be suspended)"
+                                    : ""));
         ObservableRun run = runs.get(traceId);
         run.control().request(RunControl.Action.valueOf(action.name()), who);
-        return Outcome.taken(switch (action) {
-            case PAUSE -> "pause requested: the run holds before its next step (a step already running finishes first)";
-            case RESUME -> "resume requested";
-            case SUSPEND -> "suspend requested: the run ends cleanly at its next step and can be resumed with the same journal";
-            case STOP -> "stop requested: the run ends at its next step (a step already running finishes first)";
-        });
+        return Outcome.taken(
+                switch (action) {
+                    case PAUSE -> "pause requested: the run holds before its next step (a step already running finishes first)";
+                    case RESUME -> "resume requested";
+                    case SUSPEND -> "suspend requested: the run ends cleanly at its next step and can be resumed with the same journal";
+                    case STOP -> "stop requested: the run ends at its next step (a step already running finishes first)";
+                });
     }
 
-    /** A command from Fabric: the server has already authenticated and queued it; the run decides whether it still fits. */
-    io.github.llm4j.loom.inspect.wire.CommandResult execute(io.github.llm4j.loom.inspect.wire.Command c) {
+    /**
+     * A command from Fabric: the server has already authenticated and queued it; the run decides
+     * whether it still fits.
+     */
+    io.github.llm4j.loom.inspect.wire.CommandResult execute(
+            io.github.llm4j.loom.inspect.wire.Command c) {
         Action action = Action.of(c.action());
-        if (action == null) return new io.github.llm4j.loom.inspect.wire.CommandResult(c.id(), false, "unknown action '" + c.action() + "'");
+        if (action == null)
+            return new io.github.llm4j.loom.inspect.wire.CommandResult(
+                    c.id(), false, "unknown action '" + c.action() + "'");
         Outcome o = perform(c.trace(), action, c.by() == null ? "fabric" : c.by());
-        return new io.github.llm4j.loom.inspect.wire.CommandResult(c.id(), o.accepted(), o.message());
+        return new io.github.llm4j.loom.inspect.wire.CommandResult(
+                c.id(), o.accepted(), o.message());
     }
 }

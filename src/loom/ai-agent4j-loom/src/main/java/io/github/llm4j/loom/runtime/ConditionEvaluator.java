@@ -4,18 +4,19 @@ package io.github.llm4j.loom.runtime;
  * Evaluates Loom condition strings against a VariableContext.
  *
  * <p>Supported operators (in precedence-detection order):
+ *
  * <ul>
- *   <li>{@code ==}  – String/numeric equality</li>
- *   <li>{@code !=}  – String/numeric inequality</li>
- *   <li>{@code >=}  – Numeric greater-than-or-equal</li>
- *   <li>{@code <=}  – Numeric less-than-or-equal</li>
- *   <li>{@code >}   – Numeric greater-than</li>
- *   <li>{@code <}   – Numeric less-than</li>
- *   <li>(bare)      – Boolean flag: {@code "true"} / {@code "false"}</li>
+ *   <li>{@code ==} – String/numeric equality
+ *   <li>{@code !=} – String/numeric inequality
+ *   <li>{@code >=} – Numeric greater-than-or-equal
+ *   <li>{@code <=} – Numeric less-than-or-equal
+ *   <li>{@code >} – Numeric greater-than
+ *   <li>{@code <} – Numeric less-than
+ *   <li>(bare) – Boolean flag: {@code "true"} / {@code "false"}
  * </ul>
  *
- * <p>When both sides of a comparison can be parsed as {@code double}, numeric
- * comparison is used. Otherwise, string comparison is used.
+ * <p>When both sides of a comparison can be parsed as {@code double}, numeric comparison is used.
+ * Otherwise, string comparison is used.
  */
 public class ConditionEvaluator {
 
@@ -23,7 +24,7 @@ public class ConditionEvaluator {
      * Evaluates a condition string against the given context.
      *
      * @param condition raw condition text from the .loom AST
-     * @param context   the current execution context
+     * @param context the current execution context
      * @return {@code true} if the condition is satisfied
      */
     public static boolean evaluate(String condition, VariableContext context) {
@@ -31,7 +32,8 @@ public class ConditionEvaluator {
 
         String cond = condition.trim();
 
-        // `x is ok` / `x is not ok`: did a run step do what it was for? Fails closed: anything that is not a run result, or never ran, is not ok.
+        // `x is ok` / `x is not ok`: did a run step do what it was for? Fails closed: anything that
+        // is not a run result, or never ran, is not ok.
         java.util.regex.Matcher isOk = IS_OK.matcher(cond);
         if (isOk.matches()) {
             boolean ok = ok(isOk.group(1), context);
@@ -58,27 +60,32 @@ public class ConditionEvaluator {
         }
     }
 
-    private static final java.util.regex.Pattern IS_OK = java.util.regex.Pattern.compile("(\\S+) is (not )?ok");
+    private static final java.util.regex.Pattern IS_OK =
+            java.util.regex.Pattern.compile("(\\S+) is (not )?ok");
 
-    /** True when {@code path} names the result of a {@code run} step whose task called its outcome ok, or that was only described in a simulated run. */
+    /**
+     * True when {@code path} names the result of a {@code run} step whose task called its outcome
+     * ok, or that was only described in a simulated run.
+     */
     static boolean ok(String path, VariableContext context) {
         int dot = path.indexOf('.');
-        return Boolean.TRUE.equals(context.getVariable("_ok:" + (dot < 0 ? path : path.substring(0, dot))));
+        return Boolean.TRUE.equals(
+                context.getVariable("_ok:" + (dot < 0 ? path : path.substring(0, dot))));
     }
 
     private static boolean evaluateBinary(String cond, String operator, VariableContext context) {
         String[] parts = cond.split(java.util.regex.Pattern.quote(operator), 2);
         if (parts.length != 2) return false;
 
-        String path          = parts[0].trim();
-        String expectedRaw   = parts[1].trim().replace("\"", ""); // strip surrounding quotes
+        String path = parts[0].trim();
+        String expectedRaw = parts[1].trim().replace("\"", ""); // strip surrounding quotes
 
         Object actualValueObj = resolvePath(path, context);
         String actualValue = actualValueObj != null ? actualValueObj.toString() : "";
 
         // Attempt numeric comparison when both sides look like numbers.
         if (isNumeric(actualValue) && isNumeric(expectedRaw)) {
-            double actual   = Double.parseDouble(actualValue);
+            double actual = Double.parseDouble(actualValue);
             double expected = Double.parseDouble(expectedRaw);
             return compareNumeric(actual, expected, operator);
         }
@@ -122,11 +129,11 @@ public class ConditionEvaluator {
         return switch (operator) {
             case "==" -> actual == expected;
             case "!=" -> actual != expected;
-            case ">"  -> actual >  expected;
-            case "<"  -> actual <  expected;
+            case ">" -> actual > expected;
+            case "<" -> actual < expected;
             case ">=" -> actual >= expected;
             case "<=" -> actual <= expected;
-            default   -> false;
+            default -> false;
         };
     }
 
@@ -134,15 +141,21 @@ public class ConditionEvaluator {
         return switch (operator) {
             case "==" -> expected.equals(actual);
             case "!=" -> !expected.equals(actual);
-            default   -> false;
+            default -> false;
         };
     }
 
     private static boolean isNumeric(String value) {
         if (value == null || value.isBlank()) return false;
-        // a number starts with one of these: asking the parser about every word costs an exception each time
+        // a number starts with one of these: asking the parser about every word costs an exception
+        // each time
         char first = value.stripLeading().charAt(0);
-        if (!(Character.isDigit(first) || first == '-' || first == '+' || first == '.' || first == 'N' || first == 'I')) return false;
+        if (!(Character.isDigit(first)
+                || first == '-'
+                || first == '+'
+                || first == '.'
+                || first == 'N'
+                || first == 'I')) return false;
         try {
             Double.parseDouble(value);
             return true;

@@ -6,7 +6,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/** Builds conversations for tests: a system prompt, a task, then exchanges of tool calls and results. */
+/**
+ * Builds conversations for tests: a system prompt, a task, then exchanges of tool calls and
+ * results.
+ */
 final class Convo {
     private final List<Message> messages = new ArrayList<>();
     private int calls;
@@ -29,9 +32,11 @@ final class Convo {
     /** An assistant turn with {@code n} tool calls in one message, then the {@code n} results. */
     Convo parallel(int n, int resultChars, String tool) {
         List<ToolCall> made = new ArrayList<>();
-        for (int i = 0; i < n; i++) made.add(new ToolCall("call_" + (++calls), tool, Map.of("q", "query " + calls)));
+        for (int i = 0; i < n; i++)
+            made.add(new ToolCall("call_" + (++calls), tool, Map.of("q", "query " + calls)));
         messages.add(Message.assistantToolCalls("thinking before " + tool, made, Map.of()));
-        for (ToolCall c : made) messages.add(Message.toolResult(c.id(), tool, filler(c.id(), resultChars)));
+        for (ToolCall c : made)
+            messages.add(Message.toolResult(c.id(), tool, filler(c.id(), resultChars)));
         return this;
     }
 

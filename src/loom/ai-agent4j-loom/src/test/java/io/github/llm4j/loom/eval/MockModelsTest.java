@@ -10,27 +10,40 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** R3.5 of loom-weave-eval: a model that costs nothing and still gives every step something well formed to read. */
+/**
+ * R3.5 of loom-weave-eval: a model that costs nothing and still gives every step something well
+ * formed to read.
+ */
 class MockModelsTest {
 
     private final MockModels mock = new MockModels();
 
     private String ask(String user) {
-        return mock.createClient("any/model").chat(LLMRequest.builder().messages(List.of(Message.system("s"), Message.user(user))).build()).getContent();
+        return mock.createClient("any/model")
+                .chat(
+                        LLMRequest.builder()
+                                .messages(List.of(Message.system("s"), Message.user(user)))
+                                .build())
+                .getContent();
     }
 
     @Test
     void withoutASchemaTheAnswerIsAFixedLine() {
-        assertThat(ask("What is the weather?")).contains("\"final_answer\": \"" + MockModels.ANSWER + "\"");
+        assertThat(ask("What is the weather?"))
+                .contains("\"final_answer\": \"" + MockModels.ANSWER + "\"");
     }
 
     @Test
     void aSchemaGetsAValueOfThatSchema() {
-        String reply = ask("Review this.\n\nCRITICAL: You MUST respond in valid JSON format only, following this schema: "
-                + "{verdict: enum[OK, REWRITE], advice: string, score: number, done: boolean, tags: list<string>, inner: {a: string}}");
+        String reply =
+                ask(
+                        "Review this.\n\nCRITICAL: You MUST respond in valid JSON format only, following this schema: "
+                                + "{verdict: enum[OK, REWRITE], advice: string, score: number, done: boolean, tags: list<string>, inner: {a: string}}");
 
-        assertThat(reply).contains("final_answer")
-                .contains("{\\\"verdict\\\": \\\"OK\\\", \\\"advice\\\": \\\"mock\\\", \\\"score\\\": 0, \\\"done\\\": false, \\\"tags\\\": [], \\\"inner\\\": {\\\"a\\\": \\\"mock\\\"}}");
+        assertThat(reply)
+                .contains("final_answer")
+                .contains(
+                        "{\\\"verdict\\\": \\\"OK\\\", \\\"advice\\\": \\\"mock\\\", \\\"score\\\": 0, \\\"done\\\": false, \\\"tags\\\": [], \\\"inner\\\": {\\\"a\\\": \\\"mock\\\"}}");
     }
 
     @Test
@@ -49,8 +62,10 @@ class MockModelsTest {
 
     @Test
     void theHarnessAcceptsTheRepliesForItsOwnSchemaText() {
-        // the schema text is written by the harness itself; this proves the mock reads that, not a copy of it
-        String script = """
+        // the schema text is written by the harness itself; this proves the mock reads that, not a
+        // copy of it
+        String script =
+                """
                 agent A { model: "m" system: "s" }
                 workflow Main() {
                     delegate "review" to A -> review expecting { verdict: enum["OK", "REWRITE"], advice: string, n: number }
@@ -61,7 +76,9 @@ class MockModelsTest {
 
         e.executeWorkflow("Main", Map.of());
 
-        assertThat(String.valueOf(e.getContext().getVariable("review"))).contains("OK").contains("mock");
+        assertThat(String.valueOf(e.getContext().getVariable("review")))
+                .contains("OK")
+                .contains("mock");
         assertThat(e.getContext().getVariable("items")).isNotNull();
     }
 }

@@ -5,15 +5,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * What installing (or removing) a system trigger would change — files to write or delete and commands to
- * run — as plain data, so it can be shown to the user before anything happens and tested without
- * touching the machine.
+ * What installing (or removing) a system trigger would change — files to write or delete and
+ * commands to run — as plain data, so it can be shown to the user before anything happens and
+ * tested without touching the machine.
  */
-public record Plan(String backend, List<FileWrite> writes, List<Path> deletes, List<Command> commands, List<String> notes) {
+public record Plan(
+        String backend,
+        List<FileWrite> writes,
+        List<Path> deletes,
+        List<Command> commands,
+        List<String> notes) {
 
-    public record FileWrite(Path path, String content) { }
+    public record FileWrite(Path path, String content) {}
 
-    /** A command; {@code stdin} is fed to it (e.g. a new crontab). A command that {@code mayFail} is best effort. */
+    /**
+     * A command; {@code stdin} is fed to it (e.g. a new crontab). A command that {@code mayFail} is
+     * best effort.
+     */
     public record Command(List<String> argv, String stdin, boolean mayFail) {
         public static Command of(String... argv) {
             return new Command(List.of(argv), null, false);
@@ -24,7 +32,8 @@ public record Plan(String backend, List<FileWrite> writes, List<Path> deletes, L
         }
 
         public String display() {
-            return String.join(" ", argv.stream().map(Quote::shell).toList()) + (stdin != null ? " < (new content)" : "");
+            return String.join(" ", argv.stream().map(Quote::shell).toList())
+                    + (stdin != null ? " < (new content)" : "");
         }
     }
 
@@ -39,7 +48,10 @@ public record Plan(String backend, List<FileWrite> writes, List<Path> deletes, L
         return writes.isEmpty() && deletes.isEmpty() && commands.isEmpty();
     }
 
-    /** A readable summary, as {@code weave triggers install} prints it before (or instead of) applying. */
+    /**
+     * A readable summary, as {@code weave triggers install} prints it before (or instead of)
+     * applying.
+     */
     public String describe() {
         List<String> lines = new ArrayList<>();
         lines.add("System trigger (" + backend + "):");

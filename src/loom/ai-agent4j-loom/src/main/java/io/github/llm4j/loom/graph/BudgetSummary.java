@@ -7,8 +7,7 @@ import java.util.Map;
 /** A budget written in a script, as the limits that are set. Unset limits are left out. */
 final class BudgetSummary {
 
-    private BudgetSummary() {
-    }
+    private BudgetSummary() {}
 
     static Map<String, Object> of(BudgetDef budget) {
         Map<String, Object> out = new LinkedHashMap<>();
@@ -20,8 +19,18 @@ final class BudgetSummary {
         put(out, "cost", budget.getCost() == null ? null : budget.getCost().toPlainString());
         put(out, "perCall", budget.getPerCall());
         put(out, "warnAt", budget.getWarnAt());
-        put(out, "window", budget.getWindow() == null ? null : budget.getWindow().name().toLowerCase(java.util.Locale.ROOT));
-        put(out, "whenExhausted", budget.getWhenExhausted() == null ? null : budget.getWhenExhausted().name().toLowerCase(java.util.Locale.ROOT));
+        put(
+                out,
+                "window",
+                budget.getWindow() == null
+                        ? null
+                        : budget.getWindow().name().toLowerCase(java.util.Locale.ROOT));
+        put(
+                out,
+                "whenExhausted",
+                budget.getWhenExhausted() == null
+                        ? null
+                        : budget.getWhenExhausted().name().toLowerCase(java.util.Locale.ROOT));
         return out;
     }
 

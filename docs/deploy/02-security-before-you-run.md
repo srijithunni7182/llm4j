@@ -56,3 +56,12 @@ Pause, suspend and stop need an admin sign-in; with none set the page is read-on
 - `weave audit --fail-on medium` is clean, or every finding has an explanation the user has seen.
 - For each agent with the trifecta: split, or accepted in writing by the user with a reason.
 - Tools declare `reach`; keys are in a store or the environment; the detail level is chosen; the user knows who can pause or stop a run.
+
+## A classifier sends text out (LA19)
+
+If the script has an `intentclassifier` on a hosted backend (Jev, or a hosted chat model), `weave audit` reports **LA19** (info): the text each `intentclassify` step is given leaves this machine for that service. Decide, and write down:
+
+- whether that text may go to that provider at all, and who at the provider may read it;
+- whether `pii: mask` is set (or `pii: block` where personal data must never leave);
+- that the key is `JEV_API_KEY` (or the provider's key) from the environment or secret store, never in the script;
+- that no classifier label alone approves a payment, a deletion or a security decision: a classifier is a router and a judge, and its confidence is a calibrated figure only on Jev (a chat model's is its own report, and the audit says so).

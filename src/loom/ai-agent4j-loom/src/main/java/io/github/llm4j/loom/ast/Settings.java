@@ -5,9 +5,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * A block of {@code key: value} settings on an agent ({@code memory}, {@code voice}, {@code guard}).
- * The parser only reads the syntax; which keys and values are allowed is checked at load time, so every
- * problem is reported together, with its line.
+ * A block of {@code key: value} settings on an agent ({@code memory}, {@code voice}, {@code
+ * guard}). The parser only reads the syntax; which keys and values are allowed is checked at load
+ * time, so every problem is reported together, with its line.
  */
 public class Settings {
 
@@ -15,10 +15,17 @@ public class Settings {
     private final Map<String, ToolDef.OptionValue> values = new LinkedHashMap<>();
     private final Map<String, Integer> lines = new HashMap<>();
 
-    public int getLine() { return line; }
-    public void setLine(int line) { this.line = line; }
+    public int getLine() {
+        return line;
+    }
 
-    public Map<String, ToolDef.OptionValue> getValues() { return values; }
+    public void setLine(int line) {
+        this.line = line;
+    }
+
+    public Map<String, ToolDef.OptionValue> getValues() {
+        return values;
+    }
 
     public void put(String key, ToolDef.OptionValue value, int line) {
         values.put(key, value);

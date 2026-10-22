@@ -76,26 +76,28 @@ public enum TokenType {
     NUMBER_LITERAL,
 
     // Symbols and Punctuation
-    LBRACE,     // {
-    RBRACE,     // }
-    LPAREN,     // (
-    RPAREN,     // )
-    LBRACKET,   // [
-    RBRACKET,   // ]
-    COMMA,      // ,
-    COLON,      // :
-    ASSIGN,     // =
-    EQUALS,     // ==
+    LBRACE, // {
+    RBRACE, // }
+    LPAREN, // (
+    RPAREN, // )
+    LBRACKET, // [
+    RBRACKET, // ]
+    COMMA, // ,
+    COLON, // :
+    ASSIGN, // =
+    EQUALS, // ==
     NOT_EQUALS, // !=
-    LT,         // <
-    GT,         // >
-    LTE,        // <=
-    GTE,        // >=
-    ARROW,      // ->
-    PLUS,       // + (for string concat)
-    PERCENT,    // % (e.g. warn_at: 80%)
+    LT, // <
+    GT, // >
+    LTE, // <=
+    GTE, // >=
+    ARROW, // ->
+    PLUS, // + (for string concat)
+    PERCENT, // % (e.g. warn_at: 80%)
+    PIPE, // | (between the labels of an intentclassifier question)
 
-    // A whole ladder or measure declaration, set aside as raw text (their conditions are expressions of their own)
+    // A whole ladder or measure declaration, set aside as raw text (their conditions are
+    // expressions of their own)
     LADDER_DECL,
     MEASURE_DECL,
 

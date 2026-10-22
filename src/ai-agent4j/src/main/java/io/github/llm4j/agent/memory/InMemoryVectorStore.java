@@ -1,20 +1,18 @@
 package io.github.llm4j.agent.memory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A zero-configuration, in-memory vector store backed by a {@link ConcurrentHashMap}.
- * Uses brute-force cosine similarity search — not suitable for large datasets but ideal
- * for local development, testing, and small-scale agent memory.
+ * A zero-configuration, in-memory vector store backed by a {@link ConcurrentHashMap}. Uses
+ * brute-force cosine similarity search — not suitable for large datasets but ideal for local
+ * development, testing, and small-scale agent memory.
  *
  * <p>No dependencies required. Instantiate with {@code new InMemoryVectorStore()}.
  */
@@ -28,12 +26,18 @@ public class InMemoryVectorStore implements VectorStore {
     public void add(String id, float[] embedding, Map<String, Object> metadata) {
         Objects.requireNonNull(id, "id cannot be null");
         Objects.requireNonNull(embedding, "embedding cannot be null");
-        store.put(id, new Entry(id, embedding, metadata != null ? new HashMap<>(metadata) : new HashMap<>()));
+        store.put(
+                id,
+                new Entry(
+                        id,
+                        embedding,
+                        metadata != null ? new HashMap<>(metadata) : new HashMap<>()));
         logger.debug("Stored vector entry with id: {}", id);
     }
 
     @Override
-    public List<SearchResult> search(float[] queryEmbedding, int topK, Map<String, Object> filters) {
+    public List<SearchResult> search(
+            float[] queryEmbedding, int topK, Map<String, Object> filters) {
         Objects.requireNonNull(queryEmbedding, "queryEmbedding cannot be null");
 
         List<SearchResult> results = new ArrayList<>();
@@ -81,12 +85,13 @@ public class InMemoryVectorStore implements VectorStore {
     }
 
     /**
-     * Computes the cosine similarity between two vectors.
-     * Both vectors should already be normalized (L2) for accurate results.
+     * Computes the cosine similarity between two vectors. Both vectors should already be normalized
+     * (L2) for accurate results.
      */
     private float cosineSimilarity(float[] a, float[] b) {
         if (a.length != b.length) {
-            throw new IllegalArgumentException("Vectors must be the same dimension: " + a.length + " vs " + b.length);
+            throw new IllegalArgumentException(
+                    "Vectors must be the same dimension: " + a.length + " vs " + b.length);
         }
         double dot = 0, normA = 0, normB = 0;
         for (int i = 0; i < a.length; i++) {

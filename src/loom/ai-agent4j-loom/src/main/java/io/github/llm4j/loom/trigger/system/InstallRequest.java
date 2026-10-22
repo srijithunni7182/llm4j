@@ -12,24 +12,39 @@ import java.util.List;
 /**
  * What to install: a trigger that runs {@code <weave> tick <store>}.
  *
- * @param store       the trigger store directory
- * @param weave       the command that runs weave (e.g. {@code [/usr/local/bin/weave]} or {@code [java, -cp, …, WeaveCLI]})
- * @param mode        one heartbeat entry, or one entry per pending trigger (plus the heartbeat)
- * @param heartbeat   how often the heartbeat fires
- * @param pending     the store's pending triggers (exact mode)
- * @param home        the user's home directory (user-level entries only)
- * @param zone        the zone the system scheduler reads times in (cron, launchd: local time)
- * @param envFile     a file of KEY=VALUE lines (API keys) loaded before each tick, or null
- * @param uid         the user's numeric id (launchd)
- * @param url         the service URL (cloud-scheduler)
- * @param serviceAccount the service account whose OIDC token Cloud Scheduler sends (cloud-scheduler)
- * @param region      the Cloud Scheduler location (cloud-scheduler)
+ * @param store the trigger store directory
+ * @param weave the command that runs weave (e.g. {@code [/usr/local/bin/weave]} or {@code [java,
+ *     -cp, …, WeaveCLI]})
+ * @param mode one heartbeat entry, or one entry per pending trigger (plus the heartbeat)
+ * @param heartbeat how often the heartbeat fires
+ * @param pending the store's pending triggers (exact mode)
+ * @param home the user's home directory (user-level entries only)
+ * @param zone the zone the system scheduler reads times in (cron, launchd: local time)
+ * @param envFile a file of KEY=VALUE lines (API keys) loaded before each tick, or null
+ * @param uid the user's numeric id (launchd)
+ * @param url the service URL (cloud-scheduler)
+ * @param serviceAccount the service account whose OIDC token Cloud Scheduler sends
+ *     (cloud-scheduler)
+ * @param region the Cloud Scheduler location (cloud-scheduler)
  */
-public record InstallRequest(Path store, List<String> weave, Mode mode, Duration heartbeat, List<Trigger> pending,
-                             Path home, ZoneId zone, Path envFile, String uid, String url, String serviceAccount,
-                             String region) {
+public record InstallRequest(
+        Path store,
+        List<String> weave,
+        Mode mode,
+        Duration heartbeat,
+        List<Trigger> pending,
+        Path home,
+        ZoneId zone,
+        Path envFile,
+        String uid,
+        String url,
+        String serviceAccount,
+        String region) {
 
-    public enum Mode { HEARTBEAT, EXACT }
+    public enum Mode {
+        HEARTBEAT,
+        EXACT
+    }
 
     public InstallRequest {
         store = store.toAbsolutePath().normalize();
@@ -60,7 +75,9 @@ public record InstallRequest(Path store, List<String> weave, Mode mode, Duration
 
     static String shortHash(String text) {
         try {
-            byte[] d = MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8));
+            byte[] d =
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(text.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(d, 0, 4);
         } catch (Exception e) {
             throw new IllegalStateException(e);

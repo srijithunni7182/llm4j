@@ -6,8 +6,9 @@ import java.time.Instant;
 import java.util.Map;
 
 /**
- * Passes audit entries to the real logger, except while an agent is proposing a decision at {@code watch}: its entries (which carry its answer) are
- * held and delivered once the person has answered, so the audit log cannot show a proposal before the verdict exists.
+ * Passes audit entries to the real logger, except while an agent is proposing a decision at {@code
+ * watch}: its entries (which carry its answer) are held and delivered once the person has answered,
+ * so the audit log cannot show a proposal before the verdict exists.
  */
 final class HoldingAuditLogger implements AuditLogger {
 
@@ -25,17 +26,24 @@ final class HoldingAuditLogger implements AuditLogger {
     }
 
     @Override
-    public void logToolExecution(String sessionId, String toolName, String input, String output, Instant timestamp) {
-        if (!decider.hold(() -> real.logToolExecution(sessionId, toolName, input, output, timestamp))) real.logToolExecution(sessionId, toolName, input, output, timestamp);
+    public void logToolExecution(
+            String sessionId, String toolName, String input, String output, Instant timestamp) {
+        if (!decider.hold(
+                () -> real.logToolExecution(sessionId, toolName, input, output, timestamp)))
+            real.logToolExecution(sessionId, toolName, input, output, timestamp);
     }
 
     @Override
-    public void logPromptUsage(String sessionId, String promptId, String version, Instant timestamp) {
-        if (!decider.hold(() -> real.logPromptUsage(sessionId, promptId, version, timestamp))) real.logPromptUsage(sessionId, promptId, version, timestamp);
+    public void logPromptUsage(
+            String sessionId, String promptId, String version, Instant timestamp) {
+        if (!decider.hold(() -> real.logPromptUsage(sessionId, promptId, version, timestamp)))
+            real.logPromptUsage(sessionId, promptId, version, timestamp);
     }
 
     @Override
-    public void logConversationEvent(String sessionId, String userId, String eventType, Map<String, Object> metadata) {
-        if (!decider.hold(() -> real.logConversationEvent(sessionId, userId, eventType, metadata))) real.logConversationEvent(sessionId, userId, eventType, metadata);
+    public void logConversationEvent(
+            String sessionId, String userId, String eventType, Map<String, Object> metadata) {
+        if (!decider.hold(() -> real.logConversationEvent(sessionId, userId, eventType, metadata)))
+            real.logConversationEvent(sessionId, userId, eventType, metadata);
     }
 }

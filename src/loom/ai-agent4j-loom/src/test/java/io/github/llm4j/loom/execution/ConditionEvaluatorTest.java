@@ -1,8 +1,9 @@
 package io.github.llm4j.loom.execution;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import io.github.llm4j.loom.runtime.*;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
 
 public class ConditionEvaluatorTest {
 

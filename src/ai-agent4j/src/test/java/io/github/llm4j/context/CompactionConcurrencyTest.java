@@ -16,21 +16,34 @@ class CompactionConcurrencyTest {
 
     private static String run(ContextCompactor shared, ContextWindows windows) {
         ScriptedModel model = ReActAgentCompactionNativeTest.looping(40);
-        ReActAgent.Builder b = ReActAgent.builder().llmClient(model).addTool(ReActAgentCompactionNativeTest.search(1_200)).maxIterations(500)
-                .budgetModel("acme/small").contextWindows(windows).compaction(shared);
+        ReActAgent.Builder b =
+                ReActAgent.builder()
+                        .llmClient(model)
+                        .addTool(ReActAgentCompactionNativeTest.search(1_200))
+                        .maxIterations(500)
+                        .budgetModel("acme/small")
+                        .contextWindows(windows)
+                        .compaction(shared);
         b.build().run("Q?");
         return RequestRenderer.render(model.requests);
     }
 
     @Test
     void manyAgentsAtOnceGiveWhatOneAgentAloneGives() throws Exception {
-        ContextWindows windows = ContextWindows.empty().with("acme/small", ContextWindow.of(ReActAgentCompactionNativeTest.WINDOW));
-        ContextCompactor shared = ContextCompactors.chain(ContextCompactors.trimToolResults(600), ContextCompactors.dropOldest());
+        ContextWindows windows =
+                ContextWindows.empty()
+                        .with(
+                                "acme/small",
+                                ContextWindow.of(ReActAgentCompactionNativeTest.WINDOW));
+        ContextCompactor shared =
+                ContextCompactors.chain(
+                        ContextCompactors.trimToolResults(600), ContextCompactors.dropOldest());
         String alone = run(shared, windows);
         ExecutorService pool = Executors.newFixedThreadPool(16);
         try {
             List<Future<String>> futures = new ArrayList<>();
-            for (int i = 0; i < 48; i++) futures.add(pool.submit((Callable<String>) () -> run(shared, windows)));
+            for (int i = 0; i < 48; i++)
+                futures.add(pool.submit((Callable<String>) () -> run(shared, windows)));
             for (Future<String> f : futures) assertThat(f.get()).isEqualTo(alone);
         } finally {
             pool.shutdownNow();

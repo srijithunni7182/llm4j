@@ -22,12 +22,18 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 
-/** Where decisions keep their ledger and levels for the command line, and how a past case's run and a candidate's executor are found. */
+/**
+ * Where decisions keep their ledger and levels for the command line, and how a past case's run and
+ * a candidate's executor are found.
+ */
 final class AutonomySupport {
 
-    private AutonomySupport() { }
+    private AutonomySupport() {}
 
-    /** {@code <store>/autonomy}: the ledger, levels and replays of every decision run from that store. */
+    /**
+     * {@code <store>/autonomy}: the ledger, levels and replays of every decision run from that
+     * store.
+     */
     static Path dir(Path store) {
         return store.toAbsolutePath().normalize().resolve("autonomy");
     }
@@ -40,7 +46,10 @@ final class AutonomySupport {
         return new FileLevelStore(dir(store));
     }
 
-    /** Remembers which script declares a decision, so {@code weave autonomy} can read its rules without being told. */
+    /**
+     * Remembers which script declares a decision, so {@code weave autonomy} can read its rules
+     * without being told.
+     */
     static void rememberScript(Path store, LoomScript script, File scriptFile) {
         for (DecisionDef d : script.getDecisions()) {
             try {
@@ -48,10 +57,15 @@ final class AutonomySupport {
                 Files.createDirectories(meta.getParent());
                 String text = scriptFile.getAbsolutePath();
                 if (!Files.exists(meta) || !Files.readString(meta).equals(text)) {
-                    // atomically: a command reading it at this moment sees the old text or the new, never an empty file
+                    // atomically: a command reading it at this moment sees the old text or the new,
+                    // never an empty file
                     Path tmp = meta.resolveSibling("script.tmp");
                     Files.writeString(tmp, text);
-                    Files.move(tmp, meta, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+                    Files.move(
+                            tmp,
+                            meta,
+                            java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                            java.nio.file.StandardCopyOption.ATOMIC_MOVE);
                 }
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -76,7 +90,11 @@ final class AutonomySupport {
         Path dir = dir(store);
         if (!Files.isDirectory(dir)) return java.util.List.of();
         try (var list = Files.list(dir)) {
-            return list.filter(Files::isDirectory).map(p -> p.getFileName().toString()).filter(n -> !n.equals("_all")).sorted().toList();
+            return list.filter(Files::isDirectory)
+                    .map(p -> p.getFileName().toString())
+                    .filter(n -> !n.equals("_all"))
+                    .sorted()
+                    .toList();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -86,19 +104,31 @@ final class AutonomySupport {
     static CaseSource source() {
         return locator -> {
             Path dir = Path.of(locator);
-            if (!Files.isDirectory(dir) || !Files.exists(dir.resolve(RunSpec.FILE)) || !Files.exists(dir.resolve(TravelCommands.JOURNAL))) return Optional.empty();
+            if (!Files.isDirectory(dir)
+                    || !Files.exists(dir.resolve(RunSpec.FILE))
+                    || !Files.exists(dir.resolve(TravelCommands.JOURNAL))) return Optional.empty();
             RunSpec spec = RunSpec.read(dir);
-            return Optional.of(new CaseSource.OpenedRun(new FileRunJournal(dir.resolve(TravelCommands.JOURNAL)), spec.workflow(), spec.inputs(), Path.of(spec.script())));
+            return Optional.of(
+                    new CaseSource.OpenedRun(
+                            new FileRunJournal(dir.resolve(TravelCommands.JOURNAL)),
+                            spec.workflow(),
+                            spec.inputs(),
+                            Path.of(spec.script())));
         };
     }
 
-    /** Builds the executor a replay runs a case in, the way {@code weave run} builds one (without a journal of its own, trace or budgets). */
+    /**
+     * Builds the executor a replay runs a case in, the way {@code weave run} builds one (without a
+     * journal of its own, trace or budgets).
+     */
     static Candidates candidates(WeaveEnv env) {
         return (loaded, script, baseDir, run, journal) -> {
             ToolRegistry registry = new ToolRegistry();
             HarnessExecutor executor = new HarnessExecutor(loaded, registry, env.models());
             executor.setBaseDir(baseDir);
-            executor.setPromptCatalog(io.github.llm4j.loom.prompt.PromptSupport.catalog(loaded, script, env.prompts()));
+            executor.setPromptCatalog(
+                    io.github.llm4j.loom.prompt.PromptSupport.catalog(
+                            loaded, script, env.prompts()));
             executor.setEnvLookup(env.env());
             executor.setSecretStore(env.secrets());
             executor.setClock(env.clock());
@@ -109,11 +139,21 @@ final class AutonomySupport {
     }
 
     static ReplayEngine engine(Path store, String decision, WeaveEnv env) {
-        return new ReplayEngine(ledger(store), dir(store).resolve(Names.check(decision)).resolve("replays"), source(), candidates(env), env.clock())
-                .promptCatalogs((loaded, file) -> io.github.llm4j.loom.prompt.PromptSupport.catalog(loaded, file, env.prompts()));
+        return new ReplayEngine(
+                        ledger(store),
+                        dir(store).resolve(Names.check(decision)).resolve("replays"),
+                        source(),
+                        candidates(env),
+                        env.clock())
+                .promptCatalogs(
+                        (loaded, file) ->
+                                io.github.llm4j.loom.prompt.PromptSupport.catalog(
+                                        loaded, file, env.prompts()));
     }
 
-    /** What a changed agent is replayed with when its decision says {@code test it on past cases}. */
+    /**
+     * What a changed agent is replayed with when its decision says {@code test it on past cases}.
+     */
     static EpochReplay inheritance(Path store, String decision, Path script, WeaveEnv env) {
         return new EpochReplay(engine(store, decision, env), script);
     }

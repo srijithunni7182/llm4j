@@ -6,7 +6,8 @@ package io.github.llm4j.exception;
  */
 public class ServiceUnavailableException extends ProviderException {
 
-    public ServiceUnavailableException(String providerName, String message, Integer statusCode, String responseBody) {
+    public ServiceUnavailableException(
+            String providerName, String message, Integer statusCode, String responseBody) {
         super(providerName, message, statusCode);
         setResponseBody(responseBody);
     }

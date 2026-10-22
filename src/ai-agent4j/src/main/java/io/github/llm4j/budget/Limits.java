@@ -21,7 +21,8 @@ public record Limits(Long tokens, Long calls, BigDecimal cost) {
         StringBuilder s = new StringBuilder();
         if (tokens != null) s.append("tokens ").append(tokens);
         if (calls != null) s.append(s.isEmpty() ? "" : ", ").append("calls ").append(calls);
-        if (cost != null) s.append(s.isEmpty() ? "" : ", ").append("cost $").append(cost.toPlainString());
+        if (cost != null)
+            s.append(s.isEmpty() ? "" : ", ").append("cost $").append(cost.toPlainString());
         return s.isEmpty() ? "unlimited" : s.toString();
     }
 }

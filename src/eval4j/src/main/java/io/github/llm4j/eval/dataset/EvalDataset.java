@@ -10,17 +10,23 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * A folder of golden dataset files: one YAML list of {@link EvalScenario} per target ({@code researcher.yaml}, {@code workflow.yaml}), plus an
- * optional {@code dataset.yaml} that names the quality dimensions the dataset uses (so a report shows each of them even when nothing evaluated it).
+ * A folder of golden dataset files: one YAML list of {@link EvalScenario} per target ({@code
+ * researcher.yaml}, {@code workflow.yaml}), plus an optional {@code dataset.yaml} that names the
+ * quality dimensions the dataset uses (so a report shows each of them even when nothing evaluated
+ * it).
  *
- * <p>Loading never stops at the first thing wrong: {@link #problems()} lists a file that cannot be read, a scenario with no input, a repeated id,
- * and a dimension that {@code dataset.yaml} does not declare.
+ * <p>Loading never stops at the first thing wrong: {@link #problems()} lists a file that cannot be
+ * read, a scenario with no input, a repeated id, and a dimension that {@code dataset.yaml} does not
+ * declare.
  */
-public record EvalDataset(Path dir, Map<String, List<EvalScenario>> files, Map<String, String> dimensions, List<Problem> problems) {
+public record EvalDataset(
+        Path dir,
+        Map<String, List<EvalScenario>> files,
+        Map<String, String> dimensions,
+        List<Problem> problems) {
 
     /** The file that names the dimensions. */
     public static final String DIMENSIONS_FILE = "dataset.yaml";
@@ -48,14 +54,20 @@ public record EvalDataset(Path dir, Map<String, List<EvalScenario>> files, Map<S
         Map<String, List<EvalScenario>> files = new TreeMap<>();
         Map<String, String> dimensions = new LinkedHashMap<>();
         if (!Files.isDirectory(dir)) {
-            problems.add(new Problem(dir.toString(), null, "the dataset folder does not exist", true));
+            problems.add(
+                    new Problem(dir.toString(), null, "the dataset folder does not exist", true));
             return new EvalDataset(dir, files, dimensions, problems);
         }
         List<Path> yaml = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.{yaml,yml}")) {
             stream.forEach(yaml::add);
         } catch (IOException e) {
-            problems.add(new Problem(dir.toString(), null, "cannot list the folder: " + e.getMessage(), true));
+            problems.add(
+                    new Problem(
+                            dir.toString(),
+                            null,
+                            "cannot list the folder: " + e.getMessage(),
+                            true));
         }
         yaml.sort(java.util.Comparator.comparing(Path::toString));
         for (Path file : yaml) {
@@ -67,9 +79,14 @@ public record EvalDataset(Path dir, Map<String, List<EvalScenario>> files, Map<S
                 continue;
             } else {
                 try (InputStream in = Files.newInputStream(file)) {
-                    files.put(stem, EvalScenarios.fromYaml(in).stream().map(EvalScenarios::normalized).toList());
+                    files.put(
+                            stem,
+                            EvalScenarios.fromYaml(in).stream()
+                                    .map(EvalScenarios::normalized)
+                                    .toList());
                 } catch (IOException | EvalDatasetException e) {
-                    problems.add(new Problem(name, null, "cannot be read: " + rootMessage(e), true));
+                    problems.add(
+                            new Problem(name, null, "cannot be read: " + rootMessage(e), true));
                 }
             }
         }
@@ -84,7 +101,10 @@ public record EvalDataset(Path dir, Map<String, List<EvalScenario>> files, Map<S
         return out;
     }
 
-    private static void check(Map<String, List<EvalScenario>> files, Map<String, String> dimensions, List<Problem> problems) {
+    private static void check(
+            Map<String, List<EvalScenario>> files,
+            Map<String, String> dimensions,
+            List<Problem> problems) {
         Map<String, String> seen = new HashMap<>();
         for (var entry : files.entrySet()) {
             String file = entry.getKey() + ".yaml";
@@ -95,12 +115,29 @@ public record EvalDataset(Path dir, Map<String, List<EvalScenario>> files, Map<S
                 }
                 if (s.id() != null) {
                     String first = seen.putIfAbsent(s.id(), file);
-                    if (first != null) problems.add(new Problem(file, label, "repeats the id " + s.id() + " (first in " + first + ")", false));
+                    if (first != null)
+                        problems.add(
+                                new Problem(
+                                        file,
+                                        label,
+                                        "repeats the id " + s.id() + " (first in " + first + ")",
+                                        false));
                 }
                 if (!dimensions.isEmpty() && s.dimensions() != null) {
                     for (String d : s.dimensions()) {
                         if (!dimensions.containsKey(d)) {
-                            problems.add(new Problem(file, label, "uses the dimension " + d + ", which " + DIMENSIONS_FILE + " does not declare (it has " + String.join(", ", dimensions.keySet()) + ")", false));
+                            problems.add(
+                                    new Problem(
+                                            file,
+                                            label,
+                                            "uses the dimension "
+                                                    + d
+                                                    + ", which "
+                                                    + DIMENSIONS_FILE
+                                                    + " does not declare (it has "
+                                                    + String.join(", ", dimensions.keySet())
+                                                    + ")",
+                                            false));
                         }
                     }
                 }
@@ -108,25 +145,41 @@ public record EvalDataset(Path dir, Map<String, List<EvalScenario>> files, Map<S
         }
     }
 
-    private static void readDimensions(Path file, Map<String, String> into, List<Problem> problems) {
+    private static void readDimensions(
+            Path file, Map<String, String> into, List<Problem> problems) {
         try (InputStream in = Files.newInputStream(file)) {
-            Object root = new com.fasterxml.jackson.databind.ObjectMapper(new com.fasterxml.jackson.dataformat.yaml.YAMLFactory()).readValue(in, Object.class);
+            Object root =
+                    new com.fasterxml.jackson.databind.ObjectMapper(
+                                    new com.fasterxml.jackson.dataformat.yaml.YAMLFactory())
+                            .readValue(in, Object.class);
             Object dims = root instanceof Map<?, ?> m ? m.get("dimensions") : null;
             if (dims instanceof Map<?, ?> named) {
-                named.forEach((k, v) -> into.put(String.valueOf(k), v == null ? "" : String.valueOf(v)));
+                named.forEach(
+                        (k, v) -> into.put(String.valueOf(k), v == null ? "" : String.valueOf(v)));
             } else if (dims instanceof List<?> list) {
                 list.forEach(k -> into.put(String.valueOf(k), ""));
             } else if (root != null) {
-                problems.add(new Problem(file.getFileName().toString(), null, "needs a dimensions: mapping (name: what it means) or list", true));
+                problems.add(
+                        new Problem(
+                                file.getFileName().toString(),
+                                null,
+                                "needs a dimensions: mapping (name: what it means) or list",
+                                true));
             }
         } catch (IOException e) {
-            problems.add(new Problem(file.getFileName().toString(), null, "cannot be read: " + rootMessage(e), true));
+            problems.add(
+                    new Problem(
+                            file.getFileName().toString(),
+                            null,
+                            "cannot be read: " + rootMessage(e),
+                            true));
         }
     }
 
     private static String rootMessage(Throwable e) {
         for (Throwable c = e; c != null; c = c.getCause() == c ? null : c.getCause()) {
-            if (c instanceof com.fasterxml.jackson.databind.JsonMappingException jm && !jm.getPath().isEmpty()) return located(jm);
+            if (c instanceof com.fasterxml.jackson.databind.JsonMappingException jm
+                    && !jm.getPath().isEmpty()) return located(jm);
         }
         Throwable t = e;
         while (t.getCause() != null && t.getCause() != t) t = t.getCause();
@@ -134,18 +187,31 @@ public record EvalDataset(Path dir, Map<String, List<EvalScenario>> files, Map<S
         return m == null ? t.getClass().getSimpleName() : m.lines().findFirst().orElse(m);
     }
 
-    /** "scenario 3, field expected_output_contains: this field takes one text, not a list": where in the file, and what to change. */
+    /**
+     * "scenario 3, field expected_output_contains: this field takes one text, not a list": where in
+     * the file, and what to change.
+     */
     private static String located(com.fasterxml.jackson.databind.JsonMappingException e) {
         String scenario = null;
         String field = null;
         for (var ref : e.getPath()) {
             if (ref.getFieldName() != null) field = ref.getFieldName();
-            else if (ref.getIndex() >= 0 && scenario == null) scenario = String.valueOf(ref.getIndex() + 1);
+            else if (ref.getIndex() >= 0 && scenario == null)
+                scenario = String.valueOf(ref.getIndex() + 1);
         }
         String what = e.getOriginalMessage();
-        if (what != null && what.contains("from Array value")) what = "this field takes one text, not a list";
-        else if (what != null && what.contains("from Object value")) what = "this field takes one text, not a mapping";
+        if (what != null && what.contains("from Array value"))
+            what = "this field takes one text, not a list";
+        else if (what != null && what.contains("from Object value"))
+            what = "this field takes one text, not a mapping";
         else what = what == null ? "has the wrong shape" : what.lines().findFirst().orElse(what);
-        return (scenario == null ? "" : "scenario " + scenario + ", ") + (field == null ? "" : "field " + field.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase(java.util.Locale.ROOT) + ": ") + what;
+        return (scenario == null ? "" : "scenario " + scenario + ", ")
+                + (field == null
+                        ? ""
+                        : "field "
+                                + field.replaceAll("([a-z0-9])([A-Z])", "$1_$2")
+                                        .toLowerCase(java.util.Locale.ROOT)
+                                + ": ")
+                + what;
     }
 }

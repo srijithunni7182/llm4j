@@ -12,22 +12,45 @@ import java.util.Map;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-/** The environment of a command keeps the person a run is for, whatever else is changed on it afterwards. */
+/**
+ * The environment of a command keeps the person a run is for, whatever else is changed on it
+ * afterwards.
+ */
 class WeaveEnvTest {
 
     private final InvokerCredentials invoker = InvokerCredentials.of(Map.of("token", "t"));
 
     private WeaveEnv base() {
-        return new WeaveEnv(model -> null, message -> "", new PrintStream(System.out), new PrintStream(System.err), Clock.systemUTC(), d -> { },
-                c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""), List.of("weave"), Map.<String, String>of()::get)
+        return new WeaveEnv(
+                        model -> null,
+                        message -> "",
+                        new PrintStream(System.out),
+                        new PrintStream(System.err),
+                        Clock.systemUTC(),
+                        d -> {},
+                        c ->
+                                new io.github.llm4j.loom.trigger.system.CommandRunner.Result(
+                                        0, "", ""),
+                        List.of("weave"),
+                        Map.<String, String>of()::get)
                 .withInvoker(invoker);
     }
 
     @Test
     @Tag("CC-V6.4")
     void withInvokerSetsItAndNothingElseChanges() {
-        WeaveEnv plain = new WeaveEnv(model -> null, message -> "", System.out, System.err, Clock.systemUTC(), d -> { },
-                c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""), List.of("weave"));
+        WeaveEnv plain =
+                new WeaveEnv(
+                        model -> null,
+                        message -> "",
+                        System.out,
+                        System.err,
+                        Clock.systemUTC(),
+                        d -> {},
+                        c ->
+                                new io.github.llm4j.loom.trigger.system.CommandRunner.Result(
+                                        0, "", ""),
+                        List.of("weave"));
 
         WeaveEnv with = plain.withInvoker(invoker);
 

@@ -12,10 +12,17 @@ final class Chain implements ContextCompactor {
     private final String name;
 
     Chain(List<ContextCompactor> stages) {
-        if (stages.isEmpty()) throw new IllegalArgumentException("chain needs at least one strategy");
-        for (ContextCompactor c : stages) Objects.requireNonNull(c, "a strategy in the chain is null");
+        if (stages.isEmpty())
+            throw new IllegalArgumentException("chain needs at least one strategy");
+        for (ContextCompactor c : stages)
+            Objects.requireNonNull(c, "a strategy in the chain is null");
         this.stages = List.copyOf(stages);
-        this.name = "chain(" + this.stages.stream().map(ContextCompactor::name).collect(Collectors.joining(", ")) + ")";
+        this.name =
+                "chain("
+                        + this.stages.stream()
+                                .map(ContextCompactor::name)
+                                .collect(Collectors.joining(", "))
+                        + ")";
     }
 
     @Override
@@ -26,7 +33,12 @@ final class Chain implements ContextCompactor {
     @Override
     public CompactionResult compact(List<Message> messages, CompactionRequest request) {
         if (request.sizeOf(messages) <= request.targetTokens()) {
-            return CompactionResult.unchanged(name, messages, request, CompactionResult.Outcome.SKIPPED, "already within the target");
+            return CompactionResult.unchanged(
+                    name,
+                    messages,
+                    request,
+                    CompactionResult.Outcome.SKIPPED,
+                    "already within the target");
         }
         List<Message> current = messages;
         CompactionUsage spent = null;

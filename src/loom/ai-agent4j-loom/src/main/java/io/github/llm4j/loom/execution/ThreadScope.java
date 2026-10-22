@@ -6,17 +6,21 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The state a run keeps per thread, and the one way to hand it to another thread. A step that moves work to a worker thread (a parallel
- * branch, a broadcast, a step with a timeout) takes a {@link Snapshot} on its own thread and installs it on the worker's; the worker removes
- * it when it is done, so a pooled thread never carries one run's state into the next.
+ * The state a run keeps per thread, and the one way to hand it to another thread. A step that moves
+ * work to a worker thread (a parallel branch, a broadcast, a step with a timeout) takes a {@link
+ * Snapshot} on its own thread and installs it on the worker's; the worker removes it when it is
+ * done, so a pooled thread never carries one run's state into the next.
  */
 final class ThreadScope {
 
     final ThreadLocal<String> step = ThreadLocal.withInitial(() -> "");
+
     /** Block-local names (a for-each item, _error) visible to the statements of that block. */
     final ThreadLocal<Map<String, Object>> locals = ThreadLocal.withInitial(Map::of);
+
     /** Step, loop and for-each budgets enclosing the statement this thread is running. */
     final ThreadLocal<List<Budget>> budgets = ThreadLocal.withInitial(List::of);
+
     /** Whoever the run is for; null when it has no invoker. */
     final ThreadLocal<InvokerCredentials> invoker = new ThreadLocal<>();
 
@@ -32,14 +36,21 @@ final class ThreadScope {
         private final List<Budget> budgets;
         private final InvokerCredentials invoker;
 
-        private Snapshot(String step, Map<String, Object> locals, List<Budget> budgets, InvokerCredentials invoker) {
+        private Snapshot(
+                String step,
+                Map<String, Object> locals,
+                List<Budget> budgets,
+                InvokerCredentials invoker) {
             this.step = step;
             this.locals = locals;
             this.budgets = budgets;
             this.invoker = invoker;
         }
 
-        /** The same state with another step id and block-local names (a branch that starts at its own place in the script). */
+        /**
+         * The same state with another step id and block-local names (a branch that starts at its
+         * own place in the script).
+         */
         Snapshot at(String stepId, Map<String, Object> names) {
             return new Snapshot(stepId, names, budgets, invoker);
         }
@@ -50,7 +61,9 @@ final class ThreadScope {
             ThreadScope.this.locals.set(locals);
             ThreadScope.this.budgets.set(budgets);
             if (invoker != null) ThreadScope.this.invoker.set(invoker);
-            else ThreadScope.this.invoker.remove(); // never leave an earlier run's behind on a reused thread
+            else
+                ThreadScope.this.invoker
+                        .remove(); // never leave an earlier run's behind on a reused thread
             return ThreadScope.this::clear;
         }
     }

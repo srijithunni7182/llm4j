@@ -2,9 +2,8 @@ package io.github.llm4j.agent.schedule;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import io.github.llm4j.agent.AgentResult;
-import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.LLMClient;
+import io.github.llm4j.agent.ReActAgent;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
@@ -22,21 +21,25 @@ class AgentSchedulerTest {
     @BeforeEach
     void setup() {
         latch = new CountDownLatch(1);
-        
-        // Use a real agent with a mock client to intercept the call
-        LLMClient mockClient = new LLMClient() {
-            @Override
-            public io.github.llm4j.model.LLMResponse chat(io.github.llm4j.model.LLMRequest request) {
-                lastInvokedInstruction = request.getMessages().get(1).getContent(); // User message
-                latch.countDown();
-                return io.github.llm4j.model.LLMResponse.builder().content("Done").build();
-            }
 
-            @Override
-            public java.util.stream.Stream<io.github.llm4j.model.LLMResponse> chatStream(io.github.llm4j.model.LLMRequest request) {
-                return java.util.stream.Stream.empty();
-            }
-        };
+        // Use a real agent with a mock client to intercept the call
+        LLMClient mockClient =
+                new LLMClient() {
+                    @Override
+                    public io.github.llm4j.model.LLMResponse chat(
+                            io.github.llm4j.model.LLMRequest request) {
+                        lastInvokedInstruction =
+                                request.getMessages().get(1).getContent(); // User message
+                        latch.countDown();
+                        return io.github.llm4j.model.LLMResponse.builder().content("Done").build();
+                    }
+
+                    @Override
+                    public java.util.stream.Stream<io.github.llm4j.model.LLMResponse> chatStream(
+                            io.github.llm4j.model.LLMRequest request) {
+                        return java.util.stream.Stream.empty();
+                    }
+                };
 
         ReActAgent agent = ReActAgent.builder().llmClient(mockClient).build();
         scheduler = new AgentScheduler(agent, 1);

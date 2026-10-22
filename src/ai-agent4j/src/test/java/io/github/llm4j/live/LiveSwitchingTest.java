@@ -22,8 +22,14 @@ class LiveSwitchingTest {
 
     /** The consumer's code: nothing in it knows which provider it runs on. */
     static String solve(LLMClient anyModel) {
-        AgentResult result = ReActAgent.builder().llmClient(anyModel).addTool(new CalculatorTool()).maxIterations(6).build()
-                .run("A warehouse has 48 boxes with 37 items each. How many items in total? Use the calculator, then answer with the number.");
+        AgentResult result =
+                ReActAgent.builder()
+                        .llmClient(anyModel)
+                        .addTool(new CalculatorTool())
+                        .maxIterations(6)
+                        .build()
+                        .run(
+                                "A warehouse has 48 boxes with 37 items each. How many items in total? Use the calculator, then answer with the number.");
         return result.getFinalAnswer();
     }
 
@@ -34,6 +40,9 @@ class LiveSwitchingTest {
         Map<String, String> answers = new LinkedHashMap<>();
         for (LiveTargets.Target t : targets) answers.put(t.toString(), solve(t.client()));
         answers.forEach((who, answer) -> System.out.println("L10 " + who + " → " + answer));
-        assertThat(answers).allSatisfy((who, answer) -> assertThat(answer.replace(",", "")).as(who).contains("1776"));
+        assertThat(answers)
+                .allSatisfy(
+                        (who, answer) ->
+                                assertThat(answer.replace(",", "")).as(who).contains("1776"));
     }
 }

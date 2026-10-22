@@ -62,32 +62,48 @@ public class DuckDuckGoSearchTool implements Tool {
     }
 
     /** One DuckDuckGo Lite result. */
-    public record Result(String title, String url, String snippet) { }
+    public record Result(String title, String url, String snippet) {}
 
     private static final String USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
     /**
-     * Searches DuckDuckGo Lite and returns up to {@code max} results with their real destination URLs.
-     * Tries a GET first and, if DuckDuckGo answers with no results (it sometimes does for GETs),
-     * submits the Lite search form as a POST.
+     * Searches DuckDuckGo Lite and returns up to {@code max} results with their real destination
+     * URLs. Tries a GET first and, if DuckDuckGo answers with no results (it sometimes does for
+     * GETs), submits the Lite search form as a POST.
      */
     public List<Result> search(String query, int max) throws IOException {
-        List<Result> results = parse(fetch(new Request.Builder()
-                .url(baseUrl + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8))), max);
+        List<Result> results =
+                parse(
+                        fetch(
+                                new Request.Builder()
+                                        .url(
+                                                baseUrl
+                                                        + "?q="
+                                                        + URLEncoder.encode(
+                                                                query, StandardCharsets.UTF_8))),
+                        max);
         if (results.isEmpty()) {
-            results = parse(fetch(new Request.Builder().url(baseUrl)
-                    .post(new FormBody.Builder().add("q", query).build())), max);
+            results =
+                    parse(
+                            fetch(
+                                    new Request.Builder()
+                                            .url(baseUrl)
+                                            .post(new FormBody.Builder().add("q", query).build())),
+                            max);
         }
         return results;
     }
 
     private String fetch(Request.Builder request) throws IOException {
-        try (Response response = httpClient.newCall(request
-                .header("User-Agent", USER_AGENT)
-                .header("Accept", "text/html")
-                .header("Accept-Language", "en-US,en;q=0.9")
-                .build()).execute()) {
+        try (Response response =
+                httpClient
+                        .newCall(
+                                request.header("User-Agent", USER_AGENT)
+                                        .header("Accept", "text/html")
+                                        .header("Accept-Language", "en-US,en;q=0.9")
+                                        .build())
+                        .execute()) {
             if (!response.isSuccessful()) {
                 throw new IOException("DuckDuckGo Lite returned HTTP " + response.code());
             }
@@ -111,7 +127,10 @@ public class DuckDuckGoSearchTool implements Tool {
         return results;
     }
 
-    /** Lite links are sometimes DuckDuckGo redirects ({@code /l/?uddg=<real url>}); returns the real URL. */
+    /**
+     * Lite links are sometimes DuckDuckGo redirects ({@code /l/?uddg=<real url>}); returns the real
+     * URL.
+     */
     static String cleanHref(String href) {
         if (href == null) return "";
         if (href.contains("uddg=")) {
@@ -141,7 +160,9 @@ public class DuckDuckGoSearchTool implements Tool {
         for (int i = 0; i < results.size(); i++) {
             Result r = results.get(i);
             out.append(i + 1).append(". ").append(r.title()).append("\n");
-            out.append("   - ").append(r.snippet().isBlank() ? "No snippet available." : r.snippet()).append("\n");
+            out.append("   - ")
+                    .append(r.snippet().isBlank() ? "No snippet available." : r.snippet())
+                    .append("\n");
             out.append("   - Link: ").append(r.url()).append("\n\n");
         }
         return out.toString();
@@ -149,6 +170,8 @@ public class DuckDuckGoSearchTool implements Tool {
 
     @Override
     public java.util.Map<String, Object> getParametersSchema() {
-        return io.github.llm4j.model.ToolSchema.object().string("query", "What to search the web for", true).build();
+        return io.github.llm4j.model.ToolSchema.object()
+                .string("query", "What to search the web for", true)
+                .build();
     }
 }

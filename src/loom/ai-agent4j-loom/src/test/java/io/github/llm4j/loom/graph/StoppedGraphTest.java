@@ -8,10 +8,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
-/** An {@code on_stopped} handler is drawn like the other handlers, and a rewind in it draws its way back. */
+/**
+ * An {@code on_stopped} handler is drawn like the other handlers, and a rewind in it draws its way
+ * back.
+ */
 class StoppedGraphTest {
 
-    private static final String SCRIPT = """
+    private static final String SCRIPT =
+            """
             agent A { model: "m" }
             workflow W() {
                 checkpoint c
@@ -35,8 +39,14 @@ class StoppedGraphTest {
     @Test
     void theOutcomesAreNodesAndTheRewindDrawsItsWayBack() {
         WorkflowGraph graph = graphOf(SCRIPT, "W");
-        assertThat(graph.nodes().stream().map(GraphNode::kind).collect(Collectors.toList())).contains(Kinds.OUTCOME, Kinds.REWIND);
-        assertThat(graph.nodes().stream().filter(n -> n.kind().equals(Kinds.OUTCOME)).map(GraphNode::label).collect(Collectors.toList())).containsExactly("skip");
+        assertThat(graph.nodes().stream().map(GraphNode::kind).collect(Collectors.toList()))
+                .contains(Kinds.OUTCOME, Kinds.REWIND);
+        assertThat(
+                        graph.nodes().stream()
+                                .filter(n -> n.kind().equals(Kinds.OUTCOME))
+                                .map(GraphNode::label)
+                                .collect(Collectors.toList()))
+                .containsExactly("skip");
         assertThat(edges(graph)).anyMatch(e -> e.endsWith("->n1[rewind]"));
     }
 
@@ -48,7 +58,10 @@ class StoppedGraphTest {
 
     @Test
     void aStepWithoutAHandlerHasNoStoppedEdge() {
-        WorkflowGraph graph = graphOf("agent A { model: \"m\" }\nworkflow W() { delegate \"go\" to A -> out }", "W");
+        WorkflowGraph graph =
+                graphOf(
+                        "agent A { model: \"m\" }\nworkflow W() { delegate \"go\" to A -> out }",
+                        "W");
         assertThat(edges(graph)).noneMatch(e -> e.contains("stopped"));
     }
 }

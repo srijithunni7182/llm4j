@@ -22,20 +22,27 @@ public final class ContextCompactors {
         return new NoCompaction();
     }
 
-    /** Removes the oldest whole exchanges, leaving one marker that says how many messages went. No model call. */
+    /**
+     * Removes the oldest whole exchanges, leaving one marker that says how many messages went. No
+     * model call.
+     */
     public static ContextCompactor dropOldest() {
         return new DropOldest();
     }
 
-    /** Shortens tool results longer than {@code maxChars} (at least 40), oldest first, keeping their head and tail. No model call. */
+    /**
+     * Shortens tool results longer than {@code maxChars} (at least 40), oldest first, keeping their
+     * head and tail. No model call.
+     */
     public static ContextCompactor trimToolResults(int maxChars) {
         return new TrimToolResults(maxChars);
     }
 
     /**
-     * Replaces the oldest part of the conversation with a summary written by a model (at most 600 tokens). If the call fails, is refused by a
-     * budget, or gives nothing useful, it falls back to {@link #dropOldest()} and the result says so. The model's own tokens and cost are
-     * reported in {@link CompactionResult#summarizerUsage()}.
+     * Replaces the oldest part of the conversation with a summary written by a model (at most 600
+     * tokens). If the call fails, is refused by a budget, or gives nothing useful, it falls back to
+     * {@link #dropOldest()} and the result says so. The model's own tokens and cost are reported in
+     * {@link CompactionResult#summarizerUsage()}.
      *
      * @param client the model that writes the summary; a cheaper one than the agent's is fine
      */
@@ -43,8 +50,12 @@ public final class ContextCompactors {
         return new Summarize(client, Summarize.DEFAULT_MAX_SUMMARY_TOKENS);
     }
 
-    /** Like {@link #summarize(io.github.llm4j.LLMClient)}, with a limit on how long the summary may be. */
-    public static ContextCompactor summarize(io.github.llm4j.LLMClient client, int maxSummaryTokens) {
+    /**
+     * Like {@link #summarize(io.github.llm4j.LLMClient)}, with a limit on how long the summary may
+     * be.
+     */
+    public static ContextCompactor summarize(
+            io.github.llm4j.LLMClient client, int maxSummaryTokens) {
         return new Summarize(client, maxSummaryTokens);
     }
 
@@ -53,16 +64,22 @@ public final class ContextCompactors {
         return new Chain(Arrays.asList(strategies));
     }
 
-    /** Finds a strategy by name (built-in, or from a jar that lists a {@link ContextCompactorProvider}). */
+    /**
+     * Finds a strategy by name (built-in, or from a jar that lists a {@link
+     * ContextCompactorProvider}).
+     */
     public static ContextCompactor byName(String name, Map<String, String> options) {
         return byName(name, options, ProviderContext.none());
     }
 
-    public static ContextCompactor byName(String name, Map<String, String> options, ProviderContext context) {
+    public static ContextCompactor byName(
+            String name, Map<String, String> options, ProviderContext context) {
         Map<String, ContextCompactorProvider> found = providers();
         ContextCompactorProvider p = found.get(name);
         if (p == null) throw new IllegalArgumentException(unknown(name, found));
-        return p.create(options == null ? Map.of() : options, context == null ? ProviderContext.none() : context);
+        return p.create(
+                options == null ? Map.of() : options,
+                context == null ? ProviderContext.none() : context);
     }
 
     /** The names {@link #byName} knows, in alphabetical order. */
@@ -75,14 +92,23 @@ public final class ContextCompactors {
         for (ContextCompactorProvider p : ServiceLoader.load(ContextCompactorProvider.class)) {
             ContextCompactorProvider earlier = found.put(p.name(), p);
             if (earlier != null) {
-                throw new IllegalStateException("two providers are named '" + p.name() + "': " + earlier.getClass().getName() + " and " + p.getClass().getName());
+                throw new IllegalStateException(
+                        "two providers are named '"
+                                + p.name()
+                                + "': "
+                                + earlier.getClass().getName()
+                                + " and "
+                                + p.getClass().getName());
             }
         }
         return found;
     }
 
     private static String unknown(String name, Map<String, ContextCompactorProvider> found) {
-        StringBuilder sb = new StringBuilder("unknown context compaction strategy '").append(name).append('\'');
+        StringBuilder sb =
+                new StringBuilder("unknown context compaction strategy '")
+                        .append(name)
+                        .append('\'');
         String best = null;
         int bestDistance = Integer.MAX_VALUE;
         for (String known : found.keySet()) {
@@ -92,8 +118,12 @@ public final class ContextCompactors {
                 best = known;
             }
         }
-        if (best != null && bestDistance <= Math.max(2, best.length() / 3)) sb.append("; did you mean '").append(best).append("'?");
-        return sb.append(" (known strategies: ").append(String.join(", ", found.keySet())).append(')').toString();
+        if (best != null && bestDistance <= Math.max(2, best.length() / 3))
+            sb.append("; did you mean '").append(best).append("'?");
+        return sb.append(" (known strategies: ")
+                .append(String.join(", ", found.keySet()))
+                .append(')')
+                .toString();
     }
 
     private static int distance(String a, String b) {

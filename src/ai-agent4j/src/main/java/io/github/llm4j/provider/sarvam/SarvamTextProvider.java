@@ -80,7 +80,8 @@ public class SarvamTextProvider
         } catch (io.github.llm4j.exception.RateLimitException e) {
             throw e;
         } catch (Exception e) {
-            throw io.github.llm4j.provider.Providers.typed(getProviderName(), "Translation failed", e);
+            throw io.github.llm4j.provider.Providers.typed(
+                    getProviderName(), "Translation failed", e);
         }
     }
 
@@ -118,7 +119,8 @@ public class SarvamTextProvider
         } catch (io.github.llm4j.exception.RateLimitException e) {
             throw e;
         } catch (Exception e) {
-            throw io.github.llm4j.provider.Providers.typed(getProviderName(), "Transliteration failed", e);
+            throw io.github.llm4j.provider.Providers.typed(
+                    getProviderName(), "Transliteration failed", e);
         }
     }
 
@@ -157,7 +159,8 @@ public class SarvamTextProvider
         } catch (io.github.llm4j.exception.RateLimitException e) {
             throw e;
         } catch (Exception e) {
-            throw io.github.llm4j.provider.Providers.typed(getProviderName(), "Language detection failed", e);
+            throw io.github.llm4j.provider.Providers.typed(
+                    getProviderName(), "Language detection failed", e);
         }
     }
 
@@ -169,7 +172,8 @@ public class SarvamTextProvider
     @Override
     public void validate() {
         if (!config.hasApiKey()) {
-            throw new AuthenticationException(config.missingApiKeyMessage("Sarvam API key is required"));
+            throw new AuthenticationException(
+                    config.missingApiKeyMessage("Sarvam API key is required"));
         }
     }
 

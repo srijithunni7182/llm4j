@@ -9,9 +9,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * What a ledger implementation keeps in memory so that asking about cases is cheap however long the ledger is: the records in order, the ids
- * already seen, and the cases folded <i>incrementally</i> (only a case a new record touched is folded again). A ledger on disk or in a database
- * feeds it what is new since it last looked.
+ * What a ledger implementation keeps in memory so that asking about cases is cheap however long the
+ * ledger is: the records in order, the ids already seen, and the cases folded <i>incrementally</i>
+ * (only a case a new record touched is folded again). A ledger on disk or in a database feeds it
+ * what is new since it last looked.
  */
 final class LedgerCache {
 
@@ -39,7 +40,9 @@ final class LedgerCache {
         records.add(r);
         byKind.computeIfAbsent(r.kind(), k -> new ArrayList<>()).add(r);
         if (!r.caseId().isEmpty()) {
-            byCase.computeIfAbsent(r.caseId(), k -> new LinkedHashMap<>()).computeIfAbsent(r.generation(), k -> new ArrayList<>()).add(r);
+            byCase.computeIfAbsent(r.caseId(), k -> new LinkedHashMap<>())
+                    .computeIfAbsent(r.generation(), k -> new ArrayList<>())
+                    .add(r);
             dirty.add(r.caseId());
             snapshot = null;
         }
@@ -57,7 +60,9 @@ final class LedgerCache {
         return out;
     }
 
-    /** The cases, in the order they were opened; the same list until a record about a case arrives. */
+    /**
+     * The cases, in the order they were opened; the same list until a record about a case arrives.
+     */
     List<Case> cases() {
         if (snapshot != null) return snapshot;
         for (String id : dirty) folded.put(id, Cases.foldCase(id, byCase.get(id)));

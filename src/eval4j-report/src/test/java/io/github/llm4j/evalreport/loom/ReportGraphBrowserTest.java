@@ -16,16 +16,23 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * V10.1 to V10.16: the generated report, opened in a real browser. The browser checks live in
- * {@code src/test/js/report-graph.browser.js}; this test builds the report and runs them. It is skipped when node
- * or a browser is not installed.
+ * {@code src/test/js/report-graph.browser.js}; this test builds the report and runs them. It is
+ * skipped when node or a browser is not installed.
  */
 class ReportGraphBrowserTest {
 
     private static Path report(Path tmp) throws Exception {
         Path root = store(tmp);
-        Files.writeString(root.resolve("runs/candidate/traces.jsonl"), ReportGraphFixtures.traces(), StandardCharsets.UTF_8);
+        Files.writeString(
+                root.resolve("runs/candidate/traces.jsonl"),
+                ReportGraphFixtures.traces(),
+                StandardCharsets.UTF_8);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        int code = Main.run(new String[] {"render", root.toString()}, new PrintStream(out), new PrintStream(out));
+        int code =
+                Main.run(
+                        new String[] {"render", root.toString()},
+                        new PrintStream(out),
+                        new PrintStream(out));
         assertThat(code).as(out.toString()).isZero();
         Path html = root.resolve("report/index.html");
         String keep = System.getProperty("graph.report.out");
@@ -43,7 +50,8 @@ class ReportGraphBrowserTest {
             Files.createDirectories(dst);
             try (var files = Files.list(src.resolve(run))) {
                 for (Path f : (Iterable<Path>) files::iterator) {
-                    Files.copy(f, dst.resolve(f.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+                    Files.copy(
+                            f, dst.resolve(f.getFileName()), StandardCopyOption.REPLACE_EXISTING);
                 }
             }
         }
@@ -51,18 +59,26 @@ class ReportGraphBrowserTest {
     }
 
     @Test
-    void theReportIsOneFileWithTheRendererInlineAndNothingFetched(@TempDir Path tmp) throws Exception {
+    void theReportIsOneFileWithTheRendererInlineAndNothingFetched(@TempDir Path tmp)
+            throws Exception {
         String html = Files.readString(report(tmp));
 
         assertThat(html).contains("root.LoomGraph").contains("EvalGraphCard");
         assertThat(html).doesNotContainPattern(Pattern.compile("(src|href)=\"(https?:)?//"));
         assertThat(html).doesNotContainPattern(Pattern.compile("<script[^>]*\\bsrc="));
         assertThat(html).doesNotContainPattern(Pattern.compile("<link[^>]*rel=\"stylesheet\""));
-        assertThat(html).doesNotContain("fetch(").doesNotContain("XMLHttpRequest").doesNotContain("@import");
+        assertThat(html)
+                .doesNotContain("fetch(")
+                .doesNotContain("XMLHttpRequest")
+                .doesNotContain("@import");
         assertThat(html).doesNotContain("loom_logo");
         // the inlined scripts cannot close their own element
         for (String name : new String[] {"graph-render.js", "graph-card.js"}) {
-            String js = Files.readString(Path.of("src/main/resources/io/github/llm4j/evalreport/render/" + name));
+            String js =
+                    Files.readString(
+                            Path.of(
+                                    "src/main/resources/io/github/llm4j/evalreport/render/"
+                                            + name));
             assertThat(js).as(name).doesNotContainIgnoringCase("</script");
         }
     }
@@ -72,9 +88,10 @@ class ReportGraphBrowserTest {
         Path html = report(tmp);
         assumeTrue(commandExists("node"), "node is not installed");
 
-        Process process = new ProcessBuilder("node", "src/test/js/report-graph.browser.js", html.toString())
-                .redirectErrorStream(true)
-                .start();
+        Process process =
+                new ProcessBuilder("node", "src/test/js/report-graph.browser.js", html.toString())
+                        .redirectErrorStream(true)
+                        .start();
         String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         int code = process.waitFor();
 

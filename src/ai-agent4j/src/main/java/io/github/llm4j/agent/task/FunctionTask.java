@@ -16,9 +16,17 @@ final class FunctionTask implements Task {
         this(name, effect, policy, body, false);
     }
 
-    FunctionTask(String name, TaskEffect effect, EffectPolicy policy, TaskFunction body, boolean usesModel) {
+    FunctionTask(
+            String name,
+            TaskEffect effect,
+            EffectPolicy policy,
+            TaskFunction body,
+            boolean usesModel) {
         if (!Task.isValidName(name)) {
-            throw new IllegalArgumentException("task name \"" + name + "\" must be a letter followed by letters, digits, _ or -");
+            throw new IllegalArgumentException(
+                    "task name \""
+                            + name
+                            + "\" must be a letter followed by letters, digits, _ or -");
         }
         this.name = name;
         this.effect = Objects.requireNonNull(effect, "effect");

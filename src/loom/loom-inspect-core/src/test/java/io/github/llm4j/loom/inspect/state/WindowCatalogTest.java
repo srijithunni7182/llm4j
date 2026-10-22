@@ -5,7 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** R5: a window kept at the server fills in for a process that did not know it; what a process reports always wins. */
+/**
+ * R5: a window kept at the server fills in for a process that did not know it; what a process
+ * reports always wins.
+ */
 class WindowCatalogTest {
 
     private final ContextFixtures f = new ContextFixtures();
@@ -64,7 +67,9 @@ class WindowCatalogTest {
         f.state.setModels(Map.of("Editor", "big-model"));
         f.state.setWindows(book("big-model = 50000"));
         f.context(1, "Editor", 44_000, null, null); // 88 %
-        assertThat(f.incidents("CONTEXT")).singleElement().satisfies(i -> assertThat(i).containsEntry("severity", "warn"));
+        assertThat(f.incidents("CONTEXT"))
+                .singleElement()
+                .satisfies(i -> assertThat(i).containsEntry("severity", "warn"));
         f.context(2, "Editor", 48_000, null, null); // 96 %
         assertThat(f.incidents("CONTEXT").get(0)).containsEntry("severity", "high");
     }
@@ -76,7 +81,9 @@ class WindowCatalogTest {
         assertThat(f.context("Editor")).doesNotContainKey("usable");
         assertThat(f.incidents("CONTEXT")).isEmpty();
         f.state.setWindows(book("big-model = 50000"));
-        assertThat(f.context("Editor")).containsEntry("usable", 50_000L).containsEntry("windowSource", "catalog");
+        assertThat(f.context("Editor"))
+                .containsEntry("usable", 50_000L)
+                .containsEntry("windowSource", "catalog");
         assertThat(f.incidents("CONTEXT")).hasSize(1);
     }
 
@@ -94,8 +101,10 @@ class WindowCatalogTest {
         RunRegistry registry = new RunRegistry();
         registry.setModels("p", ContextFixtures.TRACE, Map.of("Editor", "big-model"));
         registry.setWindows(book("big-model = 50000"));
-        assertThat(registry.find("p", ContextFixtures.TRACE).orElseThrow().windows()).isEqualTo(book("big-model = 50000"));
+        assertThat(registry.find("p", ContextFixtures.TRACE).orElseThrow().windows())
+                .isEqualTo(book("big-model = 50000"));
         registry.setModels("p", "f".repeat(32), Map.of());
-        assertThat(registry.find("p", "f".repeat(32)).orElseThrow().windows()).isEqualTo(book("big-model = 50000"));
+        assertThat(registry.find("p", "f".repeat(32)).orElseThrow().windows())
+                .isEqualTo(book("big-model = 50000"));
     }
 }

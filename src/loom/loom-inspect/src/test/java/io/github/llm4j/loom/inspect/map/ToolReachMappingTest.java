@@ -3,8 +3,8 @@ package io.github.llm4j.loom.inspect.map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.llm4j.loom.execution.TraceEvent;
-import io.github.llm4j.loom.inspect.otel.SpanRec;
 import io.github.llm4j.loom.inspect.otel.Semconv;
+import io.github.llm4j.loom.inspect.otel.SpanRec;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -32,17 +32,47 @@ class ToolReachMappingTest {
     }
 
     private SpanRec tool() {
-        return spans.stream().filter(s -> Semconv.KIND_TOOL.equals(s.attr(Semconv.LOOM_SPAN_KIND))).findFirst().orElseThrow();
+        return spans.stream()
+                .filter(s -> Semconv.KIND_TOOL.equals(s.attr(Semconv.LOOM_SPAN_KIND)))
+                .findFirst()
+                .orElseThrow();
     }
 
     private TraceEvent[] call(Object... toolCallExtras) {
-        Map<String, Object> d = new LinkedHashMap<>(Map.of("tool", "Fetch", "outcome", "EXECUTED", "duration_ms", 120L, "approval_ms", 0L, "result_chars", 40L, "soft_failure", false));
-        for (int i = 0; i < toolCallExtras.length; i += 2) d.put((String) toolCallExtras[i], toolCallExtras[i + 1]);
+        Map<String, Object> d =
+                new LinkedHashMap<>(
+                        Map.of(
+                                "tool",
+                                "Fetch",
+                                "outcome",
+                                "EXECUTED",
+                                "duration_ms",
+                                120L,
+                                "approval_ms",
+                                0L,
+                                "result_chars",
+                                40L,
+                                "soft_failure",
+                                false));
+        for (int i = 0; i < toolCallExtras.length; i += 2)
+            d.put((String) toolCallExtras[i], toolCallExtras[i + 1]);
         return new TraceEvent[] {
-                ev(0, TraceEvent.MODEL_CALL, "m", "model", "m", "duration_ms", 100L, "attempts", 1, "outcome", "OK"),
-                ev(0.1, TraceEvent.ACTION, "Fetch {}"),
-                ev(0.2, TraceEvent.OBSERVATION, "page text"),
-                new TraceEvent(TraceEvent.TOOL_CALL, "Editor", STEP, "Fetch ok", d, T0.plusMillis(300))};
+            ev(
+                    0,
+                    TraceEvent.MODEL_CALL,
+                    "m",
+                    "model",
+                    "m",
+                    "duration_ms",
+                    100L,
+                    "attempts",
+                    1,
+                    "outcome",
+                    "OK"),
+            ev(0.1, TraceEvent.ACTION, "Fetch {}"),
+            ev(0.2, TraceEvent.OBSERVATION, "page text"),
+            new TraceEvent(TraceEvent.TOOL_CALL, "Editor", STEP, "Fetch ok", d, T0.plusMillis(300))
+        };
     }
 
     @Test
@@ -55,12 +85,15 @@ class ToolReachMappingTest {
     @Test
     void anEmptyReachIsKept() {
         feed(call("reach", "", "reach_known", true));
-        assertThat(tool().attributes()).containsEntry(Semconv.LOOM_TOOL_REACH, "").containsEntry(Semconv.LOOM_TOOL_REACH_KNOWN, true);
+        assertThat(tool().attributes())
+                .containsEntry(Semconv.LOOM_TOOL_REACH, "")
+                .containsEntry(Semconv.LOOM_TOOL_REACH_KNOWN, true);
     }
 
     @Test
     void aTraceWithoutReachMapsAsBefore() {
         feed(call());
-        assertThat(tool().attributes()).doesNotContainKeys(Semconv.LOOM_TOOL_REACH, Semconv.LOOM_TOOL_REACH_KNOWN);
+        assertThat(tool().attributes())
+                .doesNotContainKeys(Semconv.LOOM_TOOL_REACH, Semconv.LOOM_TOOL_REACH_KNOWN);
     }
 }

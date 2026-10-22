@@ -1,6 +1,5 @@
 package io.github.llm4j.loom.ladder;
 
-import io.github.llm4j.loom.ast.DecisionDef;
 import io.github.llm4j.loom.ast.RungDef;
 import io.github.llm4j.loom.autonomy.Ledger;
 import io.github.llm4j.loom.autonomy.Rec;
@@ -15,29 +14,54 @@ import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 
 /**
- * Everything that changes where a scope stands on its ladder: a first case, a new epoch, a climb or a slip, a promotion approved, a hand-set rung, a
- * freeze, an outcome, a change of rules. The executor and the {@code weave} commands both go through here, so a change is made, recorded and explained
- * the same way whoever asked for it.
+ * Everything that changes where a scope stands on its ladder: a first case, a new epoch, a climb or
+ * a slip, a promotion approved, a hand-set rung, a freeze, an outcome, a change of rules. The
+ * executor and the {@code weave} commands both go through here, so a change is made, recorded and
+ * explained the same way whoever asked for it.
  */
 public final class LadderEngine {
 
-    /** One change worth telling someone about. {@code kind}: promoted, demoted, proposed, rejected, epoch, set. */
-    public record Change(String kind, String scope, String from, String to, String reason, String by, boolean forced) {
+    /**
+     * One change worth telling someone about. {@code kind}: promoted, demoted, proposed, rejected,
+     * epoch, set.
+     */
+    public record Change(
+            String kind,
+            String scope,
+            String from,
+            String to,
+            String reason,
+            String by,
+            boolean forced) {
         public String sentence() {
-            String where = scope.isEmpty() || scope.equals("all") ? "the decision" : "scope " + scope;
+            String where =
+                    scope.isEmpty() || scope.equals("all") ? "the decision" : "scope " + scope;
             switch (kind) {
-                case "proposed": return "promotion of " + where + " to " + to + " proposed: " + reason;
-                case "rejected": return "promotion of " + where + " to " + to + " rejected: " + reason;
-                default: return where + " moved from " + from + " to " + to + " (" + kind + (forced ? ", forced" : "") + "): " + reason;
+                case "proposed":
+                    return "promotion of " + where + " to " + to + " proposed: " + reason;
+                case "rejected":
+                    return "promotion of " + where + " to " + to + " rejected: " + reason;
+                default:
+                    return where
+                            + " moved from "
+                            + from
+                            + " to "
+                            + to
+                            + " ("
+                            + kind
+                            + (forced ? ", forced" : "")
+                            + "): "
+                            + reason;
             }
         }
     }
 
     /** How one case is run: the rung it is on, what the runtime enforces, and why. */
-    public record Plan(String rung, RungDef.Mode mode, String how) { }
+    public record Plan(String rung, RungDef.Mode mode, String how) {}
 
     /** A promotion waiting for the named person. */
-    public record Proposal(String id, String scope, String to, int cases, String why, String approver) { }
+    public record Proposal(
+            String id, String scope, String to, int cases, String why, String approver) {}
 
     private static final int RETRIES = 5;
 
@@ -45,7 +69,11 @@ public final class LadderEngine {
     private final Ledger ledger;
     private final Clock clock;
     private final LevelLog log;
-    /** What a new epoch starts on when the decision says "test it on past cases": the rung (an index) the new agent has earned, given the old standing. */
+
+    /**
+     * What a new epoch starts on when the decision says "test it on past cases": the rung (an
+     * index) the new agent has earned, given the old standing.
+     */
     @FunctionalInterface
     public interface Inheritance {
         int rungFor(String scope, LevelLog.Standing old, String identity);
@@ -60,23 +88,38 @@ public final class LadderEngine {
         this.log = new LevelLog(policy.decisionName(), policy.rungs(), ledger);
     }
 
-    /** What a new epoch inherits when the decision says "test it on past cases": given the old standing, the rung the new agent has earned. */
+    /**
+     * What a new epoch inherits when the decision says "test it on past cases": given the old
+     * standing, the rung the new agent has earned.
+     */
     public void inheritWith(ToIntFunction<LevelLog.Standing> inherit) {
         this.inherit = (scope, old, identity) -> inherit.applyAsInt(old);
     }
 
-    /** As {@link #inheritWith(ToIntFunction)}, for a rule that needs to know the scope and the new agent. */
+    /**
+     * As {@link #inheritWith(ToIntFunction)}, for a rule that needs to know the scope and the new
+     * agent.
+     */
     public void inheritWith(Inheritance inherit) {
         this.inherit = inherit;
     }
 
-    public LadderPolicy policy() { return policy; }
+    public LadderPolicy policy() {
+        return policy;
+    }
 
-    public LevelLog log() { return log; }
+    public LevelLog log() {
+        return log;
+    }
 
-    public Ledger ledger() { return ledger; }
+    public Ledger ledger() {
+        return ledger;
+    }
 
-    /** True when a rung set by hand is not (yet) supported by the record: some step up to it does not hold on the scope's history. Shown as forced until it does. */
+    /**
+     * True when a rung set by hand is not (yet) supported by the record: some step up to it does
+     * not hold on the scope's history. Shown as forced until it does.
+     */
     public boolean unearned(String scope, LevelLog.Standing s) {
         if (!s.forced()) return false;
         V.Cs history = history(scope, s);
@@ -85,25 +128,34 @@ public final class LadderEngine {
         return false;
     }
 
-    private String decision() { return policy.decisionName(); }
+    private String decision() {
+        return policy.decisionName();
+    }
 
-    private Instant now() { return clock.instant(); }
+    private Instant now() {
+        return clock.instant();
+    }
 
-    // ---- reading -------------------------------------------------------------------------------------------------------
+    // ---- reading
+    // -------------------------------------------------------------------------------------------------------
 
     private int foldedCount = -1;
     private String foldedLast;
     private List<LCase> folded = List.of();
     private Map<String, List<LCase>> byScope = Map.of();
 
-    /** Every case of the decision, folded from the ledger; kept until the ledger gains a record, so a long record is folded once and not for every question. */
+    /**
+     * Every case of the decision, folded from the ledger; kept until the ledger gains a record, so
+     * a long record is folded once and not for every question.
+     */
     public synchronized List<LCase> cases() {
         List<Rec> records = ledger.records(decision());
         String last = records.isEmpty() ? "" : records.get(records.size() - 1).id();
         if (records.size() != foldedCount || !last.equals(foldedLast)) {
             folded = LedgerFold.cases(records);
             Map<String, List<LCase>> grouped = new java.util.HashMap<>();
-            for (LCase c : folded) grouped.computeIfAbsent(c.scope(), k -> new ArrayList<>()).add(c);
+            for (LCase c : folded)
+                grouped.computeIfAbsent(c.scope(), k -> new ArrayList<>()).add(c);
             byScope = grouped;
             foldedCount = records.size();
             foldedLast = last;
@@ -114,13 +166,21 @@ public final class LadderEngine {
     /** The cases of this scope and epoch that count. */
     public V.Cs history(String scope, int epoch) {
         cases();
-        return HistoryBuilder.history(byScope.getOrDefault(scope, List.of()), scope, epoch, policy.decision().getRememberTypes());
+        return HistoryBuilder.history(
+                byScope.getOrDefault(scope, List.of()),
+                scope,
+                epoch,
+                policy.decision().getRememberTypes());
     }
 
     /** The cases of this scope in every epoch. */
     public V.Cs historyAll(String scope) {
         cases();
-        return HistoryBuilder.history(byScope.getOrDefault(scope, List.of()), scope, -1, policy.decision().getRememberTypes());
+        return HistoryBuilder.history(
+                byScope.getOrDefault(scope, List.of()),
+                scope,
+                -1,
+                policy.decision().getRememberTypes());
     }
 
     private V.Cs history(String scope, LevelLog.Standing s) {
@@ -128,29 +188,65 @@ public final class LadderEngine {
     }
 
     /**
-     * The scope's standing, created on the first case. A change of agent (or of the model the provider says it served) starts a new epoch first:
-     * evidence earned by one is never credited to the other.
+     * The scope's standing, created on the first case. A change of agent (or of the model the
+     * provider says it served) starts a new epoch first: evidence earned by one is never credited
+     * to the other.
      */
     public LevelLog.Standing standing(String scope, String identity, String servedModel) {
         for (int i = 0; i < RETRIES; i++) {
             Optional<LevelLog.Standing> found = log.current(scope);
             if (found.isEmpty()) {
-                LevelLog.Standing first = make(0, 1, 1, identity, servedModel, false, "first case of this scope");
-                if (log.write(scope, 0, first, "first", null, "runtime", now(), policy.rulesText())) return first;
+                LevelLog.Standing first =
+                        make(0, 1, 1, identity, servedModel, false, "first case of this scope");
+                if (log.write(scope, 0, first, "first", null, "runtime", now(), policy.rulesText()))
+                    return first;
                 continue;
             }
             LevelLog.Standing cur = found.get();
             String why = null;
             if (!cur.identity().equals(identity)) {
-                why = "the agent behind " + decision() + " changed (" + shorten(cur.identity()) + " to " + shorten(identity) + ")";
-            } else if (known(cur.servedModel()) && known(servedModel) && !cur.servedModel().equals(servedModel)) {
-                why = "the served model changed from " + cur.servedModel() + " to " + servedModel + " with the script unchanged";
+                why =
+                        "the agent behind "
+                                + decision()
+                                + " changed ("
+                                + shorten(cur.identity())
+                                + " to "
+                                + shorten(identity)
+                                + ")";
+            } else if (known(cur.servedModel())
+                    && known(servedModel)
+                    && !cur.servedModel().equals(servedModel)) {
+                why =
+                        "the served model changed from "
+                                + cur.servedModel()
+                                + " to "
+                                + servedModel
+                                + " with the script unchanged";
             }
             if (why == null && !known(cur.servedModel()) && known(servedModel)) {
-                // the first time the provider names the model: remember it, so a later change behind the same script can be seen
-                LevelLog.Standing named = new LevelLog.Standing(cur.rung(), cur.rungName(), cur.version() + 1, cur.epoch(), cur.identity(), servedModel, cur.forced(), now(),
-                        cur.reason(), cur.rules());
-                if (log.write(scope, cur.version(), named, "model", cur.rungName(), "runtime", now(), policy.rulesText())) return named;
+                // the first time the provider names the model: remember it, so a later change
+                // behind the same script can be seen
+                LevelLog.Standing named =
+                        new LevelLog.Standing(
+                                cur.rung(),
+                                cur.rungName(),
+                                cur.version() + 1,
+                                cur.epoch(),
+                                cur.identity(),
+                                servedModel,
+                                cur.forced(),
+                                now(),
+                                cur.reason(),
+                                cur.rules());
+                if (log.write(
+                        scope,
+                        cur.version(),
+                        named,
+                        "model",
+                        cur.rungName(),
+                        "runtime",
+                        now(),
+                        policy.rulesText())) return named;
                 continue;
             }
             if (why == null) return cur;
@@ -162,17 +258,45 @@ public final class LadderEngine {
                     how = "keep the trust";
                     break;
                 case TEST_ON_PAST:
-                    rung = inherit == null ? 0 : Math.min(cur.rung(), Math.max(0, inherit.rungFor(scope, cur, identity)));
-                    how = inherit == null ? "start over (no replay available)" : "test it on past cases";
+                    rung =
+                            inherit == null
+                                    ? 0
+                                    : Math.min(
+                                            cur.rung(),
+                                            Math.max(0, inherit.rungFor(scope, cur, identity)));
+                    how =
+                            inherit == null
+                                    ? "start over (no replay available)"
+                                    : "test it on past cases";
                     break;
                 default:
                     rung = 0;
                     how = "start over";
             }
-            LevelLog.Standing next = make(rung, cur.version() + 1, cur.epoch() + 1, identity, known(servedModel) ? servedModel : cur.servedModel(), false, why + ": " + how);
-            if (log.write(scope, cur.version(), next, "epoch", cur.rungName(), "runtime", now(), policy.rulesText())) return next;
+            LevelLog.Standing next =
+                    make(
+                            rung,
+                            cur.version() + 1,
+                            cur.epoch() + 1,
+                            identity,
+                            known(servedModel) ? servedModel : cur.servedModel(),
+                            false,
+                            why + ": " + how);
+            if (log.write(
+                    scope,
+                    cur.version(),
+                    next,
+                    "epoch",
+                    cur.rungName(),
+                    "runtime",
+                    now(),
+                    policy.rulesText())) return next;
         }
-        return log.current(scope).orElseThrow(() -> new IllegalStateException("cannot create the standing of scope " + scope));
+        return log.current(scope)
+                .orElseThrow(
+                        () ->
+                                new IllegalStateException(
+                                        "cannot create the standing of scope " + scope));
     }
 
     private static boolean known(String model) {
@@ -183,11 +307,31 @@ public final class LadderEngine {
         return s == null ? "?" : s.length() <= 8 ? s : s.substring(0, 8);
     }
 
-    private LevelLog.Standing make(int rung, int version, int epoch, String identity, String servedModel, boolean forced, String reason) {
-        return new LevelLog.Standing(rung, policy.nameOf(rung), version, epoch, identity, servedModel, forced, now(), reason, policy.fingerprint());
+    private LevelLog.Standing make(
+            int rung,
+            int version,
+            int epoch,
+            String identity,
+            String servedModel,
+            boolean forced,
+            String reason) {
+        return new LevelLog.Standing(
+                rung,
+                policy.nameOf(rung),
+                version,
+                epoch,
+                identity,
+                servedModel,
+                forced,
+                now(),
+                reason,
+                policy.fingerprint());
     }
 
-    /** The rung a case runs at: the earned rung, held at the ceiling, and below the first autonomous rung while frozen. */
+    /**
+     * The rung a case runs at: the earned rung, held at the ceiling, and below the first autonomous
+     * rung while frozen.
+     */
     public int effective(LevelLog.Standing s) {
         int rung = Math.min(s.rung(), policy.ceiling());
         if (log.frozen()) {
@@ -197,31 +341,59 @@ public final class LadderEngine {
         return rung;
     }
 
-    /** How this case is run: its rung's mode, except that a sampled case goes to a person blind and an escalated one goes to a person (sampling also applies to a confirm rung). */
-    public Plan plan(String scope, String caseId, LevelLog.Standing s, V.Rec current, V.Cs history, long nowMillis) {
+    /**
+     * How this case is run: its rung's mode, except that a sampled case goes to a person blind and
+     * an escalated one goes to a person (sampling also applies to a confirm rung).
+     */
+    public Plan plan(
+            String scope,
+            String caseId,
+            LevelLog.Standing s,
+            V.Rec current,
+            V.Cs history,
+            long nowMillis) {
         int rung = effective(s);
         RungDef.Mode mode = policy.modeOf(rung);
-        String how = rung < s.rung() ? (log.frozen() && rung < Math.min(s.rung(), policy.ceiling()) ? "frozen" : "ceiling") : policy.nameOf(rung);
+        String how =
+                rung < s.rung()
+                        ? (log.frozen() && rung < Math.min(s.rung(), policy.ceiling())
+                                ? "frozen"
+                                : "ceiling")
+                        : policy.nameOf(rung);
         if (mode == RungDef.Mode.AUTONOMOUS) {
-            if (policy.sampleBeforeEscalate() && policy.sampled(rung, caseId)) return new Plan(policy.nameOf(rung), RungDef.Mode.BLIND, "sample");
-            if (policy.escalates(rung, current, history, nowMillis)) return new Plan(policy.nameOf(rung), RungDef.Mode.CONFIRM, "escalate");
-            if (policy.sampled(rung, caseId)) return new Plan(policy.nameOf(rung), RungDef.Mode.BLIND, "sample");
+            if (policy.sampleBeforeEscalate() && policy.sampled(rung, caseId))
+                return new Plan(policy.nameOf(rung), RungDef.Mode.BLIND, "sample");
+            if (policy.escalates(rung, current, history, nowMillis))
+                return new Plan(policy.nameOf(rung), RungDef.Mode.CONFIRM, "escalate");
+            if (policy.sampled(rung, caseId))
+                return new Plan(policy.nameOf(rung), RungDef.Mode.BLIND, "sample");
         } else if (mode == RungDef.Mode.CONFIRM && policy.sampled(rung, caseId)) {
-            // a share of confirmed cases is answered blind too: otherwise nothing could be measured while the agent is shown to people
+            // a share of confirmed cases is answered blind too: otherwise nothing could be measured
+            // while the agent is shown to people
             return new Plan(policy.nameOf(rung), RungDef.Mode.BLIND, "sample");
         }
         return new Plan(policy.nameOf(rung), mode, how);
     }
 
-    // ---- moving --------------------------------------------------------------------------------------------------------
+    // ---- moving
+    // --------------------------------------------------------------------------------------------------------
 
     private static String because(List<LadderPolicy.Term> terms, boolean wantMet) {
-        return terms.stream().filter(t -> t.met().map(m -> m == wantMet).orElse(false))
-                .map(t -> t.text() + (t.needed().isEmpty() ? " [" + t.actual() + "]" : " [" + t.actual() + " vs " + t.needed() + "]"))
+        return terms.stream()
+                .filter(t -> t.met().map(m -> m == wantMet).orElse(false))
+                .map(
+                        t ->
+                                t.text()
+                                        + (t.needed().isEmpty()
+                                                ? " [" + t.actual() + "]"
+                                                : " [" + t.actual() + " vs " + t.needed() + "]"))
                 .collect(Collectors.joining("; "));
     }
 
-    /** Applies a slip that holds, else makes or proposes a climb that has been earned; at most one step. The changes made. */
+    /**
+     * Applies a slip that holds, else makes or proposes a climb that has been earned; at most one
+     * step. The changes made.
+     */
     public List<Change> afterResponse(String scope) {
         List<Change> out = new ArrayList<>();
         for (int i = 0; i < RETRIES; i++) {
@@ -234,21 +406,68 @@ public final class LadderEngine {
             Optional<LadderPolicy.SlipHit> slip = policy.slipHit(cur.rung(), history, t);
             if (slip.isPresent()) {
                 String why = because(slip.get().because(), true);
-                LevelLog.Standing next = withRung(cur, slip.get().to(), trustWords(true, scope, cur, slip.get().to(), "slip: " + why), false);
-                if (log.write(scope, cur.version(), next, "demoted", cur.rungName(), "runtime", now(), policy.rulesText())) {
-                    out.add(new Change("demoted", scope, cur.rungName(), next.rungName(), next.reason(), "runtime", false));
+                LevelLog.Standing next =
+                        withRung(
+                                cur,
+                                slip.get().to(),
+                                trustWords(true, scope, cur, slip.get().to(), "slip: " + why),
+                                false);
+                if (log.write(
+                        scope,
+                        cur.version(),
+                        next,
+                        "demoted",
+                        cur.rungName(),
+                        "runtime",
+                        now(),
+                        policy.rulesText())) {
+                    out.add(
+                            new Change(
+                                    "demoted",
+                                    scope,
+                                    cur.rungName(),
+                                    next.rungName(),
+                                    next.reason(),
+                                    "runtime",
+                                    false));
                     return out;
                 }
                 continue;
             }
             int to = cur.rung() + 1;
-            if (to > policy.ceiling() || to >= policy.rungs().size() || !policy.climbs(to, history, t)) return out;
-            if (policy.slip(to, history, t).isPresent()) return out;                      // it would only flap
-            String why = trustWords(false, scope, cur, to, because(policy.explainClimb(to, history, t), true));
+            if (to > policy.ceiling()
+                    || to >= policy.rungs().size()
+                    || !policy.climbs(to, history, t)) return out;
+            if (policy.slip(to, history, t).isPresent()) return out; // it would only flap
+            String why =
+                    trustWords(
+                            false,
+                            scope,
+                            cur,
+                            to,
+                            because(policy.explainClimb(to, history, t), true));
             if (policy.automatic()) {
-                LevelLog.Standing next = withRung(cur, to, trustWords(false, scope, cur, to, "climb: " + why), false);
-                if (log.write(scope, cur.version(), next, "promoted", cur.rungName(), "runtime", now(), policy.rulesText())) {
-                    out.add(new Change("promoted", scope, cur.rungName(), next.rungName(), next.reason(), "runtime", false));
+                LevelLog.Standing next =
+                        withRung(
+                                cur, to, trustWords(false, scope, cur, to, "climb: " + why), false);
+                if (log.write(
+                        scope,
+                        cur.version(),
+                        next,
+                        "promoted",
+                        cur.rungName(),
+                        "runtime",
+                        now(),
+                        policy.rulesText())) {
+                    out.add(
+                            new Change(
+                                    "promoted",
+                                    scope,
+                                    cur.rungName(),
+                                    next.rungName(),
+                                    next.reason(),
+                                    "runtime",
+                                    false));
                     return out;
                 }
                 continue;
@@ -261,83 +480,224 @@ public final class LadderEngine {
     }
 
     /**
-     * Why a scope moved, in the words a trust block has always used for it, so what its operators read in {@code history} does not change when it runs as a
-     * ladder: "8 cases, agreement lower bound 67.6% (raw 100.0%)" for a climb, and the rule's own sentence for a drop. A ladder written by hand says it with its
-     * conditions.
+     * Why a scope moved, in the words a trust block has always used for it, so what its operators
+     * read in {@code history} does not change when it runs as a ladder: "8 cases, agreement lower
+     * bound 67.6% (raw 100.0%)" for a climb, and the rule's own sentence for a drop. A ladder
+     * written by hand says it with its conditions.
      */
-    private String trustWords(boolean slip, String scope, LevelLog.Standing cur, int to, String generic) {
+    private String trustWords(
+            boolean slip, String scope, LevelLog.Standing cur, int to, String generic) {
         if (!policy.decision().isLadderFromTrust()) return generic;
-        io.github.llm4j.loom.autonomy.Ladder original = new io.github.llm4j.loom.autonomy.Ladder(policy.decision(), ledger, clock);
+        io.github.llm4j.loom.autonomy.Ladder original =
+                new io.github.llm4j.loom.autonomy.Ladder(policy.decision(), ledger, clock);
         if (slip) {
-            io.github.llm4j.loom.autonomy.LevelState state = new io.github.llm4j.loom.autonomy.LevelState(io.github.llm4j.loom.autonomy.Level.of(cur.rungName()), cur.epoch(),
-                    cur.identity(), cur.forced(), cur.at(), cur.reason(), cur.version());
-            return original.demotion(scope, state).map(io.github.llm4j.loom.autonomy.Ladder.Demotion::reason).orElse(generic);
+            io.github.llm4j.loom.autonomy.LevelState state =
+                    new io.github.llm4j.loom.autonomy.LevelState(
+                            io.github.llm4j.loom.autonomy.Level.of(cur.rungName()),
+                            cur.epoch(),
+                            cur.identity(),
+                            cur.forced(),
+                            cur.at(),
+                            cur.reason(),
+                            cur.version());
+            return original.demotion(scope, state)
+                    .map(io.github.llm4j.loom.autonomy.Ladder.Demotion::reason)
+                    .orElse(generic);
         }
-        io.github.llm4j.loom.autonomy.AgreementStats.Figures f = original.evaluate(scope, cur.epoch(), io.github.llm4j.loom.autonomy.Level.values()[to]).figures();
-        return String.format("%d cases, agreement lower bound %.1f%% (raw %.1f%%)", f.cases(), f.lowerBound() * 100, f.rate() * 100);
+        io.github.llm4j.loom.autonomy.AgreementStats.Figures f =
+                original.evaluate(
+                                scope,
+                                cur.epoch(),
+                                io.github.llm4j.loom.autonomy.Level.values()[to])
+                        .figures();
+        return String.format(
+                "%d cases, agreement lower bound %.1f%% (raw %.1f%%)",
+                f.cases(), f.lowerBound() * 100, f.rate() * 100);
     }
 
-    private LevelLog.Standing withRung(LevelLog.Standing cur, int rung, String reason, boolean forced) {
-        return new LevelLog.Standing(rung, policy.nameOf(rung), cur.version() + 1, cur.epoch(), cur.identity(), cur.servedModel(), forced, now(), reason, policy.fingerprint());
+    private LevelLog.Standing withRung(
+            LevelLog.Standing cur, int rung, String reason, boolean forced) {
+        return new LevelLog.Standing(
+                rung,
+                policy.nameOf(rung),
+                cur.version() + 1,
+                cur.epoch(),
+                cur.identity(),
+                cur.servedModel(),
+                forced,
+                now(),
+                reason,
+                policy.fingerprint());
     }
 
-    private Optional<Change> propose(String scope, LevelLog.Standing cur, int to, int cases, String why) {
+    private Optional<Change> propose(
+            String scope, LevelLog.Standing cur, int to, int cases, String why) {
         String target = policy.nameOf(to);
-        if (openProposal(scope).filter(p -> p.to().equals(target)).isPresent()) return Optional.empty();
+        if (openProposal(scope).filter(p -> p.to().equals(target)).isPresent())
+            return Optional.empty();
         for (Rec r : ledger.recordsOfKind(decision(), Rec.PROMOTION_DECIDED)) {
-            if (!"rejected".equals(r.str("result")) || !r.str("proposal").contains("#promotion#" + scope + "#" + target + "#" + cur.epoch() + "#")) continue;
+            if (!"rejected".equals(r.str("result"))
+                    || !r.str("proposal")
+                            .contains(
+                                    "#promotion#" + scope + "#" + target + "#" + cur.epoch() + "#"))
+                continue;
             int then = r.num("cases") == null ? 0 : r.num("cases").intValue();
-            if (cases < Math.ceil(then * 1.2)) return Optional.empty();                    // not asked again until the evidence has grown by a fifth
+            if (cases < Math.ceil(then * 1.2))
+                return Optional.empty(); // not asked again until the evidence has grown by a fifth
         }
-        String id = decision() + "#promotion#" + scope + "#" + target + "#" + cur.epoch() + "#" + cases;
-        io.github.llm4j.loom.autonomy.Seal.append(ledger, new Rec(id, decision(), Rec.PROMOTION_PROPOSED, now(), "", 1,
-                Rec.map("scope", scope, "to", target, "cases", cases, "why", why, "approver", policy.approver(), "epoch", cur.epoch())));
-        return Optional.of(new Change("proposed", scope, cur.rungName(), target, why + "; waiting for " + policy.approver(), "runtime", false));
+        String id =
+                decision() + "#promotion#" + scope + "#" + target + "#" + cur.epoch() + "#" + cases;
+        io.github.llm4j.loom.autonomy.Seal.append(
+                ledger,
+                new Rec(
+                        id,
+                        decision(),
+                        Rec.PROMOTION_PROPOSED,
+                        now(),
+                        "",
+                        1,
+                        Rec.map(
+                                "scope",
+                                scope,
+                                "to",
+                                target,
+                                "cases",
+                                cases,
+                                "why",
+                                why,
+                                "approver",
+                                policy.approver(),
+                                "epoch",
+                                cur.epoch())));
+        return Optional.of(
+                new Change(
+                        "proposed",
+                        scope,
+                        cur.rungName(),
+                        target,
+                        why + "; waiting for " + policy.approver(),
+                        "runtime",
+                        false));
     }
 
-    /** The open promotion proposal of the scope, if any: proposed, not answered, and still above where the scope stands. */
+    /**
+     * The open promotion proposal of the scope, if any: proposed, not answered, and still above
+     * where the scope stands.
+     */
     public Optional<Proposal> openProposal(String scope) {
         Optional<LevelLog.Standing> cur = log.current(scope);
         if (cur.isEmpty()) return Optional.empty();
-        List<String> answered = ledger.recordsOfKind(decision(), Rec.PROMOTION_DECIDED).stream().map(r -> r.str("proposal")).toList();
+        List<String> answered =
+                ledger.recordsOfKind(decision(), Rec.PROMOTION_DECIDED).stream()
+                        .map(r -> r.str("proposal"))
+                        .toList();
         Proposal open = null;
         for (Rec r : ledger.recordsOfKind(decision(), Rec.PROMOTION_PROPOSED)) {
             if (!scope.equals(r.str("scope")) || answered.contains(r.id())) continue;
             int to = policy.indexOf(r.str("to"));
             int epoch = r.num("epoch") == null ? 1 : r.num("epoch").intValue();
             if (to <= cur.get().rung() || epoch != cur.get().epoch()) continue;
-            open = new Proposal(r.id(), scope, r.str("to"), r.num("cases") == null ? 0 : r.num("cases").intValue(), r.str("why"), r.str("approver"));
+            open =
+                    new Proposal(
+                            r.id(),
+                            scope,
+                            r.str("to"),
+                            r.num("cases") == null ? 0 : r.num("cases").intValue(),
+                            r.str("why"),
+                            r.str("approver"));
         }
         return Optional.ofNullable(open);
     }
 
-    /** A proposal nobody answered that the scope has since caught up with (moved up by hand, say): there is nothing left to approve. */
+    /**
+     * A proposal nobody answered that the scope has since caught up with (moved up by hand, say):
+     * there is nothing left to approve.
+     */
     private Optional<Rec> moot(String scope) {
         Optional<LevelLog.Standing> cur = log.current(scope);
         if (cur.isEmpty()) return Optional.empty();
-        List<String> answered = ledger.recordsOfKind(decision(), Rec.PROMOTION_DECIDED).stream().map(r -> r.str("proposal")).toList();
+        List<String> answered =
+                ledger.recordsOfKind(decision(), Rec.PROMOTION_DECIDED).stream()
+                        .map(r -> r.str("proposal"))
+                        .toList();
         Rec found = null;
         for (Rec r : ledger.recordsOfKind(decision(), Rec.PROMOTION_PROPOSED)) {
             int epoch = r.num("epoch") == null ? 1 : r.num("epoch").intValue();
-            if (scope.equals(r.str("scope")) && !answered.contains(r.id()) && epoch == cur.get().epoch() && policy.indexOf(r.str("to")) <= cur.get().rung()) found = r;
+            if (scope.equals(r.str("scope"))
+                    && !answered.contains(r.id())
+                    && epoch == cur.get().epoch()
+                    && policy.indexOf(r.str("to")) <= cur.get().rung()) found = r;
         }
         return Optional.ofNullable(found);
     }
 
     /** Approves the open proposal of the scope and moves it up. */
     public Change approve(String scope, String by, String reason) {
-        Proposal p = openProposal(scope).orElseThrow(() -> new IllegalStateException(moot(scope)
-                .map(r -> "the scope is already at " + log.current(scope).orElseThrow().rungName())
-                .orElse("there is no open promotion proposal for " + shown(scope))));
+        Proposal p =
+                openProposal(scope)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                moot(scope)
+                                                        .map(
+                                                                r ->
+                                                                        "the scope is already at "
+                                                                                + log.current(scope)
+                                                                                        .orElseThrow()
+                                                                                        .rungName())
+                                                        .orElse(
+                                                                "there is no open promotion proposal for "
+                                                                        + shown(scope))));
         if (policy.approver() != null && !policy.approver().equals(by)) {
-            throw new IllegalStateException("only " + policy.approver() + " may approve moving up (you said " + by + ")");
+            throw new IllegalStateException(
+                    "only " + policy.approver() + " may approve moving up (you said " + by + ")");
         }
         for (int i = 0; i < RETRIES; i++) {
-            LevelLog.Standing cur = log.current(scope).orElseThrow(() -> new IllegalStateException("no such scope: " + scope));
-            LevelLog.Standing next = withRung(cur, policy.indexOf(p.to()), "approved by " + by + ": " + reason, false);
-            if (log.write(scope, cur.version(), next, "promoted", cur.rungName(), by, now(), policy.rulesText())) {
-                io.github.llm4j.loom.autonomy.Seal.append(ledger, new Rec(p.id() + "#approved", decision(), Rec.PROMOTION_DECIDED, now(), "", 1, Rec.map("proposal", p.id(), "result", "approved", "by", by, "reason", reason)));
-                return new Change("promoted", scope, cur.rungName(), next.rungName(), next.reason(), by, false);
+            LevelLog.Standing cur =
+                    log.current(scope)
+                            .orElseThrow(
+                                    () -> new IllegalStateException("no such scope: " + scope));
+            LevelLog.Standing next =
+                    withRung(
+                            cur,
+                            policy.indexOf(p.to()),
+                            "approved by " + by + ": " + reason,
+                            false);
+            if (log.write(
+                    scope,
+                    cur.version(),
+                    next,
+                    "promoted",
+                    cur.rungName(),
+                    by,
+                    now(),
+                    policy.rulesText())) {
+                io.github.llm4j.loom.autonomy.Seal.append(
+                        ledger,
+                        new Rec(
+                                p.id() + "#approved",
+                                decision(),
+                                Rec.PROMOTION_DECIDED,
+                                now(),
+                                "",
+                                1,
+                                Rec.map(
+                                        "proposal",
+                                        p.id(),
+                                        "result",
+                                        "approved",
+                                        "by",
+                                        by,
+                                        "reason",
+                                        reason)));
+                return new Change(
+                        "promoted",
+                        scope,
+                        cur.rungName(),
+                        next.rungName(),
+                        next.reason(),
+                        by,
+                        false);
             }
         }
         throw new IllegalStateException("the level changed while you were approving; look again");
@@ -345,12 +705,37 @@ public final class LadderEngine {
 
     /** Rejects the open proposal; it is not asked again until the evidence has grown by a fifth. */
     public Change reject(String scope, String by, String reason) {
-        Proposal p = openProposal(scope).orElseThrow(() -> new IllegalStateException("there is no open promotion proposal for " + shown(scope)));
+        Proposal p =
+                openProposal(scope)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "there is no open promotion proposal for "
+                                                        + shown(scope)));
         if (policy.approver() != null && !policy.approver().equals(by)) {
-            throw new IllegalStateException("only " + policy.approver() + " may decide on moving up (you said " + by + ")");
+            throw new IllegalStateException(
+                    "only " + policy.approver() + " may decide on moving up (you said " + by + ")");
         }
-        io.github.llm4j.loom.autonomy.Seal.append(ledger, new Rec(p.id() + "#rejected", decision(), Rec.PROMOTION_DECIDED, now(), "", 1,
-                Rec.map("proposal", p.id(), "result", "rejected", "by", by, "reason", reason, "cases", p.cases())));
+        io.github.llm4j.loom.autonomy.Seal.append(
+                ledger,
+                new Rec(
+                        p.id() + "#rejected",
+                        decision(),
+                        Rec.PROMOTION_DECIDED,
+                        now(),
+                        "",
+                        1,
+                        Rec.map(
+                                "proposal",
+                                p.id(),
+                                "result",
+                                "rejected",
+                                "by",
+                                by,
+                                "reason",
+                                reason,
+                                "cases",
+                                p.cases())));
         LevelLog.Standing cur = log.current(scope).orElseThrow();
         return new Change("rejected", scope, cur.rungName(), p.to(), reason, by, false);
     }
@@ -360,30 +745,66 @@ public final class LadderEngine {
     }
 
     /**
-     * Sets a rung by hand. Going up beyond the ceiling or beyond what the record supports needs {@code force} (and is then marked forced); coming
-     * down never does.
+     * Sets a rung by hand. Going up beyond the ceiling or beyond what the record supports needs
+     * {@code force} (and is then marked forced); coming down never does.
      */
     public Change set(String scope, String rungName, boolean force, String reason, String by) {
         int to = policy.indexOf(rungName);
-        if (to < 0) throw new IllegalStateException("no rung named " + rungName + " in ladder " + policy.ladderName() + " (rungs: " + String.join(", ", policy.rungs()) + ")");
+        if (to < 0)
+            throw new IllegalStateException(
+                    "no rung named "
+                            + rungName
+                            + " in ladder "
+                            + policy.ladderName()
+                            + " (rungs: "
+                            + String.join(", ", policy.rungs())
+                            + ")");
         for (int i = 0; i < RETRIES; i++) {
-            LevelLog.Standing cur = log.current(scope).orElseThrow(() -> new IllegalStateException("no such scope: \"" + scope + "\" (scopes seen: "
-                    + String.join(", ", log.all().keySet()) + ")"));
+            LevelLog.Standing cur =
+                    log.current(scope)
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalStateException(
+                                                    "no such scope: \""
+                                                            + scope
+                                                            + "\" (scopes seen: "
+                                                            + String.join(", ", log.all().keySet())
+                                                            + ")"));
             boolean forced = false;
             if (to > cur.rung()) {
                 boolean beyond = to > policy.ceiling();
                 V.Cs history = history(scope, cur);
                 boolean unsupported = false;
-                for (int r = cur.rung() + 1; r <= to; r++) if (!policy.climbs(r, history, now().toEpochMilli())) unsupported = true;
+                for (int r = cur.rung() + 1; r <= to; r++)
+                    if (!policy.climbs(r, history, now().toEpochMilli())) unsupported = true;
                 if ((beyond || unsupported) && !force) {
-                    throw new IllegalStateException("moving " + scope + " up to " + rungName + " is " + (beyond ? "above the ceiling (" + policy.nameOf(policy.ceiling()) + ")" : "not supported by the evidence")
-                            + "; add --force to do it anyway (it is then shown as forced)");
+                    throw new IllegalStateException(
+                            "moving "
+                                    + scope
+                                    + " up to "
+                                    + rungName
+                                    + " is "
+                                    + (beyond
+                                            ? "above the ceiling ("
+                                                    + policy.nameOf(policy.ceiling())
+                                                    + ")"
+                                            : "not supported by the evidence")
+                                    + "; add --force to do it anyway (it is then shown as forced)");
                 }
                 forced = beyond || unsupported;
             }
             LevelLog.Standing next = withRung(cur, to, reason, forced);
-            if (log.write(scope, cur.version(), next, "set", cur.rungName(), by, now(), policy.rulesText())) {
-                return new Change("set", scope, cur.rungName(), next.rungName(), reason, by, forced);
+            if (log.write(
+                    scope,
+                    cur.version(),
+                    next,
+                    "set",
+                    cur.rungName(),
+                    by,
+                    now(),
+                    policy.rulesText())) {
+                return new Change(
+                        "set", scope, cur.rungName(), next.rungName(), reason, by, forced);
             }
         }
         throw new IllegalStateException("the level changed while you were changing it; look again");
@@ -403,20 +824,38 @@ public final class LadderEngine {
 
     /** Records a later fact about a case; it may cause a slip. */
     public List<Change> outcome(String caseId, String name, Object value, String note) {
-        LCase c = cases().stream().filter(x -> x.id().equals(caseId) && !x.superseded()).findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("there is no case " + caseId + " in decision " + decision()));
+        LCase c =
+                cases().stream()
+                        .filter(x -> x.id().equals(caseId) && !x.superseded())
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "there is no case "
+                                                        + caseId
+                                                        + " in decision "
+                                                        + decision()));
         String digest = Integer.toHexString((String.valueOf(value) + "|" + note).hashCode());
-        ledger.append(new Rec(caseId + "#outcome#" + name + "#" + digest, decision(), Rec.OUTCOME, now(), caseId, c.generation(),
-                Rec.map("result", name, "value", value, "note", note)));
+        ledger.append(
+                new Rec(
+                        caseId + "#outcome#" + name + "#" + digest,
+                        decision(),
+                        Rec.OUTCOME,
+                        now(),
+                        caseId,
+                        c.generation(),
+                        Rec.map("result", name, "value", value, "note", note)));
         return afterResponse(c.scope());
     }
 
-    // ---- change of rules -----------------------------------------------------------------------------------------------
+    // ---- change of rules
+    // -----------------------------------------------------------------------------------------------
 
     /**
-     * Checks every scope against the rules as the script now stands. A scope that no longer meets what put it where it is (a tightened condition, a
-     * lowered ceiling) is demoted at once; the new rules are recorded. Nothing is promoted by a change of rules: a scope that now qualifies for more
-     * climbs with its next case, the usual way.
+     * Checks every scope against the rules as the script now stands. A scope that no longer meets
+     * what put it where it is (a tightened condition, a lowered ceiling) is demoted at once; the
+     * new rules are recorded. Nothing is promoted by a change of rules: a scope that now qualifies
+     * for more climbs with its next case, the usual way.
      */
     public List<Change> reevaluate() {
         List<Change> out = new ArrayList<>();
@@ -426,11 +865,33 @@ public final class LadderEngine {
                 LevelLog.Standing cur = log.current(scope).orElse(null);
                 if (cur == null || cur.rules().equals(fingerprint)) break;
                 if (cur.rules().equals(LevelLog.LEGACY) || policy.decision().isLadderFromTrust()) {
-                    // a standing the original engine earned is adopted as it stands, and so is the standing of a trust block whose rules were edited: a trust block's
-                    // level has only ever changed by its drop rules and by approval, so editing a threshold does not demote anyone. The ladder judges what comes next.
-                    LevelLog.Standing adopted = new LevelLog.Standing(cur.rung(), cur.rungName(), cur.version() + 1, cur.epoch(), cur.identity(), cur.servedModel(), cur.forced(),
-                            now(), cur.rules().equals(LevelLog.LEGACY) ? "adopted from the original engine" : "the trust block was edited; the standing is kept", fingerprint);
-                    if (log.write(scope, cur.version(), adopted, "rules", cur.rungName(), "runtime", now(), policy.rulesText())) break;
+                    // a standing the original engine earned is adopted as it stands, and so is the
+                    // standing of a trust block whose rules were edited: a trust block's
+                    // level has only ever changed by its drop rules and by approval, so editing a
+                    // threshold does not demote anyone. The ladder judges what comes next.
+                    LevelLog.Standing adopted =
+                            new LevelLog.Standing(
+                                    cur.rung(),
+                                    cur.rungName(),
+                                    cur.version() + 1,
+                                    cur.epoch(),
+                                    cur.identity(),
+                                    cur.servedModel(),
+                                    cur.forced(),
+                                    now(),
+                                    cur.rules().equals(LevelLog.LEGACY)
+                                            ? "adopted from the original engine"
+                                            : "the trust block was edited; the standing is kept",
+                                    fingerprint);
+                    if (log.write(
+                            scope,
+                            cur.version(),
+                            adopted,
+                            "rules",
+                            cur.rungName(),
+                            "runtime",
+                            now(),
+                            policy.rulesText())) break;
                     continue;
                 }
                 V.Cs history = history(scope, cur);
@@ -443,21 +904,55 @@ public final class LadderEngine {
                 }
                 for (int r = target; r >= 1; r--) {
                     if (!policy.climbs(r, history, t)) {
-                        why = (why.isEmpty() ? "" : why + "; ") + because(policy.explainClimb(r, history, t), false);
+                        why =
+                                (why.isEmpty() ? "" : why + "; ")
+                                        + because(policy.explainClimb(r, history, t), false);
                         target = r - 1;
                     } else if (policy.slip(r, history, t).isPresent()) {
-                        why = (why.isEmpty() ? "" : why + "; ") + because(policy.explainSlip(r, history, t), true);
+                        why =
+                                (why.isEmpty() ? "" : why + "; ")
+                                        + because(policy.explainSlip(r, history, t), true);
                         target = r - 1;
                     } else {
                         break;
                     }
                 }
                 boolean demoted = target < cur.rung();
-                String reason = demoted ? "rules changed: " + why : "rules changed: the standing still holds";
-                LevelLog.Standing next = new LevelLog.Standing(target, policy.nameOf(target), cur.version() + 1, cur.epoch(), cur.identity(), cur.servedModel(),
-                        !demoted && cur.forced(), now(), reason, fingerprint);
-                if (log.write(scope, cur.version(), next, demoted ? "demoted" : "rules", cur.rungName(), "runtime", now(), policy.rulesText())) {
-                    if (demoted) out.add(new Change("demoted", scope, cur.rungName(), next.rungName(), reason, "runtime", false));
+                String reason =
+                        demoted
+                                ? "rules changed: " + why
+                                : "rules changed: the standing still holds";
+                LevelLog.Standing next =
+                        new LevelLog.Standing(
+                                target,
+                                policy.nameOf(target),
+                                cur.version() + 1,
+                                cur.epoch(),
+                                cur.identity(),
+                                cur.servedModel(),
+                                !demoted && cur.forced(),
+                                now(),
+                                reason,
+                                fingerprint);
+                if (log.write(
+                        scope,
+                        cur.version(),
+                        next,
+                        demoted ? "demoted" : "rules",
+                        cur.rungName(),
+                        "runtime",
+                        now(),
+                        policy.rulesText())) {
+                    if (demoted)
+                        out.add(
+                                new Change(
+                                        "demoted",
+                                        scope,
+                                        cur.rungName(),
+                                        next.rungName(),
+                                        reason,
+                                        "runtime",
+                                        false));
                     break;
                 }
             }

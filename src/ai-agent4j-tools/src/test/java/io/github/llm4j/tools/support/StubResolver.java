@@ -10,13 +10,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** A DNS table: each host answers from a queue (the last answer repeats), and every lookup is counted. */
+/**
+ * A DNS table: each host answers from a queue (the last answer repeats), and every lookup is
+ * counted.
+ */
 public final class StubResolver implements NetPolicy.Resolver {
 
     private final Map<String, Deque<List<InetAddress>>> answers = new HashMap<>();
     private final Map<String, Integer> lookups = new HashMap<>();
 
-    /** Adds an answer for the host; several calls make a sequence (a changing answer, for rebinding tests). */
+    /**
+     * Adds an answer for the host; several calls make a sequence (a changing answer, for rebinding
+     * tests).
+     */
     public StubResolver answer(String host, String... addresses) {
         List<InetAddress> list = new ArrayList<>();
         for (String a : addresses) list.add(literal(a));
@@ -24,7 +30,10 @@ public final class StubResolver implements NetPolicy.Resolver {
         return this;
     }
 
-    /** An IPv4-mapped IPv6 answer ({@code ::ffff:a.b.c.d}) that stays an {@link java.net.Inet6Address}, as a custom resolver could return. */
+    /**
+     * An IPv4-mapped IPv6 answer ({@code ::ffff:a.b.c.d}) that stays an {@link
+     * java.net.Inet6Address}, as a custom resolver could return.
+     */
     public StubResolver mapped(String host, int a, int b, int c, int d) {
         byte[] bytes = new byte[16];
         bytes[10] = (byte) 0xff;
@@ -34,7 +43,8 @@ public final class StubResolver implements NetPolicy.Resolver {
         bytes[14] = (byte) c;
         bytes[15] = (byte) d;
         try {
-            answers.computeIfAbsent(host, h -> new ArrayDeque<>()).add(List.of(java.net.Inet6Address.getByAddress(host, bytes, 0)));
+            answers.computeIfAbsent(host, h -> new ArrayDeque<>())
+                    .add(List.of(java.net.Inet6Address.getByAddress(host, bytes, 0)));
         } catch (UnknownHostException e) {
             throw new IllegalArgumentException(e);
         }

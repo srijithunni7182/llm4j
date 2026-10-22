@@ -1,0 +1,11 @@
+{
+ "model": "jev-latest",
+ "state": "hello",
+ "questions": {
+  "k": {
+   "type": "choice",
+   "instructions": "Which?",
+   "criteria": {}
+  }
+ }
+}

@@ -21,7 +21,13 @@ class CheckMissingFileTest {
         try {
             CommandLine cli = WeaveCLI.commandLine();
             cli.setOut(new java.io.PrintWriter(out, true));
-            assertThat(cli.execute("check", dir.resolve("src/src/main.loom").toString(), "--no-env", "--no-env-file")).isEqualTo(2);
+            assertThat(
+                            cli.execute(
+                                    "check",
+                                    dir.resolve("src/src/main.loom").toString(),
+                                    "--no-env",
+                                    "--no-env-file"))
+                    .isEqualTo(2);
         } finally {
             System.setOut(old);
         }
@@ -31,7 +37,9 @@ class CheckMissingFileTest {
     @Test
     void aScriptWithCodeStepsSaysThatTheCodeInsideThemIsNotChecked() throws Exception {
         Path script = dir.resolve("main.loom");
-        java.nio.file.Files.writeString(script, "workflow Main(text) {\n    run Slugify(title = text) -> slug\n    note \"{slug}\"\n}\n");
+        java.nio.file.Files.writeString(
+                script,
+                "workflow Main(text) {\n    run Slugify(title = text) -> slug\n    note \"{slug}\"\n}\n");
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         PrintStream old = System.out;
         System.setOut(new PrintStream(out, true));
@@ -42,12 +50,19 @@ class CheckMissingFileTest {
         } finally {
             System.setOut(old);
         }
-        assertThat(out.toString()).contains("the code inside Slugify is not read by weave check or weave audit");
+        assertThat(out.toString())
+                .contains("the code inside Slugify is not read by weave check or weave audit");
     }
 
     @Test
     void anAndInAConditionExplainsThatThereIsNoAnd() {
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new io.github.llm4j.loom.lexer.Lexer("alt (a == \"x\" && b == \"y\") { }").tokenize())
-                .hasMessageContaining("Unexpected character '&'").hasMessageContaining("there is no && or ||").hasMessageContaining("nest alt blocks");
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () ->
+                                new io.github.llm4j.loom.lexer.Lexer(
+                                                "alt (a == \"x\" && b == \"y\") { }")
+                                        .tokenize())
+                .hasMessageContaining("Unexpected character '&'")
+                .hasMessageContaining("there is no && or ||")
+                .hasMessageContaining("nest alt blocks");
     }
 }

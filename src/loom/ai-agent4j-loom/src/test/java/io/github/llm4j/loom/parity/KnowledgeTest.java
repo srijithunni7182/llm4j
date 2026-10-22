@@ -27,8 +27,7 @@ import org.junit.jupiter.api.io.TempDir;
 /** Verification plan V5.1–V5.13. */
 class KnowledgeTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     final HashingEmbeddingProvider embeddings = new HashingEmbeddingProvider();
     final List<String> tasks = Collections.synchronizedList(new ArrayList<>());
@@ -40,9 +39,14 @@ class KnowledgeTest {
     @BeforeEach
     void fixture() throws Exception {
         Path kb = Files.createDirectories(dir.resolve("kb"));
-        Files.writeString(kb.resolve("refunds.md"), "# Refunds\nRefunds are issued within 14 days of the return arriving.");
-        Files.writeString(kb.resolve("shipping.txt"), "Orders ship in 2 business days from our warehouse.");
-        Files.writeString(kb.resolve("page.html"), "<html><body><p>Returns need a receipt</p><script>var x=1;</script></body></html>");
+        Files.writeString(
+                kb.resolve("refunds.md"),
+                "# Refunds\nRefunds are issued within 14 days of the return arriving.");
+        Files.writeString(
+                kb.resolve("shipping.txt"), "Orders ship in 2 business days from our warehouse.");
+        Files.writeString(
+                kb.resolve("page.html"),
+                "<html><body><p>Returns need a receipt</p><script>var x=1;</script></body></html>");
         Files.write(kb.resolve("logo.png"), new byte[] {1, 2, 3});
     }
 
@@ -54,7 +58,11 @@ class KnowledgeTest {
                 tasks.add(r.getMessages().get(r.getMessages().size() - 1).getContent());
                 int i = calls.getAndIncrement();
                 String content = i < answers.size() ? answers.get(i) : ToolsTest.done("ok");
-                return LLMResponse.builder().content(content).model("m").tokenUsage(10, 5, 15).build();
+                return LLMResponse.builder()
+                        .content(content)
+                        .model("m")
+                        .tokenUsage(10, 5, 15)
+                        .build();
             }
 
             @Override
@@ -68,19 +76,35 @@ class KnowledgeTest {
         return executor(source, null);
     }
 
-    HarnessExecutor executor(String source, java.util.function.Consumer<HarnessExecutor> configure) {
+    HarnessExecutor executor(
+            String source, java.util.function.Consumer<HarnessExecutor> configure) {
         LLMClient m = model();
-        HarnessExecutor e = new HarnessExecutor(new LoomParser(new Lexer(source).tokenize()).parseScript(), new ToolRegistry(), x -> m);
+        HarnessExecutor e =
+                new HarnessExecutor(
+                        new LoomParser(new Lexer(source).tokenize()).parseScript(),
+                        new ToolRegistry(),
+                        x -> m);
         e.setBaseDir(dir);
         e.setEmbeddingFactory(model -> embeddings);
-        e.setAuditLogger(new io.github.llm4j.audit.AuditLogger() {
-            @Override public void logAgentDecision(io.github.llm4j.audit.AuditEvent event) { }
-            @Override public void logToolExecution(String s, String t, String i, String o, java.time.Instant ts) { }
-            @Override public void logPromptUsage(String s, String p, String v, java.time.Instant ts) { }
-            @Override public void logConversationEvent(String s, String u, String type, Map<String, Object> data) {
-                audit.add(type + " " + data);
-            }
-        });
+        e.setAuditLogger(
+                new io.github.llm4j.audit.AuditLogger() {
+                    @Override
+                    public void logAgentDecision(io.github.llm4j.audit.AuditEvent event) {}
+
+                    @Override
+                    public void logToolExecution(
+                            String s, String t, String i, String o, java.time.Instant ts) {}
+
+                    @Override
+                    public void logPromptUsage(
+                            String s, String p, String v, java.time.Instant ts) {}
+
+                    @Override
+                    public void logConversationEvent(
+                            String s, String u, String type, Map<String, Object> data) {
+                        audit.add(type + " " + data);
+                    }
+                });
         if (configure != null) configure.accept(e);
         e.initialize();
         return e;
@@ -91,13 +115,17 @@ class KnowledgeTest {
                 knowledge KB { source: "kb" chunk_size: 200 overlap: 20 embedding: "test/hash" top_k: 1 %s }
                 agent Support { model: "m" knowledge: [KB] }
                 workflow Main() { delegate "%s" to Support -> answer }
-                """.formatted(kbOptions, task);
+                """
+                .formatted(kbOptions, task);
     }
 
     @Test
     void v5_1_theRightPassageIsInTheContext() {
         executor(script("", "How long do refunds take?")).executeWorkflow("Main", Map.of());
-        assertThat(tasks.get(0)).contains("Question: Relevant knowledge").contains("(refunds.md)").contains("14 days")
+        assertThat(tasks.get(0))
+                .contains("Question: Relevant knowledge")
+                .contains("(refunds.md)")
+                .contains("14 days")
                 .doesNotContain("shipping.txt");
     }
 
@@ -111,10 +139,19 @@ class KnowledgeTest {
     void v5_3_htmlIsStrippedAndOtherFilesSkipped() {
         HarnessExecutor e = executor(script("top_k: 3", "What do returns need?"));
         e.executeWorkflow("Main", Map.of());
-        assertThat(tasks.get(0)).contains("(page.html) Returns need a receipt").doesNotContain("<p>").doesNotContain("var x");
+        assertThat(tasks.get(0))
+                .contains("(page.html) Returns need a receipt")
+                .doesNotContain("<p>")
+                .doesNotContain("var x");
         assertThat(e.getKnowledge("KB").stats().skipped()).isEqualTo(1);
         assertThat(e.getKnowledge("KB").stats().files()).isEqualTo(3);
-        assertThat(audit).anySatisfy(a -> assertThat(a).startsWith("knowledge_indexed").contains("skipped=1").contains("files=3"));
+        assertThat(audit)
+                .anySatisfy(
+                        a ->
+                                assertThat(a)
+                                        .startsWith("knowledge_indexed")
+                                        .contains("skipped=1")
+                                        .contains("files=3"));
     }
 
     @Test
@@ -148,8 +185,12 @@ class KnowledgeTest {
 
     @Test
     void v5_8_toolMode() {
-        answers = List.of(ToolsTest.call("search_kb", "{\"query\": \"refunds\"}"), ToolsTest.done("14 days"));
-        executor(script("mode: tool", "How long do refunds take?")).executeWorkflow("Main", Map.of());
+        answers =
+                List.of(
+                        ToolsTest.call("search_kb", "{\"query\": \"refunds\"}"),
+                        ToolsTest.done("14 days"));
+        executor(script("mode: tool", "How long do refunds take?"))
+                .executeWorkflow("Main", Map.of());
         assertThat(tasks.get(0)).doesNotContain("Relevant knowledge");
         assertThat(systems.get(0)).contains("search_kb");
         assertThat(tasks.get(1)).contains("(refunds.md)").contains("14 days");
@@ -158,7 +199,8 @@ class KnowledgeTest {
     @Test
     void v5_9_aReplayedStepDoesNotRetrieve() {
         RunJournal journal = RunJournal.inMemory();
-        executor(script("", "refunds?"), e -> e.setJournal(journal)).executeWorkflow("Main", Map.of());
+        executor(script("", "refunds?"), e -> e.setJournal(journal))
+                .executeWorkflow("Main", Map.of());
         embeddings.embedded.set(0);
         HarnessExecutor replay = executor(script("", "refunds?"), e -> e.setJournal(journal));
         int afterIndex = embeddings.embedded.get();
@@ -168,66 +210,106 @@ class KnowledgeTest {
 
     @Test
     void v5_10_legacyPathAndType() {
-        HarnessExecutor e = executor("""
+        HarnessExecutor e =
+                executor(
+                        """
                 knowledge KB { type: "RAG" path: "kb" chunk_size: 200 embedding: "test/hash" }
                 agent Support { model: "m" knowledge: [KB] }
                 workflow Main() { delegate "refunds?" to Support -> answer }
                 """);
         e.executeWorkflow("Main", Map.of());
         assertThat(tasks.get(0)).contains("Relevant knowledge");
-        List<ScriptValidator.Problem> problems = new ScriptValidator().validate(
-                new LoomParser(new Lexer("knowledge KB { type: \"RAG\" path: \"kb\" embedding: \"test/hash\" }").tokenize()).parseScript(),
-                e.validationContext());
-        assertThat(problems).singleElement().satisfies(p -> {
-            assertThat(p.severity()).isEqualTo(ScriptValidator.Severity.WARNING);
-            assertThat(p.message()).contains("type: is no longer used");
-        });
+        List<ScriptValidator.Problem> problems =
+                new ScriptValidator()
+                        .validate(
+                                new LoomParser(
+                                                new Lexer(
+                                                                "knowledge KB { type: \"RAG\" path: \"kb\" embedding: \"test/hash\" }")
+                                                        .tokenize())
+                                        .parseScript(),
+                                e.validationContext());
+        assertThat(problems)
+                .singleElement()
+                .satisfies(
+                        p -> {
+                            assertThat(p.severity()).isEqualTo(ScriptValidator.Severity.WARNING);
+                            assertThat(p.message()).contains("type: is no longer used");
+                        });
     }
 
     @Test
     void v5_11_badSourcesAndEmbeddings() {
-        assertThatThrownBy(() -> executor("knowledge K { source: \"missing\" embedding: \"test/hash\" }"))
+        assertThatThrownBy(
+                        () ->
+                                executor(
+                                        "knowledge K { source: \"missing\" embedding: \"test/hash\" }"))
                 .hasMessageContaining("source missing does not exist");
         LLMClient m = model();
-        HarnessExecutor real = new HarnessExecutor(new LoomParser(new Lexer("""
+        HarnessExecutor real =
+                new HarnessExecutor(
+                        new LoomParser(
+                                        new Lexer(
+                                                        """
                 knowledge K1 { source: "kb" embedding: "nope/x" }
                 knowledge K2 { source: "kb" embedding: "gemini/text-embedding-004" }
                 knowledge K3 { source: "kb" }
                 knowledge K4 { source: "kb" embedding: "test/hash" chunk_size: 50 overlap: 50 }
-                """).tokenize()).parseScript(), new ToolRegistry(), x -> m);
+                """)
+                                                .tokenize())
+                                .parseScript(),
+                        new ToolRegistry(),
+                        x -> m);
         real.setBaseDir(dir);
         real.setEnvLookup(Map.<String, String>of()::get);
         assertThatThrownBy(real::initialize)
                 .hasMessageContaining("line 1: knowledge K1: unknown embedding model \"nope/x\"")
-                .hasMessageContaining("line 2: knowledge K2: embedding gemini/text-embedding-004 needs GEMINI_API_KEY (an environment variable or a secret)")
+                .hasMessageContaining(
+                        "line 2: knowledge K2: embedding gemini/text-embedding-004 needs GEMINI_API_KEY (an environment variable or a secret)")
                 .hasMessageContaining("line 3: knowledge K3: needs embedding:")
-                .hasMessageContaining("line 4: knowledge K4: overlap must be smaller than chunk_size");
+                .hasMessageContaining(
+                        "line 4: knowledge K4: overlap must be smaller than chunk_size");
     }
 
     @Test
     void v5_11b_addonEmbeddingsNeedTheirEnginesOnTheClasspath() {
-        // The addons engines (onnxruntime, DJL) are optional dependencies, so the weave jar does not carry them: a script that names one
+        // The addons engines (onnxruntime, DJL) are optional dependencies, so the weave jar does
+        // not carry them: a script that names one
         // gets a message saying what to add, not a NoClassDefFoundError at run time.
-        io.github.llm4j.loom.knowledge.DefaultEmbeddingFactory f = new io.github.llm4j.loom.knowledge.DefaultEmbeddingFactory(k -> null);
-        assertThat(f.problem("onnx/model.onnx|tokenizer.json")).contains("needs the ai-agent4j-addons module and its onnxruntime dependency");
-        assertThat(f.problem("djl/djl://ai.djl.huggingface/x")).contains("needs the ai-agent4j-addons module and its ai.djl dependencies");
-        assertThatThrownBy(() -> f.create("onnx/model.onnx|tokenizer.json")).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("onnxruntime");
+        io.github.llm4j.loom.knowledge.DefaultEmbeddingFactory f =
+                new io.github.llm4j.loom.knowledge.DefaultEmbeddingFactory(k -> null);
+        assertThat(f.problem("onnx/model.onnx|tokenizer.json"))
+                .contains("needs the ai-agent4j-addons module and its onnxruntime dependency");
+        assertThat(f.problem("djl/djl://ai.djl.huggingface/x"))
+                .contains("needs the ai-agent4j-addons module and its ai.djl dependencies");
+        assertThatThrownBy(() -> f.create("onnx/model.onnx|tokenizer.json"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("onnxruntime");
     }
 
     @Test
     void v5_12_aKnowledgeBaseWithNothingToIndex() throws Exception {
         Files.createDirectories(dir.resolve("images"));
         Files.write(dir.resolve("images/a.png"), new byte[] {1});
-        HarnessExecutor e = executor("""
+        HarnessExecutor e =
+                executor(
+                        """
                 knowledge Pics { source: "images" embedding: "test/hash" }
                 agent A { model: "m" knowledge: [Pics] }
                 workflow Main() { delegate "anything?" to A -> x }
                 """);
         e.executeWorkflow("Main", Map.of());
         assertThat(tasks.get(0)).doesNotContain("Relevant knowledge");
-        assertThat(new ScriptValidator().validate(new LoomParser(new Lexer("knowledge Pics { source: \"images\" embedding: \"test/hash\" }")
-                .tokenize()).parseScript(), e.validationContext()))
-                .singleElement().satisfies(p -> assertThat(p.message()).contains("has no text files to index"));
+        assertThat(
+                        new ScriptValidator()
+                                .validate(
+                                        new LoomParser(
+                                                        new Lexer(
+                                                                        "knowledge Pics { source: \"images\" embedding: \"test/hash\" }")
+                                                                .tokenize())
+                                                .parseScript(),
+                                        e.validationContext()))
+                .singleElement()
+                .satisfies(p -> assertThat(p.message()).contains("has no text files to index"));
     }
 
     @Test
@@ -240,7 +322,9 @@ class KnowledgeTest {
 
     @Test
     void aSingleFileSourceAndMemoryStore() {
-        HarnessExecutor e = executor("""
+        HarnessExecutor e =
+                executor(
+                        """
                 knowledge One { source: "kb/refunds.md" embedding: "test/hash" store: memory }
                 agent A { model: "m" knowledge: [One] }
                 workflow Main() { delegate "refunds?" to A -> x }

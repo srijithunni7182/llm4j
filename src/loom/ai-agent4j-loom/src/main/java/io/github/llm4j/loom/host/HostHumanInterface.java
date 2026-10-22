@@ -6,8 +6,9 @@ import java.time.Clock;
 import java.util.List;
 
 /**
- * A person who answers later. The first time a step asks, the question is recorded and the listeners told, and the run suspends, holding no thread. When
- * the run is resumed it asks again and either gets the answer given meanwhile or suspends again.
+ * A person who answers later. The first time a step asks, the question is recorded and the
+ * listeners told, and the run suspends, holding no thread. When the run is resumed it asks again
+ * and either gets the answer given meanwhile or suspends again.
  */
 final class HostHumanInterface implements HumanInterface {
 
@@ -16,7 +17,8 @@ final class HostHumanInterface implements HumanInterface {
     private final List<QuestionListener> listeners;
     private final Clock clock;
 
-    HostHumanInterface(String runId, AnswerBook book, List<QuestionListener> listeners, Clock clock) {
+    HostHumanInterface(
+            String runId, AnswerBook book, List<QuestionListener> listeners, Clock clock) {
         this.runId = runId;
         this.book = book;
         this.listeners = listeners;
@@ -25,7 +27,8 @@ final class HostHumanInterface implements HumanInterface {
 
     @Override
     public String promptHuman(String message) {
-        throw new IllegalStateException("a question that is answered later needs the step it belongs to");
+        throw new IllegalStateException(
+                "a question that is answered later needs the step it belongs to");
     }
 
     @Override

@@ -250,6 +250,14 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**steerable** `: true`\n\nInside an agent: the person the run serves may steer it while it works. A steer corrects the agent\'s reasoning and never changes the workflow. Off unless declared; `weave audit` lists it as an input channel.',
     shared_prompt:
         '**shared_prompt** `: "text"` or `: prompt "id"`\n\nTop level: text put in front of every agent\'s own system prompt, the same bytes for every agent. `prompt "id"` takes a prompt file like an agent\'s `prompt:`. Keep it stable (no dates or run ids) so a provider that reuses the start of a prompt can reuse it across agents.',
+    intentclassifier:
+        '**intentclassifier** `Name { model: "Jev/jev-latest"  choose kind: a | b  ask urgent: "…"  rate tone: low | high  samples: 3  pii: mask  confidence at least 0.8 else escalate }`\n\nDeclares typed questions answered in one call by Jev or a chat model. The text to classify is data, never instructions. `unsure` is produced only by the confidence rule.',
+    intentclassify:
+        '**intentclassify** `Classifier on <text> -> <result> [retry N] [timeout 30s] [on_failure { ... }]`\n\nPuts the classifier\'s questions to the text and binds one label per question: `result.kind`, `result.urgent` (`yes`/`no`), with `result.kind_confidence`, `result.confidence`, `result.calibrated`. Branch on `unsure`; do not let a label alone approve a payment.',
+    choose:
+        '**choose** `name: a | b | c`\n\nInside an `intentclassifier`: pick exactly one label.',
+    samples:
+        '**samples** `: N`\n\nInside an `intentclassifier` on a chat model: ask N times and take the majority; the agreement is the confidence. No effect on Jev.',
     supervise:
         '**supervise** `Agent { when looping(3) { steer "…" once }  when tool_failing(Tool, 3) { wrap_up }  when context > 90% { wrap_up }  when steps > 15 { cancel use partial } }`\n\nRules that watch an agent while it works and act without a person. Every signal is a count of what the agent did, never a model\'s opinion. A rule fires when its condition becomes true; `once` makes it fire at most once in the step.',
     looping:

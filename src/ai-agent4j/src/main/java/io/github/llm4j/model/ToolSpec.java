@@ -7,7 +7,8 @@ import java.util.regex.Pattern;
 /**
  * A tool as it is offered to a model that supports native tool calling.
  *
- * @param name the function name: letters, digits, {@code _} or {@code -}, at most 64 characters (the common ground of Gemini and Claude)
+ * @param name the function name: letters, digits, {@code _} or {@code -}, at most 64 characters
+ *     (the common ground of Gemini and Claude)
  * @param description what the tool does and when to use it
  * @param parameters a JSON Schema object describing the arguments
  */
@@ -18,7 +19,8 @@ public record ToolSpec(String name, String description, Map<String, Object> para
     public ToolSpec {
         Objects.requireNonNull(name, "name cannot be null");
         if (!isLegalName(name)) {
-            throw new IllegalArgumentException("a tool name must be 1-64 letters, digits, _ or -: " + name);
+            throw new IllegalArgumentException(
+                    "a tool name must be 1-64 letters, digits, _ or -: " + name);
         }
         description = description == null ? "" : description;
         parameters = parameters == null ? ToolSchema.permissive() : Map.copyOf(parameters);

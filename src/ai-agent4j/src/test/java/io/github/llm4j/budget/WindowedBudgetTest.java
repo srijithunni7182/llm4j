@@ -26,7 +26,12 @@ class WindowedBudgetTest {
     private final MutableClock clock = new MutableClock();
 
     private Budget hourly(long tokens) {
-        return Budget.builder().name("hourly").tokens(tokens).window(Window.HOUR).clock(clock).build();
+        return Budget.builder()
+                .name("hourly")
+                .tokens(tokens)
+                .window(Window.HOUR)
+                .clock(clock)
+                .build();
     }
 
     private static Spent spent(long prompt, long completion) {
@@ -37,7 +42,9 @@ class WindowedBudgetTest {
     void v3_1_spendStartsOverWhenTheWindowRollsOver() {
         Budget b = hourly(1000);
         clock.set("2026-09-27T10:10:00Z");
-        BudgetSet.of(b).reserve(900, 0L, null).settle(new Charge(900, 0, 1, BigDecimal.ZERO, false));
+        BudgetSet.of(b)
+                .reserve(900, 0L, null)
+                .settle(new Charge(900, 0, 1, BigDecimal.ZERO, false));
         clock.set("2026-09-27T10:59:59Z");
         assertThat(b.remaining().tokens().getAsLong()).isEqualTo(100);
         clock.set("2026-09-27T11:00:00Z");
@@ -54,10 +61,12 @@ class WindowedBudgetTest {
         var client = Standard.client(new ScriptedLLMClient(), b);
         client.chat(Standard.request()); // 150 of 200
         assertThatThrownBy(() -> client.chat(Standard.request()))
-                .isInstanceOfSatisfying(BudgetExceeded.class, e -> {
-                    assertThat(e.resetAt()).contains(Instant.parse("2026-09-27T11:00:00Z"));
-                    assertThat(e.getMessage()).contains("refills at 2026-09-27T11:00:00Z");
-                });
+                .isInstanceOfSatisfying(
+                        BudgetExceeded.class,
+                        e -> {
+                            assertThat(e.resetAt()).contains(Instant.parse("2026-09-27T11:00:00Z"));
+                            assertThat(e.getMessage()).contains("refills at 2026-09-27T11:00:00Z");
+                        });
         assertThat(b.windowEnd()).isEqualTo(Instant.parse("2026-09-27T11:00:00Z"));
         assertThat(b.window()).isEqualTo(Window.HOUR);
 
@@ -65,7 +74,8 @@ class WindowedBudgetTest {
         var client2 = Standard.client(new ScriptedLLMClient(), lifetime);
         client2.chat(Standard.request());
         assertThatThrownBy(() -> client2.chat(Standard.request()))
-                .isInstanceOfSatisfying(BudgetExceeded.class, e -> assertThat(e.resetAt()).isEmpty());
+                .isInstanceOfSatisfying(
+                        BudgetExceeded.class, e -> assertThat(e.resetAt()).isEmpty());
         assertThat(lifetime.windowEnd()).isNull();
     }
 
@@ -74,7 +84,8 @@ class WindowedBudgetTest {
         Budget b = hourly(200);
         var client = Standard.client(new ScriptedLLMClient(), b);
         client.chat(Standard.request());
-        assertThatThrownBy(() -> client.chat(Standard.request())).isInstanceOf(BudgetExceeded.class);
+        assertThatThrownBy(() -> client.chat(Standard.request()))
+                .isInstanceOf(BudgetExceeded.class);
         assertThat(b.refused()).isTrue();
         clock.set("2026-09-27T11:00:00Z");
         assertThat(b.refused()).isFalse();
@@ -86,7 +97,8 @@ class WindowedBudgetTest {
     @Test
     void v3_3_dayWindowFollowsTheClockZone() {
         MutableClock kolkata = new MutableClock(MutableClock.T0, ZoneId.of("Asia/Kolkata"));
-        Budget b = Budget.builder().name("daily").tokens(10).window(Window.DAY).clock(kolkata).build();
+        Budget b =
+                Budget.builder().name("daily").tokens(10).window(Window.DAY).clock(kolkata).build();
         assertThat(b.windowEnd()).isEqualTo(Instant.parse("2026-09-27T18:30:00Z"));
         assertThat(Window.MINUTE.end(MutableClock.T0.plusSeconds(61), ZoneId.of("UTC")))
                 .isEqualTo(Instant.parse("2026-09-27T10:02:00Z"));
@@ -96,13 +108,22 @@ class WindowedBudgetTest {
     @Test
     void v3_4_warningFiresOncePerWindow() {
         List<BudgetEvent> events = new ArrayList<>();
-        Budget b = Budget.builder().name("w").tokens(1000).window(Window.HOUR).clock(clock).warnAt(0.5)
-                .listener(events::add).build();
+        Budget b =
+                Budget.builder()
+                        .name("w")
+                        .tokens(1000)
+                        .window(Window.HOUR)
+                        .clock(clock)
+                        .warnAt(0.5)
+                        .listener(events::add)
+                        .build();
         b.restore(spent(600, 0));
         b.restore(spent(100, 0));
         clock.set("2026-09-27T11:00:00Z");
         b.restore(spent(600, 0));
-        assertThat(events).extracting(BudgetEvent::kind).containsExactly(BudgetEvent.Kind.WARNING, BudgetEvent.Kind.WARNING);
+        assertThat(events)
+                .extracting(BudgetEvent::kind)
+                .containsExactly(BudgetEvent.Kind.WARNING, BudgetEvent.Kind.WARNING);
     }
 
     @Test
@@ -122,27 +143,30 @@ class WindowedBudgetTest {
 
     @Test
     void v3_6_concurrentCallsAcrossRollOversNeverOverdrawAWindow() throws Exception {
-        Budget b = Budget.builder().name("m").tokens(1000).window(Window.MINUTE).clock(clock).build();
+        Budget b =
+                Budget.builder().name("m").tokens(1000).window(Window.MINUTE).clock(clock).build();
         AtomicLong charged = new AtomicLong();
-        java.util.concurrent.atomic.AtomicBoolean done = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.atomic.AtomicBoolean done =
+                new java.util.concurrent.atomic.AtomicBoolean();
         java.util.concurrent.atomic.AtomicLong maxSeen = new AtomicLong();
         ExecutorService pool = Executors.newFixedThreadPool(32);
         CountDownLatch go = new CountDownLatch(1);
         for (int t = 0; t < 32; t++) {
-            pool.submit(() -> {
-                go.await();
-                while (!done.get()) {
-                    try {
-                        BudgetSet.Lease lease = BudgetSet.of(b).reserve(40, 10L, null);
-                        lease.settle(new Charge(40, 10, 1, BigDecimal.ZERO, false));
-                        charged.addAndGet(50);
-                    } catch (BudgetExceeded refused) {
-                        Thread.onSpinWait();
-                    }
-                    maxSeen.accumulateAndGet(b.spent().tokens(), Math::max);
-                }
-                return null;
-            });
+            pool.submit(
+                    () -> {
+                        go.await();
+                        while (!done.get()) {
+                            try {
+                                BudgetSet.Lease lease = BudgetSet.of(b).reserve(40, 10L, null);
+                                lease.settle(new Charge(40, 10, 1, BigDecimal.ZERO, false));
+                                charged.addAndGet(50);
+                            } catch (BudgetExceeded refused) {
+                                Thread.onSpinWait();
+                            }
+                            maxSeen.accumulateAndGet(b.spent().tokens(), Math::max);
+                        }
+                        return null;
+                    });
         }
         go.countDown();
         for (int minute = 1; minute <= 20; minute++) {
@@ -155,7 +179,8 @@ class WindowedBudgetTest {
         assertThat(pool.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
         assertThat(maxSeen.get()).isLessThanOrEqualTo(1000);
         assertThat(b.lifetimeSpent().tokens()).isEqualTo(charged.get());
-        assertThat(b.lifetimeSpent().tokens()).isGreaterThan(5 * 1000); // several windows were really used
+        assertThat(b.lifetimeSpent().tokens())
+                .isGreaterThan(5 * 1000); // several windows were really used
     }
 
     @Test
@@ -179,7 +204,8 @@ class WindowedBudgetTest {
         var client = Standard.client(new ScriptedLLMClient(), b);
         client.chat(Standard.request());
         client.chat(Standard.request());
-        assertThatThrownBy(() -> client.chat(Standard.request())).isInstanceOf(BudgetExceeded.class);
+        assertThatThrownBy(() -> client.chat(Standard.request()))
+                .isInstanceOf(BudgetExceeded.class);
         assertThat(b.refused()).isTrue();
         b.raise(new Limits(300L, 5L, new BigDecimal("0.25")));
         assertThat(b.limits().tokens()).isEqualTo(600);

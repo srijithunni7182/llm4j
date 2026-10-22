@@ -12,7 +12,9 @@ import java.util.OptionalDouble;
 public record ContextUsage(long used, ContextWindow window, Source source) {
 
     public enum Source {
-        /** The provider's own count from its last reply, plus an estimate of what was added since. */
+        /**
+         * The provider's own count from its last reply, plus an estimate of what was added since.
+         */
         REPORTED,
         /** Estimated from the text. */
         ESTIMATED
@@ -23,8 +25,13 @@ public record ContextUsage(long used, ContextWindow window, Source source) {
         if (source == null) throw new IllegalArgumentException("source must be given");
     }
 
-    /** Used tokens over the usable input size, which can exceed 1.0; empty when the window is not known. */
+    /**
+     * Used tokens over the usable input size, which can exceed 1.0; empty when the window is not
+     * known.
+     */
     public OptionalDouble fraction() {
-        return window == null ? OptionalDouble.empty() : OptionalDouble.of(used / (double) window.usableInput());
+        return window == null
+                ? OptionalDouble.empty()
+                : OptionalDouble.of(used / (double) window.usableInput());
     }
 }

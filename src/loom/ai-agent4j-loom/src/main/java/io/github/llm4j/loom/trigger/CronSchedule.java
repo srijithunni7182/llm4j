@@ -12,17 +12,20 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * A standard 5-field cron expression — minute, hour, day of month, month, day of week — with
- * {@code *}, lists, ranges, steps and the names {@code JAN}–{@code DEC} / {@code SUN}–{@code SAT}
- * (0 and 7 are Sunday). As in classic cron, when both day fields are restricted a day matching either
- * one matches. Times are read in a time zone: a time skipped by a daylight-saving jump fires at the
+ * A standard 5-field cron expression — minute, hour, day of month, month, day of week — with {@code
+ * *}, lists, ranges, steps and the names {@code JAN}–{@code DEC} / {@code SUN}–{@code SAT} (0 and 7
+ * are Sunday). As in classic cron, when both day fields are restricted a day matching either one
+ * matches. Times are read in a time zone: a time skipped by a daylight-saving jump fires at the
  * moment the clock jumps to, and a repeated hour fires once.
  */
 public final class CronSchedule {
 
-    private static final List<String> MONTHS = List.of("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG",
-            "SEP", "OCT", "NOV", "DEC");
-    private static final List<String> DAYS = List.of("SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT");
+    private static final List<String> MONTHS =
+            List.of(
+                    "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV",
+                    "DEC");
+    private static final List<String> DAYS =
+            List.of("SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT");
     private static final int SEARCH_DAYS = 366 * 8; // leap-day schedules repeat within 8 years
 
     private final String expression;
@@ -34,8 +37,15 @@ public final class CronSchedule {
     private final boolean domRestricted;
     private final boolean dowRestricted;
 
-    private CronSchedule(String expression, BitSet minutes, BitSet hours, BitSet dom, BitSet months, BitSet dow,
-                         boolean domRestricted, boolean dowRestricted) {
+    private CronSchedule(
+            String expression,
+            BitSet minutes,
+            BitSet hours,
+            BitSet dom,
+            BitSet months,
+            BitSet dow,
+            boolean domRestricted,
+            boolean dowRestricted) {
         this.expression = expression;
         this.minutes = minutes;
         this.hours = hours;
@@ -46,20 +56,27 @@ public final class CronSchedule {
         this.dowRestricted = dowRestricted;
     }
 
-    /** @throws IllegalArgumentException naming the field that is wrong */
+    /**
+     * @throws IllegalArgumentException naming the field that is wrong
+     */
     public static CronSchedule parse(String expression) {
         if (expression == null) throw new IllegalArgumentException("cron expression is missing");
         String[] f = expression.trim().split("\\s+");
         if (f.length != 5) {
-            throw new IllegalArgumentException("cron needs 5 fields (minute hour day-of-month month day-of-week), got "
-                    + f.length + " in \"" + expression + "\"");
+            throw new IllegalArgumentException(
+                    "cron needs 5 fields (minute hour day-of-month month day-of-week), got "
+                            + f.length
+                            + " in \""
+                            + expression
+                            + "\"");
         }
         BitSet dow = field(f[4], "day-of-week", 0, 7, DAYS);
         if (dow.get(7)) {
             dow.set(0);
             dow.clear(7);
         }
-        return new CronSchedule(expression.trim(),
+        return new CronSchedule(
+                expression.trim(),
                 field(f[0], "minute", 0, 59, null),
                 field(f[1], "hour", 0, 23, null),
                 field(f[2], "day-of-month", 1, 31, null),
@@ -88,7 +105,9 @@ public final class CronSchedule {
                 String[] ends = range.split("-", 2);
                 from = number(ends[0], name, min, max, names);
                 to = number(ends[1], name, min, max, names);
-                if (to < from) throw new IllegalArgumentException("cron " + name + " range " + range + " runs backwards");
+                if (to < from)
+                    throw new IllegalArgumentException(
+                            "cron " + name + " range " + range + " runs backwards");
             } else {
                 from = number(range, name, min, max, names);
                 to = slash >= 0 ? max : from;
@@ -107,10 +126,12 @@ public final class CronSchedule {
         try {
             v = Integer.parseInt(text);
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("cron " + name + " field: '" + text + "' is not a number");
+            throw new IllegalArgumentException(
+                    "cron " + name + " field: '" + text + "' is not a number");
         }
         if (v < min || v > max) {
-            throw new IllegalArgumentException("cron " + name + " field: " + v + " is outside " + min + "-" + max);
+            throw new IllegalArgumentException(
+                    "cron " + name + " field: " + v + " is outside " + min + "-" + max);
         }
         return v;
     }
@@ -137,7 +158,9 @@ public final class CronSchedule {
 
     private boolean dayMatches(LocalDate day) {
         boolean dom = daysOfMonth.get(day.getDayOfMonth());
-        boolean dow = daysOfWeek.get(day.getDayOfWeek() == DayOfWeek.SUNDAY ? 0 : day.getDayOfWeek().getValue());
+        boolean dow =
+                daysOfWeek.get(
+                        day.getDayOfWeek() == DayOfWeek.SUNDAY ? 0 : day.getDayOfWeek().getValue());
         if (domRestricted && dowRestricted) return dom || dow;
         return dom && dow;
     }

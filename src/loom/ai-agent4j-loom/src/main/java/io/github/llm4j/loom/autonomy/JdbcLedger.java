@@ -11,12 +11,14 @@ import java.util.Map;
 import javax.sql.DataSource;
 
 /**
- * The ledger in one table, {@code loom_ledger}. A record with the same (decision, id) is not inserted twice: the primary key refuses it
- * and the refusal is read as "already there". Reads ask only for rows newer than the last one seen, so a long ledger is read once.
+ * The ledger in one table, {@code loom_ledger}. A record with the same (decision, id) is not
+ * inserted twice: the primary key refuses it and the refusal is read as "already there". Reads ask
+ * only for rows newer than the last one seen, so a long ledger is read once.
  */
 public class JdbcLedger implements Ledger {
 
-    public static final String DDL = """
+    public static final String DDL =
+            """
             CREATE TABLE IF NOT EXISTS loom_ledger (
                 seq      BIGINT GENERATED ALWAYS AS IDENTITY,
                 decision VARCHAR(128) NOT NULL,
@@ -46,15 +48,30 @@ public class JdbcLedger implements Ledger {
     public synchronized byte[] sealKey() {
         if (sealKey != null) return sealKey;
         for (int i = 0; i < 3 && sealKey == null; i++) {
-            for (Rec r : records("_seal")) if ("sealkey".equals(r.id()) && r.str("key") != null) sealKey = java.util.Base64.getDecoder().decode(r.str("key"));
-            if (sealKey == null) append(new Rec("sealkey", "_seal", "sealkey", java.time.Instant.now(), "", 1, Rec.map("key", java.util.Base64.getEncoder().encodeToString(Seal.newKey()))));
+            for (Rec r : records("_seal"))
+                if ("sealkey".equals(r.id()) && r.str("key") != null)
+                    sealKey = java.util.Base64.getDecoder().decode(r.str("key"));
+            if (sealKey == null)
+                append(
+                        new Rec(
+                                "sealkey",
+                                "_seal",
+                                "sealkey",
+                                java.time.Instant.now(),
+                                "",
+                                1,
+                                Rec.map(
+                                        "key",
+                                        java.util.Base64.getEncoder()
+                                                .encodeToString(Seal.newKey()))));
         }
         if (sealKey == null) throw new IllegalStateException("cannot make the seal key");
         return sealKey;
     }
 
     public static void createTable(DataSource dataSource) {
-        try (Connection c = dataSource.getConnection(); var st = c.createStatement()) {
+        try (Connection c = dataSource.getConnection();
+                var st = c.createStatement()) {
             st.execute(DDL);
         } catch (SQLException e) {
             throw new IllegalStateException("Cannot create loom_ledger", e);
@@ -65,7 +82,9 @@ public class JdbcLedger implements Ledger {
     private State refresh(String decision) {
         State st = states.computeIfAbsent(decision, d -> new State());
         try (Connection c = dataSource.getConnection();
-             PreparedStatement ps = c.prepareStatement("SELECT seq, body FROM loom_ledger WHERE decision = ? AND seq > ? ORDER BY seq")) {
+                PreparedStatement ps =
+                        c.prepareStatement(
+                                "SELECT seq, body FROM loom_ledger WHERE decision = ? AND seq > ? ORDER BY seq")) {
             ps.setString(1, decision);
             ps.setLong(2, st.seen);
             try (ResultSet rs = ps.executeQuery()) {
@@ -84,7 +103,10 @@ public class JdbcLedger implements Ledger {
     public synchronized void append(Rec record) {
         State st = refresh(record.decision());
         if (st.cache.has(record.id())) return;
-        try (Connection c = dataSource.getConnection(); PreparedStatement in = c.prepareStatement("INSERT INTO loom_ledger (decision, id, at, kind, body) VALUES (?, ?, ?, ?, ?)")) {
+        try (Connection c = dataSource.getConnection();
+                PreparedStatement in =
+                        c.prepareStatement(
+                                "INSERT INTO loom_ledger (decision, id, at, kind, body) VALUES (?, ?, ?, ?, ?)")) {
             in.setString(1, record.decision());
             in.setString(2, record.id());
             in.setString(3, record.at().toString());
@@ -92,14 +114,19 @@ public class JdbcLedger implements Ledger {
             in.setString(5, FileLedger.json(record));
             in.executeUpdate();
         } catch (SQLException duplicate) {
-            // lost a race to the same record from another process: it is there, which is all that was wanted
-            if (!exists(record)) throw new IllegalStateException("Cannot append to the ledger", duplicate);
+            // lost a race to the same record from another process: it is there, which is all that
+            // was wanted
+            if (!exists(record))
+                throw new IllegalStateException("Cannot append to the ledger", duplicate);
         }
         refresh(record.decision());
     }
 
     private boolean exists(Rec record) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement exists = c.prepareStatement("SELECT 1 FROM loom_ledger WHERE decision = ? AND id = ?")) {
+        try (Connection c = dataSource.getConnection();
+                PreparedStatement exists =
+                        c.prepareStatement(
+                                "SELECT 1 FROM loom_ledger WHERE decision = ? AND id = ?")) {
             exists.setString(1, record.decision());
             exists.setString(2, record.id());
             try (ResultSet rs = exists.executeQuery()) {
@@ -127,7 +154,10 @@ public class JdbcLedger implements Ledger {
 
     @Override
     public synchronized void purgeFields(String decision, Instant before) {
-        try (Connection c = dataSource.getConnection(); PreparedStatement up = c.prepareStatement("UPDATE loom_ledger SET body = ? WHERE decision = ? AND id = ?")) {
+        try (Connection c = dataSource.getConnection();
+                PreparedStatement up =
+                        c.prepareStatement(
+                                "UPDATE loom_ledger SET body = ? WHERE decision = ? AND id = ?")) {
             for (Rec r : records(decision)) {
                 Rec purged = Purge.apply(r, before);
                 if (purged.equals(r)) continue;

@@ -7,14 +7,17 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * The durable record of a workflow run. Every step with side effects (a delegate, a human answer, a
  * broadcast) writes its result here under a stable step id — its position in the script, including
- * loop round and branch. Re-running the workflow with the same journal replays those results instead
- * of calling models again, so a run can stop (a restart, a human who answers tomorrow) and carry on
- * exactly where it left off, on any machine.
+ * loop round and branch. Re-running the workflow with the same journal replays those results
+ * instead of calling models again, so a run can stop (a restart, a human who answers tomorrow) and
+ * carry on exactly where it left off, on any machine.
  */
 public interface RunJournal {
 
-    /** A recorded step result. {@code kind} is "delegate", "failed", "human", "broadcast", "handoff" or "sleep" (the wake time). */
-    record Entry(String kind, Object value) { }
+    /**
+     * A recorded step result. {@code kind} is "delegate", "failed", "human", "broadcast", "handoff"
+     * or "sleep" (the wake time).
+     */
+    record Entry(String kind, Object value) {}
 
     Optional<Entry> get(String stepId);
 
@@ -28,7 +31,10 @@ public interface RunJournal {
     /** Every recorded step, for inspection. */
     Map<String, Entry> all();
 
-    /** True when the journal outlives the process (a file or a database), so a run can pause and resume later. */
+    /**
+     * True when the journal outlives the process (a file or a database), so a run can pause and
+     * resume later.
+     */
     default boolean isDurable() {
         return false;
     }

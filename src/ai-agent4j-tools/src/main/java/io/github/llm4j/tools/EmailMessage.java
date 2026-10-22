@@ -4,8 +4,15 @@ import java.nio.file.Path;
 import java.util.List;
 
 /** A message ready to send: every address already parsed and checked. */
-public record EmailMessage(MailAddress from, List<MailAddress> to, List<MailAddress> cc, List<MailAddress> bcc,
-                           String subject, String body, boolean html, List<Path> attachments) {
+public record EmailMessage(
+        MailAddress from,
+        List<MailAddress> to,
+        List<MailAddress> cc,
+        List<MailAddress> bcc,
+        String subject,
+        String body,
+        boolean html,
+        List<Path> attachments) {
 
     /** Everyone it goes to, in the order to, cc, bcc. */
     public List<MailAddress> recipients() {

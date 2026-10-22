@@ -14,8 +14,7 @@ import java.util.stream.Collectors;
 /** Shared helpers for the graph tests. */
 final class GraphTestSupport {
 
-    private GraphTestSupport() {
-    }
+    private GraphTestSupport() {}
 
     static LoomScript parse(String source) {
         return new LoomParser(new Lexer(source).tokenize()).parseScript();
@@ -34,7 +33,11 @@ final class GraphTestSupport {
     }
 
     static WorkflowGraph graphOf(LoomScript script, String workflow) {
-        WorkflowDef def = script.getWorkflows().stream().filter(w -> w.getName().equals(workflow)).findFirst().orElseThrow();
+        WorkflowDef def =
+                script.getWorkflows().stream()
+                        .filter(w -> w.getName().equals(workflow))
+                        .findFirst()
+                        .orElseThrow();
         return new GraphBuilder().build(def, "test.loom");
     }
 
@@ -49,7 +52,12 @@ final class GraphTestSupport {
     /** Edges as {@code from->to} or {@code from->to[label]}. */
     static List<String> edges(WorkflowGraph graph) {
         return graph.edges().stream()
-                .map(e -> e.from() + "->" + e.to() + (e.label() == null ? "" : "[" + e.label() + "]"))
+                .map(
+                        e ->
+                                e.from()
+                                        + "->"
+                                        + e.to()
+                                        + (e.label() == null ? "" : "[" + e.label() + "]"))
                 .collect(Collectors.toList());
     }
 

@@ -11,7 +11,9 @@ class ContextCompactorsTest {
 
     @Test
     void aLambdaIsACompactor() {
-        ContextCompactor mine = (messages, request) -> CompactionResult.of("mine", messages, messages.subList(0, 2), request);
+        ContextCompactor mine =
+                (messages, request) ->
+                        CompactionResult.of("mine", messages, messages.subList(0, 2), request);
         List<Message> in = new Convo().system("s").task("t").step("a", 3_000).build();
         CompactionResult r = mine.compact(in, CompactionRequest.of(10));
         assertThat(r.messages()).hasSize(2);
@@ -20,7 +22,9 @@ class ContextCompactorsTest {
 
     @Test
     void aLambdaGetsAGenericNameAndAClassKeepsItsOwn() {
-        ContextCompactor lambda = (m, r) -> CompactionResult.unchanged("x", m, r, CompactionResult.Outcome.SKIPPED, "");
+        ContextCompactor lambda =
+                (m, r) ->
+                        CompactionResult.unchanged("x", m, r, CompactionResult.Outcome.SKIPPED, "");
         assertThat(lambda.name()).isEqualTo("custom");
         assertThat(new Mine().name()).isEqualTo("Mine");
         assertThat(new Named().name()).isEqualTo("my-name");
@@ -40,12 +44,21 @@ class ContextCompactorsTest {
         assertThat(ContextCompactors.none().name()).isEqualTo("none");
         assertThat(ContextCompactors.dropOldest().name()).isEqualTo("drop_oldest");
         assertThat(ContextCompactors.trimToolResults(1_000).name()).isEqualTo("trim_tool_results");
-        assertThat(ContextCompactors.chain(ContextCompactors.dropOldest()).name()).isEqualTo("chain(drop_oldest)");
+        assertThat(ContextCompactors.chain(ContextCompactors.dropOldest()).name())
+                .isEqualTo("chain(drop_oldest)");
     }
 
     @Test
     void theInputIsNeverModified() {
-        List<Message> in = new ArrayList<>(new Convo().system("s").task("t").step("a", 3_000).step("b", 3_000).step("c", 3_000).build());
+        List<Message> in =
+                new ArrayList<>(
+                        new Convo()
+                                .system("s")
+                                .task("t")
+                                .step("a", 3_000)
+                                .step("b", 3_000)
+                                .step("c", 3_000)
+                                .build());
         List<Message> copy = List.copyOf(in);
         ContextCompactors.dropOldest().compact(in, CompactionRequest.of(10));
         assertThat(in).isEqualTo(copy);

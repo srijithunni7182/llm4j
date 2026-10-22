@@ -16,11 +16,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** How the listener matches a reply to a question, with a scripted channel and a fixed clock (no HTTP, no real time). */
+/**
+ * How the listener matches a reply to a question, with a scripted channel and a fixed clock (no
+ * HTTP, no real time).
+ */
 class ListenerRepliesTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     ChannelHarness h;
     final List<String> told = new ArrayList<>();
@@ -38,9 +40,13 @@ class ListenerRepliesTest {
         h.close();
     }
 
-    /** Delivers every question with its own message ref, and hands out the scripted replies once. */
+    /**
+     * Delivers every question with its own message ref, and hands out the scripted replies once.
+     */
     final class Scripted implements Channel {
-        public String name() { return "scripted"; }
+        public String name() {
+            return "scripted";
+        }
 
         public Sent send(String chat, Outgoing q) {
             return new Sent(chat, "x" + (++refs), null);
@@ -52,7 +58,7 @@ class ListenerRepliesTest {
             return new Batch(now, "c");
         }
 
-        public void acknowledge(String cursor) { }
+        public void acknowledge(String cursor) {}
 
         public void tell(String chat, String text) throws IOException {
             if (tellFails) throw new IOException("down");
@@ -67,11 +73,18 @@ class ListenerRepliesTest {
 
     Listener listener() {
         Scripted channel = new Scripted();
-        return new Listener(channel, h.runtime.config(), h.pending, h.answers, new Dispatch(channel, h.runtime.config(), h.pending, h.clock), h.clock);
+        return new Listener(
+                channel,
+                h.runtime.config(),
+                h.pending,
+                h.answers,
+                new Dispatch(channel, h.runtime.config(), h.pending, h.clock),
+                h.clock);
     }
 
     String ask(String step, Hints hints) {
-        assertThatThrownBy(() -> h.asker("/srv/runs/r").promptHuman(step, "Q " + step, hints)).isInstanceOf(RunSuspended.class);
+        assertThatThrownBy(() -> h.asker("/srv/runs/r").promptHuman(step, "Q " + step, hints))
+                .isInstanceOf(RunSuspended.class);
         return h.pending.find("/srv/runs/r", step).orElseThrow().code();
     }
 
@@ -84,7 +97,13 @@ class ListenerRepliesTest {
         Listener listener = listener();
         String first = ask("A/s0", Hints.none());
         String second = ask("A/s1", Hints.none());
-        String ref = h.pending.get(second).orElseThrow().sent().get(0).ref(); // asking delivers the question through the fake Telegram
+        String ref =
+                h.pending
+                        .get(second)
+                        .orElseThrow()
+                        .sent()
+                        .get(0)
+                        .ref(); // asking delivers the question through the fake Telegram
 
         replies.add(reply("for the second", ref, null, null));
         Listener.Summary s = listener.pollOnce(Duration.ZERO);
@@ -94,7 +113,9 @@ class ListenerRepliesTest {
 
         replies.add(reply(first.toLowerCase() + " the first", null, null, null));
         listener.pollOnce(Duration.ZERO);
-        assertThat(h.pending.get(first).orElseThrow().answer().text()).as("the code is not part of the answer").isEqualTo("the first");
+        assertThat(h.pending.get(first).orElseThrow().answer().text())
+                .as("the code is not part of the answer")
+                .isEqualTo("the first");
     }
 
     @Test
@@ -103,7 +124,8 @@ class ListenerRepliesTest {
         String code = ask("A/s0", Hints.none());
         String ref = h.pending.get(code).orElseThrow().sent().get(0).ref();
 
-        // by message ref: a ref the channel says was written before the question's; by date: older than the question minus the allowed skew
+        // by message ref: a ref the channel says was written before the question's; by date: older
+        // than the question minus the allowed skew
         replies.add(reply("old by ref", ref, null, "0"));
         replies.add(reply("old by date", null, ChannelHarness.T0.minus(Duration.ofHours(1)), null));
         Listener.Summary s = listener.pollOnce(Duration.ZERO);

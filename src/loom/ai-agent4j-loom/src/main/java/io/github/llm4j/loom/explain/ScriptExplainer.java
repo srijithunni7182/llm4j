@@ -15,12 +15,12 @@ import io.github.llm4j.loom.ast.HumanPromptStmt;
 import io.github.llm4j.loom.ast.LoomScript;
 import io.github.llm4j.loom.ast.LoopStmt;
 import io.github.llm4j.loom.ast.NoteStmt;
-import io.github.llm4j.loom.ast.SleepStmt;
 import io.github.llm4j.loom.ast.ObserveStmt;
 import io.github.llm4j.loom.ast.ParallelStmt;
 import io.github.llm4j.loom.ast.RewindStmt;
 import io.github.llm4j.loom.ast.RunStmt;
 import io.github.llm4j.loom.ast.SchemaDef;
+import io.github.llm4j.loom.ast.SleepStmt;
 import io.github.llm4j.loom.ast.Statement;
 import io.github.llm4j.loom.ast.WorkflowDef;
 import java.util.ArrayList;
@@ -28,8 +28,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Describes a script in plain English, from the script alone: no model, no key, no network, and the same words for the same script. It only
- * states what the script says (which agent is asked what, where a person is asked, what can spend money); it never guesses at intent.
+ * Describes a script in plain English, from the script alone: no model, no key, no network, and the
+ * same words for the same script. It only states what the script says (which agent is asked what,
+ * where a person is asked, what can spend money); it never guesses at intent.
  */
 public final class ScriptExplainer {
 
@@ -37,18 +38,44 @@ public final class ScriptExplainer {
 
     private ScriptExplainer() {}
 
-    /** The explanation of {@code script} (or only {@code workflow} when given); {@code name} is the file's name, shown at the top. */
+    /**
+     * The explanation of {@code script} (or only {@code workflow} when given); {@code name} is the
+     * file's name, shown at the top.
+     */
     public static String explain(LoomScript script, String name, String workflow) {
         StringBuilder out = new StringBuilder();
-        List<WorkflowDef> workflows = script.getWorkflows().stream().filter(w -> workflow == null || w.getName().equals(workflow)).toList();
+        List<WorkflowDef> workflows =
+                script.getWorkflows().stream()
+                        .filter(w -> workflow == null || w.getName().equals(workflow))
+                        .toList();
         out.append(name).append('\n');
-        out.append("  Workflows: ").append(list(script.getWorkflows().stream().map(w -> w.getName() + "(" + String.join(", ", w.getParameters()) + ")").toList(), "none"))
-                .append("   Agents: ").append(script.getAgents().size()).append('\n');
+        out.append("  Workflows: ")
+                .append(
+                        list(
+                                script.getWorkflows().stream()
+                                        .map(
+                                                w ->
+                                                        w.getName()
+                                                                + "("
+                                                                + String.join(
+                                                                        ", ", w.getParameters())
+                                                                + ")")
+                                        .toList(),
+                                "none"))
+                .append("   Agents: ")
+                .append(script.getAgents().size())
+                .append('\n');
         out.append("  ").append(budget(script.getBudget(), "A run may use ")).append('\n');
 
         if (script.getSharedPrompt() != null || script.getSharedPromptRef() != null) {
-            out.append("  Every agent is first told: ").append(script.getSharedPrompt() != null ? "an inline text (" + script.getSharedPrompt().strip().length() + " characters)"
-                    : "prompt file \"" + script.getSharedPromptRef() + "\"").append(".\n");
+            out.append("  Every agent is first told: ")
+                    .append(
+                            script.getSharedPrompt() != null
+                                    ? "an inline text ("
+                                            + script.getSharedPrompt().strip().length()
+                                            + " characters)"
+                                    : "prompt file \"" + script.getSharedPromptRef() + "\"")
+                    .append(".\n");
         }
 
         out.append("\nAgents\n");
@@ -57,44 +84,118 @@ public final class ScriptExplainer {
 
         Facts facts = new Facts();
         for (WorkflowDef w : workflows) {
-            out.append('\n').append(w.getName()).append('(').append(String.join(", ", w.getParameters())).append(")\n");
+            out.append('\n')
+                    .append(w.getName())
+                    .append('(')
+                    .append(String.join(", ", w.getParameters()))
+                    .append(")\n");
             if (w.getStatements().isEmpty()) out.append("  It has no steps.\n");
             steps(w.getStatements(), 1, true, out, facts);
         }
 
         out.append("\nWorth knowing\n");
-        out.append("  - ").append(facts.models == 0 ? "No step asks a model." : facts.models + " step" + (facts.models == 1 ? " asks" : "s ask") + " a model.").append('\n');
+        out.append("  - ")
+                .append(
+                        facts.models == 0
+                                ? "No step asks a model."
+                                : facts.models
+                                        + " step"
+                                        + (facts.models == 1 ? " asks" : "s ask")
+                                        + " a model.")
+                .append('\n');
         int plain = facts.tasks - facts.modelTasks;
-        if (plain > 0) out.append("  - ").append(plain).append(" step").append(plain == 1 ? " runs" : "s run").append(" plain code (a task), with no model.\n");
-        if (facts.modelTasks > 0) out.append("  - ").append(facts.modelTasks).append(" step").append(facts.modelTasks == 1 ? " runs" : "s run").append(" code (a task) that asks a model.\n");
-        out.append("  - ").append(facts.people == 0 ? "No person is asked anything." : "A person is asked at " + facts.people + " step" + (facts.people == 1 ? "" : "s") + ".").append('\n');
-        List<String> approving = script.getAgents().stream().filter(a -> a.isApproveAll() || !a.getApprove().isEmpty()).map(AgentDef::getName).toList();
-        if (!approving.isEmpty()) out.append("  - A person is asked before a tool is used by: ").append(String.join(", ", approving)).append(".\n");
-        List<String> withTools = script.getAgents().stream().filter(a -> !a.getTools().isEmpty()).map(AgentDef::getName).toList();
-        if (!withTools.isEmpty()) out.append("  - Agents with tools: ").append(String.join(", ", withTools)).append(". Run weave audit to see what they can reach.\n");
-        List<String> steerable = script.getAgents().stream().filter(AgentDef::isSteerable).map(AgentDef::getName).toList();
-        if (!steerable.isEmpty()) out.append("  - A person may steer, while they work: ").append(String.join(", ", steerable)).append(".\n");
+        if (plain > 0)
+            out.append("  - ")
+                    .append(plain)
+                    .append(" step")
+                    .append(plain == 1 ? " runs" : "s run")
+                    .append(" plain code (a task), with no model.\n");
+        if (facts.modelTasks > 0)
+            out.append("  - ")
+                    .append(facts.modelTasks)
+                    .append(" step")
+                    .append(facts.modelTasks == 1 ? " runs" : "s run")
+                    .append(" code (a task) that asks a model.\n");
+        out.append("  - ")
+                .append(
+                        facts.people == 0
+                                ? "No person is asked anything."
+                                : "A person is asked at "
+                                        + facts.people
+                                        + " step"
+                                        + (facts.people == 1 ? "" : "s")
+                                        + ".")
+                .append('\n');
+        List<String> approving =
+                script.getAgents().stream()
+                        .filter(a -> a.isApproveAll() || !a.getApprove().isEmpty())
+                        .map(AgentDef::getName)
+                        .toList();
+        if (!approving.isEmpty())
+            out.append("  - A person is asked before a tool is used by: ")
+                    .append(String.join(", ", approving))
+                    .append(".\n");
+        List<String> withTools =
+                script.getAgents().stream()
+                        .filter(a -> !a.getTools().isEmpty())
+                        .map(AgentDef::getName)
+                        .toList();
+        if (!withTools.isEmpty())
+            out.append("  - Agents with tools: ")
+                    .append(String.join(", ", withTools))
+                    .append(". Run weave audit to see what they can reach.\n");
+        List<String> steerable =
+                script.getAgents().stream()
+                        .filter(AgentDef::isSteerable)
+                        .map(AgentDef::getName)
+                        .toList();
+        if (!steerable.isEmpty())
+            out.append("  - A person may steer, while they work: ")
+                    .append(String.join(", ", steerable))
+                    .append(".\n");
         for (var sup : script.getSupervisions()) {
             List<String> rules = new ArrayList<>();
             for (var rule : sup.getRules()) {
                 List<String> does = new ArrayList<>();
                 for (var a : rule.getActions()) {
-                    does.add(switch (a.kind()) {
-                        case STEER -> "tell it \"" + a.text() + "\"" + (rule.isOnce() ? " (once)" : "");
-                        case WRAP_UP -> "ask it to finish with what it has";
-                        case CANCEL -> "stop it" + (a.outcome() == null ? "" : " and " + a.outcome().phrase());
-                    });
+                    does.add(
+                            switch (a.kind()) {
+                                case STEER -> "tell it \""
+                                        + a.text()
+                                        + "\""
+                                        + (rule.isOnce() ? " (once)" : "");
+                                case WRAP_UP -> "ask it to finish with what it has";
+                                case CANCEL -> "stop it"
+                                        + (a.outcome() == null
+                                                ? ""
+                                                : " and " + a.outcome().phrase());
+                            });
                 }
                 rules.add("when " + rule.describe() + ": " + String.join(", then ", does));
             }
-            out.append("  - ").append(sup.getAgent()).append(" is watched by rules (no model involved): ").append(String.join("; ", rules)).append(".\n");
+            out.append("  - ")
+                    .append(sup.getAgent())
+                    .append(" is watched by rules (no model involved): ")
+                    .append(String.join("; ", rules))
+                    .append(".\n");
         }
         if (script.getIntervention() != null && !script.getIntervention().getByReason().isEmpty()) {
             List<String> rules = new ArrayList<>();
-            script.getIntervention().getByReason().forEach((reason, outcome) -> rules.add("stopped for " + reason + ": " + outcome.phrase()));
-            out.append("  - When an agent is stopped and the step says nothing, ").append(String.join("; ", rules)).append(".\n");
+            script.getIntervention()
+                    .getByReason()
+                    .forEach(
+                            (reason, outcome) ->
+                                    rules.add("stopped for " + reason + ": " + outcome.phrase()));
+            out.append("  - When an agent is stopped and the step says nothing, ")
+                    .append(String.join("; ", rules))
+                    .append(".\n");
         }
-        if (facts.loops > 0) out.append("  - ").append(facts.loops).append(" loop").append(facts.loops == 1 ? " is" : "s are").append(" bounded by a maximum.\n");
+        if (facts.loops > 0)
+            out.append("  - ")
+                    .append(facts.loops)
+                    .append(" loop")
+                    .append(facts.loops == 1 ? " is" : "s are")
+                    .append(" bounded by a maximum.\n");
         return out.toString();
     }
 
@@ -111,30 +212,46 @@ public final class ScriptExplainer {
         parts.add(a.getModel() == null ? "no model named" : a.getModel());
         if (a.getTemperature() != null) parts.add("temperature " + trim(a.getTemperature()));
         if (a.getPromptRef() != null) parts.add("prompt file \"" + a.getPromptRef() + "\"");
-        else if (a.getSystemPrompt() != null && !a.getSystemPrompt().isBlank()) parts.add("an inline prompt");
+        else if (a.getSystemPrompt() != null && !a.getSystemPrompt().isBlank())
+            parts.add("an inline prompt");
         parts.add(a.getTools().isEmpty() ? "no tools" : "tools " + String.join(", ", a.getTools()));
         if (a.isApproveAll()) parts.add("a person approves every tool call");
-        else if (!a.getApprove().isEmpty()) parts.add("a person approves " + String.join(", ", a.getApprove()));
-        if (a.isSteerable()) parts.add("a person may steer it while it works" + (a.isStreaming() ? "" : " (slowly: it does not stream)"));
-        if (a.getGuard() != null && a.getGuard().getPii() != null) parts.add("personal data " + a.getGuard().getPii());
+        else if (!a.getApprove().isEmpty())
+            parts.add("a person approves " + String.join(", ", a.getApprove()));
+        if (a.isSteerable())
+            parts.add(
+                    "a person may steer it while it works"
+                            + (a.isStreaming() ? "" : " (slowly: it does not stream)"));
+        if (a.getGuard() != null && a.getGuard().getPii() != null)
+            parts.add("personal data " + a.getGuard().getPii());
         return a.getName() + ": " + String.join("; ", parts) + ".";
     }
 
     private static String budget(BudgetDef b, String lead) {
         if (b == null) return "No budget is set (a run has no limit of its own).";
         List<String> limits = new ArrayList<>();
-        if (b.getTokens() != null) limits.add(String.format(Locale.ROOT, "%,d tokens", b.getTokens()));
+        if (b.getTokens() != null)
+            limits.add(String.format(Locale.ROOT, "%,d tokens", b.getTokens()));
         if (b.getCalls() != null) limits.add(b.getCalls() + " model calls");
         if (b.getCost() != null) limits.add(b.getCost().toPlainString() + " in cost");
-        return limits.isEmpty() ? "A budget is set without limits." : "Budget: " + lead + String.join(" and ", limits) + ".";
+        return limits.isEmpty()
+                ? "A budget is set without limits."
+                : "Budget: " + lead + String.join(" and ", limits) + ".";
     }
 
-    /** Top-level steps are numbered; steps inside a branch, loop or handler are bulleted under the line that introduces them. */
-    private static void steps(List<Statement> body, int indent, boolean numbered, StringBuilder out, Facts facts) {
+    /**
+     * Top-level steps are numbered; steps inside a branch, loop or handler are bulleted under the
+     * line that introduces them.
+     */
+    private static void steps(
+            List<Statement> body, int indent, boolean numbered, StringBuilder out, Facts facts) {
         int n = 0;
         for (Statement s : body) {
             n++;
-            out.append("  ".repeat(indent)).append(numbered ? n + ". " : "- ").append(describe(s, facts)).append('\n');
+            out.append("  ".repeat(indent))
+                    .append(numbered ? n + ". " : "- ")
+                    .append(describe(s, facts))
+                    .append('\n');
             nested(s, indent + 1, out, facts);
         }
     }
@@ -157,7 +274,8 @@ public final class ScriptExplainer {
             steps(each.getBody(), indent, false, out, facts);
         } else if (s instanceof ParallelStmt par) {
             steps(par.getBody(), indent, false, out, facts);
-        } else if (s instanceof DelegateStmt d && (!d.getOnFailure().isEmpty() || d.hasOnStopped())) {
+        } else if (s instanceof DelegateStmt d
+                && (!d.getOnFailure().isEmpty() || d.hasOnStopped())) {
             if (!d.getOnFailure().isEmpty()) {
                 out.append(pad).append("- If it fails:\n");
                 steps(d.getOnFailure(), indent + 1, false, out, facts);
@@ -180,58 +298,113 @@ public final class ScriptExplainer {
 
     /** A condition as written in the script, said in words. */
     private static String say(String condition) {
-        return condition.replace(" is not ok", " did not do what it was for").replace(" is ok", " did what it was for").replace("==", " is ").replace("!=", " is not ").replace("&&", " and ").replace("||", " or ").replaceAll("\\s+", " ").strip();
+        return condition
+                .replace(" is not ok", " did not do what it was for")
+                .replace(" is ok", " did what it was for")
+                .replace("==", " is ")
+                .replace("!=", " is not ")
+                .replace("&&", " and ")
+                .replace("||", " or ")
+                .replaceAll("\\s+", " ")
+                .strip();
     }
 
     /** A value a script writes, in words. */
     private static String say(io.github.llm4j.loom.ast.ValueExpr v) {
         if (v instanceof io.github.llm4j.loom.ast.ValueExpr.Text t) return quote(t.text());
         if (v instanceof io.github.llm4j.loom.ast.ValueExpr.Num n) return n.literal();
-        if (v instanceof io.github.llm4j.loom.ast.ValueExpr.Bool b) return String.valueOf(b.value());
+        if (v instanceof io.github.llm4j.loom.ast.ValueExpr.Bool b)
+            return String.valueOf(b.value());
         if (v instanceof io.github.llm4j.loom.ast.ValueExpr.Ref r) return r.path();
         io.github.llm4j.loom.ast.ValueExpr.Obj o = (io.github.llm4j.loom.ast.ValueExpr.Obj) v;
-        return "{" + o.fields().entrySet().stream().map(f -> f.getKey() + ": " + say(f.getValue())).collect(java.util.stream.Collectors.joining(", ")) + "}";
+        return "{"
+                + o.fields().entrySet().stream()
+                        .map(f -> f.getKey() + ": " + say(f.getValue()))
+                        .collect(java.util.stream.Collectors.joining(", "))
+                + "}";
     }
 
     private static String describe(Statement s, Facts facts) {
         if (s instanceof DelegateStmt d) {
             facts.models++;
-            String text = d.getTargetAgent() + " is asked: " + quote(d.getPayload()) + kept(d.getVariableName());
-            if (d.getExpecting() != null) text += " It must answer in a set shape" + shape(d.getExpecting()) + ".";
-            if (d.getRetryCount() > 0) text += " It is retried up to " + d.getRetryCount() + " time" + (d.getRetryCount() == 1 ? "" : "s") + " if it fails.";
+            String text =
+                    d.getTargetAgent()
+                            + " is asked: "
+                            + quote(d.getPayload())
+                            + kept(d.getVariableName());
+            if (d.getExpecting() != null)
+                text += " It must answer in a set shape" + shape(d.getExpecting()) + ".";
+            if (d.getRetryCount() > 0)
+                text +=
+                        " It is retried up to "
+                                + d.getRetryCount()
+                                + " time"
+                                + (d.getRetryCount() == 1 ? "" : "s")
+                                + " if it fails.";
             return text;
         }
         if (s instanceof BroadcastStmt b) {
             facts.models += Math.max(1, b.getTargetAgents().size());
-            return "Every one of " + String.join(", ", b.getTargetAgents()) + " is asked: " + quote(b.getPayload()) + kept(b.getVariableName());
+            return "Every one of "
+                    + String.join(", ", b.getTargetAgents())
+                    + " is asked: "
+                    + quote(b.getPayload())
+                    + kept(b.getVariableName());
         }
         if (s instanceof HandoffStmt h) {
             facts.models++;
-            return "The work is handed to " + h.getTargetAgent() + ", which ends this path: " + quote(h.getPayload());
+            return "The work is handed to "
+                    + h.getTargetAgent()
+                    + ", which ends this path: "
+                    + quote(h.getPayload());
         }
         if (s instanceof HumanPromptStmt h) {
             facts.people++;
             return "A person is asked: " + quote(h.getMessage()) + kept(h.getVariableName());
         }
         if (s instanceof NoteStmt n) return "A note is shown: " + quote(n.getMessage());
-        if (s instanceof io.github.llm4j.loom.ast.HaltStmt h) return "The run stops here, saying: " + quote(h.getMessage());
-        if (s instanceof io.github.llm4j.loom.ast.SetStmt set) return set.getName() + " is set to " + say(set.getValue());
-        if (s instanceof io.github.llm4j.loom.ast.ReturnStmt r) return "The workflow ends here and hands back " + say(r.getValue());
-        if (s instanceof SleepStmt z) return "The workflow sleeps for " + z.getText() + ", then carries on";
+        if (s instanceof io.github.llm4j.loom.ast.HaltStmt h)
+            return "The run stops here, saying: " + quote(h.getMessage());
+        if (s instanceof io.github.llm4j.loom.ast.SetStmt set)
+            return set.getName() + " is set to " + say(set.getValue());
+        if (s instanceof io.github.llm4j.loom.ast.ReturnStmt r)
+            return "The workflow ends here and hands back " + say(r.getValue());
+        if (s instanceof SleepStmt z)
+            return "The workflow sleeps for " + z.getText() + ", then carries on";
         if (s instanceof RunStmt r) {
             facts.tasks++;
             if (r.getModel() != null) facts.modelTasks++;
-            return "The task " + r.getTaskName() + " runs (" + (r.getModel() == null ? "plain code, no model" : "plain code that asks the model " + r.getModel()) + ")" + kept(r.getVariableName());
+            return "The task "
+                    + r.getTaskName()
+                    + " runs ("
+                    + (r.getModel() == null
+                            ? "plain code, no model"
+                            : "plain code that asks the model " + r.getModel())
+                    + ")"
+                    + kept(r.getVariableName());
         }
-        if (s instanceof CallStmt c) return "The workflow " + c.getWorkflowName() + " is run" + kept(c.getResultVariable());
+        if (s instanceof CallStmt c)
+            return "The workflow " + c.getWorkflowName() + " is run" + kept(c.getResultVariable());
         if (s instanceof AltStmt a) return "If " + say(a.getCondition()) + ":";
         if (s instanceof LoopStmt l) {
             facts.loops++;
-            return "Repeat, at most " + l.getMaxIterations() + " time" + (l.getMaxIterations() == 1 ? "" : "s") + ", until " + say(l.getCondition()) + ":";
+            return "Repeat, at most "
+                    + l.getMaxIterations()
+                    + " time"
+                    + (l.getMaxIterations() == 1 ? "" : "s")
+                    + ", until "
+                    + say(l.getCondition())
+                    + ":";
         }
-        if (s instanceof ForEachStmt f) return (f.isParallel() ? "For each " : "For each ") + f.getItemName() + " in " + f.getCollectionPath() + (f.isParallel() ? " (at the same time):" : ":");
+        if (s instanceof ForEachStmt f)
+            return (f.isParallel() ? "For each " : "For each ")
+                    + f.getItemName()
+                    + " in "
+                    + f.getCollectionPath()
+                    + (f.isParallel() ? " (at the same time):" : ":");
         if (s instanceof ParallelStmt) return "At the same time:";
-        if (s instanceof CheckpointStmt c) return "A checkpoint named " + c.getName() + " is saved.";
+        if (s instanceof CheckpointStmt c)
+            return "A checkpoint named " + c.getName() + " is saved.";
         if (s instanceof io.github.llm4j.loom.ast.OutcomeStmt o) {
             return switch (o.getKind()) {
                 case USE_PARTIAL -> "Keep what the agent had so far, marked as incomplete.";
@@ -243,22 +416,36 @@ public final class ScriptExplainer {
                 case ASK -> "Ask a person what to do.";
             };
         }
-        if (s instanceof RewindStmt r) return "Go back to " + r.getTarget() + (r.getCondition() == null ? "" : " when " + say(r.getCondition())) + ", at most " + r.getAtMost() + " time" + (r.getAtMost() == 1 ? "" : "s") + ".";
+        if (s instanceof RewindStmt r)
+            return "Go back to "
+                    + r.getTarget()
+                    + (r.getCondition() == null ? "" : " when " + say(r.getCondition()))
+                    + ", at most "
+                    + r.getAtMost()
+                    + " time"
+                    + (r.getAtMost() == 1 ? "" : "s")
+                    + ".";
         if (s instanceof DecideStmt d) {
             facts.people++;
             return "The decision " + d.getDecision() + " is made" + kept(d.getVariable());
         }
         if (s instanceof GuardrailStmt g) return "A " + g.getType() + " check applies to:";
-        if (s instanceof ObserveStmt o) return "The value of " + o.getExpression() + " is recorded as " + quote(o.getLabel());
-        return "A " + s.getClass().getSimpleName().replace("Stmt", "").toLowerCase(Locale.ROOT) + " step.";
+        if (s instanceof ObserveStmt o)
+            return "The value of " + o.getExpression() + " is recorded as " + quote(o.getLabel());
+        return "A "
+                + s.getClass().getSimpleName().replace("Stmt", "").toLowerCase(Locale.ROOT)
+                + " step.";
     }
 
     private static String kept(String variable) {
-        return variable == null || variable.isBlank() || variable.startsWith("{") ? "." : ". The answer is kept as " + variable + ".";
+        return variable == null || variable.isBlank() || variable.startsWith("{")
+                ? "."
+                : ". The answer is kept as " + variable + ".";
     }
 
     private static String shape(SchemaDef schema) {
-        if (schema.getFields() != null && !schema.getFields().isEmpty()) return " with " + String.join(", ", schema.getFields().keySet());
+        if (schema.getFields() != null && !schema.getFields().isEmpty())
+            return " with " + String.join(", ", schema.getFields().keySet());
         return "";
     }
 

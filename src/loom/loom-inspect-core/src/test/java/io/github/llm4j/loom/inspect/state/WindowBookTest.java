@@ -10,7 +10,9 @@ class WindowBookTest {
 
     @Test
     void linesAreReadWithCommentsAndBlankLinesIgnored() {
-        WindowBook.Parsed p = WindowBook.parse("# context windows\n\nbig-model = 200000   # usable tokens\nsmall = 8000\n");
+        WindowBook.Parsed p =
+                WindowBook.parse(
+                        "# context windows\n\nbig-model = 200000   # usable tokens\nsmall = 8000\n");
         assertThat(p.ok()).isTrue();
         assertThat(p.book().size()).isEqualTo(2);
         assertThat(p.book().usable("big-model")).isEqualTo(200_000L);
@@ -27,7 +29,16 @@ class WindowBookTest {
 
     @Test
     void badLinesAreRefusedWithTheirLineNumbers() {
-        for (String bad : new String[] {"no equals here", "= 5000", "m = abc", "m = 0", "m = -5", "m = 12.5", "m = 99999999999999"}) {
+        for (String bad :
+                new String[] {
+                    "no equals here",
+                    "= 5000",
+                    "m = abc",
+                    "m = 0",
+                    "m = -5",
+                    "m = 12.5",
+                    "m = 99999999999999"
+                }) {
             WindowBook.Parsed p = WindowBook.parse("ok = 1000\n" + bad);
             assertThat(p.ok()).as(bad).isFalse();
             assertThat(p.problems().get(0).line()).as(bad).isEqualTo(2);
@@ -47,7 +58,9 @@ class WindowBookTest {
         String text = WindowBook.write(b.entries());
         assertThat(text.indexOf("alpha")).isLessThan(text.indexOf("zed"));
         assertThat(WindowBook.parse(text).book()).isEqualTo(b);
-        assertThat(b.entries()).extracting(WindowBook.Entry::model).isEqualTo(List.of("alpha", "zed"));
+        assertThat(b.entries())
+                .extracting(WindowBook.Entry::model)
+                .isEqualTo(List.of("alpha", "zed"));
     }
 
     @Test

@@ -13,13 +13,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * A Java block in the guide that follows {@code <!-- compiles-with-report -->} is a complete source file that uses the evaluation classes, so it
- * is compiled here, where they are on the class path (the Loom module cannot see them).
+ * A Java block in the guide that follows {@code <!-- compiles-with-report -->} is a complete source
+ * file that uses the evaluation classes, so it is compiled here, where they are on the class path
+ * (the Loom module cannot see them).
  */
 class GuideCompilesTest {
 
     private static final Path GUIDE = Path.of("..", "..", "docs", "guide");
-    private static final Pattern BLOCK = Pattern.compile("<!-- compiles-with-report -->\\s*```java\\n(.*?)```", Pattern.DOTALL);
+    private static final Pattern BLOCK =
+            Pattern.compile("<!-- compiles-with-report -->\\s*```java\\n(.*?)```", Pattern.DOTALL);
 
     @TempDir Path dir;
 
@@ -32,8 +34,14 @@ class GuideCompilesTest {
                 while (m.find()) {
                     String source = m.group(1);
                     String pkg = find(source, "package (.+?);");
-                    String type = find(source, "(?:public )?(?:final )?(?:class|interface|record) (\\w+)");
-                    Path file = dir.resolve("src").resolve(pkg.replace('.', '/')).resolve(type + ".java");
+                    String type =
+                            find(
+                                    source,
+                                    "(?:public )?(?:final )?(?:class|interface|record) (\\w+)");
+                    Path file =
+                            dir.resolve("src")
+                                    .resolve(pkg.replace('.', '/'))
+                                    .resolve(type + ".java");
                     Files.createDirectories(file.getParent());
                     Files.writeString(file, source);
                     paths.add(file.toString());
@@ -42,9 +50,20 @@ class GuideCompilesTest {
         }
         assertThat(paths).as("the guide has at least the trajectory test").isNotEmpty();
         Files.createDirectories(dir.resolve("out"));
-        List<String> args = new ArrayList<>(List.of("-proc:none", "-cp", System.getProperty("java.class.path"), "-d", dir.resolve("out").toString()));
+        List<String> args =
+                new ArrayList<>(
+                        List.of(
+                                "-proc:none",
+                                "-cp",
+                                System.getProperty("java.class.path"),
+                                "-d",
+                                dir.resolve("out").toString()));
         args.addAll(paths);
-        assertThat(ToolProvider.getSystemJavaCompiler().run(null, null, null, args.toArray(String[]::new))).as("the guide's example code compiles").isZero();
+        assertThat(
+                        ToolProvider.getSystemJavaCompiler()
+                                .run(null, null, null, args.toArray(String[]::new)))
+                .as("the guide's example code compiles")
+                .isZero();
     }
 
     private static String find(String source, String regex) {

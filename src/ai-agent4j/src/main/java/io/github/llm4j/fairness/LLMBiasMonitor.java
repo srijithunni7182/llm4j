@@ -24,7 +24,8 @@ public class LLMBiasMonitor implements BiasMonitor {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Pattern JSON = Pattern.compile("\\{.*\\}", Pattern.DOTALL);
 
-    static final String INSTRUCTIONS = """
+    static final String INSTRUCTIONS =
+            """
             You review text for unfair bias against groups of people (gender, race, age, religion, \
             nationality, socioeconomic status, language). Report only statements that stereotype, \
             demean or exclude a group; quoting or refuting a stereotype is not bias.
@@ -44,27 +45,42 @@ public class LLMBiasMonitor implements BiasMonitor {
     public List<BiasEvent> detectBias(String text, BiasContext context) {
         List<BiasEvent> events = new ArrayList<>();
         if (text == null || text.isBlank()) return events;
-        String reply = client.chat(LLMRequest.builder()
-                .addSystemMessage(INSTRUCTIONS)
-                .addUserMessage("Text to review:\n\"\"\"\n" + text + "\n\"\"\"")
-                .temperature(0.0)
-                .build()).getContent();
+        String reply =
+                client.chat(
+                                LLMRequest.builder()
+                                        .addSystemMessage(INSTRUCTIONS)
+                                        .addUserMessage(
+                                                "Text to review:\n\"\"\"\n" + text + "\n\"\"\"")
+                                        .temperature(0.0)
+                                        .build())
+                        .getContent();
         try {
             Matcher m = JSON.matcher(reply == null ? "" : reply);
             if (!m.find()) throw new IllegalArgumentException("no JSON object in the reply");
             JsonNode findings = MAPPER.readTree(m.group()).path("findings");
             for (JsonNode f : findings) {
-                events.add(BiasEvent.builder()
-                        .type(enumOr(BiasType.class, f.path("type").asText(), BiasType.OTHER))
-                        .severity(enumOr(BiasSeverity.class, f.path("severity").asText(), BiasSeverity.MEDIUM))
-                        .text(f.path("text").asText(""))
-                        .explanation(f.path("explanation").asText(""))
-                        .confidence(0.7)
-                        .addMetadata("judge", "llm")
-                        .build());
+                events.add(
+                        BiasEvent.builder()
+                                .type(
+                                        enumOr(
+                                                BiasType.class,
+                                                f.path("type").asText(),
+                                                BiasType.OTHER))
+                                .severity(
+                                        enumOr(
+                                                BiasSeverity.class,
+                                                f.path("severity").asText(),
+                                                BiasSeverity.MEDIUM))
+                                .text(f.path("text").asText(""))
+                                .explanation(f.path("explanation").asText(""))
+                                .confidence(0.7)
+                                .addMetadata("judge", "llm")
+                                .build());
             }
         } catch (Exception e) {
-            logger.warn("Bias judge reply couldn't be read ({}); treating it as no findings", e.getMessage());
+            logger.warn(
+                    "Bias judge reply couldn't be read ({}); treating it as no findings",
+                    e.getMessage());
         }
         return events;
     }

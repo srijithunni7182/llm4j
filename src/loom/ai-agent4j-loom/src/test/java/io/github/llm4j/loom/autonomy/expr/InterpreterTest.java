@@ -59,7 +59,8 @@ class InterpreterTest {
         assertThat(eval("1 + 2 * 3")).isEqualTo(V.num(7));
         assertThat(eval("10 / 4")).isEqualTo(V.num(2.5));
         assertThat(eval("-3 + 1")).isEqualTo(V.num(-2));
-        assertThat(eval("3 >= 3 and 2 < 3 and 4 != 5 and 1 <= 1 and 5 > 4")).isEqualTo(V.bool(true));
+        assertThat(eval("3 >= 3 and 2 < 3 and 4 != 5 and 1 <= 1 and 5 > 4"))
+                .isEqualTo(V.bool(true));
         assertThat(eval("\"a\" == \"a\"")).isEqualTo(V.bool(true));
         assertThat(eval("\"a\" < \"b\"")).isEqualTo(V.bool(true));
         assertThat(eval("\"x\" != \"y\"")).isEqualTo(V.bool(true));
@@ -99,9 +100,23 @@ class InterpreterTest {
     /** The full three-valued truth tables; U is an undefined name. */
     @ParameterizedTest
     @CsvSource({
-            "true and true, true", "true and false, false", "true and U, U", "false and U, false", "U and false, false", "U and true, U", "U and U, U",
-            "true or U, true", "U or true, true", "false or U, U", "U or false, U", "false or false, false", "U or U, U",
-            "not true, false", "not false, true", "not U, U"})
+        "true and true, true",
+        "true and false, false",
+        "true and U, U",
+        "false and U, false",
+        "U and false, false",
+        "U and true, U",
+        "U and U, U",
+        "true or U, true",
+        "U or true, true",
+        "false or U, U",
+        "U or false, U",
+        "false or false, false",
+        "U or U, U",
+        "not true, false",
+        "not false, true",
+        "not U, U"
+    })
     void threeValuedLogic(String expr, String expected) {
         String e = expr.replace("U", "nothing.here > 1");
         V v = eval(e);
@@ -118,7 +133,8 @@ class InterpreterTest {
         assertThat(eval("nothing > 1")).isEqualTo(V.UNDEFINED);
         assertThat(eval("nothing == nothing")).isEqualTo(V.UNDEFINED);
         assertThat(Interpreter.test(ExprParser.parse("nothing > 1"), ctx(List.of()))).isFalse();
-        assertThat(Interpreter.test(ExprParser.parse("not (nothing > 1)"), ctx(List.of()))).isFalse();
+        assertThat(Interpreter.test(ExprParser.parse("not (nothing > 1)"), ctx(List.of())))
+                .isFalse();
     }
 
     // ---------- collections ----------
@@ -129,10 +145,15 @@ class InterpreterTest {
         assertThat(eval("history.age", ctx(h))).isEqualTo(V.dur(30 * DAY));
         assertThat(eval("history.age >= 30d", ctx(h))).isEqualTo(V.bool(true));
         assertThat(eval("history.age >= 31d", ctx(h))).isEqualTo(V.bool(false));
-        assertThat(eval("history.age", ctx(List.of(c(1))))).isEqualTo(V.dur(1 * DAY));       // one case is enough, unlike span
+        assertThat(eval("history.age", ctx(List.of(c(1)))))
+                .isEqualTo(V.dur(1 * DAY)); // one case is enough, unlike span
         assertThat(eval("history.age", ctx(List.of()))).isEqualTo(V.UNDEFINED);
-        assertThat(Interpreter.test(ExprParser.parse("history.age >= 1d"), ctx(List.of()))).as("no evidence is never old enough").isFalse();
-        assertThat(eval("history.last(1).age", ctx(h))).as("of the cases selected").isEqualTo(V.dur(10 * DAY));
+        assertThat(Interpreter.test(ExprParser.parse("history.age >= 1d"), ctx(List.of())))
+                .as("no evidence is never old enough")
+                .isFalse();
+        assertThat(eval("history.last(1).age", ctx(h)))
+                .as("of the cases selected")
+                .isEqualTo(V.dur(10 * DAY));
     }
 
     @Test
@@ -150,13 +171,19 @@ class InterpreterTest {
 
     @Test
     void whereFiltersByFieldsMeasuresAndCompoundConditions() {
-        var h = List.of(c(5, "amount", 100, "tier", "gold"), c(4, "amount", 300, "tier", "gold"), c(3, "amount", 250, "tier", "basic"));
+        var h =
+                List.of(
+                        c(5, "amount", 100, "tier", "gold"),
+                        c(4, "amount", 300, "tier", "gold"),
+                        c(3, "amount", 250, "tier", "basic"));
         assertThat(eval("history.where(amount > 200).count", ctx(h))).isEqualTo(V.num(2));
-        assertThat(eval("history.where(amount > 200 and tier == \"gold\").count", ctx(h))).isEqualTo(V.num(1));
+        assertThat(eval("history.where(amount > 200 and tier == \"gold\").count", ctx(h)))
+                .isEqualTo(V.num(1));
         var big = measure("big", "c.amount > 200");
         assertThat(eval("history.where(big).count", ctx(h, big))).isEqualTo(V.num(2));
         assertThat(eval("history.where(not big).count", ctx(h, big))).isEqualTo(V.num(1));
-        assertThat(eval("history.where(amount > 200).where(tier == \"basic\").count", ctx(h))).isEqualTo(V.num(1));
+        assertThat(eval("history.where(amount > 200).where(tier == \"basic\").count", ctx(h)))
+                .isEqualTo(V.num(1));
     }
 
     @Test
@@ -200,8 +227,10 @@ class InterpreterTest {
         assertThat(((V.Rat) r).n()).isEqualTo(10);
         assertThat(eval("history.rate(ok).value", ctx(h))).isEqualTo(V.num(0.9));
         assertThat(eval("history.rate(ok).n", ctx(h))).isEqualTo(V.num(10));
-        assertThat(((V.Num) eval("history.rate(ok).lower95", ctx(h))).value()).isCloseTo(0.5958, Offset.offset(1e-3));
-        assertThat(((V.Num) eval("history.rate(ok).upper95", ctx(h))).value()).isCloseTo(0.9821, Offset.offset(1e-3));
+        assertThat(((V.Num) eval("history.rate(ok).lower95", ctx(h))).value())
+                .isCloseTo(0.5958, Offset.offset(1e-3));
+        assertThat(((V.Num) eval("history.rate(ok).upper95", ctx(h))).value())
+                .isCloseTo(0.9821, Offset.offset(1e-3));
     }
 
     @Test
@@ -237,7 +266,8 @@ class InterpreterTest {
         assertThat(eval("history.quantile(v, 0.5)", ctx(h))).isEqualTo(V.num(3));
         assertThat(eval("history.quantile(v, 0)", ctx(h))).isEqualTo(V.num(1));
         assertThat(eval("history.quantile(v, 1)", ctx(h))).isEqualTo(V.num(10));
-        assertThat(((V.Num) eval("history.quantile(v, 0.9)", ctx(h))).value()).isCloseTo(7.6, Offset.offset(1e-9));
+        assertThat(((V.Num) eval("history.quantile(v, 0.9)", ctx(h))).value())
+                .isCloseTo(7.6, Offset.offset(1e-9));
         assertThat(eval("history.last(4).median(v)", ctx(h))).isEqualTo(V.num(3.5));
     }
 
@@ -277,8 +307,13 @@ class InterpreterTest {
 
     @Test
     void groupingGivesOneValuePerGroupAndListMethodsReduceThem() {
-        var h = List.of(c(6, "tier", "gold", "ok", true), c(5, "tier", "gold", "ok", true), c(4, "tier", "basic", "ok", false),
-                c(3, "tier", "basic", "ok", true), c(2, "tier", "basic", "ok", true));
+        var h =
+                List.of(
+                        c(6, "tier", "gold", "ok", true),
+                        c(5, "tier", "gold", "ok", true),
+                        c(4, "tier", "basic", "ok", false),
+                        c(3, "tier", "basic", "ok", true),
+                        c(2, "tier", "basic", "ok", true));
         assertThat(eval("history.by(tier).count().min()", ctx(h))).isEqualTo(V.num(2));
         assertThat(eval("history.by(tier).count().max()", ctx(h))).isEqualTo(V.num(3));
         assertThat(eval("history.by(tier).count().count", ctx(h))).isEqualTo(V.num(2));
@@ -295,7 +330,8 @@ class InterpreterTest {
         var diff = measure("diff", "c.a - c.b");
         var large = measure("large", "diff(c) >= 1");
         assertThat(eval("history.where(large).count", ctx(h, diff, large))).isEqualTo(V.num(1));
-        assertThat(((V.Num) eval("history.mean(diff)", ctx(h, diff, large))).value()).isCloseTo(2.0 / 3, Offset.offset(1e-9));
+        assertThat(((V.Num) eval("history.mean(diff)", ctx(h, diff, large))).value())
+                .isCloseTo(2.0 / 3, Offset.offset(1e-9));
         assertThat(eval("history.sum(diff)", ctx(h, diff, large))).isEqualTo(V.num(2));
     }
 
@@ -304,9 +340,22 @@ class InterpreterTest {
         int[] calls = {0};
         var h = List.of(c(2, "a", 1), c(1, "a", 2));
         var counted = new Interpreter.Measure("counted", "c", ExprParser.parse("tally(c.a) > 0"));
-        Interpreter.Context ctx = new Interpreter.Context(Map.of("history", V.cases(h)), Map.of("counted", counted), NOW,
-                Map.of("tally", args -> { calls[0]++; return args.get(0); }));
-        V v = Interpreter.eval(ExprParser.parse("history.count(counted) + history.count(counted) + history.rate(counted).n"), ctx);
+        Interpreter.Context ctx =
+                new Interpreter.Context(
+                        Map.of("history", V.cases(h)),
+                        Map.of("counted", counted),
+                        NOW,
+                        Map.of(
+                                "tally",
+                                args -> {
+                                    calls[0]++;
+                                    return args.get(0);
+                                }));
+        V v =
+                Interpreter.eval(
+                        ExprParser.parse(
+                                "history.count(counted) + history.count(counted) + history.rate(counted).n"),
+                        ctx);
         assertThat(v).isEqualTo(V.num(6));
         assertThat(calls[0]).isEqualTo(2);
     }
@@ -320,11 +369,26 @@ class InterpreterTest {
 
     @Test
     void ladderParametersAndTheCurrentCaseAreVisible() {
-        Interpreter.Context ctx = new Interpreter.Context(Map.of("history", V.cases(List.of(c(1, "views", 900), c(2, "views", 1500))),
-                "baseline", V.num(1000), "case", c(0, "amount", 250, "topic", "legal")), Map.of(), NOW);
-        assertThat(Interpreter.eval(ExprParser.parse("history.mean(views) >= 0.8 * baseline"), ctx)).isEqualTo(V.bool(true));
-        assertThat(Interpreter.eval(ExprParser.parse("case.amount > 200 or case.topic in [\"legal\"]"), ctx)).isEqualTo(V.bool(true));
-        assertThat(Interpreter.eval(ExprParser.parse("history.where(views > baseline).count"), ctx)).isEqualTo(V.num(1));
+        Interpreter.Context ctx =
+                new Interpreter.Context(
+                        Map.of(
+                                "history",
+                                V.cases(List.of(c(1, "views", 900), c(2, "views", 1500))),
+                                "baseline",
+                                V.num(1000),
+                                "case",
+                                c(0, "amount", 250, "topic", "legal")),
+                        Map.of(),
+                        NOW);
+        assertThat(Interpreter.eval(ExprParser.parse("history.mean(views) >= 0.8 * baseline"), ctx))
+                .isEqualTo(V.bool(true));
+        assertThat(
+                        Interpreter.eval(
+                                ExprParser.parse("case.amount > 200 or case.topic in [\"legal\"]"),
+                                ctx))
+                .isEqualTo(V.bool(true));
+        assertThat(Interpreter.eval(ExprParser.parse("history.where(views > baseline).count"), ctx))
+                .isEqualTo(V.num(1));
     }
 
     @Test
@@ -345,10 +409,21 @@ class InterpreterTest {
 
     @Test
     void nestedRecordFieldsReadLikeTheCase() {
-        var h = List.of(c(1, "response", V.rec(Map.of("kind", V.str("edit"), "choice", V.str("reject")))));
-        assertThat(eval("history.count(c_kind)", ctx(h, measure("c_kind", "c.response.kind == \"edit\"")))).isEqualTo(V.num(1));
-        assertThat(eval("history.where(response.kind == \"edit\").count", ctx(h))).isEqualTo(V.num(1));
-        assertThat(eval("history.where(response.nope == \"edit\").count", ctx(h))).isEqualTo(V.num(0));
+        var h =
+                List.of(
+                        c(
+                                1,
+                                "response",
+                                V.rec(Map.of("kind", V.str("edit"), "choice", V.str("reject")))));
+        assertThat(
+                        eval(
+                                "history.count(c_kind)",
+                                ctx(h, measure("c_kind", "c.response.kind == \"edit\""))))
+                .isEqualTo(V.num(1));
+        assertThat(eval("history.where(response.kind == \"edit\").count", ctx(h)))
+                .isEqualTo(V.num(1));
+        assertThat(eval("history.where(response.nope == \"edit\").count", ctx(h)))
+                .isEqualTo(V.num(0));
     }
 
     @Test

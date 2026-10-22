@@ -17,8 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 /** R19, R20, R21: a .loct file maps a name to a class. */
 class LoctLoaderTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private static final String PKG = "io.github.llm4j.loom.context.Strategies$";
 
@@ -31,7 +30,15 @@ class LoctLoaderTest {
     @Test
     void aValidFileMapsNamesToClasses() throws Exception {
         CompactorRegistry r = new CompactorRegistry();
-        List<CompactorRegistry.Problem> problems = r.load(file("s.loct", "# my strategies\n\nkeep_newest = " + PKG + "KeepNewest   # plain\nwith_options=" + PKG + "WithOptions\n"));
+        List<CompactorRegistry.Problem> problems =
+                r.load(
+                        file(
+                                "s.loct",
+                                "# my strategies\n\nkeep_newest = "
+                                        + PKG
+                                        + "KeepNewest   # plain\nwith_options="
+                                        + PKG
+                                        + "WithOptions\n"));
         assertThat(problems).isEmpty();
         assertThat(r.names()).containsExactly("keep_newest", "with_options");
         assertThat(r.entries()).extracting(CompactorRegistry.Entry::line).containsExactly(3, 4);
@@ -54,7 +61,9 @@ class LoctLoaderTest {
     void aPlainStrategyTakesNoOptions() throws Exception {
         CompactorRegistry r = new CompactorRegistry();
         r.load(file("s.loct", "keep_newest = " + PKG + "KeepNewest\n"));
-        assertThatThrownBy(() -> r.create("keep_newest", Map.of("x", "1"), ProviderContext.none())).hasMessageContaining("takes no options").hasMessageContaining("x");
+        assertThatThrownBy(() -> r.create("keep_newest", Map.of("x", "1"), ProviderContext.none()))
+                .hasMessageContaining("takes no options")
+                .hasMessageContaining("x");
     }
 
     @Test
@@ -65,7 +74,8 @@ class LoctLoaderTest {
         r.create("with_options", Map.of("keep", "3"), ctx);
         assertThat(Strategies.WithOptions.lastOptions).containsEntry("keep", "3");
         assertThat(Strategies.WithOptions.lastContext).isSameAs(ctx);
-        assertThatThrownBy(() -> r.create("with_options", Map.of("bad", "1"), ctx)).hasMessageContaining("no option 'bad'");
+        assertThatThrownBy(() -> r.create("with_options", Map.of("bad", "1"), ctx))
+                .hasMessageContaining("no option 'bad'");
         assertThat(r.takesOptions("with_options")).hasValue(true);
         r.load(file("t.loct", "keep_newest = " + PKG + "KeepNewest\n"));
         assertThat(r.takesOptions("keep_newest")).hasValue(false);
@@ -74,17 +84,34 @@ class LoctLoaderTest {
     @Test
     void aNameThatShadowsABuiltInIsRefused() throws Exception {
         CompactorRegistry r = new CompactorRegistry();
-        var problems = r.load(file("s.loct", "drop_oldest = " + PKG + "KeepNewest\nsummarize = " + PKG + "KeepNewest\n"));
+        var problems =
+                r.load(
+                        file(
+                                "s.loct",
+                                "drop_oldest = "
+                                        + PKG
+                                        + "KeepNewest\nsummarize = "
+                                        + PKG
+                                        + "KeepNewest\n"));
         assertThat(problems).hasSize(2).allSatisfy(p -> assertThat(p.error()).isTrue());
-        assertThat(problems.get(0).toString()).contains("s.loct").contains("line 1").contains("built-in");
+        assertThat(problems.get(0).toString())
+                .contains("s.loct")
+                .contains("line 1")
+                .contains("built-in");
         assertThat(r.names()).isEmpty();
     }
 
     @Test
     void badLinesAreReportedWithTheirLine() throws Exception {
         CompactorRegistry r = new CompactorRegistry();
-        var problems = r.load(file("s.loct", "no equals sign\nBad-Name = x.Y\nok = x.Y\nok = x.Z\n= x.Y\nempty =\n"));
-        assertThat(problems).extracting(CompactorRegistry.Problem::line).containsExactly(1, 2, 4, 5, 6);
+        var problems =
+                r.load(
+                        file(
+                                "s.loct",
+                                "no equals sign\nBad-Name = x.Y\nok = x.Y\nok = x.Z\n= x.Y\nempty =\n"));
+        assertThat(problems)
+                .extracting(CompactorRegistry.Problem::line)
+                .containsExactly(1, 2, 4, 5, 6);
         assertThat(r.names()).containsExactly("ok");
     }
 
@@ -93,16 +120,30 @@ class LoctLoaderTest {
         CompactorRegistry r = new CompactorRegistry();
         r.load(file("a.loct", "keep_newest = " + PKG + "Throws\n"));
         r.load(file("b.loct", "keep_newest = " + PKG + "KeepNewest\n"));
-        assertThat(r.entries()).singleElement().extracting(CompactorRegistry.Entry::className).isEqualTo(PKG + "KeepNewest");
+        assertThat(r.entries())
+                .singleElement()
+                .extracting(CompactorRegistry.Entry::className)
+                .isEqualTo(PKG + "KeepNewest");
     }
 
     @Test
     void verifyFindsMissingWrongAndUnconstructableClasses() throws Exception {
         CompactorRegistry r = new CompactorRegistry();
-        r.load(file("s.loct", "missing = com.nowhere.Gone\nwrong = " + PKG + "NotAStrategy\nnoctor = " + PKG + "NoDefaultConstructor\nfine = " + PKG + "KeepNewest\n"));
+        r.load(
+                file(
+                        "s.loct",
+                        "missing = com.nowhere.Gone\nwrong = "
+                                + PKG
+                                + "NotAStrategy\nnoctor = "
+                                + PKG
+                                + "NoDefaultConstructor\nfine = "
+                                + PKG
+                                + "KeepNewest\n"));
         var problems = r.verify();
         assertThat(problems).hasSize(3);
-        assertThat(problems.get(0).error()).as("a class that is not on the class path may be built later").isFalse();
+        assertThat(problems.get(0).error())
+                .as("a class that is not on the class path may be built later")
+                .isFalse();
         assertThat(problems.get(1).error()).isTrue();
         assertThat(problems.get(1).message()).contains("neither");
         assertThat(problems.get(2).message()).contains("constructor");
@@ -112,8 +153,11 @@ class LoctLoaderTest {
     void creatingAnUnmappedOrBrokenStrategyIsAnError() throws Exception {
         CompactorRegistry r = new CompactorRegistry();
         r.load(file("s.loct", "gone = com.nowhere.Gone\n"));
-        assertThatThrownBy(() -> r.create("gone", Map.of(), null)).hasMessageContaining("cannot create").hasMessageContaining("s.loct line 1");
-        assertThatThrownBy(() -> r.create("other", Map.of(), null)).hasMessageContaining("no strategy named");
+        assertThatThrownBy(() -> r.create("gone", Map.of(), null))
+                .hasMessageContaining("cannot create")
+                .hasMessageContaining("s.loct line 1");
+        assertThatThrownBy(() -> r.create("other", Map.of(), null))
+                .hasMessageContaining("no strategy named");
     }
 
     @Test
@@ -132,6 +176,9 @@ class LoctLoaderTest {
     @Test
     void anUnreadableFileIsAProblemNotAnException() {
         var problems = new CompactorRegistry().load(dir.resolve("absent.loct"));
-        assertThat(problems).singleElement().extracting(CompactorRegistry.Problem::error).isEqualTo(true);
+        assertThat(problems)
+                .singleElement()
+                .extracting(CompactorRegistry.Problem::error)
+                .isEqualTo(true);
     }
 }

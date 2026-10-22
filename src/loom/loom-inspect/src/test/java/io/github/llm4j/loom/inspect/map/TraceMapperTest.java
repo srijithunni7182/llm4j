@@ -17,19 +17,24 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** Loom trace events in, OpenTelemetry-shaped records out, and the console's view of them. Hand-built events, no model, no clock. */
+/**
+ * Loom trace events in, OpenTelemetry-shaped records out, and the console's view of them.
+ * Hand-built events, no model, no clock.
+ */
 class TraceMapperTest {
 
     private static final Instant T0 = Instant.parse("2026-10-11T14:02:00Z");
     private static final String RUN = "r-7f3a";
 
-    private static TraceEvent ev(int second, String type, String agent, String step, String text, Object... kv) {
+    private static TraceEvent ev(
+            int second, String type, String agent, String step, String text, Object... kv) {
         Map<String, Object> data = new LinkedHashMap<>();
         for (int i = 0; i < kv.length; i += 2) data.put((String) kv[i], kv[i + 1]);
         return new TraceEvent(type, agent, step, text, data, T0.plusSeconds(second));
     }
 
-    private static TraceMapper.Output feed(TraceMapper m, List<LogRec> logs, List<SpanRec> spans, TraceEvent... events) {
+    private static TraceMapper.Output feed(
+            TraceMapper m, List<LogRec> logs, List<SpanRec> spans, TraceEvent... events) {
         TraceMapper.Output last = null;
         for (TraceEvent e : events) {
             last = m.map(e);
@@ -41,28 +46,187 @@ class TraceMapperTest {
 
     private static List<TraceEvent> firstProcess() {
         return List.of(
-                ev(0, TraceEvent.RUN_START, null, "", "workflow ContentStudio", "workflow", "ContentStudio", "run", RUN, "resumed", "false"),
-                ev(1, TraceEvent.DELEGATE_START, "Editor", "ContentStudio/s0", "Edit this script", "variable", "edit"),
-                ev(2, TraceEvent.THOUGHT, "Editor", "ContentStudio/s0", "I should check a hook pattern"),
-                ev(3, TraceEvent.ACTION, "Editor", "ContentStudio/s0", "Wiki {\"path\":\"/w/api.php\"}", "tool", "Wiki"),
-                ev(5, TraceEvent.OBSERVATION, "Editor", "ContentStudio/s0", "200 OK {\"query\":{}}"),
-                ev(6, TraceEvent.ACTION, "Editor", "ContentStudio/s0", "Example {\"path\":\"/pricing\"}", "tool", "Example"),
+                ev(
+                        0,
+                        TraceEvent.RUN_START,
+                        null,
+                        "",
+                        "workflow ContentStudio",
+                        "workflow",
+                        "ContentStudio",
+                        "run",
+                        RUN,
+                        "resumed",
+                        "false"),
+                ev(
+                        1,
+                        TraceEvent.DELEGATE_START,
+                        "Editor",
+                        "ContentStudio/s0",
+                        "Edit this script",
+                        "variable",
+                        "edit"),
+                ev(
+                        2,
+                        TraceEvent.THOUGHT,
+                        "Editor",
+                        "ContentStudio/s0",
+                        "I should check a hook pattern"),
+                ev(
+                        3,
+                        TraceEvent.ACTION,
+                        "Editor",
+                        "ContentStudio/s0",
+                        "Wiki {\"path\":\"/w/api.php\"}",
+                        "tool",
+                        "Wiki"),
+                ev(
+                        5,
+                        TraceEvent.OBSERVATION,
+                        "Editor",
+                        "ContentStudio/s0",
+                        "200 OK {\"query\":{}}"),
+                ev(
+                        6,
+                        TraceEvent.ACTION,
+                        "Editor",
+                        "ContentStudio/s0",
+                        "Example {\"path\":\"/pricing\"}",
+                        "tool",
+                        "Example"),
                 ev(7, TraceEvent.OBSERVATION, "Editor", "ContentStudio/s0", "404 Not Found"),
-                ev(20, TraceEvent.DELEGATE_END, "Editor", "ContentStudio/s0", "score 5", "calls", 3, "tokens", 5000, "cost", "0.27"),
-                ev(21, TraceEvent.TASK_START, null, "ContentStudio/s1", "run Check", "task", "Check", "step", "ContentStudio/s1"),
-                ev(22, TraceEvent.TASK_END, null, "ContentStudio/s1", "Check → ok", "task", "Check", "step", "ContentStudio/s1", "outcome", "ok", "millis", 900),
-                ev(23, TraceEvent.SLEEP, null, "ContentStudio/s2", "sleeping 90s", "state", "start", "wakeAt", "2026-10-11T14:03:53Z", "millis", "90000", "step", "ContentStudio/s2"),
-                ev(23, TraceEvent.SUSPENDED, null, "", "paused at ContentStudio/s2 (sleeping 90s); resumes at 2026-10-11T14:03:53Z"),
-                ev(23, TraceEvent.RUN_END, null, "", "workflow ContentStudio suspended", "workflow", "ContentStudio", "run", RUN, "status", "suspended", "reason", "SLEEP", "resumeAt", "2026-10-11T14:03:53Z"));
+                ev(
+                        20,
+                        TraceEvent.DELEGATE_END,
+                        "Editor",
+                        "ContentStudio/s0",
+                        "score 5",
+                        "calls",
+                        3,
+                        "tokens",
+                        5000,
+                        "cost",
+                        "0.27"),
+                ev(
+                        21,
+                        TraceEvent.TASK_START,
+                        null,
+                        "ContentStudio/s1",
+                        "run Check",
+                        "task",
+                        "Check",
+                        "step",
+                        "ContentStudio/s1"),
+                ev(
+                        22,
+                        TraceEvent.TASK_END,
+                        null,
+                        "ContentStudio/s1",
+                        "Check → ok",
+                        "task",
+                        "Check",
+                        "step",
+                        "ContentStudio/s1",
+                        "outcome",
+                        "ok",
+                        "millis",
+                        900),
+                ev(
+                        23,
+                        TraceEvent.SLEEP,
+                        null,
+                        "ContentStudio/s2",
+                        "sleeping 90s",
+                        "state",
+                        "start",
+                        "wakeAt",
+                        "2026-10-11T14:03:53Z",
+                        "millis",
+                        "90000",
+                        "step",
+                        "ContentStudio/s2"),
+                ev(
+                        23,
+                        TraceEvent.SUSPENDED,
+                        null,
+                        "",
+                        "paused at ContentStudio/s2 (sleeping 90s); resumes at 2026-10-11T14:03:53Z"),
+                ev(
+                        23,
+                        TraceEvent.RUN_END,
+                        null,
+                        "",
+                        "workflow ContentStudio suspended",
+                        "workflow",
+                        "ContentStudio",
+                        "run",
+                        RUN,
+                        "status",
+                        "suspended",
+                        "reason",
+                        "SLEEP",
+                        "resumeAt",
+                        "2026-10-11T14:03:53Z"));
     }
 
     private static List<TraceEvent> secondProcess() {
         return List.of(
-                ev(100, TraceEvent.RUN_START, null, "", "workflow ContentStudio", "workflow", "ContentStudio", "run", RUN, "resumed", "true"),
-                ev(100, TraceEvent.SLEEP, null, "ContentStudio/s2", "woke after 90s", "state", "end", "wakeAt", "2026-10-11T14:03:53Z", "millis", "90000", "step", "ContentStudio/s2"),
-                ev(101, TraceEvent.DELEGATE_START, "Scriptwriter", "ContentStudio/s3", "Write the script"),
-                ev(130, TraceEvent.DELEGATE_END, "Scriptwriter", "ContentStudio/s3", "done", "calls", 2, "tokens", 1200, "cost", "0.10"),
-                ev(131, TraceEvent.RUN_END, null, "", "workflow ContentStudio completed", "workflow", "ContentStudio", "run", RUN, "status", "completed"));
+                ev(
+                        100,
+                        TraceEvent.RUN_START,
+                        null,
+                        "",
+                        "workflow ContentStudio",
+                        "workflow",
+                        "ContentStudio",
+                        "run",
+                        RUN,
+                        "resumed",
+                        "true"),
+                ev(
+                        100,
+                        TraceEvent.SLEEP,
+                        null,
+                        "ContentStudio/s2",
+                        "woke after 90s",
+                        "state",
+                        "end",
+                        "wakeAt",
+                        "2026-10-11T14:03:53Z",
+                        "millis",
+                        "90000",
+                        "step",
+                        "ContentStudio/s2"),
+                ev(
+                        101,
+                        TraceEvent.DELEGATE_START,
+                        "Scriptwriter",
+                        "ContentStudio/s3",
+                        "Write the script"),
+                ev(
+                        130,
+                        TraceEvent.DELEGATE_END,
+                        "Scriptwriter",
+                        "ContentStudio/s3",
+                        "done",
+                        "calls",
+                        2,
+                        "tokens",
+                        1200,
+                        "cost",
+                        "0.10"),
+                ev(
+                        131,
+                        TraceEvent.RUN_END,
+                        null,
+                        "",
+                        "workflow ContentStudio completed",
+                        "workflow",
+                        "ContentStudio",
+                        "run",
+                        RUN,
+                        "status",
+                        "completed"));
     }
 
     private static SpanRec spanNamed(List<SpanRec> spans, String name) {
@@ -75,7 +239,14 @@ class TraceMapperTest {
         List<LogRec> logs = new ArrayList<>();
         List<SpanRec> spans = new ArrayList<>();
         feed(m, logs, spans, firstProcess().subList(0, 8).toArray(new TraceEvent[0]));
-        LogRec start = logs.stream().filter(l -> l.eventName().equals(Semconv.EV_SPAN_START) && "invoke_agent Editor".equals(l.body())).findFirst().orElseThrow();
+        LogRec start =
+                logs.stream()
+                        .filter(
+                                l ->
+                                        l.eventName().equals(Semconv.EV_SPAN_START)
+                                                && "invoke_agent Editor".equals(l.body()))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(start.text(Semconv.LOOM_SPAN_KIND)).isEqualTo("agent");
         assertThat(start.spanId()).isEqualTo(Ids.spanId(RUN, "ContentStudio/s0#agent:Editor"));
         assertThat(start.traceId()).isEqualTo(Ids.traceId(RUN));
@@ -131,7 +302,11 @@ class TraceMapperTest {
         List<LogRec> logs = new ArrayList<>();
         List<SpanRec> spans = new ArrayList<>();
         feed(m, logs, spans, firstProcess().toArray(new TraceEvent[0]));
-        LogRec suspended = logs.stream().filter(l -> l.eventName().equals(Semconv.EV_RUN_SUSPENDED)).findFirst().orElseThrow();
+        LogRec suspended =
+                logs.stream()
+                        .filter(l -> l.eventName().equals(Semconv.EV_RUN_SUSPENDED))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(suspended.text(Semconv.LOOM_SUSPEND_REASON)).isEqualTo("SLEEP");
         assertThat(suspended.text(Semconv.LOOM_RESUME_AT)).isEqualTo("2026-10-11T14:03:53Z");
         assertThat(logs.get(logs.size() - 1).eventName()).isEqualTo(Semconv.EV_RUN_END);
@@ -143,7 +318,15 @@ class TraceMapperTest {
         TraceMapper first = new TraceMapper(null, Detail.FULL);
         List<LogRec> firstLogs = new ArrayList<>();
         feed(first, firstLogs, new ArrayList<>(), firstProcess().toArray(new TraceEvent[0]));
-        String openedAs = firstLogs.stream().filter(l -> "loom.sleep".equals(l.body()) && l.eventName().equals(Semconv.EV_SPAN_START)).findFirst().orElseThrow().spanId();
+        String openedAs =
+                firstLogs.stream()
+                        .filter(
+                                l ->
+                                        "loom.sleep".equals(l.body())
+                                                && l.eventName().equals(Semconv.EV_SPAN_START))
+                        .findFirst()
+                        .orElseThrow()
+                        .spanId();
 
         TraceMapper second = new TraceMapper(null, Detail.FULL);
         List<SpanRec> spans = new ArrayList<>();
@@ -164,20 +347,36 @@ class TraceMapperTest {
             TraceMapper m = new TraceMapper(null, Detail.FULL);
             List<LogRec> logs = new ArrayList<>();
             List<SpanRec> spans = new ArrayList<>();
-            feed(m, logs, spans, (pass == 0 ? firstProcess() : secondProcess()).toArray(new TraceEvent[0]));
+            feed(
+                    m,
+                    logs,
+                    spans,
+                    (pass == 0 ? firstProcess() : secondProcess()).toArray(new TraceEvent[0]));
             Resource r = pass == 0 ? one : two;
             // a round trip through OTLP/JSON, as it would travel
-            for (OtlpJson.Logs l : OtlpJson.decodeLogs(OtlpJson.encodeLogs(r, "0.1", logs))) registry.applyLogs(l.resource(), l.records());
-            for (OtlpJson.Traces t : OtlpJson.decodeTraces(OtlpJson.encodeTraces(r, "0.1", spans))) registry.applySpans(t.resource(), t.spans());
-            if (pass == 0) assertThat(registry.find("getviral-prod", Ids.traceId(RUN)).orElseThrow().view().get("status")).isEqualTo("sleeping");
+            for (OtlpJson.Logs l : OtlpJson.decodeLogs(OtlpJson.encodeLogs(r, "0.1", logs)))
+                registry.applyLogs(l.resource(), l.records());
+            for (OtlpJson.Traces t : OtlpJson.decodeTraces(OtlpJson.encodeTraces(r, "0.1", spans)))
+                registry.applySpans(t.resource(), t.spans());
+            if (pass == 0)
+                assertThat(
+                                registry.find("getviral-prod", Ids.traceId(RUN))
+                                        .orElseThrow()
+                                        .view()
+                                        .get("status"))
+                        .isEqualTo("sleeping");
         }
-        Map<String, Object> v = registry.find("getviral-prod", Ids.traceId(RUN)).orElseThrow().view();
+        Map<String, Object> v =
+                registry.find("getviral-prod", Ids.traceId(RUN)).orElseThrow().view();
         assertThat(v.get("status")).isEqualTo("finished");
         assertThat(v.get("workflow")).isEqualTo("ContentStudio");
         assertThat(v.get("startedAt")).isEqualTo("2026-10-11T14:02:00Z");
         @SuppressWarnings("unchecked")
         Map<String, Object> totals = (Map<String, Object>) v.get("totals");
-        assertThat(totals).containsEntry("tokens", 6200L).containsEntry("calls", 5L).containsEntry("cost", "0.37");
+        assertThat(totals)
+                .containsEntry("tokens", 6200L)
+                .containsEntry("calls", 5L)
+                .containsEntry("cost", "0.37");
         assertThat(v.get("gaps")).isEqualTo(0L);
         assertThat(v.get("duplicates")).isEqualTo(0L);
     }
@@ -186,13 +385,31 @@ class TraceMapperTest {
     void whenARunFailsWhatWasStillOpenIsClosedAsAnError() {
         TraceMapper m = new TraceMapper(null, Detail.FULL);
         List<SpanRec> spans = new ArrayList<>();
-        feed(m, new ArrayList<>(), spans,
+        feed(
+                m,
+                new ArrayList<>(),
+                spans,
                 ev(0, TraceEvent.RUN_START, null, "", "w", "workflow", "W", "run", RUN),
                 ev(1, TraceEvent.DELEGATE_START, "Editor", "W/s0", "x"),
                 ev(2, TraceEvent.ACTION, "Editor", "W/s0", "Wiki {}", "tool", "Wiki"),
-                ev(9, TraceEvent.RUN_END, null, "", "failed", "workflow", "W", "run", RUN, "status", "failed", "error", "boom"));
-        assertThat(spanNamed(spans, "invoke_agent Editor").statusCode()).isEqualTo(SpanRec.STATUS_ERROR);
-        assertThat(spanNamed(spans, "execute_tool Wiki").statusCode()).isEqualTo(SpanRec.STATUS_ERROR);
+                ev(
+                        9,
+                        TraceEvent.RUN_END,
+                        null,
+                        "",
+                        "failed",
+                        "workflow",
+                        "W",
+                        "run",
+                        RUN,
+                        "status",
+                        "failed",
+                        "error",
+                        "boom"));
+        assertThat(spanNamed(spans, "invoke_agent Editor").statusCode())
+                .isEqualTo(SpanRec.STATUS_ERROR);
+        assertThat(spanNamed(spans, "execute_tool Wiki").statusCode())
+                .isEqualTo(SpanRec.STATUS_ERROR);
         SpanRec root = spanNamed(spans, "loom.workflow W");
         assertThat(root.statusCode()).isEqualTo(SpanRec.STATUS_ERROR);
         assertThat(root.statusMessage()).isEqualTo("boom");
@@ -206,11 +423,27 @@ class TraceMapperTest {
             TraceMapper m = new TraceMapper(RUN, level);
             List<LogRec> logs = new ArrayList<>();
             List<SpanRec> spans = new ArrayList<>();
-            feed(m, logs, spans,
+            feed(
+                    m,
+                    logs,
+                    spans,
                     ev(0, TraceEvent.DELEGATE_START, "A", "W/s0", longText),
                     ev(1, TraceEvent.THOUGHT, "A", "W/s0", longText),
-                    ev(2, TraceEvent.DELEGATE_END, "A", "W/s0", longText, "tokens", 10, "calls", 1));
-            LogRec thought = logs.stream().filter(l -> l.eventName().equals(Semconv.EV_THOUGHT)).findFirst().orElseThrow();
+                    ev(
+                            2,
+                            TraceEvent.DELEGATE_END,
+                            "A",
+                            "W/s0",
+                            longText,
+                            "tokens",
+                            10,
+                            "calls",
+                            1));
+            LogRec thought =
+                    logs.stream()
+                            .filter(l -> l.eventName().equals(Semconv.EV_THOUGHT))
+                            .findFirst()
+                            .orElseThrow();
             Object shown = spans.get(0).attr(Semconv.LOOM_TEXT);
             switch (level) {
                 case FULL -> {
@@ -225,7 +458,8 @@ class TraceMapperTest {
                     assertThat(thought.body()).isEmpty();
                     assertThat(shown).isNull();
                     assertThat(logs.get(0).attr(Semconv.LOOM_TEXT)).isNull();
-                    assertThat(spans.get(0).attr(Semconv.LOOM_USAGE_TOTAL_TOKENS)).isEqualTo(10L); // structure and numbers still flow
+                    assertThat(spans.get(0).attr(Semconv.LOOM_USAGE_TOTAL_TOKENS))
+                            .isEqualTo(10L); // structure and numbers still flow
                 }
             }
         }
@@ -245,7 +479,10 @@ class TraceMapperTest {
     @Test
     void otherEventTypesBecomeLogRecordsNamedAfterThem() {
         TraceMapper m = new TraceMapper(RUN, Detail.FULL);
-        LogRec rewind = m.map(ev(0, TraceEvent.REWIND, null, "W/s4", "rewind to polish", "generation", 2)).logs().get(0);
+        LogRec rewind =
+                m.map(ev(0, TraceEvent.REWIND, null, "W/s4", "rewind to polish", "generation", 2))
+                        .logs()
+                        .get(0);
         assertThat(rewind.eventName()).isEqualTo("loom.rewind");
         assertThat(rewind.attr("loom.data.generation")).isEqualTo(2);
         assertThat(rewind.text(Semconv.LOOM_STEP)).isEqualTo("W/s4");
@@ -254,10 +491,36 @@ class TraceMapperTest {
     @Test
     void anInterventionAndAStoppedStepAreShownReadOnlyAsLogRecords() {
         TraceMapper m = new TraceMapper(RUN, Detail.FULL);
-        LogRec steer = m.map(ev(0, TraceEvent.INTERVENTION, "Writer", "W/s2", "steer Writer", "action", "steer", "origin", "alice")).logs().get(0);
+        LogRec steer =
+                m.map(
+                                ev(
+                                        0,
+                                        TraceEvent.INTERVENTION,
+                                        "Writer",
+                                        "W/s2",
+                                        "steer Writer",
+                                        "action",
+                                        "steer",
+                                        "origin",
+                                        "alice"))
+                        .logs()
+                        .get(0);
         assertThat(steer.eventName()).isEqualTo("loom.intervention");
         assertThat(steer.attr("loom.data.action")).isEqualTo("steer");
-        LogRec stopped = m.map(ev(1, TraceEvent.STEP_STOPPED, "Writer", "W/s2", "stopped (user): use partial", "outcome", "USE_PARTIAL", "category", "user")).logs().get(0);
+        LogRec stopped =
+                m.map(
+                                ev(
+                                        1,
+                                        TraceEvent.STEP_STOPPED,
+                                        "Writer",
+                                        "W/s2",
+                                        "stopped (user): use partial",
+                                        "outcome",
+                                        "USE_PARTIAL",
+                                        "category",
+                                        "user"))
+                        .logs()
+                        .get(0);
         assertThat(stopped.eventName()).isEqualTo("loom.step_stopped");
         assertThat(stopped.attr("loom.data.outcome")).isEqualTo("USE_PARTIAL");
     }
@@ -271,10 +534,27 @@ class TraceMapperTest {
     }
 
     private static final TraceEvent[] WRITER = {
-            ev(1, TraceEvent.DELEGATE_START, "Writer", "W/s0", "Write about hooks using the findings: 340 hits"),
-            ev(2, TraceEvent.ACTION, "Writer", "W/s0", "Wiki {\"q\":\"hooks\"}", "tool", "Wiki"),
-            ev(3, TraceEvent.OBSERVATION, "Writer", "W/s0", "found 12.5% share"),
-            ev(9, TraceEvent.DELEGATE_END, "Writer", "W/s0", "340 hits, 12.5% share, 87% retention, 2019 study", "calls", 1, "tokens", 10, "cost", "0")};
+        ev(
+                1,
+                TraceEvent.DELEGATE_START,
+                "Writer",
+                "W/s0",
+                "Write about hooks using the findings: 340 hits"),
+        ev(2, TraceEvent.ACTION, "Writer", "W/s0", "Wiki {\"q\":\"hooks\"}", "tool", "Wiki"),
+        ev(3, TraceEvent.OBSERVATION, "Writer", "W/s0", "found 12.5% share"),
+        ev(
+                9,
+                TraceEvent.DELEGATE_END,
+                "Writer",
+                "W/s0",
+                "340 hits, 12.5% share, 87% retention, 2019 study",
+                "calls",
+                1,
+                "tokens",
+                10,
+                "cost",
+                "0")
+    };
 
     @Test
     void anAnswersSignalsAreComputedFromTheTextTheStepSawAndFetched() {
@@ -282,9 +562,15 @@ class TraceMapperTest {
         SpanRec agent = spanNamed(spans, "invoke_agent Writer");
         assertThat(agent.attr(Semconv.LOOM_GROUNDING_FIGURES)).isEqualTo(4L);
         assertThat(agent.attr(Semconv.LOOM_GROUNDING_UNGROUNDED)).isEqualTo(2L);
-        assertThat(String.valueOf(agent.attr(Semconv.LOOM_GROUNDING_EXAMPLES))).contains("87%").contains("2019");
+        assertThat(String.valueOf(agent.attr(Semconv.LOOM_GROUNDING_EXAMPLES)))
+                .contains("87%")
+                .contains("2019");
         assertThat(String.valueOf(agent.attr(Semconv.LOOM_OUTPUT_HASH))).hasSize(12);
-        assertThat(String.valueOf(spanNamed(spans, "execute_tool Wiki").attr(Semconv.LOOM_ACTION_HASH))).hasSize(12);
+        assertThat(
+                        String.valueOf(
+                                spanNamed(spans, "execute_tool Wiki")
+                                        .attr(Semconv.LOOM_ACTION_HASH)))
+                .hasSize(12);
     }
 
     @Test
@@ -295,33 +581,65 @@ class TraceMapperTest {
         assertThat(agent.attr(Semconv.LOOM_OUTPUT_HASH)).isNotNull();
         assertThat(agent.attr(Semconv.LOOM_GROUNDING_EXAMPLES)).isNull();
         assertThat(agent.attr(Semconv.LOOM_TEXT)).isNull();
-        assertThat(spanNamed(spans, "execute_tool Wiki").attr(Semconv.LOOM_ACTION_HASH)).isNotNull();
+        assertThat(spanNamed(spans, "execute_tool Wiki").attr(Semconv.LOOM_ACTION_HASH))
+                .isNotNull();
     }
 
     @Test
     void whatAFailedCallReturnedIsNotASource() {
-        List<SpanRec> spans = spansOf(Detail.FULL,
-                ev(1, TraceEvent.DELEGATE_START, "Writer", "W/s0", "Write"),
-                ev(2, TraceEvent.ACTION, "Writer", "W/s0", "Wiki {}", "tool", "Wiki"),
-                ev(3, TraceEvent.OBSERVATION, "Writer", "W/s0", "error: 404 not found for 5000 items"),
-                ev(9, TraceEvent.DELEGATE_END, "Writer", "W/s0", "There are 5000 items", "calls", 1, "tokens", 1, "cost", "0"));
-        assertThat(spanNamed(spans, "invoke_agent Writer").attr(Semconv.LOOM_GROUNDING_UNGROUNDED)).isEqualTo(1L);
+        List<SpanRec> spans =
+                spansOf(
+                        Detail.FULL,
+                        ev(1, TraceEvent.DELEGATE_START, "Writer", "W/s0", "Write"),
+                        ev(2, TraceEvent.ACTION, "Writer", "W/s0", "Wiki {}", "tool", "Wiki"),
+                        ev(
+                                3,
+                                TraceEvent.OBSERVATION,
+                                "Writer",
+                                "W/s0",
+                                "error: 404 not found for 5000 items"),
+                        ev(
+                                9,
+                                TraceEvent.DELEGATE_END,
+                                "Writer",
+                                "W/s0",
+                                "There are 5000 items",
+                                "calls",
+                                1,
+                                "tokens",
+                                1,
+                                "cost",
+                                "0"));
+        assertThat(spanNamed(spans, "invoke_agent Writer").attr(Semconv.LOOM_GROUNDING_UNGROUNDED))
+                .isEqualTo(1L);
     }
 
     @Test
-    void aCallTheRuntimeBlockedAsARepeatIsNotLeftInFlight_itIsClosedAsHavingNoResultAtTheNextThought() {
+    void
+            aCallTheRuntimeBlockedAsARepeatIsNotLeftInFlight_itIsClosedAsHavingNoResultAtTheNextThought() {
         TraceMapper m = new TraceMapper(RUN, Detail.FULL);
         List<LogRec> logs = new ArrayList<>();
         List<SpanRec> spans = new ArrayList<>();
-        feed(m, logs, spans,
+        feed(
+                m,
+                logs,
+                spans,
                 ev(1, TraceEvent.DELEGATE_START, "Fetcher", "W/s0", "fetch"),
                 ev(2, TraceEvent.ACTION, "Fetcher", "W/s0", "Flaky {\"q\":1}", "tool", "Flaky"),
                 ev(3, TraceEvent.OBSERVATION, "Fetcher", "W/s0", "error: 500"),
                 ev(4, TraceEvent.THOUGHT, "Fetcher", "W/s0", "again"),
-                ev(5, TraceEvent.ACTION, "Fetcher", "W/s0", "Flaky {\"q\":1}", "tool", "Flaky")); // blocked: no observation follows
+                ev(
+                        5,
+                        TraceEvent.ACTION,
+                        "Fetcher",
+                        "W/s0",
+                        "Flaky {\"q\":1}",
+                        "tool",
+                        "Flaky")); // blocked: no observation follows
         assertThat(spans).filteredOn(s -> s.name().equals("execute_tool Flaky")).hasSize(1);
         feed(m, logs, spans, ev(6, TraceEvent.THOUGHT, "Fetcher", "W/s0", "again"));
-        List<SpanRec> flaky = spans.stream().filter(s -> s.name().equals("execute_tool Flaky")).toList();
+        List<SpanRec> flaky =
+                spans.stream().filter(s -> s.name().equals("execute_tool Flaky")).toList();
         assertThat(flaky).hasSize(2);
         assertThat(flaky.get(1).attr(Semconv.LOOM_TOOL_NO_RESULT)).isEqualTo(true);
         assertThat(flaky.get(1).statusCode()).isEqualTo(SpanRec.STATUS_UNSET);
@@ -332,14 +650,19 @@ class TraceMapperTest {
         TraceMapper m = new TraceMapper(RUN, Detail.FULL);
         List<LogRec> logs = new ArrayList<>();
         List<SpanRec> spans = new ArrayList<>();
-        feed(m, logs, spans,
+        feed(
+                m,
+                logs,
+                spans,
                 ev(1, TraceEvent.DELEGATE_START, "A", "W/s0", "go"),
                 ev(2, TraceEvent.THOUGHT, "A", "W/s0", "two at once"),
                 ev(3, TraceEvent.ACTION, "A", "W/s0", "T1 {}", "tool", "T1"),
                 ev(3, TraceEvent.ACTION, "A", "W/s0", "T2 {}", "tool", "T2"),
                 ev(4, TraceEvent.OBSERVATION, "A", "W/s0", "one"),
                 ev(5, TraceEvent.OBSERVATION, "A", "W/s0", "two"));
-        assertThat(spans).extracting(SpanRec::name).containsExactly("execute_tool T1", "execute_tool T2");
+        assertThat(spans)
+                .extracting(SpanRec::name)
+                .containsExactly("execute_tool T1", "execute_tool T2");
         assertThat(spans).allSatisfy(s -> assertThat(s.attr(Semconv.LOOM_TOOL_NO_RESULT)).isNull());
     }
 }

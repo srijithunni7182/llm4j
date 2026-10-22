@@ -13,16 +13,18 @@ import java.util.TreeSet;
 import java.util.function.Function;
 
 /**
- * What a run has shown about security, kept apart from {@link RunState}'s statistics: which legs of the lethal trifecta each agent has actually
- * used, what its tool results looked like (the injection scan's group names, never text), which tools refused access, and what the guards did.
+ * What a run has shown about security, kept apart from {@link RunState}'s statistics: which legs of
+ * the lethal trifecta each agent has actually used, what its tool results looked like (the
+ * injection scan's group names, never text), which tools refused access, and what the guards did.
  *
- * <p>It only watches. Nothing here changes what an agent can see, call or send. Not thread-safe: {@link RunState} calls it under its own lock.
+ * <p>It only watches. Nothing here changes what an agent can see, call or send. Not thread-safe:
+ * {@link RunState} calls it under its own lock.
  */
 final class SecurityState {
 
     private static final List<String> LEGS = List.of("untrusted", "private", "outward");
 
-    private record Pending(String source, String groups, long count) { }
+    private record Pending(String source, String groups, long count) {}
 
     private static final class AgentSec {
         final Map<String, Set<String>> used = new TreeMap<>();
@@ -67,8 +69,21 @@ final class SecurityState {
         this.thresholds = thresholds;
     }
 
-    /** A tool call has ended. {@code reach} is null for a trace that does not say; {@code category} is the failure's (lower case) or null. */
-    void onTool(String agentName, String tool, String reach, boolean known, String patterns, long patternCount, String category, boolean noResult, String step, long now) {
+    /**
+     * A tool call has ended. {@code reach} is null for a trace that does not say; {@code category}
+     * is the failure's (lower case) or null.
+     */
+    void onTool(
+            String agentName,
+            String tool,
+            String reach,
+            boolean known,
+            String patterns,
+            long patternCount,
+            String category,
+            boolean noResult,
+            String step,
+            long now) {
         if (tool == null) return;
         String agent = agentName == null ? "unknown" : agentName;
         AgentSec a = agents.computeIfAbsent(agent, k -> new AgentSec());
@@ -84,10 +99,32 @@ final class SecurityState {
             boolean outward = reach != null && List.of(reach.split(",")).contains("outward");
             boolean fresh = !a.called.contains(tool);
             if (outward || fresh) {
-                incidents.raise("sec:injection:" + agent + "|" + p.source, Incidents.Kind.INJECTION, "high", agent, where, now,
-                        "A result from " + p.source + " read like instructions, and " + agent + "'s next call was " + tool,
-                        List.of(Incidents.evidence("injection_scan", p.count, null, injectionDetail(p, agent, t)
-                                + "; the next call was " + tool + (outward ? ", which sends or changes something outside the run" : ", a tool " + agent + " had not called before in this run"))));
+                incidents.raise(
+                        "sec:injection:" + agent + "|" + p.source,
+                        Incidents.Kind.INJECTION,
+                        "high",
+                        agent,
+                        where,
+                        now,
+                        "A result from "
+                                + p.source
+                                + " read like instructions, and "
+                                + agent
+                                + "'s next call was "
+                                + tool,
+                        List.of(
+                                Incidents.evidence(
+                                        "injection_scan",
+                                        p.count,
+                                        null,
+                                        injectionDetail(p, agent, t)
+                                                + "; the next call was "
+                                                + tool
+                                                + (outward
+                                                        ? ", which sends or changes something outside the run"
+                                                        : ", a tool "
+                                                                + agent
+                                                                + " had not called before in this run"))));
             }
         }
         a.called.add(tool);
@@ -102,23 +139,44 @@ final class SecurityState {
         }
         if (a.legs() == LEGS.size()) trifecta(a, agent, where, now, t);
 
-        if (patterns != null && !patterns.isBlank() && t.injectionScan()) { // a rule that turns the scan off (here, or centrally at a server) silences what a process still sent
+        if (patterns != null
+                && !patterns.isBlank()
+                && t.injectionScan()) { // a rule that turns the scan off (here, or centrally at
+            // a server) silences what a process still sent
             suspect++;
             for (String g : patterns.split(",")) groups.merge(g, 1L, Long::sum);
             sources.merge(tool, 1L, Long::sum);
             Pending p = new Pending(tool, patterns, patternCount);
             a.suspect = p;
             boolean accepted = t.trifectaAccepted() != null;
-            incidents.raise("sec:injection:" + agent + "|" + tool, Incidents.Kind.INJECTION, accepted ? "high" : "warn", agent, where, now,
+            incidents.raise(
+                    "sec:injection:" + agent + "|" + tool,
+                    Incidents.Kind.INJECTION,
+                    accepted ? "high" : "warn",
+                    agent,
+                    where,
+                    now,
                     "A result from " + tool + " read like instructions to " + agent,
-                    List.of(Incidents.evidence("injection_scan", patternCount, null, injectionDetail(p, agent, t))));
+                    List.of(
+                            Incidents.evidence(
+                                    "injection_scan",
+                                    patternCount,
+                                    null,
+                                    injectionDetail(p, agent, t))));
         }
     }
 
     private static String injectionDetail(Pending p, String agent, Thresholds t) {
-        return "the result of " + p.source + " matched " + p.count + " time(s) in the groups " + p.groups
+        return "the result of "
+                + p.source
+                + " matched "
+                + p.count
+                + " time(s) in the groups "
+                + p.groups
                 + " (a heuristic: only the group names are kept, never the text)"
-                + (t.trifectaAccepted() != null ? "; " + agent + " has an accepted trifecta, so any finding is high" : "");
+                + (t.trifectaAccepted() != null
+                        ? "; " + agent + " has an accepted trifecta, so any finding is high"
+                        : "");
     }
 
     private void trifecta(AgentSec a, String agent, String where, long now, Thresholds t) {
@@ -131,16 +189,39 @@ final class SecurityState {
             if (detail.length() > 0) detail.append(", ");
             detail.append(String.join("/", a.used.get(leg))).append(" (").append(leg).append(')');
         }
-        if (!everyLegKnown) detail.append("; at least one leg rests on a tool whose reach is assumed, not declared (declare it with reach:)");
+        if (!everyLegKnown)
+            detail.append(
+                    "; at least one leg rests on a tool whose reach is assumed, not declared (declare it with reach:)");
         if (accepted != null) detail.append("; accepted: ").append(accepted);
-        String title = accepted != null ? agent + " used all three legs of the lethal trifecta (accepted)"
-                : agent + " read untrusted content, reached private data and sent something out" + (everyLegKnown ? "" : " (assumed)");
-        incidents.raise("sec:trifecta:" + agent, Incidents.Kind.TRIFECTA, severity, agent, where, now, title,
+        String title =
+                accepted != null
+                        ? agent + " used all three legs of the lethal trifecta (accepted)"
+                        : agent
+                                + " read untrusted content, reached private data and sent something out"
+                                + (everyLegKnown ? "" : " (assumed)");
+        incidents.raise(
+                "sec:trifecta:" + agent,
+                Incidents.Kind.TRIFECTA,
+                severity,
+                agent,
+                where,
+                now,
+                title,
                 List.of(Incidents.evidence("trifecta", 3L, 3L, detail.toString())));
-        a.assumedTrifectaOpen = "warn".equals(severity); // a guess about a tool nobody described: worth a look while it runs, not worth keeping after
+        a.assumedTrifectaOpen =
+                "warn".equals(severity); // a guess about a tool nobody described: worth a look
+        // while it runs, not worth keeping after
     }
 
-    private void access(AgentSec a, String agent, String tool, String category, boolean noResult, String where, long now, Thresholds t) {
+    private void access(
+            AgentSec a,
+            String agent,
+            String tool,
+            String category,
+            boolean noResult,
+            String where,
+            long now,
+            Thresholds t) {
         if (category == null) {
             if (!noResult) incidents.close("sec:access:" + tool, now, "the tool answered again");
             return;
@@ -154,22 +235,62 @@ final class SecurityState {
                 long span = t.accessDeniedSeconds() * 1_000_000_000L;
                 while (!times.isEmpty() && now - times.peekFirst() > span) times.removeFirst();
                 if (times.size() >= t.accessDeniedCount()) {
-                    incidents.raise("sec:access:" + tool, Incidents.Kind.ACCESS, "warn", agent, where, now, "The tool " + tool + " keeps refusing access",
-                            List.of(Incidents.evidence("access_denied", (long) times.size(), (long) t.accessDeniedCount(),
-                                    tool + " refused " + agent + " " + times.size() + " times within " + t.accessDeniedSeconds() + " s (" + category + ")")));
+                    incidents.raise(
+                            "sec:access:" + tool,
+                            Incidents.Kind.ACCESS,
+                            "warn",
+                            agent,
+                            where,
+                            now,
+                            "The tool " + tool + " keeps refusing access",
+                            List.of(
+                                    Incidents.evidence(
+                                            "access_denied",
+                                            (long) times.size(),
+                                            (long) t.accessDeniedCount(),
+                                            tool
+                                                    + " refused "
+                                                    + agent
+                                                    + " "
+                                                    + times.size()
+                                                    + " times within "
+                                                    + t.accessDeniedSeconds()
+                                                    + " s ("
+                                                    + category
+                                                    + ")")));
                 }
             }
             case "unknown_tool" -> {
                 unknownTools++;
-                incidents.raise("sec:unknown:" + agent + "|" + tool, Incidents.Kind.ACCESS, "info", agent, where, now, agent + " called a tool it does not have: " + tool,
-                        List.of(Incidents.evidence("unknown_tool", 1L, null, tool + " is not one of " + agent + "'s tools; the call was blocked. A mistake of the model, or something steering it")));
+                incidents.raise(
+                        "sec:unknown:" + agent + "|" + tool,
+                        Incidents.Kind.ACCESS,
+                        "info",
+                        agent,
+                        where,
+                        now,
+                        agent + " called a tool it does not have: " + tool,
+                        List.of(
+                                Incidents.evidence(
+                                        "unknown_tool",
+                                        1L,
+                                        null,
+                                        tool
+                                                + " is not one of "
+                                                + agent
+                                                + "'s tools; the call was blocked. A mistake of the model, or something steering it")));
             }
-            case "rejected_by_human", "approval_unavailable" -> approvalsRefused++; // people deciding: counted, never an incident
-            default -> { }
+            case "rejected_by_human",
+                    "approval_unavailable" -> approvalsRefused++; // people deciding: counted, never
+                // an incident
+            default -> {}
         }
     }
 
-    /** The run ended: a trifecta that rested on an assumption is over with it; one that rested on declared tools stays for whoever reviews the run. */
+    /**
+     * The run ended: a trifecta that rested on an assumption is over with it; one that rested on
+     * declared tools stays for whoever reviews the run.
+     */
     void onRunEnd(long now) {
         for (Map.Entry<String, AgentSec> e : agents.entrySet()) {
             if (!e.getValue().assumedTrifectaOpen) continue;
@@ -190,7 +311,10 @@ final class SecurityState {
         }
     }
 
-    /** The security section of a run's view. {@code profile} (what each agent can reach, from the static audit) may be empty. */
+    /**
+     * The security section of a run's view. {@code profile} (what each agent can reach, from the
+     * static audit) may be empty.
+     */
     Map<String, Object> view(List<Map<String, Object>> profile) {
         Map<String, Map<String, Object>> can = new TreeMap<>();
         for (Map<String, Object> p : profile) can.put(String.valueOf(p.get("agent")), p);
@@ -221,11 +345,13 @@ final class SecurityState {
             String verdict;
             if (a.legs() == LEGS.size()) verdict = accepted != null ? "accepted" : "exercised";
             else if (canAll) verdict = "armed";
-            else verdict = switch (a.legs()) {
-                case 2 -> "two";
-                case 1 -> "one";
-                default -> "none";
-            };
+            else
+                verdict =
+                        switch (a.legs()) {
+                            case 2 -> "two";
+                            case 1 -> "one";
+                            default -> "none";
+                        };
             m.put("verdict", verdict);
             if ("accepted".equals(verdict)) m.put("acceptedReason", accepted);
             list.add(m);

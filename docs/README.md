@@ -10,7 +10,7 @@
 |---|---|---|
 | [Quick Start](../src/ai-agent4j/wiki/Getting-Started.md) | [Loom overview](../src/loom/ai-agent4j-loom/README.md) | [eval4j guide](../src/eval4j/README.md) |
 | [ReAct Agent Guide](../src/ai-agent4j/wiki/ReAct-Agent-Guide.md) | [Why Loom?](../src/loom/ai-agent4j-loom/WHY_LOOM.md) | [Budgets and Rate Limits](../src/ai-agent4j/wiki/Budgets-and-Rate-Limits.md) |
-| [Providers and the Uniform Contract](../src/ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md) | [Loom Language Guide](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md) | [xAI: Beyond Black Boxes](../src/ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md) |
+| [Providers and the Uniform Contract](../src/ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md) | [Loom Language Guide](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md) (incl. classifying with `intentclassify`) | [xAI: Beyond Black Boxes](../src/ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md) |
 | [Creating Custom Tools](../src/ai-agent4j/wiki/Creating-Custom-Tools.md) · [Ready-made tools](../src/ai-agent4j-tools/docs/README.md) | [Budgets, Pausing and Scheduling](../src/loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md) | [Testing Strategy](TESTING_STRATEGY.md) |
 | [Agent Skills](../src/ai-agent4j/wiki/Agent-Skills-Guide.md) · [Personas](../src/ai-agent4j/wiki/Agent-Personas.md) | [Agentic Workflows with Loom and Engram](AGENTIC_WORKFLOWS_GUIDE.md) | [API Compatibility Policy](API_COMPATIBILITY.md) |
 | [Memory](../src/ai-agent4j/wiki/Memory-and-Persistence.md) · [Semantic Memory](../src/ai-agent4j/wiki/SEMANTIC_MEMORY.md) | [Loom CTK (conformance)](../src/loom/ctk/README.md) | [Version Matrix](VERSION_MATRIX.md) |

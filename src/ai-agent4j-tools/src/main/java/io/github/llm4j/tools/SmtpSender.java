@@ -6,18 +6,25 @@ import jakarta.mail.SendFailedException;
 import jakarta.mail.Session;
 import jakarta.mail.Transport;
 import jakarta.mail.internet.MimeMessage;
-import org.eclipse.angus.mail.smtp.SMTPSendFailedException;
 import java.net.ConnectException;
 import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.Properties;
 import javax.net.ssl.SSLException;
+import org.eclipse.angus.mail.smtp.SMTPSendFailedException;
 
-/** Sends over SMTP with TLS as configured. Partial delivery is off: a refused recipient means nobody gets it. */
+/**
+ * Sends over SMTP with TLS as configured. Partial delivery is off: a refused recipient means nobody
+ * gets it.
+ */
 public final class SmtpSender implements EmailSender {
 
     /** How the connection is secured. */
-    public enum Security { STARTTLS, SSL, NONE }
+    public enum Security {
+        STARTTLS,
+        SSL,
+        NONE
+    }
 
     private final String host;
     private final int port;
@@ -26,7 +33,13 @@ public final class SmtpSender implements EmailSender {
     private final String password;
     private final Duration timeout;
 
-    public SmtpSender(String host, int port, Security security, String username, String password, Duration timeout) {
+    public SmtpSender(
+            String host,
+            int port,
+            Security security,
+            String username,
+            String password,
+            Duration timeout) {
         this.host = host;
         this.port = port;
         this.security = security;
@@ -52,12 +65,14 @@ public final class SmtpSender implements EmailSender {
             } catch (SendFailedException e) {
                 throw failure(e);
             } catch (MessagingException e) {
-                throw new EmailFailure(Stage.LOST, "the connection was lost while sending; delivery is unknown");
+                throw new EmailFailure(
+                        Stage.LOST, "the connection was lost while sending; delivery is unknown");
             }
         } catch (EmailFailure e) {
             throw e;
         } catch (MessagingException e) {
-            throw new EmailFailure(Stage.LOST, "the mail could not be completed: " + e.getClass().getSimpleName());
+            throw new EmailFailure(
+                    Stage.LOST, "the mail could not be completed: " + e.getClass().getSimpleName());
         }
     }
 
@@ -80,7 +95,9 @@ public final class SmtpSender implements EmailSender {
                 p.put("mail.smtp.ssl.enable", "true");
                 p.put("mail.smtp.ssl.checkserveridentity", "true");
             }
-            case NONE -> { /* only reachable for loopback or allow_insecure */ }
+            case NONE -> {
+                /* only reachable for loopback or allow_insecure */
+            }
         }
         return p;
     }
@@ -91,22 +108,28 @@ public final class SmtpSender implements EmailSender {
             if (t instanceof ConnectException) return "couldn't connect to the mail server";
             if (t instanceof SSLException) return "the TLS connection to the mail server failed";
             String m = t.getMessage();
-            if (m != null && m.toLowerCase(java.util.Locale.ROOT).contains("starttls")) return "the mail server doesn't offer STARTTLS, which is required";
+            if (m != null && m.toLowerCase(java.util.Locale.ROOT).contains("starttls"))
+                return "the mail server doesn't offer STARTTLS, which is required";
         }
         return "couldn't connect to the mail server";
     }
 
     /**
-     * Which stage a refusal came at: the sender or a recipient (nothing was accepted), or the message itself
-     * after its data (a temporary or permanent failure).
+     * Which stage a refusal came at: the sender or a recipient (nothing was accepted), or the
+     * message itself after its data (a temporary or permanent failure).
      */
     private static EmailFailure failure(SendFailedException e) {
         if (e instanceof SMTPSendFailedException s && isDataStage(s.getCommand())) {
-            // No reply code at all means the server went away before answering: the message may have been taken.
-            if (s.getReturnCode() < 100) return new EmailFailure(Stage.LOST, "the connection was lost while sending; delivery is unknown");
+            // No reply code at all means the server went away before answering: the message may
+            // have been taken.
+            if (s.getReturnCode() < 100)
+                return new EmailFailure(
+                        Stage.LOST, "the connection was lost while sending; delivery is unknown");
             boolean temporary = s.getReturnCode() >= 400 && s.getReturnCode() < 500;
-            return new EmailFailure(temporary ? Stage.TRANSIENT : Stage.REJECTED,
-                    temporary ? "the server asked to try again later (" + s.getReturnCode() + ")"
+            return new EmailFailure(
+                    temporary ? Stage.TRANSIENT : Stage.REJECTED,
+                    temporary
+                            ? "the server asked to try again later (" + s.getReturnCode() + ")"
                             : "the server refused the message (" + s.getReturnCode() + ")");
         }
         return new EmailFailure(Stage.RECIPIENT, "the server refused the sender or a recipient");

@@ -7,16 +7,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Where a run's tokens went: every settled LLM call, tagged with the step and agent that made it, and
- * totals per agent and per step. Charges estimated because a provider reported no usage are marked.
+ * Where a run's tokens went: every settled LLM call, tagged with the step and agent that made it,
+ * and totals per agent and per step. Charges estimated because a provider reported no usage are
+ * marked.
  */
 public final class SpendReport {
 
     /** One settled LLM call. */
-    public record Line(String step, String agent, String model, Charge charge) { }
+    public record Line(String step, String agent, String model, Charge charge) {}
 
     /** Totals for a run, an agent or a step. */
-    public record Totals(long promptTokens, long completionTokens, long calls, BigDecimal cost, boolean estimated) {
+    public record Totals(
+            long promptTokens,
+            long completionTokens,
+            long calls,
+            BigDecimal cost,
+            boolean estimated) {
         static final Totals ZERO = new Totals(0, 0, 0, BigDecimal.ZERO, false);
 
         public long tokens() {
@@ -24,8 +30,12 @@ public final class SpendReport {
         }
 
         Totals plus(Charge c) {
-            return new Totals(promptTokens + c.promptTokens(), completionTokens + c.completionTokens(),
-                    calls + c.calls(), cost.add(c.cost()), estimated || c.estimated());
+            return new Totals(
+                    promptTokens + c.promptTokens(),
+                    completionTokens + c.completionTokens(),
+                    calls + c.calls(),
+                    cost.add(c.cost()),
+                    estimated || c.estimated());
         }
     }
 
@@ -60,20 +70,36 @@ public final class SpendReport {
     /** A plain-text table: one row per agent, then the total. */
     public String table() {
         StringBuilder out = new StringBuilder();
-        out.append(String.format("%-24s %7s %10s %12s %12s%n", "agent", "calls", "prompt", "completion", "cost"));
+        out.append(
+                String.format(
+                        "%-24s %7s %10s %12s %12s%n",
+                        "agent", "calls", "prompt", "completion", "cost"));
         byAgent().forEach((agent, t) -> out.append(row(agent, t)));
         out.append(row("total", total()));
-        if (total().estimated()) out.append("(some usage was estimated: a provider reported none)\n");
+        if (total().estimated())
+            out.append("(some usage was estimated: a provider reported none)\n");
         return out.toString();
     }
 
     private static Totals add(Totals a, Totals b) {
-        return new Totals(a.promptTokens() + b.promptTokens(), a.completionTokens() + b.completionTokens(),
-                a.calls() + b.calls(), a.cost().add(b.cost()), a.estimated() || b.estimated());
+        return new Totals(
+                a.promptTokens() + b.promptTokens(),
+                a.completionTokens() + b.completionTokens(),
+                a.calls() + b.calls(),
+                a.cost().add(b.cost()),
+                a.estimated() || b.estimated());
     }
 
     private static String row(String name, Totals t) {
-        return String.format("%-24s %7d %10d %12d %12s%n", name, t.calls(), t.promptTokens(), t.completionTokens(),
-                "$" + (t.cost().signum() == 0 ? "0" : t.cost().stripTrailingZeros().toPlainString()));
+        return String.format(
+                "%-24s %7d %10d %12d %12s%n",
+                name,
+                t.calls(),
+                t.promptTokens(),
+                t.completionTokens(),
+                "$"
+                        + (t.cost().signum() == 0
+                                ? "0"
+                                : t.cost().stripTrailingZeros().toPlainString()));
     }
 }

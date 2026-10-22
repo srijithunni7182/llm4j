@@ -26,31 +26,50 @@ class OllamaContractTest extends ProviderContract {
     @Override
     protected String nativeSystem(JsonNode request) {
         List<String> system = new ArrayList<>();
-        request.path("messages").forEach(m -> {
-            if ("system".equals(m.path("role").asText())) system.add(m.path("content").asText());
-        });
+        request.path("messages")
+                .forEach(
+                        m -> {
+                            if ("system".equals(m.path("role").asText()))
+                                system.add(m.path("content").asText());
+                        });
         return system.isEmpty() ? null : String.join("\n\n", system);
     }
 
     @Override
     protected List<String> turns(JsonNode request) {
         List<String> out = new ArrayList<>();
-        request.path("messages").forEach(m -> {
-            if (!"system".equals(m.path("role").asText())) out.add(m.path("role").asText() + ": " + m.path("content").asText());
-        });
+        request.path("messages")
+                .forEach(
+                        m -> {
+                            if (!"system".equals(m.path("role").asText()))
+                                out.add(
+                                        m.path("role").asText()
+                                                + ": "
+                                                + m.path("content").asText());
+                        });
         return out;
     }
 
     @Override
     protected Settings settings(JsonNode r) {
         JsonNode o = r.path("options");
-        return new Settings(integer(o.path("num_predict")), decimal(o.path("temperature")), decimal(o.path("top_p")),
+        return new Settings(
+                integer(o.path("num_predict")),
+                decimal(o.path("temperature")),
+                decimal(o.path("top_p")),
                 strings(o.path("stop")));
     }
 
     static String done(String reason, String text, int in, int out) {
-        return "{\"model\":\"llama3.2\",\"message\":{\"role\":\"assistant\",\"content\":" + AnthropicContractTest.quote(text)
-                + "},\"done\":true,\"done_reason\":\"" + reason + "\",\"prompt_eval_count\":" + in + ",\"eval_count\":" + out + "}";
+        return "{\"model\":\"llama3.2\",\"message\":{\"role\":\"assistant\",\"content\":"
+                + AnthropicContractTest.quote(text)
+                + "},\"done\":true,\"done_reason\":\""
+                + reason
+                + "\",\"prompt_eval_count\":"
+                + in
+                + ",\"eval_count\":"
+                + out
+                + "}";
     }
 
     @Override
@@ -80,13 +99,18 @@ class OllamaContractTest extends ProviderContract {
 
     @Override
     protected MockResponse rateLimited(Instant reset) {
-        return new MockResponse().setResponseCode(429)
-                .setHeader("Retry-After", String.valueOf(Duration.between(Instant.now(), reset).getSeconds()))
+        return new MockResponse()
+                .setResponseCode(429)
+                .setHeader(
+                        "Retry-After",
+                        String.valueOf(Duration.between(Instant.now(), reset).getSeconds()))
                 .setBody(error(429, "too many requests"));
     }
 
     static String line(String text) {
-        return "{\"model\":\"llama3.2\",\"message\":{\"role\":\"assistant\",\"content\":" + AnthropicContractTest.quote(text) + "},\"done\":false}\n";
+        return "{\"model\":\"llama3.2\",\"message\":{\"role\":\"assistant\",\"content\":"
+                + AnthropicContractTest.quote(text)
+                + "},\"done\":false}\n";
     }
 
     @Override
@@ -94,7 +118,9 @@ class OllamaContractTest extends ProviderContract {
         StringBuilder sb = new StringBuilder();
         pieces.forEach(p -> sb.append(line(p)));
         sb.append(done("stop", "", in, out)).append('\n');
-        return new MockResponse().setHeader("Content-Type", "application/x-ndjson").setBody(sb.toString());
+        return new MockResponse()
+                .setHeader("Content-Type", "application/x-ndjson")
+                .setBody(sb.toString());
     }
 
     @Override
@@ -102,7 +128,9 @@ class OllamaContractTest extends ProviderContract {
         StringBuilder sb = new StringBuilder();
         pieces.forEach(p -> sb.append(line(p)));
         sb.append("{\"error\":\"model runner has unexpectedly stopped\"}\n");
-        return new MockResponse().setHeader("Content-Type", "application/x-ndjson").setBody(sb.toString());
+        return new MockResponse()
+                .setHeader("Content-Type", "application/x-ndjson")
+                .setBody(sb.toString());
     }
 
     @Override

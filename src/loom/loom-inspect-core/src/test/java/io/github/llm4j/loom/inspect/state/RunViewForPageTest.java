@@ -6,7 +6,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** What the run page draws that the view did not yet carry: the thresholds in force for an agent's context, and each tool's and task's recent outcomes and latency histogram. */
+/**
+ * What the run page draws that the view did not yet carry: the thresholds in force for an agent's
+ * context, and each tool's and task's recent outcomes and latency histogram.
+ */
 class RunViewForPageTest {
 
     private final ContextFixtures c = new ContextFixtures();
@@ -26,8 +29,20 @@ class RunViewForPageTest {
 
     @Test
     void theMarksAreTheOnesInForceForThatAgent() {
-        c.state.setRules(Map.of("Editor", new InspectRules(null, null, null, null, null, null, null, null,
-                new InspectRules.Telemetry(0.7, 0.9, null, null, null, null, null, null))));
+        c.state.setRules(
+                Map.of(
+                        "Editor",
+                        new InspectRules(
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                new InspectRules.Telemetry(
+                                        0.7, 0.9, null, null, null, null, null, null))));
         c.context(1, "Editor", 500, 1200L, 1000L);
         c.context(2, "Writer", 500, 1200L, 1000L);
         assertThat(c.context("Editor")).containsEntry("warnAt", 0.7).containsEntry("highAt", 0.9);
@@ -64,6 +79,18 @@ class RunViewForPageTest {
     @Test
     void theOldFieldsAreStillThere() {
         s.tool(1, "A", "Fetch", "untrusted");
-        assertThat(rows(s.state, "tools").get(0)).containsKeys("name", "calls", "errors", "inFlight", "avgMillis", "successes", "successRate", "failures", "p50Ms", "p95Ms", "health");
+        assertThat(rows(s.state, "tools").get(0))
+                .containsKeys(
+                        "name",
+                        "calls",
+                        "errors",
+                        "inFlight",
+                        "avgMillis",
+                        "successes",
+                        "successRate",
+                        "failures",
+                        "p50Ms",
+                        "p95Ms",
+                        "health");
     }
 }

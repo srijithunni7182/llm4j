@@ -5,14 +5,23 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * One fact in the ledger. A ledger is append-only: a later fact about a case is a new record that names the case, never an edit, and the
- * case as it stands is the fold of its records in order (see {@link Cases}).
+ * One fact in the ledger. A ledger is append-only: a later fact about a case is a new record that
+ * names the case, never an edit, and the case as it stands is the fold of its records in order (see
+ * {@link Cases}).
  *
- * @param id         derived from what the record says, so appending the same fact twice leaves one
- * @param caseId     the case it is about; empty for a level change, a freeze or a promotion proposal
- * @param generation the attempt of the run that produced it (a rewound case is decided again in a later generation)
+ * @param id derived from what the record says, so appending the same fact twice leaves one
+ * @param caseId the case it is about; empty for a level change, a freeze or a promotion proposal
+ * @param generation the attempt of the run that produced it (a rewound case is decided again in a
+ *     later generation)
  */
-public record Rec(String id, String decision, String kind, Instant at, String caseId, int generation, Map<String, Object> body) {
+public record Rec(
+        String id,
+        String decision,
+        String kind,
+        Instant at,
+        String caseId,
+        int generation,
+        Map<String, Object> body) {
 
     public static final String CASE = "case";
     public static final String PROPOSED = "proposed";
@@ -20,10 +29,19 @@ public record Rec(String id, String decision, String kind, Instant at, String ca
     public static final String OUTCOME = "outcome";
     public static final String RESPONDED = "responded";
     public static final String EPOCH = "epoch";
-    /** The text of an artifact too large to keep in the record that refers to it, stored once under the hash of its content. */
+
+    /**
+     * The text of an artifact too large to keep in the record that refers to it, stored once under
+     * the hash of its content.
+     */
     public static final String BLOB = "blob";
-    /** States the hash of every record of levels, promotions and freezes before it; the records after it carry seals (see {@link Seal}). */
+
+    /**
+     * States the hash of every record of levels, promotions and freezes before it; the records
+     * after it carry seals (see {@link Seal}).
+     */
     public static final String SEAL_BASE = "seal_base";
+
     public static final String LEVEL = "level";
     public static final String FROZEN = "frozen";
     public static final String PROMOTION_PROPOSED = "promotion_proposed";
@@ -35,7 +53,8 @@ public record Rec(String id, String decision, String kind, Instant at, String ca
 
     public static Map<String, Object> map(Object... pairs) {
         Map<String, Object> m = new LinkedHashMap<>();
-        for (int i = 0; i < pairs.length; i += 2) if (pairs[i + 1] != null) m.put((String) pairs[i], pairs[i + 1]);
+        for (int i = 0; i < pairs.length; i += 2)
+            if (pairs[i + 1] != null) m.put((String) pairs[i], pairs[i + 1]);
         return m;
     }
 

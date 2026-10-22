@@ -16,8 +16,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Manages conversation history for the agent: a sliding window of messages, optionally also a window in <b>tokens</b> with a
- * {@link ContextCompactor} to use when it is exceeded, and optional persistence. Not thread-safe.
+ * Manages conversation history for the agent: a sliding window of messages, optionally also a
+ * window in <b>tokens</b> with a {@link ContextCompactor} to use when it is exceeded, and optional
+ * persistence. Not thread-safe.
  *
  * <pre>{@code
  * ConversationHistory history = ConversationHistory.builder()
@@ -26,8 +27,8 @@ import org.slf4j.LoggerFactory;
  *         .build();
  * }</pre>
  *
- * <p>The window applies to the view the agent is shown. A store, if there is one, keeps the full record unless {@code persistCompacted(true)}
- * is asked for.
+ * <p>The window applies to the view the agent is shown. A store, if there is one, keeps the full
+ * record unless {@code persistCompacted(true)} is asked for.
  */
 public class ConversationHistory {
 
@@ -56,7 +57,10 @@ public class ConversationHistory {
         this(legacy(sessionId, store, maxHistorySize));
     }
 
-    /** The constructors that came first accept any size, as they always did; only the builder insists on a positive one. */
+    /**
+     * The constructors that came first accept any size, as they always did; only the builder
+     * insists on a positive one.
+     */
     private static Builder legacy(String sessionId, ConversationStore store, int maxHistorySize) {
         Builder b = builder().sessionId(sessionId).store(store);
         b.maxMessages = maxHistorySize;
@@ -131,7 +135,10 @@ public class ConversationHistory {
         if (maxTokens > 0) enforceTokenWindow();
     }
 
-    /** Brings the view within the window in tokens: first with the compactor, if there is one, then by letting the oldest messages go. */
+    /**
+     * Brings the view within the window in tokens: first with the compactor, if there is one, then
+     * by letting the oldest messages go.
+     */
     private void enforceTokenWindow() {
         CompactionRequest sizer = CompactionRequest.builder(1).estimator(estimator).build();
         long size = sizer.sizeOf(messages);
@@ -146,13 +153,19 @@ public class ConversationHistory {
 
     private void compact(long size, CompactionRequest sizer) {
         long target = Math.max(1, (long) (maxTokens * compactTo));
-        CompactionRequest request = CompactionRequest.builder(target).estimator(estimator).keepRecent(keepRecent).pinned(pinned)
-                .protectTask(false) // in a chat the first message is only the oldest
-                .reason(CompactionRequest.Reason.THRESHOLD).build();
+        CompactionRequest request =
+                CompactionRequest.builder(target)
+                        .estimator(estimator)
+                        .keepRecent(keepRecent)
+                        .pinned(pinned)
+                        .protectTask(false) // in a chat the first message is only the oldest
+                        .reason(CompactionRequest.Reason.THRESHOLD)
+                        .build();
         try {
             CompactionResult result = compactor.compact(List.copyOf(messages), request);
             tell(result);
-            if (result.outcome() == CompactionResult.Outcome.COMPACTED && sizer.sizeOf(result.messages()) < size) {
+            if (result.outcome() == CompactionResult.Outcome.COMPACTED
+                    && sizer.sizeOf(result.messages()) < size) {
                 messages.clear();
                 messages.addAll(result.messages());
                 if (persistCompacted && store != null) {
@@ -162,7 +175,9 @@ public class ConversationHistory {
             }
         } catch (RuntimeException e) {
             // a compactor must never make adding a message fail: the window slides instead
-            logger.warn("Compacting the conversation history failed; the oldest messages are dropped instead: {}", e.toString());
+            logger.warn(
+                    "Compacting the conversation history failed; the oldest messages are dropped instead: {}",
+                    e.toString());
         }
     }
 
@@ -171,7 +186,8 @@ public class ConversationHistory {
         try {
             onCompaction.accept(result);
         } catch (RuntimeException e) {
-            logger.warn("A compaction listener of the conversation history failed: {}", e.toString());
+            logger.warn(
+                    "A compaction listener of the conversation history failed: {}", e.toString());
         }
     }
 
@@ -205,7 +221,9 @@ public class ConversationHistory {
             return this;
         }
 
-        /** Where messages are kept between runs; none by default (the history lives in memory only). */
+        /**
+         * Where messages are kept between runs; none by default (the history lives in memory only).
+         */
         public Builder store(ConversationStore store) {
             this.store = store;
             return this;
@@ -213,19 +231,28 @@ public class ConversationHistory {
 
         /** The most messages shown, whatever their size (default 100). */
         public Builder maxMessages(int maxMessages) {
-            if (maxMessages <= 0) throw new IllegalArgumentException("maxMessages must be positive, got " + maxMessages);
+            if (maxMessages <= 0)
+                throw new IllegalArgumentException(
+                        "maxMessages must be positive, got " + maxMessages);
             this.maxMessages = maxMessages;
             return this;
         }
 
-        /** The most (estimated) tokens shown. The latest message is always kept, even if it alone is larger. */
+        /**
+         * The most (estimated) tokens shown. The latest message is always kept, even if it alone is
+         * larger.
+         */
         public Builder maxTokens(long maxTokens) {
-            if (maxTokens <= 0) throw new IllegalArgumentException("maxTokens must be positive, got " + maxTokens);
+            if (maxTokens <= 0)
+                throw new IllegalArgumentException("maxTokens must be positive, got " + maxTokens);
             this.maxTokens = maxTokens;
             return this;
         }
 
-        /** What to do when the window in tokens is exceeded; without one the oldest messages simply go. Needs {@link #maxTokens}. */
+        /**
+         * What to do when the window in tokens is exceeded; without one the oldest messages simply
+         * go. Needs {@link #maxTokens}.
+         */
         public Builder compaction(ContextCompactor compactor) {
             this.compactor = compactor;
             return this;
@@ -233,7 +260,9 @@ public class ConversationHistory {
 
         /** The last this-many messages are never touched by compaction (default 4). */
         public Builder keepRecent(int keepRecent) {
-            if (keepRecent < 0) throw new IllegalArgumentException("keepRecent must not be negative, got " + keepRecent);
+            if (keepRecent < 0)
+                throw new IllegalArgumentException(
+                        "keepRecent must not be negative, got " + keepRecent);
             this.keepRecent = keepRecent;
             return this;
         }
@@ -244,16 +273,22 @@ public class ConversationHistory {
             return this;
         }
 
-        /** Compact down to this share of {@link #maxTokens} (default 0.6), so that it is not done on every message. */
+        /**
+         * Compact down to this share of {@link #maxTokens} (default 0.6), so that it is not done on
+         * every message.
+         */
         public Builder compactTo(double fraction) {
-            if (!(fraction > 0 && fraction < 1)) throw new IllegalArgumentException("compactTo must be between 0 and 1, exclusive, got " + fraction);
+            if (!(fraction > 0 && fraction < 1))
+                throw new IllegalArgumentException(
+                        "compactTo must be between 0 and 1, exclusive, got " + fraction);
             this.compactTo = fraction;
             return this;
         }
 
         /**
-         * Rewrite the store with the compacted history. Off by default: the store then keeps every message, and only the view the agent is
-         * shown is compacted (again, when the history is loaded). Needs a {@link #store}.
+         * Rewrite the store with the compacted history. Off by default: the store then keeps every
+         * message, and only the view the agent is shown is compacted (again, when the history is
+         * loaded). Needs a {@link #store}.
          */
         public Builder persistCompacted(boolean persist) {
             this.persistCompacted = persist;
@@ -273,8 +308,11 @@ public class ConversationHistory {
         }
 
         public ConversationHistory build() {
-            if (compactor != null && maxTokens <= 0) throw new IllegalStateException("a compaction strategy needs maxTokens: the window it protects");
-            if (persistCompacted && store == null) throw new IllegalStateException("persistCompacted needs a store to rewrite");
+            if (compactor != null && maxTokens <= 0)
+                throw new IllegalStateException(
+                        "a compaction strategy needs maxTokens: the window it protects");
+            if (persistCompacted && store == null)
+                throw new IllegalStateException("persistCompacted needs a store to rewrite");
             return new ConversationHistory(this);
         }
     }

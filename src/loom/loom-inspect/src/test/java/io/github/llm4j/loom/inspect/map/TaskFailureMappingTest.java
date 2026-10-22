@@ -21,7 +21,8 @@ class TaskFailureMappingTest {
     private static TraceEvent ev(double second, String type, String text, Object... kv) {
         Map<String, Object> data = new LinkedHashMap<>();
         for (int i = 0; i < kv.length; i += 2) data.put((String) kv[i], kv[i + 1]);
-        return new TraceEvent(type, null, "Main/s0", text, data, T0.plusMillis((long) (second * 1000)));
+        return new TraceEvent(
+                type, null, "Main/s0", text, data, T0.plusMillis((long) (second * 1000)));
     }
 
     private final List<LogRec> logs = new ArrayList<>();
@@ -42,13 +43,49 @@ class TaskFailureMappingTest {
 
     private TraceEvent[] failedTask(boolean handled) {
         return new TraceEvent[] {
-                ev(0, TraceEvent.RUN_START, "", "workflow", "Main", "run", "r-1", "resumed", "false"),
-                ev(0.1, TraceEvent.TASK_START, "run Boom", "task", "Boom", "step", "Main/s0"),
-                ev(0.5, TraceEvent.TASK_END, "Boom failed: card 4242 declined", "task", "Boom", "step", "Main/s0", "outcome", "failed",
-                        "error", "card 4242 declined for the customer in the long error text that is content", "attempts", 3, "category", "SERVER_ERROR",
-                        "error_type", "IllegalStateException", "millis", 400L),
-                ev(0.6, TraceEvent.FAILURE, "task Boom failed", "kind", "task", "name", "Boom", "step", "Main/s0", "category", "SERVER_ERROR",
-                        "error_type", "IllegalStateException", "attempts", 3, "handled", handled, "error", "card 4242 declined for the customer in the long error text that is content")};
+            ev(0, TraceEvent.RUN_START, "", "workflow", "Main", "run", "r-1", "resumed", "false"),
+            ev(0.1, TraceEvent.TASK_START, "run Boom", "task", "Boom", "step", "Main/s0"),
+            ev(
+                    0.5,
+                    TraceEvent.TASK_END,
+                    "Boom failed: card 4242 declined",
+                    "task",
+                    "Boom",
+                    "step",
+                    "Main/s0",
+                    "outcome",
+                    "failed",
+                    "error",
+                    "card 4242 declined for the customer in the long error text that is content",
+                    "attempts",
+                    3,
+                    "category",
+                    "SERVER_ERROR",
+                    "error_type",
+                    "IllegalStateException",
+                    "millis",
+                    400L),
+            ev(
+                    0.6,
+                    TraceEvent.FAILURE,
+                    "task Boom failed",
+                    "kind",
+                    "task",
+                    "name",
+                    "Boom",
+                    "step",
+                    "Main/s0",
+                    "category",
+                    "SERVER_ERROR",
+                    "error_type",
+                    "IllegalStateException",
+                    "attempts",
+                    3,
+                    "handled",
+                    handled,
+                    "error",
+                    "card 4242 declined for the customer in the long error text that is content")
+        };
     }
 
     @Test
@@ -93,29 +130,84 @@ class TaskFailureMappingTest {
     void theRunRecordNamesWhatBrokeIt() {
         TraceEvent[] f = failedTask(false);
         List<TraceEvent> all = new ArrayList<>(List.of(f));
-        all.add(ev(1, TraceEvent.RUN_END, "workflow Main failed", "workflow", "Main", "status", "failed", "error", "Task Boom failed: x",
-                "failed_kind", "task", "failed_name", "Boom", "failed_step", "Main/s0", "failed_category", "SERVER_ERROR"));
+        all.add(
+                ev(
+                        1,
+                        TraceEvent.RUN_END,
+                        "workflow Main failed",
+                        "workflow",
+                        "Main",
+                        "status",
+                        "failed",
+                        "error",
+                        "Task Boom failed: x",
+                        "failed_kind",
+                        "task",
+                        "failed_name",
+                        "Boom",
+                        "failed_step",
+                        "Main/s0",
+                        "failed_category",
+                        "SERVER_ERROR"));
         feed(Detail.FULL, all.toArray(new TraceEvent[0]));
         LogRec end = log(Semconv.EV_RUN_END);
         assertThat(end.text(Semconv.LOOM_RUN_FAILED_KIND)).isEqualTo("task");
         assertThat(end.text(Semconv.LOOM_RUN_FAILED_NAME)).isEqualTo("Boom");
         assertThat(end.text(Semconv.LOOM_RUN_FAILED_STEP)).isEqualTo("Main/s0");
         assertThat(end.text(Semconv.LOOM_RUN_FAILED_CATEGORY)).isEqualTo("server_error");
-        SpanRec root = spans.stream().filter(s -> Semconv.KIND_WORKFLOW.equals(s.attr(Semconv.LOOM_SPAN_KIND))).findFirst().orElseThrow();
+        SpanRec root =
+                spans.stream()
+                        .filter(s -> Semconv.KIND_WORKFLOW.equals(s.attr(Semconv.LOOM_SPAN_KIND)))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(root.text(Semconv.LOOM_RUN_FAILED_NAME)).isEqualTo("Boom");
     }
 
     @Test
     void aRunEndWithoutFailureFieldsMapsAsBefore() {
-        feed(Detail.FULL, ev(0, TraceEvent.RUN_START, "", "workflow", "Main", "run", "r-1", "resumed", "false"),
-                ev(1, TraceEvent.RUN_END, "workflow Main failed", "workflow", "Main", "status", "failed", "error", "boom"));
-        assertThat(log(Semconv.EV_RUN_END).attributes()).doesNotContainKey(Semconv.LOOM_RUN_FAILED_KIND);
+        feed(
+                Detail.FULL,
+                ev(
+                        0,
+                        TraceEvent.RUN_START,
+                        "",
+                        "workflow",
+                        "Main",
+                        "run",
+                        "r-1",
+                        "resumed",
+                        "false"),
+                ev(
+                        1,
+                        TraceEvent.RUN_END,
+                        "workflow Main failed",
+                        "workflow",
+                        "Main",
+                        "status",
+                        "failed",
+                        "error",
+                        "boom"));
+        assertThat(log(Semconv.EV_RUN_END).attributes())
+                .doesNotContainKey(Semconv.LOOM_RUN_FAILED_KIND);
     }
 
     @Test
     void anOldTaskEndWithoutTheNewFieldsStillMaps() {
-        feed(Detail.FULL, ev(0.1, TraceEvent.TASK_START, "run Boom", "task", "Boom", "step", "Main/s0"),
-                ev(0.5, TraceEvent.TASK_END, "Boom failed", "task", "Boom", "step", "Main/s0", "outcome", "failed", "error", "x"));
+        feed(
+                Detail.FULL,
+                ev(0.1, TraceEvent.TASK_START, "run Boom", "task", "Boom", "step", "Main/s0"),
+                ev(
+                        0.5,
+                        TraceEvent.TASK_END,
+                        "Boom failed",
+                        "task",
+                        "Boom",
+                        "step",
+                        "Main/s0",
+                        "outcome",
+                        "failed",
+                        "error",
+                        "x"));
         assertThat(spans.get(0).statusCode()).isEqualTo(SpanRec.STATUS_ERROR);
         assertThat(spans.get(0).text(Semconv.ERROR_TYPE)).isEqualTo("task_failed");
     }

@@ -9,10 +9,13 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** A store filled by the program itself. Values are held as {@code char[]} and wiped on {@link #remove} and {@link #close}. Thread-safe. */
+/**
+ * A store filled by the program itself. Values are held as {@code char[]} and wiped on {@link
+ * #remove} and {@link #close}. Thread-safe.
+ */
 public final class InMemorySecretStore implements SecretStore {
 
-    private record Entry(char[] value, SecretMetadata metadata) { }
+    private record Entry(char[] value, SecretMetadata metadata) {}
 
     private final Map<String, Entry> entries = new ConcurrentHashMap<>();
     private volatile boolean closed;
@@ -48,8 +51,10 @@ public final class InMemorySecretStore implements SecretStore {
     public void put(String name, char[] value, SecretMetadata metadata) {
         ensureOpen();
         SecretNames.require(name);
-        if (value == null || value.length == 0) throw new IllegalArgumentException("a secret's value must not be empty");
-        SecretMetadata m = (metadata == null ? SecretMetadata.NONE : metadata).withUpdatedAt(Instant.now());
+        if (value == null || value.length == 0)
+            throw new IllegalArgumentException("a secret's value must not be empty");
+        SecretMetadata m =
+                (metadata == null ? SecretMetadata.NONE : metadata).withUpdatedAt(Instant.now());
         Entry previous = entries.put(name, new Entry(value.clone(), m));
         if (previous != null) Arrays.fill(previous.value(), '\0');
     }

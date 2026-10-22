@@ -53,10 +53,21 @@ public record ModelCallEvent(
     }
 
     public ModelCallEvent {
-        if (attempts < 1) throw new IllegalArgumentException("attempts must be at least 1, got " + attempts);
-        if (durationMillis < 0) throw new IllegalArgumentException("durationMillis must not be negative, got " + durationMillis);
-        if (waitedMillis < 0) throw new IllegalArgumentException("waitedMillis must not be negative, got " + waitedMillis);
-        if (waitedMillis > durationMillis) throw new IllegalArgumentException("waitedMillis (" + waitedMillis + ") cannot exceed durationMillis (" + durationMillis + ")");
+        if (attempts < 1)
+            throw new IllegalArgumentException("attempts must be at least 1, got " + attempts);
+        if (durationMillis < 0)
+            throw new IllegalArgumentException(
+                    "durationMillis must not be negative, got " + durationMillis);
+        if (waitedMillis < 0)
+            throw new IllegalArgumentException(
+                    "waitedMillis must not be negative, got " + waitedMillis);
+        if (waitedMillis > durationMillis)
+            throw new IllegalArgumentException(
+                    "waitedMillis ("
+                            + waitedMillis
+                            + ") cannot exceed durationMillis ("
+                            + durationMillis
+                            + ")");
         failovers = failovers == null ? List.of() : List.copyOf(failovers);
         if (outcome == null) outcome = Outcome.OK;
     }
@@ -106,21 +117,80 @@ public record ModelCallEvent(
 
         private Builder() {}
 
-        public Builder iteration(int v) { this.iteration = v; return this; }
-        public Builder requestedModel(String v) { this.requestedModel = v; return this; }
-        public Builder model(String v) { this.model = v; return this; }
-        public Builder startedAt(Instant v) { this.startedAt = v; return this; }
-        public Builder durationMillis(long v) { this.durationMillis = v; return this; }
-        public Builder waitedMillis(long v) { this.waitedMillis = v; return this; }
-        public Builder attempts(int v) { this.attempts = v; return this; }
-        public Builder failovers(List<String> v) { this.failovers = v; return this; }
-        public Builder promptTokens(long v) { this.promptTokens = v; return this; }
-        public Builder completionTokens(long v) { this.completionTokens = v; return this; }
-        public Builder totalTokens(long v) { this.totalTokens = v; return this; }
-        public Builder usageEstimated(boolean v) { this.usageEstimated = v; return this; }
-        public Builder cost(BigDecimal v) { this.cost = v; return this; }
-        public Builder finishReason(LLMResponse.FinishReason v) { this.finishReason = v; return this; }
-        public Builder toolCallsRequested(int v) { this.toolCallsRequested = v; return this; }
+        public Builder iteration(int v) {
+            this.iteration = v;
+            return this;
+        }
+
+        public Builder requestedModel(String v) {
+            this.requestedModel = v;
+            return this;
+        }
+
+        public Builder model(String v) {
+            this.model = v;
+            return this;
+        }
+
+        public Builder startedAt(Instant v) {
+            this.startedAt = v;
+            return this;
+        }
+
+        public Builder durationMillis(long v) {
+            this.durationMillis = v;
+            return this;
+        }
+
+        public Builder waitedMillis(long v) {
+            this.waitedMillis = v;
+            return this;
+        }
+
+        public Builder attempts(int v) {
+            this.attempts = v;
+            return this;
+        }
+
+        public Builder failovers(List<String> v) {
+            this.failovers = v;
+            return this;
+        }
+
+        public Builder promptTokens(long v) {
+            this.promptTokens = v;
+            return this;
+        }
+
+        public Builder completionTokens(long v) {
+            this.completionTokens = v;
+            return this;
+        }
+
+        public Builder totalTokens(long v) {
+            this.totalTokens = v;
+            return this;
+        }
+
+        public Builder usageEstimated(boolean v) {
+            this.usageEstimated = v;
+            return this;
+        }
+
+        public Builder cost(BigDecimal v) {
+            this.cost = v;
+            return this;
+        }
+
+        public Builder finishReason(LLMResponse.FinishReason v) {
+            this.finishReason = v;
+            return this;
+        }
+
+        public Builder toolCallsRequested(int v) {
+            this.toolCallsRequested = v;
+            return this;
+        }
 
         /** Marks the call as failed, with why. */
         public Builder failed(ErrorCategory category, String errorType) {
@@ -131,8 +201,25 @@ public record ModelCallEvent(
         }
 
         public ModelCallEvent build() {
-            return new ModelCallEvent(iteration, requestedModel, model, startedAt, durationMillis, waitedMillis, attempts, failovers, promptTokens,
-                    completionTokens, totalTokens, usageEstimated, cost, finishReason, toolCallsRequested, outcome, category, errorType);
+            return new ModelCallEvent(
+                    iteration,
+                    requestedModel,
+                    model,
+                    startedAt,
+                    durationMillis,
+                    waitedMillis,
+                    attempts,
+                    failovers,
+                    promptTokens,
+                    completionTokens,
+                    totalTokens,
+                    usageEstimated,
+                    cost,
+                    finishReason,
+                    toolCallsRequested,
+                    outcome,
+                    category,
+                    errorType);
         }
     }
 }

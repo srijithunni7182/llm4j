@@ -8,6 +8,7 @@ import java.util.Map;
  * AST node representing an MCP (Model Context Protocol) server declaration.
  *
  * <p>Example {@code .loom} syntax:
+ *
  * <pre>
  * mcp PostgresDB {
  *     transport: "stdio"
@@ -17,13 +18,20 @@ import java.util.Map;
  */
 public class McpServerDef implements Node {
     private int line;
+
     /** The line it was declared on, for error messages. */
-    public int getLine() { return line; }
-    public void setLine(int line) { this.line = line; }
+    public int getLine() {
+        return line;
+    }
+
+    public void setLine(int line) {
+        this.line = line;
+    }
 
     private final String name;
     private String transport = "stdio";
     private String cmd;
+
     /** Optional extra environment variables passed to the server process. */
     private final Map<String, String> env = new LinkedHashMap<>();
 
@@ -31,12 +39,31 @@ public class McpServerDef implements Node {
         this.name = name;
     }
 
-    public String getName()      { return name; }
-    public String getTransport() { return transport; }
-    public String getCmd()       { return cmd; }
-    public Map<String, String> getEnv() { return Collections.unmodifiableMap(env); }
+    public String getName() {
+        return name;
+    }
 
-    public void setTransport(String transport) { this.transport = transport; }
-    public void setCmd(String cmd)             { this.cmd = cmd; }
-    public void addEnv(String key, String val) { this.env.put(key, val); }
+    public String getTransport() {
+        return transport;
+    }
+
+    public String getCmd() {
+        return cmd;
+    }
+
+    public Map<String, String> getEnv() {
+        return Collections.unmodifiableMap(env);
+    }
+
+    public void setTransport(String transport) {
+        this.transport = transport;
+    }
+
+    public void setCmd(String cmd) {
+        this.cmd = cmd;
+    }
+
+    public void addEnv(String key, String val) {
+        this.env.put(key, val);
+    }
 }

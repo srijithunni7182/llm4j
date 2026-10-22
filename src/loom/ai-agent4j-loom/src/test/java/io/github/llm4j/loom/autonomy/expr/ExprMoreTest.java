@@ -10,7 +10,10 @@ import java.util.Map;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-/** The shapes the first tests did not walk: groups and lists, negation, built-in functions and their arities, and what a script that skips the checks would do. */
+/**
+ * The shapes the first tests did not walk: groups and lists, negation, built-in functions and their
+ * arities, and what a script that skips the checks would do.
+ */
 @Tag("L1")
 class ExprMoreTest {
 
@@ -32,7 +35,9 @@ class ExprMoreTest {
     }
 
     private static void rejects(String e, String message) {
-        assertThatThrownBy(() -> checker().type(ExprParser.parse(e))).isInstanceOf(ExprException.class).hasMessageContaining(message);
+        assertThatThrownBy(() -> checker().type(ExprParser.parse(e)))
+                .isInstanceOf(ExprException.class)
+                .hasMessageContaining(message);
     }
 
     // ---------- the checker ----------
@@ -120,9 +125,13 @@ class ExprMoreTest {
     @Test
     void aCheckerWithoutHistoryOrCaseRefusesToReadThem() {
         Checker bare = new Checker(Map.of("amount", T.NUM), Map.of(), Map.of(), false, false);
-        assertThatThrownBy(() -> bare.type(ExprParser.parse("history.count"))).hasMessageContaining("unknown name 'history'");
-        assertThatThrownBy(() -> bare.type(ExprParser.parse("case.amount"))).hasMessageContaining("unknown name 'case'");
-        assertThat(bare.measureType("nothing")).as("an unknown measure could be anything").isEqualTo(T.ANY);
+        assertThatThrownBy(() -> bare.type(ExprParser.parse("history.count")))
+                .hasMessageContaining("unknown name 'history'");
+        assertThatThrownBy(() -> bare.type(ExprParser.parse("case.amount")))
+                .hasMessageContaining("unknown name 'case'");
+        assertThat(bare.measureType("nothing"))
+                .as("an unknown measure could be anything")
+                .isEqualTo(T.ANY);
     }
 
     // ---------- the interpreter ----------
@@ -132,26 +141,47 @@ class ExprMoreTest {
         m.put("at", V.num(100 * DAY - daysAgo * DAY));
         for (int i = 0; i < kv.length; i += 2) {
             Object v = kv[i + 1];
-            m.put((String) kv[i], v instanceof V x ? x : v instanceof Boolean b ? V.bool(b) : v instanceof Number n ? V.num(n.doubleValue()) : V.str(String.valueOf(v)));
+            m.put(
+                    (String) kv[i],
+                    v instanceof V x
+                            ? x
+                            : v instanceof Boolean b
+                                    ? V.bool(b)
+                                    : v instanceof Number n
+                                            ? V.num(n.doubleValue())
+                                            : V.str(String.valueOf(v)));
         }
         return V.rec(m);
     }
 
     private static V eval(String e, List<V.Rec> h) {
-        return Interpreter.eval(ExprParser.parse(e), new Interpreter.Context(Map.of("history", V.cases(h)), Map.of(), 100 * DAY));
+        return Interpreter.eval(
+                ExprParser.parse(e),
+                new Interpreter.Context(Map.of("history", V.cases(h)), Map.of(), 100 * DAY));
     }
 
     @Test
     void groupsReduceToListsThatCanBeReadAgain() {
-        List<V.Rec> h = List.of(c(5, "tier", "a", "ok", true, "v", 1), c(4, "tier", "a", "ok", false, "v", 3), c(3, "tier", "b", "ok", true, "v", 10), c(2, "tier", 7, "v", 20));
-        assertThat(eval("history.by(tier).any(ok).count", h)).as("one yes/no per group").isEqualTo(V.num(3));
-        assertThat(eval("history.by(tier).all(ok).count", h)).as("a group with no yes/no answers has no all()").isEqualTo(V.num(2));
+        List<V.Rec> h =
+                List.of(
+                        c(5, "tier", "a", "ok", true, "v", 1),
+                        c(4, "tier", "a", "ok", false, "v", 3),
+                        c(3, "tier", "b", "ok", true, "v", 10),
+                        c(2, "tier", 7, "v", 20));
+        assertThat(eval("history.by(tier).any(ok).count", h))
+                .as("one yes/no per group")
+                .isEqualTo(V.num(3));
+        assertThat(eval("history.by(tier).all(ok).count", h))
+                .as("a group with no yes/no answers has no all()")
+                .isEqualTo(V.num(2));
         assertThat(eval("history.by(tier).sum(v).sum()", h)).isEqualTo(V.num(34));
         assertThat(eval("history.by(tier).mean(v).max()", h)).isEqualTo(V.num(20));
         assertThat(eval("history.by(tier).median(v).min()", h)).isEqualTo(V.num(2));
         assertThat(eval("history.by(tier).quantile(v, 1).sum()", h)).isEqualTo(V.num(33));
         assertThat(eval("history.by(tier).count().mean()", h)).isEqualTo(V.num(4.0 / 3));
-        assertThat(eval("history.by(tier).count", h)).as("three groups: a, b and the number 7").isEqualTo(V.num(3));
+        assertThat(eval("history.by(tier).count", h))
+                .as("three groups: a, b and the number 7")
+                .isEqualTo(V.num(3));
         assertThat(eval("history.by(tier).count().count()", h)).isEqualTo(V.num(3));
         assertThat(eval("history.by(tier).count().min()", List.of())).isEqualTo(V.UNDEFINED);
         assertThat(eval("history.by(tier).count().max()", List.of())).isEqualTo(V.UNDEFINED);
@@ -159,7 +189,9 @@ class ExprMoreTest {
         assertThat(eval("history.by(tier).count().sum()", List.of())).isEqualTo(V.num(0));
         assertThat(eval("history.by(tier).nothing()", h)).isEqualTo(V.UNDEFINED);
         assertThat(eval("history.by(tier).count().nothing()", h)).isEqualTo(V.UNDEFINED);
-        assertThat(eval("history.by(ok).count", h)).as("true and false are groups; a case without ok is in none").isEqualTo(V.num(2));
+        assertThat(eval("history.by(ok).count", h))
+                .as("true and false are groups; a case without ok is in none")
+                .isEqualTo(V.num(2));
     }
 
     @Test
@@ -188,22 +220,47 @@ class ExprMoreTest {
     @Test
     void aMeasureCalledWithTheWrongNumberOfArgumentsIsUnknownNotAnError() {
         var m = new Interpreter.Measure("m", "c", ExprParser.parse("c.a > 0"));
-        var ctx = new Interpreter.Context(Map.of("history", V.cases(List.of(c(1, "a", 3)))), Map.of("m", m), 100 * DAY);
+        var ctx =
+                new Interpreter.Context(
+                        Map.of("history", V.cases(List.of(c(1, "a", 3)))),
+                        Map.of("m", m),
+                        100 * DAY);
         assertThat(Interpreter.eval(ExprParser.parse("m(1, 2)"), ctx)).isEqualTo(V.UNDEFINED);
         assertThat(Interpreter.eval(ExprParser.parse("history.count(m)"), ctx)).isEqualTo(V.num(1));
-        assertThat(Interpreter.eval(ExprParser.parse("history.count(m, m)"), ctx)).isEqualTo(V.UNDEFINED);
-        assertThat(Interpreter.eval(ExprParser.parse("history.rate()"), ctx)).isEqualTo(V.UNDEFINED);
-        assertThat(Interpreter.eval(ExprParser.parse("history.quantile(a)"), ctx)).isEqualTo(V.UNDEFINED);
-        assertThat(Interpreter.eval(ExprParser.parse("history.quantile(a, 3)"), ctx)).isEqualTo(V.UNDEFINED);
-        assertThat(Interpreter.eval(ExprParser.parse("history.between(1d)"), ctx)).isEqualTo(V.UNDEFINED);
-        assertThat(Interpreter.eval(ExprParser.parse("history.since(3)"), ctx)).isEqualTo(V.UNDEFINED);
+        assertThat(Interpreter.eval(ExprParser.parse("history.count(m, m)"), ctx))
+                .isEqualTo(V.UNDEFINED);
+        assertThat(Interpreter.eval(ExprParser.parse("history.rate()"), ctx))
+                .isEqualTo(V.UNDEFINED);
+        assertThat(Interpreter.eval(ExprParser.parse("history.quantile(a)"), ctx))
+                .isEqualTo(V.UNDEFINED);
+        assertThat(Interpreter.eval(ExprParser.parse("history.quantile(a, 3)"), ctx))
+                .isEqualTo(V.UNDEFINED);
+        assertThat(Interpreter.eval(ExprParser.parse("history.between(1d)"), ctx))
+                .isEqualTo(V.UNDEFINED);
+        assertThat(Interpreter.eval(ExprParser.parse("history.since(3)"), ctx))
+                .isEqualTo(V.UNDEFINED);
     }
 
     @Test
     void aScriptThatSkipsTheLoadTimeChecksStillNeverClimbsOnAnUnknownName() {
-        // the checker rejects an unknown measure at load; this is the run-time floor if it were skipped: the name counts nothing and a comparison with it is not true
-        assertThat(Interpreter.test(ExprParser.parse("history.count(typo) >= 1"), new Interpreter.Context(Map.of("history", V.cases(List.of(c(1, "a", 3)))), Map.of(), 100 * DAY))).isFalse();
-        assertThat(Interpreter.test(ExprParser.parse("history.rate(typo) >= 0"), new Interpreter.Context(Map.of("history", V.cases(List.of(c(1, "a", 3)))), Map.of(), 100 * DAY))).isFalse();
+        // the checker rejects an unknown measure at load; this is the run-time floor if it were
+        // skipped: the name counts nothing and a comparison with it is not true
+        assertThat(
+                        Interpreter.test(
+                                ExprParser.parse("history.count(typo) >= 1"),
+                                new Interpreter.Context(
+                                        Map.of("history", V.cases(List.of(c(1, "a", 3)))),
+                                        Map.of(),
+                                        100 * DAY)))
+                .isFalse();
+        assertThat(
+                        Interpreter.test(
+                                ExprParser.parse("history.rate(typo) >= 0"),
+                                new Interpreter.Context(
+                                        Map.of("history", V.cases(List.of(c(1, "a", 3)))),
+                                        Map.of(),
+                                        100 * DAY)))
+                .isFalse();
     }
 
     @Test
@@ -222,6 +279,8 @@ class ExprMoreTest {
     @Test
     void anExceptionKnowsItsColumn() {
         assertThat(new ExprException("m", 7).column()).isEqualTo(7);
-        assertThatThrownBy(() -> ExprParser.parse("a <")).isInstanceOfSatisfying(ExprException.class, e -> assertThat(e.column()).isEqualTo(4));
+        assertThatThrownBy(() -> ExprParser.parse("a <"))
+                .isInstanceOfSatisfying(
+                        ExprException.class, e -> assertThat(e.column()).isEqualTo(4));
     }
 }

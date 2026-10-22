@@ -8,7 +8,10 @@ public interface EmbeddingFactory {
 
     EmbeddingProvider create(String model) throws Exception;
 
-    /** A problem with a model name, found without creating anything (for load-time checks); null if fine. */
+    /**
+     * A problem with a model name, found without creating anything (for load-time checks); null if
+     * fine.
+     */
     default String problem(String model) {
         return null;
     }

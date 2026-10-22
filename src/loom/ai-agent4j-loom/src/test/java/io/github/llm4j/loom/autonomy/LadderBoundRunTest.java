@@ -12,11 +12,15 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** A workflow that decides, run case after case against one ledger: the ladder as a person running it would see it. */
+/**
+ * A workflow that decides, run case after case against one ledger: the ladder as a person running
+ * it would see it.
+ */
 @Tag("L6")
 class LadderBoundRunTest {
 
-    static final String REFUND = """
+    static final String REFUND =
+            """
             agent Triager {
                 model: "m"
                 system: "You are Triager."
@@ -54,7 +58,8 @@ class LadderBoundRunTest {
             }
             """;
 
-    static final String PUBLISH = """
+    static final String PUBLISH =
+            """
             agent Writer {
                 model: "m"
                 system: "You are Writer."
@@ -85,8 +90,7 @@ class LadderBoundRunTest {
             }
             """;
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private DecideHarness harness(String script) {
         return new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), script);
@@ -98,10 +102,11 @@ class LadderBoundRunTest {
 
     @Test
     void aLadderWrittenOnTheAgentRunsTheDecisionExactlyAsIfTheDecisionHadBoundIt() {
-        String onAgent = REFUND
-                .replace("output_schema: { choice: string, reasoning: string, confidence: number }\n}",
-                        "output_schema: { choice: string, reasoning: string, confidence: number }\n    ladder: L\n    ceiling: act\n}")
-                .replace("                ladder: L\n                ceiling: act\n", "");
+        String onAgent =
+                REFUND.replace(
+                                "output_schema: { choice: string, reasoning: string, confidence: number }\n}",
+                                "output_schema: { choice: string, reasoning: string, confidence: number }\n    ladder: L\n    ceiling: act\n}")
+                        .replace("                ladder: L\n                ceiling: act\n", "");
         assertThat(onAgent).doesNotContain("                ladder: L");
         DecideHarness h = harness(onAgent);
         h.agent = f -> new String[] {"approve", "fine", "0.9"};
@@ -122,9 +127,16 @@ class LadderBoundRunTest {
         h.person = f -> "approve";
         Map<String, Object> out = h.runCase("r1", h.inputs("gold", 80));
 
-        assertThat(out).containsEntry("verdict", "approve").containsEntry("verdict_proposal", "approve").containsEntry("verdict_level", "watch");
+        assertThat(out)
+                .containsEntry("verdict", "approve")
+                .containsEntry("verdict_proposal", "approve")
+                .containsEntry("verdict_level", "watch");
         assertThat(h.asked).hasSize(1);
-        assertThat(h.asked.get(0)).contains("support-lead").contains("amount = 80").doesNotContain("The agent proposes").doesNotContain("damaged");
+        assertThat(h.asked.get(0))
+                .contains("support-lead")
+                .contains("amount = 80")
+                .doesNotContain("The agent proposes")
+                .doesNotContain("damaged");
         assertThat(h.trace).anyMatch(t -> t.contains("proposal recorded (hidden)"));
         assertThat(h.trace).noneMatch(t -> t.contains("proposes approve"));
 
@@ -159,12 +171,13 @@ class LadderBoundRunTest {
         assertThat(h.asked.get(3)).contains("The agent proposes: approve").contains("fine");
         assertThat(cases(h, "Refund").get(3).shown()).isTrue();
 
-        // suggest cases are not blind evidence for the next step, but the ladder counts every answered case
+        // suggest cases are not blind evidence for the next step, but the ladder counts every
+        // answered case
         for (int i = 0; i < 5; i++) h.runCase("s" + (i + 1), h.inputs("gold", 70 + i));
         int asked = h.asked.size();
         Map<String, Object> acted = h.runCase("a0", h.inputs("gold", 90));
         assertThat(acted).containsEntry("verdict", "approve").containsEntry("verdict_level", "act");
-        assertThat(h.asked).hasSize(asked);                                 // nobody was asked
+        assertThat(h.asked).hasSize(asked); // nobody was asked
         LCase last = cases(h, "Refund").get(cases(h, "Refund").size() - 1);
         assertThat(last.responder()).isEqualTo("agent");
         assertThat(last.blind()).isFalse();
@@ -182,9 +195,10 @@ class LadderBoundRunTest {
 
         int asked = h.asked.size();
         Map<String, Object> big = h.runCase("g10", h.inputs("gold", 500));
-        assertThat(h.asked).hasSize(asked + 1);                             // amount over 200: a person is asked
+        assertThat(h.asked).hasSize(asked + 1); // amount over 200: a person is asked
         assertThat(big).containsEntry("verdict_level", "act");
-        assertThat(cases(h, "Refund").get(cases(h, "Refund").size() - 1).how()).isEqualTo("escalate");
+        assertThat(cases(h, "Refund").get(cases(h, "Refund").size() - 1).how())
+                .isEqualTo("escalate");
     }
 
     @Test
@@ -195,7 +209,9 @@ class LadderBoundRunTest {
         for (int i = 0; i < 10; i++) h.runCase("g" + i, h.inputs("gold", 50));
         assertThat(h.runCase("act0", h.inputs("gold", 50))).containsEntry("verdict_level", "act");
         h.person = f -> "reject";
-        h.runCase("x1", h.inputs("gold", 500));                              // escalated: the person rejects what the agent approved
+        h.runCase(
+                "x1",
+                h.inputs("gold", 500)); // escalated: the person rejects what the agent approved
         h.runCase("x2", h.inputs("gold", 500));
         int asked = h.asked.size();
         Map<String, Object> after = h.runCase("after", h.inputs("gold", 50));
@@ -213,18 +229,29 @@ class LadderBoundRunTest {
     @Test
     void aDeciderThatTimesOutPausesTheRunAndNothingIsDecidedUntilTheAnswerComesAfterTheResume() {
         DecideHarness h = harness(REFUND);
-        io.github.llm4j.loom.runtime.RunJournal journal = io.github.llm4j.loom.runtime.RunJournal.inMemory();
-        h.person = f -> {
-            throw waiting();
-        };
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> h.executor(h.newRun(journal), "late").executeWorkflow("Triage", h.inputs("gold", 50)))
+        io.github.llm4j.loom.runtime.RunJournal journal =
+                io.github.llm4j.loom.runtime.RunJournal.inMemory();
+        h.person =
+                f -> {
+                    throw waiting();
+                };
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () ->
+                                h.executor(h.newRun(journal), "late")
+                                        .executeWorkflow("Triage", h.inputs("gold", 50)))
                 .isInstanceOf(io.github.llm4j.loom.runtime.RunSuspended.class);
-        assertThat(h.ledger.recordsOfKind("Refund", Rec.RESPONDED)).as("no decision, and no silent action").isEmpty();
+        assertThat(h.ledger.recordsOfKind("Refund", Rec.RESPONDED))
+                .as("no decision, and no silent action")
+                .isEmpty();
         assertThat(cases(h, "Refund")).hasSize(1);
         assertThat(cases(h, "Refund").get(0).responded()).isFalse();
 
-        // resumed with the decider still silent: paused again, still nothing decided, still one case, one question
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> h.executor(h.newRun(journal), "late").executeWorkflow("Triage", h.inputs("gold", 50)))
+        // resumed with the decider still silent: paused again, still nothing decided, still one
+        // case, one question
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () ->
+                                h.executor(h.newRun(journal), "late")
+                                        .executeWorkflow("Triage", h.inputs("gold", 50)))
                 .isInstanceOf(io.github.llm4j.loom.runtime.RunSuspended.class);
         assertThat(h.ledger.recordsOfKind("Refund", Rec.RESPONDED)).isEmpty();
         assertThat(cases(h, "Refund")).hasSize(1);
@@ -232,9 +259,10 @@ class LadderBoundRunTest {
 
         // the answer arrives after the run was resumed: the case is decided once, by the person
         journal.put(WAITING, new io.github.llm4j.loom.runtime.RunJournal.Entry("human", "approve"));
-        h.person = f -> {
-            throw new AssertionError("the person was asked again");
-        };
+        h.person =
+                f -> {
+                    throw new AssertionError("the person was asked again");
+                };
         h.executor(h.newRun(journal), "late").executeWorkflow("Triage", h.inputs("gold", 50));
         assertThat(h.ledger.recordsOfKind("Refund", Rec.RESPONDED)).hasSize(1);
         assertThat(cases(h, "Refund")).hasSize(1);
@@ -253,30 +281,44 @@ class LadderBoundRunTest {
         h.person = f -> "approve";
         for (int i = 0; i < 10; i++) h.runCase("g" + i, h.inputs("gold", 50));
         assertThat(h.runCase("act", h.inputs("gold", 60))).containsEntry("verdict_level", "act");
-        h.person = f -> {
-            throw waiting();
-        };
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> h.runCase("big", h.inputs("gold", 500))).isInstanceOf(io.github.llm4j.loom.runtime.RunSuspended.class);
-        assertThat(cases(h, "Refund").get(cases(h, "Refund").size() - 1).responded()).as("the agent did not act while the person was away").isFalse();
+        h.person =
+                f -> {
+                    throw waiting();
+                };
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> h.runCase("big", h.inputs("gold", 500)))
+                .isInstanceOf(io.github.llm4j.loom.runtime.RunSuspended.class);
+        assertThat(cases(h, "Refund").get(cases(h, "Refund").size() - 1).responded())
+                .as("the agent did not act while the person was away")
+                .isFalse();
     }
 
     @Test
-    void aLadderEditedWhileACaseWaitsLetsThatCaseFinishUnderTheRulesItBeganUnderAndTheNextCaseUsesTheNewOnes() {
+    void
+            aLadderEditedWhileACaseWaitsLetsThatCaseFinishUnderTheRulesItBeganUnderAndTheNextCaseUsesTheNewOnes() {
         DecideHarness h = harness(REFUND);
-        io.github.llm4j.loom.runtime.RunJournal journal = io.github.llm4j.loom.runtime.RunJournal.inMemory();
-        h.person = f -> {
-            throw waiting();
-        };
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> h.executor(h.newRun(journal), "in-flight").executeWorkflow("Triage", h.inputs("gold", 20)))
+        io.github.llm4j.loom.runtime.RunJournal journal =
+                io.github.llm4j.loom.runtime.RunJournal.inMemory();
+        h.person =
+                f -> {
+                    throw waiting();
+                };
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () ->
+                                h.executor(h.newRun(journal), "in-flight")
+                                        .executeWorkflow("Triage", h.inputs("gold", 20)))
                 .isInstanceOf(io.github.llm4j.loom.runtime.RunSuspended.class);
         assertThat(h.asked.get(0)).as("began blind").doesNotContain("The agent proposes");
 
-        // the publisher edits the ladder while the case waits: the entry rung now shows the proposal
+        // the publisher edits the ladder while the case waits: the entry rung now shows the
+        // proposal
         h.script = h.script.replace("rung watch { mode: blind }", "rung watch { mode: confirm }");
         journal.put(WAITING, new io.github.llm4j.loom.runtime.RunJournal.Entry("human", "approve"));
         h.executor(h.newRun(journal), "in-flight").executeWorkflow("Triage", h.inputs("gold", 20));
         LCase finished = cases(h, "Refund").get(0);
-        assertThat(finished.shown()).as("finished as it began: the person never saw the proposal").isFalse();
+        assertThat(finished.shown())
+                .as("finished as it began: the person never saw the proposal")
+                .isFalse();
         assertThat(finished.level()).isEqualTo("watch");
         assertThat(finished.blind()).isTrue();
 
@@ -291,7 +333,8 @@ class LadderBoundRunTest {
     void theSameRunTwiceLeavesOneCaseAndAResumedRunRepeatsNothing() {
         DecideHarness h = harness(REFUND);
         h.person = f -> "approve";
-        io.github.llm4j.loom.runtime.RunJournal journal = io.github.llm4j.loom.runtime.RunJournal.inMemory();
+        io.github.llm4j.loom.runtime.RunJournal journal =
+                io.github.llm4j.loom.runtime.RunJournal.inMemory();
         for (int i = 0; i < 2; i++) {
             io.github.llm4j.loom.generic.support.ScriptedRun run = h.newRun(journal);
             io.github.llm4j.loom.execution.HarnessExecutor e = h.executor(run, "same");
@@ -305,17 +348,23 @@ class LadderBoundRunTest {
 
     @Test
     void aLedgerThatCannotBeReadNeverMeansTheAgentActsAlone() {
-        DecideHarness h = new DecideHarness(dir, new MemoryLedger() {
-            @Override
-            public synchronized List<Rec> recordsOfKind(String decision, String... kinds) {
-                throw new IllegalStateException("disk gone");
-            }
+        DecideHarness h =
+                new DecideHarness(
+                        dir,
+                        new MemoryLedger() {
+                            @Override
+                            public synchronized List<Rec> recordsOfKind(
+                                    String decision, String... kinds) {
+                                throw new IllegalStateException("disk gone");
+                            }
 
-            @Override
-            public synchronized List<Rec> records(String decision) {
-                throw new IllegalStateException("disk gone");
-            }
-        }, new MemoryLevelStore(), REFUND);
+                            @Override
+                            public synchronized List<Rec> records(String decision) {
+                                throw new IllegalStateException("disk gone");
+                            }
+                        },
+                        new MemoryLevelStore(),
+                        REFUND);
         h.person = f -> "reject";
         Map<String, Object> out = h.runCase("r1", h.inputs("gold", 50));
         assertThat(out).containsEntry("verdict", "reject");
@@ -337,7 +386,10 @@ class LadderBoundRunTest {
         assertThat(out).containsEntry("verdict_level", "watch");
         assertThat(cases(h, "Refund")).hasSize(5);
         assertThat(cases(h, "Refund").get(4).epoch()).isEqualTo(2);
-        assertThat(h.ledger.recordsOfKind("Refund", Rec.LEVEL).stream().anyMatch(r -> "epoch".equals(r.str("kind")))).isTrue();
+        assertThat(
+                        h.ledger.recordsOfKind("Refund", Rec.LEVEL).stream()
+                                .anyMatch(r -> "epoch".equals(r.str("kind"))))
+                .isTrue();
     }
 
     @Test
@@ -351,7 +403,10 @@ class LadderBoundRunTest {
         try {
             Map<String, Object> out = h.runCase("n0", h.inputs("gold", 50));
             assertThat(out).containsEntry("verdict_level", "watch");
-            LevelLog.Standing s = new LevelLog("Refund", List.of("watch", "suggest", "act"), h.ledger).current("gold").orElseThrow();
+            LevelLog.Standing s =
+                    new LevelLog("Refund", List.of("watch", "suggest", "act"), h.ledger)
+                            .current("gold")
+                            .orElseThrow();
             assertThat(s.epoch()).isEqualTo(2);
             assertThat(s.reason()).contains("served model changed from m to m-v2");
             assertThat(cases(h, "Refund").get(4).servedModel()).isEqualTo("m-v2");
@@ -369,18 +424,25 @@ class LadderBoundRunTest {
         h.person = f -> "accept";
         Map<String, Object> first = h.runCase("p1", h.inputs("x", 1));
         assertThat(first).containsEntry("post", "Hello wrld").containsEntry("post_level", "edit");
-        assertThat(h.asked.get(0)).contains("review the post").contains("Hello wrld").contains("The agent proposes");
+        assertThat(h.asked.get(0))
+                .contains("review the post")
+                .contains("Hello wrld")
+                .contains("The agent proposes");
 
         h.person = q -> "Hello world";
         Map<String, Object> second = h.runCase("p2", h.inputs("x", 1));
-        assertThat(second).containsEntry("post", "Hello world").containsEntry("post_proposal", "Hello wrld");
+        assertThat(second)
+                .containsEntry("post", "Hello world")
+                .containsEntry("post_proposal", "Hello wrld");
 
         h.person = q -> "reject";
         Map<String, Object> third = h.runCase("p3", h.inputs("x", 1));
         assertThat(third).containsEntry("post", "");
 
         List<LCase> cases = cases(h, "Publish");
-        assertThat(cases).extracting(LCase::responseKind).containsExactly("accept", "edit", "reject");
+        assertThat(cases)
+                .extracting(LCase::responseKind)
+                .containsExactly("accept", "edit", "reject");
         assertThat(cases.get(1).proposalValue()).isEqualTo("Hello wrld");
         assertThat(cases.get(1).responseFinal()).isEqualTo("Hello world");
         assertThat(cases.get(0).shown()).isTrue();
@@ -425,7 +487,11 @@ class LadderBoundRunTest {
         h.runCase("n1", h.inputs("x", 1));
         h.rawAgent = f -> "{\"post\": \"out of range\", \"reasoning\": \"r\", \"confidence\": 7}";
         h.runCase("n4", h.inputs("x", 1));
-        DecideHarness other = harness(PUBLISH.replace("output_schema: { post: string, reasoning: string }", "output_schema: { body: string, title: string, reasoning: string }"));
+        DecideHarness other =
+                harness(
+                        PUBLISH.replace(
+                                "output_schema: { post: string, reasoning: string }",
+                                "output_schema: { body: string, title: string, reasoning: string }"));
         other.person = h.person;
         other.rawAgent = f -> "{\"body\": \"only content\", \"reasoning\": \"r\"}";
         other.runCase("n2", other.inputs("x", 1));
@@ -437,12 +503,19 @@ class LadderBoundRunTest {
         assertThat(cases.get(1).confidence()).isNull();
         List<LCase> second = cases(other, "Publish");
         assertThat(second.get(0).proposalValue()).isEqualTo("only content");
-        assertThat(second.get(1).proposalValue()).contains("\"title\":\"T\"").contains("\"body\":\"B\"");
+        assertThat(second.get(1).proposalValue())
+                .contains("\"title\":\"T\"")
+                .contains("\"body\":\"B\"");
     }
 
     @Test
     void aTaskTemplateFillsTheArtifactRequestFromTheCasesValues() {
-        DecideHarness h = harness(PUBLISH.replace("remember: topic", "remember: topic").replace("ask: editors", "ask: editors\n task: \"Write about {reason} for {customer_since}\""));
+        DecideHarness h =
+                harness(
+                        PUBLISH.replace("remember: topic", "remember: topic")
+                                .replace(
+                                        "ask: editors",
+                                        "ask: editors\n task: \"Write about {reason} for {customer_since}\""));
         h.rawAgent = f -> "{\"post\": \"p\", \"reasoning\": \"r\"}";
         h.person = f -> "accept";
         h.runCase("t1", h.inputs("x", 1));

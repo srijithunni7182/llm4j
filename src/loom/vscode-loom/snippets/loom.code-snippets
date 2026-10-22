@@ -135,6 +135,26 @@
     ],
     "description": "Show a message (it also reaches an application's transcript)."
   },
+  "intentclassifier": {
+    "prefix": "intentclassifier",
+    "body": [
+      "intentclassifier ${1:Intent} {",
+      "\tmodel: \"${2:Jev/jev-latest}\"",
+      "\tchoose ${3:kind}: ${4:refund | order_status | other}",
+      "\task ${5:urgent}: \"${6:Is the customer threatening to leave?}\"",
+      "\tpii: mask",
+      "\tconfidence at least ${7:0.8} else escalate",
+      "}"
+    ],
+    "description": "Declare a classifier: typed questions answered in one call by Jev or a chat model, with a confidence rule that turns a doubtful answer into the label unsure."
+  },
+  "intentclassify": {
+    "prefix": "intentclassify",
+    "body": [
+      "intentclassify ${1:Intent} on ${2:topic_text} -> ${3:intent} retry 2 timeout 30s"
+    ],
+    "description": "Classify a text with a declared classifier; the answers are intent.kind and so on. Branch on unsure and send it to a person."
+  },
   "halt": {
     "prefix": "halt",
     "body": [

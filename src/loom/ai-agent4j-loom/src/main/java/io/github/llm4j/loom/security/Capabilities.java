@@ -5,20 +5,38 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * What a tool lets an agent do, in the three terms that make up the "lethal trifecta": read content it can't trust,
- * reach private data, and send or change something beyond the run. Read from the tool's kind and options; a tool the
- * audit can't see into (a Java class, an MCP server, one registered by the host) is assumed to do all three.
+ * What a tool lets an agent do, in the three terms that make up the "lethal trifecta": read content
+ * it can't trust, reach private data, and send or change something beyond the run. Read from the
+ * tool's kind and options; a tool the audit can't see into (a Java class, an MCP server, one
+ * registered by the host) is assumed to do all three.
  *
  * @param untrusted reads content from outside (the web, an API, a third-party server)
  * @param privateData reaches data that is yours (files, a database, indexed documents)
- * @param outward sends or changes something beyond the run (a message, a request that writes, a program)
- * @param effect   the call changes something, so it should be approved (outward, or a local write)
- * @param known    the audit knows this kind of tool
+ * @param outward sends or changes something beyond the run (a message, a request that writes, a
+ *     program)
+ * @param effect the call changes something, so it should be approved (outward, or a local write)
+ * @param known the audit knows this kind of tool
  */
-public record Capabilities(boolean untrusted, boolean privateData, boolean outward, boolean effect, boolean known, String note) {
+public record Capabilities(
+        boolean untrusted,
+        boolean privateData,
+        boolean outward,
+        boolean effect,
+        boolean known,
+        String note) {
 
-    static final Set<String> SEARCH = Set.of("duckduckgo", "serpapi", "google_search", "web_search");
-    static final Set<String> HARMLESS = Set.of("calculator", "datetime", "current_time", "translate", "transliterate", "detect_language", "speak", "transcribe");
+    static final Set<String> SEARCH =
+            Set.of("duckduckgo", "serpapi", "google_search", "web_search");
+    static final Set<String> HARMLESS =
+            Set.of(
+                    "calculator",
+                    "datetime",
+                    "current_time",
+                    "translate",
+                    "transliterate",
+                    "detect_language",
+                    "speak",
+                    "transcribe");
 
     static Capabilities none(String note) {
         return new Capabilities(false, false, false, false, true, note);
@@ -29,19 +47,25 @@ public record Capabilities(boolean untrusted, boolean privateData, boolean outwa
     }
 
     /**
-     * What a tool the run or the audit meets by name reaches: the script's own declaration, else what the {@code .loot} file declares, else a built-in
-     * by name, else the worst. The one place both the static audit and the trace ask, so they cannot disagree.
+     * What a tool the run or the audit meets by name reaches: the script's own declaration, else
+     * what the {@code .loot} file declares, else a built-in by name, else the worst. The one place
+     * both the static audit and the trace ask, so they cannot disagree.
      */
-    static Capabilities resolve(String toolName, java.util.Map<String, ToolDef> scriptTools, java.util.Map<String, String> lootReach) {
+    static Capabilities resolve(
+            String toolName,
+            java.util.Map<String, ToolDef> scriptTools,
+            java.util.Map<String, String> lootReach) {
         ToolDef def = scriptTools.get(toolName);
         if (def != null) return of(def);
-        if (lootReach.containsKey(toolName)) return fromReach(lootReach.get(toolName), "Tool " + toolName + " from the .loot file");
+        if (lootReach.containsKey(toolName))
+            return fromReach(lootReach.get(toolName), "Tool " + toolName + " from the .loot file");
         return ofName(toolName);
     }
 
     /** A built-in tool used by name, or one the host registered (null declaration). */
     static Capabilities ofName(String name) {
-        if (SEARCH.contains(name)) return new Capabilities(true, false, false, false, true, "web search results");
+        if (SEARCH.contains(name))
+            return new Capabilities(true, false, false, false, true, "web search results");
         if (HARMLESS.contains(name)) return none("built-in");
         return unknown("registered by the host (.loot or Java): the audit can't see what it does");
     }
@@ -49,56 +73,111 @@ public record Capabilities(boolean untrusted, boolean privateData, boolean outwa
     static Capabilities of(ToolDef t) {
         String kind = t.getKind() == null ? "" : t.getKind().toLowerCase(Locale.ROOT);
         return switch (kind) {
-            case "duckduckgo", "serpapi", "google_search" -> new Capabilities(true, false, false, false, true, "web search results");
-            case "calculator", "datetime", "current_time", "translate", "transliterate", "detect_language", "speak", "transcribe" -> none(kind);
-            case "webhook" -> new Capabilities(false, false, true, true, true, "posts to a fixed URL");
-            case "email" -> new Capabilities(false, false, true, true, true, opt(t, "to") != null ? "mails fixed recipients" : "mails recipients the agent chooses from allow_to");
+            case "duckduckgo", "serpapi", "google_search" -> new Capabilities(
+                    true, false, false, false, true, "web search results");
+            case "calculator",
+                    "datetime",
+                    "current_time",
+                    "translate",
+                    "transliterate",
+                    "detect_language",
+                    "speak",
+                    "transcribe" -> none(kind);
+            case "webhook" -> new Capabilities(
+                    false, false, true, true, true, "posts to a fixed URL");
+            case "email" -> new Capabilities(
+                    false,
+                    false,
+                    true,
+                    true,
+                    true,
+                    opt(t, "to") != null
+                            ? "mails fixed recipients"
+                            : "mails recipients the agent chooses from allow_to");
             case "http" -> {
                 boolean writes = writes(opt(t, "methods"));
-                yield new Capabilities(true, opt(t, "auth_value") != null || opt(t, "auth_header") != null, writes, writes, true,
-                        writes ? "calls " + opt(t, "base_url") + " with " + opt(t, "methods") : "reads from " + opt(t, "base_url"));
+                yield new Capabilities(
+                        true,
+                        opt(t, "auth_value") != null || opt(t, "auth_header") != null,
+                        writes,
+                        writes,
+                        true,
+                        writes
+                                ? "calls " + opt(t, "base_url") + " with " + opt(t, "methods")
+                                : "reads from " + opt(t, "base_url"));
             }
             case "file" -> {
                 String mode = opt(t, "mode") == null ? "read" : opt(t, "mode");
                 boolean reads = mode.contains("read");
                 boolean writes = !mode.equals("read");
-                yield new Capabilities(false, reads, false, writes, true, mode + " in " + (opt(t, "root") == null ? "." : opt(t, "root")));
+                yield new Capabilities(
+                        false,
+                        reads,
+                        false,
+                        writes,
+                        true,
+                        mode + " in " + (opt(t, "root") == null ? "." : opt(t, "root")));
             }
-            case "shell" -> new Capabilities(false, true, true, true, true, "runs " + opt(t, "allow"));
+            case "shell" -> new Capabilities(
+                    false, true, true, true, true, "runs " + opt(t, "allow"));
             case "sql" -> new Capabilities(false, true, false, false, true, "read-only queries");
-            case "openapi" -> new Capabilities(true, true, true, true, true, "any operation in " + opt(t, "spec"));
-            case "knowledge_graph" -> new Capabilities(false, true, false, !"true".equals(opt(t, "read_only")), true, "a knowledge graph");
-            case "skill_registry" -> new Capabilities(true, false, false, false, true, "skills fetched from " + opt(t, "url"));
+            case "openapi" -> new Capabilities(
+                    true, true, true, true, true, "any operation in " + opt(t, "spec"));
+            case "knowledge_graph" -> new Capabilities(
+                    false,
+                    true,
+                    false,
+                    !"true".equals(opt(t, "read_only")),
+                    true,
+                    "a knowledge graph");
+            case "skill_registry" -> new Capabilities(
+                    true, false, false, false, true, "skills fetched from " + opt(t, "url"));
             case "class" -> declared(t);
             default -> unknown("tool kind \"" + kind + "\" is not one the audit knows");
         };
     }
 
     /**
-     * A tool of the author's own. The audit never loads or runs it, so it believes only what the script says: {@code reach:} in the tool's entry.
-     * Without one it assumes the worst. A declaration is the author's word, and the note says so.
+     * A tool of the author's own. The audit never loads or runs it, so it believes only what the
+     * script says: {@code reach:} in the tool's entry. Without one it assumes the worst. A
+     * declaration is the author's word, and the note says so.
      */
     private static Capabilities declared(ToolDef t) {
         return fromReach(opt(t, "reach"), "Java class " + opt(t, "class"));
     }
 
-    /** The capabilities a tool's author declared ({@code reach:} in the script, or {@code Name.reach} in the .loot file); null reach means undeclared. */
+    /**
+     * The capabilities a tool's author declared ({@code reach:} in the script, or {@code
+     * Name.reach} in the .loot file); null reach means undeclared.
+     */
     static Capabilities fromReach(String reach, String cls) {
-        if (reach == null) return unknown(cls + ": the audit can't see what it does (say what it reaches with reach: none | reads | fetches | writes | sends)");
-        String by = cls + ", declared reach: " + reach + " (the author's word; the audit does not check it)";
+        if (reach == null)
+            return unknown(
+                    cls
+                            + ": the audit can't see what it does (say what it reaches with reach: none | reads | fetches | writes | sends)");
+        String by =
+                cls
+                        + ", declared reach: "
+                        + reach
+                        + " (the author's word; the audit does not check it)";
         return switch (reach) {
             case "none" -> new Capabilities(false, false, false, false, true, by);
             case "reads" -> new Capabilities(false, true, false, false, true, by);
             case "fetches" -> new Capabilities(true, false, false, false, true, by);
             case "writes" -> new Capabilities(false, true, false, true, true, by);
             case "sends" -> new Capabilities(false, true, true, true, true, by);
-            default -> unknown(cls + ": reach: " + reach + " is not one of none, reads, fetches, writes, sends");
+            default -> unknown(
+                    cls
+                            + ": reach: "
+                            + reach
+                            + " is not one of none, reads, fetches, writes, sends");
         };
     }
 
     static boolean writes(String methods) {
         if (methods == null) return false;
-        for (String m : methods.split(",")) if (!m.strip().equalsIgnoreCase("GET") && !m.isBlank()) return true;
+        for (String m : methods.split(","))
+            if (!m.strip().equalsIgnoreCase("GET") && !m.isBlank()) return true;
         return false;
     }
 

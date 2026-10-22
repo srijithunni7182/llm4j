@@ -79,6 +79,7 @@ The policy does not have to be one we wrote. A **ladder** is a reusable policy y
 | Primitive | What it does |
 |---|---|
 | `delegate` | Call one agent, await result, bind to variable |
+| `intentclassify` | Put typed questions (choose, ask, rate) to a classifier (Jev or a chat model) and bind one label per question, with a confidence rule |
 | `broadcast` | Fan out to multiple agents in parallel, collect combined result |
 | `handoff` | Terminal node — pass control to an agent and end the current branch |
 | `alt` / `else` | Symbolic conditional branching on typed context variable values |

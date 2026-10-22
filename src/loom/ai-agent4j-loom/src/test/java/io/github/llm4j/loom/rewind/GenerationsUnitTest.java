@@ -11,11 +11,16 @@ import java.util.Map;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-/** The boundary list on its own: reading, locating steps, identity and the scan of what a rewind would cross (spec loom-rewind-and-fork R2, R4). */
+/**
+ * The boundary list on its own: reading, locating steps, identity and the scan of what a rewind
+ * would cross (spec loom-rewind-and-fork R2, R4).
+ */
 class GenerationsUnitTest {
 
-    private static Generations.Boundary start(Generations g, String block, int from, String effects, boolean askAgain) {
-        return g.start(block, from, "cp", "script", "Main/s5", "why", Map.of("k", "v"), effects, askAgain);
+    private static Generations.Boundary start(
+            Generations g, String block, int from, String effects, boolean askAgain) {
+        return g.start(
+                block, from, "cp", "script", "Main/s5", "why", Map.of("k", "v"), effects, askAgain);
     }
 
     @Test
@@ -25,10 +30,14 @@ class GenerationsUnitTest {
         bad.put(Generations.KEY, new RunJournal.Entry("boundaries", "not a map"));
         assertThatThrownBy(() -> new Generations(bad)).hasMessageContaining("not a boundary list");
         RunJournal other = RunJournal.inMemory();
-        other.put(Generations.KEY, new RunJournal.Entry("boundaries", Map.of("version", 2, "boundaries", List.of())));
+        other.put(
+                Generations.KEY,
+                new RunJournal.Entry("boundaries", Map.of("version", 2, "boundaries", List.of())));
         assertThatThrownBy(() -> new Generations(other)).hasMessageContaining("different version");
         RunJournal none = RunJournal.inMemory();
-        none.put(Generations.KEY, new RunJournal.Entry("boundaries", Map.of("boundaries", List.of())));
+        none.put(
+                Generations.KEY,
+                new RunJournal.Entry("boundaries", Map.of("boundaries", List.of())));
         assertThatThrownBy(() -> new Generations(none)).hasMessageContaining("journal format null");
     }
 
@@ -66,8 +75,8 @@ class GenerationsUnitTest {
     void aStepKeepsItsIdentityUnlessItsGenerationWasStartedToRepeatEffects() {
         Generations g = new Generations(RunJournal.inMemory());
         assertThat(g.identity("Main/s3~2")).isEqualTo("Main/s3");
-        start(g, "Main/s", 3, "keep", false);          // generation 2, keeps
-        start(g, "Main/s", 3, "repeat", false);        // generation 3, repeats
+        start(g, "Main/s", 3, "keep", false); // generation 2, keeps
+        start(g, "Main/s", 3, "repeat", false); // generation 3, repeats
         assertThat(g.identity("Main/s3~2")).isEqualTo("Main/s3");
         assertThat(g.identity("Main/s3~3")).isEqualTo("Main/s3~3");
         assertThat(g.identity("Main/s3~3/a1~2")).isEqualTo("Main/s3~3/a1");
@@ -137,9 +146,11 @@ class GenerationsUnitTest {
         j.put("Main/s3~2#approve:Post:hash", new RunJournal.Entry("approval", "no"));
         j.put("Main/s0#approve:Early:hash", new RunJournal.Entry("approval", "ok"));
 
-        assertThat(EffectScan.effectsIn(j, "Main/s", 2)).containsExactlyInAnyOrder(
-                "mail at Main/s2 (done)", "post at Main/s3 (outcome unknown)",
-                "Mystery at Main/s5 (a tool that isn't known to change nothing)");
+        assertThat(EffectScan.effectsIn(j, "Main/s", 2))
+                .containsExactlyInAnyOrder(
+                        "mail at Main/s2 (done)",
+                        "post at Main/s3 (outcome unknown)",
+                        "Mystery at Main/s5 (a tool that isn't known to change nothing)");
         assertThat(EffectScan.approvalsIn(j, "Main/s", 1)).containsExactly("Mail at Main/s2");
         assertThat(EffectScan.inRegion("Main/s", "Main/s", 0)).isFalse();
         assertThat(EffectScan.inRegion("Other/s2", "Main/s", 0)).isFalse();

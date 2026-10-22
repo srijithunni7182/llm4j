@@ -49,6 +49,10 @@ about what a workflow run did), `dimensions` and `tags`. A workflow that takes s
 
 Search-dependent cases take their answers from `fixtures.yaml` (`Search: [{match: "flights", snippets: ["…"]}]`), so a free run never reaches the network. The same files work from JUnit through `EvalScenarios.fromDirectory(...)`. Unknown fields are rejected, so a typo fails loudly. (Older files that wrote `RUBRIC:` lines inside `context`, or camelCase names, still load.)
 
+## A classifier needs labelled cases, not written answers
+
+A step that only chooses a label (an `intentclassifier`) has no written answer to grade: each case is the text and the one label a person says is right, with a category (clear, two intents, typos, other languages, an injection attempt). Write the cases with the user the same way, then compare backends on them with `ClassifierComparison` (accuracy, calibration, cost and latency per backend) instead of a judge. The labelled sets of the Jev study in `docs/specs/07-classifier/` are an example.
+
 ## Which cases to write
 
 Cover the *kinds* of situation, not just the happy path. Eight kinds worth having for each agent:

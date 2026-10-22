@@ -7,8 +7,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Every tool the application offers, by name, with where each came from: {@code Tool} beans, built-ins ({@code llm4j.tools.builtin}) and guarded tools
- * ({@code llm4j.tools.custom.<name>}). Two tools with one name are an error that names both, never a silent replacement.
+ * Every tool the application offers, by name, with where each came from: {@code Tool} beans,
+ * built-ins ({@code llm4j.tools.builtin}) and guarded tools ({@code llm4j.tools.custom.<name>}).
+ * Two tools with one name are an error that names both, never a silent replacement.
  */
 public final class ToolCatalog {
 
@@ -19,7 +20,8 @@ public final class ToolCatalog {
         String name = tool.getName();
         String earlier = origins.get(name);
         if (earlier != null) {
-            throw new Llm4jConfigurationException("two tools are named " + name + ": " + earlier + " and " + origin,
+            throw new Llm4jConfigurationException(
+                    "two tools are named " + name + ": " + earlier + " and " + origin,
                     "Rename one of them (a guarded tool takes the name of its key under llm4j.tools.custom).");
         }
         tools.put(name, tool);
@@ -44,7 +46,9 @@ public final class ToolCatalog {
         for (String name : names) {
             Tool t = tools.get(name);
             if (t == null) {
-                throw new Llm4jConfigurationException(property + " names a tool that does not exist: " + name, "The registered tools are: " + String.join(", ", tools.keySet()) + ".");
+                throw new Llm4jConfigurationException(
+                        property + " names a tool that does not exist: " + name,
+                        "The registered tools are: " + String.join(", ", tools.keySet()) + ".");
             }
             out.add(t);
         }

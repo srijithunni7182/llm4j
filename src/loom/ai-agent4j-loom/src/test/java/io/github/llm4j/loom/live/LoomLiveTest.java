@@ -18,25 +18,45 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Verification plan L11: the whole stack against real models — a script run by {@code weave run --trace},
- * using a tool and an output schema. Runs for each provider whose key is set; never in a default build
- * ({@code mvn -pl loom/ai-agent4j-loom -Plive test}).
+ * Verification plan L11: the whole stack against real models — a script run by {@code weave run
+ * --trace}, using a tool and an output schema. Runs for each provider whose key is set; never in a
+ * default build ({@code mvn -pl loom/ai-agent4j-loom -Plive test}).
  */
 @Tag("live")
 class LoomLiveTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     static Stream<String> models() {
         List<String> models = new ArrayList<>();
         if (set("ANTHROPIC_API_KEY")) {
-            String first = System.getenv().getOrDefault("ANTHROPIC_TEST_MODELS", "claude-opus-5-5").split(",")[0].strip();
+            String first =
+                    System.getenv()
+                            .getOrDefault("ANTHROPIC_TEST_MODELS", "claude-opus-5-5")
+                            .split(",")[0]
+                            .strip();
             models.add("anthropic/" + first);
         }
-        if (set("GEMINI_API_KEY")) models.add(System.getenv().getOrDefault("GEMINI_TEST_MODELS", "gemini-2.5-flash").split(",")[0].strip());
-        if (set("SARVAM_API_KEY")) models.add("sarvam/" + System.getenv().getOrDefault("SARVAM_TEST_MODELS", "sarvam-m").split(",")[0].strip());
-        if (set("OLLAMA_BASE_URL")) models.add("ollama/" + System.getenv().getOrDefault("OLLAMA_TEST_MODELS", "llama3.2").split(",")[0].strip());
+        if (set("GEMINI_API_KEY"))
+            models.add(
+                    System.getenv()
+                            .getOrDefault("GEMINI_TEST_MODELS", "gemini-2.5-flash")
+                            .split(",")[0]
+                            .strip());
+        if (set("SARVAM_API_KEY"))
+            models.add(
+                    "sarvam/"
+                            + System.getenv()
+                                    .getOrDefault("SARVAM_TEST_MODELS", "sarvam-m")
+                                    .split(",")[0]
+                                    .strip());
+        if (set("OLLAMA_BASE_URL"))
+            models.add(
+                    "ollama/"
+                            + System.getenv()
+                                    .getOrDefault("OLLAMA_TEST_MODELS", "llama3.2")
+                                    .split(",")[0]
+                                    .strip());
         return models.isEmpty() ? Stream.of("none") : models.stream();
     }
 
@@ -50,7 +70,9 @@ class LoomLiveTest {
     void l11_aScriptRunsEndToEnd(String model) throws Exception {
         assumeTrue(!model.equals("none"), "no provider key set");
         Path script = dir.resolve("orders.loom");
-        Files.writeString(script, """
+        Files.writeString(
+                script,
+                """
                 budget { tokens: 40000 }
                 agent Clerk {
                     model: "%s"
@@ -63,11 +85,18 @@ class LoomLiveTest {
                     delegate "We received 48 boxes with 37 items each. Use the calculator for the total." to Clerk -> order
                     note "Total: {order.total}"
                 }
-                """.formatted(model));
+                """
+                        .formatted(model));
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ByteArrayOutputStream err = new ByteArrayOutputStream();
-        int code = CliProbe.run(script.toFile(), "text", new PrintStream(out, true), new PrintStream(err, true),
-                System::getenv, new DefaultLLMClientFactory());
+        int code =
+                CliProbe.run(
+                        script.toFile(),
+                        "text",
+                        new PrintStream(out, true),
+                        new PrintStream(err, true),
+                        System::getenv,
+                        new DefaultLLMClientFactory());
         System.out.println("L11 " + model + " stdout:\n" + out + "\nL11 trace:\n" + err);
         assertThat(code).as("weave exit code").isZero();
         assertThat(err.toString()).contains("🔧 calculator").contains("✔");

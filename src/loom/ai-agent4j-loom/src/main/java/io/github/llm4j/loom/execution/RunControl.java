@@ -7,30 +7,41 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 /**
- * What an observer may do to a run: pause it, resume it, suspend it, stop it. The run looks at this <b>between steps</b>, before it
- * starts the next statement. A step already running (an agent in the middle of its reasoning) is not interrupted, because what it has
- * begun is already being paid for; the control takes effect when that step finishes. So:
+ * What an observer may do to a run: pause it, resume it, suspend it, stop it. The run looks at this
+ * <b>between steps</b>, before it starts the next statement. A step already running (an agent in
+ * the middle of its reasoning) is not interrupted, because what it has begun is already being paid
+ * for; the control takes effect when that step finishes. So:
  *
  * <ul>
- *   <li><b>pause</b>: the run holds before its next step, keeping its thread, until {@link Action#RESUME}. A held run can still be
- *       stopped or suspended.</li>
- *   <li><b>suspend</b>: the run ends cleanly at the next step as {@link RunSuspended} ({@code OPERATOR}); with a journal it can be
- *       resumed later by hand, and nothing already done is repeated.</li>
- *   <li><b>stop</b>: the run ends at the next step as {@link RunStopped}; nothing is lost, and it too can be resumed.</li>
+ *   <li><b>pause</b>: the run holds before its next step, keeping its thread, until {@link
+ *       Action#RESUME}. A held run can still be stopped or suspended.
+ *   <li><b>suspend</b>: the run ends cleanly at the next step as {@link RunSuspended} ({@code
+ *       OPERATOR}); with a journal it can be resumed later by hand, and nothing already done is
+ *       repeated.
+ *   <li><b>stop</b>: the run ends at the next step as {@link RunStopped}; nothing is lost, and it
+ *       too can be resumed.
  * </ul>
  *
- * Every change is reported to listeners (the executor turns it into a {@code control} trace event), so an observer sees a request as
- * queued until the run actually reaches a step.
+ * Every change is reported to listeners (the executor turns it into a {@code control} trace event),
+ * so an observer sees a request as queued until the run actually reaches a step.
  */
 public final class RunControl {
 
-    public enum Action { PAUSE, RESUME, SUSPEND, STOP }
+    public enum Action {
+        PAUSE,
+        RESUME,
+        SUSPEND,
+        STOP
+    }
 
-    /** One change: {@code requested} (asked, not yet in effect), {@code held} (the run is waiting), {@code resumed}, {@code applied} (a stop or suspend took effect) or {@code cancelled}. */
-    public record Event(Action action, String state, String by, String step) { }
+    /**
+     * One change: {@code requested} (asked, not yet in effect), {@code held} (the run is waiting),
+     * {@code resumed}, {@code applied} (a stop or suspend took effect) or {@code cancelled}.
+     */
+    public record Event(Action action, String state, String by, String step) {}
 
     /** What is true now. */
-    public record State(boolean paused, boolean held, Action pending, String by) { }
+    public record State(boolean paused, boolean held, Action pending, String by) {}
 
     private final List<Consumer<Event>> listeners = new CopyOnWriteArrayList<>();
     private boolean paused;
@@ -63,7 +74,12 @@ public final class RunControl {
                         pending = null;
                         e = new Event(was, "cancelled", by, null);
                     } else {
-                        e = new Event(Action.PAUSE, wasHeld ? "resumed" : "cancelled", by, null); // what ends is the pause
+                        e =
+                                new Event(
+                                        Action.PAUSE,
+                                        wasHeld ? "resumed" : "cancelled",
+                                        by,
+                                        null); // what ends is the pause
                     }
                     notifyAll();
                 }
@@ -84,14 +100,17 @@ public final class RunControl {
         return new State(paused, held, pending, paused ? pausedBy : pendingBy);
     }
 
-    /** A new top-level run begins: a stop or suspend asked for an earlier run is not meant for this one. A pause stays. */
+    /**
+     * A new top-level run begins: a stop or suspend asked for an earlier run is not meant for this
+     * one. A pause stays.
+     */
     synchronized void reset() {
         pending = null;
     }
 
     /**
-     * Called by the run before each step. Returns when the step may go ahead; throws {@link RunStopped} or {@link RunSuspended} when the
-     * run was told to end; blocks while paused.
+     * Called by the run before each step. Returns when the step may go ahead; throws {@link
+     * RunStopped} or {@link RunSuspended} when the run was told to end; blocks while paused.
      */
     void checkpoint(String step) {
         while (true) {
@@ -104,7 +123,8 @@ public final class RunControl {
                     return;
                 }
                 if (pending != null) {
-                    // stop and suspend stay pending, so every branch of a parallel step ends the same way; reset() clears them for the next run
+                    // stop and suspend stay pending, so every branch of a parallel step ends the
+                    // same way; reset() clears them for the next run
                     act = pending;
                     by = pendingBy;
                     held = false;
@@ -123,7 +143,8 @@ public final class RunControl {
                 }
             }
             emit(toEmit);
-            if (act == Action.STOP) throw new RunStopped("operator stop at " + step + " (asked by " + by + ")");
+            if (act == Action.STOP)
+                throw new RunStopped("operator stop at " + step + " (asked by " + by + ")");
             if (act == Action.SUSPEND) throw RunSuspended.byOperator(step, by);
         }
     }

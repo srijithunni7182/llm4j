@@ -12,8 +12,9 @@ import java.util.regex.Pattern;
 /**
  * What is known about a secret besides its value. It never contains the value.
  *
- * @param allowedHosts the hosts the secret may be sent to: exact hosts or {@code *.suffix} patterns (which match subdomains, not the apex), no
- *     scheme or port, compared case-insensitively. Empty means unrestricted.
+ * @param allowedHosts the hosts the secret may be sent to: exact hosts or {@code *.suffix} patterns
+ *     (which match subdomains, not the apex), no scheme or port, compared case-insensitively. Empty
+ *     means unrestricted.
  * @param description free text for people, or null
  * @param updatedAt when the value was last set, or null when unknown
  */
@@ -22,7 +23,8 @@ public record SecretMetadata(Set<String> allowedHosts, String description, Insta
     /** No restrictions, no description. */
     public static final SecretMetadata NONE = new SecretMetadata(Set.of(), null, null);
 
-    private static final Pattern HOST = Pattern.compile("(\\*\\.)?[a-z0-9]([a-z0-9._-]*[a-z0-9])?|\\[?[0-9a-f:]*:[0-9a-f:]*]?");
+    private static final Pattern HOST =
+            Pattern.compile("(\\*\\.)?[a-z0-9]([a-z0-9._-]*[a-z0-9])?|\\[?[0-9a-f:]*:[0-9a-f:]*]?");
 
     public SecretMetadata {
         Set<String> normalized = new TreeSet<>();
@@ -45,7 +47,10 @@ public record SecretMetadata(Set<String> allowedHosts, String description, Insta
         return new SecretMetadata(allowedHosts, description, when);
     }
 
-    /** True when the secret may be sent to {@code host} (always true when unrestricted). A null or blank host is never allowed by a restricted secret. */
+    /**
+     * True when the secret may be sent to {@code host} (always true when unrestricted). A null or
+     * blank host is never allowed by a restricted secret.
+     */
     public boolean allows(String host) {
         if (allowedHosts.isEmpty()) return true;
         String h = normalizeHost(host);
@@ -80,7 +85,8 @@ public record SecretMetadata(Set<String> allowedHosts, String description, Insta
         if (host == null) return null;
         String h = host.trim().toLowerCase(Locale.ROOT);
         if (h.startsWith("[") && h.contains("]")) h = h.substring(1, h.indexOf(']'));
-        else if (h.indexOf(':') == h.lastIndexOf(':') && h.contains(":")) h = h.substring(0, h.indexOf(':')); // host:port
+        else if (h.indexOf(':') == h.lastIndexOf(':') && h.contains(":"))
+            h = h.substring(0, h.indexOf(':')); // host:port
         while (h.endsWith(".")) h = h.substring(0, h.length() - 1);
         return h.isEmpty() ? null : h;
     }
@@ -89,7 +95,10 @@ public record SecretMetadata(Set<String> allowedHosts, String description, Insta
         if (pattern == null) throw new IllegalArgumentException("an allowed host must not be null");
         String h = pattern.trim().toLowerCase(Locale.ROOT);
         if (h.contains("/") || h.contains("@") || h.contains(" ") || !HOST.matcher(h).matches()) {
-            throw new IllegalArgumentException("allowed host \"" + pattern + "\" must be a host name or *.suffix, without scheme, port or path");
+            throw new IllegalArgumentException(
+                    "allowed host \""
+                            + pattern
+                            + "\" must be a host name or *.suffix, without scheme, port or path");
         }
         if (h.startsWith("[")) h = h.substring(1, h.length() - 1);
         return h;

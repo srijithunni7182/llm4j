@@ -1,13 +1,13 @@
 package io.github.llm4j.loom.inspect.otel;
 
 /**
- * Every attribute and event name loom-inspect puts on the wire, in one place. The {@code gen_ai.*} names come from
- * OpenTelemetry's GenAI semantic conventions, which are still in development: when they change, this is the one file that does.
- * Everything Loom-specific is under {@code loom.*}.
+ * Every attribute and event name loom-inspect puts on the wire, in one place. The {@code gen_ai.*}
+ * names come from OpenTelemetry's GenAI semantic conventions, which are still in development: when
+ * they change, this is the one file that does. Everything Loom-specific is under {@code loom.*}.
  */
 public final class Semconv {
 
-    private Semconv() { }
+    private Semconv() {}
 
     // ---- OpenTelemetry resource and general ----
     public static final String SERVICE_NAME = "service.name";
@@ -46,30 +46,53 @@ public final class Semconv {
     public static final String LOOM_TASK = "loom.task";
     public static final String LOOM_TASK_OUTCOME = "loom.task.outcome";
     public static final String LOOM_TASK_ATTEMPTS = "loom.task.attempts";
-    /** A task or delegate failed: its kind, name, failure category, attempts, and whether {@code on_failure} took over. */
+
+    /**
+     * A task or delegate failed: its kind, name, failure category, attempts, and whether {@code
+     * on_failure} took over.
+     */
     public static final String EV_FAILURE = "loom.failure";
+
     public static final String LOOM_FAILURE_KIND = "loom.failure.kind";
     public static final String LOOM_FAILURE_NAME = "loom.failure.name";
     public static final String LOOM_FAILURE_CATEGORY = "loom.failure.category";
     public static final String LOOM_FAILURE_ATTEMPTS = "loom.failure.attempts";
     public static final String LOOM_FAILURE_HANDLED = "loom.failure.handled";
     public static final String LOOM_FAILURE_ERROR = "loom.failure.error";
+
     /** On the run's end: the task or delegate that broke the run. */
     public static final String LOOM_RUN_FAILED_KIND = "loom.run.failed_kind";
+
     public static final String LOOM_RUN_FAILED_NAME = "loom.run.failed_name";
     public static final String LOOM_RUN_FAILED_STEP = "loom.run.failed_step";
     public static final String LOOM_RUN_FAILED_CATEGORY = "loom.run.failed_category";
     public static final String LOOM_TEXT = "loom.text";
-    /** A tool call that got no result: the runtime blocked it as an exact repeat of an earlier one. */
+
+    /**
+     * A tool call that got no result: the runtime blocked it as an exact repeat of an earlier one.
+     */
     public static final String LOOM_TOOL_NO_RESULT = "loom.tool.no_result";
-    /** Short hash of a tool call (tool and input), computed in the process so a loop can be seen even when no text leaves it. */
+
+    /**
+     * Short hash of a tool call (tool and input), computed in the process so a loop can be seen
+     * even when no text leaves it.
+     */
     public static final String LOOM_ACTION_HASH = "loom.action.hash";
+
     /** Short hash of an agent's answer, for the same reason. */
     public static final String LOOM_OUTPUT_HASH = "loom.output.hash";
-    /** How many distinct figures an answer states, and how many of them appear in nothing the step was given or fetched. */
+
+    /**
+     * How many distinct figures an answer states, and how many of them appear in nothing the step
+     * was given or fetched.
+     */
     public static final String LOOM_GROUNDING_FIGURES = "loom.grounding.figures";
+
     public static final String LOOM_GROUNDING_UNGROUNDED = "loom.grounding.ungrounded";
-    /** A few of the ungrounded figures, for the evidence line. Absent at the metadata detail level. */
+
+    /**
+     * A few of the ungrounded figures, for the evidence line. Absent at the metadata detail level.
+     */
     public static final String LOOM_GROUNDING_EXAMPLES = "loom.grounding.examples";
 
     // ---- Model calls, tool outcomes, context and compaction (Phase 4) ----
@@ -82,9 +105,17 @@ public final class Semconv {
     public static final String LOOM_MODEL_TRUNCATED = "loom.model.truncated";
     public static final String LOOM_MODEL_DURATION_MS = "loom.model.duration_ms";
     public static final String LOOM_TOOL_OUTCOME = "loom.tool.outcome";
-    /** The legs of the lethal trifecta a tool touches (a sorted list of outward, private, untrusted; empty for none) and whether that is known or assumed. */
-    /** What the injection scan found in an untrusted tool's result: the sorted group names (override, role, exfil, reveal, hidden) and how many matches; never the text. */
+
+    /**
+     * The legs of the lethal trifecta a tool touches (a sorted list of outward, private, untrusted;
+     * empty for none) and whether that is known or assumed.
+     */
+    /**
+     * What the injection scan found in an untrusted tool's result: the sorted group names
+     * (override, role, exfil, reveal, hidden) and how many matches; never the text.
+     */
     public static final String LOOM_INJECTION_PATTERNS = "loom.injection.patterns";
+
     public static final String LOOM_INJECTION_COUNT = "loom.injection.count";
     public static final String LOOM_TOOL_REACH = "loom.tool.reach";
     public static final String LOOM_TOOL_REACH_KNOWN = "loom.tool.reach_known";
@@ -129,9 +160,13 @@ public final class Semconv {
     public static final String EV_THOUGHT = "loom.thought";
     public static final String EV_OBSERVATION = "loom.observation";
     public static final String EV_BUDGET = "loom.budget";
-    /** A workflow variable read at the boundary between two loop rounds, for the no_progress rule. */
+
+    /**
+     * A workflow variable read at the boundary between two loop rounds, for the no_progress rule.
+     */
     /** An observer's control on the run (pause, resume, suspend, stop) and what became of it. */
     public static final String EV_CONTROL = "loom.control";
+
     public static final String LOOM_CONTROL_ACTION = "loom.control.action";
     public static final String LOOM_CONTROL_STATE = "loom.control.state";
     public static final String LOOM_CONTROL_BY = "loom.control.by";
@@ -143,9 +178,17 @@ public final class Semconv {
     public static final String EV_NOTE = "loom.note";
     public static final String EV_CONTEXT = "loom.context";
     public static final String EV_COMPACTION = "loom.compaction";
-    /** A guard acted: {@code loom.data.event} says which (pii_masked, pii_blocked, pii_detected, bias_detected, bias_blocked). */
+
+    /**
+     * A guard acted: {@code loom.data.event} says which (pii_masked, pii_blocked, pii_detected,
+     * bias_detected, bias_blocked).
+     */
     public static final String EV_GUARD = "loom.guard";
-    /** Prefix for any other Loom trace event: {@code loom.approval}, {@code loom.rewind}, {@code loom.guard}, … */
+
+    /**
+     * Prefix for any other Loom trace event: {@code loom.approval}, {@code loom.rewind}, {@code
+     * loom.guard}, …
+     */
     public static final String EV_PREFIX = "loom.";
 
     // ---- Run statuses (values of loom.run.status) ----
@@ -153,7 +196,12 @@ public final class Semconv {
     public static final String STATUS_SUSPENDED = "suspended";
     public static final String STATUS_STOPPED = "stopped";
     public static final String STATUS_BUDGET = "budget";
-    /** The workflow's own {@code halt} ended the run: shown as stopped, with the reason in the run's trace. */
+
+    /**
+     * The workflow's own {@code halt} ended the run: shown as stopped, with the reason in the run's
+     * trace.
+     */
     public static final String STATUS_HALTED = "halted";
+
     public static final String STATUS_FAILED = "failed";
 }

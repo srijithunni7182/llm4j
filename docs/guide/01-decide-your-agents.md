@@ -64,16 +64,19 @@ newsletter/
     writer.md
 ```
 
-## Agent or task?
+## Agent, classifier or task?
 
-Not every step of a workflow should have a model behind it. Before you write a prompt, ask of each step:
+Not every step of a workflow should have a model behind it, and not every model step should write text. Before you write a prompt, ask of each step:
 
 | If the step... | Make it a... | Because |
 |---|---|---|
-| reads messy input, writes, judges, argues, summarises | **agent** | it needs reasoning |
+| has to **write** text: a reply, a summary, an argument | **agent** | it needs reasoning and prose |
+| only has to **choose** from a fixed set: route a message, judge pass/fail against a criterion, rate a tone, is-this-risky yes/no | **classifier** (`intentclassify`) | one cheap call returns a label and a probability; there is no prose to parse and no label you did not offer |
 | checks a rule, calculates, looks something up, formats a record | **task** (plain Java) | exact, free, unit-testable |
 | moves money, sends, creates, deletes, writes an audit record | **task** (plain Java) | a model must never decide *whether* or *with what arguments* |
 | has to give the same answer for the same input, every time | **task** | determinism is the requirement |
+
+**If the answer is a label, it is a classification problem, not a generation problem.** Do not give it an agent, a prompt file and a golden dataset of written answers: declare an `intentclassifier` (a chat model or Jev) and branch on the label (chapter 6, "Classifying"). Always give it a confidence rule so a doubtful answer becomes `unsure` and goes to a person, and never let a label alone approve a payment, a deletion or a security decision: a task checks the facts. Jev is recommended for routing and judging, not as the only safety guardrail.
 
 The usual shape is **the model reads, the code decides and acts**: a support bot lets an agent extract `{order_id, amount}` from the customer's message, then a
 `RefundPolicy` task decides, then an `IssueRefund` task pays. A prompt-injected customer can fool the agent into saying "100000", but not the policy. A task needs no prompt, no
@@ -97,4 +100,5 @@ The three workflow roles have **no tools**, which is why the security audit in c
 
 Every agent has: a one-sentence job, a tool list, a temperature with a reason, and prompt ids in a registry.
 Every step that moves money, sends something or must be exact is a **task**, not an agent.
+Every step that only chooses a label (route, judge, rate) is a **classifier**, not an agent; only a step that must write text is an agent.
 If two agents' jobs overlap, merge or sharpen them now; it is free.

@@ -78,14 +78,28 @@ class SecretNamesAndMetadataTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"https://api.example.com", "api.example.com/path", "user@host", "a b", "", "*", "*.", "*example.com", "ex ample.com"})
+    @ValueSource(
+            strings = {
+                "https://api.example.com",
+                "api.example.com/path",
+                "user@host",
+                "a b",
+                "",
+                "*",
+                "*.",
+                "*example.com",
+                "ex ample.com"
+            })
     void badHostPatternsAreRejected(String pattern) {
-        assertThrows(IllegalArgumentException.class, () -> SecretMetadata.allowing(pattern), pattern);
+        assertThrows(
+                IllegalArgumentException.class, () -> SecretMetadata.allowing(pattern), pattern);
     }
 
     @Test
     void hostOfUrls() {
-        assertEquals("generativelanguage.googleapis.com", SecretMetadata.hostOf("https://generativelanguage.googleapis.com/v1beta"));
+        assertEquals(
+                "generativelanguage.googleapis.com",
+                SecretMetadata.hostOf("https://generativelanguage.googleapis.com/v1beta"));
         assertEquals("localhost", SecretMetadata.hostOf("http://localhost:11434/api"));
         assertEquals("::1", SecretMetadata.hostOf("http://[::1]:8080/"));
         assertEquals("api.example.com", SecretMetadata.hostOf("API.example.com"));
@@ -98,7 +112,8 @@ class SecretNamesAndMetadataTest {
     void metadataHoldsNoValueAndIsImmutable() {
         SecretMetadata m = SecretMetadata.allowing("a.example.com").withDescription("prod key");
         assertEquals("prod key", m.description());
-        assertThrows(UnsupportedOperationException.class, () -> m.allowedHosts().add("b.example.com"));
+        assertThrows(
+                UnsupportedOperationException.class, () -> m.allowedHosts().add("b.example.com"));
         assertFalse(m.toString().contains("test-key"));
     }
 }

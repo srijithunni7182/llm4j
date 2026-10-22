@@ -10,8 +10,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * {@code tool Refunds { use: openapi  spec: "refunds.json"  auth_header: "Authorization"  auth_value: env.TOKEN }}: every operation of an OpenAPI
- * description as one tool. {@code auth_value} may also be {@code invoker.NAME}, a credential of whoever runs the workflow, asked for on every request.
+ * {@code tool Refunds { use: openapi spec: "refunds.json" auth_header: "Authorization" auth_value:
+ * env.TOKEN }}: every operation of an OpenAPI description as one tool. {@code auth_value} may also
+ * be {@code invoker.NAME}, a credential of whoever runs the workflow, asked for on every request.
  */
 final class OpenApiKind implements ToolKind {
 
@@ -57,10 +58,19 @@ final class OpenApiKind implements ToolKind {
     }
 
     @Override
-    public Tool create(String name, Map<String, String> o, Map<String, CredentialSource> lateBound, Path dir, EffectContext context) {
+    public Tool create(
+            String name,
+            Map<String, String> o,
+            Map<String, CredentialSource> lateBound,
+            Path dir,
+            EffectContext context) {
         String spec = o.get("spec");
-        String location = spec.matches("(?i)https?://.*") || Path.of(spec).isAbsolute() ? spec : dir.resolve(spec).toString();
-        OpenAPITool.Builder tool = OpenAPITool.builder().name(name).spec(OpenAPIParser.parse(location));
+        String location =
+                spec.matches("(?i)https?://.*") || Path.of(spec).isAbsolute()
+                        ? spec
+                        : dir.resolve(spec).toString();
+        OpenAPITool.Builder tool =
+                OpenAPITool.builder().name(name).spec(OpenAPIParser.parse(location));
         // a value written invoker.NAME is asked for on every request; any other is the value itself
         CredentialSource asked = lateBound.get("auth_value");
         if (o.containsKey("auth_header")) {

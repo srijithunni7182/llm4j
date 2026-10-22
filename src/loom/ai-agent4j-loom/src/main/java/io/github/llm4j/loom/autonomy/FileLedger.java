@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.io.UncheckedIOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
@@ -14,25 +13,30 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
- * One JSON-lines file per decision, {@code <dir>/<decision>/ledger.jsonl}, appended under a file lock so two processes never interleave a
- * line. A torn last line (a crash mid-write) is ignored on read, counted for {@code status}, and repaired by the next append.
+ * One JSON-lines file per decision, {@code <dir>/<decision>/ledger.jsonl}, appended under a file
+ * lock so two processes never interleave a line. A torn last line (a crash mid-write) is ignored on
+ * read, counted for {@code status}, and repaired by the next append.
  */
 public class FileLedger implements Ledger {
 
     private static final ObjectMapper JSON = new ObjectMapper();
-    /** File locks keep processes apart; this keeps the threads of one process apart (a lock cannot be held twice in a JVM). */
+
+    /**
+     * File locks keep processes apart; this keeps the threads of one process apart (a lock cannot
+     * be held twice in a JVM).
+     */
     private static final Object JVM = new Object();
+
     private final Path dir;
 
-    /** What this instance has read of one decision's file: the records so far and how far into the file they reach. */
+    /**
+     * What this instance has read of one decision's file: the records so far and how far into the
+     * file they reach.
+     */
     private static final class State {
         final LedgerCache cache = new LedgerCache();
         long offset;
@@ -47,7 +51,10 @@ public class FileLedger implements Ledger {
 
     private byte[] sealKey;
 
-    /** The key that seals the records of levels, in {@code .seal-key} next to the ledgers, made on first use and readable by the owner only. */
+    /**
+     * The key that seals the records of levels, in {@code .seal-key} next to the ledgers, made on
+     * first use and readable by the owner only.
+     */
     @Override
     public synchronized byte[] sealKey() {
         if (sealKey != null) return sealKey;
@@ -57,15 +64,21 @@ public class FileLedger implements Ledger {
                 Files.createDirectories(dir);
                 if (!Files.exists(file)) {
                     Path tmp = Files.createTempFile(dir, ".seal-key", ".tmp");
-                    Files.writeString(tmp, java.util.Base64.getEncoder().encodeToString(Seal.newKey()));
+                    Files.writeString(
+                            tmp, java.util.Base64.getEncoder().encodeToString(Seal.newKey()));
                     try {
-                        Files.setPosixFilePermissions(tmp, java.util.Set.of(java.nio.file.attribute.PosixFilePermission.OWNER_READ, java.nio.file.attribute.PosixFilePermission.OWNER_WRITE));
+                        Files.setPosixFilePermissions(
+                                tmp,
+                                java.util.Set.of(
+                                        java.nio.file.attribute.PosixFilePermission.OWNER_READ,
+                                        java.nio.file.attribute.PosixFilePermission.OWNER_WRITE));
                     } catch (UnsupportedOperationException ignored) {
                         // a file system without POSIX permissions
                     }
                     try {
                         Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE);
-                    } catch (java.nio.file.FileAlreadyExistsException | java.nio.file.AtomicMoveNotSupportedException lost) {
+                    } catch (java.nio.file.FileAlreadyExistsException
+                            | java.nio.file.AtomicMoveNotSupportedException lost) {
                         Files.deleteIfExists(tmp);
                     }
                 }
@@ -91,7 +104,10 @@ public class FileLedger implements Ledger {
         return states.computeIfAbsent(decision, d -> new State());
     }
 
-    /** Reads what was appended since this instance last looked (by anyone), and nothing it has read before. */
+    /**
+     * Reads what was appended since this instance last looked (by anyone), and nothing it has read
+     * before.
+     */
     private State refresh(FileChannel channel, String decision) throws IOException {
         State st = state(decision);
         long size = channel.size();
@@ -108,7 +124,10 @@ public class FileLedger implements Ledger {
             for (String line : text.split("\n")) {
                 if (line.isBlank()) continue;
                 try {
-                    st.cache.add(fromMap(JSON.readValue(line, new TypeReference<Map<String, Object>>() { })));
+                    st.cache.add(
+                            fromMap(
+                                    JSON.readValue(
+                                            line, new TypeReference<Map<String, Object>>() {})));
                 } catch (JsonProcessingException | RuntimeException e) {
                     st.unreadable++;
                 }
@@ -124,12 +143,19 @@ public class FileLedger implements Ledger {
             Path file = file(record.decision());
             try {
                 Files.createDirectories(file.getParent());
-                try (FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
-                     FileLock lock = channel.lock()) {
+                try (FileChannel channel =
+                                FileChannel.open(
+                                        file,
+                                        StandardOpenOption.CREATE,
+                                        StandardOpenOption.READ,
+                                        StandardOpenOption.WRITE);
+                        FileLock lock = channel.lock()) {
                     State st = refresh(channel, record.decision());
                     if (st.cache.has(record.id())) return;
                     repairTail(channel);
-                    byte[] line = (JSON.writeValueAsString(toMap(record)) + "\n").getBytes(StandardCharsets.UTF_8);
+                    byte[] line =
+                            (JSON.writeValueAsString(toMap(record)) + "\n")
+                                    .getBytes(StandardCharsets.UTF_8);
                     channel.position(channel.size());
                     channel.write(java.nio.ByteBuffer.wrap(line));
                     channel.force(false);
@@ -151,7 +177,11 @@ public class FileLedger implements Ledger {
         java.nio.ByteBuffer all = java.nio.ByteBuffer.allocate((int) size);
         channel.read(all, 0);
         int cut = 0;
-        for (int i = (int) size - 1; i >= 0; i--) if (all.get(i) == '\n') { cut = i + 1; break; }
+        for (int i = (int) size - 1; i >= 0; i--)
+            if (all.get(i) == '\n') {
+                cut = i + 1;
+                break;
+            }
         channel.truncate(cut);
     }
 
@@ -159,7 +189,8 @@ public class FileLedger implements Ledger {
         Path file = file(decision);
         State st = state(decision);
         if (!Files.exists(file)) return st;
-        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ); FileLock lock = channel.lock(0, Long.MAX_VALUE, true)) {
+        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ);
+                FileLock lock = channel.lock(0, Long.MAX_VALUE, true)) {
             State refreshed = refresh(channel, decision);
             refreshed.unreadable = refreshed.unreadable; // lines that failed to parse stay counted
             return refreshed;
@@ -195,7 +226,8 @@ public class FileLedger implements Ledger {
             State st = read(decision);
             Path file = file(decision);
             try {
-                // a trailing fragment with no newline is a torn write too, until the next append cuts it away
+                // a trailing fragment with no newline is a torn write too, until the next append
+                // cuts it away
                 if (Files.exists(file) && Files.size(file) > st.offset) return st.unreadable + 1;
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -211,11 +243,19 @@ public class FileLedger implements Ledger {
             if (all.isEmpty()) return;
             Path file = file(decision);
             Path tmp = file.resolveSibling("ledger.jsonl.tmp");
-            try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ, StandardOpenOption.WRITE); FileLock lock = channel.lock()) {
+            try (FileChannel channel =
+                            FileChannel.open(
+                                    file, StandardOpenOption.READ, StandardOpenOption.WRITE);
+                    FileLock lock = channel.lock()) {
                 StringBuilder out = new StringBuilder();
-                for (Rec r : all) out.append(JSON.writeValueAsString(toMap(Purge.apply(r, before)))).append('\n');
+                for (Rec r : all)
+                    out.append(JSON.writeValueAsString(toMap(Purge.apply(r, before)))).append('\n');
                 Files.writeString(tmp, out.toString());
-                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                Files.move(
+                        tmp,
+                        file,
+                        StandardCopyOption.REPLACE_EXISTING,
+                        StandardCopyOption.ATOMIC_MOVE);
                 states.remove(decision); // read again from the rewritten file
             } catch (IOException e) {
                 throw new UncheckedIOException("Cannot purge the ledger " + file, e);
@@ -237,8 +277,14 @@ public class FileLedger implements Ledger {
 
     @SuppressWarnings("unchecked")
     static Rec fromMap(Map<String, Object> m) {
-        return new Rec((String) m.get("id"), (String) m.get("decision"), (String) m.get("kind"), Instant.parse((String) m.get("at")),
-                (String) m.get("case"), ((Number) m.get("generation")).intValue(), (Map<String, Object>) m.get("body"));
+        return new Rec(
+                (String) m.get("id"),
+                (String) m.get("decision"),
+                (String) m.get("kind"),
+                Instant.parse((String) m.get("at")),
+                (String) m.get("case"),
+                ((Number) m.get("generation")).intValue(),
+                (Map<String, Object>) m.get("body"));
     }
 
     static String json(Rec r) {
@@ -251,7 +297,7 @@ public class FileLedger implements Ledger {
 
     static Rec parse(String text) {
         try {
-            return fromMap(JSON.readValue(text, new TypeReference<Map<String, Object>>() { }));
+            return fromMap(JSON.readValue(text, new TypeReference<Map<String, Object>>() {}));
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Corrupt ledger record", e);
         }

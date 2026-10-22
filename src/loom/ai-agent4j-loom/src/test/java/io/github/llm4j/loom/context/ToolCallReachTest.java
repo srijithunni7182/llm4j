@@ -9,11 +9,13 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** R29: a tool call says which legs of the trifecta the tool touches, and whether that is known or assumed. */
+/**
+ * R29: a tool call says which legs of the trifecta the tool touches, and whether that is known or
+ * assumed.
+ */
 class ToolCallReachTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private static List<TraceEvent> calls(TestLoom l) {
         synchronized (l.trace) {
@@ -25,11 +27,14 @@ class ToolCallReachTest {
     void aToolTheRunCannotSeeIntoIsAssumedToReachEverything() {
         TestLoom l = new TestLoom(dir, TestLoom.script("tiny-model", ""), 2);
         l.run();
-        assertThat(calls(l)).hasSize(2).allSatisfy(e -> {
-            Map<String, Object> d = e.data();
-            assertThat(d.get("reach")).isEqualTo("outward,private,untrusted");
-            assertThat(d.get("reach_known")).isEqualTo(false);
-        });
+        assertThat(calls(l))
+                .hasSize(2)
+                .allSatisfy(
+                        e -> {
+                            Map<String, Object> d = e.data();
+                            assertThat(d.get("reach")).isEqualTo("outward,private,untrusted");
+                            assertThat(d.get("reach_known")).isEqualTo(false);
+                        });
     }
 
     @Test
@@ -37,10 +42,12 @@ class ToolCallReachTest {
         TestLoom l = new TestLoom(dir, TestLoom.script("tiny-model", ""), 2);
         l.executor.setToolReach(Map.of("lookup", "reads"));
         l.run();
-        assertThat(calls(l)).allSatisfy(e -> {
-            assertThat(e.data().get("reach")).isEqualTo("private");
-            assertThat(e.data().get("reach_known")).isEqualTo(true);
-        });
+        assertThat(calls(l))
+                .allSatisfy(
+                        e -> {
+                            assertThat(e.data().get("reach")).isEqualTo("private");
+                            assertThat(e.data().get("reach_known")).isEqualTo(true);
+                        });
     }
 
     @Test

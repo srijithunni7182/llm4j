@@ -15,8 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 /** Verification plan V3.1–V3.5. */
 class WeaveCheckTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     final ByteArrayOutputStream out = new ByteArrayOutputStream();
     final AtomicInteger modelClients = new AtomicInteger();
@@ -24,24 +23,39 @@ class WeaveCheckTest {
     int check(String source, boolean lenient, Map<String, String> env) throws Exception {
         Path f = dir.resolve("s.loom");
         Files.writeString(f, source);
-        return CliProbe.check(f.toFile(), lenient, new PrintStream(out, true), env::get, modelClients);
+        return CliProbe.check(
+                f.toFile(), lenient, new PrintStream(out, true), env::get, modelClients);
     }
 
     @Test
     void v3_1_aValidScriptIsReadyAndNothingIsCalled() throws Exception {
-        assertThat(check("""
+        assertThat(
+                        check(
+                                """
                 agent A { model: "gemini-2.5-flash" system: "You are A." }
                 workflow Main() { delegate "x" to A -> x }
-                """, false, Map.of())).isZero();
+                """,
+                                false,
+                                Map.of()))
+                .isZero();
         assertThat(out.toString()).contains("✓ s.loom: ready to run");
         assertThat(modelClients.get()).isZero();
     }
 
     @Test
     void v3_2_allProblemsWithLines() throws Exception {
-        assertThat(check(NothingIgnoredTest.MEMORY + "agent C { model: \"m\" tools: [Nope] }\n"
-                + "workflow W() { guardrail (ODD) { note \"x\" } }\n", false, Map.of())).isEqualTo(2);
-        assertThat(out.toString()).contains("✗ line 4: agent B").contains("✗ line 7: agent C").contains("✗ line 8: guardrail ODD")
+        assertThat(
+                        check(
+                                NothingIgnoredTest.MEMORY
+                                        + "agent C { model: \"m\" tools: [Nope] }\n"
+                                        + "workflow W() { guardrail (ODD) { note \"x\" } }\n",
+                                false,
+                                Map.of()))
+                .isEqualTo(2);
+        assertThat(out.toString())
+                .contains("✗ line 4: agent B")
+                .contains("✗ line 7: agent C")
+                .contains("✗ line 8: guardrail ODD")
                 .contains("5 problems in s.loom");
     }
 

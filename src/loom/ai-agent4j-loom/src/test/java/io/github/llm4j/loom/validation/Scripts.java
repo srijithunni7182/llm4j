@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 /** Builds executors over scripted models that record every request (system prompt, model, task). */
 final class Scripts {
 
-    record Call(String model, String system, String task) { }
+    record Call(String model, String system, String task) {}
 
     final List<Call> calls = Collections.synchronizedList(new ArrayList<>());
     Set<String> failingModels = Set.of();
@@ -34,13 +34,23 @@ final class Scripts {
             @Override
             public LLMResponse chat(LLMRequest request) {
                 String system = request.getMessages().get(0).getContent();
-                String task = request.getMessages().get(request.getMessages().size() - 1).getContent();
+                String task =
+                        request.getMessages().get(request.getMessages().size() - 1).getContent();
                 calls.add(new Call(model, system, task));
-                if (failingModels.contains(model)) throw new IllegalStateException(model + " is down");
+                if (failingModels.contains(model))
+                    throw new IllegalStateException(model + " is down");
                 int n = calls.size();
-                String content = n <= answers.size() ? answers.get(n - 1)
-                        : "```json\n{\"thought\": \"t\", \"final_answer\": \"answer from " + model + "\"}\n```";
-                return LLMResponse.builder().content(content).model(model).tokenUsage(10, 5, 15).build();
+                String content =
+                        n <= answers.size()
+                                ? answers.get(n - 1)
+                                : "```json\n{\"thought\": \"t\", \"final_answer\": \"answer from "
+                                        + model
+                                        + "\"}\n```";
+                return LLMResponse.builder()
+                        .content(content)
+                        .model(model)
+                        .tokenUsage(10, 5, 15)
+                        .build();
             }
 
             @Override
@@ -54,7 +64,8 @@ final class Scripts {
         return executor(source, new ToolRegistry(), configure);
     }
 
-    HarnessExecutor executor(String source, ToolRegistry tools, Consumer<HarnessExecutor> configure) {
+    HarnessExecutor executor(
+            String source, ToolRegistry tools, Consumer<HarnessExecutor> configure) {
         HarnessExecutor e = new HarnessExecutor(parse(source), tools, this::client);
         if (configure != null) configure.accept(e);
         return e;

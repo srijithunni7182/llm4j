@@ -26,6 +26,8 @@ public class EchoTool implements Tool {
 
     @Override
     public java.util.Map<String, Object> getParametersSchema() {
-        return io.github.llm4j.model.ToolSchema.object().string("text", "The text to echo back", true).build();
+        return io.github.llm4j.model.ToolSchema.object()
+                .string("text", "The text to echo back", true)
+                .build();
     }
 }

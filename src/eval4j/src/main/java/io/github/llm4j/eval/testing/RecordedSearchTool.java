@@ -68,15 +68,19 @@ public final class RecordedSearchTool implements Tool {
     }
 
     /**
-     * A tool that answers from entries already read: a list of {@code match} (a case-insensitive regex over the query) and {@code snippets}.
-     * Lets a caller keep several tools' entries in one file and hand each tool its own part.
+     * A tool that answers from entries already read: a list of {@code match} (a case-insensitive
+     * regex over the query) and {@code snippets}. Lets a caller keep several tools' entries in one
+     * file and hand each tool its own part.
      */
     public static RecordedSearchTool fromEntries(String name, JsonNode entriesNode) {
         List<Entry> entries = new ArrayList<>();
         for (JsonNode n : entriesNode) {
             List<String> s = new ArrayList<>();
             n.path("snippets").forEach(x -> s.add(x.asText()));
-            entries.add(new Entry(Pattern.compile(n.path("match").asText(), Pattern.CASE_INSENSITIVE), s));
+            entries.add(
+                    new Entry(
+                            Pattern.compile(n.path("match").asText(), Pattern.CASE_INSENSITIVE),
+                            s));
         }
         return new RecordedSearchTool(name, entries, List.of());
     }

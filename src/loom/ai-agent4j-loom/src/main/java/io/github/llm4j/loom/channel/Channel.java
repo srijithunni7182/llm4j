@@ -6,19 +6,27 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Where questions go and replies come from. The runtime, the pending records and the commands know only this interface; a channel for another
- * service (Slack, WhatsApp, e-mail) implements these four operations and nothing else changes.
+ * Where questions go and replies come from. The runtime, the pending records and the commands know
+ * only this interface; a channel for another service (Slack, WhatsApp, e-mail) implements these
+ * four operations and nothing else changes.
  */
 public interface Channel {
 
-    /** What is sent: the code the reply must carry, the text as the step built it, the words to reply with. */
-    record Outgoing(String code, String text, List<String> choices, String to, boolean approval) { }
+    /**
+     * What is sent: the code the reply must carry, the text as the step built it, the words to
+     * reply with.
+     */
+    record Outgoing(String code, String text, List<String> choices, String to, boolean approval) {}
 
     /** Where a question went, so a reply to that message can be matched. */
-    record Sent(String chat, String ref, Instant at) { }
+    record Sent(String chat, String ref, Instant at) {}
 
-    /** A reply: where it came from, who sent it, what it says, the message it answers (or null) and when it was written (or null when the channel does not say). */
-    record Reply(String chat, String sender, String text, String replyToRef, Instant at, String ref) {
+    /**
+     * A reply: where it came from, who sent it, what it says, the message it answers (or null) and
+     * when it was written (or null when the channel does not say).
+     */
+    record Reply(
+            String chat, String sender, String text, String replyToRef, Instant at, String ref) {
         public Reply(String chat, String sender, String text, String replyToRef) {
             this(chat, sender, text, replyToRef, null, null);
         }
@@ -28,12 +36,19 @@ public interface Channel {
         }
     }
 
-    /** Whether a message (by its reference) was written before a question that was sent (by its reference) in the same chat: where the channel numbers its messages, an exact answer that needs no clock. */
+    /**
+     * Whether a message (by its reference) was written before a question that was sent (by its
+     * reference) in the same chat: where the channel numbers its messages, an exact answer that
+     * needs no clock.
+     */
     default boolean writtenBefore(String messageRef, String questionRef) {
         return false;
     }
 
-    /** Replies read since the last acknowledgement; {@code cursor} says how far, so a restart neither repeats nor skips. */
+    /**
+     * Replies read since the last acknowledgement; {@code cursor} says how far, so a restart
+     * neither repeats nor skips.
+     */
     record Batch(List<Reply> replies, String cursor) {
         public Batch {
             replies = replies == null ? List.of() : List.copyOf(replies);
@@ -49,10 +64,15 @@ public interface Channel {
     /** Sends a question to one chat. */
     Sent send(String chat, Outgoing question) throws IOException;
 
-    /** Replies since the last {@link #acknowledge}. {@code wait} is how long to hold the connection open for one (zero from {@code weave tick}). */
+    /**
+     * Replies since the last {@link #acknowledge}. {@code wait} is how long to hold the connection
+     * open for one (zero from {@code weave tick}).
+     */
     Batch poll(Duration wait) throws IOException;
 
-    /** Called after every reply of a batch has been recorded: only now may the channel forget them. */
+    /**
+     * Called after every reply of a batch has been recorded: only now may the channel forget them.
+     */
     void acknowledge(String cursor) throws IOException;
 
     /** A short note back to a chat (a confirmation, help). */

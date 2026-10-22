@@ -42,7 +42,9 @@ public class LLMException extends RuntimeException {
         return responseBody;
     }
 
-    /** Attaches the provider's response body (used by exception subclasses built from HTTP errors). */
+    /**
+     * Attaches the provider's response body (used by exception subclasses built from HTTP errors).
+     */
     protected void setResponseBody(String responseBody) {
         this.responseBody = responseBody;
     }

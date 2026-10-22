@@ -13,8 +13,13 @@ public final class DefaultEmbeddingFactory implements EmbeddingFactory {
 
     private static final String ONNX = "io.github.llm4j.agent.rag.embedding.OnnxEmbeddingProvider";
     private static final String DJL = "io.github.llm4j.agent.rag.embedding.DjlEmbeddingProvider";
-    /** The engines are optional in ai-agent4j-addons, so the provider class can be present while its engine is not. */
+
+    /**
+     * The engines are optional in ai-agent4j-addons, so the provider class can be present while its
+     * engine is not.
+     */
     private static final String ONNX_ENGINE = "ai.onnxruntime.OrtException";
+
     private static final String DJL_ENGINE = "ai.djl.repository.zoo.Criteria";
     private static final String NEEDS = " needs the ai-agent4j-addons module and its ";
 
@@ -25,28 +30,44 @@ public final class DefaultEmbeddingFactory implements EmbeddingFactory {
         this(env, null);
     }
 
-    /** @param secrets where the Gemini key is looked up first (as {@code GEMINI_API_KEY}), fetched for each request; null for none */
-    public DefaultEmbeddingFactory(Function<String, String> env, io.github.llm4j.secret.SecretStore secrets) {
+    /**
+     * @param secrets where the Gemini key is looked up first (as {@code GEMINI_API_KEY}), fetched
+     *     for each request; null for none
+     */
+    public DefaultEmbeddingFactory(
+            Function<String, String> env, io.github.llm4j.secret.SecretStore secrets) {
         this.env = env;
         this.secrets = secrets;
     }
 
     @Override
     public String problem(String model) {
-        if (model == null || model.isBlank()) return "needs embedding: \"<model>\", e.g. \"gemini/text-embedding-004\"";
+        if (model == null || model.isBlank())
+            return "needs embedding: \"<model>\", e.g. \"gemini/text-embedding-004\"";
         String prefix = model.contains("/") ? model.substring(0, model.indexOf('/')) : "";
         switch (prefix) {
             case "gemini":
                 String key = env.apply("GEMINI_API_KEY");
                 boolean stored = secrets != null && secrets.contains("GEMINI_API_KEY");
-                return !stored && (key == null || key.isBlank()) ? "embedding " + model + " needs GEMINI_API_KEY (an environment variable or a secret)" : null;
+                return !stored && (key == null || key.isBlank())
+                        ? "embedding "
+                                + model
+                                + " needs GEMINI_API_KEY (an environment variable or a secret)"
+                        : null;
             case "onnx":
-                if (!onClasspath(ONNX) || !onClasspath(ONNX_ENGINE)) return "embedding " + model + NEEDS + "onnxruntime dependency on the classpath";
-                return model.substring(5).contains("|") ? null : "onnx embeddings are written onnx/<model.onnx>|<tokenizer.json>";
+                if (!onClasspath(ONNX) || !onClasspath(ONNX_ENGINE))
+                    return "embedding " + model + NEEDS + "onnxruntime dependency on the classpath";
+                return model.substring(5).contains("|")
+                        ? null
+                        : "onnx embeddings are written onnx/<model.onnx>|<tokenizer.json>";
             case "djl":
-                return onClasspath(DJL) && onClasspath(DJL_ENGINE) ? null : "embedding " + model + NEEDS + "ai.djl dependencies on the classpath";
+                return onClasspath(DJL) && onClasspath(DJL_ENGINE)
+                        ? null
+                        : "embedding " + model + NEEDS + "ai.djl dependencies on the classpath";
             default:
-                return "unknown embedding model \"" + model + "\"; use gemini/<model>, onnx/<model>|<tokenizer> or djl/<url>";
+                return "unknown embedding model \""
+                        + model
+                        + "\"; use gemini/<model>, onnx/<model>|<tokenizer> or djl/<url>";
         }
     }
 
@@ -56,17 +77,21 @@ public final class DefaultEmbeddingFactory implements EmbeddingFactory {
         if (p != null) throw new IllegalArgumentException(p);
         if (model.startsWith("gemini/")) {
             LLMConfig.Builder builder = LLMConfig.builder();
-            if (secrets != null && secrets.contains("GEMINI_API_KEY")) builder.apiKey(io.github.llm4j.secret.SecretRef.of(secrets, "GEMINI_API_KEY"));
+            if (secrets != null && secrets.contains("GEMINI_API_KEY"))
+                builder.apiKey(io.github.llm4j.secret.SecretRef.of(secrets, "GEMINI_API_KEY"));
             else builder.apiKey(env.apply("GEMINI_API_KEY"));
             LLMConfig config = builder.build();
             return new GeminiEmbeddingProvider(config, model.substring("gemini/".length()));
         }
         if (model.startsWith("onnx/")) {
             String[] parts = model.substring(5).split("\\|", 2);
-            return (EmbeddingProvider) Class.forName(ONNX).getConstructor(String.class, String.class)
-                    .newInstance(parts[0], parts[1]);
+            return (EmbeddingProvider)
+                    Class.forName(ONNX)
+                            .getConstructor(String.class, String.class)
+                            .newInstance(parts[0], parts[1]);
         }
-        return (EmbeddingProvider) Class.forName(DJL).getConstructor(String.class).newInstance(model.substring(4));
+        return (EmbeddingProvider)
+                Class.forName(DJL).getConstructor(String.class).newInstance(model.substring(4));
     }
 
     private static boolean onClasspath(String cls) {

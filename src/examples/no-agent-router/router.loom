@@ -1,0 +1,40 @@
+// A workflow with no agent: a classifier decides, tasks (plain Java) act. Needs JEV_API_KEY.
+//   ./run.sh "Where is my parcel?"
+
+intentclassifier Intent {
+    model: "Jev/jev-latest"
+    choose kind: refund | order_status | complaint | other
+    ask urgent: "Is the customer threatening to leave?"
+    pii: mask
+    confidence at least 0.8 else escalate
+}
+
+budget { tokens: 5000  calls: 5 }
+
+workflow Main(message, order, amount) {
+    intentclassify Intent on message -> intent retry 2 timeout 30s
+
+    alt (intent.kind == "unsure") {
+        run OpenTicket(queue = "triage") -> ticket
+        return { route: "person", detail: "{ticket.value}" }
+    }
+    alt (intent.urgent == "yes") {
+        run OpenTicket(queue = "retention") -> ticket
+        return { route: "retention", detail: "{ticket.value}" }
+    }
+    alt (intent.kind == "order_status") {
+        run LookupOrder(order = order) -> found
+        return { route: "reply", detail: "{found.value}" }
+    }
+    alt (intent.kind == "refund") {
+        run CheckRefund(amount = amount) -> verdict
+        alt (verdict.outcome == "approved") {
+            return { route: "refund", detail: "approved" }
+        } else {
+            run OpenTicket(queue = "refund-review") -> ticket
+            return { route: "review", detail: "{ticket.value}" }
+        }
+    }
+    run OpenTicket(queue = "{intent.kind}") -> ticket
+    return { route: "queue", detail: "{ticket.value}" }
+}

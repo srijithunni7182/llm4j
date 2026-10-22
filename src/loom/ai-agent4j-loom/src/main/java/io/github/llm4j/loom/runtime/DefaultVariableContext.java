@@ -4,9 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Default thread-safe implementation of VariableContext.
- */
+/** Default thread-safe implementation of VariableContext. */
 public class DefaultVariableContext implements VariableContext {
     private final Map<String, Object> variables = new ConcurrentHashMap<>();
     private final VariableContext parent;

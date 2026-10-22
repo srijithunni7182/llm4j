@@ -33,9 +33,31 @@ class LexerTest {
     @Test
     void wordsOperatorsAndPunctuation() {
         assertThat(kinds("a.b(c, 1) >= 2 and not d or e in [1]"))
-                .containsExactly("IDENT", "DOT", "IDENT", "LPAREN", "IDENT", "COMMA", "NUMBER", "RPAREN", "GE", "NUMBER",
-                        "AND", "NOT", "IDENT", "OR", "IDENT", "IN", "LBRACKET", "NUMBER", "RBRACKET", "EOF");
-        assertThat(kinds("== != < <= > >= + - * /")).containsExactly("EQ", "NE", "LT", "LE", "GT", "GE", "PLUS", "MINUS", "STAR", "SLASH", "EOF");
+                .containsExactly(
+                        "IDENT",
+                        "DOT",
+                        "IDENT",
+                        "LPAREN",
+                        "IDENT",
+                        "COMMA",
+                        "NUMBER",
+                        "RPAREN",
+                        "GE",
+                        "NUMBER",
+                        "AND",
+                        "NOT",
+                        "IDENT",
+                        "OR",
+                        "IDENT",
+                        "IN",
+                        "LBRACKET",
+                        "NUMBER",
+                        "RBRACKET",
+                        "EOF");
+        assertThat(kinds("== != < <= > >= + - * /"))
+                .containsExactly(
+                        "EQ", "NE", "LT", "LE", "GT", "GE", "PLUS", "MINUS", "STAR", "SLASH",
+                        "EOF");
     }
 
     @Test
@@ -54,14 +76,23 @@ class LexerTest {
 
     @Test
     void aNumberFollowedByAnUnknownUnitIsRejectedWithItsPosition() {
-        assertThatThrownBy(() -> Lexer.lex("5 + 3x")).isInstanceOf(ExprException.class).hasMessageContaining("3x").hasMessageContaining("column 5");
+        assertThatThrownBy(() -> Lexer.lex("5 + 3x"))
+                .isInstanceOf(ExprException.class)
+                .hasMessageContaining("3x")
+                .hasMessageContaining("column 5");
     }
 
     @Test
     void unterminatedStringsAndStrayCharactersAreRejected() {
-        assertThatThrownBy(() -> Lexer.lex("\"abc")).isInstanceOf(ExprException.class).hasMessageContaining("unterminated");
-        assertThatThrownBy(() -> Lexer.lex("a # b")).isInstanceOf(ExprException.class).hasMessageContaining("'#'");
-        assertThatThrownBy(() -> Lexer.lex("a = b")).isInstanceOf(ExprException.class).hasMessageContaining("==");
+        assertThatThrownBy(() -> Lexer.lex("\"abc"))
+                .isInstanceOf(ExprException.class)
+                .hasMessageContaining("unterminated");
+        assertThatThrownBy(() -> Lexer.lex("a # b"))
+                .isInstanceOf(ExprException.class)
+                .hasMessageContaining("'#'");
+        assertThatThrownBy(() -> Lexer.lex("a = b"))
+                .isInstanceOf(ExprException.class)
+                .hasMessageContaining("==");
     }
 
     @Test

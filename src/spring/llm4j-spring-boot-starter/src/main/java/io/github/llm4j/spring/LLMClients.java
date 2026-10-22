@@ -8,8 +8,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Every provider client, by name, in the order declared. Only the primary one is an {@code LLMClient} bean (decorated by the budget and the masking);
- * the ones here are the providers' own, for code that must talk to a specific model.
+ * Every provider client, by name, in the order declared. Only the primary one is an {@code
+ * LLMClient} bean (decorated by the budget and the masking); the ones here are the providers' own,
+ * for code that must talk to a specific model.
  */
 public final class LLMClients {
 
@@ -25,10 +26,17 @@ public final class LLMClients {
         return new ArrayList<>(clients.keySet());
     }
 
-    /** @throws IllegalArgumentException naming the configured clients when {@code name} is not one */
+    /**
+     * @throws IllegalArgumentException naming the configured clients when {@code name} is not one
+     */
     public LLMClient get(String name) {
         LLMClient c = clients.get(name);
-        if (c == null) throw new IllegalArgumentException("no llm4j client named " + name + "; configured: " + String.join(", ", clients.keySet()));
+        if (c == null)
+            throw new IllegalArgumentException(
+                    "no llm4j client named "
+                            + name
+                            + "; configured: "
+                            + String.join(", ", clients.keySet()));
         return c;
     }
 

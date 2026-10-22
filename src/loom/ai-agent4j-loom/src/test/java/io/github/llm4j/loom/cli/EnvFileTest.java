@@ -15,7 +15,10 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** A developer's keys in a .env beside the script: read, never printed, the shell wins, and a file git tracks is refused. */
+/**
+ * A developer's keys in a .env beside the script: read, never printed, the shell wins, and a file
+ * git tracks is refused.
+ */
 @Tag("fragile")
 class EnvFileTest {
 
@@ -25,8 +28,16 @@ class EnvFileTest {
     final ByteArrayOutputStream out = new ByteArrayOutputStream();
 
     WeaveEnv env(Map<String, String> shell) {
-        return new WeaveEnv(m -> null, q -> "yes", new PrintStream(out, true), new PrintStream(err, true), Clock.systemUTC(), d -> { },
-                c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""), List.of("weave"), shell::get);
+        return new WeaveEnv(
+                m -> null,
+                q -> "yes",
+                new PrintStream(out, true),
+                new PrintStream(err, true),
+                Clock.systemUTC(),
+                d -> {},
+                c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""),
+                List.of("weave"),
+                shell::get);
     }
 
     private static final String SECRET = "sk-test-value-that-must-never-be-printed";
@@ -40,30 +51,44 @@ class EnvFileTest {
     private static boolean git(Path where, String... args) throws Exception {
         List<String> c = new java.util.ArrayList<>(List.of("git", "-C", where.toString()));
         c.addAll(List.of(args));
-        return new ProcessBuilder(c).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start().waitFor() == 0;
+        return new ProcessBuilder(c)
+                        .redirectErrorStream(true)
+                        .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                        .start()
+                        .waitFor()
+                == 0;
     }
 
     // ── the format ───────────────────────────────────────────────────────────
 
     @Test
     void parsesNameValueLinesWithQuotesExportCommentsAndIgnoresEmptyValues() {
-        Map<String, String> keys = EnvFile.parse("""
+        Map<String, String> keys =
+                EnvFile.parse(
+                        """
                 # my keys
                 GEMINI_API_KEY=abc123
-                export ANTHROPIC_API_KEY = "quoted value"   
+                export ANTHROPIC_API_KEY = "quoted value"
                 SINGLE='single quoted'
                 WITH_COMMENT=plain # trailing note
 
                 EMPTY=
-                """, ".env");
+                """,
+                        ".env");
 
-        assertThat(keys).containsExactly(Map.entry("GEMINI_API_KEY", "abc123"), Map.entry("ANTHROPIC_API_KEY", "quoted value"),
-                Map.entry("SINGLE", "single quoted"), Map.entry("WITH_COMMENT", "plain"));
+        assertThat(keys)
+                .containsExactly(
+                        Map.entry("GEMINI_API_KEY", "abc123"),
+                        Map.entry("ANTHROPIC_API_KEY", "quoted value"),
+                        Map.entry("SINGLE", "single quoted"),
+                        Map.entry("WITH_COMMENT", "plain"));
     }
 
     @Test
     void aBadLineIsReportedByNumberAndNeverShowsItsContent() {
-        assertThatThrownBy(() -> EnvFile.parse("OK=1\nthis is " + SECRET + "\n", ".env")).hasMessageContaining(".env line 2").hasMessageNotContaining(SECRET);
+        assertThatThrownBy(() -> EnvFile.parse("OK=1\nthis is " + SECRET + "\n", ".env"))
+                .hasMessageContaining(".env line 2")
+                .hasMessageNotContaining(SECRET);
     }
 
     // ── using it ─────────────────────────────────────────────────────────────
@@ -77,7 +102,10 @@ class EnvFileTest {
         assertThat(with.env().apply("GEMINI_API_KEY")).isEqualTo(SECRET);
         assertThat(with.env().apply("OTHER")).isEqualTo("from-shell");
         assertThat(with.env().apply("NOT_THERE")).isNull();
-        assertThat(err.toString()).contains("Using keys from .env: GEMINI_API_KEY, OTHER").doesNotContain(SECRET).doesNotContain("from-file");
+        assertThat(err.toString())
+                .contains("Using keys from .env: GEMINI_API_KEY, OTHER")
+                .doesNotContain(SECRET)
+                .doesNotContain("from-file");
         assertThat(out.toString()).doesNotContain(SECRET);
     }
 
@@ -90,7 +118,11 @@ class EnvFileTest {
         WeaveEnv with = EnvFile.apply(env(Map.of()), file, false);
 
         assertThat(with).isNull();
-        assertThat(err.toString()).contains("is tracked by git").contains("git rm --cached .env").contains("rotate").doesNotContain(SECRET);
+        assertThat(err.toString())
+                .contains("is tracked by git")
+                .contains("git rm --cached .env")
+                .contains("rotate")
+                .doesNotContain(SECRET);
     }
 
     @Test
@@ -140,36 +172,53 @@ class EnvFileTest {
 
     @Test
     void checkOfAStarterNeedsTheKeyAndFindsItInTheEnvFileBesideTheScript() throws Exception {
-        org.junit.jupiter.api.Assumptions.assumeTrue(System.getenv("GEMINI_API_KEY") == null, "the shell already has the key");
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                System.getenv("GEMINI_API_KEY") == null, "the shell already has the key");
         Path project = dir.resolve("p");
         assertThat(run("init", "pipeline", project.toString(), "--flat")).isZero();
         out.reset();
         err.reset();
 
-        assertThat(run("check", project.resolve("main.loom").toString())).as(out.toString()).isEqualTo(2);
+        assertThat(run("check", project.resolve("main.loom").toString()))
+                .as(out.toString())
+                .isEqualTo(2);
 
         out.reset();
         err.reset();
         Files.writeString(project.resolve(".env"), "GEMINI_API_KEY=" + SECRET + "\n");
-        Files.setPosixFilePermissions(project.resolve(".env"), PosixFilePermissions.fromString("rw-------"));
-        assertThat(run("check", project.resolve("main.loom").toString())).as(out + "\n" + err).isZero();
-        assertThat(err.toString()).contains("Using keys from .env: GEMINI_API_KEY").doesNotContain(SECRET);
+        Files.setPosixFilePermissions(
+                project.resolve(".env"), PosixFilePermissions.fromString("rw-------"));
+        assertThat(run("check", project.resolve("main.loom").toString()))
+                .as(out + "\n" + err)
+                .isZero();
+        assertThat(err.toString())
+                .contains("Using keys from .env: GEMINI_API_KEY")
+                .doesNotContain(SECRET);
         assertThat(out.toString()).doesNotContain(SECRET);
 
         out.reset();
         err.reset();
-        assertThat(run("check", project.resolve("main.loom").toString(), "--no-env-file")).isEqualTo(2);
+        assertThat(run("check", project.resolve("main.loom").toString(), "--no-env-file"))
+                .isEqualTo(2);
     }
 
     @Test
     void anExplicitEnvFileCanBeNamed() throws Exception {
-        org.junit.jupiter.api.Assumptions.assumeTrue(System.getenv("GEMINI_API_KEY") == null, "the shell already has the key");
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                System.getenv("GEMINI_API_KEY") == null, "the shell already has the key");
         Path project = dir.resolve("q");
         assertThat(run("init", "classifier", project.toString(), "--flat")).isZero();
         Path keys = write("elsewhere.env", "GEMINI_API_KEY=" + SECRET + "\n");
         out.reset();
         err.reset();
 
-        assertThat(run("check", project.resolve("main.loom").toString(), "--env-file", keys.toString())).as(out + "\n" + err).isZero();
+        assertThat(
+                        run(
+                                "check",
+                                project.resolve("main.loom").toString(),
+                                "--env-file",
+                                keys.toString()))
+                .as(out + "\n" + err)
+                .isZero();
     }
 }

@@ -17,15 +17,19 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Chapter 9 tells whoever builds a workflow with built-in tools how to prepare it for deployment: a development entry and a deployed entry over the
- * same workflows, and the names the deployer must supply read from {@code weave check --no-env}. This writes the guide's example and does exactly that.
+ * Chapter 9 tells whoever builds a workflow with built-in tools how to prepare it for deployment: a
+ * development entry and a deployed entry over the same workflows, and the names the deployer must
+ * supply read from {@code weave check --no-env}. This writes the guide's example and does exactly
+ * that.
  */
 class GuideDeployTest {
 
     private static final String CHAPTER = "../../../docs/guide/09-go-live.md";
 
     private static Path write(Path dir) throws Exception {
-        Matcher m = Pattern.compile("```loom file=deploy/(\\S+)\\n(.*?)```", Pattern.DOTALL).matcher(Files.readString(Path.of(CHAPTER)));
+        Matcher m =
+                Pattern.compile("```loom file=deploy/(\\S+)\\n(.*?)```", Pattern.DOTALL)
+                        .matcher(Files.readString(Path.of(CHAPTER)));
         Map<String, String> files = new LinkedHashMap<>();
         while (m.find()) files.put(m.group(1), m.group(2));
         assertThat(files).containsOnlyKeys("flows/digest.loom", "dev.loom", "prod.loom");
@@ -56,7 +60,8 @@ class GuideDeployTest {
     }
 
     @Test
-    void theDevelopmentEntryChecksCleanAndNeedsOnlyTheModelsKey(@TempDir Path dir) throws Exception {
+    void theDevelopmentEntryChecksCleanAndNeedsOnlyTheModelsKey(@TempDir Path dir)
+            throws Exception {
         JsonNode result = check(write(dir).resolve("dev.loom"), "--no-env");
 
         assertThat(result.path("ok").asBoolean()).as(result.toString()).isTrue();
@@ -67,18 +72,23 @@ class GuideDeployTest {
     }
 
     @Test
-    void theDeployedEntryChecksAndListsExactlyTheNamesTheDeployerMustSupply(@TempDir Path dir) throws Exception {
+    void theDeployedEntryChecksAndListsExactlyTheNamesTheDeployerMustSupply(@TempDir Path dir)
+            throws Exception {
         JsonNode result = check(write(dir).resolve("prod.loom"), "--no-env");
 
         assertThat(result.path("ok").asBoolean()).as(result.toString()).isTrue();
         TreeSet<String> names = new TreeSet<>();
         result.path("notSetYet").forEach(n -> names.add(n.asText()));
-        assertThat(names).containsExactly("DIGEST_TO", "GEMINI_API_KEY", "SMTP_HOST", "SMTP_PASSWORD", "SMTP_USER");
+        assertThat(names)
+                .containsExactly(
+                        "DIGEST_TO", "GEMINI_API_KEY", "SMTP_HOST", "SMTP_PASSWORD", "SMTP_USER");
     }
 
     @Test
-    void onTheTargetMachineWithoutNoEnvTheSameEntryFailsUntilTheNamesAreSet(@TempDir Path dir) throws Exception {
-        org.junit.jupiter.api.Assumptions.assumeTrue(System.getenv("SMTP_HOST") == null && System.getenv("DIGEST_TO") == null);
+    void onTheTargetMachineWithoutNoEnvTheSameEntryFailsUntilTheNamesAreSet(@TempDir Path dir)
+            throws Exception {
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                System.getenv("SMTP_HOST") == null && System.getenv("DIGEST_TO") == null);
 
         JsonNode result = check(write(dir).resolve("prod.loom"));
 
@@ -89,11 +99,25 @@ class GuideDeployTest {
     @Test
     void theGuideAndTheSkillCoverEveryBuiltInToolAndTheDeploymentSteps() throws Exception {
         String chapter = Files.readString(Path.of(CHAPTER));
-        for (String tool : new String[] {"webhook", "email", "http", "file", "shell", "sql"}) assertThat(chapter).contains("| `" + tool + "` |");
-        assertThat(chapter).contains("## Built-in tools when deployed (webhook, email, http, file, shell, sql)").contains("Deploying").contains("`--journal <folder>`")
-                .contains("`--ask-via telegram`").contains("`unattended: true`").contains("`weave check prod.loom` fails naming every variable that is not set there")
+        for (String tool : new String[] {"webhook", "email", "http", "file", "shell", "sql"})
+            assertThat(chapter).contains("| `" + tool + "` |");
+        assertThat(chapter)
+                .contains(
+                        "## Built-in tools when deployed (webhook, email, http, file, shell, sql)")
+                .contains("Deploying")
+                .contains("`--journal <folder>`")
+                .contains("`--ask-via telegram`")
+                .contains("`unattended: true`")
+                .contains(
+                        "`weave check prod.loom` fails naming every variable that is not set there")
                 .contains("a database user that is itself read-only");
-        String skill = Files.readString(Path.of("../../../.claude/skills/llm4j-workflow-guide/SKILL.md"));
-        assertThat(skill).contains("prepare it for deployment").contains("\"Deploying\" section").contains("**development entry**").contains("**read-only database user**").contains("never the project's `.env`");
+        String skill =
+                Files.readString(Path.of("../../../.claude/skills/llm4j-workflow-guide/SKILL.md"));
+        assertThat(skill)
+                .contains("prepare it for deployment")
+                .contains("\"Deploying\" section")
+                .contains("**development entry**")
+                .contains("**read-only database user**")
+                .contains("never the project's `.env`");
     }
 }

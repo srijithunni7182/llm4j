@@ -11,6 +11,7 @@ this table names constructs, it does not define them.
 | One job per agent, prompts in files, a temperature with a reason | `agent` blocks; `prompt: "id"` with files in `prompts/` | `weave guide 1`, `weave guide 6` |
 | Mandatory, exact or money-moving steps run by code | a task (`io.github.llm4j.agent.task.Task`) run with `run Name(...) -> result`; effect `NONE`, `READS` or `CHANGES` | `weave guide 6` ("Tasks") |
 | A capability the agent may choose to call | a custom tool (`io.github.llm4j.agent.Tool`), mapped in a `.loot` file, listed in the agent's `tools: [...]` | `weave guide 6` |
+| A step that only chooses a label (route, judge, rate) | an `intentclassifier` and `intentclassify`; `confidence at least N else escalate` turns a doubtful answer into `unsure`, which goes to a person; the text is data, the label never approves an effect alone | `weave guide loom` ("Classifying") |
 | Dynamic work as a plan from a declared menu | a planner agent with `expecting { ... }`, then `for each` / `delegate ... to {task.kind}`; an undeclared agent name stops the run | `weave guide loom` ("for each"), `weave guide 6` |
 | Schemas at every hand-off | `expecting { ... }` per step; `output_schema` per agent | `weave guide loom` ("Per-Step Schemas", "Output Schema Enforcement") |
 | Least reach per tool | built-in tool options (`allow_paths`, `methods`, allowed programs, a read-only `sql` user); `reach: reads` in the script or `X.reach = reads` in the `.loot` file | `weave guide 7`, `weave guide 9` ("Built-in tools when deployed") |

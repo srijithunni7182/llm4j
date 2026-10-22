@@ -10,9 +10,14 @@ final class ContextListener implements AgentEventListener {
     final List<ContextUsage> usages = Collections.synchronizedList(new ArrayList<>());
     final List<CompactionEvent> compactions = Collections.synchronizedList(new ArrayList<>());
 
-    @Override public void onThought(String thought) {}
-    @Override public void onAction(String toolName, String toolInput) {}
-    @Override public void onObservation(String observation) {}
+    @Override
+    public void onThought(String thought) {}
+
+    @Override
+    public void onAction(String toolName, String toolInput) {}
+
+    @Override
+    public void onObservation(String observation) {}
 
     @Override
     public void onContextUsage(ContextUsage usage) {
@@ -25,6 +30,8 @@ final class ContextListener implements AgentEventListener {
     }
 
     long compacted() {
-        return compactions.stream().filter(e -> e.result().outcome() == CompactionResult.Outcome.COMPACTED).count();
+        return compactions.stream()
+                .filter(e -> e.result().outcome() == CompactionResult.Outcome.COMPACTED)
+                .count();
     }
 }

@@ -72,10 +72,12 @@ class CallTraceTest {
     @Test
     void anotherThreadIsNotAttributed() throws Exception {
         CallTrace.begin();
-        Thread t = new Thread(() -> {
-            CallTrace.attempt();
-            CallTrace.failover("elsewhere");
-        });
+        Thread t =
+                new Thread(
+                        () -> {
+                            CallTrace.attempt();
+                            CallTrace.failover("elsewhere");
+                        });
         t.start();
         t.join();
         CallTrace.Totals totals = CallTrace.end();
@@ -88,13 +90,15 @@ class CallTraceTest {
         AtomicReference<CallTrace.Totals> other = new AtomicReference<>();
         CallTrace.begin();
         CallTrace.attempt();
-        Thread t = new Thread(() -> {
-            CallTrace.begin();
-            CallTrace.attempt();
-            CallTrace.attempt();
-            CallTrace.attempt();
-            other.set(CallTrace.end());
-        });
+        Thread t =
+                new Thread(
+                        () -> {
+                            CallTrace.begin();
+                            CallTrace.attempt();
+                            CallTrace.attempt();
+                            CallTrace.attempt();
+                            other.set(CallTrace.end());
+                        });
         t.start();
         t.join();
         assertThat(other.get().attempts()).isEqualTo(3);
@@ -117,6 +121,7 @@ class CallTraceTest {
         CallTrace.begin();
         CallTrace.failover("a");
         CallTrace.Totals t = CallTrace.end();
-        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException.class, () -> t.failovers().add("b"));
+        org.junit.jupiter.api.Assertions.assertThrows(
+                UnsupportedOperationException.class, () -> t.failovers().add("b"));
     }
 }

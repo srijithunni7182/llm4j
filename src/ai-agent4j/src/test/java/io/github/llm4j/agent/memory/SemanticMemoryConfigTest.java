@@ -18,15 +18,17 @@ class SemanticMemoryConfigTest {
 
     @Test
     void testGeminiModeFromBuilder() {
-        SemanticMemoryConfig config = SemanticMemoryConfig.builder()
-                .userId("user-1")
-                .geminiApiKey("sk-test-key")
-                .topK(10)
-                .similarityThreshold(0.8f)
-                .build();
+        SemanticMemoryConfig config =
+                SemanticMemoryConfig.builder()
+                        .userId("user-1")
+                        .geminiApiKey("sk-test-key")
+                        .topK(10)
+                        .similarityThreshold(0.8f)
+                        .build();
 
         assertEquals(SemanticMemoryConfig.EmbeddingMode.GEMINI, config.getEmbeddingMode());
-        assertEquals(SemanticMemoryConfig.StoreMode.IN_MEMORY, config.getStoreMode()); // still in memory
+        assertEquals(
+                SemanticMemoryConfig.StoreMode.IN_MEMORY, config.getStoreMode()); // still in memory
         assertEquals("sk-test-key", config.getGeminiApiKey());
         assertEquals("text-embedding-004", config.getGeminiEmbeddingModel());
         assertEquals(10, config.getTopK());
@@ -34,16 +36,17 @@ class SemanticMemoryConfigTest {
 
     @Test
     void testOnnxPgVectorModeFromBuilder() {
-        SemanticMemoryConfig config = SemanticMemoryConfig.builder()
-                .userId("user-2")
-                .onnxModelPath("/models/model.onnx")
-                .onnxTokenizerPath("/models/tokenizer.json")
-                .pgUrl("jdbc:postgresql://localhost/mydb")
-                .pgUser("postgres")
-                .pgPassword("password")
-                .pgTable("memories")
-                .pgDimension(384)
-                .build();
+        SemanticMemoryConfig config =
+                SemanticMemoryConfig.builder()
+                        .userId("user-2")
+                        .onnxModelPath("/models/model.onnx")
+                        .onnxTokenizerPath("/models/tokenizer.json")
+                        .pgUrl("jdbc:postgresql://localhost/mydb")
+                        .pgUser("postgres")
+                        .pgPassword("password")
+                        .pgTable("memories")
+                        .pgDimension(384)
+                        .build();
 
         assertEquals(SemanticMemoryConfig.EmbeddingMode.ONNX, config.getEmbeddingMode());
         assertEquals(SemanticMemoryConfig.StoreMode.PGVECTOR, config.getStoreMode());
@@ -54,7 +57,6 @@ class SemanticMemoryConfigTest {
 
     @Test
     void testMissingUserIdThrows() {
-        assertThrows(NullPointerException.class, () ->
-                SemanticMemoryConfig.builder().build());
+        assertThrows(NullPointerException.class, () -> SemanticMemoryConfig.builder().build());
     }
 }

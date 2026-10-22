@@ -12,8 +12,7 @@ import org.junit.jupiter.api.io.TempDir;
 /** R5: the windows are configured outside the script, in layers. */
 class ContextWindowsLayeringTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     private Path file(String name, String text) throws Exception {
         Path f = dir.resolve(name);
@@ -24,7 +23,11 @@ class ContextWindowsLayeringTest {
     @Test
     void theCatalogueIsTheBase() {
         WindowLayers layers = WindowLayers.load(List.of(), null, null);
-        assertThat(layers.find("claude-sonnet-5-5")).isPresent().get().extracting(WindowLayers.Found::source).isEqualTo(WindowLayers.CATALOGUE);
+        assertThat(layers.find("claude-sonnet-5-5"))
+                .isPresent()
+                .get()
+                .extracting(WindowLayers.Found::source)
+                .isEqualTo(WindowLayers.CATALOGUE);
         assertThat(layers.find("never-heard-of-it")).isEmpty();
     }
 
@@ -44,9 +47,13 @@ class ContextWindowsLayeringTest {
         Path beside = file("beside", "m = 3000 / 100\nb = 3000 / 100\nonly_b = 7000 / 100\n");
         Path user = file("user", "m = 4000 / 100\nb = 4000 / 100\nu = 4000 / 100\n");
         WindowLayers layers = WindowLayers.load(List.of(cli1, cli2), beside, user);
-        assertThat(layers.find("m").orElseThrow().window().tokens()).as("the last command-line file wins").isEqualTo(2000);
+        assertThat(layers.find("m").orElseThrow().window().tokens())
+                .as("the last command-line file wins")
+                .isEqualTo(2000);
         assertThat(layers.find("only2").orElseThrow().window().tokens()).isEqualTo(5000);
-        assertThat(layers.find("b").orElseThrow().window().tokens()).as("beside beats the user's file").isEqualTo(3000);
+        assertThat(layers.find("b").orElseThrow().window().tokens())
+                .as("beside beats the user's file")
+                .isEqualTo(3000);
         assertThat(layers.find("u").orElseThrow().window().tokens()).isEqualTo(4000);
         assertThat(layers.find("claude-sonnet-5-5")).isPresent();
     }
@@ -54,37 +61,57 @@ class ContextWindowsLayeringTest {
     @Test
     void aCatalogueModelCanBeOverridden() throws Exception {
         Path f = file("o", "claude-sonnet-5-5 = 50000 / 1000\n");
-        assertThat(WindowLayers.load(List.of(f), null, null).find("claude-sonnet-5-5").orElseThrow().window().tokens()).isEqualTo(50000);
+        assertThat(
+                        WindowLayers.load(List.of(f), null, null)
+                                .find("claude-sonnet-5-5")
+                                .orElseThrow()
+                                .window()
+                                .tokens())
+                .isEqualTo(50000);
     }
 
     @Test
     void absentBesideAndUserFilesAreSkipped() {
-        assertThat(WindowLayers.load(List.of(), dir.resolve("nope.windows"), dir.resolve("nope")).layers()).hasSize(1);
+        assertThat(
+                        WindowLayers.load(
+                                        List.of(), dir.resolve("nope.windows"), dir.resolve("nope"))
+                                .layers())
+                .hasSize(1);
     }
 
     @Test
     void aMissingCommandLineFileIsAClearError() {
-        assertThatThrownBy(() -> WindowLayers.load(List.of(dir.resolve("missing")), null, null)).hasMessageContaining("missing").hasMessageContaining("does not exist");
+        assertThatThrownBy(() -> WindowLayers.load(List.of(dir.resolve("missing")), null, null))
+                .hasMessageContaining("missing")
+                .hasMessageContaining("does not exist");
     }
 
     @Test
     void aBadLineNamesTheFileAndTheLine() throws Exception {
         Path f = file("bad.windows", "ok = 1000 / 100\nbroken line\n");
-        assertThatThrownBy(() -> WindowLayers.load(List.of(f), null, null)).hasMessageContaining("bad.windows").hasMessageContaining("2");
+        assertThatThrownBy(() -> WindowLayers.load(List.of(f), null, null))
+                .hasMessageContaining("bad.windows")
+                .hasMessageContaining("2");
     }
 
     @Test
     void overAddsALayerOnTop() throws Exception {
         WindowLayers base = WindowLayers.catalogue();
-        var layered = base.over("test", io.github.llm4j.context.ContextWindows.empty().with("x", io.github.llm4j.context.ContextWindow.of(9000)));
+        var layered =
+                base.over(
+                        "test",
+                        io.github.llm4j.context.ContextWindows.empty()
+                                .with("x", io.github.llm4j.context.ContextWindow.of(9000)));
         assertThat(layered.find("x").orElseThrow().source()).isEqualTo("test");
         assertThat(base.find("x")).isEmpty();
     }
 
     @Test
     void fileNamesBesideAScript() {
-        assertThat(ContextFiles.sibling(Path.of("/a/b/flow.loom"), "windows")).isEqualTo(Path.of("/a/b/flow.windows"));
-        assertThat(ContextFiles.sibling(Path.of("/a/b/flow"), "loct")).isEqualTo(Path.of("/a/b/flow.loct"));
+        assertThat(ContextFiles.sibling(Path.of("/a/b/flow.loom"), "windows"))
+                .isEqualTo(Path.of("/a/b/flow.windows"));
+        assertThat(ContextFiles.sibling(Path.of("/a/b/flow"), "loct"))
+                .isEqualTo(Path.of("/a/b/flow.loct"));
     }
 
     @Test
@@ -100,8 +127,15 @@ class ContextWindowsLayeringTest {
             WindowLayers layers = ContextFiles.current().windowLayers();
             assertThat(layers.find("b-model")).isPresent();
             assertThat(layers.find("n-model")).isPresent();
-            assertThat(ContextFiles.current().loctFiles()).containsExactly(besideLoct.toAbsolutePath().normalize(), loct.toAbsolutePath().normalize());
-            assertThatThrownBy(() -> ContextFiles.use(script, List.of(dir.resolve("gone").toFile()), null)).hasMessageContaining("--context-windows");
+            assertThat(ContextFiles.current().loctFiles())
+                    .containsExactly(
+                            besideLoct.toAbsolutePath().normalize(),
+                            loct.toAbsolutePath().normalize());
+            assertThatThrownBy(
+                            () ->
+                                    ContextFiles.use(
+                                            script, List.of(dir.resolve("gone").toFile()), null))
+                    .hasMessageContaining("--context-windows");
         } finally {
             ContextFiles.clear();
         }

@@ -1,0 +1,13 @@
+{
+ "model": "jev-1.13.0",
+ "answers": {
+  "destructive": {
+   "type": "noul",
+   "noul": 0.01
+  }
+ },
+ "usage": {
+  "input_tokens": 285,
+  "output_tokens": 22
+ }
+}

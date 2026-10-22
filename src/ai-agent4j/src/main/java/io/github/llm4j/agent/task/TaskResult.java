@@ -7,12 +7,13 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
- * What a {@link Task} returns. A workflow variable bound with {@code run Task(...) -> name} holds {@link #toMap()}:
- * {@code outcome} (default {@code "ok"}), {@code reason} when there is one, {@code value} when there is one, and any data entries.
- * So a script can branch on {@code name.outcome} and print {@code {name.reason}}.
+ * What a {@link Task} returns. A workflow variable bound with {@code run Task(...) -> name} holds
+ * {@link #toMap()}: {@code outcome} (default {@code "ok"}), {@code reason} when there is one,
+ * {@code value} when there is one, and any data entries. So a script can branch on {@code
+ * name.outcome} and print {@code {name.reason}}.
  *
- * <p>Immutable. Every value is checked at construction to be something the run journal can store as JSON: strings, numbers,
- * booleans, null, maps with string keys and lists.
+ * <p>Immutable. Every value is checked at construction to be something the run journal can store as
+ * JSON: strings, numbers, booleans, null, maps with string keys and lists.
  */
 public final class TaskResult {
 
@@ -20,7 +21,8 @@ public final class TaskResult {
     public static final Pattern OUTCOME = Pattern.compile("[a-z][a-z0-9_]*");
 
     /** Keys the result itself owns; data entries may not use them. */
-    public static final java.util.Set<String> RESERVED = java.util.Set.of("outcome", "reason", "value");
+    public static final java.util.Set<String> RESERVED =
+            java.util.Set.of("outcome", "reason", "value");
 
     private final String outcome;
     private final String reason;
@@ -28,9 +30,17 @@ public final class TaskResult {
     private final Object value;
     private final Map<String, Object> data;
 
-    private TaskResult(String outcome, String reason, boolean hasValue, Object value, Map<String, Object> data) {
+    private TaskResult(
+            String outcome,
+            String reason,
+            boolean hasValue,
+            Object value,
+            Map<String, Object> data) {
         if (outcome == null || !OUTCOME.matcher(outcome).matches()) {
-            throw new IllegalArgumentException("outcome \"" + outcome + "\" must be lower case letters, digits and underscores, starting with a letter");
+            throw new IllegalArgumentException(
+                    "outcome \""
+                            + outcome
+                            + "\" must be lower case letters, digits and underscores, starting with a letter");
         }
         this.outcome = outcome;
         this.reason = reason;
@@ -44,15 +54,19 @@ public final class TaskResult {
         return new TaskResult("ok", null, false, null, Map.of());
     }
 
-    /** Outcome {@code ok} with data entries (copied; keys {@code outcome}, {@code reason} and {@code value} are reserved). */
+    /**
+     * Outcome {@code ok} with data entries (copied; keys {@code outcome}, {@code reason} and {@code
+     * value} are reserved).
+     */
     public static TaskResult ok(Map<String, ?> data) {
         return ok().withAll(data);
     }
 
     /**
-     * Outcome {@code ok} with a single {@code value}. This is a <b>static</b> starter: write {@code TaskResult.value(x)}. Called on an existing result
-     * ({@code TaskResult.outcome("timeout").value(x)}) it still compiles but ignores that result and returns a new {@code ok} one; to add a value to
-     * a result use {@link #withValue(Object)}.
+     * Outcome {@code ok} with a single {@code value}. This is a <b>static</b> starter: write {@code
+     * TaskResult.value(x)}. Called on an existing result ({@code
+     * TaskResult.outcome("timeout").value(x)}) it still compiles but ignores that result and
+     * returns a new {@code ok} one; to add a value to a result use {@link #withValue(Object)}.
      */
     public static TaskResult value(Object value) {
         return ok().withValue(value);
@@ -75,8 +89,11 @@ public final class TaskResult {
 
     /** The same result with one more data entry. */
     public TaskResult with(String key, Object entry) {
-        if (key == null || key.isBlank()) throw new IllegalArgumentException("a data key must not be blank");
-        if (RESERVED.contains(key)) throw new IllegalArgumentException("\"" + key + "\" is reserved; use outcome(), reason() or withValue()");
+        if (key == null || key.isBlank())
+            throw new IllegalArgumentException("a data key must not be blank");
+        if (RESERVED.contains(key))
+            throw new IllegalArgumentException(
+                    "\"" + key + "\" is reserved; use outcome(), reason() or withValue()");
         Map<String, Object> next = new LinkedHashMap<>(data);
         next.put(key, TaskValues.jsonSafe(entry, "data \"" + key + "\""));
         return new TaskResult(outcome, reason, hasValue, value, Collections.unmodifiableMap(next));
@@ -86,7 +103,8 @@ public final class TaskResult {
     public TaskResult withAll(Map<String, ?> entries) {
         TaskResult next = this;
         if (entries != null) {
-            for (Map.Entry<String, ?> e : entries.entrySet()) next = next.with(e.getKey(), e.getValue());
+            for (Map.Entry<String, ?> e : entries.entrySet())
+                next = next.with(e.getKey(), e.getValue());
         }
         return next;
     }
@@ -119,7 +137,10 @@ public final class TaskResult {
         return data;
     }
 
-    /** What a workflow variable holds: {@code outcome}, then {@code reason}, {@code value} and the data entries, when present. Unmodifiable. */
+    /**
+     * What a workflow variable holds: {@code outcome}, then {@code reason}, {@code value} and the
+     * data entries, when present. Unmodifiable.
+     */
     public Map<String, Object> toMap() {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("outcome", outcome);

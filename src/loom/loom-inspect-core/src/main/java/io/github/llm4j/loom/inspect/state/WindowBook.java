@@ -8,12 +8,17 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Usable context windows per model, as a server keeps them: {@code model = tokens}, one per line ({@code #} starts a comment). It lets a server show how full
- * an agent's context is when the process that runs it was never told the model's window. A window a process reports always wins over this one.
+ * Usable context windows per model, as a server keeps them: {@code model = tokens}, one per line
+ * ({@code #} starts a comment). It lets a server show how full an agent's context is when the
+ * process that runs it was never told the model's window. A window a process reports always wins
+ * over this one.
  */
 public final class WindowBook {
 
-    /** The largest window a line may give: far beyond any model, so that a typo is refused and not believed. */
+    /**
+     * The largest window a line may give: far beyond any model, so that a typo is refused and not
+     * believed.
+     */
     public static final long MAX_TOKENS = 10_000_000_000L;
 
     /** One line that could not be read. */
@@ -24,7 +29,10 @@ public final class WindowBook {
         }
     }
 
-    /** The result of reading a file: the book, and what was wrong with it (the book is only usable when there is nothing wrong). */
+    /**
+     * The result of reading a file: the book, and what was wrong with it (the book is only usable
+     * when there is nothing wrong).
+     */
     public record Parsed(WindowBook book, List<Problem> problems) {
         public boolean ok() {
             return problems.isEmpty();
@@ -32,7 +40,7 @@ public final class WindowBook {
     }
 
     /** One model's usable window, in tokens. */
-    public record Entry(String model, long usable) { }
+    public record Entry(String model, long usable) {}
 
     public static final WindowBook EMPTY = new WindowBook(Map.of());
 
@@ -52,21 +60,36 @@ public final class WindowBook {
             int eq = line.indexOf('=');
             String model = eq < 0 ? "" : line.substring(0, eq).strip();
             if (eq < 0 || model.isEmpty()) {
-                problems.add(new Problem(i + 1, "expected 'model = tokens', got: " + lines[i].strip()));
+                problems.add(
+                        new Problem(i + 1, "expected 'model = tokens', got: " + lines[i].strip()));
                 continue;
             }
             long tokens;
             try {
                 tokens = Long.parseLong(line.substring(eq + 1).strip());
             } catch (NumberFormatException e) {
-                problems.add(new Problem(i + 1, "the window of " + model + " must be a whole number of tokens, got: " + line.substring(eq + 1).strip()));
+                problems.add(
+                        new Problem(
+                                i + 1,
+                                "the window of "
+                                        + model
+                                        + " must be a whole number of tokens, got: "
+                                        + line.substring(eq + 1).strip()));
                 continue;
             }
             if (tokens < 1 || tokens > MAX_TOKENS) {
-                problems.add(new Problem(i + 1, "the window of " + model + " must be between 1 and " + MAX_TOKENS + " tokens"));
+                problems.add(
+                        new Problem(
+                                i + 1,
+                                "the window of "
+                                        + model
+                                        + " must be between 1 and "
+                                        + MAX_TOKENS
+                                        + " tokens"));
                 continue;
             }
-            if (out.put(model, tokens) != null) problems.add(new Problem(i + 1, "'" + model + "' has a window twice"));
+            if (out.put(model, tokens) != null)
+                problems.add(new Problem(i + 1, "'" + model + "' has a window twice"));
         }
         return new Parsed(new WindowBook(out), problems);
     }
@@ -81,7 +104,8 @@ public final class WindowBook {
     /** The file for these entries, as {@link #parse} reads it back. */
     public static String write(List<Entry> entries) {
         StringBuilder out = new StringBuilder("# model = usable context window, in tokens\n");
-        for (Entry e : entries.stream().sorted(Comparator.comparing(Entry::model)).toList()) out.append(e.model()).append(" = ").append(e.usable()).append('\n');
+        for (Entry e : entries.stream().sorted(Comparator.comparing(Entry::model)).toList())
+            out.append(e.model()).append(" = ").append(e.usable()).append('\n');
         return out.toString();
     }
 
@@ -93,11 +117,15 @@ public final class WindowBook {
         return windows.isEmpty();
     }
 
-    /** The model's usable window, or null when the book has none: the exact id first, then without its provider prefix. */
+    /**
+     * The model's usable window, or null when the book has none: the exact id first, then without
+     * its provider prefix.
+     */
     public Long usable(String model) {
         if (model == null) return null;
         Long w = windows.get(model);
-        if (w == null && model.contains("/")) w = windows.get(model.substring(model.indexOf('/') + 1));
+        if (w == null && model.contains("/"))
+            w = windows.get(model.substring(model.indexOf('/') + 1));
         return w;
     }
 

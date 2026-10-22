@@ -1,0 +1,5 @@
+{
+  "Intent": {
+    "my parcel 8812 never arrived and I want my money back": "{\"kind\":{\"label\":\"refund\",\"probability\":0.93},\"urgent\":{\"yes\":0.12}}"
+  }
+}

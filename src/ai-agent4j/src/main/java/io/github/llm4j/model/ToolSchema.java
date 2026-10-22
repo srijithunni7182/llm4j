@@ -23,7 +23,10 @@ public final class ToolSchema {
         return new ToolSchema();
     }
 
-    /** What a tool that declares nothing gets: any object. The model has to guess argument names from the description. */
+    /**
+     * What a tool that declares nothing gets: any object. The model has to guess argument names
+     * from the description.
+     */
     public static Map<String, Object> permissive() {
         return Map.of("type", "object", "properties", Map.of(), "additionalProperties", true);
     }
@@ -56,7 +59,8 @@ public final class ToolSchema {
     }
 
     /** A string argument restricted to the given values. */
-    public ToolSchema enumeration(String name, String description, boolean isRequired, List<String> values) {
+    public ToolSchema enumeration(
+            String name, String description, boolean isRequired, List<String> values) {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("type", "string");
         if (description != null && !description.isBlank()) p.put("description", description);

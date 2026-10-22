@@ -13,9 +13,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * {@code tool Graph { use: knowledge_graph  store: "graphs/support.json" | memory  read_only: true }}: one
- * tool, named as declared, that adds relations to a graph and queries it. Declarations naming the same
- * store file share one graph.
+ * {@code tool Graph { use: knowledge_graph store: "graphs/support.json" | memory read_only: true
+ * }}: one tool, named as declared, that adds relations to a graph and queries it. Declarations
+ * naming the same store file share one graph.
  */
 final class GraphKind implements ToolKind {
 
@@ -45,7 +45,8 @@ final class GraphKind implements ToolKind {
         String store = options.get("store");
         if ("memory".equals(store)) return null;
         Path file = baseDir.resolve(store);
-        if (java.nio.file.Files.isDirectory(file)) return "store " + store + " is a directory; give a file, e.g. graphs/support.json";
+        if (java.nio.file.Files.isDirectory(file))
+            return "store " + store + " is a directory; give a file, e.g. graphs/support.json";
         if (!java.nio.file.Files.exists(file)) return null; // created on the first change
         try {
             new FileGraphStore(file);
@@ -58,10 +59,12 @@ final class GraphKind implements ToolKind {
     @Override
     public Tool create(String name, Map<String, String> options, Path baseDir) {
         String store = options.get("store");
-        KnowledgeGraph graph = "memory".equals(store)
-                ? graphs.computeIfAbsent("memory:" + name, k -> new InMemoryGraphStore())
-                : graphs.computeIfAbsent(baseDir.resolve(store).toAbsolutePath().normalize().toString(),
-                        k -> new FileGraphStore(Path.of(k)));
+        KnowledgeGraph graph =
+                "memory".equals(store)
+                        ? graphs.computeIfAbsent("memory:" + name, k -> new InMemoryGraphStore())
+                        : graphs.computeIfAbsent(
+                                baseDir.resolve(store).toAbsolutePath().normalize().toString(),
+                                k -> new FileGraphStore(Path.of(k)));
         return new GraphTool(name, graph, Boolean.parseBoolean(options.get("read_only")));
     }
 
@@ -88,11 +91,15 @@ final class GraphKind implements ToolKind {
         public String getDescription() {
             return "A knowledge graph of entities and their relations"
                     + (readOnly ? " (read-only). " : ". ")
-                    + "Arguments: action (\"query\"" + (readOnly ? "" : " or \"add\"") + "), then\n"
+                    + "Arguments: action (\"query\""
+                    + (readOnly ? "" : " or \"add\"")
+                    + "), then\n"
                     + "- query: {\"entityId\": id} for one entity, {\"entityType\": type} to list entities of a type, "
                     + "{\"subjectId\": id} for its relations, optionally with {\"predicateType\": type}.\n"
-                    + (readOnly ? "" : "- add: {\"subject\": {\"id\", \"type\", \"properties\"}, \"predicate\": \"RELATION\", "
-                    + "\"object\": {\"id\", \"type\", \"properties\"}}.");
+                    + (readOnly
+                            ? ""
+                            : "- add: {\"subject\": {\"id\", \"type\", \"properties\"}, \"predicate\": \"RELATION\", "
+                                    + "\"object\": {\"id\", \"type\", \"properties\"}}.");
         }
 
         @Override
@@ -100,11 +107,15 @@ final class GraphKind implements ToolKind {
             Map<String, Object> rest = new HashMap<>(args == null ? Map.of() : args);
             Object action = rest.remove("action");
             if ("add".equals(action)) {
-                if (readOnly) return "Error: " + name + " is read-only; only action \"query\" is allowed.";
+                if (readOnly)
+                    return "Error: " + name + " is read-only; only action \"query\" is allowed.";
                 return add.execute(rest);
             }
             if ("query".equals(action)) return query.execute(rest);
-            return "Error: action must be \"query\"" + (readOnly ? "" : " or \"add\"") + ", got " + action;
+            return "Error: action must be \"query\""
+                    + (readOnly ? "" : " or \"add\"")
+                    + ", got "
+                    + action;
         }
     }
 }

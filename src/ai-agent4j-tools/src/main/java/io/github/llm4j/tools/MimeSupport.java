@@ -13,7 +13,10 @@ import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-/** Builds a MIME message from an {@link EmailMessage}. The only place (with its callers) that touches the mail library. */
+/**
+ * Builds a MIME message from an {@link EmailMessage}. The only place (with its callers) that
+ * touches the mail library.
+ */
 final class MimeSupport {
 
     private MimeSupport() {}

@@ -22,24 +22,27 @@ class GraphJsonTest {
     private final GraphService service = new GraphService();
 
     static JsonSchema schema() throws Exception {
-        try (InputStream in = GraphJsonTest.class.getResourceAsStream("/io/github/llm4j/loom/graph/graph-result.schema.json")) {
+        try (InputStream in =
+                GraphJsonTest.class.getResourceAsStream(
+                        "/io/github/llm4j/loom/graph/graph-result.schema.json")) {
             return JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012).getSchema(in);
         }
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {
-        "samples/content_factory/main.loom",
-        "samples/boardroom/main.loom",
-        "samples/digest/digest.loom",
-        "src/test/resources/imports/parent.loom",
-        "src/test/resources/graph/all_statements.loom",
-        "src/test/resources/graph/handlers.loom",
-        "src/test/resources/graph/unresolved_call.loom",
-        "src/test/resources/graph/diamond/a.loom",
-        "src/test/resources/graph/missing_import.loom",
-        "src/test/resources/imports/circular_a.loom"
-    })
+    @ValueSource(
+            strings = {
+                "samples/content_factory/main.loom",
+                "samples/boardroom/main.loom",
+                "samples/digest/digest.loom",
+                "src/test/resources/imports/parent.loom",
+                "src/test/resources/graph/all_statements.loom",
+                "src/test/resources/graph/handlers.loom",
+                "src/test/resources/graph/unresolved_call.loom",
+                "src/test/resources/graph/diamond/a.loom",
+                "src/test/resources/graph/missing_import.loom",
+                "src/test/resources/imports/circular_a.loom"
+            })
     void theJsonValidatesAgainstTheSchema(String script) throws Exception {
         JsonNode json = MAPPER.readTree(GraphJson.write(service.graph(Path.of(script))));
 
@@ -49,7 +52,10 @@ class GraphJsonTest {
 
     @Test
     void theSchemaRejectsAnUnknownKeyAndAWrongVersion() throws Exception {
-        JsonNode json = MAPPER.readTree(GraphJson.write(service.graph(Path.of("src/test/resources/imports/parent.loom"))));
+        JsonNode json =
+                MAPPER.readTree(
+                        GraphJson.write(
+                                service.graph(Path.of("src/test/resources/imports/parent.loom"))));
 
         ((com.fasterxml.jackson.databind.node.ObjectNode) json).put("surprise", 1);
         assertThat(schema().validate(json)).isNotEmpty();
@@ -60,14 +66,20 @@ class GraphJsonTest {
 
     @Test
     void everyPathIsAbsoluteAndNormalised() throws Exception {
-        JsonNode json = MAPPER.readTree(GraphJson.write(service.graph(Path.of("src/test/resources/graph/diamond/a.loom"))));
+        JsonNode json =
+                MAPPER.readTree(
+                        GraphJson.write(
+                                service.graph(Path.of("src/test/resources/graph/diamond/a.loom"))));
 
         List<String> paths = new java.util.ArrayList<>();
         collect(json, paths);
-        assertThat(paths).isNotEmpty().allSatisfy(p -> {
-            assertThat(Path.of(p).isAbsolute()).isTrue();
-            assertThat(Path.of(p).normalize()).isEqualTo(Path.of(p));
-        });
+        assertThat(paths)
+                .isNotEmpty()
+                .allSatisfy(
+                        p -> {
+                            assertThat(Path.of(p).isAbsolute()).isTrue();
+                            assertThat(Path.of(p).normalize()).isEqualTo(Path.of(p));
+                        });
     }
 
     private static void collect(JsonNode node, List<String> paths) {
@@ -76,7 +88,8 @@ class GraphJsonTest {
             while (names.hasNext()) {
                 String name = names.next();
                 JsonNode child = node.get(name);
-                if ((name.equals("file") || name.equals("path") || name.equals("entry")) && child.isTextual()) {
+                if ((name.equals("file") || name.equals("path") || name.equals("entry"))
+                        && child.isTextual()) {
                     paths.add(child.asText());
                 }
                 collect(child, paths);
@@ -91,7 +104,10 @@ class GraphJsonTest {
 
     @Test
     void noValueIsNullAndAnUnsetKeyIsLeftOut() throws Exception {
-        JsonNode json = MAPPER.readTree(GraphJson.write(service.graph(Path.of("src/test/resources/graph/handlers.loom"))));
+        JsonNode json =
+                MAPPER.readTree(
+                        GraphJson.write(
+                                service.graph(Path.of("src/test/resources/graph/handlers.loom"))));
 
         assertThat(json.toString()).doesNotContain("null");
         JsonNode start = json.get("workflows").get(0).get("nodes").get(0);
@@ -111,7 +127,11 @@ class GraphJsonTest {
 
     @Test
     void anUnresolvedCallIsFlaggedAndKeepsTheCalleeName() throws Exception {
-        JsonNode json = MAPPER.readTree(GraphJson.write(service.graph(Path.of("src/test/resources/graph/unresolved_call.loom"))));
+        JsonNode json =
+                MAPPER.readTree(
+                        GraphJson.write(
+                                service.graph(
+                                        Path.of("src/test/resources/graph/unresolved_call.loom"))));
 
         JsonNode call = json.get("workflows").get(0).get("nodes").get(1);
         assertThat(call.get("unresolved").asBoolean()).isTrue();

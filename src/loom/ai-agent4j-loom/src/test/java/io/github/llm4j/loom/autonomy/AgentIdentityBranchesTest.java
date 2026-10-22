@@ -10,7 +10,10 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** The corners of an agent's identity: a template's text, a persona or knowledge base that is not the one named, a secret option, a file too big to read whole. */
+/**
+ * The corners of an agent's identity: a template's text, a persona or knowledge base that is not
+ * the one named, a secret option, a file too big to read whole.
+ */
 class AgentIdentityBranchesTest {
 
     @TempDir Path dir;
@@ -20,33 +23,49 @@ class AgentIdentityBranchesTest {
         return AgentIdentity.of(script, script.getDecisions().get(0), base, catalog);
     }
 
-    private static final String TAIL = "decision D { proposed by: A choices: x, y }\nworkflow W() { decide D -> v }\n";
+    private static final String TAIL =
+            "decision D { proposed by: A choices: x, y }\nworkflow W() { decide D -> v }\n";
 
     @Test
     void aSystemTemplateIsPartOfTheAgentByTheTextItResolvesTo() throws Exception {
         Files.createDirectories(dir.resolve("prompts"));
         Files.writeString(dir.resolve("prompts/tpl.md"), "Be strict.");
-        PromptCatalog catalog = new PromptCatalog(new MarkdownFolderPromptRegistry(dir.resolve("prompts")), Map.of());
+        PromptCatalog catalog =
+                new PromptCatalog(
+                        new MarkdownFolderPromptRegistry(dir.resolve("prompts")), Map.of());
         String source = "agent A { model: \"m\" system_template: \"tpl\" }\n" + TAIL;
 
         String before = id(source, dir, catalog);
         Files.writeString(dir.resolve("prompts/tpl.md"), "Be lenient.");
 
-        assertThat(id(source, dir, new PromptCatalog(new MarkdownFolderPromptRegistry(dir.resolve("prompts")), Map.of()))).isNotEqualTo(before);
+        assertThat(
+                        id(
+                                source,
+                                dir,
+                                new PromptCatalog(
+                                        new MarkdownFolderPromptRegistry(dir.resolve("prompts")),
+                                        Map.of())))
+                .isNotEqualTo(before);
     }
 
     @Test
     void aPersonaOrKnowledgeBaseThatIsNotDeclaredContributesOnlyItsName() {
-        String declaredElsewhere = "persona Other { role: \"r\" }\nknowledge Elsewhere { type: \"local\" path: \"kb\" }\n"
-                + "agent A { model: \"m\" persona: Library knowledge: [Missing] }\n" + TAIL;
+        String declaredElsewhere =
+                "persona Other { role: \"r\" }\nknowledge Elsewhere { type: \"local\" path: \"kb\" }\n"
+                        + "agent A { model: \"m\" persona: Library knowledge: [Missing] }\n"
+                        + TAIL;
         String another = declaredElsewhere.replace("persona: Library", "persona: Another");
 
-        assertThat(id(declaredElsewhere, dir, null)).hasSize(64).isNotEqualTo(id(another, dir, null));
+        assertThat(id(declaredElsewhere, dir, null))
+                .hasSize(64)
+                .isNotEqualTo(id(another, dir, null));
     }
 
     @Test
     void aToolOptionReadFromTheSecretStoreContributesItsNameNotItsValue() {
-        String fromSecret = "tool T { use: http  url: \"https://x.example\"  api_key: secret.THE_KEY }\nagent A { model: \"m\" tools: [T] }\n" + TAIL;
+        String fromSecret =
+                "tool T { use: http  url: \"https://x.example\"  api_key: secret.THE_KEY }\nagent A { model: \"m\" tools: [T] }\n"
+                        + TAIL;
         String fromEnv = fromSecret.replace("secret.THE_KEY", "env.THE_KEY");
 
         assertThat(id(fromSecret, dir, null)).isNotEqualTo(id(fromEnv, dir, null));
@@ -68,7 +87,9 @@ class AgentIdentityBranchesTest {
 
     @Test
     void aKnowledgeBaseWithNoPathStillGivesAnIdentity() {
-        String source = "knowledge K { type: \"memory\" }\nagent A { model: \"m\" knowledge: [K] }\n" + TAIL;
+        String source =
+                "knowledge K { type: \"memory\" }\nagent A { model: \"m\" knowledge: [K] }\n"
+                        + TAIL;
 
         assertThat(id(source, dir, null)).hasSize(64);
     }

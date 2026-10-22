@@ -11,9 +11,11 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
- * A model that costs nothing: every answer is a fixed, well-formed reply, so a script can be run end to end to check its wiring (steps,
- * prompts, branches, schemas) and not its quality. When a step asks for JSON in a schema ({@code expecting}, {@code output_schema}), the reply
- * is a value of that schema (the first choice of an enum, {@code "mock"} for text, 0 for a number), so the next step has something to read.
+ * A model that costs nothing: every answer is a fixed, well-formed reply, so a script can be run
+ * end to end to check its wiring (steps, prompts, branches, schemas) and not its quality. When a
+ * step asks for JSON in a schema ({@code expecting}, {@code output_schema}), the reply is a value
+ * of that schema (the first choice of an enum, {@code "mock"} for text, 0 for a number), so the
+ * next step has something to read.
  */
 public final class MockModels implements LLMClientFactory {
 
@@ -29,9 +31,19 @@ public final class MockModels implements LLMClientFactory {
             public LLMResponse chat(LLMRequest request) {
                 String text = lastUserText(request);
                 int at = text.lastIndexOf(MARKER);
-                String answer = at < 0 ? ANSWER : sample(new Parser(text.substring(at + MARKER.length())).value());
-                String reply = "```json\n{\"thought\": \"mock\", \"final_answer\": " + quote(answer) + "}\n```";
-                return LLMResponse.builder().content(reply).model(model).tokenUsage(10, 5, 15).build();
+                String answer =
+                        at < 0
+                                ? ANSWER
+                                : sample(new Parser(text.substring(at + MARKER.length())).value());
+                String reply =
+                        "```json\n{\"thought\": \"mock\", \"final_answer\": "
+                                + quote(answer)
+                                + "}\n```";
+                return LLMResponse.builder()
+                        .content(reply)
+                        .model(model)
+                        .tokenUsage(10, 5, 15)
+                        .build();
             }
 
             @Override
@@ -59,7 +71,10 @@ public final class MockModels implements LLMClientFactory {
 
     // ── the schema text the harness writes, read back and sampled ───────────────────────────
 
-    /** A schema as the harness prints it: {@code {a: string, b: enum[X, Y], c: list<number>}}, {@code string}, {@code number}, {@code boolean}. */
+    /**
+     * A schema as the harness prints it: {@code {a: string, b: enum[X, Y], c: list<number>}},
+     * {@code string}, {@code number}, {@code boolean}.
+     */
     sealed interface Shape permits Obj, Choice, Seq, Plain {}
 
     record Obj(java.util.LinkedHashMap<String, Shape> fields) implements Shape {}

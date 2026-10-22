@@ -90,3 +90,17 @@ test('B5: comments and strings stay what they were, whatever words they hold', (
     assert.equal(scopeOf('    // climb when', '// climb when'), 'comment.line.double-slash.loom');
     assert.equal(tokenize('note "climb when 90%"').find(([t]) => t.startsWith('"'))?.[1], 'string.quoted.double.loom');
 });
+
+test('C7: the words of a classifier are highlighted as keywords', () => {
+    const lines: Array<[string, string]> = [
+        ['intentclassifier Intent {', 'intentclassifier'], ['    choose kind: refund | other', 'choose'], ['    ask urgent: "Is it urgent?"', 'ask'],
+        ['    rate tone: calm | angry', 'rate'], ['    samples: 3', 'samples'], ['    confidence at least 0.8 else escalate', 'confidence'],
+        ['    intentclassify Intent on message -> intent', 'intentclassify'],
+    ];
+    for (const [line, word] of lines) assert.equal(scopeOf(line, word), 'keyword.control.loom', `${word} in: ${line}`);
+});
+
+test('C7: rate and confidence stay ordinary words where they are not a classifier\'s', () => {
+    assert.notEqual(scopeOf('        climb when history.last(50).rate(agrees).lower95 >= 0.9', 'rate'), 'keyword.control.loom');
+    assert.notEqual(scopeOf('    note "{intent.confidence}"', 'confidence'), 'keyword.control.loom');
+});

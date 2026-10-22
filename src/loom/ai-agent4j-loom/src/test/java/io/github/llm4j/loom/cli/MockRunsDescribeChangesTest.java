@@ -12,7 +12,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
 
-/** A free (mock) evaluation must not run a task that changes the world: it is described, and the file the task would write is not there. */
+/**
+ * A free (mock) evaluation must not run a task that changes the world: it is described, and the
+ * file the task would write is not there.
+ */
 class MockRunsDescribeChangesTest {
 
     @TempDir Path dir;
@@ -28,13 +31,17 @@ class MockRunsDescribeChangesTest {
         Files.writeString(dir.resolve("pom.xml"), "<project/>");
         Path script = dir.resolve("src/main/resources/main.loom");
         Files.createDirectories(script.getParent());
-        Files.writeString(script, "workflow Main(text) {\n    run WriteMarker(content = text) -> saved\n    note \"done {saved.outcome}\"\n}\n");
+        Files.writeString(
+                script,
+                "workflow Main(text) {\n    run WriteMarker(content = text) -> saved\n    note \"done {saved.outcome}\"\n}\n");
         Path golden = dir.resolve("src/test/resources/eval/golden");
         Files.createDirectories(golden);
         Files.writeString(golden.resolve("workflow.yaml"), "- id: w-1\n  input: hello\n");
         Path src = dir.resolve("src/main/java/demo/WriteMarker.java");
         Files.createDirectories(src.getParent());
-        Files.writeString(src, """
+        Files.writeString(
+                src,
+                """
                 package demo;
                 import io.github.llm4j.agent.task.*;
                 public class WriteMarker implements Task {
@@ -45,11 +52,25 @@ class MockRunsDescribeChangesTest {
                         return TaskResult.value("ok");
                     }
                 }
-                """.formatted(effect));
+                """
+                        .formatted(effect));
         Path classes = dir.resolve("target/classes");
         Files.createDirectories(classes.resolve("META-INF/services"));
-        Files.writeString(classes.resolve("META-INF/services/io.github.llm4j.agent.task.Task"), "demo.WriteMarker\n");
-        assertThat(ToolProvider.getSystemJavaCompiler().run(null, null, null, "-cp", System.getProperty("java.class.path"), "-d", classes.toString(), src.toString())).isZero();
+        Files.writeString(
+                classes.resolve("META-INF/services/io.github.llm4j.agent.task.Task"),
+                "demo.WriteMarker\n");
+        assertThat(
+                        ToolProvider.getSystemJavaCompiler()
+                                .run(
+                                        null,
+                                        null,
+                                        null,
+                                        "-cp",
+                                        System.getProperty("java.class.path"),
+                                        "-d",
+                                        classes.toString(),
+                                        src.toString()))
+                .isZero();
         return script;
     }
 
@@ -76,7 +97,9 @@ class MockRunsDescribeChangesTest {
         System.setProperty("marker.file", marker.toString());
         try {
             String text = eval(project("")); // the default effect is CHANGES
-            assertThat(marker).as("the task must not have written its file in a free run").doesNotExist();
+            assertThat(marker)
+                    .as("the task must not have written its file in a free run")
+                    .doesNotExist();
             assertThat(text).contains("tasks that change things were described, not run");
         } finally {
             System.clearProperty("marker.file");

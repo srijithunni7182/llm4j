@@ -17,14 +17,16 @@ import java.util.stream.StreamSupport;
 
 /**
  * Meters every call of the wrapped client against a {@link BudgetSet}:
+ *
  * <ol>
- *   <li><b>Preflight.</b> Estimate the call and reserve it from every applicable budget, or refuse with
- *       {@link BudgetExceeded} <em>without calling the model</em>.</li>
- *   <li><b>Cap.</b> Lower the request's {@code maxTokens} to what the budgets can still afford, so the
- *       answer itself can't break them.</li>
+ *   <li><b>Preflight.</b> Estimate the call and reserve it from every applicable budget, or refuse
+ *       with {@link BudgetExceeded} <em>without calling the model</em>.
+ *   <li><b>Cap.</b> Lower the request's {@code maxTokens} to what the budgets can still afford, so
+ *       the answer itself can't break them.
  *   <li><b>Settle.</b> Replace the reservation with the provider's reported usage — or an estimate,
- *       marked as such, when the provider reports none.</li>
+ *       marked as such, when the provider reports none.
  * </ol>
+ *
  * The budgets are read from a supplier on every call, so the caller can change which budgets apply
  * (run, agent, step…) without rebuilding clients.
  *
@@ -97,33 +99,35 @@ public final class BudgetedLLMClient implements LLMClient {
         Iterator<LLMResponse> it = source.iterator();
         StringBuilder text = new StringBuilder();
         LLMResponse[] last = new LLMResponse[1];
-        Iterator<LLMResponse> metered = new Iterator<>() {
-            @Override
-            public boolean hasNext() {
-                boolean more;
-                try {
-                    more = it.hasNext();
-                } catch (RuntimeException e) {
-                    call.failed(e);
-                    throw e;
-                }
-                if (!more) call.settle(last[0], text.toString());
-                return more;
-            }
+        Iterator<LLMResponse> metered =
+                new Iterator<>() {
+                    @Override
+                    public boolean hasNext() {
+                        boolean more;
+                        try {
+                            more = it.hasNext();
+                        } catch (RuntimeException e) {
+                            call.failed(e);
+                            throw e;
+                        }
+                        if (!more) call.settle(last[0], text.toString());
+                        return more;
+                    }
 
-            @Override
-            public LLMResponse next() {
-                LLMResponse chunk = it.next();
-                if (chunk.getContent() != null) text.append(chunk.getContent());
-                last[0] = chunk;
-                return chunk;
-            }
-        };
+                    @Override
+                    public LLMResponse next() {
+                        LLMResponse chunk = it.next();
+                        if (chunk.getContent() != null) text.append(chunk.getContent());
+                        last[0] = chunk;
+                        return chunk;
+                    }
+                };
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(metered, 0), false)
-                .onClose(() -> {
-                    call.settle(last[0], text.toString());
-                    source.close();
-                });
+                .onClose(
+                        () -> {
+                            call.settle(last[0], text.toString());
+                            source.close();
+                        });
     }
 
     // ── one call ─────────────────────────────────────────────────────────────────────────────
@@ -135,12 +139,15 @@ public final class BudgetedLLMClient implements LLMClient {
         PriceTable.Price price = prices == null ? null : prices.price(modelId).orElse(null);
         if (set.hasCostLimit()) {
             if (prices == null) {
-                throw new IllegalStateException("A cost budget needs a price table (per-million input/output prices "
-                        + "per model); supply one, or budget in tokens instead.");
+                throw new IllegalStateException(
+                        "A cost budget needs a price table (per-million input/output prices "
+                                + "per model); supply one, or budget in tokens instead.");
             }
             if (price == null) {
-                throw new IllegalStateException("A cost budget is set but model '" + modelId
-                        + "' has no entry in the price table.");
+                throw new IllegalStateException(
+                        "A cost budget is set but model '"
+                                + modelId
+                                + "' has no entry in the price table.");
             }
         }
         long prompt = estimator.prompt(request);
@@ -149,7 +156,8 @@ public final class BudgetedLLMClient implements LLMClient {
         LLMRequest sent = request;
         if (lease.output() != null) {
             int cap = (int) Math.min(Integer.MAX_VALUE, lease.output());
-            if (request.getMaxTokens() == null || request.getMaxTokens() != cap) sent = withMaxTokens(request, cap);
+            if (request.getMaxTokens() == null || request.getMaxTokens() != cap)
+                sent = withMaxTokens(request, cap);
         }
         return new Call(sent, lease, prompt, price, modelId);
     }
@@ -162,7 +170,12 @@ public final class BudgetedLLMClient implements LLMClient {
         final String modelId;
         private boolean settled;
 
-        Call(LLMRequest request, BudgetSet.Lease lease, long prompt, PriceTable.Price price, String modelId) {
+        Call(
+                LLMRequest request,
+                BudgetSet.Lease lease,
+                long prompt,
+                PriceTable.Price price,
+                String modelId) {
             this.request = request;
             this.lease = lease;
             this.prompt = prompt;
@@ -171,8 +184,8 @@ public final class BudgetedLLMClient implements LLMClient {
         }
 
         /**
-         * A sent request that failed: providers may bill it, so charge its prompt and one call, estimated.
-         * A rate-limit refusal (429) is not billed: it counts as a call only.
+         * A sent request that failed: providers may bill it, so charge its prompt and one call,
+         * estimated. A rate-limit refusal (429) is not billed: it counts as a call only.
          */
         void failed(RuntimeException e) {
             if (e instanceof io.github.llm4j.exception.RateLimitException) {
@@ -186,17 +199,25 @@ public final class BudgetedLLMClient implements LLMClient {
             LLMResponse.TokenUsage usage = response == null ? null : response.getTokenUsage();
             boolean estimated = usage == null;
             long p = estimated ? prompt : usage.getPromptTokens();
-            long c = estimated ? estimator.completion(content + toolCallText(response)) : usage.getCompletionTokens();
+            long c =
+                    estimated
+                            ? estimator.completion(content + toolCallText(response))
+                            : usage.getCompletionTokens();
             BigDecimal money = cost(p, c);
             charge(new Charge(p, c, 1, money, estimated));
             if (response == null || (!estimated && price == null)) return response;
-            Map<String, Object> meta = new HashMap<>(response.getMetadata() == null ? Map.of() : response.getMetadata());
+            Map<String, Object> meta =
+                    new HashMap<>(
+                            response.getMetadata() == null ? Map.of() : response.getMetadata());
             if (estimated) meta.put(ESTIMATED, true);
             if (price != null) meta.put(COST, money);
             return LLMResponse.builder()
                     .content(response.getContent())
                     .model(response.getModel())
-                    .tokenUsage(estimated ? new LLMResponse.TokenUsage((int) p, (int) c, (int) (p + c)) : usage)
+                    .tokenUsage(
+                            estimated
+                                    ? new LLMResponse.TokenUsage((int) p, (int) c, (int) (p + c))
+                                    : usage)
                     .finishReason(response.getFinishReason())
                     .toolCalls(response.getToolCalls())
                     .providerData(response.getProviderData())
@@ -231,7 +252,8 @@ public final class BudgetedLLMClient implements LLMClient {
     private static String toolCallText(LLMResponse response) {
         if (response == null || !response.hasToolCalls()) return "";
         StringBuilder sb = new StringBuilder();
-        for (io.github.llm4j.model.ToolCall c : response.getToolCalls()) sb.append(c.name()).append(c.arguments());
+        for (io.github.llm4j.model.ToolCall c : response.getToolCalls())
+            sb.append(c.name()).append(c.arguments());
         return sb.toString();
     }
 
@@ -286,7 +308,8 @@ public final class BudgetedLLMClient implements LLMClient {
 
         /** Caps every answer's output tokens. */
         public Builder perCallCap(Integer maxTokens) {
-            if (maxTokens != null && maxTokens <= 0) throw new IllegalArgumentException("perCallCap must be positive");
+            if (maxTokens != null && maxTokens <= 0)
+                throw new IllegalArgumentException("perCallCap must be positive");
             this.perCallCap = maxTokens;
             return this;
         }

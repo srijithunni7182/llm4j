@@ -5,8 +5,8 @@ import java.time.Duration;
 import java.time.Instant;
 
 /**
- * A provider refused a request because of a rate limit or quota (HTTP 429). When the provider said when
- * the limit resets, {@link #info()} carries it as an absolute instant.
+ * A provider refused a request because of a rate limit or quota (HTTP 429). When the provider said
+ * when the limit resets, {@link #info()} carries it as an absolute instant.
  */
 public class RateLimitException extends LLMException {
 
@@ -25,15 +25,22 @@ public class RateLimitException extends LLMException {
         this.info = null;
     }
 
-    /** @param now the time the refusal was received, used for {@link #getRetryAfterSeconds()} */
+    /**
+     * @param now the time the refusal was received, used for {@link #getRetryAfterSeconds()}
+     */
     public RateLimitException(RateLimitInfo info, Instant now) {
         this(info, now, null);
     }
 
     public RateLimitException(RateLimitInfo info, Instant now, String body) {
-        super("Rate limited: " + info.describe() + "; resets at " + info.resetAt()
-                + (info.estimated() ? " (estimated)" : "")
-                + (body == null || body.isBlank() ? "" : ": " + body), 429);
+        super(
+                "Rate limited: "
+                        + info.describe()
+                        + "; resets at "
+                        + info.resetAt()
+                        + (info.estimated() ? " (estimated)" : "")
+                        + (body == null || body.isBlank() ? "" : ": " + body),
+                429);
         this.info = info;
         Duration wait = info.waitFrom(now);
         this.retryAfterSeconds = (wait.toMillis() + 999) / 1000;
@@ -49,14 +56,26 @@ public class RateLimitException extends LLMException {
         return info;
     }
 
-    /** {@link #info()}, or an estimate from {@code Retry-After} seconds, or {@code now + fallback}. */
+    /**
+     * {@link #info()}, or an estimate from {@code Retry-After} seconds, or {@code now + fallback}.
+     */
     public RateLimitInfo infoOrEstimate(Instant now, Duration fallback) {
         if (info != null) return info;
         if (retryAfterSeconds != null) {
-            return RateLimitInfo.at(now.plusSeconds(retryAfterSeconds), RateLimitInfo.Scope.UNKNOWN, "unknown",
+            return RateLimitInfo.at(
+                    now.plusSeconds(retryAfterSeconds),
+                    RateLimitInfo.Scope.UNKNOWN,
+                    "unknown",
                     "retryAfterSeconds " + retryAfterSeconds);
         }
-        return new RateLimitInfo(now.plus(fallback), RateLimitInfo.Scope.UNKNOWN, "unknown", null, null, null,
-                true, getMessage());
+        return new RateLimitInfo(
+                now.plus(fallback),
+                RateLimitInfo.Scope.UNKNOWN,
+                "unknown",
+                null,
+                null,
+                null,
+                true,
+                getMessage());
     }
 }

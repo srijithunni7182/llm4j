@@ -14,18 +14,25 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** R3.9 of loom-weave-eval: tools that answer from recorded text, and nothing reaches the outside world in a mock run. */
+/**
+ * R3.9 of loom-weave-eval: tools that answer from recorded text, and nothing reaches the outside
+ * world in a mock run.
+ */
 class FixturesTest {
 
     @TempDir Path dir;
 
     private static LoomScript script() {
-        return new LoomParser(new Lexer("""
+        return new LoomParser(
+                        new Lexer(
+                                        """
                 tool Search { use: serpapi  api_key: env.SERPAPI_KEY }
                 tool Notify { use: webhook  url: env.HOOK }
                 agent A { model: "m" system: "s" tools: [Search, Notify, calculator] }
                 workflow Main() { delegate "x" to A -> r }
-                """).tokenize()).parseScript();
+                """)
+                                .tokenize())
+                .parseScript();
     }
 
     private void write(String yaml) throws IOException {
@@ -39,7 +46,8 @@ class FixturesTest {
 
     @Test
     void aMappingOfToolNamesToEntriesIsRead() throws IOException {
-        write("""
+        write(
+                """
                 Search:
                   - match: flights? to paris
                     snippets: ["Flights to Paris start at 80 euros."]
@@ -54,10 +62,13 @@ class FixturesTest {
     @Test
     void aFileThatIsNotAMappingOrHasANonListToolIsRefusedWithWhatToWrite() throws IOException {
         write("- just: a list\n");
-        assertThatThrownBy(() -> Fixtures.read(dir)).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("mapping of tool name to entries");
+        assertThatThrownBy(() -> Fixtures.read(dir))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("mapping of tool name to entries");
 
         write("Search: not-a-list\n");
-        assertThatThrownBy(() -> Fixtures.read(dir)).hasMessageContaining("Search should be a list of entries");
+        assertThatThrownBy(() -> Fixtures.read(dir))
+                .hasMessageContaining("Search should be a list of entries");
 
         write("Search: [unclosed\n");
         assertThatThrownBy(() -> Fixtures.read(dir)).hasMessageContaining("cannot be read");
@@ -73,8 +84,10 @@ class FixturesTest {
 
         assertThat(replaced).containsExactly("Search");
         assertThat(script.getTools()).extracting(t -> t.getName()).containsExactly("Notify");
-        assertThat(registry.getTool("Search").execute(Map.of("query", "weather in Paris"))).contains("Paris is sunny");
-        assertThat(registry.getTool("Search").execute(Map.of("query", "weather in Rome"))).contains("No results found");
+        assertThat(registry.getTool("Search").execute(Map.of("query", "weather in Paris")))
+                .contains("Paris is sunny");
+        assertThat(registry.getTool("Search").execute(Map.of("query", "weather in Rome")))
+                .contains("No results found");
     }
 
     @Test
@@ -86,8 +99,10 @@ class FixturesTest {
 
         assertThat(replaced).containsExactlyInAnyOrder("Search", "Notify", "calculator");
         assertThat(script.getTools()).isEmpty();
-        assertThat(registry.getTool("Notify").execute(Map.of("query", "anything"))).contains(Fixtures.MOCK_RESULT);
-        assertThat(registry.getTool("calculator").execute(Map.of("query", "2+2"))).contains(Fixtures.MOCK_RESULT);
+        assertThat(registry.getTool("Notify").execute(Map.of("query", "anything")))
+                .contains(Fixtures.MOCK_RESULT);
+        assertThat(registry.getTool("calculator").execute(Map.of("query", "2+2")))
+                .contains(Fixtures.MOCK_RESULT);
     }
 
     @Test

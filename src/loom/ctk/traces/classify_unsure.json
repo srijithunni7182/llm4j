@@ -1,0 +1,12 @@
+{
+  "scriptName": "classify_unsure.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "classify",
+      "classifier": "Intent",
+      "outcome": "unsure",
+      "labels": "kind=unsure,urgent=no"
+    }
+  ]
+}

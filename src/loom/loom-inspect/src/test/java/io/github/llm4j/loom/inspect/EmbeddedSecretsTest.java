@@ -19,7 +19,8 @@ import org.junit.jupiter.api.Test;
 /** What the secrets page lists and what a rotation changes. */
 class EmbeddedSecretsTest {
 
-    private static final String SCRIPT = """
+    private static final String SCRIPT =
+            """
             provider Box { use: sarvam  api_key: secret.BOX_KEY  base_url: "https://gpu.example.com" }
             tool Search { use: serpapi  api_key: secret.SERP_KEY }
             agent Researcher { model: "Box/llama" tools: [Search] }
@@ -31,7 +32,9 @@ class EmbeddedSecretsTest {
     private final Clock clock = Clock.fixed(Instant.parse("2026-10-12T10:00:00Z"), ZoneOffset.UTC);
 
     private io.github.llm4j.loom.observe.ObservableRun run() {
-        io.github.llm4j.loom.execution.HarnessExecutor e = new io.github.llm4j.loom.execution.HarnessExecutor(script(), new io.github.llm4j.loom.execution.ToolRegistry(), model -> null);
+        io.github.llm4j.loom.execution.HarnessExecutor e =
+                new io.github.llm4j.loom.execution.HarnessExecutor(
+                        script(), new io.github.llm4j.loom.execution.ToolRegistry(), model -> null);
         e.setSecretStore(store);
         return e.observable();
     }
@@ -43,7 +46,8 @@ class EmbeddedSecretsTest {
     @Test
     void whoUsesASecretIsReadFromTheScript() {
         Map<String, Set<String>> used = EmbeddedSecrets.usedBy(script());
-        assertThat(used.get("BOX_KEY")).containsExactly("Researcher (provider Box)", "Writer (provider Box)");
+        assertThat(used.get("BOX_KEY"))
+                .containsExactly("Researcher (provider Box)", "Writer (provider Box)");
         assertThat(used.get("SERP_KEY")).containsExactly("Researcher (tool Search)");
     }
 
@@ -52,10 +56,20 @@ class EmbeddedSecretsTest {
         store.put("BOX_KEY", "sk-box-secret-value", SecretMetadata.allowing("gpu.example.com"));
         io.github.llm4j.loom.observe.ObservableRun run = run();
         List<Map<String, Object>> rows = new EmbeddedSecrets(() -> run, clock).list();
-        Map<String, Object> box = rows.stream().filter(r -> r.get("name").equals("BOX_KEY")).findFirst().orElseThrow();
-        assertThat(box).containsEntry("present", true).containsEntry("allowedHosts", List.of("gpu.example.com"));
+        Map<String, Object> box =
+                rows.stream()
+                        .filter(r -> r.get("name").equals("BOX_KEY"))
+                        .findFirst()
+                        .orElseThrow();
+        assertThat(box)
+                .containsEntry("present", true)
+                .containsEntry("allowedHosts", List.of("gpu.example.com"));
         assertThat(box.get("fingerprint").toString()).matches("[0-9a-f]{4}…[0-9a-f]{2}");
-        Map<String, Object> serp = rows.stream().filter(r -> r.get("name").equals("SERP_KEY")).findFirst().orElseThrow();
+        Map<String, Object> serp =
+                rows.stream()
+                        .filter(r -> r.get("name").equals("SERP_KEY"))
+                        .findFirst()
+                        .orElseThrow();
         assertThat(serp).containsEntry("present", false).doesNotContainKey("fingerprint");
         assertThat(rows.toString()).doesNotContain("sk-box-secret-value");
     }
@@ -68,8 +82,10 @@ class EmbeddedSecretsTest {
         assertThat(o.accepted()).isTrue();
         assertThat(o.message()).doesNotContain("new-value-2").doesNotContain("old-value-1");
         assertThat(store.resolve("BOX_KEY")).isEqualTo("new-value-2");
-        assertThat(store.metadata("BOX_KEY").orElseThrow().allowedHosts()).containsExactly("gpu.example.com");
-        assertThat(store.metadata("BOX_KEY").orElseThrow().updatedAt()).isNotNull(); // the store stamps it
+        assertThat(store.metadata("BOX_KEY").orElseThrow().allowedHosts())
+                .containsExactly("gpu.example.com");
+        assertThat(store.metadata("BOX_KEY").orElseThrow().updatedAt())
+                .isNotNull(); // the store stamps it
 
         Controls.Outcome none = secrets.rotate("SERP_KEY", "brand-new".toCharArray(), "admin@x");
         assertThat(none.accepted()).isFalse();

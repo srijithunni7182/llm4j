@@ -31,8 +31,9 @@ public interface LLMClient {
     Stream<LLMResponse> chatStream(LLMRequest request);
 
     /**
-     * Whether this client can offer tools to the model natively ({@link LLMRequest#getTools()}). When false, a request that carries tools is
-     * refused with an {@code InvalidRequestException}, and agents use the text protocol instead.
+     * Whether this client can offer tools to the model natively ({@link LLMRequest#getTools()}).
+     * When false, a request that carries tools is refused with an {@code InvalidRequestException},
+     * and agents use the text protocol instead.
      */
     default boolean supportsToolCalling() {
         return false;

@@ -25,18 +25,29 @@ class ToolExceptionTest {
 
     @Test
     void needsACategory() {
-        assertThatThrownBy(() -> new ToolException(null, "x")).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new ToolException(null, "x"))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void canBeThrownFromAToolBecauseExecuteThrowsException() {
-        Tool t = new Tool() {
-            @Override public String getName() { return "t"; }
-            @Override public String getDescription() { return "d"; }
-            @Override public String execute(java.util.Map<String, Object> args) {
-                throw new ToolException(ErrorCategory.NOT_FOUND, "no such thing");
-            }
-        };
+        Tool t =
+                new Tool() {
+                    @Override
+                    public String getName() {
+                        return "t";
+                    }
+
+                    @Override
+                    public String getDescription() {
+                        return "d";
+                    }
+
+                    @Override
+                    public String execute(java.util.Map<String, Object> args) {
+                        throw new ToolException(ErrorCategory.NOT_FOUND, "no such thing");
+                    }
+                };
         assertThatThrownBy(() -> t.execute(java.util.Map.of())).isInstanceOf(ToolException.class);
     }
 }

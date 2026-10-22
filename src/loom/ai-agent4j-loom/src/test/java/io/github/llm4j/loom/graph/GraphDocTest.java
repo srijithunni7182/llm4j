@@ -15,8 +15,10 @@ import org.junit.jupiter.api.Test;
 /** V9.4: the example in the guide is what {@code weave graph} really prints. */
 class GraphDocTest {
 
-    private static final Pattern EXAMPLE = Pattern.compile(
-            "<!-- graph-example: (\\S+) (\\S+) -->\\n```\\n\\$ weave graph [^\\n]*\\n(.*?)```", Pattern.DOTALL);
+    private static final Pattern EXAMPLE =
+            Pattern.compile(
+                    "<!-- graph-example: (\\S+) (\\S+) -->\\n```\\n\\$ weave graph [^\\n]*\\n(.*?)```",
+                    Pattern.DOTALL);
 
     @Test
     void theGuidesExampleIsTheRealOutput() throws Exception {
@@ -27,10 +29,17 @@ class GraphDocTest {
         String workflow = m.group(2);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        int code = CliProbe.graph(Path.of(script).toFile(), "mermaid", workflow, new PrintStream(out, true, StandardCharsets.UTF_8));
+        int code =
+                CliProbe.graph(
+                        Path.of(script).toFile(),
+                        "mermaid",
+                        workflow,
+                        new PrintStream(out, true, StandardCharsets.UTF_8));
 
         assertThat(code).isZero();
-        String actual = out.toString(StandardCharsets.UTF_8).replace(Path.of("").toAbsolutePath().toString(), "/path/to");
+        String actual =
+                out.toString(StandardCharsets.UTF_8)
+                        .replace(Path.of("").toAbsolutePath().toString(), "/path/to");
         assertThat(actual.stripTrailing()).isEqualTo(m.group(3).stripTrailing());
     }
 
@@ -38,6 +47,10 @@ class GraphDocTest {
     void theGuideNamesTheCommandAndItsOptions() throws Exception {
         String guide = Files.readString(Path.of("LOOM_GUIDE.md"));
 
-        assertThat(guide).contains("weave graph").contains("--format mermaid").contains("--workflow").contains("graph-result.schema.json");
+        assertThat(guide)
+                .contains("weave graph")
+                .contains("--format mermaid")
+                .contains("--workflow")
+                .contains("graph-result.schema.json");
     }
 }

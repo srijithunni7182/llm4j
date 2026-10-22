@@ -40,12 +40,30 @@ final class SecurityFixtures {
         span(sec, agent, tool, reach, true, null, groups, count, false);
     }
 
-    /** A tool call that failed with this category (lower case, as the mapper writes it); {@code noResult} for one the runtime never ran. */
-    void failed(double sec, String agent, String tool, String reach, String category, boolean noResult) {
+    /**
+     * A tool call that failed with this category (lower case, as the mapper writes it); {@code
+     * noResult} for one the runtime never ran.
+     */
+    void failed(
+            double sec,
+            String agent,
+            String tool,
+            String reach,
+            String category,
+            boolean noResult) {
         span(sec, agent, tool, reach, true, category, null, 0, noResult);
     }
 
-    private void span(double sec, String agent, String tool, String reach, boolean known, String category, String groups, int count, boolean noResult) {
+    private void span(
+            double sec,
+            String agent,
+            String tool,
+            String reach,
+            boolean known,
+            String category,
+            String groups,
+            int count,
+            boolean noResult) {
         Map<String, Object> a = new LinkedHashMap<>();
         a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_TOOL);
         a.put(Semconv.GEN_AI_AGENT_NAME, agent);
@@ -63,8 +81,21 @@ final class SecurityFixtures {
         if (noResult) a.put(Semconv.LOOM_TOOL_NO_RESULT, true);
         if (category != null) a.put(Semconv.ERROR_TYPE, category);
         long end = at(sec);
-        state.apply(new SpanRec(TRACE, Ids.spanId(RUN, "t" + (++spanNo)), null, "execute_tool " + tool, SpanRec.CLIENT, end - 100_000_000L, end, a,
-                category == null ? SpanRec.STATUS_OK : noResult ? SpanRec.STATUS_UNSET : SpanRec.STATUS_ERROR, null, List.of()));
+        state.apply(
+                new SpanRec(
+                        TRACE,
+                        Ids.spanId(RUN, "t" + (++spanNo)),
+                        null,
+                        "execute_tool " + tool,
+                        SpanRec.CLIENT,
+                        end - 100_000_000L,
+                        end,
+                        a,
+                        category == null
+                                ? SpanRec.STATUS_OK
+                                : noResult ? SpanRec.STATUS_UNSET : SpanRec.STATUS_ERROR,
+                        null,
+                        List.of()));
     }
 
     void guard(double sec, String agent, String event) {
@@ -85,11 +116,28 @@ final class SecurityFixtures {
     }
 
     void accept(String agent, String reason) {
-        state.setRules(Map.of(agent, new InspectRules(null, null, null, null, null, null, null, null, null, new InspectRules.Security(null, null, null, reason))));
+        state.setRules(
+                Map.of(
+                        agent,
+                        new InspectRules(
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                new InspectRules.Security(null, null, null, reason))));
     }
 
     void rules(String agent, InspectRules.Security security) {
-        state.setRules(Map.of(agent, new InspectRules(null, null, null, null, null, null, null, null, null, security)));
+        state.setRules(
+                Map.of(
+                        agent,
+                        new InspectRules(
+                                null, null, null, null, null, null, null, null, null, security)));
     }
 
     List<Map<String, Object>> incidents(String kind) {
@@ -109,11 +157,13 @@ final class SecurityFixtures {
 
     @SuppressWarnings("unchecked")
     Map<String, Object> agent(String name) {
-        return ((List<Map<String, Object>>) security().get("agents")).stream().filter(m -> name.equals(m.get("agent"))).findFirst().orElseThrow();
+        return ((List<Map<String, Object>>) security().get("agents"))
+                .stream().filter(m -> name.equals(m.get("agent"))).findFirst().orElseThrow();
     }
 
     @SuppressWarnings("unchecked")
     static String detail(Map<String, Object> incident) {
-        return String.valueOf(((List<Map<String, Object>>) incident.get("evidence")).get(0).get("detail"));
+        return String.valueOf(
+                ((List<Map<String, Object>>) incident.get("evidence")).get(0).get("detail"));
     }
 }

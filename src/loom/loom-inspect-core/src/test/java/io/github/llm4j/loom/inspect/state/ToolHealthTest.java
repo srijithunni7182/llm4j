@@ -5,12 +5,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** R18, R19: the heuristics behind the tools-centric view. A history of calls in, a state and its reason out. */
+/**
+ * R18, R19: the heuristics behind the tools-centric view. A history of calls in, a state and its
+ * reason out.
+ */
 class ToolHealthTest {
 
     private static final Thresholds T = Thresholds.defaults();
 
-    /** "+" is a success, a word is a failure with that category, "-" is a call the runtime never ran. */
+    /**
+     * "+" is a success, a word is a failure with that category, "-" is a call the runtime never
+     * ran.
+     */
     private static ToolSummary history(String... calls) {
         ToolTally t = new ToolTally("Wiki");
         int n = 0;
@@ -63,12 +69,18 @@ class ToolHealthTest {
 
     @Test
     void theRateOverTheLastTenCallsDecides_atTheBoundaries() {
-        // 10 calls: 3 successes (30%) is failing; 4 (40%) is degraded; 7 (70%) is healthy; 6 (60%) is degraded
-        assertThat(history("+", "x", "+", "x", "x", "+", "x", "x", "x", "x").state()).isEqualTo("failing");
-        assertThat(history("x", "x", "+", "x", "x", "+", "+", "x", "x", "+").state()).isEqualTo("degraded");
-        assertThat(history("x", "+", "+", "x", "+", "+", "x", "+", "+", "+").state()).isEqualTo("healthy");
-        assertThat(history("x", "+", "x", "+", "x", "+", "x", "+", "+", "+").state()).isEqualTo("degraded");
-        assertThat(history("x", "+", "x", "+", "x", "+", "x", "+", "+", "+").reason()).contains("6 of 10");
+        // 10 calls: 3 successes (30%) is failing; 4 (40%) is degraded; 7 (70%) is healthy; 6 (60%)
+        // is degraded
+        assertThat(history("+", "x", "+", "x", "x", "+", "x", "x", "x", "x").state())
+                .isEqualTo("failing");
+        assertThat(history("x", "x", "+", "x", "x", "+", "+", "x", "x", "+").state())
+                .isEqualTo("degraded");
+        assertThat(history("x", "+", "+", "x", "+", "+", "x", "+", "+", "+").state())
+                .isEqualTo("healthy");
+        assertThat(history("x", "+", "x", "+", "x", "+", "x", "+", "+", "+").state())
+                .isEqualTo("degraded");
+        assertThat(history("x", "+", "x", "+", "x", "+", "x", "+", "+", "+").reason())
+                .contains("6 of 10");
     }
 
     @Test
@@ -100,7 +112,8 @@ class ToolHealthTest {
     @Test
     void theRateThresholdsComeFromTheRules() {
         ToolTally t = new ToolTally("Wiki");
-        for (int i = 0; i < 10; i++) t.record("A", i >= 2, "timeout", "2026-10-14T10:00:00Z", 10, false); // 8 of 10
+        for (int i = 0; i < 10; i++)
+            t.record("A", i >= 2, "timeout", "2026-10-14T10:00:00Z", 10, false); // 8 of 10
         assertThat(t.snapshot(T).state()).isEqualTo("healthy");
         Thresholds strict = new Thresholds(4, 3, 2, 4, 3, 60, 0.85, 0.95, 1, 4, 10, 0.9, 10, 5.0);
         assertThat(t.snapshot(strict).state()).isEqualTo("degraded");
@@ -122,8 +135,10 @@ class ToolHealthTest {
     @Test
     void theAgentBreakdownShowsWhoFailsWithIt() {
         ToolTally t = new ToolTally("Wiki");
-        for (int i = 0; i < 5; i++) t.record("Editor", true, null, "2026-10-14T10:00:00Z", 10, false);
-        for (int i = 0; i < 4; i++) t.record("Writer", false, "not_found", "2026-10-14T10:00:00Z", 10, false);
+        for (int i = 0; i < 5; i++)
+            t.record("Editor", true, null, "2026-10-14T10:00:00Z", 10, false);
+        for (int i = 0; i < 4; i++)
+            t.record("Writer", false, "not_found", "2026-10-14T10:00:00Z", 10, false);
         ToolSummary s = t.snapshot(T);
         assertThat(s.byAgent().get("Editor")).isEqualTo(new ToolSummary.Tally(5, 5, 0));
         assertThat(s.byAgent().get("Writer")).isEqualTo(new ToolSummary.Tally(4, 0, 4));
@@ -132,8 +147,9 @@ class ToolHealthTest {
     @Test
     void latencyIsAHistogramWhosePercentilesAreBucketBounds() {
         ToolTally t = new ToolTally("Wiki");
-        for (int i = 0; i < 90; i++) t.record("A", true, null, "x", 40, false);   // the 50 ms bucket
-        for (int i = 0; i < 10; i++) t.record("A", true, null, "x", 3000, false); // the 5000 ms bucket
+        for (int i = 0; i < 90; i++) t.record("A", true, null, "x", 40, false); // the 50 ms bucket
+        for (int i = 0; i < 10; i++)
+            t.record("A", true, null, "x", 3000, false); // the 5000 ms bucket
         ToolSummary s = t.snapshot(T);
         assertThat(s.p50Ms()).isEqualTo(50);
         assertThat(s.p95Ms()).isEqualTo(5000);
@@ -144,7 +160,18 @@ class ToolHealthTest {
     @Test
     void theMapForTheViewHasEveryField() {
         Map<String, Object> m = history("+", "timeout", "timeout", "timeout").toHealthMap();
-        assertThat(m).containsKeys("state", "reason", "recentRate", "recentCalls", "overallRate", "consecutiveFailures", "lastFailure", "lastSuccessAt", "failures", "byAgent");
+        assertThat(m)
+                .containsKeys(
+                        "state",
+                        "reason",
+                        "recentRate",
+                        "recentCalls",
+                        "overallRate",
+                        "consecutiveFailures",
+                        "lastFailure",
+                        "lastSuccessAt",
+                        "failures",
+                        "byAgent");
         assertThat(m.get("state")).isEqualTo("failing");
         assertThat(((Map<?, ?>) m.get("lastFailure")).get("category")).isEqualTo("timeout");
     }

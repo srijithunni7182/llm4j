@@ -38,7 +38,9 @@ class MetadataAndReadmeTest {
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private static JsonNode metadata() throws IOException {
-        try (var in = MetadataAndReadmeTest.class.getResourceAsStream("/META-INF/spring-configuration-metadata.json")) {
+        try (var in =
+                MetadataAndReadmeTest.class.getResourceAsStream(
+                        "/META-INF/spring-configuration-metadata.json")) {
             return JSON.readTree(in);
         }
     }
@@ -48,7 +50,8 @@ class MetadataAndReadmeTest {
     void everyPropertyHasADescription() throws IOException {
         List<String> bare = new ArrayList<>();
         for (JsonNode p : metadata().get("properties")) {
-            if (!p.hasNonNull("description") || p.get("description").asText().isBlank()) bare.add(p.get("name").asText());
+            if (!p.hasNonNull("description") || p.get("description").asText().isBlank())
+                bare.add(p.get("name").asText());
         }
         assertThat(bare).as("properties without a description").isEmpty();
     }
@@ -62,35 +65,80 @@ class MetadataAndReadmeTest {
             h.get("values").forEach(v -> values.add(v.get("value").asText()));
             hints.put(h.get("name").asText(), values);
         }
-        assertThat(hints.keySet()).contains("llm4j.secrets.store", "llm4j.routing.strategy", "llm4j.budget.window", "llm4j.agent.tool-calling", "llm4j.agent.on-budget-exhausted",
-                "llm4j.memory.conversations", "llm4j.rag.embedding", "llm4j.rag.store", "llm4j.loom.validate", "llm4j.loom.persistence", "llm4j.loom.initialize-schema",
-                "llm4j.loom.executor", "llm4j.loom.audit.fail-on", "llm4j.observe.detail");
-        // each hinted value is accepted by the starter: the ones that can be tried without more setup are tried here
+        assertThat(hints.keySet())
+                .contains(
+                        "llm4j.secrets.store",
+                        "llm4j.routing.strategy",
+                        "llm4j.budget.window",
+                        "llm4j.agent.tool-calling",
+                        "llm4j.agent.on-budget-exhausted",
+                        "llm4j.memory.conversations",
+                        "llm4j.rag.embedding",
+                        "llm4j.rag.store",
+                        "llm4j.loom.validate",
+                        "llm4j.loom.persistence",
+                        "llm4j.loom.initialize-schema",
+                        "llm4j.loom.executor",
+                        "llm4j.loom.audit.fail-on",
+                        "llm4j.observe.detail");
+        // each hinted value is accepted by the starter: the ones that can be tried without more
+        // setup are tried here
         for (String v : hints.get("llm4j.secrets.store")) {
             if (!v.equals("env")) continue;
-            Fixtures.runner().withPropertyValues("llm4j.secrets.store=" + v).run(ctx -> assertThat(ctx).hasNotFailed());
+            Fixtures.runner()
+                    .withPropertyValues("llm4j.secrets.store=" + v)
+                    .run(ctx -> assertThat(ctx).hasNotFailed());
         }
         for (String v : hints.get("llm4j.loom.validate")) {
-            Fixtures.runner().withBean(io.github.llm4j.loom.execution.LLMClientFactory.class, LoomFixtures.Models::new)
-                    .withPropertyValues("llm4j.loom.script=classpath:scripts/three-steps.loom", "llm4j.loom.validate=" + v).run(ctx -> assertThat(ctx).hasNotFailed());
+            Fixtures.runner()
+                    .withBean(
+                            io.github.llm4j.loom.execution.LLMClientFactory.class,
+                            LoomFixtures.Models::new)
+                    .withPropertyValues(
+                            "llm4j.loom.script=classpath:scripts/three-steps.loom",
+                            "llm4j.loom.validate=" + v)
+                    .run(ctx -> assertThat(ctx).hasNotFailed());
         }
         for (String v : hints.get("llm4j.loom.executor")) {
-            boolean needsNewerJava = v.equals("virtual-threads") && Runtime.version().feature() < 21;
-            Fixtures.runner().withBean(io.github.llm4j.loom.execution.LLMClientFactory.class, LoomFixtures.Models::new)
-                    .withBean("applicationTaskExecutor", java.util.concurrent.Executor.class, () -> Runnable::run)
-                    .withPropertyValues("llm4j.loom.script=classpath:scripts/three-steps.loom", "llm4j.loom.executor=" + v).run(ctx -> {
-                String failure = ctx.getStartupFailure() == null ? "" : String.valueOf(ctx.getStartupFailure().getMessage());
-                // a value the starter does not know says "is not known"; virtual threads on Java 17 says what it needs
-                assertThat(failure).doesNotContain("is not known");
-                if (needsNewerJava) assertThat(failure).contains("needs Java 21");
-                else assertThat(ctx).hasNotFailed();
-            });
+            boolean needsNewerJava =
+                    v.equals("virtual-threads") && Runtime.version().feature() < 21;
+            Fixtures.runner()
+                    .withBean(
+                            io.github.llm4j.loom.execution.LLMClientFactory.class,
+                            LoomFixtures.Models::new)
+                    .withBean(
+                            "applicationTaskExecutor",
+                            java.util.concurrent.Executor.class,
+                            () -> Runnable::run)
+                    .withPropertyValues(
+                            "llm4j.loom.script=classpath:scripts/three-steps.loom",
+                            "llm4j.loom.executor=" + v)
+                    .run(
+                            ctx -> {
+                                String failure =
+                                        ctx.getStartupFailure() == null
+                                                ? ""
+                                                : String.valueOf(
+                                                        ctx.getStartupFailure().getMessage());
+                                // a value the starter does not know says "is not known"; virtual
+                                // threads on Java 17 says what it needs
+                                assertThat(failure).doesNotContain("is not known");
+                                if (needsNewerJava) assertThat(failure).contains("needs Java 21");
+                                else assertThat(ctx).hasNotFailed();
+                            });
         }
         for (String v : hints.get("llm4j.routing.strategy")) {
-            if (v.equals("none")) Fixtures.runner().withPropertyValues("llm4j.routing.strategy=none").run(ctx -> assertThat(ctx).hasNotFailed());
+            if (v.equals("none"))
+                Fixtures.runner()
+                        .withPropertyValues("llm4j.routing.strategy=none")
+                        .run(ctx -> assertThat(ctx).hasNotFailed());
         }
         for (String v : hints.get("llm4j.memory.conversations")) {
-            Fixtures.runner().withPropertyValues("llm4j.memory.conversations=" + v, "llm4j.memory.dir=" + System.getProperty("java.io.tmpdir")).run(ctx -> assertThat(ctx).hasNotFailed());
+            Fixtures.runner()
+                    .withPropertyValues(
+                            "llm4j.memory.conversations=" + v,
+                            "llm4j.memory.dir=" + System.getProperty("java.io.tmpdir"))
+                    .run(ctx -> assertThat(ctx).hasNotFailed());
         }
     }
 
@@ -99,15 +147,23 @@ class MetadataAndReadmeTest {
     void noPropertyNamesAnAuditRule() throws IOException {
         Pattern ruleId = Pattern.compile("\\bLA\\d{2}\\b");
         for (JsonNode p : metadata().get("properties")) {
-            assertThat(ruleId.matcher(p.get("name").asText() + " " + p.path("description").asText()).find()).as(p.get("name").asText()).isFalse();
+            assertThat(
+                            ruleId.matcher(
+                                            p.get("name").asText()
+                                                    + " "
+                                                    + p.path("description").asText())
+                                    .find())
+                    .as(p.get("name").asText())
+                    .isFalse();
         }
     }
 
     // ---- README ----
 
-    private static final Pattern BLOCK = Pattern.compile("```(yaml|java)\\n(.*?)```", Pattern.DOTALL);
+    private static final Pattern BLOCK =
+            Pattern.compile("```(yaml|java)\\n(.*?)```", Pattern.DOTALL);
 
-    private record Section(String title, String text, List<String> yaml, List<String> java) { }
+    private record Section(String title, String text, List<String> yaml, List<String> java) {}
 
     private static List<Section> sections() throws IOException {
         String readme = Files.readString(Path.of("README.md"), StandardCharsets.UTF_8);
@@ -125,7 +181,14 @@ class MetadataAndReadmeTest {
     @Tag("SB-V13.2")
     @Test
     void everyCapabilitySectionShowsYamlABeanAndPlainJava() throws IOException {
-        List<String> capabilities = List.of("Clients", "Prices, budgets, privacy and audit", "Agents, memory, prompts and skills", "Tools", "RAG", "Loom");
+        List<String> capabilities =
+                List.of(
+                        "Clients",
+                        "Prices, budgets, privacy and audit",
+                        "Agents, memory, prompts and skills",
+                        "Tools",
+                        "RAG",
+                        "Loom");
         Map<String, Section> byTitle = new LinkedHashMap<>();
         for (Section s : sections()) byTitle.put(s.title(), s);
         for (String name : capabilities) {
@@ -174,7 +237,12 @@ class MetadataAndReadmeTest {
     void everyYamlBlockBindsAndUsesOnlyPropertiesThatExist() throws Exception {
         Set<String> known = new java.util.HashSet<>();
         for (JsonNode p : metadata().get("properties")) known.add(p.get("name").asText());
-        Set<String> maps = Set.of("llm4j.clients", "llm4j.pricing.models", "llm4j.tools.custom", "llm4j.agent.context.compaction-options");
+        Set<String> maps =
+                Set.of(
+                        "llm4j.clients",
+                        "llm4j.pricing.models",
+                        "llm4j.tools.custom",
+                        "llm4j.agent.context.compaction-options");
         List<String> unknown = new ArrayList<>();
         int blocks = 0;
         for (Section s : sections()) {
@@ -187,12 +255,17 @@ class MetadataAndReadmeTest {
                 props.forEach((k, v) -> flat.put(String.valueOf(k), v));
                 for (String key : flat.keySet()) {
                     String bare = key.replaceAll("\\[\\d+]", "");
-                    boolean ok = known.contains(bare) || maps.stream().anyMatch(m -> bare.startsWith(m + "."));
+                    boolean ok =
+                            known.contains(bare)
+                                    || maps.stream().anyMatch(m -> bare.startsWith(m + "."));
                     if (!ok) unknown.add(key + " (" + s.title() + ")");
                 }
                 StandardEnvironment env = new StandardEnvironment();
                 env.getPropertySources().addFirst(new MapPropertySource("readme", flat));
-                Llm4jProperties bound = new Binder(ConfigurationPropertySources.get(env)).bind("llm4j", Llm4jProperties.class).get();
+                Llm4jProperties bound =
+                        new Binder(ConfigurationPropertySources.get(env))
+                                .bind("llm4j", Llm4jProperties.class)
+                                .get();
                 assertThat(bound).as(s.title()).isNotNull();
             }
         }
@@ -210,20 +283,44 @@ class MetadataAndReadmeTest {
             for (String block : s.java()) {
                 if (block.contains("@Service") || block.contains("@Component")) continue;
                 StringBuilder imports = new StringBuilder(), body = new StringBuilder();
-                for (String line : block.split("\n")) (line.startsWith("import ") ? imports : body).append(line).append('\n');
+                for (String line : block.split("\n"))
+                    (line.startsWith("import ") ? imports : body).append(line).append('\n');
                 String name = "Readme" + (n++);
-                String source = imports + "class " + name + " { void run() throws Exception {\n" + body + "} }\n";
+                String source =
+                        imports
+                                + "class "
+                                + name
+                                + " { void run() throws Exception {\n"
+                                + body
+                                + "} }\n";
                 DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
-                JavaFileObject file = new SimpleJavaFileObject(URI.create("string:///" + name + ".java"), JavaFileObject.Kind.SOURCE) {
-                    @Override
-                    public CharSequence getCharContent(boolean ignore) {
-                        return source;
-                    }
-                };
-                boolean ok = compiler.getTask(null, null, diagnostics, List.of("-classpath", System.getProperty("java.class.path"), "-d", out.toString(), "-proc:none"), null, List.of(file)).call();
+                JavaFileObject file =
+                        new SimpleJavaFileObject(
+                                URI.create("string:///" + name + ".java"),
+                                JavaFileObject.Kind.SOURCE) {
+                            @Override
+                            public CharSequence getCharContent(boolean ignore) {
+                                return source;
+                            }
+                        };
+                boolean ok =
+                        compiler.getTask(
+                                        null,
+                                        null,
+                                        diagnostics,
+                                        List.of(
+                                                "-classpath",
+                                                System.getProperty("java.class.path"),
+                                                "-d",
+                                                out.toString(),
+                                                "-proc:none"),
+                                        null,
+                                        List.of(file))
+                                .call();
                 if (!ok) {
                     for (Diagnostic<? extends JavaFileObject> d : diagnostics.getDiagnostics()) {
-                        if (d.getKind() == Diagnostic.Kind.ERROR) failures.add(s.title() + ": " + d.getMessage(null));
+                        if (d.getKind() == Diagnostic.Kind.ERROR)
+                            failures.add(s.title() + ": " + d.getMessage(null));
                     }
                 }
             }
@@ -236,6 +333,7 @@ class MetadataAndReadmeTest {
     @Test
     void theCompatibilityPageListsTheHostApi() throws IOException {
         String page = Files.readString(Path.of("../../../docs/API_COMPATIBILITY.md"));
-        assertThat(page).contains("LoomHost", "RunRequest", "RunOutcome", "RunRecord", "ScriptSource");
+        assertThat(page)
+                .contains("LoomHost", "RunRequest", "RunOutcome", "RunRecord", "ScriptSource");
     }
 }

@@ -9,13 +9,36 @@ import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** V10.9: the trace schema accepts every graph node kind and an optional {@code attrs}, and old traces still validate. */
+/**
+ * V10.9: the trace schema accepts every graph node kind and an optional {@code attrs}, and old
+ * traces still validate.
+ */
 class TraceSchemaTest {
 
     private static final List<String> OLD_KINDS =
-            List.of("start", "end", "delegate", "task", "alt", "loop", "handoff", "human_prompt", "parallel", "checkpoint");
+            List.of(
+                    "start",
+                    "end",
+                    "delegate",
+                    "task",
+                    "alt",
+                    "loop",
+                    "handoff",
+                    "human_prompt",
+                    "parallel",
+                    "checkpoint");
     private static final List<String> NEW_KINDS =
-            List.of("broadcast", "foreach", "rewind", "call", "guardrail", "decide", "observe", "note", "unknown", "statement");
+            List.of(
+                    "broadcast",
+                    "foreach",
+                    "rewind",
+                    "call",
+                    "guardrail",
+                    "decide",
+                    "observe",
+                    "note",
+                    "unknown",
+                    "statement");
 
     private static ObjectNode trace(List<String> kinds) {
         ObjectNode t = SchemaContractTest.MAPPER.createObjectNode();
@@ -32,7 +55,9 @@ class TraceSchemaTest {
     }
 
     private static List<String> violations(JsonNode trace) throws Exception {
-        return SchemaContractTest.schema("trace").validate(trace).stream().map(Object::toString).toList();
+        return SchemaContractTest.schema("trace").validate(trace).stream()
+                .map(Object::toString)
+                .toList();
     }
 
     @Test

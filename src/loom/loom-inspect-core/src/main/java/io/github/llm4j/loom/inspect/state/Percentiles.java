@@ -3,8 +3,9 @@ package io.github.llm4j.loom.inspect.state;
 import java.util.Arrays;
 
 /**
- * Latency percentiles by nearest rank. Every sample is kept up to {@link #CAPACITY}; after that a deterministic reservoir (Algorithm R with a fixed
- * generator) keeps a uniform sample, so memory is bounded and the same inputs always give the same answers. The count and the maximum stay exact.
+ * Latency percentiles by nearest rank. Every sample is kept up to {@link #CAPACITY}; after that a
+ * deterministic reservoir (Algorithm R with a fixed generator) keeps a uniform sample, so memory is
+ * bounded and the same inputs always give the same answers. The count and the maximum stay exact.
  * Not thread-safe: {@link RunState} calls it under its own lock.
  */
 final class Percentiles {
@@ -22,7 +23,8 @@ final class Percentiles {
         count++;
         if (v > max) max = v;
         if (size < CAPACITY) {
-            if (size == samples.length) samples = Arrays.copyOf(samples, Math.min(CAPACITY, samples.length * 2));
+            if (size == samples.length)
+                samples = Arrays.copyOf(samples, Math.min(CAPACITY, samples.length * 2));
             samples[size++] = v;
             return;
         }
@@ -57,7 +59,10 @@ final class Percentiles {
         return percentile(95);
     }
 
-    /** The smallest sample at or above {@code p} percent of the retained ones; zero when there are none. */
+    /**
+     * The smallest sample at or above {@code p} percent of the retained ones; zero when there are
+     * none.
+     */
     long percentile(double p) {
         if (size == 0) return 0;
         long[] sorted = Arrays.copyOf(samples, size);

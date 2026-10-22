@@ -1,8 +1,14 @@
 package io.github.llm4j.telemetry;
 
-/** What happened to a tool call, as far as the agent can tell. The same cases as the agent's step outcome, so that this package stands alone. */
+/**
+ * What happened to a tool call, as far as the agent can tell. The same cases as the agent's step
+ * outcome, so that this package stands alone.
+ */
 public enum ToolOutcome {
-    /** The tool ran and returned a result (which may still be an error returned as text: see {@link ToolCallEvent#softFailure()}). */
+    /**
+     * The tool ran and returned a result (which may still be an error returned as text: see {@link
+     * ToolCallEvent#softFailure()}).
+     */
     EXECUTED(null),
     /** The model named a tool that does not exist. */
     UNKNOWN_TOOL(ErrorCategory.UNKNOWN_TOOL),
@@ -25,7 +31,10 @@ public enum ToolOutcome {
         this.defaultCategory = defaultCategory;
     }
 
-    /** The category that goes with this outcome when nothing more specific is known; null for {@link #EXECUTED}. */
+    /**
+     * The category that goes with this outcome when nothing more specific is known; null for {@link
+     * #EXECUTED}.
+     */
     public ErrorCategory defaultCategory() {
         return defaultCategory;
     }

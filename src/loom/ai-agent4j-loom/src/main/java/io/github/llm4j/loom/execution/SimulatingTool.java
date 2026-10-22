@@ -6,8 +6,9 @@ import io.github.llm4j.tools.EffectTool;
 import java.util.Map;
 
 /**
- * In a simulated run a tool only pretends, unless it is known to change nothing: its call is described and never made. What counts as
- * known is decided by the tool's class, and the default is to pretend, so a tool kind added later is safe until it says otherwise.
+ * In a simulated run a tool only pretends, unless it is known to change nothing: its call is
+ * described and never made. What counts as known is decided by the tool's class, and the default is
+ * to pretend, so a tool kind added later is safe until it says otherwise.
  */
 final class SimulatingTool implements Tool {
 
@@ -25,7 +26,10 @@ final class SimulatingTool implements Tool {
         return runsAsItIs(tool) ? tool : new SimulatingTool(tool);
     }
 
-    /** Pure tools and search; and the effect journal's wrapper, which simulates by itself and lets reads through. */
+    /**
+     * Pure tools and search; and the effect journal's wrapper, which simulates by itself and lets
+     * reads through.
+     */
     static boolean runsAsItIs(Tool tool) {
         if (tool instanceof DescribedTool d) return runsAsItIs(d.delegate());
         if (tool instanceof io.github.llm4j.loom.tools.NamedTool n) return runsAsItIs(n.delegate());

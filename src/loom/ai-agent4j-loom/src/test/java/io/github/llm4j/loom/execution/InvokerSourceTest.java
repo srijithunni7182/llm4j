@@ -30,7 +30,8 @@ class InvokerSourceTest {
     @Test
     @Tag("CC-V4.1")
     void withoutARunsInvokerItSaysSoByName() {
-        assertThatThrownBy(source::get).isInstanceOf(SecretException.class)
+        assertThatThrownBy(source::get)
+                .isInstanceOf(SecretException.class)
                 .hasMessage("this run has no invoker credentials (invoker.token)");
     }
 
@@ -39,24 +40,27 @@ class InvokerSourceTest {
     void aCredentialTheInvokerLacksIsReportedByName() {
         current.set(InvokerCredentials.of(Map.of("other", "x")));
 
-        assertThatThrownBy(source::get).isInstanceOf(SecretException.class).hasMessage("the invoker has no credential token");
+        assertThatThrownBy(source::get)
+                .isInstanceOf(SecretException.class)
+                .hasMessage("the invoker has no credential token");
     }
 
     @Test
     @Tag("CC-V2.5")
     void rejectionIsPassedToTheInvokerAndIsHarmlessWithout() {
         List<String> told = new ArrayList<>();
-        current.set(new InvokerCredentials() {
-            @Override
-            public String get(String name) {
-                return "v";
-            }
+        current.set(
+                new InvokerCredentials() {
+                    @Override
+                    public String get(String name) {
+                        return "v";
+                    }
 
-            @Override
-            public void invalidate(String name) {
-                told.add(name);
-            }
-        });
+                    @Override
+                    public void invalidate(String name) {
+                        told.add(name);
+                    }
+                });
 
         source.rejected();
         current.set(null);

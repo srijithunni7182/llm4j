@@ -28,11 +28,11 @@ public class MemoryManagementTool implements Tool {
 
     @Override
     public String getDescription() {
-        return "Use this tool to save important, persistent facts about the user into your long-term memory. " +
-               "If the user tells you a preference, constraint, personal detail, or an important piece of context " +
-               "that you should remember for future conversations, use this tool to save it. " +
-               "Arguments: \n" +
-               "- fact (string): A clear, standalone, declarative sentence documenting the fact. (e.g. 'The user is allergic to peanuts' or 'The user prefers Next.js over React').";
+        return "Use this tool to save important, persistent facts about the user into your long-term memory. "
+                + "If the user tells you a preference, constraint, personal detail, or an important piece of context "
+                + "that you should remember for future conversations, use this tool to save it. "
+                + "Arguments: \n"
+                + "- fact (string): A clear, standalone, declarative sentence documenting the fact. (e.g. 'The user is allergic to peanuts' or 'The user prefers Next.js over React').";
     }
 
     @Override
@@ -54,6 +54,8 @@ public class MemoryManagementTool implements Tool {
 
     @Override
     public java.util.Map<String, Object> getParametersSchema() {
-        return io.github.llm4j.model.ToolSchema.object().string("fact", "A clear, standalone sentence stating the fact to remember", true).build();
+        return io.github.llm4j.model.ToolSchema.object()
+                .string("fact", "A clear, standalone sentence stating the fact to remember", true)
+                .build();
     }
 }

@@ -43,13 +43,17 @@ class PromptFilesTest {
 
     @Test
     void r2_1_anAgentNamesAPromptWithOrWithoutAVersion() {
-        LoomScript s = parse("""
+        LoomScript s =
+                parse(
+                        """
                 agent A { model: "m" prompt: "researcher" }
                 agent B { model: "m" prompt: "writer@v2" }
                 agent C { model: "m" system_template: "old" }
                 """);
 
-        assertThat(s.getAgents()).extracting(a -> a.getPromptRef()).containsExactly("researcher", "writer@v2", "old");
+        assertThat(s.getAgents())
+                .extracting(a -> a.getPromptRef())
+                .containsExactly("researcher", "writer@v2", "old");
         assertThat(s.getAgents().get(0).getPrompt()).isEqualTo("researcher");
         assertThat(s.getAgents().get(2).getPrompt()).isNull();
     }
@@ -58,19 +62,24 @@ class PromptFilesTest {
     void r2_1_aMalformedReferenceIsAParseErrorThatShowsTheForm() {
         for (String bad : List.of("Researcher", "a/b", "../x", "a@2", "a@v", "a@v1@v2", "")) {
             assertThatThrownBy(() -> parse("agent A { model: \"m\" prompt: \"" + bad + "\" }"))
-                    .as(bad).hasMessageContaining("looks like \"researcher\" or \"researcher@v2\"");
+                    .as(bad)
+                    .hasMessageContaining("looks like \"researcher\" or \"researcher@v2\"");
         }
     }
 
     @Test
     void r2_4_aScriptNamesItsFolderOnce() {
-        assertThat(parse("prompts: \"./prompts\"\nagent A { model: \"m\" }").getPromptsDir()).isEqualTo("./prompts");
-        assertThatThrownBy(() -> parse("prompts: \"a\"\nprompts: \"b\"")).hasMessageContaining("Only one prompts: folder");
+        assertThat(parse("prompts: \"./prompts\"\nagent A { model: \"m\" }").getPromptsDir())
+                .isEqualTo("./prompts");
+        assertThatThrownBy(() -> parse("prompts: \"a\"\nprompts: \"b\""))
+                .hasMessageContaining("Only one prompts: folder");
     }
 
     @Test
     void promptAndPromptsStayUsableAsOrdinaryNames() {
-        LoomScript s = parse("""
+        LoomScript s =
+                parse(
+                        """
                 agent A { model: "m" }
                 workflow W() {
                     delegate "x" to A -> prompt
@@ -95,10 +104,14 @@ class PromptFilesTest {
 
     @Test
     void r2_5_pinsNeedAVersionAndAgreeWithThemselves() {
-        assertThat(PromptCatalog.pins(List.of("a@v2", "b@v1", "a@v2"))).containsExactlyInAnyOrderEntriesOf(Map.of("a", "v2", "b", "v1"));
-        assertThatThrownBy(() -> PromptCatalog.pins(List.of("a"))).hasMessageContaining("needs a version");
-        assertThatThrownBy(() -> PromptCatalog.pins(List.of("a@v1", "a@v2"))).hasMessageContaining("pins a twice");
-        assertThatThrownBy(() -> PromptCatalog.pins(List.of("../a@v1"))).hasMessageContaining("looks like");
+        assertThat(PromptCatalog.pins(List.of("a@v2", "b@v1", "a@v2")))
+                .containsExactlyInAnyOrderEntriesOf(Map.of("a", "v2", "b", "v1"));
+        assertThatThrownBy(() -> PromptCatalog.pins(List.of("a")))
+                .hasMessageContaining("needs a version");
+        assertThatThrownBy(() -> PromptCatalog.pins(List.of("a@v1", "a@v2")))
+                .hasMessageContaining("pins a twice");
+        assertThatThrownBy(() -> PromptCatalog.pins(List.of("../a@v1")))
+                .hasMessageContaining("looks like");
     }
 
     // ── folder choice ───────────────────────────────────────────────────────
@@ -124,18 +137,27 @@ class PromptFilesTest {
 
     @Test
     void r2_4_withNoFolderAskedForAndNoPromptsBesideTheScriptThereIsNone() {
-        assertThat(PromptFolderResolver.resolve(parse("agent A { model: \"m\" }"), dir.resolve("main.loom"), null)).isNull();
+        assertThat(
+                        PromptFolderResolver.resolve(
+                                parse("agent A { model: \"m\" }"), dir.resolve("main.loom"), null))
+                .isNull();
     }
 
     @Test
     void anImportedFileCannotChooseTheFolder() throws IOException {
-        Files.writeString(dir.resolve("lib.loom"), "prompts: \"./elsewhere\"\nagent L { model: \"m\" }\n");
-        Files.writeString(dir.resolve("main.loom"), "import \"lib.loom\"\nagent A { model: \"m\" }\n");
+        Files.writeString(
+                dir.resolve("lib.loom"), "prompts: \"./elsewhere\"\nagent L { model: \"m\" }\n");
+        Files.writeString(
+                dir.resolve("main.loom"), "import \"lib.loom\"\nagent A { model: \"m\" }\n");
 
-        assertThat(new LoomLoader().load(dir.resolve("main.loom").toString()).getPromptsDir()).isNull();
+        assertThat(new LoomLoader().load(dir.resolve("main.loom").toString()).getPromptsDir())
+                .isNull();
 
-        Files.writeString(dir.resolve("main.loom"), "import \"lib.loom\"\nprompts: \"./mine\"\nagent A { model: \"m\" }\n");
-        assertThat(new LoomLoader().load(dir.resolve("main.loom").toString()).getPromptsDir()).isEqualTo("./mine");
+        Files.writeString(
+                dir.resolve("main.loom"),
+                "import \"lib.loom\"\nprompts: \"./mine\"\nagent A { model: \"m\" }\n");
+        assertThat(new LoomLoader().load(dir.resolve("main.loom").toString()).getPromptsDir())
+                .isEqualTo("./mine");
     }
 
     // ── what an agent runs ──────────────────────────────────────────────────
@@ -155,7 +177,9 @@ class PromptFilesTest {
         prompt("r/v1.md", "ONE");
         prompt("r/v2.md", "TWO");
 
-        assertThat(systemPromptSeen("agent A { model: \"m\" prompt: \"r\" }", Map.of())).contains("TWO").doesNotContain("ONE");
+        assertThat(systemPromptSeen("agent A { model: \"m\" prompt: \"r\" }", Map.of()))
+                .contains("TWO")
+                .doesNotContain("ONE");
     }
 
     @Test
@@ -163,7 +187,9 @@ class PromptFilesTest {
         prompt("r/v1.md", "ONE");
         prompt("r/v2.md", "TWO");
 
-        assertThat(systemPromptSeen("agent A { model: \"m\" prompt: \"r@v1\" }", Map.of())).contains("ONE").doesNotContain("TWO");
+        assertThat(systemPromptSeen("agent A { model: \"m\" prompt: \"r@v1\" }", Map.of()))
+                .contains("ONE")
+                .doesNotContain("TWO");
     }
 
     @Test
@@ -171,14 +197,18 @@ class PromptFilesTest {
         prompt("r/v1.md", "ONE");
         prompt("r/v2.md", "TWO");
 
-        assertThat(systemPromptSeen("agent A { model: \"m\" prompt: \"r@v1\" }", Map.of("r", "v2"))).contains("TWO").doesNotContain("ONE");
+        assertThat(systemPromptSeen("agent A { model: \"m\" prompt: \"r@v1\" }", Map.of("r", "v2")))
+                .contains("TWO")
+                .doesNotContain("ONE");
     }
 
     @Test
     void r2_3_theAgentsOwnSystemTextFollowsThePromptFile() throws IOException {
         prompt("r.md", "FROM THE FILE");
 
-        String seen = systemPromptSeen("agent A { model: \"m\" prompt: \"r\" system: \"AND THIS\" }", Map.of());
+        String seen =
+                systemPromptSeen(
+                        "agent A { model: \"m\" prompt: \"r\" system: \"AND THIS\" }", Map.of());
 
         assertThat(seen).contains("FROM THE FILE\n\nAND THIS");
     }
@@ -187,12 +217,15 @@ class PromptFilesTest {
     void r2_2_systemTemplateIsAnAliasForPrompt() throws IOException {
         prompt("r.md", "FROM THE FILE");
 
-        assertThat(systemPromptSeen("agent A { model: \"m\" system_template: \"r\" }", Map.of())).contains("FROM THE FILE");
+        assertThat(systemPromptSeen("agent A { model: \"m\" system_template: \"r\" }", Map.of()))
+                .contains("FROM THE FILE");
     }
 
     @Test
     void r6_2_promptTextIsNotInterpretedAsLoom() throws IOException {
-        prompt("r.md", "agent Evil { model: \"x\" }\nworkflow Boom() { delegate \"x\" to Evil -> y }");
+        prompt(
+                "r.md",
+                "agent Evil { model: \"x\" }\nworkflow Boom() { delegate \"x\" to Evil -> y }");
 
         String seen = systemPromptSeen("agent A { model: \"m\" prompt: \"r\" }", Map.of());
 
@@ -201,10 +234,14 @@ class PromptFilesTest {
 
     @Test
     void r1_3_frontMatterIsReadOnThisModulesClasspath() throws IOException {
-        // the registry reads front matter itself: a YAML library at a version that does not match the one beside it must not matter
+        // the registry reads front matter itself: a YAML library at a version that does not match
+        // the one beside it must not matter
         prompt("r.md", "---\ndescription: Finds things\nvariables: [topic]\n---\nBody.");
 
-        var entry = new MarkdownFolderPromptRegistry(dir.resolve("prompts")).entry("r", "v1").orElseThrow();
+        var entry =
+                new MarkdownFolderPromptRegistry(dir.resolve("prompts"))
+                        .entry("r", "v1")
+                        .orElseThrow();
 
         assertThat(entry.description()).isEqualTo("Finds things");
         assertThat(entry.variables()).containsExactly("topic");
@@ -216,9 +253,12 @@ class PromptFilesTest {
     private String loadError(String agent, Map<String, String> pins, boolean withCatalog) {
         Harness h = new Harness(dir);
         try {
-            h.executor(agent, x -> {
-                if (withCatalog) x.setPromptCatalog(catalog(pins));
-            }).initialize();
+            h.executor(
+                            agent,
+                            x -> {
+                                if (withCatalog) x.setPromptCatalog(catalog(pins));
+                            })
+                    .initialize();
             return null;
         } catch (RuntimeException e) {
             return e.getMessage();
@@ -230,9 +270,13 @@ class PromptFilesTest {
         prompt("researcher/v1.md", "x");
         prompt("writer.md", "x");
 
-        String message = loadError("agent A { model: \"m\" prompt: \"reseacher\" }", Map.of(), true);
+        String message =
+                loadError("agent A { model: \"m\" prompt: \"reseacher\" }", Map.of(), true);
 
-        assertThat(message).contains("prompt reseacher has no file in").contains("did you mean researcher?").contains("reseacher.md");
+        assertThat(message)
+                .contains("prompt reseacher has no file in")
+                .contains("did you mean researcher?")
+                .contains("reseacher.md");
     }
 
     @Test
@@ -249,7 +293,8 @@ class PromptFilesTest {
     void r3_1_aBadCommandLinePinIsReportedAsOne() throws IOException {
         prompt("r/v1.md", "x");
 
-        String message = loadError("agent A { model: \"m\" prompt: \"r\" }", Map.of("r", "v9"), true);
+        String message =
+                loadError("agent A { model: \"m\" prompt: \"r\" }", Map.of("r", "v9"), true);
 
         assertThat(message).contains("no version v9").contains("pinned on the command line");
     }
@@ -258,7 +303,10 @@ class PromptFilesTest {
     void r3_3_usingPromptWithNoPromptFilesIsAnErrorThatSaysHowToSupplyThem() {
         String message = loadError("agent A { model: \"m\" prompt: \"r\" }", Map.of(), false);
 
-        assertThat(message).contains("needs a prompt registry or prompt files").contains("prompts/ folder").contains("--prompts");
+        assertThat(message)
+                .contains("needs a prompt registry or prompt files")
+                .contains("prompts/ folder")
+                .contains("--prompts");
     }
 
     @Test
@@ -275,12 +323,20 @@ class PromptFilesTest {
         prompt("r/v1.md", "ONE");
         prompt("r/v2.md", "TWO");
         Harness h = new Harness(dir);
-        var e = h.executor("agent A { model: \"m\" prompt: \"r\" }\n" + WORKFLOW + "\nagent B { model: \"m\" system: \"plain\" }",
-                x -> x.setPromptCatalog(catalog(Map.of())));
+        var e =
+                h.executor(
+                        "agent A { model: \"m\" prompt: \"r\" }\n"
+                                + WORKFLOW
+                                + "\nagent B { model: \"m\" system: \"plain\" }",
+                        x -> x.setPromptCatalog(catalog(Map.of())));
         e.initialize();
         e.executeWorkflow("Main", Map.of());
 
-        var start = h.trace.stream().filter(t -> t.type().equals("delegate_start")).findFirst().orElseThrow();
+        var start =
+                h.trace.stream()
+                        .filter(t -> t.type().equals("delegate_start"))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(start.data()).containsEntry("prompt", "r@v2");
         assertThat(start.data().get("promptHash")).asString().hasSize(12);
@@ -293,7 +349,11 @@ class PromptFilesTest {
         var e = h.ready("agent A { model: \"m\" system: \"s\" }\n" + WORKFLOW);
         e.executeWorkflow("Main", Map.of());
 
-        var start = h.trace.stream().filter(t -> t.type().equals("delegate_start")).findFirst().orElseThrow();
+        var start =
+                h.trace.stream()
+                        .filter(t -> t.type().equals("delegate_start"))
+                        .findFirst()
+                        .orElseThrow();
 
         assertThat(start.data()).doesNotContainKey("prompt");
     }

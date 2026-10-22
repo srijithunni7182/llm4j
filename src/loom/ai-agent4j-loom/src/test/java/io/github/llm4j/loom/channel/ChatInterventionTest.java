@@ -29,11 +29,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** People who may answer a chat may also steer, wrap up and cancel the runs going on in the same process; a reply to a question is still an answer. */
+/**
+ * People who may answer a chat may also steer, wrap up and cancel the runs going on in the same
+ * process; a reply to a question is still an answer.
+ */
 class ChatInterventionTest {
 
-    @TempDir
-    Path dir;
+    @TempDir Path dir;
 
     ChannelHarness h;
     final List<String> told = new ArrayList<>();
@@ -52,20 +54,36 @@ class ChatInterventionTest {
     }
 
     final class Scripted implements Channel {
-        public String name() { return "scripted"; }
-        public Sent send(String chat, Outgoing q) { return new Sent(chat, "x1", null); }
+        public String name() {
+            return "scripted";
+        }
+
+        public Sent send(String chat, Outgoing q) {
+            return new Sent(chat, "x1", null);
+        }
+
         public Batch poll(Duration wait) {
             List<Reply> now = List.copyOf(replies);
             replies.clear();
             return new Batch(now, "c");
         }
-        public void acknowledge(String cursor) { }
-        public void tell(String chat, String text) throws IOException { told.add(text); }
+
+        public void acknowledge(String cursor) {}
+
+        public void tell(String chat, String text) throws IOException {
+            told.add(text);
+        }
     }
 
     Listener listener() {
         Scripted channel = new Scripted();
-        return new Listener(channel, h.runtime.config(), h.pending, h.answers, new Dispatch(channel, h.runtime.config(), h.pending, h.clock), h.clock)
+        return new Listener(
+                        channel,
+                        h.runtime.config(),
+                        h.pending,
+                        h.answers,
+                        new Dispatch(channel, h.runtime.config(), h.pending, h.clock),
+                        h.clock)
                 .withCommands(InterventionCommands.forThisProcess());
     }
 
@@ -75,27 +93,40 @@ class ChatInterventionTest {
 
     /** A run whose one agent waits on the test inside its first model call. */
     LoomRun liveRun(String label) throws Exception {
-        LLMClient model = new LLMClient() {
-            @Override
-            public LLMResponse chat(LLMRequest request) {
-                entered.countDown();
-                try {
-                    release.await(10, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-                return LLMResponse.builder().content("```json\n{\"thought\": \"t\", \"final_answer\": \"done\"}\n```").model("m").build();
-            }
+        LLMClient model =
+                new LLMClient() {
+                    @Override
+                    public LLMResponse chat(LLMRequest request) {
+                        entered.countDown();
+                        try {
+                            release.await(10, TimeUnit.SECONDS);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                        return LLMResponse.builder()
+                                .content(
+                                        "```json\n{\"thought\": \"t\", \"final_answer\": \"done\"}\n```")
+                                .model("m")
+                                .build();
+                    }
 
-            @Override
-            public Stream<LLMResponse> chatStream(LLMRequest request) {
-                return Stream.of(chat(request));
-            }
-        };
-        HarnessExecutor ex = new HarnessExecutor(new LoomParser(new Lexer("""
+                    @Override
+                    public Stream<LLMResponse> chatStream(LLMRequest request) {
+                        return Stream.of(chat(request));
+                    }
+                };
+        HarnessExecutor ex =
+                new HarnessExecutor(
+                        new LoomParser(
+                                        new Lexer(
+                                                        """
                 agent Writer { model: "m" system: "You are Writer." tools: [calculator] steerable: true }
                 workflow Main() { delegate "write" to Writer -> out_text }
-                """).tokenize()).parseScript(), new ToolRegistry(), name -> model);
+                """)
+                                                .tokenize())
+                                .parseScript(),
+                        new ToolRegistry(),
+                        name -> model);
         ex.setJournal(RunJournal.inMemory());
         ex.initialize();
         LoomRun run = LoomRun.start(ex, label, "Main", Map.of(), "test");
@@ -113,8 +144,13 @@ class ChatInterventionTest {
         assertThat(told.get(0)).startsWith("Sent to Writer");
         release.countDown();
         assertThat(run.await(Duration.ofSeconds(10))).isTrue();
-        assertThat(run.executor().getJournal().all().values()).anyMatch(e -> "steer".equals(e.kind())
-                && String.valueOf(e.value()).contains("scripted:5550001") && String.valueOf(e.value()).contains("use the EU figures"));
+        assertThat(run.executor().getJournal().all().values())
+                .anyMatch(
+                        e ->
+                                "steer".equals(e.kind())
+                                        && String.valueOf(e.value()).contains("scripted:5550001")
+                                        && String.valueOf(e.value())
+                                                .contains("use the EU figures"));
     }
 
     @Test
@@ -123,15 +159,26 @@ class ChatInterventionTest {
         replies.add(new Channel.Reply("999", "999", "steer Writer take over", null, null, null));
         Listener.Summary s = listener().pollOnce(Duration.ZERO);
         assertThat(s.ignored()).isEqualTo(1);
-        assertThat(run.executor().getJournal().all().values()).noneMatch(e -> "steer".equals(e.kind()));
+        assertThat(run.executor().getJournal().all().values())
+                .noneMatch(e -> "steer".equals(e.kind()));
         release.countDown();
         assertThat(run.await(Duration.ofSeconds(10))).isTrue();
     }
 
     @Test
-    void aReplyThatIsOneOfAQuestionsChoicesIsAnAnswerEvenWhenItLooksLikeACommand() throws Exception {
+    void aReplyThatIsOneOfAQuestionsChoicesIsAnAnswerEvenWhenItLooksLikeACommand()
+            throws Exception {
         LoomRun run = liveRun("both-run");
-        assertThatThrownBy(() -> h.asker("/srv/runs/r").promptHuman("A/s0", "Go back?", new Hints(Hints.Kind.APPROVAL, List.of("keep", "repeat", "cancel"), null)))
+        assertThatThrownBy(
+                        () ->
+                                h.asker("/srv/runs/r")
+                                        .promptHuman(
+                                                "A/s0",
+                                                "Go back?",
+                                                new Hints(
+                                                        Hints.Kind.APPROVAL,
+                                                        List.of("keep", "repeat", "cancel"),
+                                                        null)))
                 .isInstanceOf(RunSuspended.class);
         String code = h.pending.find("/srv/runs/r", "A/s0").orElseThrow().code();
         replies.add(reply(code + " cancel"));
@@ -150,7 +197,13 @@ class ChatInterventionTest {
     }
 
     private String openQuestion(String step, List<String> choices) {
-        assertThatThrownBy(() -> h.asker("/srv/runs/r").promptHuman(step, "Q " + step, new Hints(Hints.Kind.PROMPT, choices, null)))
+        assertThatThrownBy(
+                        () ->
+                                h.asker("/srv/runs/r")
+                                        .promptHuman(
+                                                step,
+                                                "Q " + step,
+                                                new Hints(Hints.Kind.PROMPT, choices, null)))
                 .isInstanceOf(RunSuspended.class);
         return h.pending.find("/srv/runs/r", step).orElseThrow().code();
     }
@@ -163,7 +216,8 @@ class ChatInterventionTest {
         replies.add(toIt);
         listener().pollOnce(Duration.ZERO);
         assertThat(h.pending.get(code).orElseThrow().answer().text()).isEqualTo("pause");
-        assertThat(run.executor().getJournal().all().values()).noneMatch(e -> "pause".equals(e.kind()));
+        assertThat(run.executor().getJournal().all().values())
+                .noneMatch(e -> "pause".equals(e.kind()));
         release.countDown();
         assertThat(run.await(Duration.ofSeconds(10))).isTrue();
     }
@@ -174,7 +228,8 @@ class ChatInterventionTest {
         String code = openQuestion("A/s0", List.of("keep", "repeat", "cancel"));
         replies.add(reply("Cancel"));
         listener().pollOnce(Duration.ZERO);
-        assertThat(h.pending.get(code).orElseThrow().answer().text()).isEqualToIgnoringCase("cancel");
+        assertThat(h.pending.get(code).orElseThrow().answer().text())
+                .isEqualToIgnoringCase("cancel");
         assertThat(run.status()).isEqualTo(LoomRun.Status.RUNNING);
         release.countDown();
         assertThat(run.await(Duration.ofSeconds(10))).isTrue();
@@ -196,7 +251,14 @@ class ChatInterventionTest {
     @Test
     void aListenerWithNoCommandsTreatsEverythingAsAnAnswerOrAHelp() throws Exception {
         Scripted channel = new Scripted();
-        Listener plain = new Listener(channel, h.runtime.config(), h.pending, h.answers, new Dispatch(channel, h.runtime.config(), h.pending, h.clock), h.clock);
+        Listener plain =
+                new Listener(
+                        channel,
+                        h.runtime.config(),
+                        h.pending,
+                        h.answers,
+                        new Dispatch(channel, h.runtime.config(), h.pending, h.clock),
+                        h.clock);
         replies.add(reply("steer Writer hello"));
         plain.pollOnce(Duration.ZERO);
         assertThat(told).hasSize(1);

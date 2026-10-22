@@ -1,0 +1,15 @@
+{
+ "model": "jev-latest",
+ "state": "Your support team has been rude and useless",
+ "questions": {
+  "tone": {
+   "type": "score",
+   "instructions": "How hostile is the message?",
+   "criteria": [
+    "calm",
+    "annoyed",
+    "angry"
+   ]
+  }
+ }
+}

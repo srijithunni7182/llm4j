@@ -22,7 +22,8 @@ class LadderPolicyTest {
     static final long DAY = 86_400_000L;
     static final long NOW = 500 * DAY;
 
-    static final String SCRIPT = """
+    static final String SCRIPT =
+            """
             agent T { model: "m" system: "s" output_schema: { choice: string, reasoning: string } }
             measure agrees(c) = c.response.choice == c.proposal.choice
             ladder L(baseline) {
@@ -63,7 +64,12 @@ class LadderPolicyTest {
         m.put("at", V.num(NOW - daysAgo * DAY));
         m.put("proposal", V.rec(Map.of("choice", V.str(proposed))));
         m.put("response", V.rec(Map.of("choice", V.str(decided))));
-        for (int i = 0; i < kv.length; i += 2) m.put((String) kv[i], kv[i + 1] instanceof Number n ? V.num(n.doubleValue()) : V.str(String.valueOf(kv[i + 1])));
+        for (int i = 0; i < kv.length; i += 2)
+            m.put(
+                    (String) kv[i],
+                    kv[i + 1] instanceof Number n
+                            ? V.num(n.doubleValue())
+                            : V.str(String.valueOf(kv[i + 1])));
         return V.rec(m);
     }
 
@@ -71,7 +77,11 @@ class LadderPolicyTest {
     static V.Cs history(int agree, int disagree) {
         List<V.Rec> h = new ArrayList<>();
         int total = agree + disagree;
-        for (int i = 0; i < total; i++) h.add(i < agree ? c(total - i, "approve", "approve") : c(total - i, "approve", "reject"));
+        for (int i = 0; i < total; i++)
+            h.add(
+                    i < agree
+                            ? c(total - i, "approve", "approve")
+                            : c(total - i, "approve", "reject"));
         return V.cases(h);
     }
 
@@ -91,12 +101,14 @@ class LadderPolicyTest {
     void climbingNeedsTheWholeConditionAndNeverHoldsOnNoData() {
         LadderPolicy p = policy();
         assertThat(p.climbs(1, history(0, 0), NOW)).isFalse();
-        assertThat(p.climbs(1, history(9, 0), NOW)).isFalse();             // not enough cases
-        assertThat(p.climbs(1, history(10, 0), NOW)).isTrue();             // 10 of 10: lower bound 0.72
-        assertThat(p.climbs(1, history(6, 4), NOW)).isFalse();             // enough cases, too many disagreements
+        assertThat(p.climbs(1, history(9, 0), NOW)).isFalse(); // not enough cases
+        assertThat(p.climbs(1, history(10, 0), NOW)).isTrue(); // 10 of 10: lower bound 0.72
+        assertThat(p.climbs(1, history(6, 4), NOW))
+                .isFalse(); // enough cases, too many disagreements
         assertThat(p.climbs(2, history(19, 0), NOW)).isFalse();
-        assertThat(p.climbs(2, history(20, 0), NOW)).isTrue();             // lower bound 0.84, no dangerous cases
-        assertThat(p.climbs(0, history(100, 0), NOW)).isFalse();           // the first rung has no climb
+        assertThat(p.climbs(2, history(20, 0), NOW))
+                .isTrue(); // lower bound 0.84, no dangerous cases
+        assertThat(p.climbs(0, history(100, 0), NOW)).isFalse(); // the first rung has no climb
     }
 
     @Test
@@ -104,23 +116,24 @@ class LadderPolicyTest {
         LadderPolicy p = policy();
         List<V.Rec> h = new ArrayList<>(history(30, 0).cases());
         assertThat(p.climbs(2, V.cases(h), NOW)).isTrue();
-        h.add(c(0.5, "approve", "reject"));                                // the agent approved what the person rejected
+        h.add(c(0.5, "approve", "reject")); // the agent approved what the person rejected
         assertThat(p.climbs(2, V.cases(h), NOW)).isFalse();
     }
 
     @Test
     void slippingGoesToTheRungBelowOrTheOneNamedAndOnlyWhenTheConditionHolds() {
         LadderPolicy p = policy();
-        assertThat(p.slip(1, history(0, 10), NOW)).contains(0);            // default target: the rung below
+        assertThat(p.slip(1, history(0, 10), NOW)).contains(0); // default target: the rung below
         assertThat(p.slip(1, history(10, 0), NOW)).isEmpty();
-        assertThat(p.slip(1, history(0, 0), NOW)).isEmpty();               // no data, no demotion
-        assertThat(p.slip(0, history(0, 50), NOW)).isEmpty();              // the first rung has none
+        assertThat(p.slip(1, history(0, 0), NOW)).isEmpty(); // no data, no demotion
+        assertThat(p.slip(0, history(0, 50), NOW)).isEmpty(); // the first rung has none
         List<V.Rec> h = new ArrayList<>(history(30, 0).cases());
         h.add(c(0.4, "approve", "reject"));
-        assertThat(p.slip(2, V.cases(h), NOW)).isEmpty();                  // one dangerous mistake is not two
+        assertThat(p.slip(2, V.cases(h), NOW)).isEmpty(); // one dangerous mistake is not two
         h.add(c(0.3, "approve", "reject"));
-        assertThat(p.slip(2, V.cases(h), NOW)).contains(0);                // 'slip to watch': a comma list is 'or'
-        assertThat(p.slip(2, history(5, 15), NOW)).contains(0);            // second alternative: agreement under 50%
+        assertThat(p.slip(2, V.cases(h), NOW)).contains(0); // 'slip to watch': a comma list is 'or'
+        assertThat(p.slip(2, history(5, 15), NOW))
+                .contains(0); // second alternative: agreement under 50%
     }
 
     @Test
@@ -132,9 +145,11 @@ class LadderPolicyTest {
         assertThat(p.escalates(2, small, history(30, 0), NOW)).isFalse();
         List<V.Rec> busy = new ArrayList<>();
         for (int i = 0; i < 5; i++) busy.add(c(0.1 * i, "approve", "approve"));
-        assertThat(p.escalates(2, small, V.cases(busy), NOW)).isTrue();    // five cases in a day
-        assertThat(p.escalates(1, big, history(30, 0), NOW)).isFalse();    // the other rungs have no escalate
-        assertThat(p.escalates(2, c(0, "a", "b"), V.cases(List.of()), NOW)).isFalse();   // an unknown amount does not escalate by itself
+        assertThat(p.escalates(2, small, V.cases(busy), NOW)).isTrue(); // five cases in a day
+        assertThat(p.escalates(1, big, history(30, 0), NOW))
+                .isFalse(); // the other rungs have no escalate
+        assertThat(p.escalates(2, c(0, "a", "b"), V.cases(List.of()), NOW))
+                .isFalse(); // an unknown amount does not escalate by itself
     }
 
     @Test
@@ -147,7 +162,7 @@ class LadderPolicyTest {
             if (first) hits++;
         }
         assertThat(hits / 20_000.0).isBetween(0.23, 0.27);
-        assertThat(p.sampled(1, "run-1")).isFalse();                       // only rungs that name a share sample
+        assertThat(p.sampled(1, "run-1")).isFalse(); // only rungs that name a share sample
         assertThat(p.sampled(0, "run-1")).isFalse();
     }
 
@@ -174,18 +189,48 @@ class LadderPolicyTest {
         LadderPolicy a = policy();
         String same = a.rulesText();
         assertThat(policy().rulesText()).isEqualTo(same);
-        assertThat(same).contains("rung act").contains("mode: autonomous").contains("sample 25%").contains("climb when history.count >= 20");
+        assertThat(same)
+                .contains("rung act")
+                .contains("mode: autonomous")
+                .contains("sample 25%")
+                .contains("climb when history.count >= 20");
         assertThat(a.fingerprint()).isEqualTo(policy().fingerprint()).hasSize(64);
         DecisionDef d2;
-        LoomScript s = new LoomParser(new Lexer(SCRIPT.replace(">= 20 and", ">= 25 and")).tokenize()).parseScript();
-        assertThat(LadderPolicy.of(s, s.getDecisions().get(0)).fingerprint()).isNotEqualTo(a.fingerprint());
-        LoomScript t = new LoomParser(new Lexer(SCRIPT.replace("measure agrees(c) = c.response.choice == c.proposal.choice", "measure agrees(c) = true")).tokenize()).parseScript();
-        assertThat(LadderPolicy.of(t, t.getDecisions().get(0)).fingerprint()).isNotEqualTo(a.fingerprint());
-        LoomScript u = new LoomParser(new Lexer(SCRIPT.replace("ceiling: act", "ceiling: suggest")).tokenize()).parseScript();
-        assertThat(LadderPolicy.of(u, u.getDecisions().get(0)).fingerprint()).isNotEqualTo(a.fingerprint());
-        LoomScript v = new LoomParser(new Lexer(SCRIPT.replace("baseline: 200", "baseline: 300")).tokenize()).parseScript();
-        assertThat(LadderPolicy.of(v, v.getDecisions().get(0)).fingerprint()).isNotEqualTo(a.fingerprint());
-        LoomScript w = new LoomParser(new Lexer(SCRIPT.replace("remember: amount", "remember: amount")).tokenize()).parseScript();
-        assertThat(LadderPolicy.of(w, w.getDecisions().get(0)).fingerprint()).isEqualTo(a.fingerprint());
+        LoomScript s =
+                new LoomParser(new Lexer(SCRIPT.replace(">= 20 and", ">= 25 and")).tokenize())
+                        .parseScript();
+        assertThat(LadderPolicy.of(s, s.getDecisions().get(0)).fingerprint())
+                .isNotEqualTo(a.fingerprint());
+        LoomScript t =
+                new LoomParser(
+                                new Lexer(
+                                                SCRIPT.replace(
+                                                        "measure agrees(c) = c.response.choice == c.proposal.choice",
+                                                        "measure agrees(c) = true"))
+                                        .tokenize())
+                        .parseScript();
+        assertThat(LadderPolicy.of(t, t.getDecisions().get(0)).fingerprint())
+                .isNotEqualTo(a.fingerprint());
+        LoomScript u =
+                new LoomParser(
+                                new Lexer(SCRIPT.replace("ceiling: act", "ceiling: suggest"))
+                                        .tokenize())
+                        .parseScript();
+        assertThat(LadderPolicy.of(u, u.getDecisions().get(0)).fingerprint())
+                .isNotEqualTo(a.fingerprint());
+        LoomScript v =
+                new LoomParser(
+                                new Lexer(SCRIPT.replace("baseline: 200", "baseline: 300"))
+                                        .tokenize())
+                        .parseScript();
+        assertThat(LadderPolicy.of(v, v.getDecisions().get(0)).fingerprint())
+                .isNotEqualTo(a.fingerprint());
+        LoomScript w =
+                new LoomParser(
+                                new Lexer(SCRIPT.replace("remember: amount", "remember: amount"))
+                                        .tokenize())
+                        .parseScript();
+        assertThat(LadderPolicy.of(w, w.getDecisions().get(0)).fingerprint())
+                .isEqualTo(a.fingerprint());
     }
 }

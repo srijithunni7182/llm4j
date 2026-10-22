@@ -34,7 +34,17 @@ class RunSummariesTest {
         try (FleetFixtures f = new FleetFixtures().start()) {
             f.runStart("shop", "r1");
             JsonNode run = f.json("/api/runs").get("runs").get(0);
-            assertThat(run.fieldNames()).toIterable().contains("client", "traceId", "runId", "workflow", "status", "totals", "runningAgents", "incidents");
+            assertThat(run.fieldNames())
+                    .toIterable()
+                    .contains(
+                            "client",
+                            "traceId",
+                            "runId",
+                            "workflow",
+                            "status",
+                            "totals",
+                            "runningAgents",
+                            "incidents");
         }
     }
 }

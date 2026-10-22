@@ -1,16 +1,16 @@
 package io.github.llm4j.tools;
-import io.github.llm4j.agent.tool.EffectContext;
 
 import io.github.llm4j.agent.Tool;
+import io.github.llm4j.agent.tool.EffectContext;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
 import okhttp3.HttpUrl;
 
 /**
- * {@code tool Github { use: http  base_url: "https://api.github.com"  auth_header: "Authorization"
- * auth_value: env.TOKEN }}: lets an agent call a REST API that has no OpenAPI spec. The agent chooses a
- * path below the base URL (and a method, query and body); never the host or the headers.
+ * {@code tool Github { use: http base_url: "https://api.github.com" auth_header: "Authorization"
+ * auth_value: env.TOKEN }}: lets an agent call a REST API that has no OpenAPI spec. The agent
+ * chooses a path below the base URL (and a method, query and body); never the host or the headers.
  */
 public final class HttpKind extends GenericKind {
 
@@ -27,7 +27,15 @@ public final class HttpKind extends GenericKind {
     @Override
     public Set<String> optional() {
         Set<String> s = new HashSet<>(NetOptions.NAMES);
-        s.addAll(Set.of("methods", "allow_paths", "auth_header", "auth_query", "auth_value", "max_bytes", "follow_redirects"));
+        s.addAll(
+                Set.of(
+                        "methods",
+                        "allow_paths",
+                        "auth_header",
+                        "auth_query",
+                        "auth_value",
+                        "max_bytes",
+                        "follow_redirects"));
         return s;
     }
 
@@ -51,7 +59,9 @@ public final class HttpKind extends GenericKind {
         HttpTool.Config c = HttpTool.Config.parse(o);
         HttpUrl base = c.baseUrl();
         NetPolicy policy = new NetPolicy(c.net().rules(), NetPolicy.Resolver.SYSTEM, base.host());
-        HttpSupport http = new HttpSupport(policy, context, c.net().timeout(), c.maxBytes(), c.net().retries());
+        HttpSupport http =
+                new HttpSupport(
+                        policy, context, c.net().timeout(), c.maxBytes(), c.net().retries());
         return new HttpTool(name, c, http, redactor(o), context);
     }
 }

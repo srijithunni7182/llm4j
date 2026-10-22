@@ -27,9 +27,20 @@ final class TestTool implements Tool {
         return new TestTool(name, (a, n) -> result);
     }
 
-    @Override public String getName() { return name; }
-    @Override public String getDescription() { return "test tool " + name; }
-    @Override public boolean requiresApproval(Map<String, Object> args) { return approval; }
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public String getDescription() {
+        return "test tool " + name;
+    }
+
+    @Override
+    public boolean requiresApproval(Map<String, Object> args) {
+        return approval;
+    }
 
     @Override
     public String execute(Map<String, Object> args) throws Exception {

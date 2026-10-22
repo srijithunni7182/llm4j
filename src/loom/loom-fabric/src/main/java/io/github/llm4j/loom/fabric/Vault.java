@@ -24,12 +24,14 @@ import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
- * Fabric's own small encrypted store: the admin password and each client's key, AES-256-GCM, one file. The master key comes from a
- * file or an environment variable, never from the command line, and is stretched with PBKDF2. It holds the same kind of secret as a
- * Loom secret store and has the same trust model (encrypted at rest, the master key kept elsewhere), but it is Fabric's own format so
- * that the server needs no Loom runtime.
+ * Fabric's own small encrypted store: the admin password and each client's key, AES-256-GCM, one
+ * file. The master key comes from a file or an environment variable, never from the command line,
+ * and is stretched with PBKDF2. It holds the same kind of secret as a Loom secret store and has the
+ * same trust model (encrypted at rest, the master key kept elsewhere), but it is Fabric's own
+ * format so that the server needs no Loom runtime.
  *
- * <p>Names: {@code admin.password} and {@code client.<name>}. Values never appear in {@code toString}, in logs or in exceptions.
+ * <p>Names: {@code admin.password} and {@code client.<name>}. Values never appear in {@code
+ * toString}, in logs or in exceptions.
  */
 public final class Vault {
 
@@ -41,7 +43,8 @@ public final class Vault {
     private final Path file;
     private final SecretKey key;
     private final byte[] salt;
-    private final Map<String, String> entries = new LinkedHashMap<>(); // name to base64(iv + ciphertext)
+    private final Map<String, String> entries =
+            new LinkedHashMap<>(); // name to base64(iv + ciphertext)
     private long stamp; // the file as last read or written: its modification time and size
     private long checkedAt;
 
@@ -53,7 +56,8 @@ public final class Vault {
 
     /** Creates a new, empty vault; refuses to overwrite one. */
     public static Vault create(Path file, String masterKey) {
-        if (Files.exists(file)) throw new IllegalStateException("there is already a vault at " + file);
+        if (Files.exists(file))
+            throw new IllegalStateException("there is already a vault at " + file);
         byte[] salt = new byte[16];
         RANDOM.nextBytes(salt);
         Vault v = new Vault(file, salt, derive(masterKey, salt));
@@ -62,8 +66,9 @@ public final class Vault {
     }
 
     /**
-     * Picks up a change made by another process (the {@code fabric clients add} and {@code revoke} commands run apart from a running server), at most
-     * once a second: a revoked key must stop working without a restart.
+     * Picks up a change made by another process (the {@code fabric clients add} and {@code revoke}
+     * commands run apart from a running server), at most once a second: a revoked key must stop
+     * working without a restart.
      */
     private void refresh() {
         long now = System.nanoTime();
@@ -72,7 +77,8 @@ public final class Vault {
         long current = stampOf();
         if (current == stamp) return;
         try {
-            Map<String, Object> raw = JSON.readValue(Files.readAllBytes(file), new TypeReference<>() { });
+            Map<String, Object> raw =
+                    JSON.readValue(Files.readAllBytes(file), new TypeReference<>() {});
             @SuppressWarnings("unchecked")
             Map<String, String> stored = (Map<String, String>) raw.get("entries");
             entries.clear();
@@ -91,10 +97,14 @@ public final class Vault {
         }
     }
 
-    /** Opens an existing vault. A wrong master key is found on the first read, as an {@link IllegalStateException}. */
+    /**
+     * Opens an existing vault. A wrong master key is found on the first read, as an {@link
+     * IllegalStateException}.
+     */
     public static Vault open(Path file, String masterKey) {
         try {
-            Map<String, Object> raw = JSON.readValue(Files.readAllBytes(file), new TypeReference<>() { });
+            Map<String, Object> raw =
+                    JSON.readValue(Files.readAllBytes(file), new TypeReference<>() {});
             byte[] salt = Base64.getDecoder().decode((String) raw.get("salt"));
             Vault v = new Vault(file, salt, derive(masterKey, salt));
             @SuppressWarnings("unchecked")
@@ -103,14 +113,20 @@ public final class Vault {
             v.stamp = v.stampOf();
             return v;
         } catch (IOException e) {
-            throw new IllegalStateException("cannot read the vault " + file + ": " + e.getMessage(), e);
+            throw new IllegalStateException(
+                    "cannot read the vault " + file + ": " + e.getMessage(), e);
         }
     }
 
     private static SecretKey derive(String masterKey, byte[] salt) {
-        if (masterKey == null || masterKey.length() < 16) throw new IllegalArgumentException("the master key must be at least 16 characters");
+        if (masterKey == null || masterKey.length() < 16)
+            throw new IllegalArgumentException("the master key must be at least 16 characters");
         try {
-            byte[] k = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(new PBEKeySpec(masterKey.toCharArray(), salt, ITERATIONS, 256)).getEncoded();
+            byte[] k =
+                    SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+                            .generateSecret(
+                                    new PBEKeySpec(masterKey.toCharArray(), salt, ITERATIONS, 256))
+                            .getEncoded();
             return new SecretKeySpec(k, "AES");
         } catch (GeneralSecurityException e) {
             throw new IllegalStateException(e);
@@ -125,7 +141,9 @@ public final class Vault {
             RANDOM.nextBytes(iv);
             Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
             c.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(128, iv));
-            c.updateAAD(name.getBytes(StandardCharsets.UTF_8)); // a value cannot be moved to another name
+            c.updateAAD(
+                    name.getBytes(
+                            StandardCharsets.UTF_8)); // a value cannot be moved to another name
             byte[] ct = c.doFinal(value.getBytes(StandardCharsets.UTF_8));
             byte[] all = new byte[iv.length + ct.length];
             System.arraycopy(iv, 0, all, 0, iv.length);
@@ -149,7 +167,8 @@ public final class Vault {
             c.updateAAD(name.getBytes(StandardCharsets.UTF_8));
             return new String(c.doFinal(all, 12, all.length - 12), StandardCharsets.UTF_8);
         } catch (GeneralSecurityException e) {
-            throw new IllegalStateException("cannot decrypt '" + name + "': wrong master key, or the vault was changed");
+            throw new IllegalStateException(
+                    "cannot decrypt '" + name + "': wrong master key, or the vault was changed");
         }
     }
 
@@ -179,7 +198,8 @@ public final class Vault {
             } catch (UnsupportedOperationException ignored) {
                 // not a POSIX file system
             }
-            Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            Files.move(
+                    tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
             stamp = stampOf();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -191,7 +211,10 @@ public final class Vault {
         return "Vault[" + file + ", " + entries.size() + " entries]";
     }
 
-    /** A random key for a client: 32 random bytes, URL-safe, with a prefix so it is recognisable in a secret store. */
+    /**
+     * A random key for a client: 32 random bytes, URL-safe, with a prefix so it is recognisable in
+     * a secret store.
+     */
     public static String newClientKey() {
         byte[] b = new byte[32];
         RANDOM.nextBytes(b);

@@ -9,7 +9,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Every run a console knows about, keyed by the reporting process's name and the run's trace id. */
+/**
+ * Every run a console knows about, keyed by the reporting process's name and the run's trace id.
+ */
 public final class RunRegistry {
 
     private final Map<String, RunState> runs = new ConcurrentHashMap<>();
@@ -17,7 +19,10 @@ public final class RunRegistry {
     private volatile PriceBook prices = PriceBook.EMPTY;
     private volatile WindowBook windows = WindowBook.EMPTY;
 
-    /** Applies log records from one resource (one process instance). Records without a trace id are ignored. */
+    /**
+     * Applies log records from one resource (one process instance). Records without a trace id are
+     * ignored.
+     */
     public void applyLogs(Resource resource, List<LogRec> records) {
         for (LogRec r : records) {
             if (r.traceId() == null) continue;
@@ -33,7 +38,9 @@ public final class RunRegistry {
         }
     }
 
-    /** Gives a run its static graph (the workflows of its script), before or after its first event. */
+    /**
+     * Gives a run its static graph (the workflows of its script), before or after its first event.
+     */
     public void setGraph(String client, String traceId, Map<String, Object> graph) {
         state(client, traceId).setGraph(graph);
     }
@@ -43,39 +50,55 @@ public final class RunRegistry {
         state(client, traceId).setRules(rules);
     }
 
-    /** The model each agent of a run uses (from its snapshot), for costing steps from a price book. */
+    /**
+     * The model each agent of a run uses (from its snapshot), for costing steps from a price book.
+     */
     public void setModels(String client, String traceId, Map<String, String> models) {
         state(client, traceId).setModels(models);
     }
 
     /**
-     * Rules kept at the server: laid over each run's own rules, rule by rule, from now on (for runs already known too). An empty map removes them.
-     * Only the thresholds change what is flagged; a variable to watch for no_progress is still read by the process that owns the script.
+     * Rules kept at the server: laid over each run's own rules, rule by rule, from now on (for runs
+     * already known too). An empty map removes them. Only the thresholds change what is flagged; a
+     * variable to watch for no_progress is still read by the process that owns the script.
      */
     public void setCentralRules(Map<String, InspectRules> rules) {
         central = rules == null ? Map.of() : Map.copyOf(rules);
         for (RunState r : runs.values()) r.setCentralRules(central);
     }
 
-    /** Prices kept at the server: a step that reports tokens and no cost is costed from them, from now on. Costs already counted do not change. */
+    /**
+     * Prices kept at the server: a step that reports tokens and no cost is costed from them, from
+     * now on. Costs already counted do not change.
+     */
     public void setPrices(PriceBook book) {
         prices = book == null ? PriceBook.EMPTY : book;
         for (RunState r : runs.values()) r.setPrices(prices);
     }
 
-    /** Context windows kept at the server: an agent whose process did not report one gets one by its model, in every run, from now on. */
+    /**
+     * Context windows kept at the server: an agent whose process did not report one gets one by its
+     * model, in every run, from now on.
+     */
     public void setWindows(WindowBook book) {
         windows = book == null ? WindowBook.EMPTY : book;
         for (RunState r : runs.values()) r.setWindows(windows);
     }
 
-    /** What the runs known so far say they have: every agent, and each model with the agents that use it. For a page that offers them as choices. */
+    /**
+     * What the runs known so far say they have: every agent, and each model with the agents that
+     * use it. For a page that offers them as choices.
+     */
     public Map<String, Object> catalog() {
         java.util.Set<String> agents = new java.util.TreeSet<>();
         Map<String, java.util.Set<String>> models = new java.util.TreeMap<>();
         for (RunState r : runs.values()) {
             agents.addAll(r.agentNames());
-            r.models().forEach((agent, model) -> models.computeIfAbsent(model, k -> new java.util.TreeSet<>()).add(agent));
+            r.models()
+                    .forEach(
+                            (agent, model) ->
+                                    models.computeIfAbsent(model, k -> new java.util.TreeSet<>())
+                                            .add(agent));
         }
         List<Map<String, Object>> modelRows = new ArrayList<>();
         models.forEach((m, a) -> modelRows.add(Map.of("model", m, "agents", List.copyOf(a))));
@@ -83,8 +106,10 @@ public final class RunRegistry {
     }
 
     /**
-     * Every tool of every run (or of one client's runs), merged into one account per tool and listed with the failing ones first, then the degraded, then
-     * by the number of calls: the data of a tools-centric view. The thresholds are the defaults with the central {@code *} block laid over them.
+     * Every tool of every run (or of one client's runs), merged into one account per tool and
+     * listed with the failing ones first, then the degraded, then by the number of calls: the data
+     * of a tools-centric view. The thresholds are the defaults with the central {@code *} block
+     * laid over them.
      */
     public List<ToolSummary> toolRollup(String client) {
         InspectRules all = central.get("*");
@@ -92,26 +117,35 @@ public final class RunRegistry {
         Map<String, ToolSummary> merged = new java.util.TreeMap<>();
         for (RunState r : runs.values()) {
             if (client != null && !client.equals(r.client())) continue;
-            for (ToolSummary s : r.toolSummaries()) merged.merge(s.kind() + ":" + s.name(), s, (a, b) -> a.merge(b, t));
+            for (ToolSummary s : r.toolSummaries())
+                merged.merge(s.kind() + ":" + s.name(), s, (a, b) -> a.merge(b, t));
         }
         List<ToolSummary> out = new ArrayList<>(merged.values());
-        out.sort((a, b) -> {
-            int c = Integer.compare(ToolHealth.rank(b.state()), ToolHealth.rank(a.state()));
-            if (c != 0) return c;
-            c = Long.compare(b.calls(), a.calls());
-            return c != 0 ? c : a.name().compareTo(b.name());
-        });
+        out.sort(
+                (a, b) -> {
+                    int c = Integer.compare(ToolHealth.rank(b.state()), ToolHealth.rank(a.state()));
+                    if (c != 0) return c;
+                    c = Long.compare(b.calls(), a.calls());
+                    return c != 0 ? c : a.name().compareTo(b.name());
+                });
         return out;
     }
 
-    /** What each agent of a run can reach (from the static audit of its script), so the security view can show it next to what was done. */
-    public void setSecurityProfile(String client, String traceId, java.util.function.Supplier<List<Map<String, Object>>> profile) {
+    /**
+     * What each agent of a run can reach (from the static audit of its script), so the security
+     * view can show it next to what was done.
+     */
+    public void setSecurityProfile(
+            String client,
+            String traceId,
+            java.util.function.Supplier<List<Map<String, Object>>> profile) {
         state(client, traceId).setSecurityProfile(profile);
     }
 
     /**
-     * The security counts of every run, added up (or of one client's): agents that used all three legs of the lethal trifecta (and those accepted),
-     * suspect results, refused access, unknown tools, refused approvals, and what the guards did.
+     * The security counts of every run, added up (or of one client's): agents that used all three
+     * legs of the lethal trifecta (and those accepted), suspect results, refused access, unknown
+     * tools, refused approvals, and what the guards did.
      */
     public Map<String, Long> securityRollup(String client) {
         Map<String, Long> total = new java.util.LinkedHashMap<>();
@@ -123,8 +157,10 @@ public final class RunRegistry {
     }
 
     /**
-     * The tools and tasks of every run (or one client's) for a fleet view: each row is a {@link ToolSummary} as a map, plus the agents that use it and, when it has
-     * ever failed, the run it last failed in ({@code lastRun}: client, trace id, time, category); and the number of rows in each health state. Failing first.
+     * The tools and tasks of every run (or one client's) for a fleet view: each row is a {@link
+     * ToolSummary} as a map, plus the agents that use it and, when it has ever failed, the run it
+     * last failed in ({@code lastRun}: client, trace id, time, category); and the number of rows in
+     * each health state. Failing first.
      */
     public Map<String, Object> toolRows(String client) {
         List<ToolSummary> rollup = toolRollup(client);
@@ -135,7 +171,8 @@ public final class RunRegistry {
                 if (s.lastFailureAt() == null) continue;
                 String key = s.kind() + ":" + s.name();
                 Map<String, Object> best = last.get(key);
-                if (best == null || s.lastFailureAt().compareTo(String.valueOf(best.get("at"))) > 0) {
+                if (best == null
+                        || s.lastFailureAt().compareTo(String.valueOf(best.get("at"))) > 0) {
                     Map<String, Object> m = new java.util.LinkedHashMap<>();
                     m.put("client", r.client());
                     m.put("traceId", r.traceId());
@@ -145,19 +182,23 @@ public final class RunRegistry {
                 }
             }
         }
-        // the last ten outcomes of a tool across runs: each run's own last ten, oldest run first (a merged summary has none of its own)
+        // the last ten outcomes of a tool across runs: each run's own last ten, oldest run first (a
+        // merged summary has none of its own)
         List<RunState> oldestFirst = new ArrayList<>();
-        for (RunState r : runs.values()) if (client == null || client.equals(r.client())) oldestFirst.add(r);
-        oldestFirst.sort((a, b) -> {
-            java.time.Instant x = a.lastEventAt();
-            java.time.Instant y = b.lastEventAt();
-            if (x == null || y == null) return x == y ? 0 : x == null ? -1 : 1;
-            return x.compareTo(y);
-        });
+        for (RunState r : runs.values())
+            if (client == null || client.equals(r.client())) oldestFirst.add(r);
+        oldestFirst.sort(
+                (a, b) -> {
+                    java.time.Instant x = a.lastEventAt();
+                    java.time.Instant y = b.lastEventAt();
+                    if (x == null || y == null) return x == y ? 0 : x == null ? -1 : 1;
+                    return x.compareTo(y);
+                });
         Map<String, List<String>> recent = new java.util.HashMap<>();
         for (RunState r : oldestFirst) {
             for (ToolSummary s : r.toolSummaries()) {
-                List<String> all = recent.computeIfAbsent(s.kind() + ":" + s.name(), k -> new ArrayList<>());
+                List<String> all =
+                        recent.computeIfAbsent(s.kind() + ":" + s.name(), k -> new ArrayList<>());
                 all.addAll(s.recent());
                 while (all.size() > 10) all.remove(0);
             }
@@ -166,7 +207,8 @@ public final class RunRegistry {
         for (long b : ToolSummary.BOUNDS) bounds.add(b);
         List<Map<String, Object>> rows = new ArrayList<>();
         Map<String, Long> counts = new java.util.LinkedHashMap<>();
-        for (String state : List.of("failing", "degraded", "healthy", "unused")) counts.put(state, 0L);
+        for (String state : List.of("failing", "degraded", "healthy", "unused"))
+            counts.put(state, 0L);
         for (ToolSummary s : rollup) {
             Map<String, Object> m = new java.util.LinkedHashMap<>(s.toMap());
             m.put("agents", new ArrayList<>(s.byAgent().keySet()));
@@ -183,33 +225,42 @@ public final class RunRegistry {
         return out;
     }
 
-    /** How many tools and tasks, across every run, are failing now: what the Tools & tasks tab shows. */
+    /**
+     * How many tools and tasks, across every run, are failing now: what the Tools & tasks tab
+     * shows.
+     */
     public long toolsFailing() {
         return toolRollup(null).stream().filter(s -> "failing".equals(s.state())).count();
     }
 
     /** The agent rows listed on a security page, and the open incidents shown on it. */
     public static final int SECURITY_AGENTS = 200;
+
     public static final int SECURITY_INCIDENTS = 100;
 
     /**
-     * The security picture across runs (or one client's): the added-up counts, the agents whose verdict matters (exercised, accepted or armed), and the open
-     * security incidents, newest run first and bounded.
+     * The security picture across runs (or one client's): the added-up counts, the agents whose
+     * verdict matters (exercised, accepted or armed), and the open security incidents, newest run
+     * first and bounded.
      */
     public Map<String, Object> securityOverview(String client) {
         List<RunState> newestFirst = new ArrayList<>();
-        for (RunState r : runs.values()) if (client == null || client.equals(r.client())) newestFirst.add(r);
-        newestFirst.sort((a, b) -> {
-            java.time.Instant x = a.lastEventAt();
-            java.time.Instant y = b.lastEventAt();
-            if (x == null || y == null) return x == y ? 0 : x == null ? 1 : -1;
-            return y.compareTo(x);
-        });
+        for (RunState r : runs.values())
+            if (client == null || client.equals(r.client())) newestFirst.add(r);
+        newestFirst.sort(
+                (a, b) -> {
+                    java.time.Instant x = a.lastEventAt();
+                    java.time.Instant y = b.lastEventAt();
+                    if (x == null || y == null) return x == y ? 0 : x == null ? 1 : -1;
+                    return y.compareTo(x);
+                });
         List<Map<String, Object>> agents = new ArrayList<>();
         List<Map<String, Object>> incidents = new ArrayList<>();
         for (RunState r : newestFirst) {
-            for (Map<String, Object> a : r.securityAgents()) if (agents.size() < SECURITY_AGENTS) agents.add(a);
-            for (Map<String, Object> i : r.securityIncidents()) if (incidents.size() < SECURITY_INCIDENTS) incidents.add(i);
+            for (Map<String, Object> a : r.securityAgents())
+                if (agents.size() < SECURITY_AGENTS) agents.add(a);
+            for (Map<String, Object> i : r.securityIncidents())
+                if (incidents.size() < SECURITY_INCIDENTS) incidents.add(i);
         }
         Map<String, Object> out = new java.util.LinkedHashMap<>();
         out.put("counts", securityRollup(client));
@@ -219,7 +270,10 @@ public final class RunRegistry {
     }
 
     /** Gives a run the way to read its decision ladders. */
-    public void setLadders(String client, String traceId, java.util.function.Supplier<List<Map<String, Object>>> ladders) {
+    public void setLadders(
+            String client,
+            String traceId,
+            java.util.function.Supplier<List<Map<String, Object>>> ladders) {
         state(client, traceId).setLadders(ladders);
     }
 
@@ -227,9 +281,13 @@ public final class RunRegistry {
         return Optional.ofNullable(runs.get(client + "/" + traceId));
     }
 
-    /** The run a process reported under its own run id (the one in {@code weave}'s run directory). */
+    /**
+     * The run a process reported under its own run id (the one in {@code weave}'s run directory).
+     */
     public Optional<RunState> findByRunId(String client, String runId) {
-        return runs.values().stream().filter(r -> r.client().equals(client) && runId.equals(r.runId())).findFirst();
+        return runs.values().stream()
+                .filter(r -> r.client().equals(client) && runId.equals(r.runId()))
+                .findFirst();
     }
 
     /** The run with this trace id, whichever process reported it. */
@@ -241,7 +299,10 @@ public final class RunRegistry {
     public List<Map<String, Object>> summaries() {
         List<Map<String, Object>> out = new ArrayList<>();
         for (RunState r : runs.values()) out.add(r.summary());
-        out.sort((x, y) -> String.valueOf(y.get("lastEventAt")).compareTo(String.valueOf(x.get("lastEventAt"))));
+        out.sort(
+                (x, y) ->
+                        String.valueOf(y.get("lastEventAt"))
+                                .compareTo(String.valueOf(x.get("lastEventAt"))));
         return out;
     }
 
@@ -256,28 +317,37 @@ public final class RunRegistry {
         String key = client + "/" + traceId;
         RunState existing = runs.get(key);
         if (existing != null) return existing;
-        RunState created = runs.computeIfAbsent(key, k -> {
-            RunState r = new RunState(client, traceId);
-            r.setCentralRules(central);
-            r.setPrices(prices);
-            r.setWindows(windows);
-            return r;
-        });
+        RunState created =
+                runs.computeIfAbsent(
+                        key,
+                        k -> {
+                            RunState r = new RunState(client, traceId);
+                            r.setCentralRules(central);
+                            r.setPrices(prices);
+                            r.setWindows(windows);
+                            return r;
+                        });
         evict();
         return created;
     }
 
-    /** Most finished runs kept in memory; older ones go (a server still has them in its history). Running, sleeping and paused runs never go. */
+    /**
+     * Most finished runs kept in memory; older ones go (a server still has them in its history).
+     * Running, sleeping and paused runs never go.
+     */
     static final int MAX_FINISHED = 50;
 
     private void evict() {
         List<RunState> done = new ArrayList<>();
         for (RunState r : runs.values()) {
             RunState.Status st = r.status();
-            if (st == RunState.Status.FINISHED || st == RunState.Status.FAILED || st == RunState.Status.STOPPED) done.add(r);
+            if (st == RunState.Status.FINISHED
+                    || st == RunState.Status.FAILED
+                    || st == RunState.Status.STOPPED) done.add(r);
         }
         if (done.size() <= MAX_FINISHED) return;
         done.sort((a, b) -> Long.compare(a.lastEventNanos(), b.lastEventNanos()));
-        for (int i = 0; i < done.size() - MAX_FINISHED; i++) runs.remove(done.get(i).client() + "/" + done.get(i).traceId());
+        for (int i = 0; i < done.size() - MAX_FINISHED; i++)
+            runs.remove(done.get(i).client() + "/" + done.get(i).traceId());
     }
 }

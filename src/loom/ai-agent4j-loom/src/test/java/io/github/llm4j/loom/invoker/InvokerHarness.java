@@ -25,38 +25,46 @@ import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 
 /**
- * What the invoker-credential tests share: a downstream API on localhost that records what it is sent, an OpenAPI description of it, and a
- * model that answers from a script, one agent at a time.
+ * What the invoker-credential tests share: a downstream API on localhost that records what it is
+ * sent, an OpenAPI description of it, and a model that answers from a script, one agent at a time.
  */
 final class InvokerHarness implements AutoCloseable {
 
     /** An agent that reads {@code Refunds} with the token of whoever runs the workflow. */
-    static final String SCRIPT = """
+    static final String SCRIPT =
+            """
             tool Refunds { use: openapi  spec: "refunds.json"  auth_header: "Authorization"  auth_value: invoker.token }
             agent Scout { model: "m"  system: "You are Scout."  tools: [Refunds] }
             workflow Main() { delegate "refunds?" to Scout -> x }
             """;
 
     final MockWebServer api = new MockWebServer();
-    final List<RecordedRequest> requests = Collections.synchronizedList(new java.util.ArrayList<>());
+    final List<RecordedRequest> requests =
+            Collections.synchronizedList(new java.util.ArrayList<>());
+
     /** Every message of every model call, so tests can look for what must never be there. */
     final List<String> modelSaw = Collections.synchronizedList(new java.util.ArrayList<>());
-    private volatile Function<RecordedRequest, MockResponse> responder = r -> new MockResponse().setBody("{}");
+
+    private volatile Function<RecordedRequest, MockResponse> responder =
+            r -> new MockResponse().setBody("{}");
     private final Map<String, Deque<String>> answers = new ConcurrentHashMap<>();
     private volatile Function<List<String>, String> thinking;
     final Path dir;
 
     InvokerHarness(Path dir) throws IOException {
         this.dir = dir;
-        api.setDispatcher(new Dispatcher() {
-            @Override
-            public MockResponse dispatch(RecordedRequest request) {
-                requests.add(request);
-                return responder.apply(request);
-            }
-        });
+        api.setDispatcher(
+                new Dispatcher() {
+                    @Override
+                    public MockResponse dispatch(RecordedRequest request) {
+                        requests.add(request);
+                        return responder.apply(request);
+                    }
+                });
         api.start();
-        Files.writeString(dir.resolve("refunds.json"), """
+        Files.writeString(
+                dir.resolve("refunds.json"),
+                """
                 {"openapi": "3.0.0", "info": {"title": "Refunds", "version": "1"},
                  "servers": [{"url": "%s"}],
                  "paths": {"/refunds": {
@@ -64,7 +72,8 @@ final class InvokerHarness implements AutoCloseable {
                       "parameters": [{"name": "who", "in": "query", "schema": {"type": "string"}}],
                       "responses": {"200": {"description": "ok"}}},
                     "post": {"summary": "Create a refund", "responses": {"200": {"description": "ok"}}}}}}
-                """.formatted(api.url("/").toString().replaceAll("/$", "")));
+                """
+                        .formatted(api.url("/").toString().replaceAll("/$", "")));
     }
 
     InvokerHarness respond(Function<RecordedRequest, MockResponse> responder) {
@@ -78,14 +87,23 @@ final class InvokerHarness implements AutoCloseable {
         return this;
     }
 
-    /** Every agent answers by looking at the whole conversation (for tests where several runs share the model). */
+    /**
+     * Every agent answers by looking at the whole conversation (for tests where several runs share
+     * the model).
+     */
     InvokerHarness thinks(Function<List<String>, String> thinking) {
         this.thinking = thinking;
         return this;
     }
 
     static String call(String tool, String inputJson) {
-        return "```json\n{\"thought\": \"use " + tool + "\", \"action\": \"" + tool + "\", \"action_input\": " + inputJson + "}\n```";
+        return "```json\n{\"thought\": \"use "
+                + tool
+                + "\", \"action\": \""
+                + tool
+                + "\", \"action_input\": "
+                + inputJson
+                + "}\n```";
     }
 
     static String done(String answer) {
@@ -93,7 +111,11 @@ final class InvokerHarness implements AutoCloseable {
     }
 
     static String listRefunds(String who) {
-        return call("Refunds", "{\"endpoint\": \"/refunds\", \"method\": \"GET\", \"parameters\": {\"who\": \"" + who + "\"}}");
+        return call(
+                "Refunds",
+                "{\"endpoint\": \"/refunds\", \"method\": \"GET\", \"parameters\": {\"who\": \""
+                        + who
+                        + "\"}}");
     }
 
     private LLMClient model() {
@@ -104,7 +126,9 @@ final class InvokerHarness implements AutoCloseable {
                 r.getMessages().forEach(m -> modelSaw.add(m.getContent()));
                 String reply = null;
                 if (thinking != null) {
-                    reply = thinking.apply(r.getMessages().stream().map(m -> m.getContent()).toList());
+                    reply =
+                            thinking.apply(
+                                    r.getMessages().stream().map(m -> m.getContent()).toList());
                 }
                 for (Map.Entry<String, Deque<String>> e : answers.entrySet()) {
                     if (thinking == null && system.contains("You are " + e.getKey() + ".")) {
@@ -113,7 +137,11 @@ final class InvokerHarness implements AutoCloseable {
                         }
                     }
                 }
-                return LLMResponse.builder().content(reply != null ? reply : done("ok")).model("m").tokenUsage(10, 5, 15).build();
+                return LLMResponse.builder()
+                        .content(reply != null ? reply : done("ok"))
+                        .model("m")
+                        .tokenUsage(10, 5, 15)
+                        .build();
             }
 
             @Override

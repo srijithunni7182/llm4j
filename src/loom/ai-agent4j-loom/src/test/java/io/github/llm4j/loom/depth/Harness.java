@@ -26,8 +26,8 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
- * Executors over one scripted model that records every request; an audit log and a trace captured as
- * lists; embeddings from {@link HashingEmbeddingProvider}; an injected environment.
+ * Executors over one scripted model that records every request; an audit log and a trace captured
+ * as lists; embeddings from {@link HashingEmbeddingProvider}; an injected environment.
  */
 final class Harness {
 
@@ -47,11 +47,19 @@ final class Harness {
     }
 
     static String call(String tool, String inputJson) {
-        return "```json\n{\"thought\": \"use " + tool + "\", \"action\": \"" + tool + "\", \"action_input\": " + inputJson + "}\n```";
+        return "```json\n{\"thought\": \"use "
+                + tool
+                + "\", \"action\": \""
+                + tool
+                + "\", \"action_input\": "
+                + inputJson
+                + "}\n```";
     }
 
     static String done(String answer) {
-        return "```json\n{\"thought\": \"t\", \"final_answer\": \"" + answer.replace("\"", "\\\"") + "\"}\n```";
+        return "```json\n{\"thought\": \"t\", \"final_answer\": \""
+                + answer.replace("\"", "\\\"")
+                + "\"}\n```";
     }
 
     Harness answers(String... next) {
@@ -67,7 +75,11 @@ final class Harness {
                 models.add(model);
                 int i = answered.getAndIncrement();
                 String content = i < answers.size() ? answers.get(i) : done("ok");
-                return LLMResponse.builder().content(content).model(model).tokenUsage(10, 5, 15).build();
+                return LLMResponse.builder()
+                        .content(content)
+                        .model(model)
+                        .tokenUsage(10, 5, 15)
+                        .build();
             }
 
             @Override
@@ -81,7 +93,8 @@ final class Harness {
     String seen() {
         StringBuilder sb = new StringBuilder();
         synchronized (requests) {
-            for (LLMRequest r : requests) r.getMessages().forEach(m -> sb.append(m.getContent()).append('\n'));
+            for (LLMRequest r : requests)
+                r.getMessages().forEach(m -> sb.append(m.getContent()).append('\n'));
         }
         return sb.toString();
     }
@@ -96,23 +109,36 @@ final class Harness {
         return executor(source, this::client, configure);
     }
 
-    HarnessExecutor executor(String source, LLMClientFactory factory, Consumer<HarnessExecutor> configure) {
-        HarnessExecutor e = new HarnessExecutor(new LoomParser(new Lexer(source).tokenize()).parseScript(), tools, factory);
+    HarnessExecutor executor(
+            String source, LLMClientFactory factory, Consumer<HarnessExecutor> configure) {
+        HarnessExecutor e =
+                new HarnessExecutor(
+                        new LoomParser(new Lexer(source).tokenize()).parseScript(), tools, factory);
         e.setBaseDir(dir);
         e.setEnvLookup(env::get);
         e.setEmbeddingFactory(model -> new HashingEmbeddingProvider());
         e.setHumanInterface(message -> "yes");
         if (journal != null) e.setJournal(journal);
-        e.setAuditLogger(new AuditLogger() {
-            @Override public void logAgentDecision(AuditEvent event) { }
-            @Override public void logToolExecution(String s, String t, String i, String o, Instant ts) {
-                audit.add("tool " + t);
-            }
-            @Override public void logPromptUsage(String s, String p, String v, Instant ts) { }
-            @Override public void logConversationEvent(String s, String u, String type, Map<String, Object> data) {
-                audit.add(type + " " + data);
-            }
-        });
+        e.setAuditLogger(
+                new AuditLogger() {
+                    @Override
+                    public void logAgentDecision(AuditEvent event) {}
+
+                    @Override
+                    public void logToolExecution(
+                            String s, String t, String i, String o, Instant ts) {
+                        audit.add("tool " + t);
+                    }
+
+                    @Override
+                    public void logPromptUsage(String s, String p, String v, Instant ts) {}
+
+                    @Override
+                    public void logConversationEvent(
+                            String s, String u, String type, Map<String, Object> data) {
+                        audit.add(type + " " + data);
+                    }
+                });
         e.addTraceListener(trace::add);
         if (configure != null) configure.accept(e);
         return e;
@@ -127,9 +153,18 @@ final class Harness {
     /** A tool that records its calls. */
     static Tool recording(String name, List<Map<String, Object>> calls, String reply) {
         return new Tool() {
-            @Override public String getName() { return name; }
-            @Override public String getDescription() { return "test tool " + name; }
-            @Override public String execute(Map<String, Object> args) {
+            @Override
+            public String getName() {
+                return name;
+            }
+
+            @Override
+            public String getDescription() {
+                return "test tool " + name;
+            }
+
+            @Override
+            public String execute(Map<String, Object> args) {
                 calls.add(args);
                 return reply;
             }

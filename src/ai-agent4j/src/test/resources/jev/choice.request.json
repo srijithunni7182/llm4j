@@ -1,0 +1,15 @@
+{
+ "model": "jev-latest",
+ "state": "I want my money back for order 8812, the item arrived broken",
+ "questions": {
+  "intent": {
+   "type": "choice",
+   "instructions": "What does the customer want?",
+   "criteria": {
+    "refund": "The customer wants money back or a return/refund processed",
+    "order_status": "The customer asks where an order is or when it will arrive",
+    "other": "other"
+   }
+  }
+ }
+}

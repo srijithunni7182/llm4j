@@ -11,32 +11,43 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * What can be measured from the text of a run while the text is still in the process, so the console can raise an incident without ever
- * being sent the text: a short hash of a tool call, a short hash of an answer, and how many of the figures an answer states appear in
- * nothing the step was given or fetched.
+ * What can be measured from the text of a run while the text is still in the process, so the
+ * console can raise an incident without ever being sent the text: a short hash of a tool call, a
+ * short hash of an answer, and how many of the figures an answer states appear in nothing the step
+ * was given or fetched.
  *
- * <p>The figure check is a heuristic and says only "no source found", never "false": a number that was computed, rounded or said in
- * words will count as ungrounded. That is why the incident built on it is labelled suspect.
+ * <p>The figure check is a heuristic and says only "no source found", never "false": a number that
+ * was computed, rounded or said in words will count as ungrounded. That is why the incident built
+ * on it is labelled suspect.
  */
 public final class Signals {
 
-    private static final Pattern NUMBER = Pattern.compile("(?<![\\w.])(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?)(%?)");
+    private static final Pattern NUMBER =
+            Pattern.compile("(?<![\\w.])(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?)(%?)");
     private static final int CORPUS_LIMIT = 400_000;
     private static final int EXAMPLES = 5;
 
-    private Signals() { }
+    private Signals() {}
 
-    /** Twelve hex characters of SHA-256: enough to tell two things apart, not enough to read anything back. */
+    /**
+     * Twelve hex characters of SHA-256: enough to tell two things apart, not enough to read
+     * anything back.
+     */
     public static String hash(String text) {
         try {
-            byte[] d = MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8));
+            byte[] d =
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(text.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(d, 0, 6);
         } catch (java.security.GeneralSecurityException e) {
             throw new IllegalStateException(e);
         }
     }
 
-    /** A tool call: the tool and its input, with whitespace made uniform so a re-spaced call is the same call. */
+    /**
+     * A tool call: the tool and its input, with whitespace made uniform so a re-spaced call is the
+     * same call.
+     */
     public static String actionHash(String tool, String input) {
         return hash(tool + "\u0000" + squash(input));
     }
@@ -50,13 +61,17 @@ public final class Signals {
         return s == null ? "" : s.strip().replaceAll("\\s+", " ");
     }
 
-    /** What a step was given and fetched: the task, each tool input, each tool result. Bounded, so a huge page cannot grow it without limit. */
+    /**
+     * What a step was given and fetched: the task, each tool input, each tool result. Bounded, so a
+     * huge page cannot grow it without limit.
+     */
     public static final class Corpus {
         private final StringBuilder text = new StringBuilder();
 
         public void add(String more) {
             if (more == null || text.length() >= CORPUS_LIMIT) return;
-            text.append(more, 0, Math.min(more.length(), CORPUS_LIMIT - text.length())).append('\n');
+            text.append(more, 0, Math.min(more.length(), CORPUS_LIMIT - text.length()))
+                    .append('\n');
         }
 
         Set<String> figures() {
@@ -65,21 +80,28 @@ public final class Signals {
     }
 
     /** The result of checking an answer against a corpus. */
-    public record Grounding(int figures, int ungrounded, List<String> examples) { }
+    public record Grounding(int figures, int ungrounded, List<String> examples) {}
 
-    /** How many distinct figures {@code answer} states and how many of them appear nowhere in {@code corpus}. */
+    /**
+     * How many distinct figures {@code answer} states and how many of them appear nowhere in {@code
+     * corpus}.
+     */
     public static Grounding ground(String answer, Corpus corpus) {
         Set<String> stated = figuresIn(answer);
         if (stated.isEmpty()) return new Grounding(0, 0, List.of());
         Set<String> known = corpus.figures();
         List<String> missing = new ArrayList<>();
         for (String f : stated) if (!known.contains(f)) missing.add(f);
-        return new Grounding(stated.size(), missing.size(), missing.subList(0, Math.min(EXAMPLES, missing.size())));
+        return new Grounding(
+                stated.size(),
+                missing.size(),
+                missing.subList(0, Math.min(EXAMPLES, missing.size())));
     }
 
     /**
-     * The figures in a text, as comparable strings: commas dropped, a percent sign kept. A bare one-digit number is not a figure (it is
-     * "step 2", "3 findings"); anything longer, with a decimal point, a thousands comma or a percent sign is.
+     * The figures in a text, as comparable strings: commas dropped, a percent sign kept. A bare
+     * one-digit number is not a figure (it is "step 2", "3 findings"); anything longer, with a
+     * decimal point, a thousands comma or a percent sign is.
      */
     static Set<String> figuresIn(String text) {
         Set<String> out = new LinkedHashSet<>();
