@@ -38,6 +38,12 @@ final class GraphCommand implements Callable<Integer> {
     @Option(names = "--workflow", description = "Only this workflow.")
     String workflow;
 
+    @Option(
+            names = "--run",
+            description =
+                    "A run directory to draw on the graph: how often each statement ran, the edges taken, what was chosen, and (with several runs) the statements none reached (repeatable).")
+    List<File> runs = new java.util.ArrayList<>();
+
     @picocli.CommandLine.Mixin PromptOptions promptOptions = new PromptOptions();
 
     @Override
@@ -85,10 +91,37 @@ final class GraphCommand implements Callable<Integer> {
                             result.runBudget(),
                             result.diagnostics());
         }
+        io.github.llm4j.loom.overlay.RunOverlay.Overlay overlay = null;
+        if (!c.runs.isEmpty()) {
+            List<io.github.llm4j.loom.overlay.RunOverlay.Run> read = new java.util.ArrayList<>();
+            for (File dir : c.runs) {
+                try {
+                    read.add(OverlayRuns.read(dir.toPath(), c.script.toPath()));
+                } catch (Exception e) {
+                    env.err()
+                            .println(
+                                    "Error: "
+                                            + dir
+                                            + ": "
+                                            + (e.getMessage() == null ? e : e.getMessage()));
+                    return 2;
+                }
+            }
+            overlay = io.github.llm4j.loom.overlay.RunOverlay.build(result, read);
+        }
         if (c.format.equals("json")) {
-            env.out().println(GraphJson.write(result));
+            env.out()
+                    .println(
+                            overlay == null
+                                    ? GraphJson.write(result)
+                                    : GraphJson.write(
+                                            result,
+                                            java.util.Map.of(
+                                                    "overlay",
+                                                    io.github.llm4j.loom.overlay.OverlayJson.tree(
+                                                            overlay))));
         } else {
-            env.out().println(mermaid(result));
+            env.out().println(mermaid(result, overlay));
             result.diagnostics()
                     .forEach(
                             d ->
@@ -102,7 +135,8 @@ final class GraphCommand implements Callable<Integer> {
         return 0;
     }
 
-    private static String mermaid(GraphResult result) {
+    private static String mermaid(
+            GraphResult result, io.github.llm4j.loom.overlay.RunOverlay.Overlay overlay) {
         StringBuilder out = new StringBuilder();
         for (WorkflowGraph graph : result.workflows()) {
             if (out.length() > 0) {
@@ -113,7 +147,11 @@ final class GraphCommand implements Callable<Integer> {
                     .append(" (")
                     .append(graph.file())
                     .append(")\n");
-            out.append(MermaidRenderer.render(graph));
+            out.append(
+                    overlay == null
+                            ? MermaidRenderer.render(graph)
+                            : io.github.llm4j.loom.overlay.OverlayMermaid.render(
+                                    graph, overlay.workflows().get(graph.name())));
         }
         return out.toString().stripTrailing();
     }

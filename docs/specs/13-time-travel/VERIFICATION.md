@@ -56,10 +56,10 @@ Status: **13a and 13b done**. Run top to bottom at the end of sub-phase 13f; the
 | R31 | `WhatIfCommandTest` (effects are never performed: `--effects real` is refused with the reason) | ✅ 13b |
 | R32 | `WhatIfCommandTest.theCandidateCanBeSavedAndExplainedWithWhy`, `aSavedCandidateWithASetVariableExplainsItselfWithThatValue` | ✅ 13b |
 | R33 | `WhatIfCommandTest.aChangedScriptIsRefused`, `DivergenceTest` (a diverged candidate says so) | 🟨 13b/13c (candidate scripts exist; the explicit "run it against the old script" offer is not built) |
-| R34 | `OverlayCountsTest` | ⬜ 13d |
-| R35 | `OverlayAggregateTest` | ⬜ 13d |
-| R36 | `OverlayMermaidTest` | ⬜ 13d |
-| R37 | `OverlayJsonSchemaTest` | ⬜ 13d |
+| R34 | `OverlayCountsTest` (6), `GraphRunOverlayCommandTest` | 🟨 13d (no time, token or cost per node: the journal does not hold them) |
+| R35 | `OverlayAggregateTest` (3), `GraphRunOverlayCommandTest.severalRuns...` | ✅ 13d |
+| R36 | `OverlayMermaidTest` (3), `GraphRunOverlayCommandTest.mermaidDrawsThePathBold` | ✅ 13d |
+| R37 | `OverlayJsonSchemaTest` (2), `graph-result.schema.json` gains `overlay` | ✅ 13d |
 | R38 | `DapProtocolTest` | ⬜ 13f |
 | R39 | `DapCapabilitiesTest` | ⬜ 13f |
 | R40 | `DapLiveConfirmTest` | ⬜ 13f |
@@ -129,3 +129,15 @@ The one gap that matters is the first: without a record, a failed run's journal 
 - Found building it: the journal does not record what a model was asked, so "unchanged question" is decided by replaying the original and comparing what each step would ask now with what it asked then; a for-each item's body steps resolve to the graph through `e<i>` ids; failures can be injected with the scripted-test categories (`rate_limit`, `timeout`, `server_error`, `refused`, `quota`, `invalid_output`, `tool_error`).
 - Tests: Java module 2,965; `WhatIfTest` (11), `WhatIfCommandTest` (9).
 - Not in 13b: a candidate script, prompt or model, and live models under a spend cap, with the cost estimate (13c); cost deltas; `--effects real` (refused: nothing is ever performed).
+
+### 13c (2026-10-23)
+
+- Built: `weave whatif --script FILE`, `--prompt Agent=@vN|file`, `--model Agent=id`, and `--models live --max-cost N --prices FILE | --max-tokens N --yes`. A model is named `observe:Agent:model` in a replay, so a changed model is a changed question and a recorded answer is not reused for it. Live: the real models are called only where no recorded answer fits; tools, tasks and people stay simulated; the cap is mandatory, `--yes` is required to spend, a run that reaches the cap ends as `budget` with no result. Both script hashes are reported when the candidate differs.
+- Tests: Java module 2,976; `WhatIfCandidateTest` (9), `WhatIfCommandTest` (+2).
+- Not in 13c: a cost estimate before the live run (the cap is the bound shown), the explicit "run against the old script" offer for a drifted run (R33).
+
+### 13d (2026-10-23)
+
+- Built: `weave graph --run DIR [--run DIR…]`: a run is replayed (no effects) and drawn on the graph. Per statement: times run, in how many runs, in how many it did not run, failures; per edge: times taken; for one run the choices (condition, result, way taken); for several, the statements none reached. Mermaid: taken edges `==>`, untaken `-.->`, nodes marked ran or idle with `×N`. `overlay` is optional in `graph-result.schema.json`. A run of another version of the script is refused.
+- Found building it: a loop round ends by going back to the loop, so "again" is taken once per round including the last (the loop then lets go); loop and for-each bodies count once per round or item.
+- Not in 13d: wall time, tokens and cost per statement, attempts, p50/p95 (the journal does not record them; they would need the run's trace to be kept with the run), the graph panel and Fabric consuming the JSON (their phases).
