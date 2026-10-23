@@ -24,6 +24,7 @@ public final class FactBuilder {
         b.providers.add(new AgentFacts());
         b.providers.add(new ToolFacts());
         b.providers.add(new ClassifierFacts());
+        b.providers.add(new AgentUseFacts());
         b.providers.add(new StepFacts());
         b.providers.add(new PromptFacts());
         b.providers.add(new ConditionFacts());

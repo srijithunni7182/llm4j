@@ -1,0 +1,6 @@
+agent Replier { model: "m"  system: "You reply to customers." }
+workflow Main(customer_email) {
+  delegate "Reply to {customer_email}" to Replier -> reply // <- LY01
+  note "{reply}"
+}
+// ignore: LP02 LP05 LO01

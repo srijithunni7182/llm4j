@@ -93,3 +93,45 @@
   examples:
     fires: [ examples/lp07-fires.loom ]
     quiet: [ examples/lp07-quiet.loom ]
+
+- id: LP02
+  lens: prompts
+  severity: medium
+  heuristic: true
+  about: agent
+  when:
+    all:
+      - { field: feedsBranch, is: true }
+      - { field: hasSchema, is: false }
+      - { field: promptStatesFormat, is: false }
+  title: "Agent {name} decides a branch but its prompt does not say what shape the answer must have"
+  why: "A condition compares the agent's answer with a word. If the prompt does not say which words are allowed, \"Yes.\" and \"yes\" and \"I think so\" all appear."
+  fixHint: "Tell the agent to answer with exactly one of the allowed words, or give it an output_schema."
+  since: "1.5.0"
+  explain: >
+    This rule guesses from the wording of the prompt, so it runs only with heuristics on. It looks
+    for phrases such as respond with, one of the following, JSON, yes or no.
+  examples:
+    fires: [ examples/lp02-fires.loom ]
+    quiet: [ examples/lp02-quiet-format.loom, examples/lp02-quiet-schema.loom ]
+
+- id: LP05
+  lens: prompts
+  severity: info
+  heuristic: true
+  about: agent
+  when:
+    all:
+      - { field: promptSaysWhenUnsure, is: false }
+      - any:
+          - { field: feedsDecision, is: true }
+          - { field: hasEffects, is: true }
+  title: "Agent {name} acts or decides but its prompt does not say what to do when unsure"
+  why: "An agent that is never told it may decline will guess, and a guess that sends or decides has consequences."
+  fixHint: "Add a sentence: if you are not sure, or the request is out of scope, say so and ask a person."
+  since: "1.5.0"
+  explain: >
+    This rule guesses from the wording of the prompt, so it runs only with heuristics on.
+  examples:
+    fires: [ examples/lp05-fires.loom ]
+    quiet: [ examples/lp05-quiet.loom ]

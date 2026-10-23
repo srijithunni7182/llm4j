@@ -1,0 +1,5 @@
+agent Screener { model: "m"  system: "You rate applications." }
+workflow Main(topic) {
+  delegate "Rate {topic}" to Screener -> rating
+  note "{rating}"
+}

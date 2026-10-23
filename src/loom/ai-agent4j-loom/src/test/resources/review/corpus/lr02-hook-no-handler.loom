@@ -4,3 +4,4 @@ workflow Main(q) {
   delegate "Tell the team: {q}" to Notifier -> sent // <- LR01 LR02
   note "{sent}"
 }
+// ignore: LP02 LP05 LO01

@@ -1,6 +1,6 @@
 # Phase 9 verification plan: the review engine
 
-Status: **in progress**: 9a to 9e complete; 9f–9i not started. Run top to bottom at the end of sub-phase 9i; the relevant rows after each sub-phase. Results in §7.
+Status: **in progress**: 9a to 9f complete; 9g–9i not started. Run top to bottom at the end of sub-phase 9i; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -80,8 +80,8 @@ Status: **in progress**: 9a to 9e complete; 9f–9i not started. Run top to bott
 | R34 | `ReviewInputsTest`, `CoverageReportStaleTest`, `ReviewNeverRunsTestsTest` | ⬜ 9g |
 | R35 | `TimeEstimateTest`, `CriticalPathTest` | ⬜ 9g |
 | R36 | `EffectsEstimateTest`, `EffectsUnboundedTest` | ⬜ 9g |
-| R37 | `HeuristicSwitchTest`, `ReviewCorpusTest` (precision per rule) | ⬜ 9f |
-| R38 | `InertRuleNoteTest`, `DeclaredFactsTest` | ⬜ 9f |
+| R37 | `RulesOf9fTest.theHeuristicRulesStayQuiet…`, `DataRuleSourceTest`, `ReviewCorpusTest` (precision per rule) | ✅ 9f for LP02, LP05, LC07 |
+| R38 | `RulesOf9fTest.theDurabilityRuleThatNeedsTheJournalSetting…` (LD01 reported as not evaluated until `journal` is declared), `DataRuleSourceTest`, `CorePackTest` (LC01, LC03 need `data.top-models`) | ✅ 9f |
 | R39 | `OptionalLensesOffByDefaultTest`, `Lg*Test`, `Lm*Test`, `Lh*Test`, `Lb*Test` | ⬜ 9h |
 | R40 | `CrossLensDedupTest` | ⬜ 9h |
 | R41 | `HandlingFindingsTest` (a fingerprint survives a move and number changes; differs for another thing, rule or wording), `ReviewCommandTest.anAcceptedFindingStaysAccepted…` | ✅ 9e |
@@ -103,7 +103,7 @@ Status: **in progress**: 9a to 9e complete; 9f–9i not started. Run top to bott
 | R57 | `CorePackTest`, `ReviewCorpusTest`: 18 core rules are data; LA, LV and the cost-estimate rules stay Java by design | ✅ 9d |
 | R58 | `RuleParserTest.thereIsNoWayToWriteAnExpressionOrACall` | ✅ 9a |
 | R59 | `FactBuilderTest.everyFactInTheCatalogIsSet…`, `RuleValidatorTest`; 8 facts added in 9d | ✅ 9a, 9d |
-| R60 | `RuleEvaluatorTest`, `DataRuleSourceTest`, `FactBuilderTest`; Java providers `PromptFacts`, `ConditionFacts` | ✅ 9a, 9d |
+| R60 | `RuleEvaluatorTest`, `DataRuleSourceTest`, `FactBuilderTest`; Java providers `PromptFacts`, `ConditionFacts`, `AgentUseFacts` | ✅ 9a, 9d, 9f |
 | R61 | `RuleParserTest`, `RuleEvaluatorTest.templatesFillFacts…` | ✅ 9a |
 | R62 | `RuleEvaluatorTest` (vocabulary, relations, regex step limit), `RuleParserTest.conditionsAreBoundedInDepthAndSize` | ✅ 9a |
 | R63 | `PackSetTest` (pins by major/minor/exact, hash, unlisted folder, missing folder, duplicates) | ✅ 9b |
@@ -300,3 +300,83 @@ Repository examples reviewed: 14 (skipped 0)
   - **`on <name>` accepts match** a finding that names the thing in its title or is anchored to it (an agent, or the workflow a step is in), so accepting a rule "on Main" covers its steps.
   - **Not here:** the trifecta acceptance written into the script and the count-before-you-act dialogs (editor, 10c); Fabric attributes (9h); skill wording (9i); the notice for `serve` and `deploy` (those commands arrive in phase 15) and for `daemon` (it takes no script).
   - **The notice thread can be dropped, not waited for.** It is computed while the command starts and printed when ready if it beat the cap; a run that ends first prints nothing.
+
+
+### 9f (2026-10-23)
+
+- Built: twelve more data rules (LD01, LD04, LY01, LY04, LY05, LY06, LO01, LO04, LC03, LP02, LP05, LC07; core pack 1.5.0) and the facts they read (`script.hasInspectRules`, `agent.feedsDecision`, `feedsBranch`, `promptStatesFormat`, `promptSaysWhenUnsure`, `promptHasPersonalData`, `step.payloadMentionsPersonal`, `payloadSaysDeterministic`, `fanOutAgents`); a fix template can now say `reviewWhen:` so a usually safe fix needs judgement in a situation (LR01's retry on a step whose agent writes or sends); `// ignore:` in the corpus; `docs/specs/09-review-engine/FIX_CAUTIONS.md`, where every place the fix engine holds back is written down for the skills.
+- The repository-examples noise table earned its place: LD04 fired seven times on the repo's own examples because it did not require the tool's reach to be declared. It now does (`reachKnown`), and a corpus script pins it.
+- LP02, LP05 and LC07 are heuristic (off by default, R18): they read the wording of prompts. LY01 goes by names: email, phone, address, dob, ssn, card, a first, last, full, customer or user name, plus whatever `data.personal` lists.
+- Not built, and why (moved to 9g in `RULES_ROADMAP.md`): LR06 (needs the schema's enum values), LO02 (needs the price and window catalogs as review inputs), LO03 (needs an analysis of how branches end), LD03 (needs the span of a rewind), LY03 (needs a provider-to-region catalog).
+- Honest limits: as before, the corpus was labelled by the people who wrote the rules. Two things the corpus cannot tell: how often LY01's name patterns misfire on real field names, and how often LP02 and LP05 fire where the prompt does say it in other words. The repository-examples table shows LP05 firing 16 times on 14 scripts, which is why it is a heuristic and an INFO.
+
+**Rule precision and recall on the labelled corpus**
+
+| Rule | Found right | Wrong | Missed | Precision | Recall |
+|---|---|---|---|---|---|
+| LC01 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LC02 | 10 | 0 | 0 | 1.00 | 1.00 |
+| LC03 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LC07 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LD01 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LD02 | 2 | 0 | 0 | 1.00 | 1.00 |
+| LD04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LG04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LM01 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LO01 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LO04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP01 | 2 | 0 | 0 | 1.00 | 1.00 |
+| LP02 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP03 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP05 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP06 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP07 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR01 | 11 | 0 | 0 | 1.00 | 1.00 |
+| LR02 | 11 | 0 | 0 | 1.00 | 1.00 |
+| LR03 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR05 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR07 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR08 | 4 | 0 | 0 | 1.00 | 1.00 |
+| LR09 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LY01 | 3 | 0 | 0 | 1.00 | 1.00 |
+| LY02 | 2 | 0 | 0 | 1.00 | 1.00 |
+| LY04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LY05 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LY06 | 1 | 0 | 0 | 1.00 | 1.00 |
+
+Scripts: 76. Mismatches: 0
+
+**Estimate against recorded runs (mock provider, real executor)**
+
+| Case | Estimated typical | Actual | Ratio | Estimated worst | Worst >= actual |
+|---|---|---|---|---|---|
+| single | 474 | 377 | 1.26 | 4024 | true |
+| chain | 1691 | 1230 | 1.37 | 12091 | true |
+| loop-stops-at-typical | 2878 | 1478 | 1.95 | 60452 | true |
+| loop-hits-max | 2878 | 1724 | 1.67 | 24178 | true |
+| for-each | 7172 | 4145 | 1.73 | 5135792 | true |
+| alt-taken | 1079 | 1223 | 0.88 | 12084 | true |
+| broadcast | 948 | 754 | 1.26 | 12086 | true |
+| call-twice | 1436 | 872 | 1.65 | 12086 | true |
+| parallel-three | 1434 | 1182 | 1.21 | 24202 | true |
+| long-prompt | 728 | 630 | 1.16 | 4278 | true |
+
+Within 2x: 10 of 10.
+
+**Noise on the repository's own examples (unlabelled; reported, not gated)**
+
+Repository examples reviewed: 14 (skipped 0)
+
+| Rule | Findings |
+|---|---|
+| LC02 | 10 |
+| LM01 | 6 |
+| LP02 | 3 |
+| LP05 | 16 |
+| LP07 | 2 |
+| LR01 | 7 |
+| LR02 | 8 |
+| LR03 | 1 |
+| LR07 | 2 |

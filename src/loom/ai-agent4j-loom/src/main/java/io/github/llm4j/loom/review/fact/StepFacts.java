@@ -89,11 +89,14 @@ final class StepFacts implements FactProvider {
                     out.set(e, "agent", Unknown.INSTANCE);
                 }
                 // a parallel round and a broadcast stand for several agents in one node
+                List<Object> fanOut = new java.util.ArrayList<>();
                 if (n.attrs().get("agents") instanceof List<?> members)
                     for (Object member : members) {
+                        out.find("agent:" + member).ifPresent(fanOut::add);
                         perAgent.merge(String.valueOf(member), 1L, Long::sum);
                         if (out.find("agent:" + member).isEmpty()) dynamicTargets = true;
                     }
+                out.set(e, "fanOutAgents", fanOut);
             }
         }
         Set<String> otherUses = new HashSet<>();

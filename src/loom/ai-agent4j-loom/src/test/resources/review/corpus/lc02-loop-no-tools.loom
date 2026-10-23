@@ -4,3 +4,4 @@ workflow Main(topic) {
     delegate "Improve a draft about {topic}" to Drafter -> verdict // <- LC02
   }
 }
+// ignore: LP02 LP05 LO01

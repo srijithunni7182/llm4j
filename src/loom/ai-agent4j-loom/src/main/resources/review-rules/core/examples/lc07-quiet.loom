@@ -1,0 +1,5 @@
+agent Helper { model: "m"  system: "You help." }
+workflow Main(figures) {
+  delegate "Explain what these numbers suggest: {figures}" to Helper -> view
+  note "{view}"
+}

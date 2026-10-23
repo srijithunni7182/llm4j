@@ -12,6 +12,7 @@ Rules for which the design already says *heuristic, off by default* are marked *
 | LV00 to LV09 | Java (the validator, classified by message; LV08 is the suppression rule) | 9a, 9b |
 | LR01, LR03, LD02, LY02, LM01, LG04 | data | 9a |
 | LC01, LC02 | data | 9c |
+| LD01, LD04, LY01, LY04, LY05, LY06, LO01, LO04, LC03, LP02 (H), LP05 (H), LC07 (H) | data (9f; facts listed in VERIFICATION §7 9f) | 9f |
 | LR02, LR04, LR05, LR07, LR08, LR09 | data (new facts: `workflow.isScheduled`, `script.hasRateLimits`, `step.readsFreeText`, `step.writesSameVariableAsSibling`) | 9d |
 | LP01, LP03, LP04, LP06, LP07 | data (new facts: `agent.systemInterpolates`, `promptTokens`, `promptHasSecret`, `nearDuplicateOf`); LP01 uses `escalate` for HIGH with tools; LP07 (new, found by the live cost check) reports a variable name that occurs inside prompt text, which Loom replaces everywhere (`step.payloadHitsVariable`). LC02 was reworded in 9d to be about the shared transcript (`agent.hasMemoryLimit`) | 9d |
 | LC04, LC05, LC06 | Java (they need the cost estimate) | 9c |
@@ -47,7 +48,7 @@ Deferred out of 9d, with the reason:
 
 Fixes now exist for LR01, LR03, LR08, LY02, LM01 (safe) and LR02 (needs judgement). Other rules gain a `fix:` template as they get an anchor that is safe to guess; LC02 (needs a memory or context block with a size) and LG04 (which version to pin) stay prose.
 
-### 9f: observability, durability, privacy, and the declared-facts machinery
+### 9f: observability, durability, privacy, and the declared-facts machinery (done, except as listed)
 
 | Rule | Mechanism | Needs |
 |---|---|---|
@@ -91,3 +92,13 @@ Pages generated from the packs; the guide for writing a rule; `rules diff` and t
 3. A rule that cannot reach precision 0.9 on the corpus is demoted to heuristic (off by default), never shipped noisy.
 4. Anything that needs a decision about meaning (what is "expensive", what is "personal") is read from a declared setting, never guessed.
 5. This file is updated in the same commit that changes a rule's status.
+
+## Moved to 9g from 9f
+
+| Rule | Why it did not fit 9f | Needs |
+|---|---|---|
+| LR06 (alt over an enum does not cover every value) | The schema's enum values and the values compared in each branch | A condition-parsing provider over `output_schema` |
+| LO02 (model without a price or window) | The price table and window file are inputs of `weave run`, not of the script | `ReviewInput` reads `--prices` and the windows file (R34) |
+| LO03 (branches end in different outcomes with nothing saying which ran) | An analysis of how each branch ends | The graph's end nodes per branch |
+| LD03 (rewind span with a changed effect) | The span between a `checkpoint` and its `rewind` | The statements between two graph nodes |
+| LY03 (provider outside `data.regions`) | A catalog from provider to region, which the script does not carry | `data.provider-regions` declared, or a bundled table |

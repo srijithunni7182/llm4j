@@ -5,3 +5,4 @@ workflow Daily(topic) {
   note "{ok}"
 }
 schedule Morning { cron: "0 7 * * *"  run: Daily(topic = "news") } // expect-script: LR08
+// ignore: LP02 LP05 LO01

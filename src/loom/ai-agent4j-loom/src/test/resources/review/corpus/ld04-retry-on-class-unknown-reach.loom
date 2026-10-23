@@ -1,0 +1,7 @@
+tool Custom { use: class  class: "com.acme.Custom" }
+agent A { model: "m"  system: "s"  tools: [Custom] }
+workflow Main(topic) {
+  delegate "Do {topic}" to A -> done retry 2 backoff 1s timeout 30s // <- LR02
+  note "{done}"
+}
+// ignore: LP02 LP05 LO01

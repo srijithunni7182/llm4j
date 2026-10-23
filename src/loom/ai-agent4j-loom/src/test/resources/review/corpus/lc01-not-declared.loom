@@ -3,3 +3,4 @@ workflow Main(q) {
   delegate "Message: {q}" to Router -> routed
   note "{routed}"
 }
+// ignore: LP02 LP05 LO01

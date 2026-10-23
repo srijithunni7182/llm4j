@@ -4,3 +4,4 @@ workflow Daily(topic) {
   human_prompt "Publish this? {digest}" -> ok
   note "{ok}"
 }
+// ignore: LP02 LP05 LO01

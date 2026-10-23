@@ -203,7 +203,8 @@ public final class ReviewSettings {
             Map.of(
                     "fix.retry", "retry 2 backoff 2s timeout 60s",
                     "fix.loop.max", "max 5",
-                    "data.prompt.max-tokens", "2000");
+                    "data.prompt.max-tokens", "2000",
+                    "data.loop.incident", "20");
 
     /**
      * A value such as {@code data.regions}: what the project declared, else the built-in default

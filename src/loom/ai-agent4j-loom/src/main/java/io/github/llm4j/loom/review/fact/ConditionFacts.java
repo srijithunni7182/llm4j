@@ -80,6 +80,15 @@ final class ConditionFacts implements FactProvider {
             Statement s = statement(byKey, step);
             out.set(step, "readsFreeText", s != null && readsFreeText(s, typed));
             out.set(step, "payloadHitsVariable", s == null ? "" : payloadHit(s, step, varsOf));
+            String payload = s == null ? null : payloadOf(s);
+            out.set(
+                    step,
+                    "payloadMentionsPersonal",
+                    payload != null && mentionsPersonal(payload, input.settings()));
+            out.set(
+                    step,
+                    "payloadSaysDeterministic",
+                    payload != null && DETERMINISTIC.matcher(literal(payload)).find());
             out.set(
                     step,
                     "writesSameVariableAsSibling",
@@ -103,6 +112,51 @@ final class ConditionFacts implements FactProvider {
                 };
         if (cls == null) return null;
         return byKey.get(w.get("name") + ":" + step.get("line") + ":" + cls);
+    }
+
+    private static final Pattern DETERMINISTIC =
+            Pattern.compile(
+                    "(?i)\\b(calculate|compute the (sum|total|average)|add up the numbers|validate the format|check against the (policy )?table|convert (the )?(currency|units)|sort the list|count the)\\b");
+    private static final Pattern PERSONAL =
+            Pattern.compile(
+                    "(?i)(email|phone|address|dob|ssn|card|(first|last|full|customer|user)_?name)");
+    private static final Pattern PLACEHOLDER = Pattern.compile("\\{([A-Za-z_][A-Za-z0-9_.]*)}");
+
+    private static String payloadOf(Statement s) {
+        if (s instanceof DelegateStmt d) return d.getPayload();
+        if (s instanceof BroadcastStmt b) return b.getPayload();
+        if (s instanceof io.github.llm4j.loom.ast.HandoffStmt h) return h.getPayload();
+        return null;
+    }
+
+    private static String literal(String payload) {
+        return payload.replaceAll("\\{[^}]*}", " ");
+    }
+
+    /**
+     * True when the prompt fills in a value whose name says it is personal data (email, phone,
+     * address, dob, ssn, card, a person's name), or that the project lists in {@code
+     * data.personal}.
+     */
+    private static boolean mentionsPersonal(
+            String payload, io.github.llm4j.loom.review.settings.ReviewSettings settings) {
+        java.util.List<String> declared =
+                settings.value("data.personal")
+                        .map(
+                                v ->
+                                        java.util.Arrays.stream(v.split(","))
+                                                .map(String::strip)
+                                                .filter(x -> !x.isEmpty())
+                                                .toList())
+                        .orElse(java.util.List.of());
+        Matcher m = PLACEHOLDER.matcher(payload);
+        while (m.find()) {
+            String path = m.group(1);
+            String last = path.substring(path.lastIndexOf('.') + 1);
+            if (PERSONAL.matcher(last).find() || declared.contains(path) || declared.contains(last))
+                return true;
+        }
+        return false;
     }
 
     private static String bound(Statement s) {

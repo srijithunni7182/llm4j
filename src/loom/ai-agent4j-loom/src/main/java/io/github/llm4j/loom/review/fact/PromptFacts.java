@@ -33,6 +33,19 @@ final class PromptFacts implements FactProvider {
                     Pattern.compile(
                             "(?i)\\b(api[_-]?key|secret|token|password)\\b\\s*[:=]\\s*[\"']?[A-Za-z0-9/+_-]{16,}"));
 
+    private static final Pattern FORMAT =
+            Pattern.compile(
+                    "(?i)\\b(json|respond with|reply with|answer with|only one of|one of the following|output format|format:|exactly one word|yes or no|yes/no)\\b");
+    private static final Pattern UNSURE =
+            Pattern.compile(
+                    "(?i)(not sure|unsure|uncertain|if you (cannot|can't|do not know|don't know)|out of scope|do not know|don't know|escalate|ask a (person|human))");
+    private static final Pattern EMAIL =
+            Pattern.compile(
+                    "(?i)\\b[a-z0-9._%+-]+@(?!example\\.(com|org|net)\\b)[a-z0-9.-]+\\.[a-z]{2,}\\b");
+    private static final Pattern PHONE =
+            Pattern.compile(
+                    "(?<!\\d)(\\+\\d{1,3}[ -]?)?\\(?\\d{3}\\)?[ -]\\d{3}[ -]\\d{4}(?!\\d)|\\+\\d{1,3}[ -]?\\d{5}[ -]?\\d{5}(?!\\d)");
+
     /** The fewest words a prompt needs before it can be called a copy of another. */
     private static final int MIN_WORDS = 20;
 
@@ -62,11 +75,17 @@ final class PromptFacts implements FactProvider {
                 out.set(e, "promptTokens", Unknown.INSTANCE);
                 out.set(e, "promptHasSecret", Unknown.INSTANCE);
                 out.set(e, "nearDuplicateOf", Unknown.INSTANCE);
+                out.set(e, "promptStatesFormat", Unknown.INSTANCE);
+                out.set(e, "promptSaysWhenUnsure", Unknown.INSTANCE);
+                out.set(e, "promptHasPersonalData", Unknown.INSTANCE);
                 continue;
             }
             String t = text.get();
             out.set(e, "promptTokens", Tokens.of(t));
             out.set(e, "promptHasSecret", SECRETS.stream().anyMatch(p -> p.matcher(t).find()));
+            out.set(e, "promptStatesFormat", FORMAT.matcher(t).find());
+            out.set(e, "promptSaysWhenUnsure", UNSURE.matcher(t).find());
+            out.set(e, "promptHasPersonalData", EMAIL.matcher(t).find() || PHONE.matcher(t).find());
             Set<String> mine = shinglesOf(t);
             String twin = "";
             if (wordCount(t) >= MIN_WORDS)

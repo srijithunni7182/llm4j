@@ -5,3 +5,4 @@ workflow Main(customers) {
     delegate "Tell {c}" to Notifier -> sent // <- LR01 LR02 LR07 LC02
   }
 }
+// ignore: LP02 LP05 LO01

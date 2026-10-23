@@ -418,8 +418,8 @@ class ReviewCommandTest {
     static final String TWO_SENDERS =
             "tool M1 { use: class  class: \"a.One\"  reach: sends }\ntool M2 { use: class  class: \"a.Two\"  reach: sends }\n"
                     + "agent A1 { model: \"m\"  system: \"s\"  tools: [M1] }\nagent A2 { model: \"m\"  system: \"s\"  tools: [M2] }\n"
-                    + "workflow Main(topic) {\n  delegate \"One: {topic}\" to A1 -> first retry 1 backoff 1s timeout 1s on_failure { note \"x\" }\n"
-                    + "  delegate \"Two: {topic}\" to A2 -> second retry 1 backoff 1s timeout 1s on_failure { note \"x\" }\n}\n";
+                    + "workflow Main(topic) {\n  delegate \"One: {topic}\" to A1 -> first on_failure { note \"x\" }\n"
+                    + "  delegate \"Two: {topic}\" to A2 -> second on_failure { note \"x\" }\n}\n";
 
     JsonNode report(String source, String... args) throws Exception {
         out.reset();
@@ -708,7 +708,7 @@ class ReviewCommandTest {
         assertThat(rules(report)).contains("LR01", "LR03");
         for (JsonNode f : report.get("findings")) {
             if (f.get("rule").asText().equals("LR01")) {
-                assertThat(f.get("source").asText()).isEqualTo("pack core@1.4.0");
+                assertThat(f.get("source").asText()).isEqualTo("pack core@1.5.0");
                 assertThat(f.get("lens").asText()).isEqualTo("reliability");
                 assertThat(f.get("location").get("node").asText()).matches("n\\d+");
                 assertThat(f.get("title").asText()).contains("delegate Researcher");
@@ -745,7 +745,7 @@ class ReviewCommandTest {
                 .contains("LR01")
                 .contains("Lens: Reliability")
                 .contains("Severity: medium")
-                .contains("From: pack core@1.4.0")
+                .contains("From: pack core@1.5.0")
                 .contains("Why it matters")
                 .contains("What to do");
         out.reset();

@@ -22,3 +22,54 @@
   examples:
     fires: [ examples/ld02-fires.loom ]
     quiet: [ examples/ld02-quiet-reads.loom, examples/ld02-quiet-journaled.loom ]
+
+- id: LD01
+  lens: durability
+  severity: high
+  about: script
+  requires: [setting.journal]
+  when:
+    all:
+      - { field: usesPausing, is: true }
+      - { field: setting.journal, is: none }
+  title: "The script pauses for a person or a timer and the project says journal = none"
+  why: "A pause outlives the process that started it. Without a journal a restart forgets where the run was, so the person's answer or the timer has nothing to resume."
+  fixHint: "Run with a journal (--journal DIR) and set journal = file in review.properties."
+  since: "1.5.0"
+  explain: >
+    The script asks a person, sleeps, or waits for approval. Those pauses are only safe when the run
+    is journaled, so that a resumed run continues where it stopped and does not repeat what it
+    already did. This rule needs the project to say what it uses (journal = none, file or jdbc in
+    review.properties); until then it is reported as not evaluated rather than guessed.
+  examples:
+    fires:
+      - file: examples/ld01-fires.loom
+        settings: { journal: "none" }
+    quiet:
+      - file: examples/ld01-fires.loom
+        settings: { journal: "file" }
+      - file: examples/ld01-quiet-no-pause.loom
+        settings: { journal: "none" }
+
+- id: LD04
+  lens: durability
+  severity: high
+  about: step
+  when:
+    all:
+      - { field: kind, is: delegate }
+      - { field: retry, is: true }
+      - field: agent.tools
+        some:
+          all:
+            - { field: kind, is: class }
+            - { field: reachKnown, is: true }
+            - { field: reach, in: [writes, sends] }
+            - { field: idempotentDeclared, is: false }
+  title: "{label} retries a call to your own Java code that writes or sends, and nothing records that it already happened"
+  why: "A retry runs the call again. Your own Java tools are not journaled, so a call that sent the mail but timed out is sent again."
+  fixHint: "Make the tool idempotent and say so, switch to a built-in tool kind that is journaled, or remove the retry."
+  since: "1.5.0"
+  examples:
+    fires: [ examples/ld04-fires.loom ]
+    quiet: [ examples/ld04-quiet-reads.loom, examples/ld04-quiet-no-retry.loom ]

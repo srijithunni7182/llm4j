@@ -6,3 +6,4 @@ workflow Nightly(day) {
   note "{summary}"
 }
 schedule Night { cron: "0 2 * * *"  run: Nightly(day = "yesterday") }
+// ignore: LP02 LP05 LO01

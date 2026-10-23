@@ -54,3 +54,46 @@
   examples:
     fires: [ examples/lc02-fires.loom, examples/lc02-fires-no-tools.loom ]
     quiet: [ examples/lc02-quiet-context.loom, examples/lc02-quiet-memory.loom, examples/lc02-quiet-no-loop.loom ]
+
+- id: LC03
+  lens: cost
+  severity: low
+  about: step
+  requires: [setting.data.top-models]
+  when:
+    all:
+      - { field: kind, in: [broadcast, parallel] }
+      - { field: fanOutAgents, count: { gte: 2 } }
+      - field: fanOutAgents
+        some: { field: model.id, in: { setting: data.top-models } }
+  title: "{label} sends the same work to several agents and one of them runs on one of your most expensive models"
+  why: "Fanning out multiplies the cost of every call. On a top-tier model that is the part of a run most worth looking at."
+  fixHint: "Use a cheaper model for the fanned-out agents, or fan out to fewer of them."
+  since: "1.5.0"
+  examples:
+    fires:
+      - file: examples/lc03-fires.loom
+        settings: { data.top-models: "big-model" }
+    quiet:
+      - file: examples/lc03-quiet-small.loom
+        settings: { data.top-models: "big-model" }
+
+- id: LC07
+  lens: cost
+  severity: info
+  heuristic: true
+  about: step
+  when:
+    all:
+      - { field: kind, is: delegate }
+      - { field: payloadSaysDeterministic, is: true }
+  title: "{label} asks a model for something a program could do"
+  why: "Arithmetic, format checks and table lookups are exact in code and cost nothing per call; a model does them at a price and can get them wrong."
+  fixHint: "Do it in a run task and keep the model for what needs judgement."
+  since: "1.5.0"
+  explain: >
+    This rule guesses from the wording of the prompt (calculate, validate the format, check against
+    the table …), so it runs only with heuristics on.
+  examples:
+    fires: [ examples/lc07-fires.loom ]
+    quiet: [ examples/lc07-quiet.loom ]

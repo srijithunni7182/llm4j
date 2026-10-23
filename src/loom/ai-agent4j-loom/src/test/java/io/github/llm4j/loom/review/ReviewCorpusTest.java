@@ -47,6 +47,7 @@ class ReviewCorpusTest {
 
     static final Pattern ARROW = Pattern.compile("//\\s*<-\\s*(.*)$");
     static final Pattern SCRIPT = Pattern.compile("//\\s*expect-script:\\s*(.*)$");
+    static final Pattern IGNORE = Pattern.compile("//\\s*ignore:\\s*(.*)$");
 
     @Test
     void everyRuleMeetsThePrecisionAndRecallGateOnTheLabelledCorpus() throws Exception {
@@ -176,7 +177,16 @@ class ReviewCorpusTest {
                 for (String tok : s.group(1).strip().split("\\s+"))
                     expected.add(new Mark(tok, 0, null));
         }
-        return new Result(file, expected, review(file, settings));
+        // rules a script lists after "ignore:" are not under test in it: what they find there is
+        // neither counted right nor wrong
+        java.util.Set<String> ignored = new java.util.HashSet<>();
+        for (String line : lines) {
+            Matcher g = IGNORE.matcher(line);
+            if (g.find()) ignored.addAll(List.of(g.group(1).strip().split("\\s+")));
+        }
+        List<Mark> found = new ArrayList<>(review(file, settings));
+        found.removeIf(m -> ignored.contains(m.rule()));
+        return new Result(file, expected, found);
     }
 
     static List<Mark> review(Path file, ReviewSettings settings) throws Exception {

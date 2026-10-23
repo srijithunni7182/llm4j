@@ -1,0 +1,31 @@
+- id: LO01
+  lens: observability
+  severity: medium
+  about: script
+  when:
+    all:
+      - { field: isScheduled, is: true }
+      - { field: hasInspectRules, is: false }
+  title: "The script is scheduled but has no <script>.inspect rules file"
+  why: "A scheduled run is watched against thresholds (looping, failing tools, a nearly full context). With no rules file the defaults apply and nothing records a decision about this workflow."
+  fixHint: "Write a <script>.inspect file beside the script with the thresholds this workflow should be watched against."
+  since: "1.5.0"
+  examples:
+    fires: [ examples/lo01-fires.loom ]
+    quiet: [ examples/lo01-quiet-not-scheduled.loom ]
+
+- id: LO04
+  lens: observability
+  severity: low
+  about: step
+  when:
+    all:
+      - { field: kind, is: loop }
+      - { field: loopMax, gt: { setting: data.loop.incident } }
+  title: "{label} may turn more often than a run is allowed to before it is reported as looping"
+  why: "Fabric reports a loop that turns more than the loop-incident threshold (20 unless data.loop.incident says otherwise). A bound above it means a normal run can already be reported as an incident."
+  fixHint: "Lower the bound, or raise data.loop.incident (and the threshold in the rules file) and say why."
+  since: "1.5.0"
+  examples:
+    fires: [ examples/lo04-fires.loom ]
+    quiet: [ examples/lo04-quiet.loom ]

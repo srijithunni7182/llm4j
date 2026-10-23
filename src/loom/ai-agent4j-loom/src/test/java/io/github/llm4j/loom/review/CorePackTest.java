@@ -17,11 +17,11 @@ class CorePackTest {
     void theBundledPackLoadsAndIsMarkedWithItsVersion() {
         Pack core = Reviews.corePack();
         assertThat(core.manifest().core()).isTrue();
-        assertThat(core.label()).isEqualTo("core@1.4.0");
+        assertThat(core.label()).isEqualTo("core@1.5.0");
         assertThat(core.rules())
                 .extracting(RuleDoc::id)
                 .contains("LR01", "LR03", "LD02", "LY02", "LM01", "LG04");
-        assertThat(core.rules()).allMatch(r -> r.pack().equals("core@1.4.0"));
+        assertThat(core.rules()).allMatch(r -> r.pack().equals("core@1.5.0"));
     }
 
     @Test

@@ -41,6 +41,9 @@ public final class FactModel {
                 .bool("isScheduled", "A schedule is declared")
                 .bool("hasRateLimits", "A rate_limits block is declared")
                 .bool(
+                        "hasInspectRules",
+                        "A <script>.inspect rules file sits beside the script, so incident thresholds are set")
+                .bool(
                         "usesPausing",
                         "It can pause for a person or a timer: human_prompt, sleep, approve or decide")
                 .done();
@@ -80,6 +83,16 @@ public final class FactModel {
                         "payloadHitsVariable",
                         "A workflow variable whose name appears inside the literal text of the prompt, empty when none")
                 .bool(
+                        "payloadMentionsPersonal",
+                        "The prompt fills in a value named or declared as personal data")
+                .bool(
+                        "payloadSaysDeterministic",
+                        "The prompt asks the model for something a program would do (calculate, validate a format …)")
+                .refList(
+                        "fanOutAgents",
+                        "agent",
+                        "The agents a broadcast or parallel round sends work to")
+                .bool(
                         "writesSameVariableAsSibling",
                         "A parallel round whose branches bind the same variable name")
                 .done();
@@ -94,6 +107,19 @@ public final class FactModel {
                 .bool("hasSchema", "It has an output_schema")
                 .bool("hasContext", "It has a context block")
                 .bool("hasMemory", "It has memory")
+                .bool("feedsDecision", "A decision or ladder in the script names this agent")
+                .bool(
+                        "feedsBranch",
+                        "A variable this agent's answer is bound to is read by an alt or loop condition")
+                .bool(
+                        "promptStatesFormat",
+                        "Its prompt says what shape the answer must have (JSON, one of, yes or no …)")
+                .bool(
+                        "promptSaysWhenUnsure",
+                        "Its prompt says what to do when unsure or out of scope")
+                .bool(
+                        "promptHasPersonalData",
+                        "Its prompt holds an email address or phone number that looks real")
                 .bool(
                         "hasMemoryLimit",
                         "It bounds the shared transcript with memory { max_tokens }")

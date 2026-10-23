@@ -1,0 +1,7 @@
+// settings: data.personal=ticket_body
+agent Replier { model: "m"  system: "You reply to customers." }
+workflow Main(ticket_body) {
+  delegate "Reply to {ticket_body}" to Replier -> reply // <- LY01
+  note "{reply}"
+}
+// ignore: LP02 LP05 LO01

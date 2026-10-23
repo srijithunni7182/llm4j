@@ -68,7 +68,11 @@ class RunUnchangedWithNoticeTest {
         args.addAll(List.of(extra));
         int exit = WeaveCLI.commandLine().execute(args.toArray(new String[0]));
         // give the notice thread the time it needs; a real command does not wait for it
-        Thread.sleep(300);
+        long until = System.currentTimeMillis() + (name.equals("off") ? 300 : 10_000);
+        while (System.currentTimeMillis() < until
+                && !err.toString(StandardCharsets.UTF_8).contains("weave review")
+                && !err.toString(StandardCharsets.UTF_8).contains("review unavailable"))
+            Thread.sleep(50);
         System.setOut(realOut);
         System.setErr(realErr);
         List<String> files;

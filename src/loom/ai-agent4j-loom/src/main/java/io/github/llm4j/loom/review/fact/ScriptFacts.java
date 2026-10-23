@@ -26,7 +26,18 @@ final class ScriptFacts implements FactProvider {
         out.set(e, "hasBudget", script.getBudget() != null);
         out.set(e, "isScheduled", !script.getSchedules().isEmpty());
         out.set(e, "hasRateLimits", script.getRateLimits() != null);
+        out.set(e, "hasInspectRules", hasInspectRules(input.review()));
         out.set(e, "usesPausing", usesPausing(script));
+    }
+
+    /**
+     * A {@code <script>.inspect} file (or the project's {@code loom.inspect}) beside the script.
+     */
+    private static boolean hasInspectRules(io.github.llm4j.loom.review.engine.ReviewInput in) {
+        String name = in.file();
+        String stem = name.endsWith(".loom") ? name.substring(0, name.length() - 5) : name;
+        return java.nio.file.Files.isRegularFile(in.baseDir().resolve(stem + ".inspect"))
+                || java.nio.file.Files.isRegularFile(in.baseDir().resolve("loom.inspect"));
     }
 
     private static boolean usesPausing(LoomScript script) {

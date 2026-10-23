@@ -5,3 +5,4 @@ workflow Main(q) {
   delegate "{q}" to Notes -> b
   note "{a}{b}"
 }
+// ignore: LP02 LP05 LO01

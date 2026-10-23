@@ -3,7 +3,7 @@
 # two examples that prove it; no Java changes. Packs follow semver: a new rule or a changed
 # condition is a minor version, a removed rule is a major one.
 name: core
-version: 1.4.0
+version: 1.5.0
 factModel: 1
 rulesSchema: 1
 description: The rules weave review ships with
@@ -14,4 +14,5 @@ rules:
   - rules/privacy.yaml
   - rules/maintainability.yaml
   - rules/prompts.yaml
+  - rules/observability.yaml
   - rules/governance.yaml

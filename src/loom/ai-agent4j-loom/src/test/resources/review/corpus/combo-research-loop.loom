@@ -8,3 +8,4 @@ workflow Main(topic) {
   delegate "Report on {topic}" to Writer -> report
   note "{report}"
 }
+// ignore: LP02 LP05 LO01

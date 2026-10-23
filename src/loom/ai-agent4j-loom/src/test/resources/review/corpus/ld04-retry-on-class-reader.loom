@@ -1,0 +1,7 @@
+tool Lookup { use: class  class: "com.acme.LookupTool"  reach: reads }
+agent A { model: "m"  system: "s"  tools: [Lookup] }
+workflow Main(topic) {
+  delegate "Look up {topic}" to A -> found retry 2 backoff 1s timeout 30s
+  note "{found}"
+}
+// ignore: LP02 LP05 LO01

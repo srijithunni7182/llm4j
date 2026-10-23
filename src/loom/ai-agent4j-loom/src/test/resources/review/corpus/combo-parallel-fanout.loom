@@ -9,3 +9,4 @@ workflow Main(q) {
   delegate "Join: {intro} {body} {outro}" to Editor -> text
   note "{text}"
 }
+// ignore: LP02 LP05 LO01

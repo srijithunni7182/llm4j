@@ -4,3 +4,4 @@ workflow Main(q) {
   delegate "Reply to: {q}" to Replier -> sent // <- LR01 LR02
   note "{sent}"
 }
+// ignore: LP02 LP05 LO01

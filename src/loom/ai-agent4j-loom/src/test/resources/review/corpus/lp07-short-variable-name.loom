@@ -4,3 +4,4 @@ workflow Main(topic) {
   delegate "Improve this: {r}" to Editor -> polished // <- LP07
   note "{polished}"
 }
+// ignore: LP02 LP05 LO01

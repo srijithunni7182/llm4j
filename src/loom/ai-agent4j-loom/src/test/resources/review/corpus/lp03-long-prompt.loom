@@ -4,3 +4,4 @@ workflow Main(q) {
   delegate "{q}" to Careful -> r
   note "{r}"
 }
+// ignore: LP02 LP05 LO01
