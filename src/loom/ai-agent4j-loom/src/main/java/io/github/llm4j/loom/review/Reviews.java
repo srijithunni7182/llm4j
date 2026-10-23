@@ -5,7 +5,9 @@ import io.github.llm4j.loom.review.adapt.AuditSource;
 import io.github.llm4j.loom.review.adapt.ValidityCatalog;
 import io.github.llm4j.loom.review.adapt.ValiditySource;
 import io.github.llm4j.loom.review.engine.FindingSource;
+import io.github.llm4j.loom.review.engine.Overlap;
 import io.github.llm4j.loom.review.engine.ReviewEngine;
+import io.github.llm4j.loom.review.engine.ReviewRule;
 import io.github.llm4j.loom.review.engine.RuleCatalog;
 import io.github.llm4j.loom.review.pack.DataRuleSource;
 import io.github.llm4j.loom.review.pack.Pack;
@@ -14,6 +16,7 @@ import io.github.llm4j.loom.review.pack.PackLoader;
 import io.github.llm4j.loom.review.pack.PackSet;
 import io.github.llm4j.loom.review.settings.ReviewSettings;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -60,8 +63,21 @@ public final class Reviews {
 
     /** An engine over the audit, the validator and the given packs. */
     public static ReviewEngine engine(PackSet packs) {
-        return new ReviewEngine(sources(packs));
+        return engine(packs, List.of());
     }
+
+    /** As {@link #engine(PackSet)}, with Java rules the user brought in a jar. */
+    public static ReviewEngine engine(PackSet packs, List<ReviewRule> javaRules) {
+        List<FindingSource> all = new ArrayList<>(sources(packs));
+        all.addAll(javaRules);
+        return new ReviewEngine(all, OVERLAPS);
+    }
+
+    /**
+     * Rules that describe one cause from two angles; the first of each pair absorbs the second. A
+     * rule joins this list when it is added beside a security audit rule that says the same thing.
+     */
+    static final List<Overlap> OVERLAPS = List.of();
 
     /** An engine over the default sources. */
     public static ReviewEngine engine() {
@@ -75,9 +91,15 @@ public final class Reviews {
 
     /** What is known about the audit and validator rules and every rule of the given packs. */
     public static RuleCatalog catalog(PackSet packs) {
+        return catalog(packs, List.of());
+    }
+
+    /** As {@link #catalog(PackSet)}, with the rules of Java rule jars. */
+    public static RuleCatalog catalog(PackSet packs, List<ReviewRule> javaRules) {
         RuleCatalog c =
                 new RuleCatalog().addAll(AuditCatalog.rules()).addAll(ValidityCatalog.rules());
         for (Pack p : packs.packs()) c.addAll(PackCatalog.rules(p));
+        for (ReviewRule r : javaRules) c.addAll(r.rules());
         return c;
     }
 }

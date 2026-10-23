@@ -7,10 +7,12 @@ import io.github.llm4j.loom.graph.GraphService;
 import io.github.llm4j.loom.review.Reviews;
 import io.github.llm4j.loom.review.engine.ReviewInput;
 import io.github.llm4j.loom.review.engine.ReviewReport;
+import io.github.llm4j.loom.review.engine.ReviewRule;
 import io.github.llm4j.loom.review.engine.RuleCatalog;
 import io.github.llm4j.loom.review.engine.RuleInfo;
 import io.github.llm4j.loom.review.engine.ValidityProblem;
 import io.github.llm4j.loom.review.model.Severity;
+import io.github.llm4j.loom.review.pack.JavaRules;
 import io.github.llm4j.loom.review.pack.PackException;
 import io.github.llm4j.loom.review.pack.PackSet;
 import io.github.llm4j.loom.review.report.JsonReport;
@@ -87,6 +89,12 @@ final class ReviewCommand implements Callable<Integer> {
             description = "Review without keys: names that are not set are not problems.")
     boolean noEnv;
 
+    @Option(
+            names = "--rules-jar",
+            description =
+                    "A jar of Java rules (io.github.llm4j.loom.review.engine.ReviewRule, found with ServiceLoader). Repeatable. Nothing is loaded unless you name it.")
+    List<File> rulesJars = new ArrayList<>();
+
     @Option(names = "--out", description = "Also write the report to this file.")
     File out;
 
@@ -134,7 +142,10 @@ final class ReviewCommand implements Callable<Integer> {
             env.err().println("Error: --fail-on takes high, medium, low, info or none.");
             return 2;
         }
-        if (c.explain != null) return explain(c.explain, env);
+        if (c.explain != null) {
+            RuleCatalog catalog = catalogFor(c, env);
+            return catalog == null ? 2 : explain(c.explain, catalog, env);
+        }
         if (c.script == null) {
             env.err().println("Error: weave review needs a script (or --explain RULE).");
             return 2;
@@ -185,13 +196,20 @@ final class ReviewCommand implements Callable<Integer> {
             e.problems().forEach(p -> env.err().println("Error: " + p));
             return 2;
         }
-        ReviewReport report = Reviews.engine(packs).review(input, settings);
+        List<ReviewRule> javaRules;
+        try {
+            javaRules = JavaRules.fromJars(c.rulesJars.stream().map(File::toPath).toList());
+        } catch (PackException e) {
+            e.problems().forEach(p -> env.err().println("Error: " + p));
+            return 2;
+        }
+        ReviewReport report = Reviews.engine(packs, javaRules).review(input, settings);
         ReviewReport shown = atLeast(report, min.get());
         String text =
                 switch (c.format) {
                     case "json" -> JsonReport.write(shown);
                     case "md" -> MarkdownReport.write(shown);
-                    case "sarif" -> SarifReport.write(shown, Reviews.catalog(packs));
+                    case "sarif" -> SarifReport.write(shown, Reviews.catalog(packs, javaRules));
                     default -> TextReport.write(shown);
                 };
         env.out().println(text);
@@ -266,8 +284,31 @@ final class ReviewCommand implements Callable<Integer> {
                 r.lensesOff());
     }
 
-    private static int explain(String id, WeaveEnv env) {
-        RuleCatalog catalog = Reviews.catalog();
+    /**
+     * Every rule in force for the script (core, its pinned packs, named jars), or null on error.
+     */
+    private static RuleCatalog catalogFor(ReviewCommand c, WeaveEnv env) {
+        try {
+            PackSet packs = PackSet.coreOnly(Reviews.corePack());
+            if (c.script != null) {
+                ReviewSettings settings = settings(c);
+                packs =
+                        Reviews.packs(
+                                settings, c.script.getAbsoluteFile().getParentFile().toPath());
+            }
+            return Reviews.catalog(
+                    packs, JavaRules.fromJars(c.rulesJars.stream().map(File::toPath).toList()));
+        } catch (InvalidSettingsException e) {
+            e.problems().forEach(p -> env.err().println("Error: " + p));
+        } catch (PackException e) {
+            e.problems().forEach(p -> env.err().println("Error: " + p));
+        } catch (IllegalArgumentException e) {
+            env.err().println("Error: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private static int explain(String id, RuleCatalog catalog, WeaveEnv env) {
         Optional<RuleInfo> info = catalog.find(id.toUpperCase(Locale.ROOT));
         if (info.isEmpty()) {
             env.err()

@@ -1,6 +1,6 @@
 # Phase 9 verification plan: the review engine
 
-Status: **9a in progress** (sub-phase 9a complete; 9b–9i not started). Run top to bottom at the end of sub-phase 9i; the relevant rows after each sub-phase. Results in §7.
+Status: **in progress**: 9a and 9b complete; 9c–9i not started. Run top to bottom at the end of sub-phase 9i; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -46,12 +46,12 @@ Status: **9a in progress** (sub-phase 9a complete; 9b–9i not started). Run top
 |---|---|---|
 | R1 | `FindingModelTest.aFindingNeedsARuleIdAndAFixHint`, `CorePackTest.everyRuleAnswersWhyAndWhatToDo…` | ✅ 9a |
 | R2 | `FindingModelTest.aLocationKnowsWhen…`, `DataRuleSourceTest.stepFindingsAreTiedToTheirGraphNode` | ✅ 9a |
-| R3 | `AdapterTest` (LV classification and unchanged-command tests land in 9b) | ◐ 9a done, rest later |
+| R3 | `AdapterTest`, `ValidityClassTest` (19 real messages classified), `ReviewSupersetOfAuditTest`; `weave check`/`audit` output unchanged | ◐ 9b: messages classified by table; the exhaustive message census stays open |
 | R4 | `FixApplierTest` | ⬜ 9e |
 | R5 | `ReportFormatsTest.theJsonIsVersionedAndCarriesEveryFieldTheEditorNeeds`, `hostileTextRoundTripsThroughJsonUnchanged` | ✅ 9a |
 | R6 | `ReviewCommandTest` (exit codes, `--fail-on`, bad input = 2) | ✅ 9a |
 | R7 | `ReviewSupersetOfAuditTest` | ✅ 9a |
-| R8 | `SarifSchemaTest` | ⬜ 9b |
+| R8 | `SarifTest` (shape, levels, rules, fixes, suppressions), `ReviewCommandTest.sarifOutput…` | ✅ 9b |
 | R9 | `ReportGoldenTest` | ⬜ 9c |
 | R10 | `CostModelTest`, `EstimatorMatchesRuntimeTest` | ⬜ 9c |
 | R11 | `CostBudgetCapTest`, `Lc04Test` | ⬜ 9c |
@@ -63,9 +63,9 @@ Status: **9a in progress** (sub-phase 9a complete; 9b–9i not started). Run top
 | R17 | `CorpusCostAccuracyTest` | ⬜ 9c |
 | R18 | `ReviewCorpusTest` | ⬜ 9d |
 | R19 | `ReviewCommandTest` (`--explain` for every rule) | ✅ 9a |
-| R20 | `ReviewEngineTest.theSameInputGivesTheSameList…` (clock/env purity test lands in 9b) | ◐ 9a done, rest later |
-| R21 | `RulePluginTest`, `ThrowingRuleTest` | ⬜ 9b |
-| R22 | `DedupTest` | ⬜ 9b |
+| R20 | `JavaRuleTest.theEngineGivesTheSameFindingsWhateverTheClockOrEnvironment`, `ReviewIsStaticTest` (no clock, env, network or process in review sources) | ✅ 9b |
+| R21 | `JavaRuleTest` (jar via ServiceLoader, throwing rule becomes a note, listed in the catalog) | ✅ 9b |
+| R22 | `ReviewEngineTest` (overlap folding by line and node; no pair registered until a specific rule exists beside an audit rule) | ◐ 9b mechanism; first real pair lands with the rule (9d) |
 | R23 | `ReviewEngineTest.findingsAreRankedBySeverityThenLensThenLineThenRule` | ✅ 9a |
 | R24 | `FixAtomicityTest` | ⬜ 9e |
 | R25 | `FixApplierTest` (verification) | ⬜ 9e |
@@ -74,7 +74,7 @@ Status: **9a in progress** (sub-phase 9a complete; 9b–9i not started). Run top
 | R28 | `FixDryRunTest` | ⬜ 9e |
 | R29 | `FixPreservesFormattingTest` | ⬜ 9e |
 | R30 | `ReviewCorpusTest`, `CorpusCostAccuracyTest` | ⬜ 9a/9c |
-| R31 | `SuppressionTest` | ⬜ 9b |
+| R31 | `SuppressionTest` (name, line, node; reason required, LV08; listed in every format) | ✅ 9b |
 | R32 | `ReviewSettingsTest.aMisspeltKeyIsAnErrorThatNamesTheNearestKey` | ✅ 9a |
 | R33 | `LensSelectionTest`, `OptionalLensesOffByDefaultTest` | ⬜ 9f |
 | R34 | `ReviewInputsTest`, `CoverageReportStaleTest`, `ReviewNeverRunsTestsTest` | ⬜ 9g |
@@ -106,17 +106,17 @@ Status: **9a in progress** (sub-phase 9a complete; 9b–9i not started). Run top
 | R60 | `RuleEvaluatorTest` (three-valued), `DataRuleSourceTest.aConditionOnAnUnknownFactDoesNotFire…` | ✅ 9a |
 | R61 | `RuleParserTest`, `RuleEvaluatorTest.templatesFillFacts…` | ✅ 9a |
 | R62 | `RuleEvaluatorTest` (vocabulary, relations, regex step limit), `RuleParserTest.conditionsAreBoundedInDepthAndSize` | ✅ 9a |
-| R63 | `PackPinHashTest`, `PackLoadOrderTest` | ⬜ 9b |
-| R64 | `PackNoNetworkTest` | ⬜ 9b |
-| R65 | `PackSandboxTest`, `PackLimitsTest` | ⬜ 9b |
-| R66 | `PackLoaderTest` (pack validation and prefixes ✅; third-party pins in 9b) | ◐ 9a done, rest later |
+| R63 | `PackSetTest` (pins by major/minor/exact, hash, unlisted folder, missing folder, duplicates) | ✅ 9b |
+| R64 | `ReviewIsStaticTest`, `PackSetTest.aPinnedPackThatIsNotThereIsAnErrorAndNothingIsDownloaded` | ✅ 9b |
+| R65 | `PackLoaderTest`, `PackSetTest` (folder-bound reads; limits per pack) | ✅ 9b |
+| R66 | `PackLoaderTest`, `PackSetTest` (prefixes, pack name vs folder, cross-pack duplicate ids) | ✅ 9b |
 | R67 | `FixTemplateOpsTest`, `FixTemplateVerifiedTest`, `FixTemplateParityTest` | ⬜ 9e |
 | R68 | `PackLoaderTest.aRuleWithoutExamplesRefusesThePack`, `PackTesterTest`, `CorePackTest.everyRuleCarriesAtLeastOneFiringAndOneQuietExample` | ✅ 9a |
 | R69 | `RuleDocsGeneratedTest` | ⬜ 9i |
-| R70 | `RulesListTest`, `RulesExplainAtTest`, `RulesNewScaffoldTest`, `RulesAddPinsTest` | ⬜ 9b |
-| R71 | `ProvenanceTest`, `PackUpgradeKeepsHandledTest` | ⬜ 9b |
+| R70 | `RulesToolTest` (list, facts, check, test, new, add with diff and re-pin, explain --at) | ✅ 9b |
+| R71 | JSON/SARIF carry `source` (pack name@version); `RulesToolTest.addingANewVersion…`; handled-survives-upgrade needs fingerprints (9e) | ◐ 9b provenance done; PackUpgradeKeepsHandled in 9e |
 | R72 | `RuleParityTest` | ⬜ 9d |
-| R73 | `JavaRuleAlongsidePackTest`, `JavaFactProviderTest` | ⬜ 9b |
+| R73 | `JavaRuleTest.aJavaRuleRunsBesideTheCoreRules…` | ✅ 9b (fact-provider half: `FactBuilderTest` custom provider) |
 | R74 | `RulesDiffTest`, `PackSemverTest` | ⬜ 9i |
 
 ## 3. Quality gates
@@ -157,3 +157,10 @@ Wiki page "Reviewing a workflow"; `LOOM_GUIDE.md` section on `weave review` and 
 - Tests: all review tests and the full loom module (2,400 tests) pass. The one failure on the first full run, `RepositoryScriptsTest`, was real: the bundled examples used a literal webhook URL; fixed to `env.HOOK_URL`.
 - Review is a superset of audit on every bundled example (`ReviewSupersetOfAuditTest`); `weave check` and `weave audit` untouched apart from extracting `WeaveCLI.validate`.
 - Not yet measured: coverage gate, corpus precision (needs 9d), performance (A11).
+
+
+### 9b (2026-10-23)
+
+- Built: project packs from `review-rules/<name>/` pinned in `packs =` by version and sha256 (a pack that is unlisted, missing, changed or duplicating another's rule is refused with every problem listed); `weave rules list | facts | check | test | new | add | explain --at`; `weave check` messages classified into LV01–LV07 and LV09 (LV00 only for what no class claims); suppressions (`RULE.suppress = place "reason"`, LV08 when the reason is missing, listed in every format); overlap folding in the engine; SARIF 2.1.0 (`--format sarif`); Java rules from a named jar (`--rules-jar`, ServiceLoader), beside pack rules.
+- Tests added: `PackSetTest` (12), `RulesToolTest` (14), `ValidityClassTest` (3), `SuppressionTest` (10), `SarifTest` (7), `JavaRuleTest` (6), `ReviewIsStaticTest` (1), plus engine and command tests.
+- Limits, stated plainly: the classifier is a pattern table over message text, verified on real messages from `weave check`, not on every message the validator can write, so some rare messages will still be `LV00`. No overlap pair is registered yet because the specific rule (LR07) comes with 9d. `rules diff` and pack semver policy are 9i. The notice and `--explain` for third-party packs only appear when the script is given.
