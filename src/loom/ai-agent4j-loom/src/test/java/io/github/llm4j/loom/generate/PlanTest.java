@@ -212,4 +212,29 @@ class PlanTest {
         Plan p = with(b -> b.tools(List.of(new Plan.Tool("Hook", "shell", "sends", false, ""))));
         assertThat(problems(p)).anyMatch(s -> s.contains("shell tool: say why"));
     }
+
+    @Test
+    void aPlanThatCannotBeBuiltIsAskedAgainOnceWithTheProblems() {
+        Plan p = GenerateFixtures.plan();
+        Plan empty =
+                new Plan(
+                        1,
+                        p.name(),
+                        p.summary(),
+                        p.answers(),
+                        List.of(),
+                        List.of(),
+                        p.tools(),
+                        p.humans(),
+                        p.effects(),
+                        p.budget(),
+                        p.failure(),
+                        p.tests(),
+                        false);
+        ScriptedModel model = ScriptedModel.of(PlanJson.write(empty), PlanJson.write(p));
+        Plan got = Planner.plan(model, "m", "x", List.of(), "ref", null);
+        assertThat(got.agents()).isNotEmpty();
+        assertThat(model.calls()).isEqualTo(2);
+        assertThat(model.asked.get(1)).contains("has these problems").contains("no agent");
+    }
 }

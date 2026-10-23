@@ -40,7 +40,12 @@ public final class EditLoop {
         }
     }
 
-    public record Settings(int maxPerGate, int maxAttempts, Spend spend, Path tmpRoot) {}
+    public record Settings(
+            int maxPerGate, int maxAttempts, Spend spend, Path tmpRoot, Progress progress) {
+        public Settings(int maxPerGate, int maxAttempts, Spend spend, Path tmpRoot) {
+            this(maxPerGate, maxAttempts, spend, tmpRoot, Progress.NONE);
+        }
+    }
 
     public static Outcome run(
             LLMClient client,
@@ -62,6 +67,7 @@ public final class EditLoop {
         try {
             for (int n = 1; n <= s.maxAttempts(); n++) {
                 s.spend().beforeCall();
+                s.progress().event("attempt", Map.of("n", n, "of", s.maxAttempts()));
                 LLMResponse reply =
                         client.chat(
                                 LLMRequest.builder()
@@ -114,6 +120,21 @@ public final class EditLoop {
                         ran = true;
                     }
                 }
+                for (GateResult r : results)
+                    s.progress()
+                            .event(
+                                    "gate",
+                                    Map.of(
+                                            "attempt",
+                                            n,
+                                            "gate",
+                                            r.gate(),
+                                            "name",
+                                            r.name(),
+                                            "passed",
+                                            r.passed(),
+                                            "problems",
+                                            r.problems().size()));
                 RepairLoop.Score score = RepairLoop.Score.of(results);
                 String first =
                         results.stream()

@@ -93,7 +93,14 @@ public final class TestFile {
         try {
             root = YAML.readTree(Files.readString(path));
         } catch (IOException | RuntimeException e) {
-            return new TestFile(path, null, null, List.of(), List.of(path + ": " + firstLine(e)));
+            String where =
+                    e instanceof com.fasterxml.jackson.core.JsonProcessingException j
+                                    && j.getLocation() != null
+                                    && j.getLocation().getLineNr() > 0
+                            ? " (line " + j.getLocation().getLineNr() + ")"
+                            : "";
+            return new TestFile(
+                    path, null, null, List.of(), List.of(path + ": " + firstLine(e) + where));
         }
         if (root == null || !root.isObject())
             return new TestFile(

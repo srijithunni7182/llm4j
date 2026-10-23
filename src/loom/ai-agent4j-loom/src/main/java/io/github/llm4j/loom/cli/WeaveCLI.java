@@ -821,7 +821,10 @@ public class WeaveCLI implements Callable<Integer> {
                         p ->
                                 p.construct() == null
                                         || !p.construct().startsWith("tool ")
-                                        || !standIns.contains(p.construct().substring(5)))
+                                        || !standIns.contains(p.construct().substring(5))
+                                        // a misspelt option is the script's own mistake
+                                        || p.message().contains("unknown option")
+                                        || p.message().contains("requires"))
                 .toList();
     }
 

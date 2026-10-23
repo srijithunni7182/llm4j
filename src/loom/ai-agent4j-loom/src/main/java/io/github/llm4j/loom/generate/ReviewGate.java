@@ -17,7 +17,18 @@ public final class ReviewGate implements Gate {
 
     /** A finding that is still open, reduced to what the gate and the model need. */
     public record Item(
-            String rule, Lens lens, Severity severity, int line, String title, String fixHint) {}
+            String rule,
+            Lens lens,
+            Severity severity,
+            int line,
+            String title,
+            String why,
+            String fixHint) {
+        public Item(
+                String rule, Lens lens, Severity severity, int line, String title, String fixHint) {
+            this(rule, lens, severity, line, title, "", fixHint);
+        }
+    }
 
     /** The open findings after the safe fixes, and what the fixes were. */
     public record Reviewed(List<Item> open, List<String> fixed) {}
@@ -60,6 +71,10 @@ public final class ReviewGate implements Gate {
                                     i.line(),
                                     i.rule(),
                                     i.title()
+                                            // what makes it a problem, so a repair can aim at it
+                                            + (hard && i.why() != null && !i.why().isBlank()
+                                                    ? " (" + i.why() + ")"
+                                                    : "")
                                             + (i.fixHint() == null || i.fixHint().isBlank()
                                                     ? ""
                                                     : " — " + i.fixHint())));

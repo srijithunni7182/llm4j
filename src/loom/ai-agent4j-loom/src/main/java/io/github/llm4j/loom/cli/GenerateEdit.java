@@ -140,6 +140,7 @@ final class GenerateEdit {
                             GenerateCommand.reference(),
                             io.github.llm4j.loom.review.Reviews.catalog().all());
             EditLoop.Outcome outcome;
+            c.progress.event("stage", Map.of("stage", "edit"));
             try {
                 outcome =
                         EditLoop.run(
@@ -152,9 +153,10 @@ final class GenerateEdit {
                                 gates,
                                 new EditLoop.Settings(
                                         c.maxAttempts,
-                                        Math.max(8, c.maxAttempts),
+                                        Math.max(12, c.maxAttempts),
                                         spend,
-                                        Path.of(System.getProperty("java.io.tmpdir"))));
+                                        Path.of(System.getProperty("java.io.tmpdir")),
+                                        c.progress));
                 if (recording != null) recording.save(c.record.toPath());
             } catch (IllegalStateException | java.io.IOException e) {
                 env.err().println("Error: " + e.getMessage());

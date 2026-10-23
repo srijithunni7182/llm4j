@@ -41,4 +41,12 @@ class FileBlocksTest {
         Map<String, String> files = Map.of("main.loom", "x\n");
         assertThat(FileBlocks.parse(FileBlocks.render(files))).isEqualTo(files);
     }
+
+    @Test
+    void aSloppyEndMarkerStillEndsTheFile() {
+        assertThat(
+                        FileBlocks.parse(
+                                "=== file: a.md ===\nx\n=== end===\n=== file: b.md ===\ny\n=== end"))
+                .containsOnlyKeys("a.md", "b.md");
+    }
 }

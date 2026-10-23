@@ -1,0 +1,1 @@
+Take a customer complaint, decide whether it is urgent, and if it is urgent ask a manager to confirm before an apology email is sent.

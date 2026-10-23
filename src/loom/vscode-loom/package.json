@@ -159,6 +159,14 @@
         "command": "loom.debug",
         "title": "Loom: Debug Workflow",
         "icon": "$(debug-alt)"
+      },
+      {
+        "command": "loom.generate",
+        "title": "Loom: Generate Workflow..."
+      },
+      {
+        "command": "loom.change",
+        "title": "Loom: Change Workflow..."
       }
     ],
     "breakpoints": [
@@ -218,6 +226,10 @@
       "commandPalette": [
         {
           "command": "loom.debug",
+          "when": "resourceLangId == loom"
+        },
+        {
+          "command": "loom.change",
           "when": "resourceLangId == loom"
         },
         {
@@ -306,6 +318,28 @@
           ],
           "default": "save",
           "description": "When the Loom review runs by itself: after a save, while typing (only the validity lens, so it stays fast), or only when you ask."
+        },
+        "loom.generate.model": {
+          "type": "string",
+          "default": "",
+          "description": "The model that writes when you use Generate Workflow or Change Workflow. Empty: the one named by LOOM_GENERATE_MODEL. The key is the one in your environment or your .env; it is never written to a file."
+        },
+        "loom.generate.maxCost": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "The most one generation may spend, in dollars (counted only with a price table). 0: the command's own default."
+        },
+        "loom.generate.maxTokens": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "The most tokens one generation may use. 0: the command's own default."
+        },
+        "loom.generate.prices": {
+          "type": "string",
+          "default": "",
+          "description": "A price table (lines of 'model = input / output' per million tokens) so the cost limit can be counted in dollars."
         },
         "loom.review.layout": {
           "type": "string",

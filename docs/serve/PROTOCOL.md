@@ -117,3 +117,7 @@ weave serve --stdio [--timeout-ms 10000] [--memory-mb 64]
 | `loom/why`, `loom/stepBack` | custom requests: where the run is, and stepping back |
 
 One thread stands for the workflow (a `parallel` block's branches are not announced one by one). Events: `initialized`, `stopped` (`entry`, `step`, `breakpoint`), `output` (the model calls and tokens so far, at a breakpoint), `terminated`. A request it cannot do is answered `success: false` with the reason.
+
+## What `weave serve` does not do: generate
+
+`Loom: Generate Workflow...` and `Loom: Change Workflow...` do not use this protocol. They start `weave generate` as a process of their own and read its `--format json` events (one JSON object per line: `stage`, `plan`, `attempt`, `gate`, `result`). Generating calls a model and takes minutes; this server runs no model and answers in milliseconds, and the two are kept apart on purpose.

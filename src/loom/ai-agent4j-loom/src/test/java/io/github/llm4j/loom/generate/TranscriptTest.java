@@ -107,4 +107,17 @@ class TranscriptTest {
                 .isEqualTo(Transcript.fingerprint(ask("a")))
                 .isNotEqualTo(Transcript.fingerprint(ask("b")));
     }
+
+    @Test
+    void byOrderTheNthReplyAnswersTheNthCallWhateverIsAsked() throws Exception {
+        Transcript.Recording rec = new Transcript.Recording(saying("one", "two"));
+        rec.chat(ask("a"));
+        rec.chat(ask("b"));
+        Path file = dir.resolve("t.jsonl");
+        rec.save(file);
+        Transcript.Replay replay = Transcript.Replay.read(file).byOrder(true);
+        assertThat(replay.chat(ask("changed prompt")).getContent()).isEqualTo("one");
+        assertThat(replay.chat(ask("another")).getContent()).isEqualTo("two");
+        assertThatThrownBy(() -> replay.chat(ask("a"))).hasMessageContaining("holds 2 calls");
+    }
 }

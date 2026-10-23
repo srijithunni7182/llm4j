@@ -132,4 +132,16 @@ class TestsGateTest {
         assertThat(r.passed()).isFalse();
         assertThat(r.problems().get(0).message()).contains("Drafter");
     }
+
+    @Test
+    void aToolWhoseAddressIsReadFromTheEnvironmentIsNotAFailureUnderTest() throws Exception {
+        Map<String, String> f = with(GenerateFixtures.TESTS);
+        f.put(
+                "main.loom",
+                GenerateFixtures.SCRIPT.replace(
+                        "tool Hook { use: webhook  url: env.HOOK_URL }",
+                        "tool Hook { use: webhook  url: env.HOOK_URL }\n"
+                                + "tool Mailer { use: email  host: env.SMTP_HOST  username: env.SMTP_USER  password: env.SMTP_PASS  from: env.MAIL_FROM  to: env.MAIL_TO  security: \"STARTTLS\" }"));
+        assertThat(run(TestsGate.passing(), f, Writer.Layout.FLAT).problems()).isEmpty();
+    }
 }

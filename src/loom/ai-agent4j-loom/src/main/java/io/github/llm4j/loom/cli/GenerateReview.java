@@ -94,6 +94,7 @@ final class GenerateReview {
                                 f.severity(),
                                 f.where().line(),
                                 f.title(),
+                                f.why(),
                                 f.fixHint()));
             return new ReviewGate.Reviewed(open, fixed);
         };

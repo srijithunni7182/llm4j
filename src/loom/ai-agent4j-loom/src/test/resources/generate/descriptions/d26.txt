@@ -1,0 +1,1 @@
+Prepare an interview question list for a role description, avoiding any question that could be discriminatory, checked by a second agent.

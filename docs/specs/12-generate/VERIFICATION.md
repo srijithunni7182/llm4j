@@ -56,9 +56,9 @@ Status: **12a to 12d done**. Run top to bottom at the end of sub-phase 12e; the 
 | R30 | `WriterTest` (empty or absent target; nothing replaced) | ✅ 12a |
 | R31 | `TranscriptTest`, `GenerateCommandTest.recordingThenReplaying...` | ✅ 12a |
 | R32 | `GateOnlyExamplesTest` (samples and every starter template), `GenerateCommandTest` | ✅ 12a (G1 and G5; G2 to G4 join as they are built) |
-| R33 | `generateCommands.test.ts`, `ServeGenerateTest` | ⬜ 12e |
-| R34 | `SkillDriftTest` | ⬜ 12e |
-| R35 | `GenerateBenchmarkTest` (replay), `bench-generate.sh` (live) | ⬜ 12e |
+| R33 | `generateCommands.test.ts` (13), `GenerateEventsTest` (the editor calls `weave generate --format json`, not `weave serve`: see DESIGN §11 answer 6) | ✅ 12e |
+| R34 | `GenerateSkillDriftTest` | ✅ 12e |
+| R35 | `GenerateBenchmarkTest` (replay of 9 recorded generations; 30 descriptions kept), `scripts/bench-generate.sh` (live; 12 of 30 run) | 🟨 12e (12 of 30 run live; the targets in DESIGN §9 are not met by the cheap model used: see §7) |
 
 ## 3. Quality gates
 
@@ -82,10 +82,10 @@ Wiki "Generating a workflow"; LOOM_GUIDE section; the workflow skill (preferred 
 
 ## 6. Exit checklist
 
-- [ ] Every row in §2 ✅ and every A-criterion has evidence
-- [ ] Live benchmark results in §7 meet the DESIGN §9 targets (or the targets are revised with reasons)
-- [ ] Docs in §5 updated; roadmap status updated
-- [ ] DESIGN §11 questions answered and recorded
+- [~] Every row in §2 ✅ (R27, R29 and R35 are 🟨: see their rows) and every A-criterion has evidence
+- [~] Live benchmark results in §7: 12 of 30 run, the pass rate (75 %) is under the 90 % target with a cheap model; the targets are left as they are and the shortfall is recorded for your decision (D12)
+- [x] Docs in §5 updated (wiki page, LOOM_GUIDE, skill, `LOOM_PROMPT.md`, `llms.txt`, extension README and CHANGELOG, serve PROTOCOL note)
+- [x] DESIGN §11 questions answered and recorded
 
 ## 7. Results
 
@@ -118,3 +118,37 @@ Wiki "Generating a workflow"; LOOM_GUIDE section; the workflow skill (preferred 
 - Found building it: the real tools caught my own sample changes (a loop broke the scripted tests by using up the call budget; a cost change was bigger than I thought), so the delta and the tests do what they are for; the SEARCH text ends at the line before the marker, so its last line break is not part of it.
 - Tests: Java module 3,184; `PatchSetTest` (8), `GenerateEditTest` (12).
 - Not in 12d: money in the delta (needs `--prices` in edit mode), selected-text edits from the editor (12e), the G4 coverage bar for an edit.
+
+### 12e (2026-10-23)
+
+- Built: the editor commands **Loom: Generate Workflow...** and **Loom: Change Workflow...** (`src/generate/`; 13 tests; they run `weave generate` as a process and read its `--format json` events: `Progress`, DESIGN §11 answer 6), the skill section "When the user has a description and no script yet", `GenerateSkillDriftTest`, the wiki page, guide and `llms.txt` text, `scripts/verify-generate.sh`, the 30 benchmark descriptions, `GenerateBenchmarkTest` and `scripts/bench-generate.sh`. `--replay-by-order` answers the n-th call with the n-th recorded reply, so a recording can be run through gates or prompts that changed since (the benchmark test uses it, so editing a prompt does not invalidate the recordings).
+- **Live run with a real model** (gpt-6-luna, $0.10 / $0.50 per million tokens, `--no-ask`, `--flat`, cap $0.30 each, 12 of the 30 descriptions; the whole spend of this phase's live work was about $1 of the $5 allowed):
+
+  | | |
+  |---|---|
+  | Passed all five gates | 9 of 12 (75 %) |
+  | Not built because the plan was unusable | 1 (d11: tools declared "built-in") |
+  | Stopped at the attempt limit | 2 (d05: a list of classifier answers in the tests; d08: the lethal trifecta and a test that names a step wrongly) |
+  | Attempts of the 9 that passed | 1 to 10 (median 5); first-attempt pass: 1 of 9 |
+  | Cost of the 9 that passed | $0.006 to $0.051 (median $0.02) |
+
+  The 12 are not one measurement: the prompt was improved between runs from what each run showed (below), so d01 to d06 were each run on the version then current. The targets of DESIGN §9 (first-attempt G1 pass ≥ 70 %, final pass ≥ 90 %, median cost under $0.15) are met for cost, **not** for the pass rate with this cheap model. The recordings of the nine that passed are kept as the replay benchmark (`src/test/resources/generate/transcripts`); the three that did not are not.
+- **What the live runs found, and was fixed** (each a defect the offline tests could not have shown):
+  - the HTTP wait of the model client (60 s) is shorter than a whole project in one reply: `--timeout` (default 300 s);
+  - a `tools.loot` file got a `//` header, but it is a properties file (`#`);
+  - `weave test` failed a script whose tool reads an address from the environment (`from: env.X` is "test" under test): the stand-in now does not count;
+  - the opposite bug in `weave check --no-env`: it hid *every* problem of a tool that reads the environment, including a misspelt option (`tls:`); now only the stand-in problems are hidden (`NoEnvStandInTest`);
+  - a reply ending `=== end===` or `=== end` lost all its files: the end marker is lenient, and a reply that is cut off is told so;
+  - file names with capitals were refused;
+  - one syntax error is reported at a time, so four tries per gate were too few: six per gate, twelve in all;
+  - a plan with no agent or with "built-in" tools was only reported: the model is now asked once more with the problems;
+  - the model's feedback now carries the review's reason for a HIGH finding (which tool is which leg of the lethal trifecta);
+  - the model invented test syntax (`never: [x==y]`, a list of classifier answers), `run` tasks and `halt` endings: the system prompt now states the test format and these rules;
+  - the loader's warnings (one per gate run) are silenced during generation; they are the review's findings.
+- **What the live runs showed that is not fixed:**
+  - the lethal trifecta (LA01) is the finding the cheap model finds hardest: it needs a split into an agent that reads and an agent that holds the tool, and the repair often does not find it in six tries; the tool then says so and builds nothing, which is the intended behaviour;
+  - a test file cannot give a classifier a different answer on its second call (the model keeps trying a list), nor assert that a run was halted (noted in 12c): both would be changes to phase 11;
+  - `expect.never` takes step labels; the model writes `delegate Agent` where the label is `delegate`, so some repairs go to naming.
+- Tests: Java module 3,207 (`mvn -B -o verify -DskipITs`, 0 failures, 2 skipped as before); editor 641 tests, 636 pass: the 5 failures are the ones that were there before this phase (the logo script twice, the renderer copy twice, one real-graph path).
+- Not in 12e: the other 18 descriptions run live, a second model for comparison (§4 manual check 2), a strong model for the plan and a cheap one for the writes (the pair in DESIGN §11).
+

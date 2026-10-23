@@ -186,3 +186,13 @@ generate/
 3. **Gate strictness.** G2 default blocks on MEDIUM reliability/prompt findings. This makes generated output tidier but may cause more repair rounds. Confirm, or default to HIGH only with a `--strict` flag.
 4. **Few-shot source.** Examples come from `src/examples/*` with their tests. Confirm that shipping them inside `weave.jar` (size) is acceptable, or fetch from the repo at generation time (needs network, rejected here).
 5. **Naming.** `weave generate` (explicit) vs `weave new`. Recommendation: `generate`, with `weave init` kept for templates.
+
+### Answers (phase 12e, 2026-10-23; recorded as D12 in `09-review-engine/OPEN_ITEMS.md` for your confirmation)
+
+1. **Which model writes.** One `--model` (or `LOOM_GENERATE_MODEL`) writes plan, files and repairs; `--allow-model` limits the models the plan may give agents. A plan/write pair was not built.
+2. **Layout.** Maven by default, like `init`; `--flat` for a plain folder.
+3. **Gate strictness.** G2 blocks on HIGH anywhere and on MEDIUM in validity, reliability and prompts (`--gate-level` moves it). Live, the repairs needed to get there were mostly syntax and the lethal trifecta, not the MEDIUM findings.
+4. **Few-shot source.** Packaged in the jar (`ExamplePicker`), no network.
+5. **Naming.** `weave generate`; `weave init` stays for templates.
+6. **Editor.** The commands start `weave generate` as its own process, not a `loom/generate` request to `weave serve`, so serve keeps its promise to run nothing and answer in milliseconds.
+

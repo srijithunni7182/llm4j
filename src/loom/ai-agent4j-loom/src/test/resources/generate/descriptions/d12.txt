@@ -1,0 +1,1 @@
+Check a pricing page text against a list of claims in a spreadsheet export and report every mismatch.

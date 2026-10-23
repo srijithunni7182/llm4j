@@ -175,4 +175,18 @@ class GatesTest {
             assertThat(r.problems().get(0).message()).isEqualTo("boom");
         }
     }
+
+    @Test
+    void anAgentOrClassifierOnAModelThePlanDoesNotGiveFails() throws Exception {
+        String other =
+                GenerateFixtures.SCRIPT.replace(
+                        "agent Drafter { model: \"claude-haiku-5-5\"",
+                        "agent Drafter { model: \"gpt-6-luna\"");
+        assertThat(g5(script(other), GenerateFixtures.plan()).problems())
+                .anyMatch(
+                        p ->
+                                p.message()
+                                        .contains(
+                                                "Agent Drafter uses model gpt-6-luna but the plan says claude-haiku-5-5"));
+    }
 }

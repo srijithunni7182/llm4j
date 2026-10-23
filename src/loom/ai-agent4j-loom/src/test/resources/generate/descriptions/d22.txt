@@ -1,0 +1,1 @@
+Answer a customer question using a product FAQ and hand over to a person when the FAQ does not cover it.

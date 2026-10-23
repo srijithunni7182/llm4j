@@ -43,9 +43,9 @@ public final class Writer {
                     Pattern.compile("README\\.md"),
                     Pattern.compile("PLAN\\.md"),
                     Pattern.compile("plan\\.json"),
-                    Pattern.compile("prompts/[a-z0-9][a-z0-9_-]*\\.md"),
-                    Pattern.compile("tests/[a-z0-9][a-z0-9_.-]*\\.test\\.yaml"),
-                    Pattern.compile("eval/golden/[a-z0-9][a-z0-9_.-]*\\.yaml"));
+                    Pattern.compile("prompts/[A-Za-z0-9][A-Za-z0-9_-]*\\.md"),
+                    Pattern.compile("tests/[A-Za-z0-9][A-Za-z0-9_.-]*\\.test\\.yaml"),
+                    Pattern.compile("eval/golden/[A-Za-z0-9][A-Za-z0-9_.-]*\\.yaml"));
 
     /** Why a path may not be written, or null when it may. */
     public static String problemWith(String path) {
@@ -180,8 +180,9 @@ public final class Writer {
                         + " from plan "
                         + planHash
                         + ".";
-        if (path.endsWith(".loom") || path.endsWith(".loot")) return "// " + line + "\n" + content;
-        if (path.endsWith(".yaml") || path.endsWith(".properties"))
+        if (path.endsWith(".loom")) return "// " + line + "\n" + content;
+        // a .loot file is a properties file: its comments start with #
+        if (path.endsWith(".yaml") || path.endsWith(".properties") || path.endsWith(".loot"))
             return "# " + line + "\n" + content;
         if (path.endsWith(".md")) return "<!-- " + line + " -->\n" + content;
         return content;

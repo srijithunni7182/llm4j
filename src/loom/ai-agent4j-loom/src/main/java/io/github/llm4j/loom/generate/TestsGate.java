@@ -114,7 +114,15 @@ public final class TestsGate {
         } catch (Exception e) {
             out.add(
                     new GateResult.Problem(
-                            "tests", 0, "", "The tests could not be run: " + e.getMessage()));
+                            "tests",
+                            0,
+                            "",
+                            "The tests could not be run: "
+                                    + String.valueOf(e.getMessage())
+                                            .replace(ws.dir().toString() + "/", "")
+                                            .replace(
+                                                    ws.dir().toAbsolutePath().toString() + "/",
+                                                    "")));
         }
         return new GateResult(id, name, out);
     }

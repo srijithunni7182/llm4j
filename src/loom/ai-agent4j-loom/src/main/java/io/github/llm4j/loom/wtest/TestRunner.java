@@ -106,11 +106,20 @@ public final class TestRunner {
         executor.setHumanInterface(question -> "");
         executor.setPromptCatalog(PromptSupport.catalog(loaded, script, null));
         List<String> errors = new ArrayList<>();
+        // a tool whose option is read from the environment gets a stand-in under test, and a
+        // stand-in is not an address or a number: what that breaks is not a problem of the script
+        java.util.Set<String> readsEnv = new java.util.HashSet<>();
+        for (var tool : loaded.getTools())
+            for (var option : tool.getOptions().values())
+                if (option.fromEnv()) readsEnv.add("tool " + tool.getName());
         for (var p : new ScriptValidator().validate(loaded, executor.validationContext()))
-            // a stand-in for a secret is not an address or a number: what it breaks is not a
-            // problem of the script, as with weave check --no-env
             if (p.severity() == ScriptValidator.Severity.ERROR
-                    && !p.message().contains("not-set-yet")) errors.add(p.toString());
+                    && !p.message().contains("not-set-yet")
+                    && !(p.construct() != null
+                            && readsEnv.contains(p.construct())
+                            && (p.message().endsWith(": test")
+                                    || p.message().contains("test.invalid"))))
+                errors.add(p.toString());
         if (!errors.isEmpty())
             throw new IllegalArgumentException(
                     script.getFileName()

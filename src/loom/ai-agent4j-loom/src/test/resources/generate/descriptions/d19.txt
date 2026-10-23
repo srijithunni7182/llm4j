@@ -1,0 +1,1 @@
+Monitor a status page text and, when it reports an outage, send a message to an on-call webhook once.

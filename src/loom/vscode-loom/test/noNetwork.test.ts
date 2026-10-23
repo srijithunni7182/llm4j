@@ -48,7 +48,7 @@ test('R32: every page the extension shows has the one policy, which forbids ever
 
 test('R32: processes are started only to run Java (the engine and the commands), and the engine is told to run nothing', () => {
     const users = sources.filter((f) => /from 'child_process'/.test(fs.readFileSync(f, 'utf8'))).map((f) => path.relative(root, f).split(path.sep).join('/')).sort();
-    assert.deepEqual(users, ['src/commands/runWorkflow.ts', 'src/engine/spawn.ts', 'src/engine/vscodeHost.ts', 'src/graph/runner.ts']);
+    assert.deepEqual(users, ['src/commands/runWorkflow.ts', 'src/engine/spawn.ts', 'src/engine/vscodeHost.ts', 'src/generate/vscodeGenerate.ts', 'src/graph/runner.ts']);
     const spawnText = fs.readFileSync(path.join(root, 'src', 'engine', 'spawn.ts'), 'utf8');
     assert.match(spawnText, /'serve', '--stdio'/);
 });

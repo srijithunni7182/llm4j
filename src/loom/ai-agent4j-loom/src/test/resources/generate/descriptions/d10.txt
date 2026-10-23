@@ -1,0 +1,1 @@
+Classify job applications as strong, maybe or reject, and for strong ones draft an invitation that a recruiter must approve before it is sent.

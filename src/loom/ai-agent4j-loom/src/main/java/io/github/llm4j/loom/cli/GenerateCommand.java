@@ -100,6 +100,12 @@ final class GenerateCommand implements Callable<Integer> {
     File replay;
 
     @Option(
+            names = "--replay-by-order",
+            description =
+                    "With --replay: answer the n-th call with the n-th recorded reply whatever is asked, to run a recording through gates that have changed.")
+    boolean replayByOrder;
+
+    @Option(
             names = "--flat",
             description =
                     "A plain folder (main.loom, prompts/, tests/ beside each other) instead of the Maven layout.")
@@ -127,9 +133,16 @@ final class GenerateCommand implements Callable<Integer> {
 
     @Option(
             names = "--max-attempts",
-            description = "Most repair rounds for one gate (default 4; 8 in all).",
-            defaultValue = "4")
+            description = "Most repair rounds for one gate (default 6; 12 in all).",
+            defaultValue = "6")
     int maxAttempts;
+
+    @Option(
+            names = "--timeout",
+            description =
+                    "Seconds to wait for each reply from the model (default 300: a whole project is one reply).",
+            defaultValue = "300")
+    int timeoutSeconds;
 
     @Option(
             names = "--max-cost",
@@ -140,8 +153,8 @@ final class GenerateCommand implements Callable<Integer> {
 
     @Option(
             names = "--max-tokens",
-            description = "The most tokens the generation may use (default 200000).",
-            defaultValue = "200000")
+            description = "The most tokens the generation may use (default 500000).",
+            defaultValue = "500000")
     long maxTokens;
 
     @Option(
@@ -218,16 +231,78 @@ final class GenerateCommand implements Callable<Integer> {
     @Option(names = "--format", description = "text (default) or json.", defaultValue = "text")
     String format;
 
+    @picocli.CommandLine.Mixin EnvFileOptions envFile = new EnvFileOptions();
+
+    /** Held so the logger (and its level) is not collected. */
+    private static java.util.logging.Logger QUIET;
+
     @Override
     public Integer call() {
-        return generate(this, WeaveEnv.system());
+        // the gates load the draft many times; what the loader warns about is in the review's
+        // findings, so the log lines would only repeat them
+        QUIET = java.util.logging.Logger.getLogger("io.github.llm4j.loom.execution");
+        QUIET.setLevel(java.util.logging.Level.OFF);
+        // keys: the .env beside the script being changed, else the one in the folder the command is
+        // run in
+        Path anchor =
+                (edit != null
+                                ? edit.toPath()
+                                : out != null
+                                        ? out.toPath().resolve("main.loom")
+                                        : Path.of("main.loom"))
+                        .toAbsolutePath();
+        if (edit == null
+                && (out == null
+                        || !Files.isRegularFile(
+                                envFile.file == null
+                                        ? io.github.llm4j.loom.init.ProjectLayout.envFile(anchor)
+                                        : envFile.file.toPath())))
+            anchor = Path.of("main.loom").toAbsolutePath();
+        WeaveEnv env = envFile.apply(WeaveEnv.system(), anchor);
+        return env == null ? 2 : generate(this, env);
     }
+
+    /**
+     * What the loops tell while they work; in json mode it is written as one JSON object per line.
+     */
+    io.github.llm4j.loom.generate.Progress progress = io.github.llm4j.loom.generate.Progress.NONE;
 
     static int generate(GenerateCommand c, WeaveEnv env) {
         if (!List.of("text", "json").contains(c.format)) {
             env.err().println("Error: --format takes text or json.");
             return 1;
         }
+        if (!c.format.equals("json") || c.gateOnly != null) return generateText(c, env);
+        // json: events as they happen, then one result with the text a person would have read
+        java.io.PrintStream real = env.out();
+        java.io.ByteArrayOutputStream text = new java.io.ByteArrayOutputStream();
+        c.progress = (name, data) -> event(real, name, data);
+        int code =
+                generateText(
+                        c,
+                        env.withStreams(
+                                new java.io.PrintStream(text, true, StandardCharsets.UTF_8),
+                                env.err()));
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("exit", code);
+        result.put("text", text.toString(StandardCharsets.UTF_8));
+        event(real, "result", result);
+        return code;
+    }
+
+    private static void event(java.io.PrintStream out, String name, Map<String, Object> data) {
+        Map<String, Object> line = new LinkedHashMap<>();
+        line.put("event", name);
+        line.putAll(data);
+        try {
+            out.println(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(line));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
+        out.flush();
+    }
+
+    private static int generateText(GenerateCommand c, WeaveEnv env) {
         if (c.gateOnly != null) return gateOnly(c, env);
         if (c.edit != null) return GenerateEdit.run(c, env);
         if (c.fromPlan == null && (c.description == null || c.description.isBlank())) {
@@ -235,6 +310,16 @@ final class GenerateCommand implements Callable<Integer> {
                     .println(
                             "Error: say what the workflow should do (weave generate \"...\"), give --from-plan, or --gate-only <folder>.");
             return 1;
+        }
+        if (c.prices != null) {
+            // a price table that cannot be read is found before any model is asked, not after the
+            // plan is paid for
+            try {
+                io.github.llm4j.budget.PriceTable.load(c.prices.toPath());
+            } catch (java.io.IOException | RuntimeException e) {
+                env.err().println("Error: cannot read the prices: " + e.getMessage());
+                return 2;
+            }
         }
         Set<String> allowed = c.allowedModels.isEmpty() ? null : c.allowedModels;
         Plan plan;
@@ -263,6 +348,7 @@ final class GenerateCommand implements Callable<Integer> {
             }
         } else {
             try {
+                c.progress.event("stage", Map.of("stage", "clarify"));
                 List<Plan.Answer> answers =
                         Interview.answers(
                                 Interview.questions(client, model, c.description),
@@ -275,15 +361,22 @@ final class GenerateCommand implements Callable<Integer> {
                                                                         + " ["
                                                                         + q.proposed()
                                                                         + "]"));
+                c.progress.event("stage", Map.of("stage", "plan"));
                 plan = Planner.plan(client, model, c.description, answers, reference(), allowed);
+                c.progress.event(
+                        "plan",
+                        Map.of(
+                                "name",
+                                plan.name(),
+                                "agents",
+                                plan.agents().size(),
+                                "tools",
+                                plan.tools().size()));
             } catch (IllegalArgumentException | IllegalStateException e) {
                 env.err().println("Error: " + e.getMessage());
                 return 2;
             } catch (RuntimeException e) {
-                env.err()
-                        .println(
-                                "Error: the model could not be asked: "
-                                        + (e.getMessage() == null ? e : e.getMessage()));
+                env.err().println("Error: the model could not be asked: " + (describe(e)));
                 return 2;
             }
         }
@@ -399,6 +492,7 @@ final class GenerateCommand implements Callable<Integer> {
                         new FidelityGate());
         Writer.Layout layout = c.flat ? Writer.Layout.FLAT : Writer.Layout.MAVEN;
         RepairLoop.Outcome outcome;
+        c.progress.event("stage", Map.of("stage", "write"));
         try {
             outcome =
                     RepairLoop.run(
@@ -413,22 +507,20 @@ final class GenerateCommand implements Callable<Integer> {
                             gates,
                             new RepairLoop.Settings(
                                     c.maxAttempts,
-                                    Math.max(8, c.maxAttempts),
+                                    Math.max(12, c.maxAttempts),
                                     spend,
                                     layout,
                                     new Writer.Stamp(
                                             "weave generate " + WeaveCLI.versionNumber(),
                                             java.time.LocalDate.now(env.clock()).toString()),
-                                    Path.of(System.getProperty("java.io.tmpdir"))));
+                                    Path.of(System.getProperty("java.io.tmpdir")),
+                                    c.progress));
             if (recording != null) recording.save(c.record.toPath());
         } catch (IllegalStateException | java.io.IOException e) {
             env.err().println("Error: " + e.getMessage());
             return 2;
         } catch (RuntimeException e) {
-            env.err()
-                    .println(
-                            "Error: the model could not be asked: "
-                                    + (e.getMessage() == null ? e : e.getMessage()));
+            env.err().println("Error: the model could not be asked: " + (describe(e)));
             return 2;
         }
         try (Workspace ws = outcome.workspace()) {
@@ -459,7 +551,9 @@ final class GenerateCommand implements Callable<Integer> {
                     .println(
                             outcome.status() == RepairLoop.Status.CAP
                                     ? "✗ Stopped by the spend cap: " + outcome.stoppedBy()
-                                    : "✗ The gates did not pass: " + outcome.stoppedBy());
+                                    : "✗ The gates did not pass: "
+                                            + outcome.stoppedBy()
+                                            + ". What follows is the best of the drafts.");
             for (GateResult g : outcome.results()) {
                 if (g.passed()) continue;
                 env.out().println("  " + g.gate() + " " + g.name() + " failed:");
@@ -486,6 +580,19 @@ final class GenerateCommand implements Callable<Integer> {
         }
     }
 
+    /**
+     * Why a model call failed: the message, and the cause's, which is where a provider says what
+     * was wrong.
+     */
+    static String describe(Throwable e) {
+        StringBuilder sb =
+                new StringBuilder(e.getMessage() == null ? e.toString() : e.getMessage());
+        for (Throwable c = e.getCause(); c != null && c != c.getCause(); c = c.getCause())
+            if (c.getMessage() != null && !sb.toString().contains(c.getMessage()))
+                sb.append(": ").append(c.getMessage());
+        return sb.toString();
+    }
+
     static String modelName(GenerateCommand c) {
         String m = c.model != null ? c.model : System.getenv("LOOM_GENERATE_MODEL");
         if (m == null || m.isBlank())
@@ -495,8 +602,12 @@ final class GenerateCommand implements Callable<Integer> {
     }
 
     static LLMClient clientFor(GenerateCommand c, WeaveEnv env) throws java.io.IOException {
-        if (c.replay != null) return Transcript.Replay.read(c.replay.toPath());
-        return env.models().createClient(modelName(c));
+        if (c.replay != null)
+            return Transcript.Replay.read(c.replay.toPath()).byOrder(c.replayByOrder);
+        var models = env.models();
+        if (models instanceof io.github.llm4j.loom.execution.DefaultLLMClientFactory d)
+            models = d.withTimeout(java.time.Duration.ofSeconds(Math.max(1, c.timeoutSeconds)));
+        return models.createClient(modelName(c));
     }
 
     /** The language as the model is shown it: the persona that writes Loom, then the reference. */

@@ -1,0 +1,1 @@
+Extract the company name, amount and due date from an invoice text and write them as a JSON file.

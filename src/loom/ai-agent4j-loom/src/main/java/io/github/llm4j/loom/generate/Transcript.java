@@ -83,9 +83,19 @@ public final class Transcript {
     public static final class Replay implements LLMClient {
         private final List<Entry> entries;
         private int next;
+        private boolean byOrder;
 
         public Replay(List<Entry> entries) {
             this.entries = List.copyOf(entries);
+        }
+
+        /**
+         * Answers the n-th call with the n-th recorded reply whatever is asked, so a recording can
+         * be run again through gates or prompts that have changed since.
+         */
+        public Replay byOrder(boolean byOrder) {
+            this.byOrder = byOrder;
+            return this;
         }
 
         public static Replay read(Path file) throws IOException {
@@ -112,7 +122,7 @@ public final class Transcript {
                                 + " calls and the generator made another: it asks more than when this was recorded.");
             Entry e = entries.get(next);
             String asked = fingerprint(request);
-            if (!e.request().equals(asked))
+            if (!byOrder && !e.request().equals(asked))
                 throw new IllegalStateException(
                         "Call "
                                 + (next + 1)

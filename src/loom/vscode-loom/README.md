@@ -131,6 +131,10 @@ The same findings appear as squiggles and in the Problems panel (source `loom-re
 
 By default the review runs when you open or save a script. The *on* review setting (see Settings) can run the validity lens while you type (`type`), or only when asked (`manual`).
 
+## Generate and change
+
+**Loom: Generate Workflow...** asks what the workflow should do and shows a **plan** first (`PLAN.md`, and `plan.json` to edit: agents, tools and what they reach, who is asked, which effects a person approves, the budget, the tests). Nothing is written until you say *Generate*. Then `weave generate` writes the project into a new folder and holds it to the gates: it passes `weave check`, has no serious review finding after the safe fixes, its own tests pass and reach most of the steps, and the script is the plan and nothing else. If a gate cannot be met you are told which and why, and no folder is made. **Loom: Change Workflow...** takes a request (and the selected text, if any), works out a patch, checks it the same way against the script as it is, and opens it as a diff; you apply it or not (a change that makes the review or the cost worse says so and asks again). The model is called by `weave generate`, a process of its own, with the key from your environment or `.env`; the engine that checks and reviews your scripts still runs no model. See [Generating a workflow](../../../wiki/Generating-a-Workflow.md).
+
 ## Debugging
 
 Press **F5** on a `.loom` file (or click **Debug** above a workflow) to step through it. You get breakpoints in the gutter (also with a condition, and on an agent name through function breakpoints), the variables with the statement that set each, step over / in / out, **step back** (the state is re-derived from the run's journal, so it is exact) and *set value* / *evaluate* on hover. Models are mock and every effect is simulated, so it needs no keys; for live models put `"models": "live"` and `"maxTokens"` (or `"maxCost"` with `"prices"`) in `launch.json` and the editor asks before it spends. The same engine runs as `weave step` in a terminal; see [Debugging a workflow](../../../wiki/Debugging-a-Workflow.md).
@@ -181,6 +185,10 @@ A key that is not set yet (such as `GEMINI_API_KEY`) is not reported as a proble
 | `loom.review.codeLens` | `true` | Findings and cost above each workflow |
 | `loom.review.statusBar` | `true` | Open findings and typical cost of the active script in the status bar |
 | `loom.review.failOn` | `high` | Colour the status bar when findings at or above this severity are open; it never stops Run |
+| `loom.generate.model` | `` | The model that writes for Generate Workflow and Change Workflow (empty: `LOOM_GENERATE_MODEL`) |
+| `loom.generate.maxCost` | `0` | The most one generation may spend, in dollars (needs a price table; 0: the command's default) |
+| `loom.generate.maxTokens` | `0` | The most tokens one generation may use (0: the command's default) |
+| `loom.generate.prices` | `` | A price table so the cost limit can be counted in dollars |
 | `loom.serve.memoryMb` | `64` | Memory the engine may use to keep answers it can reuse |
 | `loom.serve.timeoutMs` | `10000` | The longest the engine may take over one request; a slower one is marked stale |
 | `loom.semantic.enable` | `true` | Answer go to definition, references, rename, completion, hover, outline and signature help from the engine; off keeps only the older answers |

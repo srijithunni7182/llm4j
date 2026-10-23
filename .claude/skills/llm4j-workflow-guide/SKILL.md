@@ -261,6 +261,18 @@ assertions in eval4j; or visibility into what Java or MCP tools, or your own tas
 code like any code that moves money). `weave eval` writes its own HTML page and JSON; the richer eval4j report with the graph overlay needs the
 Java path. Say so when it matters instead of improvising.
 
+## When the user has a description and no script yet (`weave generate`)
+
+Prefer it to writing the first draft yourself. It plans first, so the user reads what will be built before any file exists, and it will not call a project done until it has been held to the gates.
+
+1. `weave generate "what it should do" --plan-only --out <dir>` writes `plan.json` and `PLAN.md` (agents, tools and what they reach, who is asked, which effects a person approves, the budget, the failure handling, the tests). **Read `PLAN.md` to the user and ask if it is what they meant**; the plan is the thing to correct, and they may edit `plan.json`. A tool or an effect they did not expect is the finding to ask about.
+2. `weave generate --from-plan <dir>/plan.json --out <project>` builds it. The model writes into a temporary folder; the project is made only when every gate passes: **G1** `weave check`, **G2** no high review finding after the safe fixes (and nothing medium in validity, reliability or prompts; `--gate-level` moves that), **G3** the project's own tests pass, **G4** they reach at least `--coverage` percent of the steps (default 80), **G5** the script has exactly the agents, classifiers, tools, effects and people the plan lists, and a budget. Exit 0 done, 3 a gate did not pass (it names the gate and the reason), 4 the spend cap (`--max-cost` with `--prices`, or `--max-tokens`).
+3. Say plainly what it did **not** check: how good the answers are with a real model (that is `weave eval`), whether the rules are the ones they meant, and the code inside any tool stub.
+
+To change a project: `weave generate --edit <script> "the change"` shows the diff, the review and cost change and the tests it changes, and writes nothing until `--apply`. A change that makes things worse needs `--accept-worse`, and you ask the user first. `--patch-out FILE` then `--apply-patch FILE` applies the same patch without asking the model again.
+
+**On a script you wrote yourself**, run `weave generate --gate-only <folder or script>` before you present it. It is the same bar (G1 to G5; G3 and G4 are skipped with a note when there are no tests, G5 when there is no plan), and what it finds is yours to fix first, not the user's to discover. A hand-written project is never held to it unless someone asks.
+
 ## Review is advice, and the decision is the user's
 
 After you write or change a workflow, run `weave review <script>` (free, offline, no keys). Tell the user the open counts and the top findings in a sentence, say plainly when one is **high**, and offer to handle the rest: for a finding with **options** (`weave review --format json` lists them under `options`), put the choices to the user in your own words, let them pick and give the values (how many retries, what a failure note says), show the diff with `--dry-run`, and apply with `weave review <script> --fix-finding FINGERPRINT --option ID --set name=value` (add `--yes` only for an option marked as needing thought and only after the user said yes). `--fix` applies only the fixes with one obvious answer. Accepting a finding needs a reason that is the user's own (`--accept FINGERPRINT --reason "..."`): never write one for them. A fix proves only that the script loads and adds no high finding, so run `weave check` and the tests after it. If the user works in VS Code with the Loom extension, the same findings open beside the script with **Loom: Review Workflow** (the graph and the findings linked, and fix, accept and dismiss one click away); point them there instead of pasting a long list.
@@ -272,6 +284,7 @@ Then **carry on with what the user asked** (run, test, package, deploy): open fi
 ```
 weave next                                      # what to do next in this project, in order, free (a good first command in an existing project)
 weave explain workflow.loom                     # the script in plain English: show it to the user to confirm it does what they meant
+weave generate "what it should do" --plan-only --out plan   # a plan to read and edit first (then --from-plan plan/plan.json); --gate-only <dir> holds any project to the gates
 weave init pipeline my-workflow                 # a small, complete Maven project: script and prompts in src/main/resources, golden dataset in src/test/resources, JUnit tests, README
 weave check workflow.loom --no-env              # free, no model calls, no keys; finds missing prompts, unused results, bad names
 weave graph workflow.loom --format mermaid      # see the workflow (or Loom: Show Workflow Graph in VS Code)

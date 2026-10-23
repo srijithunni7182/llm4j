@@ -72,8 +72,34 @@ public final class Planner {
                         .addSystemMessage(SYSTEM)
                         .addUserMessage(user.toString())
                         .build();
-        LLMResponse reply = client.chat(request);
-        Plan plan = PlanJson.read(json(reply.getContent()));
+        Plan plan = null;
+        Plan flawed = null;
+        IllegalArgumentException last = null;
+        // a model sometimes puts text where the plan wants a true/false or a number: tell it once
+        // and ask again
+        for (int tries = 0; tries < 2 && plan == null; tries++) {
+            LLMResponse reply = client.chat(request);
+            try {
+                plan = PlanJson.read(json(reply.getContent()));
+                List<String> flaws = PlanChecker.check(plan, allowedModels);
+                if (!flaws.isEmpty() && tries == 0) {
+                    // a plan that cannot be built is worth one more ask, with what is wrong
+                    last = new IllegalArgumentException(String.join("; ", flaws));
+                    request =
+                            again(
+                                    model,
+                                    user.toString(),
+                                    "has these problems: " + last.getMessage());
+                    flawed = plan;
+                    plan = null;
+                }
+            } catch (IllegalArgumentException e) {
+                last = e;
+                request = again(model, user.toString(), "could not be used: " + e.getMessage());
+            }
+        }
+        if (plan == null) plan = flawed;
+        if (plan == null) throw last;
         return new Plan(
                 Plan.VERSION,
                 plan.name(),
@@ -88,6 +114,19 @@ public final class Planner {
                 plan.failure(),
                 plan.tests(),
                 plan.personalData());
+    }
+
+    private static LLMRequest again(String model, String user, String what) {
+        return LLMRequest.builder()
+                .model(model)
+                .temperature(0.2)
+                .addSystemMessage(SYSTEM)
+                .addUserMessage(
+                        user
+                                + "\nYour last plan "
+                                + what
+                                + "\nReply again with the one JSON object, with every field of the type described (true/false only for personalData and stub; numbers for budget) and a plan with at least one agent or classifier.\n")
+                .build();
     }
 
     /** The JSON object in a reply, whether or not the model fenced it. */

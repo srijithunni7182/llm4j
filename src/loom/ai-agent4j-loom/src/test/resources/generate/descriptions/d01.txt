@@ -1,0 +1,1 @@
+Triage incoming support emails: classify them as order status, refund or other, answer order-status questions with a short reply, and send refund requests over 100 dollars to a person for approval.

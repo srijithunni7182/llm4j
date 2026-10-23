@@ -227,6 +227,18 @@ weave explain main.loom                # the script in plain English: which agen
 weave next                             # what to do next in this project, in order, with the command for each step
 ```
 
+### Starting from a description instead
+
+```bash
+weave generate "Triage support emails; refunds over 100 dollars go to a person" --plan-only --out plan   # read plan/PLAN.md, edit plan.json
+weave generate --from-plan plan/plan.json --out triage                                                    # write it, gated
+weave generate --edit src/main/resources/main.loom "ask a person before the reply is sent"               # a change, as a diff; --apply to write
+weave generate --gate-only my-project/                                                                    # the same bar for a project you wrote
+```
+
+`weave generate` asks the model named by `--model` (or `LOOM_GENERATE_MODEL`) for a **plan** you read first, writes the files into a temporary folder, and keeps them only when check, the review, the project's own tests, step coverage and plan fidelity all pass (exit 3 names the gate that did not; exit 4 is the spend cap, `--max-cost`). Nothing it writes is run against a real model or sends anything. See the wiki page "Generating a workflow".
+
+
 **Keys for a developer's machine** go in a `.env` file beside the script (`cp .env.example .env`): `NAME=value` lines, read by `run`, `check`, `eval` and `next`, which say which names
 they found and never the values. A variable already set in the shell wins. `--env-file <file>` reads another file and `--no-env-file` none. `weave` refuses a `.env` that git tracks, and
 warns when it is not in `.gitignore` or other users can read it. A deployed application uses the secret store instead (see [Secrets](#secrets-the-secret-store)).

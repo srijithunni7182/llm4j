@@ -11,7 +11,7 @@ public final class FileBlocks {
     private FileBlocks() {}
 
     private static final Pattern BLOCK =
-            Pattern.compile("(?ms)^=== file: (.+?) ===[ \\t]*\\R(.*?)^=== end ===[ \\t]*$");
+            Pattern.compile("(?ms)^=== file: (.+?) ===[ \\t]*\\R(.*?)^=== ?end(?: ?===?)?[ \\t]*$");
 
     /**
      * Every file in the reply, in order; empty when it holds none. A path written twice keeps the

@@ -63,6 +63,45 @@ public final class FidelityGate implements Gate {
         script.getIntentClassifiers().forEach(c -> scriptClassifiers.add(c.getName()));
         diff(out, "classifier", planClassifiers, scriptClassifiers);
 
+        // the plan is where the models are chosen: an agent uses its planned model, and a
+        // classifier
+        // one of the models the plan gives its agents
+        Map<String, String> planModels = new LinkedHashMap<>();
+        plan.agents().forEach(pa -> planModels.put(pa.name(), pa.model()));
+        for (AgentDef a : script.getAgents()) {
+            String wanted = planModels.get(a.getName());
+            if (wanted != null && a.getModel() != null && !wanted.equals(a.getModel()))
+                out.add(
+                        new GateResult.Problem(
+                                "main.loom",
+                                0,
+                                "plan",
+                                "Agent "
+                                        + a.getName()
+                                        + " uses model "
+                                        + a.getModel()
+                                        + " but the plan says "
+                                        + wanted
+                                        + "."));
+        }
+        Set<String> allowedModels = new TreeSet<>(planModels.values());
+        for (var c : script.getIntentClassifiers())
+            if (!allowedModels.isEmpty()
+                    && c.getModel() != null
+                    && !allowedModels.contains(c.getModel()))
+                out.add(
+                        new GateResult.Problem(
+                                "main.loom",
+                                c.getModelLine(),
+                                "plan",
+                                "Classifier "
+                                        + c.getName()
+                                        + " uses model "
+                                        + c.getModel()
+                                        + " which the plan gives no agent; use one of "
+                                        + String.join(", ", allowedModels)
+                                        + "."));
+
         Map<String, ToolDef> scriptTools = new LinkedHashMap<>();
         script.getTools().forEach(t -> scriptTools.put(t.getName(), t));
         Set<String> usedTools = new TreeSet<>(scriptTools.keySet());

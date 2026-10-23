@@ -38,7 +38,19 @@ public final class RepairLoop {
             Spend spend,
             Writer.Layout layout,
             Writer.Stamp stamp,
-            Path tmpRoot) {}
+            Path tmpRoot,
+            Progress progress) {
+
+        public Settings(
+                int maxPerGate,
+                int maxAttempts,
+                Spend spend,
+                Writer.Layout layout,
+                Writer.Stamp stamp,
+                Path tmpRoot) {
+            this(maxPerGate, maxAttempts, spend, layout, stamp, tmpRoot, Progress.NONE);
+        }
+    }
 
     /**
      * One round: what failed first, how many problems there were in all, and whether the change was
@@ -104,6 +116,7 @@ public final class RepairLoop {
         try {
             for (int n = 1; n <= s.maxAttempts(); n++) {
                 s.spend().beforeCall();
+                s.progress().event("attempt", Map.of("n", n, "of", s.maxAttempts()));
                 LLMResponse reply =
                         client.chat(
                                 LLMRequest.builder()
@@ -131,7 +144,13 @@ public final class RepairLoop {
                                                             "",
                                                             0,
                                                             "",
-                                                            "Your reply held no files. Reply with files only, each between === file: PATH === and === end ===."))));
+                                                            reply.getContent() != null
+                                                                            && reply.getContent()
+                                                                                    .contains(
+                                                                                            "=== file:")
+                                                                    ? "Your reply was cut off or a file did not end with a line === end ===. Reply with fewer or shorter files if needed, each between === file: PATH === and === end ==="
+                                                                    : "Your reply held no files. Reply with files only, each between === file: PATH === and === end ==="
+                                                                            + "."))));
                 } else {
                     List<String> bad = Writer.problems(withPlan(candidate, planFiles));
                     if (!bad.isEmpty()) {
@@ -160,6 +179,21 @@ public final class RepairLoop {
                         candidate = readBack(ws, candidate, s.layout());
                     }
                 }
+                for (GateResult r : results)
+                    s.progress()
+                            .event(
+                                    "gate",
+                                    Map.of(
+                                            "attempt",
+                                            n,
+                                            "gate",
+                                            r.gate(),
+                                            "name",
+                                            r.name(),
+                                            "passed",
+                                            r.passed(),
+                                            "problems",
+                                            r.problems().size()));
                 Score score = Score.of(results);
                 String first =
                         results.stream()
