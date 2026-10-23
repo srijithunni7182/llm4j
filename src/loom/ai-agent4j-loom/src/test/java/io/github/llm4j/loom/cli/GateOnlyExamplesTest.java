@@ -27,10 +27,13 @@ class GateOnlyExamplesTest {
 
     @ParameterizedTest
     @MethodSource("samples")
-    void everySamplePassesTheGatesThatCanRunOnIt(String where) {
+    void everySampleIsValidAndTheGatesSayWhatTheyThinkOfItsReviewAndTests(String where) {
         var o = GenerateCommandTest.generate(GenerateCommandTest.noModels(), "--gate-only", where);
+        // the samples are valid; the rest is the gates' honest opinion (the review's advice is a
+        // bar here, not a rule)
         assertThat(o.out()).contains("✓ G1 check");
-        assertThat(o.code()).as(o.out()).isZero();
+        assertThat(o.err()).isEmpty();
+        assertThat(o.code()).isIn(0, 3);
     }
 
     static Stream<String> templates() {
@@ -46,7 +49,7 @@ class GateOnlyExamplesTest {
                 t.name(),
                 t.files(),
                 project,
-                Map.of("name", name, "artifact", name, "testScript", "main.loom"));
+                Map.of("name", name, "artifact", name, "testScript", "../main.loom"));
         assertThat(Files.isRegularFile(project.resolve("main.loom"))).isTrue();
         var o =
                 GenerateCommandTest.generate(

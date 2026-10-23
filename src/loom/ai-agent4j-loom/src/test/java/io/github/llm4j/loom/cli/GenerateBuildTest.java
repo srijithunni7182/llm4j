@@ -19,9 +19,6 @@ class GenerateBuildTest {
 
     static Map<String, String> modelFiles() {
         Map<String, String> f = new LinkedHashMap<>(GenerateFixtures.files());
-        f.put(
-                "tests/main.test.yaml",
-                "script: main.loom\nworkflow: Main\ncases:\n  - name: stub\n    input: { ticket_body: \"t\" }\n");
         return f;
     }
 
@@ -383,5 +380,101 @@ class GenerateBuildTest {
         assertThat(plan.answers())
                 .extracting(io.github.llm4j.loom.generate.Plan.Answer::defaulted)
                 .containsExactly(false, true);
+    }
+
+    @Test
+    void aGeneratedTestThatFailsIsFedBackAsTheAssertionAndRepaired() throws Exception {
+        Map<String, String> wrong = modelFiles();
+        wrong.put(
+                "tests/main.test.yaml",
+                GenerateFixtures.TESTS.replace(
+                        "calls: { Drafter: 1, Notifier: 1 }",
+                        "calls: { Drafter: 1, Notifier: 3 }"));
+        var model =
+                new io.github.llm4j.loom.generate.ScriptedModel(
+                        n ->
+                                n == 0
+                                        ? "[]"
+                                        : n == 1
+                                                ? PlanJson.write(GenerateFixtures.plan())
+                                                : n == 2
+                                                        ? files(wrong)
+                                                        : files(
+                                                                Map.of(
+                                                                        "tests/main.test.yaml",
+                                                                        GenerateFixtures.TESTS)),
+                        150);
+        var o =
+                GenerateCommandTest.generate(
+                        m -> model,
+                        "x",
+                        "--model",
+                        "m",
+                        "--out",
+                        dir.resolve("tfix").toString(),
+                        "--flat");
+        assertThat(o.code()).as(o.out() + o.err()).isZero();
+        assertThat(model.asked.get(3))
+                .contains("Gate G3 (tests) failed")
+                .contains("case \"approved reply is sent\" failed");
+        // only the test file was sent again; the script stayed as it was
+        assertThat(model.calls()).isEqualTo(4);
+        assertThat(o.out()).contains("✓ G3 tests").contains("✓ G4 coverage").contains("2 attempts");
+    }
+
+    @Test
+    void tooLittleCoverageIsFedBackAsTheStepsNotReached() throws Exception {
+        Map<String, String> thin = modelFiles();
+        thin.put(
+                "tests/main.test.yaml",
+                "script: main.loom\nworkflow: Main\ncases:\n  - name: refused\n    input: { ticket_body: \"t\" }\n    models: { Drafter: \"We are sorry.\" }\n    humans: [\"no\"]\n");
+        var model =
+                new io.github.llm4j.loom.generate.ScriptedModel(
+                        n ->
+                                n == 0
+                                        ? "[]"
+                                        : n == 1
+                                                ? PlanJson.write(GenerateFixtures.plan())
+                                                : n == 2
+                                                        ? files(thin)
+                                                        : files(
+                                                                Map.of(
+                                                                        "tests/main.test.yaml",
+                                                                        GenerateFixtures.TESTS)),
+                        150);
+        var o =
+                GenerateCommandTest.generate(
+                        m -> model,
+                        "x",
+                        "--model",
+                        "m",
+                        "--out",
+                        dir.resolve("cov").toString(),
+                        "--flat");
+        assertThat(o.code()).as(o.out() + o.err()).isZero();
+        assertThat(model.asked.get(3))
+                .contains("Gate G4 (coverage) failed")
+                .contains("not reached:");
+    }
+
+    @Test
+    void theCoverageBarCanBeMovedOrDropped() throws Exception {
+        Map<String, String> thin = modelFiles();
+        thin.put(
+                "tests/main.test.yaml",
+                "script: main.loom\nworkflow: Main\ncases:\n  - name: refused\n    input: { ticket_body: \"t\" }\n    models: { Drafter: \"We are sorry.\" }\n    humans: [\"no\"]\n");
+        var o =
+                run(
+                        "[]",
+                        PlanJson.write(GenerateFixtures.plan()),
+                        new String[] {files(thin)},
+                        "--out",
+                        dir.resolve("low").toString(),
+                        "--flat",
+                        "--coverage",
+                        "10",
+                        "--max-attempts",
+                        "1");
+        assertThat(o.code()).as(o.out() + o.err()).isZero();
     }
 }

@@ -109,8 +109,11 @@ public final class Writer {
                 String to = placed(layout, e.getKey());
                 Path p = dir.resolve(to);
                 Files.createDirectories(p.getParent());
+                String body = e.getValue();
+                if (e.getKey().startsWith("tests/") && e.getKey().endsWith(".test.yaml"))
+                    body = pointedAtScript(body, p, dir.resolve(placed(layout, "main.loom")));
                 Files.writeString(
-                        p, stamped(e.getKey(), e.getValue(), stamp, hash), StandardCharsets.UTF_8);
+                        p, stamped(e.getKey(), body, stamp, hash), StandardCharsets.UTF_8);
                 written.add(to);
             }
             if (layout == Layout.MAVEN && files.containsKey("eval/golden/dataset.yaml")) {
@@ -129,6 +132,19 @@ public final class Writer {
             throw e;
         }
         return new Workspace(dir, written);
+    }
+
+    /**
+     * A test file names its script relative to itself; where that is depends on the layout, so the
+     * generator sets it.
+     */
+    static String pointedAtScript(String yaml, Path testFile, Path script) {
+        String relative = testFile.getParent().relativize(script).toString().replace('\\', '/');
+        if (Pattern.compile("(?m)^script:.*$").matcher(yaml).find())
+            return yaml.replaceFirst(
+                    "(?m)^script:.*$",
+                    java.util.regex.Matcher.quoteReplacement("script: " + relative));
+        return "script: " + relative + "\n" + yaml;
     }
 
     private static List<String> extras(Path dir, Layout layout, Map<String, String> files)

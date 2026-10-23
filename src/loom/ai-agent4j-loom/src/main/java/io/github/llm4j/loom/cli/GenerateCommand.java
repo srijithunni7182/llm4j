@@ -16,6 +16,7 @@ import io.github.llm4j.loom.generate.RepairLoop;
 import io.github.llm4j.loom.generate.ReviewGate;
 import io.github.llm4j.loom.generate.Spend;
 import io.github.llm4j.loom.generate.Summary;
+import io.github.llm4j.loom.generate.TestsGate;
 import io.github.llm4j.loom.generate.Transcript;
 import io.github.llm4j.loom.generate.Workspace;
 import io.github.llm4j.loom.generate.Writer;
@@ -165,6 +166,13 @@ final class GenerateCommand implements Callable<Integer> {
             description =
                     "Add the project to a folder that already holds files (nothing is replaced).")
     boolean intoExisting;
+
+    @Option(
+            names = "--coverage",
+            description =
+                    "G4: the share of the script's steps the generated tests must reach (default 80).",
+            defaultValue = "80")
+    int coverage;
 
     @Option(names = "--format", description = "text (default) or json.", defaultValue = "text")
     String format;
@@ -344,6 +352,8 @@ final class GenerateCommand implements Callable<Integer> {
                 List.of(
                         new CheckGate(checker(env)),
                         new ReviewGate(GenerateReview.reviewer(env), soft),
+                        TestsGate.passing(),
+                        TestsGate.coverage(c.coverage),
                         new FidelityGate());
         Writer.Layout layout = c.flat ? Writer.Layout.FLAT : Writer.Layout.MAVEN;
         RepairLoop.Outcome outcome;
@@ -475,8 +485,15 @@ final class GenerateCommand implements Callable<Integer> {
 
     // ---- gates on any project
 
-    static List<Gate> gates(WeaveEnv env) {
-        return List.of(new CheckGate(checker(env)), new FidelityGate());
+    static List<Gate> gates(WeaveEnv env, int coverage) {
+        return List.of(
+                new CheckGate(checker(env)),
+                new ReviewGate(
+                        GenerateReview.reviewer(env),
+                        io.github.llm4j.loom.review.model.Severity.MEDIUM),
+                TestsGate.passing(),
+                TestsGate.coverage(coverage),
+                new FidelityGate());
     }
 
     static CheckGate.Checker checker(WeaveEnv env) {
@@ -545,10 +562,14 @@ final class GenerateCommand implements Callable<Integer> {
         List<GateResult> results = new ArrayList<>();
         List<String> notes = new ArrayList<>();
         try (Workspace ws = Workspace.existing(dir, script)) {
-            for (Gate g : gates(env)) {
+            for (Gate g : gates(env, c.coverage)) {
                 if (g.id().equals("G5") && plan == null) {
                     notes.add(
                             "G5 (plan fidelity) was skipped: there is no plan.json, as in a hand-written project.");
+                    continue;
+                }
+                if ((g.id().equals("G3") || g.id().equals("G4")) && ws.testFiles().isEmpty()) {
+                    notes.add(g.id() + " was skipped: the project has no *.test.yaml files.");
                     continue;
                 }
                 results.add(g.run(ws, plan == null ? emptyPlan() : plan));

@@ -19,9 +19,6 @@ final class ProjectReplies {
     /** What the model writes: the fixture without the files the generator writes itself. */
     static Map<String, String> modelFiles() {
         Map<String, String> f = new LinkedHashMap<>(GenerateFixtures.files());
-        f.put(
-                "tests/main.test.yaml",
-                "script: main.loom\nworkflow: Main\ncases:\n  - name: stub\n    input: { ticket_body: \"t\" }\n");
         return f;
     }
 

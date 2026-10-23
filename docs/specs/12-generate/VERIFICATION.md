@@ -1,6 +1,6 @@
 # Phase 12 verification plan: generate from a description
 
-Status: **12a and 12b done**. Run top to bottom at the end of sub-phase 12e; the relevant rows after each sub-phase. Results in §7.
+Status: **12a to 12c done**. Run top to bottom at the end of sub-phase 12e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -40,7 +40,7 @@ Status: **12a and 12b done**. Run top to bottom at the end of sub-phase 12e; the
 | R14 | `RepairLoopTest` (a worse attempt is thrown away; oscillation; repeating) | ✅ 12b |
 | R15 | `SafeFixByToolTest` | ✅ 12b |
 | R16 | `GenerateBuildTest` (exit 0, 2, 3, 4; names the gate and the last failure) | ✅ 12b |
-| R17 | `NoLiveCallsTest` | ⬜ 12c |
+| R17 | `TestsGateTest.theGateRunsOnlyScriptedCollaboratorsAndSpendsNothing` (an unscripted model fails the case, it is never called) | ✅ 12c |
 | R18 | `PromptAndSummaryTest`, `GenerateBuildTest` | 🟨 12b (next steps are fixed, not from ProjectAdvisor; no review delta) |
 | R19 | `PromptAndSummaryTest` | ✅ 12b |
 | R20 | `PatchSetTest` | ⬜ 12d |
@@ -104,3 +104,10 @@ Wiki "Generating a workflow"; LOOM_GUIDE section; the workflow skill (preferred 
 - Found building it: the real review gate immediately found two flaws in my own fixture (a tool that sends without `on_failure`, a variable name that occurs in a prompt text), so the gates do what they are for; line numbers in the model's feedback are one less than in the files on disk (every file has a header line the model did not write); a reply whose files cannot even be written must never become the best draft; a plan's own JSON can look like interview questions to a lenient parser, so the interview call is separate and its output is checked.
 - Tests: Java module 3,153; new in 12b: `FileBlocksTest` (4), `InterviewTest` (6), `RepairLoopTest` (9), `ReviewGateTest` (5), `PromptAndSummaryTest` (5), `SafeFixByToolTest` (1), `GenerateBuildTest` (11).
 - Not in 12b: G3 and G4 (the generated tests run and cover; 12c), edit mode (12d), the editor and the benchmark (12e), a review delta in the card, next steps from `ProjectAdvisor`.
+
+### 12c (2026-10-23)
+
+- Built: `TestsGate` G3 (there are tests, they fit the script, every case passes; a failure carries the case and what differed) and G4 (the passing cases reach at least `--coverage` percent, default 80; each step not reached is listed with a hint for a case that would). The generator points each test file at the script for the layout it wrote (`../main.loom` flat, `../../../main/resources/main.loom` Maven), so the model writes `script: main.loom`. `--gate-only` now runs G1 to G5, and skips G3 and G4 with a note on a project that has no test files, as it skips G5 without a plan.
+- Found building it: the starter templates pass all four gates; the samples pass G1 and the review's advice (LP01 and LR01) shows as G2 failures, which is the bar `--gate-only` is for; a test case cannot assert that a run ended by `halt` (`expect.final` knows completed, failed, suspended, stopped, budget), so a handler that must be tested should end with `return`. That is a gap in the phase 11 test files, noted here for a later look.
+- Tests: Java module 3,164; `TestsGateTest` (8) and three end-to-end cases in `GenerateBuildTest` (a failing assertion fed back and repaired; too little coverage fed back as the steps not reached; the coverage bar moved).
+- Not in 12c: edit mode (12d), the editor, the skill, the benchmark (12e).
