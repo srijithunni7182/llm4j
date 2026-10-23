@@ -195,7 +195,7 @@ class ReviewCommandTest {
         JsonNode findings = new ObjectMapper().readTree(out.toString()).get("findings");
         boolean sawValidity = false;
         for (JsonNode f : findings)
-            if (f.get("rule").asText().equals("LV00")
+            if (f.get("rule").asText().equals("LV01")
                     && f.get("title").asText().contains("Nobody")) {
                 sawValidity = true;
                 assertThat(f.get("severity").asText()).isEqualTo("high");

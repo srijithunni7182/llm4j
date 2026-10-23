@@ -2,6 +2,7 @@ package io.github.llm4j.loom.review.adapt;
 
 import io.github.llm4j.loom.review.engine.RuleInfo;
 import io.github.llm4j.loom.review.model.Lens;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -13,13 +14,26 @@ public final class ValidityCatalog {
     private ValidityCatalog() {}
 
     public static List<RuleInfo> rules() {
-        return List.of(
+        List<RuleInfo> all = new ArrayList<>();
+        for (ValidityClass c : ValidityClass.values())
+            all.add(
+                    new RuleInfo(
+                            c.id(),
+                            Lens.VALIDITY,
+                            null,
+                            c.title(),
+                            c.why()
+                                    + " An error from weave check is a high finding and a warning a low one. What to do: "
+                                    + c.fixHint(),
+                            "validator"));
+        all.add(
                 new RuleInfo(
                         ValiditySource.UNCLASSIFIED,
                         Lens.VALIDITY,
                         null,
-                        "A problem weave check reports",
-                        "weave check found something wrong or doubtful in the script: an unknown name, a missing file or secret, a result nothing uses. An error is a high finding and a warning a low one. Run weave check for the full message.",
+                        "A problem weave check reports that has no rule of its own yet",
+                        "weave check found something wrong or doubtful in the script that is not one of the classes above. An error is a high finding and a warning a low one. Run weave check for the full message.",
                         "validator"));
+        return all;
     }
 }

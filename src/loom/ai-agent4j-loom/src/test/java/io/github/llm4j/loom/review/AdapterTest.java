@@ -127,7 +127,7 @@ class AdapterTest {
 
         assertThat(out.findings).hasSize(2);
         Finding error = out.findings.get(0);
-        assertThat(error.rule()).isEqualTo("LV00");
+        assertThat(error.rule()).isEqualTo("LV01");
         assertThat(error.lens()).isEqualTo(Lens.VALIDITY);
         assertThat(error.severity()).isEqualTo(Severity.HIGH);
         assertThat(error.title()).isEqualTo("agent Writer: no such tool 'x'");

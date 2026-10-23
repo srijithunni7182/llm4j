@@ -13,8 +13,8 @@ import java.util.Optional;
 
 /**
  * Brings what {@code weave check} reports into a review as findings of the validity lens. An error
- * is a high finding and a warning a low one. Until a problem is classified (sub-phase 9b) it has
- * the rule id {@code LV00}.
+ * is a high finding and a warning a low one. The problem is given the rule id of its class ({@link
+ * ValidityClass}), or {@code LV00} when no class claims it.
  */
 public final class ValiditySource implements FindingSource {
 
@@ -34,16 +34,21 @@ public final class ValiditySource implements FindingSource {
     static Finding convert(ValidityProblem p, String file) {
         String subject =
                 p.construct() == null || p.construct().isBlank() ? "" : p.construct() + ": ";
+        ValidityClass kind = ValidityClass.of(p.message());
+        String why =
+                p.error()
+                        ? "The script does not pass weave check, so it will not run as written."
+                        : "weave check accepts the script but warns about this.";
         return new Finding(
-                UNCLASSIFIED,
+                kind == null ? UNCLASSIFIED : kind.id(),
                 Lens.VALIDITY,
                 p.error() ? Severity.HIGH : Severity.LOW,
                 Location.at(file, p.line()),
                 subject + p.message(),
-                p.error()
-                        ? "The script does not pass weave check, so it will not run as written."
-                        : "weave check accepts the script but warns about this.",
-                "Fix what the message describes, then run weave check again.",
+                kind == null ? why : kind.why() + " " + why,
+                kind == null
+                        ? "Fix what the message describes, then run weave check again."
+                        : kind.fixHint(),
                 List.of(),
                 Optional.empty(),
                 List.of(),
