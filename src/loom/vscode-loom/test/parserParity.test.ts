@@ -12,7 +12,7 @@ import { available, realClient } from './realEngine';
  * (the frozen parser must not drift), and one that disappears asks for the file to be regenerated (UPDATE_PARITY=1), so the size of
  * the delta is a number to decide on when retiring the parser.
  */
-const repo = path.join(__dirname, '..', '..', '..', '..');
+const repo = path.join(__dirname, '..', '..', '..', '..', '..');
 const baselineFile = path.join(__dirname, '..', '..', 'test', 'fixtures', 'parity', 'parser-delta.json');
 
 function corpus(dir: string, out: string[] = []): string[] {

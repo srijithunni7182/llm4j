@@ -86,7 +86,7 @@ Language at a glance:
 - [eval4j](https://github.com/srijithunni7182/llm4j/blob/main/src/eval4j/README.md): AssertJ assertions on what agents did; LLM-as-judge conditions (correctness, groundedness, hallucination, bias, toxicity); YAML datasets; pass-rate thresholds; prompt optimisation; all in `mvn test`
 - [eval4j-report](https://github.com/srijithunni7182/llm4j/blob/main/src/eval4j-report/README.md): free, local dashboard for eval4j runs: quality dimensions with goals, run comparison with judge noise, cost-aware profiles, agent traces, Loom trajectories; one self-contained HTML file plus a CSP-safe static edition
 - [Loom CTK](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ctk/README.md): conformance tests for Loom runtimes
-- [VS Code extension](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/vscode-loom/README.md): syntax, hover help and checks for `.loom` files
+- [VS Code extension](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/vscode-loom/README.md): checks from the language's own parser, the workflow graph, a review panel (findings, cost and fixes you decide on), and go to definition, rename, completion and hover that know your agents and variables; one `weave serve` engine per window, no network
 
 ## Examples
 

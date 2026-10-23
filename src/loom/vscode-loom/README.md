@@ -1,6 +1,6 @@
 # vscode-loom
 
-VS Code extension for Loom DSL (.loom and .loot files). Provides syntax highlighting, LSP diagnostics, workflow outline, a workflow graph (Outline, Focus and Flow views), and run command.
+VS Code extension for Loom DSL (.loom and .loot files). Provides syntax highlighting, checks from the language's own parser, a workflow graph (Outline, Focus and Flow views), a review panel (findings, cost and the graph, with fixes you decide on), go to definition, find references, rename, completion and hover that know your agents and variables, and a run command. Everything runs on your machine; nothing is sent anywhere.
 
 ## Workflow graph
 
@@ -100,6 +100,8 @@ Type a keyword in a `.loom` file and press Tab to get the whole statement with i
 
 ## Review
 
+![The Review panel in Split: the steps of the workflow with their findings on the left, the findings with why they matter on the right](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/vscode-loom/review-split.png)
+
 **Loom: Review Workflow** (the command palette, the editor title bar, the editor and Explorer context menus, or the *Review* link above a workflow) opens the Loom Review panel beside the script. It shows what `weave review` finds, with the workflow graph next to it:
 
 - **Summary strip:** open findings by severity, the cost of one run (typical and worst case; money when the models have prices, tokens when they do not, and it says which), the time, the worst-case sends and writes, how many lenses ran, and a **trifecta present** chip when an agent has the lethal trifecta.
@@ -125,11 +127,36 @@ The same findings appear as squiggles and in the Problems panel (source `loom-re
 
 **Findings never get in the way.** Run, the Run link and every other command start at once whatever the review says. If a script you run has open findings, a quiet message offers *Review* once for that version of the script; *Don't show again for this workspace* turns it off. Nothing in the palette depends on a clean review.
 
+![The List layout in a dark theme: a dense table of findings, the map of steps beside it and the focused finding explained](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/vscode-loom/review-list-dark.png)
+
 By default the review runs when you open or save a script. The *on* review setting (see Settings) can run the validity lens while you type (`type`), or only when asked (`manual`).
+
+## Editing
+
+With the engine running, the editor understands the names in your script, in every file it imports:
+
+- **Go to definition** (F12) on an agent, workflow, tool, classifier, decision, checkpoint, prompt file, import or variable; **Find references** (Shift+F12) lists every use with its role.
+- **Rename** (F2) changes a name everywhere it is used, in every file, as one undoable change. It refuses, and changes nothing, if the new name is taken or is a keyword, if a file that would change is read-only, or if an import cannot be found (so a use might be missed). Renaming a prompt also renames its file, after you confirm.
+- **Completion** offers only what fits where you are: agents after `delegate … to`, checkpoints after `rewind to` (the ones of this workflow), workflows after `call`, classifiers, decisions and tools in their places, the fields of a variable after its dot (`intent.` lists the classifier's questions with their labels), the labels of an enum after `==`, and variables in a condition or a `{placeholder}`. Nothing it offers fails `weave check`.
+- **Hover** shows an agent's model, tools and reply shape, a workflow's parameters, a classifier's fields, a variable's type and where it was made, and the values a comparison can take (with a warning for one it never has).
+- **Outline** (the Outline view and Ctrl+Shift+O) lists the blocks of the file with their checkpoints and variables. **Signature help** shows a workflow's parameters while you write `call Name(`.
+
+A half-typed line does not take this away: what the engine could read is still used, so the variables made above your cursor are still known. A setting (see Settings) turns these answers off and leaves the older, simpler ones.
 
 ## The engine
 
 The extension starts one long-lived Loom engine per window (`weave serve`) and asks it for checks and graphs, so feedback does not wait for a Java process to start. It runs nothing and writes nothing, and it reads only the folders you have open. If it cannot start (no Java, a missing `weave.jar`), or stops repeatedly, the extension falls back to running `weave` for each request and the status bar says so once (**Loom: engine unavailable (using commands)**). **Loom: Restart Engine** starts it again, and **Loom: Show Engine Log** shows what it wrote. The protocol is documented in `docs/serve/PROTOCOL.md`.
+
+### When something is limited
+
+The status bar says so in one place, once, and the rest keeps working:
+
+| What happened | What still works | What the status bar says |
+|---|---|---|
+| Java is missing, or older than 17 | Syntax colours, snippets, the simpler hover, definition and completion, the guide | `Loom: Java 17+ not found (limited mode)`; a click explains how to fix it |
+| The engine will not start, or keeps stopping | All of the above, plus checks and graphs by running `weave` for each request | `Loom: engine unavailable (using commands)` |
+| The engine is slow | The last result, marked *stale*; a request that takes longer than the time limit (`loom.serve.timeoutMs`, default `10000` ms) is stopped, and an engine that stops answering is restarted | `Loom: starting engine…` while it restarts |
+| The engine and the extension disagree on the protocol | As in limited mode | `Loom: reinstall the extension (engine v2, extension v1)` |
 
 ## Problems
 
@@ -150,6 +177,8 @@ A key that is not set yet (such as `GEMINI_API_KEY`) is not reported as a proble
 | `loom.review.codeLens` | `true` | Findings and cost above each workflow |
 | `loom.review.statusBar` | `true` | Open findings and typical cost of the active script in the status bar |
 | `loom.review.failOn` | `high` | Colour the status bar when findings at or above this severity are open; it never stops Run |
+| `loom.serve.memoryMb` | `64` | Memory the engine may use to keep answers it can reuse |
+| `loom.serve.timeoutMs` | `10000` | The longest the engine may take over one request; a slower one is marked stale |
 | `loom.semantic.enable` | `true` | Answer go to definition, references, rename, completion, hover, outline and signature help from the engine; off keeps only the older answers |
 | `loom.graph.timeoutMs` | `30000` | How long to wait for `weave graph` before stopping it |
 | `loom.graph.autoRefresh` | `true` | Redraw when the script or a file it imports is saved |

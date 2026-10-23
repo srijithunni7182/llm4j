@@ -1,9 +1,11 @@
 import { ChildProcess, spawn } from 'child_process';
 import { EngineProcess } from './client';
+import { ServeSettings } from './host';
 
 /** Starts `java -jar weave.jar serve --stdio`. Arguments are array elements, never a shell string. */
-export function spawnEngineProcess(javaPath: string, jarPath: string): EngineProcess {
-    const child: ChildProcess = spawn(javaPath, ['-jar', jarPath, 'serve', '--stdio'], { stdio: ['pipe', 'pipe', 'pipe'] });
+export function spawnEngineProcess(javaPath: string, jarPath: string, serve: ServeSettings): EngineProcess {
+    const args = ['-jar', jarPath, 'serve', '--stdio', '--memory-mb', String(serve.memoryMb), '--timeout-ms', String(serve.timeoutMs)];
+    const child: ChildProcess = spawn(javaPath, args, { stdio: ['pipe', 'pipe', 'pipe'] });
     const failed = new Promise<Error>((resolve) => child.once('error', resolve));
     const exitListeners: Array<(code: number | null) => void> = [];
     // a Java that is not there is reported as an exit, so the client's one path handles it

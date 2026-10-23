@@ -7,7 +7,7 @@ body {
   --chip-bg: color-mix(in srgb, var(--fg) 8%, transparent);
   --chip-line: color-mix(in srgb, var(--fg) 28%, transparent);
   --amber: #955f00; --red: #c93232; --good: #2a7f38;
-  --accent: #5980a6; --accent-900: #1d2e40; --accent-700: #416180; --accent-600: #4d7396; --accent-400: #94bce3; --on-accent: #f2f2f3;
+  --accent: #5980a6; --accent-fill: #3d6a96; --accent-900: #1d2e40; --accent-700: #416180; --accent-600: #4d7396; --accent-400: #94bce3; --on-accent: #f2f2f3;
   --n300: color-mix(in srgb, var(--fg) 16%, transparent);
   --n500: color-mix(in srgb, var(--fg) 45%, transparent);
   --n600: color-mix(in srgb, var(--fg) 62%, transparent);
@@ -22,7 +22,7 @@ body {
 body.vscode-dark, body.vscode-high-contrast {
   --bg: #1f1f1f; --side: #252526; --fg: #cccccc; --muted: #a0a4ad;
   --amber: #f2b64e; --red: #ff7070; --good: #70d27f;
-  --accent: #5b87b3; --accent-700: #9cc0e6; --accent-600: #7fa8d2; --accent-400: #4a76a2;
+  --accent: #5b87b3; --accent-fill: #3d6a96; --accent-700: #9cc0e6; --accent-600: #7fa8d2; --accent-400: #4a76a2;
   --warn-bg: color-mix(in srgb, #b8860b 22%, var(--bg)); --err-bg: color-mix(in srgb, #c93232 22%, var(--bg));
   --add-bg: color-mix(in srgb, #70d27f 16%, var(--bg)); --del-bg: color-mix(in srgb, #ff7070 16%, var(--bg));
   --Li: .84; --Lline: .6; --Lfill: .27; --Lfill2: .225; --Lbadge: .38; --Cf: .55; --Cf2: .35; --Cb: .8;
@@ -65,13 +65,13 @@ button { font: inherit; color: inherit; }
 .chip.ok { border-color: var(--good); color: var(--good); }
 .btn { cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 28px; padding: 3px 12px; border: 1px solid var(--chip-line); background: var(--bg); color: var(--fg); white-space: nowrap; }
 .btn.sm { min-height: 26px; padding: 2px 10px; font-size: 12px; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn.primary { background: var(--accent-fill); border-color: var(--accent); color: var(--on-accent); }
 .btn.quiet { border-color: transparent; background: transparent; color: var(--accent-700); }
 .ghost { background: none; border: 0; padding: 0 2px; cursor: pointer; font-size: 11.5px; color: var(--accent-700); white-space: nowrap; }
 .link { background: none; border: 0; padding: 0; cursor: pointer; color: var(--accent-700); text-decoration: underline; font-size: inherit; }
 .viewsw { display: inline-flex; border: 1px solid var(--lg-line); }
 .vbtn { cursor: pointer; border: 0; background: transparent; padding: 4px 12px; font-weight: 600; font-size: 12.5px; }
-.vbtn[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.vbtn[aria-pressed="true"] { background: var(--accent-fill); color: var(--on-accent); }
 select, .input { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--chip-line); padding: 3px 8px; min-height: 28px; }
 .input { width: 100%; }
 
@@ -84,9 +84,9 @@ select, .input { font: inherit; color: var(--fg); background: var(--bg); border:
 .strip { display: flex; align-items: stretch; flex: none; border-bottom: 1px solid var(--lg-line); }
 .stat { padding: 7px 16px; border-right: 1px solid var(--lg-line); display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .stat:first-child { padding-left: 12px; }
-.stat .v { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.stat .v { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
 .stat .v small { font-weight: 400; color: var(--muted); font-size: 12px; }
-.stat.end { margin-left: auto; border-right: 0; flex-direction: row; align-items: center; gap: 10px; }
+.stat.end { margin-left: auto; border-right: 0; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 2px 10px; }
 .stale { background: var(--warn-bg); padding: 5px 12px; border-bottom: 1px solid var(--lg-line); display: flex; gap: 10px; align-items: center; font-size: 12px; }
 
 /* main area, graph cards */
@@ -136,8 +136,8 @@ select, .input { font: inherit; color: var(--fg); background: var(--bg); border:
 .fd { display: flex; padding: 9px 14px 10px 11px; border-left: 3px solid var(--sc); border-bottom: 1px solid var(--lg-line); background: var(--bg); }
 .fd.sel { background: color-mix(in srgb, var(--sc) 8%, var(--bg)); }
 .fd-main { min-width: 0; flex: 1; }
-.fd-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.fd-top .ghost { margin-left: auto; color: var(--accent-700); font: 11px var(--mono); }
+.fd-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: 4px; }
+.fd-top .ghost { margin-left: auto; color: var(--accent-700); font: 11px var(--mono); white-space: normal; text-align: right; overflow-wrap: anywhere; max-width: 100%; }
 .fd-title { font-weight: 600; font-size: 13px; line-height: 1.35; }
 .fd-why { color: var(--muted); font-size: 12px; margin-top: 3px; }
 .fd-acts { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
@@ -153,7 +153,7 @@ select, .input { font: inherit; color: var(--fg); background: var(--bg); border:
 .footer { border-top: 1px solid var(--lg-line); padding: 8px 12px 9px; background: var(--side); flex: none; }
 .railtop { display: flex; align-items: center; gap: 4px 14px; }
 .railtop .note { font-size: 12px; color: var(--muted); }
-.legend { display: flex; gap: 14px; margin-left: auto; font-size: 11px; align-items: center; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-left: auto; font-size: 11px; align-items: center; }
 .rail { display: flex; gap: 2px; align-items: center; height: 14px; margin-top: 7px; }
 .seg { height: 6px; background: var(--accent-400); }
 .seg.has { background: var(--accent-700); height: 12px; }
@@ -181,10 +181,10 @@ body.vscode-dark .toast { background: #dfe8f2; color: #1d2e40; }
 .note-box { padding: 8px 10px; border: 1px solid var(--amber); background: var(--warn-bg); font-size: 12px; }
 .pill-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .preset { border: 1px solid var(--chip-line); padding: 3px 10px; font-size: 12px; background: var(--bg); }
-.preset.on { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.preset.on { border-color: var(--accent); background: var(--accent-fill); color: var(--on-accent); }
 .cb { width: 14px; height: 14px; border: 1.5px solid var(--n500); flex: none; display: inline-grid; place-items: center; font: 700 10px/1 var(--sans); color: var(--on-accent); background: var(--bg); }
-.cb.on { background: var(--accent); border-color: var(--accent); }
-.cb.mix { background: var(--accent); border-color: var(--accent); }
+.cb.on { background: var(--accent-fill); border-color: var(--accent); }
+.cb.mix { background: var(--accent-fill); border-color: var(--accent); }
 
 /* ---- the panel: what the mockup drew as artboards becomes one page ---- */
 body.vscode-light { --bg: var(--vscode-editor-background, #ffffff); --fg: var(--vscode-foreground, #3b3b3b); }
@@ -208,7 +208,7 @@ body.vscode-high-contrast { --bg: #000000; --fg: #ffffff; --muted: #d0d0d0; --lg
 .fd-why, .fd-title { overflow-wrap: anywhere; }
 .fd .fx { font-size: 11.5px; color: var(--muted); }
 .gh { cursor: default; }
-.gh .twist { background: none; border: 0; padding: 0; cursor: pointer; color: var(--muted); font-size: 10px; width: 14px; }
+.twist { background: none; border: 0; padding: 0; cursor: pointer; color: var(--muted); font-size: 10px; width: 14px; }
 .subgh { display: flex; align-items: center; gap: 8px; padding: 4px 14px 4px 26px; font-size: 11.5px; color: var(--muted); border-bottom: 1px solid var(--lg-line); background: color-mix(in srgb, var(--side) 50%, var(--bg)); }
 .empty { padding: 28px 18px; color: var(--muted); }
 .empty b { color: var(--fg); }
@@ -220,7 +220,7 @@ body.vscode-high-contrast { --bg: #000000; --fg: #ffffff; --muted: #d0d0d0; --lg
 .notes { padding: 8px 14px; border-top: 1px solid var(--lg-line); font-size: 12px; color: var(--muted); }
 .notes li { margin: 2px 0; }
 .chipbtn { cursor: pointer; }
-.chipbtn[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.chipbtn[aria-pressed="true"] { background: var(--accent-fill); color: var(--on-accent); border-color: var(--accent); }
 
 @media (max-width: 900px) {
   .main.pane-both { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(160px, 38vh) minmax(0, 1fr); }
@@ -277,7 +277,7 @@ button.legendbtn[aria-pressed="true"] { border-color: var(--sc); background: col
 .lensrow:disabled { cursor: default; }
 .lensrow[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 12%, var(--bg)); }
 .lensrow .n { margin-left: auto; font: 11px var(--mono); color: var(--muted); }
-.tg { width: 26px; height: 14px; border-radius: 7px; background: var(--accent); position: relative; flex: none; }
+.tg { width: 26px; height: 14px; border-radius: 7px; background: var(--accent-fill); position: relative; flex: none; }
 .tg::after { content: ""; position: absolute; right: 2px; top: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--on-accent); }
 .tg.off { background: var(--n300); } .tg.off::after { right: auto; left: 2px; background: var(--bg); }
 
@@ -346,3 +346,14 @@ button.opt { text-align: left; color: inherit; font: inherit; background: none; 
 .dialog textarea.input { resize: vertical; width: 100%; }
 .ask { display: flex; flex-direction: column; gap: 4px; }
 .asks { display: flex; flex-direction: column; gap: 8px; }
+
+/* Windows high contrast and other forced-colour modes drop backgrounds: buttons keep a border, and a pressed one is filled with the system highlight */
+@media (forced-colors: active) {
+  .vbtn, .btn, .ghost, .chipbtn, .twist, button.legendbtn, button.sec, .preset { border: 1px solid ButtonText; }
+  .vbtn[aria-pressed="true"], .chipbtn[aria-pressed="true"], .btn.primary, .preset.on { forced-color-adjust: none; background: Highlight; color: HighlightText; border-color: HighlightText; }
+  :focus-visible { outline: 2px solid Highlight; }
+  .fd[aria-selected="true"], .fd.sel { outline: 2px solid Highlight; outline-offset: -2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

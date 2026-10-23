@@ -112,6 +112,10 @@
         "title": "Loom: Show Engine Log"
       },
       {
+        "command": "loom.javaHelp",
+        "title": "Loom: Java Requirements"
+      },
+      {
         "command": "loom.createPromptFile",
         "title": "Loom: Create Prompt File"
       },
@@ -288,6 +292,20 @@
           ],
           "default": "high",
           "description": "Colour the status bar when findings at or above this severity are open. It never stops Run."
+        },
+        "loom.serve.memoryMb": {
+          "type": "number",
+          "default": 64,
+          "minimum": 8,
+          "maximum": 2048,
+          "description": "How much memory (in MB) the engine may use to keep answers it can reuse. The engine restarts when this changes."
+        },
+        "loom.serve.timeoutMs": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 1000,
+          "maximum": 120000,
+          "description": "The longest the engine may take over one request, in milliseconds. A slower one is answered as timed out and its result marked stale."
         },
         "loom.semantic.enable": {
           "type": "boolean",

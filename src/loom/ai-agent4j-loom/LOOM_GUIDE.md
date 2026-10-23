@@ -125,7 +125,17 @@ flowchart TD
 
 Exit code 0 means a graph was produced, even when some imports were missing or a `call` names a workflow that is not defined: those are reported as `diagnostics` inside the JSON, and the files that did load are still drawn. Exit code 2 means nothing could be drawn (the script is missing or has a syntax error); the message goes to standard error and standard output stays empty. The JSON follows `graph-result.schema.json` (version 1).
 
-In VS Code, **Loom: Show Workflow Graph** draws the same graph beside the editor and follows your edits; see the extension's README. The eval4j report draws it too, with what each run did laid over it.
+In VS Code, **Loom: Show Workflow Graph** draws the same graph beside the editor and follows your edits; see the extension's README.
+
+### In the editor
+
+The VS Code extension (`src/loom/vscode-loom`) puts the same engine in the editor. It starts one `weave serve --stdio` process per window and asks it for checks, graphs, reviews and a semantic index (`weave symbols`), so none of it waits for a new process. It runs no model, reads only the folders you have open and writes nothing: the editor writes any change, so undo works.
+
+- **Review:** **Loom: Review Workflow** shows the findings of `weave review` linked with the graph, in three layouts; fixes, accepts, dismissals and baselines are handled from the panel and are the same operations as `weave review --fix`, `--accept` and `--baseline-write`.
+- **Names:** go to definition, find references and rename work on agents, workflows, tools, classifiers, decisions, checkpoints, prompt files, imports and variables, across the files a script imports; completion offers only names in scope with the right kind (`intent.` lists a classifier's questions, `intent.kind ==` its labels, `delegate … to` the agents); hover shows models, types and allowed values. A script with a mistake still answers for the parts that read.
+- **Limits:** with no Java 17+, or when the engine cannot run, the editor says so once in the status bar and keeps the syntax colours, snippets and simpler completions; checks and graphs fall back to running `weave` for each request.
+
+`weave symbols FILE` prints the same index as JSON for other tools: definitions, uses with their role, and the type of every variable. See `docs/serve/PROTOCOL.md`. The eval4j report draws it too, with what each run did laid over it.
 
 ### 4. Evaluating a Workflow (`eval`)
 

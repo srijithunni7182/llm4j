@@ -11,7 +11,7 @@ Status: **10a done** (`weave serve`, the engine client, check and graph through 
 | A3 | I can see cost (typical and worst) on each model step, in the summary, in a CodeLens and in the status bar | `review.browser.test.js`, `reviewCodeLens.test.ts` |
 | A4 | A SAFE fix applies with one click; Fix all safe applies all as one undo step; a REVIEW fix shows a diff first | `reviewCodeActions.test.ts`, `applyFix.integration.test.ts` |
 | A5 | Findings appear as squiggles and Problems entries with the rule id, and Explain opens the rule's page | `reviewDiagnostics.test.ts` |
-| A6 | Feedback is fast: warm instant tier p95 < 150 ms, full review p95 < 1 s, completion and hover p95 < 100 ms, cold start < 4 s | `latency.test.ts` |
+| A6 | Feedback is fast: warm instant tier p95 < 150 ms, full review p95 < 1 s, completion and hover p95 < 100 ms, cold start < 4 s | `latency.test.ts` (§7, 10e: 45 ms, 54 ms, 13 ms, 883 ms) |
 | A7 | One engine process serves the window; a crash restarts it; stale results are never shown as current | `engineClient.test.ts`, `ServeRobustnessTest` |
 | A8 | Go to definition, references, rename (all-or-nothing), typed completion (`intent.` offers the classifier's fields) and hover work from the Java parser's index | `SymbolsTest`, `semantic*.test.ts`, `renameAtomic.test.ts` |
 | A9 | With no Java, a dead engine, or a version mismatch the extension degrades with one clear message and keeps working | `degraded.test.ts` |
@@ -49,21 +49,21 @@ Status: **10a done** (`weave serve`, the engine client, check and graph through 
 | R16 | `ServeRobustnessTest`, `engineClient.test.ts`, `engine.integration.test.ts` (real process killed) | ✅ 10a |
 | R17 | `applyFix.integration.test.ts`, `ServeIsStaticTest` (server writes nothing: ✅ 10a) | ✅ 10c (editor applies) |
 | R18 | `ServeStdioTest` (real process) | ✅ 10a |
-| R19 | `degraded.test.ts` | ⬜ 10e |
+| R19 | `degraded.test.ts` (the Java check: missing, too old, unreadable, fine) | ✅ 10e |
 | R20 | `SymbolsTest` | ✅ 10d |
 | R21 | `SymbolsRangesTest` | ✅ 10d |
-| R22 | `semantic*.test.ts`, `degraded.test.ts` | 🟨 10d (the older answers stay as the fallback; degraded-mode wiring is checked by hand in 10e) |
+| R22 | `semanticQueries.test.ts`, `semanticAnswers.test.ts` (each feature steps aside by itself when there is no index), `degraded.test.ts` | ✅ 10d, 10e |
 | R23 | `renameAtomic.test.ts` | ✅ 10d |
 | R24 | `semanticCompletion.test.ts` (every suggestion passes `check`) | ✅ 10d |
 | R25 | `parserParity.test.ts` | ✅ 10d |
-| R26 | `latency.test.ts` | 🟨 10d: `loom/symbols` p50 5 ms, p95 15 ms measured (`semantic.integration.test.ts`); the gates for all features are 10e |
+| R26 | `latency.test.ts` (table in §7, 10e) | ✅ 10e |
 | R27 | `SymbolsRecoveryTest` | ✅ 10d |
 | R28 | `engineClient.test.ts`, `engineRouting.test.ts` (providers take the interface; `FakeEngine`) | ✅ 10a |
-| R29 | `review.browser.test.js` (hostile text, 10,000-character title, nothing from outside), `manifest.test.ts` (no innerHTML and the like) | ✅ 10b (`a11y` and the 200 % zoom pass in 10e) |
+| R29 | `review.browser.test.js` (hostile text, 10,000-character title, nothing from outside), `hostile.browser.test.js` (every field, every layout, 2,000 findings), `a11y.browser.test.js` (names, contrast in three themes, focus, 200 % zoom, forced colours, reduced motion), `manifest.test.ts` | ✅ 10e |
 | R30 | `review.browser.test.js` (page state holds layout, group, filter, folds), `ReviewPanel.revive` for a reloaded window | 🟨 10b: reload restore is wired and manual-checked |
-| R31 | `manifest.test.ts` | ⬜ 10e |
-| R32 | `noNetwork.test.ts` | ⬜ 10e |
-| R33 | `degraded.test.ts` | ⬜ 10e |
+| R31 | `noNetwork.test.ts` (the settings and their defaults), `degraded.test.ts` (limits reach the engine) | ✅ 10e |
+| R32 | `noNetwork.test.ts`, `review.browser.test.js` (nothing loaded from outside) | ✅ 10e |
+| R33 | `degraded.test.ts` | ✅ 10e |
 | R34 | `triage.browser.test.js` (grouping) | ✅ 10c |
 | R35 | `triage.browser.test.js` (actions by availability) | ✅ 10c |
 | R36 | `triageActions.test.ts`, `triage.browser.test.js` | ✅ 10c |
@@ -105,14 +105,14 @@ Extension README and CHANGELOG; `docs/serve/PROTOCOL.md`; wiki "Loom in VS Code"
 
 ## 6. Exit checklist
 
-- [ ] Every row in §2 is ✅ and every A-criterion has evidence
-- [ ] Latency table (§7) filled and within targets
-- [ ] Docs in §5 updated; roadmap status updated
-- [ ] DESIGN §10 questions answered and recorded
+- [x] Every row in §2 is ✅ except R7 ("Enable lens" and "Show suppressed" are partial) and R30 (reload restore is wired; checked by hand); every A-criterion has automated evidence; the manual checks of §4 are owed (A1, A12 and the visual ones)
+- [x] Latency table (§7, 10e) filled and within targets
+- [x] Docs in §5 updated (the stack-level pages wait for the end of all phases, as decided on 2026-10-14)
+- [x] DESIGN §10 questions: built to the recommendations and listed in `09-review-engine/OPEN_ITEMS.md` (D10) for your confirmation
 
 ## 7. Results
 
-*(per sub-phase: latency table, parity delta between the TypeScript parser and the Java index, VSIX size)*
+*(per sub-phase; the latency table, the parity delta and the VSIX size are in 10d and 10e)*
 
 ### 10a (2026-10-23)
 
@@ -152,8 +152,30 @@ Extension README and CHANGELOG; `docs/serve/PROTOCOL.md`; wiki "Loom in VS Code"
 
 - Built (Java): `weave symbols` and `loom/symbols` (package `symbols`): definitions of agents, workflows, tools, classifiers, personas, providers, decisions, mcp/knowledge/routing blocks, checkpoints and prompt files; uses with their role; variables with types (a classifier's record with its enum labels including `unsure`, an agent's `output_schema`, a delegate's `expecting`, a decision's choices, `unknown` otherwise); workflow scopes; `extent` for outlines. Ranges are UTF-16, tested with emoji, tabs and CRLF. Error recovery: a stray character, an unterminated string, a broken or unclosed block are set aside and the rest is read again. `buffers` lets the editor send every other changed file so an import being edited is read as it is. Two lexer fixes the index needed (and any error message that quotes a column benefits from): columns on the first line were 0-based while the others were 1-based, and a token after a multi-line string was one column off; a string token's line is now the line it starts on.
 - Built (extension): `src/semantic/` (pure: `queries`, `completion`, `hover`, `answers`; glue: `vscodeSemantic`). Definition, references, rename (prepare, all-or-nothing, prompt files renamed with their id after a confirmation), completion (agents after `to`, checkpoints after `rewind to`, workflows, classifiers, decisions, tools, `intent.` fields with types, enum values after `==`, variables in conditions and `{placeholders}`), hover (agent model/tools/schema, workflow signature, classifier record, variable type and origin, a field's type, the allowed values of an enum comparison with a warning for a value it never has), outline (blocks, checkpoints, variables) and signature help at `call Name(`. Definition, hover and completion go through the language client's middleware so the older answer is the fallback; the setting `loom.semantic.enable` turns the new answers off.
-- R25: `parserParity.test.ts` compares the frozen TypeScript parser with the Java index on **322 scripts**; 8 differences are committed in `test/fixtures/parity/parser-delta.json`, all the TypeScript parser reading the words "agent changes" in a ladder as an agent (Java is right). The TypeScript scanner's `|` rejection (pre-existing failure) is fixed in passing; its diagnostics are not shown to users, so nothing visible changed.
+- R25: `parserParity.test.ts` compares the frozen TypeScript parser with the Java index on **326 scripts**; 9 differences are committed in `test/fixtures/parity/parser-delta.json`, all the TypeScript parser reading the words "agent changes" in a ladder as an agent (Java is right). The TypeScript scanner's `|` rejection (pre-existing failure) is fixed in passing; its diagnostics are not shown to users, so nothing visible changed.
 - R24 (strong form): `semantic.integration.test.ts` takes every suggestion in nine contexts from the real engine, puts it into a statement, and asks `loom/check`: none adds an error (more than 25 suggestions checked).
 - Tests: Java module +40 (`SymbolsTest`, `SymbolsRangesTest`, `SymbolsRecoveryTest`, `SymbolsParityTest` over every repository script, `ServeSymbolsTest`, stall tests in `ServeRobustnessTest`). Extension: 564 pass, 5 fail (the pre-existing five: logo script path ×2, renderer-copy sync ×2, one real-graph path test).
 - Not done in 10d: CodeLens reference counts, semantic tokens and folding (the table in DESIGN §5.2 lists them; neither has a requirement or a test row), and hover's "typical cost per call" (the cost model is in the review; wired in 10e with the latency gates). Renaming a versioned prompt (`name@v2`) or an import is refused with the reason, since it is a folder or file rename.
 - **Manual check owed (VS Code):** F12 on an agent in a delegate, on an imported agent, on a variable; Shift+F12 references; F2 rename of an agent used in two files and of a variable used in `{placeholders}`; try renaming to a keyword and to a taken name (refused, with the reason); `intent.` completion and `== ` values; hover over an agent, a variable and a field; Outline view; Ctrl+Shift+Space inside `call Name(`; switch `loom.semantic.enable` off and see the older behaviour return.
+
+### 10e (2026-10-23)
+
+- **Degraded modes (R33).** `degraded.test.ts`: no Java and a Java older than 17 each stop the engine and say so in one status-bar line that opens the fix steps (new command **Loom: Java Requirements**; the Java check runs beside the start, so a working Java never waits for it, and an answer about an old start is ignored); an engine that keeps dying ends as *unavailable (using commands)*; a protocol mismatch says both versions; a slow engine is pinged after a timeout and restarted only if it does not answer (the stall hardening of 10c). Only status lines are produced: there is no popup to repeat.
+- **Settings (R31).** `loom.serve.memoryMb` (64) and `loom.serve.timeoutMs` (10000) reach the engine as `--memory-mb` and `--timeout-ms`, and the extension waits two seconds longer than the engine's own limit so the engine's answer arrives first; changing them restarts the engine.
+- **No network, no telemetry (R32).** `noNetwork.test.ts` scans every module for a way to open a connection and every page script for one, pins the one policy (`default-src 'none'`) of both pages, lists the only four modules that start processes (Java), and checks the manifest for telemetry packages and settings.
+- **Accessibility, zoom and hostile text (R29, A10, A16).** `a11y.browser.test.js` (20 tests) and `hostile.browser.test.js` (6) in a real browser. They found and I fixed: pressed buttons and filled buttons under 4.5:1 contrast in light and dark (a darker fill token), expand arrows drawn on the browser's default light-grey button in a dark theme (1.3:1), the finding header and the legend running off the side at 360 px, the summary strip's cost note overlapping the time cell, and no border on buttons in forced-colour (Windows high contrast) mode; reduced motion is honoured. Hostile text (markup, handlers, scripts, bidirectional controls, 3,000-character words) in every field of a finding, a step and a file name is text only in all three layouts; 2,000 findings draw in under 4 s and stay responsive.
+- **Latency (A6, R26), this machine, real engine, warm, a different text each request (no cache hits):**
+
+| Gate | Budget | p50 | p95 |
+|---|---|---|---|
+| Cold start to first answer | 4,000 ms | 883 ms | |
+| Instant tier (validity lens) | 150 ms | 30.5 ms | 44.5 ms |
+| Full review (240 findings) | 1,000 ms | 38.9 ms | 53.5 ms |
+| Completion (index and answer) | 100 ms | 6.6 ms | 13.2 ms |
+| Hover (index and answer) | 100 ms | 5.7 ms | 8.6 ms |
+| Rename plan across 20 files | 1,000 ms | 16 ms | 32 ms |
+
+- **Docs (§5).** Extension README (Review screenshots, Editing, When something is limited, settings), CHANGELOG, `docs/serve/PROTOCOL.md`, wiki page *Loom in VS Code* (linked from the wiki home), LOOM_GUIDE "In the editor", `llms.txt`, the workflow skill's review section, and five screenshots (`scripts/take-review-screenshots.js`: Split light and dark, Outline, List light and dark) in `docs/images/vscode-loom/`.
+- **VSIX.** Built with `vsce package`: **22.78 MB (23,881,485 bytes)**, 522 files, of which `bin/weave.jar` is 24.1 MB uncompressed (the jar is almost all dependencies). The bundled jar was started the way the extension starts it and answered `loom/symbols`, `loom/review` and `loom/ping`.
+- Tests: Java module 2,898, 0 failures. Extension: 611 pass, 5 fail (the five that failed before phase 10 began: the logo script and the renderer-copy check look for scripts one folder too high, and one real-graph path test); no test skipped.
+- **Manual check owed (VS Code):** the list in the final report of this phase (one VSIX, one checklist).
