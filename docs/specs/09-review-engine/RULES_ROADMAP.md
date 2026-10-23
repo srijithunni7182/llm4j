@@ -43,9 +43,9 @@ Deferred out of 9d, with the reason:
 | LP02 (no output-format instruction before a typed branch) | needs prompt-text analysis; **H** | 9f |
 | LP05 (no "when unsure" instruction) | text heuristic; **H** | 9f |
 
-### 9e: handling findings (no new rules)
+### 9e: handling findings (done; no new rules)
 
-Fixes for LR01, LR03, LC02, LY02 and the others that carry a `fix:` template; accept, baseline, fingerprints, the advisory notice.
+Fixes now exist for LR01, LR03, LR08, LY02, LM01 (safe) and LR02 (needs judgement). Other rules gain a `fix:` template as they get an anchor that is safe to guess; LC02 (needs a memory or context block with a size) and LG04 (which version to pin) stay prose.
 
 ### 9f: observability, durability, privacy, and the declared-facts machinery
 

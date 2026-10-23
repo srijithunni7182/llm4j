@@ -1,6 +1,6 @@
 # Phase 9 verification plan: the review engine
 
-Status: **in progress**: 9a to 9d complete; 9e–9i not started. Run top to bottom at the end of sub-phase 9i; the relevant rows after each sub-phase. Results in §7.
+Status: **in progress**: 9a to 9e complete; 9f–9i not started. Run top to bottom at the end of sub-phase 9i; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -47,7 +47,7 @@ Status: **in progress**: 9a to 9d complete; 9e–9i not started. Run top to bott
 | R1 | `FindingModelTest.aFindingNeedsARuleIdAndAFixHint`, `CorePackTest.everyRuleAnswersWhyAndWhatToDo…` | ✅ 9a |
 | R2 | `FindingModelTest.aLocationKnowsWhen…`, `DataRuleSourceTest.stepFindingsAreTiedToTheirGraphNode` | ✅ 9a |
 | R3 | `AdapterTest`, `ValidityClassTest` (19 real messages classified), `ReviewSupersetOfAuditTest`; `weave check`/`audit` output unchanged | ◐ 9b: messages classified by table; the exhaustive message census stays open |
-| R4 | `FixApplierTest` | ⬜ 9e |
+| R4 | `FixApplierTest` (every fix of the core pack fixes its own example and the rule goes quiet) | ✅ 9e |
 | R5 | `ReportFormatsTest.theJsonIsVersionedAndCarriesEveryFieldTheEditorNeeds`, `hostileTextRoundTripsThroughJsonUnchanged` | ✅ 9a |
 | R6 | `ReviewCommandTest` (exit codes, `--fail-on`, bad input = 2) | ✅ 9a |
 | R7 | `ReviewSupersetOfAuditTest` | ✅ 9a |
@@ -67,12 +67,12 @@ Status: **in progress**: 9a to 9d complete; 9e–9i not started. Run top to bott
 | R21 | `JavaRuleTest` (jar via ServiceLoader, throwing rule becomes a note, listed in the catalog) | ✅ 9b |
 | R22 | `ReviewEngineTest` (overlap folding by line and node; no pair registered until a specific rule exists beside an audit rule) | ◐ 9b mechanism; first real pair lands with the rule (9d) |
 | R23 | `ReviewEngineTest.findingsAreRankedBySeverityThenLensThenLineThenRule` | ✅ 9a |
-| R24 | `FixAtomicityTest` | ⬜ 9e |
-| R25 | `FixApplierTest` (verification) | ⬜ 9e |
-| R26 | `FixOverlapTest` | ⬜ 9e |
-| R27 | `FixIdempotentTest` | ⬜ 9e |
-| R28 | `FixDryRunTest` | ⬜ 9e |
-| R29 | `FixPreservesFormattingTest` | ⬜ 9e |
+| R24 | `FixApplierTest` (nothing written unless the whole pass verifies; a fix that would not load or would add a high finding is withheld with the reason), `ReviewCommandTest` (file written once, via a temp file) | ✅ 9e |
+| R25 | `FixApplierTest.aFixThatWouldBreak…`, `…AddAHighFindingIsWithheld` | ✅ 9e |
+| R26 | `FixApplierTest` (most serious first; overlapping edits and same-line edits wait for the next pass; up to 5 passes) | ✅ 9e |
+| R27 | `FixApplierTest.runningTheFixerOnItsOwnOutputChangesNothing`, `ReviewCommandTest.fixIsIdempotent` | ✅ 9e |
+| R28 | `ReviewCommandTest.dryRun…`, `UnifiedDiffTest` | ✅ 9e |
+| R29 | `FixApplierTest` (comments, CRLF and every other line kept; only the lines an edit touches change) | ✅ 9e |
 | R30 | `ReviewCorpusTest`, `CorpusCostAccuracyTest` | ◐ 9d: 44 labelled scripts and 10 recorded runs; review time is measured in 9i |
 | R31 | `SuppressionTest` (name, line, node; reason required, LV08; listed in every format) | ✅ 9b |
 | R32 | `ReviewSettingsTest.aMisspeltKeyIsAnErrorThatNamesTheNearestKey` | ✅ 9a |
@@ -84,20 +84,20 @@ Status: **in progress**: 9a to 9d complete; 9e–9i not started. Run top to bott
 | R38 | `InertRuleNoteTest`, `DeclaredFactsTest` | ⬜ 9f |
 | R39 | `OptionalLensesOffByDefaultTest`, `Lg*Test`, `Lm*Test`, `Lh*Test`, `Lb*Test` | ⬜ 9h |
 | R40 | `CrossLensDedupTest` | ⬜ 9h |
-| R41 | `FingerprintStabilityTest`, `FingerprintAnchorOrderTest`, `AcceptDoesNotHideOtherFindingTest` | ⬜ 9e |
-| R42 | `AcceptScopesTest`, `AcceptExpiryTest` | ⬜ 9e |
-| R43 | `AcceptScopesTest` (counts, no lens-wide accept) | ⬜ 9e |
-| R44 | `AcceptGuardrailsTest`, `TrifectaAcceptWritesScriptTest` | ⬜ 9e |
+| R41 | `HandlingFindingsTest` (a fingerprint survives a move and number changes; differs for another thing, rule or wording), `ReviewCommandTest.anAcceptedFindingStaysAccepted…` | ✅ 9e |
+| R42 | `HandlingFindingsTest`, `ReviewCommandTest` (reason required; scope finding / on / script / project; until with expiry that reopens the finding and says so; by and at kept) | ✅ 9e |
+| R43 | `HandlingFindingsTest` (scopes), `ReviewCommandTest`; counts shown before acting are an editor job (10c) | ◐ 9e CLI; the count in the dialog is 10c |
+| R44 | `ReviewCommandTest` (bulk accept of serious findings needs `--confirm N`; LA01 refused with the trifecta wording; `--strict-accepts` counts accepted ones), `HandlingFindingsTest` | ✅ 9e; writing `trifecta: accepted` into the script is the editor's job (10c) |
 | R45 | `DismissDoesNotAffectCiTest` | ⬜ 10c |
-| R46 | `BaselineTest`, `BaselineNewOnlyFailsTest`, `BaselineHighExcludedTest` | ⬜ 9e |
-| R47 | `NoiseReportTest` | ⬜ 9e |
-| R48 | `FixGroupSafeOnlyTest`, `FixGroupReviewPreviewTest`, `FixRereviewTest` | ⬜ 9e |
-| R49 | `RunNeverBlockedByFindingsTest`, `OnlyExplicitCommandsFailTest` | ⬜ 9e |
-| R50 | `NoticeStderrOnlyTest`, `NoticeOncePerProcessTest`, `NoticeNotOnNonStartingCommandsTest` | ⬜ 9e |
-| R51 | `NoticeCountsOpenOnlyTest`, `NoticeThresholdTest` | ⬜ 9e |
-| R52 | `NoticeCacheAndTimeCapTest` | ⬜ 9e |
-| R53 | `RunUnchangedWithNoticeTest`, `NoticeNonTerminalPlainTest` | ⬜ 9e |
-| R54 | `ReviewCrashDoesNotFailRunTest` | ⬜ 9e |
+| R46 | `HandlingFindingsTest`, `ReviewCommandTest` (write, serious findings left out unless asked, prune, new instance not hidden) | ✅ 9e |
+| R47 | `HandlingFindingsTest.theNoiseReport…`, `ReviewCommandTest.theNoiseReport…` | ✅ 9e |
+| R48 | `FixApplierTest`, `ReviewCommandTest` (re-review after a fix; REVIEW fixes need `--yes` and are shown by `--dry-run`) | ✅ 9e CLI; group preview in the editor is 10c |
+| R49 | `RunUnchangedWithNoticeTest` (a project `fail-on = info` does not fail a run) | ✅ 9e for run and package |
+| R50 | `ReviewNoticeTest` (one line, stderr, once per process, plain text, nothing on stdout) | ✅ 9e for run and package; daemon takes no script, so there is nothing to review at its start |
+| R51 | `ReviewNoticeTest` (threshold, accepted and baselined counted apart, off by option, environment and file; the option wins) | ✅ 9e |
+| R52 | `ReviewNoticeTest` (cache keyed by script, settings, baseline, prompts, pack and date; late notice dropped via `notice.timeout`) | ✅ 9e |
+| R53 | `RunUnchangedWithNoticeTest` (stdout, exit code and every file of the run directory identical with the notice on or off) | ✅ 9e |
+| R54 | `ReviewNoticeTest` (bad settings, bad level and an unreadable script each become one `review unavailable` line) | ✅ 9e |
 | R55 | `FabricReviewAttributeTest` | ⬜ 9h |
 | R56 | `SkillAdvisoryTextTest` | ⬜ 9i |
 | R57 | `CorePackTest`, `ReviewCorpusTest`: 18 core rules are data; LA, LV and the cost-estimate rules stay Java by design | ✅ 9d |
@@ -288,3 +288,15 @@ Repository examples reviewed: 14 (skipped 0)
 | LR02 | 8 |
 | LR03 | 1 |
 | LR07 | 2 |
+
+
+### 9e (2026-10-23)
+
+- Built: fingerprints (`Finding.fingerprint()`, in the JSON); accept (`RULE.accept = <scope> "reason" [until D] [by "N"] [at D]`, `--accept`, `--scope`, `--until`, `--confirm`, `--strict-accepts`), `review.baseline.json` (`--baseline-write`, `--baseline-include-high`, `--baseline-prune`), `--noise-report`; the fix engine (`SourceText`, `FixBuilder`, `FixApplier`, `UnifiedDiff`) with `--fix`, `--dry-run`, `--fix-rule`, `--fix-finding`, `--yes`, and fixes for LR01, LR02 (review), LR03, LR08, LY02, LM01 (core pack 1.4.0); the advisory notice for `weave run` and `weave package`.
+- Tests added: `HandlingFindingsTest` (21), `FixApplierTest` (12), `UnifiedDiffTest` (4), `ReviewNoticeTest` (13), `RunUnchangedWithNoticeTest` (2), and 17 more in `ReviewCommandTest`.
+- Decisions and limits, stated plainly:
+  - **A fix is never guessed.** The anchors work on the lines of the script; a statement that shares its line with others (a one-line workflow) gets no fix, and `weave rules test` reports a rule whose fix cannot be built on any of its examples.
+  - **How a fix is checked.** A candidate is written beside the script under a temporary name, loaded, validated and reviewed with the same engine, then removed. It is kept only if it loads and adds no high finding.
+  - **`on <name>` accepts match** a finding that names the thing in its title or is anchored to it (an agent, or the workflow a step is in), so accepting a rule "on Main" covers its steps.
+  - **Not here:** the trifecta acceptance written into the script and the count-before-you-act dialogs (editor, 10c); Fabric attributes (9h); skill wording (9i); the notice for `serve` and `deploy` (those commands arrive in phase 15) and for `daemon` (it takes no script).
+  - **The notice thread can be dropped, not waited for.** It is computed while the command starts and printed when ready if it beat the cap; a run that ends first prints nothing.

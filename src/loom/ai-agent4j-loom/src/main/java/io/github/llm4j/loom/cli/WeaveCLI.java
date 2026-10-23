@@ -150,6 +150,13 @@ public class WeaveCLI implements Callable<Integer> {
 
         @CommandLine.Mixin private InvokerOptions invokerOptions = new InvokerOptions();
 
+        @Option(
+                names = "--review-notice",
+                paramLabel = "high|medium|low|off",
+                description =
+                        "The lowest severity of open review findings mentioned in one line on standard error before the run (default: review.properties, else low). Never blocks the run.")
+        private String reviewNotice;
+
         @Override
         public Integer call() throws Exception {
             if (!scriptFile.exists()) {
@@ -170,6 +177,7 @@ public class WeaveCLI implements Callable<Integer> {
             ObserveMixin.Opened observed = observeOpts.open(env);
             if (observed.failed()) return 2;
             env = observed.env();
+            ReviewNotice.start(scriptFile, env, reviewNotice);
             try {
                 return run(
                         scriptFile,
@@ -1370,12 +1378,20 @@ public class WeaveCLI implements Callable<Integer> {
                 defaultValue = "true")
         private boolean thinJar;
 
+        @Option(
+                names = "--review-notice",
+                paramLabel = "high|medium|low|off",
+                description =
+                        "The lowest severity of open review findings mentioned in one line on standard error (default: review.properties, else low). Never blocks packaging.")
+        private String reviewNotice;
+
         @Override
         public Integer call() throws Exception {
             if (!scriptFile.exists()) {
                 System.err.println("Error: Script file not found: " + scriptFile);
                 return 1;
             }
+            ReviewNotice.start(scriptFile, WeaveEnv.system(), reviewNotice);
 
             File outFile = new File(outputName);
             System.out.println("📦 Packaging workflow into: " + outFile.getAbsolutePath());
