@@ -1,6 +1,6 @@
 # Phase 12 verification plan: generate from a description
 
-Status: **12a done**. Run top to bottom at the end of sub-phase 12e; the relevant rows after each sub-phase. Results in §7.
+Status: **12a and 12b done**. Run top to bottom at the end of sub-phase 12e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -24,35 +24,35 @@ Status: **12a done**. Run top to bottom at the end of sub-phase 12e; the relevan
 
 | Req | Tests | Status |
 |---|---|---|
-| R1 | `InterviewTest` | ⬜ 12b |
-| R2 | `InterviewCategoriesTest` | ⬜ 12b |
+| R1 | `InterviewTest`, `GenerateBuildTest` (questions asked one by one, empty answer takes the default) | ✅ 12b |
+| R2 | `InterviewTest` (a question outside the categories, or a second in one, is dropped) | ✅ 12b |
 | R3 | `PlanTest` (JSON round trip, fingerprint, Markdown) | ✅ 12a |
 | R4 | `GenerateCommandTest` (plan only, edited plan read back, plan the checker rejects is still written) | ✅ 12a |
-| R5 | `InteractivePlanTest` | ⬜ 12b |
+| R5 | `GenerateBuildTest.interactivelyThePersonSeesThePlanAndCanSayNoOrEdit` | ✅ 12b |
 | R6 | `PlanTest` (role, allowed model, built-in kind or stub, reach, effect approval, budget, tests, names) | ✅ 12a |
 | R7 | `WriterTest` (temporary project, removed on close, target untouched until commit) | ✅ 12a |
 | R8 | `WriterTest` (flat and Maven layouts, pom, .gitignore) | ✅ 12a |
 | R9 | `WriterTest`, `GatesTest` (prompt files by stem) | 🟨 12a (the prompts' header comment is for 12b's prompt assembly) |
-| R10 | `SafetyDefaultsTest`, `MissingBudgetFailsTest` | ⬜ 12b |
-| R11 | `PromptAssemblyTest`, `ExamplePickerTest` | ⬜ 12b |
-| R12 | `RepairLoopTest` | ⬜ 12b |
-| R13 | `SpendCapTest` | ⬜ 12b |
-| R14 | `MonotoneLoopTest`, `OscillationTest` | ⬜ 12b |
-| R15 | `SafeFixByToolTest` | ⬜ 12b |
-| R16 | `ExitCodesTest`, `SummaryTest` | ⬜ 12b |
+| R10 | `GatesTest` (no budget, no approve:, an unlisted tool), `PromptAndSummaryTest` (the defaults are in the instructions), real G2 in `GenerateBuildTest` | 🟨 12b (enforced by G2 and G5 and told to the model; no separate check for every default, e.g. max N on a loop is the review's LR rules) |
+| R11 | `PromptAndSummaryTest` (language, rule catalog from the loaded rules, example by plan shape, plan, context only when given) | ✅ 12b |
+| R12 | `RepairLoopTest` (per-gate and overall limits; only changed files merged) | ✅ 12b |
+| R13 | `RepairLoopTest.theSpendCapStops...`, `GenerateBuildTest.theSpendCapGivesExit4` | 🟨 12b (tokens always; money only when --prices knows the model) |
+| R14 | `RepairLoopTest` (a worse attempt is thrown away; oscillation; repeating) | ✅ 12b |
+| R15 | `SafeFixByToolTest` | ✅ 12b |
+| R16 | `GenerateBuildTest` (exit 0, 2, 3, 4; names the gate and the last failure) | ✅ 12b |
 | R17 | `NoLiveCallsTest` | ⬜ 12c |
-| R18 | `SummaryTest` | ⬜ 12b |
-| R19 | `SummaryTest` (not-checked statement) | ⬜ 12b |
+| R18 | `PromptAndSummaryTest`, `GenerateBuildTest` | 🟨 12b (next steps are fixed, not from ProjectAdvisor; no review delta) |
+| R19 | `PromptAndSummaryTest` | ✅ 12b |
 | R20 | `PatchSetTest` | ⬜ 12d |
 | R21 | `EditDeltaTest` | ⬜ 12d |
 | R22 | `EditConfirmTest`, `AcceptWorseTest` | ⬜ 12d |
 | R23 | `EditSafetyTest` | ⬜ 12d |
 | R24 | `AmbiguousEditTest` | ⬜ 12d |
-| R25 | `DescriptionInjectionTest`, `ContextFileInjectionTest`, `PlanFidelityTest` | ⬜ 12b |
-| R26 | `TranscriptTest` (no request text, no key-shaped reply) | 🟨 12a (the prompt and plan being key-free is 12b) |
+| R25 | `GenerateBuildTest.aProjectTheScriptNeverMatchedToThePlanFailsG5`, `...theModelIsShownTheDescriptionAsData...`, `GatesTest` | ✅ 12b |
+| R26 | `TranscriptTest`, `GenerateBuildTest` (no secret-shaped text in what the model is shown) | ✅ 12b |
 | R27 | `WriterTest.aFileThatIsTooBigOrHoldsAKeyIsRefused...` | 🟨 12a (files; prompts of the generator itself in 12b) |
 | R28 | `WriterTest.everyFileSaysWhatMadeItAndFromWhichPlanAndNeverWhichModel` | ✅ 12a |
-| R29 | `GenerateNetworkTest` | ⬜ 12b |
+| R29 | `GenerateBuildTest` (only the configured model is asked; nothing fetched or run) | 🟨 12b (by construction; there is no network guard test yet) |
 | R30 | `WriterTest` (empty or absent target; nothing replaced) | ✅ 12a |
 | R31 | `TranscriptTest`, `GenerateCommandTest.recordingThenReplaying...` | ✅ 12a |
 | R32 | `GateOnlyExamplesTest` (samples and every starter template), `GenerateCommandTest` | ✅ 12a (G1 and G5; G2 to G4 join as they are built) |
@@ -97,3 +97,10 @@ Wiki "Generating a workflow"; LOOM_GUIDE section; the workflow skill (preferred 
 - Found building it: `weave check --no-env` reported a false error for a tool whose URL is read from an unset `env.NAME` (the stand-in is not a URL); it is now dropped like the other stand-in failures (this also fixes it in the editor); the hand-written `digest` sample hit it.
 - Tests: Java module 3,1xx; `PlanTest` (14), `WriterTest` (9), `TranscriptTest` (5), `GatesTest` (9), `GenerateCommandTest` (11), `GateOnlyExamplesTest` (7).
 - Not in 12a: writing the project with the model (`--from-plan` only validates the plan so far), the interview, the repair loop (12b).
+
+### 12b (2026-10-23)
+
+- Built: `Interview` (at most five questions in fixed categories, defaults), `PromptAssembly` (the safe defaults, the review rules from the loaded catalog, the language, examples by plan shape, the plan; the developer's files only with `--context`, as data), `FileBlocks`, `RepairLoop` (writes, runs G1, G2, G5, feeds back only what failed, merges only the files the model sends, discards a worse attempt and retries the best, stops at the per-gate and overall limits), `Spend` (tokens always, money when `--prices` knows the model; checked before each call), `ReviewGate` (G2: SAFE fixes applied by the tool through the review's own fixer, then no HIGH and nothing at or above `--gate-level` in validity, reliability and prompts), `Summary`, and the whole of `weave generate "..."`: layout (Maven default, `--flat`), the generator writes `plan.json`, `PLAN.md` and a golden-dataset stub itself, a target is touched only when every gate passes, `--keep-failing`, `--into-existing`, exit codes 0 to 4.
+- Found building it: the real review gate immediately found two flaws in my own fixture (a tool that sends without `on_failure`, a variable name that occurs in a prompt text), so the gates do what they are for; line numbers in the model's feedback are one less than in the files on disk (every file has a header line the model did not write); a reply whose files cannot even be written must never become the best draft; a plan's own JSON can look like interview questions to a lenient parser, so the interview call is separate and its output is checked.
+- Tests: Java module 3,153; new in 12b: `FileBlocksTest` (4), `InterviewTest` (6), `RepairLoopTest` (9), `ReviewGateTest` (5), `PromptAndSummaryTest` (5), `SafeFixByToolTest` (1), `GenerateBuildTest` (11).
+- Not in 12b: G3 and G4 (the generated tests run and cover; 12c), edit mode (12d), the editor and the benchmark (12e), a review delta in the card, next steps from `ProjectAdvisor`.

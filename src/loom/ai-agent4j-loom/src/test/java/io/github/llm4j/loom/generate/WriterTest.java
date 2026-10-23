@@ -21,7 +21,9 @@ class WriterTest {
     static final Writer.Stamp STAMP = new Writer.Stamp("weave generate 6.1.0", "2026-10-23");
 
     private Workspace render(Writer.Layout layout) throws Exception {
-        return Writer.render(GenerateFixtures.files(), GenerateFixtures.plan(), layout, STAMP, dir);
+        Map<String, String> files = new LinkedHashMap<>(GenerateFixtures.files());
+        files.putAll(Writer.datasetStub(GenerateFixtures.plan()));
+        return Writer.render(files, GenerateFixtures.plan(), layout, STAMP, dir);
     }
 
     @Test

@@ -5,21 +5,30 @@ import io.github.llm4j.loom.generate.CheckGate;
 import io.github.llm4j.loom.generate.FidelityGate;
 import io.github.llm4j.loom.generate.Gate;
 import io.github.llm4j.loom.generate.GateResult;
+import io.github.llm4j.loom.generate.Interview;
 import io.github.llm4j.loom.generate.Plan;
 import io.github.llm4j.loom.generate.PlanChecker;
 import io.github.llm4j.loom.generate.PlanJson;
 import io.github.llm4j.loom.generate.PlanMarkdown;
 import io.github.llm4j.loom.generate.Planner;
+import io.github.llm4j.loom.generate.PromptAssembly;
+import io.github.llm4j.loom.generate.RepairLoop;
+import io.github.llm4j.loom.generate.ReviewGate;
+import io.github.llm4j.loom.generate.Spend;
+import io.github.llm4j.loom.generate.Summary;
 import io.github.llm4j.loom.generate.Transcript;
 import io.github.llm4j.loom.generate.Workspace;
+import io.github.llm4j.loom.generate.Writer;
 import io.github.llm4j.loom.init.ProjectLayout;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
@@ -89,6 +98,74 @@ final class GenerateCommand implements Callable<Integer> {
             description = "Answer from a recorded transcript instead of asking a model.")
     File replay;
 
+    @Option(
+            names = "--flat",
+            description =
+                    "A plain folder (main.loom, prompts/, tests/ beside each other) instead of the Maven layout.")
+    boolean flat;
+
+    @Option(
+            names = "--no-ask",
+            description =
+                    "Do not ask questions; use the proposed answers and list them in the plan.")
+    boolean noAsk;
+
+    @Option(
+            names = "--interactive",
+            description = "Ask the questions and show the plan for a yes before building.")
+    boolean interactive;
+
+    @Option(names = "--yes", description = "Build without asking whether the plan is right.")
+    boolean yes;
+
+    @Option(
+            names = "--context",
+            description =
+                    "Existing files the model may read (prompts, tools.loot, a sibling script). Given to the model as data.")
+    List<File> context = new ArrayList<>();
+
+    @Option(
+            names = "--max-attempts",
+            description = "Most repair rounds for one gate (default 4; 8 in all).",
+            defaultValue = "4")
+    int maxAttempts;
+
+    @Option(
+            names = "--max-cost",
+            description =
+                    "The most the generation may cost, in dollars (default 0.50; needs --prices to count).",
+            defaultValue = "0.50")
+    java.math.BigDecimal maxCost;
+
+    @Option(
+            names = "--max-tokens",
+            description = "The most tokens the generation may use (default 200000).",
+            defaultValue = "200000")
+    long maxTokens;
+
+    @Option(
+            names = "--prices",
+            description = "The price table that turns tokens into money for --max-cost.")
+    File prices;
+
+    @Option(
+            names = "--gate-level",
+            description =
+                    "Findings in the validity, reliability and prompts lenses at or above this fail G2 (default medium; high findings always fail).",
+            defaultValue = "medium")
+    String gateLevel;
+
+    @Option(
+            names = "--keep-failing",
+            description = "Leave a failing draft in <out>.draft for inspection.")
+    boolean keepFailing;
+
+    @Option(
+            names = "--into-existing",
+            description =
+                    "Add the project to a folder that already holds files (nothing is replaced).")
+    boolean intoExisting;
+
     @Option(names = "--format", description = "text (default) or json.", defaultValue = "text")
     String format;
 
@@ -112,16 +189,11 @@ final class GenerateCommand implements Callable<Integer> {
         Set<String> allowed = c.allowedModels.isEmpty() ? null : c.allowedModels;
         Plan plan;
         Transcript.Recording recording = null;
-        if (c.fromPlan != null) {
+        LLMClient client = null;
+        String model = null;
+        if (!(c.fromPlan != null && c.planOnly)) {
             try {
-                plan = PlanJson.read(Files.readString(c.fromPlan.toPath(), StandardCharsets.UTF_8));
-            } catch (java.io.IOException | IllegalArgumentException e) {
-                env.err().println("Error: " + c.fromPlan + ": " + e.getMessage());
-                return 2;
-            }
-        } else {
-            LLMClient client;
-            try {
+                model = c.replay != null ? "replay" : modelName(c);
                 client = clientFor(c, env);
             } catch (IllegalArgumentException | java.io.IOException e) {
                 env.err().println("Error: " + e.getMessage());
@@ -131,15 +203,29 @@ final class GenerateCommand implements Callable<Integer> {
                 recording = new Transcript.Recording(client);
                 client = recording;
             }
+        }
+        if (c.fromPlan != null) {
             try {
-                plan =
-                        Planner.plan(
-                                client,
-                                c.replay != null ? "replay" : modelName(c),
-                                c.description,
-                                List.of(),
-                                reference(),
-                                allowed);
+                plan = PlanJson.read(Files.readString(c.fromPlan.toPath(), StandardCharsets.UTF_8));
+            } catch (java.io.IOException | IllegalArgumentException e) {
+                env.err().println("Error: " + c.fromPlan + ": " + e.getMessage());
+                return 2;
+            }
+        } else {
+            try {
+                List<Plan.Answer> answers =
+                        Interview.answers(
+                                Interview.questions(client, model, c.description),
+                                c.noAsk || !c.interactive
+                                        ? null
+                                        : q ->
+                                                env.human()
+                                                        .promptHuman(
+                                                                q.question()
+                                                                        + " ["
+                                                                        + q.proposed()
+                                                                        + "]"));
+                plan = Planner.plan(client, model, c.description, answers, reference(), allowed);
             } catch (IllegalArgumentException | IllegalStateException e) {
                 env.err().println("Error: " + e.getMessage());
                 return 2;
@@ -187,14 +273,165 @@ final class GenerateCommand implements Callable<Integer> {
                                     + target.resolve("plan.json"));
             return 0;
         }
-        env.out()
-                .println(
-                        "The plan is sound ("
-                                + plan.agents().size()
-                                + " agents, "
-                                + plan.tools().size()
-                                + " tools). Building the project from it comes next.");
-        return 0;
+        return build(c, env, plan, target, client, model, recording);
+    }
+
+    private static int build(
+            GenerateCommand c,
+            WeaveEnv env,
+            Plan plan,
+            Path target,
+            LLMClient client,
+            String model,
+            Transcript.Recording recording) {
+        if (c.interactive && !c.yes) {
+            env.out().println(PlanMarkdown.render(plan));
+            String answer = env.human().promptHuman("Build this? (yes / edit / no)");
+            String a = answer == null ? "no" : answer.strip().toLowerCase();
+            if (a.startsWith("e")) {
+                try {
+                    writePlan(plan, target);
+                } catch (java.io.IOException e) {
+                    env.err().println("Error: " + e.getMessage());
+                    return 2;
+                }
+                env.out()
+                        .println(
+                                "Edit "
+                                        + target.resolve("plan.json")
+                                        + ", then: weave generate --from-plan "
+                                        + target.resolve("plan.json"));
+                return 0;
+            }
+            if (!a.startsWith("y")) {
+                env.out().println("Nothing was built.");
+                return 0;
+            }
+        }
+        io.github.llm4j.loom.review.model.Severity soft;
+        try {
+            soft = io.github.llm4j.loom.review.model.Severity.valueOf(c.gateLevel.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            env.err().println("Error: --gate-level takes high, medium, low or info.");
+            return 1;
+        }
+        Map<String, String> context = new LinkedHashMap<>();
+        try {
+            for (File f : c.context)
+                context.put(f.getName(), Files.readString(f.toPath(), StandardCharsets.UTF_8));
+        } catch (java.io.IOException e) {
+            env.err().println("Error: " + e.getMessage());
+            return 2;
+        }
+        io.github.llm4j.budget.PriceTable.Price price = null;
+        if (c.prices != null) {
+            try {
+                price =
+                        io.github.llm4j.budget.PriceTable.load(c.prices.toPath())
+                                .price(model)
+                                .orElse(null);
+            } catch (java.io.IOException | RuntimeException e) {
+                env.err().println("Error: cannot read the prices: " + e.getMessage());
+                return 2;
+            }
+        }
+        Spend spend = new Spend(c.maxTokens, c.maxCost, price);
+        Map<String, String> planFiles = new LinkedHashMap<>();
+        planFiles.put("plan.json", PlanJson.write(plan));
+        planFiles.put("PLAN.md", PlanMarkdown.render(plan));
+        planFiles.putAll(Writer.datasetStub(plan));
+        List<Gate> gates =
+                List.of(
+                        new CheckGate(checker(env)),
+                        new ReviewGate(GenerateReview.reviewer(env), soft),
+                        new FidelityGate());
+        Writer.Layout layout = c.flat ? Writer.Layout.FLAT : Writer.Layout.MAVEN;
+        RepairLoop.Outcome outcome;
+        try {
+            outcome =
+                    RepairLoop.run(
+                            client,
+                            model,
+                            plan,
+                            PromptAssembly.system(
+                                    reference(),
+                                    io.github.llm4j.loom.review.Reviews.catalog().all()),
+                            PromptAssembly.write(plan, context),
+                            planFiles,
+                            gates,
+                            new RepairLoop.Settings(
+                                    c.maxAttempts,
+                                    Math.max(8, c.maxAttempts),
+                                    spend,
+                                    layout,
+                                    new Writer.Stamp(
+                                            "weave generate " + WeaveCLI.versionNumber(),
+                                            java.time.LocalDate.now(env.clock()).toString()),
+                                    Path.of(System.getProperty("java.io.tmpdir"))));
+            if (recording != null) recording.save(c.record.toPath());
+        } catch (IllegalStateException | java.io.IOException e) {
+            env.err().println("Error: " + e.getMessage());
+            return 2;
+        } catch (RuntimeException e) {
+            env.err()
+                    .println(
+                            "Error: the model could not be asked: "
+                                    + (e.getMessage() == null ? e : e.getMessage()));
+            return 2;
+        }
+        try (Workspace ws = outcome.workspace()) {
+            if (outcome.passed()) {
+                Workspace.Committed done = ws.commit(target, c.intoExisting);
+                if (!done.ok()) {
+                    env.err()
+                            .println(
+                                    "Error: "
+                                            + String.join("; ", done.conflicts())
+                                            + ". Nothing was written.");
+                    return 2;
+                }
+                env.out()
+                        .print(
+                                Summary.text(
+                                        plan,
+                                        target.toString(),
+                                        done.written(),
+                                        outcome.results(),
+                                        List.of(),
+                                        spend,
+                                        outcome.attempts().size(),
+                                        Summary.nextSteps(target.toString())));
+                return 0;
+            }
+            env.out()
+                    .println(
+                            outcome.status() == RepairLoop.Status.CAP
+                                    ? "✗ Stopped by the spend cap: " + outcome.stoppedBy()
+                                    : "✗ The gates did not pass: " + outcome.stoppedBy());
+            for (GateResult g : outcome.results()) {
+                if (g.passed()) continue;
+                env.out().println("  " + g.gate() + " " + g.name() + " failed:");
+                g.problems().forEach(p -> env.out().println("    " + p.text()));
+            }
+            if (ws != null && c.keepFailing) {
+                Path draft = Path.of(target + ".draft");
+                Workspace.Committed kept = ws.commit(draft, true);
+                env.out()
+                        .println(
+                                kept.ok()
+                                        ? "The failing draft is in " + draft
+                                        : "The draft could not be kept: "
+                                                + String.join("; ", kept.conflicts()));
+            } else if (ws == null) env.out().println("Nothing usable was written.");
+            else
+                env.out()
+                        .println(
+                                "The best draft was discarded; run again with --keep-failing to keep it for inspection.");
+            return outcome.status() == RepairLoop.Status.CAP ? 4 : 3;
+        } catch (java.io.IOException e) {
+            env.err().println("Error: " + e.getMessage());
+            return 2;
+        }
     }
 
     private static String modelName(GenerateCommand c) {
@@ -210,9 +447,13 @@ final class GenerateCommand implements Callable<Integer> {
         return env.models().createClient(modelName(c));
     }
 
+    /** The language as the model is shown it: the persona that writes Loom, then the reference. */
     private static String reference() {
-        try (var in =
-                GenerateCommand.class.getClassLoader().getResourceAsStream("guide/llms.txt")) {
+        return resource("guide/LOOM_PROMPT.md") + "\n\n" + resource("guide/llms.txt");
+    }
+
+    private static String resource(String name) {
+        try (var in = GenerateCommand.class.getClassLoader().getResourceAsStream(name)) {
             return in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8);
         } catch (java.io.IOException e) {
             return "";

@@ -168,7 +168,7 @@
             <resource>
                 <directory>.</directory>
                 <targetPath>guide</targetPath>
-                <includes><include>LOOM_GUIDE.md</include></includes>
+                <includes><include>LOOM_GUIDE.md</include><include>LOOM_PROMPT.md</include></includes>
             </resource>
             <resource>
                 <directory>../../..</directory>

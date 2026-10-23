@@ -32,14 +32,24 @@ class GenerateCommandTest {
     record Out(int code, String out, String err) {}
 
     static Out generate(io.github.llm4j.loom.execution.LLMClientFactory models, String... args) {
+        return generateAsking(
+                q -> {
+                    throw new IllegalStateException("weave generate asks no one here");
+                },
+                models,
+                args);
+    }
+
+    static Out generateAsking(
+            io.github.llm4j.loom.runtime.HumanInterface person,
+            io.github.llm4j.loom.execution.LLMClientFactory models,
+            String... args) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ByteArrayOutputStream err = new ByteArrayOutputStream();
         WeaveEnv env =
                 new WeaveEnv(
                         models,
-                        q -> {
-                            throw new IllegalStateException("weave generate asks no one here");
-                        },
+                        person,
                         new PrintStream(out, true, StandardCharsets.UTF_8),
                         new PrintStream(err, true, StandardCharsets.UTF_8),
                         Clock.systemUTC(),
@@ -79,6 +89,12 @@ class GenerateCommandTest {
                         return Stream.of(chat(r));
                     }
                 };
+    }
+
+    /** Models that answer the n-th call with the n-th reply (the last one after that). */
+    static io.github.llm4j.loom.execution.LLMClientFactory sequence(String... replies) {
+        var model = io.github.llm4j.loom.generate.ScriptedModel.of(replies);
+        return m -> model;
     }
 
     private Path project() throws Exception {
@@ -155,7 +171,7 @@ class GenerateCommandTest {
         Path out = dir.resolve("plan-out");
         Out o =
                 generate(
-                        saying(PlanJson.write(GenerateFixtures.plan())),
+                        sequence("[]", PlanJson.write(GenerateFixtures.plan())),
                         "make a support notifier",
                         "--plan-only",
                         "--model",
@@ -192,7 +208,7 @@ class GenerateCommandTest {
         Path out = dir.resolve("bad-plan");
         Out o =
                 generate(
-                        saying(PlanJson.write(bad)),
+                        sequence("[]", PlanJson.write(bad)),
                         "x",
                         "--plan-only",
                         "--model",
@@ -209,7 +225,7 @@ class GenerateCommandTest {
         Path rec = dir.resolve("t.jsonl");
         Path first = dir.resolve("first");
         generate(
-                saying("noise " + PlanJson.write(GenerateFixtures.plan()) + " noise"),
+                sequence("[]", "noise " + PlanJson.write(GenerateFixtures.plan()) + " noise"),
                 "make it",
                 "--plan-only",
                 "--model",
@@ -238,7 +254,7 @@ class GenerateCommandTest {
     void aReplayOfAnotherDescriptionIsRefusedClearly() throws Exception {
         Path rec = dir.resolve("t.jsonl");
         generate(
-                saying(PlanJson.write(GenerateFixtures.plan())),
+                sequence("[]", PlanJson.write(GenerateFixtures.plan())),
                 "make it",
                 "--plan-only",
                 "--model",
@@ -264,11 +280,19 @@ class GenerateCommandTest {
     void fromPlanReadsAnEditedPlanAndChecksIt() throws Exception {
         Path planFile = dir.resolve("plan.json");
         Files.writeString(planFile, PlanJson.write(GenerateFixtures.plan()));
-        Out o = generate(noModels(), "--from-plan", planFile.toString());
+        Out o =
+                generate(
+                        noModels(),
+                        "--from-plan",
+                        planFile.toString(),
+                        "--plan-only",
+                        "--out",
+                        dir.resolve("fp").toString());
         assertThat(o.code()).isZero();
-        assertThat(o.out()).contains("The plan is sound");
+        assertThat(o.out()).contains("Plan written");
         Files.writeString(planFile, "{ nope");
-        assertThat(generate(noModels(), "--from-plan", planFile.toString()).code()).isEqualTo(2);
+        assertThat(generate(noModels(), "--from-plan", planFile.toString(), "--plan-only").code())
+                .isEqualTo(2);
     }
 
     @Test

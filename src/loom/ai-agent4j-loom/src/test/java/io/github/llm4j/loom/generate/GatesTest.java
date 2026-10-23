@@ -61,9 +61,9 @@ class GatesTest {
                         .replace(
                                 "agent Notifier { model: \"claude-haiku-5-5\"  prompt: \"notifier\"  tools: [Hook]  approve: [Hook] }\n",
                                 "")
-                        .replace(
-                                "delegate \"Tell the customer:\\n{reply}\" to Notifier -> sent timeout 60s",
-                                "note \"sent\"");
+                        .replaceAll(
+                                "(?s)delegate \"Tell the customer.*?\\n {8}\\}\\n",
+                                "note \"sent\"\n");
         GateResult r = g5(script(without), GenerateFixtures.plan());
         assertThat(r.problems())
                 .anyMatch(p -> p.message().contains("agent Notifier, which the script does not"));

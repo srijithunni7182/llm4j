@@ -64,13 +64,15 @@ public final class GenerateFixtures {
             agent Drafter { model: "claude-haiku-5-5"  prompt: "drafter"  temperature: 0.3 }
             agent Notifier { model: "claude-haiku-5-5"  prompt: "notifier"  tools: [Hook]  approve: [Hook] }
 
-            workflow Main(ticket) {
-                delegate "Draft a short reply to this ticket:\\n{ticket}" to Drafter -> reply timeout 60s retry 2 backoff 2s on_failure {
+            workflow Main(ticket_body) {
+                delegate "Draft a short reply to this ticket:\\n{ticket_body}" to Drafter -> reply timeout 60s retry 2 backoff 2s on_failure {
                     halt "The draft failed; nothing was sent."
                 }
                 human_prompt "Send this reply?\\n{reply}\\n(yes/no)" -> decision
                 alt (decision == "yes") {
-                    delegate "Tell the customer:\\n{reply}" to Notifier -> sent timeout 60s
+                    delegate "Tell the customer:\\n{reply}" to Notifier -> sent timeout 60s retry 1 backoff 2s on_failure {
+                        note "The customer could not be told."
+                    }
                 } else {
                     note "Not approved. Nothing was sent."
                 }

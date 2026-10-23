@@ -45,7 +45,9 @@ public final class CheckGate implements Gate {
             for (GateResult.Problem p : found)
                 out.add(
                         new GateResult.Problem(
-                                p.file() == null || p.file().isEmpty() ? script.getFileName().toString() : p.file(),
+                                p.file() == null || p.file().isEmpty()
+                                        ? script.getFileName().toString()
+                                        : p.file(),
                                 p.line(),
                                 p.rule(),
                                 p.message()));
