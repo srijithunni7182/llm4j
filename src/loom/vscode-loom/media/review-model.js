@@ -91,7 +91,9 @@
       source: String(f.source || ''),
       fix: fix ? { safety: fix.safety, label: String(fix.label || ''), edits: Array.isArray(fix.edits) ? fix.edits : [] } : null,
       options: options,
-      safety: safety
+      safety: safety,
+      // what can be done with it, worked out once by the extension (the page never decides what is allowed)
+      actions: f.actions && typeof f.actions === 'object' ? f.actions : null
     };
   }
 
@@ -175,16 +177,24 @@
       nodes: nodes,
       counts: counts,
       open: findings.length,
-      handled: handledOf(review),
+      handled: handledOf(review, options.dismissed),
       notEvaluated: (review && Array.isArray(review.notes) ? review.notes : []).filter(function (n) { return n.kind === 'not_evaluated'; }),
       notes: review && Array.isArray(review.notes) ? review.notes : [],
       summary: summary
     };
   }
 
-  function handledOf(review) {
+  function handledOf(review, dismissed) {
     var s = review && review.summary ? review.summary : {};
-    return { accepted: num(s.accepted) || 0, dismissed: 0, baselined: num(s.baselined) || 0 };
+    var accepted = review && Array.isArray(review.accepted) ? review.accepted : [];
+    var baselined = review && Array.isArray(review.baselined) ? review.baselined : [];
+    var put = Array.isArray(dismissed) ? dismissed : [];
+    return {
+      accepted: num(s.accepted) || accepted.length, dismissed: put.length, baselined: num(s.baselined) || baselined.length,
+      acceptedList: accepted.map(function (f, i) { var n = normalizeFinding(f, i); n.reason = String(f.reason || ''); n.by = f.by ? String(f.by) : ''; n.until = f.until ? String(f.until) : ''; n.at = f.at ? String(f.at) : ''; return n; }),
+      dismissedList: put.map(function (f, i) { return normalizeFinding(f, i); }),
+      baselinedList: baselined.map(function (f, i) { return normalizeFinding(f, i); })
+    };
   }
 
   function summarize(review, counts, wf, findings) {
@@ -271,7 +281,7 @@
     return order.map(function (k) {
       var g = map[k];
       g.count = g.findings.length;
-      g.safe = g.findings.filter(function (f) { return f.safety === 'safe'; }).length;
+      g.safe = g.findings.filter(function (f) { return fixKind(f) === 'safe'; }).length;
       g.severity = by === 'severity' ? g.key : worst(g.findings);
       if (!nested && (by === 'severity' || by === 'lens')) {
         var sub = by === 'severity' ? 'lens' : 'severity';
@@ -286,8 +296,9 @@
   }
 
   /** "Fix all safe (n of m)": how many of these have a safe fix, of how many. */
+  function fixKind(f) { return f.actions ? f.actions.fix : (f.safety === 'safe' ? 'safe' : f.safety === 'review' ? 'review' : null); }
   function safeCount(findings) {
-    return { safe: findings.filter(function (f) { return f.safety === 'safe'; }).length, total: findings.length };
+    return { safe: findings.filter(function (f) { return fixKind(f) === 'safe'; }).length, total: findings.length };
   }
 
   /* ------------------------------------------------------------------ the lens rail */
@@ -333,7 +344,7 @@
     return {
       layout: 'split', pane: 'both', groupBy: 'severity',
       filter: { text: '', lenses: [], severities: [] },
-      node: null, selected: null, multi: [], collapsed: {}, scroll: 0,
+      node: null, selected: null, multi: [], hidden: [], collapsed: {}, scroll: 0,
       showNotEvaluated: false, showHandled: false, workflow: null
     };
   }
@@ -352,6 +363,8 @@
     }
     ['node', 'selected', 'workflow'].forEach(function (k) { if (typeof saved[k] === 'string') { ui[k] = saved[k]; } });
     if (Array.isArray(saved.multi)) { ui.multi = saved.multi.filter(function (x) { return typeof x === 'string'; }); }
+    // what was hidden because it had just been acted on is not kept across a reload: the next result says what is true
+    ui.hidden = [];
     if (saved.collapsed && typeof saved.collapsed === 'object') {
       Object.keys(saved.collapsed).forEach(function (k) { if (saved.collapsed[k] === true) { ui.collapsed[k] = true; } });
     }
@@ -367,7 +380,9 @@
    * between layouts.
    */
   function view(model, ui) {
-    var shown = filterFindings(model.findings, { text: ui.filter.text, lenses: ui.filter.lenses, severities: ui.filter.severities, node: ui.node });
+    var hidden = ui.hidden || [];
+    var visible = hidden.length ? model.findings.filter(function (f) { return hidden.indexOf(f.id) < 0; }) : model.findings;
+    var shown = filterFindings(visible, { text: ui.filter.text, lenses: ui.filter.lenses, severities: ui.filter.severities, node: ui.node });
     var counts = { high: 0, medium: 0, low: 0, info: 0 };
     shown.forEach(function (f) { counts[f.severity] += 1; });
     var selected = ui.selected && model.byId[ui.selected] ? model.byId[ui.selected] : null;
@@ -380,8 +395,8 @@
       safe: safeCount(shown),
       selected: selected,
       selectedNode: selectedNode,
-      total: model.findings.length,
-      filtered: shown.length !== model.findings.length,
+      total: visible.length,
+      filtered: shown.length !== visible.length,
       strip: model.summary,
       rail: lensRail(model)
     };
@@ -400,7 +415,8 @@
 
   /** What a screen reader says for a finding: severity, lens, whether there is a fix. */
   function describe(f) {
-    var fix = f.safety === 'safe' ? 'safe fix available' : f.safety === 'review' ? 'fix to review available' : 'no automatic fix';
+    var kind = fixKind(f);
+    var fix = kind === 'safe' ? 'safe fix available' : kind === 'review' ? 'fix to review available' : 'no automatic fix';
     return SEVERITY_WORD[f.severity] + ', ' + f.lensName + ', ' + fix + ': ' + f.title;
   }
 
@@ -408,7 +424,7 @@
     SEVERITIES: SEVERITIES, SEVERITY_WORD: SEVERITY_WORD, SEVERITY_GLYPH: SEVERITY_GLYPH, LENS_ORDER: LENS_ORDER,
     build: build, filterFindings: filterFindings, group: group, safeCount: safeCount, lensRail: lensRail,
     findingsOnLine: findingsOnLine, nodeOnLine: nodeOnLine, describe: describe, resolveNode: resolveNode,
-    LAYOUTS: LAYOUTS, GROUPS: GROUPS, defaultUi: defaultUi, restoreUi: restoreUi, view: view, stepsOf: stepsOf,
+    fixKind: fixKind, LAYOUTS: LAYOUTS, GROUPS: GROUPS, defaultUi: defaultUi, restoreUi: restoreUi, view: view, stepsOf: stepsOf,
     formatMoney: formatMoney, formatTokens: formatTokens, formatMs: formatMs, costText: costText, lensName: lensName, baseName: baseName
   };
 });

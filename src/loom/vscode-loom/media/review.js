@@ -8,7 +8,8 @@
   var R = window.LoomReview, M = window.LoomModel, V = window.LoomViews;
   var vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: function () {}, getState: function () { return null; }, setState: function () {} };
 
-  var data = { review: null, graph: null, status: 'loading', message: '', entry: null };
+  var data = { review: null, graph: null, status: 'loading', message: '', entry: null, dismissed: [] };
+  var dialog = null;
   var model = R.build(null, null);
   var ui = R.restoreUi(savedState());
 
@@ -65,10 +66,17 @@
     // the pane switch belongs to Split alone: Outline and List are single-flow layouts
     $('paneSwitch').hidden = ui.layout !== 'split';
     ['paneFindings', 'paneBoth', 'paneGraph'].forEach(function (id) { var b = $(id); b.setAttribute('aria-pressed', String(b.getAttribute('data-pane') === ui.pane)); });
-    var safe = R.safeCount(model.findings);
-    $('fixAll').textContent = 'Fix all safe (' + safe.safe + ' of ' + safe.total + ')';
-    $('fixAll').hidden = true; // fixes arrive with the triage actions
-    $('acceptAll').hidden = true;
+    var hasActions = model.findings.some(function (f) { return f.actions; });
+    var view = R.view(model, ui);
+    var safe = R.safeCount(view.shown);
+    var fixAll = $('fixAll');
+    fixAll.hidden = !hasActions;
+    fixAll.textContent = 'Fix all safe (' + safe.safe + ' of ' + safe.total + ')';
+    fixAll.disabled = safe.safe === 0;
+    fixAll.title = safe.safe === 0 ? 'No finding shown has a safe fix. Open each one with Review fix… to see the change first.' : 'Applies every safe fix shown as one change you can undo';
+    var acceptAll = $('acceptAll');
+    acceptAll.hidden = !hasActions || view.total === 0;
+    acceptAll.className = 'btn' + (view.total > 10 && model.handled.baselined === 0 && model.handled.accepted === 0 ? ' primary' : '');
   }
 
   function paramsOf(name) {
@@ -142,27 +150,61 @@
     return el('button', { class: 'ghost', type: 'button', 'data-act': 'reveal', title: 'Show this in the editor', text: where(f) + (f.file ? ' · ' + R.baseName(f.file) + (f.line > 0 ? ':' + f.line : '') : ''), onclick: function (e) { e.stopPropagation(); reveal(f); } });
   }
 
+  function actionButton(label, act, f, options) {
+    options = options || {};
+    var attrs = { class: options.cls || 'btn sm', type: 'button', 'data-act': act, 'data-for': f ? f.id : null, text: label };
+    if (options.title) { attrs.title = options.title; }
+    if (options.disabled) { attrs.disabled = true; attrs['aria-disabled'] = 'true'; }
+    else { attrs.onclick = function (e) { e.stopPropagation(); options.run(); }; }
+    return el('button', attrs);
+  }
+
+  /** The buttons a finding has, from what the extension says is possible: a Fix button exists only when there is a fix to apply. */
+  function actionRow(f) {
+    var a = f.actions;
+    var row = el('div', { class: 'fd-acts' });
+    if (!a) { row.appendChild(actionButton('Explain', 'explain', f, { cls: 'ghost', run: function () { explain(f); } })); return row; }
+    if (a.fix === 'safe') { row.appendChild(actionButton('Fix', 'fix', f, { cls: 'btn primary sm', title: 'Applies the fix as one change you can undo', run: function () { doFix([f.id]); } })); }
+    else if (a.fix === 'review') { row.appendChild(actionButton('Review fix…', 'review-fix', f, { cls: 'btn primary sm', title: 'Shows the change before it is applied', run: function () { openFixDialog(f); } })); }
+    else { row.appendChild(el('span', { class: 'fx', text: a.note || 'No automatic fix: see the hint.' })); }
+    row.appendChild(el('span', { class: 'sp' }));
+    row.appendChild(actionButton('Accept…', 'accept', f, a.accept.allowed ? { run: function () { openAcceptDialog([f]); } } : { disabled: true, title: a.accept.reason }));
+    row.appendChild(actionButton('Dismiss', 'dismiss', f, a.dismiss.allowed ? { run: function () { doDismiss([f.id]); } } : { disabled: true, title: a.dismiss.reason }));
+    row.appendChild(actionButton('Explain', 'explain', f, { cls: 'ghost', run: function () { explain(f); } }));
+    return row;
+  }
+
   function findingCard(f, v) {
     var selected = ui.selected === f.id;
     var row = el('article', { class: 'fd ' + sevClass(f.severity) + (selected ? ' sel' : ''), 'data-finding': f.id, role: 'option', tabindex: selected || (!ui.selected && f.id === firstShownId(v)) ? '0' : '-1', 'aria-selected': String(selected), 'aria-label': R.describe(f) });
     var main = el('div', { class: 'fd-main' }, el('div', { class: 'fd-top' }, sevMark(f.severity), el('span', { class: 'chip rule', text: f.rule }), el('span', { class: 'chip lens', text: f.lensName }), revealButton(f)), el('div', { class: 'fd-title', text: f.title }));
-    if (selected) { add(main, detailOf(f)); }
+    if (selected) { add(main, detailOf(f)); if (f.actions && !f.actions.accept.allowed) { main.appendChild(el('div', { class: 'fd-why', text: f.actions.accept.reason })); } }
+    main.appendChild(actionRow(f));
     row.appendChild(main);
     row.addEventListener('click', function () { selectFinding(f.id, true); });
     row.addEventListener('keydown', onRowKey);
     return row;
   }
-
   function findingRow(f, v) {
     var selected = ui.selected === f.id;
-    var row = el('div', { class: 'fd trow ' + sevClass(f.severity) + (selected ? ' sel' : ''), 'data-finding': f.id, role: 'option', tabindex: selected || (!ui.selected && f.id === firstShownId(v)) ? '0' : '-1', 'aria-selected': String(selected), 'aria-label': R.describe(f) },
-      sevMark(f.severity), el('span', { class: 'mono rulecol', text: f.rule }), el('span', { class: 'chip lens', text: f.lensName }), el('span', { class: 'ttl', text: f.title, title: f.title }),
-      el('span', { class: 'where', text: where(f) + (f.line > 0 ? ' · ' + R.baseName(f.file) + ':' + f.line : '') }));
+    var checked = ui.multi.indexOf(f.id) >= 0;
+    var box = el('button', { class: 'cb' + (checked ? ' on' : ''), type: 'button', role: 'checkbox', 'aria-checked': String(checked), 'aria-label': 'Select ' + f.rule + ' ' + f.title, text: checked ? '✓' : '', onclick: function (e) { e.stopPropagation(); toggleMulti(f.id); } });
+    var a = f.actions;
+    var acts = el('span', { class: 'ac' });
+    if (a && a.fix === 'safe') { acts.appendChild(actionButton('Fix', 'fix', f, { cls: 'btn primary sm', run: function () { doFix([f.id]); } })); }
+    else if (a && a.fix === 'review') { acts.appendChild(actionButton('Review fix…', 'review-fix', f, { cls: 'btn primary sm', run: function () { openFixDialog(f); } })); }
+    else if (a) { acts.appendChild(el('span', { class: 'fx', text: 'No automatic fix' })); }
+    if (a) {
+      acts.appendChild(actionButton('Accept…', 'accept', f, a.accept.allowed ? { cls: 'ghost', run: function () { openAcceptDialog([f]); } } : { cls: 'ghost', disabled: true, title: a.accept.reason }));
+      acts.appendChild(actionButton('Dismiss', 'dismiss', f, a.dismiss.allowed ? { cls: 'ghost', run: function () { doDismiss([f.id]); } } : { cls: 'ghost', disabled: true, title: a.dismiss.reason }));
+    }
+    var row = el('div', { class: 'fd trow ' + sevClass(f.severity) + (selected ? ' sel' : '') + (checked ? ' picked' : ''), 'data-finding': f.id, role: 'option', tabindex: selected || (!ui.selected && f.id === firstShownId(v)) ? '0' : '-1', 'aria-selected': String(selected), 'aria-label': R.describe(f) },
+      box, sevMark(f.severity), el('span', { class: 'mono rulecol', text: f.rule }), el('span', { class: 'chip lens', text: f.lensName }), el('span', { class: 'ttl', text: f.title, title: f.title }),
+      el('span', { class: 'where', text: where(f) + (f.line > 0 ? ' · ' + R.baseName(f.file) + ':' + f.line : '') }), acts);
     row.addEventListener('click', function () { selectFinding(f.id, true); });
     row.addEventListener('keydown', onRowKey);
     return row;
   }
-
   function groupHeader(g, level) {
     var key = level + ':' + g.key;
     var closed = !!ui.collapsed[key];
@@ -170,10 +212,16 @@
     head.appendChild(el('button', { class: 'twist', type: 'button', 'aria-expanded': String(!closed), 'aria-label': (closed ? 'Expand ' : 'Collapse ') + g.label, text: closed ? '▸' : '▾', onclick: function () { ui.collapsed[key] = !closed; save(); renderAll(); } }));
     if (g.by === 'severity') { head.appendChild(sevMark(g.key)); } else { head.appendChild(el('b', { text: g.label })); }
     head.appendChild(el('span', { class: 'cnt', text: String(g.count) }));
+    if (level === 0 && g.findings.some(function (f) { return f.actions; })) {
+      var acts = el('span', { class: 'acts' });
+      var safe = g.safe;
+      acts.appendChild(el('button', Object.assign({ class: 'ghost', type: 'button', 'data-act': 'group-fix', 'data-group': g.key, text: 'Fix all safe (' + safe + ' of ' + g.count + ')' }, safe ? { onclick: function () { doFix(g.findings.filter(function (f) { return R.fixKind(f) === 'safe'; }).map(function (f) { return f.id; })); } } : { disabled: true, title: 'No finding in this group has a safe fix. Open each one with Review fix…' })));
+      acts.appendChild(el('button', { class: 'ghost', type: 'button', 'data-act': 'group-accept', 'data-group': g.key, text: 'Accept all…', onclick: function () { openAcceptDialog(g.findings.filter(function (f) { return f.actions && f.actions.accept.allowed; })); } }));
+      acts.appendChild(el('button', { class: 'ghost', type: 'button', 'data-act': 'group-dismiss', 'data-group': g.key, text: 'Dismiss all', onclick: function () { doDismiss(g.findings.filter(function (f) { return f.actions && f.actions.dismiss.allowed; }).map(function (f) { return f.id; })); } }));
+      head.appendChild(acts);
+    }
     return head;
   }
-
-  /** The grouped findings into `container`, as cards or as table rows. */
   function fillFindings(container, v, variant) {
     var make = variant === 'table' ? findingRow : findingCard;
     if (!v.shown.length) {
@@ -197,11 +245,28 @@
     }
   }
 
-  function handledBox() {
-    var h = model.handled;
-    return el('div', { class: 'handled', id: 'handled' }, el('span', { class: 'kicker', text: 'Handled' }), el('span', { text: h.accepted + ' accepted' }), el('span', { class: 'muted', text: '·' }), el('span', { text: h.dismissed + ' dismissed' }), el('span', { class: 'muted', text: '·' }), el('span', { text: h.baselined + ' baselined' }));
+  function handledItem(f, extra) {
+    return el('li', { class: 'hitem' }, sevMark(f.severity), el('span', { class: 'chip rule', text: f.rule }), el('span', { class: 'ttl', text: f.title }), extra || null);
   }
 
+  /** Accepted, dismissed and baselined findings: counted always, listed on request, and a dismissed one can be restored. */
+  function handledBox() {
+    var h = model.handled;
+    var box = el('div', { class: 'handled' + (ui.showHandled ? ' open' : ''), id: 'handled' });
+    var line = el('div', { class: 'hline' }, el('button', { class: 'twist', type: 'button', 'aria-expanded': String(ui.showHandled), 'aria-label': ui.showHandled ? 'Hide handled findings' : 'Show handled findings', text: ui.showHandled ? '▾' : '▸', onclick: function () { ui.showHandled = !ui.showHandled; save(); renderAll(); } }),
+      el('span', { class: 'kicker', text: 'Handled' }), el('span', { 'data-h': 'accepted', text: h.accepted + ' accepted' }), el('span', { class: 'muted', text: '·' }), el('span', { 'data-h': 'dismissed', text: h.dismissed + ' dismissed' }), el('span', { class: 'muted', text: '·' }), el('span', { 'data-h': 'baselined', text: h.baselined + ' baselined' }), el('span', { class: 'sp' }));
+    if (h.dismissed > 0) { line.appendChild(el('button', { class: 'ghost', type: 'button', 'data-act': 'restore-all', text: 'Restore all dismissed', onclick: function () { post({ type: 'restoreAll' }); } })); }
+    box.appendChild(line);
+    if (ui.showHandled) {
+      var lists = el('div', { class: 'hlists' });
+      if (h.acceptedList.length) { lists.appendChild(el('div', { class: 'kicker', text: 'Accepted' })); lists.appendChild(el('ul', null, h.acceptedList.map(function (f) { return handledItem(f, el('span', { class: 'muted small', text: (f.reason ? '“' + f.reason + '”' : '') + (f.by ? ' · ' + f.by : '') + (f.until ? ' · until ' + f.until : '') })); }))); }
+      if (h.dismissedList.length) { lists.appendChild(el('div', { class: 'kicker', text: 'Dismissed on this machine' })); lists.appendChild(el('ul', null, h.dismissedList.map(function (f) { return handledItem(f, el('button', { class: 'ghost', type: 'button', 'data-act': 'restore', 'data-for': f.id, text: 'Restore', onclick: function () { post({ type: 'restore', ids: [f.id] }); } })); }))); }
+      if (h.baselinedList.length) { lists.appendChild(el('div', { class: 'kicker', text: 'Known (baseline)' })); lists.appendChild(el('ul', null, h.baselinedList.map(function (f) { return handledItem(f); }))); }
+      if (!h.acceptedList.length && !h.dismissedList.length && !h.baselinedList.length) { lists.appendChild(el('div', { class: 'muted', text: 'Nothing has been handled yet.' })); }
+      box.appendChild(lists);
+    }
+    return box;
+  }
   /* ----------------------------------------------------------------- the graph (Split) */
 
   function nodeBadges(nodeId) {
@@ -352,7 +417,11 @@
   function renderList(main, v) {
     main.className = 'main layout-list';
     var table = el('section', { class: 'tbl', id: 'table', 'aria-label': 'Findings' });
-    table.appendChild(el('div', { class: 'thead', 'aria-hidden': 'true' }, el('span', { text: 'Severity' }), el('span', { text: 'Rule' }), el('span', { text: 'Lens' }), el('span', { text: 'Finding' }), el('span', { text: 'Where' })));
+    add(table, bulkBar(v));
+    var ids = v.shown.map(function (f) { return f.id; });
+    var picked = ids.filter(function (id) { return ui.multi.indexOf(id) >= 0; }).length;
+    var allBox = el('button', { class: 'cb' + (picked ? ' mix' : ''), type: 'button', role: 'checkbox', 'aria-checked': picked === 0 ? 'false' : picked === ids.length ? 'true' : 'mixed', 'aria-label': 'Select all ' + ids.length + ' findings shown', text: picked === 0 ? '' : picked === ids.length ? '✓' : '–', onclick: function () { ui.multi = picked === ids.length ? [] : ids.slice(); save(); renderAll(); } });
+    table.appendChild(el('div', { class: 'thead' }, allBox, el('span', { text: 'Severity' }), el('span', { text: 'Rule' }), el('span', { text: 'Lens' }), el('span', { text: 'Finding' }), el('span', { text: 'Where' }), el('span', { class: 'right', text: 'Action' })));
     var list = el('div', { class: 'flist', id: 'flist', role: 'listbox', 'aria-label': 'Open findings', tabindex: '-1' });
     fillFindings(list, v, 'table');
     table.appendChild(list);
@@ -466,11 +535,218 @@
   function reveal(f, beside) { if (f.line > 0) { post({ type: 'reveal', file: f.file, line: f.line, beside: !!beside }); } }
 
   function onRowKey(e) {
+    // keys pressed on a button inside the row belong to the button (Enter must press it, not reveal the line)
+    if (e.target !== e.currentTarget) { return; }
     var rows = Array.prototype.slice.call(document.querySelectorAll('#flist .fd'));
     var i = rows.indexOf(e.currentTarget);
     if (e.key === 'ArrowDown' && i < rows.length - 1) { e.preventDefault(); rows[i + 1].focus(); selectFinding(rows[i + 1].getAttribute('data-finding'), false); }
     else if (e.key === 'ArrowUp' && i > 0) { e.preventDefault(); rows[i - 1].focus(); selectFinding(rows[i - 1].getAttribute('data-finding'), false); }
     else if (e.key === 'Enter') { e.preventDefault(); var f = model.byId[e.currentTarget.getAttribute('data-finding')]; if (f) { reveal(f, true); } }
+    else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.target === e.currentTarget) {
+      var g = model.byId[e.currentTarget.getAttribute('data-finding')];
+      if (!g) { return; }
+      var a = g.actions;
+      var k = e.key.toLowerCase();
+      if (k === 'e') { e.preventDefault(); explain(g); }
+      else if (k === 'f' && a && a.fix) { e.preventDefault(); if (a.fix === 'safe') { doFix([g.id]); } else { openFixDialog(g); } }
+      else if (k === 'a' && a && a.accept.allowed) { e.preventDefault(); openAcceptDialog([g]); }
+      else if (k === 'd' && a && a.dismiss.allowed) { e.preventDefault(); doDismiss([g.id]); }
+      else if (e.key === ' ') { e.preventDefault(); toggleMulti(g.id); var again = document.querySelector('[data-finding="' + cssEscape(g.id) + '"]'); if (again) { again.focus(); } }
+    }
+  }
+
+  /* ----------------------------------------------------------------- doing things with findings */
+
+  function hide(ids) { ids.forEach(function (id) { if (ui.hidden.indexOf(id) < 0) { ui.hidden.push(id); } }); ui.multi = ui.multi.filter(function (id) { return ids.indexOf(id) < 0; }); }
+
+  function doFix(ids) {
+    if (!ids.length) { return; }
+    post({ type: 'fix', ids: ids });
+  }
+
+  function doDismiss(ids) {
+    if (!ids.length) { return; }
+    hide(ids); save(); renderAll();
+    post({ type: 'dismiss', ids: ids });
+  }
+
+  function explain(f) { post({ type: 'explain', rule: f.rule }); }
+
+  function toggleMulti(id) {
+    var i = ui.multi.indexOf(id);
+    if (i >= 0) { ui.multi.splice(i, 1); } else { ui.multi.push(id); }
+    save(); renderAll();
+  }
+
+  /* ---- toasts: what happened, with Undo while it can still be undone (R37) */
+
+  function toast(text, ok, token) {
+    var box = $('toasts');
+    var t = el('div', { class: 'toast' + (ok ? '' : ' bad'), role: ok ? 'status' : 'alert' }, el('span', { text: text }));
+    if (token != null) { t.appendChild(el('button', { class: 'link', type: 'button', 'data-act': 'undo', text: 'Undo', onclick: function () { post({ type: 'undo', token: token }); box.removeChild(t); } })); }
+    t.appendChild(el('button', { class: 'link', type: 'button', 'aria-label': 'Dismiss this message', text: '✕', onclick: function () { if (t.parentNode) { box.removeChild(t); } } }));
+    box.appendChild(t);
+    while (box.children.length > 3) { box.removeChild(box.firstChild); }
+    setTimeout(function () { if (t.parentNode) { box.removeChild(t); } }, token != null ? 15000 : 8000);
+  }
+
+  /* ---- dialogs: one at a time, keyboard reachable, Escape closes and focus goes back where it was */
+
+  function openDialog(title, body, footer, onClose) {
+    closeDialog();
+    var returnTo = document.activeElement;
+    var overlay = el('div', { class: 'overlay', id: 'overlay' });
+    var box = el('div', { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': title, id: 'dialog' }, el('div', { class: 'dh' }, el('h3', { text: title })), el('div', { class: 'db' }, body), el('div', { class: 'df' }, footer));
+    overlay.appendChild(box);
+    overlay.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { e.preventDefault(); closeDialog(); }
+      if (e.key === 'Tab') {
+        var focusable = Array.prototype.slice.call(box.querySelectorAll('button, input, textarea, select')).filter(function (n) { return !n.disabled; });
+        if (!focusable.length) { return; }
+        var first = focusable[0], last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
+    document.body.appendChild(overlay);
+    dialog = { overlay: overlay, returnTo: returnTo, onClose: onClose };
+    var first = box.querySelector('input, textarea, select, button');
+    if (first) { first.focus(); }
+    return box;
+  }
+
+  function closeDialog() {
+    if (!dialog) { return; }
+    var d = dialog; dialog = null;
+    if (d.overlay.parentNode) { d.overlay.parentNode.removeChild(d.overlay); }
+    if (d.returnTo && d.returnTo.focus && document.body.contains(d.returnTo)) { d.returnTo.focus(); }
+  }
+
+  var PRESETS = [
+    { id: 'fp', label: 'False positive', text: 'False positive: this does not apply here.' },
+    { id: 'intended', label: 'Intended here', text: 'Intended: this is how we want it to work.' },
+    { id: 'elsewhere', label: 'Handled elsewhere', text: 'Handled elsewhere: ' },
+    { id: 'later', label: 'Will fix later, until…', text: 'Will fix later.' }
+  ];
+
+  function isSerious(f) { return f.severity === 'high' || f.lens === 'security' || f.lens === 'durability' || f.lens === 'privacy'; }
+
+  /** Accept: the scope and its number, a reason, and for several serious findings the number typed back (phase 9, R44). */
+  function openAcceptDialog(findings) {
+    if (!findings.length) { toast('Nothing here can be accepted.', false); return; }
+    var rules = {}; findings.forEach(function (f) { rules[f.rule] = true; });
+    var oneRule = Object.keys(rules).length === 1 ? findings[0].rule : null;
+    var things = {}; findings.forEach(function (f) { if (f.node) { things[f.node] = true; } });
+    var scope = 'finding';
+    var serious = findings.filter(isSerious).length > 0 && findings.length > 1;
+    var reason = el('textarea', { id: 'acceptReason', class: 'input', rows: '3', 'aria-label': 'Why this is fine', placeholder: 'Why this is fine (kept in review.properties for whoever reads the pull request)' });
+    var until = el('input', { id: 'acceptUntil', class: 'input', type: 'date', 'aria-label': 'Until (optional)', hidden: '' });
+    var confirm = el('input', { id: 'acceptConfirm', class: 'input', type: 'number', min: '1', 'aria-label': 'Type ' + findings.length + ' to confirm', placeholder: 'Type ' + findings.length });
+    var error = el('div', { class: 'note-box', role: 'alert', hidden: '' });
+    var scopes = [
+      { id: 'finding', label: 'Just ' + (findings.length === 1 ? 'this finding' : 'these ' + findings.length + ' findings'), n: findings.length },
+      { id: 'thing', label: 'This rule on the same agent or workflow', n: findings.length },
+      { id: 'script', label: (oneRule ? oneRule : 'These rules') + ' anywhere in this script', n: model.findings.filter(function (f) { return !oneRule || f.rule === oneRule; }).length },
+      { id: 'project', label: (oneRule ? oneRule : 'These rules') + ' anywhere in the project', n: null }
+    ];
+    var list = el('div', { class: 'opts', role: 'radiogroup', 'aria-label': 'What the accept covers' });
+    function drawScopes() {
+      clear(list);
+      scopes.forEach(function (sc) {
+        list.appendChild(el('button', { class: 'opt' + (scope === sc.id ? ' on' : ''), type: 'button', role: 'radio', 'aria-checked': String(scope === sc.id), 'data-scope': sc.id, onclick: function () { scope = sc.id; drawScopes(); } }, el('span', { class: 'rd', 'aria-hidden': 'true' }), el('span', { text: sc.label }), el('span', { class: 'n', text: sc.n == null ? 'whole project' : sc.n + (sc.n === 1 ? ' finding' : ' findings') })));
+      });
+    }
+    drawScopes();
+    var presets = el('div', { class: 'pill-row', role: 'group', 'aria-label': 'Common reasons' }, PRESETS.map(function (pr) {
+      return el('button', { class: 'preset', type: 'button', 'data-preset': pr.id, text: pr.label, onclick: function () { reason.value = pr.text; if (pr.id === 'later') { until.hidden = false; until.focus(); } else { until.hidden = true; until.value = ''; reason.focus(); } } });
+    }));
+    var body = [el('div', { class: 'kicker', text: 'Accept ' + findings.length + (findings.length === 1 ? ' finding' : ' findings') + (oneRule ? ' of ' + oneRule : '') }), list, presets, reason, until];
+    if (serious) { body.push(el('div', { class: 'note-box', text: 'This accepts ' + findings.length + ' serious findings (high, or in the security, durability or privacy lenses). Type the number to confirm.' })); body.push(confirm); }
+    body.push(error);
+    var go = el('button', { class: 'btn primary', type: 'button', id: 'acceptGo', text: 'Accept ' + findings.length, onclick: function () {
+      var text = reason.value.trim();
+      if (!text) { error.hidden = false; error.textContent = 'Say why this is fine. The reason is kept with the accept.'; reason.focus(); return; }
+      if (text.indexOf('"') >= 0) { error.hidden = false; error.textContent = 'The reason cannot contain a double quote; use single quotes.'; reason.focus(); return; }
+      if (serious && Number(confirm.value) !== findings.length) { error.hidden = false; error.textContent = 'Type ' + findings.length + ' to confirm.'; confirm.focus(); return; }
+      var ids = findings.map(function (f) { return f.id; });
+      var on = null;
+      if (scope === 'thing') { on = thingName(findings[0]); }
+      var msg = { type: 'accept', ids: ids, scope: scope, reason: text };
+      if (!until.hidden && until.value) { msg.until = until.value; }
+      if (on) { msg.on = on; }
+      if (serious) { msg.confirm = findings.length; }
+      hide(ids); save(); closeDialog(); renderAll();
+      post(msg);
+    } });
+    openDialog('Accept with a reason', body, [go, el('button', { class: 'btn', type: 'button', text: 'Cancel', onclick: closeDialog })]);
+  }
+
+  /** The agent or workflow a finding names, for the "same agent or workflow" scope: the label of its step. */
+  function thingName(f) {
+    var label = f.node ? nodeLabel(f.node) : '';
+    var m = /(?:delegate|run|call)\s+(\S+)/.exec(label);
+    return m ? m[1] : (f.node ? label : null);
+  }
+
+  /** Review fix…: the fix, or the ways to resolve the finding with their questions; the change is shown before it is applied. */
+  function openFixDialog(f) {
+    var options = (f.options || []).slice();
+    var choices = [];
+    if (f.fix) { choices.push({ id: '', label: f.fix.label || 'The suggested fix', explain: f.fixHint, safety: f.fix.safety, ask: [] }); }
+    options.forEach(function (o) { choices.push({ id: o.id, label: o.label, explain: o.explain, safety: o.safety, ask: o.ask || [] }); });
+    if (!choices.length) { toast('No automatic fix for ' + f.rule + ': see the hint.', false); return; }
+    var chosen = choices[0];
+    var answers = {};
+    var list = el('div', { class: 'opts', role: 'radiogroup', 'aria-label': 'Ways to fix ' + f.rule });
+    var asks = el('div', { class: 'asks' });
+    function draw() {
+      clear(list); clear(asks);
+      choices.forEach(function (c) {
+        list.appendChild(el('button', { class: 'opt' + (chosen === c ? ' on' : ''), type: 'button', role: 'radio', 'aria-checked': String(chosen === c), 'data-option': c.id || 'default', onclick: function () { chosen = c; draw(); } }, el('span', { class: 'rd', 'aria-hidden': 'true' }), el('span', null, el('b', { text: c.label }), c.explain ? el('div', { class: 'muted small', text: c.explain }) : null), el('span', { class: 'n', text: c.safety === 'safe' ? 'safe' : 'needs your judgement' })));
+      });
+      chosen.ask.forEach(function (q) {
+        var input = el('input', { class: 'input', type: 'text', 'data-ask': q.name, 'aria-label': q.prompt, value: answers[q.name] != null ? answers[q.name] : (q.defaultValue || q['default'] || ''), placeholder: q.prompt });
+        input.addEventListener('input', function () { answers[q.name] = input.value; });
+        if (answers[q.name] == null) { answers[q.name] = input.value; }
+        asks.appendChild(el('label', { class: 'ask' }, el('span', { class: 'muted small', text: q.prompt }), input));
+      });
+    }
+    draw();
+    var go = el('button', { class: 'btn primary', type: 'button', id: 'fixGo', text: 'Show the change…', onclick: function () {
+      closeDialog();
+      if (chosen.id) { post({ type: 'fixOption', id: f.id, option: chosen.id, answers: answers }); }
+      else { post({ type: 'fix', ids: [f.id] }); }
+    } });
+    openDialog('Fix ' + f.rule, [el('div', { class: 'fd-title', text: f.title }), f.why ? el('div', { class: 'fd-why', text: f.why }) : null, list, asks], [go, el('button', { class: 'btn', type: 'button', text: 'Cancel', onclick: closeDialog })]);
+  }
+
+  /** Accept all existing…: record what is open as known, with serious findings left open unless asked. */
+  function openBaselineDialog() {
+    var open = R.view(model, ui).total;
+    var serious = model.findings.filter(isSerious).length;
+    var include = false;
+    var cb = el('input', { type: 'checkbox', id: 'baselineSerious', 'aria-label': 'Include the ' + serious + ' serious findings' });
+    cb.addEventListener('change', function () { include = cb.checked; });
+    var body = [el('div', { text: 'This records the ' + open + ' open findings as known in review.baseline.json, so later reviews list only new ones. Run and deploy are not affected.' }), serious ? el('label', { class: 'ask' }, cb, ' Include the ' + serious + ' serious findings too (high, or in security, durability or privacy). They stay open if you leave this off.') : null];
+    var go = el('button', { class: 'btn primary', type: 'button', id: 'baselineGo', text: 'Show the file…', onclick: function () { closeDialog(); post({ type: 'baseline', includeSerious: include }); } });
+    openDialog('Accept all existing findings', body, [go, el('button', { class: 'btn', type: 'button', text: 'Cancel', onclick: closeDialog })]);
+  }
+
+  /* ---- the bulk bar of the List layout */
+
+  function bulkBar(v) {
+    var picked = ui.multi.map(function (id) { return model.byId[id]; }).filter(Boolean);
+    if (!picked.length) { return null; }
+    var allSafe = picked.every(function (f) { return R.fixKind(f) === 'safe'; });
+    var safeN = picked.filter(function (f) { return R.fixKind(f) === 'safe'; }).length;
+    var bar = el('div', { class: 'bulk', id: 'bulk', role: 'region', 'aria-label': 'Selected findings' }, el('b', { text: picked.length + ' selected' }), el('span', { class: 'muted', text: allSafe ? 'all have a safe fix' : safeN + ' of ' + picked.length + ' have a safe fix' }), el('span', { class: 'sp' }));
+    if (safeN) { bar.appendChild(el('button', { class: 'btn primary sm', type: 'button', 'data-act': 'bulk-fix', text: 'Fix ' + safeN, onclick: function () { doFix(picked.filter(function (f) { return R.fixKind(f) === 'safe'; }).map(function (f) { return f.id; })); } })); }
+    var acceptable = picked.filter(function (f) { return f.actions && f.actions.accept.allowed; });
+    if (acceptable.length) { bar.appendChild(el('button', { class: 'btn sm', type: 'button', 'data-act': 'bulk-accept', text: 'Accept ' + acceptable.length + '…', onclick: function () { openAcceptDialog(acceptable); } })); }
+    var dismissable = picked.filter(function (f) { return f.actions && f.actions.dismiss.allowed; });
+    if (dismissable.length) { bar.appendChild(el('button', { class: 'btn sm', type: 'button', 'data-act': 'bulk-dismiss', text: 'Dismiss ' + dismissable.length, onclick: function () { doDismiss(dismissable.map(function (f) { return f.id; })); } })); }
+    bar.appendChild(el('button', { class: 'btn sm', type: 'button', 'data-act': 'bulk-clear', text: 'Clear', onclick: function () { ui.multi = []; save(); renderAll(); } }));
+    return bar;
   }
 
   /* ----------------------------------------------------------------- putting it together */
@@ -496,7 +772,7 @@
   }
 
   function rebuild() {
-    model = R.build(data.review, data.graph, { workflow: ui.workflow });
+    model = R.build(data.review, data.graph, { workflow: ui.workflow, dismissed: data.dismissed });
     // a selection or filter for something that is gone from this result is dropped, never kept pointing at nothing
     if (ui.selected && !model.byId[ui.selected]) { ui.selected = null; }
     ui.multi = ui.multi.filter(function (id) { return !!model.byId[id]; });
@@ -509,11 +785,15 @@
     if (!m || typeof m !== 'object') { return; }
     switch (m.type) {
       case 'review':
-        data.review = m.review; data.graph = m.graph; data.status = m.status || 'idle'; data.message = m.message || ''; data.entry = typeof m.entry === 'string' ? m.entry : data.entry;
+        data.review = m.review; data.graph = m.graph; data.status = m.status || 'idle'; data.message = m.message || ''; data.entry = typeof m.entry === 'string' ? m.entry : data.entry; data.dismissed = Array.isArray(m.dismissed) ? m.dismissed : []; ui.hidden = [];
         save(); rebuild(); break;
       case 'settings':
         // the starting layout, for a panel that has no saved choice yet
         if (!savedState() && R.LAYOUTS.indexOf(m.layout) >= 0) { ui.layout = m.layout; save(); renderAll(); }
+        break;
+      case 'toast':
+        toast(String(m.text || ''), m.ok !== false, typeof m.token === 'number' ? m.token : null);
+        if (m.ok === false && ui.hidden.length) { ui.hidden = []; renderAll(); }
         break;
       case 'status':
         data.status = m.status; data.message = m.message || '';
@@ -539,6 +819,8 @@
     $('rerun').addEventListener('click', function () { post({ type: 'rerun' }); });
     $('showNotEvaluated').addEventListener('click', function () { ui.showNotEvaluated = !ui.showNotEvaluated; save(); renderAll(); });
     $('clearNode').addEventListener('click', function () { ui.node = null; save(); renderAll(); });
+    $('fixAll').addEventListener('click', function () { var ids = R.view(model, ui).shown.filter(function (f) { return R.fixKind(f) === 'safe'; }).map(function (f) { return f.id; }); doFix(ids); });
+    $('acceptAll').addEventListener('click', openBaselineDialog);
   }
 
   wire();

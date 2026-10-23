@@ -105,7 +105,7 @@ test('10b: the review command is offered for .loom files everywhere, and no comm
     assert.equal(manifest.contributes.menus['explorer/context'].find((m: { command: string }) => m.command === 'loom.review').when, 'resourceExtname == .loom');
     // R43: no command is conditional on a clean review
     const allWhen = JSON.stringify(manifest.contributes.menus);
-    assert.ok(!/review|finding|clean|loom\.has/i.test(allWhen.replace(/loom\.review/g, '')), 'no when clause mentions the review state');
+    assert.ok(!/review|finding|clean|loom\.has/i.test(allWhen.replace(/loom\.review[.\w]*/g, '').replace(/loom\.fixFinding/g, '')), 'no when clause mentions the review state');
 });
 
 test('10b: the review settings exist with the defaults the spec names', () => {
@@ -137,4 +137,27 @@ test('A10: no review file builds markup from text: no innerHTML, outerHTML, inse
             assert.ok(!code.includes(banned), `${file} uses ${banned}`);
         }
     }
+});
+
+test('10c: every triage command is declared with a palette title and a when clause; the ones that need arguments are hidden from the palette', () => {
+    const declared = manifest.contributes.commands.map((c: { command: string }) => c.command);
+    const palette = manifest.contributes.menus.commandPalette;
+    for (const id of ['loom.review.fixAll', 'loom.review.explain', 'loom.review.restore', 'loom.review.baseline']) {
+        assert.ok(declared.includes(id), id);
+    }
+    for (const id of ['loom.review.fixAll', 'loom.review.restore', 'loom.review.baseline']) {
+        assert.equal(palette.find((m: { command: string }) => m.command === id).when, 'resourceLangId == loom', id);
+    }
+    for (const id of ['loom.review.accept', 'loom.review.dismiss', 'loom.review.fixFinding']) {
+        assert.ok(declared.includes(id), id);
+        assert.equal(palette.find((m: { command: string }) => m.command === id).when, 'false', id + ' needs a finding, so it is not in the palette');
+    }
+    for (const c of manifest.contributes.commands) {
+        assert.match(c.title, /^Loom: /, c.command);
+    }
+});
+
+test('10c: no command is conditional on the state of a review (the hidden ones are hidden because they need arguments)', () => {
+    const when = manifest.contributes.menus.commandPalette.map((m: { when: string }) => m.when).filter((w: string) => w !== 'false');
+    assert.ok(when.every((w: string) => w === 'resourceLangId == loom'), JSON.stringify(when));
 });

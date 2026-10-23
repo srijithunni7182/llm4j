@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Loom Review, layouts and triage: the panel has three layouts (**Split**, **Outline**, **List**) over the same data, and every finding can be fixed (safe fixes at once, others after you have seen the change), accepted with a reason and a scope, dismissed on this machine, explained, or recorded in a baseline, each as one change you can undo. The lightbulb offers the same. New commands **Loom: Apply Safe Fixes**, **Explain Review Rule**, **Restore Dismissed Findings**, **Accept All Existing Findings (Baseline)**; setting `loom.review.layout`.
+
 - Loom Review: **Loom: Review Workflow** opens a panel with the findings of `weave review` and the workflow graph side by side, linked both ways (click a finding to see its step and line, click a step to list its findings, move the cursor to select the finding on that line), with a summary strip (findings, cost, time, effects, lenses, the lethal trifecta), filters and grouping, and a stale marker that appears the moment you edit. Findings also show as squiggles and Problems entries (source `loom-review`), a status-bar count and a CodeLens above each workflow. Open findings never stop Run. New settings `loom.review.*`.
 
 - The Loom engine: the extension starts one `weave serve` process per window and asks it for checks and graphs, so feedback does not wait for a Java process to start (about 5 ms warm). It runs nothing and writes nothing and reads only the folders you have open. If it cannot start, or stops repeatedly, the extension runs `weave` for each request as before and the status bar says so. New commands **Loom: Restart Engine** and **Loom: Show Engine Log**; the new setting `loom.javaPath` (the older `loom.graph.javaPath` still works).

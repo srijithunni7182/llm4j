@@ -111,6 +111,18 @@ Type a keyword in a `.loom` file and press Tab to get the whole statement with i
 
 The same findings appear as squiggles and in the Problems panel (source `loom-review`, the rule id as the code; the worst are warnings, the rest information and hints, never errors), as a **status-bar** count of the active script (`Loom ⚠ 3 high · 5 medium · $0.004/run`, or `Loom ✓`), and as a **CodeLens** above each workflow (`Review: 2 high · ~$0.004 typical / $0.06 worst`, then Graph and Run).
 
+**Handling findings.** Every finding has the buttons that make sense for it, and none that do not:
+
+- **Fix** (a safe fix) applies at once as one change. **Review fix…** (a fix that needs your judgement) first lets you choose among the ways to resolve it, answer its questions, and then shows the change in VS Code's diff editor before anything is applied. A finding with no automatic fix says so and shows only Accept, Dismiss and Explain.
+- **Fix all safe (n of m)** in the toolbar and on each group applies only the safe fixes, as one change (one undo); the ones that need judgement are left for Review fix…. The numbers are always in the button.
+- **Accept…** asks what it covers (this finding, this rule on the same agent or workflow, this rule in this script, this rule in the project, each with its count) and why (presets or your own words, and an *until* date for "will fix later"), then adds a line to `review.properties` with who and when. Accepting several serious findings at once asks you to type their number. The lethal trifecta cannot be accepted this way and says why.
+- **Dismiss** hides a finding on this machine only: it is kept in the editor's workspace storage, never in the repository, and never changes what `weave review` or CI report. Errors in the script cannot be dismissed. **Handled** at the bottom counts what was accepted, dismissed and baselined, lists them on request, and **Restore** brings a dismissed one back.
+- **Accept all existing…** records today's open findings in `review.baseline.json` (after showing what is in it and what stays open: serious findings stay open unless you include them), so later reviews list only new ones. It becomes the prominent button when a script has more than ten findings and no baseline.
+- **Explain** (or **Loom: Explain Review Rule**) opens the rule's page, with a firing example and a near-miss, beside the editor.
+- After an action the finding leaves the list at once and a message says what happened, with **Undo** (the editor's own undo for text changes). If the script changed while a fix was being prepared, nothing is applied and the review runs again.
+- Keyboard: in the list, the arrow keys move, **F** fixes, **A** accepts, **D** dismisses, **E** explains, **Enter** shows the line in the editor and **Space** selects (in the List layout, with checkboxes and a bulk bar for several at once).
+- The lightbulb on a squiggle offers the same: **Fix:** (safe) or **Review:** (needs judgement), **Explain LR03**, and **Suppress LR03 with a reason…**.
+
 **Findings never get in the way.** Run, the Run link and every other command start at once whatever the review says. If a script you run has open findings, a quiet message offers *Review* once for that version of the script; *Don't show again for this workspace* turns it off. Nothing in the palette depends on a clean review.
 
 By default the review runs when you open or save a script. The *on* review setting (see Settings) can run the validity lens while you type (`type`), or only when asked (`manual`).

@@ -285,3 +285,32 @@ test('framing: a frame over the limit, a header without a length and a runaway h
     assert.throws(() => new FrameDecoder().push(Buffer.from('X-Other: 1\r\n\r\n')), FrameError);
     assert.throws(() => new FrameDecoder().push(Buffer.alloc(9000, 65)), FrameError);
 });
+
+test('a request that times out is followed by a ping; no answer means the engine is restarted', async () => {
+    const t = setup({ timeout: 1000 });
+    const proc = await ready(t);
+    const p = t.client.request('loom/check', { file: '/work/a.loom' });
+    p.catch(() => undefined);
+    t.scheduler.advance(1000);
+    await assert.rejects(p, (e: Error) => e instanceof EngineTimeoutError);
+    assert.ok(proc.last('loom/ping'), 'a ping was sent');
+    assert.ok(!proc.killed, 'not yet: it has time to answer');
+    t.scheduler.advance(2000);
+    assert.ok(proc.killed);
+    assert.equal(t.client.state, 'restarting');
+});
+
+test('a slow engine that answers the ping is left alone', async () => {
+    const t = setup({ timeout: 1000 });
+    const proc = await ready(t);
+    const p = t.client.request('loom/check', { file: '/work/a.loom' });
+    p.catch(() => undefined);
+    t.scheduler.advance(1000);
+    await assert.rejects(p);
+    const ping = proc.last('loom/ping');
+    proc.reply(ping.id as number, { busy: 1, queued: 0, abandoned: 0 });
+    await settle();
+    t.scheduler.advance(5000);
+    assert.ok(!proc.killed);
+    assert.equal(t.client.state, 'ready');
+});

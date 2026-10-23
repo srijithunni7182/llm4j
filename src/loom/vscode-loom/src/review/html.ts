@@ -53,6 +53,7 @@ export function renderReviewHtml(assets: PanelAssets): string {
   <button class="ghost" id="showNotEvaluated" type="button" hidden>Show not evaluated</button>
 </section>
 <main class="main layout-split pane-both" id="main"></main>
+<div class="toasts" id="toasts" aria-live="polite"></div>
 <div class="loading" id="loading"><span class="muted">Reviewing the script…</span></div>
 <footer class="footer" id="footer"></footer>
 <script nonce="${nonce}" src="${uri('graph-model.js')}"></script>

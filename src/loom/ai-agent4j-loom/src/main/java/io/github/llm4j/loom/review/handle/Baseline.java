@@ -61,13 +61,15 @@ public final class Baseline {
         }
     }
 
-    /** Records {@code findings} (the open ones) in {@code file}, replacing what was there. */
-    public static Written write(
-            Path file,
-            List<Finding> findings,
-            boolean includeSerious,
-            LocalDate date,
-            String note) {
+    /** The baseline file's text, and how many findings it records and how many it leaves open. */
+    public record Rendered(String text, int recorded, int leftOut) {}
+
+    /**
+     * What {@link #write} would put in the file, without writing it (the editor writes the file
+     * itself).
+     */
+    public static Rendered render(
+            List<Finding> findings, boolean includeSerious, LocalDate date, String note) {
         ObjectNode root = JSON.createObjectNode();
         root.put("version", VERSION);
         root.put("date", date.toString());
@@ -87,12 +89,30 @@ public final class Baseline {
             e.put("title", f.title());
         }
         try {
-            Files.writeString(
-                    file, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(root) + "\n");
+            return new Rendered(
+                    JSON.writerWithDefaultPrettyPrinter().writeValueAsString(root) + "\n",
+                    seen.size(),
+                    left);
+        } catch (IOException e) {
+            throw new IllegalArgumentException(
+                    "the baseline could not be written: " + e.getMessage());
+        }
+    }
+
+    /** Records {@code findings} (the open ones) in {@code file}, replacing what was there. */
+    public static Written write(
+            Path file,
+            List<Finding> findings,
+            boolean includeSerious,
+            LocalDate date,
+            String note) {
+        Rendered r = render(findings, includeSerious, date, note);
+        try {
+            Files.writeString(file, r.text());
         } catch (IOException e) {
             throw new IllegalArgumentException(file + " could not be written: " + e.getMessage());
         }
-        return new Written(seen.size(), left);
+        return new Written(r.recorded(), r.leftOut());
     }
 
     /**

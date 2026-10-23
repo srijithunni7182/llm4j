@@ -282,7 +282,7 @@ test('List: a table with severity, rule, lens, finding and where; the focused fi
   const p = await open();
   const f = await p.show('risky');
   await p.layout('list');
-  assert.equal((await p.texts('#table .thead'))[0].toLowerCase(), 'severity rule lens finding where');
+  assert.equal((await p.texts('#table .thead'))[0].toLowerCase(), 'severity rule lens finding where action');
   const first = f.review.findings[0];
   const row = (await p.texts(`[data-finding="${first.fingerprint}"]`))[0];
   assert.ok(row.includes(first.rule) && row.includes(first.title));

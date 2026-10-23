@@ -207,6 +207,9 @@ class ServeRobustnessTest {
             Thread.sleep(100);
             // cancel while it runs: its answer is dropped and the reply says so
             c.notify("loom/cancel", ServeClient.params().put("id", id));
+            // the reader takes frames in order, so a reply to a later request means the cancel was
+            // seen
+            c.request("loom/ping", null);
             gate.countDown();
             JsonNode e = c.await(id).path("error");
             assertThat(e.path("data").path("kind").asText()).isEqualTo("cancelled");
@@ -228,6 +231,118 @@ class ServeRobustnessTest {
                         .isEqualTo("m" + (r.path("id").asInt() - 1));
             }
             assertThat(seen).hasSize(n);
+        }
+    }
+
+    // ---- stalls: nothing a request does may make the editor wait on the server
+
+    @Test
+    void aPingIsAnsweredWhileEveryWorkerIsBusy() throws Exception {
+        java.util.concurrent.CountDownLatch gate = new java.util.concurrent.CountDownLatch(1);
+        Map<String, Server.Engine.Method> m =
+                Map.of(
+                        "x/block",
+                        r -> {
+                            gate.await(5, java.util.concurrent.TimeUnit.SECONDS);
+                            return JSON.createObjectNode();
+                        });
+        try (ServeClient c = client(m, 10000)) {
+            for (int i = 0; i < Server.WORKERS + 2; i++)
+                c.send("x/block", ServeClient.params().put("file", "f" + i));
+            long t0 = System.nanoTime();
+            JsonNode pong = c.request("loom/ping", null).path("result");
+            assertThat((System.nanoTime() - t0) / 1_000_000).isLessThan(1000);
+            assertThat(pong.path("busy").asInt()).isPositive();
+            gate.countDown();
+        }
+    }
+
+    @Test
+    void aHungHandlerIsInterruptedAtTheTimeoutSoItsWorkerIsFreed() throws Exception {
+        AtomicInteger interrupted = new AtomicInteger();
+        Map<String, Server.Engine.Method> m =
+                Map.of(
+                        "x/hang",
+                        r -> {
+                            try {
+                                Thread.sleep(60000);
+                            } catch (InterruptedException e) {
+                                interrupted.incrementAndGet();
+                                throw e;
+                            }
+                            return JSON.createObjectNode();
+                        },
+                        "x/echo",
+                        ECHO);
+        try (ServeClient c = client(m, 100)) {
+            // more hung requests than workers: only possible if each timeout frees its worker
+            for (int i = 0; i < Server.WORKERS * 3; i++) {
+                JsonNode e = c.request("x/hang", null).path("error");
+                assertThat(e.path("data").path("kind").asText()).isEqualTo("timeout");
+            }
+            assertThat(c.request("x/echo", ServeClient.params().put("text", "ok")).has("result"))
+                    .isTrue();
+            assertThat(interrupted.get()).isPositive();
+        }
+    }
+
+    @Test
+    void aNewerRequestForTheSameFileReplacesTheOlderOne() throws Exception {
+        Map<String, Server.Engine.Method> m =
+                Map.of(
+                        "x/review",
+                        r -> {
+                            if (r.params().path("version").asInt() == 1) Thread.sleep(5000);
+                            return JSON.createObjectNode()
+                                    .put("v", r.params().path("version").asInt());
+                        });
+        try (ServeClient c = client(m, 10000)) {
+            int first =
+                    c.send(
+                            "x/review",
+                            ServeClient.params().put("file", "a.loom").put("version", 1));
+            Thread.sleep(100);
+            int second =
+                    c.send(
+                            "x/review",
+                            ServeClient.params().put("file", "a.loom").put("version", 2));
+            assertThat(c.await(first).path("error").path("data").path("kind").asText())
+                    .isEqualTo("cancelled");
+            assertThat(c.await(second).path("result").path("v").asInt()).isEqualTo(2);
+        }
+    }
+
+    @Test
+    void aFullQueueAnswersBusyAtOnceInsteadOfWaiting() throws Exception {
+        java.util.concurrent.CountDownLatch gate = new java.util.concurrent.CountDownLatch(1);
+        Map<String, Server.Engine.Method> m =
+                Map.of(
+                        "x/block",
+                        r -> {
+                            gate.await(5, java.util.concurrent.TimeUnit.SECONDS);
+                            return JSON.createObjectNode();
+                        });
+        try (ServeClient c = client(m, 20000)) {
+            int n = Server.WORKERS + Server.QUEUE + 5;
+            for (int i = 0; i < n; i++)
+                c.send("x/block", ServeClient.params().put("file", "f" + i));
+            JsonNode first = c.next();
+            assertThat(first.path("error").path("data").path("kind").asText()).isEqualTo("busy");
+            gate.countDown();
+        }
+    }
+
+    @Test
+    void aClientThatStopsReadingDoesNotBlockTheServer() throws Exception {
+        // the pipe holds 1 MB; replies beyond that would block a naive writer in the worker
+        Map<String, Server.Engine.Method> m =
+                Map.of("x/big", r -> JSON.createObjectNode().put("pad", "x".repeat(200_000)));
+        try (ServeClient c = client(m, 5000)) {
+            long t0 = System.nanoTime();
+            for (int i = 0; i < 20; i++) c.send("x/big", ServeClient.params().put("file", "f" + i));
+            JsonNode pong = c.request("loom/ping", null).path("result");
+            assertThat(pong.isMissingNode()).isFalse();
+            assertThat((System.nanoTime() - t0) / 1_000_000).isLessThan(5000);
         }
     }
 }

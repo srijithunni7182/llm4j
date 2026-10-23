@@ -87,6 +87,25 @@ public final class AcceptWriter {
                 || f.lens() == Lens.PRIVACY;
     }
 
+    /** The text of the properties file after the lines are added, and how many were new. */
+    public record Appended(String text, int written) {}
+
+    /**
+     * The file's text with the lines added (those already there are skipped), without writing it:
+     * the editor writes the file so that undo and unsaved buffers stay right.
+     */
+    public static Appended appended(String existing, List<String> lines) {
+        List<String> all =
+                new ArrayList<>(existing == null ? List.of() : existing.lines().toList());
+        int written = 0;
+        for (String l : lines) {
+            if (all.contains(l)) continue;
+            all.add(l);
+            written++;
+        }
+        return new Appended(String.join("\n", all) + "\n", written);
+    }
+
     /**
      * Appends accept lines to the file, creating it when needed.
      *

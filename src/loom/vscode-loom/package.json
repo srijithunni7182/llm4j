@@ -122,6 +122,34 @@
       {
         "command": "loom.installSkill",
         "title": "Loom: Install the Loom Skill in This Project"
+      },
+      {
+        "command": "loom.review.fixAll",
+        "title": "Loom: Apply Safe Fixes"
+      },
+      {
+        "command": "loom.review.explain",
+        "title": "Loom: Explain Review Rule"
+      },
+      {
+        "command": "loom.review.restore",
+        "title": "Loom: Restore Dismissed Findings"
+      },
+      {
+        "command": "loom.review.baseline",
+        "title": "Loom: Accept All Existing Findings (Baseline)"
+      },
+      {
+        "command": "loom.review.accept",
+        "title": "Loom: Accept a Finding With a Reason"
+      },
+      {
+        "command": "loom.review.dismiss",
+        "title": "Loom: Dismiss a Finding"
+      },
+      {
+        "command": "loom.review.fixFinding",
+        "title": "Loom: Fix a Finding"
       }
     ],
     "menus": {
@@ -137,6 +165,30 @@
         {
           "command": "loom.createPromptFile",
           "when": "resourceLangId == loom"
+        },
+        {
+          "command": "loom.review.fixAll",
+          "when": "resourceLangId == loom"
+        },
+        {
+          "command": "loom.review.restore",
+          "when": "resourceLangId == loom"
+        },
+        {
+          "command": "loom.review.baseline",
+          "when": "resourceLangId == loom"
+        },
+        {
+          "command": "loom.review.accept",
+          "when": "false"
+        },
+        {
+          "command": "loom.review.dismiss",
+          "when": "false"
+        },
+        {
+          "command": "loom.review.fixFinding",
+          "when": "false"
         }
       ],
       "explorer/context": [
@@ -181,13 +233,21 @@
         },
         "loom.review.on": {
           "type": "string",
-          "enum": ["save", "type", "manual"],
+          "enum": [
+            "save",
+            "type",
+            "manual"
+          ],
           "default": "save",
           "description": "When the Loom review runs by itself: after a save, while typing (only the validity lens, so it stays fast), or only when you ask."
         },
         "loom.review.layout": {
           "type": "string",
-          "enum": ["split", "outline", "list"],
+          "enum": [
+            "split",
+            "outline",
+            "list"
+          ],
           "default": "split",
           "description": "The layout the Review panel opens in: Split (graph and findings side by side), Outline (step by step) or List (a dense table). You can switch in the panel; your last choice is remembered per workspace."
         },
@@ -198,7 +258,12 @@
         },
         "loom.review.minSeverity": {
           "type": "string",
-          "enum": ["high", "medium", "low", "info"],
+          "enum": [
+            "high",
+            "medium",
+            "low",
+            "info"
+          ],
           "default": "low",
           "description": "The lowest severity shown as a squiggle and in the Problems panel."
         },
@@ -214,7 +279,13 @@
         },
         "loom.review.failOn": {
           "type": "string",
-          "enum": ["high", "medium", "low", "info", "none"],
+          "enum": [
+            "high",
+            "medium",
+            "low",
+            "info",
+            "none"
+          ],
           "default": "high",
           "description": "Colour the status bar when findings at or above this severity are open. It never stops Run."
         },

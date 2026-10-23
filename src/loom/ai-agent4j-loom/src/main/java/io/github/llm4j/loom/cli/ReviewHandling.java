@@ -161,7 +161,12 @@ final class ReviewHandling {
 
     /** The thing a finding is about, for the "this rule on this agent or workflow" scope. */
     private static String thing(ReviewCommand c, Finding f) {
-        if (c.on != null) return c.on;
+        return thing(c.on, f);
+    }
+
+    /** As above, with the name given by the person ({@code on}) taking precedence. */
+    static String thing(String on, Finding f) {
+        if (on != null) return on;
         String a = f.anchor();
         int colon = a.indexOf(':');
         if (colon < 0) return null;

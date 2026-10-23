@@ -34,10 +34,14 @@ Every method takes `file` (absolute or relative to the working directory; it mus
 | `loom/graph` | `workflow?` | as above, `result` is the JSON of `weave graph` |
 | `loom/review` | `tier` (`full` default, or `instant`: the validity lens only), `lenses?`, `minSeverity?`, `prices?`, `assume?` (list of `name=value`) | as above, `result` is the JSON of `weave review --format json --no-env` |
 | `loom/explainRule` | `rule` | `{ rule, text }` the text of `weave review --explain RULE` |
+| `loom/applyFix` | `fingerprints` (the findings to fix), or `safe: true` (every safe fix); or one finding in `fingerprints` with `option` and `answers` (an object) | `{ file, original, text, changed, applied[], withheld[] }`: the script's text after the fixes, each result checked as `weave review --fix` checks it (the script loads, no new high finding). Nothing is written; the editor writes `text`. `fix-refused` when an option cannot be applied |
+| `loom/accept` | `fingerprints`, `reason` (required), `scope` (`finding` default, `thing`, `script`, `project`), `on?`, `until?` (a date), `by?`, `confirm?` (the number of findings, required to accept several serious ones at once) | `{ file, existed, original, text, written, lines[] }`: the new text of `review.properties`. The lethal trifecta (`LA01`) is refused with `trifecta-in-script`; a reason with a double quote is refused. Nothing is written |
+| `loom/baseline` | `includeSerious?`, `note?` | `{ file, existed, text, recorded, leftOut }`: the text of `review.baseline.json` for today's open findings; serious ones stay open unless `includeSerious`. Nothing is written |
+| `loom/ping` | – | answered by the reader thread, so it works however busy the workers are: `{busy, queued, abandoned}`. A client that has had a request time out pings; no answer means the process is stuck and is restarted |
 | `loom/cancel` | `id` | (notification or request) withdraws request `id`: if it has not started it is answered `cancelled`; if it is running its answer is dropped and replaced by `cancelled` |
 | `loom/shutdown` | | `{}` and the server exits with status 0 |
 
-`cached` says whether the answer came from the cache. Reserved for later phases: `loom/symbols`, `loom/applyFix`, `loom/test`, `loom/generate`, `loom/debug.*`.
+`cached` says whether the answer came from the cache. Reserved for later phases: `loom/symbols`, `loom/test`, `loom/generate`, `loom/debug.*`.
 
 ## Errors
 
@@ -48,7 +52,7 @@ Every method takes `file` (absolute or relative to the working directory; it mus
 | -32700 | `parse-error` | the frame is not JSON |
 | -32600 | `invalid-request` / `bad-frame` | no `method`; a frame that cannot be read |
 | -32601 | `unknown-method` | no such method |
-| -32602 | `invalid-params` | a required param is missing |
+| -32602 | `invalid-params` | a required param is missing or wrong; also `fix-refused`, `accept-refused`, `trifecta-in-script`, `confirm-count`, `no-such-finding` for a fix or accept that cannot be done (the message says why) |
 | -32001 | `outside-workspace` | the file (or the price file) is not inside a root, after resolving `..` and links |
 | -32002 | `timeout` | the request took longer than `--timeout-ms` (default 10 000); the work is abandoned |
 | -32003 | `cancelled` | withdrawn by `loom/cancel` |
@@ -56,6 +60,14 @@ Every method takes `file` (absolute or relative to the working directory; it mus
 | -32603 | `internal` | a bug; the server carries on |
 
 A script that has errors is **an answer**, not an error: `loom/check` returns `status: 2` with the problems in `result`.
+
+## Never stalling
+
+- Replies go through a dedicated writer; a client that stops reading cannot block a worker (replies are dropped, and the client's own timeout restarts the engine).
+- Four workers, a queue of 64; beyond that a request is answered `busy` at once.
+- A request that passes the time limit is answered `timeout`, and its worker is interrupted.
+- A newer request of the same method for the same `file` replaces an older one still in flight (the older is answered `cancelled`).
+- If more than four workers have been given up on and never came back, the server exits (status 3) and the client starts a new one.
 
 ## The cache
 

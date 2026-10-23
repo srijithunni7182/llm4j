@@ -56,12 +56,15 @@ export interface ProcessEngineOptions {
     maxFailures?: number;
     /** A little longer than the server's own limit, so the server's answer arrives first. */
     requestTimeoutMs?: number;
+    /** After a request times out, how long the engine has to answer a ping before it is taken for stuck and restarted. */
+    pingTimeoutMs?: number;
     log?: (line: string) => void;
 }
 
 export const DEFAULT_BACKOFF_MS = [250, 1000, 4000];
 export const DEFAULT_MAX_FAILURES = 5;
 export const DEFAULT_REQUEST_TIMEOUT_MS = 12_000;
+export const DEFAULT_PING_TIMEOUT_MS = 2_000;
 
 interface Pending {
     resolve(value: unknown): void;
@@ -330,6 +333,7 @@ export class ProcessEngineClient implements EngineClient {
                     if (this.pending.delete(id)) {
                         this.cancelOnServer(id);
                         reject(new EngineTimeoutError(timeoutMs));
+                        this.checkAlive(process);
                     }
                 }),
                 detach: () => options.signal?.removeEventListener('abort', onAbort),
@@ -345,6 +349,28 @@ export class ProcessEngineClient implements EngineClient {
                 reject(new EngineDiedError());
             }
         });
+    }
+
+    /**
+     * A request timed out: slow, or stuck? The engine answers a ping from its reader however busy its workers are, so no
+     * answer means the process is wedged; it is killed and the usual restart brings a fresh one.
+     */
+    private checkAlive(process: EngineProcess): void {
+        const id = this.nextId++;
+        const wait = this.options.pingTimeoutMs ?? DEFAULT_PING_TIMEOUT_MS;
+        const timer = this.options.scheduler.after(wait, () => {
+            if (this.pending.delete(id) && this.process === process) {
+                this.options.log?.('the engine did not answer a ping; restarting it');
+                process.kill();
+            }
+        });
+        this.pending.set(id, { resolve: () => undefined, reject: () => undefined, timer, detach: () => undefined });
+        try {
+            process.write(encodeFrame({ jsonrpc: '2.0', id, method: 'loom/ping', params: {} }));
+        } catch {
+            this.pending.delete(id);
+            timer.cancel();
+        }
     }
 
     private cancelOnServer(id: number): void {

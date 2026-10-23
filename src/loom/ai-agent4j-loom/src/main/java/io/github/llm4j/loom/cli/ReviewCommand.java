@@ -269,6 +269,105 @@ final class ReviewCommand implements Callable<Integer> {
         return review(this, env);
     }
 
+    /** A review that could not be set up: the lines {@code weave review} prints for it. */
+    static final class SetupError extends Exception {
+        private final List<String> lines;
+
+        SetupError(List<String> lines) {
+            super(String.join("; ", lines));
+            this.lines = lines;
+        }
+
+        List<String> lines() {
+            return lines;
+        }
+    }
+
+    /**
+     * Everything a review needs, set up from the options: the same for the command and for {@code
+     * weave serve}.
+     */
+    record Opened(
+            ReviewSession session,
+            ReviewSettings settings,
+            CostEstimator estimator,
+            Path scriptDir,
+            Path baselinePath,
+            LocalDate today,
+            PackSet packs,
+            List<ReviewRule> javaRules) {}
+
+    static Opened open(ReviewCommand c, WeaveEnv env) throws SetupError {
+        ReviewSettings settings;
+        try {
+            settings = settings(c);
+        } catch (InvalidSettingsException e) {
+            throw new SetupError(e.problems().stream().map(p -> "Error: " + p).toList());
+        } catch (IllegalArgumentException e) {
+            throw new SetupError(List.of("Error: " + e.getMessage()));
+        }
+        Path scriptDir = c.script.getAbsoluteFile().getParentFile().toPath();
+        Path baselinePath =
+                c.baselineFile != null
+                        ? c.baselineFile.toPath()
+                        : scriptDir.resolve(Baseline.FILE_NAME);
+        LocalDate today = LocalDate.now(env.clock());
+        try {
+            settings = settings.withToday(today).withBaseline(Baseline.read(baselinePath));
+        } catch (IllegalArgumentException e) {
+            throw new SetupError(List.of("Error: " + e.getMessage()));
+        }
+        try {
+            new LoomLoader().load(c.script.getAbsolutePath());
+        } catch (Exception e) {
+            throw new SetupError(
+                    List.of("Error: " + c.script + " could not be read: " + e.getMessage()));
+        }
+        Map<String, String> reach = Map.of();
+        if (c.lootFile != null) {
+            if (!c.lootFile.exists())
+                throw new SetupError(List.of("Error: " + c.lootFile + " does not exist."));
+            List<String> problems =
+                    io.github.llm4j.loom.execution.LootLoader.reachProblems(c.lootFile.toPath());
+            if (!problems.isEmpty())
+                throw new SetupError(problems.stream().map(p -> "Error: " + p).toList());
+            reach = io.github.llm4j.loom.execution.LootLoader.reaches(c.lootFile.toPath());
+        }
+        PackSet packs;
+        try {
+            packs = Reviews.packs(settings, scriptDir);
+        } catch (PackException e) {
+            throw new SetupError(e.problems().stream().map(p -> "Error: " + p).toList());
+        }
+        List<ReviewRule> javaRules;
+        try {
+            javaRules = JavaRules.fromJars(c.rulesJars.stream().map(File::toPath).toList());
+        } catch (PackException e) {
+            throw new SetupError(e.problems().stream().map(p -> "Error: " + p).toList());
+        }
+        CostEstimator estimator;
+        try {
+            estimator = estimator(c);
+        } catch (java.io.IOException | IllegalArgumentException e) {
+            throw new SetupError(
+                    List.of(
+                            "Error: the price table "
+                                    + c.prices
+                                    + " could not be read: "
+                                    + e.getMessage()));
+        }
+        ReviewSession session =
+                new ReviewSession(
+                        c,
+                        env,
+                        settings,
+                        Reviews.engine(packs, javaRules, estimator),
+                        reach,
+                        estimator);
+        return new Opened(
+                session, settings, estimator, scriptDir, baselinePath, today, packs, javaRules);
+    }
+
     static int review(ReviewCommand c, WeaveEnv env) {
         if (!List.of("text", "md", "json", "sarif").contains(c.format)) {
             env.err().println("Error: --format takes text, md, json or sarif.");
@@ -293,82 +392,21 @@ final class ReviewCommand implements Callable<Integer> {
             env.err().println("Error: weave review needs a script (or --explain RULE).");
             return 2;
         }
-        ReviewSettings settings;
+        Opened opened;
         try {
-            settings = settings(c);
-        } catch (InvalidSettingsException e) {
-            e.problems().forEach(p -> env.err().println("Error: " + p));
-            return 2;
-        } catch (IllegalArgumentException e) {
-            env.err().println("Error: " + e.getMessage());
+            opened = open(c, env);
+        } catch (SetupError e) {
+            e.lines().forEach(l -> env.err().println(l));
             return 2;
         }
-        Path scriptDir = c.script.getAbsoluteFile().getParentFile().toPath();
-        Path baselinePath =
-                c.baselineFile != null
-                        ? c.baselineFile.toPath()
-                        : scriptDir.resolve(Baseline.FILE_NAME);
-        LocalDate today = LocalDate.now(env.clock());
-        try {
-            settings = settings.withToday(today).withBaseline(Baseline.read(baselinePath));
-        } catch (IllegalArgumentException e) {
-            env.err().println("Error: " + e.getMessage());
-            return 2;
-        }
-        try {
-            new LoomLoader().load(c.script.getAbsolutePath());
-        } catch (Exception e) {
-            env.err().println("Error: " + c.script + " could not be read: " + e.getMessage());
-            return 2;
-        }
-        Map<String, String> reach = Map.of();
-        if (c.lootFile != null) {
-            if (!c.lootFile.exists()) {
-                env.err().println("Error: " + c.lootFile + " does not exist.");
-                return 2;
-            }
-            List<String> problems =
-                    io.github.llm4j.loom.execution.LootLoader.reachProblems(c.lootFile.toPath());
-            if (!problems.isEmpty()) {
-                problems.forEach(p -> env.err().println("Error: " + p));
-                return 2;
-            }
-            reach = io.github.llm4j.loom.execution.LootLoader.reaches(c.lootFile.toPath());
-        }
-        PackSet packs;
-        try {
-            packs = Reviews.packs(settings, scriptDir);
-        } catch (PackException e) {
-            e.problems().forEach(p -> env.err().println("Error: " + p));
-            return 2;
-        }
-        List<ReviewRule> javaRules;
-        try {
-            javaRules = JavaRules.fromJars(c.rulesJars.stream().map(File::toPath).toList());
-        } catch (PackException e) {
-            e.problems().forEach(p -> env.err().println("Error: " + p));
-            return 2;
-        }
-        CostEstimator estimator;
-        try {
-            estimator = estimator(c);
-        } catch (java.io.IOException | IllegalArgumentException e) {
-            env.err()
-                    .println(
-                            "Error: the price table "
-                                    + c.prices
-                                    + " could not be read: "
-                                    + e.getMessage());
-            return 2;
-        }
-        ReviewSession session =
-                new ReviewSession(
-                        c,
-                        env,
-                        settings,
-                        Reviews.engine(packs, javaRules, estimator),
-                        reach,
-                        estimator);
+        ReviewSettings settings = opened.settings();
+        ReviewSession session = opened.session();
+        CostEstimator estimator = opened.estimator();
+        Path scriptDir = opened.scriptDir();
+        Path baselinePath = opened.baselinePath();
+        LocalDate today = opened.today();
+        PackSet packs = opened.packs();
+        List<ReviewRule> javaRules = opened.javaRules();
         ReviewReport report;
         try {
             if (c.calibrate != null)

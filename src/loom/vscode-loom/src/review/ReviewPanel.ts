@@ -7,6 +7,7 @@ import { TimeoutScheduler } from '../graph/timeoutScheduler';
 import { ReviewController, ReviewState } from './controller';
 import { renderReviewHtml } from './html';
 import { parseReviewMessage, ReviewHostMessage } from './protocol';
+import { PanelTriage } from './vscodeTriage';
 
 /** `loom.review.layout`: the layout a panel opens in when this workspace has not chosen one yet. */
 function startingLayout(): 'split' | 'outline' | 'list' {
@@ -24,6 +25,7 @@ export class ReviewPanel {
         private readonly panel: vscode.WebviewPanel,
         private readonly controller: ReviewController,
         readonly entry: string,
+        private readonly triage: PanelTriage,
     ) {
         this.subscriptions.push(
             panel.webview.onDidReceiveMessage((raw) => this.handle(raw)),
@@ -34,7 +36,7 @@ export class ReviewPanel {
     }
 
     /** Shows the panel for `entry`, creating it when needed. */
-    static show(context: vscode.ExtensionContext, controller: ReviewController, entry: string, column: vscode.ViewColumn): ReviewPanel {
+    static show(context: vscode.ExtensionContext, controller: ReviewController, triage: PanelTriage, entry: string, column: vscode.ViewColumn): ReviewPanel {
         for (const [key, existing] of ReviewPanel.open) {
             if (samePath(key, entry)) {
                 existing.panel.reveal(vscode.ViewColumn.Beside, true);
@@ -49,16 +51,16 @@ export class ReviewPanel {
             { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
             { enableScripts: true, localResourceRoots: [media], retainContextWhenHidden: false },
         );
-        return ReviewPanel.adopt(context, controller, panel, entry, column);
+        return ReviewPanel.adopt(context, controller, triage, panel, entry, column);
     }
 
     /** Takes a panel VS Code restored after a reload and gives it its page back. */
-    static revive(context: vscode.ExtensionContext, controller: ReviewController, panel: vscode.WebviewPanel, entry: string): ReviewPanel {
+    static revive(context: vscode.ExtensionContext, controller: ReviewController, triage: PanelTriage, panel: vscode.WebviewPanel, entry: string): ReviewPanel {
         panel.webview.options = { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')] };
-        return ReviewPanel.adopt(context, controller, panel, entry, vscode.ViewColumn.One);
+        return ReviewPanel.adopt(context, controller, triage, panel, entry, vscode.ViewColumn.One);
     }
 
-    private static adopt(context: vscode.ExtensionContext, controller: ReviewController, panel: vscode.WebviewPanel, entry: string, _column: vscode.ViewColumn): ReviewPanel {
+    private static adopt(context: vscode.ExtensionContext, controller: ReviewController, triage: PanelTriage, panel: vscode.WebviewPanel, entry: string, _column: vscode.ViewColumn): ReviewPanel {
         const media = vscode.Uri.joinPath(context.extensionUri, 'media');
         panel.iconPath = vscode.Uri.joinPath(media, 'loom-mark-128.png');
         panel.webview.html = renderReviewHtml({
@@ -66,7 +68,7 @@ export class ReviewPanel {
             nonce: newNonce(randomBytes),
             uri: (name) => panel.webview.asWebviewUri(vscode.Uri.joinPath(media, name)).toString(),
         });
-        const created = new ReviewPanel(panel, controller, entry);
+        const created = new ReviewPanel(panel, controller, entry, triage);
         ReviewPanel.open.set(entry, created);
         return created;
     }
@@ -103,6 +105,8 @@ export class ReviewPanel {
                 break;
             case 'selectWorkflow':
                 break; // the page keeps the choice; nothing on this side depends on it
+            default:
+                void this.triage.handle(m, this.entry, (message) => this.post(message), () => this.render(this.controller.state(this.entry)));
         }
     }
 
@@ -110,8 +114,9 @@ export class ReviewPanel {
         if (!this.ready || !samePath(state.file, this.entry)) {
             return;
         }
-        if (state.review) {
-            this.post({ type: 'review', review: state.review, graph: state.graph, status: state.status, message: state.message, entry: this.entry } as ReviewHostMessage);
+        const prepared = state.review ? this.triage.prepare(this.entry) : undefined;
+        if (state.review && prepared) {
+            this.post({ type: 'review', review: prepared.review, graph: state.graph, status: state.status, message: state.message, entry: this.entry, dismissed: prepared.dismissed } as ReviewHostMessage);
         } else {
             this.post({ type: 'status', status: state.status, message: state.message });
         }

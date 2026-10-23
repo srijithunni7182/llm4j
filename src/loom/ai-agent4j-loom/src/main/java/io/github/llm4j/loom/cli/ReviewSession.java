@@ -1,6 +1,7 @@
 package io.github.llm4j.loom.cli;
 
 import io.github.llm4j.loom.ast.LoomScript;
+import io.github.llm4j.loom.execution.Buffers;
 import io.github.llm4j.loom.execution.LoomLoader;
 import io.github.llm4j.loom.execution.ScriptValidator;
 import io.github.llm4j.loom.graph.GraphResult;
@@ -12,7 +13,6 @@ import io.github.llm4j.loom.review.engine.ReviewReport;
 import io.github.llm4j.loom.review.engine.ValidityProblem;
 import io.github.llm4j.loom.review.settings.ReviewSettings;
 import java.io.File;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,9 +20,7 @@ import java.util.Map;
 
 /**
  * One review set-up (settings, packs, rules, estimator) that can review a script on disk or, for
- * the fix engine, a candidate text of it. Nothing is run; the only thing written is a short-lived
- * file beside the script while a candidate is checked, because loading and validating a script
- * needs a file.
+ * the fix engine, a candidate text of it. Nothing is run and nothing is written.
  */
 final class ReviewSession {
 
@@ -76,23 +74,23 @@ final class ReviewSession {
         return settings;
     }
 
-    /** Reviews candidate text: written beside the script under another name, reviewed, removed. */
+    /**
+     * Reviews candidate text of the script. The text is not written anywhere: it stands in for a
+     * file beside the script (under a name that never exists) while it is loaded and reviewed, so a
+     * review of a candidate leaves nothing behind and works where nothing may be written.
+     */
     ReviewReport reviewText(String text) {
         Path dir = c.script.getAbsoluteFile().getParentFile().toPath();
-        Path temp = dir.resolve(".review-candidate-" + System.nanoTime() + ".loom");
+        Path candidate = dir.resolve(".review-candidate-" + System.nanoTime() + ".loom");
         try {
-            Files.writeString(temp, text);
-            return engine.review(input(temp, text), settings);
+            return Buffers.with(
+                    Map.of(candidate.toAbsolutePath().normalize(), text),
+                    null,
+                    () -> engine.review(input(candidate, text), settings));
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
             throw new IllegalStateException(e.getMessage(), e);
-        } finally {
-            try {
-                Files.deleteIfExists(temp);
-            } catch (java.io.IOException ignored) {
-                // a leftover temporary file is harmless and named so it can be recognised
-            }
         }
     }
 

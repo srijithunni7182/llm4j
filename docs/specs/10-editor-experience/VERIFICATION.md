@@ -36,9 +36,9 @@ Status: **10a done** (`weave serve`, the engine client, check and graph through 
 | R3 | `review.browser.test.js`, `reviewModel.unit.test.js` (finding to step to line; step to its findings; cursor to finding) | ✅ 10b |
 | R4 | `review.browser.test.js` (badge: number, glyph, word; cost on the step; tokens when unpriced), `reviewModel.unit.test.js` | ✅ 10b (contrast in the dark and high-contrast themes checked in the page test; the rest of `a11y.browser.test.js` comes in 10e) |
 | R5 | `reviewModel.unit.test.js`, `review.browser.test.js` | ✅ 10b |
-| R6 | `reviewCodeActions.test.ts`, `applyFix.integration.test.ts` | ⬜ 10c |
+| R6 | `reviewCodeActions.test.ts`, `applyFix.integration.test.ts` | ✅ 10c |
 | R7 | `reviewModel.unit.test.js`, `review.browser.test.js` (text, lens, severity, rule, group by, fold, not evaluated counted and listed) | 🟨 10b: "Enable" for an optional lens and "Show suppressed" come with 10c |
-| R8 | `review.browser.test.js`, `explainRule` in `ServeProtocolTest` | ⬜ 10c |
+| R8 | `review.browser.test.js`, `explainRule` in `ServeProtocolTest` | ✅ 10c |
 | R9 | `reviewController.test.ts`, `review.browser.test.js` (stale chip, previous result stays while running or after an error) | ✅ 10b |
 | R10 | `reviewController.test.ts` (save, type with 200 ms debounce, manual; the quick review replaces the validity lens and marks the rest stale), `ServeEngineTest` (instant tier) | ✅ 10b |
 | R11 | `engineClient.test.ts` (withdraw on newer, stale version dropped) | ✅ 10a |
@@ -47,7 +47,7 @@ Status: **10a done** (`weave serve`, the engine client, check and graph through 
 | R14 | `ServeEngineTest` (hit, edit, buffer, imported file, review.properties, prompts, options, memory bound) | ✅ 10a |
 | R15 | `ServeIsStaticTest`, `ServeEngineTest` (outside folders, `..`, links, price file) | ✅ 10a |
 | R16 | `ServeRobustnessTest`, `engineClient.test.ts`, `engine.integration.test.ts` (real process killed) | ✅ 10a |
-| R17 | `applyFix.integration.test.ts`, `ServeIsStaticTest` (server writes nothing: ✅ 10a) | ⬜ 10c (editor applies) |
+| R17 | `applyFix.integration.test.ts`, `ServeIsStaticTest` (server writes nothing: ✅ 10a) | ✅ 10c (editor applies) |
 | R18 | `ServeStdioTest` (real process) | ✅ 10a |
 | R19 | `degraded.test.ts` | ⬜ 10e |
 | R20 | `SymbolsTest` | ⬜ 10d |
@@ -64,14 +64,14 @@ Status: **10a done** (`weave serve`, the engine client, check and graph through 
 | R31 | `manifest.test.ts` | ⬜ 10e |
 | R32 | `noNetwork.test.ts` | ⬜ 10e |
 | R33 | `degraded.test.ts` | ⬜ 10e |
-| R34 | `triage.browser.test.js` (grouping) | ⬜ 10c |
-| R35 | `triage.browser.test.js` (actions by availability) | ⬜ 10c |
-| R36 | `triageActions.test.ts`, `triage.browser.test.js` | ⬜ 10c |
-| R37 | `triageActions.test.ts` (undo), `triage.browser.test.js` (Handled) | ⬜ 10c |
-| R38 | `triageActions.test.ts` (accept targets) | ⬜ 10c |
-| R39 | `triageActions.test.ts` (baseline) | ⬜ 10c |
-| R40 | `dismissLocal.test.ts` | ⬜ 10c |
-| R41 | `triageKeyboard.browser.test.js`, `a11y.browser.test.js` | ⬜ 10c |
+| R34 | `triage.browser.test.js` (grouping) | ✅ 10c |
+| R35 | `triage.browser.test.js` (actions by availability) | ✅ 10c |
+| R36 | `triageActions.test.ts`, `triage.browser.test.js` | ✅ 10c |
+| R37 | `triageActions.test.ts` (undo), `triage.browser.test.js` (Handled) | ✅ 10c |
+| R38 | `triageActions.test.ts` (accept targets) | ✅ 10c |
+| R39 | `triageActions.test.ts` (baseline) | ✅ 10c |
+| R40 | `dismissLocal.test.ts` | ✅ 10c |
+| R41 | `triageKeyboard.browser.test.js`, `a11y.browser.test.js` | ✅ 10c |
 | R42 | `runNotBlocked.test.ts`, `reviewPresentation.test.ts` (once per unchanged script, mute) | ✅ 10b |
 | R43 | `reviewPresentation.test.ts` (status text and tone), `manifest.test.ts` (no `when` on review state), `runNotBlocked.test.ts` | ✅ 10b |
 | R44 | `layoutSwitch.browser.test.js` (opens in Split, switch, restore, the `loom.review.layout` setting that never overrides a saved choice), `layoutContext.unit.test.js`, `manifest.test.ts` | ✅ 10b2 |
@@ -139,3 +139,11 @@ Extension README and CHANGELOG; `docs/serve/PROTOCOL.md`; wiki "Loom in VS Code"
 - Outline: the steps on the left with their counts, the chosen step in the centre (its cost, calls, model and share of the run, and its findings), the workflow summary, lenses and handled counts on the right. List: a table (severity, rule, lens, finding, where), a map of the steps with a dot per finding, and the focused finding explained. In both, the checkboxes, bulk bar and action buttons arrive with 10c.
 - Not in the mockup but in the layouts: the selected finding's detail is the same text in all three (`detailOf`), so a finding cannot read differently.
 - Extension suite after this step: see the 10c entry.
+
+### 10c (2026-10-23)
+
+- Built: triage in the review panel and editor. Fix / Fix all safe (one WorkspaceEdit, one undo; the server only returns text), Accept (writes `review.properties`), Baseline (writes `review.baseline.json`), local Dismiss with undo, Explain (`explainRule`), diff preview, lightbulb code actions, layout-independent action sets computed by the host (`actionsFor`), trifecta refused with the reason (parked: D9). Run notice shown once per unchanged script and never blocks Run.
+- **Stall hardening of `weave serve`** (asked for in this phase): dedicated writer (a client that stops reading cannot block workers), 4 workers + queue of 64 (beyond that `busy` at once), timeouts interrupt the worker, newer same-file request replaces the older, `loom/ping` answered by the reader, server exits (status 3) if workers are wedged. Extension: after a request timeout it pings; no pong in 2 s kills and restarts the engine. Tests: `ServeRobustnessTest` (+5), `engineClient.test.ts` (+2). Documented in `docs/serve/PROTOCOL.md`.
+- Tests: Java module 2,858, 0 failures. Extension: 509 pass, 6 fail (the same six that failed before phase 10).
+- Still partial: R7 "Enable lens" and "Show suppressed" buttons.
+- **Manual check owed (VS Code):** to be given once, after 10e, with the VSIX.
