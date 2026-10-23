@@ -15,7 +15,7 @@ import picocli.CommandLine.Parameters;
 @Command(
         name = "rules",
         description =
-                "Works with review rules and rule packs, offline: list, facts, check, test, new, add, explain.",
+                "Works with review rules and rule packs, offline: list, facts, check, test, new, add, diff, docs, explain.",
         subcommands = {
             RulesCommand.ListRules.class,
             RulesCommand.Facts.class,
@@ -23,6 +23,8 @@ import picocli.CommandLine.Parameters;
             RulesCommand.Test.class,
             RulesCommand.New.class,
             RulesCommand.Add.class,
+            RulesCommand.Diff.class,
+            RulesCommand.Docs.class,
             RulesCommand.Explain.class
         })
 final class RulesCommand implements Callable<Integer> {
@@ -32,7 +34,7 @@ final class RulesCommand implements Callable<Integer> {
         WeaveEnv env = WeaveEnv.system();
         env.err()
                 .println(
-                        "weave rules needs a subcommand: list, facts, check, test, new, add or explain. Try weave rules --help.");
+                        "weave rules needs a subcommand: list, facts, check, test, new, add, diff, docs or explain. Try weave rules --help.");
         return 2;
     }
 
@@ -126,6 +128,49 @@ final class RulesCommand implements Callable<Integer> {
         @Override
         public Integer call() {
             return tool().add(source.toPath(), dir.toPath().toAbsolutePath().normalize());
+        }
+    }
+
+    @Command(
+            name = "diff",
+            description =
+                    "Compares two versions of a rule pack: rules added, removed and changed, the version bump the change needs, and (with --on) the findings that would appear or disappear on a script.")
+    static final class Diff implements Callable<Integer> {
+        @Parameters(index = "0", description = "The older pack folder, or 'core'.")
+        String from;
+
+        @Parameters(index = "1", description = "The newer pack folder, or 'core'.")
+        String to;
+
+        @Option(names = "--on", description = "A script to review with both versions.")
+        File script;
+
+        @Option(names = "--markdown", description = "Print a changelog entry.")
+        boolean markdown;
+
+        @Override
+        public Integer call() {
+            return tool().diff(from, to, script == null ? null : script.toPath(), markdown);
+        }
+    }
+
+    @Command(
+            name = "docs",
+            description =
+                    "Writes the rule reference (one page per rule and an index) generated from a pack and the built-in rules.")
+    static final class Docs implements Callable<Integer> {
+        @Parameters(index = "0", description = "The pack folder, or 'core'.")
+        String pack;
+
+        @Option(
+                names = "--out",
+                description = "The folder to write to. Default: docs/review/rules.",
+                defaultValue = "docs/review/rules")
+        File out;
+
+        @Override
+        public Integer call() {
+            return tool().docs(pack, out.toPath());
         }
     }
 

@@ -13,7 +13,9 @@ import io.github.llm4j.loom.review.fact.FactBase;
 import io.github.llm4j.loom.review.fact.FactBuilder;
 import io.github.llm4j.loom.review.fact.FactModel;
 import io.github.llm4j.loom.review.fact.FieldDef;
+import io.github.llm4j.loom.review.pack.DataRuleSource;
 import io.github.llm4j.loom.review.pack.Pack;
+import io.github.llm4j.loom.review.pack.PackDiff;
 import io.github.llm4j.loom.review.pack.PackException;
 import io.github.llm4j.loom.review.pack.PackHash;
 import io.github.llm4j.loom.review.pack.PackLoader;
@@ -182,6 +184,147 @@ public final class RulesTool {
             e.problems().forEach(p -> err.println("  - " + p));
             return null;
         }
+    }
+
+    // ---- diff
+
+    /**
+     * What changed between two versions of a pack (rules added, removed, changed, the version bump
+     * the change needs) and, with a script, the findings that would appear or disappear.
+     *
+     * @param script a script to review with both versions, or null
+     * @param markdown print a changelog entry instead of the plain report
+     * @return 0 when the declared version is big enough for the change, 1 when it is too small, 2
+     *     for bad input
+     */
+    public int diff(String from, String to, Path script, boolean markdown) {
+        Pack a = load(from);
+        Pack b = load(to);
+        if (a == null || b == null) return 2;
+        PackDiff d = PackDiff.of(a, b);
+        if (markdown) {
+            out.print(d.markdown());
+        } else {
+            out.println(d.older() + "  ->  " + d.newer());
+            if (d.unchanged()) out.println("No rule changed.");
+            if (d.factModelChanged()) out.println("The fact model version changed.");
+            for (String id : d.added()) out.println("  added    " + id);
+            for (String id : d.removed()) out.println("  removed  " + id);
+            for (PackDiff.Changed c : d.changed()) {
+                for (String s : c.behaviour()) out.println("  changed  " + c.id() + "  " + s);
+                if (!c.wording().isEmpty())
+                    out.println(
+                            "  changed  "
+                                    + c.id()
+                                    + "  wording only: "
+                                    + String.join(", ", c.wording()));
+            }
+            out.println();
+            out.println(
+                    "The change needs at least a "
+                            + d.required().name().toLowerCase(Locale.ROOT)
+                            + " version"
+                            + (d.required() == PackDiff.Bump.NONE ? " (nothing changed)" : "")
+                            + "; the new version is "
+                            + (d.declared() == PackDiff.Bump.NONE
+                                    ? "not a step forward"
+                                    : "a " + d.declared().name().toLowerCase(Locale.ROOT) + " step")
+                            + ".");
+        }
+        if (script != null) {
+            if (!Files.isRegularFile(script)) {
+                err.println("Error: " + script + " does not exist.");
+                return 2;
+            }
+            try {
+                List<String> before = findings(a, script);
+                List<String> after = findings(b, script);
+                List<String> appear = new ArrayList<>(after);
+                before.forEach(appear::remove);
+                List<String> disappear = new ArrayList<>(before);
+                after.forEach(disappear::remove);
+                out.println();
+                out.println("On " + script.getFileName() + ":");
+                if (appear.isEmpty() && disappear.isEmpty())
+                    out.println("  the same findings with both versions.");
+                for (String s : appear) out.println("  would appear     " + s);
+                for (String s : disappear) out.println("  would disappear  " + s);
+            } catch (RuntimeException e) {
+                err.println("Error: " + script + " could not be reviewed: " + e.getMessage());
+                return 2;
+            }
+        }
+        if (d.versionTooSmall()) {
+            err.println(
+                    "Warning: "
+                            + d.newer()
+                            + " is too small a step for this change (see the rules above): rules removed or a changed fact model need a major version, new or changed rules a minor one.");
+            return 1;
+        }
+        return 0;
+    }
+
+    /** The findings one pack gives a script, as lines that can be compared. */
+    private static List<String> findings(Pack pack, Path script) {
+        Path abs = script.toAbsolutePath().normalize();
+        Path base = abs.getParent();
+        LoomScript loaded;
+        try {
+            loaded = new LoomLoader().load(abs.toString());
+        } catch (Exception e) {
+            throw new IllegalStateException(e.getMessage(), e);
+        }
+        ReviewInput input =
+                new ReviewInput(
+                        abs.getFileName().toString(),
+                        base,
+                        loaded,
+                        Map.of(),
+                        List.of(),
+                        graph(abs));
+        ReviewSettings settings = settings(base).withLenses("all");
+        List<String> lines = new ArrayList<>();
+        new DataRuleSource(List.of(pack))
+                .collect(
+                        input,
+                        settings,
+                        new io.github.llm4j.loom.review.engine.FindingSource.Sink() {
+                            @Override
+                            public void finding(io.github.llm4j.loom.review.model.Finding f) {
+                                lines.add(
+                                        f.rule() + " line " + f.where().line() + ": " + f.title());
+                            }
+
+                            @Override
+                            public void note(io.github.llm4j.loom.review.model.Note n) {
+                                // a rule not evaluated is not a finding either way
+                            }
+                        });
+        lines.sort(Comparator.naturalOrder());
+        return lines;
+    }
+
+    // ---- docs
+
+    /**
+     * Writes the generated rule pages of a pack (and of the built-in Java rules) to a folder.
+     *
+     * @return 0 done, 2 bad input
+     */
+    public int docs(String target, Path outDir) {
+        Pack pack = load(target);
+        if (pack == null) return 2;
+        Map<String, String> pages = RuleDocs.generate(pack, Reviews.catalog());
+        try {
+            Files.createDirectories(outDir);
+            for (var e : pages.entrySet())
+                Files.writeString(outDir.resolve(e.getKey()), e.getValue());
+        } catch (IOException e) {
+            err.println("Error: " + outDir + " could not be written: " + e.getMessage());
+            return 2;
+        }
+        out.println(pages.size() + " pages written to " + outDir);
+        return 0;
     }
 
     // ---- new

@@ -99,7 +99,7 @@ Status: **in progress**: 9a to 9f complete; 9g–9i not started. Run top to bott
 | R53 | `RunUnchangedWithNoticeTest` (stdout, exit code and every file of the run directory identical with the notice on or off) | ✅ 9e |
 | R54 | `ReviewNoticeTest` (bad settings, bad level and an unreadable script each become one `review unavailable` line) | ✅ 9e |
 | R55 | `FabricReviewAttributeTest` | ⬜ moved to the Fabric work (no run-attribute path yet) |
-| R56 | `SkillAdvisoryTextTest` | ⬜ 9i |
+| R56 | `SkillAdvisoryTextTest` (the three skills say: run review, report, let the user decide fixes and accept reasons, carry on, gate only on request; none says to stop) | ✅ 9i |
 | R57 | `CorePackTest`, `ReviewCorpusTest`: 18 core rules are data; LA, LV and the cost-estimate rules stay Java by design | ✅ 9d |
 | R58 | `RuleParserTest.thereIsNoWayToWriteAnExpressionOrACall` | ✅ 9a |
 | R59 | `FactBuilderTest.everyFactInTheCatalogIsSet…`, `RuleValidatorTest`; 8 facts added in 9d | ✅ 9a, 9d |
@@ -112,12 +112,12 @@ Status: **in progress**: 9a to 9f complete; 9g–9i not started. Run top to bott
 | R66 | `PackLoaderTest`, `PackSetTest` (prefixes, pack name vs folder, cross-pack duplicate ids) | ✅ 9b |
 | R67 | `FixTemplateOpsTest`, `FixTemplateVerifiedTest`, `FixTemplateParityTest` | ⬜ 9e |
 | R68 | `PackLoaderTest`, `PackTesterTest`, `CorePackTest.everyRuleCarriesAtLeastOneFiringAndOneQuietExample` (18 rules, 44 example scripts) | ✅ 9d |
-| R69 | `RuleDocsGeneratedTest` | ⬜ 9i |
+| R69 | `RuleDocsGeneratedTest` (every rule has a page; the committed pages in `docs/review/rules/` are exactly what the generator writes; `weave rules docs core`) | ✅ 9i |
 | R70 | `RulesToolTest` (list, facts, check, test, new, add with diff and re-pin, explain --at) | ✅ 9b |
 | R71 | JSON/SARIF carry `source` (pack name@version); `RulesToolTest.addingANewVersion…`; handled-survives-upgrade needs fingerprints (9e) | ◐ 9b provenance done; PackUpgradeKeepsHandled in 9e |
 | R72 | Rules were written as data from the start (no Java twin), so there is no parity to test; the corpus is the guard | ✅ 9d (not applicable) |
 | R73 | `JavaRuleTest.aJavaRuleRunsBesideTheCoreRules…` | ✅ 9b (fact-provider half: `FactBuilderTest` custom provider) |
-| R74 | `RulesDiffTest`, `PackSemverTest` | ⬜ 9i |
+| R74 | `RulesDiffTest` (rules added, removed, changed; bump needed; version too small; findings that appear and disappear on a script; changelog entry); `PackSemverTest` is folded into it | ✅ 9i |
 | R75 | `AssistedFixTest.aFindingListsItsOptions…`, `theTextReportNamesTheOptions`, `RuleParserTest.optionsParse…`, `optionMistakes…`, `RuleValidatorTest.anOptionMayNotUseAnAnswer…` | ✅ 9f |
 | R76 | `AssistedFixTest` (named option with `--set`; dry run; `--yes`; interactive choose, ask, diff, confirm; skip; decline; empty answer takes the default; `--set` without `=`) | ✅ 9f |
 | R77 | `AssistedFixTest.anAnswerThatBreaksTheScriptIsRefused…`, `anUnknownOptionOrABadFingerprintIsRefused…` | ✅ 9f |
@@ -407,3 +407,52 @@ Repository examples reviewed: 14 (skipped 0)
 - A flake fixed along the way: a notice thread left over from an earlier test could print after `ReviewNotice.reset()` and use up the one line of the next test, so `RunUnchangedWithNoticeTest` failed under a loaded full build. A generation counter now makes a worker from before a reset print nothing.
 - Not built: R55 (the open counts as Fabric run attributes) needs a run-attribute path in the observe protocol that does not exist; it moves with the Fabric work.
 - Honest limits: the lenses are off by default, so they have had less exposure. The repository-examples table (14 scripts, all lenses on) shows LH04 five times, LG05 twice, LB01 once and LR10 twice; those are plausible but unlabelled.
+
+### 9i (2026-10-23)
+
+- Built: `weave rules diff OLD NEW [--on script] [--markdown]` (rules added, removed and changed, with changed conditions written as sentences; the smallest version the change needs; the findings that would appear or disappear on a script, by running both versions; exit 1 when the new version is too small a step), `weave rules docs core` (one page per rule and an index, generated from the rules, committed in `docs/review/rules/`, with a test that fails when they differ), the review guide (`docs/review/README.md`), the guide for rule authors (`docs/review/WRITING_RULES.md`), a review section in `LOOM_GUIDE.md`, and the advisory section in the three skills. `ReviewDocsTest` checks that every `weave review` line in those documents uses options the command has, that the rule ids they name exist, and that the author guide names real subcommands, operations and operators.
+- Version policy (R74) as built: a removed rule or a different fact model is major; a new rule or a changed condition, severity, lens, fix or option is minor; wording and examples are patch.
+- Not built: a generated `CHANGELOG.md` inside a pack (the diff prints the entry with `--markdown`; writing it into the pack is left to the author); the wiki page is `docs/review/README.md`.
+- Honest limits: the diff compares what a rule says, not how often it is right; it shows the effect on one script, not on a corpus. The reference pages for the Java rules (LA, LV, LC04 and so on) are written from their catalog text, which is shorter than the pack rules' pages.
+
+### Phase 9 closeout (2026-10-23): the acceptance criteria against the tests that exist
+
+The names in §1 are the names planned before the work; the tests were organised differently. This table is the real mapping. ✅ met, ◐ met in part (what is missing is said), ⬜ waits on a later phase.
+
+| # | State | Evidence that exists |
+|---|---|---|
+| A1 | ✅ | `ReviewCommandTest` (ranked list, summary card), `ReportFormatsTest` |
+| A2 | ✅ | `ReviewSupersetOfAuditTest`; the existing check, audit, graph and eval suites pass unmodified |
+| A3 | ✅ | `CostModelTest` (unbounded loops reported as unbounded, assumptions listed) |
+| A4 | ◐ | Met on recorded runs (`CorpusCostAccuracyTest`); not met on live provider runs, where answers are shorter than assumed (`LiveCostAccuracyTest`, gated by keys) |
+| A5 | ✅ | `FixApplierTest` (atomic write, idempotent, withheld fixes), `AssistedFixTest` |
+| A6 | ✅ | `FixApplierTest`, `AssistedFixTest` (a fix or option that breaks the script, or adds a high finding, is refused) |
+| A7 | ✅ | `ReviewCorpusTest` (every core rule at 0.9 precision and recall on 90 labelled scripts; heuristic rules off by default) |
+| A8 | ✅ | `SuppressionTest`, `HandlingFindingsTest.anAcceptWithoutAReasonHidesNothing…` |
+| A9 | ✅ | `ReviewCommandTest` (json, md, exit codes, `--fail-on`, `--dry-run`), `SarifTest` |
+| A10 | ✅ | `RuleDocsGeneratedTest` (every rule has an explanation, a title and a generated page) |
+| A11 | ✅ | `ReviewPerformanceTest`: 298 lines, all lenses, 73 ms warm |
+| A12 | ✅ | `ReviewIsStaticTest` |
+| A13 | ◐ | `ReviewSettingsTest`, `FindingModelTest`, `ReviewEngineTest`, `OptionalLensesTest`: eight lenses on by default and five optional, not nine and four, because testability waits for `weave test` (phase 11) |
+| A14 | ✅ | `DataRuleSourceTest`, `OptionalLensesTest.lg02IsNotEvaluated…` (a rule whose setting is undeclared is reported as not evaluated) |
+| A15 | ✅ | `RunProfileTest`, `TimeEffectsReportTest` |
+| A16 | ◐ | `TestabilityLensTest` reads the project's test files and never runs one; the fresh-coverage-report half (LT03) waits for phase 11 |
+| A17 | ✅ | `ReviewCorpusTest`, `RuleDocsGeneratedTest`, `CorePackTest` (examples) |
+| A18 | ◐ | `HandlingFindingsTest` (fingerprints survive moves; accept scopes; an accept never hides a different finding; baseline); dismissing is editor-side and waits for phase 10 |
+| A19 | ✅ | `HandlingFindingsTest` (reasons per entry, bulk accept of serious findings flagged and confirmed, the trifecta refused in `review.properties`), `ReviewCommandTest` |
+| A20 | ◐ | Baseline counts only new findings (`HandlingFindingsTest`); that dismiss never changes what CI sees is editor-side (phase 10) |
+| A21 | ✅ | `HandlingFindingsTest.theNoiseReportCountsPerRule…` |
+| A22 | ◐ | CLI: `RunUnchangedWithNoticeTest` (output, exit code and journal unchanged), `ReviewNoticeTest`; skills: `SkillAdvisoryTextTest`; the extension waits for phase 10 |
+| A23 | ✅ | `ReviewNoticeTest` (open only, once per process, threshold, off, accepted and baselined counted apart) |
+| A24 | ✅ | `ReviewNoticeTest` (late notice dropped, cache, crash and bad settings become one line) |
+| A25 | ✅ | `ReviewCommandTest` (only `--fail-on` exits non-zero on findings); `run`, `package` print a line and never fail |
+| A26 | ✅ | `SkillAdvisoryTextTest` |
+| A27 | ✅ | `PackLoaderTest`, `PackTesterTest`, `RulesToolTest` (a rule without both examples does not load; `rules new` scaffolds) |
+| A28 | ✅ | `RuleParserTest` (no way to write an expression; depth and size bounded), `RuleEvaluatorTest`, `RuleValidatorTest` |
+| A29 | ✅ | `PackSetTest` (pins, hash, prefixes, folder-bound reads, duplicates), `ReviewIsStaticTest` (nothing downloaded) |
+| A30 | ✅ | `RulesToolTest` (`explain --at`), `RulesDiffTest` |
+| A31 | ✅ | Not applicable as planned: the rules were written as data from the start, so there is no Java twin to compare; `ReviewCorpusTest` is the guard. Handled findings surviving an upgrade: fingerprints do not contain the pack version (`HandlingFindingsTest`) |
+| A32 | ✅ | `JavaRuleTest`, `FactBuilderTest` (a custom provider) |
+| A33 | ✅ | `docs/review/README.md`, `WRITING_RULES.md`, `docs/review/rules/`, the `LOOM_GUIDE.md` section, `llms.txt`, the three skills; `ReviewDocsTest`, `LlmsTxtTest` |
+
+Exit checklist (§6): every criterion has evidence; five are met in part, and the parts left are all in phases 10 and 11 or need a live provider run (A4). The manual checks in §4 (reading findings on three real scripts, a live cost and time comparison) are owed to you and are listed with the open decisions.

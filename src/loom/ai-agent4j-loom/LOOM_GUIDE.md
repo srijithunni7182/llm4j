@@ -182,6 +182,22 @@ weave eval newsletter/main.loom --prompt researcher@v1      # a fair A/B: the sa
 
 A runnable example is `src/examples/newsletter` (`weave eval src/examples/newsletter/main.loom --mock`).
 
+### Reviewing a Workflow (`review`)
+`weave review` reads a script and gives one ranked list of what is worth a second look: security (what the audit finds), validity (what `check` finds), cost and time, reliability, prompts, observability, durability and privacy, each finding with why it matters and what to do. It is **advice**: it runs nothing, needs no keys, exits 0 unless you ask it to fail, and never stops `run`, `package` or `deploy` (those print one line on standard error when findings are open).
+
+```bash
+weave review digest.loom                              # the ranked list and a summary card (cost, time, effects)
+weave review digest.loom --explain LR01               # what one rule checks, why it matters, what to do
+weave review digest.loom --lens all                   # also governance, maintainability, oversight, blast radius
+weave review digest.loom --fix --dry-run              # the diff of the safe fixes; nothing is written
+weave review digest.loom --assist                     # go through the findings that have options; you choose and give the values
+weave review digest.loom --accept 3fa9c2d1e0b47a55 --reason "the tool is read only here"
+weave review digest.loom --baseline-write             # adopt review on an existing script: only new findings count
+weave rules diff core-1.6 core-1.7 --on digest.loom   # what a new rule pack would change on this script
+```
+
+A finding that has several reasonable resolutions lists them as **options**: you pick one, answer its questions (how many retries, what the failure note says) and see the change before it is written. Every fix and option is checked first (the script still loads, no new high finding appears); that does not run the workflow, so run `weave check` and your tests afterwards. Settings live in `review.properties` beside the script. The full guide is `docs/review/README.md`, every rule has a page in `docs/review/rules/`, and `docs/review/WRITING_RULES.md` shows how to add your own.
+
 ### 5. Starting, Checking and Reading the Guide (`init`, `check`, `guide`)
 
 Everything here works with the jar alone: no repository, no keys and no network.

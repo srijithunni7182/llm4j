@@ -57,6 +57,12 @@ Stages 4 (try it) and 5 and 6 (keep it) are alternatives for the first look: sta
 - **Never invent what the user decides**: the thresholds, which agents may hold the trifecta, who may sign in, how much text may leave the machine.
 - **Say what you did and what you saw**, in plain words, after every script and every stage. Never tick a gate that was not checked.
 
+## Review is advice, and the decision is the user's
+
+After you write or change a workflow, run `weave review <script>` (free, offline, no keys). Tell the user the open counts and the top findings in a sentence, say plainly when one is **high**, and offer to handle the rest: for a finding with **options** (`weave review --format json` lists them under `options`), put the choices to the user in your own words, let them pick and give the values (how many retries, what a failure note says), show the diff with `--dry-run`, and apply with `weave review <script> --fix-finding FINGERPRINT --option ID --set name=value` (add `--yes` only for an option marked as needing thought and only after the user said yes). `--fix` applies only the fixes with one obvious answer. Accepting a finding needs a reason that is the user's own (`--accept FINGERPRINT --reason "..."`): never write one for them. A fix proves only that the script loads and adds no high finding, so run `weave check` and the tests after it.
+
+Then **carry on with what the user asked** (run, test, package, deploy): open findings never stop a run, and you must not hold the work back because of them. You may recommend fixing first. Use `--fail-on` only when the user asks for a gate ("do not deploy unless review is clean"). `weave review <script> --explain RULE` explains one rule.
+
 ## Be honest about the edges
 
 - The page shows what happened. It is **not a security guarantee**: injection detection reads patterns in tool results, so a careful attack can pass it and a harmless page can trip it; the trifecta and access signals say a risky combination was used, not that anyone abused it. A green page is not a review (`weave audit` and the user's own review are).
