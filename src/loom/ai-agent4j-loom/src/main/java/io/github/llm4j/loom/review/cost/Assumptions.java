@@ -35,6 +35,11 @@ public final class Assumptions {
                             "assume.output.tokens",
                             600,
                             "tokens in a model's answer when the agent sets no max_tokens"),
+                    new Def("assume.output.max", 2000, "tokens in a model's answer (worst case)"),
+                    new Def(
+                            "assume.variable.max",
+                            2000,
+                            "tokens a {variable} adds to a prompt (worst case: an earlier answer at its longest)"),
                     new Def(
                             "assume.variable.tokens",
                             200,

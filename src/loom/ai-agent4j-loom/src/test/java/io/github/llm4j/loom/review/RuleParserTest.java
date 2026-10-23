@@ -218,4 +218,29 @@ class RuleParserTest {
                 .anyMatch(s -> s.contains("the file is empty"));
         assertThat(parse("- just text\n").problems()).anyMatch(s -> s.contains("a rule is a map"));
     }
+
+    @Test
+    void anEscalationRaisesTheSeverityWhenItsConditionHolds() throws Exception {
+        String yaml =
+                "id: ACME-001\nlens: reliability\nseverity: medium\nabout: agent\nwhen: { field: hasTools, is: false }\n"
+                        + "escalate:\n  - when: { field: hasSchema, is: false }\n    severity: high\n"
+                        + "title: t\nfixHint: f\n";
+        RuleParser.Parsed p = parse(yaml);
+        assertThat(p.problems()).isEmpty();
+        var rule = p.rules().get(0);
+        assertThat(rule.escalations()).hasSize(1);
+        assertThat(rule.severityFor(c -> true))
+                .isEqualTo(io.github.llm4j.loom.review.model.Severity.HIGH);
+        assertThat(rule.severityFor(c -> false))
+                .isEqualTo(io.github.llm4j.loom.review.model.Severity.MEDIUM);
+    }
+
+    @Test
+    void aBadEscalationIsRefusedWithItsPlace() throws Exception {
+        String yaml =
+                "id: ACME-001\nlens: reliability\nseverity: medium\nabout: agent\nwhen: { field: hasTools, is: false }\n"
+                        + "escalate:\n  - when: { field: hasSchema, is: false }\n    severity: huge\n"
+                        + "title: t\nfixHint: f\n";
+        assertThat(parse(yaml).problems()).anyMatch(s -> s.contains("escalate[0].severity"));
+    }
 }

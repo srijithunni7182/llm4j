@@ -1,0 +1,5 @@
+agent Helper { model: "m"  system: "You help with {topic}." } // <- LP01:medium
+workflow Main(q) {
+  delegate "{q}" to Helper -> r
+  note "{r}"
+}

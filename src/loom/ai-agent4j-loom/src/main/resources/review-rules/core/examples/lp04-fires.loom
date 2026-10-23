@@ -1,0 +1,2 @@
+agent A { model: "m"  system: "Call the API with key sk-abcdefghijklmnopqrstuvwxyz123456 when asked." }
+workflow Main(q) { delegate "{q}" to A -> r  note "{r}" }

@@ -1,0 +1,8 @@
+agent Writer { model: "m"  system: "You write one short paragraph." }
+workflow Main(q) {
+  parallel {
+    delegate "Intro for {q}" to Writer -> intro
+    delegate "Outro for {q}" to Writer -> outro
+  }
+  note "{intro} {outro}"
+}

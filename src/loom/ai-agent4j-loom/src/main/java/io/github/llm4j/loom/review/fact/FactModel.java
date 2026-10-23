@@ -39,6 +39,7 @@ public final class FactModel {
                 .number("agentCount", "How many agents it defines")
                 .bool("hasBudget", "A run budget is declared")
                 .bool("isScheduled", "A schedule is declared")
+                .bool("hasRateLimits", "A rate_limits block is declared")
                 .bool(
                         "usesPausing",
                         "It can pause for a person or a timer: human_prompt, sleep, approve or decide")
@@ -49,6 +50,7 @@ public final class FactModel {
                 .number("stepCount", "How many statements it has, at any depth")
                 .number("maxDepth", "How deeply statements are nested")
                 .bool("hasReturn", "It has a return statement")
+                .bool("isScheduled", "A schedule runs this workflow")
                 .done();
         m.entity(
                         "step",
@@ -71,6 +73,12 @@ public final class FactModel {
                 .number("loopMax", "A loop's declared maximum, 0 when none")
                 .ref("agent", "agent", "The agent a step uses, when it uses one")
                 .string("bindsVariable", "The variable its result is bound to")
+                .bool(
+                        "readsFreeText",
+                        "A branch or loop condition reads a field of an answer whose agent has no output_schema")
+                .bool(
+                        "writesSameVariableAsSibling",
+                        "A parallel round whose branches bind the same variable name")
                 .done();
         m.entity("agent", "One agent")
                 .string("name", "The agent's name")
@@ -96,6 +104,16 @@ public final class FactModel {
                         List.of("file", "inline", "none"),
                         "Where its prompt comes from")
                 .number("inlinePromptLines", "Lines of an inline prompt, 0 when none")
+                .bool(
+                        "systemInterpolates",
+                        "An inline system prompt has a {variable} written into it")
+                .number(
+                        "promptTokens",
+                        "Tokens in its prompt, counted as the run-time guard counts")
+                .bool("promptHasSecret", "Its prompt holds something shaped like a key or password")
+                .string(
+                        "nearDuplicateOf",
+                        "The earlier agent whose prompt it nearly copies, empty when none")
                 .bool("streaming", "It streams")
                 .bool("steerable", "A person can steer it while it works")
                 .bool("hasEffects", "One of its tools writes or sends")

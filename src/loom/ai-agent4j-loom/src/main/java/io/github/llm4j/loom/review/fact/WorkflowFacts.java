@@ -34,6 +34,11 @@ final class WorkflowFacts implements FactProvider {
             out.set(e, "stepCount", count[0]);
             out.set(e, "maxDepth", (long) depth(w.getStatements()));
             out.set(e, "hasReturn", ret[0]);
+            out.set(
+                    e,
+                    "isScheduled",
+                    input.review().script().getSchedules().stream()
+                            .anyMatch(sc -> w.getName().equals(sc.getRunWorkflow())));
         }
     }
 

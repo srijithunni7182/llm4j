@@ -1,0 +1,5 @@
+agent Helper { model: "m"  system: "You help with {topic}."  tools: [web_search] } // <- LP01:high
+workflow Main(q) {
+  delegate "{q}" to Helper -> r retry 2 backoff 2s timeout 60s
+  note "{r}"
+}

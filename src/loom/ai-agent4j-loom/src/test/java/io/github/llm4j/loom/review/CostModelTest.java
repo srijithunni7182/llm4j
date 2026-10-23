@@ -28,6 +28,7 @@ class CostModelTest {
     static final String CALL = "delegate \"hello world\" to A -> r";
     static final long IN = 9;
     static final long OUT = 600;
+    static final long OUT_MAX = 2000;
 
     CostEstimate estimate(String source) {
         return estimate(source, "", null);
@@ -58,7 +59,9 @@ class CostModelTest {
         assertThat(w.typical().tokensIn()).isEqualTo(IN);
         assertThat(w.typical().tokensOut()).isEqualTo(OUT);
         assertThat(w.typical().calls()).isEqualTo(1);
-        assertThat(w.worst()).usingRecursiveComparison().isEqualTo(w.typical());
+        assertThat(w.worst().calls()).isEqualTo(1);
+        assertThat(w.worst().tokensIn()).isEqualTo(IN);
+        assertThat(w.worst().tokensOut()).isEqualTo(OUT_MAX);
         assertThat(w.unbounded()).isFalse();
         assertThat(w.steps()).hasSize(1);
         assertThat(w.steps().get(0).label()).isEqualTo("delegate A");
@@ -149,7 +152,7 @@ class CostModelTest {
         assertThat(w.typical().calls()).isEqualTo(1); // ceil(1 / 2)
         assertThat(w.typical().tokensOut()).isEqualTo((OUT + 1) / 2);
         assertThat(w.worst().calls()).isEqualTo(1);
-        assertThat(w.worst().tokensOut()).isEqualTo(OUT);
+        assertThat(w.worst().tokensOut()).isEqualTo(OUT_MAX);
     }
 
     @Test
@@ -166,7 +169,8 @@ class CostModelTest {
         assertThat(w.typical().tokensOut()).isEqualTo(3 * OUT);
         // 10 rounds worst unless the agent sets max_iterations
         assertThat(w.worst().calls()).isEqualTo(10);
-        assertThat(w.worst().tokensIn()).isEqualTo(10 * IN + 900 * 45);
+        assertThat(w.worst().tokensIn()).isEqualTo(10 * IN + (OUT_MAX + 300) * 45);
+        assertThat(w.worst().tokensOut()).isEqualTo(10 * OUT_MAX);
     }
 
     @Test

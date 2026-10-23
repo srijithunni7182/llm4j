@@ -1,0 +1,5 @@
+agent Caller { model: "m"  system: "Call the billing API with the key sk-abcdefghijklmnopqrstuvwxyz123456 when asked." } // <- LP04
+workflow Main(q) {
+  delegate "{q}" to Caller -> r
+  note "{r}"
+}

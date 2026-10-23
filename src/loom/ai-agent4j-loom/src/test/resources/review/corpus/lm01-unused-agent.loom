@@ -1,0 +1,6 @@
+agent Writer { model: "m"  system: "You write a short answer to the question." }
+agent Spare { model: "m"  system: "You are not used anywhere in this script." } // <- LM01
+workflow Main(q) {
+  delegate "Question: {q}" to Writer -> answer
+  note "{answer}"
+}

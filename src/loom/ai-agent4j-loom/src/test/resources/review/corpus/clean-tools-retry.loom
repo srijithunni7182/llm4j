@@ -1,0 +1,5 @@
+agent Searcher { model: "m"  system: "You search the web and report what you find."  tools: [web_search] }
+workflow Main(q) {
+  delegate "Find: {q}" to Searcher -> found retry 2 backoff 2s timeout 60s
+  note "{found}"
+}

@@ -86,7 +86,7 @@ public final class DataRuleSource implements FindingSource {
         return new Finding(
                 rule.id(),
                 rule.lens(),
-                rule.severity(),
+                rule.severityFor(c -> Evaluator.evaluate(c, e, base).result() == Tri.TRUE),
                 e.where(),
                 Template.render(rule.title(), e, base),
                 Template.render(rule.why(), e, base),

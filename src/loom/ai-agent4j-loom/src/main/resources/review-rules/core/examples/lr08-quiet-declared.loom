@@ -1,0 +1,4 @@
+rate_limits { on_limit: suspend  max_wait: 24h  max_resumes: 50 }
+agent A { model: "m"  system: "s" }
+workflow Daily(q) { delegate "{q}" to A -> r  note "{r}" }
+schedule Morning { cron: "0 7 * * *"  run: Daily(q = "x") }

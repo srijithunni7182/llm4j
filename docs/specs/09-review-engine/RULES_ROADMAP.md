@@ -12,18 +12,20 @@ Rules for which the design already says *heuristic, off by default* are marked *
 | LV00 to LV09 | Java (the validator, classified by message; LV08 is the suppression rule) | 9a, 9b |
 | LR01, LR03, LD02, LY02, LM01, LG04 | data | 9a |
 | LC01, LC02 | data | 9c |
+| LR02, LR04, LR05, LR07, LR08, LR09 | data (new facts: `workflow.isScheduled`, `script.hasRateLimits`, `step.readsFreeText`, `step.writesSameVariableAsSibling`) | 9d |
+| LP01, LP03, LP04, LP06 | data (new facts: `agent.systemInterpolates`, `promptTokens`, `promptHasSecret`, `nearDuplicateOf`); LP01 uses `escalate` for HIGH with tools | 9d |
 | LC04, LC05, LC06 | Java (they need the cost estimate) | 9c |
 
 ## Plan, by sub-phase
 
-### 9d: reliability and prompts, and the corpus (this sub-phase)
+### 9d: reliability and prompts, and the corpus (done)
 
 | Rule | Mechanism | New facts | Note |
 |---|---|---|---|
 | LR02 | data | none | write or send tool, no `on_failure` |
 | LR04 | data | `workflow.isScheduled` | `human_prompt` with no timeout on a scheduled workflow |
 | LR05 | data | provider `step.readsFreeText` | a branch condition reads a field of a variable bound by an agent with no `output_schema` |
-| LR07 | data | none | effectful agent in a loop or `for each` with no approval; absorbs LA17 (`Overlap`) |
+| LR07 | data | none | effectful agent in a loop or `for each` with no approval. The spec pairs it with LA17 for de-duplication, but LA17 is "a tool that acts as the person running the workflow", a different cause, so no `Overlap` is registered; the first real pair is looked for in 9h |
 | LR08 | data | `script.hasRateLimits`, `agent.providerName` | scheduled script, provider without `rate_limits` |
 | LR09 | data | provider `step.writesSameVariableAsSibling` | parallel branches binding one variable name |
 | LP01 | data | `agent.systemInterpolates` | a `{variable}` in a system prompt; HIGH with tools |

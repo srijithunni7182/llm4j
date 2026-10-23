@@ -18,6 +18,7 @@ import java.util.List;
  * @param references the OWASP ids this bears on, such as {@code LLM06}
  * @param fires scripts the rule must report on
  * @param quiet scripts the rule must stay quiet on
+ * @param escalations conditions under which the finding is more serious than the rule's severity
  * @param pack the pack it came from, as {@code name@version}
  */
 public record RuleDoc(
@@ -37,6 +38,7 @@ public record RuleDoc(
         String explain,
         List<Example> fires,
         List<Example> quiet,
+        List<Escalation> escalations,
         String pack) {
 
     public RuleDoc {
@@ -44,6 +46,21 @@ public record RuleDoc(
         references = List.copyOf(references);
         fires = List.copyOf(fires);
         quiet = List.copyOf(quiet);
+        escalations = List.copyOf(escalations);
+    }
+
+    /** A reason to raise the severity: when the condition holds, the finding has this severity. */
+    public record Escalation(Condition when, Severity severity) {}
+
+    /**
+     * The severity of the finding on an entity: the highest of the rule's and every escalation that
+     * holds.
+     */
+    public Severity severityFor(java.util.function.Predicate<Condition> holds) {
+        Severity best = severity;
+        for (Escalation e : escalations)
+            if (holds.test(e.when()) && e.severity().compareTo(best) < 0) best = e.severity();
+        return best;
     }
 
     /** The same rule recorded as coming from {@code packName}. */
@@ -65,6 +82,7 @@ public record RuleDoc(
                 explain,
                 fires,
                 quiet,
+                escalations,
                 packName);
     }
 }

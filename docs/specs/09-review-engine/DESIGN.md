@@ -435,7 +435,7 @@ A deliberately small catalog of things and what is known about them. Version 1 t
 
 #### The vocabulary (R61, R62)
 
-- **R61** A rule document has: `id`, `lens`, `severity`, `about`, `when`, optional `requires`, `title`, optional `why`, `fixHint`, optional `fix`, optional `heuristic: true`, `since`, optional `references` (OWASP and others), optional `explain` text, and `examples` (R68). `title`, `why` and `fixHint` may contain `{field}` placeholders (and `{setting.key}`) that are filled in from the entity; that is the only substitution, and it is not evaluated as an expression.
+- **R61** A rule document has: `id`, `lens`, `severity`, `about`, `when`, optional `requires`, `title`, optional `why`, `fixHint`, optional `fix`, optional `heuristic: true`, optional `escalate` (a list of `{when, severity}`: the finding takes the highest severity whose condition holds, for rules such as LP01 that are medium and become high when the agent has tools), `since`, optional `references` (OWASP and others), optional `explain` text, and `examples` (R68). `title`, `why` and `fixHint` may contain `{field}` placeholders (and `{setting.key}`) that are filled in from the entity; that is the only substitution, and it is not evaluated as an expression.
 - **R62** `when` is a tree of conditions from a **closed vocabulary**:
   - combinators: `all`, `any`, `not`;
   - a leaf names a `field` (a dotted path through declared references, such as `agent.tools`, at most three hops) and **one** operator: `is`, `isNot`, `in`, `notIn`, `gt`, `gte`, `lt`, `lte`, `contains`, `startsWith`, `matches` (a regular expression with a step limit), `exists`, `missing`;

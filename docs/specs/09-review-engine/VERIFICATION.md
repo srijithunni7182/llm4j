@@ -1,6 +1,6 @@
 # Phase 9 verification plan: the review engine
 
-Status: **in progress**: 9a, 9b and 9c complete; 9d–9i not started. Run top to bottom at the end of sub-phase 9i; the relevant rows after each sub-phase. Results in §7.
+Status: **in progress**: 9a to 9d complete; 9e–9i not started. Run top to bottom at the end of sub-phase 9i; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -60,8 +60,8 @@ Status: **in progress**: 9a, 9b and 9c complete; 9d–9i not started. Run top to
 | R14 | `ReviewCommandTest` (footer names the price table and the assumptions used) | ✅ 9c |
 | R15 | `CostModelTest.theSameInputsAlwaysGiveTheSameNumbers`, `ReviewIsStaticTest` | ✅ 9c |
 | R16 | `CalibrationTest` (5), `CalibrationEndToEndTest` (a real mocked-provider run), `ReviewCommandTest.calibrate…` | ✅ 9c (workflow and model level; the journal has no per-step usage that maps to a script line) |
-| R17 | `CorpusCostAccuracyTest` needs the corpus | ⬜ 9d |
-| R18 | `ReviewCorpusTest` | ⬜ 9d |
+| R17 | `CorpusCostAccuracyTest`: 10 mock-provider runs through the real executor; typical within 2x for 10 of 10, worst never below actual (table in §7) | ✅ 9d on mock runs; the live-provider check (manual check 3) is owed |
+| R18 | `ReviewCorpusTest` (per-rule precision and recall gate 0.9 on 44 labelled scripts) | ✅ 9d for the 18 data rules |
 | R19 | `ReviewCommandTest` (`--explain` for every rule) | ✅ 9a |
 | R20 | `JavaRuleTest.theEngineGivesTheSameFindingsWhateverTheClockOrEnvironment`, `ReviewIsStaticTest` (no clock, env, network or process in review sources) | ✅ 9b |
 | R21 | `JavaRuleTest` (jar via ServiceLoader, throwing rule becomes a note, listed in the catalog) | ✅ 9b |
@@ -73,7 +73,7 @@ Status: **in progress**: 9a, 9b and 9c complete; 9d–9i not started. Run top to
 | R27 | `FixIdempotentTest` | ⬜ 9e |
 | R28 | `FixDryRunTest` | ⬜ 9e |
 | R29 | `FixPreservesFormattingTest` | ⬜ 9e |
-| R30 | `ReviewCorpusTest`, `CorpusCostAccuracyTest` | ⬜ 9a/9c |
+| R30 | `ReviewCorpusTest`, `CorpusCostAccuracyTest` | ◐ 9d: 44 labelled scripts and 10 recorded runs; review time is measured in 9i |
 | R31 | `SuppressionTest` (name, line, node; reason required, LV08; listed in every format) | ✅ 9b |
 | R32 | `ReviewSettingsTest.aMisspeltKeyIsAnErrorThatNamesTheNearestKey` | ✅ 9a |
 | R33 | `LensSelectionTest`, `OptionalLensesOffByDefaultTest` | ⬜ 9f |
@@ -100,10 +100,10 @@ Status: **in progress**: 9a, 9b and 9c complete; 9d–9i not started. Run top to
 | R54 | `ReviewCrashDoesNotFailRunTest` | ⬜ 9e |
 | R55 | `FabricReviewAttributeTest` | ⬜ 9h |
 | R56 | `SkillAdvisoryTextTest` | ⬜ 9i |
-| R57 | `CorePackTest` (6 rules as data so far; parity with Java moves in 9d) | ◐ 9a done, rest later |
+| R57 | `CorePackTest`, `ReviewCorpusTest`: 18 core rules are data; LA, LV and the cost-estimate rules stay Java by design | ✅ 9d |
 | R58 | `RuleParserTest.thereIsNoWayToWriteAnExpressionOrACall` | ✅ 9a |
-| R59 | `FactBuilderTest.theCatalogDescribesEveryField…`, `RuleValidatorTest` (unknown entity / fact) | ✅ 9a |
-| R60 | `RuleEvaluatorTest` (three-valued), `DataRuleSourceTest.aConditionOnAnUnknownFactDoesNotFire…` | ✅ 9a |
+| R59 | `FactBuilderTest.everyFactInTheCatalogIsSet…`, `RuleValidatorTest`; 8 facts added in 9d | ✅ 9a, 9d |
+| R60 | `RuleEvaluatorTest`, `DataRuleSourceTest`, `FactBuilderTest`; Java providers `PromptFacts`, `ConditionFacts` | ✅ 9a, 9d |
 | R61 | `RuleParserTest`, `RuleEvaluatorTest.templatesFillFacts…` | ✅ 9a |
 | R62 | `RuleEvaluatorTest` (vocabulary, relations, regex step limit), `RuleParserTest.conditionsAreBoundedInDepthAndSize` | ✅ 9a |
 | R63 | `PackSetTest` (pins by major/minor/exact, hash, unlisted folder, missing folder, duplicates) | ✅ 9b |
@@ -111,11 +111,11 @@ Status: **in progress**: 9a, 9b and 9c complete; 9d–9i not started. Run top to
 | R65 | `PackLoaderTest`, `PackSetTest` (folder-bound reads; limits per pack) | ✅ 9b |
 | R66 | `PackLoaderTest`, `PackSetTest` (prefixes, pack name vs folder, cross-pack duplicate ids) | ✅ 9b |
 | R67 | `FixTemplateOpsTest`, `FixTemplateVerifiedTest`, `FixTemplateParityTest` | ⬜ 9e |
-| R68 | `PackLoaderTest.aRuleWithoutExamplesRefusesThePack`, `PackTesterTest`, `CorePackTest.everyRuleCarriesAtLeastOneFiringAndOneQuietExample` | ✅ 9a |
+| R68 | `PackLoaderTest`, `PackTesterTest`, `CorePackTest.everyRuleCarriesAtLeastOneFiringAndOneQuietExample` (18 rules, 44 example scripts) | ✅ 9d |
 | R69 | `RuleDocsGeneratedTest` | ⬜ 9i |
 | R70 | `RulesToolTest` (list, facts, check, test, new, add with diff and re-pin, explain --at) | ✅ 9b |
 | R71 | JSON/SARIF carry `source` (pack name@version); `RulesToolTest.addingANewVersion…`; handled-survives-upgrade needs fingerprints (9e) | ◐ 9b provenance done; PackUpgradeKeepsHandled in 9e |
-| R72 | `RuleParityTest` | ⬜ 9d |
+| R72 | Rules were written as data from the start (no Java twin), so there is no parity to test; the corpus is the guard | ✅ 9d (not applicable) |
 | R73 | `JavaRuleTest.aJavaRuleRunsBesideTheCoreRules…` | ✅ 9b (fact-provider half: `FactBuilderTest` custom provider) |
 | R74 | `RulesDiffTest`, `PackSemverTest` | ⬜ 9i |
 
@@ -178,3 +178,67 @@ Wiki page "Reviewing a workflow"; `LOOM_GUIDE.md` section on `weave review` and 
   - LC03, LC07, LC08, LC09 and LC10 are not built: LC03 needs a per-member view of broadcasts, LC07 is a text heuristic (9f), LC08 to LC10 need the time estimate (9g).
   - LC01 needs `data.top-models` declared; without it the rule is reported as not evaluated rather than guessing which models are expensive.
   - The 80 % within 2x accuracy target (A4) needs the recorded-run corpus from 9d and is not yet measured.
+
+
+### 9d (2026-10-23)
+
+- Built: ten more data rules (LR02, LR04, LR05, LR07, LR08, LR09, LP01, LP03, LP04, LP06) and eight facts they read (core pack 1.2.0); `escalate:` in rule documents; the labelled corpus runner and the recorded-run accuracy test; worst-case assumptions for answer and variable size (`assume.output.max`, `assume.variable.max`), added because the first accuracy run showed a worst case below actual.
+- What the first measurement taught: with one assumed variable size the worst case was below the actual in 2 of 10 runs, because an earlier answer put into a prompt was longer than the assumed 200 tokens. The worst case now uses 2,000 for both an answer and a variable. Typical is still a point estimate: it is within 2x, but runs that talk much more than the assumed 600 tokens per answer come out near 0.5 (see `for-each` and `loop-hits-max` below). That is what `--calibrate` and `assume.output.tokens` are for.
+- Honest limits: the corpus was written and labelled by the same people who wrote the rules, so 1.00 means "agrees with what we meant", not "found in the wild"; the recorded runs use a mock provider whose answer lengths were chosen (1,800 to 2,800 characters, matching prompts that ask for a few paragraphs). The live check against a real provider (manual check 3) is still owed.
+
+**Rule precision and recall on the labelled corpus**
+
+| Rule | Found right | Wrong | Missed | Precision | Recall |
+|---|---|---|---|---|---|
+| LC01 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LC02 | 2 | 0 | 0 | 1.00 | 1.00 |
+| LD02 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LG04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LM01 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP01 | 2 | 0 | 0 | 1.00 | 1.00 |
+| LP03 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP06 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR01 | 8 | 0 | 0 | 1.00 | 1.00 |
+| LR02 | 6 | 0 | 0 | 1.00 | 1.00 |
+| LR03 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR05 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR07 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR08 | 2 | 0 | 0 | 1.00 | 1.00 |
+| LR09 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LY02 | 2 | 0 | 0 | 1.00 | 1.00 |
+
+Scripts: 44. Mismatches: 0
+
+
+**Estimate against recorded runs (mock provider, real executor)**
+
+| Case | Estimated typical | Actual | Ratio | Estimated worst | Worst >= actual |
+|---|---|---|---|---|---|
+| single | 817 | 640 | 1.28 | 4017 | true |
+| chain | 1634 | 2843 | 0.57 | 8034 | true |
+| loop-stops-early | 2448 | 1576 | 1.55 | 20080 | true |
+| loop-hits-max | 2448 | 4614 | 0.53 | 12048 | true |
+| for-each | 4090 | 8179 | 0.50 | 200900 | true |
+| alt-taken | 1226 | 2293 | 0.53 | 8034 | true |
+| broadcast | 1634 | 1388 | 1.18 | 8034 | true |
+| call-twice | 1634 | 1580 | 1.03 | 8034 | true |
+| parallel-three | 2448 | 3128 | 0.78 | 12048 | true |
+| long-prompt | 1071 | 1058 | 1.01 | 4271 | true |
+
+Within 2x: 10 of 10.
+
+
+**Noise on the repository's own examples (unlabelled; reported, not gated)**
+
+Repository examples reviewed: 14 (skipped 0)
+
+| Rule | Findings |
+|---|---|
+| LC02 | 3 |
+| LM01 | 6 |
+| LR01 | 7 |
+| LR02 | 8 |
+| LR03 | 1 |
+| LR07 | 2 |

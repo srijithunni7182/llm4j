@@ -1,0 +1,2 @@
+agent A { model: "m"  system: "s"  output_schema: { score: number } }
+workflow Main(q) { delegate "{q}" to A -> r  alt (r.score < 5) { note "low" } else { note "ok" } }

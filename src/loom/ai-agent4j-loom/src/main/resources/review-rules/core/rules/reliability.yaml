@@ -47,3 +47,114 @@
   examples:
     fires: [ examples/lr03-fires.loom ]
     quiet: [ examples/lr03-quiet.loom ]
+
+- id: LR02
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, is: delegate }
+      - { field: agent.hasEffects, is: true }
+      - { field: onFailure, is: false }
+  title: "{label} can write or send but has no on_failure"
+  why: "When a step that acts on the outside world fails half way, nothing decides what happens next: the run ends with the effect done, undone or unknown."
+  fixHint: "Add an on_failure block that records the failure and asks a person what to do."
+  since: "1.2.0"
+  explain: >
+    An agent whose tools write or send can fail after part of its work is done. An on_failure
+    block is where the workflow says what then: stop cleanly, tell someone, or ask a person.
+    Without one the failure ends the run wherever it happens.
+  examples:
+    fires: [ examples/lr02-fires.loom ]
+    quiet: [ examples/lr02-quiet-handled.loom, examples/lr02-quiet-reads.loom ]
+
+- id: LR04
+  lens: reliability
+  severity: low
+  about: step
+  when:
+    all:
+      - { field: kind, is: human_prompt }
+      - { field: timeout, is: false }
+      - { field: workflow.isScheduled, is: true }
+  title: "{label} waits for a person with no timeout in a scheduled workflow"
+  why: "A scheduled workflow runs when nobody is watching. A question with no timeout holds the run until someone happens to answer, and overlapping runs may pile up behind it."
+  fixHint: "Add a timeout, or an escalation, to the question."
+  since: "1.2.0"
+  examples:
+    fires: [ examples/lr04-fires.loom ]
+    quiet: [ examples/lr04-quiet-not-scheduled.loom ]
+
+- id: LR05
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, in: [alt, loop] }
+      - { field: readsFreeText, is: true }
+  title: "{label} branches on a field of an answer that has no output_schema"
+  why: "Without an output_schema the model's answer is free text, so the field the condition reads may be missing or spelt differently, and the branch silently goes the wrong way."
+  fixHint: "Give the agent an output_schema that has the field the condition reads."
+  since: "1.2.0"
+  explain: >
+    A condition such as r.score < 5 assumes the answer has a score. Only an output_schema makes the
+    model produce one and lets the runtime check it. This rule looks at conditions that read a
+    field of a variable that is bound only by agents with no output_schema.
+  examples:
+    fires: [ examples/lr05-fires.loom ]
+    quiet: [ examples/lr05-quiet-schema.loom ]
+
+- id: LR07
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, is: delegate }
+      - { field: agent.hasEffects, is: true }
+      - { field: agent.approveAll, is: false }
+      - { field: agent.approve, count: { is: 0 } }
+      - any:
+          - { field: inLoop, is: true }
+          - { field: inForEach, is: true }
+  title: "{label} can write or send inside a loop with nobody approving it"
+  why: "A loop or for each repeats the effect, so one wrong decision is made again for every round or item before anyone looks."
+  fixHint: "Put approve: on the tool, or move the effect after the loop and do it once."
+  since: "1.2.0"
+  examples:
+    fires: [ examples/lr07-fires.loom ]
+    quiet: [ examples/lr07-quiet-approved.loom, examples/lr07-quiet-no-loop.loom ]
+
+- id: LR08
+  lens: reliability
+  severity: low
+  about: script
+  when:
+    all:
+      - { field: isScheduled, is: true }
+      - { field: hasRateLimits, is: false }
+  title: "The script is scheduled but declares no rate_limits"
+  why: "An unattended run that hits a provider limit has no rule for waiting or giving up, so it fails or retries without bound."
+  fixHint: "Add a rate_limits block saying whether to suspend, wait or fail."
+  since: "1.2.0"
+  examples:
+    fires: [ examples/lr08-fires.loom ]
+    quiet: [ examples/lr08-quiet-declared.loom, examples/lr08-quiet-not-scheduled.loom ]
+
+- id: LR09
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, is: parallel }
+      - { field: writesSameVariableAsSibling, is: true }
+  title: "{label} has branches that bind the same variable"
+  why: "Branches of a parallel round finish in any order, so which answer ends up in the shared variable changes from run to run."
+  fixHint: "Give each branch its own variable name."
+  since: "1.2.0"
+  examples:
+    fires: [ examples/lr09-fires.loom ]
+    quiet: [ examples/lr09-quiet-distinct.loom ]

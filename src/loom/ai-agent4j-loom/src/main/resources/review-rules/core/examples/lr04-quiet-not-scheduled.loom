@@ -1,0 +1,2 @@
+agent A { model: "m"  system: "s" }
+workflow Daily(q) { human_prompt "Publish?" -> ok  note "{ok}" }

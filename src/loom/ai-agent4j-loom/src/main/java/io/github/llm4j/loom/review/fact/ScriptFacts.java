@@ -25,6 +25,7 @@ final class ScriptFacts implements FactProvider {
         out.set(e, "agentCount", (long) script.getAgents().size());
         out.set(e, "hasBudget", script.getBudget() != null);
         out.set(e, "isScheduled", !script.getSchedules().isEmpty());
+        out.set(e, "hasRateLimits", script.getRateLimits() != null);
         out.set(e, "usesPausing", usesPausing(script));
     }
 

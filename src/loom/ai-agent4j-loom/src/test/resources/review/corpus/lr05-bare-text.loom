@@ -1,0 +1,9 @@
+agent Judge { model: "m"  system: "You answer yes or no." }
+workflow Main(q) {
+  delegate "Is this fine? {q}" to Judge -> verdict
+  alt (verdict == "yes") {
+    note "fine"
+  } else {
+    note "not fine"
+  }
+}

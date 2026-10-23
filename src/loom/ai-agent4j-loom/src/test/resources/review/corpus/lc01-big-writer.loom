@@ -1,0 +1,6 @@
+// settings: data.top-models=big-model
+agent Writer { model: "big-model"  system: "You write a long and careful answer." }
+workflow Main(q) {
+  delegate "Question: {q}" to Writer -> answer
+  note "{answer}"
+}

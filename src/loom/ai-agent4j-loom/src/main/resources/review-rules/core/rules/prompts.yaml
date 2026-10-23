@@ -1,0 +1,74 @@
+- id: LP01
+  lens: prompts
+  severity: medium
+  about: agent
+  when:
+    all:
+      - { field: systemInterpolates, is: true }
+  title: "Agent {name} has a variable written into its system prompt"
+  why: "A value filled into the system prompt is read as an instruction. If it comes from a person, a tool or an input, it can rewrite the agent's rules."
+  fixHint: "Keep the system prompt fixed and pass the value in the task text, marked as data."
+  since: "1.2.0"
+  escalate:
+    - when: { field: hasTools, is: true }
+      severity: high
+  explain: >
+    The system prompt is the agent's rules. Anything interpolated into it by name can carry
+    instructions of its own. Put variable content in the task text of the delegate, where it is
+    data to work on. The severity is raised for an agent with tools, because there the injected
+    instruction can act.
+  examples:
+    fires: [ examples/lp01-fires.loom, examples/lp01-fires-tools.loom ]
+    quiet: [ examples/lp01-quiet.loom ]
+
+- id: LP03
+  lens: prompts
+  severity: low
+  about: agent
+  when:
+    all:
+      - { field: promptTokens, gt: { setting: data.prompt.max-tokens } }
+  title: "Agent {name}'s prompt is about {promptTokens} tokens"
+  why: "A very long prompt is paid for on every call, and the instructions that matter are easier to lose in it."
+  fixHint: "Cut the prompt down, or move reference text into a knowledge base the agent can search."
+  since: "1.2.0"
+  explain: >
+    The limit is data.prompt.max-tokens in review.properties (default 2000). Tokens are counted
+    the way the run-time guard counts them.
+  examples:
+    fires:
+      - file: examples/lp03-fires.loom
+        settings: { data.prompt.max-tokens: "50" }
+    quiet:
+      - file: examples/lp03-quiet.loom
+        settings: { data.prompt.max-tokens: "50" }
+
+- id: LP04
+  lens: prompts
+  severity: high
+  about: agent
+  when:
+    all:
+      - { field: promptHasSecret, is: true }
+  title: "Agent {name}'s prompt holds something shaped like a key or password"
+  why: "A key written in a prompt is committed with the script and sent to the model provider on every call."
+  fixHint: "Remove it, rotate the key, and read it from env.NAME or the secret store where it is needed."
+  since: "1.2.0"
+  examples:
+    fires: [ examples/lp04-fires.loom ]
+    quiet: [ examples/lp04-quiet.loom ]
+
+- id: LP06
+  lens: prompts
+  severity: info
+  about: agent
+  when:
+    all:
+      - { field: nearDuplicateOf, isNot: "" }
+  title: "Agent {name}'s prompt nearly repeats {nearDuplicateOf}'s"
+  why: "Two prompts that say the same thing drift apart when only one is edited."
+  fixHint: "Move the shared text into a persona both agents use."
+  since: "1.2.0"
+  examples:
+    fires: [ examples/lp06-fires.loom ]
+    quiet: [ examples/lp06-quiet.loom ]

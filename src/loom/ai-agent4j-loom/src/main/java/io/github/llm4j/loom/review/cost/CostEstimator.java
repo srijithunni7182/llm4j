@@ -345,8 +345,8 @@ public final class CostEstimator {
         /** One run of an agent on a payload, including the rounds of an agent that uses tools. */
         Usage callOf(AgentDef a, String payload, boolean worst) {
             String model = a.getModel() == null ? "(no model)" : a.getModel();
-            long base = systemTokens(a) + payloadTokens(payload);
-            long out = assume.get("assume.output.tokens");
+            long base = systemTokens(a) + payloadTokens(payload, worst);
+            long out = assume.get(worst ? "assume.output.max" : "assume.output.tokens");
             boolean tools = !a.getTools().isEmpty() || !a.getMcpServers().isEmpty();
             if (!tools) return Usage.call(model, base, out);
             long rounds =
@@ -372,7 +372,7 @@ public final class CostEstimator {
             return 0;
         }
 
-        long payloadTokens(String payload) {
+        long payloadTokens(String payload, boolean worst) {
             if (payload == null) return 0;
             long vars = 0;
             long chars = 0;
@@ -388,7 +388,8 @@ public final class CostEstimator {
                 vars++;
                 i = close + 1;
             }
-            return Tokens.ofChars(chars) + vars * assume.get("assume.variable.tokens");
+            return Tokens.ofChars(chars)
+                    + vars * assume.get(worst ? "assume.variable.max" : "assume.variable.tokens");
         }
     }
 }

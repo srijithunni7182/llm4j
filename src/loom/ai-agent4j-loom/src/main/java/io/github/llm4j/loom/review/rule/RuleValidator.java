@@ -48,6 +48,8 @@ public final class RuleValidator {
             return;
         }
         condition(r.when(), r.about(), at + ".when");
+        for (RuleDoc.Escalation e : r.escalations())
+            condition(e.when(), r.about(), at + ".escalate.when");
         for (String q : r.requires())
             if (!REQUIRES.matcher(q).matches())
                 problems.add(at + ".requires: '" + q + "' is not setting.<key> or graph");

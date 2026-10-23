@@ -1,0 +1,2 @@
+agent A { model: "m"  system: "s" }
+workflow Daily(q) { delegate "{q}" to A -> r  note "{r}" }

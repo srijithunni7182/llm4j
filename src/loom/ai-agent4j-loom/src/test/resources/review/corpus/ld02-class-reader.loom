@@ -1,0 +1,6 @@
+tool Lookup { use: class  class: "com.acme.LookupTool"  reach: reads }
+agent Replier { model: "m"  system: "You answer from the lookup."  tools: [Lookup] }
+workflow Main(q) {
+  delegate "Answer: {q}" to Replier -> answer retry 2 backoff 2s timeout 60s
+  note "{answer}"
+}

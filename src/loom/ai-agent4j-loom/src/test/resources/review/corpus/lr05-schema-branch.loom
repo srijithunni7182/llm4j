@@ -1,0 +1,9 @@
+agent Grader { model: "m"  system: "You grade an essay from one to ten."  output_schema: { score: number } }
+workflow Main(essay) {
+  delegate "Grade: {essay}" to Grader -> grade
+  alt (grade.score < 5) {
+    note "too low"
+  } else {
+    note "fine"
+  }
+}

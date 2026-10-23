@@ -35,6 +35,7 @@ public final class RuleParser {
                     "since",
                     "references",
                     "explain",
+                    "escalate",
                     "examples");
 
     /** Deepest nesting of conditions accepted, and the most nodes in one condition tree. */
@@ -122,6 +123,7 @@ public final class RuleParser {
         boolean heuristic = n.has("heuristic") && n.get("heuristic").asBoolean(false);
         if (n.has("heuristic") && !n.get("heuristic").isBoolean())
             problems.add(at + ".heuristic: true or false");
+        List<RuleDoc.Escalation> escalations = escalations(n.get("escalate"), at + ".escalate");
         List<Example> fires = new ArrayList<>();
         List<Example> quiet = new ArrayList<>();
         if (n.has("examples")) {
@@ -152,7 +154,32 @@ public final class RuleParser {
                         text(n, "explain"),
                         fires,
                         quiet,
+                        escalations,
                         null));
+    }
+
+    private List<RuleDoc.Escalation> escalations(JsonNode n, String where) {
+        List<RuleDoc.Escalation> out = new ArrayList<>();
+        if (n == null) return out;
+        if (!n.isArray()) {
+            problems.add(where + ": a list of {when, severity}");
+            return out;
+        }
+        for (int i = 0; i < n.size(); i++) {
+            JsonNode e = n.get(i);
+            String at = where + "[" + i + "]";
+            if (!e.isObject() || !e.has("when") || !e.has("severity")) {
+                problems.add(at + ": needs when and severity");
+                continue;
+            }
+            unknownKeys(e, List.of("when", "severity"), at);
+            Severity s = Severity.parse(e.get("severity").asText()).orElse(null);
+            if (s == null) problems.add(at + ".severity: high, medium, low or info");
+            nodes = 0;
+            Condition c = condition(e.get("when"), at + ".when", 1);
+            if (s != null && c != null) out.add(new RuleDoc.Escalation(c, s));
+        }
+        return out;
     }
 
     // ---- conditions
