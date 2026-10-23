@@ -1,0 +1,6 @@
+agent Drafter { model: "m"  system: "You improve a draft." }
+workflow Main(topic) {
+  loop until (verdict == "good") max 4 {
+    delegate "Improve a draft about {topic}" to Drafter -> verdict // <- LC02
+  }
+}

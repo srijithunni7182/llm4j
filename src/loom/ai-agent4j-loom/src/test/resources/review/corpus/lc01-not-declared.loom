@@ -1,5 +1,5 @@
 agent Router { model: "big-model"  system: "Pick the kind of request."  output_schema: { kind: string } }
 workflow Main(q) {
-  delegate "Request: {q}" to Router -> r
-  note "{r}"
+  delegate "Message: {q}" to Router -> routed
+  note "{routed}"
 }

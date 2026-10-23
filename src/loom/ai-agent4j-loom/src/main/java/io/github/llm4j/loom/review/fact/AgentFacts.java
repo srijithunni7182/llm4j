@@ -31,6 +31,10 @@ final class AgentFacts implements FactProvider {
             out.set(e, "hasMemory", a.getMemory() != null);
             out.set(
                     e,
+                    "hasMemoryLimit",
+                    a.getMemory() != null && a.getMemory().getMaxTokens() != null);
+            out.set(
+                    e,
                     "guardPii",
                     word(
                             a.getGuard() == null ? null : a.getGuard().getPii(),

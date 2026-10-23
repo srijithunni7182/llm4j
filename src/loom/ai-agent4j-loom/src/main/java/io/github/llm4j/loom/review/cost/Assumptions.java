@@ -33,7 +33,7 @@ public final class Assumptions {
                             "items a for each walks (worst case, when the list has no declared bound)"),
                     new Def(
                             "assume.output.tokens",
-                            600,
+                            350,
                             "tokens in a model's answer when the agent sets no max_tokens"),
                     new Def("assume.output.max", 2000, "tokens in a model's answer (worst case)"),
                     new Def(
@@ -42,7 +42,7 @@ public final class Assumptions {
                             "tokens a {variable} adds to a prompt (worst case: an earlier answer at its longest)"),
                     new Def(
                             "assume.variable.tokens",
-                            200,
+                            100,
                             "tokens a {variable} adds to a prompt when it is filled in"),
                     new Def(
                             "assume.prompt.tokens",
@@ -56,6 +56,10 @@ public final class Assumptions {
                             "assume.react.max",
                             10,
                             "model calls an agent with tools makes (worst case, when it sets no max_iterations)"),
+                    new Def(
+                            "assume.transcript.cap",
+                            8000,
+                            "tokens the shared transcript is kept to where only a context block bounds it"),
                     new Def(
                             "assume.tool.result.tokens",
                             300,

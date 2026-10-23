@@ -9,7 +9,7 @@ Status: **in progress**: 9a to 9d complete; 9e–9i not started. Run top to bott
 | A1 | One command reviews a script across security, validity, cost, reliability and prompts and prints findings most-severe first with a summary card | `ReviewCommandTest`, `ReportGoldenTest` |
 | A2 | Everything `weave check` and `weave audit` report appears in `weave review`, and both commands behave exactly as before | `ReviewSupersetOfAuditTest`, `AuditUnchangedTest`, `CheckUnchangedTest` |
 | A3 | Every workflow shows a typical and a worst-case cost with its assumptions; an unbounded loop is reported as unbounded, never as a number | `CostModelTest`, `CostUnboundedTest` |
-| A4 | The estimate is honest: on the corpus's recorded runs, typical is within 2x of actual for ≥ 80 % of workflows and worst is never below actual | `CorpusCostAccuracyTest` |
+| A4 | The estimate is honest: on recorded runs, typical is within 2x of actual for ≥ 80 % of workflows and worst is never below actual | `CorpusCostAccuracyTest` ✅; `LiveCostAccuracyTest` ◐ (see §7) |
 | A5 | Every finding says what to do; machine-applicable fixes exist for the mechanical ones, and `--fix` applies them atomically and idempotently | `FixApplierTest`, `FixAtomicityTest`, `FixIdempotentTest` |
 | A6 | A fixed script passes `weave check` and has no new HIGH finding | `FixApplierTest` (verification case) |
 | A7 | Each default-on rule has precision ≥ 0.9 on the corpus; heuristic rules are off by default and labelled | `ReviewCorpusTest` |
@@ -60,7 +60,7 @@ Status: **in progress**: 9a to 9d complete; 9e–9i not started. Run top to bott
 | R14 | `ReviewCommandTest` (footer names the price table and the assumptions used) | ✅ 9c |
 | R15 | `CostModelTest.theSameInputsAlwaysGiveTheSameNumbers`, `ReviewIsStaticTest` | ✅ 9c |
 | R16 | `CalibrationTest` (5), `CalibrationEndToEndTest` (a real mocked-provider run), `ReviewCommandTest.calibrate…` | ✅ 9c (workflow and model level; the journal has no per-step usage that maps to a script line) |
-| R17 | `CorpusCostAccuracyTest`: 10 mock-provider runs through the real executor; typical within 2x for 10 of 10, worst never below actual (table in §7) | ✅ 9d on mock runs; the live-provider check (manual check 3) is owed |
+| R17 | `CorpusCostAccuracyTest` (10 recorded runs, 10 of 10 within 2x), `LiveCostAccuracyTest` (7 of 10 and 4 of 10 live); worst never below actual in all | ◐ 9d: met on recorded runs, not met live (table in §7) |
 | R18 | `ReviewCorpusTest` (per-rule precision and recall gate 0.9 on 44 labelled scripts) | ✅ 9d for the 18 data rules |
 | R19 | `ReviewCommandTest` (`--explain` for every rule) | ✅ 9a |
 | R20 | `JavaRuleTest.theEngineGivesTheSameFindingsWhateverTheClockOrEnvironment`, `ReviewIsStaticTest` (no clock, env, network or process in review sources) | ✅ 9b |
@@ -182,16 +182,20 @@ Wiki page "Reviewing a workflow"; `LOOM_GUIDE.md` section on `weave review` and 
 
 ### 9d (2026-10-23)
 
-- Built: ten more data rules (LR02, LR04, LR05, LR07, LR08, LR09, LP01, LP03, LP04, LP06) and eight facts they read (core pack 1.2.0); `escalate:` in rule documents; the labelled corpus runner and the recorded-run accuracy test; worst-case assumptions for answer and variable size (`assume.output.max`, `assume.variable.max`), added because the first accuracy run showed a worst case below actual.
-- What the first measurement taught: with one assumed variable size the worst case was below the actual in 2 of 10 runs, because an earlier answer put into a prompt was longer than the assumed 200 tokens. The worst case now uses 2,000 for both an answer and a variable. Typical is still a point estimate: it is within 2x, but runs that talk much more than the assumed 600 tokens per answer come out near 0.5 (see `for-each` and `loop-hits-max` below). That is what `--calibrate` and `assume.output.tokens` are for.
-- Honest limits: the corpus was written and labelled by the same people who wrote the rules, so 1.00 means "agrees with what we meant", not "found in the wild"; the recorded runs use a mock provider whose answer lengths were chosen (1,800 to 2,800 characters, matching prompts that ask for a few paragraphs). The live check against a real provider (manual check 3) is still owed.
+- Built: eleven more data rules (LR02, LR04, LR05, LR07, LR08, LR09, LP01, LP03, LP04, LP06, LP07) and the facts they read (core pack 1.3.0); `escalate:` in rule documents; the labelled corpus runner; the recorded-run accuracy test; and a gated live test (`LiveCostAccuracyTest`, `LLM4J_LIVE=1`) that runs the same cases against a real provider.
+- **The live check changed the estimator.** Running the cases against OpenAI's gpt-4.1-nano and gpt-4.1-mini (about 22,000 tokens in all, a few cents) showed three things the mock runs had hidden:
+  1. **Loom's default memory is a shared transcript.** Every delegate's task and answer is appended to one transcript, and all of it is put in front of the next delegate (`TranscriptAccumulationEngine`). A step's input grows with every step before it, so a loop costs more each round. The first estimator ignored this and understated loops. The estimator now walks the workflow in order, keeps the transcript (bounded only by `memory { max_tokens }` or a `context` block), and treats parallel and broadcast branches as starting from the same transcript. LC02 now says this (a loop or `for each` with nothing bounding the transcript).
+  2. **Legacy bare-name substitution rewrites prompts.** Loom replaces a variable's bare name anywhere in the literal text of a prompt, even inside a word (`PayloadText.bareNames`). A variable called `r` replaced every "r" in "Explain … three short paragraphs" with an earlier answer and multiplied one prompt by thousands of tokens. This was found by an estimate that came out 4x too low. It is now rule LP07, and the labelled corpus found five more scripts of ours with the same hazard.
+  3. **Answers are shorter than assumed.** Both models answered "three short paragraphs" in about 200 to 250 tokens, so the default answer length is now 350 (was 600), a variable that holds an answer counts as an answer, and an input of the workflow counts 100 (was 200). The worst-case figures (2,000 for an answer and for a variable) are unchanged and were never below an actual run.
+- **A4 (typical within 2x for at least 80 %) is met on the recorded mock runs and not met live.** Live: 7 of 10 with gpt-4.1-nano, 4 of 10 with gpt-4.1-mini, with most misses between 2.0 and 2.9 and always on the high side (the estimate is cautious). The outliers are `for-each` (5 to 9 times too high: the cases hand a terse model the items "one", "two" and it replies in a sentence) and `parallel-three`. The worst case was never below an actual run in any live or recorded case. What to do with a workflow whose typical is off: `weave review --calibrate RUN_DIR`, then set `assume.output.tokens` and the loop and item counts from it.
+- Honest limits: the corpus was written and labelled by the same people who wrote the rules, so 1.00 means "agrees with what we meant", not "found in the wild"; the mock runs use answer lengths set to what the live runs showed (about 1,000 characters); only OpenAI models were measured live.
 
 **Rule precision and recall on the labelled corpus**
 
 | Rule | Found right | Wrong | Missed | Precision | Recall |
 |---|---|---|---|---|---|
 | LC01 | 1 | 0 | 0 | 1.00 | 1.00 |
-| LC02 | 2 | 0 | 0 | 1.00 | 1.00 |
+| LC02 | 8 | 0 | 0 | 1.00 | 1.00 |
 | LD02 | 1 | 0 | 0 | 1.00 | 1.00 |
 | LG04 | 1 | 0 | 0 | 1.00 | 1.00 |
 | LM01 | 1 | 0 | 0 | 1.00 | 1.00 |
@@ -199,6 +203,7 @@ Wiki page "Reviewing a workflow"; `LOOM_GUIDE.md` section on `weave review` and 
 | LP03 | 1 | 0 | 0 | 1.00 | 1.00 |
 | LP04 | 1 | 0 | 0 | 1.00 | 1.00 |
 | LP06 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP07 | 1 | 0 | 0 | 1.00 | 1.00 |
 | LR01 | 8 | 0 | 0 | 1.00 | 1.00 |
 | LR02 | 6 | 0 | 0 | 1.00 | 1.00 |
 | LR03 | 1 | 0 | 0 | 1.00 | 1.00 |
@@ -209,25 +214,65 @@ Wiki page "Reviewing a workflow"; `LOOM_GUIDE.md` section on `weave review` and 
 | LR09 | 1 | 0 | 0 | 1.00 | 1.00 |
 | LY02 | 2 | 0 | 0 | 1.00 | 1.00 |
 
-Scripts: 44. Mismatches: 0
+Scripts: 48. Mismatches: 0
 
 
 **Estimate against recorded runs (mock provider, real executor)**
 
 | Case | Estimated typical | Actual | Ratio | Estimated worst | Worst >= actual |
 |---|---|---|---|---|---|
-| single | 817 | 640 | 1.28 | 4017 | true |
-| chain | 1634 | 2843 | 0.57 | 8034 | true |
-| loop-stops-early | 2448 | 1576 | 1.55 | 20080 | true |
-| loop-hits-max | 2448 | 4614 | 0.53 | 12048 | true |
-| for-each | 4090 | 8179 | 0.50 | 200900 | true |
-| alt-taken | 1226 | 2293 | 0.53 | 8034 | true |
-| broadcast | 1634 | 1388 | 1.18 | 8034 | true |
-| call-twice | 1634 | 1580 | 1.03 | 8034 | true |
-| parallel-three | 2448 | 3128 | 0.78 | 12048 | true |
-| long-prompt | 1071 | 1058 | 1.01 | 4271 | true |
+| single | 474 | 377 | 1.26 | 4024 | true |
+| chain | 1691 | 1230 | 1.37 | 12091 | true |
+| loop-stops-at-typical | 2878 | 1478 | 1.95 | 60452 | true |
+| loop-hits-max | 2878 | 1724 | 1.67 | 24178 | true |
+| for-each | 7172 | 4145 | 1.73 | 5135792 | true |
+| alt-taken | 1079 | 1223 | 0.88 | 12084 | true |
+| broadcast | 948 | 754 | 1.26 | 12086 | true |
+| call-twice | 1436 | 872 | 1.65 | 12086 | true |
+| parallel-three | 1434 | 1182 | 1.21 | 24202 | true |
+| long-prompt | 728 | 630 | 1.16 | 4278 | true |
 
 Within 2x: 10 of 10.
+
+
+**Estimate against a real provider: gpt-4.1-nano**
+
+Provider model: gpt-4.1-nano
+
+| Case | Estimated typical | Actual | Ratio | Estimated worst | Worst >= actual |
+|---|---|---|---|---|---|
+| single | 474 | 342 | 1.39 | 4024 | true |
+| chain | 1691 | 1162 | 1.46 | 12091 | true |
+| loop-stops-at-typical | 2878 | 4261 | 0.68 | 60452 | true |
+| loop-hits-max | 2878 | 1417 | 2.03 | 24178 | true |
+| for-each | 7172 | 801 | 8.95 | 5135792 | true |
+| alt-taken | 1079 | 1141 | 0.95 | 12084 | true |
+| broadcast | 948 | 529 | 1.79 | 12086 | true |
+| call-twice | 1436 | 902 | 1.59 | 12086 | true |
+| parallel-three | 1434 | 521 | 2.75 | 24202 | true |
+| long-prompt | 728 | 436 | 1.67 | 4278 | true |
+
+Within 2x: 7 of 10. Tokens spent: 11512.
+
+
+**Estimate against a real provider: gpt-4.1-mini**
+
+Provider model: gpt-4.1-mini
+
+| Case | Estimated typical | Actual | Ratio | Estimated worst | Worst >= actual |
+|---|---|---|---|---|---|
+| single | 474 | 265 | 1.79 | 4024 | true |
+| chain | 1691 | 807 | 2.10 | 12091 | true |
+| loop-stops-at-typical | 2878 | 3413 | 0.84 | 60452 | true |
+| loop-hits-max | 2878 | 1335 | 2.16 | 24178 | true |
+| for-each | 7172 | 1379 | 5.20 | 5135792 | true |
+| alt-taken | 1079 | 1022 | 1.06 | 12084 | true |
+| broadcast | 948 | 432 | 2.19 | 12086 | true |
+| call-twice | 1436 | 717 | 2.00 | 12086 | true |
+| parallel-three | 1434 | 500 | 2.87 | 24202 | true |
+| long-prompt | 728 | 417 | 1.75 | 4278 | true |
+
+Within 2x: 4 of 10. Tokens spent: 10287.
 
 
 **Noise on the repository's own examples (unlabelled; reported, not gated)**
@@ -236,8 +281,9 @@ Repository examples reviewed: 14 (skipped 0)
 
 | Rule | Findings |
 |---|---|
-| LC02 | 3 |
+| LC02 | 10 |
 | LM01 | 6 |
+| LP07 | 2 |
 | LR01 | 7 |
 | LR02 | 8 |
 | LR03 | 1 |

@@ -89,6 +89,26 @@ public final class Usage {
         return o.tokens() > tokens() ? o : this;
     }
 
+    /** What is left of this after taking away {@code o} (never below zero). */
+    public Usage minus(Usage o) {
+        if (o.byModel.isEmpty()) return this;
+        Map<String, Spend> m = new TreeMap<>();
+        byModel.forEach(
+                (k, v) -> {
+                    Spend t = o.byModel.get(k);
+                    if (t == null) m.put(k, v);
+                    else {
+                        Spend d =
+                                new Spend(
+                                        Math.max(0, v.calls - t.calls),
+                                        Math.max(0, v.tokensIn - t.tokensIn),
+                                        Math.max(0, v.tokensOut - t.tokensOut));
+                        if (d.calls > 0 || d.tokensIn > 0 || d.tokensOut > 0) m.put(k, d);
+                    }
+                });
+        return new Usage(m);
+    }
+
     public long calls() {
         return byModel.values().stream().mapToLong(Spend::calls).sum();
     }

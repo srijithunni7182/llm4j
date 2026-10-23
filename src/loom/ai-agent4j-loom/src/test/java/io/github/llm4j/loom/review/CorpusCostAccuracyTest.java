@@ -66,73 +66,104 @@ class CorpusCostAccuracyTest {
     static final String B =
             "agent B { model: \"n\"  system: \"You are B. Answer the request in a few paragraphs.\" }\n";
 
+    static final String TOPIC = "how a transistor works";
+    static final String EXPLAIN = "Explain {q} in three short paragraphs.";
+
     static List<Case> cases() {
+        Map<String, Object> q = Map.of("q", TOPIC);
         return List.of(
                 new Case(
                         "single",
-                        A
-                                + "workflow Main(q) { delegate \"Question: {q}\" to A -> r  note \"{r}\" }",
-                        Map.of("q", "why"),
-                        (a, n) -> text(2200, "")),
+                        A + wf("delegate \"" + EXPLAIN + "\" to A -> reply  note \"{reply}\""),
+                        q,
+                        (a, n) -> text(1200, "")),
                 new Case(
                         "chain",
                         A
                                 + B
-                                + "workflow Main(q) { delegate \"Question: {q}\" to A -> r  delegate \"Improve: {r}\" to B -> s  note \"{s}\" }",
-                        Map.of("q", "why"),
-                        (a, n) -> text(2000, "")),
+                                + wf(
+                                        "delegate \""
+                                                + EXPLAIN
+                                                + "\" to A -> first  delegate \"Rewrite this more clearly, keeping three paragraphs: {first}\" to B -> second  note \"{second}\""),
+                        q,
+                        (a, n) -> text(1000, "")),
                 new Case(
-                        "loop-stops-early",
+                        "loop-stops-at-typical",
                         A
-                                + "workflow Main(q) { loop until (r == \"done\") max 5 { delegate \"Try: {q}\" to A -> r } }",
-                        Map.of("q", "why"),
-                        (a, n) -> n >= 2 ? "done" : text(1800, "")),
+                                + wf(
+                                        "loop until (result == \"done\") max 5 { delegate \""
+                                                + EXPLAIN
+                                                + "\" to A -> result }"),
+                        q,
+                        (a, n) -> n >= 3 ? "done" : text(900, "")),
                 new Case(
                         "loop-hits-max",
                         A
-                                + "workflow Main(q) { loop until (r == \"done\") max 3 { delegate \"Try: {q}\" to A -> r } on_exhausted { note \"gave up\" } }",
-                        Map.of("q", "why"),
-                        (a, n) -> text(1800, "")),
+                                + wf(
+                                        "loop until (result == \"done\") max 3 { delegate \""
+                                                + EXPLAIN
+                                                + "\" to A -> result } on_exhausted { note \"gave up\" }"),
+                        q,
+                        (a, n) -> text(900, "")),
                 new Case(
                         "for-each",
                         A
-                                + "workflow Main(docs) { for each d in docs { delegate \"Summarise: {d}\" to A -> r } }",
-                        Map.of("docs", List.of("one", "two", "three", "four")),
-                        (a, n) -> text(1800, "")),
+                                + "workflow Main(docs) { for each doc in docs { delegate \"Summarise {doc} in one paragraph.\" to A -> summary } }",
+                        Map.of("docs", List.of("one", "two", "three", "four", "five")),
+                        (a, n) -> text(900, "")),
                 new Case(
                         "alt-taken",
                         A
                                 + B
-                                + "workflow Main(q) { delegate \"Question: {q}\" to A -> r  alt (q == \"why\") { delegate \"Expand: {r}\" to B -> s } else { note \"short\" } }",
-                        Map.of("q", "why"),
-                        (a, n) -> text(2000, "")),
+                                + wf(
+                                        "delegate \""
+                                                + EXPLAIN
+                                                + "\" to A -> draft  alt (q == \""
+                                                + TOPIC
+                                                + "\") { delegate \"Expand this with an example: {draft}\" to B -> expanded } else { note \"short\" }"),
+                        q,
+                        (a, n) -> text(1000, "")),
                 new Case(
                         "broadcast",
                         A
                                 + B
-                                + "workflow Main(q) { broadcast \"Review: {q}\" to [A, B] -> rs  note \"done\" }",
-                        Map.of("q", "why"),
-                        (a, n) -> text(2400, "")),
+                                + wf(
+                                        "broadcast \""
+                                                + EXPLAIN
+                                                + "\" to [A, B] -> reviews  note \"done\""),
+                        q,
+                        (a, n) -> text(1200, "")),
                 new Case(
                         "call-twice",
                         A
-                                + "workflow Helper(q) { delegate \"Help with {q}\" to A -> h }\nworkflow Main(q) { call Helper(q = q) -> x  call Helper(q = q) -> y  note \"done\" }",
-                        Map.of("q", "why"),
-                        (a, n) -> text(1800, "")),
+                                + "workflow Helper(q) { delegate \""
+                                + EXPLAIN
+                                + "\" to A -> help }\nworkflow Main(q) { call Helper(q = q) -> outone  call Helper(q = q) -> outtwo  note \"done\" }",
+                        q,
+                        (a, n) -> text(900, "")),
                 new Case(
                         "parallel-three",
                         A
-                                + "workflow Main(q) { parallel { delegate \"One {q}\" to A -> a  delegate \"Two {q}\" to A -> b  delegate \"Three {q}\" to A -> c } note \"{a}{b}{c}\" }",
-                        Map.of("q", "why"),
-                        (a, n) -> text(1800, "")),
+                                + wf(
+                                        "parallel { delegate \"Explain the first idea behind {q} in one paragraph.\" to A -> intro  delegate \"Explain the second idea behind {q} in one paragraph.\" to A -> body  delegate \"Explain the third idea behind {q} in one paragraph.\" to A -> outro } note \"{intro}{body}{outro}\""),
+                        q,
+                        (a, n) -> text(900, "")),
                 new Case(
                         "long-prompt",
                         BUDGET
                                 + "agent A { model: \"m\"  system: \"You are A. "
                                 + "Follow the house style. ".repeat(40)
-                                + "\" }\nworkflow Main(q) { delegate \"Question: {q}\" to A -> r  note \"{r}\" }",
-                        Map.of("q", "why"),
-                        (a, n) -> text(2800, "")));
+                                + "\" }\n"
+                                + wf(
+                                        "delegate \""
+                                                + EXPLAIN
+                                                + "\" to A -> reply  note \"{reply}\""),
+                        q,
+                        (a, n) -> text(1200, "")));
+    }
+
+    static String wf(String body) {
+        return "workflow Main(q) { " + body + " }";
     }
 
     @Test
@@ -184,38 +215,45 @@ class CorpusCostAccuracyTest {
 
     /** Runs the case for real and returns the tokens the journal says it used. */
     private long record(Case c, Path run) throws IOException {
-        LoomScript script = new LoomParser(new Lexer(c.script()).tokenize()).parseScript();
-        Map<String, AtomicInteger> calls = new java.util.concurrent.ConcurrentHashMap<>();
-        LLMClientFactory factory =
-                model ->
-                        new LLMClient() {
-                            @Override
-                            public LLMResponse chat(LLMRequest request) {
-                                String system = request.getMessages().get(0).getContent();
-                                String agent =
-                                        system.replaceAll("(?s).*?You are (\\w+)\\..*", "$1");
-                                int n =
-                                        calls.computeIfAbsent(agent, k -> new AtomicInteger())
-                                                .incrementAndGet();
-                                String content = c.answer().apply(agent, n);
-                                String reply =
-                                        "```json\n{\"thought\": \"t\", \"final_answer\": \""
-                                                + content
-                                                + "\"}\n```";
-                                long in = CharsPerTokenEstimator.INSTANCE.prompt(request);
-                                long out = CharsPerTokenEstimator.INSTANCE.completion(reply);
-                                return LLMResponse.builder()
-                                        .content(reply)
-                                        .model(model)
-                                        .tokenUsage((int) in, (int) out, (int) (in + out))
-                                        .build();
-                            }
+        return record(c, run, mock(c));
+    }
 
-                            @Override
-                            public Stream<LLMResponse> chatStream(LLMRequest request) {
-                                return Stream.of(chat(request));
-                            }
-                        };
+    /** A provider that answers with text of the length the case says and reports usage honestly. */
+    static LLMClientFactory mock(Case c) {
+        Map<String, AtomicInteger> calls = new java.util.concurrent.ConcurrentHashMap<>();
+        return model ->
+                new LLMClient() {
+                    @Override
+                    public LLMResponse chat(LLMRequest request) {
+                        String system = request.getMessages().get(0).getContent();
+                        String agent = system.replaceAll("(?s).*?You are (\\w+)\\..*", "$1");
+                        int n =
+                                calls.computeIfAbsent(agent, k -> new AtomicInteger())
+                                        .incrementAndGet();
+                        String content = c.answer().apply(agent, n);
+                        String reply =
+                                "```json\n{\"thought\": \"t\", \"final_answer\": \""
+                                        + content
+                                        + "\"}\n```";
+                        long in = CharsPerTokenEstimator.INSTANCE.prompt(request);
+                        long out = CharsPerTokenEstimator.INSTANCE.completion(reply);
+                        return LLMResponse.builder()
+                                .content(reply)
+                                .model(model)
+                                .tokenUsage((int) in, (int) out, (int) (in + out))
+                                .build();
+                    }
+
+                    @Override
+                    public Stream<LLMResponse> chatStream(LLMRequest request) {
+                        return Stream.of(chat(request));
+                    }
+                };
+    }
+
+    /** Runs the case through the executor with this provider and returns the journaled tokens. */
+    static long record(Case c, Path run, LLMClientFactory factory) throws IOException {
+        LoomScript script = new LoomParser(new Lexer(c.script()).tokenize()).parseScript();
         HarnessExecutor executor = new HarnessExecutor(script, new ToolRegistry(), factory);
         executor.setJournal(new FileRunJournal(run.resolve("journal.json")));
         executor.initialize();
@@ -233,6 +271,15 @@ class CorpusCostAccuracyTest {
                 new CostEstimator()
                         .estimate(ReviewFixtures.input(run, c.script()), ReviewSettings.defaults());
         Calibration.Result r = Calibration.compare(run, e);
+        if (System.getProperty("dumpJournal") != null)
+            System.out.println(
+                    "JOURNAL "
+                            + c.name()
+                            + " "
+                            + new FileRunJournal(run.resolve("journal.json"))
+                                    .all().entrySet().stream()
+                                            .filter(x -> x.getKey().contains("usage"))
+                                            .toList());
         return r.total().actualTokens();
     }
 }

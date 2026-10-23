@@ -43,6 +43,18 @@ final class ConditionFacts implements FactProvider {
                 new HashMap<>(); // variable -> every binding agent has a schema
         Map<String, AgentDef> agents = new HashMap<>();
         input.review().script().getAgents().forEach(a -> agents.put(a.getName(), a));
+        Map<String, Map<String, Integer>> varsOf =
+                new HashMap<>(); // workflow -> variable -> first line bound
+        for (WorkflowDef w : input.review().script().getWorkflows()) {
+            Map<String, Integer> names = varsOf.computeIfAbsent(w.getName(), k -> new HashMap<>());
+            for (String p : w.getParameters()) names.put(p, 0);
+            StatementWalker.walk(
+                    w.getStatements(),
+                    s -> {
+                        String v = bound(s);
+                        if (v != null) names.merge(v, s.getLine(), Math::min);
+                    });
+        }
         for (WorkflowDef w : input.review().script().getWorkflows())
             StatementWalker.walk(
                     w.getStatements(),
@@ -67,6 +79,7 @@ final class ConditionFacts implements FactProvider {
         for (Entity step : steps) {
             Statement s = statement(byKey, step);
             out.set(step, "readsFreeText", s != null && readsFreeText(s, typed));
+            out.set(step, "payloadHitsVariable", s == null ? "" : payloadHit(s, step, varsOf));
             out.set(
                     step,
                     "writesSameVariableAsSibling",
@@ -83,10 +96,52 @@ final class ConditionFacts implements FactProvider {
                     case "alt" -> "AltStmt";
                     case "loop" -> "LoopStmt";
                     case "parallel" -> "ParallelStmt";
+                    case "delegate" -> "DelegateStmt";
+                    case "broadcast" -> "BroadcastStmt";
+                    case "handoff" -> "HandoffStmt";
                     default -> null;
                 };
         if (cls == null) return null;
         return byKey.get(w.get("name") + ":" + step.get("line") + ":" + cls);
+    }
+
+    private static String bound(Statement s) {
+        if (s instanceof DelegateStmt d) return d.getVariableName();
+        if (s instanceof BroadcastStmt b) return b.getVariableName();
+        if (s instanceof io.github.llm4j.loom.ast.IntentClassifyStmt c) return c.getVariableName();
+        if (s instanceof io.github.llm4j.loom.ast.HumanPromptStmt h) return h.getVariableName();
+        return null;
+    }
+
+    /**
+     * The name of a workflow variable that appears inside the literal text of a prompt. Loom
+     * replaces a bare variable name wherever it occurs in the text a script wrote, even inside
+     * another word, so a variable called {@code r} rewrites every "r" in the sentence.
+     */
+    private static String payloadHit(
+            Statement s, Entity step, Map<String, Map<String, Integer>> varsOf) {
+        String payload =
+                s instanceof DelegateStmt d
+                        ? d.getPayload()
+                        : s instanceof BroadcastStmt b
+                                ? b.getPayload()
+                                : s instanceof io.github.llm4j.loom.ast.HandoffStmt h
+                                        ? h.getPayload()
+                                        : null;
+        if (payload == null || !(step.get("workflow") instanceof Entity w)) return "";
+        String literal = payload.replaceAll("\\{[^}]*}", " ");
+        Map<String, Integer> names = varsOf.getOrDefault((String) w.get("name"), Map.of());
+        boolean repeats =
+                Boolean.TRUE.equals(step.get("inLoop"))
+                        || Boolean.TRUE.equals(step.get("inForEach"));
+        // a variable counts when it is set before this step, or when the step repeats and sets it
+        return names.entrySet().stream()
+                .filter(e -> !e.getKey().isEmpty() && literal.contains(e.getKey()))
+                .filter(e -> e.getValue() < s.getLine() || repeats)
+                .map(Map.Entry::getKey)
+                .sorted()
+                .findFirst()
+                .orElse("");
     }
 
     private static boolean readsFreeText(Statement s, Map<String, Boolean> typed) {

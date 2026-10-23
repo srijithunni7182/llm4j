@@ -44,23 +44,30 @@ class CalibrationTest {
         j.put(step + "#usage:A", new RunJournal.Entry("usage", m));
     }
 
-    Path run(long... callsPerRound) throws Exception {
+    /**
+     * A run that used {@code times} the typical estimate, journaled as one entry of three calls.
+     */
+    Path runOf(double times) throws Exception {
+        var typical = estimate().workflows().get(0).typical();
         Path run = Files.createDirectories(dir.resolve("run"));
         FileRunJournal j = new FileRunJournal(run.resolve("journal.json"));
-        int i = 0;
-        for (long calls : callsPerRound)
-            usage(j, "Main/r" + (++i) + ".0", "m", 9 * calls, 600 * calls, calls);
+        usage(
+                j,
+                "Main/r1.0",
+                "m",
+                Math.round(typical.tokensIn() * times),
+                Math.round(typical.tokensOut() * times),
+                3);
         return run;
     }
 
     @Test
     void aRunThatMatchesTheEstimateHasARatioOfOne() throws Exception {
-        // typical is 3 turns of 609 tokens
-        Calibration.Result r = Calibration.compare(run(1, 1, 1), estimate());
+        Calibration.Result r = Calibration.compare(runOf(1.0), estimate());
         assertThat(r.workflows()).hasSize(1);
         assertThat(r.workflows().get(0).name()).isEqualTo("Main");
-        assertThat(r.workflows().get(0).estimatedTokens()).isEqualTo(3 * 609);
-        assertThat(r.workflows().get(0).actualTokens()).isEqualTo(3 * 609);
+        assertThat(r.workflows().get(0).estimatedTokens())
+                .isEqualTo(estimate().workflows().get(0).typical().tokens());
         assertThat(r.workflows().get(0).ratio()).isEqualTo(1.0);
         assertThat(r.notes()).noneMatch(n -> n.contains("times the typical estimate"));
         assertThat(r.models()).extracting(Calibration.Row::name).containsExactly("m");
@@ -68,16 +75,16 @@ class CalibrationTest {
 
     @Test
     void aRunThatSpentMuchMoreNamesTheAssumptionsToCorrect() throws Exception {
-        Calibration.Result r = Calibration.compare(run(1, 1, 1, 1, 1, 1, 1, 1), estimate());
-        assertThat(r.workflows().get(0).ratio()).isGreaterThan(2);
+        Calibration.Result r = Calibration.compare(runOf(2.5), estimate());
+        assertThat(r.workflows().get(0).ratio()).isBetween(2.4, 2.6);
         assertThat(r.notes())
                 .anyMatch(
                         n ->
-                                n.contains("Main used 2.7 times the typical estimate")
+                                n.contains("Main used 2.5 times the typical estimate")
                                         && n.contains("assume.loop.iterations"));
         assertThat(Calibration.text(r))
                 .contains("Main")
-                .contains("2.67")
+                .contains("2.50")
                 .contains("One run is one sample");
     }
 

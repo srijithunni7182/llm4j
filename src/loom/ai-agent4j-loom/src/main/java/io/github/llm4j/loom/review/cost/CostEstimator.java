@@ -13,9 +13,9 @@ import io.github.llm4j.loom.ast.IntentClassifierDef;
 import io.github.llm4j.loom.ast.IntentClassifyStmt;
 import io.github.llm4j.loom.ast.LoomScript;
 import io.github.llm4j.loom.ast.LoopStmt;
-import io.github.llm4j.loom.ast.ParallelStmt;
 import io.github.llm4j.loom.ast.RewindStmt;
 import io.github.llm4j.loom.ast.Statement;
+import io.github.llm4j.loom.ast.StatementWalker;
 import io.github.llm4j.loom.ast.WorkflowDef;
 import io.github.llm4j.loom.prompt.PromptCatalog;
 import io.github.llm4j.loom.prompt.PromptSupport;
@@ -23,6 +23,7 @@ import io.github.llm4j.loom.review.engine.ReviewInput;
 import io.github.llm4j.loom.review.settings.ReviewSettings;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,12 +33,29 @@ import java.util.stream.Collectors;
  * Estimates what each workflow of a script spends, from the script alone. It never calls a model
  * and never counts tokens with a provider, so the same inputs always give the same figures.
  *
- * <p>Two figures are kept side by side. <b>Typical</b> uses the assumptions (a loop turns three
- * times, a {@code for each} walks five items, one attempt per step). <b>Worst</b> uses the most the
- * script allows (a loop's {@code max}, every retry, the larger {@code for each}); where the script
- * allows no most, the workflow is marked unbounded and no made-up number is given.
+ * <p>The workflow is walked in the order it runs, twice. The <b>typical</b> walk uses the
+ * assumptions (a loop turns three times, a {@code for each} walks five items, one attempt per step,
+ * a short answer). The <b>worst</b> walk uses the most the script allows (a loop's {@code max},
+ * every retry, the larger {@code for each}, a long answer); where the script allows no most, the
+ * workflow is marked unbounded and no made-up number is given.
+ *
+ * <p>The walk keeps the <b>shared transcript</b>. Loom's default memory writes every delegate's
+ * task and answer into one transcript and puts all of it in front of the next delegate, so a step's
+ * input grows with every step before it and a loop costs more each round. The transcript stops
+ * growing only where an agent bounds it with {@code memory { max_tokens }} or a {@code context}
+ * block. Leaving this out understates a loop several times over (measured against a real provider,
+ * see VERIFICATION.md).
  */
 public final class CostEstimator {
+
+    /** How many turns of a loop are walked one by one; the rest are added by their trend. */
+    private static final int WALK_CAP = 200;
+
+    /** Tokens of the words around a transcript entry ("Agent [A] Task: … Response: …"). */
+    private static final long ENTRY_OVERHEAD = 20;
+
+    /** Tokens of "Conversation History:" and "Current Task:" when there is a transcript. */
+    private static final long FRAME_OVERHEAD = 8;
 
     private final PriceTable prices;
     private final String priceLabel;
@@ -55,9 +73,9 @@ public final class CostEstimator {
     public CostEstimate estimate(ReviewInput input, ReviewSettings settings) {
         Assumptions assume = Assumptions.of(settings);
         LoomScript script = input.script();
-        Walk walk = new Walk(script, input, assume);
+        Context ctx = new Context(script, input, assume);
         List<WorkflowCost> out = new ArrayList<>();
-        for (WorkflowDef w : script.getWorkflows()) out.add(walk.workflow(w));
+        for (WorkflowDef w : script.getWorkflows()) out.add(ctx.workflow(w));
         var budget = script.getBudget();
         return new CostEstimate(
                 out,
@@ -68,21 +86,19 @@ public final class CostEstimator {
                 budget == null ? null : budget.getTokens());
     }
 
-    /** What the walk of one script accumulates. */
-    private static final class Walk {
+    /** What is the same for both walks of every workflow of one script. */
+    private static final class Context {
         final LoomScript script;
         final Assumptions assume;
         final PromptCatalog prompts;
         final Map<String, AgentDef> agents;
         final Map<String, IntentClassifierDef> classifiers;
         final Map<String, WorkflowDef> workflows;
-        final Set<String> stack = new HashSet<>();
+        final long capMin; // smallest transcript bound an agent declares, or -1
+        final long capMax; // largest, or -1
+        final boolean contextBounded;
 
-        List<StepCost> steps;
-        List<String> notes;
-        String current;
-
-        Walk(LoomScript script, ReviewInput input, Assumptions assume) {
+        Context(LoomScript script, ReviewInput input, Assumptions assume) {
             this.script = script;
             this.assume = assume;
             PromptCatalog catalog = null;
@@ -104,275 +120,413 @@ public final class CostEstimator {
             this.workflows =
                     script.getWorkflows().stream()
                             .collect(Collectors.toMap(WorkflowDef::getName, w -> w, (a, b) -> a));
+            long min = -1;
+            long max = -1;
+            boolean ctx = false;
+            for (AgentDef a : script.getAgents()) {
+                if (a.getMemory() != null && a.getMemory().getMaxTokens() != null) {
+                    long m = a.getMemory().getMaxTokens();
+                    min = min < 0 ? m : Math.min(min, m);
+                    max = Math.max(max, m);
+                }
+                ctx |= a.getContext() != null;
+            }
+            this.capMin = min;
+            this.capMax = max;
+            this.contextBounded = ctx;
         }
 
         WorkflowCost workflow(WorkflowDef w) {
-            steps = new ArrayList<>();
-            notes = new ArrayList<>();
-            current = w.getName();
-            stack.clear();
-            stack.add(w.getName());
-            Bound b = block(w.getStatements(), Mult.ONE);
+            Walk typical = new Walk(this, false, w.getName());
+            Walk worst = new Walk(this, true, w.getName());
+            typical.run(w);
+            worst.run(w);
             long rewinds = rewindBudget(w.getStatements());
-            Usage worst = b.worst.times(1 + rewinds);
+            Usage worstUsage = worst.total.times(1 + rewinds);
+            List<String> notes = new ArrayList<>(typical.notes);
             if (rewinds > 0)
                 notes.add(
                         "rewind may re-run work up to "
                                 + rewinds
                                 + " times; the worst case allows for it by repeating the whole workflow that many times more");
-            return new WorkflowCost(w.getName(), b.typical, worst, b.unbounded, steps, notes);
+            List<StepCost> steps = new ArrayList<>();
+            for (var e : typical.steps.entrySet()) {
+                Acc t = e.getValue();
+                Acc wc = worst.steps.get(e.getKey());
+                steps.add(
+                        new StepCost(
+                                w.getName(),
+                                t.line,
+                                t.label,
+                                t.model,
+                                t.usage,
+                                wc == null ? t.usage : wc.usage,
+                                t.retries,
+                                t.runs,
+                                wc == null ? t.runs : wc.unbounded ? -1 : wc.runs));
+            }
+            return new WorkflowCost(
+                    w.getName(), typical.total, worstUsage, worst.unbounded, steps, notes);
         }
 
-        /** Sum of every {@code at most M times} in a block, however deep. */
         long rewindBudget(List<Statement> list) {
             long[] sum = {0};
-            io.github.llm4j.loom.ast.StatementWalker.walk(
+            StatementWalker.walk(
                     list,
                     s -> {
                         if (s instanceof RewindStmt r) sum[0] += Math.max(r.getAtMost(), 0);
                     });
             return sum[0];
         }
+    }
 
-        /** How often a statement can run: typically and at most ({@code -1}: no bound). */
-        record Mult(long typical, long worst) {
-            static final Mult ONE = new Mult(1, 1);
+    /** What one step has spent so far in one walk. */
+    private static final class Acc {
+        int line;
+        String label;
+        String model;
+        int retries;
+        Usage usage = Usage.NONE;
+        long runs;
+        boolean unbounded;
+    }
 
-            Mult times(long t, long w) {
-                return new Mult(typical * t, worst < 0 || w < 0 ? -1 : worst * w);
-            }
+    /** One walk of one workflow, in the order it runs, keeping the shared transcript. */
+    private static final class Walk {
+        final Context c;
+        final boolean worst;
+        final Set<String> stack = new HashSet<>();
+        final Map<String, Acc> steps = new LinkedHashMap<>();
+        final List<String> notes = new ArrayList<>();
+        Usage total = Usage.NONE;
+        long transcript;
+        boolean unbounded;
+        int boundless; // depth of loops with no bound we are inside
+        final Set<String> answers = new HashSet<>(); // variables holding a model's answer
+        long weight = 1; // typical walk: an alt halves what its branches contribute
+
+        Walk(Context c, boolean worst, String name) {
+            this.c = c;
+            this.worst = worst;
+            stack.add(name);
         }
 
-        /** The cost of a block: typical, worst, and whether the worst has no bound. */
-        record Bound(Usage typical, Usage worst, boolean unbounded) {
-            static final Bound NONE = new Bound(Usage.NONE, Usage.NONE, false);
-
-            Bound plus(Bound o) {
-                return new Bound(
-                        typical.plus(o.typical), worst.plus(o.worst), unbounded || o.unbounded);
-            }
-
-            Bound times(long t, long w, boolean boundless) {
-                return new Bound(typical.times(t), worst.times(w), unbounded || boundless);
-            }
+        void run(WorkflowDef w) {
+            block(w.getStatements());
         }
 
-        Bound block(List<Statement> list, Mult m) {
-            Bound total = Bound.NONE;
-            for (Statement s : list == null ? List.<Statement>of() : list)
-                total = total.plus(statement(s, m));
-            return total;
+        void block(List<Statement> list) {
+            for (Statement s : list == null ? List.<Statement>of() : list) statement(s);
         }
 
-        Bound statement(Statement s, Mult m) {
-            if (s instanceof DelegateStmt d) return delegate(d, m);
-            if (s instanceof BroadcastStmt b) return broadcast(b, m);
-            if (s instanceof HandoffStmt h)
-                return step(
-                        s.getLine(),
+        void statement(Statement s) {
+            dispatch(s);
+            if (s instanceof DelegateStmt d && d.getVariableName() != null)
+                answers.add(d.getVariableName());
+            else if (s instanceof BroadcastStmt b && b.getVariableName() != null)
+                answers.add(b.getVariableName());
+        }
+
+        void dispatch(Statement s) {
+            if (s instanceof DelegateStmt d) delegate(d);
+            else if (s instanceof BroadcastStmt b)
+                together(
+                        b.getTargetAgents().stream()
+                                .<Runnable>map(
+                                        a ->
+                                                () ->
+                                                        agentStep(
+                                                                b.getLine(),
+                                                                "broadcast " + a,
+                                                                a,
+                                                                b.getPayload(),
+                                                                0))
+                                .toList());
+            else if (s instanceof HandoffStmt h)
+                agentStep(
+                        h.getLine(),
                         "handoff " + h.getTargetAgent(),
                         h.getTargetAgent(),
                         h.getPayload(),
-                        m,
                         0);
-            if (s instanceof IntentClassifyStmt c) return classify(c, m);
-            if (s instanceof AltStmt a) return alt(a, m);
-            if (s instanceof LoopStmt l) return loop(l, m);
-            if (s instanceof ForEachStmt f) return forEach(f, m);
-            if (s instanceof ParallelStmt p) return block(p.getBody(), m);
-            if (s instanceof GuardrailStmt g)
-                return block(g.getBody(), m).plus(block(g.getOnViolation(), m));
-            if (s instanceof CallStmt c) return call(c, m);
-            return Bound.NONE;
+            else if (s instanceof IntentClassifyStmt k) classify(k);
+            else if (s instanceof AltStmt a) alt(a);
+            else if (s instanceof LoopStmt l) loop(l);
+            else if (s instanceof ForEachStmt f) forEach(f);
+            else if (s instanceof io.github.llm4j.loom.ast.ParallelStmt p)
+                together(p.getBody().stream().<Runnable>map(x -> () -> statement(x)).toList());
+            else if (s instanceof GuardrailStmt g) {
+                block(g.getBody());
+                if (worst) block(g.getOnViolation());
+            } else if (s instanceof CallStmt k) call(k);
         }
 
-        Bound delegate(DelegateStmt d, Mult m) {
-            String label = "delegate " + (d.hasDynamicTarget() ? "(dynamic)" : d.getTargetAgent());
-            Bound self =
-                    step(
-                            d.getLine(),
-                            label,
-                            d.getTargetAgent(),
-                            d.getPayload(),
-                            m,
-                            d.getRetryCount());
-            Bound failure = block(d.getOnFailure(), new Mult(0, m.worst));
-            return self.plus(new Bound(Usage.NONE, failure.worst, failure.unbounded));
-        }
-
-        Bound broadcast(BroadcastStmt b, Mult m) {
-            Bound total = Bound.NONE;
-            for (String a : b.getTargetAgents())
-                total = total.plus(step(b.getLine(), "broadcast " + a, a, b.getPayload(), m, 0));
-            return total;
-        }
-
-        Bound classify(IntentClassifyStmt c, Mult m) {
-            IntentClassifierDef def = classifiers.get(c.getClassifier());
-            if (def == null || def.getModel() == null) {
-                notes.add("classifier " + c.getClassifier() + " has no model to price");
-                return Bound.NONE;
+        /**
+         * Branches that run at the same time. Typically they all start before any has written to
+         * the shared transcript, so each sees only what was there before; at worst they run one
+         * after another and each sees the ones before it. Afterwards the transcript holds all of
+         * them either way.
+         */
+        void together(List<Runnable> branches) {
+            if (worst) {
+                branches.forEach(Runnable::run);
+                return;
             }
-            long in = c.getInputs().size() * assume.get("assume.variable.tokens") + 30;
+            long start = transcript;
+            long added = 0;
+            for (Runnable branch : branches) {
+                transcript = start;
+                branch.run();
+                added += transcript - start;
+            }
+            transcript = start + added;
+            long cap = cap();
+            if (cap >= 0 && transcript > cap) transcript = cap;
+        }
+
+        void delegate(DelegateStmt d) {
+            String label = "delegate " + (d.hasDynamicTarget() ? "(dynamic)" : d.getTargetAgent());
+            agentStep(d.getLine(), label, d.getTargetAgent(), d.getPayload(), d.getRetryCount());
+            if (worst) block(d.getOnFailure());
+        }
+
+        void classify(IntentClassifyStmt k) {
+            IntentClassifierDef def = c.classifiers.get(k.getClassifier());
+            if (def == null || def.getModel() == null) {
+                note("classifier " + k.getClassifier() + " has no model to price");
+                return;
+            }
+            long in =
+                    k.getInputs().size()
+                                    * c.assume.get(
+                                            worst
+                                                    ? "assume.variable.max"
+                                                    : "assume.variable.tokens")
+                            + 30;
             int samples = Math.max(1, def.getSamples());
             Usage each = Usage.calls(def.getModel(), samples, in * samples, 10L * samples);
-            long attempts = c.getRetryCount() + 1L;
-            steps.add(
-                    new StepCost(
-                            current,
-                            c.getLine(),
-                            "intentclassify " + c.getClassifier(),
-                            def.getModel(),
-                            each,
-                            each,
-                            c.getRetryCount(),
-                            m.typical,
-                            m.worst < 0 ? -1 : m.worst * attempts));
-            return bound(each, each, m, c.getRetryCount());
+            long attempts = worst ? k.getRetryCount() + 1L : 1;
+            record(
+                    k.getLine(),
+                    "intentclassify " + k.getClassifier(),
+                    def.getModel(),
+                    each.times(attempts),
+                    k.getRetryCount());
         }
 
-        Bound alt(AltStmt a, Mult m) {
-            Bound yes = block(a.getIfBranch(), m);
-            Bound no = block(a.getElseBranch(), m);
-            boolean hasElse = a.getElseBranch() != null && !a.getElseBranch().isEmpty();
-            // typical: the branches are taken equally often, and not taking any branch is one of
-            // them
-            long ways = hasElse ? 2 : 2;
-            Usage typical = yes.typical.plus(no.typical).dividedBy(ways);
-            Usage worst = yes.worst.max(no.worst);
-            return new Bound(typical, worst, yes.unbounded || no.unbounded);
+        void alt(AltStmt a) {
+            if (worst) {
+                State before = save();
+                block(a.getIfBranch());
+                State yes = save();
+                restore(before);
+                block(a.getElseBranch());
+                State no = save();
+                // the dearer way, and the longer transcript of either
+                restore(yes.total.tokens() >= no.total.tokens() ? yes : no);
+                transcript = Math.max(yes.transcript, no.transcript);
+                unbounded = yes.unbounded || no.unbounded;
+                return;
+            }
+            // typical: the two ways are equally likely, so each contributes half
+            long before = weight;
+            weight = before * 2;
+            block(a.getIfBranch());
+            block(a.getElseBranch());
+            weight = before;
         }
 
-        Bound loop(LoopStmt l, Mult m) {
-            long turns = assume.get("assume.loop.iterations");
+        void loop(LoopStmt l) {
+            long turns = c.assume.get("assume.loop.iterations");
             int max = l.getMaxIterations();
-            long typical = max > 0 ? Math.min(max, turns) : turns;
-            long worst = max > 0 ? max : -1;
-            Mult inner = m.times(typical, worst);
-            Bound body = block(l.getBody(), inner);
-            Bound exhausted = block(l.getOnExhausted(), new Mult(0, m.worst));
-            // the body's own totals already carry the multiplier; only add the unbounded mark
-            return new Bound(
-                    body.typical,
-                    body.worst.plus(exhausted.worst),
-                    body.unbounded || max <= 0 && !body.worst.isEmpty() || exhausted.unbounded);
+            long n;
+            if (worst) {
+                if (max > 0) n = max;
+                else {
+                    n = 1; // at least one turn; the rest has no bound
+                    boundless++;
+                }
+            } else n = max > 0 ? Math.min(max, turns) : turns;
+            long spentBefore = total.tokens();
+            repeat(n, () -> block(l.getBody()));
+            if (worst && max <= 0) {
+                boundless--;
+                // a loop whose body calls no model costs nothing however long it turns
+                if (total.tokens() > spentBefore) unbounded = true;
+            }
+            if (worst) block(l.getOnExhausted());
         }
 
-        Bound forEach(ForEachStmt f, Mult m) {
-            long items = assume.get("assume.foreach.items");
-            long max = assume.get("assume.foreach.max");
-            Mult inner = m.times(items, max);
-            Bound body = block(f.getBody(), inner);
-            Bound exhausted = block(f.getOnExhausted(), new Mult(0, m.worst));
-            return new Bound(
-                    body.typical,
-                    body.worst.plus(exhausted.worst),
-                    body.unbounded || exhausted.unbounded);
+        void forEach(ForEachStmt f) {
+            long n = c.assume.get(worst ? "assume.foreach.max" : "assume.foreach.items");
+            repeat(n, () -> block(f.getBody()));
+            if (worst) block(f.getOnExhausted());
         }
 
-        Bound call(CallStmt c, Mult m) {
-            WorkflowDef target = workflows.get(c.getWorkflowName());
-            if (target == null) return Bound.NONE;
+        /**
+         * Runs a body {@code n} times. The first turns are walked one by one because each costs
+         * more than the one before (the transcript grows); beyond {@link #WALK_CAP} turns the
+         * remaining ones are added by the trend of the last two.
+         */
+        void repeat(long n, Runnable body) {
+            long walked = Math.min(n, WALK_CAP);
+            Map<String, Long> runsBefore = new LinkedHashMap<>();
+            steps.forEach((k, a) -> runsBefore.put(k, a.runs));
+            Usage previous = Usage.NONE;
+            Usage last = Usage.NONE;
+            for (long i = 0; i < walked; i++) {
+                Usage before = total;
+                body.run();
+                previous = last;
+                last = diff(total, before);
+            }
+            long rest = n - walked;
+            if (rest > 0 && !last.isEmpty()) {
+                Usage grow = diff(last, previous);
+                Usage extra = last.times(rest);
+                if (!grow.isEmpty()) extra = extra.plus(grow.times(rest * (rest + 1) / 2));
+                total = total.plus(extra.dividedBy(weight));
+                for (var e : steps.entrySet()) {
+                    long delta = e.getValue().runs - runsBefore.getOrDefault(e.getKey(), 0L);
+                    e.getValue().runs += delta / walked * rest;
+                }
+                note(
+                        "a loop of more than "
+                                + WALK_CAP
+                                + " turns is walked for "
+                                + WALK_CAP
+                                + " and the rest added by its trend; per-step figures cover the first "
+                                + WALK_CAP);
+            }
+        }
+
+        void call(CallStmt k) {
+            WorkflowDef target = c.workflows.get(k.getWorkflowName());
+            if (target == null) return;
             if (!stack.add(target.getName())) {
-                notes.add(
+                note(
                         "workflow "
                                 + target.getName()
                                 + " calls itself; the recursion is counted once");
-                return Bound.NONE;
+                return;
             }
             try {
-                return block(target.getStatements(), m);
+                block(target.getStatements());
             } finally {
                 stack.remove(target.getName());
             }
         }
 
-        /** A model step: records it and returns its cost for the block totals. */
-        Bound step(int line, String label, String agentName, String payload, Mult m, int retries) {
-            AgentDef agent = agentName == null ? null : agents.get(agentName);
+        // ---- one model step
+
+        void agentStep(int line, String label, String agentName, String payload, int retries) {
+            AgentDef agent = agentName == null ? null : c.agents.get(agentName);
+            Usage one;
+            String model;
             if (agent == null) {
-                Usage dearest = dearestAgentCall(payload);
-                if (dearest.isEmpty()) {
-                    notes.add(label + " names no agent that is defined, so it is not costed");
-                    return Bound.NONE;
+                AgentDef dearest = dearest(payload);
+                if (dearest == null) {
+                    note(label + " names no agent that is defined, so it is not costed");
+                    return;
                 }
-                notes.add(
+                note(
                         label
                                 + " has a target known only at run time; it is costed as the dearest agent");
-                String model = dearest.byModel().keySet().iterator().next();
-                record(line, label, model, dearest, dearest, m, retries);
-                return bound(dearest, dearest, m, retries);
+                agent = dearest;
             }
-            Usage each = callOf(agent, payload, false);
-            Usage eachWorst = callOf(agent, payload, true);
-            record(line, label, agent.getModel(), each, eachWorst, m, retries);
-            return bound(each, eachWorst, m, retries);
+            model = agent.getModel() == null ? "(no model)" : agent.getModel();
+            one = callOf(agent, payload);
+            long attempts = worst ? retries + 1L : 1;
+            record(line, label, model, one.times(attempts), retries);
+            long answer = answerTokens();
+            addToTranscript(payloadTokens(payload) + answer + ENTRY_OVERHEAD);
         }
 
-        void record(
-                int line,
-                String label,
-                String model,
-                Usage each,
-                Usage eachWorst,
-                Mult m,
-                int retries) {
-            steps.add(
-                    new StepCost(
-                            current,
-                            line,
-                            label,
-                            model,
-                            each,
-                            eachWorst,
-                            retries,
-                            m.typical,
-                            m.worst < 0 ? -1 : m.worst * (retries + 1L)));
-        }
-
-        Bound bound(Usage each, Usage eachWorst, Mult m, int retries) {
-            boolean boundless = m.worst < 0;
-            Usage worst = boundless ? eachWorst : eachWorst.times(m.worst * (retries + 1L));
-            return new Bound(each.times(m.typical), worst, boundless);
-        }
-
-        Usage dearestAgentCall(String payload) {
-            Usage best = Usage.NONE;
-            for (AgentDef a : agents.values()) best = best.max(callOf(a, payload, true));
+        AgentDef dearest(String payload) {
+            AgentDef best = null;
+            long bestTokens = -1;
+            for (AgentDef a : c.agents.values()) {
+                long t = callOf(a, payload).tokens();
+                if (t > bestTokens) {
+                    best = a;
+                    bestTokens = t;
+                }
+            }
             return best;
         }
 
-        /** One run of an agent on a payload, including the rounds of an agent that uses tools. */
-        Usage callOf(AgentDef a, String payload, boolean worst) {
+        /**
+         * One run of an agent on a payload, including the transcript in front of it and any tool
+         * rounds.
+         */
+        Usage callOf(AgentDef a, String payload) {
             String model = a.getModel() == null ? "(no model)" : a.getModel();
-            long base = systemTokens(a) + payloadTokens(payload, worst);
-            long out = assume.get(worst ? "assume.output.max" : "assume.output.tokens");
+            long history = transcript > 0 ? transcript + FRAME_OVERHEAD : 0;
+            long base = systemTokens(a) + payloadTokens(payload) + history;
+            long out = answerTokens();
             boolean tools = !a.getTools().isEmpty() || !a.getMcpServers().isEmpty();
             if (!tools) return Usage.call(model, base, out);
             long rounds =
                     worst
                             ? (a.getMaxIterations() != null
                                     ? a.getMaxIterations()
-                                    : assume.get("assume.react.max"))
-                            : assume.get("assume.react.rounds");
-            long grow = out + assume.get("assume.tool.result.tokens");
+                                    : c.assume.get("assume.react.max"))
+                            : c.assume.get("assume.react.rounds");
+            long grow = out + c.assume.get("assume.tool.result.tokens");
             long in = rounds * base + grow * rounds * (rounds - 1) / 2;
             return Usage.calls(model, rounds, in, rounds * out);
+        }
+
+        long answerTokens() {
+            return c.assume.get(worst ? "assume.output.max" : "assume.output.tokens");
+        }
+
+        void addToTranscript(long tokens) {
+            long add = Math.max(1, tokens / weight);
+            transcript += add;
+            long cap = cap();
+            if (cap >= 0 && transcript > cap) transcript = cap;
+        }
+
+        /** The most the shared transcript can hold, or -1 when nothing bounds it. */
+        long cap() {
+            if (worst ? c.capMax >= 0 : c.capMin >= 0) return worst ? c.capMax : c.capMin;
+            if (c.contextBounded) return c.assume.get("assume.transcript.cap");
+            return -1;
+        }
+
+        void record(int line, String label, String model, Usage usage, int retries) {
+            Usage counted = usage.dividedBy(weight);
+            total = total.plus(counted);
+            String key = line + ":" + label;
+            Acc a = steps.computeIfAbsent(key, k -> new Acc());
+            a.line = line;
+            a.label = label;
+            a.model = model;
+            a.retries = retries;
+            a.usage = a.usage.plus(counted);
+            a.runs += 1;
+            if (boundless > 0) a.unbounded = true;
         }
 
         long systemTokens(AgentDef a) {
             if (a.getSystemPrompt() != null && !a.getSystemPrompt().isBlank())
                 return Tokens.of(a.getSystemPrompt());
-            if (a.getPrompt() != null && !a.getPrompt().isBlank() && prompts != null) {
-                var r = prompts.resolve(a.getPrompt());
+            if (a.getPrompt() != null && !a.getPrompt().isBlank() && c.prompts != null) {
+                var r = c.prompts.resolve(a.getPrompt());
                 if (r.isPresent()) return Tokens.of(r.get().text());
             }
             if (a.getPrompt() != null && !a.getPrompt().isBlank())
-                return assume.get("assume.prompt.tokens");
+                return c.assume.get("assume.prompt.tokens");
             return 0;
         }
 
-        long payloadTokens(String payload, boolean worst) {
+        /**
+         * Tokens of a prompt: the text the script wrote, plus each {@code {variable}} filled in. A
+         * variable that holds a model's answer is as long as an answer; any other (an input of the
+         * workflow) is {@code assume.variable.tokens} long.
+         */
+        long payloadTokens(String payload) {
             if (payload == null) return 0;
             long vars = 0;
             long chars = 0;
@@ -385,11 +539,39 @@ public final class CostEstimator {
                     break;
                 }
                 chars += open - i;
-                vars++;
+                String name = payload.substring(open + 1, close);
+                int dot = name.indexOf('.');
+                String base = dot < 0 ? name : name.substring(0, dot);
+                vars +=
+                        answers.contains(base)
+                                ? answerTokens()
+                                : c.assume.get(
+                                        worst ? "assume.variable.max" : "assume.variable.tokens");
                 i = close + 1;
             }
-            return Tokens.ofChars(chars)
-                    + vars * assume.get(worst ? "assume.variable.max" : "assume.variable.tokens");
+            return Tokens.ofChars(chars) + vars;
+        }
+
+        void note(String text) {
+            if (!notes.contains(text)) notes.add(text);
+        }
+
+        // ---- saving and restoring the totals around the two ways of an alt (worst walk)
+
+        record State(Usage total, long transcript, boolean unbounded) {}
+
+        State save() {
+            return new State(total, transcript, unbounded);
+        }
+
+        void restore(State s) {
+            total = s.total();
+            transcript = s.transcript();
+            unbounded = s.unbounded();
+        }
+
+        static Usage diff(Usage a, Usage b) {
+            return a.minus(b);
         }
     }
 }

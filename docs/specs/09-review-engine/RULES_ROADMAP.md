@@ -13,7 +13,7 @@ Rules for which the design already says *heuristic, off by default* are marked *
 | LR01, LR03, LD02, LY02, LM01, LG04 | data | 9a |
 | LC01, LC02 | data | 9c |
 | LR02, LR04, LR05, LR07, LR08, LR09 | data (new facts: `workflow.isScheduled`, `script.hasRateLimits`, `step.readsFreeText`, `step.writesSameVariableAsSibling`) | 9d |
-| LP01, LP03, LP04, LP06 | data (new facts: `agent.systemInterpolates`, `promptTokens`, `promptHasSecret`, `nearDuplicateOf`); LP01 uses `escalate` for HIGH with tools | 9d |
+| LP01, LP03, LP04, LP06, LP07 | data (new facts: `agent.systemInterpolates`, `promptTokens`, `promptHasSecret`, `nearDuplicateOf`); LP01 uses `escalate` for HIGH with tools; LP07 (new, found by the live cost check) reports a variable name that occurs inside prompt text, which Loom replaces everywhere (`step.payloadHitsVariable`). LC02 was reworded in 9d to be about the shared transcript (`agent.hasMemoryLimit`) | 9d |
 | LC04, LC05, LC06 | Java (they need the cost estimate) | 9c |
 
 ## Plan, by sub-phase

@@ -23,11 +23,11 @@ class CostModelTest {
 
     @TempDir Path dir;
 
-    // "You are helpful" = 15 chars = 5 tokens; "hello world" = 11 chars = 4 tokens; answer 600
+    // "You are helpful" = 15 chars = 5 tokens; "hello world" = 11 chars = 4 tokens; answer 350
     static final String AGENT = "agent A { model: \"m\"  system: \"You are helpful\" }\n";
     static final String CALL = "delegate \"hello world\" to A -> r";
     static final long IN = 9;
-    static final long OUT = 600;
+    static final long OUT = 350;
     static final long OUT_MAX = 2000;
 
     CostEstimate estimate(String source) {
@@ -75,8 +75,8 @@ class CostModelTest {
                         estimate(
                                 AGENT
                                         + "workflow Main(q) { delegate \"hello {q}\" to A -> r  note \"{r}\" }"));
-        // "hello " = 6 chars = 2 tokens, plus 200 for {q}, plus 5 for the system prompt
-        assertThat(w.typical().tokensIn()).isEqualTo(5 + 2 + 200);
+        // "hello " = 6 chars = 2 tokens, plus 100 for {q}, plus 5 for the system prompt
+        assertThat(w.typical().tokensIn()).isEqualTo(5 + 2 + 100);
     }
 
     @Test
@@ -163,9 +163,9 @@ class CostModelTest {
                         + CALL
                         + " }";
         WorkflowCost w = main(estimate(src));
-        // 3 rounds typical: 3 x base + (600 + 300) x (0 + 1 + 2)
+        // 3 rounds typical: 3 x base + (350 + 300) x (0 + 1 + 2)
         assertThat(w.typical().calls()).isEqualTo(3);
-        assertThat(w.typical().tokensIn()).isEqualTo(3 * IN + 900 * 3);
+        assertThat(w.typical().tokensIn()).isEqualTo(3 * IN + 650 * 3);
         assertThat(w.typical().tokensOut()).isEqualTo(3 * OUT);
         // 10 rounds worst unless the agent sets max_iterations
         assertThat(w.worst().calls()).isEqualTo(10);
@@ -222,8 +222,8 @@ class CostModelTest {
                                 new PriceTable.Price(new BigDecimal("1"), new BigDecimal("2"))));
         CostEstimate e = estimate(AGENT + "workflow Main(q) { " + CALL + " }", "", prices);
         Usage.Money m = e.typicalMoney(main(e));
-        // 9 in x $1/M + 600 out x $2/M
-        assertThat(m.amount()).isEqualByComparingTo("0.001209");
+        // 9 in x $1/M + 350 out x $2/M
+        assertThat(m.amount()).isEqualByComparingTo("0.000709");
         assertThat(m.complete()).isTrue();
         CostEstimate none = estimate(AGENT + "workflow Main(q) { " + CALL + " }");
         assertThat(none.typicalMoney(main(none)).unpriced()).containsExactly("m");

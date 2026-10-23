@@ -50,7 +50,7 @@ class CostRulesTest {
 
     @Test
     void aMoneyBudgetBelowTheTypicalCostIsLc04() {
-        // $1 per token: a run of 609 tokens costs $609
+        // $1 per token: a run of 359 tokens costs $359
         List<Finding> f =
                 run(
                         "budget { cost: \"$5.00\" }\n"
@@ -64,7 +64,7 @@ class CostRulesTest {
         assertThat(f.get(0).rule()).isEqualTo("LC04");
         assertThat(f.get(0).severity()).isEqualTo(Severity.MEDIUM);
         assertThat(f.get(0).title())
-                .contains("typically costs $609.00")
+                .contains("typically costs $359.00")
                 .contains("budget is $5.00");
     }
 
@@ -90,7 +90,7 @@ class CostRulesTest {
                         "",
                         null);
         assertThat(f).extracting(Finding::rule).containsExactly("LC04");
-        assertThat(f.get(0).title()).contains("609 tokens");
+        assertThat(f.get(0).title()).contains("359 tokens");
     }
 
     @Test

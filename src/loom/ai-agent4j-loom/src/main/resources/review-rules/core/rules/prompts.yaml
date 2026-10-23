@@ -72,3 +72,24 @@
   examples:
     fires: [ examples/lp06-fires.loom ]
     quiet: [ examples/lp06-quiet.loom ]
+
+- id: LP07
+  lens: prompts
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: payloadHitsVariable, isNot: "" }
+  title: "The text of {label} contains the variable name '{payloadHitsVariable}', which Loom fills in"
+  why: "Loom replaces a bare variable name wherever it appears in the text a script wrote, even inside another word. A variable called r rewrites every r in the sentence with the variable's value, which changes the prompt and can make it huge."
+  fixHint: "Rename the variable to a longer name that does not occur in the text, and put the value in curly braces around its name."
+  since: "1.3.0"
+  explain: >
+    Older scripts wrote a variable's bare name in a prompt and Loom still honours that: the name is
+    replaced everywhere in the literal text of the prompt, with no regard for word boundaries. The
+    safe form is {name}. A short or common name (r, a, result, text) makes the old form fire
+    on words that happen to contain it. This was found measuring costs against a real provider:
+    a variable named r multiplied one prompt by the length of an earlier answer.
+  examples:
+    fires: [ examples/lp07-fires.loom ]
+    quiet: [ examples/lp07-quiet.loom ]

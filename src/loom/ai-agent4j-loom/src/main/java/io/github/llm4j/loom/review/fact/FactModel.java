@@ -76,6 +76,9 @@ public final class FactModel {
                 .bool(
                         "readsFreeText",
                         "A branch or loop condition reads a field of an answer whose agent has no output_schema")
+                .string(
+                        "payloadHitsVariable",
+                        "A workflow variable whose name appears inside the literal text of the prompt, empty when none")
                 .bool(
                         "writesSameVariableAsSibling",
                         "A parallel round whose branches bind the same variable name")
@@ -91,6 +94,9 @@ public final class FactModel {
                 .bool("hasSchema", "It has an output_schema")
                 .bool("hasContext", "It has a context block")
                 .bool("hasMemory", "It has memory")
+                .bool(
+                        "hasMemoryLimit",
+                        "It bounds the shared transcript with memory { max_tokens }")
                 .enumeration(
                         "guardPii",
                         List.of("none", "warn", "mask", "block"),

@@ -1,9 +1,9 @@
 agent Searcher { model: "m"  system: "You search the web and report what you find."  tools: [web_search] }
 agent Writer { model: "m"  system: "You write a short report from findings." }
 workflow Main(topic) {
-  loop until (enough == "yes") max 3 {
+  loop until (verdict == "yes") max 3 {
     delegate "Search more about {topic}" to Searcher -> findings retry 2 backoff 2s timeout 60s // <- LC02
-    delegate "Is this enough? {findings}" to Writer -> enough
+    delegate "Is it sufficient? {findings}" to Writer -> verdict // <- LC02
   }
   delegate "Report on {topic}" to Writer -> report
   note "{report}"

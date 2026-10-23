@@ -2,7 +2,7 @@ tool Hook { use: webhook  url: env.HOOK_URL }
 agent Notifier { model: "m"  system: "You tell one customer what happened."  tools: [Hook]  approve: [Hook] }
 workflow Main(customers) {
   for each c in customers {
-    delegate "Tell {c}" to Notifier -> sent retry 2 backoff 2s timeout 60s on_failure {
+    delegate "Tell {c}" to Notifier -> sent retry 2 backoff 2s timeout 60s on_failure { // <- LC02
       note "notice failed"
     }
   }

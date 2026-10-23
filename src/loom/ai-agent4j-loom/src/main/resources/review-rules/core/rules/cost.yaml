@@ -31,25 +31,26 @@
 
 - id: LC02
   lens: cost
-  severity: medium
+  severity: low
   about: step
   when:
     all:
       - { field: kind, is: delegate }
-      - { field: inLoop, is: true }
-      - { field: agent.hasContext, is: false }
       - any:
-          - { field: agent.hasMemory, is: true }
-          - { field: agent.hasTools, is: true }
-  title: "{label} runs in a loop with no context block, so each round re-sends a longer conversation"
-  why: "An agent that remembers or uses tools carries its whole conversation into every round of a loop. Without a context block nothing trims it, so each round costs more than the last."
-  fixHint: "Give the agent a context block so old tool results are trimmed or summarised."
+          - { field: inLoop, is: true }
+          - { field: inForEach, is: true }
+      - { field: agent.hasContext, is: false }
+      - { field: agent.hasMemoryLimit, is: false }
+  title: "{label} repeats with nothing bounding the conversation, so each round re-sends everything said so far"
+  why: "Loom keeps one transcript of every task and answer in the run and puts all of it in front of the next agent. In a loop or for each it grows each round, so the cost of the rounds is not linear: ten rounds cost far more than ten times one."
+  fixHint: "Bound the transcript: give the agent memory { max_tokens: ... } or a context block."
   since: "1.1.0"
   explain: >
-    Each round of a loop adds to what the agent has already said and done, and that is all sent
-    again next time. A context block names a strategy (trim tool results, summarise, drop the
-    oldest) that keeps the conversation inside a budget. Bounding the loop with max also limits
-    the cost; this rule is about the cost of each round.
+    Measured against real providers while building this review: a loop of three rounds cost about
+    twice what three independent calls cost, because round three carries rounds one and two. The
+    shared transcript stops growing only where an agent sets memory { max_tokens } or has a
+    context block. Bounding the loop with max limits the number of rounds; this rule is about
+    what each round costs.
   examples:
-    fires: [ examples/lc02-fires.loom ]
-    quiet: [ examples/lc02-quiet-context.loom, examples/lc02-quiet-no-loop.loom ]
+    fires: [ examples/lc02-fires.loom, examples/lc02-fires-no-tools.loom ]
+    quiet: [ examples/lc02-quiet-context.loom, examples/lc02-quiet-memory.loom, examples/lc02-quiet-no-loop.loom ]
