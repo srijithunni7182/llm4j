@@ -30,6 +30,8 @@ public final class ReviewSettings {
     private final Map<String, RuleSetting> rules;
     private final Map<String, String> values;
     private final List<Suppression> suppressions;
+    private final java.time.LocalDate today;
+    private final Set<String> baseline;
 
     private ReviewSettings(
             Optional<Severity> failOn,
@@ -37,19 +39,30 @@ public final class ReviewSettings {
             boolean heuristics,
             Map<String, RuleSetting> rules,
             Map<String, String> values,
-            List<Suppression> suppressions) {
+            List<Suppression> suppressions,
+            java.time.LocalDate today,
+            Set<String> baseline) {
         this.failOn = failOn;
         this.lenses = Collections.unmodifiableSet(EnumSet.copyOf(lenses));
         this.heuristics = heuristics;
         this.rules = Collections.unmodifiableMap(new LinkedHashMap<>(rules));
         this.values = Collections.unmodifiableMap(new LinkedHashMap<>(values));
         this.suppressions = List.copyOf(suppressions);
+        this.today = today;
+        this.baseline = Set.copyOf(baseline);
     }
 
     /** Nothing declared: default lenses, advisory (never fails), heuristics off. */
     public static ReviewSettings defaults() {
         return new ReviewSettings(
-                Optional.empty(), LensSelection.defaults(), false, Map.of(), Map.of(), List.of());
+                Optional.empty(),
+                LensSelection.defaults(),
+                false,
+                Map.of(),
+                Map.of(),
+                List.of(),
+                null,
+                Set.of());
     }
 
     /** Reads the file beside {@code script} if there is one, else the defaults. */
@@ -95,9 +108,10 @@ public final class ReviewSettings {
                     default -> {
                         if (isRuleKey(e.key())) {
                             applyRule(rules, e.key(), e.value());
-                            if (e.key().endsWith(".suppress"))
+                            if (e.key().endsWith(".suppress") || e.key().endsWith(".accept"))
                                 suppressions.add(
                                         Suppression.parse(
+                                                e.key().substring(e.key().indexOf('.') + 1),
                                                 e.key().substring(0, e.key().indexOf('.')),
                                                 e.value(),
                                                 e.line()));
@@ -109,7 +123,8 @@ public final class ReviewSettings {
             }
         }
         if (!problems.isEmpty()) throw new InvalidSettingsException(problems);
-        return new ReviewSettings(failOn, lenses, heuristics, rules, f.values(), suppressions);
+        return new ReviewSettings(
+                failOn, lenses, heuristics, rules, f.values(), suppressions, null, Set.of());
     }
 
     private static boolean isRuleKey(String key) {
@@ -212,7 +227,8 @@ public final class ReviewSettings {
     // ---- derived copies (command-line options)
 
     public ReviewSettings withFailOn(Optional<Severity> level) {
-        return new ReviewSettings(level, lenses, heuristics, rules, values, suppressions);
+        return new ReviewSettings(
+                level, lenses, heuristics, rules, values, suppressions, today, baseline);
     }
 
     /** Applies a {@code --lens} spec. @throws IllegalArgumentException when it is not valid */
@@ -223,7 +239,9 @@ public final class ReviewSettings {
                 heuristics,
                 rules,
                 values,
-                suppressions);
+                suppressions,
+                today,
+                baseline);
     }
 
     /**
@@ -232,10 +250,33 @@ public final class ReviewSettings {
     public ReviewSettings withValue(String key, String value) {
         Map<String, String> v = new LinkedHashMap<>(values);
         v.put(key, value);
-        return new ReviewSettings(failOn, lenses, heuristics, rules, v, suppressions);
+        return new ReviewSettings(
+                failOn, lenses, heuristics, rules, v, suppressions, today, baseline);
+    }
+
+    /** A copy that knows today's date, so that an accept with an {@code until} date can expire. */
+    public ReviewSettings withToday(java.time.LocalDate day) {
+        return new ReviewSettings(
+                failOn, lenses, heuristics, rules, values, suppressions, day, baseline);
+    }
+
+    /** A copy that treats the findings with these fingerprints as baselined. */
+    public ReviewSettings withBaseline(Set<String> fingerprints) {
+        return new ReviewSettings(
+                failOn, lenses, heuristics, rules, values, suppressions, today, fingerprints);
+    }
+
+    /** Today's date, or null when the caller did not give one (no entry then expires). */
+    public java.time.LocalDate today() {
+        return today;
+    }
+
+    /** The fingerprints recorded in the baseline. */
+    public Set<String> baseline() {
+        return baseline;
     }
 
     public ReviewSettings withHeuristics(boolean on) {
-        return new ReviewSettings(failOn, lenses, on, rules, values, suppressions);
+        return new ReviewSettings(failOn, lenses, on, rules, values, suppressions, today, baseline);
     }
 }

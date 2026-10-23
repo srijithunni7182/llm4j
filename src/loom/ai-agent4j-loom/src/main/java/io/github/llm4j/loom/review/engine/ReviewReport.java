@@ -19,6 +19,7 @@ import java.util.List;
  * @param lensesRun the lenses that ran, in lens order
  * @param lensesOff the lenses that did not
  * @param cost what the workflows cost, or null when no estimate was made
+ * @param baselined findings recorded in the project's baseline: known, not counted as open
  */
 public record ReviewReport(
         String file,
@@ -27,7 +28,8 @@ public record ReviewReport(
         List<Note> notes,
         List<Lens> lensesRun,
         List<Lens> lensesOff,
-        CostEstimate cost) {
+        CostEstimate cost,
+        List<Finding> baselined) {
 
     /** Version of the JSON this report is written as. */
     public static final int VERSION = 1;
@@ -40,7 +42,19 @@ public record ReviewReport(
             List<Note> notes,
             List<Lens> lensesRun,
             List<Lens> lensesOff) {
-        this(file, findings, suppressed, notes, lensesRun, lensesOff, null);
+        this(file, findings, suppressed, notes, lensesRun, lensesOff, null, List.of());
+    }
+
+    /** A report with a cost estimate and no baseline. */
+    public ReviewReport(
+            String file,
+            List<Finding> findings,
+            List<Suppressed> suppressed,
+            List<Note> notes,
+            List<Lens> lensesRun,
+            List<Lens> lensesOff,
+            CostEstimate cost) {
+        this(file, findings, suppressed, notes, lensesRun, lensesOff, cost, List.of());
     }
 
     public ReviewReport {
@@ -49,6 +63,7 @@ public record ReviewReport(
         notes = List.copyOf(notes);
         lensesRun = List.copyOf(lensesRun);
         lensesOff = List.copyOf(lensesOff);
+        baselined = List.copyOf(baselined);
     }
 
     /** Open findings of exactly this severity. */

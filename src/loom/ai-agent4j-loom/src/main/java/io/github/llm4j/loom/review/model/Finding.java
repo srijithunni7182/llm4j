@@ -18,6 +18,9 @@ import java.util.Optional;
  * @param fix a machine-applicable change, when there is one
  * @param related ids of other findings that describe the same cause, kept out of the main list
  * @param source who produced it: {@code audit}, {@code validator} or {@code pack name@version}
+ * @param anchor the most stable name for the thing the finding is about (an agent's name, a
+ *     workflow, kind and ordinal), empty when only the title identifies it; see {@link
+ *     #fingerprint()}
  */
 public record Finding(
         String rule,
@@ -30,9 +33,27 @@ public record Finding(
         List<String> owasp,
         Optional<Fix> fix,
         List<String> related,
-        String source) {
+        String source,
+        String anchor) {
+
+    /** A finding that is identified by its rule and title alone. */
+    public Finding(
+            String rule,
+            Lens lens,
+            Severity severity,
+            Location where,
+            String title,
+            String why,
+            String fixHint,
+            List<String> owasp,
+            Optional<Fix> fix,
+            List<String> related,
+            String source) {
+        this(rule, lens, severity, where, title, why, fixHint, owasp, fix, related, source, "");
+    }
 
     public Finding {
+        anchor = anchor == null ? "" : anchor;
         owasp = List.copyOf(owasp);
         related = List.copyOf(related);
         fix = fix == null ? Optional.empty() : fix;
@@ -44,13 +65,45 @@ public record Finding(
 
     /** The same finding with another severity (a project setting). */
     public Finding withSeverity(Severity s) {
-        return new Finding(rule, lens, s, where, title, why, fixHint, owasp, fix, related, source);
+        return new Finding(
+                rule, lens, s, where, title, why, fixHint, owasp, fix, related, source, anchor);
     }
 
     /** The same finding noting that {@code other} describes the same cause. */
     public Finding relatedTo(String other) {
         java.util.ArrayList<String> r = new java.util.ArrayList<>(related);
         if (!r.contains(other)) r.add(other);
-        return new Finding(rule, lens, severity, where, title, why, fixHint, owasp, fix, r, source);
+        return new Finding(
+                rule, lens, severity, where, title, why, fixHint, owasp, fix, r, source, anchor);
+    }
+
+    /** The same finding about the named thing. */
+    public Finding withAnchor(String a) {
+        return new Finding(
+                rule, lens, severity, where, title, why, fixHint, owasp, fix, related, source, a);
+    }
+
+    /**
+     * A short stable identity: a hash of the rule, the anchor (a name when there is one, else the
+     * wording of the title) and the title with its numbers taken out. Line numbers, spacing and
+     * edits elsewhere in the file do not change it, so an accept or a baseline entry keeps matching
+     * after the script is edited above it, and does not match a different finding that moved into
+     * its place.
+     */
+    public String fingerprint() {
+        String subject =
+                title.toLowerCase(java.util.Locale.ROOT)
+                        .replaceAll("[0-9]+", "#")
+                        .replaceAll("\\s+", " ")
+                        .strip();
+        String key = rule + "\n" + (anchor.isEmpty() ? "" : anchor) + "\n" + subject;
+        try {
+            byte[] d =
+                    java.security.MessageDigest.getInstance("SHA-256")
+                            .digest(key.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(d, 0, 8);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

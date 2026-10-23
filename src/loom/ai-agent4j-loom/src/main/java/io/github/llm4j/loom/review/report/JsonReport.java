@@ -40,6 +40,8 @@ public final class JsonReport {
         root.put("findings", r.findings().stream().map(JsonReport::finding).toList());
         if (r.cost() != null) root.put("cost", CostJson.of(r.cost()));
         root.put("suppressed", r.suppressed().stream().map(JsonReport::suppressed).toList());
+        root.put("accepted", r.suppressed().stream().map(JsonReport::suppressed).toList());
+        root.put("baselined", r.baselined().stream().map(JsonReport::finding).toList());
         root.put("notes", r.notes().stream().map(JsonReport::note).toList());
         return root;
     }
@@ -47,6 +49,8 @@ public final class JsonReport {
     private static Map<String, Object> summary(ReviewReport r) {
         Map<String, Object> s = new LinkedHashMap<>();
         s.put("total", r.findings().size());
+        s.put("accepted", r.suppressed().size());
+        s.put("baselined", r.baselined().size());
         for (Severity sev : Severity.values()) s.put(sev.word(), r.count(sev));
         Map<String, Object> lenses = new LinkedHashMap<>();
         lenses.put("ran", ids(r.lensesRun()));
@@ -65,12 +69,16 @@ public final class JsonReport {
         Map<String, Object> m = finding(s.finding());
         m.put("suppressedAt", s.place());
         m.put("reason", s.reason());
+        m.put("until", s.until().isEmpty() ? null : s.until());
+        m.put("by", s.by().isEmpty() ? null : s.by());
+        m.put("at", s.at().isEmpty() ? null : s.at());
         return m;
     }
 
     private static Map<String, Object> finding(Finding f) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("rule", f.rule());
+        m.put("fingerprint", f.fingerprint());
         m.put("lens", f.lens().id());
         m.put("severity", f.severity().word());
         Map<String, Object> where = new LinkedHashMap<>();

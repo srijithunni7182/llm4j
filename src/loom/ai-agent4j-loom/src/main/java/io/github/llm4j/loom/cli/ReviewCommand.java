@@ -14,6 +14,7 @@ import io.github.llm4j.loom.review.engine.ReviewRule;
 import io.github.llm4j.loom.review.engine.RuleCatalog;
 import io.github.llm4j.loom.review.engine.RuleInfo;
 import io.github.llm4j.loom.review.engine.ValidityProblem;
+import io.github.llm4j.loom.review.handle.Baseline;
 import io.github.llm4j.loom.review.model.Severity;
 import io.github.llm4j.loom.review.pack.JavaRules;
 import io.github.llm4j.loom.review.pack.PackException;
@@ -26,6 +27,8 @@ import io.github.llm4j.loom.review.settings.InvalidSettingsException;
 import io.github.llm4j.loom.review.settings.ReviewSettings;
 import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -118,6 +121,82 @@ final class ReviewCommand implements Callable<Integer> {
                     "Compare the cost estimate with what a journaled run (a folder made with a run store) really spent, and say which assumptions to correct.")
     File calibrate;
 
+    @Option(
+            names = "--accept",
+            paramLabel = "<fingerprint|RULE>",
+            description =
+                    "Accept open findings with a reason: one finding by its fingerprint, or every open finding of a rule. Written to review.properties; run and deploy are not affected.")
+    String accept;
+
+    @Option(
+            names = "--reason",
+            description = "Why the finding is accepted (required with --accept).")
+    String reason;
+
+    @Option(
+            names = "--scope",
+            description = "How much --accept covers: finding (default), thing, script or project.",
+            defaultValue = "finding")
+    String scope;
+
+    @Option(names = "--on", description = "The agent, tool or workflow for --scope thing.")
+    String on;
+
+    @Option(
+            names = "--until",
+            description = "Look at an accepted finding again on this date, such as 2026-12-31.")
+    String until;
+
+    @Option(names = "--by", description = "Who accepts it (default: the user name).")
+    String by;
+
+    @Option(
+            names = "--confirm",
+            description = "The number of serious findings --accept is about to accept.")
+    Integer confirm;
+
+    @Option(
+            names = "--strict-accepts",
+            description = "Count accepted findings when deciding --fail-on.")
+    boolean strictAccepts;
+
+    @Option(
+            names = "--baseline-write",
+            description = "Record today's open findings as known in review.baseline.json.")
+    boolean baselineWrite;
+
+    @Option(
+            names = "--baseline-include-high",
+            description = "Let --baseline-write record serious findings too.")
+    boolean baselineIncludeHigh;
+
+    @Option(
+            names = "--baseline-prune",
+            description = "Remove baseline entries whose finding is gone.")
+    boolean baselinePrune;
+
+    @Option(
+            names = "--baseline-note",
+            description = "The note --baseline-write stores.",
+            defaultValue = "Existing findings when review was adopted.")
+    String baselineNote;
+
+    @Option(
+            names = "--baseline",
+            description = "The baseline file (default: review.baseline.json beside the script).")
+    File baselineFile;
+
+    @Option(
+            names = "--noise-report",
+            description = "Say which rules are noisy: accepted in many of the places they fire.")
+    boolean noiseReport;
+
+    @Option(
+            names = "--noise-share",
+            description = "Percent of places accepted that makes a rule noisy.",
+            defaultValue = "50")
+    int noiseShare;
+
     @Option(names = "--out", description = "Also write the report to this file.")
     File out;
 
@@ -183,6 +262,18 @@ final class ReviewCommand implements Callable<Integer> {
             env.err().println("Error: " + e.getMessage());
             return 2;
         }
+        Path scriptDir = c.script.getAbsoluteFile().getParentFile().toPath();
+        Path baselinePath =
+                c.baselineFile != null
+                        ? c.baselineFile.toPath()
+                        : scriptDir.resolve(Baseline.FILE_NAME);
+        LocalDate today = LocalDate.now(env.clock());
+        try {
+            settings = settings.withToday(today).withBaseline(Baseline.read(baselinePath));
+        } catch (IllegalArgumentException e) {
+            env.err().println("Error: " + e.getMessage());
+            return 2;
+        }
         LoomScript loaded;
         try {
             loaded = new LoomLoader().load(c.script.getAbsolutePath());
@@ -240,6 +331,8 @@ final class ReviewCommand implements Callable<Integer> {
         }
         if (c.calibrate != null) return calibrate(c, input, settings, estimator, env);
         ReviewReport report = Reviews.engine(packs, javaRules, estimator).review(input, settings);
+        if (ReviewHandling.requested(c))
+            return ReviewHandling.apply(c, report, scriptDir, baselinePath, today, env);
         ReviewReport shown = atLeast(report, min.get());
         String text =
                 switch (c.format) {
@@ -258,7 +351,16 @@ final class ReviewCommand implements Callable<Integer> {
             }
         }
         Optional<Severity> threshold = threshold(c, settings);
-        if (threshold.isPresent() && report.failsAt(threshold.get())) return 1;
+        if (threshold.isPresent()
+                && (report.failsAt(threshold.get())
+                        || c.strictAccepts
+                                && report.suppressed().stream()
+                                        .anyMatch(
+                                                x ->
+                                                        x.finding()
+                                                                .severity()
+                                                                .atLeast(threshold.get()))))
+            return 1;
         return 0;
     }
 
@@ -353,7 +455,8 @@ final class ReviewCommand implements Callable<Integer> {
                 r.notes(),
                 r.lensesRun(),
                 r.lensesOff(),
-                r.cost());
+                r.cost(),
+                r.baselined());
     }
 
     /**

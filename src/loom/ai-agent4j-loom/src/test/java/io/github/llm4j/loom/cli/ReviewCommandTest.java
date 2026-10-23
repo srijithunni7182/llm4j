@@ -409,6 +409,192 @@ class ReviewCommandTest {
         assertThat(err.toString()).contains("has no journal.json");
     }
 
+    // ---- handling findings: accept, baseline, noise (R41 to R47)
+
+    static final String SEARCH =
+            "agent Searcher { model: \"m\"  system: \"You search.\"  tools: [web_search] }\n"
+                    + "workflow Main(topic) {\n  delegate \"Find: {topic}\" to Searcher -> found\n  note \"{found}\"\n}\n";
+
+    static final String TWO_SENDERS =
+            "tool M1 { use: class  class: \"a.One\"  reach: sends }\ntool M2 { use: class  class: \"a.Two\"  reach: sends }\n"
+                    + "agent A1 { model: \"m\"  system: \"s\"  tools: [M1] }\nagent A2 { model: \"m\"  system: \"s\"  tools: [M2] }\n"
+                    + "workflow Main(topic) {\n  delegate \"One: {topic}\" to A1 -> first retry 1 backoff 1s timeout 1s on_failure { note \"x\" }\n"
+                    + "  delegate \"Two: {topic}\" to A2 -> second retry 1 backoff 1s timeout 1s on_failure { note \"x\" }\n}\n";
+
+    JsonNode report(String source, String... args) throws Exception {
+        out.reset();
+        List<String> all = new java.util.ArrayList<>(List.of("--format", "json"));
+        all.addAll(List.of(args));
+        run(source, all.toArray(new String[0]));
+        return new ObjectMapper().readTree(out.toString());
+    }
+
+    String fingerprintOf(JsonNode report, String rule) {
+        for (JsonNode f : report.get("findings"))
+            if (f.get("rule").asText().equals(rule)) return f.get("fingerprint").asText();
+        throw new AssertionError(rule + " not found in " + report.get("findings"));
+    }
+
+    @Test
+    void aFindingCanBeAcceptedByFingerprintAndThenLeavesTheOpenList() throws Exception {
+        String fp = fingerprintOf(report(SEARCH), "LR01");
+        out.reset();
+        assertThat(
+                        run(
+                                SEARCH,
+                                "--accept",
+                                fp,
+                                "--reason",
+                                "calls are idempotent upstream",
+                                "--until",
+                                "2099-01-01",
+                                "--by",
+                                "sri"))
+                .isZero();
+        String props = Files.readString(dir.resolve("review.properties"));
+        assertThat(props)
+                .contains("LR01.accept = finding " + fp)
+                .contains("\"calls are idempotent upstream\"")
+                .contains("until 2099-01-01")
+                .contains("by \"sri\"");
+        JsonNode after = report(SEARCH);
+        assertThat(after.get("findings")).noneMatch(f -> f.get("rule").asText().equals("LR01"));
+        assertThat(after.get("accepted")).hasSize(1);
+        assertThat(after.at("/accepted/0/reason").asText())
+                .isEqualTo("calls are idempotent upstream");
+        assertThat(after.at("/summary/accepted").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    void anAcceptedFindingStaysAcceptedWhenTheScriptIsEditedAboveIt() throws Exception {
+        String fp = fingerprintOf(report(SEARCH), "LR01");
+        run(SEARCH, "--accept", fp, "--reason", "fine");
+        String edited = "// a new comment\n\n" + SEARCH;
+        assertThat(report(edited).get("findings"))
+                .noneMatch(f -> f.get("rule").asText().equals("LR01"));
+    }
+
+    @Test
+    void acceptNeedsAReasonAndAFindingThatExists() throws Exception {
+        assertThat(run(SEARCH, "--accept", "LR01")).isEqualTo(2);
+        assertThat(err.toString()).contains("--accept needs --reason");
+        err.reset();
+        assertThat(run(SEARCH, "--accept", "0123456789abcdef", "--reason", "x")).isEqualTo(2);
+        assertThat(err.toString()).contains("no open finding has the fingerprint or rule");
+        assertThat(Files.exists(dir.resolve("review.properties"))).isFalse();
+    }
+
+    @Test
+    void acceptByRuleWithAThingScopeWritesTheNameOfTheThing() throws Exception {
+        assertThat(
+                        run(
+                                SEARCH,
+                                "--accept",
+                                "LR01",
+                                "--scope",
+                                "thing",
+                                "--reason",
+                                "agent is internal"))
+                .isZero();
+        assertThat(Files.readString(dir.resolve("review.properties")))
+                .contains("LR01.accept = on Main");
+        assertThat(report(SEARCH).get("findings"))
+                .noneMatch(f -> f.get("rule").asText().equals("LR01"));
+    }
+
+    @Test
+    void acceptingSeveralSeriousFindingsNeedsTheNumberTypedBack() throws Exception {
+        assertThat(run(TWO_SENDERS, "--accept", "LD02", "--reason", "journaled elsewhere"))
+                .isEqualTo(2);
+        assertThat(err.toString()).contains("accept 2 serious findings").contains("--confirm 2");
+        assertThat(Files.exists(dir.resolve("review.properties"))).isFalse();
+        err.reset();
+        assertThat(
+                        run(
+                                TWO_SENDERS,
+                                "--accept",
+                                "LD02",
+                                "--reason",
+                                "journaled elsewhere",
+                                "--confirm",
+                                "2"))
+                .isZero();
+        assertThat(
+                        Files.readAllLines(dir.resolve("review.properties")).stream()
+                                .filter(l -> l.startsWith("LD02.accept"))
+                                .count())
+                .isEqualTo(2);
+    }
+
+    @Test
+    void theLethalTrifectaIsNotAcceptedInThePropertiesFile() throws Exception {
+        assertThat(run(RISKY, "--accept", "LA01", "--reason", "we know")).isEqualTo(2);
+        assertThat(err.toString()).contains("trifecta: accepted");
+    }
+
+    @Test
+    void strictAcceptsCountsAcceptedFindingsAgainstFailOn() throws Exception {
+        run(TWO_SENDERS, "--accept", "LD02", "--reason", "journaled elsewhere", "--confirm", "2");
+        assertThat(run(TWO_SENDERS, "--fail-on", "high")).isZero();
+        assertThat(run(TWO_SENDERS, "--fail-on", "high", "--strict-accepts")).isEqualTo(1);
+    }
+
+    @Test
+    void aBaselineRecordsTodaysFindingsAndLaterReviewsCountOnlyNewOnes() throws Exception {
+        assertThat(run(SEARCH, "--baseline-write", "--baseline-note", "adopting review")).isZero();
+        assertThat(out.toString()).contains("findings recorded as known");
+        assertThat(Files.readString(dir.resolve("review.baseline.json")))
+                .contains("adopting review");
+        JsonNode after = report(SEARCH, "--fail-on", "low");
+        assertThat(after.get("findings")).noneMatch(f -> f.get("rule").asText().equals("LR01"));
+        assertThat(after.get("baselined")).anyMatch(f -> f.get("rule").asText().equals("LR01"));
+        assertThat(after.at("/summary/baselined").asInt()).isGreaterThanOrEqualTo(1);
+        // a new instance of the same rule is not hidden
+        String more =
+                SEARCH
+                        + "agent Second { model: \"m\"  system: \"You search too.\"  tools: [web_search] }\nworkflow Other(q2) { delegate \"Look: {q2}\" to Second -> out2\n note \"{out2}\" }\n";
+        assertThat(report(more).get("findings"))
+                .anyMatch(f -> f.get("rule").asText().equals("LR01"));
+    }
+
+    @Test
+    void seriousFindingsAreLeftOutOfABaselineUnlessAsked() throws Exception {
+        run(TWO_SENDERS, "--baseline-write");
+        assertThat(out.toString()).contains("serious findings").contains("--baseline-include-high");
+        assertThat(report(TWO_SENDERS).get("findings"))
+                .anyMatch(f -> f.get("rule").asText().equals("LD02"));
+        out.reset();
+        run(TWO_SENDERS, "--baseline-write", "--baseline-include-high");
+        assertThat(report(TWO_SENDERS).get("findings"))
+                .noneMatch(f -> f.get("rule").asText().equals("LD02"));
+    }
+
+    @Test
+    void pruneDropsBaselineEntriesWhoseProblemWasFixed() throws Exception {
+        run(SEARCH, "--baseline-write");
+        String fixed = SEARCH.replace("-> found", "-> found retry 2 backoff 1s timeout 5s");
+        out.reset();
+        assertThat(run(fixed, "--baseline-prune")).isZero();
+        assertThat(out.toString()).contains("Removed 1 entries");
+        assertThat(Files.readString(dir.resolve("review.baseline.json"))).doesNotContain("LR01");
+    }
+
+    @Test
+    void theNoiseReportListsRulesWithTheirCountsAndNamesTheOnesAcceptedEverywhere()
+            throws Exception {
+        String two =
+                SEARCH
+                        + "agent Second { model: \"m\"  system: \"You search too.\"  tools: [web_search] }\nworkflow Other(q2) { delegate \"Look: {q2}\" to Second -> out2\n note \"{out2}\" }\n";
+        assertThat(run(two, "--accept", "LR01", "--scope", "script", "--reason", "all internal"))
+                .isZero();
+        out.reset();
+        assertThat(run(two, "--noise-report")).isZero();
+        assertThat(out.toString())
+                .contains("LR01")
+                .contains("accepted")
+                .contains("nothing is sent anywhere");
+    }
+
     private com.fasterxml.jackson.databind.JsonNode json(String source, String... args)
             throws Exception {
         List<String> all = new java.util.ArrayList<>(List.of("--format", "json"));

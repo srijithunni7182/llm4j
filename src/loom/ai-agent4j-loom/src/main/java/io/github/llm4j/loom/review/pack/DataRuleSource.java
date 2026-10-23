@@ -94,6 +94,25 @@ public final class DataRuleSource implements FindingSource {
                 rule.references(),
                 Optional.empty(),
                 List.of(),
-                "pack " + rule.pack());
+                "pack " + rule.pack(),
+                anchor(e, base));
+    }
+
+    /**
+     * What the finding is about, by name where there is one: {@code agent:Replier}, or for a step
+     * its workflow, kind and ordinal among steps of that kind ({@code step:Main/delegate#2}), which
+     * does not change when something else is edited.
+     */
+    static String anchor(Entity e, FactBase base) {
+        if (!e.kind().equals("step")) return e.id();
+        Object workflow = e.get("workflow");
+        String wf = workflow instanceof Entity w ? String.valueOf(w.get("name")) : "";
+        Object kind = e.get("kind");
+        int ordinal = 0;
+        for (Entity other : base.entities("step")) {
+            if (other.get("workflow") == workflow && other.get("kind").equals(kind)) ordinal++;
+            if (other == e) break;
+        }
+        return "step:" + wf + "/" + kind + "#" + ordinal;
     }
 }

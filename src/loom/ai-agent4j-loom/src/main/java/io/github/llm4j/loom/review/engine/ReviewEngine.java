@@ -91,21 +91,31 @@ public final class ReviewEngine {
         List<Finding> merged = fold(new ArrayList<>(unique.values()));
         List<Finding> open = new ArrayList<>();
         List<Suppressed> setAside = new ArrayList<>();
+        List<Finding> baselined = new ArrayList<>();
         Set<Suppression> used = new HashSet<>();
         for (Finding f : merged) {
-            Suppression match = suppression(f, settings, used);
-            if (match == null) open.add(f);
-            else setAside.add(new Suppressed(f, match.place().toString(), match.reason()));
+            Suppression match = suppression(f, settings, used, notes);
+            if (match != null)
+                setAside.add(
+                        new Suppressed(
+                                f,
+                                match.place().toString(),
+                                match.reason(),
+                                match.until() == null ? "" : match.until().toString(),
+                                match.by(),
+                                match.at() == null ? "" : match.at().toString()));
+            else if (settings.baseline().contains(f.fingerprint())) baselined.add(f);
+            else open.add(f);
         }
         for (Suppression s : settings.suppressions()) {
             if (!s.hasReason()) open.add(noReason(s));
-            else if (!used.contains(s))
+            else if (!used.contains(s) && !s.expired(settings.today()))
                 notes.add(
                         new Note(
                                 Note.Kind.INFO,
                                 s.rule(),
                                 s.rule()
-                                        + ".suppress at "
+                                        + " entry for "
                                         + s.place()
                                         + " (review.properties line "
                                         + s.line()
@@ -114,6 +124,7 @@ public final class ReviewEngine {
         List<Finding> ranked = open;
         ranked.sort(RANK);
         setAside.sort(Comparator.comparing((Suppressed x) -> x.finding(), RANK));
+        baselined.sort(RANK);
         List<Lens> run = new ArrayList<>();
         List<Lens> off = new ArrayList<>();
         for (Lens l : Lens.values()) (settings.lensOn(l) ? run : off).add(l);
@@ -129,7 +140,7 @@ public final class ReviewEngine {
                                 "the cost estimate could not be made: " + e.getMessage()));
             }
         }
-        return new ReviewReport(input.file(), ranked, setAside, notes, run, off, cost);
+        return new ReviewReport(input.file(), ranked, setAside, notes, run, off, cost, baselined);
     }
 
     /**
@@ -167,9 +178,23 @@ public final class ReviewEngine {
      * The suppression that sets {@code f} aside, or null. One without a reason sets nothing aside.
      */
     private static Suppression suppression(
-            Finding f, ReviewSettings settings, Set<Suppression> used) {
+            Finding f, ReviewSettings settings, Set<Suppression> used, List<Note> notes) {
         for (Suppression s : settings.suppressions()) {
             if (!s.hasReason() || !s.matches(f)) continue;
+            if (s.expired(settings.today())) {
+                String note =
+                        s.rule()
+                                + " entry for "
+                                + s.place()
+                                + " expired on "
+                                + s.until()
+                                + " (review.properties line "
+                                + s.line()
+                                + "), so the finding is open again.";
+                if (notes.stream().noneMatch(n -> n.message().equals(note)))
+                    notes.add(new Note(Note.Kind.INFO, s.rule(), note));
+                continue;
+            }
             used.add(s);
             return s;
         }

@@ -121,7 +121,7 @@ class SuppressionTest {
                                         "review.properties", "LR05.suppress = \"just a reason\"\n"))
                 .isInstanceOf(InvalidSettingsException.class)
                 .hasMessageContaining("review.properties:1")
-                .hasMessageContaining("takes a place and a reason");
+                .hasMessageContaining("takes a scope and a reason");
     }
 
     @Test

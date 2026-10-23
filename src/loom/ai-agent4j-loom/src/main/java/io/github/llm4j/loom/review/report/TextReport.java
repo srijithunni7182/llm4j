@@ -61,6 +61,7 @@ public final class TextReport {
                         .append(Safe.line(x.finding().title()))
                         .append(" - ")
                         .append(Safe.line(x.reason()))
+                        .append(x.until().isEmpty() ? "" : " (until " + x.until() + ")")
                         .append('\n');
         }
         List<Note> notes = r.notes();
@@ -79,7 +80,7 @@ public final class TextReport {
     }
 
     static String counts(ReviewReport r) {
-        if (r.findings().isEmpty()) return "no open findings";
+        if (r.findings().isEmpty()) return "no open findings" + handled(r);
         return r.count(io.github.llm4j.loom.review.model.Severity.HIGH)
                 + " high  "
                 + r.count(io.github.llm4j.loom.review.model.Severity.MEDIUM)
@@ -88,7 +89,17 @@ public final class TextReport {
                 + " low"
                 + (r.count(io.github.llm4j.loom.review.model.Severity.INFO) > 0
                         ? "  " + r.count(io.github.llm4j.loom.review.model.Severity.INFO) + " info"
-                        : "");
+                        : "")
+                + handled(r);
+    }
+
+    /** " (3 accepted, 2 baselined)" when anything has been set aside, so it is never invisible. */
+    static String handled(ReviewReport r) {
+        if (r.suppressed().isEmpty() && r.baselined().isEmpty()) return "";
+        java.util.List<String> parts = new java.util.ArrayList<>();
+        if (!r.suppressed().isEmpty()) parts.add(r.suppressed().size() + " accepted");
+        if (!r.baselined().isEmpty()) parts.add(r.baselined().size() + " baselined");
+        return "  (" + String.join(", ", parts) + ")";
     }
 
     static String lenses(ReviewReport r) {
