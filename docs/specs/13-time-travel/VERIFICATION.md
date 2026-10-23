@@ -50,12 +50,12 @@ Status: **13a and 13b done**. Run top to bottom at the end of sub-phase 13f; the
 | R25 | `WhatIfTest`, `WhatIfCommandTest` (the run directory's hash is the same before and after; nothing in it is written) | ✅ 13b |
 | R26 | `WhatIfTest` (a recorded answer is reused only when agent, model, prompts and task text are the same; a change that flows into a question stops the candidate with `needs a model` and why; `scripted` reuses nothing) | ✅ 13b |
 | R27 | `WhatIfTest` (first difference with the values that changed, steps only in one trajectory, result, effects with a new one marked unsafe) | ✅ 13b (cost deltas come with the estimator in 13c) |
-| R28 | `WhatIfCandidateScriptTest` | ⬜ 13c |
-| R29 | `WhatIfPromptVersionTest` | ⬜ 13c |
-| R30 | `WhatIfLiveCapTest` | ⬜ 13c |
+| R28 | `WhatIfCandidateTest.anEditedScriptRunsForwardAndTheTwoHashesDiffer`, `WhatIfCommandTest.anEditedScriptAndLive...` | ✅ 13c |
+| R29 | `WhatIfCandidateTest.aChangedPromptMeans...`, `aChangedModelIsNot...`, `aVersionOfAPromptFile...`, `WhatIfCommandTest.aPromptFileAndAModel...` | ✅ 13c |
+| R30 | `WhatIfCandidateTest.liveModelsAnswer...`, `liveModelsAreNotCalledWhere...`, `theSpendCapStops...`, `WhatIfCommandTest` (cap, --yes, --prices refusals) | ✅ 13c |
 | R31 | `WhatIfCommandTest` (effects are never performed: `--effects real` is refused with the reason) | ✅ 13b |
 | R32 | `WhatIfCommandTest.theCandidateCanBeSavedAndExplainedWithWhy`, `aSavedCandidateWithASetVariableExplainsItselfWithThatValue` | ✅ 13b |
-| R33 | `WhatIfCommandTest.aChangedScriptIsRefused`, `DivergenceTest` (a diverged candidate says so) | 🟨 13b (the `--script old.loom` offer arrives with candidate scripts in 13c) |
+| R33 | `WhatIfCommandTest.aChangedScriptIsRefused`, `DivergenceTest` (a diverged candidate says so) | 🟨 13b/13c (candidate scripts exist; the explicit "run it against the old script" offer is not built) |
 | R34 | `OverlayCountsTest` | ⬜ 13d |
 | R35 | `OverlayAggregateTest` | ⬜ 13d |
 | R36 | `OverlayMermaidTest` | ⬜ 13d |

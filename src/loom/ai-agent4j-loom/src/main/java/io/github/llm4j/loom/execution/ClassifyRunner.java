@@ -74,7 +74,7 @@ final class ClassifyRunner {
                                         "classify",
                                         def.getName(),
                                         String.valueOf(before.state()),
-                                        String.valueOf(def.getModel())),
+                                        String.valueOf(ModelNames.real(def.getModel()))),
                                 true);
             } catch (StepFailure ignored) {
                 // a recorded failure of the request itself has no question to report
@@ -112,7 +112,7 @@ final class ClassifyRunner {
                                             "classify",
                                             def.getName(),
                                             String.valueOf(request.state()),
-                                            String.valueOf(def.getModel())),
+                                            String.valueOf(ModelNames.real(def.getModel()))),
                                     false);
             if (known instanceof Map<?, ?> given) {
                 Map<String, Object> copy = new LinkedHashMap<>();

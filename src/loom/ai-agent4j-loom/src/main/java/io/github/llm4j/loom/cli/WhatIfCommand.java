@@ -2,6 +2,7 @@ package io.github.llm4j.loom.cli;
 
 import io.github.llm4j.loom.explain.Why;
 import io.github.llm4j.loom.runtime.FileRunJournal;
+import io.github.llm4j.loom.travel.ObserveReplay;
 import io.github.llm4j.loom.travel.ScriptHash;
 import io.github.llm4j.loom.whatif.WhatIf;
 import io.github.llm4j.loom.whatif.WhatIfRenderer;
@@ -70,9 +71,38 @@ final class WhatIfCommand implements Callable<Integer> {
     @Option(
             names = "--models",
             description =
-                    "recorded (default: reuse a recorded answer where its question is unchanged) or scripted (only the answers given).",
+                    "recorded (default: reuse a recorded answer where its question is unchanged), scripted (only the answers given) or live (ask the real models where there is no recorded answer, under --max-cost or --max-tokens; every tool, task and person is still simulated).",
             defaultValue = "recorded")
     String models;
+
+    @Option(
+            names = "--script",
+            description =
+                    "A candidate script to run forward instead of the one that ran (an edited copy).")
+    File candidateScript;
+
+    @Option(
+            names = "--prompt",
+            description =
+                    "An agent's prompt in the candidate: Agent=@v2 (another version of its prompt file) or Agent=file (the text of a file) (repeatable).")
+    Map<String, String> prompts = new LinkedHashMap<>();
+
+    @Option(
+            names = "--model",
+            description = "An agent's model in the candidate: Agent=model-id (repeatable).")
+    Map<String, String> modelEdits = new LinkedHashMap<>();
+
+    @Option(names = "--max-cost", description = "With --models live: the most it may cost.")
+    java.math.BigDecimal maxCost;
+
+    @Option(names = "--max-tokens", description = "With --models live: the most tokens it may use.")
+    Long maxTokens;
+
+    @Option(names = "--prices", description = "The price table for --max-cost.")
+    File prices;
+
+    @Option(names = "--yes", description = "With --models live: go ahead and spend, up to the cap.")
+    boolean yes;
 
     @Option(
             names = "--effects",
@@ -107,10 +137,68 @@ final class WhatIfCommand implements Callable<Integer> {
                             "Error: weave whatif never performs effects: nothing is sent or written. --effects takes simulate.");
             return 2;
         }
+        if (!List.of("recorded", "scripted", "live").contains(c.models)) {
+            env.err().println("Error: --models takes recorded, scripted or live.");
+            return 2;
+        }
+        ObserveReplay.Live live = null;
         if (c.models.equals("live")) {
+            if (c.maxCost == null && c.maxTokens == null) {
+                env.err()
+                        .println(
+                                "Error: --models live spends money: give --max-cost (with --prices) or --max-tokens.");
+                return 2;
+            }
+            if (!c.yes) {
+                env.err()
+                        .println(
+                                "Error: --models live may spend up to "
+                                        + (c.maxCost != null ? c.maxCost + " " : "")
+                                        + (c.maxTokens != null ? c.maxTokens + " tokens " : "")
+                                        + "calling real models (tools, tasks and people stay simulated). Add --yes to go ahead.");
+                return 2;
+            }
+            try {
+                live =
+                        new ObserveReplay.Live(
+                                env.models(),
+                                c.maxTokens,
+                                c.maxCost,
+                                c.prices == null
+                                        ? null
+                                        : io.github.llm4j.budget.PriceTable.load(c.prices.toPath()),
+                                env.env());
+            } catch (Exception e) {
+                env.err().println("Error: cannot read the prices: " + e.getMessage());
+                return 2;
+            }
+            if (c.maxCost != null && c.prices == null) {
+                env.err().println("Error: --max-cost needs --prices to turn tokens into money.");
+                return 2;
+            }
+        }
+        Map<String, String> promptEdits = new LinkedHashMap<>();
+        for (Map.Entry<String, String> p : c.prompts.entrySet()) {
+            if (p.getValue().startsWith("@")) {
+                promptEdits.put(p.getKey(), p.getValue());
+                continue;
+            }
+            try {
+                promptEdits.put(p.getKey(), Files.readString(Path.of(p.getValue())));
+            } catch (java.io.IOException e) {
+                env.err()
+                        .println(
+                                "Error: --prompt "
+                                        + p.getKey()
+                                        + "= takes @vN or a file; cannot read "
+                                        + p.getValue()
+                                        + ".");
+                return 2;
+            }
+        }
+        if (c.candidateScript != null && !c.candidateScript.isFile()) {
             env.err()
-                    .println(
-                            "Error: live models need a spend cap and a candidate script; they come later. Use --models recorded or scripted.");
+                    .println("Error: the candidate script " + c.candidateScript + " is not there.");
             return 2;
         }
         Path dir = c.store != null ? Runs.scheduledRunDir(c.store.toPath(), c.run) : Path.of(c.run);
@@ -171,7 +259,13 @@ final class WhatIfCommand implements Callable<Integer> {
                                     changes,
                                     c.models,
                                     c.until,
-                                    Set.of()));
+                                    Set.of(),
+                                    c.candidateScript == null
+                                            ? null
+                                            : c.candidateScript.toPath().toAbsolutePath(),
+                                    promptEdits,
+                                    c.modelEdits,
+                                    live));
         } catch (IllegalArgumentException e) {
             env.err().println("Error: " + e.getMessage());
             return 2;

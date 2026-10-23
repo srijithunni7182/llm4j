@@ -53,6 +53,12 @@ public final class WhatIfRenderer {
             if (c.times() > 1) x.put("times", c.times());
         }
         n.put("models", o.models());
+        ObjectNode scripts = n.putObject("scripts");
+        scripts.put("original", o.originalHash()).put("candidate", o.candidateHash());
+        if (o.models().equals("live"))
+            n.putObject("spend")
+                    .put("calls", o.candidate().calls())
+                    .put("tokens", o.candidate().tokens());
         n.put("originalStatus", o.original().status());
         n.put("candidateStatus", o.candidate().status());
         if (!o.candidate().reason().isBlank()) n.put("candidateReason", o.candidate().reason());
@@ -105,10 +111,19 @@ public final class WhatIfRenderer {
             out.append("  - ").append(safe(c.describe())).append('\n');
         out.append("  models: ")
                 .append(
-                        o.models().equals("recorded")
-                                ? "recorded answers are reused where the question is unchanged; nothing else is guessed"
-                                : "only the answers given above; nothing is guessed")
-                .append("\n\n");
+                        switch (o.models()) {
+                            case "recorded" -> "recorded answers are reused where the question is unchanged; nothing else is guessed";
+                            case "live" -> "recorded answers are reused where the question is unchanged; the rest are asked of the real models, under the cap";
+                            default -> "only the answers given above; nothing is guessed";
+                        })
+                .append('\n');
+        if (!o.originalHash().equals(o.candidateHash()))
+            out.append("  script: the candidate differs from the one that ran (")
+                    .append(o.originalHash(), 0, Math.min(8, o.originalHash().length()))
+                    .append(" → ")
+                    .append(o.candidateHash(), 0, Math.min(8, o.candidateHash().length()))
+                    .append(")\n");
+        out.append('\n');
         out.append("Original: ").append(o.original().status());
         if (o.originalResult() != null)
             out.append(", result ").append('"').append(shown(o.originalResult())).append('"');

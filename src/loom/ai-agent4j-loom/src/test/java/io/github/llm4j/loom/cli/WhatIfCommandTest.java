@@ -24,13 +24,20 @@ class WhatIfCommandTest {
     @TempDir Path dir;
 
     static WhyCommandTest.Out whatif(String... args) {
+        return whatifWith(
+                m -> {
+                    throw new IllegalStateException("weave whatif calls no model");
+                },
+                args);
+    }
+
+    static WhyCommandTest.Out whatifWith(
+            io.github.llm4j.loom.execution.LLMClientFactory models, String... args) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ByteArrayOutputStream err = new ByteArrayOutputStream();
         WeaveEnv env =
                 new WeaveEnv(
-                        m -> {
-                            throw new IllegalStateException("weave whatif calls no model");
-                        },
+                        models,
                         q -> {
                             throw new IllegalStateException("weave whatif asks no one");
                         },
@@ -164,12 +171,82 @@ class WhatIfCommandTest {
     }
 
     @Test
+    void anEditedScriptAndLiveModelsUnderACapRunForwardAndSayWhatTheySpent() throws Exception {
+        Path run = runDirOf("triage order status");
+        Path edited = dir.resolve("edited.loom");
+        Files.writeString(
+                edited,
+                Files.readString(dir.resolve("triage-order-status.loom"))
+                        .replace("\"reply\"", "\"reply politely\""));
+        var fake = new io.github.llm4j.loom.whatif.WhatIfCandidateTest.FakeModels();
+        var o =
+                whatifWith(
+                        fake,
+                        run.toString(),
+                        "--at",
+                        "8",
+                        "--script",
+                        edited.toString(),
+                        "--models",
+                        "live",
+                        "--max-tokens",
+                        "1000",
+                        "--yes");
+        assertThat(o.code()).isZero();
+        assertThat(o.out())
+                .contains("Candidate: completed")
+                .contains("result \"a live reply\"")
+                .contains("the candidate differs from the one that ran")
+                .contains("Live models made 1 calls (15 tokens)");
+        assertThat(fake.models).hasSize(1);
+        assertThat(fake.systems.get(0)).contains("reply politely");
+    }
+
+    @Test
+    void aPromptFileAndAModelForTheCandidateCostNothingUntilAModelIsNeeded() throws Exception {
+        Path run = runDirOf("triage order status");
+        Path prompt = dir.resolve("rhyme.md");
+        Files.writeString(prompt, "Reply in rhyme.");
+        var o =
+                whatif(
+                        run.toString(),
+                        "--at",
+                        "8",
+                        "--prompt",
+                        "Replier=" + prompt,
+                        "--model",
+                        "Replier=other");
+        assertThat(o.code()).isZero();
+        assertThat(o.out()).contains("Candidate: needs").contains("model or prompt changed");
+        assertThat(whatif(run.toString(), "--at", "8", "--prompt", "Replier=/nowhere.md").err())
+                .contains("cannot read");
+        assertThat(whatif(run.toString(), "--at", "8", "--script", "/nowhere.loom").err())
+                .contains("is not there");
+    }
+
+    @Test
     void realEffectsLiveModelsAndBadInputAreRefusedWithAReason() throws Exception {
         Path run = runDirOf("triage order status");
         assertThat(whatif(run.toString(), "--at", "8", "--effects", "real").err())
                 .contains("never performs effects");
         assertThat(whatif(run.toString(), "--at", "8", "--models", "live").err())
-                .contains("spend cap");
+                .contains("spends money");
+        assertThat(
+                        whatif(run.toString(), "--at", "8", "--models", "live", "--max-tokens", "9")
+                                .err())
+                .contains("Add --yes");
+        assertThat(
+                        whatif(
+                                        run.toString(),
+                                        "--at",
+                                        "8",
+                                        "--models",
+                                        "live",
+                                        "--max-cost",
+                                        "1",
+                                        "--yes")
+                                .err())
+                .contains("--prices");
         assertThat(whatif(run.toString(), "--at", "8", "--format", "xml").code()).isEqualTo(2);
         assertThat(whatif(run.toString(), "--at", "99").err()).contains("never ran in this run");
         assertThat(

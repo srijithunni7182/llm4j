@@ -50,12 +50,37 @@ public final class ObserveReplay {
      * @param maskedNames variables whose values are never shown
      */
     public record Options(
-            Path script, String workflow, Map<String, String> inputs, Set<String> maskedNames) {
+            Path script,
+            String workflow,
+            Map<String, String> inputs,
+            Set<String> maskedNames,
+            java.util.function.Consumer<LoomScript> edit) {
         public Options {
             inputs = inputs == null ? Map.of() : inputs;
             maskedNames = maskedNames == null ? Set.of() : maskedNames;
         }
+
+        public Options(
+                Path script, String workflow, Map<String, String> inputs, Set<String> maskedNames) {
+            this(script, workflow, inputs, maskedNames, null);
+        }
     }
+
+    /**
+     * Real models for the steps that need one, under a spend cap, with every effect simulated.
+     *
+     * @param models the models to call
+     * @param maxTokens the most tokens the replay may spend, or null
+     * @param maxCost the most it may cost, or null (needs {@code prices})
+     * @param prices the price table for {@code maxCost}, or null
+     * @param env how the models find their keys
+     */
+    public record Live(
+            io.github.llm4j.loom.execution.LLMClientFactory models,
+            Long maxTokens,
+            java.math.BigDecimal maxCost,
+            io.github.llm4j.budget.PriceTable prices,
+            java.util.function.Function<String, String> env) {}
 
     /** The marker, after a step id, of the variables a what-if set before that step. */
     public static final String SET = "#set";
@@ -73,7 +98,8 @@ public final class ObserveReplay {
             Map<String, Fail> failures,
             List<String> humans,
             Map<String, String> toolResults,
-            String until) {
+            String until,
+            Live live) {
         public Hooks {
             failures = failures == null ? Map.of() : failures;
             humans = humans == null ? List.of() : humans;
@@ -81,7 +107,7 @@ public final class ObserveReplay {
         }
 
         public static Hooks none() {
-            return new Hooks(null, null, null, null, null);
+            return new Hooks(null, null, null, null, null, null);
         }
     }
 
@@ -111,6 +137,8 @@ public final class ObserveReplay {
      * @param divergence set when the journal and the script disagree
      * @param journal the replay's own journal at the end: the one it was given, plus what it
      *     recorded (the original is untouched)
+     * @param calls the model calls a live replay made (0 for an observing one)
+     * @param tokens the tokens those calls used
      */
     /** A step starting ({@code decision} null), or a choice made inside one. */
     public record Event(String step, DecisionPoint decision) {}
@@ -125,7 +153,9 @@ public final class ObserveReplay {
             List<String> unvisited,
             Map<String, Object> variables,
             Divergence divergence,
-            Map<String, RunJournal.Entry> journal) {}
+            Map<String, RunJournal.Entry> journal,
+            long calls,
+            long tokens) {}
 
     public static Result run(Options options, RunJournal original) throws java.io.IOException {
         return run(options, original, Hooks.none());
@@ -134,22 +164,30 @@ public final class ObserveReplay {
     public static Result run(Options options, RunJournal original, Hooks hooks)
             throws java.io.IOException {
         LoomScript script = new LoomLoader().load(options.script().toString());
-        for (AgentDef a : script.getAgents())
-            a.setModel(ObservedCollaborators.PREFIX + a.getName());
-        for (IntentClassifierDef k : script.getIntentClassifiers())
-            k.setModel(ObservedCollaborators.PREFIX + k.getName(), k.getModelLine());
+        if (options.edit() != null) options.edit().accept(script);
+        boolean live = hooks.live() != null;
+        if (!live) {
+            for (AgentDef a : script.getAgents())
+                a.setModel(ObservedCollaborators.PREFIX + a.getName() + ":" + a.getModel());
+            for (IntentClassifierDef k : script.getIntentClassifiers())
+                k.setModel(
+                        ObservedCollaborators.PREFIX + k.getName() + ":" + k.getModel(),
+                        k.getModelLine());
+        }
         ToolRegistry tools = new ToolRegistry();
         Map<String, ToolDef> declared = new LinkedHashMap<>();
         for (ToolDef t : script.getTools()) declared.put(t.getName(), t);
         Set<String> toolNames = new LinkedHashSet<>(declared.keySet());
         for (AgentDef a : script.getAgents()) toolNames.addAll(a.getTools());
         ObservedCollaborators.Failing failing = new ObservedCollaborators.Failing(hooks.failures());
-        for (String name : toolNames)
-            tools.register(
-                    name,
-                    ObservedCollaborators.tool(
-                            name, declared.get(name), hooks.toolResults(), failing));
-        script.getTools().clear();
+        if (!live) {
+            for (String name : toolNames)
+                tools.register(
+                        name,
+                        ObservedCollaborators.tool(
+                                name, declared.get(name), hooks.toolResults(), failing));
+            script.getTools().clear();
+        }
         TaskRegistry tasks = new TaskRegistry();
         Set<String> taskNames = new LinkedHashSet<>();
         for (WorkflowDef w : script.getWorkflows())
@@ -177,8 +215,28 @@ public final class ObserveReplay {
         List<DecisionPoint> decisions = new ArrayList<>();
         List<Event> timeline = new ArrayList<>();
         HarnessExecutor executor =
-                new HarnessExecutor(script, tools, ObservedCollaborators.models(failing));
-        executor.setClassifierFactory(ObservedCollaborators.classifiers(failing));
+                new HarnessExecutor(
+                        script,
+                        tools,
+                        live ? hooks.live().models() : ObservedCollaborators.models(failing));
+        if (!live) executor.setClassifierFactory(ObservedCollaborators.classifiers(failing));
+        long[] spent = {0, 0};
+        if (live) {
+            executor.setSimulate(true);
+            executor.setBudgetOverrides(hooks.live().maxTokens(), null, hooks.live().maxCost());
+            if (hooks.live().prices() != null) executor.setPriceTable(hooks.live().prices());
+            executor.addTraceListener(
+                    e -> {
+                        if (!io.github.llm4j.loom.execution.TraceEvent.MODEL_CALL.equals(e.type()))
+                            return;
+                        synchronized (spent) {
+                            spent[0]++;
+                            spent[1] +=
+                                    number(e.data(), "prompt_tokens")
+                                            + number(e.data(), "completion_tokens");
+                        }
+                    });
+        }
         executor.setTaskRegistry(tasks);
         executor.setHumanInterface(
                 hooks.humans().isEmpty()
@@ -191,7 +249,7 @@ public final class ObserveReplay {
         executor.setClock(clock);
         executor.setSleeper(clock);
         executor.setBaseDir(options.script().toAbsolutePath().getParent());
-        executor.setEnvLookup(k -> null);
+        executor.setEnvLookup(live ? hooks.live().env() : k -> null);
         executor.setPromptCatalog(
                 io.github.llm4j.loom.prompt.PromptSupport.catalog(script, options.script(), null));
         executor.setStepListener(
@@ -238,6 +296,9 @@ public final class ObserveReplay {
                 status = "needs";
                 reason = stop.what();
             }
+        } catch (io.github.llm4j.budget.BudgetExceeded b) {
+            status = "budget";
+            reason = String.valueOf(b.getMessage());
         } catch (RunSuspended s) {
             status = "suspended";
             reason = s.prompt() == null ? String.valueOf(s.reason()).toLowerCase() : s.prompt();
@@ -290,7 +351,9 @@ public final class ObserveReplay {
                 unvisited,
                 variables,
                 divergence,
-                new LinkedHashMap<>(copy.all()));
+                new LinkedHashMap<>(copy.all()),
+                spent[0],
+                spent[1]);
     }
 
     private static final java.util.regex.Pattern BRANCH =
@@ -304,6 +367,10 @@ public final class ObserveReplay {
         if (started.contains(key)) return true;
         var m = BRANCH.matcher(key);
         return m.matches() && started.contains(m.group(1));
+    }
+
+    private static long number(Map<String, Object> data, String key) {
+        return data != null && data.get(key) instanceof Number n ? n.longValue() : 0;
     }
 
     private static String failureText(Object value) {

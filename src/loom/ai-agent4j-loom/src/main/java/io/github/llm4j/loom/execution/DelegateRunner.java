@@ -749,7 +749,7 @@ final class DelegateRunner {
 
     /** The model and prompts an agent is asked with, as one string. */
     private static String configOf(AgentDef agent) {
-        return agent.getModel()
+        return ModelNames.real(agent.getModel())
                 + "|"
                 + agent.getSystemPrompt()
                 + "|"

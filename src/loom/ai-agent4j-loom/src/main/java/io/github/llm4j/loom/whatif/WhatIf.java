@@ -74,7 +74,31 @@ public final class WhatIf {
             List<Change> changes,
             String models,
             String until,
-            Set<String> masked) {}
+            Set<String> masked,
+            Path candidateScript,
+            Map<String, String> prompts,
+            Map<String, String> modelEdits,
+            ObserveReplay.Live live) {
+        public Request {
+            prompts = prompts == null ? Map.of() : prompts;
+            modelEdits = modelEdits == null ? Map.of() : modelEdits;
+        }
+
+        public Request(
+                Path script,
+                String workflow,
+                Map<String, String> inputs,
+                RunJournal journal,
+                Why.Selector at,
+                List<Change> changes,
+                String models,
+                String until,
+                Set<String> masked) {
+            this(
+                    script, workflow, inputs, journal, at, changes, models, until, masked, null,
+                    null, null, null);
+        }
+    }
 
     /** A question the candidate could not answer, and why it was left. */
     public record Need(String step, String statement, String what, String because) {}
@@ -99,14 +123,25 @@ public final class WhatIf {
             Object candidateResult,
             Need need,
             EffectDelta effects,
-            List<String> notes) {}
+            List<String> notes,
+            String originalHash,
+            String candidateHash) {}
 
     public static Outcome run(Request r) throws IOException {
-        if (!List.of("recorded", "scripted").contains(r.models()))
+        if (!List.of("recorded", "scripted", "live").contains(r.models()))
+            throw new IllegalArgumentException("--models takes recorded, scripted or live.");
+        if (r.models().equals("live") && r.live() == null)
             throw new IllegalArgumentException(
-                    "--models takes recorded or scripted here (live models need a spend cap and come with a candidate script).");
+                    "--models live needs models to call and a spend cap.");
         ObserveReplay.Options options =
                 new ObserveReplay.Options(r.script(), r.workflow(), r.inputs(), r.masked());
+        ObserveReplay.Options candidateOptions =
+                new ObserveReplay.Options(
+                        r.candidateScript() != null ? r.candidateScript() : r.script(),
+                        r.workflow(),
+                        r.inputs(),
+                        r.masked(),
+                        edits(r));
 
         // 1. the run as it was, and what each of its steps asked
         Map<String, Ask> originalAsks = new LinkedHashMap<>();
@@ -119,6 +154,7 @@ public final class WhatIf {
                                     if (recorded) originalAsks.put(ask.step(), ask);
                                     return null;
                                 },
+                                null,
                                 null,
                                 null,
                                 null,
@@ -180,7 +216,8 @@ public final class WhatIf {
 
         // 4. forward
         Map<String, String> because = new LinkedHashMap<>();
-        boolean recordedModels = r.models().equals("recorded");
+        boolean recordedModels = !r.models().equals("scripted");
+        boolean liveModels = r.models().equals("live");
         AskHook hook =
                 (ask, recorded) -> {
                     if (recorded) return null;
@@ -200,12 +237,29 @@ public final class WhatIf {
                 };
         ObserveReplay.Result candidate =
                 ObserveReplay.run(
-                        options,
+                        candidateOptions,
                         overlay,
-                        new ObserveReplay.Hooks(hook, failures, humans, tools, r.until()));
+                        new ObserveReplay.Hooks(
+                                hook,
+                                failures,
+                                humans,
+                                tools,
+                                r.until(),
+                                liveModels ? r.live() : null));
 
         // 5. what differs
-        TrajectoryDiff.Diff diff = TrajectoryDiff.between(original, candidate, at, label);
+        Function<String, String> candidateLabel =
+                r.candidateScript() == null ? label : Why.labels(r.candidateScript());
+        Set<String> originalSteps = new LinkedHashSet<>(original.steps());
+        TrajectoryDiff.Diff diff =
+                TrajectoryDiff.between(
+                        original,
+                        candidate,
+                        at,
+                        step ->
+                                originalSteps.contains(step)
+                                        ? label.apply(step)
+                                        : candidateLabel.apply(step));
         Need need = null;
         if (candidate.status().equals("needs")) {
             String step = candidate.stoppedAt();
@@ -231,7 +285,27 @@ public final class WhatIf {
                         "The run never set "
                                 + c.target()
                                 + ", so this adds a variable the script did not have.");
-        EffectDelta effects = effects(script, original, candidate, at, label);
+        if (candidate.status().equals("budget"))
+            notes.add(
+                    "The live run stopped at its spend cap after "
+                            + candidate.calls()
+                            + " model calls ("
+                            + candidate.tokens()
+                            + " tokens): "
+                            + candidate.reason()
+                            + ".");
+        else if (liveModels)
+            notes.add(
+                    "Live models made "
+                            + candidate.calls()
+                            + " calls ("
+                            + candidate.tokens()
+                            + " tokens); every tool, task and person was simulated.");
+        LoomScript candidateScript =
+                r.candidateScript() == null
+                        ? script
+                        : new LoomLoader().load(r.candidateScript().toString());
+        EffectDelta effects = effects(script, candidateScript, original, candidate, at, label);
         return new Outcome(
                 at,
                 label.apply(at),
@@ -244,7 +318,51 @@ public final class WhatIf {
                 candidate.variables().get("result"),
                 need,
                 effects,
-                notes);
+                notes,
+                io.github.llm4j.loom.travel.ScriptHash.of(r.script()),
+                io.github.llm4j.loom.travel.ScriptHash.of(
+                        r.candidateScript() != null ? r.candidateScript() : r.script()));
+    }
+
+    /** Prompt and model edits as a change to the loaded candidate script. */
+    private static java.util.function.Consumer<LoomScript> edits(Request r) {
+        if (r.prompts().isEmpty() && r.modelEdits().isEmpty()) return null;
+        return script -> {
+            for (Map.Entry<String, String> e : r.prompts().entrySet()) {
+                AgentDef a = agent(script, e.getKey(), "--prompt");
+                String v = e.getValue();
+                String ref = a.getPromptRef();
+                if (v.startsWith("@")) {
+                    if (ref == null)
+                        throw new IllegalArgumentException(
+                                "--prompt "
+                                        + a.getName()
+                                        + "="
+                                        + v
+                                        + ": this agent has no prompt: file to take a version of.");
+                    a.setPrompt(io.github.llm4j.loom.prompt.PromptRef.parse(ref).id() + v);
+                } else {
+                    a.setPrompt(null);
+                    a.setSystemTemplate(null);
+                    a.setSystemPrompt(v);
+                }
+            }
+            for (Map.Entry<String, String> e : r.modelEdits().entrySet())
+                agent(script, e.getKey(), "--model").setModel(e.getValue());
+        };
+    }
+
+    private static AgentDef agent(LoomScript script, String name, String flag) {
+        return script.getAgents().stream()
+                .filter(a -> a.getName().equals(name))
+                .findFirst()
+                .orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        flag
+                                                + " names "
+                                                + name
+                                                + ", which is not an agent of this script."));
     }
 
     private static String describe(Why.Selector s) {
@@ -374,14 +492,17 @@ public final class WhatIf {
 
     private static EffectDelta effects(
             LoomScript script,
+            LoomScript candidateScript,
             ObserveReplay.Result original,
             ObserveReplay.Result candidate,
             String at,
             Function<String, String> label) {
         Map<String, ToolDef> tools = new LinkedHashMap<>();
         script.getTools().forEach(t -> tools.put(t.getName(), t));
+        Map<String, ToolDef> candidateTools = new LinkedHashMap<>();
+        candidateScript.getTools().forEach(t -> candidateTools.put(t.getName(), t));
         List<Effect> a = effectsOf(script, tools, original, at, label);
-        List<Effect> b = effectsOf(script, tools, candidate, at, label);
+        List<Effect> b = effectsOf(candidateScript, candidateTools, candidate, at, label);
         Set<String> inA = new LinkedHashSet<>();
         Set<String> inB = new LinkedHashSet<>();
         a.forEach(e -> inA.add(e.step() + "|" + e.via()));

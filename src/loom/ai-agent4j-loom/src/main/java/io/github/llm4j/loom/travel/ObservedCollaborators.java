@@ -234,6 +234,6 @@ final class ObservedCollaborators {
     }
 
     static String name(String model) {
-        return model.startsWith(PREFIX) ? model.substring(PREFIX.length()) : model;
+        return io.github.llm4j.loom.execution.ModelNames.agentOf(model);
     }
 }
