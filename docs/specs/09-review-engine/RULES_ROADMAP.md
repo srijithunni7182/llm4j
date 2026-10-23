@@ -65,10 +65,10 @@ Fixes now exist for LR01, LR03, LR08, LY02, LM01 (safe) and LR02 (needs judgemen
 | Rule | Mechanism | Needs |
 |---|---|---|
 | time estimate (R35), effects estimate (R36) | estimator extension | the same walk as cost; step latency assumptions (`assume.latency.*`), human waits shown apart |
-| LC08 | Java | data-independence analysis over the graph (neither step reads what the other binds, no effect ordering) and the time estimate for the saving |
-| LC09, LC10 | data over the time estimate | `workflow.timeWorstSeconds`, `workflow.interactive` (declared) |
-| LR10 | Java | per-span cost from the estimator |
-| LT01 to LT07 | data over new inputs | `ReviewInput` reads test files and the coverage report; staleness note (R34) |
+| LC08 ✅ 9g | data over a Java fact | data-independence analysis over the graph (neither step reads what the other binds, no effect ordering) and the time estimate for the saving |
+| LC09, LC10 ✅ 9g | Java over the time estimate | `workflow.timeWorstSeconds`, `workflow.interactive` (declared) |
+| LR10 ✅ 9g | data over two Java facts | `loopBodyHasEffects`, `checkpointBefore` (the cost estimate is not needed) |
+| LT01, LT02, LT04, LT05, LT06, LT07 ✅ 9g; LT03 open (O14) | Java source reading test files (not data: it reads files beside the script) | `ReviewInput` reads test files and the coverage report; staleness note (R34) |
 
 ### 9h: the four optional lenses
 

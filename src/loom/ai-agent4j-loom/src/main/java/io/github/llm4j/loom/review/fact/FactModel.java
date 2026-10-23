@@ -95,6 +95,18 @@ public final class FactModel {
                 .bool(
                         "writesSameVariableAsSibling",
                         "A parallel round whose branches bind the same variable name")
+                .bool(
+                        "loopBodyHasEffects",
+                        "A loop whose body calls an agent that can write or send")
+                .bool(
+                        "checkpointBefore",
+                        "A checkpoint comes earlier in the workflow, or at the start of the loop body")
+                .bool(
+                        "parallelizableWithPrevious",
+                        "A delegate that neither reads the answer of the delegate just before it nor acts on the world, so the two could run side by side")
+                .number(
+                        "parallelSavingSeconds",
+                        "Seconds saved by running it beside the step before it (the shorter of the two)")
                 .done();
         m.entity("agent", "One agent")
                 .string("name", "The agent's name")

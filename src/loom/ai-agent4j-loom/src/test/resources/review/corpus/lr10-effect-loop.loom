@@ -1,0 +1,7 @@
+tool Mail { use: webhook  url: env.HOOK_URL }
+agent Sender { model: "m"  system: "s"  tools: [Mail] }
+workflow Main(q) {
+  loop until (done == "yes") max 8 { delegate "send {q}" to Sender -> done } // <- LR10
+  note "{done}"
+}
+// ignore: LR01 LR02 LR07 LC02 LP02 LP05

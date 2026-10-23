@@ -206,3 +206,27 @@
   examples:
     fires: [ examples/lr09-fires.loom ]
     quiet: [ examples/lr09-quiet-distinct.loom ]
+
+- id: LR10
+  lens: reliability
+  severity: info
+  about: step
+  when:
+    all:
+      - { field: kind, is: loop }
+      - { field: loopBodyHasEffects, is: true }
+      - { field: checkpointBefore, is: false }
+      - any:
+          - { field: hasMax, is: false }
+          - { field: loopMax, gte: 5 }
+  title: "{label} repeats work that writes or sends, and no checkpoint comes before it"
+  why: "A rewind can only go back to a checkpoint. With none before a long loop that acts on the world, the only point to go back to is the start of the workflow, before everything the loop already did."
+  fixHint: "Put a checkpoint before the loop, so a rewind can return to just before it."
+  since: "1.6.0"
+  explain: >
+    Checkpoints name the places a rewind can return to. A loop that writes or sends and may turn
+    five times or more, or has no maximum, is the kind of work where going back to just before it is
+    useful. This is advice, so it is INFO.
+  examples:
+    fires: [ examples/lr10-fires.loom ]
+    quiet: [ examples/lr10-quiet-checkpoint.loom, examples/lr10-quiet-short.loom ]

@@ -64,9 +64,12 @@ class FindingModelTest {
     }
 
     @Test
-    void nineLensesAreOnByDefaultAndFourAreOptional() {
+    void eightLensesAreOnByDefaultAndFiveAreOptional() {
+        // R33 says nine and four; testability is optional until `weave test` exists (OPEN_ITEMS
+        // O14)
         long optional = java.util.Arrays.stream(Lens.values()).filter(Lens::optional).count();
-        assertThat(optional).isEqualTo(4);
+        assertThat(optional).isEqualTo(5);
+        assertThat(Lens.TESTABILITY.optional()).isTrue();
         assertThat(Lens.values()).hasSize(13);
         assertThat(Lens.parse("Blast_Radius")).contains(Lens.BLAST_RADIUS);
         assertThat(Lens.parse("nonsense")).isEmpty();

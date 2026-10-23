@@ -17,6 +17,7 @@ import io.github.llm4j.loom.review.pack.PackCatalog;
 import io.github.llm4j.loom.review.pack.PackLoader;
 import io.github.llm4j.loom.review.pack.PackSet;
 import io.github.llm4j.loom.review.settings.ReviewSettings;
+import io.github.llm4j.loom.review.testing.TestabilityRules;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -77,6 +78,7 @@ public final class Reviews {
     public static ReviewEngine engine(
             PackSet packs, List<ReviewRule> javaRules, CostEstimator estimator) {
         List<FindingSource> all = new ArrayList<>(sources(packs));
+        all.add(new TestabilityRules());
         if (estimator != null) all.add(new CostRules(estimator));
         all.addAll(javaRules);
         return new ReviewEngine(all, OVERLAPS, estimator);
@@ -109,7 +111,8 @@ public final class Reviews {
                 new RuleCatalog()
                         .addAll(AuditCatalog.rules())
                         .addAll(ValidityCatalog.rules())
-                        .addAll(CostRules.catalog());
+                        .addAll(CostRules.catalog())
+                        .addAll(TestabilityRules.catalog());
         for (Pack p : packs.packs()) c.addAll(PackCatalog.rules(p));
         for (ReviewRule r : javaRules) c.addAll(r.rules());
         return c;

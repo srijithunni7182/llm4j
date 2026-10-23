@@ -106,7 +106,7 @@ class ReviewEngineTest {
                                 f("LR01", Lens.RELIABILITY, Severity.LOW, 1, "r")));
         assertThat(r.findings()).extracting(Finding::rule).containsExactly("LR01");
         assertThat(r.lensesOff()).contains(Lens.GOVERNANCE);
-        assertThat(r.lensesRun()).hasSize(9);
+        assertThat(r.lensesRun()).hasSize(8);
     }
 
     @Test

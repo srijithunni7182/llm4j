@@ -16,3 +16,5 @@ One place for everything deliberately left out so far, to revisit later. Update 
 | O10 | Fabric attributes (R55), skills text (R56), rule docs generated from packs (R69), `weave rules diff` / semver policy (R74) | Planned sub-phases 9h and 9i | DESIGN.md §12 | 9h, 9i |
 | O11 | Editor-side review (10c) | Phase 10; needs your manual VS Code check | phase plan | phase 10 |
 | O12 | Mockup artifact still shows LA05 where the id is LA01 | Cosmetic | — | any time |
+| O13 | `RunUnchangedWithNoticeTest` failed once in a loaded full build (the advisory notice is dropped when the review exceeds its cap) | Timing-sensitive; passes alone | VERIFICATION.md 9g | make the cap injectable in the test |
+| O14 | Testability: LT03 (needs the coverage report), and switching the lens to default-on (R33) once `weave test` exists; reading `--calibrate` time; an option for LC08 (wrap in `parallel { }`) | Depends on phase 11 | VERIFICATION.md 9g | phase 11 |

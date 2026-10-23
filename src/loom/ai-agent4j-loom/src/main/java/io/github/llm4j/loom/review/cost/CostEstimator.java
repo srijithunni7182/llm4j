@@ -75,7 +75,21 @@ public final class CostEstimator {
         LoomScript script = input.script();
         Context ctx = new Context(script, input, assume);
         List<WorkflowCost> out = new ArrayList<>();
-        for (WorkflowDef w : script.getWorkflows()) out.add(ctx.workflow(w));
+        Map<String, RunProfile.Profile> profiles = RunProfile.of(input, settings);
+        for (WorkflowDef w : script.getWorkflows()) {
+            WorkflowCost c = ctx.workflow(w);
+            RunProfile.Profile p = profiles.get(w.getName());
+            out.add(
+                    new WorkflowCost(
+                            c.name(),
+                            c.typical(),
+                            c.worst(),
+                            c.unbounded(),
+                            c.steps(),
+                            c.notes(),
+                            p == null ? null : p.time(),
+                            p == null ? null : p.effects()));
+        }
         var budget = script.getBudget();
         return new CostEstimate(
                 out,

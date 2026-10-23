@@ -20,10 +20,12 @@ class ReviewSettingsTest {
     @TempDir Path dir;
 
     @Test
-    void nothingDeclaredMeansNineLensesAdvisoryAndNoHeuristics() {
+    void nothingDeclaredMeansEightLensesAdvisoryAndNoHeuristics() {
         ReviewSettings s = ReviewSettings.defaults();
         assertThat(s.failOn()).isEmpty();
-        assertThat(s.lenses()).hasSize(9).doesNotContain(Lens.GOVERNANCE, Lens.BLAST_RADIUS);
+        assertThat(s.lenses())
+                .hasSize(8)
+                .doesNotContain(Lens.GOVERNANCE, Lens.BLAST_RADIUS, Lens.TESTABILITY);
         assertThat(s.heuristics()).isFalse();
         assertThat(s.rule("LR01").enabled()).isNull();
     }

@@ -1,6 +1,8 @@
 package io.github.llm4j.loom.review.report;
 
 import io.github.llm4j.loom.review.cost.CostEstimate;
+import io.github.llm4j.loom.review.cost.EffectsEstimate;
+import io.github.llm4j.loom.review.cost.TimeEstimate;
 import io.github.llm4j.loom.review.cost.Usage;
 import io.github.llm4j.loom.review.cost.WorkflowCost;
 import java.math.BigDecimal;
@@ -20,9 +22,63 @@ final class CostText {
         for (WorkflowCost w : c.workflows()) {
             if (w.typical().isEmpty() && w.worst().isEmpty() && !w.unbounded()) continue;
             out.add(w.name() + ": typical " + typical(c, w) + "   worst case " + worst(c, w));
+            String more = timeAndEffects(w);
+            if (!more.isEmpty()) out.add("  " + w.name() + ": " + more);
         }
         if (out.isEmpty()) out.add("no model calls");
         return out;
+    }
+
+    /** {@code time typical 6 s, worst 41 s (+ waits: 1 person) effects worst 1 send}, or empty. */
+    static String timeAndEffects(WorkflowCost w) {
+        List<String> parts = new ArrayList<>();
+        TimeEstimate t = w.time();
+        if (t != null && (t.worstMillis() > 0 || t.unbounded() || !t.waits().isEmpty())) {
+            StringBuilder b =
+                    new StringBuilder("time typical ")
+                            .append(seconds(t.typicalMillis()))
+                            .append(", worst ")
+                            .append(
+                                    t.unbounded()
+                                            ? "unbounded ("
+                                                    + seconds(t.worstMillis())
+                                                    + " at least)"
+                                            : seconds(t.worstMillis()));
+            if (!t.waits().isEmpty())
+                b.append(" (+ waits: ")
+                        .append(t.waits().size())
+                        .append(" stop")
+                        .append(t.waits().size() == 1 ? "" : "s")
+                        .append(")");
+            parts.add(b.toString());
+        }
+        EffectsEstimate e = w.effects();
+        if (e != null && !e.none()) {
+            List<String> kinds = new ArrayList<>();
+            if (!e.sends().none()) kinds.add(count(e.sends(), "send"));
+            if (!e.writes().none()) kinds.add(count(e.writes(), "write"));
+            parts.add("effects worst " + String.join(", ", kinds));
+        }
+        return String.join("   ", parts);
+    }
+
+    private static String count(EffectsEstimate.Count c, String noun) {
+        if (c.unbounded()) return "unbounded " + noun + "s";
+        return c.worst()
+                + " "
+                + noun
+                + (c.worst() == 1 ? "" : "s")
+                + " (typically "
+                + c.typical()
+                + ")";
+    }
+
+    static String seconds(long millis) {
+        if (millis < 1000) return millis + " ms";
+        long s = Math.round(millis / 1000.0);
+        if (s < 120) return s + " s";
+        if (s < 7200) return (s / 60) + " min";
+        return (s / 3600) + " h";
     }
 
     static String typical(CostEstimate c, WorkflowCost w) {

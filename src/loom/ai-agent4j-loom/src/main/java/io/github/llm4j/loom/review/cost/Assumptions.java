@@ -63,7 +63,24 @@ public final class Assumptions {
                     new Def(
                             "assume.tool.result.tokens",
                             300,
-                            "tokens each tool result adds to the conversation"));
+                            "tokens each tool result adds to the conversation"),
+                    new Def(
+                            "assume.latency.small",
+                            2,
+                            "seconds one call of a small, fast model takes (names with haiku, mini, flash, nano, lite)"),
+                    new Def(
+                            "assume.latency.standard",
+                            5,
+                            "seconds one call of a mid-size model takes"),
+                    new Def(
+                            "assume.latency.large",
+                            15,
+                            "seconds one call of a large model takes (names with opus, fable, ultra, o1, o3, gpt-5)"),
+                    new Def("assume.latency.tool", 2, "seconds one tool call or task takes"),
+                    new Def(
+                            "assume.effects.calls",
+                            1,
+                            "calls of a sending or writing tool one run of a step makes (typical case)"));
 
     private final Map<String, Long> values = new LinkedHashMap<>();
     private final Map<String, Long> used = new TreeMap<>();
@@ -82,7 +99,7 @@ public final class Assumptions {
         settings.values()
                 .forEach(
                         (k, v) -> {
-                            if (!k.startsWith("assume.") || k.startsWith("assume.latency")) return;
+                            if (!k.startsWith("assume.")) return;
                             if (!a.values.containsKey(k)) {
                                 problems.add(
                                         "unknown assumption '"

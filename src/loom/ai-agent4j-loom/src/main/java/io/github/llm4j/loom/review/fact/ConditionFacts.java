@@ -76,6 +76,7 @@ final class ConditionFacts implements FactProvider {
                             typed.merge(d.getVariableName(), schema, Boolean::logicalAnd);
                         }
                     });
+        Map<Statement, Independent> independent = independentPairs(input, out, agents);
         for (Entity step : steps) {
             Statement s = statement(byKey, step);
             out.set(step, "readsFreeText", s != null && readsFreeText(s, typed));
@@ -93,7 +94,133 @@ final class ConditionFacts implements FactProvider {
                     step,
                     "writesSameVariableAsSibling",
                     s instanceof ParallelStmt p && duplicates(p));
+            boolean effectful = s instanceof LoopStmt l && bodyActs(l, agents, out);
+            out.set(step, "loopBodyHasEffects", effectful);
+            out.set(
+                    step,
+                    "checkpointBefore",
+                    s instanceof LoopStmt l && checkpointBefore(input, step, l));
+            Independent ind = independent.get(s);
+            out.set(step, "parallelizableWithPrevious", ind != null);
+            out.set(step, "parallelSavingSeconds", ind == null ? 0L : ind.savingSeconds());
         }
+    }
+
+    private static boolean bodyActs(
+            LoopStmt loop, Map<String, AgentDef> agents, FactBase.Builder out) {
+        boolean[] acts = {false};
+        StatementWalker.walk(
+                loop.getBody(),
+                s -> {
+                    String target =
+                            s instanceof DelegateStmt d && !d.hasDynamicTarget()
+                                    ? d.getTargetAgent()
+                                    : null;
+                    if (target != null && agents.containsKey(target))
+                        acts[0] |=
+                                out.find("agent:" + target)
+                                        .map(e -> Boolean.TRUE.equals(e.get("hasEffects")))
+                                        .orElse(false);
+                });
+        return acts[0];
+    }
+
+    /** A checkpoint earlier in the loop's workflow, or as the first statement of its body. */
+    private static boolean checkpointBefore(FactInput input, Entity step, LoopStmt loop) {
+        if (!loop.getBody().isEmpty()
+                && loop.getBody().get(0) instanceof io.github.llm4j.loom.ast.CheckpointStmt)
+            return true;
+        Object wf = step.get("workflow");
+        if (!(wf instanceof Entity w)) return false;
+        boolean[] before = {false};
+        for (WorkflowDef def : input.review().script().getWorkflows())
+            if (def.getName().equals(w.get("name")))
+                StatementWalker.walk(
+                        def.getStatements(),
+                        s -> {
+                            if (s instanceof io.github.llm4j.loom.ast.CheckpointStmt
+                                    && s.getLine() < loop.getLine()) before[0] = true;
+                        });
+        return before[0];
+    }
+
+    /** A delegate that could run beside the one before it, and what that would save. */
+    private record Independent(long savingSeconds) {}
+
+    /**
+     * Pairs of neighbouring delegates in one block where the second does not use the first one's
+     * answer and neither agent can write or send (so their order is not part of what the workflow
+     * does). In a chain of such delegates only the first pair is reported.
+     */
+    private static Map<Statement, Independent> independentPairs(
+            FactInput input, FactBase.Builder out, Map<String, AgentDef> agents) {
+        Map<Statement, Independent> found = new java.util.IdentityHashMap<>();
+        for (WorkflowDef w : input.review().script().getWorkflows()) {
+            scan(w.getStatements(), input, out, agents, found);
+            StatementWalker.walk(
+                    w.getStatements(),
+                    s -> {
+                        for (List<Statement> nested : StatementWalker.nested(s))
+                            scan(nested, input, out, agents, found);
+                    });
+        }
+        return found;
+    }
+
+    private static void scan(
+            List<Statement> block,
+            FactInput input,
+            FactBase.Builder out,
+            Map<String, AgentDef> agents,
+            Map<Statement, Independent> found) {
+        boolean previousFlagged = false;
+        for (int i = 1; i < block.size(); i++) {
+            Statement a = block.get(i - 1);
+            Statement b = block.get(i);
+            boolean ok =
+                    !previousFlagged
+                            && a instanceof DelegateStmt da
+                            && b instanceof DelegateStmt db
+                            && plain(da, agents, out)
+                            && plain(db, agents, out)
+                            && da.getVariableName() != null
+                            && !mentions(db.getPayload(), da.getVariableName())
+                            && !mentions(da.getPayload(), db.getVariableName());
+            if (ok) {
+                DelegateStmt da = (DelegateStmt) a;
+                DelegateStmt db = (DelegateStmt) b;
+                long saving =
+                        Math.min(
+                                        io.github.llm4j.loom.review.cost.RunProfile.latencyMillis(
+                                                agents.get(da.getTargetAgent()).getModel(),
+                                                input.settings()),
+                                        io.github.llm4j.loom.review.cost.RunProfile.latencyMillis(
+                                                agents.get(db.getTargetAgent()).getModel(),
+                                                input.settings()))
+                                / 1000;
+                found.put(b, new Independent(saving));
+            }
+            previousFlagged = ok;
+        }
+    }
+
+    /** A delegate to a known agent that holds no tool that writes or sends, with no handlers. */
+    private static boolean plain(
+            DelegateStmt d, Map<String, AgentDef> agents, FactBase.Builder out) {
+        if (d.hasDynamicTarget() || d.getTargetAgent() == null) return false;
+        if (!d.getOnFailure().isEmpty() || !d.getOnStopped().isEmpty()) return false;
+        AgentDef a = agents.get(d.getTargetAgent());
+        if (a == null) return false;
+        return out.find("agent:" + a.getName())
+                .map(e -> Boolean.FALSE.equals(e.get("hasEffects")))
+                .orElse(false);
+    }
+
+    private static boolean mentions(String payload, String variable) {
+        if (payload == null || variable == null) return false;
+        return Pattern.compile("\\{" + Pattern.quote(variable) + "(\\.[^}]*)?}")
+                .matcher(payload)
+                .find();
     }
 
     private static Statement statement(Map<String, Statement> byKey, Entity step) {

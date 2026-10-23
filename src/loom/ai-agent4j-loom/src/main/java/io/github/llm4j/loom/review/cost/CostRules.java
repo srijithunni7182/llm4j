@@ -17,6 +17,12 @@ import java.util.Optional;
  * budget below the typical cost (LC04), one step that is most of a workflow's cost (LC05), and a
  * retried step whose worst case is expensive (LC06). The rest of the cost lens is in the core pack.
  *
+ * <p>It also holds the two rules that read the time estimate: LC09 (the longest allowed run takes
+ * longer than the {@code cost.latency.limit} the project declares, in seconds) and LC10 (a workflow
+ * declared interactive with {@code workflow.NAME.interactive = true} stops for a person or a timer
+ * on its main path, or typically takes longer than {@code cost.interactive.target} seconds, default
+ * 8).
+ *
  * <p>Settings: {@code cost.step.share} is the percentage that makes one step too large a part of a
  * workflow (default 60); {@code cost.retry.limit} is the worst-case amount for a retried step above
  * which LC06 speaks, in the currency of the price table (default 1.00).
@@ -55,6 +61,20 @@ public final class CostRules implements FindingSource {
                         Severity.LOW,
                         "A retried step can be expensive in the worst case",
                         "Each retry pays for the whole call again. When the worst case of a retried step is above cost.retry.limit (default 1.00, in the currency of your price table) the finding is raised. It needs a price table (--prices). What to do: retry fewer times or make the step cheaper.",
+                        "cost"),
+                new io.github.llm4j.loom.review.engine.RuleInfo(
+                        "LC09",
+                        Lens.COST,
+                        Severity.MEDIUM,
+                        "The longest allowed run takes longer than the limit",
+                        "When the project declares cost.latency.limit (seconds), the worst-case time of each workflow, from the latency assumptions and without waits for people, is compared with it. What to do: parallelise independent steps, lower retries or timeouts, or use a faster model.",
+                        "cost"),
+                new io.github.llm4j.loom.review.engine.RuleInfo(
+                        "LC10",
+                        Lens.COST,
+                        Severity.MEDIUM,
+                        "An interactive workflow is slow or waits",
+                        "A workflow declared interactive (workflow.NAME.interactive = true) is one a person is waiting on. It is reported when it stops for a person or a timer on its main path, or when its typical time is above cost.interactive.target seconds (default 8). What to do: move the wait out of the main path, or make the slow steps faster or parallel.",
                         "cost"));
     }
 
@@ -73,7 +93,88 @@ public final class CostRules implements FindingSource {
             budget(c, w, input, sink);
             dominantStep(c, w, input, share, sink);
             retries(c, w, input, retryLimit, sink);
+            time(w, input, settings, sink);
         }
+    }
+
+    private static void time(WorkflowCost w, ReviewInput in, ReviewSettings settings, Sink sink) {
+        TimeEstimate t = w.time();
+        if (t == null) return;
+        int line =
+                in.script().getWorkflows().stream()
+                        .filter(x -> x.getName().equals(w.name()))
+                        .mapToInt(io.github.llm4j.loom.ast.WorkflowDef::getLine)
+                        .findFirst()
+                        .orElse(0);
+        Optional<String> limit = settings.value("cost.latency.limit");
+        if (limit.isPresent()) {
+            long seconds = number(settings, "cost.latency.limit", 0);
+            if (t.unbounded() || t.worstMillis() > seconds * 1000)
+                sink.finding(
+                        finding(
+                                "LC09",
+                                Severity.MEDIUM,
+                                Location.at(in.file(), line),
+                                "Workflow "
+                                        + w.name()
+                                        + " can take "
+                                        + (t.unbounded() ? "unbounded time (at least " : "up to ")
+                                        + seconds(t.worstMillis())
+                                        + (t.unbounded() ? ")" : "")
+                                        + ", past the limit of "
+                                        + seconds * 1000 / 1000
+                                        + " s",
+                                "The longest allowed run, from the latency assumptions and without waits for people, is more than the limit the project declared (cost.latency.limit).",
+                                "Run independent steps in parallel, lower retries or timeouts, bound the loops, or use a faster model."));
+        }
+        if (!"true"
+                .equalsIgnoreCase(
+                        settings.value("workflow." + w.name() + ".interactive").orElse(""))) return;
+        in.script().getWorkflows().stream()
+                .filter(x -> x.getName().equals(w.name()))
+                .findFirst()
+                .ifPresent(
+                        def -> {
+                            for (var s : def.getStatements())
+                                if (s instanceof io.github.llm4j.loom.ast.HumanPromptStmt
+                                        || s instanceof io.github.llm4j.loom.ast.SleepStmt)
+                                    sink.finding(
+                                            finding(
+                                                    "LC10",
+                                                    Severity.MEDIUM,
+                                                    Location.at(in.file(), s.getLine()),
+                                                    "Workflow "
+                                                            + w.name()
+                                                            + " is interactive but stops here for "
+                                                            + (s
+                                                                            instanceof
+                                                                            io.github.llm4j.loom.ast
+                                                                                    .SleepStmt
+                                                                    ? "a timer"
+                                                                    : "a person"),
+                                                    "Someone is waiting on an interactive workflow; a wait on its main path leaves them waiting for as long as the person or timer takes.",
+                                                    "Move the wait out of the main path (a second workflow, or a trigger), or drop it."));
+                        });
+        long target = number(settings, "cost.interactive.target", 8);
+        if (t.typicalMillis() > target * 1000)
+            sink.finding(
+                    finding(
+                            "LC10",
+                            Severity.MEDIUM,
+                            Location.at(in.file(), line),
+                            "Workflow "
+                                    + w.name()
+                                    + " is interactive and typically takes "
+                                    + seconds(t.typicalMillis())
+                                    + ", above the target of "
+                                    + target
+                                    + " s",
+                            "A person is waiting on this workflow; past a few seconds the wait is felt.",
+                            "Run independent steps in parallel, use a faster model for the slow steps, or shorten the tool rounds."));
+    }
+
+    private static String seconds(long millis) {
+        return millis < 1000 ? millis + " ms" : Math.round(millis / 1000.0) + " s";
     }
 
     private static void budget(CostEstimate c, WorkflowCost w, ReviewInput in, Sink sink) {

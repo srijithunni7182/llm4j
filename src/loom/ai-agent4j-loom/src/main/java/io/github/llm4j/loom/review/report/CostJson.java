@@ -45,6 +45,41 @@ final class CostJson {
         for (StepCost s : w.steps()) steps.add(step(c, s));
         m.put("steps", steps);
         m.put("notes", w.notes());
+        if (w.time() != null) m.put("time", time(w.time()));
+        if (w.effects() != null) m.put("effects", effects(w.effects()));
+        return m;
+    }
+
+    private static Map<String, Object> time(io.github.llm4j.loom.review.cost.TimeEstimate t) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("typicalMs", t.typicalMillis());
+        Map<String, Object> worst = new LinkedHashMap<>();
+        worst.put("ms", t.worstMillis());
+        if (t.unbounded()) worst.put("atLeast", true);
+        m.put("worst", worst);
+        m.put("criticalPath", t.criticalPath());
+        m.put("waits", t.waits());
+        m.put("sleepMs", t.sleepMillis());
+        m.put("assumptions", t.assumptions());
+        return m;
+    }
+
+    private static Map<String, Object> effects(io.github.llm4j.loom.review.cost.EffectsEstimate e) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("sends", count(e.sends()));
+        m.put("writes", count(e.writes()));
+        return m;
+    }
+
+    private static Map<String, Object> count(
+            io.github.llm4j.loom.review.cost.EffectsEstimate.Count c) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("typical", c.typical());
+        m.put("worst", c.unbounded() ? null : c.worst());
+        if (c.unbounded()) {
+            m.put("unbounded", true);
+            m.put("atLeast", c.worst());
+        }
         return m;
     }
 

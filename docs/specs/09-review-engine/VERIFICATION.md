@@ -76,10 +76,10 @@ Status: **in progress**: 9a to 9f complete; 9g–9i not started. Run top to bott
 | R30 | `ReviewCorpusTest`, `CorpusCostAccuracyTest` | ◐ 9d: 44 labelled scripts and 10 recorded runs; review time is measured in 9i |
 | R31 | `SuppressionTest` (name, line, node; reason required, LV08; listed in every format) | ✅ 9b |
 | R32 | `ReviewSettingsTest.aMisspeltKeyIsAnErrorThatNamesTheNearestKey` | ✅ 9a |
-| R33 | `LensSelectionTest`, `OptionalLensesOffByDefaultTest` | ⬜ 9f |
-| R34 | `ReviewInputsTest`, `CoverageReportStaleTest`, `ReviewNeverRunsTestsTest` | ⬜ 9g |
-| R35 | `TimeEstimateTest`, `CriticalPathTest` | ⬜ 9g |
-| R36 | `EffectsEstimateTest`, `EffectsUnboundedTest` | ⬜ 9g |
+| R33 | `FindingModelTest`, `ReviewSettingsTest`, `ReviewEngineTest`, `TestabilityLensTest.theLensIsOptional…`: eight lenses on and five optional; testability is optional until `weave test` exists (O14) | ◐ 9g |
+| R34 | `TestabilityLensTest` (test files beside the script are read, one for another script is ignored, an unreadable one is a note), `ReviewIsStaticTest`; the coverage report half is not built (O14) | ◐ 9g |
+| R35 | `RunProfileTest` (tiers, sequence, parallel/broadcast/parallel for each, tool rounds, retry and backoff, timeout cap, loops, alt, waits listed, assumptions), `TimeEffectsReportTest` | ✅ 9g |
+| R36 | `RunProfileTest` (sends and writes, retries repeat effects, loops, unbounded), `TimeEffectsReportTest` | ✅ 9g |
 | R37 | `RulesOf9fTest.theHeuristicRulesStayQuiet…`, `DataRuleSourceTest`, `ReviewCorpusTest` (precision per rule) | ✅ 9f for LP02, LP05, LC07 |
 | R38 | `RulesOf9fTest.theDurabilityRuleThatNeedsTheJournalSetting…` (LD01 reported as not evaluated until `journal` is declared), `DataRuleSourceTest`, `CorePackTest` (LC01, LC03 need `data.top-models`) | ✅ 9f |
 | R39 | `OptionalLensesOffByDefaultTest`, `Lg*Test`, `Lm*Test`, `Lh*Test`, `Lb*Test` | ⬜ 9h |
@@ -391,3 +391,11 @@ Repository examples reviewed: 14 (skipped 0)
 - This lifts most of the cautions in `FIX_CAUTIONS.md`: they are now reasons to ask rather than reasons to offer nothing. The file was rewritten around that.
 - Tests: `AssistedFixTest` (13), parser and validator tests for options.
 - Not built: options for LC01, LC02, LG04, LR08 and the LP rules; options that touch a second file; the reference search before a delete is a flag (`references: true`) that interactive mode does not yet act on.
+
+### 9g (2026-10-23)
+
+- Built: the time estimate (R35) and the effects estimate (R36) in `RunProfile`, beside the cost walk: per workflow, typical and worst time, the steps the worst case waits on, the waits for people and timers (listed, not added), and sends/writes counts with retries repeating effects and unbounded loops reported as unbounded. They are in the JSON cost block (`time`, `effects`), in the text and Markdown card, and use new assumptions (`assume.latency.small|standard|large|tool` in seconds, `assume.effects.calls`). Rules LC08 (two independent delegates that could run in a `parallel` block; the saving is the shorter of the two; data rule over the new facts `parallelizableWithPrevious`, `parallelSavingSeconds`), LC09 and LC10 (Java, over the time estimate; settings `cost.latency.limit`, `workflow.NAME.interactive`, `cost.interactive.target`), LR10 (data rule over `loopBodyHasEffects`, `checkpointBefore`), and the testability lens LT01, LT02, LT04, LT05, LT06 (heuristic), LT07 reading `tests/*.test.yaml` and `eval/golden`. Core pack 1.6.0.
+- Deviations from the design, on purpose: (1) the testability lens is optional, not default-on, until `weave test` exists, because LT01 on every script would advise writing tests that cannot yet be run; (2) a typical run counts `assume.effects.calls` (1) calls of a sending tool per step, not the typical number of tool rounds, which would overstate what a normal run does; the worst case uses the agent's maximum rounds as designed; (3) LC09's limit is `cost.latency.limit` (a setting), not an `assume.*` key, because an assumption always has a default.
+- Not built (OPEN_ITEMS.md O14): LT03 (needs the coverage report of the workflow-test phase), a fix or option for LC08 (wrapping two statements in `parallel { }` needs a two-anchor edit), LR06, LO02, LO03, LD03, LY03 (inputs still missing). `--calibrate` does not yet compare time.
+- Honest limits: latencies are assumptions by model name (`haiku`, `opus`… → small, large; everything else standard), not measurements; a run's real time depends on the provider. The repository-examples table shows LC08 once in 14 scripts.
+- Flake seen once in a loaded full build: `RunUnchangedWithNoticeTest` (the notice is dropped if the review is later than its cap); it passes alone, twice.
