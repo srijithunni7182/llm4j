@@ -125,6 +125,8 @@ final class InitCommand implements Callable<Integer> {
                                     "src/main/resources/prompts");
             java.util.Map<String, String> variables = new java.util.HashMap<>(where);
             variables.put("name", project);
+            variables.put(
+                    "testScript", c.flat ? "../main.loom" : "../../../main/resources/main.loom");
             variables.put("artifact", artifactId(project));
             result =
                     TemplateWriter.write(

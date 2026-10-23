@@ -16,9 +16,10 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 final class Interventions {
 
-    private record Steer(String agent, int afterCall, String text) {}
+    private record Steer(String agent, int afterCall, int afterChunk, String text) {}
 
-    private record Stop(String agent, int afterCall, String mode, StopOutcome outcome) {}
+    private record Stop(
+            String agent, int afterCall, int afterChunk, String mode, StopOutcome outcome) {}
 
     private final List<Steer> steers = new ArrayList<>();
     private Stop stop;
@@ -27,15 +28,20 @@ final class Interventions {
     Interventions(JsonNode steer, JsonNode stopSpec) {
         if (steer != null && steer.isArray())
             for (JsonNode s : steer) {
-                var call = s.path("after_call");
-                var names = call.fieldNames();
+                boolean chunk = s.has("after_chunk");
+                var at = s.path(chunk ? "after_chunk" : "after_call");
+                var names = at.fieldNames();
                 if (names.hasNext()) {
                     String agent = names.next();
-                    steers.add(new Steer(agent, call.get(agent).asInt(), s.path("text").asText()));
+                    int n = at.get(agent).asInt();
+                    steers.add(
+                            new Steer(
+                                    agent, chunk ? 0 : n, chunk ? n : 0, s.path("text").asText()));
                 }
             }
-        if (stopSpec != null && stopSpec.has("after_call")) {
-            var call = stopSpec.get("after_call");
+        if (stopSpec != null && (stopSpec.has("after_call") || stopSpec.has("after_chunk"))) {
+            boolean chunk = stopSpec.has("after_chunk");
+            var call = stopSpec.get(chunk ? "after_chunk" : "after_call");
             String agent = call.fieldNames().next();
             String mode = stopSpec.path("mode").asText("cancel");
             StopOutcome outcome = null;
@@ -43,7 +49,8 @@ final class Interventions {
                 outcome =
                         StopOutcome.valueOf(
                                 stopSpec.get("outcome").asText().toUpperCase(Locale.ROOT));
-            stop = new Stop(agent, call.get(agent).asInt(), mode, outcome);
+            int n = call.get(agent).asInt();
+            stop = new Stop(agent, chunk ? 0 : n, chunk ? n : 0, mode, outcome);
         }
     }
 
@@ -53,11 +60,26 @@ final class Interventions {
 
     /** Called when the agent has answered its {@code n}th model call. */
     void afterCall(String agent, int n) {
+        happen(agent, n, 0);
+    }
+
+    /** Called when the {@code k}th piece of a streamed reply has been read. */
+    void afterChunk(String agent, int k) {
+        happen(agent, 0, k);
+    }
+
+    private void happen(String agent, int call, int chunk) {
         HarnessExecutor e = executor.get();
         if (e == null) return;
         for (Steer s : steers)
-            if (s.agent().equals(agent) && s.afterCall() == n) e.steer(agent, s.text(), "test");
-        if (stop != null && stop.agent().equals(agent) && stop.afterCall() == n) {
+            if (s.agent().equals(agent)
+                    && (call > 0 ? s.afterCall() == call : s.afterChunk() == chunk && chunk > 0))
+                e.steer(agent, s.text(), "test");
+        if (stop != null
+                && stop.agent().equals(agent)
+                && (call > 0
+                        ? stop.afterCall() == call
+                        : stop.afterChunk() == chunk && chunk > 0)) {
             if (stop.mode().equals("wrap_up")) e.wrapUp(agent, "stopped by the test", "test");
             else e.cancel(agent, "stopped by the test", "test", stop.outcome());
         }

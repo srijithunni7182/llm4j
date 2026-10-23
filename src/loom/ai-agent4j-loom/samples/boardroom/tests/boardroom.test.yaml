@@ -1,0 +1,23 @@
+# Tests for the boardroom: both analyses are made, then the CEO decides.
+script: ../main.loom
+workflow: EvaluateProposal
+cases:
+  - name: both reports are made before the CEO decides
+    input: { proposal: "Open an office in Pune" }
+    models:
+      CFO: "Cost is 2m, payback 3 years."
+      CTO: "Feasible with the current stack."
+      CEO: "Go."
+    expect:
+      calls: { CFO: 1, CTO: 1, CEO: 2 }   # once to decide, once more when the decision is handed to the CEO
+  - name: if the CFO fails, the CEO is never asked
+    input: { proposal: "Open an office in Pune" }
+    models:
+      CFO: "x"
+      CTO: "Feasible."
+      CEO: "Go."
+    fail:
+      CFO: { always: true, category: server_error }
+    expect:
+      final: failed
+      calls: { CEO: 0 }

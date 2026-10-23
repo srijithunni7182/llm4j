@@ -233,6 +233,61 @@ next step. A warning is usually a real mistake in the workflow.
 
 ---
 
+### 5. Testing the Logic (`test`)
+
+`weave test` runs cases against a workflow with **scripted models**: no model, no key, no network and no spend, and the answer is the same every time. It tests what your *script* does (which branch is taken, how often a loop runs, what a failed step falls back to, who is asked) and not whether an agent writes well; that is `weave eval`.
+
+```yaml
+# tests/triage.test.yaml
+script: ../triage.loom
+workflow: Main
+cases:
+  - name: order-status questions get an automatic reply
+    tags: [fast]
+    input: { message: "where is my parcel?" }
+    models:
+      Intent: { kind: order_status, urgent: "no" }     # a classifier: a label for each question
+      Replier: "Your parcel shipped yesterday."         # a text, a list in order, a `when` list, or a typed map
+    expect:
+      result: { contains: "shipped" }
+      route: [ classify Intent, delegate Replier, note ]
+      calls: { Replier: 1, Escalator: 0 }
+      branches: { n2: then }
+```
+
+**Strict by default.** A model call nobody scripted fails the case and names the agent, the call number and the task; `--lenient` lets it answer neutrally and says so in the report.
+
+**Everything a real run meets can be scripted:**
+
+| Key | What it does |
+|---|---|
+| `fail:` | `Replier: { times: 2, category: timeout }` (or `on_calls`, `always`) injects `rate_limit`, `timeout`, `server_error`, `invalid_output`, `tool_error`, `refused` or `quota`, to test `retry`, `on_failure` and `rewind` |
+| `tools:`, `tasks:` | the tool or task returns this; tools that act (webhook, email, http, file, shell, sql) only *record* what they would have done, which `expect: { effects: … }` asserts |
+| `humans:`, `resume:` | the people answer in order; with no answer left the run is `suspended`, and `resume:` continues it from its journal |
+| `clock:` | time is virtual: a `sleep 6h` or a retry back-off costs no real time, and `elapsed_virtual` asserts how long the run waited |
+| `steer:`, `stop:` | a person steers or stops an agent after its Nth call (`after_call`) or Nth piece of a streamed reply (`after_chunk`); `models: { Writer: { stream: [ "Hel", "lo" ] } }` scripts the pieces |
+
+**Reading the result.** `--coverage` lists the steps no case reached, each with a hint for a case that would; `--min-coverage 90` fails the run below that. `--format junit|json|tap` is for CI, `--tag`/`--exclude-tag`, `--case GLOB`, `--shuffle --seed N`, `--parallel N`, `--fail-fast` select and order, and `--watch` runs again whenever the script, a prompt or a test changes. `--check` only validates the files (a renamed agent shows the nearest name), `--steps` lists the step names and node ids a case can use, `--show-case NAME` prints the merged case. Exit 0: all passed; 1: a case failed; 2: it could not run.
+
+`weave init` puts a passing `tests/` folder into every starter (in a Maven project it is `src/test/resources/loom-tests/`).
+
+**From Java.** The same engine is available as `LoomTest`, so a case written in Java gives the same answer as the YAML one:
+
+```java
+LoomRun run = LoomTest.of(Path.of("triage.loom"))
+        .classifier("Intent", Map.of("kind", "order_status", "urgent", "no"))
+        .model("Replier", "Your parcel shipped yesterday.")
+        .failing("Replier", LoomTest.Failure.times(1, "timeout"))
+        .run("Main", Map.of("message", "where is my parcel?"));
+
+LoomRunAssert.assertThat(run).completed().returned("Your parcel shipped yesterday.")
+        .called("Replier", 2).neverRan("delegate Escalator").noEffects();
+
+@TestFactory Stream<DynamicTest> yamlCases() {          // the test files, one JUnit test per case
+    return LoomTest.cases(Path.of("tests")).stream().map(c -> DynamicTest.dynamicTest(c.name(), c::run));
+}
+```
+
 ## 🤖 3. Deep Dive: Agent Configuration
 
 Agents in Loom are more than LLM wrappers: they carry tools, knowledge, skills, approvals, budgets and

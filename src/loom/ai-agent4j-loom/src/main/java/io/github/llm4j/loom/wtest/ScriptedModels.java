@@ -9,9 +9,11 @@ import io.github.llm4j.loom.execution.LLMClientFactory;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.Message;
+import io.github.llm4j.model.ToolCallDelta;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -38,6 +40,7 @@ final class ScriptedModels implements LLMClientFactory {
     private final Failures failures;
     private final JsonNode usage;
     private final Interventions interventions;
+    private final Set<String> streaming;
 
     ScriptedModels(
             Map<String, JsonNode> scripts,
@@ -46,7 +49,9 @@ final class ScriptedModels implements LLMClientFactory {
             Recorder recorder,
             Failures failures,
             JsonNode usage,
-            Interventions interventions) {
+            Interventions interventions,
+            Set<String> streaming) {
+        this.streaming = streaming;
         this.scripts = scripts;
         this.lenient = lenient;
         this.repeatLast = repeatLast;
@@ -59,9 +64,19 @@ final class ScriptedModels implements LLMClientFactory {
     @Override
     public LLMClient createClient(String model) {
         String agent = model.startsWith(PREFIX) ? model.substring(PREFIX.length()) : model;
+        // a streaming agent speaks the model's own tool protocol, because that is the loop that
+        // streams; the others use the text protocol
+        boolean natively = streaming.contains(agent);
         return new LLMClient() {
             @Override
             public LLMResponse chat(LLMRequest request) {
+                return respond(request, true);
+            }
+
+            /**
+             * One whole answer; {@code hook} says whether a steer or stop due after it happens now.
+             */
+            private LLMResponse respond(LLMRequest request, boolean hook) {
                 int n = recorder.call(agent);
                 String task = userText(request);
                 var fail = failures.failsOn(agent, n);
@@ -75,7 +90,7 @@ final class ScriptedModels implements LLMClientFactory {
                     throw Failures.model(fail.get(), agent, n);
                 }
                 JsonNode chosen = choose(agent, n, task);
-                String reply = envelope(chosen);
+                String reply = natively ? plain(chosen) : envelope(chosen);
                 int in = tokens(request);
                 int out = (int) CharsPerTokenEstimator.INSTANCE.completion(reply);
                 JsonNode u = usage == null ? null : usage.get(agent);
@@ -84,19 +99,113 @@ final class ScriptedModels implements LLMClientFactory {
                     out = u.path("out").asInt(out);
                 }
                 recorder.usage(in, out);
-                interventions.afterCall(agent, n);
-                return LLMResponse.builder()
-                        .content(reply)
-                        .model(model)
-                        .tokenUsage(in, out, in + out)
-                        .build();
+                if (hook) interventions.afterCall(agent, n);
+                LLMResponse.Builder answer =
+                        LLMResponse.builder()
+                                .content(reply)
+                                .model(model)
+                                .tokenUsage(in, out, in + out);
+                if (natively && isCall(chosen))
+                    answer.content("").toolCalls(List.of(toolCall(chosen, n)));
+                return answer.build();
+            }
+
+            @Override
+            public boolean supportsToolCalling() {
+                return natively;
             }
 
             @Override
             public Stream<LLMResponse> chatStream(LLMRequest request) {
-                return Stream.of(chat(request));
+                int n = recorder.calls(agent) + 1;
+                JsonNode script = scripts.get(agent);
+                JsonNode streamed = streamOf(script, n);
+                if (streamed == null) {
+                    // a steer or stop due after this call comes when the reply has been read,
+                    // not while it is being read (that would cut the reply off)
+                    LLMResponse whole = respond(request, false);
+                    int done = recorder.calls(agent);
+                    Runnable after = () -> interventions.afterCall(agent, done);
+                    if (whole.getToolCalls().isEmpty()) return Stream.of(whole).onClose(after);
+                    var tc = whole.getToolCalls().get(0);
+                    return Stream.of(
+                                    LLMResponse.builder()
+                                            .model(model)
+                                            .toolCallDelta(
+                                                    new ToolCallDelta(
+                                                            0, tc.id(), tc.name(), quoteArgs(tc)))
+                                            .tokenUsage(whole.getTokenUsage())
+                                            .build())
+                            .onClose(after);
+                }
+                // the reply arrives in pieces; a steer or a stop between two pieces ends the read
+                int calls = recorder.call(agent);
+                var fail = failures.failsOn(agent, calls);
+                if (fail.isPresent()) throw Failures.model(fail.get(), agent, calls);
+                int in = tokens(request);
+                int[] seen = {0};
+                List<String> pieces = new ArrayList<>();
+                for (JsonNode piece : streamed) pieces.add(text(piece));
+                return pieces.stream()
+                        .map(
+                                piece -> {
+                                    LLMResponse r =
+                                            LLMResponse.builder()
+                                                    .content(piece)
+                                                    .model(model)
+                                                    .tokenUsage(in, 1, in + 1)
+                                                    .build();
+                                    interventions.afterChunk(agent, ++seen[0]);
+                                    return r;
+                                });
             }
         };
+    }
+
+    private static boolean isCall(JsonNode chosen) {
+        return chosen.isObject() && chosen.has("call");
+    }
+
+    private static io.github.llm4j.model.ToolCall toolCall(JsonNode chosen, int n) {
+        JsonNode args = chosen.has("with") ? chosen.get("with") : JSON.createObjectNode();
+        return new io.github.llm4j.model.ToolCall(
+                "scripted-" + n,
+                chosen.get("call").asText(),
+                JSON.convertValue(
+                        args,
+                        new com.fasterxml.jackson.core.type.TypeReference<
+                                Map<String, Object>>() {}));
+    }
+
+    private static String quoteArgs(io.github.llm4j.model.ToolCall tc) {
+        try {
+            return JSON.writeValueAsString(tc.arguments());
+        } catch (Exception e) {
+            return "{}";
+        }
+    }
+
+    /** The answer as the model's own protocol has it: the text itself. */
+    private static String plain(JsonNode chosen) {
+        if (chosen.isObject() && chosen.has("stream") && chosen.get("stream").isArray()) {
+            StringBuilder all = new StringBuilder();
+            chosen.get("stream").forEach(piece -> all.append(text(piece)));
+            return all.toString();
+        }
+        return isCall(chosen) ? "" : text(chosen);
+    }
+
+    /** The pieces of call {@code n} when the script gives a {@code stream:}, else null. */
+    private static JsonNode streamOf(JsonNode script, int n) {
+        if (script == null) return null;
+        JsonNode pick = script;
+        if (script.isArray()) {
+            if (script.isEmpty()) return null;
+            pick = script.get(Math.min(n, script.size()) - 1);
+        }
+        return pick.isObject() && pick.has("stream") && pick.get("stream").isArray()
+                ? pick.get("stream")
+                : null;
     }
 
     @Override
@@ -166,6 +275,11 @@ final class ScriptedModels implements LLMClientFactory {
 
     /** What the model says: a tool call, or the final answer (text, or a typed answer as JSON). */
     private static String envelope(JsonNode chosen) {
+        if (chosen.isObject() && chosen.has("stream") && chosen.get("stream").isArray()) {
+            StringBuilder all = new StringBuilder();
+            chosen.get("stream").forEach(piece -> all.append(text(piece)));
+            chosen = JSON.getNodeFactory().textNode(all.toString());
+        }
         if (chosen.isObject() && chosen.has("call")) {
             JsonNode args = chosen.has("with") ? chosen.get("with") : JSON.createObjectNode();
             return "```json\n{\"thought\": \"scripted\", \"action\": "

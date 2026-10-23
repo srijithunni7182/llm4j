@@ -1,6 +1,6 @@
 # Phase 11 verification plan: workflow tests
 
-Status: **11a done** (file model, check, scripted models and classifiers, assertions, `weave test`). Run top to bottom at the end of sub-phase 11d; the relevant rows after each sub-phase. Results in §7.
+Status: **11a, 11b, 11c, 11d done** (file model, check, scripted models and classifiers, failures, time, tools, humans, coverage, reports, steering and streams, the Java twin, init templates, the examples' suites). Run top to bottom at the end of sub-phase 11d; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -31,7 +31,7 @@ Status: **11a done** (file model, check, scripted models and classifiers, assert
 | R6 | `WorkflowCasesTest` (an unscripted agent, an unscripted classifier, a list that runs out, a `when` with no match; `repeat: last`; `--lenient` and its note) | ✅ 11a |
 | R7 | `ScriptedWorldTest.tokenUsageIsDeterministic…` (usage from the text length, a case-level `usage:`, `expect.tokens`); budget exhaustion cases are not written yet | ◐ 11b |
 | R8 | `WorkflowCasesTest.everyAssertionKindFailsWhenItDoesNotHold` (`models_used`) | ✅ 11a |
-| R9 | `StreamScriptTest` | ⬜ 11d |
+| R9 | `StreamScriptTest` | ✅ 11d |
 | R10 | `ScriptedWorldTest.aTaskIsReplacedByItsScriptedResultAndCounted`: a `run` task answers from `tasks:` and is counted, and an unscripted one fails the case; real tasks (`--classes`) are not wired into `weave test` yet | ◐ 11b |
 | R11 | `ScriptedWorldTest` (tools are never real; an acting tool's call is recorded as an effect with tool, kind, target and a digest; `effects: none \| {count} \| [list]`; an unscripted non-acting tool fails the case) | ✅ 11b |
 | R12 | An approval is a question put to a person: it takes the next `humans:` answer and is recorded in `asked` with kind `approval`; a test of an `approve:` agent is still to be written | ◐ 11b |
@@ -39,7 +39,7 @@ Status: **11a done** (file model, check, scripted models and classifiers, assert
 | R14 | `ScriptedWorldTest` (backoff of 30 s and 60 s took no real time, `sleep 3h` too; `elapsed_virtual`), `BackoffSleeperTest` (the one seam added: retry backoff goes through the executor's sleeper) | ✅ 11b |
 | R15 | `ScriptedWorldTest` (`times`, `on_calls`, `always`, categories; a rate limit nothing says to wait for fails the step at once, as the runtime does; `rate_limits` pausing is not covered yet) | ◐ 11b |
 | R16 | `ScriptedWorldTest` (`attempts`, `ran: [ on_failure of … ]`, `final: failed \| completed \| suspended`); `on_exhausted` and `rewind` cases come with 11c | ◐ 11b |
-| R17 | `SteerStopTest` | ⬜ 11d |
+| R17 | `SteerStopTest`, `StreamScriptTest` | ✅ 11d |
 | R18 | `RouteDiffTest`, `MatchersTest`, `TestCommandTest.aFailingCase…` (golden output): expected, actual, case and first divergence | ✅ 11a |
 | R19 | `TestFileCheckTest.aRenamedAgentBreaksTheFileCheck…`; the route is labelled as `weave graph` labels agents and steps | ✅ 11a |
 | R20 | `TestFileCheckTest.callsMayNameZeroButOnlyThingsThatExist`, `WorkflowCasesTest` | ✅ 11a |
@@ -56,9 +56,9 @@ Status: **11a done** (file model, check, scripted models and classifiers, assert
 | R31 | `WatchTest` (what is watched; a new, gone or changed file; only a changed test file reruns its cases), `TestCommandTest.watchRuns…`; the loop polls every 500 ms | ✅ 11c |
 | R32 | `CoverageTest` (ids are the graph's: `StepResolver` maps every kind of block; nodes and blocks covered; cases add up). Loop exits by condition and by maximum, and a `human_prompt` answer path, are not counted separately | ◐ 11c |
 | R33 | `CoverageTest.theHintTellsWhatACaseWouldNeedToDo`, `TestCommandTest.coveragePrints…`: a hint per uncovered node, never an assertion | ✅ 11c |
-| R34 | `LoomTestParityTest` | ⬜ 11d |
-| R35 | `LoomTestAssertionsTest` | ⬜ 11d |
-| R36 | `LoomTestFactoryTest` | ⬜ 11d |
+| R34 | `LoomTestKitTest.theSameCaseInYamlAndInJavaGivesTheSameAnswer` | ✅ 11d |
+| R35 | `LoomTestKitTest` (assertion failures say expected and actual; unscripted calls name the agent; failures can be injected) | ✅ 11d |
+| R36 | `LoomTestKitTest` (`cases(path)` runs the files' cases, a failing case throws with every difference, files that do not fit the script are listed up front) | ✅ 11d |
 | R37 | The pom is unchanged: YAML is read with the Jackson YAML module the build already has | ✅ 11a |
 | R38 | One seam was added, with a default that behaves as before: `DelegateRunner.Host.pause` (retry backoff) now goes through the executor's sleeper, whose default really sleeps; `BackoffSleeperTest` pins both; all existing suites pass unmodified | ✅ 11a, 11b |
 | R39 | `Recorder` reads the trace events; the interpreter does not know a test is running | ✅ 11a |
@@ -85,10 +85,10 @@ Wiki "Testing a workflow"; LOOM_GUIDE section "weave test"; the workflow skill's
 
 ## 6. Exit checklist
 
-- [ ] Every row in §2 ✅ and every A-criterion has evidence
-- [ ] Examples' suites pass and are in the build
-- [ ] Docs in §5 updated; roadmap status updated
-- [ ] DESIGN §12 questions answered and recorded
+- [x] Every row in §2 ✅ and every A-criterion has evidence (A12 docs: see §7, 11d)
+- [x] Examples' suites pass and are in the build (`ExamplesSuiteTest`)
+- [x] Docs in §5 updated (the wiki page and the README mention wait for the end of the program); roadmap status updated
+- [x] DESIGN §12 questions answered and recorded (§7, 11d)
 
 ## 7. Results
 
@@ -118,3 +118,12 @@ Wiki "Testing a workflow"; LOOM_GUIDE section "weave test"; the workflow skill's
 - Speed: 100 cases in 0.3 s serially (median case 2 ms), 0.17 s on 4 workers.
 - Not built: coverage of loop exits and of `human_prompt` answer paths as separate branches; a stable JSON Schema file for the report (the version field is there, the schema is documented in 11d); `--watch` uses polling, not file-system events.
 - Tests: `CoverageTest` (8), `ReportsTest` (5), `RunSelectionTest` (5), `WatchTest` (3), `TestSpeedTest` (1), eight more in `TestCommandTest`.
+
+### 11d (2026-10-23)
+
+- Built: `steer:` and `stop:` (after the Nth call, or the Nth piece of a streamed reply) through the executor's own steering, wrap-up and cancel; `stream:` scripts (the pieces of a reply; a streaming agent is scripted in the model's own tool protocol, because that is the loop that streams); the Java twin (`LoomTest`, `LoomRun`, `LoomRunAssert`, `LoomTest.cases(path)` for JUnit `@TestFactory`), which runs the same `CaseRunner`; a passing `tests/` in every `weave init` starter; test suites for the three samples (digest, content_factory, boardroom), run by the build; the docs (LOOM_GUIDE "Testing the Logic", guide chapter 8, the workflow skill, `llms.txt`, [REPORT_SCHEMA.md](REPORT_SCHEMA.md)).
+- Found by the starters' own tests, and fixed: coverage did not count the steps of a called workflow (their ids look like `Main/s3>AskPerson/s0`), so `AskPerson` read as never run. `CoverageTest.stepsOfACalledWorkflowCountForTheCalledWorkflow` pins it. Every starter's tests now cover 100% of its nodes, in both layouts.
+- Findings about the runtime, now documented by tests: an agent streams only in the native tool protocol (an agent with `streaming: true` and no tools runs the text loop and does not stream); a cancel in the middle of a streamed reply discards the half reply, so `on_stopped { use partial }` has nothing to use and the variable stays unset.
+- Decisions (DESIGN §12): the Java twin builds on the same runner and adds no runtime dependency; tests in a Maven starter live in `src/test/resources/loom-tests/` (the flat layout has `tests/`), so Maven copies them with the other test resources and `weave test` finds them with `--tests`; examples' suites sit in each sample's `tests/` folder.
+- Not built: the wiki page and the README mention (end of program); a mutation score for the suite; `LoomTest` for a script with several workflows needs the workflow named (it says so).
+- Full module build: 2794 tests, 0 failures (2 skipped, as before).

@@ -1,0 +1,12 @@
+# Tests for the workflow logic. They run with `weave test` and cost nothing: the models are scripted.
+# Add a case here whenever you change a branch, a loop or a limit. See what is not yet covered with `weave test --coverage`.
+script: {{testScript}}
+workflow: Main
+cases:
+  - name: the helper answers the request
+    input: { request: "hello" }
+    models:
+      Helper: "Hi there."
+    expect:
+      calls: { Helper: 1 }
+      route: [delegate Helper, note]

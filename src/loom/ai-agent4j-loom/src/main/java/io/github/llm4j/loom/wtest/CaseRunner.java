@@ -88,7 +88,8 @@ final class CaseRunner {
                                         recorder,
                                         failures,
                                         c.get("usage"),
-                                        interventions));
+                                        interventions,
+                                        streaming(fresh)));
                 interventions.attach(executor);
                 executor.setClassifierFactory(new ScriptedClassifiers(models, recorder, failures));
                 executor.setTaskRegistry(tasks);
@@ -143,6 +144,13 @@ final class CaseRunner {
                     millis(start),
                     clock.elapsed());
         }
+    }
+
+    /** The agents that stream their replies. */
+    private static Set<String> streaming(LoomScript script) {
+        Set<String> names = new LinkedHashSet<>();
+        for (AgentDef a : script.getAgents()) if (a.isStreaming()) names.add(a.getName());
+        return names;
     }
 
     // ---- collaborators

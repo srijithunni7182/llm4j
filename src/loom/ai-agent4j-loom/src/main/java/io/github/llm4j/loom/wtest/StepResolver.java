@@ -40,7 +40,10 @@ final class StepResolver {
      */
     Optional<String> resolve(String stepId) {
         if (stepId == null || stepId.isEmpty()) return Optional.empty();
-        String[] parts = GENERATION.matcher(stepId).replaceAll("").split("/");
+        // a called workflow's steps continue the caller's id after a '>' (Main/s3>AskPerson/s0):
+        // inside it, the walk starts again from the callee's own statements
+        String own = stepId.substring(stepId.lastIndexOf('>') + 1);
+        String[] parts = GENERATION.matcher(own).replaceAll("").split("/");
         List<GraphNode> nodes = byWorkflow.get(parts[0]);
         if (nodes == null || parts.length < 2) return Optional.empty();
         GraphNode current = null;

@@ -172,4 +172,29 @@ class CoverageTest {
                 .contains("Main n5 ")
                 .contains("# to reach this: make the condition of \"a==x?\" false");
     }
+
+    @Test
+    void stepsOfACalledWorkflowCountForTheCalledWorkflow() throws Exception {
+        String script =
+                """
+                agent A { model: "m"  system: "s" }
+                workflow Main(q) {
+                    call Inner(q=q) -> r
+                    return r
+                }
+                workflow Inner(q) {
+                    delegate "x {q}" to A -> a
+                    return a
+                }
+                """;
+        String yaml =
+                "script: ../main.loom\nworkflow: Main\ncases:\n"
+                        + "  - name: calls\n    input: { q: hi }\n    models: { A: ok }\n";
+        TestRunner.Suite suite = Wtest.load(dir, script, yaml);
+        List<TestRunner.CaseResult> results = TestRunner.run(suite, null, false, false);
+        assertThat(results.get(0).failures()).isEmpty();
+        Coverage coverage = TestRunner.coverage(suite, results);
+        assertThat(coverage.missed()).isEmpty();
+        assertThat(coverage.percent()).isEqualTo(100);
+    }
 }

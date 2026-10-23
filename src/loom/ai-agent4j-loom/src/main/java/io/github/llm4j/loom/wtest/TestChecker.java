@@ -263,12 +263,13 @@ public final class TestChecker {
     }
 
     private boolean afterCall(TestFile.Case c, String key, JsonNode spec, List<String> problems) {
-        JsonNode call = spec.get("after_call");
+        String at = spec.has("after_chunk") ? "after_chunk" : "after_call";
+        JsonNode call = spec.get(at);
         if (call == null || !call.isObject() || call.size() != 1) {
             problems.add(
                     where(c)
                             + key
-                            + ": after_call: { Agent: N } names one agent and the call after which it happens");
+                            + ": after_call: { Agent: N } (or after_chunk) names one agent and the call or piece of a streamed reply after which it happens");
             return false;
         }
         String agent = call.fieldNames().next();
@@ -276,7 +277,9 @@ public final class TestChecker {
             problems.add(
                     where(c)
                             + key
-                            + ".after_call: '"
+                            + "."
+                            + at
+                            + ": '"
                             + agent
                             + "' is not an agent"
                             + Suggest.hint(agent, agents));

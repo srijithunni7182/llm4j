@@ -23,7 +23,7 @@ may not be here, so never send the user to a repository path and never ask them 
 | 5 | Agent tests with spend caps (optional) | `docs/guide/05-test-agents-with-caps.md` | goals met, judge noise measured, cost near the model |
 | 6 | Build the workflow | `docs/guide/06-build-the-workflow.md` | `weave check` passes (tasks registered, `run` steps checked; a step that only chooses a label, such as routing or judging, is an `intentclassify` step with a confidence rule that sends `unsure` to a person, never an agent that writes an answer to be parsed; Jev is recommended for routing and judging but never as the only guard on a dangerous action) |
 | 7 | Validate and audit | `docs/guide/07-validate-and-audit.md` | `weave audit --fail-on medium` clean or every finding explained; injection cases pass |
-| 8 | Trajectory tests (optional) | `docs/guide/08-trajectory-tests.md` | path, branch, round-count and budget-stop tests pass for free |
+| 8 | Workflow tests (optional, before `weave eval`) | `docs/guide/08-trajectory-tests.md` | `weave test --coverage` passes with scripted models: every branch, loop limit, failure handler and approval path has a case; path, round-count and budget-stop tests pass for free |
 | 9 | Go live | `docs/guide/09-go-live.md` | smoke and first real run within about twice the cost model; limits set |
 | 10 | Best practices | `docs/guide/10-best-practices.md` | the readiness checklist is ticked |
 | 12 | Java quick reference (imports and calls) | `docs/guide/12-java-quick-reference.md` | read it before writing any Java; never open a jar or run `javap` to find a class or method |
