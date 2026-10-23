@@ -6,6 +6,7 @@ import io.github.llm4j.loom.graph.GraphResult;
 import io.github.llm4j.loom.graph.GraphService;
 import io.github.llm4j.loom.review.Reviews;
 import io.github.llm4j.loom.review.cost.Assumptions;
+import io.github.llm4j.loom.review.cost.Calibration;
 import io.github.llm4j.loom.review.cost.CostEstimator;
 import io.github.llm4j.loom.review.engine.ReviewInput;
 import io.github.llm4j.loom.review.engine.ReviewReport;
@@ -109,6 +110,13 @@ final class ReviewCommand implements Callable<Integer> {
             description =
                     "Override a cost assumption, such as loop.iterations=5 (repeatable). weave review --explain cost lists them.")
     List<String> assume = new ArrayList<>();
+
+    @Option(
+            names = "--calibrate",
+            paramLabel = "<run-dir>",
+            description =
+                    "Compare the cost estimate with what a journaled run (a folder made with a run store) really spent, and say which assumptions to correct.")
+    File calibrate;
 
     @Option(names = "--out", description = "Also write the report to this file.")
     File out;
@@ -230,6 +238,7 @@ final class ReviewCommand implements Callable<Integer> {
                                     + e.getMessage());
             return 2;
         }
+        if (c.calibrate != null) return calibrate(c, input, settings, estimator, env);
         ReviewReport report = Reviews.engine(packs, javaRules, estimator).review(input, settings);
         ReviewReport shown = atLeast(report, min.get());
         String text =
@@ -251,6 +260,23 @@ final class ReviewCommand implements Callable<Integer> {
         Optional<Severity> threshold = threshold(c, settings);
         if (threshold.isPresent() && report.failsAt(threshold.get())) return 1;
         return 0;
+    }
+
+    private static int calibrate(
+            ReviewCommand c,
+            ReviewInput input,
+            ReviewSettings settings,
+            CostEstimator estimator,
+            WeaveEnv env) {
+        try {
+            var result =
+                    Calibration.compare(c.calibrate.toPath(), estimator.estimate(input, settings));
+            env.out().print(Calibration.text(result));
+            return 0;
+        } catch (IllegalArgumentException | java.io.UncheckedIOException e) {
+            env.err().println("Error: " + e.getMessage());
+            return 2;
+        }
     }
 
     private static CostEstimator estimator(ReviewCommand c) throws java.io.IOException {

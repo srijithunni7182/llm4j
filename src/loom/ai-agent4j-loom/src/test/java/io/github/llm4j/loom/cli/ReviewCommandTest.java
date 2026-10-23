@@ -380,6 +380,35 @@ class ReviewCommandTest {
         assertThat(err.toString()).contains("price table");
     }
 
+    @Test
+    void calibrateComparesTheEstimateWithAJournaledRun() throws Exception {
+        Path run = Files.createDirectories(dir.resolve("run"));
+        var journal = new io.github.llm4j.loom.runtime.FileRunJournal(run.resolve("journal.json"));
+        journal.put(
+                "Main/0#usage:A",
+                new io.github.llm4j.loom.runtime.RunJournal.Entry(
+                        "usage",
+                        java.util.Map.of(
+                                "agent",
+                                "A",
+                                "model",
+                                "m",
+                                "prompt",
+                                9,
+                                "completion",
+                                600,
+                                "calls",
+                                1)));
+        assertThat(run(CALM, "--calibrate", run.toString())).isZero();
+        assertThat(out.toString())
+                .contains("workflow")
+                .contains("Main")
+                .contains("One run is one sample");
+        err.reset();
+        assertThat(run(CALM, "--calibrate", dir.resolve("nope").toString())).isEqualTo(2);
+        assertThat(err.toString()).contains("has no journal.json");
+    }
+
     private com.fasterxml.jackson.databind.JsonNode json(String source, String... args)
             throws Exception {
         List<String> all = new java.util.ArrayList<>(List.of("--format", "json"));

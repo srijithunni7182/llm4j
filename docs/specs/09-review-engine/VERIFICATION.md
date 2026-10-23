@@ -1,6 +1,6 @@
 # Phase 9 verification plan: the review engine
 
-Status: **in progress**: 9a and 9b complete; 9c–9i not started. Run top to bottom at the end of sub-phase 9i; the relevant rows after each sub-phase. Results in §7.
+Status: **in progress**: 9a, 9b and 9c complete; 9d–9i not started. Run top to bottom at the end of sub-phase 9i; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -52,15 +52,15 @@ Status: **in progress**: 9a and 9b complete; 9c–9i not started. Run top to bot
 | R6 | `ReviewCommandTest` (exit codes, `--fail-on`, bad input = 2) | ✅ 9a |
 | R7 | `ReviewSupersetOfAuditTest` | ✅ 9a |
 | R8 | `SarifTest` (shape, levels, rules, fixes, suppressions), `ReviewCommandTest.sarifOutput…` | ✅ 9b |
-| R9 | `ReportGoldenTest` | ⬜ 9c |
-| R10 | `CostModelTest`, `EstimatorMatchesRuntimeTest` | ⬜ 9c |
-| R11 | `CostBudgetCapTest`, `Lc04Test` | ⬜ 9c |
-| R12 | `CostUnboundedTest`, `Lr03LoopMaxTest` | ⬜ 9c |
-| R13 | `CostUnpricedTest` | ⬜ 9c |
-| R14 | `ReportGoldenTest` (footer) | ⬜ 9c |
-| R15 | `ReviewIsStaticTest`, `CostDeterministicTest` | ⬜ 9c |
-| R16 | `CalibrationTest` | ⬜ 9c |
-| R17 | `CorpusCostAccuracyTest` | ⬜ 9c |
+| R9 | `ReviewCommandTest` (cost line and footer in the text card); the other card lines (security, next step) come with 9e | ◐ 9c cost part; card complete in 9e |
+| R10 | `CostModelTest` (calls, loops, for each, retries, alt, tools, broadcast, call, rewind), `ReviewCommandTest` (JSON `cost` block, assumptions listed) | ✅ 9c (runtime-equivalence of the token count: `CostModelTest.tokensAreCounted…`) |
+| R11 | `CostModelTest.aBudgetCapsTheWorstCase…`, `CostRulesTest` (LC04) | ✅ 9c script-level budgets; agent- and step-level budgets not yet |
+| R12 | `CostModelTest.aLoopWithNoMax…`, `ReviewCommandTest.anUnboundedLoop…` | ✅ 9c |
+| R13 | `CostModelTest.moneyComesFromThePriceTable…`, `ReviewCommandTest.theTextReport…Tokens…` | ✅ 9c |
+| R14 | `ReviewCommandTest` (footer names the price table and the assumptions used) | ✅ 9c |
+| R15 | `CostModelTest.theSameInputsAlwaysGiveTheSameNumbers`, `ReviewIsStaticTest` | ✅ 9c |
+| R16 | `CalibrationTest` (5), `CalibrationEndToEndTest` (a real mocked-provider run), `ReviewCommandTest.calibrate…` | ✅ 9c (workflow and model level; the journal has no per-step usage that maps to a script line) |
+| R17 | `CorpusCostAccuracyTest` needs the corpus | ⬜ 9d |
 | R18 | `ReviewCorpusTest` | ⬜ 9d |
 | R19 | `ReviewCommandTest` (`--explain` for every rule) | ✅ 9a |
 | R20 | `JavaRuleTest.theEngineGivesTheSameFindingsWhateverTheClockOrEnvironment`, `ReviewIsStaticTest` (no clock, env, network or process in review sources) | ✅ 9b |
@@ -164,3 +164,17 @@ Wiki page "Reviewing a workflow"; `LOOM_GUIDE.md` section on `weave review` and 
 - Built: project packs from `review-rules/<name>/` pinned in `packs =` by version and sha256 (a pack that is unlisted, missing, changed or duplicating another's rule is refused with every problem listed); `weave rules list | facts | check | test | new | add | explain --at`; `weave check` messages classified into LV01–LV07 and LV09 (LV00 only for what no class claims); suppressions (`RULE.suppress = place "reason"`, LV08 when the reason is missing, listed in every format); overlap folding in the engine; SARIF 2.1.0 (`--format sarif`); Java rules from a named jar (`--rules-jar`, ServiceLoader), beside pack rules.
 - Tests added: `PackSetTest` (12), `RulesToolTest` (14), `ValidityClassTest` (3), `SuppressionTest` (10), `SarifTest` (7), `JavaRuleTest` (6), `ReviewIsStaticTest` (1), plus engine and command tests.
 - Limits, stated plainly: the classifier is a pattern table over message text, verified on real messages from `weave check`, not on every message the validator can write, so some rare messages will still be `LV00`. No overlap pair is registered yet because the specific rule (LR07) comes with 9d. `rules diff` and pack semver policy are 9i. The notice and `--explain` for third-party packs only appear when the script is given.
+
+
+### 9c (2026-10-23)
+
+- Built: the cost estimator (`review/cost`): typical and worst case per workflow and per model step, from the script alone, with nine documented assumptions (`assume.*` in `review.properties` or `--assume`), prices from `--prices`, an unbounded loop reported as unbounded, a script budget capping the worst case, unpriced models named; token counts equal to the runtime guard's (pinned by a test); the report's `cost` block (text, Markdown, JSON); `--explain cost`; cost rules LC01 and LC02 as data in the core pack (now 1.1.0; examples can now carry `settings:`), LC04, LC05 and LC06 in Java because they need the estimate; `--calibrate RUN_DIR` comparing the estimate with the usage a real run journals.
+- Tests added: `CostModelTest` (17), `CostRulesTest` (7), `CalibrationTest` (5), `CalibrationEndToEndTest` (1) plus command tests.
+- Decisions and limits, stated plainly:
+  - A typical `alt` is the average of its two ways (taken equally often); the worst case is the dearer way. The spec's wording ("most expensive branch weighted by share") was ambiguous; this is the reading that is documented in `--explain cost`.
+  - The AST has no per-agent output cap (`max_tokens` belongs to memory), so every answer is `assume.output.tokens` (600).
+  - Rewind is costed safely: the worst case repeats the whole workflow once more per allowed rewind, which can overstate it but never understate it.
+  - Budgets at agent and step level are not applied to the cap yet; only the script-level budget is.
+  - LC03, LC07, LC08, LC09 and LC10 are not built: LC03 needs a per-member view of broadcasts, LC07 is a text heuristic (9f), LC08 to LC10 need the time estimate (9g).
+  - LC01 needs `data.top-models` declared; without it the rule is reported as not evaluated rather than guessing which models are expensive.
+  - The 80 % within 2x accuracy target (A4) needs the recorded-run corpus from 9d and is not yet measured.
