@@ -36,6 +36,26 @@ class RuleValidatorTest {
     }
 
     @Test
+    void anOptionMayNotUseAnAnswerItDoesNotAskForOrAFactThatDoesNotExist() throws Exception {
+        String extra =
+                """
+                options:
+                  - id: x
+                    label: "X {nope}"
+                    ask: [ { name: a, prompt: "p" } ]
+                    insertAfter: { anchor: statementEnd, text: " {ask.a} {ask.b}" }
+                  - id: y
+                    label: "Y"
+                    insertAfter: { anchor: middleOfNowhere, text: "" }
+                """;
+        assertThat(problems("step", "{ field: kind, is: delegate }", extra))
+                .anyMatch(p -> p.contains("{ask.b} is not one of the option's questions"))
+                .noneMatch(p -> p.contains("{ask.a}"))
+                .anyMatch(p -> p.contains("nope"))
+                .anyMatch(p -> p.contains("'middleOfNowhere' is not an anchor"));
+    }
+
+    @Test
     void aSoundRuleHasNoProblems() throws Exception {
         assertThat(
                         problems(

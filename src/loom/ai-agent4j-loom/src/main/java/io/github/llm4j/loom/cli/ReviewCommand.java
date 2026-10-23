@@ -212,6 +212,24 @@ final class ReviewCommand implements Callable<Integer> {
     String fixFinding;
 
     @Option(
+            names = "--assist",
+            description =
+                    "Go through the findings that have options with you: choose, answer, see the change, confirm.")
+    boolean assist;
+
+    @Option(
+            names = "--option",
+            paramLabel = "<id>",
+            description = "With --fix-finding: apply this option of the finding (see its options).")
+    String option;
+
+    @Option(
+            names = "--set",
+            paramLabel = "<name=value>",
+            description = "With --option: the answer to one of the option's questions. Repeatable.")
+    List<String> answers = new java.util.ArrayList<>();
+
+    @Option(
             names = "--dry-run",
             description =
                     "With a fix option: print the diff and change nothing; exit 1 if fixes are pending.")
@@ -361,7 +379,16 @@ final class ReviewCommand implements Callable<Integer> {
             env.err().println("Error: " + c.script + " could not be read: " + e.getMessage());
             return 2;
         }
-        if (c.fix || c.fixRule != null || c.fixFinding != null) {
+        if (c.assist || c.option != null) {
+            Integer done = ReviewAssist.run(c, session, report, env);
+            if (done != null) return done;
+            try {
+                report = session.review(c.script.toPath());
+            } catch (Exception e) {
+                env.err().println("Error: " + c.script + " could not be read: " + e.getMessage());
+                return 2;
+            }
+        } else if (c.fix || c.fixRule != null || c.fixFinding != null) {
             Integer done = ReviewFixing.apply(c, session, report, env);
             if (done != null) return done;
             try {

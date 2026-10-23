@@ -2,6 +2,7 @@ package io.github.llm4j.loom.review.fix;
 
 import io.github.llm4j.loom.review.engine.ReviewReport;
 import io.github.llm4j.loom.review.model.Finding;
+import io.github.llm4j.loom.review.model.FixOption;
 import io.github.llm4j.loom.review.model.FixSafety;
 import io.github.llm4j.loom.review.model.Severity;
 import io.github.llm4j.loom.review.model.TextEdit;
@@ -97,6 +98,58 @@ public final class FixApplier {
             if (!progress) break;
         }
         return new Result(text, applied, withheld, passes);
+    }
+
+    /**
+     * The outcome of applying one option a developer chose.
+     *
+     * @param text the script after the change, or the original when it was refused
+     * @param error why it was refused, or null when it was applied
+     */
+    public record Chosen(String text, String error) {
+        public boolean ok() {
+            return error == null;
+        }
+    }
+
+    /**
+     * Applies the option of one finding with the developer's answers, and checks the result the way
+     * a fix is checked: the script must load and the change must add no high finding. Missing
+     * answers take the question's default; a question with no default and no answer refuses.
+     */
+    public static Chosen applyOption(
+            String original,
+            String fingerprint,
+            String optionId,
+            java.util.Map<String, String> answers,
+            Reviewer reviewer) {
+        ReviewReport before;
+        try {
+            before = reviewer.review(original);
+        } catch (RuntimeException e) {
+            return new Chosen(original, "the script would not load: " + e.getMessage());
+        }
+        Finding finding = null;
+        for (Finding f : before.findings()) if (f.fingerprint().equals(fingerprint)) finding = f;
+        if (finding == null)
+            return new Chosen(original, "no open finding has the fingerprint " + fingerprint);
+        FixOption option = null;
+        for (FixOption o : finding.options()) if (o.id().equals(optionId)) option = o;
+        if (option == null)
+            return new Chosen(
+                    original,
+                    finding.rule()
+                            + " has no option '"
+                            + optionId
+                            + "'; its options are "
+                            + finding.options().stream().map(FixOption::id).toList());
+        for (FixOption.Param p : option.params())
+            if (!answers.containsKey(p.name()) && p.defaultValue() == null)
+                return new Chosen(
+                        original, "the option '" + optionId + "' needs an answer for " + p.name());
+        String next = SourceText.of(original).apply(option.editsWith(answers));
+        Verdict v = verify(next, highs(before), reviewer);
+        return v.ok() ? new Chosen(next, null) : new Chosen(original, v.why());
     }
 
     private static Applied applied(Finding f, int pass) {

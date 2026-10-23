@@ -46,7 +46,7 @@ Deferred out of 9d, with the reason:
 
 ### 9e: handling findings (done; no new rules)
 
-Fixes now exist for LR01, LR03, LR08, LY02, LM01 (safe) and LR02 (needs judgement). Other rules gain a `fix:` template as they get an anchor that is safe to guess; LC02 (needs a memory or context block with a size) and LG04 (which version to pin) stay prose.
+Fixes now exist for LR01, LR03, LR08, LY02, LM01 (safe) and LR02 (needs judgement). Options (the developer chooses and supplies values, R75 to R78) exist for LR01, LR02, LR03, LY02 and LM01; next to get options: LC01, LC02, LG04, LR08 and the LP rules (see `FIX_CAUTIONS.md`). Other rules gain a `fix:` template as they get an anchor that is safe to guess; LC02 (needs a memory or context block with a size) and LG04 (which version to pin) stay prose.
 
 ### 9f: observability, durability, privacy, and the declared-facts machinery (done, except as listed)
 

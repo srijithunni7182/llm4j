@@ -47,6 +47,12 @@ public final class TextReport {
                                             .append("): ")
                                             .append(Safe.line(fix.label()))
                                             .append('\n'));
+            if (!f.options().isEmpty()) {
+                b.append("        options:");
+                for (io.github.llm4j.loom.review.model.FixOption o : f.options())
+                    b.append(" [").append(o.id()).append("] ").append(Safe.line(o.label()));
+                b.append('\n');
+            }
         }
         if (!r.suppressed().isEmpty()) {
             b.append('\n')

@@ -1,8 +1,30 @@
-# Where `weave review --fix` holds back, and what a skill should do about it
+# Where `weave review` fixes hold back, and what a skill should do about it
 
-This file collects every place where the fix engine is cautious, so that the `llm4j-workflow-guide` skill (and the other two) can say the right thing instead of promising more than a fix delivers. It is updated whenever a fix is added or a caution is lifted. The source of truth for the behaviour is the code and tests named in each row.
+This file collects every place where the fix engine is cautious, so that the `llm4j-workflow-guide` skill (and the other two) can say the right thing instead of promising more than a fix delivers. It is updated whenever a fix or option is added or a caution is lifted. The source of truth for the behaviour is the code and tests named in each row.
 
-**The one-line version for a skill:** a fix is a mechanical edit that was checked to load and not add a high finding. It was **not** run, **not** evaluated, and **not** a judgement about what the workflow should do. After any fix: show the diff, run `weave check`, and run the tests or evals the project has.
+**The model: the developer decides.** There are two ways to change a script from a finding:
+
+1. **`--fix`**: only for edits with one obviously right answer and no effect on behaviour (for example a fix whose text comes from a project setting). Mechanical, checked, applied in bulk.
+2. **Options** (`--assist`, or `--fix-finding FP --option ID --set name=value`): for everything where a person has to choose. The finding lists the resolutions it can offer (`options` in the JSON report, `options:` in the text report). Each has a label, what it changes in plain words, whether it needs thought (`review`) and the questions it asks (how many retries, what the failure note says, which variable keeps a person's answer). The developer picks one, answers the questions, sees the diff, and only then is it written. Every change is checked the same way as a fix: the script loads and no new high finding appears.
+
+Most of the cautions below used to be reasons to offer no fix. They are now reasons to **ask**. The cautious behaviour that remains is: nothing is applied on a guess, nothing that needs thought is applied without `--yes` (or an interactive confirmation), and the check proves only that the script loads and adds no high finding: it does not run the workflow.
+
+**The one-line version for a skill:** present the finding and its options to the user in your own words, let them choose and give the values, apply with `--fix-finding … --option … --set …`, show the diff (`--dry-run` first), then run `weave check` and the project's tests or evals. Never choose for them when an option is marked `review`.
+
+## 0. Options built so far (what to offer, and what to ask)
+
+| Rule | Option id | What it does | Questions it asks | Needs thought |
+|---|---|---|---|---|
+| LR01 (tool step without retry or timeout) | `retry-timeout` | Retries and times out | the whole policy (default `retry 2 backoff 2s timeout 60s`) | yes: a retry can repeat an action. Ask whether the tool is safe to repeat |
+| LR01 | `timeout-only` | Cuts a slow call off once, no retry | seconds (default 60) | no. The right choice when the agent sends or writes |
+| LR02 (effectful step with no failure path) | `note` | Records the failure and carries on | the note text | yes: later steps must work without this result |
+| LR02 | `human` | Pauses and asks a person | the question, the variable that keeps the answer | yes |
+| LR03 (loop with no maximum) | `max-rounds` | Stops after N rounds | N (default 5) | no. Still ask what should happen on exhaustion (see section 3) |
+| LY02 (PII only warned about) | `mask` | Replaces personal data before the model sees it | none | yes: the model loses the real value |
+| LY02 | `block` | Stops a call that contains personal data | none | yes |
+| LM01 (agent never used) | `delete` | Removes the definition | none | no, but check the references first (section 3) |
+
+`weave review --assist` walks the findings that have options; `--assist --fix-rule R` limits it to a rule, `--assist --fix-finding FP` to a finding. A skill does the same by reading `options` from `--format json` and calling `--fix-finding FP --option ID --set k=v [--yes]`. Questions without an answer take their default; a question with no default must be answered.
 
 ## 1. When no fix is offered
 
@@ -11,22 +33,22 @@ This file collects every place where the fix engine is cautious, so that the `ll
 | The statement shares its line with others (a one-line workflow: `workflow Main(q) { delegate … -> r  note "{r}" }`) | The finding appears, with no fix (`FixApplierTest.aStatementOnALineWithOthersIsNotGuessedAt`) | An edit at "the end of the statement" would land after a `}` and break the script. Guessing where one statement ends on a crowded line is how fixes corrupt files | Offer to put each statement on its own line first (a pure reformat), review again, then fix. Or make the edit by hand from the finding's `fixHint` |
 | An agent is declared over several lines and the thing to change is on a later line (`guard { pii: warn }` below `agent X {`) | LY02 has no fix | The fix looks on the agent's first line only | Read the agent, make the change, run `weave check` |
 | The anchor text is not where the fix expects it (a different spelling of the same setting) | No fix; the rule's `weave rules test` fails if it happens on its own examples | A fix that cannot find its anchor is dropped, never approximated | Same as above |
-| The rule's fix needs a choice (which model to downsize to, which version to pin, how big a memory bound) | The rule has no fix template (LC01, LC02, LG04, LP rules, LY01 and most others) | The right value depends on quality, cost and policy that review cannot see | Ask the user for the value, then write it. For LC02 propose `memory { max_tokens: … }` or a `context` block and ask about the size |
+| The rule's fix needs a choice (which model to downsize to, which version to pin, how big a memory bound) | The rule has no fix or option yet (LC01, LC02, LG04, LP rules, LY01 and most others) | The right value depends on quality, cost and policy that review cannot see. These are the next rules to get options (see RULES_ROADMAP.md) | Ask the user for the value, then write it. For LC02 propose `memory { max_tokens: … }` or a `context` block and ask about the size |
 | The finding comes from the security audit (LA01 to LA20) | No fixes at all | Audit findings are decisions about what an agent may reach | Walk through the decision with the user (split the agent, add approval, accept in writing). Never auto-edit |
 | The script fails to load | Review exits 2 and nothing is fixed | There is nothing to anchor to | Fix the load error first (`weave check`) |
 
-## 2. When a fix is offered but needs judgement (REVIEW)
+## 2. When a fix needs judgement (REVIEW)
 
-A REVIEW fix is shown by `--dry-run` and applied only by `--fix-rule R --yes` or `--fix-finding FP --yes`. `--fix` alone never applies it.
+A REVIEW fix is shown by `--dry-run` and applied only by `--fix-rule R --yes` or `--fix-finding FP --yes`; `--fix` alone never applies it. The same rules have options (section 0), which are the better route because the developer supplies the values.
 
 | Fix | Why it needs judgement | What the skill should do |
 |---|---|---|
 | **LR01 retry on a step whose agent can write or send** (`reviewWhen: agent.hasEffects`) | A retry runs the call again, so a tool that sends mail or writes a record can do it twice. Whether that is safe depends on whether the tool is idempotent or journaled (see LD02 and LD04) | Ask: "can this tool be repeated safely?" If yes, apply with `--yes`. If no, move the effect after a check, or use a journaled tool kind, and do not add the retry |
 | **LR02 `on_failure { note "this step failed" }`** | The skeleton only records the failure. It does not recover, retry or tell a person | Ask what should happen when the step fails (ask a person, use a fallback agent, stop). Replace the skeleton with that |
 
-## 3. Safe fixes that still change behaviour
+## 3. Safe fixes that still change behaviour, and the options that settle them
 
-These are applied by `--fix` because they are mechanical and local, but the workflow behaves differently afterwards. Say so.
+These are applied by `--fix` because they are mechanical and local, but the workflow behaves differently afterwards. Say so, or better, use the option and let the developer pick the value.
 
 | Fix | What changes | What the skill should do |
 |---|---|---|
@@ -64,6 +86,11 @@ These are applied by `--fix` because they are mechanical and local, but the work
 > Review found N open findings. Some have a mechanical fix I can apply and check: it will load and add no new high finding. That is all the check promises: it does not run your workflow. After I apply fixes I will show you the diff and run `weave check` and your tests. A few fixes change behaviour (a retry timeout, a loop limit, masking personal data), so I will tell you what changes and ask about the values. Fixes that could repeat an action (retrying a step that sends mail), delete something other scripts might use, or decide what happens on failure, I will only propose, never apply on my own. I will not write a reason for you when you accept a finding. You can run the workflow whatever the findings say; they are advice.
 
 ## 6. Open items
+
+- More rules need options: LC01 (which cheaper model), LC02 (which memory bound), LG04 (which version to pin), LR08 (wait, fail or suspend), LP rules (which prompt text). Each is a data change plus examples.
+- An option cannot yet touch a second file (a prompt file, `review.properties`). `createFile` is parsed but unused.
+- Options that add a block inside an agent (a multi-line `guard`) need an anchor that finds a setting inside a block. Not built.
+- Interactive mode shows the diff but not the references an option marks (`references: true`, LM01); a skill must search the project itself before deleting.
 
 - A formatter pass ("one statement per line") would remove the largest class of missing fixes (section 1, row 1). Not built.
 - Multi-line agent edits (section 1, row 2) need an anchor that finds a setting inside a block. Not built.

@@ -21,6 +21,8 @@ import java.util.Optional;
  * @param anchor the most stable name for the thing the finding is about (an agent's name, a
  *     workflow, kind and ordinal), empty when only the title identifies it; see {@link
  *     #fingerprint()}
+ * @param options the ways the developer can resolve it, when there is more than one or a choice to
+ *     make; {@code fix} is the one that {@code --fix} applies on its own
  */
 public record Finding(
         String rule,
@@ -34,7 +36,27 @@ public record Finding(
         Optional<Fix> fix,
         List<String> related,
         String source,
-        String anchor) {
+        String anchor,
+        List<FixOption> options) {
+
+    /** A finding with an anchor and no options. */
+    public Finding(
+            String rule,
+            Lens lens,
+            Severity severity,
+            Location where,
+            String title,
+            String why,
+            String fixHint,
+            List<String> owasp,
+            Optional<Fix> fix,
+            List<String> related,
+            String source,
+            String anchor) {
+        this(
+                rule, lens, severity, where, title, why, fixHint, owasp, fix, related, source,
+                anchor, List.of());
+    }
 
     /** A finding that is identified by its rule and title alone. */
     public Finding(
@@ -49,11 +71,14 @@ public record Finding(
             Optional<Fix> fix,
             List<String> related,
             String source) {
-        this(rule, lens, severity, where, title, why, fixHint, owasp, fix, related, source, "");
+        this(
+                rule, lens, severity, where, title, why, fixHint, owasp, fix, related, source, "",
+                List.of());
     }
 
     public Finding {
         anchor = anchor == null ? "" : anchor;
+        options = options == null ? List.of() : List.copyOf(options);
         owasp = List.copyOf(owasp);
         related = List.copyOf(related);
         fix = fix == null ? Optional.empty() : fix;
@@ -66,7 +91,8 @@ public record Finding(
     /** The same finding with another severity (a project setting). */
     public Finding withSeverity(Severity s) {
         return new Finding(
-                rule, lens, s, where, title, why, fixHint, owasp, fix, related, source, anchor);
+                rule, lens, s, where, title, why, fixHint, owasp, fix, related, source, anchor,
+                options);
     }
 
     /** The same finding noting that {@code other} describes the same cause. */
@@ -74,13 +100,15 @@ public record Finding(
         java.util.ArrayList<String> r = new java.util.ArrayList<>(related);
         if (!r.contains(other)) r.add(other);
         return new Finding(
-                rule, lens, severity, where, title, why, fixHint, owasp, fix, r, source, anchor);
+                rule, lens, severity, where, title, why, fixHint, owasp, fix, r, source, anchor,
+                options);
     }
 
     /** The same finding about the named thing. */
     public Finding withAnchor(String a) {
         return new Finding(
-                rule, lens, severity, where, title, why, fixHint, owasp, fix, related, source, a);
+                rule, lens, severity, where, title, why, fixHint, owasp, fix, related, source, a,
+                options);
     }
 
     /**

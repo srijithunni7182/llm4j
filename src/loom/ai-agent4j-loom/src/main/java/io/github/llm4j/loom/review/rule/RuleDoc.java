@@ -19,6 +19,7 @@ import java.util.List;
  * @param fires scripts the rule must report on
  * @param quiet scripts the rule must stay quiet on
  * @param escalations conditions under which the finding is more serious than the rule's severity
+ * @param options other ways to resolve the finding, offered to a developer who is choosing
  * @param pack the pack it came from, as {@code name@version}
  */
 public record RuleDoc(
@@ -39,6 +40,7 @@ public record RuleDoc(
         List<Example> fires,
         List<Example> quiet,
         List<Escalation> escalations,
+        List<OptionTemplate> options,
         String pack) {
 
     public RuleDoc {
@@ -47,6 +49,7 @@ public record RuleDoc(
         fires = List.copyOf(fires);
         quiet = List.copyOf(quiet);
         escalations = List.copyOf(escalations);
+        options = List.copyOf(options);
     }
 
     /** A reason to raise the severity: when the condition holds, the finding has this severity. */
@@ -83,6 +86,7 @@ public record RuleDoc(
                 fires,
                 quiet,
                 escalations,
+                options,
                 packName);
     }
 }

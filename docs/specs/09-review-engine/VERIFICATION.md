@@ -118,6 +118,10 @@ Status: **in progress**: 9a to 9f complete; 9g–9i not started. Run top to bott
 | R72 | Rules were written as data from the start (no Java twin), so there is no parity to test; the corpus is the guard | ✅ 9d (not applicable) |
 | R73 | `JavaRuleTest.aJavaRuleRunsBesideTheCoreRules…` | ✅ 9b (fact-provider half: `FactBuilderTest` custom provider) |
 | R74 | `RulesDiffTest`, `PackSemverTest` | ⬜ 9i |
+| R75 | `AssistedFixTest.aFindingListsItsOptions…`, `theTextReportNamesTheOptions`, `RuleParserTest.optionsParse…`, `optionMistakes…`, `RuleValidatorTest.anOptionMayNotUseAnAnswer…` | ✅ 9f |
+| R76 | `AssistedFixTest` (named option with `--set`; dry run; `--yes`; interactive choose, ask, diff, confirm; skip; decline; empty answer takes the default; `--set` without `=`) | ✅ 9f |
+| R77 | `AssistedFixTest.anAnswerThatBreaksTheScriptIsRefused…`, `anUnknownOptionOrABadFingerprintIsRefused…` | ✅ 9f |
+| R78 | `AssistedFixTest` (the `--fix` tests in `ReviewCommandTest` leave option-only rules alone) | ✅ 9f |
 
 ## 3. Quality gates
 
@@ -380,3 +384,10 @@ Repository examples reviewed: 14 (skipped 0)
 | LR02 | 8 |
 | LR03 | 1 |
 | LR07 | 2 |
+
+### 9f+ assisted fixes (2026-10-23)
+
+- Built, after the user pointed out that a fix need not fix everything: a finding can offer **options** and the developer decides (R75 to R78). `weave review --assist` walks the findings that have options; `--fix-finding FP --option ID --set name=value [--dry-run] [--yes]` does the same for a script or a skill. Options exist for LR01 (retry and timeout, or timeout only), LR02 (note the failure, or ask a person), LR03 (stop after N rounds), LY02 (mask or block) and LM01 (delete). The questions are answered by the developer; defaults are shown. Each result is checked like a fix (loads, no new HIGH) and shown as a diff before it is written.
+- This lifts most of the cautions in `FIX_CAUTIONS.md`: they are now reasons to ask rather than reasons to offer nothing. The file was rewritten around that.
+- Tests: `AssistedFixTest` (13), parser and validator tests for options.
+- Not built: options for LC01, LC02, LG04, LR08 and the LP rules; options that touch a second file; the reference search before a delete is a flag (`references: true`) that interactive mode does not yet act on.

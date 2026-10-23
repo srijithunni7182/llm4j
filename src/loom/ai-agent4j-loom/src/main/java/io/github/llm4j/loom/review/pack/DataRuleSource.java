@@ -10,14 +10,17 @@ import io.github.llm4j.loom.review.fix.FixBuilder;
 import io.github.llm4j.loom.review.fix.SourceText;
 import io.github.llm4j.loom.review.model.Finding;
 import io.github.llm4j.loom.review.model.Fix;
+import io.github.llm4j.loom.review.model.FixOption;
 import io.github.llm4j.loom.review.model.FixSafety;
 import io.github.llm4j.loom.review.model.Note;
 import io.github.llm4j.loom.review.rule.Evaluation;
 import io.github.llm4j.loom.review.rule.Evaluator;
+import io.github.llm4j.loom.review.rule.OptionTemplate;
 import io.github.llm4j.loom.review.rule.RuleDoc;
 import io.github.llm4j.loom.review.rule.Template;
 import io.github.llm4j.loom.review.rule.Tri;
 import io.github.llm4j.loom.review.settings.ReviewSettings;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -107,6 +110,11 @@ public final class DataRuleSource implements FindingSource {
                     && Evaluator.evaluate(rule.fix().reviewWhen(), e, base).result() == Tri.TRUE)
                 fix = Optional.of(new Fix(FixSafety.REVIEW, fix.get().label(), fix.get().edits()));
         }
+        List<FixOption> options = new ArrayList<>();
+        SourceText optionText = rule.options().isEmpty() ? null : source.get();
+        if (optionText != null)
+            for (OptionTemplate o : rule.options())
+                FixBuilder.buildOption(o, e, base, optionText, file).ifPresent(options::add);
         return new Finding(
                 rule.id(),
                 rule.lens(),
@@ -119,7 +127,8 @@ public final class DataRuleSource implements FindingSource {
                 fix,
                 List.of(),
                 "pack " + rule.pack(),
-                anchor(e, base));
+                anchor(e, base),
+                options);
     }
 
     /** The script's text, read once when the first fix needs it; null when it cannot be read. */

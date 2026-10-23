@@ -36,6 +36,7 @@ public final class RuleParser {
                     "references",
                     "explain",
                     "escalate",
+                    "options",
                     "examples");
 
     /** Deepest nesting of conditions accepted, and the most nodes in one condition tree. */
@@ -124,6 +125,7 @@ public final class RuleParser {
         if (n.has("heuristic") && !n.get("heuristic").isBoolean())
             problems.add(at + ".heuristic: true or false");
         List<RuleDoc.Escalation> escalations = escalations(n.get("escalate"), at + ".escalate");
+        List<OptionTemplate> options = options(n.get("options"), at + ".options");
         List<Example> fires = new ArrayList<>();
         List<Example> quiet = new ArrayList<>();
         if (n.has("examples")) {
@@ -155,6 +157,7 @@ public final class RuleParser {
                         fires,
                         quiet,
                         escalations,
+                        options,
                         null));
     }
 
@@ -383,6 +386,24 @@ public final class RuleParser {
         else safety = s.equals("safe") ? FixSafety.SAFE : FixSafety.REVIEW;
         String label = text(n, "label");
         if (label == null) problems.add(where + ".label: what the fix does, in a few words");
+        List<FixTemplate.Operation> ops = operations(n, where);
+        if (ops.isEmpty())
+            problems.add(
+                    where
+                            + ": a fix needs at least one operation ("
+                            + String.join(", ", FixTemplate.OPERATIONS)
+                            + ")");
+        Condition reviewWhen = null;
+        if (n.has("reviewWhen")) {
+            nodes = 0;
+            reviewWhen = condition(n.get("reviewWhen"), where + ".reviewWhen", 1);
+        }
+        return safety == null || label == null || ops.isEmpty()
+                ? null
+                : new FixTemplate(safety, label, ops, reviewWhen);
+    }
+
+    private List<FixTemplate.Operation> operations(JsonNode n, String where) {
         List<FixTemplate.Operation> ops = new ArrayList<>();
         for (String op : FixTemplate.OPERATIONS) {
             if (!n.has(op)) continue;
@@ -406,20 +427,84 @@ public final class RuleParser {
                                 + (op.equals("createFile") ? " or a path" : ""));
             ops.add(new FixTemplate.Operation(op, anchor, text(o, "text"), text(o, "find")));
         }
-        if (ops.isEmpty())
-            problems.add(
-                    where
-                            + ": a fix needs at least one operation ("
-                            + String.join(", ", FixTemplate.OPERATIONS)
-                            + ")");
-        Condition reviewWhen = null;
-        if (n.has("reviewWhen")) {
-            nodes = 0;
-            reviewWhen = condition(n.get("reviewWhen"), where + ".reviewWhen", 1);
+        return ops;
+    }
+
+    private List<OptionTemplate> options(JsonNode n, String where) {
+        List<OptionTemplate> out = new ArrayList<>();
+        if (n == null) return out;
+        if (!n.isArray()) {
+            problems.add(where + ": a list of options");
+            return out;
         }
-        return safety == null || label == null || ops.isEmpty()
-                ? null
-                : new FixTemplate(safety, label, ops, reviewWhen);
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        for (int i = 0; i < n.size(); i++) {
+            JsonNode o = n.get(i);
+            String at = where + "[" + i + "]";
+            if (!o.isObject()) {
+                problems.add(at + ": a map with id, label, safety and operations");
+                continue;
+            }
+            List<String> allowed =
+                    new ArrayList<>(
+                            List.of("id", "label", "explain", "safety", "ask", "references"));
+            allowed.addAll(FixTemplate.OPERATIONS);
+            unknownKeys(o, allowed, at);
+            String id = text(o, "id");
+            if (id == null || !id.matches("[a-z][a-z0-9-]*"))
+                problems.add(at + ".id: a short lowercase name such as retry or delete");
+            else if (!ids.add(id))
+                problems.add(at + ".id: '" + id + "' is used twice in this rule");
+            String label = text(o, "label");
+            if (label == null) problems.add(at + ".label: what the option does, in a few words");
+            FixSafety safety = FixSafety.REVIEW;
+            if (o.has("safety")) {
+                String s = text(o, "safety");
+                if (s == null || !(s.equals("safe") || s.equals("review")))
+                    problems.add(at + ".safety: safe or review");
+                else safety = s.equals("safe") ? FixSafety.SAFE : FixSafety.REVIEW;
+            }
+            List<OptionTemplate.Ask> asks = new ArrayList<>();
+            if (o.has("ask")) {
+                if (!o.get("ask").isArray())
+                    problems.add(at + ".ask: a list of {name, prompt, default}");
+                else
+                    for (int j = 0; j < o.get("ask").size(); j++) {
+                        JsonNode a = o.get("ask").get(j);
+                        String aat = at + ".ask[" + j + "]";
+                        if (!a.isObject()) {
+                            problems.add(aat + ": a map with name, prompt and default");
+                            continue;
+                        }
+                        unknownKeys(a, List.of("name", "prompt", "default"), aat);
+                        String name = text(a, "name");
+                        if (name == null || !name.matches("[a-z][A-Za-z0-9_]*"))
+                            problems.add(aat + ".name: a simple name such as retry");
+                        String prompt = text(a, "prompt");
+                        if (prompt == null) problems.add(aat + ".prompt: the question to ask");
+                        asks.add(new OptionTemplate.Ask(name, prompt, text(a, "default")));
+                    }
+            }
+            List<FixTemplate.Operation> ops = operations(o, at);
+            if (ops.isEmpty())
+                problems.add(
+                        at
+                                + ": an option needs at least one operation ("
+                                + String.join(", ", FixTemplate.OPERATIONS)
+                                + ")");
+            boolean refs = o.has("references") && o.get("references").asBoolean(false);
+            if (id != null && label != null && !ops.isEmpty())
+                out.add(
+                        new OptionTemplate(
+                                id,
+                                label,
+                                text(o, "explain") == null ? "" : text(o, "explain"),
+                                safety,
+                                asks,
+                                ops,
+                                refs));
+        }
+        return out;
     }
 
     private void examples(JsonNode n, String where, List<Example> out) {

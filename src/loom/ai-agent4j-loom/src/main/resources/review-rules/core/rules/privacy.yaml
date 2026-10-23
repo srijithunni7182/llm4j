@@ -13,6 +13,17 @@
     safety: safe
     label: "Mask personal data instead of only warning"
     replaceText: { anchor: line, find: "pii: warn", text: "pii: mask" }
+  options:
+    - id: mask
+      label: "Mask personal data"
+      explain: "Personal data is replaced by a placeholder before the model or a tool sees it. The agent can no longer use the real value, for example to address an email."
+      safety: review
+      replaceText: { anchor: line, find: "pii: warn", text: "pii: mask" }
+    - id: block
+      label: "Block the call when personal data is present"
+      explain: "A request that contains personal data is stopped. Safest, and the most disruptive if the data is expected."
+      safety: review
+      replaceText: { anchor: line, find: "pii: warn", text: "pii: block" }
   since: "1.0.0"
   references: [LLM02]
   examples:

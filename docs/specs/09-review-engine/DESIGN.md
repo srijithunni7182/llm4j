@@ -495,7 +495,7 @@ review/
 - **R22** De-duplication: when `weave audit` and a new rule describe the same cause (for example LR07 and LA17 on one tool call), the engine shows the more specific one first and links the other (`related`), never two lines saying the same thing.
 - **R23** Ranking: severity, then lens priority (security, reliability, cost, validity, prompts), then location. Stable and deterministic.
 
-## 8. Fixes (R24 to R29)
+## 8. Fixes (R24 to R29, options R75 to R78)
 
 ### 8.1 Safety classes
 
@@ -508,6 +508,15 @@ review/
 - **R27** Idempotent: running `--fix` twice changes nothing the second time.
 - **R28** `--fix --dry-run` prints a unified diff and exit 1 if fixes are pending (so CI can demand a clean tree).
 - **R29** Fixes preserve comments, blank lines and the file's line endings; they touch only the lines they must.
+
+### 8.1a Options: the developer decides (R75 to R78)
+
+A fix is for an edit with one right answer. Most findings do not have one: how many retries, what a failure handler does, whether to mask or block, whether an unused agent is really unused. For these a finding carries **options**, and the developer is part of the decision.
+
+- **R75** A finding may carry options. Each has an id (stable within its rule), a label, a plain-words account of what changes in the workflow, a safety class (`safe` or `review`), the questions it asks (name, prompt, default) and the edits, in which `{ask.name}` stands for an answer. A rule declares them as data (`options:`) over the same closed operations and anchors as a fix; `{ask.x}` may only name a question the option asks (checked when the rule loads). Options are listed in the JSON report (`options`) and the text report.
+- **R76** Nothing is written until the developer has chosen an option, supplied its answers (an empty answer takes the default; a question with no default must be answered) and confirmed. Interactively (`weave review --assist`, optionally limited by `--fix-rule` or `--fix-finding`) the developer sees the finding, its options and their consequences, answers the questions, sees the diff and confirms. From a script or a skill: `--fix-finding FP --option ID --set name=value`, with `--dry-run` to print the diff and `--yes` for an option marked `review`.
+- **R77** An option's result is verified exactly as a fix is (R25): the new text must load and must not add a HIGH finding. An answer that would break the script is refused with the reason, and the file is untouched. The write is atomic.
+- **R78** `--fix` never applies an option. Options exist so that a fix can be cautious about *meaning* without being useless: the engine proposes, the person disposes.
 
 ### 8.2 Parameters in fixes
 

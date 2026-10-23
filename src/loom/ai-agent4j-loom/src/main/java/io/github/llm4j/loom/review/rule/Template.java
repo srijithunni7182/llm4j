@@ -25,9 +25,21 @@ public final class Template {
         List<String> out = new ArrayList<>();
         if (template == null) return out;
         Matcher m = PLACEHOLDER.matcher(template);
-        while (m.find()) out.add(m.group(1));
+        while (m.find()) if (!m.group(1).startsWith(ASK)) out.add(m.group(1));
         return out;
     }
+
+    /** The names of the answers a template takes, as in {@code {ask.retry}}. */
+    public static List<String> asks(String template) {
+        List<String> out = new ArrayList<>();
+        if (template == null) return out;
+        Matcher m = PLACEHOLDER.matcher(template);
+        while (m.find())
+            if (m.group(1).startsWith(ASK)) out.add(m.group(1).substring(ASK.length()));
+        return out;
+    }
+
+    private static final String ASK = "ask.";
 
     public static String render(String template, Entity root, FactBase facts) {
         if (template == null) return "";
@@ -35,7 +47,11 @@ public final class Template {
         StringBuilder b = new StringBuilder();
         while (m.find())
             m.appendReplacement(
-                    b, Matcher.quoteReplacement(show(Evaluator.read(root, m.group(1), facts))));
+                    b,
+                    Matcher.quoteReplacement(
+                            m.group(1).startsWith(ASK)
+                                    ? m.group()
+                                    : show(Evaluator.read(root, m.group(1), facts))));
         m.appendTail(b);
         return b.toString();
     }

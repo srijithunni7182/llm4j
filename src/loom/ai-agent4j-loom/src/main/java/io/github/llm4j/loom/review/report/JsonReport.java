@@ -95,6 +95,8 @@ public final class JsonReport {
         m.put("owasp", f.owasp());
         m.put("related", f.related());
         m.put("source", f.source());
+        if (!f.options().isEmpty())
+            m.put("options", f.options().stream().map(JsonReport::option).toList());
         f.fix()
                 .ifPresent(
                         fix -> {
@@ -119,6 +121,28 @@ public final class JsonReport {
                                             .toList());
                             m.put("fix", x);
                         });
+        return m;
+    }
+
+    private static Map<String, Object> option(io.github.llm4j.loom.review.model.FixOption o) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", o.id());
+        m.put("label", o.label());
+        m.put("explain", o.explain());
+        m.put("safety", o.safety().name().toLowerCase(java.util.Locale.ROOT));
+        m.put(
+                "ask",
+                o.params().stream()
+                        .map(
+                                p -> {
+                                    Map<String, Object> q = new LinkedHashMap<>();
+                                    q.put("name", p.name());
+                                    q.put("prompt", p.prompt());
+                                    q.put("default", p.defaultValue());
+                                    return q;
+                                })
+                        .toList());
+        m.put("showReferences", o.showReferences());
         return m;
     }
 

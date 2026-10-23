@@ -113,6 +113,50 @@ class RuleParserTest {
     }
 
     @Test
+    void optionsParseWithTheirQuestionsAndOperations() throws Exception {
+        String yaml =
+                MINIMAL
+                        + """
+                options:
+                  - id: later
+                    label: "Later"
+                    explain: "Does it later."
+                    safety: review
+                    references: true
+                    ask:
+                      - { name: n, prompt: "How many", default: "3" }
+                    insertAfter: { anchor: statementEnd, text: " max {ask.n}" }
+                """;
+        RuleDoc r = parse(yaml).rules().get(0);
+        assertThat(r.options()).hasSize(1);
+        var o = r.options().get(0);
+        assertThat(o.id()).isEqualTo("later");
+        assertThat(o.safety()).isEqualTo(FixSafety.REVIEW);
+        assertThat(o.showReferences()).isTrue();
+        assertThat(o.asks())
+                .extracting(a -> a.name() + "=" + a.defaultValue())
+                .containsExactly("n=3");
+        assertThat(o.operations()).extracting(op -> op.kind()).containsExactly("insertAfter");
+    }
+
+    @Test
+    void optionMistakesAreReportedWithTheirPlace() throws Exception {
+        String twice =
+                MINIMAL
+                        + """
+                options:
+                  - { id: a, label: "A", insertAfter: { anchor: statementEnd, text: "x" } }
+                  - { id: a, label: "B", insertAfter: { anchor: statementEnd, text: "y" } }
+                  - { id: c, label: "C" }
+                  - { id: D, label: "D", insertAfter: { anchor: statementEnd, text: "z" } }
+                """;
+        assertThat(parse(twice).problems())
+                .anyMatch(p -> p.contains("'a' is used twice"))
+                .anyMatch(p -> p.contains("needs at least one operation"))
+                .anyMatch(p -> p.contains(".id: a short lowercase name"));
+    }
+
+    @Test
     void examplesMayBeFilesOrInlineSnippetsWithAnExpectedCount() throws Exception {
         String yaml =
                 MINIMAL.replace(

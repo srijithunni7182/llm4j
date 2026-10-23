@@ -89,11 +89,53 @@ public final class RuleValidator {
                 }
             }
         }
+        for (OptionTemplate o : r.options()) option(r, o, about, at + ".options[" + o.id() + "]");
         if (r.fires().isEmpty())
             problems.add(at + ".examples.fires: a rule needs at least one script it fires on");
         if (r.quiet().isEmpty())
             problems.add(
                     at + ".examples.quiet: a rule needs at least one script it stays quiet on");
+    }
+
+    private void option(RuleDoc r, OptionTemplate o, EntityDef about, String at) {
+        java.util.Set<String> asked = new java.util.HashSet<>();
+        for (OptionTemplate.Ask a : o.asks()) asked.add(a.name());
+        placeholders(o.label(), r.about(), at + ".label");
+        placeholders(o.explain(), r.about(), at + ".explain");
+        for (FixTemplate.Operation op : o.operations()) {
+            placeholders(op.text(), r.about(), at + "." + op.kind());
+            for (String name : Template.asks(op.text()))
+                if (!asked.contains(name))
+                    problems.add(
+                            at
+                                    + "."
+                                    + op.kind()
+                                    + ": {ask."
+                                    + name
+                                    + "} is not one of the option's questions");
+            String anchor = op.anchor();
+            if (anchor != null && !op.kind().equals("createFile")) {
+                String base = anchor.startsWith("lineOf:") ? "lineOf" : anchor;
+                if (!FixTemplate.ANCHORS.contains(base))
+                    problems.add(
+                            at
+                                    + "."
+                                    + op.kind()
+                                    + ": '"
+                                    + anchor
+                                    + "' is not an anchor; the anchors are "
+                                    + FixTemplate.ANCHORS);
+                if (anchor.startsWith("lineOf:") && about.field(anchor.substring(7)).isEmpty())
+                    problems.add(
+                            at
+                                    + "."
+                                    + op.kind()
+                                    + ": lineOf names '"
+                                    + anchor.substring(7)
+                                    + "', which is not a fact of "
+                                    + r.about());
+            }
+        }
     }
 
     private void placeholders(String text, String kind, String where) {

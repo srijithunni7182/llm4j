@@ -3,8 +3,10 @@ package io.github.llm4j.loom.review.fix;
 import io.github.llm4j.loom.review.fact.Entity;
 import io.github.llm4j.loom.review.fact.FactBase;
 import io.github.llm4j.loom.review.model.Fix;
+import io.github.llm4j.loom.review.model.FixOption;
 import io.github.llm4j.loom.review.model.TextEdit;
 import io.github.llm4j.loom.review.rule.FixTemplate;
+import io.github.llm4j.loom.review.rule.OptionTemplate;
 import io.github.llm4j.loom.review.rule.Template;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +37,44 @@ public final class FixBuilder {
                         template.safety(),
                         Template.render(template.label(), entity, facts),
                         edits));
+    }
+
+    /**
+     * The option as the developer will see it: the edits for it with the questions' answers not yet
+     * filled in. Empty when an anchor cannot be found, as for a fix.
+     */
+    public static Optional<FixOption> buildOption(
+            OptionTemplate template,
+            Entity entity,
+            FactBase facts,
+            SourceText source,
+            String file) {
+        int line = entity.where().line();
+        List<TextEdit> edits = new ArrayList<>();
+        for (FixTemplate.Operation op : template.operations()) {
+            Optional<TextEdit> edit = edit(op, entity, facts, source, file, line);
+            if (edit.isEmpty()) return Optional.empty();
+            edits.add(edit.get());
+        }
+        if (!SourceText.disjoint(edits)) return Optional.empty();
+        List<FixOption.Param> params = new ArrayList<>();
+        for (OptionTemplate.Ask a : template.asks())
+            params.add(
+                    new FixOption.Param(
+                            a.name(),
+                            Template.render(a.prompt(), entity, facts),
+                            a.defaultValue() == null
+                                    ? null
+                                    : Template.render(a.defaultValue(), entity, facts)));
+        return Optional.of(
+                new FixOption(
+                        template.id(),
+                        Template.render(template.label(), entity, facts),
+                        Template.render(template.explain(), entity, facts),
+                        template.safety(),
+                        params,
+                        edits,
+                        template.showReferences()));
     }
 
     private static Optional<TextEdit> edit(

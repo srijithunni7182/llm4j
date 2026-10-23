@@ -16,6 +16,21 @@
     reviewWhen: { field: agent.hasEffects, is: true }
     label: "Add retry and timeout"
     insertAfter: { anchor: statementEnd, text: " {setting.fix.retry}" }
+  options:
+    - id: retry-timeout
+      label: "Retry and time out"
+      explain: "A failed or slow call is tried again, up to the number of tries, then the step fails. If the agent writes or sends, a retry can repeat the action."
+      safety: review
+      ask:
+        - { name: policy, prompt: "Retry policy", default: "retry 2 backoff 2s timeout 60s" }
+      insertAfter: { anchor: statementEnd, text: " {ask.policy}" }
+    - id: timeout-only
+      label: "Time out only, no retry"
+      explain: "A call that takes too long is cut off and the step fails once; nothing is repeated. The right choice when the agent sends or writes."
+      safety: safe
+      ask:
+        - { name: seconds, prompt: "Time out after how many seconds", default: "60" }
+      insertAfter: { anchor: statementEnd, text: " timeout {ask.seconds}s" }
   since: "1.0.0"
   explain: >
     A delegate to an agent that has tools can fail in ways a plain model call does not: a tool
@@ -41,6 +56,14 @@
     safety: safe
     label: "Add a maximum number of rounds"
     insertBefore: { anchor: beforeBrace, text: "{setting.fix.loop.max} " }
+  options:
+    - id: max-rounds
+      label: "Stop after a number of rounds"
+      explain: "The loop ends after that many rounds even if its condition still holds, so its cost has an upper limit."
+      safety: safe
+      ask:
+        - { name: rounds, prompt: "Most rounds the loop may run", default: "5" }
+      insertBefore: { anchor: beforeBrace, text: "max {ask.rounds} " }
   since: "1.0.0"
   explain: >
     Bound every loop. With max N the runtime stops after N rounds and runs the on_exhausted block,
@@ -65,6 +88,22 @@
     safety: review
     label: "Add an on_failure block that records the failure"
     insertAfter: { anchor: statementEnd, text: " on_failure { note \"this step failed\" }" }
+  options:
+    - id: note
+      label: "Record the failure and carry on"
+      explain: "The failure is written to the run's notes and the workflow continues with the next step. Only right if later steps can work without this one's result."
+      safety: review
+      ask:
+        - { name: message, prompt: "What the note should say", default: "this step failed" }
+      insertAfter: { anchor: statementEnd, text: " on_failure { note \"{ask.message}\" }" }
+    - id: human
+      label: "Ask a person what to do"
+      explain: "The run pauses and a person is asked; their answer is kept in a variable. Use this when the failure leaves something half done that only a person can judge."
+      safety: review
+      ask:
+        - { name: message, prompt: "What to ask the person", default: "This step failed. Check it, then answer done." }
+        - { name: variable, prompt: "Variable that keeps their answer", default: "checked" }
+      insertAfter: { anchor: statementEnd, text: " on_failure { human_prompt \"{ask.message}\" -> {ask.variable} }" }
   since: "1.2.0"
   explain: >
     An agent whose tools write or send can fail after part of its work is done. An on_failure

@@ -12,6 +12,13 @@
     safety: safe
     label: "Delete the unused agent"
     deleteLines: { anchor: block }
+  options:
+    - id: delete
+      label: "Delete the agent"
+      explain: "The agent's definition is removed. Check first that no other file, such as a test or a Fabric attribute, names it."
+      safety: safe
+      references: true
+      deleteLines: { anchor: block }
   since: "1.0.0"
   examples:
     fires: [ examples/lm01-fires.loom ]
