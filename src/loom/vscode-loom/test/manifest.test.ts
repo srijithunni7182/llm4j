@@ -84,3 +84,12 @@ test('the webview page and scripts load nothing from outside the extension', () 
     const panel = fs.readFileSync(path.join(root, 'media', 'panel.js'), 'utf8');
     assert.ok(!/innerHTML|insertAdjacentHTML|document\.write/.test(panel), 'script text is never put in the page as HTML');
 });
+
+test('10a: the engine commands and the java setting are declared, and the old graph key still works', () => {
+    const commands = manifest.contributes.commands.map((c: { command: string }) => c.command);
+    assert.ok(commands.includes('loom.restartEngine'));
+    assert.ok(commands.includes('loom.showEngineLog'));
+    const props = manifest.contributes.configuration.properties;
+    assert.equal(props['loom.javaPath'].default, 'java');
+    assert.ok(props['loom.graph.javaPath'], 'the older key is honoured');
+});

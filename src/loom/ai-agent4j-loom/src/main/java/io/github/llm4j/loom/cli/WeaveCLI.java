@@ -1584,6 +1584,7 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new NextCommand())
                 .addSubcommand(new EvalCommand())
                 .addSubcommand(new TestCommand())
+                .addSubcommand(new ServeCommand())
                 .addSubcommand(new InitCommand())
                 .addSubcommand(new GuideCommand())
                 .addSubcommand(new SecretCommands());
@@ -1598,6 +1599,13 @@ public class WeaveCLI implements Callable<Integer> {
      * that is older than a script (or than the one beside it) can be recognized. Run from classes
      * (a test or an IDE) it says so.
      */
+    /** The version number alone (or "dev" when run from classes), for the editor handshake. */
+    static String versionNumber() {
+        Package p = WeaveCLI.class.getPackage();
+        String v = p == null ? null : p.getImplementationVersion();
+        return v == null ? "dev" : v;
+    }
+
     static final class BuildVersion implements CommandLine.IVersionProvider {
         @Override
         public String[] getVersion() {

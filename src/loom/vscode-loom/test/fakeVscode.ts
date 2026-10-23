@@ -120,6 +120,8 @@ export function createFakeVscode(settings: Record<string, unknown>) {
         workspace: {
             getConfiguration: (section: string) => ({
                 get: <T>(key: string, fallback: T): T => (settings[`${section}.${key}`] as T) ?? fallback,
+                inspect: <T>(key: string): { globalValue?: T } | undefined =>
+                    settings[`${section}.${key}`] === undefined ? undefined : { globalValue: settings[`${section}.${key}`] as T },
             }),
             onDidSaveTextDocument: (listener: Listener<any>) => state.save.subscribe(listener),
         },

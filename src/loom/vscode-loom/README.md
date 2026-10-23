@@ -90,13 +90,17 @@ When an agent's prompt is a markdown file (`prompt: "researcher"` or `prompt: "r
 
 ## Snippets
 
-Type a keyword in a `.loom` file and press Tab to get the whole statement with its blanks: `agent`, `agent-guard`, `delegate`, `delegate-expecting`, `loop`, `alt`, `alt-else`, `human-prompt`, `approval`, `run`, `call`, `workflow`, `budget`, `tool`, `tool-class`, `note`, `halt`, `set`, `return`, `isok`, `parallel`, `on-failure`, `import`, `agent-steerable`, `on-stopped`, `intervention`, `supervise`, `intentclassifier`, `intentclassify`. Each one's description says the habit it encodes (a loop always has a `max`, variable names that are not ordinary words, prompts as files). A test types each snippet with its default values and checks the result with `weave`.
+Type a keyword in a `.loom` file and press Tab to get the whole statement with its blanks: `agent`, `agent-guard`, `delegate`, `delegate-expecting`, `loop`, `alt`, `alt-else`, `human-prompt`, `approval`, `run`, `call`, `workflow`, `budget`, `tool`, `tool-class`, `note`, `halt`, `set`, `return`, `isok`, `parallel`, `on-failure`, `import`, `agent-steerable`, `agent-grounded`, `on-stopped`, `intervention`, `supervise`, `intentclassifier`, `intentclassify`. Each one's description says the habit it encodes (a loop always has a `max`, variable names that are not ordinary words, prompts as files). A test types each snippet with its default values and checks the result with `weave`.
 
 ## The guide and the agent skill
 
 **Loom: Open Guide** (Command Palette) shows a page of the written guide: where to start, the ten chapters, or the Loom reference. It comes from the `weave` jar inside this extension, so it works with no repository and no network.
 
 **Loom: Install the Loom Skill in This Project** writes the agent skill and the guide into `.claude/skills/llm4j-workflow-guide` in the folder you have open, so an AI coding agent that reads the project knows the path. It asks before it replaces an older copy.
+
+## The engine
+
+The extension starts one long-lived Loom engine per window (`weave serve`) and asks it for checks and graphs, so feedback does not wait for a Java process to start. It runs nothing and writes nothing, and it reads only the folders you have open. If it cannot start (no Java, a missing `weave.jar`), or stops repeatedly, the extension falls back to running `weave` for each request and the status bar says so once (**Loom: engine unavailable (using commands)**). **Loom: Restart Engine** starts it again, and **Loom: Show Engine Log** shows what it wrote. The protocol is documented in `docs/serve/PROTOCOL.md`.
 
 ## Problems
 
@@ -108,7 +112,8 @@ A key that is not set yet (such as `GEMINI_API_KEY`) is not reported as a proble
 
 | Setting | Default | What it does |
 |---|---|---|
-| `loom.graph.javaPath` | `java` | The Java executable used to run `weave.jar` |
+| `loom.javaPath` | `java` | The Java executable used to run `weave.jar` (the engine, checks and graphs); if only the older `loom.graph.javaPath` is set, that one is used |
+| `loom.graph.javaPath` | `java` | The older name of the same setting, still honoured |
 | `loom.graph.timeoutMs` | `30000` | How long to wait for `weave graph` before stopping it |
 | `loom.graph.autoRefresh` | `true` | Redraw when the script or a file it imports is saved |
 

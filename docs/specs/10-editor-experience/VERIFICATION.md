@@ -1,6 +1,6 @@
 # Phase 10 verification plan: the editor experience
 
-Status: **not started**. Run top to bottom at the end of sub-phase 10e; the relevant rows after each sub-phase. Results in §7.
+Status: **10a done** (`weave serve`, the engine client, check and graph through the engine). 10b to 10e not started. Run top to bottom at the end of sub-phase 10e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -41,14 +41,14 @@ Status: **not started**. Run top to bottom at the end of sub-phase 10e; the rele
 | R8 | `review.browser.test.js`, `explainRule` in `ServeProtocolTest` | ⬜ 10c |
 | R9 | `reviewController.test.ts` (stale, keep previous result) | ⬜ 10b |
 | R10 | `reviewController.test.ts` (tiers, debounce) | ⬜ 10b |
-| R11 | `engineClient.test.ts` | ⬜ 10a |
+| R11 | `engineClient.test.ts` (withdraw on newer, stale version dropped) | ✅ 10a |
 | R12 | `latency.test.ts` | ⬜ 10e |
-| R13 | `ServeProtocolTest`, `engineClient.test.ts` | ⬜ 10a |
-| R14 | `ServeCacheTest`, `ServeInvalidationTest` | ⬜ 10a |
-| R15 | `ServeIsStaticTest`, `ServeWorkspaceBoundaryTest` | ⬜ 10a |
-| R16 | `ServeRobustnessTest`, `engineClient.test.ts` | ⬜ 10a |
-| R17 | `applyFix.integration.test.ts`, `ServeIsStaticTest` | ⬜ 10c |
-| R18 | `ServeProtocolTest` (CLI mode) | ⬜ 10a |
+| R13 | `ServeRobustnessTest`, `ServeEngineTest`, `ServeStdioTest`, `engineClient.test.ts`, [PROTOCOL.md](../../serve/PROTOCOL.md) | ✅ 10a |
+| R14 | `ServeEngineTest` (hit, edit, buffer, imported file, review.properties, prompts, options, memory bound) | ✅ 10a |
+| R15 | `ServeIsStaticTest`, `ServeEngineTest` (outside folders, `..`, links, price file) | ✅ 10a |
+| R16 | `ServeRobustnessTest`, `engineClient.test.ts`, `engine.integration.test.ts` (real process killed) | ✅ 10a |
+| R17 | `applyFix.integration.test.ts`, `ServeIsStaticTest` (server writes nothing: ✅ 10a) | ⬜ 10c (editor applies) |
+| R18 | `ServeStdioTest` (real process) | ✅ 10a |
 | R19 | `degraded.test.ts` | ⬜ 10e |
 | R20 | `SymbolsTest` | ⬜ 10d |
 | R21 | `SymbolsRangesTest` | ⬜ 10d |
@@ -58,7 +58,7 @@ Status: **not started**. Run top to bottom at the end of sub-phase 10e; the rele
 | R25 | `parserParity.test.ts` | ⬜ 10d |
 | R26 | `latency.test.ts` | ⬜ 10e |
 | R27 | `SymbolsRecoveryTest` | ⬜ 10d |
-| R28 | `engineClient.test.ts` (providers take the interface) | ⬜ 10a |
+| R28 | `engineClient.test.ts`, `engineRouting.test.ts` (providers take the interface; `FakeEngine`) | ✅ 10a |
 | R29 | `a11y.browser.test.js`, `hostile.browser.test.js` | ⬜ 10b/10e |
 | R30 | `reviewPanelState.test.ts` | ⬜ 10b |
 | R31 | `manifest.test.ts` | ⬜ 10e |
@@ -113,3 +113,13 @@ Extension README and CHANGELOG; `docs/serve/PROTOCOL.md`; wiki "Loom in VS Code"
 ## 7. Results
 
 *(per sub-phase: latency table, parity delta between the TypeScript parser and the Java index, VSIX size)*
+
+### 10a (2026-10-23)
+
+- Built (Java): `weave serve --stdio` (`serve/` package: `Framing`, `Server`, `Workspace`, `ResultCache`, `RpcError`; `cli/CliEngine`, `cli/ServeCommand`); `Buffers`, a thread-local seam that lets `ScriptSource.fileSystem()` and `ImportClosureLoader` read an editor's unsaved text and say which files an answer was made from (with no buffers in place nothing changes). The methods are the commands themselves, called in process with their output captured (`WeaveCLI.check`, `GraphCommand.graph`, `ReviewCommand.review`), so the editor sees exactly what the commands print. Methods: `loom/check`, `loom/graph`, `loom/review` (tiers `instant` = validity lens, `full`), `loom/explainRule`, `loom/cancel`, `loom/shutdown`. `symbols`, `applyFix`, `cost` come in 10c and 10d.
+- Built (extension): `src/engine/` with the framing codec, `ProcessEngineClient` (handshake, request ids, withdraw-on-newer with version numbers, timeouts, restart with growing waits, give up after repeated failures, protocol mismatch), `EngineHost` and the one status line (`statusFor`), `FakeEngine`, `EngineCheckRunner` / `EngineGraphRunner` (the engine first, the process as the fallback), `registerEngine` (VS Code glue, commands `loom.restartEngine` and `loom.showEngineLog`), the setting `loom.javaPath` (the older `loom.graph.javaPath` still honoured). `TimeoutScheduler` moved to `graph/timeoutScheduler.ts` so engine code does not import `vscode`.
+- Behaviour unchanged: the existing check and graph tests pass unmodified; the one change to a test helper is `inspect` in `fakeVscode.ts`. Engine and command give identical JSON for the extension's fixtures (`engine.integration.test.ts`).
+- Latency (this machine, JVM already running its first request): cold start to first check answer 735 ms; warm check p95 5 ms (median 3 ms). The full-review and completion budgets are measured in 10b and 10d.
+- Test counts: Java module 2,832 tests, 0 failures. Extension: 331 tests, 283 pass, 42 skipped (browser tests without a browser), 6 fail, all six failing before this phase began (baseline in this environment): the logo script path (`src/scripts/make-logo-assets.sh` is not where the test looks), the editor scanner's `|` in `no-agent-router/router.loom` (the TypeScript parser does not know `choose kind: a | b`: a data point for the parser-parity work in 10d), the renderer-copy sync check (path), and a real-graph path test. One more pre-existing failure (the README did not list the `agent-grounded` snippet) was fixed in passing.
+- VSIX size: the bundled `weave.jar` is the CLI jar, 25,235,050 bytes; the new code adds well under 100 KB to it. The VSIX itself was not built here (`scripts/build-vsix.sh` needs the packaging toolchain); the budget in DESIGN §10.2 is still to be agreed.
+- Not yet: the review panel and everything the user can see (10b onward). **Nothing from 10a needs a manual check in VS Code beyond this**: open a `.loom` file, confirm Problems still appear as before (now through the engine), run "Loom: Show Engine Log" and see the engine's lines, kill the `java` process by hand and see the next check still work after a moment.

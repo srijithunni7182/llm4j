@@ -99,6 +99,14 @@
         "icon": "$(type-hierarchy)"
       },
       {
+        "command": "loom.restartEngine",
+        "title": "Loom: Restart Engine"
+      },
+      {
+        "command": "loom.showEngineLog",
+        "title": "Loom: Show Engine Log"
+      },
+      {
         "command": "loom.createPromptFile",
         "title": "Loom: Create Prompt File"
       },
@@ -140,6 +148,11 @@
     "configuration": {
       "title": "Loom",
       "properties": {
+        "loom.javaPath": {
+          "type": "string",
+          "default": "java",
+          "description": "The java executable used to run the bundled weave.jar (the Loom engine, checks, graphs). If you set only the older loom.graph.javaPath, that one is used."
+        },
         "loom.graph.javaPath": {
           "type": "string",
           "default": "java",
