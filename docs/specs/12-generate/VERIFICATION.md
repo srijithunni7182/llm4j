@@ -1,6 +1,6 @@
 # Phase 12 verification plan: generate from a description
 
-Status: **not started**. Run top to bottom at the end of sub-phase 12e; the relevant rows after each sub-phase. Results in §7.
+Status: **12a done**. Run top to bottom at the end of sub-phase 12e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -26,13 +26,13 @@ Status: **not started**. Run top to bottom at the end of sub-phase 12e; the rele
 |---|---|---|
 | R1 | `InterviewTest` | ⬜ 12b |
 | R2 | `InterviewCategoriesTest` | ⬜ 12b |
-| R3 | `PlanRoundTripTest` | ⬜ 12a |
-| R4 | `PlanOnlyFromPlanTest` | ⬜ 12a |
+| R3 | `PlanTest` (JSON round trip, fingerprint, Markdown) | ✅ 12a |
+| R4 | `GenerateCommandTest` (plan only, edited plan read back, plan the checker rejects is still written) | ✅ 12a |
 | R5 | `InteractivePlanTest` | ⬜ 12b |
-| R6 | `PlanCheckerTest` | ⬜ 12a |
-| R7 | `WriterTargetTest` | ⬜ 12a |
-| R8 | `WriterLayoutTest` | ⬜ 12a |
-| R9 | `PromptFilesTest` | ⬜ 12a |
+| R6 | `PlanTest` (role, allowed model, built-in kind or stub, reach, effect approval, budget, tests, names) | ✅ 12a |
+| R7 | `WriterTest` (temporary project, removed on close, target untouched until commit) | ✅ 12a |
+| R8 | `WriterTest` (flat and Maven layouts, pom, .gitignore) | ✅ 12a |
+| R9 | `WriterTest`, `GatesTest` (prompt files by stem) | 🟨 12a (the prompts' header comment is for 12b's prompt assembly) |
 | R10 | `SafetyDefaultsTest`, `MissingBudgetFailsTest` | ⬜ 12b |
 | R11 | `PromptAssemblyTest`, `ExamplePickerTest` | ⬜ 12b |
 | R12 | `RepairLoopTest` | ⬜ 12b |
@@ -49,13 +49,13 @@ Status: **not started**. Run top to bottom at the end of sub-phase 12e; the rele
 | R23 | `EditSafetyTest` | ⬜ 12d |
 | R24 | `AmbiguousEditTest` | ⬜ 12d |
 | R25 | `DescriptionInjectionTest`, `ContextFileInjectionTest`, `PlanFidelityTest` | ⬜ 12b |
-| R26 | `NoSecretsInPromptTest`, `TranscriptNoKeysTest` | ⬜ 12b |
-| R27 | `SecretShapedStringTest` | ⬜ 12b |
-| R28 | `HeaderNoModelNameTest` | ⬜ 12a |
+| R26 | `TranscriptTest` (no request text, no key-shaped reply) | 🟨 12a (the prompt and plan being key-free is 12b) |
+| R27 | `WriterTest.aFileThatIsTooBigOrHoldsAKeyIsRefused...` | 🟨 12a (files; prompts of the generator itself in 12b) |
+| R28 | `WriterTest.everyFileSaysWhatMadeItAndFromWhichPlanAndNeverWhichModel` | ✅ 12a |
 | R29 | `GenerateNetworkTest` | ⬜ 12b |
-| R30 | `WriterTargetTest` | ⬜ 12a |
-| R31 | `TranscriptReplayTest`, `TranscriptRoundTripTest` | ⬜ 12a |
-| R32 | `GateOnlyExamplesTest` | ⬜ 12a |
+| R30 | `WriterTest` (empty or absent target; nothing replaced) | ✅ 12a |
+| R31 | `TranscriptTest`, `GenerateCommandTest.recordingThenReplaying...` | ✅ 12a |
+| R32 | `GateOnlyExamplesTest` (samples and every starter template), `GenerateCommandTest` | ✅ 12a (G1 and G5; G2 to G4 join as they are built) |
 | R33 | `generateCommands.test.ts`, `ServeGenerateTest` | ⬜ 12e |
 | R34 | `SkillDriftTest` | ⬜ 12e |
 | R35 | `GenerateBenchmarkTest` (replay), `bench-generate.sh` (live) | ⬜ 12e |
@@ -90,3 +90,10 @@ Wiki "Generating a workflow"; LOOM_GUIDE section; the workflow skill (preferred 
 ## 7. Results
 
 *(per sub-phase: replay benchmark table; live benchmark: first-attempt pass, final pass, attempts, cost, flagged outputs)*
+
+### 12a (2026-10-23)
+
+- Built: `generate/` with `Plan` (JSON, Markdown, fingerprint), `PlanChecker` (R6), `Planner` (asks the model for a plan; the description is given as data between markers), `Transcript` (record without request text and without key-shaped replies; replay that stops clearly when what is asked has changed), `Writer`/`Workspace` (checked paths and sizes, key-shaped text refused, header with generator, date and plan fingerprint and no model name, flat or Maven layout, a temporary project moved only on commit and never over existing files), G1 (`CheckGate`) and G5 (`FidelityGate`: the script is the plan in both directions; an effect the plan does not list, an effect the plan says is approved but the script lets an agent call without `approve:`, a person asked in one and not the other, no budget). `weave generate "..." --plan-only | --from-plan FILE | --gate-only DIR|SCRIPT [--record|--replay] [--format json]`, exit codes 0/1/2/3.
+- Found building it: `weave check --no-env` reported a false error for a tool whose URL is read from an unset `env.NAME` (the stand-in is not a URL); it is now dropped like the other stand-in failures (this also fixes it in the editor); the hand-written `digest` sample hit it.
+- Tests: Java module 3,1xx; `PlanTest` (14), `WriterTest` (9), `TranscriptTest` (5), `GatesTest` (9), `GenerateCommandTest` (11), `GateOnlyExamplesTest` (7).
+- Not in 12a: writing the project with the model (`--from-plan` only validates the plan so far), the interview, the repair loop (12b).

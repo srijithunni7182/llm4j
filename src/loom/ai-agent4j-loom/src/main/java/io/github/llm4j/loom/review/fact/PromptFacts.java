@@ -19,20 +19,6 @@ final class PromptFacts implements FactProvider {
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{[A-Za-z_][A-Za-z0-9_.]*}");
 
-    /**
-     * Shapes of keys that must not be written in a script; a plain pattern list, no entropy guess.
-     */
-    private static final List<Pattern> SECRETS =
-            List.of(
-                    Pattern.compile("\\bsk-[A-Za-z0-9_-]{20,}"),
-                    Pattern.compile("\\bAKIA[0-9A-Z]{16}\\b"),
-                    Pattern.compile("\\bgh[pousr]_[A-Za-z0-9]{30,}"),
-                    Pattern.compile("\\bxox[baprs]-[A-Za-z0-9-]{10,}"),
-                    Pattern.compile("\\bAIza[0-9A-Za-z_-]{35}\\b"),
-                    Pattern.compile("-----BEGIN [A-Z ]*PRIVATE KEY-----"),
-                    Pattern.compile(
-                            "(?i)\\b(api[_-]?key|secret|token|password)\\b\\s*[:=]\\s*[\"']?[A-Za-z0-9/+_-]{16,}"));
-
     private static final Pattern FORMAT =
             Pattern.compile(
                     "(?i)\\b(json|respond with|reply with|answer with|only one of|one of the following|output format|format:|exactly one word|yes or no|yes/no)\\b");
@@ -82,7 +68,7 @@ final class PromptFacts implements FactProvider {
             }
             String t = text.get();
             out.set(e, "promptTokens", Tokens.of(t));
-            out.set(e, "promptHasSecret", SECRETS.stream().anyMatch(p -> p.matcher(t).find()));
+            out.set(e, "promptHasSecret", SecretShapes.in(t));
             out.set(e, "promptStatesFormat", FORMAT.matcher(t).find());
             out.set(e, "promptSaysWhenUnsure", UNSURE.matcher(t).find());
             out.set(e, "promptHasPersonalData", EMAIL.matcher(t).find() || PHONE.matcher(t).find());

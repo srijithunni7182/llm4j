@@ -796,9 +796,33 @@ public class WeaveCLI implements Callable<Integer> {
                         .validate(script, executor.validationContext());
         // With --no-env a name that is not set stands in as "not-set-yet", which is not an address
         // or a number: what the stand-in breaks is already said as "not set yet".
-        if (settings.noEnv())
-            problems = problems.stream().filter(p -> !p.message().contains("not-set-yet")).toList();
+        if (settings.noEnv()) problems = withoutStandInFailures(script, problems, notSetYet);
         return new Validation(problems, keyWarnings, reachProblems, notSetYet);
+    }
+
+    /**
+     * With {@code --no-env} a name that is not set stands in as {@code not-set-yet}. What that
+     * breaks is already said as "not set yet": a message naming the stand-in, and a tool whose
+     * option is read from such a name and so cannot be built (a webhook whose URL is the stand-in).
+     */
+    private static List<io.github.llm4j.loom.execution.ScriptValidator.Problem>
+            withoutStandInFailures(
+                    io.github.llm4j.loom.ast.LoomScript script,
+                    List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems,
+                    java.util.Set<String> notSetYet) {
+        java.util.Set<String> standIns = new java.util.HashSet<>();
+        for (var tool : script.getTools())
+            for (var option : tool.getOptions().values())
+                if (option.fromEnv() && notSetYet.contains(option.value()))
+                    standIns.add(tool.getName());
+        return problems.stream()
+                .filter(p -> !p.message().contains("not-set-yet"))
+                .filter(
+                        p ->
+                                p.construct() == null
+                                        || !p.construct().startsWith("tool ")
+                                        || !standIns.contains(p.construct().substring(5)))
+                .toList();
     }
 
     /** One problem as the JSON of {@code weave check --format json} carries it. */
@@ -1577,6 +1601,7 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new WhatIfCommand())
                 .addSubcommand(new StepCommand())
                 .addSubcommand(new DapCommand())
+                .addSubcommand(new GenerateCommand())
                 .addSubcommand(new AutonomyCommands())
                 .addSubcommand(new LadderCliCommand())
                 .addSubcommand(new ReplayCommand())
