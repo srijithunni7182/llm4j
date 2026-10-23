@@ -15,6 +15,7 @@ import io.github.llm4j.loom.review.pack.PackException;
 import io.github.llm4j.loom.review.pack.PackSet;
 import io.github.llm4j.loom.review.report.JsonReport;
 import io.github.llm4j.loom.review.report.MarkdownReport;
+import io.github.llm4j.loom.review.report.SarifReport;
 import io.github.llm4j.loom.review.report.TextReport;
 import io.github.llm4j.loom.review.settings.InvalidSettingsException;
 import io.github.llm4j.loom.review.settings.ReviewSettings;
@@ -51,7 +52,10 @@ final class ReviewCommand implements Callable<Integer> {
                     "The .loot tool mapping file: its Name.reach lines say what your own tools reach.")
     File lootFile;
 
-    @Option(names = "--format", description = "text (default), md or json.", defaultValue = "text")
+    @Option(
+            names = "--format",
+            description = "text (default), md, json or sarif (for code scanning).",
+            defaultValue = "text")
     String format;
 
     @Option(
@@ -115,8 +119,8 @@ final class ReviewCommand implements Callable<Integer> {
     }
 
     static int review(ReviewCommand c, WeaveEnv env) {
-        if (!List.of("text", "md", "json").contains(c.format)) {
-            env.err().println("Error: --format takes text, md or json.");
+        if (!List.of("text", "md", "json", "sarif").contains(c.format)) {
+            env.err().println("Error: --format takes text, md, json or sarif.");
             return 2;
         }
         Optional<Severity> min = Severity.parse(c.minSeverity);
@@ -187,6 +191,7 @@ final class ReviewCommand implements Callable<Integer> {
                 switch (c.format) {
                     case "json" -> JsonReport.write(shown);
                     case "md" -> MarkdownReport.write(shown);
+                    case "sarif" -> SarifReport.write(shown, Reviews.catalog(packs));
                     default -> TextReport.write(shown);
                 };
         env.out().println(text);

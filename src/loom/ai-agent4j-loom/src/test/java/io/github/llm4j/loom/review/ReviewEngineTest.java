@@ -180,4 +180,76 @@ class ReviewEngineTest {
         assertThat(r.failsAt(Severity.HIGH)).isTrue();
         assertThat(run(ReviewSettings.defaults()).failsAt(Severity.INFO)).isFalse();
     }
+
+    @Test
+    void theMoreSpecificRuleAbsorbsAGeneralOneAboutTheSameCause() {
+        Finding specific =
+                f("LR07", Lens.RELIABILITY, Severity.MEDIUM, 9, "tool call has no timeout");
+        Finding general = f("LA17", Lens.SECURITY, Severity.LOW, 9, "tool call is unbounded");
+        Finding elsewhere =
+                f("LA17", Lens.SECURITY, Severity.LOW, 20, "other tool call is unbounded");
+        ReviewReport r =
+                new ReviewEngine(
+                                List.of(source("s", general, specific, elsewhere)),
+                                List.of(
+                                        new io.github.llm4j.loom.review.engine.Overlap(
+                                                "LR07", "LA17")))
+                        .review(INPUT, ReviewSettings.defaults());
+        assertThat(r.findings()).extracting(Finding::rule).containsExactly("LR07", "LA17");
+        assertThat(r.findings().get(0).related()).containsExactly("LA17");
+        assertThat(r.findings().get(1).where().line()).isEqualTo(20);
+    }
+
+    @Test
+    void overlapsFoldByGraphNodeToo() {
+        Finding a = f("LR07", Lens.RELIABILITY, Severity.MEDIUM, 0, "x");
+        Finding b = f("LA17", Lens.SECURITY, Severity.LOW, 0, "y");
+        a =
+                new Finding(
+                        a.rule(),
+                        a.lens(),
+                        a.severity(),
+                        a.where().withNode("n2"),
+                        a.title(),
+                        "w",
+                        "f",
+                        List.of(),
+                        Optional.empty(),
+                        List.of(),
+                        "t");
+        b =
+                new Finding(
+                        b.rule(),
+                        b.lens(),
+                        b.severity(),
+                        b.where().withNode("n2"),
+                        b.title(),
+                        "w",
+                        "f",
+                        List.of(),
+                        Optional.empty(),
+                        List.of(),
+                        "t");
+        ReviewReport r =
+                new ReviewEngine(
+                                List.of(source("s", a, b)),
+                                List.of(
+                                        new io.github.llm4j.loom.review.engine.Overlap(
+                                                "LR07", "LA17")))
+                        .review(INPUT, ReviewSettings.defaults());
+        assertThat(r.findings()).hasSize(1);
+    }
+
+    @Test
+    void withoutBothRulesNothingIsFolded() {
+        Finding only = f("LA17", Lens.SECURITY, Severity.LOW, 9, "y");
+        ReviewReport r =
+                new ReviewEngine(
+                                List.of(source("s", only)),
+                                List.of(
+                                        new io.github.llm4j.loom.review.engine.Overlap(
+                                                "LR07", "LA17")))
+                        .review(INPUT, ReviewSettings.defaults());
+        assertThat(r.findings()).containsExactly(only);
+    }
 }

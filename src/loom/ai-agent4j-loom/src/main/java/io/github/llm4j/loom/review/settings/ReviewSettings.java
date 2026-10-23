@@ -29,24 +29,27 @@ public final class ReviewSettings {
     private final boolean heuristics;
     private final Map<String, RuleSetting> rules;
     private final Map<String, String> values;
+    private final List<Suppression> suppressions;
 
     private ReviewSettings(
             Optional<Severity> failOn,
             Set<Lens> lenses,
             boolean heuristics,
             Map<String, RuleSetting> rules,
-            Map<String, String> values) {
+            Map<String, String> values,
+            List<Suppression> suppressions) {
         this.failOn = failOn;
         this.lenses = Collections.unmodifiableSet(EnumSet.copyOf(lenses));
         this.heuristics = heuristics;
         this.rules = Collections.unmodifiableMap(new LinkedHashMap<>(rules));
         this.values = Collections.unmodifiableMap(new LinkedHashMap<>(values));
+        this.suppressions = List.copyOf(suppressions);
     }
 
     /** Nothing declared: default lenses, advisory (never fails), heuristics off. */
     public static ReviewSettings defaults() {
         return new ReviewSettings(
-                Optional.empty(), LensSelection.defaults(), false, Map.of(), Map.of());
+                Optional.empty(), LensSelection.defaults(), false, Map.of(), Map.of(), List.of());
     }
 
     /** Reads the file beside {@code script} if there is one, else the defaults. */
@@ -76,6 +79,7 @@ public final class ReviewSettings {
         Set<Lens> lenses = LensSelection.defaults();
         boolean heuristics = false;
         Map<String, RuleSetting> rules = new LinkedHashMap<>();
+        List<Suppression> suppressions = new ArrayList<>();
         for (PropertiesFile.Entry e : f.entries()) {
             String where = name + ":" + e.line() + ": ";
             String bad = SettingKeys.problem(e.key());
@@ -89,7 +93,15 @@ public final class ReviewSettings {
                     case "lenses" -> lenses = LensSelection.resolve(e.value(), lenses);
                     case "heuristics" -> heuristics = onOff(e.value());
                     default -> {
-                        if (isRuleKey(e.key())) applyRule(rules, e.key(), e.value());
+                        if (isRuleKey(e.key())) {
+                            applyRule(rules, e.key(), e.value());
+                            if (e.key().endsWith(".suppress"))
+                                suppressions.add(
+                                        Suppression.parse(
+                                                e.key().substring(0, e.key().indexOf('.')),
+                                                e.value(),
+                                                e.line()));
+                        }
                     }
                 }
             } catch (IllegalArgumentException ex) {
@@ -97,7 +109,7 @@ public final class ReviewSettings {
             }
         }
         if (!problems.isEmpty()) throw new InvalidSettingsException(problems);
-        return new ReviewSettings(failOn, lenses, heuristics, rules, f.values());
+        return new ReviewSettings(failOn, lenses, heuristics, rules, f.values(), suppressions);
     }
 
     private static boolean isRuleKey(String key) {
@@ -122,8 +134,7 @@ public final class ReviewSettings {
                                                             + value
                                                             + "'"));
             rules.put(id, current.withSeverity(s));
-        } // suppress / accept entries are handled by the accept machinery (not part of the
-        // settings)
+        } // suppress entries are read separately (see suppressions()); accept comes with 9e
     }
 
     private static boolean onOff(String v) {
@@ -187,6 +198,11 @@ public final class ReviewSettings {
         return Optional.ofNullable(declared != null ? declared : DEFAULTS.get(key));
     }
 
+    /** The project's suppressions, in file order. */
+    public List<Suppression> suppressions() {
+        return suppressions;
+    }
+
     /** Every key and value the project declared, in file order (not the defaults). */
     public Map<String, String> values() {
         return values;
@@ -195,16 +211,21 @@ public final class ReviewSettings {
     // ---- derived copies (command-line options)
 
     public ReviewSettings withFailOn(Optional<Severity> level) {
-        return new ReviewSettings(level, lenses, heuristics, rules, values);
+        return new ReviewSettings(level, lenses, heuristics, rules, values, suppressions);
     }
 
     /** Applies a {@code --lens} spec. @throws IllegalArgumentException when it is not valid */
     public ReviewSettings withLenses(String spec) {
         return new ReviewSettings(
-                failOn, LensSelection.resolve(spec, lenses), heuristics, rules, values);
+                failOn,
+                LensSelection.resolve(spec, lenses),
+                heuristics,
+                rules,
+                values,
+                suppressions);
     }
 
     public ReviewSettings withHeuristics(boolean on) {
-        return new ReviewSettings(failOn, lenses, on, rules, values);
+        return new ReviewSettings(failOn, lenses, on, rules, values, suppressions);
     }
 }

@@ -7,6 +7,7 @@ import io.github.llm4j.loom.review.model.Finding;
 import io.github.llm4j.loom.review.model.Lens;
 import io.github.llm4j.loom.review.model.Note;
 import io.github.llm4j.loom.review.model.Severity;
+import io.github.llm4j.loom.review.model.Suppressed;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,7 +38,7 @@ public final class JsonReport {
         root.put("file", r.file());
         root.put("summary", summary(r));
         root.put("findings", r.findings().stream().map(JsonReport::finding).toList());
-        root.put("suppressed", r.suppressed().stream().map(JsonReport::finding).toList());
+        root.put("suppressed", r.suppressed().stream().map(JsonReport::suppressed).toList());
         root.put("notes", r.notes().stream().map(JsonReport::note).toList());
         return root;
     }
@@ -57,6 +58,13 @@ public final class JsonReport {
         List<String> out = new ArrayList<>();
         for (Lens l : lenses) out.add(l.id());
         return out;
+    }
+
+    private static Map<String, Object> suppressed(Suppressed s) {
+        Map<String, Object> m = finding(s.finding());
+        m.put("suppressedAt", s.place());
+        m.put("reason", s.reason());
+        return m;
     }
 
     private static Map<String, Object> finding(Finding f) {

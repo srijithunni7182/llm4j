@@ -126,7 +126,7 @@ class ReviewCommandTest {
     void badOptionsMissingFilesAndUnreadableScriptsAreExitTwoWithAMessageOnStderr()
             throws Exception {
         assertThat(run(RISKY, "--format", "pdf")).isEqualTo(2);
-        assertThat(err.toString()).contains("--format takes text, md or json");
+        assertThat(err.toString()).contains("--format takes text, md, json or sarif");
         err.reset();
         assertThat(run(RISKY, "--min-severity", "critical")).isEqualTo(2);
         assertThat(err.toString()).contains("--min-severity");
@@ -277,6 +277,25 @@ class ReviewCommandTest {
         Files.writeString(dir.resolve("review.properties"), "packs = nothere@1\n");
         assertThat(run(CALM)).isEqualTo(2);
         assertThat(err.toString()).contains("nothere@1: there is no folder review-rules/nothere");
+    }
+
+    @Test
+    void sarifOutputCarriesTheFindingsForCodeScanning() throws Exception {
+        assertThat(run(RISKY, "--format", "sarif")).isZero();
+        JsonNode sarif = new ObjectMapper().readTree(out.toString());
+        assertThat(sarif.get("version").asText()).isEqualTo("2.1.0");
+        assertThat(sarif.at("/runs/0/results")).isNotEmpty();
+        assertThat(sarif.at("/runs/0/tool/driver/rules")).isNotEmpty();
+    }
+
+    @Test
+    void aSuppressionWithoutAReasonInReviewPropertiesIsItselfAFinding() throws Exception {
+        Files.writeString(
+                dir.resolve("review.properties"),
+                "LA01.suppress = Main \"reviewed with security\"\nLA02.suppress = A\n");
+        run(RISKY, "--format", "json");
+        JsonNode report = new ObjectMapper().readTree(out.toString());
+        assertThat(report.get("findings")).extracting(n -> n.get("rule").asText()).contains("LV08");
     }
 
     private com.fasterxml.jackson.databind.JsonNode json(String source, String... args)

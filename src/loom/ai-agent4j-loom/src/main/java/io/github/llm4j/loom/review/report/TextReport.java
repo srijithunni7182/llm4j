@@ -4,6 +4,7 @@ import io.github.llm4j.loom.review.engine.ReviewReport;
 import io.github.llm4j.loom.review.model.Finding;
 import io.github.llm4j.loom.review.model.Lens;
 import io.github.llm4j.loom.review.model.Note;
+import io.github.llm4j.loom.review.model.Suppressed;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -43,6 +44,21 @@ public final class TextReport {
                                             .append("): ")
                                             .append(Safe.line(fix.label()))
                                             .append('\n'));
+        }
+        if (!r.suppressed().isEmpty()) {
+            b.append('\n')
+                    .append(r.suppressed().size())
+                    .append(" suppressed (by review.properties)\n");
+            for (Suppressed x : r.suppressed())
+                b.append("  ")
+                        .append(x.finding().rule())
+                        .append(" at ")
+                        .append(Safe.line(x.place()))
+                        .append(": ")
+                        .append(Safe.line(x.finding().title()))
+                        .append(" - ")
+                        .append(Safe.line(x.reason()))
+                        .append('\n');
         }
         List<Note> notes = r.notes();
         if (!notes.isEmpty()) {

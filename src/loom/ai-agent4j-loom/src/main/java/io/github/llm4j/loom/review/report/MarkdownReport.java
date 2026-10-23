@@ -5,6 +5,7 @@ import io.github.llm4j.loom.review.model.Finding;
 import io.github.llm4j.loom.review.model.Lens;
 import io.github.llm4j.loom.review.model.Note;
 import io.github.llm4j.loom.review.model.Severity;
+import io.github.llm4j.loom.review.model.Suppressed;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
@@ -55,6 +56,19 @@ public final class MarkdownReport {
                 if (!f.owasp().isEmpty())
                     b.append("- OWASP LLM: ").append(String.join(", ", f.owasp())).append("\n");
             }
+        }
+        if (!r.suppressed().isEmpty()) {
+            b.append("\n## Suppressed\n\n");
+            for (Suppressed x : r.suppressed())
+                b.append("- `")
+                        .append(x.finding().rule())
+                        .append("` at ")
+                        .append(escape(x.place()))
+                        .append(": ")
+                        .append(escape(x.finding().title()))
+                        .append(" (")
+                        .append(escape(x.reason()))
+                        .append(")\n");
         }
         if (!r.notes().isEmpty()) {
             b.append("\n## Notes\n\n");
