@@ -65,6 +65,17 @@ final class Recorder implements TraceListener {
         return lenient;
     }
 
+    private final List<String> steps = new CopyOnWriteArrayList<>();
+
+    /** A statement of the workflow is about to run (the id the run gives it). */
+    void step(String id) {
+        steps.add(id);
+    }
+
+    List<String> steps() {
+        return steps;
+    }
+
     void effect(Effect e) {
         effects.add(e);
     }

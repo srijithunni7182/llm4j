@@ -97,6 +97,7 @@ final class CaseRunner {
                 executor.setEnvLookup(TestRunner::standIn);
                 executor.setPromptCatalog(PromptSupport.catalog(fresh, script, null));
                 executor.addTraceListener(recorder);
+                executor.setStepListener(recorder::step);
                 executor.initialize();
                 RunSuspended waiting = null;
                 try {

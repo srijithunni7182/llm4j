@@ -20,6 +20,14 @@ final class Assertions {
     record Failure(String what, String message) {}
 
     static List<Failure> evaluate(TestFile.Case c, CaseRunner.Outcome o) {
+        return evaluate(c, o, null, null);
+    }
+
+    static List<Failure> evaluate(
+            TestFile.Case c,
+            CaseRunner.Outcome o,
+            io.github.llm4j.loom.graph.GraphResult graph,
+            String workflow) {
         List<Failure> failures = new ArrayList<>();
         for (String v : o.recorder().violations()) failures.add(new Failure("unscripted", v));
         JsonNode expect = c.get("expect");
@@ -46,6 +54,8 @@ final class Assertions {
         if (expect.has("effects")) effects(expect.get("effects"), o, failures);
         if (expect.has("elapsed_virtual")) elapsed(expect.get("elapsed_virtual"), o, failures);
         if (expect.has("tokens")) tokens(expect.get("tokens"), o, failures);
+        if (expect.has("branches") && graph != null)
+            branches(expect.get("branches"), o, graph, workflow, failures);
         return failures;
     }
 
@@ -347,5 +357,65 @@ final class Assertions {
         }
         String p = Matchers.mismatch(m, o.recorder().tokens());
         if (p != null) failures.add(new Failure("tokens", "tokens: " + p));
+    }
+
+    /**
+     * The arm of a node that ran: {@code branches: { n2: then }} says the then-arm of node n2 (an
+     * id or a label from {@code --steps}) ran, and, for an alt, that the other arm did not.
+     */
+    private static void branches(
+            JsonNode want,
+            CaseRunner.Outcome o,
+            io.github.llm4j.loom.graph.GraphResult graph,
+            String workflow,
+            List<Failure> failures) {
+        Coverage coverage = new Coverage(graph);
+        coverage.add(o.recorder().steps());
+        List<Coverage.Branch> all = coverage.branches();
+        for (Iterator<Map.Entry<String, JsonNode>> it = want.fields(); it.hasNext(); ) {
+            var e = it.next();
+            var node = coverage.find(workflow, e.getKey());
+            if (node.isEmpty()) continue; // the file check reports a name that is not a step
+            String arm = e.getValue().asText();
+            boolean ran = false;
+            boolean otherRan = false;
+            boolean exists = false;
+            for (Coverage.Branch b : all)
+                if (b.workflow().equals(workflow) && b.owner().equals(node.get().id())) {
+                    if (b.branch().equals(arm)) {
+                        ran = b.covered();
+                        exists = true;
+                    } else if ((arm.equals("then") && b.branch().equals("else"))
+                            || (arm.equals("else") && b.branch().equals("then")))
+                        otherRan |= b.covered();
+                }
+            if (!exists)
+                failures.add(
+                        new Failure(
+                                "branches",
+                                "branches."
+                                        + e.getKey()
+                                        + ": the "
+                                        + arm
+                                        + " arm has no statements to run"));
+            else if (!ran)
+                failures.add(
+                        new Failure(
+                                "branches",
+                                "branches."
+                                        + e.getKey()
+                                        + ": expected the "
+                                        + arm
+                                        + " arm to run, it did not"));
+            else if (otherRan)
+                failures.add(
+                        new Failure(
+                                "branches",
+                                "branches."
+                                        + e.getKey()
+                                        + ": the "
+                                        + arm
+                                        + " arm ran, but so did the other"));
+        }
     }
 }

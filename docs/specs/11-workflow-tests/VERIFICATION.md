@@ -23,7 +23,7 @@ Status: **11a done** (file model, check, scripted models and classifiers, assert
 
 | Req | Tests | Status |
 |---|---|---|
-| R1 | `WorkflowCasesTest.casesShareNothing` (each case has its own executor); `ParallelIsolationTest`, `ShuffleSeedTest` | ◐ 11a serial; 11c parallel |
+| R1 | `RunSelectionTest` (cases side by side give the results and steps a serial run gives; a failure in one does not touch another; a seed repeats an order) | ✅ 11c |
 | R2 | `TestFileCheckTest` (unknown agents, classifier answers outside the labels, unknown questions, unknown steps and calls, inputs against the parameters, duplicate names, bad keys, bad `final`, bad matchers; each with file, case and nearest name) | ✅ 11a |
 | R3 | `TestFileCheckTest.defaultsMergeIntoEveryCase…`, `TestCommandTest.showCasePrintsTheMergedCase` | ✅ 11a |
 | R4 | `TestFileCheckTest.stepsAreListed…`, `TestCommandTest.stepsListsWhatATestCanName…` | ✅ 11a |
@@ -47,15 +47,15 @@ Status: **11a done** (file model, check, scripted models and classifiers, assert
 | R22 | `WorkflowCasesTest.allFailuresOfACaseAreReported…` | ✅ 11a |
 | R23 | `MatchersTest.longTextIsShownCut…` (length and hash); the JSON report with the full text comes with 11c | ◐ 11a |
 | R24 | Under test every `env.NAME` reads a stand-in (`TestRunner.standIn`), so no secret reaches a report; masking of values a case itself prints is not needed yet | ◐ 11a |
-| R25 | `TagSelectionTest` | ⬜ 11c |
+| R25 | `RunSelectionTest.tagsSelectAndExcludeCases`, `TestCommandTest.tagsSelectCasesFromTheCommandLine` | ✅ 11c |
 | R26 | `TestCommandTest` (0 all passed, 1 a case failed, 2 could not run) | ✅ 11a |
 | R27 | `TestFileCheckTest.aScriptThatDoesNotLoad…`, `WorkflowCasesTest.aMissingSecretIsNotAnError…`, `TestCommandTest.aScriptThatDoesNotCheck…` | ✅ 11a |
-| R28 | `TestCommandTest` (one line per case, failures expanded, summary line); the coverage clause waits for 11c | ◐ 11a |
-| R29 | `TestSpeedTest` | ⬜ 11c |
-| R30 | `JunitReportTest`, `JsonReportTest` | ⬜ 11c |
-| R31 | `WatchTest` | ⬜ 11c |
-| R32 | `CoverageTest`, `CoverageIdsMatchGraphTest` | ⬜ 11c |
-| R33 | `CoverageSkeletonTest` | ⬜ 11c |
+| R28 | `TestCommandTest`, `ReportsTest.theTextReportHasOneLinePerCase…` (a line per case, failures expanded, `N passed, M failed in T · nodes covered x/y (k uncovered: see --coverage)`) | ✅ 11c |
+| R29 | `TestSpeedTest`: 100 cases in 0.3 s serially (median case 2 ms), 0.17 s on 4 workers | ✅ 11c |
+| R30 | `ReportsTest` (JUnit XML parsed by a real XML parser with hostile names and messages, JSON with a version, TAP), `TestCommandTest` (`--format`) | ✅ 11c |
+| R31 | `WatchTest` (what is watched; a new, gone or changed file; only a changed test file reruns its cases), `TestCommandTest.watchRuns…`; the loop polls every 500 ms | ✅ 11c |
+| R32 | `CoverageTest` (ids are the graph's: `StepResolver` maps every kind of block; nodes and blocks covered; cases add up). Loop exits by condition and by maximum, and a `human_prompt` answer path, are not counted separately | ◐ 11c |
+| R33 | `CoverageTest.theHintTellsWhatACaseWouldNeedToDo`, `TestCommandTest.coveragePrints…`: a hint per uncovered node, never an assertion | ✅ 11c |
 | R34 | `LoomTestParityTest` | ⬜ 11d |
 | R35 | `LoomTestAssertionsTest` | ⬜ 11d |
 | R36 | `LoomTestFactoryTest` | ⬜ 11d |
@@ -111,3 +111,10 @@ Wiki "Testing a workflow"; LOOM_GUIDE section "weave test"; the workflow skill's
 - A tool declared in the script is replaced, for the case, by the scripted one (the declaration is removed from the in-memory copy; the file is untouched).
 - Not yet: real tasks through `--classes`; `rate_limits` pausing and `rewind` cases; budget exhaustion; a test of an `approve:` agent.
 - Tests: `ScriptedWorldTest` (17), `BackoffSleeperTest` (2), three more in `TestFileCheckTest`.
+
+### 11c (2026-10-23)
+
+- Built: coverage by the graph's own ids (a `StepResolver` turns a run's step id, such as `Main/s1/b0/r1.0`, into the node id `n6`; one hook was added to the executor, `setStepListener`, which is told each statement as it starts and adds nothing to the trace or the journal), `--coverage` with a hint for each uncovered node, `--min-coverage`, the `branches` assertion (which arm of an alt ran, and that the other did not), `--tag` and `--exclude-tag`, `--shuffle` with a printed `--seed`, `--parallel` (default the number of processors; `--fail-fast` runs in order), `--format json|junit|tap`, `--watch`.
+- Speed: 100 cases in 0.3 s serially (median case 2 ms), 0.17 s on 4 workers.
+- Not built: coverage of loop exits and of `human_prompt` answer paths as separate branches; a stable JSON Schema file for the report (the version field is there, the schema is documented in 11d); `--watch` uses polling, not file-system events.
+- Tests: `CoverageTest` (8), `ReportsTest` (5), `RunSelectionTest` (5), `WatchTest` (3), `TestSpeedTest` (1), eight more in `TestCommandTest`.

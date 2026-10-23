@@ -2005,6 +2005,17 @@ public class HarnessExecutor implements LoomEngine {
         return approvalGate;
     }
 
+    private volatile java.util.function.Consumer<String> stepListener;
+
+    /**
+     * Told the id of every statement as it is about to run (null for none, the default). It adds
+     * nothing to the trace and the journal; {@code weave test} uses it to know which steps of the
+     * graph a case reached.
+     */
+    public void setStepListener(java.util.function.Consumer<String> listener) {
+        this.stepListener = listener;
+    }
+
     /** Runs a block, giving each statement a stable step id under the current one. */
     private void runBlock(List<Statement> statements, String key) {
         String parent = step.get();
@@ -2034,6 +2045,7 @@ public class HarnessExecutor implements LoomEngine {
                     control.checkpoint(
                             step.get()); // an observer may have paused, suspended or stopped
                     // the run
+                    if (stepListener != null) stepListener.accept(step.get());
                     executeStatement(statements.get(i));
                     if (stopAt != null) stopPoint(step.get());
                 } catch (Rewinder.RewindSignal signal) {

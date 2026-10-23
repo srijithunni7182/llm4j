@@ -32,7 +32,9 @@ public final class TestRunner {
             boolean passed,
             long millis,
             List<String> failures,
-            List<String> notes) {}
+            List<String> notes,
+            List<String> tags,
+            List<String> steps) {}
 
     /** What the files contain and whether they fit the script. */
     public record Suite(
@@ -142,35 +144,135 @@ public final class TestRunner {
         }
     }
 
-    /** Runs the cases whose name matches {@code glob} (all when null). */
+    /** How a run is selected and carried out. */
+    public record Options(
+            String glob,
+            boolean lenient,
+            boolean failFast,
+            List<String> tags,
+            List<String> excludeTags,
+            int parallel,
+            boolean shuffle,
+            Long seed) {
+
+        public Options {
+            tags = tags == null ? List.of() : List.copyOf(tags);
+            excludeTags = excludeTags == null ? List.of() : List.copyOf(excludeTags);
+            parallel = Math.max(1, parallel);
+        }
+
+        public static Options defaults() {
+            return new Options(null, false, false, List.of(), List.of(), 1, false, null);
+        }
+    }
+
+    /** Runs the cases whose name matches {@code glob} (all when null), one after another. */
     public static List<CaseResult> run(
             Suite suite, String glob, boolean lenient, boolean failFast) {
-        Pattern pattern = glob == null ? null : Pattern.compile(globToRegex(glob));
-        List<CaseResult> results = new ArrayList<>();
+        return run(
+                suite, new Options(glob, lenient, failFast, List.of(), List.of(), 1, false, null));
+    }
+
+    /** The cases the options select, in the order they would run. */
+    public static List<TestFile.Case> select(Suite suite, Options o) {
+        Pattern pattern = o.glob() == null ? null : Pattern.compile(globToRegex(o.glob()));
+        List<TestFile.Case> out = new ArrayList<>();
         for (TestFile f : suite.files())
             for (TestFile.Case c : f.cases()) {
                 if (pattern != null && !pattern.matcher(c.name()).find()) continue;
-                TestFile.Case use = lenient ? withLenient(c) : c;
-                String workflow = workflowOf(suite, f, c);
-                CaseRunner.Outcome o = CaseRunner.run(suite.script(), workflow, use);
-                List<String> failures = new ArrayList<>();
-                for (Assertions.Failure x : Assertions.evaluate(use, o)) failures.add(x.message());
-                results.add(
-                        new CaseResult(
-                                c.file(),
-                                c.name(),
-                                failures.isEmpty(),
-                                o.millis(),
-                                failures,
-                                o.recorder().lenientNotes()));
-                if (failFast && !failures.isEmpty()) return results;
+                List<String> tags = c.tags();
+                if (!o.tags().isEmpty() && tags.stream().noneMatch(o.tags()::contains)) continue;
+                if (tags.stream().anyMatch(o.excludeTags()::contains)) continue;
+                out.add(c);
             }
-        return results;
+        if (o.shuffle()) java.util.Collections.shuffle(out, new java.util.Random(seedOf(o)));
+        return out;
     }
 
-    static String workflowOf(Suite suite, TestFile f, TestFile.Case c) {
+    /** The seed a shuffled run uses: the one given, else one derived from the clock. */
+    public static long seedOf(Options o) {
+        return o.seed() != null ? o.seed() : (System.nanoTime() & 0xFFFFFFL);
+    }
+
+    /**
+     * Runs the selected cases. Cases are independent (each has its own executor, journal, clock and
+     * collaborators), so with {@code parallel} above 1 they run side by side; the results come back
+     * in the order the cases were selected, whichever finished first.
+     */
+    public static List<CaseResult> run(Suite suite, Options o) {
+        List<TestFile.Case> selected = select(suite, o);
+        if (o.parallel() <= 1 || selected.size() <= 1) {
+            List<CaseResult> results = new ArrayList<>();
+            for (TestFile.Case c : selected) {
+                CaseResult r = runCase(suite, c, o.lenient());
+                results.add(r);
+                if (o.failFast() && !r.passed()) break;
+            }
+            return results;
+        }
+        java.util.concurrent.ExecutorService pool =
+                java.util.concurrent.Executors.newFixedThreadPool(
+                        Math.min(o.parallel(), selected.size()));
+        try {
+            java.util.concurrent.atomic.AtomicBoolean stop =
+                    new java.util.concurrent.atomic.AtomicBoolean();
+            List<java.util.concurrent.Future<CaseResult>> futures = new ArrayList<>();
+            for (TestFile.Case c : selected)
+                futures.add(
+                        pool.submit(
+                                () -> {
+                                    if (stop.get()) return null;
+                                    CaseResult r = runCase(suite, c, o.lenient());
+                                    if (o.failFast() && !r.passed()) stop.set(true);
+                                    return r;
+                                }));
+            List<CaseResult> results = new ArrayList<>();
+            for (var f : futures) {
+                try {
+                    CaseResult r = f.get();
+                    if (r != null) results.add(r);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (java.util.concurrent.ExecutionException e) {
+                    throw new IllegalStateException(e.getCause());
+                }
+            }
+            return results;
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    private static CaseResult runCase(Suite suite, TestFile.Case c, boolean lenient) {
+        TestFile.Case use = lenient ? withLenient(c) : c;
+        String workflow = workflowOf(suite, c);
+        CaseRunner.Outcome o = CaseRunner.run(suite.script(), workflow, use);
+        List<String> failures = new ArrayList<>();
+        for (Assertions.Failure x : Assertions.evaluate(use, o, suite.graph(), workflow))
+            failures.add(x.message());
+        return new CaseResult(
+                c.file(),
+                c.name(),
+                failures.isEmpty(),
+                o.millis(),
+                failures,
+                o.recorder().lenientNotes(),
+                c.tags(),
+                List.copyOf(o.recorder().steps()));
+    }
+
+    /** The coverage of the script by the cases that ran. */
+    public static Coverage coverage(Suite suite, List<CaseResult> results) {
+        Coverage coverage = new Coverage(suite.graph());
+        for (CaseResult r : results) coverage.add(r.steps());
+        return coverage;
+    }
+
+    static String workflowOf(Suite suite, TestFile.Case c) {
         if (c.has("workflow")) return c.get("workflow").asText();
-        if (f.workflow() != null) return f.workflow();
+        for (TestFile f : suite.files())
+            if (f.path().toString().equals(c.file()) && f.workflow() != null) return f.workflow();
         List<WorkflowDef> all = suite.loaded().getWorkflows();
         return all.get(0).getName();
     }

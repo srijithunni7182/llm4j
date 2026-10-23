@@ -61,7 +61,8 @@ public final class TestChecker {
                     "effects",
                     "ran",
                     "elapsed_virtual",
-                    "tokens");
+                    "tokens",
+                    "branches");
 
     static final List<String> FINALS =
             List.of("completed", "failed", "suspended", "stopped", "budget");
@@ -427,6 +428,31 @@ public final class TestChecker {
                                         + "expect.ran: '"
                                         + r.asText()
                                         + "' should look like 'on_failure of delegate Replier'");
+        }
+        if (expect.has("branches")) {
+            if (!expect.get("branches").isObject())
+                problems.add(
+                        where(c) + "expect.branches: a map of step to arm, such as { n2: then }");
+            else
+                for (Iterator<java.util.Map.Entry<String, JsonNode>> it =
+                                expect.get("branches").fields();
+                        it.hasNext(); ) {
+                    var e = it.next();
+                    if (!steps.contains(e.getKey()))
+                        problems.add(
+                                where(c)
+                                        + "expect.branches: '"
+                                        + e.getKey()
+                                        + "' is not a step of the script"
+                                        + Suggest.hint(e.getKey(), steps));
+                    if (!List.of("then", "else", "body", "exhausted", "failure", "violation")
+                            .contains(e.getValue().asText()))
+                        problems.add(
+                                where(c)
+                                        + "expect.branches."
+                                        + e.getKey()
+                                        + ": one of then, else, body, exhausted, failure, violation");
+                }
         }
         if (expect.has("result")) matchers(c, "expect.result", expect.get("result"), problems);
         if (expect.has("context")) matchers(c, "expect.context", expect.get("context"), problems);
