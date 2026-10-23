@@ -10,6 +10,7 @@ import io.github.llm4j.loom.review.fix.FixBuilder;
 import io.github.llm4j.loom.review.fix.SourceText;
 import io.github.llm4j.loom.review.model.Finding;
 import io.github.llm4j.loom.review.model.Fix;
+import io.github.llm4j.loom.review.model.FixSafety;
 import io.github.llm4j.loom.review.model.Note;
 import io.github.llm4j.loom.review.rule.Evaluation;
 import io.github.llm4j.loom.review.rule.Evaluator;
@@ -98,7 +99,14 @@ public final class DataRuleSource implements FindingSource {
             RuleDoc rule, Entity e, FactBase base, Supplier<SourceText> source, String file) {
         Optional<Fix> fix = Optional.empty();
         SourceText text = rule.fix() == null ? null : source.get();
-        if (text != null) fix = FixBuilder.build(rule.fix(), e, base, text, file);
+        if (text != null) {
+            fix = FixBuilder.build(rule.fix(), e, base, text, file);
+            // a fix that is usually safe may need judgement here (retrying a step that sends mail)
+            if (fix.isPresent()
+                    && rule.fix().reviewWhen() != null
+                    && Evaluator.evaluate(rule.fix().reviewWhen(), e, base).result() == Tri.TRUE)
+                fix = Optional.of(new Fix(FixSafety.REVIEW, fix.get().label(), fix.get().edits()));
+        }
         return new Finding(
                 rule.id(),
                 rule.lens(),

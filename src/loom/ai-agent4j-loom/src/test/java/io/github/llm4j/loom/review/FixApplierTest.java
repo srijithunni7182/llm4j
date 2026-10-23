@@ -170,6 +170,26 @@ class FixApplierTest {
     }
 
     @Test
+    void addingARetryToAStepThatSendsOrWritesNeedsJudgementBecauseItCanRepeatTheEffect() {
+        String hook =
+                "tool Hook { use: webhook  url: env.HOOK_URL }\nagent N { model: \"m\"  system: \"s\"  tools: [Hook] }\n"
+                        + "workflow Main(q) {\n  delegate \"tell {q}\" to N -> sent\n  note \"{sent}\"\n}\n";
+        Finding lr01 =
+                review(hook).findings().stream()
+                        .filter(f -> f.rule().equals("LR01"))
+                        .findFirst()
+                        .orElseThrow();
+        assertThat(lr01.fix().orElseThrow().safety()).isEqualTo(FixSafety.REVIEW);
+        assertThat(fix(hook).text()).isEqualTo(hook);
+        Finding reads =
+                review(SEARCH).findings().stream()
+                        .filter(f -> f.rule().equals("LR01"))
+                        .findFirst()
+                        .orElseThrow();
+        assertThat(reads.fix().orElseThrow().safety()).isEqualTo(FixSafety.SAFE);
+    }
+
+    @Test
     void anUnusedAgentIsDeletedWholeAndTheScriptStillLoads() {
         String text =
                 "agent A { model: \"m\"  system: \"s\" }\nagent Spare {\n  model: \"m\"\n  system: \"unused\"\n}\nworkflow Main(q) {\n  delegate \"x {q}\" to A -> out\n}\n";

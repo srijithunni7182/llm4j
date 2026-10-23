@@ -13,6 +13,7 @@
   fixHint: "Add a retry and a timeout to this step."
   fix:
     safety: safe
+    reviewWhen: { field: agent.hasEffects, is: true }
     label: "Add retry and timeout"
     insertAfter: { anchor: statementEnd, text: " {setting.fix.retry}" }
   since: "1.0.0"

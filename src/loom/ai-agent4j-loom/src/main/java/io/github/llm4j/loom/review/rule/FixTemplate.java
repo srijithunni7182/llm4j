@@ -6,10 +6,16 @@ import java.util.List;
 /**
  * A fix written as data: a safety class, a label and a list of edit operations from a closed set
  * ({@code insertAfter}, {@code insertBefore}, {@code replaceText}, {@code deleteLines}, {@code
- * createFile}). It is checked when the rule loads; turning it into edits and verifying them is the
- * fix engine's job.
+ * createFile}). {@code reviewWhen} names the situations where a fix that is usually safe needs a
+ * person's judgement after all (such as retrying a step that sends mail). It is checked when the
+ * rule loads; turning it into edits and verifying them is the fix engine's job.
  */
-public record FixTemplate(FixSafety safety, String label, List<Operation> operations) {
+public record FixTemplate(
+        FixSafety safety, String label, List<Operation> operations, Condition reviewWhen) {
+
+    public FixTemplate(FixSafety safety, String label, List<Operation> operations) {
+        this(safety, label, operations, null);
+    }
 
     public FixTemplate {
         operations = List.copyOf(operations);

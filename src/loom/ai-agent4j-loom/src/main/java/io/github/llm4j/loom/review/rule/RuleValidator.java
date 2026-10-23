@@ -60,6 +60,8 @@ public final class RuleValidator {
         placeholders(r.why(), r.about(), at + ".why");
         placeholders(r.fixHint(), r.about(), at + ".fixHint");
         if (r.fix() != null) {
+            if (r.fix().reviewWhen() != null)
+                condition(r.fix().reviewWhen(), r.about(), at + ".fix.reviewWhen");
             placeholders(r.fix().label(), r.about(), at + ".fix.label");
             for (FixTemplate.Operation op : r.fix().operations()) {
                 placeholders(op.text(), r.about(), at + ".fix." + op.kind());

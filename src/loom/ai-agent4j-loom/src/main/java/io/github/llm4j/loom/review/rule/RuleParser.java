@@ -373,7 +373,7 @@ public final class RuleParser {
             problems.add(where + ": a map with safety, label and operations");
             return null;
         }
-        List<String> allowed = new ArrayList<>(List.of("safety", "label"));
+        List<String> allowed = new ArrayList<>(List.of("safety", "label", "reviewWhen"));
         allowed.addAll(FixTemplate.OPERATIONS);
         unknownKeys(n, allowed, where);
         FixSafety safety = null;
@@ -412,9 +412,14 @@ public final class RuleParser {
                             + ": a fix needs at least one operation ("
                             + String.join(", ", FixTemplate.OPERATIONS)
                             + ")");
+        Condition reviewWhen = null;
+        if (n.has("reviewWhen")) {
+            nodes = 0;
+            reviewWhen = condition(n.get("reviewWhen"), where + ".reviewWhen", 1);
+        }
         return safety == null || label == null || ops.isEmpty()
                 ? null
-                : new FixTemplate(safety, label, ops);
+                : new FixTemplate(safety, label, ops, reviewWhen);
     }
 
     private void examples(JsonNode n, String where, List<Example> out) {
