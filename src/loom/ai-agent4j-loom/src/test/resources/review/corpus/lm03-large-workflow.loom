@@ -1,0 +1,7 @@
+// settings: data.workflow.max-steps=1
+agent A { model: "m"  system: "s" }
+workflow Main(q) { // <- LM03
+  delegate "{q}" to A -> r
+  note "{r}"
+}
+// ignore: LP02 LP05 LO01

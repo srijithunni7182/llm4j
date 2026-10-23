@@ -57,7 +57,7 @@ public final class PackTester {
                     "the example file '" + e.file() + "' is missing from the pack");
         int found;
         try {
-            found = count(pack, rule, source, e.settings());
+            found = count(pack, rule, source, e.settings(), e.companions());
         } catch (RuntimeException ex) {
             return new Result(
                     rule.id(),
@@ -90,12 +90,33 @@ public final class PackTester {
      * findings.
      */
     private static int count(
-            Pack pack, RuleDoc rule, String source, java.util.Map<String, String> declared) {
+            Pack pack,
+            RuleDoc rule,
+            String source,
+            java.util.Map<String, String> declared,
+            java.util.Map<String, String> companions) {
         Path dir = null;
         try {
             dir = Files.createTempDirectory("review-example");
             Path file = dir.resolve("main.loom");
             Files.writeString(file, source);
+            for (var c : companions.entrySet()) {
+                Path target = dir.resolve(c.getKey()).normalize();
+                if (!target.startsWith(dir))
+                    throw new IllegalStateException(
+                            "a companion file must stay beside the example: " + c.getKey());
+                String text =
+                        pack.files()
+                                .read(c.getValue())
+                                .orElseThrow(
+                                        () ->
+                                                new IllegalStateException(
+                                                        "the companion file '"
+                                                                + c.getValue()
+                                                                + "' is missing from the pack"));
+                Files.createDirectories(target.getParent());
+                Files.writeString(target, text);
+            }
             LoomScript script = new LoomLoader().load(file.toString());
             GraphResult graph = new GraphService().graph(file);
             ReviewInput input =

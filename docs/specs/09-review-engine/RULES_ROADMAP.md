@@ -74,11 +74,11 @@ Fixes now exist for LR01, LR03, LR08, LY02, LM01 (safe) and LR02 (needs judgemen
 
 | Rule | Mechanism | Needs |
 |---|---|---|
-| LG01, LG02, LG03, LG05 | data | a model catalog fact (`model.known`, `model.deprecated`, `model.nearest`); LG04 built |
-| LM02, LM03, LM05 | data | `agent.inlinePromptLines` (exists), `workflow.stepCount`/`maxDepth` (exist), `script.repeatedThreshold` provider; LM01 built |
-| LM04 | data | `agent.nearDuplicateOf` (from LP06) and a workflow-body equality provider |
-| LH01 to LH04 | data | `step.followedByEffect`, `tool.reachNotWider`, `workflow.worstQuestions` (from the effects walk) |
-| LB01 to LB03 | data / Java | `step.effectCap`, effects estimate, schedule frequency; LB03 is Java (arithmetic across entities) |
+| LG01 ✅, LG02 ✅, LG05 ✅ (9h); LG03 not buildable (D6) | data | a model catalog fact (`model.known`, `model.deprecated`, `model.nearest`); LG04 built |
+| LM02 ✅, LM03 ✅, LM05 ✅ (9h) | data | `agent.inlinePromptLines` (exists), `workflow.stepCount`/`maxDepth` (exist), `script.repeatedThreshold` provider; LM01 built |
+| LM04 ✅ (agents only, 9h) | data | `agent.nearDuplicateOf` (from LP06) and a workflow-body equality provider |
+| LH01 ✅, LH02 ✅, LH04 ✅ (data), LH03 ✅ (Java) (9h) | data / Java | `step.followedByEffect`, `tool.reachNotWider`, `workflow.worstQuestions` (from the effects walk) |
+| LB01 ✅ (data), LB02 ✅, LB03 ✅ (Java) (9h) | data / Java | `step.effectCap`, effects estimate, schedule frequency; LB03 is Java (arithmetic across entities) |
 | cross-lens de-duplication (R40) | engine `Overlap` pairs | one pair per rule that repeats an LA finding |
 
 ### 9i: docs and `weave rules diff`

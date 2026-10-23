@@ -46,6 +46,14 @@ final class ReviewNotice {
     static volatile long defaultCapMillis = DEFAULT_CAP_MILLIS;
 
     private static final AtomicBoolean PRINTED = new AtomicBoolean(false);
+
+    /**
+     * Counts resets. A worker started before a reset belongs to a command that is already over (in
+     * tests, to an earlier test) and must not use up the one line of the next.
+     */
+    private static final java.util.concurrent.atomic.AtomicInteger GENERATION =
+            new java.util.concurrent.atomic.AtomicInteger();
+
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private final Thread worker;
@@ -56,21 +64,26 @@ final class ReviewNotice {
 
     /** Forgets that a line was printed; for tests, which run many commands in one process. */
     static void reset() {
+        GENERATION.incrementAndGet();
         PRINTED.set(false);
     }
 
     /** Starts working out the notice; returns at once. Does nothing when it is off. */
     static ReviewNotice start(File script, WeaveEnv env, String option) {
         long begun = System.nanoTime();
+        int generation = GENERATION.get();
         Thread t =
                 new Thread(
                         () -> {
                             try {
                                 String line = line(script, env, option, begun);
-                                if (line != null && PRINTED.compareAndSet(false, true))
+                                if (line != null
+                                        && generation == GENERATION.get()
+                                        && PRINTED.compareAndSet(false, true))
                                     env.err().println(line);
                             } catch (Throwable e) {
-                                if (PRINTED.compareAndSet(false, true))
+                                if (generation == GENERATION.get()
+                                        && PRINTED.compareAndSet(false, true))
                                     env.err().println("review unavailable (" + reason(e) + ")");
                             }
                         },

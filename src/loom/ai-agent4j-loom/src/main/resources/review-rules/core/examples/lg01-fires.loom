@@ -1,0 +1,2 @@
+agent A { model: "claude-sonet-5-5"  system: "s" } // <- LG01
+workflow Main(q) { delegate "{q}" to A -> r  note "{r}" }

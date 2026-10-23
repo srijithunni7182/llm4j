@@ -1,0 +1,15 @@
+tool Mail { use: webhook  url: env.HOOK_URL }
+agent Screener { model: "m"  system: "Rate."  output_schema: { choice: string, reasoning: string } }
+agent Sender { model: "m"  system: "Send."  tools: [Mail] }
+decision Approve {
+  proposed by: Screener
+  choices: approve, reject
+  ask: lead
+}
+workflow Main(q) {
+  decide Approve -> choice // <- LH01
+  delegate "send {q}" to Sender -> sent
+  note "{sent}"
+}
+// ignore: LP02 LP05 LO01
+// ignore: LR01 LR02 LY04

@@ -245,7 +245,13 @@ Short."
                 for (FieldDef f : def.fields()) {
                     boolean mayBeUnknown =
                             (def.kind().equals("step") && f.name().equals("agent"))
-                                    || (def.kind().equals("workflow") && false);
+                                    // unknown for an agent whose prompt is not a file, or that
+                                    // cannot be looked up
+                                    || (def.kind().equals("agent")
+                                            && f.name().equals("unversionedAmongVersioned"))
+                                    // unknown until the project lists its deprecated models
+                                    || (def.kind().equals("model")
+                                            && f.name().equals("deprecated"));
                     if (!mayBeUnknown)
                         assertThat(e.get(f.name()))
                                 .as("%s.%s", e.id(), f.name())

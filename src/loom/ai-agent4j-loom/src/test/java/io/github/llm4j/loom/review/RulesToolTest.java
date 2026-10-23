@@ -41,7 +41,7 @@ class RulesToolTest {
     void listShowsTheCorePackAndSaysWhyARuleIsOff() {
         assertThat(tool.list(dir)).isZero();
         assertThat(out())
-                .contains("core@1.6.0")
+                .contains("core@1.7.0")
                 .contains("LR01")
                 .contains("LM01")
                 .contains("off (lens)")

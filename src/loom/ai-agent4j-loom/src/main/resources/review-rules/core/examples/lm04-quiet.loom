@@ -1,0 +1,7 @@
+agent Writer { model: "m"  system: "Write a short note." }
+agent Editor { model: "m"  system: "Edit a short note." }
+workflow Main(q) {
+  delegate "{q}" to Writer -> a
+  delegate "{a}" to Editor -> b
+  note "{b}"
+}

@@ -6,3 +6,4 @@ workflow Main(topic) {
   note "done"
 }
 // ignore: LP02 LP05 LO01
+// ignore: LM04

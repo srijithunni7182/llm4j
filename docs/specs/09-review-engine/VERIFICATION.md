@@ -82,8 +82,8 @@ Status: **in progress**: 9a to 9f complete; 9g–9i not started. Run top to bott
 | R36 | `RunProfileTest` (sends and writes, retries repeat effects, loops, unbounded), `TimeEffectsReportTest` | ✅ 9g |
 | R37 | `RulesOf9fTest.theHeuristicRulesStayQuiet…`, `DataRuleSourceTest`, `ReviewCorpusTest` (precision per rule) | ✅ 9f for LP02, LP05, LC07 |
 | R38 | `RulesOf9fTest.theDurabilityRuleThatNeedsTheJournalSetting…` (LD01 reported as not evaluated until `journal` is declared), `DataRuleSourceTest`, `CorePackTest` (LC01, LC03 need `data.top-models`) | ✅ 9f |
-| R39 | `OptionalLensesOffByDefaultTest`, `Lg*Test`, `Lm*Test`, `Lh*Test`, `Lb*Test` | ⬜ 9h |
-| R40 | `CrossLensDedupTest` | ⬜ 9h |
+| R39 | `OptionalLensesTest` (off until asked, `--lens +x` and `all`, rules explainable), `CorePackTest` (examples of LG01, LG02, LG05, LM02 to LM05, LH01, LH02, LH04, LB01), `ReviewCorpusTest` | ✅ 9h |
+| R40 | The engine's `Overlap` mechanism is tested in `ReviewEngineTest`; none of the 9h rules repeats an LA finding (checked against the audit catalog), so `Reviews.OVERLAPS` stays empty and no `CrossLensDedupTest` is needed yet | ✅ 9h (nothing to dedupe) |
 | R41 | `HandlingFindingsTest` (a fingerprint survives a move and number changes; differs for another thing, rule or wording), `ReviewCommandTest.anAcceptedFindingStaysAccepted…` | ✅ 9e |
 | R42 | `HandlingFindingsTest`, `ReviewCommandTest` (reason required; scope finding / on / script / project; until with expiry that reopens the finding and says so; by and at kept) | ✅ 9e |
 | R43 | `HandlingFindingsTest` (scopes), `ReviewCommandTest`; counts shown before acting are an editor job (10c) | ◐ 9e CLI; the count in the dialog is 10c |
@@ -98,7 +98,7 @@ Status: **in progress**: 9a to 9f complete; 9g–9i not started. Run top to bott
 | R52 | `ReviewNoticeTest` (cache keyed by script, settings, baseline, prompts, pack and date; late notice dropped via `notice.timeout`) | ✅ 9e |
 | R53 | `RunUnchangedWithNoticeTest` (stdout, exit code and every file of the run directory identical with the notice on or off) | ✅ 9e |
 | R54 | `ReviewNoticeTest` (bad settings, bad level and an unreadable script each become one `review unavailable` line) | ✅ 9e |
-| R55 | `FabricReviewAttributeTest` | ⬜ 9h |
+| R55 | `FabricReviewAttributeTest` | ⬜ moved to the Fabric work (no run-attribute path yet) |
 | R56 | `SkillAdvisoryTextTest` | ⬜ 9i |
 | R57 | `CorePackTest`, `ReviewCorpusTest`: 18 core rules are data; LA, LV and the cost-estimate rules stay Java by design | ✅ 9d |
 | R58 | `RuleParserTest.thereIsNoWayToWriteAnExpressionOrACall` | ✅ 9a |
@@ -399,3 +399,11 @@ Repository examples reviewed: 14 (skipped 0)
 - Not built (OPEN_ITEMS.md O14): LT03 (needs the coverage report of the workflow-test phase), a fix or option for LC08 (wrapping two statements in `parallel { }` needs a two-anchor edit), LR06, LO02, LO03, LD03, LY03 (inputs still missing). `--calibrate` does not yet compare time.
 - Honest limits: latencies are assumptions by model name (`haiku`, `opus`… → small, large; everything else standard), not measurements; a run's real time depends on the provider. The repository-examples table shows LC08 once in 14 scripts.
 - Flake seen once in a loaded full build: `RunUnchangedWithNoticeTest` (the notice is dropped if the review is later than its cap); it passes alone, twice.
+
+### 9h (2026-10-23)
+
+- Built: the four optional lenses. Governance: LG01 (a model name one or two letters from a checked model), LG02 (models the project lists in `data.deprecated-models`; not evaluated until it does), LG05 (some agents use versioned prompt files and one does not). Maintainability: LM02 (long inline prompt), LM03 (large or deeply nested workflow), LM04 (two agents identical but for the name), LM05 (a number compared against in many conditions). Oversight: LH01 (a decision with no trust block or ladder followed by an acting step), LH02 (approval asked on a read-only tool), LH03 (Java: too many questions possible in one run), LH04 (a free-text `human_prompt` answer compared exactly). Blast radius: LB01 (an acting step in a repeat with no calls limit), LB02 (Java: too many effects possible in one run), LB03 (Java: a scheduled workflow with no budget per day; offers an option that adds one, sized by the developer; also compares with `blast.max-daily-cost` when prices are given). Core pack 1.7.0; the facts they read are in `OptionalLensFacts`; example scripts can now carry companion files (`companions:`) for rules about files beside the script.
+- LG03 is not built: Loom has no fallback configuration for an agent, so there is nothing to check (decision D6 in OPEN_ITEMS.md). LM04 compares agents only, not workflow bodies. LH04 cannot recommend a constrained list because `human_prompt` has no options list (D7).
+- A flake fixed along the way: a notice thread left over from an earlier test could print after `ReviewNotice.reset()` and use up the one line of the next test, so `RunUnchangedWithNoticeTest` failed under a loaded full build. A generation counter now makes a worker from before a reset print nothing.
+- Not built: R55 (the open counts as Fabric run attributes) needs a run-attribute path in the observe protocol that does not exist; it moves with the Fabric work.
+- Honest limits: the lenses are off by default, so they have had less exposure. The repository-examples table (14 scripts, all lenses on) shows LH04 five times, LG05 twice, LB01 once and LR10 twice; those are plausible but unlabelled.

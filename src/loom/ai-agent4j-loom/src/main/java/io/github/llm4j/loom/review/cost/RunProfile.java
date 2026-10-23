@@ -4,6 +4,7 @@ import io.github.llm4j.loom.ast.AgentDef;
 import io.github.llm4j.loom.ast.AltStmt;
 import io.github.llm4j.loom.ast.BroadcastStmt;
 import io.github.llm4j.loom.ast.CallStmt;
+import io.github.llm4j.loom.ast.DecideStmt;
 import io.github.llm4j.loom.ast.DelegateStmt;
 import io.github.llm4j.loom.ast.ForEachStmt;
 import io.github.llm4j.loom.ast.GuardrailStmt;
@@ -102,7 +103,9 @@ public final class RunProfile {
                         x.path,
                         waits,
                         sleep,
-                        assume.used());
+                        assume.used(),
+                        Math.round(x.questions * repeat),
+                        x.unboundedQuestions);
         EffectsEstimate effects =
                 new EffectsEstimate(
                         new EffectsEstimate.Count(
@@ -155,6 +158,8 @@ public final class RunProfile {
         double sends;
         double writes;
         double sleep;
+        double questions;
+        boolean unboundedQuestions;
         boolean unboundedTime;
         boolean unboundedSends;
         boolean unboundedWrites;
@@ -169,6 +174,8 @@ public final class RunProfile {
             p.sends = sends + next.sends;
             p.writes = writes + next.writes;
             p.sleep = sleep + next.sleep;
+            p.questions = questions + next.questions;
+            p.unboundedQuestions = unboundedQuestions || next.unboundedQuestions;
             p.unboundedTime = unboundedTime || next.unboundedTime;
             p.unboundedSends = unboundedSends || next.unboundedSends;
             p.unboundedWrites = unboundedWrites || next.unboundedWrites;
@@ -192,6 +199,8 @@ public final class RunProfile {
             p.sends = Math.max(sends, other.sends);
             p.writes = Math.max(writes, other.writes);
             p.sleep = Math.max(sleep, other.sleep);
+            p.questions = Math.max(questions, other.questions);
+            p.unboundedQuestions = unboundedQuestions || other.unboundedQuestions;
             p.unboundedTime = unboundedTime || other.unboundedTime;
             p.unboundedSends = unboundedSends || other.unboundedSends;
             p.unboundedWrites = unboundedWrites || other.unboundedWrites;
@@ -206,6 +215,7 @@ public final class RunProfile {
             p.sends = (sends + other.sends) / 2;
             p.writes = (writes + other.writes) / 2;
             p.sleep = (sleep + other.sleep) / 2;
+            p.questions = (questions + other.questions) / 2;
             p.path = ms >= other.ms ? path : other.path;
             return p;
         }
@@ -217,6 +227,8 @@ public final class RunProfile {
             p.sends = sends * n;
             p.writes = writes * n;
             p.sleep = sleep * n;
+            p.questions = questions * n;
+            p.unboundedQuestions = unboundedQuestions;
             p.unboundedTime = unboundedTime;
             p.unboundedSends = unboundedSends;
             p.unboundedWrites = unboundedWrites;
@@ -290,7 +302,14 @@ public final class RunProfile {
             if (s instanceof CallStmt k) return call(k);
             if (s instanceof HumanPromptStmt h) {
                 wait("human_prompt (line " + h.getLine() + ")");
-                return Part.NONE;
+                Part p = new Part();
+                p.questions = 1;
+                return p;
+            }
+            if (s instanceof DecideStmt d) {
+                Part p = new Part();
+                p.questions = 1;
+                return p;
             }
             if (s instanceof SleepStmt z) {
                 wait("sleep " + z.getDuration() + " (line " + z.getLine() + ")");
@@ -323,6 +342,7 @@ public final class RunProfile {
             else {
                 all = body.times(1);
                 if (body.ms > 0) all.unboundedTime = true;
+                if (body.questions > 0) all.unboundedQuestions = true;
                 if (body.sends > 0) all.unboundedSends = true;
                 if (body.writes > 0) all.unboundedWrites = true;
             }

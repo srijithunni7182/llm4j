@@ -5,9 +5,10 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * The aspect of a workflow a finding is about. Eight lenses are on by default and five are optional (testability waits for the workflow-test phase; see OPEN_ITEMS.md)
- * (off until asked). The declaration order is the ranking order of lenses: when two findings are
- * equally severe, the one in the earlier lens is listed first.
+ * The aspect of a workflow a finding is about. Eight lenses are on by default and five are optional
+ * (testability waits for the workflow-test phase; see OPEN_ITEMS.md) (off until asked). The
+ * declaration order is the ranking order of lenses: when two findings are equally severe, the one
+ * in the earlier lens is listed first.
  */
 public enum Lens {
     SECURITY("security", "Security", false),

@@ -34,6 +34,10 @@ public final class FactModel {
     public static FactModel v1() {
         FactModel m = new FactModel();
         m.entity("script", "The script as a whole")
+                .string(
+                        "repeatedThreshold",
+                        "The number most often compared against in conditions, empty when none")
+                .number("repeatedThresholdCount", "How many conditions compare against it")
                 .string("file", "The script's file name")
                 .number("workflowCount", "How many workflows it defines")
                 .number("agentCount", "How many agents it defines")
@@ -95,6 +99,17 @@ public final class FactModel {
                 .bool(
                         "writesSameVariableAsSibling",
                         "A parallel round whose branches bind the same variable name")
+                .bool("inUnboundedRepeat", "It is inside a for each, or a loop with no maximum")
+                .bool(
+                        "effectCapped",
+                        "A budget with a calls limit applies to it (its own, an enclosing statement's, or the script's)")
+                .bool(
+                        "decideLacksLadder",
+                        "A decide whose decision has neither a ladder nor a trust block")
+                .bool("followedByEffect", "A decide with a delegate to an acting agent after it")
+                .bool(
+                        "answerCompared",
+                        "A human_prompt whose answer is compared in a later condition")
                 .bool(
                         "loopBodyHasEffects",
                         "A loop whose body calls an agent that can write or send")
@@ -161,6 +176,15 @@ public final class FactModel {
                 .bool("streaming", "It streams")
                 .bool("steerable", "A person can steer it while it works")
                 .bool("hasEffects", "One of its tools writes or sends")
+                .bool(
+                        "unversionedAmongVersioned",
+                        "Its prompt file is not versioned (prompts/x/v2.md) although another agent's is")
+                .string(
+                        "identicalTo",
+                        "The name of an earlier agent with the same model, prompt, tools and approvals, empty when none")
+                .bool(
+                        "approvesLowReachTool",
+                        "It asks a person to approve a tool that only reads or does nothing")
                 .enumeration(
                         "maxReach",
                         List.of("none", "reads", "fetches", "writes", "sends"),
@@ -201,6 +225,13 @@ public final class FactModel {
                 .string("id", "The model id as written")
                 .bool("floatingAlias", "It is an alias that moves, such as one ending in -latest")
                 .string("provider", "The provider written before a slash, empty when none")
+                .bool("known", "The model catalog (the checked models the library ships) lists it")
+                .string(
+                        "nearest",
+                        "The catalog model its name is a near miss of, empty when it is not close to one")
+                .bool(
+                        "deprecated",
+                        "The project lists it in data.deprecated-models (unknown when it lists none)")
                 .done();
         return m;
     }

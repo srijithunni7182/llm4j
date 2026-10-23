@@ -519,7 +519,7 @@ public final class RuleParser {
             if (e.isTextual()) {
                 out.add(new Example(e.asText(), null, null));
             } else if (e.isObject()) {
-                unknownKeys(e, List.of("file", "inline", "expect", "settings"), at);
+                unknownKeys(e, List.of("file", "inline", "expect", "settings", "companions"), at);
                 boolean file = e.has("file");
                 boolean inline = e.has("inline");
                 if (file == inline) problems.add(at + ": give either file or inline");
@@ -529,7 +529,8 @@ public final class RuleParser {
                                     file ? text(e, "file") : null,
                                     inline ? text(e, "inline") : null,
                                     e.has("expect") ? e.get("expect").asInt() : null,
-                                    exampleSettings(e.get("settings"), at)));
+                                    exampleSettings(e.get("settings"), at),
+                                    exampleSettings(e.get("companions"), at + ".companions")));
             } else {
                 problems.add(at + ": a file name, or a map with file or inline");
             }

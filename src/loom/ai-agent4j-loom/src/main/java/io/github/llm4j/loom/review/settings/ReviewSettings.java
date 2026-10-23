@@ -204,7 +204,11 @@ public final class ReviewSettings {
                     "fix.retry", "retry 2 backoff 2s timeout 60s",
                     "fix.loop.max", "max 5",
                     "data.prompt.max-tokens", "2000",
-                    "data.loop.incident", "20");
+                    "data.loop.incident", "20",
+                    "data.inline.max-lines", "12",
+                    "data.workflow.max-steps", "60",
+                    "data.workflow.max-depth", "5",
+                    "data.threshold.repeats", "4");
 
     /**
      * A value such as {@code data.regions}: what the project declared, else the built-in default

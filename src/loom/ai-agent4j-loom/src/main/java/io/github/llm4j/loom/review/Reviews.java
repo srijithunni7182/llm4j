@@ -6,6 +6,7 @@ import io.github.llm4j.loom.review.adapt.ValidityCatalog;
 import io.github.llm4j.loom.review.adapt.ValiditySource;
 import io.github.llm4j.loom.review.cost.CostEstimator;
 import io.github.llm4j.loom.review.cost.CostRules;
+import io.github.llm4j.loom.review.cost.PostureRules;
 import io.github.llm4j.loom.review.engine.FindingSource;
 import io.github.llm4j.loom.review.engine.Overlap;
 import io.github.llm4j.loom.review.engine.ReviewEngine;
@@ -79,7 +80,10 @@ public final class Reviews {
             PackSet packs, List<ReviewRule> javaRules, CostEstimator estimator) {
         List<FindingSource> all = new ArrayList<>(sources(packs));
         all.add(new TestabilityRules());
-        if (estimator != null) all.add(new CostRules(estimator));
+        if (estimator != null) {
+            all.add(new CostRules(estimator));
+            all.add(new PostureRules(estimator));
+        }
         all.addAll(javaRules);
         return new ReviewEngine(all, OVERLAPS, estimator);
     }
@@ -112,6 +116,7 @@ public final class Reviews {
                         .addAll(AuditCatalog.rules())
                         .addAll(ValidityCatalog.rules())
                         .addAll(CostRules.catalog())
+                        .addAll(PostureRules.catalog())
                         .addAll(TestabilityRules.catalog());
         for (Pack p : packs.packs()) c.addAll(PackCatalog.rules(p));
         for (ReviewRule r : javaRules) c.addAll(r.rules());

@@ -1,0 +1,20 @@
+- id: LB01
+  lens: blast-radius
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, is: delegate }
+      - { field: inUnboundedRepeat, is: true }
+      - { field: agent.hasEffects, is: true }
+      - { field: effectCapped, is: false }
+  title: "{label} can write or send inside a repeat with no limit on calls"
+  why: "A for each over a long list, or a loop with no maximum, can cause as many effects as it has turns, and nothing in the script stops it."
+  fixHint: "Add a budget with a calls limit to the step, the loop or the script, or give the loop a max."
+  since: "1.6.0"
+  explain: >
+    Looks for a step that acts on the world (its agent has a tool that writes or sends) inside a
+    for each, or inside a loop with no max, when no budget with a calls limit applies to it.
+  examples:
+    fires: [ examples/lb01-fires.loom ]
+    quiet: [ examples/lb01-quiet-capped.loom, examples/lb01-quiet-reads.loom ]

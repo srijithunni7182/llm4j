@@ -1,20 +1,13 @@
-# Open items: what is not done yet
+# Open items that need your decision
 
-One place for everything deliberately left out so far, to revisit later. Update it in the same commit that adds or closes an item. Detail lives in the files named in each row.
+Only items that wait on a decision from you are listed here. Everything else that is not done yet is planned in a later phase and tracked in the phase's own VERIFICATION.md and in RULES_ROADMAP.md. We revisit this file once all phases are done. Update it in the same commit that adds or closes an item.
 
-| # | Item | Why it is open | Where it is described | Planned |
-|---|---|---|---|---|
-| O1 | Options for LC01 (which cheaper model), LC02 (memory bound), LG04 (which version to pin), LR08 (wait, fail or suspend), LP rules (prompt text) | Each is a data change plus examples; not yet written | FIX_CAUTIONS.md §0, §6; RULES_ROADMAP.md | after 9g |
-| O2 | An option that edits a second file (prompt file, `review.properties`); `createFile` is parsed but unused | The fix engine edits one script | FIX_CAUTIONS.md §6 | when a rule needs it |
-| O3 | Interactive `--assist` does not act on `references: true` (LM01 delete): it should search the project for the agent's name and show hits before asking | Not built; a skill must search by hand | FIX_CAUTIONS.md §3, §6 | with O1 |
-| O4 | Anchor that finds a setting inside a multi-line block (LY02 on a multi-line agent has no fix/option) | Not built | FIX_CAUTIONS.md §1, §6 | with O1 |
-| O5 | "One statement per line" formatter pass, to unlock fixes on crowded lines | Not built | FIX_CAUTIONS.md §6 | undecided |
-| O6 | Deferred rules LR06, LO02, LO03, LD03, LY03 | Need new inputs (enum values, price/window files, branch ends, rewind span, provider-region table) | RULES_ROADMAP.md "Moved to 9g" | 9g where inputs fit |
-| O7 | A4 (estimate within 2x on live runs) not met live; only on recorded corpus | Few live runs; shorter real answers than assumed | VERIFICATION.md A4, §7 | recheck after 9g |
-| O8 | LP05 is noisy (16 findings on 14 example scripts); kept heuristic INFO | Wording-based | VERIFICATION.md §7 9f | revisit with real usage |
-| O9 | Corpus labelled by the rule authors; LY01 name patterns and LP02/LP05 recall unmeasured on real projects | No independent labels | VERIFICATION.md §7 | run on real scripts |
-| O10 | Fabric attributes (R55), skills text (R56), rule docs generated from packs (R69), `weave rules diff` / semver policy (R74) | Planned sub-phases 9h and 9i | DESIGN.md §12 | 9h, 9i |
-| O11 | Editor-side review (10c) | Phase 10; needs your manual VS Code check | phase plan | phase 10 |
-| O12 | Mockup artifact still shows LA05 where the id is LA01 | Cosmetic | — | any time |
-| O13 | `RunUnchangedWithNoticeTest` failed once in a loaded full build (the advisory notice is dropped when the review exceeds its cap) | Timing-sensitive; passes alone | VERIFICATION.md 9g | make the cap injectable in the test |
-| O14 | Testability: LT03 (needs the coverage report), and switching the lens to default-on (R33) once `weave test` exists; reading `--calibrate` time; an option for LC08 (wrap in `parallel { }`) | Depends on phase 11 | VERIFICATION.md 9g | phase 11 |
+| # | Decision needed | Context | Where it is described |
+|---|---|---|---|
+| D1 | For each rule that has no options yet, which resolutions should the developer be offered? LC01 (which cheaper model, or none), LC02 (a memory bound or a `context` block, and what size), LG04 (pin to which version), LR08 (`wait`, `fail` or `suspend`), the prompt rules (what text to add) | Options are a small data change per rule, but the sensible choices are product judgement, not mechanics | FIX_CAUTIONS.md §0, §6 |
+| D2 | Should review get a "one statement per line" formatter pass, so scripts written on crowded lines can be fixed? | Today a one-line workflow gets findings but no fix, because guessing where a statement ends could corrupt the file | FIX_CAUTIONS.md §1, §6 |
+| D3 | Keep LP05 ("prompt does not say what to do when unsure") as an off-by-default info rule, or drop it? | It fired 16 times on 14 repo example scripts, because it judges wording | VERIFICATION.md §7 9f |
+| D4 | Who labels an independent set of scripts to measure rule precision? | The rules and the test corpus were both written by me, so the published precision is optimistic. Real scripts from your projects, labelled by you, would be the honest test | VERIFICATION.md §7 |
+| D5 | Should an option be allowed to edit a second file (a prompt file, `review.properties`)? | It would let fixes like "create the missing prompt file" exist, at the cost of a fix touching more than the script | FIX_CAUTIONS.md §6 |
+| D6 | Should Loom get a fallback model for an agent (used when the provider is down)? | LG03 ("a critical-path agent has a single provider and no fallback") cannot exist until it does | VERIFICATION.md 9h |
+| D7 | Should `human_prompt` get an `options:` list (a fixed set of answers)? | LH04 flags free-text answers that are compared exactly, but cannot yet recommend the constrained form | VERIFICATION.md 9h |

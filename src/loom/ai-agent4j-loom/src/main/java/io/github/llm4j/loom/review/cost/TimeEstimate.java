@@ -16,6 +16,8 @@ import java.util.Map;
  * @param waits where the run stops for a person or a timer, such as {@code human_prompt (line 12)}
  * @param sleepMillis the fixed sleeps on the main path, summed once
  * @param assumptions the latency assumptions used, in seconds
+ * @param worstQuestions the most questions the workflow can put to a person in one run
+ * @param questionsUnbounded true when a question sits in something that can repeat without limit
  */
 public record TimeEstimate(
         long typicalMillis,
@@ -24,7 +26,30 @@ public record TimeEstimate(
         List<String> criticalPath,
         List<String> waits,
         long sleepMillis,
-        Map<String, Long> assumptions) {
+        Map<String, Long> assumptions,
+        long worstQuestions,
+        boolean questionsUnbounded) {
+
+    /** An estimate that does not count the questions put to people. */
+    public TimeEstimate(
+            long typicalMillis,
+            long worstMillis,
+            boolean unbounded,
+            List<String> criticalPath,
+            List<String> waits,
+            long sleepMillis,
+            Map<String, Long> assumptions) {
+        this(
+                typicalMillis,
+                worstMillis,
+                unbounded,
+                criticalPath,
+                waits,
+                sleepMillis,
+                assumptions,
+                0,
+                false);
+    }
 
     public TimeEstimate {
         criticalPath = List.copyOf(criticalPath);
