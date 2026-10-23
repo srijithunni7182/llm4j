@@ -57,6 +57,34 @@ public final class ObserveReplay {
         }
     }
 
+    /** The marker, after a step id, of the variables a what-if set before that step. */
+    public static final String SET = "#set";
+
+    /** A failure to inject: the target's calls fail with {@code category}, {@code times} times. */
+    public record Fail(String category, int times) {}
+
+    /**
+     * What to change while replaying (all optional): an answer for a step that has none recorded,
+     * variables set before a step, failures to inject, answers for people, results for tools, and a
+     * step to stop before.
+     */
+    public record Hooks(
+            io.github.llm4j.loom.execution.AskHook ask,
+            Map<String, Fail> failures,
+            List<String> humans,
+            Map<String, String> toolResults,
+            String until) {
+        public Hooks {
+            failures = failures == null ? Map.of() : failures;
+            humans = humans == null ? List.of() : humans;
+            toolResults = toolResults == null ? Map.of() : toolResults;
+        }
+
+        public static Hooks none() {
+            return new Hooks(null, null, null, null, null);
+        }
+    }
+
     /**
      * Where the journal and the script stopped agreeing.
      *
@@ -81,6 +109,8 @@ public final class ObserveReplay {
      * @param unvisited journal entries for steps the replay never started
      * @param variables the variables at the end
      * @param divergence set when the journal and the script disagree
+     * @param journal the replay's own journal at the end: the one it was given, plus what it
+     *     recorded (the original is untouched)
      */
     /** A step starting ({@code decision} null), or a choice made inside one. */
     public record Event(String step, DecisionPoint decision) {}
@@ -94,9 +124,15 @@ public final class ObserveReplay {
             List<Event> timeline,
             List<String> unvisited,
             Map<String, Object> variables,
-            Divergence divergence) {}
+            Divergence divergence,
+            Map<String, RunJournal.Entry> journal) {}
 
     public static Result run(Options options, RunJournal original) throws java.io.IOException {
+        return run(options, original, Hooks.none());
+    }
+
+    public static Result run(Options options, RunJournal original, Hooks hooks)
+            throws java.io.IOException {
         LoomScript script = new LoomLoader().load(options.script().toString());
         for (AgentDef a : script.getAgents())
             a.setModel(ObservedCollaborators.PREFIX + a.getName());
@@ -107,8 +143,12 @@ public final class ObserveReplay {
         for (ToolDef t : script.getTools()) declared.put(t.getName(), t);
         Set<String> toolNames = new LinkedHashSet<>(declared.keySet());
         for (AgentDef a : script.getAgents()) toolNames.addAll(a.getTools());
+        ObservedCollaborators.Failing failing = new ObservedCollaborators.Failing(hooks.failures());
         for (String name : toolNames)
-            tools.register(name, ObservedCollaborators.tool(name, declared.get(name)));
+            tools.register(
+                    name,
+                    ObservedCollaborators.tool(
+                            name, declared.get(name), hooks.toolResults(), failing));
         script.getTools().clear();
         TaskRegistry tasks = new TaskRegistry();
         Set<String> taskNames = new LinkedHashSet<>();
@@ -118,7 +158,7 @@ public final class ObserveReplay {
                     s -> {
                         if (s instanceof RunStmt r) taskNames.add(r.getTaskName());
                     });
-        for (String name : taskNames) tasks.register(ObservedCollaborators.task(name));
+        for (String name : taskNames) tasks.register(ObservedCollaborators.task(name, failing));
 
         // the journal is copied: nothing the replay writes reaches the run
         RunJournal copy = RunJournal.inMemory();
@@ -136,10 +176,15 @@ public final class ObserveReplay {
         List<String> steps = new ArrayList<>();
         List<DecisionPoint> decisions = new ArrayList<>();
         List<Event> timeline = new ArrayList<>();
-        HarnessExecutor executor = new HarnessExecutor(script, tools, ObservedCollaborators.MODELS);
-        executor.setClassifierFactory(ObservedCollaborators.CLASSIFIERS);
+        HarnessExecutor executor =
+                new HarnessExecutor(script, tools, ObservedCollaborators.models(failing));
+        executor.setClassifierFactory(ObservedCollaborators.classifiers(failing));
         executor.setTaskRegistry(tasks);
-        executor.setHumanInterface(ObservedCollaborators.PEOPLE);
+        executor.setHumanInterface(
+                hooks.humans().isEmpty()
+                        ? ObservedCollaborators.PEOPLE
+                        : ObservedCollaborators.people(new java.util.ArrayDeque<>(hooks.humans())));
+        if (hooks.ask() != null) executor.setAskHook(hooks.ask());
         executor.setJournal(copy);
         ObservedCollaborators.FrozenClock clock =
                 new ObservedCollaborators.FrozenClock(Instant.parse("2026-01-01T00:00:00Z"));
@@ -151,8 +196,23 @@ public final class ObserveReplay {
                 io.github.llm4j.loom.prompt.PromptSupport.catalog(script, options.script(), null));
         executor.setStepListener(
                 step -> {
+                    if (step.equals(hooks.until())) throw new ObserveStop("to go on past " + step);
                     steps.add(step);
                     timeline.add(new Event(step, null));
+                    // variables a what-if set before this step are in the journal, so a saved
+                    // candidate explains itself
+                    copy.get(step + SET)
+                            .ifPresent(
+                                    e -> {
+                                        if (e.value() instanceof Map<?, ?> sets)
+                                            sets.forEach(
+                                                    (name, value) ->
+                                                            executor.bindFromOutside(
+                                                                    String.valueOf(name),
+                                                                    value,
+                                                                    step,
+                                                                    "what if: set"));
+                                    });
                 });
         executor.setDecisionListener(
                 d -> {
@@ -229,7 +289,8 @@ public final class ObserveReplay {
                 timeline,
                 unvisited,
                 variables,
-                divergence);
+                divergence,
+                new LinkedHashMap<>(copy.all()));
     }
 
     private static final java.util.regex.Pattern BRANCH =

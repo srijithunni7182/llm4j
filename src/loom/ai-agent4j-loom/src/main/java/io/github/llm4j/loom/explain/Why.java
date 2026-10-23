@@ -408,6 +408,56 @@ public final class Why {
 
     // ---- why this step
 
+    /**
+     * The step id of the first time the run executed the statement a selector names, if it ever
+     * did.
+     */
+    public static Optional<String> locate(Path script, Selector sel, List<String> steps)
+            throws IOException {
+        if (sel.step() != null)
+            return steps.contains(sel.step()) ? Optional.of(sel.step()) : Optional.empty();
+        GraphResult graph = new GraphService().graph(script);
+        StepResolver resolver = new StepResolver(graph);
+        Map<String, Map<String, GraphNode>> nodes = new LinkedHashMap<>();
+        for (WorkflowGraph w : graph.workflows()) {
+            Map<String, GraphNode> byId = new LinkedHashMap<>();
+            w.nodes().forEach(n -> byId.put(n.id(), n));
+            nodes.put(w.name(), byId);
+        }
+        for (String step : steps) {
+            GraphNode n = nodeOf(step, resolver, nodes);
+            if (n == null) continue;
+            boolean matches =
+                    sel.node() != null
+                            ? n.id().equals(sel.node())
+                            : n.source() != null
+                                    && sel.line() != null
+                                    && n.source().line() == sel.line();
+            if (matches) return Optional.of(step);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * The label of the statement a step is ({@code delegate Replier}), or the step id when it
+     * cannot be found.
+     */
+    public static java.util.function.Function<String, String> labels(Path script)
+            throws IOException {
+        GraphResult graph = new GraphService().graph(script);
+        StepResolver resolver = new StepResolver(graph);
+        Map<String, Map<String, GraphNode>> nodes = new LinkedHashMap<>();
+        for (WorkflowGraph w : graph.workflows()) {
+            Map<String, GraphNode> byId = new LinkedHashMap<>();
+            w.nodes().forEach(n -> byId.put(n.id(), n));
+            nodes.put(w.name(), byId);
+        }
+        return step -> {
+            GraphNode n = nodeOf(step, resolver, nodes);
+            return n == null ? step : n.label();
+        };
+    }
+
     private static Answer answer(
             Selector sel,
             ObserveReplay.Result replay,

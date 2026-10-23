@@ -593,6 +593,11 @@ public class HarnessExecutor implements LoomEngine {
                                 DelegateStmt stmt, AgentDef agentDef, Object value) {
                             HarnessExecutor.this.onDelegateReplayed(stmt, agentDef, value);
                         }
+
+                        @Override
+                        public Decisions decisions() {
+                            return decisions;
+                        }
                     });
 
     // ── Pausing and resuming ─────────────────────────────────────────────
@@ -784,6 +789,24 @@ public class HarnessExecutor implements LoomEngine {
     public void setDecisionListener(DecisionListener listener, java.util.Set<String> maskedNames) {
         decisions.listen(listener, maskedNames);
         context.setObserver(listener == null ? null : decisions::bound);
+    }
+
+    /**
+     * Asks to be told what each step asks of a model, classifier or task, and offered the chance to
+     * supply the answer for a step with no recorded one (see {@link AskHook}). Nothing changes for
+     * a run with no hook.
+     */
+    public void setAskHook(AskHook hook) {
+        decisions.askHook(hook);
+    }
+
+    /**
+     * Sets a variable from outside the script (a person changing a value to see what would happen)
+     * and records that as where the value came from.
+     */
+    public void bindFromOutside(String name, Object value, String step, String by) {
+        context.setVariable(name, value);
+        decisions.rebind(name, step, by);
     }
 
     /** The decision seam, for the runners that take part. */

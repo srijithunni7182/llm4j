@@ -154,6 +154,9 @@ final class DelegateRunner {
                 int maxAttempts);
 
         void onDelegateReplayed(DelegateStmt stmt, AgentDef agentDef, Object value);
+
+        /** What a watching run is told about this step (see {@link Decisions}). */
+        Decisions decisions();
     }
 
     private final BudgetCoordinator budgets;
@@ -189,6 +192,8 @@ final class DelegateRunner {
                         .filter(e -> !"retry".equals(e.kind())); // "retry": an operator
         // asked for a failed
         // step to be tried again
+        if (recorded.isPresent() && host.decisions().asking())
+            host.decisions().ask(asked(del, agentDef, agentName, stepId), true);
         if (recorded.isPresent()) {
             RunJournal.Entry entry = recorded.get();
             if ("failed".equals(entry.kind())) {
@@ -257,6 +262,31 @@ final class DelegateRunner {
             }
         }
         final String resolvedPayload = payload;
+        if (host.decisions().asking()) {
+            // a hook may already know this answer (the recorded one, when nothing it depends on
+            // has changed): use it as a recorded step would be used
+            Object known =
+                    host.decisions()
+                            .ask(
+                                    new Ask(
+                                            stepId,
+                                            "delegate",
+                                            agentName,
+                                            resolvedPayload,
+                                            configOf(agentDef)),
+                                    false);
+            if (known != null) {
+                host.journal().put(stepId, new RunJournal.Entry("delegate", known));
+                host.context().setVariable(variableName, known);
+                host.onDelegateReplayed(del, agentDef, known);
+                host.trace(
+                        TraceEvent.DELEGATE_REPLAYED,
+                        agentName,
+                        "reused an answer already known",
+                        null);
+                return;
+            }
+        }
 
         String contextBriefing =
                 host.memoryEngine().assembleContext(agentDef, resolvedPayload, host.view());
@@ -704,6 +734,28 @@ final class DelegateRunner {
         if (!del.getOnFailure().isEmpty())
             host.journal().put(stepId, new RunJournal.Entry("failed", message));
         handleExhausted(del, agentName, message, lastError);
+    }
+
+    /** What a recorded step asked, rebuilt from the run's state (without asking anyone). */
+    private Ask asked(DelegateStmt del, AgentDef agentDef, String agentName, String stepId) {
+        String payload;
+        try {
+            payload = host.resolvePayload(del.getPayload());
+        } catch (RuntimeException e) {
+            payload = "";
+        }
+        return new Ask(stepId, "delegate", agentName, payload, configOf(agentDef));
+    }
+
+    /** The model and prompts an agent is asked with, as one string. */
+    private static String configOf(AgentDef agent) {
+        return agent.getModel()
+                + "|"
+                + agent.getSystemPrompt()
+                + "|"
+                + agent.getPrompt()
+                + "|"
+                + agent.getSystemTemplate();
     }
 
     /** How many times a stopped step is run again on a RETRY outcome before it is given up on. */

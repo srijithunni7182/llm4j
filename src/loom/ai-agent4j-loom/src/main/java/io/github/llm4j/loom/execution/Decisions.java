@@ -32,8 +32,24 @@ final class Decisions {
     private final ThreadLocal<Current> current = new ThreadLocal<>();
     private final Map<String, Bound> bindings = new ConcurrentHashMap<>();
 
+    private volatile AskHook askHook;
+
     boolean on() {
         return listener != null;
+    }
+
+    void askHook(AskHook hook) {
+        this.askHook = hook;
+    }
+
+    boolean asking() {
+        return askHook != null;
+    }
+
+    /** What the step asks; the hook's answer when it has one for a step with no recorded answer. */
+    Object ask(Ask ask, boolean recorded) {
+        AskHook hook = askHook;
+        return hook == null ? null : hook.ask(ask, recorded);
     }
 
     void listen(DecisionListener listener, Set<String> maskedNames) {
@@ -54,6 +70,11 @@ final class Decisions {
         bindings.put(
                 name,
                 new Bound(c.step(), c.statement().getLine(), StatementText.of(c.statement())));
+    }
+
+    /** A variable was set from outside the script ({@code by} says how); its provenance is that. */
+    void rebind(String name, String step, String by) {
+        if (listener != null) bindings.put(name, new Bound(step, 0, by));
     }
 
     // ---- conditions

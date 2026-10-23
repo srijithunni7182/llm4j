@@ -64,6 +64,22 @@ final class ClassifyRunner {
         // A resumed run: the step already happened, so its recorded answer is reused and the
         // backend is not asked.
         var recorded = journal.get(stepId).filter(e -> !"retry".equals(e.kind()));
+        if (recorded.isPresent() && executor.decisions().asking()) {
+            try {
+                ClassifyRequest before = request(stmt, def);
+                executor.decisions()
+                        .ask(
+                                new Ask(
+                                        stepId,
+                                        "classify",
+                                        def.getName(),
+                                        String.valueOf(before.state()),
+                                        String.valueOf(def.getModel())),
+                                true);
+            } catch (StepFailure ignored) {
+                // a recorded failure of the request itself has no question to report
+            }
+        }
         if (recorded.isPresent()) {
             RunJournal.Entry entry = recorded.get();
             if ("failed".equals(entry.kind())) {
@@ -86,6 +102,27 @@ final class ClassifyRunner {
         } catch (StepFailure bad) {
             fail(stmt, def, stepId, bad.getMessage(), bad, true, 0);
             return;
+        }
+        if (executor.decisions().asking()) {
+            Object known =
+                    executor.decisions()
+                            .ask(
+                                    new Ask(
+                                            stepId,
+                                            "classify",
+                                            def.getName(),
+                                            String.valueOf(request.state()),
+                                            String.valueOf(def.getModel())),
+                                    false);
+            if (known instanceof Map<?, ?> given) {
+                Map<String, Object> copy = new LinkedHashMap<>();
+                given.forEach((k, v) -> copy.put(String.valueOf(k), v));
+                journal.put(stepId, new RunJournal.Entry("classify", copy));
+                executor.setVariable(variable, copy);
+                executor.decisions().classified(stmt, stepId, copy);
+                replayed(def, copy);
+                return;
+            }
         }
 
         Classifier classifier = executor.classifierFor(def);

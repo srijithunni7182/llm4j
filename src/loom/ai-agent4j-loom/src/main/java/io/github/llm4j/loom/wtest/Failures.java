@@ -21,10 +21,10 @@ import java.util.Set;
  * distinguishes, so that {@code retry}, {@code on_failure}, {@code rewind} and the rate-limit
  * handling run for real.
  */
-final class Failures {
+public final class Failures {
 
     /** The categories a test file may name, and what each looks like to the runtime. */
-    static final List<String> CATEGORIES =
+    public static final List<String> CATEGORIES =
             List.of(
                     "rate_limit",
                     "timeout",
@@ -70,7 +70,7 @@ final class Failures {
     }
 
     /** The exception a model call fails with. */
-    static RuntimeException model(String category, String target, int call) {
+    public static RuntimeException model(String category, String target, int call) {
         String what =
                 "scripted " + category.replace('_', ' ') + " (" + target + ", call " + call + ")";
         return switch (category) {
@@ -82,7 +82,7 @@ final class Failures {
     }
 
     /** The exception a tool call fails with. */
-    static Exception tool(String category, String target, int call) {
+    public static Exception tool(String category, String target, int call) {
         String what =
                 "scripted " + category.replace('_', ' ') + " (" + target + ", call " + call + ")";
         ErrorCategory c =

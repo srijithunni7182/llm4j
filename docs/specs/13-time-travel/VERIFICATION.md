@@ -1,6 +1,6 @@
 # Phase 13 verification plan: time-travel debugging
 
-Status: **13a done**. Run top to bottom at the end of sub-phase 13f; the relevant rows after each sub-phase. Results in §7.
+Status: **13a and 13b done**. Run top to bottom at the end of sub-phase 13f; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -47,15 +47,15 @@ Status: **13a done**. Run top to bottom at the end of sub-phase 13f; the relevan
 | R22 | `WhereViewTest` | ⬜ 13e |
 | R23 | `StepBackTest`, `StepBackRealEffectTest` | ⬜ 13e |
 | R24 | `StepBackEditsTest` | ⬜ 13e |
-| R25 | `WhatIfTest`, `OriginalUntouchedTest` | ⬜ 13b |
-| R26 | `RecordedModelsReuseTest`, `NeedsModelStopsTest` | ⬜ 13b |
-| R27 | `TrajectoryDiffTest`, `EffectDeltaTest` | ⬜ 13b |
+| R25 | `WhatIfTest`, `WhatIfCommandTest` (the run directory's hash is the same before and after; nothing in it is written) | ✅ 13b |
+| R26 | `WhatIfTest` (a recorded answer is reused only when agent, model, prompts and task text are the same; a change that flows into a question stops the candidate with `needs a model` and why; `scripted` reuses nothing) | ✅ 13b |
+| R27 | `WhatIfTest` (first difference with the values that changed, steps only in one trajectory, result, effects with a new one marked unsafe) | ✅ 13b (cost deltas come with the estimator in 13c) |
 | R28 | `WhatIfCandidateScriptTest` | ⬜ 13c |
 | R29 | `WhatIfPromptVersionTest` | ⬜ 13c |
 | R30 | `WhatIfLiveCapTest` | ⬜ 13c |
-| R31 | `WhatIfEffectsPolicyTest` | ⬜ 13b |
-| R32 | `WhatIfSaveTest` | ⬜ 13b |
-| R33 | `WhatIfDivergedScriptTest` | ⬜ 13b |
+| R31 | `WhatIfCommandTest` (effects are never performed: `--effects real` is refused with the reason) | ✅ 13b |
+| R32 | `WhatIfCommandTest.theCandidateCanBeSavedAndExplainedWithWhy`, `aSavedCandidateWithASetVariableExplainsItselfWithThatValue` | ✅ 13b |
+| R33 | `WhatIfCommandTest.aChangedScriptIsRefused`, `DivergenceTest` (a diverged candidate says so) | 🟨 13b (the `--script old.loom` offer arrives with candidate scripts in 13c) |
 | R34 | `OverlayCountsTest` | ⬜ 13d |
 | R35 | `OverlayAggregateTest` | ⬜ 13d |
 | R36 | `OverlayMermaidTest` | ⬜ 13d |
@@ -122,3 +122,10 @@ The one gap that matters is the first: without a record, a failed run's journal 
 - Found building it: the lexer's columns and a for-each item's step id (`Main/s1/e0/b0`) needed small fixes in the resolver; a parallel block's branches do not announce themselves, so they are read from the journal.
 - Tests: Java module 2,945 tests; 13a added `ObserveReplayEqualsRunTest` (5), `WhyTest` (10), `WhyNotRanTest` (7), `DivergenceTest` (5), `WhyStatesTest` (4), `WhyCommandTest` (11), `DecisionEventTest` (5).
 - Not in 13a: `--verify` (R4), the random-workflow property test (TEST_STRATEGY §3), `weave why` from the editor and Fabric (their phases), docs (written once 13f is done).
+
+### 13b (2026-10-23)
+
+- Built: `weave whatif` (variable, classifier or agent answer, person's answer, injected failure, tool result; recorded or scripted models; `--until`; `--save`; text, Markdown, JSON v1). The seam it needed: an `AskHook` that is told, for each delegate, classifier and task, what the step asks (agent or classifier, task text, the model and prompts it is asked with) and may supply the answer for a step that has none recorded; with no hook nothing is computed. The original run is replayed once to learn what each step asked, the journal is copied and cut back to the step, and the script runs forward over the copy; a variable set by a what-if is kept in the candidate's journal (`STEP#set`) so a saved candidate explains itself with `weave why`.
+- Found building it: the journal does not record what a model was asked, so "unchanged question" is decided by replaying the original and comparing what each step would ask now with what it asked then; a for-each item's body steps resolve to the graph through `e<i>` ids; failures can be injected with the scripted-test categories (`rate_limit`, `timeout`, `server_error`, `refused`, `quota`, `invalid_output`, `tool_error`).
+- Tests: Java module 2,965; `WhatIfTest` (11), `WhatIfCommandTest` (9).
+- Not in 13b: a candidate script, prompt or model, and live models under a spend cap, with the cost estimate (13c); cost deltas; `--effects real` (refused: nothing is ever performed).
