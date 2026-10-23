@@ -5,6 +5,7 @@ export type ReviewStatus = 'loading' | 'running' | 'idle' | 'stale' | 'error';
 export type ReviewHostMessage =
     | { type: 'review'; review: unknown; graph: unknown; status: ReviewStatus; message?: string; entry?: string }
     | { type: 'status'; status: ReviewStatus; message?: string }
+    | { type: 'settings'; layout: 'split' | 'outline' | 'list' }
     | { type: 'cursor'; file: string; line: number };
 
 export type ReviewWebviewMessage =

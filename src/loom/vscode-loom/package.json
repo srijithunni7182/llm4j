@@ -185,6 +185,12 @@
           "default": "save",
           "description": "When the Loom review runs by itself: after a save, while typing (only the validity lens, so it stays fast), or only when you ask."
         },
+        "loom.review.layout": {
+          "type": "string",
+          "enum": ["split", "outline", "list"],
+          "default": "split",
+          "description": "The layout the Review panel opens in: Split (graph and findings side by side), Outline (step by step) or List (a dense table). You can switch in the panel; your last choice is remembered per workspace."
+        },
         "loom.review.lenses": {
           "type": "string",
           "default": "",

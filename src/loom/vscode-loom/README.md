@@ -105,6 +105,7 @@ Type a keyword in a `.loom` file and press Tab to get the whole statement with i
 - **Summary strip:** open findings by severity, the cost of one run (typical and worst case; money when the models have prices, tokens when they do not, and it says which), the time, the worst-case sends and writes, how many lenses ran, and a **trifecta present** chip when an agent has the lethal trifecta.
 - **Graph:** each step carries its open findings (a number, a glyph and a word, never colour alone) and the typical cost of the step. Click a step to list only its findings; click again to list all.
 - **Findings:** grouped by severity and then lens (or by lens, rule or file), in the engine's order. Click one to see why it matters and what would fix it, to select its step in the graph, and to jump to its line in the editor. Move the cursor in the script and the finding on that line is selected. Filter by text, rule, lens or file; the **Findings | Both | Graph** switch gives one half the whole panel; on a narrow panel the graph stacks above the findings.
+- **Three layouts, one panel.** **Split** (the default) puts the graph and the findings side by side. **Outline** lists the steps on the left with their findings counted, shows the chosen step with its cost and its findings in the middle, and the workflow summary and lenses on the right. **List** is a dense table of findings with a map of the steps beside it and the focused finding explained. Switch with the **Split | Outline | List** control; the filter, grouping, selected finding and step, folded groups and scroll position stay as they were, and every layout shows the same findings and numbers.
 - **Stale and running:** the moment you edit, the result shows a *stale* chip; while a new review runs the old one stays, dimmed. It never clears to an empty list.
 - **Rules not evaluated** (because a fact they need is not declared) are counted in the strip and listed on request, not hidden.
 
@@ -131,6 +132,7 @@ A key that is not set yet (such as `GEMINI_API_KEY`) is not reported as a proble
 | `loom.javaPath` | `java` | The Java executable used to run `weave.jar` (the engine, checks and graphs); if only the older `loom.graph.javaPath` is set, that one is used |
 | `loom.graph.javaPath` | `java` | The older name of the same setting, still honoured |
 | `loom.review.on` | `save` | When the review runs by itself: after a save, while typing (the validity lens only), or only when you ask (`manual`) |
+| `loom.review.layout` | `split` | The layout the Review panel opens in: `split`, `outline` or `list` (your last choice in the panel is remembered per workspace) |
 | `loom.review.lenses` | `` | Which lenses run, as `weave review --lens` takes them; empty uses the project's `review.properties` |
 | `loom.review.minSeverity` | `low` | The lowest severity shown as a squiggle and in the Problems panel |
 | `loom.review.codeLens` | `true` | Findings and cost above each workflow |

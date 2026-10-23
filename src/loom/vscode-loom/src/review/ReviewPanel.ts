@@ -8,6 +8,12 @@ import { ReviewController, ReviewState } from './controller';
 import { renderReviewHtml } from './html';
 import { parseReviewMessage, ReviewHostMessage } from './protocol';
 
+/** `loom.review.layout`: the layout a panel opens in when this workspace has not chosen one yet. */
+function startingLayout(): 'split' | 'outline' | 'list' {
+    const v = vscode.workspace.getConfiguration('loom.review').get<string>('layout', 'split');
+    return v === 'outline' || v === 'list' ? v : 'split';
+}
+
 /** One Loom Review panel per script. Everything the page shows comes from the controller; the panel only carries it across. */
 export class ReviewPanel {
     private static readonly open = new Map<string, ReviewPanel>();
@@ -83,6 +89,7 @@ export class ReviewPanel {
         switch (m.type) {
             case 'ready':
                 this.ready = true;
+                this.post({ type: 'settings', layout: startingLayout() });
                 this.render(this.controller.state(this.entry));
                 if (!this.controller.state(this.entry).review) {
                     void this.controller.request(this.entry);

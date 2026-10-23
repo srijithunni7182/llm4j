@@ -324,6 +324,80 @@
     return best ? best.id : null;
   }
 
+  /** The layouts a panel offers. Split is the default. */
+  var LAYOUTS = ['split', 'outline', 'list'];
+  var GROUPS = ['severity', 'lens', 'rule', 'file'];
+
+  /** The choices a person makes in the panel and expects to survive a switch of layout, a hide or a reload. */
+  function defaultUi() {
+    return {
+      layout: 'split', pane: 'both', groupBy: 'severity',
+      filter: { text: '', lenses: [], severities: [] },
+      node: null, selected: null, multi: [], collapsed: {}, scroll: 0,
+      showNotEvaluated: false, showHandled: false, workflow: null
+    };
+  }
+
+  /** Reads saved state defensively: anything of the wrong shape falls back to the default for that key. */
+  function restoreUi(saved) {
+    var ui = defaultUi();
+    if (!saved || typeof saved !== 'object') { return ui; }
+    if (LAYOUTS.indexOf(saved.layout) >= 0) { ui.layout = saved.layout; }
+    if (['findings', 'both', 'graph'].indexOf(saved.pane) >= 0) { ui.pane = saved.pane; }
+    if (GROUPS.indexOf(saved.groupBy) >= 0) { ui.groupBy = saved.groupBy; }
+    if (saved.filter && typeof saved.filter === 'object') {
+      ui.filter.text = typeof saved.filter.text === 'string' ? saved.filter.text : '';
+      ui.filter.lenses = Array.isArray(saved.filter.lenses) ? saved.filter.lenses.filter(function (x) { return typeof x === 'string'; }) : [];
+      ui.filter.severities = Array.isArray(saved.filter.severities) ? saved.filter.severities.filter(function (x) { return SEVERITIES.indexOf(x) >= 0; }) : [];
+    }
+    ['node', 'selected', 'workflow'].forEach(function (k) { if (typeof saved[k] === 'string') { ui[k] = saved[k]; } });
+    if (Array.isArray(saved.multi)) { ui.multi = saved.multi.filter(function (x) { return typeof x === 'string'; }); }
+    if (saved.collapsed && typeof saved.collapsed === 'object') {
+      Object.keys(saved.collapsed).forEach(function (k) { if (saved.collapsed[k] === true) { ui.collapsed[k] = true; } });
+    }
+    if (typeof saved.scroll === 'number' && saved.scroll >= 0) { ui.scroll = saved.scroll; }
+    ui.showNotEvaluated = saved.showNotEvaluated === true;
+    ui.showHandled = saved.showHandled === true;
+    return ui;
+  }
+
+  /**
+   * Everything a layout draws, worked out once and independent of the layout: the findings that pass the filters, their groups, the
+   * counts, the selected finding and step. A layout may arrange this, never change it, so a finding, a count or a fix cannot differ
+   * between layouts.
+   */
+  function view(model, ui) {
+    var shown = filterFindings(model.findings, { text: ui.filter.text, lenses: ui.filter.lenses, severities: ui.filter.severities, node: ui.node });
+    var counts = { high: 0, medium: 0, low: 0, info: 0 };
+    shown.forEach(function (f) { counts[f.severity] += 1; });
+    var selected = ui.selected && model.byId[ui.selected] ? model.byId[ui.selected] : null;
+    var selectedNode = ui.node || (selected ? selected.node : null);
+    return {
+      shown: shown,
+      shownIds: shown.map(function (f) { return f.id; }),
+      groups: group(shown, ui.groupBy),
+      counts: counts,
+      safe: safeCount(shown),
+      selected: selected,
+      selectedNode: selectedNode,
+      total: model.findings.length,
+      filtered: shown.length !== model.findings.length,
+      strip: model.summary,
+      rail: lensRail(model)
+    };
+  }
+
+  /** The steps of a workflow in the order the outline lists them, with their findings counted, for the Outline and List views. */
+  function stepsOf(model, workflowModel) {
+    var out = [];
+    (workflowModel ? workflowModel.nodes : []).forEach(function (n) {
+      var info = model.nodes[n.id];
+      out.push({ id: n.id, label: n.label, kind: n.kind, vk: n.vk, line: n.line, depth: n.depth, section: n.section, agent: n.agent,
+        counts: info ? info.counts : { high: 0, medium: 0, low: 0, info: 0 }, total: info ? info.total : 0, cost: info ? info.cost : null });
+    });
+    return out;
+  }
+
   /** What a screen reader says for a finding: severity, lens, whether there is a fix. */
   function describe(f) {
     var fix = f.safety === 'safe' ? 'safe fix available' : f.safety === 'review' ? 'fix to review available' : 'no automatic fix';
@@ -334,6 +408,7 @@
     SEVERITIES: SEVERITIES, SEVERITY_WORD: SEVERITY_WORD, SEVERITY_GLYPH: SEVERITY_GLYPH, LENS_ORDER: LENS_ORDER,
     build: build, filterFindings: filterFindings, group: group, safeCount: safeCount, lensRail: lensRail,
     findingsOnLine: findingsOnLine, nodeOnLine: nodeOnLine, describe: describe, resolveNode: resolveNode,
+    LAYOUTS: LAYOUTS, GROUPS: GROUPS, defaultUi: defaultUi, restoreUi: restoreUi, view: view, stepsOf: stepsOf,
     formatMoney: formatMoney, formatTokens: formatTokens, formatMs: formatMs, costText: costText, lensName: lensName, baseName: baseName
   };
 });

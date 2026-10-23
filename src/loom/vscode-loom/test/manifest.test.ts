@@ -117,6 +117,8 @@ test('10b: the review settings exist with the defaults the spec names', () => {
     assert.equal(props['loom.review.statusBar'].default, true);
     assert.equal(props['loom.review.failOn'].default, 'high');
     assert.equal(props['loom.review.lenses'].default, '');
+    assert.equal(props['loom.review.layout'].default, 'split');
+    assert.deepEqual(props['loom.review.layout'].enum, ['split', 'outline', 'list']);
 });
 
 test('10b: the panel page loads exactly the files that exist in media', () => {

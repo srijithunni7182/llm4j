@@ -1,6 +1,6 @@
 # Phase 10 verification plan: the editor experience
 
-Status: **10a done** (`weave serve`, the engine client, check and graph through the engine). **10b done in code and automated tests; waiting for the manual check in VS Code** (the Review panel in Split, squiggles, status bar, CodeLens, the run notice). 10b2 to 10e not started. Run top to bottom at the end of sub-phase 10e; the relevant rows after each sub-phase. Results in §7.
+Status: **10a done** (`weave serve`, the engine client, check and graph through the engine). **10b done in code and automated tests; waiting for the manual check in VS Code** (the Review panel in Split, squiggles, status bar, CodeLens, the run notice). **10b2 done in code and tests** (Outline and List layouts, the switch, context kept). 10c to 10e not started. Run top to bottom at the end of sub-phase 10e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -74,12 +74,12 @@ Status: **10a done** (`weave serve`, the engine client, check and graph through 
 | R41 | `triageKeyboard.browser.test.js`, `a11y.browser.test.js` | ⬜ 10c |
 | R42 | `runNotBlocked.test.ts`, `reviewPresentation.test.ts` (once per unchanged script, mute) | ✅ 10b |
 | R43 | `reviewPresentation.test.ts` (status text and tone), `manifest.test.ts` (no `when` on review state), `runNotBlocked.test.ts` | ✅ 10b |
-| R44 | `layoutSwitch.browser.test.js`, `manifest.test.ts` | ⬜ 10b2 |
-| R45 | `layoutContext.unit.test.js` | ⬜ 10b2 |
-| R46 | `layoutSharedControls.browser.test.js` | ⬜ 10b2 |
-| R47 | `layoutSwitch.browser.test.js` (pane toggle only in Split) | ⬜ 10b2 |
-| R48 | `layoutNarrow.browser.test.js` | ⬜ 10b2 |
-| R49 | `layoutSameModel.unit.test.js` | ⬜ 10b2 |
+| R44 | `layoutSwitch.browser.test.js` (opens in Split, switch, restore, the `loom.review.layout` setting that never overrides a saved choice), `layoutContext.unit.test.js`, `manifest.test.ts` | ✅ 10b2 |
+| R45 | `layoutContext.unit.test.js`, `layoutSwitch.browser.test.js` (through all three and back: group, filter, lens filter, selected finding and step, folds, scroll) | ✅ 10b2 (multi-selection is kept in the saved state; the selection itself arrives with 10c) |
+| R46 | `layoutSwitch.browser.test.js` (re-run, group, filter, workflow and the strip: once and visible in each layout; re-run sends the same message) | 🟨 10b2: Accept all existing… and Fix all safe are in the toolbar and hidden until 10c |
+| R47 | `layoutSwitch.browser.test.js` (the pane toggle only in Split) | ✅ 10b2 |
+| R48 | `layoutSwitch.browser.test.js` (Split stacks, Outline folds its right column, List drops the minimap, no sideways scroll; wide widths show all) | ✅ 10b2 |
+| R49 | `layoutContext.unit.test.js` (one `view(model, ui)` with no layout argument gives one result), `layoutSwitch.browser.test.js` (same findings, order, counts and strip in each layout; a filter shows the same findings in each) | ✅ 10b2 |
 
 ## 3. Quality gates
 
@@ -132,3 +132,10 @@ Extension README and CHANGELOG; `docs/serve/PROTOCOL.md`; wiki "Loom in VS Code"
 - VSIX: built with `vsce package`: **23,757,178 bytes (22.66 MB)**, 496 files, of which `bin/weave.jar` is 24.07 MB uncompressed. DESIGN §10.2 (size budget) is still to be agreed; the extension's own code adds well under 1 MB.
 - Performance seen: 300 findings group, filter and render in under 2 s in the page test (model alone: a few ms).
 - **Manual check owed (VS Code):** see the list in the 10b report: open `main.loom`, run the command, click through finding to line and step to findings, edit and see *stale*, save and see it clear, Problems entries with source `loom-review`, status bar, CodeLens, Run with open findings starts at once and mentions the review once, dark and light themes, narrow the panel.
+
+### 10b2 (2026-10-23)
+
+- Built: the layout switch **Split | Outline | List** and the two new layouts, from boards B and C of the mockup. The page now draws from one `LoomReview.view(model, ui)` that takes no layout, and the three renderers only arrange it; the filter, grouping, summary strip, lens rail and counts are shared and appear once. The page state (`LoomReview.restoreUi`) is read defensively. New: `layoutContext.unit.test.js` (7), `layoutSwitch.browser.test.js` (22), a manifest row for `loom.review.layout`.
+- Outline: the steps on the left with their counts, the chosen step in the centre (its cost, calls, model and share of the run, and its findings), the workflow summary, lenses and handled counts on the right. List: a table (severity, rule, lens, finding, where), a map of the steps with a dot per finding, and the focused finding explained. In both, the checkboxes, bulk bar and action buttons arrive with 10c.
+- Not in the mockup but in the layouts: the selected finding's detail is the same text in all three (`detailOf`), so a finding cannot read differently.
+- Extension suite after this step: see the 10c entry.
