@@ -46,7 +46,8 @@ final class CaseRunner {
             Map<String, String> modelsUsed,
             String error,
             long millis,
-            Duration elapsedVirtual) {}
+            Duration elapsedVirtual,
+            RunJournal journal) {}
 
     static Outcome run(Path script, String workflow, TestFile.Case c) {
         long start = System.nanoTime();
@@ -55,6 +56,7 @@ final class CaseRunner {
         VirtualClock clock = new VirtualClock(startOf(c));
         HarnessExecutor executor = null;
         String error = null;
+        RunJournal journal = null;
         try {
             Map<String, JsonNode> models = fields(c.get("models"));
             Failures failures = new Failures(c.get("fail"));
@@ -62,7 +64,7 @@ final class CaseRunner {
             boolean lenient = c.has("lenient") && c.get("lenient").asBoolean();
             List<String> humans = strings(c.get("humans"));
             ScriptedHumans people = new ScriptedHumans(humans, recorder);
-            RunJournal journal = RunJournal.inMemory();
+            journal = RunJournal.inMemory();
             List<String> resume = new ArrayList<>(strings(c.get("resume")));
             Map<String, String> input = inputs(c.get("input"));
             Interventions interventions = new Interventions(c.get("steer"), c.get("stop"));
@@ -132,7 +134,8 @@ final class CaseRunner {
                     modelsUsed,
                     error,
                     millis(start),
-                    clock.elapsed());
+                    clock.elapsed(),
+                    journal);
         } catch (Exception e) {
             return new Outcome(
                     "failed",
@@ -142,7 +145,8 @@ final class CaseRunner {
                     modelsUsed,
                     message(e),
                     millis(start),
-                    clock.elapsed());
+                    clock.elapsed(),
+                    journal);
         }
     }
 

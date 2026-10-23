@@ -1,6 +1,6 @@
 # Phase 13 verification plan: time-travel debugging
 
-Status: **not started**. Run top to bottom at the end of sub-phase 13f; the relevant rows after each sub-phase. Results in §7.
+Status: **13a done**. Run top to bottom at the end of sub-phase 13f; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -23,19 +23,19 @@ Status: **not started**. Run top to bottom at the end of sub-phase 13f; the rele
 
 | Req | Tests | Status |
 |---|---|---|
-| R1 | `ObserveReplayEqualsRunTest`, `ObserveReplayRandomWorkflowsTest` | ⬜ 13a |
-| R2 | `DivergenceTest` | ⬜ 13a |
-| R3 | `ScriptDriftWhyTest` | ⬜ 13a |
-| R4 | `VerifyNondeterministicTaskTest` | ⬜ 13a |
-| R5 | `DecisionEventTest` | ⬜ 13a |
-| R6 | `DecisionProvenanceTest`, `DecisionMaskedTest` | ⬜ 13a |
-| R7 | `WhyTest` | ⬜ 13a |
-| R8 | `WhyNotRanTest` | ⬜ 13a |
-| R9 | `WhySuspendedTest`, `WhyFailedTest` | ⬜ 13a |
-| R10 | `WhyRewindTest` | ⬜ 13a |
-| R11 | `WhyJsonSchemaTest`, `WhyFormatsTest` | ⬜ 13a |
-| R12 | `WhyDeterministicTest`, `WhyOfflineTest` | ⬜ 13a |
-| R13 | `WhyPerformanceTest` | ⬜ 13a |
+| R1 | `ObserveReplayEqualsRunTest` (corpus of 12 scripts, every statement kind that has a result) | ✅ 13a |
+| R2 | `DivergenceTest` (a hole, an unreached entry, a different kind of step, nothing invented) | ✅ 13a |
+| R3 | `WhyCommandTest` (a changed script is refused, `--script` explains against the old one, a run with no fingerprint is told so) | ✅ 13a |
+| R4 | `VerifyNondeterministicTaskTest` | ⬜ later in 13 (replay uses the journaled task result; `--verify` is not built) |
+| R5 | `DecisionEventTest`, `WhyTest`, `ObserveReplayEqualsRunTest.decisionsAreFoundForEveryKindOfChoice` (alt, loop, for each, classify, rewind, decide, failure taken over, guard; per-attempt retry detail is not in the journal, see §7) | 🟨 13a |
+| R6 | `DecisionEventTest` (provenance, masking, truncation with the length kept), `WhyTest` | ✅ 13a |
+| R7 | `WhyTest`, `WhyCommandTest` | ✅ 13a |
+| R8 | `WhyNotRanTest` | ✅ 13a |
+| R9 | `WhyStatesTest` (suspended, failed: the failure is now noted in the journal, §7) | ✅ 13a |
+| R10 | `WhyStatesTest.aRewindIsSeenAsOneAttemptAfterAnotherWithTheValuesThatCausedIt`, `WhyTest` | ✅ 13a (an operator's rewind is followed as it stands, not re-derived) |
+| R11 | `WhyCommandTest.jsonIsVersionedAndCarriesTheSameChoices`, `markdownIsATableOfTheChoices` | ✅ 13a |
+| R12 | `WhyCommandTest` (same bytes twice in every format; nothing written to the run directory; no model or person reachable) | ✅ 13a |
+| R13 | `WhyStatesTest.aRunOfFiveThousandStepsIsExplainedInUnderTwoSeconds` (2,503 steps in about 50 ms) | ✅ 13a |
 | R14 | `StepperEffectsTest` | ⬜ 13e |
 | R15 | `RunUnchangedTest` | ⬜ 13e |
 | R16 | `StepperJournalResumeTest` | ⬜ 13e |
@@ -65,8 +65,8 @@ Status: **not started**. Run top to bottom at the end of sub-phase 13f; the rele
 | R40 | `DapLiveConfirmTest` | ⬜ 13f |
 | R41 | `debugConfig.test.ts` | ⬜ 13f |
 | R42 | `DapCostInConsoleTest` | ⬜ 13f |
-| R43 | `ObserveReplayEqualsRunTest` (single component) | ⬜ 13a |
-| R44 | `RunUnchangedTest`, `DecisionOffByDefaultTest` | ⬜ 13a |
+| R43 | `ObserveReplayEqualsRunTest` (the one component) | ✅ 13a |
+| R44 | `DecisionEventTest.aRunWithNoListenerIsExactlyWhatItWas` (same journal, same trace), the whole Java suite | ✅ 13a |
 
 ## 3. Quality gates
 
@@ -97,4 +97,28 @@ Wiki "Debugging a workflow"; LOOM_GUIDE sections for `why`, `step`, `whatif`, th
 
 ## 7. Results
 
-*(13a opens with the journal audit: statement kind × journaled? × needed for observe-replay?; then per sub-phase: property-test seeds run, timings, overlay accuracy)*
+*(13a opens with the journal audit; then per sub-phase.)*
+
+### 13a (2026-10-23)
+
+**Journal audit (DESIGN §11.1): can every statement be re-derived from the journal?**
+
+| Statement | In the journal | Needed to replay |
+|---|---|---|
+| `delegate`, `broadcast`, `handoff` | the reply under the step id (`delegate`, `broadcast`, `handoff`); `failed` with the message when `on_failure` took over | yes, present |
+| `intentclassify` | `classify`: the whole answer record (labels, confidences, backend) | yes, present |
+| `run` (task) | `task`: the result; `failed`; for a task that changes things, `#effect:` keys | yes, present |
+| `human_prompt`, approvals | `human` and a `#asked` marker | yes, present |
+| `sleep`, `halt` | `sleep` (the wake time), `halt` (the reason) | yes, present |
+| `decide` | `#decide-proposal`, `#level`, `#decide-result` | yes, present |
+| `checkpoint`, `rewind` | `#checkpoint`; the boundaries entry `#boundaries` (who rewound, why, what was carried) | present |
+| `alt`, `loop`, `for each`, `set`, `note`, `return`, `call`, `parallel`, `guardrail` | nothing: pure, derived by replay | nothing needed |
+| **A step that fails the run** | **nothing** (it is run again on resume, by design) | **gap** |
+| Each retry's attempt, error and backoff | nothing (only the final outcome) | not recoverable |
+
+The one gap that matters is the first: without a record, a failed run's journal looked the same as a run that had only been stopped there, so `why` could not say "failed at STEP because X". Following the spec ("add records only for gaps"), a step that fails the run now leaves one compact entry, `<step>#failure` (kind, name, category, attempts, error), under a marker no step reads, so resuming is unchanged. This is the only change to what a run writes; it appears only in the journals of runs that failed. Per-attempt retry detail is not recoverable from a journal and is not shown: `why` shows the final outcome. An operator's `weave rewind` is followed as it stands (it cannot be re-derived from the script); a script's own rewind is re-derived with its condition.
+
+- Built: `DecisionPoint` and the `setDecisionListener` seam in `HarnessExecutor` (nothing is computed without a listener); provenance (which statement last set each variable); `ObserveReplay` (the interpreter over a copy of the journal, with models, classifiers, tools and tasks that stop the replay, people who suspend it, and time that does not pass); `Why` and `WhyRenderer` (text, Markdown, JSON v1, control characters shown as escapes); `weave why`; the script fingerprint in `run.json`.
+- Found building it: the lexer's columns and a for-each item's step id (`Main/s1/e0/b0`) needed small fixes in the resolver; a parallel block's branches do not announce themselves, so they are read from the journal.
+- Tests: Java module 2,945 tests; 13a added `ObserveReplayEqualsRunTest` (5), `WhyTest` (10), `WhyNotRanTest` (7), `DivergenceTest` (5), `WhyStatesTest` (4), `WhyCommandTest` (11), `DecisionEventTest` (5).
+- Not in 13a: `--verify` (R4), the random-workflow property test (TEST_STRATEGY §3), `weave why` from the editor and Fabric (their phases), docs (written once 13f is done).

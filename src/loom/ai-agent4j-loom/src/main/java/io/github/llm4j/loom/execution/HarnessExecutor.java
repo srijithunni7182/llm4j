@@ -46,7 +46,7 @@ public class HarnessExecutor implements LoomEngine {
     private final Map<String, SemanticMemoryService> memoryServices = new HashMap<>();
     private final Map<String, AgentScheduler> schedulers = new HashMap<>();
     private final PIIDetector piiDetector = new RegexPIIDetector();
-    private final VariableContext context;
+    private final DefaultVariableContext context;
     private HumanInterface humanInterface;
     private AuditLogger auditLogger = new NoOpAuditLogger();
     private io.github.llm4j.loom.prompt.PromptCatalog promptCatalog;
@@ -57,6 +57,10 @@ public class HarnessExecutor implements LoomEngine {
 
     // ── Durable runs ─────────────────────────────────────────────────────
     private RunJournal journal = RunJournal.inMemory();
+
+    /** Where the run chose a way, for a listener that asked (none by default: no extra work). */
+    private final Decisions decisions = new Decisions();
+
     private Generations generations;
     private RunJournal generationsOf;
     private final Rewinder rewinder = new Rewinder(this);
@@ -771,6 +775,22 @@ public class HarnessExecutor implements LoomEngine {
         this.journal = journal != null ? journal : RunJournal.inMemory();
     }
 
+    /**
+     * Asks to be told where the run chooses a way (a condition, a loop, a list, a classifier's
+     * answer, a rewind, a decision) with the values it looked at and where each came from. {@code
+     * maskedNames} are variables whose values are never shown. Nothing changes for a run with no
+     * listener.
+     */
+    public void setDecisionListener(DecisionListener listener, java.util.Set<String> maskedNames) {
+        decisions.listen(listener, maskedNames);
+        context.setObserver(listener == null ? null : decisions::bound);
+    }
+
+    /** The decision seam, for the runners that take part. */
+    Decisions decisions() {
+        return decisions;
+    }
+
     public RunJournal getJournal() {
         return journal;
     }
@@ -1300,6 +1320,7 @@ public class HarnessExecutor implements LoomEngine {
 
     /** Tells trace listeners; free when nobody listens. */
     void trace(String type, String agent, String text, Map<String, Object> data) {
+        decisions.fromTrace(type, text, data, step.get());
         tracing.trace(type, agent, text, data);
     }
 
@@ -2685,6 +2706,7 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     private void executeStatement(Statement stmt) {
+        decisions.enter(stmt, step.get());
         if (stmt instanceof CheckpointStmt checkpoint) {
             java.util.ArrayDeque<Rewinder.Frame> stack = frames.get();
             rewinder.checkpoint(checkpoint, stack.peek(), stack.peek().index);
@@ -2763,6 +2785,7 @@ public class HarnessExecutor implements LoomEngine {
         } else if (stmt instanceof AltStmt alt) {
             boolean condition = ConditionEvaluator.evaluate(alt.getCondition(), view());
             log.info("Evaluating AltStmt condition [" + alt.getCondition() + "] -> " + condition);
+            decisions.alt(alt, condition, view(), step.get());
             List<Statement> branch = condition ? alt.getIfBranch() : alt.getElseBranch();
             if (branch != null) {
                 runBlock(branch, condition ? "a" : "b");
@@ -2857,7 +2880,7 @@ public class HarnessExecutor implements LoomEngine {
             List<io.github.llm4j.budget.Budget> outerScopes = scopes.get();
             if (loopBudget != null) scopes.set(BudgetCoordinator.plus(outerScopes, loopBudget));
             try {
-                while (!ConditionEvaluator.evaluate(loop.getCondition(), view())) {
+                while (!loopDone(loop, rounds)) {
                     if (loop.getMaxIterations() > 0 && rounds >= loop.getMaxIterations()) {
                         exhaustedBy = "rounds";
                         break;
@@ -2884,6 +2907,7 @@ public class HarnessExecutor implements LoomEngine {
                 scopes.set(outerScopes);
             }
             if (exhaustedBy != null) {
+                decisions.loopExhausted(loop, exhaustedBy, rounds, step.get());
                 log.warning(
                         "Loop stopped ("
                                 + exhaustedBy
@@ -3001,6 +3025,13 @@ public class HarnessExecutor implements LoomEngine {
      * @param rawPayload the raw payload string from the AST node
      * @return the payload with all resolvable variable references replaced
      */
+    /** One look at a loop's condition: true when the loop should stop. */
+    private boolean loopDone(LoopStmt loop, int rounds) {
+        boolean done = ConditionEvaluator.evaluate(loop.getCondition(), view());
+        decisions.loopCheck(loop, done, rounds, view(), step.get());
+        return done;
+    }
+
     private void executeForEach(ForEachStmt each) {
         Object collection = ConditionEvaluator.resolvePath(each.getCollectionPath(), view());
         List<?> items = collection instanceof List<?> l ? l : List.of();
@@ -3018,6 +3049,7 @@ public class HarnessExecutor implements LoomEngine {
                         + items.size()
                         + " item(s)"
                         + (each.isParallel() ? " in parallel" : ""));
+        decisions.forEach(each, items.size(), view(), step.get());
         String parent = step.get();
         Map<String, Object> outer = locals.get();
         io.github.llm4j.budget.Budget eachBudget =
@@ -3177,7 +3209,14 @@ public class HarnessExecutor implements LoomEngine {
         d.put("attempts", attempts);
         d.put("handled", handled);
         d.put("error", message == null ? "" : message);
-        if (!handled) unhandledFailure.set(d);
+        if (!handled) {
+            unhandledFailure.set(d);
+            // the one thing the journal did not keep about a run: why it ended here. A step that
+            // fails the run writes no result (it is run again on resume), so without this note an
+            // explanation of the run cannot tell "failed here" from "the journal ends here". The
+            // note sits under a marker no step reads.
+            journal.put(currentStep() + "#failure", new RunJournal.Entry("failure", d));
+        }
         trace(
                 TraceEvent.FAILURE,
                 null,

@@ -18,6 +18,19 @@ public final class LoomRun {
         this.workflow = workflow;
     }
 
+    /**
+     * The journal the run left: the result of every step with an effect, under its step id. It is
+     * what {@code weave why} reads, so a test can explain a run it just made.
+     */
+    public io.github.llm4j.loom.runtime.RunJournal journal() {
+        return outcome.journal();
+    }
+
+    /** The ids of the steps that started, in order ({@code Main/s2/a0}). */
+    public List<String> stepIds() {
+        return List.copyOf(outcome.recorder().steps());
+    }
+
     /** completed, failed, suspended, stopped or budget. */
     public String status() {
         return outcome.status();

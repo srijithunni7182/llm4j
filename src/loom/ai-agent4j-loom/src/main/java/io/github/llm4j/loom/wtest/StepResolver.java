@@ -24,21 +24,21 @@ import java.util.regex.Pattern;
  * that cannot be read stops the walk at the last node found, which is still a node the case
  * reached.
  */
-final class StepResolver {
+public final class StepResolver {
 
     private static final Pattern PART = Pattern.compile("([a-z])(\\d+)|r\\d+\\.(\\d+)");
     private static final Pattern GENERATION = Pattern.compile("~\\d+");
 
     private final Map<String, List<GraphNode>> byWorkflow = new HashMap<>();
 
-    StepResolver(GraphResult graph) {
+    public StepResolver(GraphResult graph) {
         for (WorkflowGraph w : graph.workflows()) byWorkflow.put(w.name(), w.nodes());
     }
 
     /**
      * The graph node id a run step id stands for, as {@code workflow/nodeId}, when it can be found.
      */
-    Optional<String> resolve(String stepId) {
+    public Optional<String> resolve(String stepId) {
         if (stepId == null || stepId.isEmpty()) return Optional.empty();
         // a called workflow's steps continue the caller's id after a '>' (Main/s3>AskPerson/s0):
         // inside it, the walk starts again from the callee's own statements
@@ -49,6 +49,9 @@ final class StepResolver {
         GraphNode current = null;
         for (int i = 1; i < parts.length; i++) {
             String part = parts[i];
+            // an item of a for each is a block of its own with the body inside it: the body's
+            // statements are the children of the for each, whichever item they are for
+            if (current != null && part.matches("e\\d+")) continue;
             Matcher m = PART.matcher(part);
             if (!m.matches()) break;
             String key = part.startsWith("r") && m.group(3) != null ? "r" : m.group(1);

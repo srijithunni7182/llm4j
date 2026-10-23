@@ -70,6 +70,11 @@ final class ClassifyRunner {
                 fail(stmt, def, stepId, String.valueOf(entry.value()), null, false, 0);
             } else {
                 executor.setVariable(variable, entry.value());
+                if (entry.value() instanceof Map<?, ?> answered) {
+                    Map<String, Object> copy = new LinkedHashMap<>();
+                    answered.forEach((k, v) -> copy.put(String.valueOf(k), v));
+                    executor.decisions().classified(stmt, stepId, copy);
+                }
                 replayed(def, entry.value());
             }
             return;
@@ -352,6 +357,7 @@ final class ClassifyRunner {
 
         executor.journal().put(stepId, new RunJournal.Entry("classify", bound));
         executor.setVariable(variable, bound);
+        executor.decisions().classified(stmt, stepId, bound);
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("classifier", def.getName());

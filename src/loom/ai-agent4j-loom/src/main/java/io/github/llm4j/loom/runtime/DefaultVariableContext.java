@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DefaultVariableContext implements VariableContext {
     private final Map<String, Object> variables = new ConcurrentHashMap<>();
     private final VariableContext parent;
+    private volatile java.util.function.BiConsumer<String, Object> observer;
 
     public DefaultVariableContext() {
         this.parent = null;
@@ -21,6 +22,13 @@ public class DefaultVariableContext implements VariableContext {
     public void setVariable(String name, Object value) {
         if (value == null) value = "";
         variables.put(name, value);
+        java.util.function.BiConsumer<String, Object> watch = observer;
+        if (watch != null) watch.accept(name, value);
+    }
+
+    /** Tells {@code observer} each time a variable is set; null stops. Free when nobody watches. */
+    public void setObserver(java.util.function.BiConsumer<String, Object> observer) {
+        this.observer = observer;
     }
 
     @Override
