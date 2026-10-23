@@ -27,10 +27,12 @@ final class ScriptedClassifiers implements ClassifierFactory {
 
     private final Map<String, JsonNode> scripts;
     private final Recorder recorder;
+    private final Failures failures;
 
-    ScriptedClassifiers(Map<String, JsonNode> scripts, Recorder recorder) {
+    ScriptedClassifiers(Map<String, JsonNode> scripts, Recorder recorder, Failures failures) {
         this.scripts = scripts;
         this.recorder = recorder;
+        this.failures = failures;
     }
 
     @Override
@@ -38,6 +40,8 @@ final class ScriptedClassifiers implements ClassifierFactory {
         String name = model.startsWith(PREFIX) ? model.substring(PREFIX.length()) : model;
         return request -> {
             int call = recorder.call(name);
+            var fail = failures.failsOn(name, call);
+            if (fail.isPresent()) throw Failures.model(fail.get(), name, call);
             JsonNode script = scripts.get(name);
             if (script == null || !script.isObject()) {
                 String message =
@@ -64,6 +68,7 @@ final class ScriptedClassifiers implements ClassifierFactory {
                 }
                 answers.put(q.name(), answer(name, q, given.asText(), sure));
             }
+            recorder.usage(10, 5);
             return new ClassifyResult(answers, new ClassifyUsage(10, 5, 0, "scripted", name));
         };
     }

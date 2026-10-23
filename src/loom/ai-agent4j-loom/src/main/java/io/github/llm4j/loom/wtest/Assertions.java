@@ -40,6 +40,12 @@ final class Assertions {
         if (expect.has("calls")) calls(expect.get("calls"), o, failures);
         if (expect.has("context")) context(expect.get("context"), o, failures);
         if (expect.has("models_used")) modelsUsed(expect.get("models_used"), o, failures);
+        if (expect.has("attempts")) calls(expect.get("attempts"), o, failures, "attempts");
+        if (expect.has("ran")) ran(expect.get("ran"), o, failures);
+        if (expect.has("asked")) asked(expect.get("asked"), o, failures);
+        if (expect.has("effects")) effects(expect.get("effects"), o, failures);
+        if (expect.has("elapsed_virtual")) elapsed(expect.get("elapsed_virtual"), o, failures);
+        if (expect.has("tokens")) tokens(expect.get("tokens"), o, failures);
         return failures;
     }
 
@@ -110,6 +116,15 @@ final class Assertions {
     }
 
     private static void calls(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        calls(want, o, failures, "calls");
+    }
+
+    /**
+     * Counts of calls per name. Every call counts, one that failed as much as one that worked, so
+     * {@code attempts} and {@code calls} read the same number: a step retried twice made three.
+     */
+    private static void calls(
+            JsonNode want, CaseRunner.Outcome o, List<Failure> failures, String key) {
         Map<String, Integer> actual = new LinkedHashMap<>();
         actual.putAll(o.recorder().taskCalls());
         actual.putAll(o.recorder().toolCalls());
@@ -121,8 +136,8 @@ final class Assertions {
             if (problem != null)
                 failures.add(
                         new Failure(
-                                "calls",
-                                "calls." + e.getKey() + ": " + problem.replaceFirst("^: ", "")));
+                                key,
+                                key + "." + e.getKey() + ": " + problem.replaceFirst("^: ", "")));
         }
     }
 
@@ -145,5 +160,192 @@ final class Assertions {
                 failures.add(
                         new Failure("models_used", "models_used." + e.getKey() + ": " + problem));
         }
+    }
+
+    /** The handlers that took over, as an ordered subsequence. */
+    private static void ran(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        List<String> expected = new ArrayList<>();
+        want.forEach(
+                n ->
+                        expected.add(
+                                n.asText()
+                                        .replaceFirst(
+                                                "^on_failure of intentclassify ",
+                                                "on_failure of classify ")));
+        List<String> actual = o.recorder().handlers();
+        String problem = RouteDiff.mismatch(expected, actual, false);
+        if (problem != null)
+            failures.add(
+                    new Failure(
+                            "ran",
+                            "ran: "
+                                    + (actual.isEmpty()
+                                            ? "no handler took over, expected " + expected
+                                            : problem)));
+    }
+
+    /**
+     * The questions put to a person, in order: each a text (contains) or {prompt, kind} matchers.
+     */
+    private static void asked(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        List<Map<String, String>> actual = o.recorder().asked();
+        if (want.isTextual() && want.asText().equals("none")) {
+            if (!actual.isEmpty())
+                failures.add(
+                        new Failure(
+                                "asked",
+                                "asked: expected nobody to be asked, but "
+                                        + actual.size()
+                                        + " question(s) were put to a person: "
+                                        + prompts(actual)));
+            return;
+        }
+        if (!want.isArray()) {
+            failures.add(new Failure("asked", "asked: a list of questions, or none"));
+            return;
+        }
+        if (want.size() != actual.size()) {
+            failures.add(
+                    new Failure(
+                            "asked",
+                            "asked: expected "
+                                    + want.size()
+                                    + " question(s), a person was asked "
+                                    + actual.size()
+                                    + (actual.isEmpty() ? "" : ": " + prompts(actual))));
+            return;
+        }
+        for (int i = 0; i < want.size(); i++) {
+            JsonNode w = want.get(i);
+            Map<String, String> a = actual.get(i);
+            String problem;
+            if (w.isTextual())
+                problem = Matchers.mismatch(YAMLContains.of(w.asText()), a.get("prompt"));
+            else {
+                problem = null;
+                if (w.has("prompt")) problem = Matchers.mismatch(w.get("prompt"), a.get("prompt"));
+                if (problem == null && w.has("kind"))
+                    problem = Matchers.mismatch(w.get("kind"), a.get("kind"));
+            }
+            if (problem != null)
+                failures.add(new Failure("asked", "asked[" + (i + 1) + "]: " + problem));
+        }
+    }
+
+    private static String prompts(List<Map<String, String>> asked) {
+        List<String> out = new ArrayList<>();
+        for (Map<String, String> m : asked)
+            out.add("\"" + Values.cut(m.get("prompt").replace('\n', ' '), 80, false) + "\"");
+        return out.toString();
+    }
+
+    /** What acting tools would have done: {@code none}, or a list matched in order. */
+    private static void effects(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        List<Effect> actual = o.recorder().effects();
+        if (want.isTextual() && want.asText().equals("none")) {
+            if (!actual.isEmpty())
+                failures.add(
+                        new Failure(
+                                "effects",
+                                "effects: expected none, but "
+                                        + actual.size()
+                                        + " would have happened: "
+                                        + describe(actual)));
+            return;
+        }
+        if (want.isObject() && want.has("count")) {
+            String p = Matchers.mismatch(want.get("count"), actual.size());
+            if (p != null) failures.add(new Failure("effects", "effects.count: " + p));
+            return;
+        }
+        if (!want.isArray()) {
+            failures.add(new Failure("effects", "effects: none, a count, or a list"));
+            return;
+        }
+        if (want.size() != actual.size()) {
+            failures.add(
+                    new Failure(
+                            "effects",
+                            "effects: expected "
+                                    + want.size()
+                                    + ", "
+                                    + actual.size()
+                                    + " would have happened"
+                                    + (actual.isEmpty() ? "" : ": " + describe(actual))));
+            return;
+        }
+        for (int i = 0; i < want.size(); i++) {
+            Effect e = actual.get(i);
+            Map<String, Object> as = new LinkedHashMap<>();
+            as.put("tool", e.tool());
+            as.put("kind", e.kind());
+            as.put("target", e.target());
+            as.put("digest", e.digest());
+            String p = Matchers.mismatch(want.get(i), as);
+            if (p != null) failures.add(new Failure("effects", "effects[" + (i + 1) + "]: " + p));
+        }
+    }
+
+    private static String describe(List<Effect> effects) {
+        List<String> out = new ArrayList<>();
+        for (Effect e : effects)
+            out.add(
+                    e.tool()
+                            + " ("
+                            + e.kind()
+                            + (e.target().isEmpty() ? "" : " to " + e.target())
+                            + ")");
+        return out.toString();
+    }
+
+    /**
+     * How long the case waited in virtual time: a duration such as {@code 5m}, or a matcher on
+     * seconds.
+     */
+    private static void elapsed(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        long seconds = o.elapsedVirtual().toSeconds();
+        String problem;
+        if (want.isTextual()) {
+            java.time.Duration d = Durations.parse(want.asText());
+            problem =
+                    d == null
+                            ? "'" + want.asText() + "' is not a duration such as 30s, 5m or 2h"
+                            : d.equals(o.elapsedVirtual())
+                                    ? null
+                                    : "expected "
+                                            + want.asText()
+                                            + ", the case waited "
+                                            + Durations.show(o.elapsedVirtual());
+        } else problem = Matchers.mismatch(want, seconds);
+        if (problem != null)
+            failures.add(new Failure("elapsed_virtual", "elapsed_virtual: " + problem));
+    }
+
+    /** Tokens the scripted calls used: a matcher, or {@code {max: N}}. */
+    private static void tokens(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        JsonNode m = want;
+        if (want.isObject() && (want.has("max") || want.has("min"))) {
+            if (want.has("max")) {
+                String p =
+                        Matchers.mismatch(
+                                new com.fasterxml.jackson.databind.ObjectMapper()
+                                        .createObjectNode()
+                                        .set("lte", want.get("max")),
+                                o.recorder().tokens());
+                if (p != null) failures.add(new Failure("tokens", "tokens: " + p));
+            }
+            if (want.has("min")) {
+                String p =
+                        Matchers.mismatch(
+                                new com.fasterxml.jackson.databind.ObjectMapper()
+                                        .createObjectNode()
+                                        .set("gte", want.get("min")),
+                                o.recorder().tokens());
+                if (p != null) failures.add(new Failure("tokens", "tokens: " + p));
+            }
+            return;
+        }
+        String p = Matchers.mismatch(m, o.recorder().tokens());
+        if (p != null) failures.add(new Failure("tokens", "tokens: " + p));
     }
 }

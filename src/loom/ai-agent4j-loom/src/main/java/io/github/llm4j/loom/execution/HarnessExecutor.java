@@ -393,6 +393,11 @@ public class HarnessExecutor implements LoomEngine {
                         }
 
                         @Override
+                        public void pause(long millis) throws InterruptedException {
+                            sleeper.sleep(java.time.Duration.ofMillis(millis));
+                        }
+
+                        @Override
                         public RunJournal journal() {
                             return journal;
                         }

@@ -29,16 +29,16 @@ Status: **11a done** (file model, check, scripted models and classifiers, assert
 | R4 | `TestFileCheckTest.stepsAreListed…`, `TestCommandTest.stepsListsWhatATestCanName…` | ✅ 11a |
 | R5 | `WorkflowCasesTest.theResultIsASubsetUnlessExact` (typed answers); scripted typed answers are not yet checked against the agent's `output_schema` when the file is checked | ◐ 11a |
 | R6 | `WorkflowCasesTest` (an unscripted agent, an unscripted classifier, a list that runs out, a `when` with no match; `repeat: last`; `--lenient` and its note) | ✅ 11a |
-| R7 | Token usage of a scripted call is deterministic from the text length (`CharsPerTokenEstimator`); a case-level `usage:` and budget exhaustion cases wait for 11b | ◐ 11a |
+| R7 | `ScriptedWorldTest.tokenUsageIsDeterministic…` (usage from the text length, a case-level `usage:`, `expect.tokens`); budget exhaustion cases are not written yet | ◐ 11b |
 | R8 | `WorkflowCasesTest.everyAssertionKindFailsWhenItDoesNotHold` (`models_used`) | ✅ 11a |
 | R9 | `StreamScriptTest` | ⬜ 11d |
-| R10 | `ScriptedTasksTest` | ⬜ 11b |
-| R11 | `ScriptedToolsTest`, `EffectsRecorderTest` | ⬜ 11b |
-| R12 | `ApproveFlowTest` | ⬜ 11b |
-| R13 | `HumansTest`, `ResumeCaseTest` | ⬜ 11b |
-| R14 | `VirtualClockTest`, `BackoffVirtualTest` | ⬜ 11b |
-| R15 | `FailureInjectionTest`, `RetryExhaustedTest` | ⬜ 11b |
-| R16 | `OnFailureTakesOverTest`, `RewindCaseTest` | ⬜ 11b |
+| R10 | `ScriptedWorldTest.aTaskIsReplacedByItsScriptedResultAndCounted`: a `run` task answers from `tasks:` and is counted, and an unscripted one fails the case; real tasks (`--classes`) are not wired into `weave test` yet | ◐ 11b |
+| R11 | `ScriptedWorldTest` (tools are never real; an acting tool's call is recorded as an effect with tool, kind, target and a digest; `effects: none \| {count} \| [list]`; an unscripted non-acting tool fails the case) | ✅ 11b |
+| R12 | An approval is a question put to a person: it takes the next `humans:` answer and is recorded in `asked` with kind `approval`; a test of an `approve:` agent is still to be written | ◐ 11b |
+| R13 | `ScriptedWorldTest` (humans in order, every question recorded, an unanswered question suspends the run, `resume:` continues from the journal) | ✅ 11b |
+| R14 | `ScriptedWorldTest` (backoff of 30 s and 60 s took no real time, `sleep 3h` too; `elapsed_virtual`), `BackoffSleeperTest` (the one seam added: retry backoff goes through the executor's sleeper) | ✅ 11b |
+| R15 | `ScriptedWorldTest` (`times`, `on_calls`, `always`, categories; a rate limit nothing says to wait for fails the step at once, as the runtime does; `rate_limits` pausing is not covered yet) | ◐ 11b |
+| R16 | `ScriptedWorldTest` (`attempts`, `ran: [ on_failure of … ]`, `final: failed \| completed \| suspended`); `on_exhausted` and `rewind` cases come with 11c | ◐ 11b |
 | R17 | `SteerStopTest` | ⬜ 11d |
 | R18 | `RouteDiffTest`, `MatchersTest`, `TestCommandTest.aFailingCase…` (golden output): expected, actual, case and first divergence | ✅ 11a |
 | R19 | `TestFileCheckTest.aRenamedAgentBreaksTheFileCheck…`; the route is labelled as `weave graph` labels agents and steps | ✅ 11a |
@@ -60,7 +60,7 @@ Status: **11a done** (file model, check, scripted models and classifiers, assert
 | R35 | `LoomTestAssertionsTest` | ⬜ 11d |
 | R36 | `LoomTestFactoryTest` | ⬜ 11d |
 | R37 | The pom is unchanged: YAML is read with the Jackson YAML module the build already has | ✅ 11a |
-| R38 | No seam was added: the executor already takes a client factory, classifier factory, human interface, clock and sleeper; all existing suites pass unmodified | ✅ 11a (virtual clock in 11b) |
+| R38 | One seam was added, with a default that behaves as before: `DelegateRunner.Host.pause` (retry backoff) now goes through the executor's sleeper, whose default really sleeps; `BackoffSleeperTest` pins both; all existing suites pass unmodified | ✅ 11a, 11b |
 | R39 | `Recorder` reads the trace events; the interpreter does not know a test is running | ✅ 11a |
 | R40 | out of scope (recorded) | n/a |
 
@@ -102,3 +102,12 @@ Wiki "Testing a workflow"; LOOM_GUIDE section "weave test"; the workflow skill's
 - Decisions taken from DESIGN §12: YAML (1), strict by default (3), the name `weave test` (4). Decision 2 (tasks) and 5 (where `weave init` puts tests) are for 11b and 11d.
 - Not yet: failure injection, virtual time, tasks, tools and effects, humans (11b); coverage, watch, parallel, shuffle, JUnit/JSON/TAP, tags (11c); the Java twin, steering and stopping, streams, init templates, the examples' own suites (11d). A `human_prompt` in a script currently fails the case ("a person was asked and the case has no answer").
 - Tests: `MatchersTest`, `RouteDiffTest`, `TestFileCheckTest`, `WorkflowCasesTest`, `TestCommandTest` (about 60 tests).
+
+### 11b (2026-10-23)
+
+- Built: failure injection (`fail:` with `times`, `on_calls`, `always` and the categories rate_limit, timeout, server_error, invalid_output, tool_error, refused, quota) for agents, classifiers, tools and tasks; a virtual clock (the executor's clock and sleeper, so backoff, `sleep` and rate-limit waits take no real time; `clock: { start }`, `expect.elapsed_virtual`); scripted tools (never real; an acting tool, i.e. webhook, email, http, file, shell or sql, records the effect it would have had; model scripts can call a tool with `{ call: Tool, with: {…} }`) and scripted tasks; scripted people (`humans:` in order, an unanswered question suspends the run, `resume:` continues it from the journal); assertions `attempts`, `ran`, `asked`, `effects`, `elapsed_virtual`, `tokens`, and `usage:` to set a call's token counts.
+- One seam in the interpreter: the retry backoff slept with `Thread.sleep`, so a test could not make it virtual. It now goes through the executor's `sleeper` (`Host.pause`), whose default is the real sleep.
+- A finding about the runtime: a rate limit that nothing says to wait for (no `rate_limits` block) fails the step at once and is not retried, whatever `retry` says. A case now documents it.
+- A tool declared in the script is replaced, for the case, by the scripted one (the declaration is removed from the in-memory copy; the file is untouched).
+- Not yet: real tasks through `--classes`; `rate_limits` pausing and `rewind` cases; budget exhaustion; a test of an `approve:` agent.
+- Tests: `ScriptedWorldTest` (17), `BackoffSleeperTest` (2), three more in `TestFileCheckTest`.

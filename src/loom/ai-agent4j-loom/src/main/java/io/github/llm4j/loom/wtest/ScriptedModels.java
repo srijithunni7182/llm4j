@@ -35,13 +35,22 @@ final class ScriptedModels implements LLMClientFactory {
     private final boolean lenient;
     private final boolean repeatLast;
     private final Recorder recorder;
+    private final Failures failures;
+    private final JsonNode usage;
 
     ScriptedModels(
-            Map<String, JsonNode> scripts, boolean lenient, boolean repeatLast, Recorder recorder) {
+            Map<String, JsonNode> scripts,
+            boolean lenient,
+            boolean repeatLast,
+            Recorder recorder,
+            Failures failures,
+            JsonNode usage) {
         this.scripts = scripts;
         this.lenient = lenient;
         this.repeatLast = repeatLast;
         this.recorder = recorder;
+        this.failures = failures;
+        this.usage = usage;
     }
 
     @Override
@@ -52,13 +61,26 @@ final class ScriptedModels implements LLMClientFactory {
             public LLMResponse chat(LLMRequest request) {
                 int n = recorder.call(agent);
                 String task = lastUser(request);
-                String answer = answer(agent, n, task);
-                String reply =
-                        "```json\n{\"thought\": \"scripted\", \"final_answer\": "
-                                + quote(answer)
-                                + "}\n```";
+                var fail = failures.failsOn(agent, n);
+                if (fail.isPresent()) {
+                    if (fail.get().equals("invalid_output"))
+                        return LLMResponse.builder()
+                                .content("{ this is not a valid answer")
+                                .model(model)
+                                .tokenUsage(10, 5, 15)
+                                .build();
+                    throw Failures.model(fail.get(), agent, n);
+                }
+                JsonNode chosen = choose(agent, n, task);
+                String reply = envelope(chosen);
                 int in = tokens(request);
                 int out = (int) CharsPerTokenEstimator.INSTANCE.completion(reply);
+                JsonNode u = usage == null ? null : usage.get(agent);
+                if (u != null) {
+                    in = u.path("in").asInt(in);
+                    out = u.path("out").asInt(out);
+                }
+                recorder.usage(in, out);
                 return LLMResponse.builder()
                         .content(reply)
                         .model(model)
@@ -80,10 +102,10 @@ final class ScriptedModels implements LLMClientFactory {
 
     // ---- choosing the answer
 
-    private String answer(String agent, int call, String task) {
+    private JsonNode choose(String agent, int call, String task) {
         JsonNode script = scripts.get(agent);
         if (script == null) return unscripted(agent, call, task, "has no scripted answer");
-        if (script.isTextual()) return script.asText();
+        if (script.isTextual()) return script;
         if (script.isArray()) {
             if (script.isEmpty())
                 return unscripted(agent, call, task, "has an empty list of answers");
@@ -99,12 +121,12 @@ final class ScriptedModels implements LLMClientFactory {
                                     + " answers (repeat: last on the case repeats the last)");
                 i = script.size() - 1;
             }
-            return text(script.get(i));
+            return script.get(i);
         }
         if (script.isObject() && script.has("when")) {
             for (JsonNode rule : script.get("when")) {
-                if (rule.has("otherwise")) return text(rule.get("otherwise"));
-                String reply = text(rule.has("reply") ? rule.get("reply") : rule);
+                if (rule.has("otherwise")) return rule.get("otherwise");
+                JsonNode reply = rule.has("reply") ? rule.get("reply") : rule;
                 if (rule.has("contains") && task.contains(rule.get("contains").asText()))
                     return reply;
                 if (rule.has("matches")
@@ -117,11 +139,10 @@ final class ScriptedModels implements LLMClientFactory {
                     task,
                     "has a list of rules and none of them matches the task (add an otherwise)");
         }
-        if (script.isObject()) return script.toString(); // a typed answer
-        return text(script);
+        return script; // a typed answer, or a tool call
     }
 
-    private String unscripted(String agent, int call, String task, String why) {
+    private JsonNode unscripted(String agent, int call, String task, String why) {
         String message =
                 "agent "
                         + agent
@@ -136,7 +157,22 @@ final class ScriptedModels implements LLMClientFactory {
             throw new IllegalStateException(message);
         }
         recorder.lenient(message);
-        return MockModels.ANSWER;
+        return JSON.getNodeFactory().textNode(MockModels.ANSWER);
+    }
+
+    /** What the model says: a tool call, or the final answer (text, or a typed answer as JSON). */
+    private static String envelope(JsonNode chosen) {
+        if (chosen.isObject() && chosen.has("call")) {
+            JsonNode args = chosen.has("with") ? chosen.get("with") : JSON.createObjectNode();
+            return "```json\n{\"thought\": \"scripted\", \"action\": "
+                    + quote(chosen.get("call").asText())
+                    + ", \"action_input\": "
+                    + args
+                    + "}\n```";
+        }
+        return "```json\n{\"thought\": \"scripted\", \"final_answer\": "
+                + quote(text(chosen))
+                + "}\n```";
     }
 
     private static String text(JsonNode n) {

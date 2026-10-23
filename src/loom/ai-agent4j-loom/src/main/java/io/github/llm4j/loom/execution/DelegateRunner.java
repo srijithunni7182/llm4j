@@ -54,6 +54,14 @@ final class DelegateRunner {
         /** The id of the step the calling thread is executing. */
         String stepId();
 
+        /**
+         * Waits between a failed attempt and the next. The default really waits; a run with its own
+         * sleeper (a test with a virtual clock) waits however that sleeper does.
+         */
+        default void pause(long millis) throws InterruptedException {
+            Thread.sleep(millis);
+        }
+
         RunJournal journal();
 
         VariableContext context();
@@ -342,7 +350,7 @@ final class DelegateRunner {
             while (attempts < maxAttempts) {
                 try {
                     if (attempts > 0 && del.getBackoffMillis() > 0) {
-                        Thread.sleep(del.getBackoffMillis() << Math.min(attempts - 1, 10));
+                        host.pause(del.getBackoffMillis() << Math.min(attempts - 1, 10));
                     }
                     log.info("Delegating to " + agentName + " (Attempt " + (attempts + 1) + ")");
                     ReActAgent runAgent = host.agentForDelegate(del, agentDef, agent);

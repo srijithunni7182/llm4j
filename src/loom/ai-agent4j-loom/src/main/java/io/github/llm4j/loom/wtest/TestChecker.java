@@ -27,7 +27,22 @@ public final class TestChecker {
 
     /** The keys a case may have. */
     static final List<String> CASE_KEYS =
-            List.of("name", "tags", "input", "workflow", "models", "expect", "lenient", "repeat");
+            List.of(
+                    "name",
+                    "tags",
+                    "input",
+                    "workflow",
+                    "models",
+                    "expect",
+                    "lenient",
+                    "repeat",
+                    "fail",
+                    "humans",
+                    "resume",
+                    "tools",
+                    "tasks",
+                    "clock",
+                    "usage");
 
     /** The keys of {@code expect}. */
     static final List<String> EXPECT_KEYS =
@@ -38,9 +53,15 @@ public final class TestChecker {
                     "route",
                     "route_exact",
                     "calls",
+                    "attempts",
                     "never",
                     "context",
-                    "models_used");
+                    "models_used",
+                    "asked",
+                    "effects",
+                    "ran",
+                    "elapsed_virtual",
+                    "tokens");
 
     static final List<String> FINALS =
             List.of("completed", "failed", "suspended", "stopped", "budget");
@@ -154,10 +175,109 @@ public final class TestChecker {
                                         + Suggest.hint(name, union(agents, classifiers)));
                 }
         }
+        scripts(c, "tools", tools, problems);
+        scripts(c, "tasks", tasks, problems);
+        fail(c, problems);
+        for (String key : List.of("humans", "resume"))
+            if (c.has(key) && !c.get(key).isArray())
+                problems.add(where(c) + key + ": a list of answers, in the order they are asked");
+        JsonNode clock = c.get("clock");
+        if (clock != null) {
+            if (!clock.isObject() || clock.size() != 1 || !clock.has("start"))
+                problems.add(where(c) + "clock: { start: \"2026-10-01T07:00:00Z\" }");
+            else
+                try {
+                    java.time.Instant.parse(clock.get("start").asText());
+                } catch (RuntimeException e) {
+                    problems.add(
+                            where(c)
+                                    + "clock.start: '"
+                                    + clock.get("start").asText()
+                                    + "' is not a time such as 2026-10-01T07:00:00Z");
+                }
+        }
+        JsonNode usage = c.get("usage");
+        if (usage != null && usage.isObject())
+            for (Iterator<String> it = usage.fieldNames(); it.hasNext(); ) {
+                String a = it.next();
+                if (!agents.contains(a))
+                    problems.add(
+                            where(c)
+                                    + "usage: '"
+                                    + a
+                                    + "' is not an agent"
+                                    + Suggest.hint(a, agents));
+            }
         JsonNode expect = c.get("expect");
         if (expect != null) {
             if (!expect.isObject()) problems.add(where(c) + "expect: a map");
             else expect(c, expect, problems);
+        }
+    }
+
+    /** {@code tools:} and {@code tasks:} name things the script has. */
+    private void scripts(TestFile.Case c, String key, Set<String> known, List<String> problems) {
+        JsonNode map = c.get(key);
+        if (map == null) return;
+        if (!map.isObject()) {
+            problems.add(where(c) + key + ": a map of names to results");
+            return;
+        }
+        for (Iterator<String> it = map.fieldNames(); it.hasNext(); ) {
+            String name = it.next();
+            if (!known.contains(name))
+                problems.add(
+                        where(c)
+                                + key
+                                + ": '"
+                                + name
+                                + "' is not "
+                                + (key.equals("tools") ? "a tool" : "a task run by")
+                                + " the script"
+                                + Suggest.hint(name, known));
+        }
+    }
+
+    /** {@code fail:} names a target, a schedule and a category the runtime has. */
+    private void fail(TestFile.Case c, List<String> problems) {
+        JsonNode fail = c.get("fail");
+        if (fail == null) return;
+        if (!fail.isObject()) {
+            problems.add(
+                    where(c) + "fail: a map of agent, classifier, tool or task names to failures");
+            return;
+        }
+        Set<String> targets = new LinkedHashSet<>(union(agents, classifiers));
+        targets.addAll(tools);
+        targets.addAll(tasks);
+        for (Iterator<String> it = fail.fieldNames(); it.hasNext(); ) {
+            String name = it.next();
+            JsonNode spec = fail.get(name);
+            if (!targets.contains(name))
+                problems.add(
+                        where(c)
+                                + "fail: '"
+                                + name
+                                + "' is not an agent, classifier, tool or task of the script"
+                                + Suggest.hint(name, targets));
+            if (!spec.isObject()
+                    || !(spec.has("times") || spec.has("on_calls") || spec.has("always"))) {
+                problems.add(
+                        where(c)
+                                + "fail."
+                                + name
+                                + ": say when: times: N, on_calls: [2, 5] or always: true");
+                continue;
+            }
+            if (spec.has("category")
+                    && !Failures.CATEGORIES.contains(spec.get("category").asText()))
+                problems.add(
+                        where(c)
+                                + "fail."
+                                + name
+                                + ".category: one of "
+                                + Failures.CATEGORIES
+                                + Suggest.hint(spec.get("category").asText(), Failures.CATEGORIES));
         }
     }
 
@@ -254,19 +374,22 @@ public final class TestChecker {
                                             + " (weave test --steps lists them)");
                     }
             }
-        if (expect.has("calls")) {
+        for (String key : List.of("calls", "attempts")) {
+            if (!expect.has(key)) continue;
             Set<String> names = new LinkedHashSet<>(union(agents, classifiers));
             names.addAll(tools);
             names.addAll(tasks);
-            if (!expect.get("calls").isObject())
-                problems.add(where(c) + "expect.calls: a map of names to counts");
+            if (!expect.get(key).isObject())
+                problems.add(where(c) + "expect." + key + ": a map of names to counts");
             else
-                for (Iterator<String> it = expect.get("calls").fieldNames(); it.hasNext(); ) {
+                for (Iterator<String> it = expect.get(key).fieldNames(); it.hasNext(); ) {
                     String n = it.next();
                     if (!names.contains(n))
                         problems.add(
                                 where(c)
-                                        + "expect.calls: '"
+                                        + "expect."
+                                        + key
+                                        + ": '"
                                         + n
                                         + "' is not an agent, classifier, tool or task of the script"
                                         + Suggest.hint(n, names));
@@ -283,6 +406,28 @@ public final class TestChecker {
                                     + "' is not an agent"
                                     + Suggest.hint(n, agents));
             }
+        if (expect.has("elapsed_virtual")
+                && expect.get("elapsed_virtual").isTextual()
+                && Durations.parse(expect.get("elapsed_virtual").asText()) == null)
+            problems.add(
+                    where(c)
+                            + "expect.elapsed_virtual: '"
+                            + expect.get("elapsed_virtual").asText()
+                            + "' is not a duration such as 30s, 5m or 2h");
+        if (expect.has("ran")) {
+            if (!expect.get("ran").isArray())
+                problems.add(
+                        where(c) + "expect.ran: a list such as [ on_failure of delegate Replier ]");
+            else
+                for (JsonNode r : expect.get("ran"))
+                    if (!r.asText()
+                            .matches("on_failure of (delegate|classify|intentclassify|task) \\S+"))
+                        problems.add(
+                                where(c)
+                                        + "expect.ran: '"
+                                        + r.asText()
+                                        + "' should look like 'on_failure of delegate Replier'");
+        }
         if (expect.has("result")) matchers(c, "expect.result", expect.get("result"), problems);
         if (expect.has("context")) matchers(c, "expect.context", expect.get("context"), problems);
     }

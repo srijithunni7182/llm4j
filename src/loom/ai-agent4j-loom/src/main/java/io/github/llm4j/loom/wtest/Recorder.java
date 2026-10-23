@@ -20,6 +20,9 @@ final class Recorder implements TraceListener {
     private final Map<String, AtomicInteger> calls = new java.util.concurrent.ConcurrentHashMap<>();
     private final List<String> violations = new CopyOnWriteArrayList<>();
     private final List<String> lenient = new CopyOnWriteArrayList<>();
+    private final List<Effect> effects = new CopyOnWriteArrayList<>();
+    private final List<Map<String, String>> asked = new CopyOnWriteArrayList<>();
+    private final List<String> tools = new CopyOnWriteArrayList<>();
 
     @Override
     public void onEvent(TraceEvent event) {
@@ -62,6 +65,40 @@ final class Recorder implements TraceListener {
         return lenient;
     }
 
+    void effect(Effect e) {
+        effects.add(e);
+    }
+
+    List<Effect> effects() {
+        return effects;
+    }
+
+    void asked(String kind, String prompt) {
+        asked.add(Map.of("kind", kind, "prompt", prompt == null ? "" : prompt));
+    }
+
+    List<Map<String, String>> asked() {
+        return asked;
+    }
+
+    private final java.util.concurrent.atomic.AtomicLong tokensIn =
+            new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong tokensOut =
+            new java.util.concurrent.atomic.AtomicLong();
+
+    void usage(long in, long out) {
+        tokensIn.addAndGet(in);
+        tokensOut.addAndGet(out);
+    }
+
+    long tokens() {
+        return tokensIn.get() + tokensOut.get();
+    }
+
+    void toolCalled(String name) {
+        tools.add(name);
+    }
+
     // ---- reading the events
 
     /** The steps that ran, as the labels {@code weave graph} gives them. */
@@ -97,12 +134,22 @@ final class Recorder implements TraceListener {
         return t.startsWith("run ") ? t.substring(4) : t;
     }
 
-    /** How many times each tool was called. */
+    /** How many times each tool was called (the scripted tools count every call, failed or not). */
     Map<String, Integer> toolCalls() {
         Map<String, Integer> out = new LinkedHashMap<>();
+        for (String t : tools) out.merge(t, 1, Integer::sum);
+        return out;
+    }
+
+    /** The handlers that took over a failed step, as {@code on_failure of delegate Replier}. */
+    List<String> handlers() {
+        List<String> out = new ArrayList<>();
         for (TraceEvent e : events)
-            if (TraceEvent.TOOL_CALL.equals(e.type()) && e.data().get("tool") != null)
-                out.merge(String.valueOf(e.data().get("tool")), 1, Integer::sum);
+            if (TraceEvent.FAILURE.equals(e.type())
+                    && Boolean.TRUE.equals(e.data().get("handled"))) {
+                String kind = String.valueOf(e.data().get("kind"));
+                out.add("on_failure of " + kind + " " + e.data().get("name"));
+            }
         return out;
     }
 

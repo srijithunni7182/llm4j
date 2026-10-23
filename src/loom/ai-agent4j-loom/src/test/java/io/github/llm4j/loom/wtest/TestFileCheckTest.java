@@ -245,4 +245,52 @@ class TestFileCheckTest {
                                         dir.resolve("main.loom"), List.of(dir.resolve("tests"))))
                 .hasMessageContaining("Nobody");
     }
+
+    @Test
+    void failIsCheckedForTargetScheduleAndCategory() throws Exception {
+        assertThat(problems(one("    fail: { Replyer: { times: 1, category: timeout } }")))
+                .anyMatch(
+                        x -> x.contains("fail: 'Replyer'") && x.contains("did you mean 'Replier'"));
+        assertThat(problems(one("    fail: { Replier: { category: timeout } }")))
+                .anyMatch(x -> x.contains("fail.Replier: say when"));
+        assertThat(problems(one("    fail: { Replier: { times: 1, category: timeot } }")))
+                .anyMatch(
+                        x ->
+                                x.contains("fail.Replier.category: one of")
+                                        && x.contains("did you mean 'timeout'"));
+        assertThat(
+                        problems(
+                                one(
+                                        "    fail: { Replier: { times: 1, category: timeout }, Intent: { always: true, category: rate_limit } }")))
+                .isEmpty();
+    }
+
+    @Test
+    void toolsTasksHumansClockAndUsageAreChecked() throws Exception {
+        assertThat(problems(one("    tools: { Mail: ok }")))
+                .anyMatch(x -> x.contains("tools: 'Mail' is not a tool the script"));
+        assertThat(problems(one("    tasks: { Policy: ok }")))
+                .anyMatch(x -> x.contains("tasks: 'Policy' is not a task run by the script"));
+        assertThat(problems(one("    humans: yes")))
+                .anyMatch(x -> x.contains("humans: a list of answers"));
+        assertThat(problems(one("    clock: { start: yesterday }")))
+                .anyMatch(x -> x.contains("clock.start: 'yesterday' is not a time"));
+        assertThat(problems(one("    usage: { Replyer: { in: 1, out: 1 } }")))
+                .anyMatch(x -> x.contains("usage: 'Replyer' is not an agent"));
+    }
+
+    @Test
+    void theNewAssertionsAreChecked() throws Exception {
+        assertThat(problems(one("    expect: { elapsed_virtual: soon }")))
+                .anyMatch(x -> x.contains("elapsed_virtual: 'soon' is not a duration"));
+        assertThat(problems(one("    expect: { ran: [ handler ] }")))
+                .anyMatch(x -> x.contains("expect.ran: 'handler' should look like"));
+        assertThat(problems(one("    expect: { attempts: { Ghost: 1 } }")))
+                .anyMatch(x -> x.contains("expect.attempts: 'Ghost' is not an agent"));
+        assertThat(
+                        problems(
+                                one(
+                                        "    expect: { ran: [ on_failure of intentclassify Intent ], asked: none, effects: none, tokens: { max: 5 }, elapsed_virtual: 5m }")))
+                .isEmpty();
+    }
 }
