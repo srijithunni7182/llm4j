@@ -50,6 +50,20 @@ class ReviewCommandTest {
     static final String CALM =
             "budget { tokens: 1000 }\nagent A { model: \"m\"  system: \"s\" }\nworkflow Main(q) { delegate \"{q}\" to A -> r  note \"{r}\" }\n";
 
+    static final String ACME_RULE =
+            """
+                id: ACME-001
+                lens: reliability
+                severity: low
+                about: step
+                when: { field: kind, is: delegate }
+                title: "{label} is a delegate"
+                fixHint: "Think about it."
+                examples:
+                  fires: [{ inline: "agent A { model: \\"m\\"  system: \\"s\\" }\\nworkflow Main(q) { delegate \\"{q}\\" to A -> r  note \\"{r}\\" }" }]
+                  quiet: [{ inline: "agent A { model: \\"m\\"  system: \\"s\\" }\\nworkflow Main(q) { note \\"hi\\" }" }]
+                """;
+
     ReviewCommand command(String source, String... args) throws Exception {
         Path f = dir.resolve("w.loom");
         Files.writeString(f, source);
@@ -244,6 +258,26 @@ class ReviewCommandTest {
                 note "{r}"
             }
             """;
+
+    @Test
+    void aProjectPackRunsBesideTheCoreRulesAndItsFindingsNameThePack() throws Exception {
+        Path acme = dir.resolve("review-rules/acme-policy");
+        Files.createDirectories(acme.resolve("rules"));
+        Files.writeString(
+                acme.resolve("pack.yaml"),
+                "name: acme-policy\nversion: 2.0.1\nfactModel: 1\nrulesSchema: 1\nprefix: ACME\n");
+        Files.writeString(acme.resolve("rules/r.yaml"), ACME_RULE);
+        Files.writeString(dir.resolve("review.properties"), "packs = core@1, acme-policy@2\n");
+        assertThat(run(CALM, "--format", "json")).isZero();
+        assertThat(out.toString()).contains("ACME-001").contains("acme-policy@2.0.1");
+    }
+
+    @Test
+    void aPackProblemStopsTheReviewWithExitTwoAndSaysWhy() throws Exception {
+        Files.writeString(dir.resolve("review.properties"), "packs = nothere@1\n");
+        assertThat(run(CALM)).isEqualTo(2);
+        assertThat(err.toString()).contains("nothere@1: there is no folder review-rules/nothere");
+    }
 
     private com.fasterxml.jackson.databind.JsonNode json(String source, String... args)
             throws Exception {

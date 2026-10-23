@@ -39,6 +39,14 @@ final class ClasspathFiles implements PackFiles {
     }
 
     @Override
+    public List<String> allFiles() {
+        java.util.List<String> all = new java.util.ArrayList<>();
+        all.add("pack.yaml");
+        all.addAll(ruleFiles);
+        return all;
+    }
+
+    @Override
     public String where() {
         return "classpath:" + base;
     }

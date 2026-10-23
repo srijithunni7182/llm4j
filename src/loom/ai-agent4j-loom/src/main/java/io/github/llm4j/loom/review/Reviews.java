@@ -11,6 +11,9 @@ import io.github.llm4j.loom.review.pack.DataRuleSource;
 import io.github.llm4j.loom.review.pack.Pack;
 import io.github.llm4j.loom.review.pack.PackCatalog;
 import io.github.llm4j.loom.review.pack.PackLoader;
+import io.github.llm4j.loom.review.pack.PackSet;
+import io.github.llm4j.loom.review.settings.ReviewSettings;
+import java.nio.file.Path;
 import java.util.List;
 
 /**
@@ -38,8 +41,26 @@ public final class Reviews {
 
     /** The sources every review uses: the security audit, the validator, and the core rule pack. */
     public static List<FindingSource> defaultSources() {
-        return List.of(
-                new AuditSource(), new ValiditySource(), new DataRuleSource(List.of(corePack())));
+        return sources(PackSet.coreOnly(corePack()));
+    }
+
+    /** The audit, the validator and the rules of the given packs. */
+    public static List<FindingSource> sources(PackSet packs) {
+        return List.of(new AuditSource(), new ValiditySource(), new DataRuleSource(packs.packs()));
+    }
+
+    /**
+     * The packs a script's project has pinned (core alone when it pinned none).
+     *
+     * @throws io.github.llm4j.loom.review.pack.PackException listing every problem
+     */
+    public static PackSet packs(ReviewSettings settings, Path base) {
+        return PackSet.resolve(settings.value("packs"), base, corePack());
+    }
+
+    /** An engine over the audit, the validator and the given packs. */
+    public static ReviewEngine engine(PackSet packs) {
+        return new ReviewEngine(sources(packs));
     }
 
     /** An engine over the default sources. */
@@ -49,9 +70,14 @@ public final class Reviews {
 
     /** What is known about every default rule. */
     public static RuleCatalog catalog() {
-        return new RuleCatalog()
-                .addAll(AuditCatalog.rules())
-                .addAll(ValidityCatalog.rules())
-                .addAll(PackCatalog.rules(corePack()));
+        return catalog(PackSet.coreOnly(corePack()));
+    }
+
+    /** What is known about the audit and validator rules and every rule of the given packs. */
+    public static RuleCatalog catalog(PackSet packs) {
+        RuleCatalog c =
+                new RuleCatalog().addAll(AuditCatalog.rules()).addAll(ValidityCatalog.rules());
+        for (Pack p : packs.packs()) c.addAll(PackCatalog.rules(p));
+        return c;
     }
 }

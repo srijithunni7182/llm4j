@@ -12,6 +12,9 @@ public interface PackFiles {
     /** Every rule file under {@code rules/}, as relative paths, in a stable order. */
     List<String> ruleFiles();
 
+    /** Every file of the pack (rules, examples, manifest) by relative path, in a stable order. */
+    List<String> allFiles();
+
     /** Where the pack is, for messages. */
     String where();
 }

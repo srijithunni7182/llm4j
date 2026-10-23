@@ -54,6 +54,19 @@ final class DirectoryFiles implements PackFiles {
     }
 
     @Override
+    public List<String> allFiles() {
+        try (Stream<Path> s = Files.walk(root)) {
+            return s.filter(Files::isRegularFile)
+                    .filter(f -> !Files.isSymbolicLink(f))
+                    .map(f -> root.relativize(f).toString().replace('\\', '/'))
+                    .sorted()
+                    .toList();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    @Override
     public String where() {
         return root.toString();
     }

@@ -11,6 +11,8 @@ import io.github.llm4j.loom.review.engine.RuleCatalog;
 import io.github.llm4j.loom.review.engine.RuleInfo;
 import io.github.llm4j.loom.review.engine.ValidityProblem;
 import io.github.llm4j.loom.review.model.Severity;
+import io.github.llm4j.loom.review.pack.PackException;
+import io.github.llm4j.loom.review.pack.PackSet;
 import io.github.llm4j.loom.review.report.JsonReport;
 import io.github.llm4j.loom.review.report.MarkdownReport;
 import io.github.llm4j.loom.review.report.TextReport;
@@ -172,7 +174,14 @@ final class ReviewCommand implements Callable<Integer> {
                         reach,
                         validity(c, env, loaded),
                         graph(c));
-        ReviewReport report = Reviews.engine().review(input, settings);
+        PackSet packs;
+        try {
+            packs = Reviews.packs(settings, input.baseDir());
+        } catch (PackException e) {
+            e.problems().forEach(p -> env.err().println("Error: " + p));
+            return 2;
+        }
+        ReviewReport report = Reviews.engine(packs).review(input, settings);
         ReviewReport shown = atLeast(report, min.get());
         String text =
                 switch (c.format) {
