@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { spawn } from 'child_process';
 import * as path from 'path';
+import { offerReviewAfterRun } from '../review/vscodeReview';
 
 /**
  * Module-level output channel cache (Requirement 7.2).
@@ -62,6 +63,9 @@ export function runWorkflowCommand(context: vscode.ExtensionContext): void {
     // never interpolate it into a shell string (Requirement 7.4)
     const weaveJarPath = context.asAbsolutePath(path.join('bin', 'weave.jar'));
     const process = spawn('java', ['-jar', weaveJarPath, 'run', scriptPath]);
+
+    // open findings never hold a run up: it has started, and now they are mentioned once, quietly, if there are any
+    offerReviewAfterRun(scriptPath, activeEditor.document.getText());
 
     // Task 6.2: Pipe stdout to the output channel
     process.stdout.on('data', (data: Buffer) => {

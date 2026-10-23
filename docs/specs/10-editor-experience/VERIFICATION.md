@@ -1,6 +1,6 @@
 # Phase 10 verification plan: the editor experience
 
-Status: **10a done** (`weave serve`, the engine client, check and graph through the engine). 10b to 10e not started. Run top to bottom at the end of sub-phase 10e; the relevant rows after each sub-phase. Results in §7.
+Status: **10a done** (`weave serve`, the engine client, check and graph through the engine). **10b done in code and automated tests; waiting for the manual check in VS Code** (the Review panel in Split, squiggles, status bar, CodeLens, the run notice). 10b2 to 10e not started. Run top to bottom at the end of sub-phase 10e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -31,16 +31,16 @@ Status: **10a done** (`weave serve`, the engine client, check and graph through 
 
 | Req | Tests | Status |
 |---|---|---|
-| R1 | `manifest.test.ts`, `extension.integration.test.ts` | ⬜ 10b |
-| R2 | `review.browser.test.js` | ⬜ 10b |
-| R3 | `review.browser.test.js`, `reviewModel.unit.test.js` | ⬜ 10b |
-| R4 | `review.browser.test.js` (tint + glyph + label), `a11y.browser.test.js` | ⬜ 10b |
-| R5 | `reviewModel.unit.test.js` | ⬜ 10b |
+| R1 | `manifest.test.ts` (command in the palette, title bar, editor and Explorer menus), `review.e2e.browser.test.js` | ✅ 10b (the click itself: manual) |
+| R2 | `review.browser.test.js` (graph left, findings right; stacked when narrow, no sideways scroll) | ✅ 10b |
+| R3 | `review.browser.test.js`, `reviewModel.unit.test.js` (finding to step to line; step to its findings; cursor to finding) | ✅ 10b |
+| R4 | `review.browser.test.js` (badge: number, glyph, word; cost on the step; tokens when unpriced), `reviewModel.unit.test.js` | ✅ 10b (contrast in the dark and high-contrast themes checked in the page test; the rest of `a11y.browser.test.js` comes in 10e) |
+| R5 | `reviewModel.unit.test.js`, `review.browser.test.js` | ✅ 10b |
 | R6 | `reviewCodeActions.test.ts`, `applyFix.integration.test.ts` | ⬜ 10c |
-| R7 | `reviewModel.unit.test.js` | ⬜ 10b |
+| R7 | `reviewModel.unit.test.js`, `review.browser.test.js` (text, lens, severity, rule, group by, fold, not evaluated counted and listed) | 🟨 10b: "Enable" for an optional lens and "Show suppressed" come with 10c |
 | R8 | `review.browser.test.js`, `explainRule` in `ServeProtocolTest` | ⬜ 10c |
-| R9 | `reviewController.test.ts` (stale, keep previous result) | ⬜ 10b |
-| R10 | `reviewController.test.ts` (tiers, debounce) | ⬜ 10b |
+| R9 | `reviewController.test.ts`, `review.browser.test.js` (stale chip, previous result stays while running or after an error) | ✅ 10b |
+| R10 | `reviewController.test.ts` (save, type with 200 ms debounce, manual; the quick review replaces the validity lens and marks the rest stale), `ServeEngineTest` (instant tier) | ✅ 10b |
 | R11 | `engineClient.test.ts` (withdraw on newer, stale version dropped) | ✅ 10a |
 | R12 | `latency.test.ts` | ⬜ 10e |
 | R13 | `ServeRobustnessTest`, `ServeEngineTest`, `ServeStdioTest`, `engineClient.test.ts`, [PROTOCOL.md](../../serve/PROTOCOL.md) | ✅ 10a |
@@ -59,8 +59,8 @@ Status: **10a done** (`weave serve`, the engine client, check and graph through 
 | R26 | `latency.test.ts` | ⬜ 10e |
 | R27 | `SymbolsRecoveryTest` | ⬜ 10d |
 | R28 | `engineClient.test.ts`, `engineRouting.test.ts` (providers take the interface; `FakeEngine`) | ✅ 10a |
-| R29 | `a11y.browser.test.js`, `hostile.browser.test.js` | ⬜ 10b/10e |
-| R30 | `reviewPanelState.test.ts` | ⬜ 10b |
+| R29 | `review.browser.test.js` (hostile text, 10,000-character title, nothing from outside), `manifest.test.ts` (no innerHTML and the like) | ✅ 10b (`a11y` and the 200 % zoom pass in 10e) |
+| R30 | `review.browser.test.js` (page state holds layout, group, filter, folds), `ReviewPanel.revive` for a reloaded window | 🟨 10b: reload restore is wired and manual-checked |
 | R31 | `manifest.test.ts` | ⬜ 10e |
 | R32 | `noNetwork.test.ts` | ⬜ 10e |
 | R33 | `degraded.test.ts` | ⬜ 10e |
@@ -72,8 +72,8 @@ Status: **10a done** (`weave serve`, the engine client, check and graph through 
 | R39 | `triageActions.test.ts` (baseline) | ⬜ 10c |
 | R40 | `dismissLocal.test.ts` | ⬜ 10c |
 | R41 | `triageKeyboard.browser.test.js`, `a11y.browser.test.js` | ⬜ 10c |
-| R42 | `runNotBlocked.test.ts`, `runNoticeOnce.test.ts` | ⬜ 10b |
-| R43 | `reviewStatusBar.test.ts`, `manifest.test.ts` | ⬜ 10b |
+| R42 | `runNotBlocked.test.ts`, `reviewPresentation.test.ts` (once per unchanged script, mute) | ✅ 10b |
+| R43 | `reviewPresentation.test.ts` (status text and tone), `manifest.test.ts` (no `when` on review state), `runNotBlocked.test.ts` | ✅ 10b |
 | R44 | `layoutSwitch.browser.test.js`, `manifest.test.ts` | ⬜ 10b2 |
 | R45 | `layoutContext.unit.test.js` | ⬜ 10b2 |
 | R46 | `layoutSharedControls.browser.test.js` | ⬜ 10b2 |
@@ -123,3 +123,12 @@ Extension README and CHANGELOG; `docs/serve/PROTOCOL.md`; wiki "Loom in VS Code"
 - Test counts: Java module 2,832 tests, 0 failures. Extension: 331 tests, 283 pass, 42 skipped (browser tests without a browser), 6 fail, all six failing before this phase began (baseline in this environment): the logo script path (`src/scripts/make-logo-assets.sh` is not where the test looks), the editor scanner's `|` in `no-agent-router/router.loom` (the TypeScript parser does not know `choose kind: a | b`: a data point for the parser-parity work in 10d), the renderer-copy sync check (path), and a real-graph path test. One more pre-existing failure (the README did not list the `agent-grounded` snippet) was fixed in passing.
 - VSIX size: the bundled `weave.jar` is the CLI jar, 25,235,050 bytes; the new code adds well under 100 KB to it. The VSIX itself was not built here (`scripts/build-vsix.sh` needs the packaging toolchain); the budget in DESIGN §10.2 is still to be agreed.
 - Not yet: the review panel and everything the user can see (10b onward). **Nothing from 10a needs a manual check in VS Code beyond this**: open a `.loom` file, confirm Problems still appear as before (now through the engine), run "Loom: Show Engine Log" and see the engine's lines, kill the `java` process by hand and see the next check still work after a moment.
+
+### 10b (2026-10-23)
+
+- Built: `media/review-model.js` (the view model every layout will share: findings in the engine order, tied to steps by the engine's node id or by line, counts per step, the summary, grouping, filtering, the lens rail), `media/review.js` and `review.css` (the page, from the mockup's tokens, text only), `src/review/` (`ReviewController` with stale/running/error, tiers and debounce; `EngineReviewSource` with a process fallback; `presentation.ts` for squiggles, status bar and CodeLens; `RunNotice`; `ReviewPanel`; `vscodeReview.ts` as the thin glue), the command **Loom: Review Workflow**, the settings `loom.review.on|lenses|minSeverity|codeLens|statusBar|failOn`. Fixtures are real engine output (`scripts/regen-editor-fixtures.sh`), including a 240-finding script.
+- Not in 10b by design: Fix, Accept, Dismiss and Explain buttons (10c; there is no dead button), the Outline and List layouts and the layout switch (10b2), definition/rename/completion (10d), degraded-mode polish, a11y pass and latency gates (10e). The "Fix all safe" button exists in the page and is hidden until 10c.
+- Tests: Java unchanged this step. Extension: 412 tests, 364 pass, 42 skipped, 6 fail (the same six that failed before 10a: logo script path, the `|` scanner case, renderer-copy sync, one graph path test). New: `reviewModel.unit.test.js` (21), `review.browser.test.js` (26, in a real browser), `review.e2e.browser.test.js` (2: the real engine to the real page), `reviewController.test.ts` (13), `reviewPresentation.test.ts` (16), `runNotBlocked.test.ts` (3), four in `manifest.test.ts`.
+- VSIX: built with `vsce package`: **23,757,178 bytes (22.66 MB)**, 496 files, of which `bin/weave.jar` is 24.07 MB uncompressed. DESIGN §10.2 (size budget) is still to be agreed; the extension's own code adds well under 1 MB.
+- Performance seen: 300 findings group, filter and render in under 2 s in the page test (model alone: a few ms).
+- **Manual check owed (VS Code):** see the list in the 10b report: open `main.loom`, run the command, click through finding to line and step to findings, edit and see *stale*, save and see it clear, Problems entries with source `loom-review`, status bar, CodeLens, Run with open findings starts at once and mentions the review once, dark and light themes, narrow the panel.

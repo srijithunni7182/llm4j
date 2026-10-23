@@ -14,6 +14,7 @@ import { registerCheckDiagnostics } from './commands/checkDiagnostics';
 import { registerGuideCommands } from './commands/guideCommands';
 import { WorkflowOutlineProvider } from './views/WorkflowOutlineProvider';
 import { registerEngine } from './engine/vscodeHost';
+import { registerReview } from './review/vscodeReview';
 
 // Module-level client reference so deactivate() can stop it.
 let client: LanguageClient | undefined;
@@ -109,6 +110,7 @@ export function activate(context: vscode.ExtensionContext): void {
     // ------------------------------------------------------------------ //
     registerEngine(context);
     registerCheckDiagnostics(context);
+    registerReview(context);
     registerGuideCommands(context);
 
     // ------------------------------------------------------------------ //

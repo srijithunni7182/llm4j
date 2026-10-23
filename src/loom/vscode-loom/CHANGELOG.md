@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Loom Review: **Loom: Review Workflow** opens a panel with the findings of `weave review` and the workflow graph side by side, linked both ways (click a finding to see its step and line, click a step to list its findings, move the cursor to select the finding on that line), with a summary strip (findings, cost, time, effects, lenses, the lethal trifecta), filters and grouping, and a stale marker that appears the moment you edit. Findings also show as squiggles and Problems entries (source `loom-review`), a status-bar count and a CodeLens above each workflow. Open findings never stop Run. New settings `loom.review.*`.
+
 - The Loom engine: the extension starts one `weave serve` process per window and asks it for checks and graphs, so feedback does not wait for a Java process to start (about 5 ms warm). It runs nothing and writes nothing and reads only the folders you have open. If it cannot start, or stops repeatedly, the extension runs `weave` for each request as before and the status bar says so. New commands **Loom: Restart Engine** and **Loom: Show Engine Log**; the new setting `loom.javaPath` (the older `loom.graph.javaPath` still works).
 
 - Providers: the hover text of `provider` lists the new kinds (`openai`, `xai`, `kimi`, `qwen`, `perplexity`, `openai_compatible`) and their options (`api:` for OpenAI, `header:` and `query:` for the generic kind). `weave check` reports their mistakes on the line it names. 

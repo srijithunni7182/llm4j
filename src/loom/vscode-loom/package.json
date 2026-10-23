@@ -99,6 +99,11 @@
         "icon": "$(type-hierarchy)"
       },
       {
+        "command": "loom.review",
+        "title": "Loom: Review Workflow",
+        "icon": "$(checklist)"
+      },
+      {
         "command": "loom.restartEngine",
         "title": "Loom: Restart Engine"
       },
@@ -126,11 +131,27 @@
           "when": "resourceLangId == loom"
         },
         {
+          "command": "loom.review",
+          "when": "resourceLangId == loom"
+        },
+        {
           "command": "loom.createPromptFile",
           "when": "resourceLangId == loom"
         }
       ],
+      "explorer/context": [
+        {
+          "command": "loom.review",
+          "when": "resourceExtname == .loom",
+          "group": "navigation"
+        }
+      ],
       "editor/title": [
+        {
+          "command": "loom.review",
+          "when": "resourceLangId == loom",
+          "group": "navigation"
+        },
         {
           "command": "loom.showGraph",
           "when": "resourceLangId == loom",
@@ -138,6 +159,11 @@
         }
       ],
       "editor/context": [
+        {
+          "command": "loom.review",
+          "when": "resourceLangId == loom",
+          "group": "navigation"
+        },
         {
           "command": "loom.showGraph",
           "when": "resourceLangId == loom",
@@ -152,6 +178,39 @@
           "type": "string",
           "default": "java",
           "description": "The java executable used to run the bundled weave.jar (the Loom engine, checks, graphs). If you set only the older loom.graph.javaPath, that one is used."
+        },
+        "loom.review.on": {
+          "type": "string",
+          "enum": ["save", "type", "manual"],
+          "default": "save",
+          "description": "When the Loom review runs by itself: after a save, while typing (only the validity lens, so it stays fast), or only when you ask."
+        },
+        "loom.review.lenses": {
+          "type": "string",
+          "default": "",
+          "description": "Which review lenses run, as weave review --lens takes them: 'all', exact names (security,cost), or +name / -name to change the defaults. Empty uses the project's review.properties."
+        },
+        "loom.review.minSeverity": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "info"],
+          "default": "low",
+          "description": "The lowest severity shown as a squiggle and in the Problems panel."
+        },
+        "loom.review.codeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the findings and cost above each workflow, with links to the graph and Run."
+        },
+        "loom.review.statusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the open findings and typical cost of the active script in the status bar."
+        },
+        "loom.review.failOn": {
+          "type": "string",
+          "enum": ["high", "medium", "low", "info", "none"],
+          "default": "high",
+          "description": "Colour the status bar when findings at or above this severity are open. It never stops Run."
         },
         "loom.graph.javaPath": {
           "type": "string",

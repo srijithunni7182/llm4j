@@ -1,0 +1,1794 @@
+{
+  "version": 1,
+  "entry": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+  "files": [
+    {
+      "path": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+      "imports": [ ]
+    }
+  ],
+  "workflows": [
+    {
+      "name": "Main",
+      "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+      "line": 62,
+      "params": [
+        "q"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "kind": "start",
+          "label": "Start"
+        },
+        {
+          "id": "n1",
+          "kind": "delegate",
+          "label": "delegate A0",
+          "agent": "A0",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 63
+          },
+          "attrs": {
+            "variable": "r0_text",
+            "text": "Question 0: {q}"
+          }
+        },
+        {
+          "id": "n2",
+          "kind": "delegate",
+          "label": "delegate A1",
+          "agent": "A1",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 64
+          },
+          "attrs": {
+            "variable": "r1_text",
+            "text": "Question 1: {q}"
+          }
+        },
+        {
+          "id": "n3",
+          "kind": "delegate",
+          "label": "delegate A2",
+          "agent": "A2",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 65
+          },
+          "attrs": {
+            "variable": "r2_text",
+            "text": "Question 2: {q}"
+          }
+        },
+        {
+          "id": "n4",
+          "kind": "delegate",
+          "label": "delegate A3",
+          "agent": "A3",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 66
+          },
+          "attrs": {
+            "variable": "r3_text",
+            "text": "Question 3: {q}"
+          }
+        },
+        {
+          "id": "n5",
+          "kind": "delegate",
+          "label": "delegate A4",
+          "agent": "A4",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 67
+          },
+          "attrs": {
+            "variable": "r4_text",
+            "text": "Question 4: {q}"
+          }
+        },
+        {
+          "id": "n6",
+          "kind": "delegate",
+          "label": "delegate A5",
+          "agent": "A5",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 68
+          },
+          "attrs": {
+            "variable": "r5_text",
+            "text": "Question 5: {q}"
+          }
+        },
+        {
+          "id": "n7",
+          "kind": "delegate",
+          "label": "delegate A6",
+          "agent": "A6",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 69
+          },
+          "attrs": {
+            "variable": "r6_text",
+            "text": "Question 6: {q}"
+          }
+        },
+        {
+          "id": "n8",
+          "kind": "delegate",
+          "label": "delegate A7",
+          "agent": "A7",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 70
+          },
+          "attrs": {
+            "variable": "r7_text",
+            "text": "Question 7: {q}"
+          }
+        },
+        {
+          "id": "n9",
+          "kind": "delegate",
+          "label": "delegate A8",
+          "agent": "A8",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 71
+          },
+          "attrs": {
+            "variable": "r8_text",
+            "text": "Question 8: {q}"
+          }
+        },
+        {
+          "id": "n10",
+          "kind": "delegate",
+          "label": "delegate A9",
+          "agent": "A9",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 72
+          },
+          "attrs": {
+            "variable": "r9_text",
+            "text": "Question 9: {q}"
+          }
+        },
+        {
+          "id": "n11",
+          "kind": "delegate",
+          "label": "delegate A10",
+          "agent": "A10",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 73
+          },
+          "attrs": {
+            "variable": "r10_text",
+            "text": "Question 10: {q}"
+          }
+        },
+        {
+          "id": "n12",
+          "kind": "delegate",
+          "label": "delegate A11",
+          "agent": "A11",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 74
+          },
+          "attrs": {
+            "variable": "r11_text",
+            "text": "Question 11: {q}"
+          }
+        },
+        {
+          "id": "n13",
+          "kind": "delegate",
+          "label": "delegate A12",
+          "agent": "A12",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 75
+          },
+          "attrs": {
+            "variable": "r12_text",
+            "text": "Question 12: {q}"
+          }
+        },
+        {
+          "id": "n14",
+          "kind": "delegate",
+          "label": "delegate A13",
+          "agent": "A13",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 76
+          },
+          "attrs": {
+            "variable": "r13_text",
+            "text": "Question 13: {q}"
+          }
+        },
+        {
+          "id": "n15",
+          "kind": "delegate",
+          "label": "delegate A14",
+          "agent": "A14",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 77
+          },
+          "attrs": {
+            "variable": "r14_text",
+            "text": "Question 14: {q}"
+          }
+        },
+        {
+          "id": "n16",
+          "kind": "delegate",
+          "label": "delegate A15",
+          "agent": "A15",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 78
+          },
+          "attrs": {
+            "variable": "r15_text",
+            "text": "Question 15: {q}"
+          }
+        },
+        {
+          "id": "n17",
+          "kind": "delegate",
+          "label": "delegate A16",
+          "agent": "A16",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 79
+          },
+          "attrs": {
+            "variable": "r16_text",
+            "text": "Question 16: {q}"
+          }
+        },
+        {
+          "id": "n18",
+          "kind": "delegate",
+          "label": "delegate A17",
+          "agent": "A17",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 80
+          },
+          "attrs": {
+            "variable": "r17_text",
+            "text": "Question 17: {q}"
+          }
+        },
+        {
+          "id": "n19",
+          "kind": "delegate",
+          "label": "delegate A18",
+          "agent": "A18",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 81
+          },
+          "attrs": {
+            "variable": "r18_text",
+            "text": "Question 18: {q}"
+          }
+        },
+        {
+          "id": "n20",
+          "kind": "delegate",
+          "label": "delegate A19",
+          "agent": "A19",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 82
+          },
+          "attrs": {
+            "variable": "r19_text",
+            "text": "Question 19: {q}"
+          }
+        },
+        {
+          "id": "n21",
+          "kind": "delegate",
+          "label": "delegate A20",
+          "agent": "A20",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 83
+          },
+          "attrs": {
+            "variable": "r20_text",
+            "text": "Question 20: {q}"
+          }
+        },
+        {
+          "id": "n22",
+          "kind": "delegate",
+          "label": "delegate A21",
+          "agent": "A21",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 84
+          },
+          "attrs": {
+            "variable": "r21_text",
+            "text": "Question 21: {q}"
+          }
+        },
+        {
+          "id": "n23",
+          "kind": "delegate",
+          "label": "delegate A22",
+          "agent": "A22",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 85
+          },
+          "attrs": {
+            "variable": "r22_text",
+            "text": "Question 22: {q}"
+          }
+        },
+        {
+          "id": "n24",
+          "kind": "delegate",
+          "label": "delegate A23",
+          "agent": "A23",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 86
+          },
+          "attrs": {
+            "variable": "r23_text",
+            "text": "Question 23: {q}"
+          }
+        },
+        {
+          "id": "n25",
+          "kind": "delegate",
+          "label": "delegate A24",
+          "agent": "A24",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 87
+          },
+          "attrs": {
+            "variable": "r24_text",
+            "text": "Question 24: {q}"
+          }
+        },
+        {
+          "id": "n26",
+          "kind": "delegate",
+          "label": "delegate A25",
+          "agent": "A25",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 88
+          },
+          "attrs": {
+            "variable": "r25_text",
+            "text": "Question 25: {q}"
+          }
+        },
+        {
+          "id": "n27",
+          "kind": "delegate",
+          "label": "delegate A26",
+          "agent": "A26",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 89
+          },
+          "attrs": {
+            "variable": "r26_text",
+            "text": "Question 26: {q}"
+          }
+        },
+        {
+          "id": "n28",
+          "kind": "delegate",
+          "label": "delegate A27",
+          "agent": "A27",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 90
+          },
+          "attrs": {
+            "variable": "r27_text",
+            "text": "Question 27: {q}"
+          }
+        },
+        {
+          "id": "n29",
+          "kind": "delegate",
+          "label": "delegate A28",
+          "agent": "A28",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 91
+          },
+          "attrs": {
+            "variable": "r28_text",
+            "text": "Question 28: {q}"
+          }
+        },
+        {
+          "id": "n30",
+          "kind": "delegate",
+          "label": "delegate A29",
+          "agent": "A29",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 92
+          },
+          "attrs": {
+            "variable": "r29_text",
+            "text": "Question 29: {q}"
+          }
+        },
+        {
+          "id": "n31",
+          "kind": "delegate",
+          "label": "delegate A30",
+          "agent": "A30",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 93
+          },
+          "attrs": {
+            "variable": "r30_text",
+            "text": "Question 30: {q}"
+          }
+        },
+        {
+          "id": "n32",
+          "kind": "delegate",
+          "label": "delegate A31",
+          "agent": "A31",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 94
+          },
+          "attrs": {
+            "variable": "r31_text",
+            "text": "Question 31: {q}"
+          }
+        },
+        {
+          "id": "n33",
+          "kind": "delegate",
+          "label": "delegate A32",
+          "agent": "A32",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 95
+          },
+          "attrs": {
+            "variable": "r32_text",
+            "text": "Question 32: {q}"
+          }
+        },
+        {
+          "id": "n34",
+          "kind": "delegate",
+          "label": "delegate A33",
+          "agent": "A33",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 96
+          },
+          "attrs": {
+            "variable": "r33_text",
+            "text": "Question 33: {q}"
+          }
+        },
+        {
+          "id": "n35",
+          "kind": "delegate",
+          "label": "delegate A34",
+          "agent": "A34",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 97
+          },
+          "attrs": {
+            "variable": "r34_text",
+            "text": "Question 34: {q}"
+          }
+        },
+        {
+          "id": "n36",
+          "kind": "delegate",
+          "label": "delegate A35",
+          "agent": "A35",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 98
+          },
+          "attrs": {
+            "variable": "r35_text",
+            "text": "Question 35: {q}"
+          }
+        },
+        {
+          "id": "n37",
+          "kind": "delegate",
+          "label": "delegate A36",
+          "agent": "A36",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 99
+          },
+          "attrs": {
+            "variable": "r36_text",
+            "text": "Question 36: {q}"
+          }
+        },
+        {
+          "id": "n38",
+          "kind": "delegate",
+          "label": "delegate A37",
+          "agent": "A37",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 100
+          },
+          "attrs": {
+            "variable": "r37_text",
+            "text": "Question 37: {q}"
+          }
+        },
+        {
+          "id": "n39",
+          "kind": "delegate",
+          "label": "delegate A38",
+          "agent": "A38",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 101
+          },
+          "attrs": {
+            "variable": "r38_text",
+            "text": "Question 38: {q}"
+          }
+        },
+        {
+          "id": "n40",
+          "kind": "delegate",
+          "label": "delegate A39",
+          "agent": "A39",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 102
+          },
+          "attrs": {
+            "variable": "r39_text",
+            "text": "Question 39: {q}"
+          }
+        },
+        {
+          "id": "n41",
+          "kind": "delegate",
+          "label": "delegate A40",
+          "agent": "A40",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 103
+          },
+          "attrs": {
+            "variable": "r40_text",
+            "text": "Question 40: {q}"
+          }
+        },
+        {
+          "id": "n42",
+          "kind": "delegate",
+          "label": "delegate A41",
+          "agent": "A41",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 104
+          },
+          "attrs": {
+            "variable": "r41_text",
+            "text": "Question 41: {q}"
+          }
+        },
+        {
+          "id": "n43",
+          "kind": "delegate",
+          "label": "delegate A42",
+          "agent": "A42",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 105
+          },
+          "attrs": {
+            "variable": "r42_text",
+            "text": "Question 42: {q}"
+          }
+        },
+        {
+          "id": "n44",
+          "kind": "delegate",
+          "label": "delegate A43",
+          "agent": "A43",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 106
+          },
+          "attrs": {
+            "variable": "r43_text",
+            "text": "Question 43: {q}"
+          }
+        },
+        {
+          "id": "n45",
+          "kind": "delegate",
+          "label": "delegate A44",
+          "agent": "A44",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 107
+          },
+          "attrs": {
+            "variable": "r44_text",
+            "text": "Question 44: {q}"
+          }
+        },
+        {
+          "id": "n46",
+          "kind": "delegate",
+          "label": "delegate A45",
+          "agent": "A45",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 108
+          },
+          "attrs": {
+            "variable": "r45_text",
+            "text": "Question 45: {q}"
+          }
+        },
+        {
+          "id": "n47",
+          "kind": "delegate",
+          "label": "delegate A46",
+          "agent": "A46",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 109
+          },
+          "attrs": {
+            "variable": "r46_text",
+            "text": "Question 46: {q}"
+          }
+        },
+        {
+          "id": "n48",
+          "kind": "delegate",
+          "label": "delegate A47",
+          "agent": "A47",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 110
+          },
+          "attrs": {
+            "variable": "r47_text",
+            "text": "Question 47: {q}"
+          }
+        },
+        {
+          "id": "n49",
+          "kind": "delegate",
+          "label": "delegate A48",
+          "agent": "A48",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 111
+          },
+          "attrs": {
+            "variable": "r48_text",
+            "text": "Question 48: {q}"
+          }
+        },
+        {
+          "id": "n50",
+          "kind": "delegate",
+          "label": "delegate A49",
+          "agent": "A49",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 112
+          },
+          "attrs": {
+            "variable": "r49_text",
+            "text": "Question 49: {q}"
+          }
+        },
+        {
+          "id": "n51",
+          "kind": "delegate",
+          "label": "delegate A50",
+          "agent": "A50",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 113
+          },
+          "attrs": {
+            "variable": "r50_text",
+            "text": "Question 50: {q}"
+          }
+        },
+        {
+          "id": "n52",
+          "kind": "delegate",
+          "label": "delegate A51",
+          "agent": "A51",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 114
+          },
+          "attrs": {
+            "variable": "r51_text",
+            "text": "Question 51: {q}"
+          }
+        },
+        {
+          "id": "n53",
+          "kind": "delegate",
+          "label": "delegate A52",
+          "agent": "A52",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 115
+          },
+          "attrs": {
+            "variable": "r52_text",
+            "text": "Question 52: {q}"
+          }
+        },
+        {
+          "id": "n54",
+          "kind": "delegate",
+          "label": "delegate A53",
+          "agent": "A53",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 116
+          },
+          "attrs": {
+            "variable": "r53_text",
+            "text": "Question 53: {q}"
+          }
+        },
+        {
+          "id": "n55",
+          "kind": "delegate",
+          "label": "delegate A54",
+          "agent": "A54",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 117
+          },
+          "attrs": {
+            "variable": "r54_text",
+            "text": "Question 54: {q}"
+          }
+        },
+        {
+          "id": "n56",
+          "kind": "delegate",
+          "label": "delegate A55",
+          "agent": "A55",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 118
+          },
+          "attrs": {
+            "variable": "r55_text",
+            "text": "Question 55: {q}"
+          }
+        },
+        {
+          "id": "n57",
+          "kind": "delegate",
+          "label": "delegate A56",
+          "agent": "A56",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 119
+          },
+          "attrs": {
+            "variable": "r56_text",
+            "text": "Question 56: {q}"
+          }
+        },
+        {
+          "id": "n58",
+          "kind": "delegate",
+          "label": "delegate A57",
+          "agent": "A57",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 120
+          },
+          "attrs": {
+            "variable": "r57_text",
+            "text": "Question 57: {q}"
+          }
+        },
+        {
+          "id": "n59",
+          "kind": "delegate",
+          "label": "delegate A58",
+          "agent": "A58",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 121
+          },
+          "attrs": {
+            "variable": "r58_text",
+            "text": "Question 58: {q}"
+          }
+        },
+        {
+          "id": "n60",
+          "kind": "delegate",
+          "label": "delegate A59",
+          "agent": "A59",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 122
+          },
+          "attrs": {
+            "variable": "r59_text",
+            "text": "Question 59: {q}"
+          }
+        },
+        {
+          "id": "n61",
+          "kind": "return",
+          "label": "return",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+            "line": 123
+          }
+        },
+        {
+          "id": "end",
+          "kind": "end",
+          "label": "End"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "n1"
+        },
+        {
+          "from": "n1",
+          "to": "n2"
+        },
+        {
+          "from": "n2",
+          "to": "n3"
+        },
+        {
+          "from": "n3",
+          "to": "n4"
+        },
+        {
+          "from": "n4",
+          "to": "n5"
+        },
+        {
+          "from": "n5",
+          "to": "n6"
+        },
+        {
+          "from": "n6",
+          "to": "n7"
+        },
+        {
+          "from": "n7",
+          "to": "n8"
+        },
+        {
+          "from": "n8",
+          "to": "n9"
+        },
+        {
+          "from": "n9",
+          "to": "n10"
+        },
+        {
+          "from": "n10",
+          "to": "n11"
+        },
+        {
+          "from": "n11",
+          "to": "n12"
+        },
+        {
+          "from": "n12",
+          "to": "n13"
+        },
+        {
+          "from": "n13",
+          "to": "n14"
+        },
+        {
+          "from": "n14",
+          "to": "n15"
+        },
+        {
+          "from": "n15",
+          "to": "n16"
+        },
+        {
+          "from": "n16",
+          "to": "n17"
+        },
+        {
+          "from": "n17",
+          "to": "n18"
+        },
+        {
+          "from": "n18",
+          "to": "n19"
+        },
+        {
+          "from": "n19",
+          "to": "n20"
+        },
+        {
+          "from": "n20",
+          "to": "n21"
+        },
+        {
+          "from": "n21",
+          "to": "n22"
+        },
+        {
+          "from": "n22",
+          "to": "n23"
+        },
+        {
+          "from": "n23",
+          "to": "n24"
+        },
+        {
+          "from": "n24",
+          "to": "n25"
+        },
+        {
+          "from": "n25",
+          "to": "n26"
+        },
+        {
+          "from": "n26",
+          "to": "n27"
+        },
+        {
+          "from": "n27",
+          "to": "n28"
+        },
+        {
+          "from": "n28",
+          "to": "n29"
+        },
+        {
+          "from": "n29",
+          "to": "n30"
+        },
+        {
+          "from": "n30",
+          "to": "n31"
+        },
+        {
+          "from": "n31",
+          "to": "n32"
+        },
+        {
+          "from": "n32",
+          "to": "n33"
+        },
+        {
+          "from": "n33",
+          "to": "n34"
+        },
+        {
+          "from": "n34",
+          "to": "n35"
+        },
+        {
+          "from": "n35",
+          "to": "n36"
+        },
+        {
+          "from": "n36",
+          "to": "n37"
+        },
+        {
+          "from": "n37",
+          "to": "n38"
+        },
+        {
+          "from": "n38",
+          "to": "n39"
+        },
+        {
+          "from": "n39",
+          "to": "n40"
+        },
+        {
+          "from": "n40",
+          "to": "n41"
+        },
+        {
+          "from": "n41",
+          "to": "n42"
+        },
+        {
+          "from": "n42",
+          "to": "n43"
+        },
+        {
+          "from": "n43",
+          "to": "n44"
+        },
+        {
+          "from": "n44",
+          "to": "n45"
+        },
+        {
+          "from": "n45",
+          "to": "n46"
+        },
+        {
+          "from": "n46",
+          "to": "n47"
+        },
+        {
+          "from": "n47",
+          "to": "n48"
+        },
+        {
+          "from": "n48",
+          "to": "n49"
+        },
+        {
+          "from": "n49",
+          "to": "n50"
+        },
+        {
+          "from": "n50",
+          "to": "n51"
+        },
+        {
+          "from": "n51",
+          "to": "n52"
+        },
+        {
+          "from": "n52",
+          "to": "n53"
+        },
+        {
+          "from": "n53",
+          "to": "n54"
+        },
+        {
+          "from": "n54",
+          "to": "n55"
+        },
+        {
+          "from": "n55",
+          "to": "n56"
+        },
+        {
+          "from": "n56",
+          "to": "n57"
+        },
+        {
+          "from": "n57",
+          "to": "n58"
+        },
+        {
+          "from": "n58",
+          "to": "n59"
+        },
+        {
+          "from": "n59",
+          "to": "n60"
+        },
+        {
+          "from": "n60",
+          "to": "n61"
+        },
+        {
+          "from": "n61",
+          "to": "end"
+        }
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "name": "A0",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 2
+      }
+    },
+    {
+      "name": "A1",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 3
+      }
+    },
+    {
+      "name": "A2",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 4
+      }
+    },
+    {
+      "name": "A3",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 5
+      }
+    },
+    {
+      "name": "A4",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 6
+      }
+    },
+    {
+      "name": "A5",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 7
+      }
+    },
+    {
+      "name": "A6",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 8
+      }
+    },
+    {
+      "name": "A7",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 9
+      }
+    },
+    {
+      "name": "A8",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 10
+      }
+    },
+    {
+      "name": "A9",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 11
+      }
+    },
+    {
+      "name": "A10",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 12
+      }
+    },
+    {
+      "name": "A11",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 13
+      }
+    },
+    {
+      "name": "A12",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 14
+      }
+    },
+    {
+      "name": "A13",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 15
+      }
+    },
+    {
+      "name": "A14",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 16
+      }
+    },
+    {
+      "name": "A15",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 17
+      }
+    },
+    {
+      "name": "A16",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 18
+      }
+    },
+    {
+      "name": "A17",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 19
+      }
+    },
+    {
+      "name": "A18",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 20
+      }
+    },
+    {
+      "name": "A19",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 21
+      }
+    },
+    {
+      "name": "A20",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 22
+      }
+    },
+    {
+      "name": "A21",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 23
+      }
+    },
+    {
+      "name": "A22",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 24
+      }
+    },
+    {
+      "name": "A23",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 25
+      }
+    },
+    {
+      "name": "A24",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 26
+      }
+    },
+    {
+      "name": "A25",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 27
+      }
+    },
+    {
+      "name": "A26",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 28
+      }
+    },
+    {
+      "name": "A27",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 29
+      }
+    },
+    {
+      "name": "A28",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 30
+      }
+    },
+    {
+      "name": "A29",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 31
+      }
+    },
+    {
+      "name": "A30",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 32
+      }
+    },
+    {
+      "name": "A31",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 33
+      }
+    },
+    {
+      "name": "A32",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 34
+      }
+    },
+    {
+      "name": "A33",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 35
+      }
+    },
+    {
+      "name": "A34",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 36
+      }
+    },
+    {
+      "name": "A35",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 37
+      }
+    },
+    {
+      "name": "A36",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 38
+      }
+    },
+    {
+      "name": "A37",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 39
+      }
+    },
+    {
+      "name": "A38",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 40
+      }
+    },
+    {
+      "name": "A39",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 41
+      }
+    },
+    {
+      "name": "A40",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 42
+      }
+    },
+    {
+      "name": "A41",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 43
+      }
+    },
+    {
+      "name": "A42",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 44
+      }
+    },
+    {
+      "name": "A43",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 45
+      }
+    },
+    {
+      "name": "A44",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 46
+      }
+    },
+    {
+      "name": "A45",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 47
+      }
+    },
+    {
+      "name": "A46",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 48
+      }
+    },
+    {
+      "name": "A47",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 49
+      }
+    },
+    {
+      "name": "A48",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 50
+      }
+    },
+    {
+      "name": "A49",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 51
+      }
+    },
+    {
+      "name": "A50",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 52
+      }
+    },
+    {
+      "name": "A51",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 53
+      }
+    },
+    {
+      "name": "A52",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 54
+      }
+    },
+    {
+      "name": "A53",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 55
+      }
+    },
+    {
+      "name": "A54",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 56
+      }
+    },
+    {
+      "name": "A55",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 57
+      }
+    },
+    {
+      "name": "A56",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 58
+      }
+    },
+    {
+      "name": "A57",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 59
+      }
+    },
+    {
+      "name": "A58",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 60
+      }
+    },
+    {
+      "name": "A59",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/many.loom",
+        "line": 61
+      }
+    }
+  ],
+  "diagnostics": [ ]
+}

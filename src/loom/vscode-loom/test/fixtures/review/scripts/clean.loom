@@ -1,0 +1,6 @@
+budget { tokens: 20000  calls: 10 }
+agent Helper { model: "gemini-2.5-flash"  system: "Answer briefly."  temperature: 0.2 }
+workflow Main(question) {
+    delegate "{question}" to Helper -> answer_text retry 2 backoff 2s timeout 30s
+    return answer_text
+}

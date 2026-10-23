@@ -1,0 +1,16 @@
+tool Mailer { use: email  outbox: "outbox"  from: "a@example.com"  to: "b@example.com" }
+intentclassifier Intent {
+    model: "claude-opus-5-5"
+    choose kind: order_status | refund | other
+    ask urgent: "Is the customer threatening to leave?"
+}
+agent Replier { model: "claude-haiku-5-5"  system: "Answer the customer politely."  tools: [Mailer] }
+workflow Main(message) {
+    intentclassify Intent on message -> intent
+    alt (intent.kind == "order_status") {
+        delegate "Reply to: {message}" to Replier -> reply
+        return reply
+    } else {
+        return "escalated"
+    }
+}

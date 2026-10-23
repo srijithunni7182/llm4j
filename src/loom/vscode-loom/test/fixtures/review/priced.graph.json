@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "entry": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/priced.loom",
+  "files": [
+    {
+      "path": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/priced.loom",
+      "imports": [ ]
+    }
+  ],
+  "workflows": [
+    {
+      "name": "Main",
+      "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/priced.loom",
+      "line": 8,
+      "params": [
+        "message"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "kind": "start",
+          "label": "Start"
+        },
+        {
+          "id": "n1",
+          "kind": "classify",
+          "label": "classify Intent",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/priced.loom",
+            "line": 9
+          },
+          "attrs": {
+            "classifier": "Intent",
+            "variable": "intent",
+            "model": "claude-opus-5-5",
+            "backend": "chat",
+            "uncalibrated": true,
+            "questions": 2,
+            "labels": [
+              "kind: order_status | refund | other"
+            ]
+          }
+        },
+        {
+          "id": "n2",
+          "kind": "alt",
+          "label": "intent.kind==order_status?",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/priced.loom",
+            "line": 10
+          },
+          "attrs": {
+            "condition": "intent.kind==order_status"
+          }
+        },
+        {
+          "id": "n3",
+          "kind": "delegate",
+          "label": "delegate Replier",
+          "agent": "Replier",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/priced.loom",
+            "line": 11
+          },
+          "parent": "n2",
+          "branch": "then",
+          "attrs": {
+            "variable": "reply",
+            "text": "Reply to: {message}"
+          }
+        },
+        {
+          "id": "n4",
+          "kind": "return",
+          "label": "return",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/priced.loom",
+            "line": 12
+          },
+          "parent": "n2",
+          "branch": "then"
+        },
+        {
+          "id": "n5",
+          "kind": "return",
+          "label": "return",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/priced.loom",
+            "line": 14
+          },
+          "parent": "n2",
+          "branch": "else"
+        },
+        {
+          "id": "end",
+          "kind": "end",
+          "label": "End"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "n1"
+        },
+        {
+          "from": "n1",
+          "to": "n2"
+        },
+        {
+          "from": "n2",
+          "to": "n3",
+          "label": "then"
+        },
+        {
+          "from": "n3",
+          "to": "n4"
+        },
+        {
+          "from": "n4",
+          "to": "end"
+        },
+        {
+          "from": "n2",
+          "to": "n5",
+          "label": "else"
+        },
+        {
+          "from": "n5",
+          "to": "end"
+        }
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "name": "Replier",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Mailer"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/priced.loom",
+        "line": 7
+      }
+    }
+  ],
+  "diagnostics": [ ]
+}

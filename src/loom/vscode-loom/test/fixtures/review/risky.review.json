@@ -1,0 +1,377 @@
+{
+  "version" : 1,
+  "file" : "risky.loom",
+  "summary" : {
+    "total" : 10,
+    "accepted" : 0,
+    "baselined" : 0,
+    "high" : 3,
+    "medium" : 5,
+    "low" : 2,
+    "info" : 0,
+    "lenses" : {
+      "ran" : [ "security", "privacy", "durability", "reliability", "cost", "validity", "prompts", "observability" ],
+      "off" : [ "testability", "governance", "maintainability", "oversight", "blast-radius" ]
+    }
+  },
+  "findings" : [ {
+    "rule" : "LA01",
+    "fingerprint" : "70fade768fb7d3d7",
+    "lens" : "security",
+    "severity" : "high",
+    "location" : {
+      "file" : "risky.loom",
+      "line" : 4,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : null
+    },
+    "title" : "One agent holds the lethal trifecta with an open way out",
+    "why" : "Replier reads untrusted content (Crm), reaches private data (Shell) and can send or act (Mailer, Shell). Text it reads can tell it to send your data out, and nothing stops Mailer, Shell.",
+    "fixHint" : "Split the work: one agent reads the outside world, another touches your data, a third sends; connect them with expecting { ... }.",
+    "owasp" : [ "LLM01", "LLM02", "LLM06" ],
+    "related" : [ ],
+    "source" : "audit"
+  }, {
+    "rule" : "LV09",
+    "fingerprint" : "e60e673a8d07e559",
+    "lens" : "validity",
+    "severity" : "high",
+    "location" : {
+      "file" : "risky.loom",
+      "line" : 3,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : null
+    },
+    "title" : "tool Shell: unknown option command for use: shell; it takes [allow, allow_interpreters, cwd, env_pass, max_output, on_unknown, timeout, unattended]",
+    "why" : "An option has a value the engine does not accept, a required option is missing, or two options contradict each other. The script does not pass weave check, so it will not run as written.",
+    "fixHint" : "Change the setting as the message says; weave check explains each one.",
+    "owasp" : [ ],
+    "related" : [ ],
+    "source" : "validator"
+  }, {
+    "rule" : "LV00",
+    "fingerprint" : "9205ca2fdd521926",
+    "lens" : "validity",
+    "severity" : "high",
+    "location" : {
+      "file" : "risky.loom",
+      "line" : 4,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : null
+    },
+    "title" : "agent Replier: tool Shell runs programs on this machine: add it to Replier's approve: list, or set unattended: true on the tool if nobody should be asked",
+    "why" : "The script does not pass weave check, so it will not run as written.",
+    "fixHint" : "Fix what the message describes, then run weave check again.",
+    "owasp" : [ ],
+    "related" : [ ],
+    "source" : "validator"
+  }, {
+    "rule" : "LA03",
+    "fingerprint" : "9067f6aecf948fb6",
+    "lens" : "security",
+    "severity" : "medium",
+    "location" : {
+      "file" : "risky.loom",
+      "line" : 0,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : null
+    },
+    "title" : "No run budget",
+    "why" : "Nothing caps what one run may spend: a loop or a manipulated agent can keep calling models.",
+    "fixHint" : "Add a run budget at the top of the script, e.g. budget { tokens: 200000  calls: 150 }.",
+    "owasp" : [ "LLM10" ],
+    "related" : [ ],
+    "source" : "audit"
+  }, {
+    "rule" : "LA02",
+    "fingerprint" : "000b5300728a14b5",
+    "lens" : "security",
+    "severity" : "medium",
+    "location" : {
+      "file" : "risky.loom",
+      "line" : 4,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : null
+    },
+    "title" : "An effect with no approval",
+    "why" : "Mailer (mails fixed recipients) runs whenever Replier decides to call it.",
+    "fixHint" : "Add approve: [Mailer] to Replier, or narrow the tool so it cannot change anything.",
+    "owasp" : [ "LLM06" ],
+    "related" : [ ],
+    "source" : "audit"
+  }, {
+    "rule" : "LR01",
+    "fingerprint" : "87dd97e8ebae8e1f",
+    "lens" : "reliability",
+    "severity" : "medium",
+    "location" : {
+      "file" : "risky.loom",
+      "line" : 10,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : "n1"
+    },
+    "title" : "delegate Replier has a tool but no retry or timeout",
+    "why" : "A tool call can fail or hang. Without a retry and a timeout one slow or failing call stalls or ends the whole run.",
+    "fixHint" : "Add a retry and a timeout to this step.",
+    "owasp" : [ ],
+    "related" : [ ],
+    "source" : "pack core@1.7.0",
+    "options" : [ {
+      "id" : "retry-timeout",
+      "label" : "Retry and time out",
+      "explain" : "A failed or slow call is tried again, up to the number of tries, then the step fails. If the agent writes or sends, a retry can repeat the action.",
+      "safety" : "review",
+      "ask" : [ {
+        "name" : "policy",
+        "prompt" : "Retry policy",
+        "default" : "retry 2 backoff 2s timeout 60s"
+      } ],
+      "showReferences" : false
+    }, {
+      "id" : "timeout-only",
+      "label" : "Time out only, no retry",
+      "explain" : "A call that takes too long is cut off and the step fails once; nothing is repeated. The right choice when the agent sends or writes.",
+      "safety" : "safe",
+      "ask" : [ {
+        "name" : "seconds",
+        "prompt" : "Time out after how many seconds",
+        "default" : "60"
+      } ],
+      "showReferences" : false
+    } ],
+    "fix" : {
+      "safety" : "review",
+      "label" : "Add retry and timeout",
+      "edits" : [ {
+        "file" : "risky.loom",
+        "startLine" : 10,
+        "startColumn" : 71,
+        "endLine" : 10,
+        "endColumn" : 71,
+        "newText" : " retry 2 backoff 2s timeout 60s"
+      } ]
+    }
+  }, {
+    "rule" : "LR02",
+    "fingerprint" : "10cb720f82e56c3f",
+    "lens" : "reliability",
+    "severity" : "medium",
+    "location" : {
+      "file" : "risky.loom",
+      "line" : 10,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : "n1"
+    },
+    "title" : "delegate Replier can write or send but has no on_failure",
+    "why" : "When a step that acts on the outside world fails half way, nothing decides what happens next: the run ends with the effect done, undone or unknown.",
+    "fixHint" : "Add an on_failure block that records the failure and asks a person what to do.",
+    "owasp" : [ ],
+    "related" : [ ],
+    "source" : "pack core@1.7.0",
+    "options" : [ {
+      "id" : "note",
+      "label" : "Record the failure and carry on",
+      "explain" : "The failure is written to the run's notes and the workflow continues with the next step. Only right if later steps can work without this one's result.",
+      "safety" : "review",
+      "ask" : [ {
+        "name" : "message",
+        "prompt" : "What the note should say",
+        "default" : "this step failed"
+      } ],
+      "showReferences" : false
+    }, {
+      "id" : "human",
+      "label" : "Ask a person what to do",
+      "explain" : "The run pauses and a person is asked; their answer is kept in a variable. Use this when the failure leaves something half done that only a person can judge.",
+      "safety" : "review",
+      "ask" : [ {
+        "name" : "message",
+        "prompt" : "What to ask the person",
+        "default" : "This step failed. Check it, then answer done."
+      }, {
+        "name" : "variable",
+        "prompt" : "Variable that keeps their answer",
+        "default" : "checked"
+      } ],
+      "showReferences" : false
+    } ],
+    "fix" : {
+      "safety" : "review",
+      "label" : "Add an on_failure block that records the failure",
+      "edits" : [ {
+        "file" : "risky.loom",
+        "startLine" : 10,
+        "startColumn" : 71,
+        "endLine" : 10,
+        "endColumn" : 71,
+        "newText" : " on_failure { note \"this step failed\" }"
+      } ]
+    }
+  }, {
+    "rule" : "LP07",
+    "fingerprint" : "8f3a90530132a127",
+    "lens" : "prompts",
+    "severity" : "medium",
+    "location" : {
+      "file" : "risky.loom",
+      "line" : 10,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : "n1"
+    },
+    "title" : "The text of delegate Replier contains the variable name 'ticket', which Loom fills in",
+    "why" : "Loom replaces a bare variable name wherever it appears in the text a script wrote, even inside another word. A variable called r rewrites every r in the sentence with the variable's value, which changes the prompt and can make it huge.",
+    "fixHint" : "Rename the variable to a longer name that does not occur in the text, and put the value in curly braces around its name.",
+    "owasp" : [ ],
+    "related" : [ ],
+    "source" : "pack core@1.7.0"
+  }, {
+    "rule" : "LA04",
+    "fingerprint" : "557f6eac89f9cc5b",
+    "lens" : "security",
+    "severity" : "low",
+    "location" : {
+      "file" : "risky.loom",
+      "line" : 4,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : null
+    },
+    "title" : "Private data with no PII guard",
+    "why" : "Replier reaches Shell and sends what it sees to its model with personal data unmasked.",
+    "fixHint" : "Add guard { pii: mask } (or pii: block where personal data must never reach the model).",
+    "owasp" : [ "LLM02" ],
+    "related" : [ ],
+    "source" : "audit"
+  }, {
+    "rule" : "LV00",
+    "fingerprint" : "961e08cb468b29d6",
+    "lens" : "validity",
+    "severity" : "low",
+    "location" : {
+      "file" : "risky.loom",
+      "line" : 10,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : null
+    },
+    "title" : "workflow Main: the variable ticket is also written as an ordinary word here, and the word is replaced by the variable's value; rename the variable (for example ticket_text)",
+    "why" : "weave check accepts the script but warns about this.",
+    "fixHint" : "Fix what the message describes, then run weave check again.",
+    "owasp" : [ ],
+    "related" : [ ],
+    "source" : "validator"
+  } ],
+  "cost" : {
+    "workflows" : [ {
+      "name" : "Main",
+      "typical" : {
+        "calls" : 3,
+        "tokensIn" : 2322,
+        "tokensOut" : 1050,
+        "money" : null,
+        "unpriced" : [ "claude-haiku-5-5" ]
+      },
+      "worst" : {
+        "calls" : 10,
+        "tokensIn" : 123740,
+        "tokensOut" : 20000,
+        "money" : null,
+        "unpriced" : [ "claude-haiku-5-5" ]
+      },
+      "steps" : [ {
+        "line" : 10,
+        "label" : "delegate Replier",
+        "model" : "claude-haiku-5-5",
+        "typicalRuns" : 1,
+        "worstRuns" : 1,
+        "typical" : {
+          "calls" : 3,
+          "tokensIn" : 2322,
+          "tokensOut" : 1050,
+          "money" : null,
+          "unpriced" : [ "claude-haiku-5-5" ]
+        },
+        "worst" : {
+          "calls" : 10,
+          "tokensIn" : 123740,
+          "tokensOut" : 20000,
+          "money" : null,
+          "unpriced" : [ "claude-haiku-5-5" ]
+        }
+      } ],
+      "notes" : [ ],
+      "time" : {
+        "typicalMs" : 12000,
+        "worst" : {
+          "ms" : 40000
+        },
+        "criticalPath" : [ "line 10 delegate Replier" ],
+        "waits" : [ ],
+        "sleepMs" : 0,
+        "assumptions" : {
+          "assume.react.max" : 10,
+          "assume.latency.tool" : 2,
+          "assume.latency.small" : 2,
+          "assume.effects.calls" : 1,
+          "assume.react.rounds" : 3
+        }
+      },
+      "effects" : {
+        "sends" : {
+          "typical" : 1,
+          "worst" : 10
+        },
+        "writes" : {
+          "typical" : 0,
+          "worst" : 0
+        }
+      }
+    } ],
+    "assumptions" : {
+      "assume.output.max" : 2000,
+      "assume.variable.tokens" : 100,
+      "assume.variable.max" : 2000,
+      "assume.react.rounds" : 3,
+      "assume.react.max" : 10,
+      "assume.output.tokens" : 350,
+      "assume.tool.result.tokens" : 300
+    },
+    "prices" : null,
+    "unpriced" : [ "claude-haiku-5-5" ],
+    "estimate" : true
+  },
+  "suppressed" : [ ],
+  "accepted" : [ ],
+  "baselined" : [ ],
+  "notes" : [ {
+    "kind" : "not_evaluated",
+    "rule" : "LC01",
+    "message" : "LC01 was not evaluated: data.top-models is not declared in review.properties"
+  }, {
+    "kind" : "not_evaluated",
+    "rule" : "LC03",
+    "message" : "LC03 was not evaluated: data.top-models is not declared in review.properties"
+  }, {
+    "kind" : "not_evaluated",
+    "rule" : "LD01",
+    "message" : "LD01 was not evaluated: journal is not declared in review.properties"
+  } ]
+}

@@ -1,0 +1,126 @@
+{
+  "version" : 1,
+  "file" : "scriptlevel.loom",
+  "summary" : {
+    "total" : 1,
+    "accepted" : 0,
+    "baselined" : 0,
+    "high" : 0,
+    "medium" : 1,
+    "low" : 0,
+    "info" : 0,
+    "lenses" : {
+      "ran" : [ "security", "privacy", "durability", "reliability", "cost", "validity", "prompts", "observability" ],
+      "off" : [ "testability", "governance", "maintainability", "oversight", "blast-radius" ]
+    }
+  },
+  "findings" : [ {
+    "rule" : "LA03",
+    "fingerprint" : "9067f6aecf948fb6",
+    "lens" : "security",
+    "severity" : "medium",
+    "location" : {
+      "file" : "scriptlevel.loom",
+      "line" : 0,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : null
+    },
+    "title" : "No run budget",
+    "why" : "Nothing caps what one run may spend: a loop or a manipulated agent can keep calling models.",
+    "fixHint" : "Add a run budget at the top of the script, e.g. budget { tokens: 200000  calls: 150 }.",
+    "owasp" : [ "LLM10" ],
+    "related" : [ ],
+    "source" : "audit"
+  } ],
+  "cost" : {
+    "workflows" : [ {
+      "name" : "Main",
+      "typical" : {
+        "calls" : 1,
+        "tokensIn" : 105,
+        "tokensOut" : 350,
+        "money" : null,
+        "unpriced" : [ "gemini-2.5-flash" ]
+      },
+      "worst" : {
+        "calls" : 1,
+        "tokensIn" : 2005,
+        "tokensOut" : 2000,
+        "money" : null,
+        "unpriced" : [ "gemini-2.5-flash" ]
+      },
+      "steps" : [ {
+        "line" : 3,
+        "label" : "delegate Helper",
+        "model" : "gemini-2.5-flash",
+        "typicalRuns" : 1,
+        "worstRuns" : 1,
+        "typical" : {
+          "calls" : 1,
+          "tokensIn" : 105,
+          "tokensOut" : 350,
+          "money" : null,
+          "unpriced" : [ "gemini-2.5-flash" ]
+        },
+        "worst" : {
+          "calls" : 1,
+          "tokensIn" : 2005,
+          "tokensOut" : 2000,
+          "money" : null,
+          "unpriced" : [ "gemini-2.5-flash" ]
+        }
+      } ],
+      "notes" : [ ],
+      "time" : {
+        "typicalMs" : 2000,
+        "worst" : {
+          "ms" : 2000
+        },
+        "criticalPath" : [ "line 3 delegate Helper" ],
+        "waits" : [ ],
+        "sleepMs" : 0,
+        "assumptions" : {
+          "assume.effects.calls" : 1,
+          "assume.latency.small" : 2
+        }
+      },
+      "effects" : {
+        "sends" : {
+          "typical" : 0,
+          "worst" : 0
+        },
+        "writes" : {
+          "typical" : 0,
+          "worst" : 0
+        }
+      }
+    } ],
+    "assumptions" : {
+      "assume.output.tokens" : 350,
+      "assume.output.max" : 2000,
+      "assume.variable.tokens" : 100,
+      "assume.variable.max" : 2000
+    },
+    "prices" : null,
+    "unpriced" : [ "gemini-2.5-flash" ],
+    "estimate" : true
+  },
+  "suppressed" : [ ],
+  "accepted" : [ ],
+  "baselined" : [ ],
+  "notes" : [ {
+    "kind" : "not_evaluated",
+    "rule" : "LC01",
+    "message" : "LC01 was not evaluated: data.top-models is not declared in review.properties"
+  }, {
+    "kind" : "not_evaluated",
+    "rule" : "LC03",
+    "message" : "LC03 was not evaluated: data.top-models is not declared in review.properties"
+  }, {
+    "kind" : "not_evaluated",
+    "rule" : "LD01",
+    "message" : "LD01 was not evaluated: journal is not declared in review.properties"
+  } ]
+}

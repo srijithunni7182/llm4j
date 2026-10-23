@@ -1,0 +1,5 @@
+agent Helper { model: "gemini-2.5-flash"  system: "Answer briefly." }
+workflow Main(question) {
+    delegate "{question}" to Helper -> answer_text
+    return answer_text
+}

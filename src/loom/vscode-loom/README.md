@@ -98,6 +98,22 @@ Type a keyword in a `.loom` file and press Tab to get the whole statement with i
 
 **Loom: Install the Loom Skill in This Project** writes the agent skill and the guide into `.claude/skills/llm4j-workflow-guide` in the folder you have open, so an AI coding agent that reads the project knows the path. It asks before it replaces an older copy.
 
+## Review
+
+**Loom: Review Workflow** (the command palette, the editor title bar, the editor and Explorer context menus, or the *Review* link above a workflow) opens the Loom Review panel beside the script. It shows what `weave review` finds, with the workflow graph next to it:
+
+- **Summary strip:** open findings by severity, the cost of one run (typical and worst case; money when the models have prices, tokens when they do not, and it says which), the time, the worst-case sends and writes, how many lenses ran, and a **trifecta present** chip when an agent has the lethal trifecta.
+- **Graph:** each step carries its open findings (a number, a glyph and a word, never colour alone) and the typical cost of the step. Click a step to list only its findings; click again to list all.
+- **Findings:** grouped by severity and then lens (or by lens, rule or file), in the engine's order. Click one to see why it matters and what would fix it, to select its step in the graph, and to jump to its line in the editor. Move the cursor in the script and the finding on that line is selected. Filter by text, rule, lens or file; the **Findings | Both | Graph** switch gives one half the whole panel; on a narrow panel the graph stacks above the findings.
+- **Stale and running:** the moment you edit, the result shows a *stale* chip; while a new review runs the old one stays, dimmed. It never clears to an empty list.
+- **Rules not evaluated** (because a fact they need is not declared) are counted in the strip and listed on request, not hidden.
+
+The same findings appear as squiggles and in the Problems panel (source `loom-review`, the rule id as the code; the worst are warnings, the rest information and hints, never errors), as a **status-bar** count of the active script (`Loom ⚠ 3 high · 5 medium · $0.004/run`, or `Loom ✓`), and as a **CodeLens** above each workflow (`Review: 2 high · ~$0.004 typical / $0.06 worst`, then Graph and Run).
+
+**Findings never get in the way.** Run, the Run link and every other command start at once whatever the review says. If a script you run has open findings, a quiet message offers *Review* once for that version of the script; *Don't show again for this workspace* turns it off. Nothing in the palette depends on a clean review.
+
+By default the review runs when you open or save a script. The *on* review setting (see Settings) can run the validity lens while you type (`type`), or only when asked (`manual`).
+
 ## The engine
 
 The extension starts one long-lived Loom engine per window (`weave serve`) and asks it for checks and graphs, so feedback does not wait for a Java process to start. It runs nothing and writes nothing, and it reads only the folders you have open. If it cannot start (no Java, a missing `weave.jar`), or stops repeatedly, the extension falls back to running `weave` for each request and the status bar says so once (**Loom: engine unavailable (using commands)**). **Loom: Restart Engine** starts it again, and **Loom: Show Engine Log** shows what it wrote. The protocol is documented in `docs/serve/PROTOCOL.md`.
@@ -114,6 +130,12 @@ A key that is not set yet (such as `GEMINI_API_KEY`) is not reported as a proble
 |---|---|---|
 | `loom.javaPath` | `java` | The Java executable used to run `weave.jar` (the engine, checks and graphs); if only the older `loom.graph.javaPath` is set, that one is used |
 | `loom.graph.javaPath` | `java` | The older name of the same setting, still honoured |
+| `loom.review.on` | `save` | When the review runs by itself: after a save, while typing (the validity lens only), or only when you ask (`manual`) |
+| `loom.review.lenses` | `` | Which lenses run, as `weave review --lens` takes them; empty uses the project's `review.properties` |
+| `loom.review.minSeverity` | `low` | The lowest severity shown as a squiggle and in the Problems panel |
+| `loom.review.codeLens` | `true` | Findings and cost above each workflow |
+| `loom.review.statusBar` | `true` | Open findings and typical cost of the active script in the status bar |
+| `loom.review.failOn` | `high` | Colour the status bar when findings at or above this severity are open; it never stops Run |
 | `loom.graph.timeoutMs` | `30000` | How long to wait for `weave graph` before stopping it |
 | `loom.graph.autoRefresh` | `true` | Redraw when the script or a file it imports is saved |
 
