@@ -50,14 +50,14 @@ Status: **10a done** (`weave serve`, the engine client, check and graph through 
 | R17 | `applyFix.integration.test.ts`, `ServeIsStaticTest` (server writes nothing: ✅ 10a) | ✅ 10c (editor applies) |
 | R18 | `ServeStdioTest` (real process) | ✅ 10a |
 | R19 | `degraded.test.ts` | ⬜ 10e |
-| R20 | `SymbolsTest` | ⬜ 10d |
-| R21 | `SymbolsRangesTest` | ⬜ 10d |
-| R22 | `semantic*.test.ts`, `degraded.test.ts` | ⬜ 10d |
-| R23 | `renameAtomic.test.ts` | ⬜ 10d |
-| R24 | `semanticCompletion.test.ts` (every suggestion passes `check`) | ⬜ 10d |
-| R25 | `parserParity.test.ts` | ⬜ 10d |
-| R26 | `latency.test.ts` | ⬜ 10e |
-| R27 | `SymbolsRecoveryTest` | ⬜ 10d |
+| R20 | `SymbolsTest` | ✅ 10d |
+| R21 | `SymbolsRangesTest` | ✅ 10d |
+| R22 | `semantic*.test.ts`, `degraded.test.ts` | 🟨 10d (the older answers stay as the fallback; degraded-mode wiring is checked by hand in 10e) |
+| R23 | `renameAtomic.test.ts` | ✅ 10d |
+| R24 | `semanticCompletion.test.ts` (every suggestion passes `check`) | ✅ 10d |
+| R25 | `parserParity.test.ts` | ✅ 10d |
+| R26 | `latency.test.ts` | 🟨 10d: `loom/symbols` p50 5 ms, p95 15 ms measured (`semantic.integration.test.ts`); the gates for all features are 10e |
+| R27 | `SymbolsRecoveryTest` | ✅ 10d |
 | R28 | `engineClient.test.ts`, `engineRouting.test.ts` (providers take the interface; `FakeEngine`) | ✅ 10a |
 | R29 | `review.browser.test.js` (hostile text, 10,000-character title, nothing from outside), `manifest.test.ts` (no innerHTML and the like) | ✅ 10b (`a11y` and the 200 % zoom pass in 10e) |
 | R30 | `review.browser.test.js` (page state holds layout, group, filter, folds), `ReviewPanel.revive` for a reloaded window | 🟨 10b: reload restore is wired and manual-checked |
@@ -147,3 +147,13 @@ Extension README and CHANGELOG; `docs/serve/PROTOCOL.md`; wiki "Loom in VS Code"
 - Tests: Java module 2,858, 0 failures. Extension: 509 pass, 6 fail (the same six that failed before phase 10).
 - Still partial: R7 "Enable lens" and "Show suppressed" buttons.
 - **Manual check owed (VS Code):** to be given once, after 10e, with the VSIX.
+
+### 10d (2026-10-23)
+
+- Built (Java): `weave symbols` and `loom/symbols` (package `symbols`): definitions of agents, workflows, tools, classifiers, personas, providers, decisions, mcp/knowledge/routing blocks, checkpoints and prompt files; uses with their role; variables with types (a classifier's record with its enum labels including `unsure`, an agent's `output_schema`, a delegate's `expecting`, a decision's choices, `unknown` otherwise); workflow scopes; `extent` for outlines. Ranges are UTF-16, tested with emoji, tabs and CRLF. Error recovery: a stray character, an unterminated string, a broken or unclosed block are set aside and the rest is read again. `buffers` lets the editor send every other changed file so an import being edited is read as it is. Two lexer fixes the index needed (and any error message that quotes a column benefits from): columns on the first line were 0-based while the others were 1-based, and a token after a multi-line string was one column off; a string token's line is now the line it starts on.
+- Built (extension): `src/semantic/` (pure: `queries`, `completion`, `hover`, `answers`; glue: `vscodeSemantic`). Definition, references, rename (prepare, all-or-nothing, prompt files renamed with their id after a confirmation), completion (agents after `to`, checkpoints after `rewind to`, workflows, classifiers, decisions, tools, `intent.` fields with types, enum values after `==`, variables in conditions and `{placeholders}`), hover (agent model/tools/schema, workflow signature, classifier record, variable type and origin, a field's type, the allowed values of an enum comparison with a warning for a value it never has), outline (blocks, checkpoints, variables) and signature help at `call Name(`. Definition, hover and completion go through the language client's middleware so the older answer is the fallback; the setting `loom.semantic.enable` turns the new answers off.
+- R25: `parserParity.test.ts` compares the frozen TypeScript parser with the Java index on **322 scripts**; 8 differences are committed in `test/fixtures/parity/parser-delta.json`, all the TypeScript parser reading the words "agent changes" in a ladder as an agent (Java is right). The TypeScript scanner's `|` rejection (pre-existing failure) is fixed in passing; its diagnostics are not shown to users, so nothing visible changed.
+- R24 (strong form): `semantic.integration.test.ts` takes every suggestion in nine contexts from the real engine, puts it into a statement, and asks `loom/check`: none adds an error (more than 25 suggestions checked).
+- Tests: Java module +40 (`SymbolsTest`, `SymbolsRangesTest`, `SymbolsRecoveryTest`, `SymbolsParityTest` over every repository script, `ServeSymbolsTest`, stall tests in `ServeRobustnessTest`). Extension: 564 pass, 5 fail (the pre-existing five: logo script path ×2, renderer-copy sync ×2, one real-graph path test).
+- Not done in 10d: CodeLens reference counts, semantic tokens and folding (the table in DESIGN §5.2 lists them; neither has a requirement or a test row), and hover's "typical cost per call" (the cost model is in the review; wired in 10e with the latency gates). Renaming a versioned prompt (`name@v2`) or an import is refused with the reason, since it is a folder or file rename.
+- **Manual check owed (VS Code):** F12 on an agent in a delegate, on an imported agent, on a variable; Shift+F12 references; F2 rename of an agent used in two files and of a variable used in `{placeholders}`; try renaming to a keyword and to a taken name (refused, with the reason); `intent.` completion and `== ` values; hover over an agent, a variable and a field; Outline view; Ctrl+Shift+Space inside `call Name(`; switch `loom.semantic.enable` off and see the older behaviour return.

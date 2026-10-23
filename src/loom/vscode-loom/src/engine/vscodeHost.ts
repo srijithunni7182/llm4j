@@ -27,6 +27,12 @@ export function engineRoots(): string[] {
 }
 
 let host: EngineHost | undefined;
+let channel: vscode.OutputChannel | undefined;
+
+/** Writes a line to the "Loom Engine" output, for the parts of the extension that talk to the engine. */
+export function engineLog(line: string): void {
+    channel?.appendLine(line);
+}
 
 /** The window's engine host, once {@link registerEngine} has run. */
 export function engineHost(): EngineHost | undefined {
@@ -40,6 +46,7 @@ export function engineHost(): EngineHost | undefined {
 export function registerEngine(context: vscode.ExtensionContext): EngineHost {
     const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 90);
     const output = vscode.window.createOutputChannel('Loom Engine');
+    channel = output;
     const jar = context.asAbsolutePath(path.join('bin', 'weave.jar'));
     const env: EngineEnvironment = {
         javaPath: configuredJavaPath,

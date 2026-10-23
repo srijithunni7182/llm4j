@@ -89,7 +89,9 @@ public final class SymbolService {
                                 file,
                                 d.range(),
                                 d.scope(),
-                                detail(d, agents)));
+                                detail(d, agents),
+                                d.extent(),
+                                definitionType(d, agents, classifiers, decisions)));
                 defined.add(key);
             }
         }
@@ -115,6 +117,8 @@ public final class SymbolService {
                                         r.name(),
                                         prompt.toString(),
                                         new Range(0, 0, 0, 0),
+                                        null,
+                                        null,
                                         null,
                                         null));
                     references.add(
@@ -181,6 +185,38 @@ public final class SymbolService {
             case "binding" -> "binding:" + r.scope() + "/" + r.name();
             default -> r.kind() + ":" + r.name();
         };
+    }
+
+    /**
+     * What a definition produces: an agent's {@code output_schema}, a classifier's record, a
+     * decision's choices.
+     */
+    private static SymType definitionType(
+            FileIndexer.RawDef d,
+            Map<String, AgentDef> agents,
+            Map<String, IntentClassifierDef> classifiers,
+            Map<String, DecisionDef> decisions) {
+        switch (d.kind()) {
+            case "agent":
+                {
+                    AgentDef a = agents.get(d.name());
+                    return a == null || a.getOutputSchema() == null
+                            ? null
+                            : SymType.of(a.getOutputSchema());
+                }
+            case "classifier":
+                {
+                    IntentClassifierDef c = classifiers.get(d.name());
+                    return c == null ? null : classifierRecord(c);
+                }
+            case "decision":
+                {
+                    DecisionDef x = decisions.get(d.name());
+                    return x == null ? null : SymType.enumOf(x.getChoices());
+                }
+            default:
+                return null;
+        }
     }
 
     private static String detail(FileIndexer.RawDef d, Map<String, AgentDef> agents) {

@@ -290,11 +290,11 @@
         "waits" : [ ],
         "sleepMs" : 0,
         "assumptions" : {
-          "assume.latency.small" : 2,
-          "assume.effects.calls" : 1,
-          "assume.react.max" : 10,
-          "assume.latency.large" : 15,
           "assume.react.rounds" : 3,
+          "assume.latency.large" : 15,
+          "assume.react.max" : 10,
+          "assume.effects.calls" : 1,
+          "assume.latency.small" : 2,
           "assume.latency.tool" : 2
         }
       },
@@ -310,12 +310,12 @@
       }
     } ],
     "assumptions" : {
-      "assume.variable.tokens" : 100,
-      "assume.output.max" : 2000,
-      "assume.tool.result.tokens" : 300,
-      "assume.output.tokens" : 350,
-      "assume.react.max" : 10,
       "assume.react.rounds" : 3,
+      "assume.react.max" : 10,
+      "assume.output.tokens" : 350,
+      "assume.tool.result.tokens" : 300,
+      "assume.output.max" : 2000,
+      "assume.variable.tokens" : 100,
       "assume.variable.max" : 2000
     },
     "prices" : "priced.prices",

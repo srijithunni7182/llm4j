@@ -33,7 +33,8 @@ final class FileIndexer {
     /** A name used, before it is known to be defined. */
     record RawRef(String kind, String name, String role, Range range, boolean weak, String scope) {}
 
-    record RawDef(String kind, String name, Range range, String scope, String detail) {}
+    record RawDef(
+            String kind, String name, Range range, String scope, String detail, Range extent) {}
 
     record RawScope(String workflow, List<String> params, Range range) {}
 
@@ -158,9 +159,9 @@ final class FileIndexer {
         if (!isName(i + 1)) return i + 1;
         Token name = t.get(i + 1);
         int open = type(i + 2) == TokenType.LBRACE ? i + 2 : -1;
-        definitions.add(new RawDef(kind, name.getValue(), range(name), null, null));
+        int end = open < 0 ? i + 1 : blockEnd(open);
+        definitions.add(new RawDef(kind, name.getValue(), range(name), null, null, extent(i, end)));
         if (open < 0) return i + 2;
-        int end = blockEnd(open);
         if (agent) agentSettings(open, end);
         else if (kind.equals("classifier")) classifierSettings(open, end);
         return end + 1;
@@ -168,9 +169,10 @@ final class FileIndexer {
 
     private int decision(int i) {
         Token name = t.get(i + 1);
-        definitions.add(new RawDef("decision", name.getValue(), range(name), null, null));
         int open = i + 2;
         int end = blockEnd(open);
+        definitions.add(
+                new RawDef("decision", name.getValue(), range(name), null, null, extent(i, end)));
         for (int k = open + 1; k < end; k++) {
             if (isWord(k, "proposed")
                     && isWord(k + 1, "by")
@@ -287,7 +289,6 @@ final class FileIndexer {
         if (!isName(i + 1)) return i + 1;
         Token name = t.get(i + 1);
         String workflow = name.getValue();
-        definitions.add(new RawDef("workflow", workflow, range(name), null, null));
         int k = i + 2;
         List<String> params = new ArrayList<>();
         if (type(k) == TokenType.LPAREN) {
@@ -310,15 +311,13 @@ final class FileIndexer {
             }
             if (type(k) == TokenType.RPAREN) k++;
         }
-        if (type(k) != TokenType.LBRACE) return k;
+        if (type(k) != TokenType.LBRACE) {
+            definitions.add(new RawDef("workflow", workflow, range(name), null, null, range(name)));
+            return k;
+        }
         int end = blockEnd(k);
-        Token last = t.get(Math.min(end, t.size() - 1));
-        Range whole =
-                new Range(
-                        name.getLine() - 1,
-                        name.getColumn() - 1,
-                        last.getLine() - 1,
-                        last.getColumn() - 1 + (type(end) == TokenType.RBRACE ? 1 : width(last)));
+        Range whole = extent(i, end);
+        definitions.add(new RawDef("workflow", workflow, range(name), null, null, whole));
         scopes.add(new RawScope(workflow, params, whole));
         body(workflow, k + 1, end);
         return end + 1;
@@ -353,6 +352,7 @@ final class FileIndexer {
                                     value(i + 1),
                                     range(t.get(i + 1)),
                                     workflow,
+                                    null,
                                     null));
                     claimed.add(i + 1);
                 }
@@ -646,6 +646,14 @@ final class FileIndexer {
             if (type(k) == TokenType.RBRACE && --depth == 0) return k;
         }
         return Math.max(open, t.size() - 1);
+    }
+
+    /** From the keyword at {@code first} to the token {@code last} (a closing brace, usually). */
+    private Range extent(int first, int last) {
+        Token a = t.get(first);
+        Token b = t.get(Math.min(last, t.size() - 1));
+        return new Range(
+                a.getLine() - 1, a.getColumn() - 1, b.getLine() - 1, b.getColumn() - 1 + width(b));
     }
 
     private static Range range(Token token) {

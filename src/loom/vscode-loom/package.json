@@ -289,6 +289,11 @@
           "default": "high",
           "description": "Colour the status bar when findings at or above this severity are open. It never stops Run."
         },
+        "loom.semantic.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Answer go to definition, find references, rename, completion, hover, outline and signature help from the Loom engine (the language's own parser). Turn off to use only the older, simpler answers."
+        },
         "loom.graph.javaPath": {
           "type": "string",
           "default": "java",

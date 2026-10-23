@@ -150,6 +150,7 @@ A key that is not set yet (such as `GEMINI_API_KEY`) is not reported as a proble
 | `loom.review.codeLens` | `true` | Findings and cost above each workflow |
 | `loom.review.statusBar` | `true` | Open findings and typical cost of the active script in the status bar |
 | `loom.review.failOn` | `high` | Colour the status bar when findings at or above this severity are open; it never stops Run |
+| `loom.semantic.enable` | `true` | Answer go to definition, references, rename, completion, hover, outline and signature help from the engine; off keeps only the older answers |
 | `loom.graph.timeoutMs` | `30000` | How long to wait for `weave graph` before stopping it |
 | `loom.graph.autoRefresh` | `true` | Redraw when the script or a file it imports is saved |
 

@@ -95,6 +95,27 @@ class ServeSymbolsTest {
     }
 
     @Test
+    void anImportBeingEditedIsReadAsTheEditorHasIt() throws Exception {
+        Path lib = dir.resolve("lib.loom");
+        Files.writeString(lib, "agent OnDisk { model: \"m\" }\n");
+        ObjectNode p = file(main);
+        p.put("text", "import \"lib.loom\"\n" + ServeEngineTest.TRIAGE);
+        p.putObject("buffers").put(lib.toString(), "agent InEditor { model: \"m\" }\n");
+        JsonNode defs =
+                client.request("loom/symbols", p).path("result").path("result").path("definitions");
+        assertThat(defs).anyMatch(d -> d.path("name").asText().equals("InEditor"));
+        assertThat(defs).noneMatch(d -> d.path("name").asText().equals("OnDisk"));
+    }
+
+    @Test
+    void aBufferOutsideTheWorkspaceIsRefused() throws Exception {
+        ObjectNode p = file(main);
+        p.putObject("buffers").put("/etc/hosts", "x");
+        JsonNode error = client.request("loom/symbols", p).path("error");
+        assertThat(error.path("data").path("kind").asText()).isEqualTo("outside-workspace");
+    }
+
+    @Test
     void aFileOutsideTheWorkspaceIsRefused() throws Exception {
         Path elsewhere = Files.createTempFile("outside", ".loom");
         try {

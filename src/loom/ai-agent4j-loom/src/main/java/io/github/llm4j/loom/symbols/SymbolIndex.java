@@ -32,7 +32,9 @@ public record SymbolIndex(
             String file,
             Range range,
             String scope,
-            String detail) {}
+            String detail,
+            Range extent,
+            SymType type) {}
 
     /**
      * A place a definition is used. {@code resolved} is false when nothing in the closure defines
@@ -72,6 +74,8 @@ public record SymbolIndex(
             o.set("range", d.range().toJson());
             if (d.scope() != null) o.put("scope", d.scope());
             if (d.detail() != null) o.put("detail", d.detail());
+            if (d.extent() != null) o.set("extent", d.extent().toJson());
+            if (d.type() != null) o.set("type", d.type().toJson());
         }
         ArrayNode refs = n.putArray("references");
         for (Reference r : references) {

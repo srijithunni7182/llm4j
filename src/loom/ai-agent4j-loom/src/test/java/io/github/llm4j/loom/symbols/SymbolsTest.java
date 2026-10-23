@@ -227,6 +227,18 @@ class SymbolsTest {
                                 .thenComparingInt(d -> d.range().col()));
     }
 
+    @Test
+    void aDefinitionKnowsTheWholeOfItsBlockForOutlines() throws Exception {
+        SymbolIndex i = index(dir, "main.loom", TRIAGE);
+        String wf = slice(TRIAGE, def(i, "workflow:Main").extent());
+        assertThat(wf).startsWith("workflow Main(message) {").endsWith("}");
+        String agent = slice(TRIAGE, def(i, "agent:Replier").extent());
+        assertThat(agent).startsWith("agent Replier {").endsWith("}").doesNotContain("Checker");
+        // the name range lies inside the extent
+        SymbolIndex.Definition d = def(i, "agent:Checker");
+        assertThat(d.extent().line()).isLessThanOrEqualTo(d.range().line());
+    }
+
     private static void Files(Path file, String text) throws Exception {
         java.nio.file.Files.createDirectories(file.getParent());
         java.nio.file.Files.writeString(file, text);

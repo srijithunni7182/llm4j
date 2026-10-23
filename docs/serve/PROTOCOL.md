@@ -26,13 +26,14 @@ A client refuses a server whose `protocol` differs from the one it speaks and te
 
 ## Requests
 
-Every method takes `file` (absolute or relative to the working directory; it must be inside a root) and may take `text` (the unsaved buffer, used instead of the file's content, imports still read from disk or their own buffers) and `version` (any number; the answer carries it back as `requestVersion` so a client can drop an answer for an older document).
+Every method takes `file` (absolute or relative to the working directory; it must be inside a root) and may take `text` (the unsaved buffer, used instead of the file's content, imports still read from disk or their own buffers) `buffers` (an object, file to text: the other open files with unsaved changes, so an import being edited is read as the editor has it; each must be inside a root) and `version` (any number; the answer carries it back as `requestVersion` so a client can drop an answer for an older document).
 
 | Method | Extra params | Answer |
 |---|---|---|
 | `loom/check` | | `{ file, status, result, stderr?, cached, requestVersion }` where `result` is the JSON of `weave check --format json --no-env`; `status` 0 or 2 |
 | `loom/graph` | `workflow?` | as above, `result` is the JSON of `weave graph` |
 | `loom/review` | `tier` (`full` default, or `instant`: the validity lens only), `lenses?`, `minSeverity?`, `prices?`, `assume?` (list of `name=value`) | as above, `result` is the JSON of `weave review --format json --no-env` |
+| `loom/symbols` | | as above, `result` is the JSON of `weave symbols`: the semantic index of the script and its imports (below) |
 | `loom/explainRule` | `rule` | `{ rule, text }` the text of `weave review --explain RULE` |
 | `loom/applyFix` | `fingerprints` (the findings to fix), or `safe: true` (every safe fix); or one finding in `fingerprints` with `option` and `answers` (an object) | `{ file, original, text, changed, applied[], withheld[] }`: the script's text after the fixes, each result checked as `weave review --fix` checks it (the script loads, no new high finding). Nothing is written; the editor writes `text`. `fix-refused` when an option cannot be applied |
 | `loom/accept` | `fingerprints`, `reason` (required), `scope` (`finding` default, `thing`, `script`, `project`), `on?`, `until?` (a date), `by?`, `confirm?` (the number of findings, required to accept several serious ones at once) | `{ file, existed, original, text, written, lines[] }`: the new text of `review.properties`. The lethal trifecta (`LA01`) is refused with `trifecta-in-script`; a reason with a double quote is refused. Nothing is written |
@@ -41,7 +42,29 @@ Every method takes `file` (absolute or relative to the working directory; it mus
 | `loom/cancel` | `id` | (notification or request) withdraws request `id`: if it has not started it is answered `cancelled`; if it is running its answer is dropped and replaced by `cancelled` |
 | `loom/shutdown` | | `{}` and the server exits with status 0 |
 
-`cached` says whether the answer came from the cache. Reserved for later phases: `loom/symbols`, `loom/test`, `loom/generate`, `loom/debug.*`.
+`cached` says whether the answer came from the cache. Reserved for later phases: `loom/test`, `loom/generate`, `loom/debug.*`.
+
+## The symbols index
+
+`weave symbols FILE` and `loom/symbols` give the same JSON (`version` 1). The lexer and parser are the language's own; a script with a syntax error still gets an answer for the parts that read (the unreadable character, string or block is set aside and the rest read again), `partial` is true and `problems` says what was set aside.
+
+```json
+{ "version": 1, "entry": "/abs/main.loom", "partial": false,
+  "definitions": [ { "key": "agent:Replier", "kind": "agent", "name": "Replier", "file": "/abs/main.loom",
+                     "range": { "start": {"line":0,"character":6}, "end": {"line":0,"character":13} },
+                     "extent": { ... the whole block ... }, "detail": "model name", "type": { ... output schema ... } } ],
+  "references":  [ { "to": "agent:Replier", "kind": "agent", "role": "delegate-target", "file": "...", "range": { ... }, "resolved": true } ],
+  "bindings":    [ { "key": "binding:Main/intent", "name": "intent", "file": "...", "range": { ... }, "scope": "workflow:Main",
+                     "role": "result", "producedBy": { "kind": "intentclassify", "range": { ... } },
+                     "type": { "kind": "object", "fields": { "kind": { "kind": "enum", "values": ["a", "b", "unsure"] }, "urgent": { "kind": "yesno", "values": ["yes", "no"] } } } } ],
+  "scopes":      [ { "workflow": "Main", "file": "...", "params": ["message"], "range": { ... } } ],
+  "problems":    [ { "file": "...", "line": 12, "message": "..." } ] }
+```
+
+- **Ranges** are 0-based lines and columns in UTF-16 code units (VS Code's own), so an emoji counts two; tabs count one; CRLF does not move a column.
+- **Keys** name one thing: `agent:`, `workflow:`, `tool:`, `classifier:`, `persona:`, `provider:`, `decision:`, `mcp:`, `knowledge:`, `routing:`, `prompt:ID`, `file:/abs/path` (an import), `task:Name` (supplied by the host, never defined in the script), `checkpoint:Workflow/name`, `binding:Workflow/name`. A rename is every range with one key.
+- **Roles** of a reference: `delegate-target`, `handoff-target`, `broadcast-target`, `tool-use`, `approve`, `mcp-use`, `knowledge-use`, `routing-use`, `persona-use`, `model-provider`, `prompt-use`, `proposer`, `supervise`, `classify`, `decide`, `call`, `run`, `rewind`, `import`, and `use` (a variable read in a condition, a payload or a `{placeholder}`).
+- **Types** are `string`, `number`, `boolean`, `yesno`, `enum` (`values`), `object` (`fields`), `list` (`of`) and `unknown`. `unknown` is a real answer: the script does not say, and nothing completes from it. A classifier fills an object with one field per question plus `confidence`, `calibrated`, `backend` and `model`; a `choose` question includes `unsure` only when the classifier escalates below its confidence.
 
 ## Errors
 

@@ -54,10 +54,23 @@ public final class Server {
             return workspace.resolve(params.path("file").asText(null));
         }
 
-        /** The unsaved text the client sent for {@code params.text}, keyed by the file. */
+        /**
+         * The unsaved text the client sent: {@code params.text} for {@code params.file}, and {@code
+         * params.buffers} (file to text) for the other files it has open and changed, so an import
+         * that is being edited is read as the editor has it.
+         */
         public Map<Path, String> texts() throws RpcError {
-            if (!params.hasNonNull("text")) return Map.of();
-            return Map.of(file(), params.get("text").asText());
+            Map<Path, String> out = new java.util.LinkedHashMap<>();
+            JsonNode buffers = params.get("buffers");
+            if (buffers != null && buffers.isObject()) {
+                var fields = buffers.fields();
+                while (fields.hasNext()) {
+                    var f = fields.next();
+                    out.put(workspace.resolve(f.getKey()), f.getValue().asText());
+                }
+            }
+            if (params.hasNonNull("text")) out.put(file(), params.get("text").asText());
+            return out;
         }
     }
 

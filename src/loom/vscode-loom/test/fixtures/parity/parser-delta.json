@@ -1,0 +1,13 @@
+{
+  "compared": 322,
+  "differences": [
+    "loom/ai-agent4j-loom/src/test/resources/ladders/blog_publisher.loom: only TypeScript defines agent changes @40:19",
+    "loom/ai-agent4j-loom/src/test/resources/ladders/novel/calendar_slot.loom: only TypeScript defines agent changes @34:19",
+    "loom/ai-agent4j-loom/src/test/resources/ladders/novel/reply_drafter.loom: only TypeScript defines agent changes @40:19",
+    "loom/ai-agent4j-loom/src/test/resources/ladders/refund.loom: only TypeScript defines agent changes @40:19",
+    "loom/ai-agent4j-loom/src/test/resources/ladders/script_author.loom: only TypeScript defines agent changes @36:19",
+    "loom/ai-agent4j-loom/src/test/resources/previous-release/g2/g5-refund.loom: only TypeScript defines agent changes @13:19",
+    "loom/ai-agent4j-loom/src/test/resources/previous-release/g2/guide-trust-example.loom: only TypeScript defines agent changes @14:19",
+    "loom/ai-agent4j-loom/src/test/resources/previous-release/g2/refund-test-on-past.loom: only TypeScript defines agent changes @12:19"
+  ]
+}

@@ -15,3 +15,11 @@ for script in "$out"/scripts/*.loom; do
   weave graph "$script" > "$out/$name.graph.json" || true
   echo "$name: $(python3 -c "import json;d=json.load(open('$out/$name.review.json'));print(len(d['findings']),'findings')")"
 done
+
+# the semantic index of the editor's fixtures; the folder is written as @SCRIPTS@ so the files do not depend on where they were made
+sem="$here/test/fixtures/semantic"
+for script in "$sem"/scripts/*.loom "$sem"/scripts/lib/*.loom; do
+  name="$(basename "$script" .loom)"
+  weave symbols "$script" | sed "s#$sem/scripts#@SCRIPTS@#g" > "$sem/$name.symbols.json" || true
+  echo "$name: symbols"
+done

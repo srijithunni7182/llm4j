@@ -25,6 +25,8 @@ export interface InitializeResult {
 export interface FileParams {
     file: string;
     text?: string;
+    /** The other open files with unsaved changes (file to text), so imports are read as the editor has them. */
+    buffers?: Record<string, string>;
     version?: number;
 }
 
@@ -110,6 +112,7 @@ export interface BaselineAnswer extends FileText {
 export interface Methods {
     'loom/check': { params: CheckParams; answer: CommandAnswer };
     'loom/graph': { params: GraphParams; answer: CommandAnswer };
+    'loom/symbols': { params: FileParams; answer: CommandAnswer };
     'loom/review': { params: ReviewParams; answer: CommandAnswer };
     'loom/explainRule': { params: { rule: string }; answer: ExplainAnswer };
     'loom/applyFix': { params: ApplyFixParams; answer: ApplyFixAnswer };
