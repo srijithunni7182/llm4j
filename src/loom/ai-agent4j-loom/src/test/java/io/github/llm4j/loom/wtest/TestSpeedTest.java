@@ -25,12 +25,16 @@ class TestSpeedTest {
         long serialMs = (System.nanoTime() - start) / 1_000_000;
         List<Long> times = serial.stream().map(TestRunner.CaseResult::millis).sorted().toList();
         long median = times.get(times.size() / 2);
-        System.out.println("100 cases serially: " + serialMs + " ms, median case " + median + " ms");
+        System.out.println(
+                "100 cases serially: " + serialMs + " ms, median case " + median + " ms");
         assertThat(serial).hasSize(100).allMatch(TestRunner.CaseResult::passed);
         assertThat(median).as("median case, ms").isLessThan(20);
         assertThat(serialMs).as("100 cases serially, ms").isLessThan(5000);
         start = System.nanoTime();
-        TestRunner.run(s, new TestRunner.Options(null, false, false, List.of(), List.of(), 4, false, null));
-        System.out.println("100 cases on 4 workers: " + (System.nanoTime() - start) / 1_000_000 + " ms");
+        TestRunner.run(
+                s,
+                new TestRunner.Options(null, false, false, List.of(), List.of(), 4, false, null));
+        System.out.println(
+                "100 cases on 4 workers: " + (System.nanoTime() - start) / 1_000_000 + " ms");
     }
 }

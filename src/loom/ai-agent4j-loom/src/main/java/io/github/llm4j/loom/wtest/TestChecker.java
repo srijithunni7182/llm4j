@@ -42,7 +42,9 @@ public final class TestChecker {
                     "tools",
                     "tasks",
                     "clock",
-                    "usage");
+                    "usage",
+                    "steer",
+                    "stop");
 
     /** The keys of {@code expect}. */
     static final List<String> EXPECT_KEYS =
@@ -209,11 +211,78 @@ public final class TestChecker {
                                     + "' is not an agent"
                                     + Suggest.hint(a, agents));
             }
+        interventions(c, problems);
         JsonNode expect = c.get("expect");
         if (expect != null) {
             if (!expect.isObject()) problems.add(where(c) + "expect: a map");
             else expect(c, expect, problems);
         }
+    }
+
+    /** {@code steer:} and {@code stop:} name an agent and a call, and a way to stop. */
+    private void interventions(TestFile.Case c, List<String> problems) {
+        JsonNode steer = c.get("steer");
+        if (steer != null) {
+            if (!steer.isArray())
+                problems.add(
+                        where(c) + "steer: a list of { after_call: { Agent: N }, text: \"…\" }");
+            else
+                for (JsonNode s : steer) {
+                    if (!afterCall(c, "steer", s, problems)) continue;
+                    if (!s.hasNonNull("text"))
+                        problems.add(where(c) + "steer: each needs a text, what the person says");
+                }
+        }
+        JsonNode stop = c.get("stop");
+        if (stop != null) {
+            if (afterCall(c, "stop", stop, problems)) {
+                String mode = stop.path("mode").asText("cancel");
+                if (!List.of("cancel", "wrap_up").contains(mode))
+                    problems.add(where(c) + "stop.mode: cancel or wrap_up, not '" + mode + "'");
+                if (stop.has("outcome"))
+                    try {
+                        io.github.llm4j.loom.execution.StopOutcome.valueOf(
+                                stop.get("outcome").asText().toUpperCase(java.util.Locale.ROOT));
+                    } catch (IllegalArgumentException e) {
+                        problems.add(
+                                where(c)
+                                        + "stop.outcome: one of "
+                                        + java.util.Arrays.stream(
+                                                        io.github.llm4j.loom.execution.StopOutcome
+                                                                .values())
+                                                .map(
+                                                        o ->
+                                                                o.name()
+                                                                        .toLowerCase(
+                                                                                java.util.Locale
+                                                                                        .ROOT))
+                                                .toList());
+                    }
+            }
+        }
+    }
+
+    private boolean afterCall(TestFile.Case c, String key, JsonNode spec, List<String> problems) {
+        JsonNode call = spec.get("after_call");
+        if (call == null || !call.isObject() || call.size() != 1) {
+            problems.add(
+                    where(c)
+                            + key
+                            + ": after_call: { Agent: N } names one agent and the call after which it happens");
+            return false;
+        }
+        String agent = call.fieldNames().next();
+        if (!agents.contains(agent)) {
+            problems.add(
+                    where(c)
+                            + key
+                            + ".after_call: '"
+                            + agent
+                            + "' is not an agent"
+                            + Suggest.hint(agent, agents));
+            return false;
+        }
+        return true;
     }
 
     /** {@code tools:} and {@code tasks:} name things the script has. */

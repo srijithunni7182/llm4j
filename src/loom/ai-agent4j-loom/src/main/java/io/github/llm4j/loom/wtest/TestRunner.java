@@ -244,6 +244,11 @@ public final class TestRunner {
         }
     }
 
+    /** Runs one case of a loaded suite. */
+    public static CaseResult runOne(Suite suite, TestFile.Case c) {
+        return runCase(suite, c, false);
+    }
+
     private static CaseResult runCase(Suite suite, TestFile.Case c, boolean lenient) {
         TestFile.Case use = lenient ? withLenient(c) : c;
         String workflow = workflowOf(suite, c);

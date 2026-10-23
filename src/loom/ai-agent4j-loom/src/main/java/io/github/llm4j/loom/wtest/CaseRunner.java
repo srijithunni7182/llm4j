@@ -65,6 +65,7 @@ final class CaseRunner {
             RunJournal journal = RunJournal.inMemory();
             List<String> resume = new ArrayList<>(strings(c.get("resume")));
             Map<String, String> input = inputs(c.get("input"));
+            Interventions interventions = new Interventions(c.get("steer"), c.get("stop"));
             Map<String, Object> vars = Map.of();
             while (true) {
                 LoomScript fresh = new LoomLoader().load(script.toString());
@@ -86,7 +87,9 @@ final class CaseRunner {
                                         repeatLast,
                                         recorder,
                                         failures,
-                                        c.get("usage")));
+                                        c.get("usage"),
+                                        interventions));
+                interventions.attach(executor);
                 executor.setClassifierFactory(new ScriptedClassifiers(models, recorder, failures));
                 executor.setTaskRegistry(tasks);
                 executor.setHumanInterface(people);

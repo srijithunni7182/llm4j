@@ -37,6 +37,7 @@ final class ScriptedModels implements LLMClientFactory {
     private final Recorder recorder;
     private final Failures failures;
     private final JsonNode usage;
+    private final Interventions interventions;
 
     ScriptedModels(
             Map<String, JsonNode> scripts,
@@ -44,13 +45,15 @@ final class ScriptedModels implements LLMClientFactory {
             boolean repeatLast,
             Recorder recorder,
             Failures failures,
-            JsonNode usage) {
+            JsonNode usage,
+            Interventions interventions) {
         this.scripts = scripts;
         this.lenient = lenient;
         this.repeatLast = repeatLast;
         this.recorder = recorder;
         this.failures = failures;
         this.usage = usage;
+        this.interventions = interventions;
     }
 
     @Override
@@ -60,7 +63,7 @@ final class ScriptedModels implements LLMClientFactory {
             @Override
             public LLMResponse chat(LLMRequest request) {
                 int n = recorder.call(agent);
-                String task = lastUser(request);
+                String task = userText(request);
                 var fail = failures.failsOn(agent, n);
                 if (fail.isPresent()) {
                     if (fail.get().equals("invalid_output"))
@@ -81,6 +84,7 @@ final class ScriptedModels implements LLMClientFactory {
                     out = u.path("out").asInt(out);
                 }
                 recorder.usage(in, out);
+                interventions.afterCall(agent, n);
                 return LLMResponse.builder()
                         .content(reply)
                         .model(model)
@@ -179,13 +183,20 @@ final class ScriptedModels implements LLMClientFactory {
         return n.isTextual() ? n.asText() : n.toString();
     }
 
-    private static String lastUser(LLMRequest request) {
+    /**
+     * What the agent has been told so far: every message from the user side, in order. A rule that
+     * looks for words in the task finds them whether they came with the task or later (a person's
+     * steer, a tool's result).
+     */
+    private static String userText(LLMRequest request) {
+        StringBuilder b = new StringBuilder();
         List<Message> messages = new ArrayList<>(request.getMessages());
-        for (int i = messages.size() - 1; i >= 0; i--) {
-            Message m = messages.get(i);
-            if (m.getRole() == Message.Role.USER && m.getContent() != null) return m.getContent();
-        }
-        return "";
+        for (Message m : messages)
+            if (m.getRole() == Message.Role.USER && m.getContent() != null) {
+                if (b.length() > 0) b.append('\n');
+                b.append(m.getContent());
+            }
+        return b.toString();
     }
 
     private static int tokens(LLMRequest request) {
