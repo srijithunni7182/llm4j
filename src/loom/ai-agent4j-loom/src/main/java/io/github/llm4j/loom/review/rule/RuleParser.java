@@ -402,7 +402,7 @@ public final class RuleParser {
             if (e.isTextual()) {
                 out.add(new Example(e.asText(), null, null));
             } else if (e.isObject()) {
-                unknownKeys(e, List.of("file", "inline", "expect"), at);
+                unknownKeys(e, List.of("file", "inline", "expect", "settings"), at);
                 boolean file = e.has("file");
                 boolean inline = e.has("inline");
                 if (file == inline) problems.add(at + ": give either file or inline");
@@ -411,11 +411,23 @@ public final class RuleParser {
                             new Example(
                                     file ? text(e, "file") : null,
                                     inline ? text(e, "inline") : null,
-                                    e.has("expect") ? e.get("expect").asInt() : null));
+                                    e.has("expect") ? e.get("expect").asInt() : null,
+                                    exampleSettings(e.get("settings"), at)));
             } else {
                 problems.add(at + ": a file name, or a map with file or inline");
             }
         }
+    }
+
+    private java.util.Map<String, String> exampleSettings(JsonNode n, String at) {
+        java.util.Map<String, String> out = new java.util.LinkedHashMap<>();
+        if (n == null) return out;
+        if (!n.isObject()) {
+            problems.add(at + ".settings: a map of setting names to values");
+            return out;
+        }
+        n.fields().forEachRemaining(f -> out.put(f.getKey(), f.getValue().asText()));
+        return out;
     }
 
     // ---- small helpers

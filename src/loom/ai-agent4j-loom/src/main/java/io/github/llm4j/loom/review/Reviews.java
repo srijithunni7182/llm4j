@@ -5,6 +5,7 @@ import io.github.llm4j.loom.review.adapt.AuditSource;
 import io.github.llm4j.loom.review.adapt.ValidityCatalog;
 import io.github.llm4j.loom.review.adapt.ValiditySource;
 import io.github.llm4j.loom.review.cost.CostEstimator;
+import io.github.llm4j.loom.review.cost.CostRules;
 import io.github.llm4j.loom.review.engine.FindingSource;
 import io.github.llm4j.loom.review.engine.Overlap;
 import io.github.llm4j.loom.review.engine.ReviewEngine;
@@ -76,6 +77,7 @@ public final class Reviews {
     public static ReviewEngine engine(
             PackSet packs, List<ReviewRule> javaRules, CostEstimator estimator) {
         List<FindingSource> all = new ArrayList<>(sources(packs));
+        if (estimator != null) all.add(new CostRules(estimator));
         all.addAll(javaRules);
         return new ReviewEngine(all, OVERLAPS, estimator);
     }
@@ -104,7 +106,10 @@ public final class Reviews {
     /** As {@link #catalog(PackSet)}, with the rules of Java rule jars. */
     public static RuleCatalog catalog(PackSet packs, List<ReviewRule> javaRules) {
         RuleCatalog c =
-                new RuleCatalog().addAll(AuditCatalog.rules()).addAll(ValidityCatalog.rules());
+                new RuleCatalog()
+                        .addAll(AuditCatalog.rules())
+                        .addAll(ValidityCatalog.rules())
+                        .addAll(CostRules.catalog());
         for (Pack p : packs.packs()) c.addAll(PackCatalog.rules(p));
         for (ReviewRule r : javaRules) c.addAll(r.rules());
         return c;

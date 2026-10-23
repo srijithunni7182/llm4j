@@ -57,7 +57,7 @@ public final class PackTester {
                     "the example file '" + e.file() + "' is missing from the pack");
         int found;
         try {
-            found = count(pack, rule, source);
+            found = count(pack, rule, source, e.settings());
         } catch (RuntimeException ex) {
             return new Result(
                     rule.id(),
@@ -89,7 +89,8 @@ public final class PackTester {
      * Reviews the example with only this rule, every lens and heuristics on, and counts the
      * findings.
      */
-    private static int count(Pack pack, RuleDoc rule, String source) {
+    private static int count(
+            Pack pack, RuleDoc rule, String source, java.util.Map<String, String> declared) {
         Path dir = null;
         try {
             dir = Files.createTempDirectory("review-example");
@@ -101,6 +102,8 @@ public final class PackTester {
                     new ReviewInput("main.loom", dir, script, Map.of(), List.of(), graph);
             ReviewSettings settings =
                     ReviewSettings.defaults().withLenses("all").withHeuristics(true);
+            for (var d : declared.entrySet())
+                settings = settings.withValue(d.getKey(), d.getValue());
             Pack one = new Pack(pack.manifest(), List.of(rule), pack.files());
             List<Finding> findings = new ArrayList<>();
             List<Note> notes = new ArrayList<>();

@@ -1,0 +1,2 @@
+agent Router { model: "small-model"  system: "Pick the kind."  output_schema: { kind: string } }
+workflow Main(q) { delegate "{q}" to Router -> r  note "{r}" }

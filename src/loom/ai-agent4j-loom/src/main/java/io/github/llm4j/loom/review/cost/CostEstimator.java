@@ -225,6 +225,7 @@ public final class CostEstimator {
                             def.getModel(),
                             each,
                             each,
+                            c.getRetryCount(),
                             m.typical,
                             m.worst < 0 ? -1 : m.worst * attempts));
             return bound(each, each, m, c.getRetryCount());
@@ -324,6 +325,7 @@ public final class CostEstimator {
                             model,
                             each,
                             eachWorst,
+                            retries,
                             m.typical,
                             m.worst < 0 ? -1 : m.worst * (retries + 1L)));
         }

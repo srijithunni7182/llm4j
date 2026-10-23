@@ -401,7 +401,7 @@ class ReviewCommandTest {
         assertThat(rules(report)).contains("LR01", "LR03");
         for (JsonNode f : report.get("findings")) {
             if (f.get("rule").asText().equals("LR01")) {
-                assertThat(f.get("source").asText()).isEqualTo("pack core@1.0.0");
+                assertThat(f.get("source").asText()).isEqualTo("pack core@1.1.0");
                 assertThat(f.get("lens").asText()).isEqualTo("reliability");
                 assertThat(f.get("location").get("node").asText()).matches("n\\d+");
                 assertThat(f.get("title").asText()).contains("delegate Researcher");
@@ -438,7 +438,7 @@ class ReviewCommandTest {
                 .contains("LR01")
                 .contains("Lens: Reliability")
                 .contains("Severity: medium")
-                .contains("From: pack core@1.0.0")
+                .contains("From: pack core@1.1.0")
                 .contains("Why it matters")
                 .contains("What to do");
         out.reset();

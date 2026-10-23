@@ -1,0 +1,55 @@
+- id: LC01
+  lens: cost
+  severity: medium
+  about: agent
+  requires: [setting.data.top-models]
+  when:
+    all:
+      - { field: model.id, in: { setting: data.top-models } }
+      - { field: hasTools, is: false }
+      - { field: hasSchema, is: true }
+      - { field: inlinePromptLines, lte: 10 }
+      - { field: stepCount, gte: 1 }
+  title: "Agent {name} looks like a classifier but runs on {model.id}, one of your most expensive models"
+  why: "An agent with no tools, a structured answer and a short prompt is picking from a few options. A smaller model usually does that as well for a fraction of the price, and it is paid for on every run."
+  fixHint: "Try a smaller model for this agent, or an intentclassifier, and keep the big model for the steps that need it."
+  since: "1.1.0"
+  explain: >
+    This rule needs to know which models you consider expensive, so it only runs when
+    data.top-models lists them in review.properties (for example data.top-models =
+    claude-opus-5-5, gpt-5). It looks for agents that only choose: no tools, an output_schema, and
+    a prompt of ten lines or fewer. Check the quality with weave eval before and after switching.
+  examples:
+    fires:
+      - file: examples/lc01-fires.loom
+        settings: { data.top-models: "big-model" }
+    quiet:
+      - file: examples/lc01-quiet-small.loom
+        settings: { data.top-models: "big-model" }
+      - file: examples/lc01-quiet-tools.loom
+        settings: { data.top-models: "big-model" }
+
+- id: LC02
+  lens: cost
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, is: delegate }
+      - { field: inLoop, is: true }
+      - { field: agent.hasContext, is: false }
+      - any:
+          - { field: agent.hasMemory, is: true }
+          - { field: agent.hasTools, is: true }
+  title: "{label} runs in a loop with no context block, so each round re-sends a longer conversation"
+  why: "An agent that remembers or uses tools carries its whole conversation into every round of a loop. Without a context block nothing trims it, so each round costs more than the last."
+  fixHint: "Give the agent a context block so old tool results are trimmed or summarised."
+  since: "1.1.0"
+  explain: >
+    Each round of a loop adds to what the agent has already said and done, and that is all sent
+    again next time. A context block names a strategy (trim tool results, summarise, drop the
+    oldest) that keeps the conversation inside a budget. Bounding the loop with max also limits
+    the cost; this rule is about the cost of each round.
+  examples:
+    fires: [ examples/lc02-fires.loom ]
+    quiet: [ examples/lc02-quiet-context.loom, examples/lc02-quiet-no-loop.loom ]

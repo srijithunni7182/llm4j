@@ -9,6 +9,7 @@ package io.github.llm4j.loom.review.cost;
  * @param model the model it calls
  * @param each one typical run of the step
  * @param eachWorst one run of the step at its longest (an agent with tools at its most rounds)
+ * @param retries how many retries the step declares
  * @param typicalRuns how many times it typically runs (loops, for each, retries are 1 typically)
  * @param worstRuns how many times it can run at most, or {@code -1} when that has no bound
  */
@@ -19,6 +20,7 @@ public record StepCost(
         String model,
         Usage each,
         Usage eachWorst,
+        int retries,
         long typicalRuns,
         long worstRuns) {
 

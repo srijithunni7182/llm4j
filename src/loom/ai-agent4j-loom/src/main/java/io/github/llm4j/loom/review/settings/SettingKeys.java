@@ -24,7 +24,8 @@ final class SettingKeys {
                     "journal");
 
     /** Families whose second part is free: {@code assume.foreach.items}, {@code data.regions}, … */
-    static final List<String> FAMILIES = List.of("assume.", "fix.", "data.", "blast.", "workflow.");
+    static final List<String> FAMILIES =
+            List.of("assume.", "fix.", "data.", "blast.", "workflow.", "cost.");
 
     /** A rule id, optionally followed by one of the per-rule suffixes. */
     private static final Pattern RULE =
