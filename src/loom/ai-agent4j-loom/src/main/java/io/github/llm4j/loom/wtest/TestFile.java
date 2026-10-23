@@ -1,0 +1,162 @@
+package io.github.llm4j.loom.wtest;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * A test file ({@code *.test.yaml}): the script it is for, the workflow, and its cases with the
+ * file's {@code defaults} already merged into each. Reading only parses; {@link TestChecker} says
+ * whether the cases make sense for the script.
+ */
+public final class TestFile {
+
+    private static final YAMLMapper YAML = new YAMLMapper();
+
+    /** One case. {@code body} is the merged map (defaults, then the case itself). */
+    public record Case(String file, String name, ObjectNode body) {
+
+        public JsonNode get(String key) {
+            return body.get(key);
+        }
+
+        public boolean has(String key) {
+            return body.has(key) && !body.get(key).isNull();
+        }
+
+        public List<String> tags() {
+            List<String> tags = new ArrayList<>();
+            if (body.has("tags") && body.get("tags").isArray())
+                body.get("tags").forEach(t -> tags.add(t.asText()));
+            return tags;
+        }
+
+        /** The case as YAML, merged, for {@code --show-case}. */
+        public String yaml() {
+            try {
+                return YAML.writeValueAsString(body);
+            } catch (IOException e) {
+                return body.toString();
+            }
+        }
+    }
+
+    private final Path path;
+    private final String script;
+    private final String workflow;
+    private final List<Case> cases;
+    private final List<String> problems;
+
+    private TestFile(
+            Path path, String script, String workflow, List<Case> cases, List<String> problems) {
+        this.path = path;
+        this.script = script;
+        this.workflow = workflow;
+        this.cases = List.copyOf(cases);
+        this.problems = List.copyOf(problems);
+    }
+
+    public Path path() {
+        return path;
+    }
+
+    /** The {@code script:} of the file, relative to it, or null. */
+    public String script() {
+        return script;
+    }
+
+    /** The {@code workflow:} of the file, or null. */
+    public String workflow() {
+        return workflow;
+    }
+
+    public List<Case> cases() {
+        return cases;
+    }
+
+    /** What could not be read: a syntax error, a case without a name. */
+    public List<String> problems() {
+        return problems;
+    }
+
+    /** Reads a test file; a file that cannot be read has no cases and says why. */
+    public static TestFile read(Path path) {
+        List<String> problems = new ArrayList<>();
+        JsonNode root;
+        try {
+            root = YAML.readTree(Files.readString(path));
+        } catch (IOException | RuntimeException e) {
+            return new TestFile(path, null, null, List.of(), List.of(path + ": " + firstLine(e)));
+        }
+        if (root == null || !root.isObject())
+            return new TestFile(
+                    path,
+                    null,
+                    null,
+                    List.of(),
+                    List.of(path + ": a test file is a map with cases"));
+        String file = path.toString();
+        ObjectNode defaults =
+                root.has("defaults") && root.get("defaults").isObject()
+                        ? (ObjectNode) root.get("defaults")
+                        : YAML.createObjectNode();
+        for (Iterator<String> it = root.fieldNames(); it.hasNext(); ) {
+            String key = it.next();
+            if (!List.of("script", "workflow", "defaults", "cases").contains(key))
+                problems.add(
+                        file
+                                + ": unknown key '"
+                                + key
+                                + "' (a test file has script, workflow, defaults and cases)");
+        }
+        List<Case> cases = new ArrayList<>();
+        JsonNode list = root.get("cases");
+        if (list == null || !list.isArray() || list.isEmpty())
+            problems.add(file + ": cases: a list of at least one case");
+        else
+            for (int i = 0; i < list.size(); i++) {
+                JsonNode c = list.get(i);
+                if (!c.isObject()) {
+                    problems.add(file + ": case " + (i + 1) + " is not a map");
+                    continue;
+                }
+                String name = c.hasNonNull("name") ? c.get("name").asText() : null;
+                if (name == null || name.isBlank()) {
+                    problems.add(file + ": case " + (i + 1) + " has no name");
+                    continue;
+                }
+                cases.add(new Case(file, name, merge(defaults, (ObjectNode) c)));
+            }
+        return new TestFile(
+                path,
+                root.hasNonNull("script") ? root.get("script").asText() : null,
+                root.hasNonNull("workflow") ? root.get("workflow").asText() : null,
+                cases,
+                problems);
+    }
+
+    /** Maps merge by key, the case winning; anything else (a list, a value) is replaced. */
+    static ObjectNode merge(ObjectNode base, ObjectNode over) {
+        ObjectNode out = base.deepCopy();
+        for (Iterator<Map.Entry<String, JsonNode>> it = over.fields(); it.hasNext(); ) {
+            var e = it.next();
+            JsonNode existing = out.get(e.getKey());
+            if (existing != null && existing.isObject() && e.getValue().isObject())
+                out.set(e.getKey(), merge((ObjectNode) existing, (ObjectNode) e.getValue()));
+            else out.set(e.getKey(), e.getValue().deepCopy());
+        }
+        return out;
+    }
+
+    private static String firstLine(Exception e) {
+        String m = e.getMessage();
+        return m == null ? e.getClass().getSimpleName() : m.lines().findFirst().orElse("");
+    }
+}
