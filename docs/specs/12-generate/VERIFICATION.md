@@ -1,6 +1,6 @@
 # Phase 12 verification plan: generate from a description
 
-Status: **12a to 12c done**. Run top to bottom at the end of sub-phase 12e; the relevant rows after each sub-phase. Results in §7.
+Status: **12a to 12d done**. Run top to bottom at the end of sub-phase 12e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -43,11 +43,11 @@ Status: **12a to 12c done**. Run top to bottom at the end of sub-phase 12e; the 
 | R17 | `TestsGateTest.theGateRunsOnlyScriptedCollaboratorsAndSpendsNothing` (an unscripted model fails the case, it is never called) | ✅ 12c |
 | R18 | `PromptAndSummaryTest`, `GenerateBuildTest` | 🟨 12b (next steps are fixed, not from ProjectAdvisor; no review delta) |
 | R19 | `PromptAndSummaryTest` | ✅ 12b |
-| R20 | `PatchSetTest` | ⬜ 12d |
-| R21 | `EditDeltaTest` | ⬜ 12d |
-| R22 | `EditConfirmTest`, `AcceptWorseTest` | ⬜ 12d |
-| R23 | `EditSafetyTest` | ⬜ 12d |
-| R24 | `AmbiguousEditTest` | ⬜ 12d |
+| R20 | `PatchSetTest` (named edits, exactly-once matching, new files, nothing else touched), `GenerateEditTest.applyWritesExactlyTheChangedLines...` | ✅ 12d |
+| R21 | `GenerateEditTest` (check, review delta, the project's tests, plan fidelity on a trial copy; changed tests listed) | 🟨 12d (the delta is findings and tokens; money only with prices, which edit mode does not take yet) |
+| R22 | `GenerateEditTest` (nothing written without --apply; a worse change needs --accept-worse; a saved patch is re-checked) | ✅ 12d |
+| R23 | `GenerateEditTest.theModelCannotReachFilesOutsideTheProjectOrTheKeys`, `PatchSetTest.pathsOutsideTheProjectAndKeysAreRefused` | ✅ 12d |
+| R24 | `GenerateEditTest.anAmbiguousChangeGetsOneQuestion...` | ✅ 12d |
 | R25 | `GenerateBuildTest.aProjectTheScriptNeverMatchedToThePlanFailsG5`, `...theModelIsShownTheDescriptionAsData...`, `GatesTest` | ✅ 12b |
 | R26 | `TranscriptTest`, `GenerateBuildTest` (no secret-shaped text in what the model is shown) | ✅ 12b |
 | R27 | `WriterTest.aFileThatIsTooBigOrHoldsAKeyIsRefused...` | 🟨 12a (files; prompts of the generator itself in 12b) |
@@ -111,3 +111,10 @@ Wiki "Generating a workflow"; LOOM_GUIDE section; the workflow skill (preferred 
 - Found building it: the starter templates pass all four gates; the samples pass G1 and the review's advice (LP01 and LR01) shows as G2 failures, which is the bar `--gate-only` is for; a test case cannot assert that a run ended by `halt` (`expect.final` knows completed, failed, suspended, stopped, budget), so a handler that must be tested should end with `return`. That is a gap in the phase 11 test files, noted here for a later look.
 - Tests: Java module 3,164; `TestsGateTest` (8) and three end-to-end cases in `GenerateBuildTest` (a failing assertion fed back and repaired; too little coverage fed back as the steps not reached; the coverage bar moved).
 - Not in 12c: edit mode (12d), the editor, the skill, the benchmark (12e).
+
+### 12d (2026-10-23)
+
+- Built: `weave generate --edit SCRIPT "change"`. The model sees the project's files (by the same names in either layout), what the review says now, and the request as data, and answers with a patch: SEARCH/REPLACE pairs for files that exist (the text must occur exactly once), whole new files, or one question. The patch is applied to a trial copy; the gates are G1 (check), G2 as a **delta** (a HIGH finding that was not open before, or a workflow's worst-case tokens up by more than `--worse-factor`, default 1.5, or newly unbounded), G3 (all the project's own tests), G5 (against `plan.json`, which the model must keep true). Failures are fed back and the model gives the whole patch again against the original files. Then the unified diff, the added and removed findings, the cost change, the tests the patch changes, and the spend. Nothing is written without `--apply` (or `--yes`); a worse change also needs `--accept-worse`; `--patch-out FILE` keeps the patch and `--apply-patch FILE` applies it later, re-checked, with no model and only if the files are as they were. A question is printed with exit 2 and answered with `--answer`. Paths outside the project, keys and `.env` are not in the set of files a patch may name.
+- Found building it: the real tools caught my own sample changes (a loop broke the scripted tests by using up the call budget; a cost change was bigger than I thought), so the delta and the tests do what they are for; the SEARCH text ends at the line before the marker, so its last line break is not part of it.
+- Tests: Java module 3,184; `PatchSetTest` (8), `GenerateEditTest` (12).
+- Not in 12d: money in the delta (needs `--prices` in edit mode), selected-text edits from the editor (12e), the G4 coverage bar for an edit.

@@ -196,6 +196,35 @@ public final class Writer {
     }
 
     /**
+     * A trial copy of a project with some files changed, for the gates to run on: every file as it
+     * is, no header added, the script where the project keeps it. The project on disk is not
+     * touched.
+     */
+    public static Workspace trial(Project project, Map<String, String> files, Path tmpRoot)
+            throws IOException {
+        Path dir = Files.createTempDirectory(tmpRoot, "weave-edit-");
+        List<String> written = new ArrayList<>();
+        try {
+            for (var e : files.entrySet()) {
+                String rel = project.relOf(e.getKey());
+                Path p = dir.resolve(rel);
+                Files.createDirectories(p.getParent());
+                Files.writeString(p, e.getValue(), StandardCharsets.UTF_8);
+                written.add(rel);
+            }
+            for (var e : project.readOnly().entrySet()) {
+                Path p = dir.resolve(e.getKey());
+                Files.createDirectories(p.getParent());
+                Files.writeString(p, e.getValue(), StandardCharsets.UTF_8);
+            }
+        } catch (IOException | RuntimeException e) {
+            new Workspace(dir, written).close();
+            throw e;
+        }
+        return Workspace.owned(dir, written, dir.resolve(project.relOf("main.loom")));
+    }
+
+    /**
      * The golden dataset stub the generator writes itself (not the model): the quality dimensions
      * and one scenario for the whole workflow, to be filled in with real cases and run with {@code
      * weave eval}.

@@ -113,6 +113,14 @@ public final class Workspace implements AutoCloseable {
         return new Committed(files, List.of());
     }
 
+    /**
+     * A temporary project folder whose script is where the project keeps it (not necessarily
+     * main.loom).
+     */
+    static Workspace owned(Path dir, List<String> files, Path script) {
+        return new Workspace(dir, files, true, script);
+    }
+
     @Override
     public void close() throws IOException {
         if (!owned || !Files.exists(dir)) return;

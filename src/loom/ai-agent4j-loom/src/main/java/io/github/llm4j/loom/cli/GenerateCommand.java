@@ -174,6 +174,47 @@ final class GenerateCommand implements Callable<Integer> {
             defaultValue = "80")
     int coverage;
 
+    @Option(
+            names = "--edit",
+            description =
+                    "Change an existing project: the script whose project is changed (the description is the change).")
+    File edit;
+
+    @Option(
+            names = "--apply",
+            description = "With --edit: write the change. Without it the diff is only shown.")
+    boolean apply;
+
+    @Option(
+            names = "--accept-worse",
+            description =
+                    "With --edit --apply: apply a change that makes the review or the worst-case cost worse.")
+    boolean acceptWorse;
+
+    @Option(
+            names = "--worse-factor",
+            description =
+                    "With --edit: the most the worst-case tokens of a workflow may grow, as a multiple (default 1.5).",
+            defaultValue = "1.5")
+    double worseFactor;
+
+    @Option(
+            names = "--answer",
+            description =
+                    "With --edit: the answer to the question the model asked about an ambiguous change.")
+    String answer;
+
+    @Option(
+            names = "--patch-out",
+            description =
+                    "With --edit: save the patch to a file, to apply later without the model.")
+    File patchOut;
+
+    @Option(
+            names = "--apply-patch",
+            description = "With --edit: apply a saved patch (checked by the same gates; no model).")
+    File applyPatch;
+
     @Option(names = "--format", description = "text (default) or json.", defaultValue = "text")
     String format;
 
@@ -188,6 +229,7 @@ final class GenerateCommand implements Callable<Integer> {
             return 1;
         }
         if (c.gateOnly != null) return gateOnly(c, env);
+        if (c.edit != null) return GenerateEdit.run(c, env);
         if (c.fromPlan == null && (c.description == null || c.description.isBlank())) {
             env.err()
                     .println(
@@ -444,7 +486,7 @@ final class GenerateCommand implements Callable<Integer> {
         }
     }
 
-    private static String modelName(GenerateCommand c) {
+    static String modelName(GenerateCommand c) {
         String m = c.model != null ? c.model : System.getenv("LOOM_GENERATE_MODEL");
         if (m == null || m.isBlank())
             throw new IllegalArgumentException(
@@ -452,13 +494,13 @@ final class GenerateCommand implements Callable<Integer> {
         return m;
     }
 
-    private static LLMClient clientFor(GenerateCommand c, WeaveEnv env) throws java.io.IOException {
+    static LLMClient clientFor(GenerateCommand c, WeaveEnv env) throws java.io.IOException {
         if (c.replay != null) return Transcript.Replay.read(c.replay.toPath());
         return env.models().createClient(modelName(c));
     }
 
     /** The language as the model is shown it: the persona that writes Loom, then the reference. */
-    private static String reference() {
+    static String reference() {
         return resource("guide/LOOM_PROMPT.md") + "\n\n" + resource("guide/llms.txt");
     }
 
