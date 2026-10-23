@@ -158,6 +158,7 @@ public final class WhatIf {
                                 null,
                                 null,
                                 null,
+                                null,
                                 null));
         String at =
                 Why.locate(r.script(), r.at(), original.steps())
@@ -245,7 +246,8 @@ public final class WhatIf {
                                 humans,
                                 tools,
                                 r.until(),
-                                liveModels ? r.live() : null));
+                                liveModels ? r.live() : null,
+                                null));
 
         // 5. what differs
         Function<String, String> candidateLabel =
@@ -300,7 +302,7 @@ public final class WhatIf {
                             + candidate.calls()
                             + " calls ("
                             + candidate.tokens()
-                            + " tokens); every tool, task and person was simulated.");
+                            + " tokens); tools that change things were only described, and no person was asked.");
         LoomScript candidateScript =
                 r.candidateScript() == null
                         ? script
@@ -395,7 +397,7 @@ public final class WhatIf {
     }
 
     /** The journal without the results of the step and everything after it. */
-    static RunJournal cutBack(RunJournal journal, List<String> steps, int atIndex) {
+    public static RunJournal cutBack(RunJournal journal, List<String> steps, int atIndex) {
         Set<String> after = new LinkedHashSet<>(steps.subList(Math.max(atIndex, 0), steps.size()));
         Set<String> before = new LinkedHashSet<>(steps.subList(0, Math.max(atIndex, 0)));
         RunJournal copy = RunJournal.inMemory();
@@ -435,7 +437,7 @@ public final class WhatIf {
     }
 
     /** A classifier's answer as the journal holds it, from {@code {"question": "label", ...}}. */
-    static Map<String, Object> classifierRecord(IntentClassifierDef def, String json) {
+    public static Map<String, Object> classifierRecord(IntentClassifierDef def, String json) {
         JsonNode given;
         try {
             given = JSON.readTree(json);

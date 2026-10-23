@@ -2060,6 +2060,14 @@ public class HarnessExecutor implements LoomEngine {
         this.stepListener = listener;
     }
 
+    /**
+     * The variables as they are now, cut, masked and with the statement that set each. The
+     * provenance is only known while a decision listener is set.
+     */
+    public java.util.List<VariableView> variableViews() {
+        return decisions.variables(new java.util.LinkedHashMap<>(context.getAll()));
+    }
+
     /** Runs a block, giving each statement a stable step id under the current one. */
     private void runBlock(List<Statement> statements, String key) {
         String parent = step.get();

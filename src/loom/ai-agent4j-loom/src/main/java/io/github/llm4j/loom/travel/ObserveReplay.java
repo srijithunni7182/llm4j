@@ -99,7 +99,8 @@ public final class ObserveReplay {
             List<String> humans,
             Map<String, String> toolResults,
             String until,
-            Live live) {
+            Live live,
+            StepGate gate) {
         public Hooks {
             failures = failures == null ? Map.of() : failures;
             humans = humans == null ? List.of() : humans;
@@ -107,7 +108,7 @@ public final class ObserveReplay {
         }
 
         public static Hooks none() {
-            return new Hooks(null, null, null, null, null, null);
+            return new Hooks(null, null, null, null, null, null, null);
         }
     }
 
@@ -271,6 +272,29 @@ public final class ObserveReplay {
                                                                     step,
                                                                     "what if: set"));
                                     });
+                    if (hooks.gate() != null)
+                        hooks.gate()
+                                .before(
+                                        new StepView(
+                                                step,
+                                                executor::variableViews,
+                                                () -> new LinkedHashMap<>(copy.all()),
+                                                spent[0],
+                                                spent[1],
+                                                path ->
+                                                        io.github.llm4j.loom.runtime
+                                                                .ConditionEvaluator.resolvePath(
+                                                                path, executor.getContext()),
+                                                condition ->
+                                                        io.github.llm4j.loom.runtime
+                                                                .ConditionEvaluator.evaluate(
+                                                                condition, executor.getContext()),
+                                                (name, value) ->
+                                                        executor.bindFromOutside(
+                                                                name,
+                                                                value,
+                                                                step,
+                                                                "set while stepping")));
                 });
         executor.setDecisionListener(
                 d -> {

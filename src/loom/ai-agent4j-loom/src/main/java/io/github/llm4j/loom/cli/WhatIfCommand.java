@@ -71,7 +71,7 @@ final class WhatIfCommand implements Callable<Integer> {
     @Option(
             names = "--models",
             description =
-                    "recorded (default: reuse a recorded answer where its question is unchanged), scripted (only the answers given) or live (ask the real models where there is no recorded answer, under --max-cost or --max-tokens; every tool, task and person is still simulated).",
+                    "recorded (default: reuse a recorded answer where its question is unchanged), scripted (only the answers given) or live (ask the real models where there is no recorded answer, under --max-cost or --max-tokens; tools that change things are only described and no person is asked; tools known to change nothing, such as search, still run).",
             defaultValue = "recorded")
     String models;
 
@@ -155,7 +155,7 @@ final class WhatIfCommand implements Callable<Integer> {
                                 "Error: --models live may spend up to "
                                         + (c.maxCost != null ? c.maxCost + " " : "")
                                         + (c.maxTokens != null ? c.maxTokens + " tokens " : "")
-                                        + "calling real models (tools, tasks and people stay simulated). Add --yes to go ahead.");
+                                        + "calling real models (tools that change things are only described). Add --yes to go ahead.");
                 return 2;
             }
             try {

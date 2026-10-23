@@ -258,6 +258,38 @@ final class Decisions {
         return out;
     }
 
+    /** The variables as a person looking at the run would see them: cut, masked and typed. */
+    List<VariableView> variables(Map<String, Object> values) {
+        List<VariableView> out = new ArrayList<>();
+        for (Map.Entry<String, Object> e : values.entrySet()) {
+            String name = e.getKey();
+            if (name.startsWith("_")) continue;
+            Object value = e.getValue();
+            boolean hidden = masked.contains(name);
+            String full = value == null ? "" : String.valueOf(value);
+            Bound b = bindings.get(name);
+            out.add(
+                    new VariableView(
+                            name,
+                            hidden ? DecisionPoint.MASKED : String.valueOf(shown(name, full)),
+                            hidden ? 0 : full.length(),
+                            typeOf(value),
+                            b == null ? null : b.step(),
+                            b == null ? 0 : b.line(),
+                            b == null ? null : b.by()));
+        }
+        return out;
+    }
+
+    private static String typeOf(Object value) {
+        if (value == null) return "empty";
+        if (value instanceof Boolean) return "yes/no";
+        if (value instanceof Number) return "number";
+        if (value instanceof java.util.Collection<?>) return "list";
+        if (value instanceof Map<?, ?>) return "object";
+        return "text";
+    }
+
     private Object shown(String name, Object value) {
         if (masked.contains(name)) return DecisionPoint.MASKED;
         if (value instanceof CharSequence s && s.length() > DecisionPoint.DISPLAY_LIMIT)

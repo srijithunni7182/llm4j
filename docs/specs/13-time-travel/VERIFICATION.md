@@ -36,17 +36,17 @@ Status: **13a and 13b done**. Run top to bottom at the end of sub-phase 13f; the
 | R11 | `WhyCommandTest.jsonIsVersionedAndCarriesTheSameChoices`, `markdownIsATableOfTheChoices` | ✅ 13a |
 | R12 | `WhyCommandTest` (same bytes twice in every format; nothing written to the run directory; no model or person reachable) | ✅ 13a |
 | R13 | `WhyStatesTest.aRunOfFiveThousandStepsIsExplainedInUnderTwoSeconds` (2,503 steps in about 50 ms) | ✅ 13a |
-| R14 | `StepperEffectsTest` | ⬜ 13e |
-| R15 | `RunUnchangedTest` | ⬜ 13e |
-| R16 | `StepperJournalResumeTest` | ⬜ 13e |
-| R17 | `VarsViewTest`, `NoSecretsInOutputTest` | ⬜ 13e |
-| R18 | `BreakpointTest` | ⬜ 13e |
-| R19 | `StepperWritesNothingTest` | ⬜ 13e |
-| R20 | `SessionReplayTest` | ⬜ 13e |
-| R21 | `VarsViewTest` | ⬜ 13e |
-| R22 | `WhereViewTest` | ⬜ 13e |
-| R23 | `StepBackTest`, `StepBackRealEffectTest` | ⬜ 13e |
-| R24 | `StepBackEditsTest` | ⬜ 13e |
+| R14 | `StepCommandTest.refusesRealEffectsAndLiveModels...`, `StepperTest.liveModelsAreNotCalled...` | 🟨 13e (simulate only; `--effects real` is refused, not built) |
+| R15 | `ObserveReplayEqualsRunTest`, the whole existing suite (the seam is the existing step listener; no new code runs in `weave run`) | ✅ 13e |
+| R16 | `StepCommandTest.theJournalOptionKeepsTheStepsAndWeaveWhyCanReadThem` | ✅ 13e |
+| R17 | `StepperTest.maskedVariablesAreNeverShown`, `StepCommandTest.whatARunHoldsCannotMoveTheCursor` | 🟨 13e (values are cut at 200 characters; paging with `p <var> --full` is not built) |
+| R18 | `BreakpointTest` (11) | ✅ 13e |
+| R19 | `StepperTest.theOriginalJournalIsNotWritten`, `StepBackTest.backDoesNotWriteTheJournalItStartedFrom`, `StepCommandTest.theOriginalScriptIsNeverWritten` | ✅ 13e |
+| R20 | `StepCommandTest.aSessionIsRecordedAndReplaysToTheSameConversation` | ✅ 13e |
+| R21 | `StepperTest.nextRunsTheStatement...`, `StepCommandTest.nextIntoOutBack...` | 🟨 13e (type, binding statement and truncation shown; attempts, model and latency of an agent result are not: the journal does not hold them) |
+| R22 | `StepperTest.whereShowsTheBlocksAndWhatFollows`, `StepCommandTest.whereAndCostAndHelpAnswer` | 🟨 13e (enclosing blocks and following statements; the `call` stack is shown as the enclosing statements) |
+| R23 | `StepBackTest` (every state going back equals going forward, over 5 corpus cases) | 🟨 13e (simulate only, so no real effect to repeat: `StepBackRealEffectTest` waits for `--effects real`) |
+| R24 | `StepperTest.settingAVariableChangesWhatFollowsAndSurvivesGoingBack` | ✅ 13e |
 | R25 | `WhatIfTest`, `WhatIfCommandTest` (the run directory's hash is the same before and after; nothing in it is written) | ✅ 13b |
 | R26 | `WhatIfTest` (a recorded answer is reused only when agent, model, prompts and task text are the same; a change that flows into a question stops the candidate with `needs a model` and why; `scripted` reuses nothing) | ✅ 13b |
 | R27 | `WhatIfTest` (first difference with the values that changed, steps only in one trajectory, result, effects with a new one marked unsafe) | ✅ 13b (cost deltas come with the estimator in 13c) |
@@ -132,7 +132,7 @@ The one gap that matters is the first: without a record, a failed run's journal 
 
 ### 13c (2026-10-23)
 
-- Built: `weave whatif --script FILE`, `--prompt Agent=@vN|file`, `--model Agent=id`, and `--models live --max-cost N --prices FILE | --max-tokens N --yes`. A model is named `observe:Agent:model` in a replay, so a changed model is a changed question and a recorded answer is not reused for it. Live: the real models are called only where no recorded answer fits; tools, tasks and people stay simulated; the cap is mandatory, `--yes` is required to spend, a run that reaches the cap ends as `budget` with no result. Both script hashes are reported when the candidate differs.
+- Built: `weave whatif --script FILE`, `--prompt Agent=@vN|file`, `--model Agent=id`, and `--models live --max-cost N --prices FILE | --max-tokens N --yes`. A model is named `observe:Agent:model` in a replay, so a changed model is a changed question and a recorded answer is not reused for it. Live: the real models are called only where no recorded answer fits; tools that change things are only described (read-only ones such as search still run) and no person is asked; the cap is mandatory, `--yes` is required to spend, a run that reaches the cap ends as `budget` with no result. Both script hashes are reported when the candidate differs.
 - Tests: Java module 2,976; `WhatIfCandidateTest` (9), `WhatIfCommandTest` (+2).
 - Not in 13c: a cost estimate before the live run (the cap is the bound shown), the explicit "run against the old script" offer for a drifted run (R33).
 
@@ -141,3 +141,10 @@ The one gap that matters is the first: without a record, a failed run's journal 
 - Built: `weave graph --run DIR [--run DIR…]`: a run is replayed (no effects) and drawn on the graph. Per statement: times run, in how many runs, in how many it did not run, failures; per edge: times taken; for one run the choices (condition, result, way taken); for several, the statements none reached. Mermaid: taken edges `==>`, untaken `-.->`, nodes marked ran or idle with `×N`. `overlay` is optional in `graph-result.schema.json`. A run of another version of the script is refused.
 - Found building it: a loop round ends by going back to the loop, so "again" is taken once per round including the last (the loop then lets go); loop and for-each bodies count once per round or item.
 - Not in 13d: wall time, tokens and cost per statement, attempts, p50/p95 (the journal does not record them; they would need the run's trace to be kept with the run), the graph panel and Fabric consuming the JSON (their phases).
+
+### 13e (2026-10-23)
+
+- Built: `weave step` and the `Stepper` behind it. The run is the real interpreter over a copy of a journal, with a gate before each statement that waits (the existing step listener is the seam: nothing was added to `weave run`). `next` runs the statement whole, `into` stops at the very next one, `out` leaves the block, `continue` runs to a breakpoint or the end, `back` replays the run from its journal to the statement before (the state there is re-derived, never stored), `set` edits a variable (kept when going back and on), `model` and `classifier` script the next answer (kept per statement, so back-and-on repeats the run), `answer` gives a person's answer to a waiting run, `why` explains the last choice that has run, `where`, `cost`, `vars`/`p`. Breakpoints: a line (or the next statement after it), a node, an agent or classifier, `when <condition>` (checked against the forms an `alt` accepts). Models are mock by default (`--models live` asks real ones under a cap and `--yes`); classifiers answer their first label; `--journal DIR` starts from a run's steps and keeps what was done there; `--record` and `--replay` keep and run a session.
+- Found building it: a nested statement's parent in the step id is the id without its last part (and without the item part in a for each); an edit made while paused must outlive going back, so edits are kept apart from the journal the replay gives back; a replay goes on past the pause through whatever needs no model, so `why` counts only the statements that have run.
+- Tests: Java module 3,045; `StepperTest` (19), `BreakpointTest` (11), `StepBackTest` (7), `StepCommandTest` (12).
+- Not in 13e: real effects, paging a long value, the agent's attempts/model/latency in `vars`, the graph position as a drawing in `where`.
