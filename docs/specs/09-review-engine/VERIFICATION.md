@@ -134,10 +134,10 @@ Status: **in progress**: 9a to 9f complete; 9g–9i not started. Run top to bott
 
 1. Run `weave review` on three real scripts of the repo's examples; read every finding as a developer would. Each is understandable without opening the guide.
 2. Apply `--fix` on a flawed script, read the diff, run the workflow in `--mock` mode: behaviour matches what the finding titles said.
-3. Compare the typical cost on one real workflow against its Fabric run page after a real, capped run (live check, owed).
+3. Compare the typical cost on one real workflow against a real, capped run (live check, done 2026-10-23: see §7, "Live check").
 4. Open the explain page of five rules and confirm the example fires and the near-miss does not.
 5. Enable all thirteen lenses on three real scripts and judge the noise: for each finding ask "would I act on this?" and record the rate per lens in §7 (a lens below 50 % moves to optional or loses its heuristic rules).
-6. Compare the time estimate on one real workflow with a real traced run, and the effects estimate with the effects Fabric recorded (live check, owed).
+6. Compare the time estimate on one real workflow with a real run, and the effects estimate with the effects Fabric recorded (time: done, see §7 "Live check"; effects: not checked, the three workflows have no acting tools; Fabric page not used, `--calibrate` read the run journal).
 
 ## 5. Documentation owed
 
@@ -456,3 +456,18 @@ The names in §1 are the names planned before the work; the tests were organised
 | A33 | ✅ | `docs/review/README.md`, `WRITING_RULES.md`, `docs/review/rules/`, the `LOOM_GUIDE.md` section, `llms.txt`, the three skills; `ReviewDocsTest`, `LlmsTxtTest` |
 
 Exit checklist (§6): every criterion has evidence; five are met in part, and the parts left are all in phases 10 and 11 or need a live provider run (A4). The manual checks in §4 (reading findings on three real scripts, a live cost and time comparison) are owed to you and are listed with the open decisions.
+
+### Live check (2026-10-23, items 3 and 6 of §4)
+
+Three small workflows on real models (claude-haiku-5-5 and gpt-4.1-mini), four runs each with `--max-cost 0.10`, a run journal, and a price table (`claude-haiku-5-5 = 1.00 / 5.00` is an assumed list price). Total spend about $0.03 of the $5 allowed (13 runs).
+
+| Workflow | Estimated typical | Actual (mean of 4) | Ratio | Estimated time | Actual time (run, JVM start excluded, about 2 s) | Worst case held |
+|---|---|---|---|---|---|---|
+| chain (3 agents in sequence) | $0.0061, 3,625 tokens | $0.0042, 2,700 tokens (3 calls) | 0.69 | 6 s | 4 to 7 s | yes ($0.04) |
+| fan (2 agents in parallel) | $0.0025, 933 tokens | $0.00044, 170 tokens | 0.18 | 2 s | about 1 s | yes ($0.02) |
+| loop (write, review up to 3 rounds) | $0.02, 13,236 tokens, 7 calls | $0.0011, 560 tokens, 2 calls | 0.05 | 11 s | 2 to 3 s | yes ($0.12) |
+
+- Every miss is on the high side, as the offline corpus found: the estimate assumes 350 output tokens per call and a loop that runs more than once; the models gave 40 to 150 tokens and approved the first draft. The actual run was never above the typical estimate and never near the worst case. Typical within 2x: 1 of 3 here (A4's 80 % target remains unmet live, for the same reason as before: terse answers and loops that end early; the estimate is cautious by design).
+- `weave review --calibrate RUN_DIR` named the assumption to change in both misses ("2 calls against 7 estimated: set assume.loop.iterations"). Applying it works: `--assume output.tokens=60` brings fan to $0.0006 (actual $0.00044); `--assume loop.iterations=1 --assume output.tokens=100` brings loop to $0.0013 (actual $0.0011) and its time to 5 s (actual 2 to 3 s). The worst case is unchanged, which is right.
+- Found on the way, by the first smoke run: the editor's prompt came to 1,509 tokens instead of about 300, because the variable `draft` was also an ordinary word in the prompt and was replaced by its value (rule LP07 warned at run time, as designed). After renaming the variables the estimate and the runs agreed. A workflow author who ignores that warning pays several times the estimate.
+- Not checked: the effects estimate (no acting tools in these workflows; needs a Fabric run with a webhook or email tool) and the Fabric run page (the journal was read instead).
