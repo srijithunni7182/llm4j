@@ -41,8 +41,7 @@ class UnifiedDiffTest {
             b.append(i == 2 ? "CHANGED2" : i == 29 ? "CHANGED29" : "line" + i).append('\n');
         }
         String d = UnifiedDiff.of("f", a.toString(), b.toString());
-        assertThat(d.split("@@ ", -1).length - 1)
-                .isGreaterThanOrEqualTo(4); // two hunks, two markers each
+        assertThat(d.split("\n@@ ", -1).length - 1).isEqualTo(2); // two hunks
         assertThat(d).contains("+CHANGED2\n").contains("+CHANGED29\n");
     }
 }
