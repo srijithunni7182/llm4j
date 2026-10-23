@@ -61,6 +61,7 @@ final class CliEngine implements Server.Engine {
         Map<String, Method> m = new LinkedHashMap<>();
         m.put("loom/check", this::check);
         m.put("loom/graph", this::graph);
+        m.put("loom/symbols", this::symbols);
         m.put("loom/review", this::review);
         m.put("loom/explainRule", this::explainRule);
         m.put("loom/applyFix", this::applyFix);
@@ -105,6 +106,21 @@ final class CliEngine implements Server.Engine {
                     GraphCommand c = new GraphCommand();
                     new CommandLine(c).parseArgs(args.toArray(String[]::new));
                     return GraphCommand.graph(c, env);
+                },
+                false);
+    }
+
+    private JsonNode symbols(Server.Request r) throws Exception {
+        Path file = r.file();
+        return cached(
+                r,
+                "symbols|" + file,
+                file,
+                List.of(),
+                env -> {
+                    SymbolsCommand c = new SymbolsCommand();
+                    new CommandLine(c).parseArgs(file.toString());
+                    return SymbolsCommand.symbols(c, env);
                 },
                 false);
     }
