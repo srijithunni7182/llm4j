@@ -13,6 +13,7 @@ Install it from the Marketplace, or from the `.vsix` of a release. It needs **Ja
 | **Review** | **Loom: Review Workflow** opens the findings of `weave review` linked with the graph: security, validity, cost, reliability, prompts and more, each with why it matters and what to do. Three layouts: Split, Outline and List. |
 | **Handling findings** | Fix one or all the safe ones as a single undoable change, review a fix that needs your judgement (you choose, you see the diff), accept a finding with a reason and a scope, dismiss it on your machine only, or record today's findings as a baseline. |
 | **Editing** | Go to definition, find references, rename across files, completion that knows the fields of a variable and the labels of an enum, hover, outline and signature help. |
+| **Debugging** | Press F5 on a `.loom` file, or click *Debug* above a workflow: breakpoints (line, conditional, on an agent), variables with the statement that set each, step over / in / out, **step back**, edit a variable, with mock models and nothing sent or written; live models ask first and run under a cap. See [Debugging a workflow](Debugging-a-Workflow.md). |
 | **Guide** | **Loom: Open Guide** opens the written guide from the jar; **Install the Loom Skill** puts the agent skill in your project. |
 
 ![The Review panel in Split](../docs/images/vscode-loom/review-split.png)

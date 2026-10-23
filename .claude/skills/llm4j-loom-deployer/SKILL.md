@@ -57,6 +57,10 @@ Stages 4 (try it) and 5 and 6 (keep it) are alternatives for the first look: sta
 - **Never invent what the user decides**: the thresholds, which agents may hold the trifecta, who may sign in, how much text may leave the machine.
 - **Say what you did and what you saw**, in plain words, after every script and every stage. Never tick a gate that was not checked.
 
+## When the user asks why a run did what it did
+
+Do not guess from the page. Run `weave why <run-dir>` (a run kept with `--journal`) and read the choices aloud with them: each shows the condition, the values it looked at and the statement that set each value. `weave why <run-dir> --line N` answers "why did this run (or not)". To ask "what if the classifier had said X", use `weave whatif` (nothing runs, nothing is sent, the run itself is not written); to see which branches many runs never reached, `weave graph script.loom --run <dir> --run <dir>`. These need no keys. If the script has changed since the run, `why` refuses and says so: do not point it at the new script.
+
 ## Review is advice, and the decision is the user's
 
 After you write or change a workflow, run `weave review <script>` (free, offline, no keys). Tell the user the open counts and the top findings in a sentence, say plainly when one is **high**, and offer to handle the rest: for a finding with **options** (`weave review --format json` lists them under `options`), put the choices to the user in your own words, let them pick and give the values (how many retries, what a failure note says), show the diff with `--dry-run`, and apply with `weave review <script> --fix-finding FINGERPRINT --option ID --set name=value` (add `--yes` only for an option marked as needing thought and only after the user said yes). `--fix` applies only the fixes with one obvious answer. Accepting a finding needs a reason that is the user's own (`--accept FINGERPRINT --reason "..."`): never write one for them. A fix proves only that the script loads and adds no high finding, so run `weave check` and the tests after it.

@@ -12,8 +12,17 @@ public final class Breakpoints {
      * next one), {@code node} (a graph node, {@code n3}), {@code agent} (any statement that asks
      * the agent or classifier) or {@code when} (before any statement, when the condition holds).
      */
-    public record Breakpoint(int id, String kind, String target, Integer line) {
+    public record Breakpoint(int id, String kind, String target, Integer line, String condition) {
+        public Breakpoint(int id, String kind, String target, Integer line) {
+            this(id, kind, target, line, null);
+        }
+
         public String describe() {
+            String base = describeBase();
+            return condition == null ? base : base + " when " + condition;
+        }
+
+        private String describeBase() {
             return switch (kind) {
                 case "line" -> "line "
                         + target
@@ -56,7 +65,11 @@ public final class Breakpoints {
     private int next = 1;
 
     public synchronized Breakpoint add(String kind, String target, Integer line) {
-        Breakpoint b = new Breakpoint(next++, kind, target, line);
+        return add(kind, target, line, null);
+    }
+
+    public synchronized Breakpoint add(String kind, String target, Integer line, String condition) {
+        Breakpoint b = new Breakpoint(next++, kind, target, line, condition);
         list.add(b);
         return b;
     }

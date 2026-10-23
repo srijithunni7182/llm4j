@@ -46,7 +46,8 @@ Each module answers the question the previous one raises.
 - [Loom Language Guide](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md)
 - [Budgets, Pausing and Scheduling](../src/loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md)
 - [Agentic Workflows with Loom and Engram](../docs/AGENTIC_WORKFLOWS_GUIDE.md)
-- [Loom in VS Code](Loom-in-VS-Code.md): the review panel, rename and completion that know your script, checks as you type
+- [Loom in VS Code](Loom-in-VS-Code.md): the review panel, rename and completion that know your script, checks as you type, a debugger
+- [Debugging a workflow](Debugging-a-Workflow.md): why a run did what it did, what it would have done, stepping through it and back, and the run drawn on the graph
 - [Observability: watching runs live](Observability.md) · [Deployment guide](../docs/OBSERVABILITY_DEPLOYMENT.md) · [Fabric server](Fabric-Server.md) · [Deployer skill](Deployer-Skill.md) · [Incidents and rules](Observability-Incidents-and-Rules.md) · [Security signals](Observability-Security-Signals.md) · [Controls, secrets and security](Observability-Controls-and-Security.md) · [Reference](Observability-Reference.md)
 - [Loom CTK (conformance)](../src/loom/ctk/README.md) · [VS Code extension](../src/loom/vscode-loom/README.md)
 

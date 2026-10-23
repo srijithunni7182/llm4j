@@ -159,7 +159,7 @@ export interface GraphWorkflow {
 }
 
 /**
- * The lenses above each `workflow X(...)`: its findings and cost (opens the panel), then Graph and Run. Only workflows of this file
+ * The lenses above each `workflow X(...)`: its findings and cost (opens the panel), then Graph, Run and Debug. Only workflows of this file
  * get them. The findings counted are those on lines the workflow covers (up to the next workflow); whole-script findings are not any
  * one workflow's.
  */
@@ -178,6 +178,7 @@ export function codeLensFor(review: ReviewData | undefined, workflows: GraphWork
         out.push({ line, title: head + costPart, command: 'loom.review', args: [file, w.name], tooltip: 'Open the Loom review of this script' });
         out.push({ line, title: 'Graph', command: 'loom.showGraph', args: [], tooltip: 'Show the workflow graph' });
         out.push({ line, title: 'Run', command: 'loom.runWorkflow', args: [], tooltip: 'Run this script' });
+        out.push({ line, title: 'Debug', command: 'loom.debug', args: [file, w.name], tooltip: 'Step through this workflow, with breakpoints and the way back' });
     });
     return out;
 }

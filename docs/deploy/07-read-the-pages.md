@@ -23,6 +23,7 @@ The header has **Live / Paused**: while Paused nothing redraws, so you can read;
 | "It is expensive" | the cost card, Context (a prompt that keeps growing), *Compaction thrash* | the agent resends a lot; shorten tool results, add a `context` block, or split the job |
 | "It stopped" | the banner, *Workflow broken* | the named step failed with no `on_failure`; decide on `retry` or `on_failure` |
 | "It went another way" | *Workflow diverted* | a step failed and its `on_failure` took over; make sure that is what you want |
+| "Why did it do that?" | `weave why <run-dir>` (and `weave why <run-dir> --line 40` for one statement) | the choices the run made, over which values, where each value came from, and the way it did not go; it reads the run's journal and needs no keys. `weave whatif` shows how it would have gone with one thing different, and `weave graph script.loom --run <run-dir>` draws what runs did on the graph. Reading them is the wiki page *Debugging a workflow*, and the Loom guide has a section on it |
 | "A tool is failing" | Tools & tasks, *Failing tool*, *Tool success rate* | the evidence names the most common failure category (`timeout`, `rate_limited`, ...) |
 | "Will it run out of room?" | the Context view, *Context nearly full*, *Compaction thrash* | an agent's prompt fills its model's window (a warning at 85 %, high at 95 % by default); compaction frees space, and thrash means it cannot keep up: shorten what the tools return or add a `context` block |
 | "The answer is cut off" | *Truncated answer* | the model hit its token limit |

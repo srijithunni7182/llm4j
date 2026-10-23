@@ -316,22 +316,7 @@ final class StepSession {
         return safe(s.length() > 200 ? s.substring(0, 200) + "…" : s);
     }
 
-    /** Control characters made visible: what a run holds is data and must not move the cursor. */
     static String safe(String s) {
-        if (s == null) return "";
-        StringBuilder sb = new StringBuilder(s.length());
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c == '\n') sb.append("\\n");
-            else if (c == '\r') sb.append("\\r");
-            else if (c == '\t') sb.append("\\t");
-            else if (c < 0x20
-                    || c == 0x7f
-                    || (c >= 0x80 && c < 0xa0)
-                    || c == 0x202e
-                    || (c >= 0x2066 && c <= 0x2069)) sb.append(String.format("\\u%04x", (int) c));
-            else sb.append(c);
-        }
-        return sb.toString();
+        return io.github.llm4j.loom.debug.Display.safe(s);
     }
 }

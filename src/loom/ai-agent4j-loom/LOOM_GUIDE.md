@@ -2443,6 +2443,26 @@ for cron schedules, scheduled workflows and keeping them across restarts.
   - memory, guard and voice events;
   - pauses.
 
+### Debugging a Run: `why`, `whatif`, `step` and the Run on the Graph
+
+Four tools answer "why did it do that?" without running anything that has an effect. All of them replay the run's own journal with the real interpreter, so the answer is the one the run gave, not a guess.
+
+```bash
+weave run script.loom --journal runs/r1 ...      # keep the run
+weave why runs/r1                                # the choices it made, with the values and where each came from
+weave why runs/r1 --line 40                      # why did this statement run (or not)?
+weave whatif runs/r1 --at 8 --answer Intent='{"kind":"refund","urgent":"yes"}'
+weave step script.loom -i message="where is my parcel?" --break 13
+weave graph script.loom --run runs/r1 --run runs/r2 --format mermaid
+```
+
+- **`weave why`** shows each `alt`, loop, `for each`, classifier, rewind, `decide` and failure the run met: the condition as written, the values it looked at (with the statement that set each), the way it went and the way it did not. Values are cut at 200 characters and masked names show `‹masked›`. If the script has changed since the run, it refuses and says so; `--script old.loom` explains against another version. `--format text|md|json` (JSON is version 1).
+- **`weave whatif`** copies the journal, cuts it back to a step, changes one thing there (`--set`, `--answer` for an agent or classifier, `--human`, `--fail Target=category[:times]`, `--tool`) and runs the script forward over the copy, then shows where the two trajectories part, the result, and the effects only one of them could cause. A model's answer is reused only where its question is unchanged; otherwise it stops and says what it needs. `--script`, `--prompt Agent=@v2|file` and `--model Agent=id` run an edited candidate; `--models live --max-cost N --prices FILE --yes` asks the real models only where nothing recorded fits, under the cap. The run itself is never written; `--save DIR` keeps the candidate as a run for `weave why`.
+- **`weave step`** runs a workflow one statement at a time (`next`, `into`, `out`, `continue`, `back`), with breakpoints on a line, a node, an agent or `when <condition>`, the variables with their provenance, `set a = value`, `model Agent "reply"`, `classifier Name {json}` and `answer`. Models are mock unless `--models live` is given with a cap. `back` replays from the journal, so the state is exact. `--record FILE` / `--replay FILE` keep and re-run a session. From an editor, `weave dap` does the same over the Debug Adapter Protocol (see [Loom in VS Code](../../../wiki/Loom-in-VS-Code.md)).
+- **`weave graph --run DIR`** adds an `overlay` to the graph: how often each statement ran, the edges taken, the choices of one run, and, over several runs, the statements none reached. In Mermaid the path taken is drawn bold and the rest dotted.
+
+None of them sends, writes or spends anything unless you ask for live models under a cap; tools that change things are only described. See [Debugging a workflow](../../../wiki/Debugging-a-Workflow.md) for a worked example.
+
 ### Observability
 Use `observe` to log the state of variables at specific points for tracing.
 

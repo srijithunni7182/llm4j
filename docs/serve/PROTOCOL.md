@@ -42,7 +42,7 @@ Every method takes `file` (absolute or relative to the working directory; it mus
 | `loom/cancel` | `id` | (notification or request) withdraws request `id`: if it has not started it is answered `cancelled`; if it is running its answer is dropped and replaced by `cancelled` |
 | `loom/shutdown` | | `{}` and the server exits with status 0 |
 
-`cached` says whether the answer came from the cache. Reserved for later phases: `loom/test`, `loom/generate`, `loom/debug.*`.
+`cached` says whether the answer came from the cache. Reserved for later phases: `loom/test`, `loom/generate`. Debugging does not use this protocol: it is the Debug Adapter Protocol, spoken by `weave dap` on its own standard input and output (see "Debugging" below), so `loom/debug.*` stays unused.
 
 ## The symbols index
 
@@ -101,3 +101,19 @@ An answer is kept under the request (method, file, options) together with a dige
 ```
 weave serve --stdio [--timeout-ms 10000] [--memory-mb 64]
 ```
+
+## Debugging
+
+`weave dap` speaks the [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/) (`Content-Length` framing) on standard input and output; standard output carries only the protocol. It maps the editor's requests onto the stepper behind `weave step`, so nothing here is debugging logic of its own.
+
+| DAP | Loom |
+|---|---|
+| `launch` | `script`, `workflow?`, `input?`, `effects` (only `simulate`), `models` (`mock`, `scripted` or `live`), for live `maxCost` with `prices`, or `maxTokens`, and `confirmed: true` (the editor asks the person first), `stopOnEntry?` (default true), `mask?` |
+| `setBreakpoints` / `setFunctionBreakpoints` | a line (verified to the nearest statement at or after it), an optional `condition`; a function breakpoint is an agent or classifier name |
+| `next` / `stepIn` / `stepOut` / `continue` | over (the whole statement), into, out of the block, to the next breakpoint |
+| `stepBack` / `reverseContinue` | the run is replayed from its journal to the statement before; the state is re-derived, exact |
+| `stackTrace` / `scopes` / `variables` | the statement, the statements it is inside, the workflow; one scope; each variable with the statement that set it in its value |
+| `setVariable` / `evaluate` | an edit that survives going back; a variable path or a condition |
+| `loom/why`, `loom/stepBack` | custom requests: where the run is, and stepping back |
+
+One thread stands for the workflow (a `parallel` block's branches are not announced one by one). Events: `initialized`, `stopped` (`entry`, `step`, `breakpoint`), `output` (the model calls and tokens so far, at a breakpoint), `terminated`. A request it cannot do is answered `success: false` with the reason.

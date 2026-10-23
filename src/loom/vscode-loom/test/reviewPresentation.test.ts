@@ -67,14 +67,14 @@ test('R43: before any review the status bar is just the name, and a click opens 
     assert.equal(s.text, 'Loom');
 });
 
-test('A3, R1: a CodeLens above each workflow has its findings and cost, then Graph and Run', () => {
+test('A3, R1: a CodeLens above each workflow has its findings and cost, then Graph, Run and Debug', () => {
     const { review, graph } = reviewFixture('priced');
     const workflows = (graph as { workflows: Array<{ name: string; file: string; line: number }> }).workflows;
     const lens = codeLensFor(review, workflows, '/anywhere/priced.loom');
-    assert.equal(lens.length, 3);
+    assert.equal(lens.length, 4);
     assert.match(lens[0].title, /^Review: .+  ·  ~\$0\.0047 typical \/ \$.+ worst$/);
     assert.equal(lens[0].command, 'loom.review');
-    assert.deepEqual(lens.slice(1).map((l) => l.title), ['Graph', 'Run']);
+    assert.deepEqual(lens.slice(1).map((l) => l.title), ['Graph', 'Run', 'Debug']);
     assert.ok(lens.every((l) => l.line === workflows[0].line - 1));
 });
 

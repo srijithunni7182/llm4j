@@ -131,6 +131,10 @@ The same findings appear as squiggles and in the Problems panel (source `loom-re
 
 By default the review runs when you open or save a script. The *on* review setting (see Settings) can run the validity lens while you type (`type`), or only when asked (`manual`).
 
+## Debugging
+
+Press **F5** on a `.loom` file (or click **Debug** above a workflow) to step through it. You get breakpoints in the gutter (also with a condition, and on an agent name through function breakpoints), the variables with the statement that set each, step over / in / out, **step back** (the state is re-derived from the run's journal, so it is exact) and *set value* / *evaluate* on hover. Models are mock and every effect is simulated, so it needs no keys; for live models put `"models": "live"` and `"maxTokens"` (or `"maxCost"` with `"prices"`) in `launch.json` and the editor asks before it spends. The same engine runs as `weave step` in a terminal; see [Debugging a workflow](../../../wiki/Debugging-a-Workflow.md).
+
 ## Editing
 
 With the engine running, the editor understands the names in your script, in every file it imports:

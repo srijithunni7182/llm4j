@@ -154,10 +154,72 @@
       {
         "command": "loom.review.fixFinding",
         "title": "Loom: Fix a Finding"
+      },
+      {
+        "command": "loom.debug",
+        "title": "Loom: Debug Workflow",
+        "icon": "$(debug-alt)"
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "loom"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "loom",
+        "label": "Loom Workflow",
+        "languages": ["loom"],
+        "configurationAttributes": {
+          "launch": {
+            "required": ["script"],
+            "properties": {
+              "script": { "type": "string", "description": "The .loom script to debug.", "default": "${file}" },
+              "workflow": { "type": "string", "description": "The workflow to run (default: the first)." },
+              "input": { "type": "object", "description": "Inputs of the workflow, by name.", "additionalProperties": { "type": "string" } },
+              "effects": { "type": "string", "enum": ["simulate"], "default": "simulate", "description": "Nothing is sent or written while debugging." },
+              "models": { "type": "string", "enum": ["mock", "scripted", "live"], "default": "mock", "description": "mock: fixed, well-formed replies. live: the real models, under a cap, after you agree." },
+              "maxCost": { "type": ["number", "string"], "description": "With live models: the most they may cost (needs prices)." },
+              "maxTokens": { "type": "number", "description": "With live models: the most tokens they may use." },
+              "prices": { "type": "string", "description": "The price table that turns tokens into money." },
+              "stopOnEntry": { "type": "boolean", "default": true, "description": "Stop before the first statement." },
+              "mask": { "type": "array", "items": { "type": "string" }, "description": "Variables whose values are never shown." }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "loom",
+            "request": "launch",
+            "name": "Debug the open Loom workflow",
+            "script": "${file}",
+            "effects": "simulate",
+            "models": "mock",
+            "stopOnEntry": true
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Loom: Debug a workflow",
+            "body": {
+              "type": "loom",
+              "request": "launch",
+              "name": "Debug ${1:workflow}",
+              "script": "^\"\\${file}\"",
+              "effects": "simulate",
+              "models": "mock"
+            }
+          }
+        ]
       }
     ],
     "menus": {
       "commandPalette": [
+        {
+          "command": "loom.debug",
+          "when": "resourceLangId == loom"
+        },
         {
           "command": "loom.showGraph",
           "when": "resourceLangId == loom"

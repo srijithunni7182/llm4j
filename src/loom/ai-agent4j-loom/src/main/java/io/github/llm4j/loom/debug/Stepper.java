@@ -126,6 +126,7 @@ public final class Stepper implements AutoCloseable {
         RESUME,
         EDIT,
         EVAL,
+        TEST,
         ABORT
     }
 
@@ -308,6 +309,14 @@ public final class Stepper implements AutoCloseable {
         return send(new Command(Do.EVAL, null, path, null)).value();
     }
 
+    /** Whether a condition holds now, over the variables as they are. */
+    public synchronized boolean holds(String condition) {
+        requirePaused();
+        String problem = Breakpoints.problemWith(condition);
+        if (problem != null) throw new IllegalArgumentException(problem);
+        return Boolean.TRUE.equals(send(new Command(Do.TEST, null, condition, null)).value());
+    }
+
     // ---- breakpoints
 
     /**
@@ -316,6 +325,16 @@ public final class Stepper implements AutoCloseable {
      */
     public Breakpoints.Breakpoint breakAt(String spec) {
         String s = spec.strip();
+        // "15 when reply == \"x\"": a place, and a condition that must hold there too
+        java.util.regex.Matcher both =
+                java.util.regex.Pattern.compile("(\\S+)\\s+when\\s+(.*)").matcher(s);
+        if (both.matches() && !both.group(1).equals("when")) {
+            String problem = Breakpoints.problemWith(both.group(2));
+            if (problem != null) throw new IllegalArgumentException(problem);
+            Breakpoints.Breakpoint base = breakAt(both.group(1));
+            breakpoints.remove(base.id());
+            return breakpoints.add(base.kind(), base.target(), base.line(), both.group(2).strip());
+        }
         if (s.equals("when") || s.startsWith("when ")) {
             String condition = s.substring(4).strip();
             String problem = Breakpoints.problemWith(condition);
@@ -543,6 +562,7 @@ public final class Stepper implements AutoCloseable {
                 switch (c.what()) {
                     case ABORT -> throw new ObserveStop("closed");
                     case EVAL -> replies.put(new Reply(view.resolve().apply(c.name()), null, null));
+                    case TEST -> replies.put(new Reply(view.test().test(c.name()), null, null));
                     case EDIT -> {
                         view.bind().accept(c.name(), c.value());
                         replies.put(new Reply(null, snapshot(view, index, "step"), null));
@@ -588,7 +608,7 @@ public final class Stepper implements AutoCloseable {
     private String breakpointHit(StepView view) {
         GraphNode node = nodeOf(view.step());
         for (Breakpoints.Breakpoint b : breakpoints.all()) {
-            boolean hit =
+            boolean placed =
                     switch (b.kind()) {
                         case "line" -> node != null
                                 && node.source() != null
@@ -603,7 +623,15 @@ public final class Stepper implements AutoCloseable {
                             }
                         }
                     };
-            if (hit) return "breakpoint " + b.id() + " (" + b.describe() + ")";
+            boolean holds = true;
+            if (placed && b.condition() != null && !b.kind().equals("when")) {
+                try {
+                    holds = view.test().test(b.condition());
+                } catch (RuntimeException e) {
+                    holds = false;
+                }
+            }
+            if (placed && holds) return "breakpoint " + b.id() + " (" + b.describe() + ")";
         }
         return null;
     }

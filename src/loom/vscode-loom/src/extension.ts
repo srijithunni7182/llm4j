@@ -16,6 +16,7 @@ import { WorkflowOutlineProvider } from './views/WorkflowOutlineProvider';
 import { registerEngine } from './engine/vscodeHost';
 import { registerSemantic, semanticMiddleware } from './semantic/vscodeSemantic';
 import { registerReview } from './review/vscodeReview';
+import { registerDebug } from './debug/vscodeDebug';
 
 // Module-level client reference so deactivate() can stop it.
 let client: LanguageClient | undefined;
@@ -114,6 +115,7 @@ export function activate(context: vscode.ExtensionContext): void {
     registerSemantic(context);
     registerCheckDiagnostics(context);
     registerReview(context);
+    registerDebug(context);
     registerGuideCommands(context);
 
     // ------------------------------------------------------------------ //

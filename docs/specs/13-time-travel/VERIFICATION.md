@@ -1,22 +1,22 @@
 # Phase 13 verification plan: time-travel debugging
 
-Status: **13a and 13b done**. Run top to bottom at the end of sub-phase 13f; the relevant rows after each sub-phase. Results in §7.
+Status: **13a to 13f built and tested**; the VS Code behaviour (§4 step 3) is for the developer to try; `--verify` (R4) is not built. Results in §7.
 
 ## 1. Acceptance criteria
 
 | # | Criterion | Evidence |
 |---|---|---|
-| A1 | For any finished, paused or failed run I can ask why it went where it did and get the condition, the values with where they came from, and the branch not taken, with no model, no keys and no network | `WhyTest`, `WhyOfflineTest`, `NoEffectsDuringWhyTest` |
-| A2 | The explanation is exact: re-deriving a run from its journal reproduces the run's steps and decisions | `ObserveReplayEqualsRunTest`, `ObserveReplayRandomWorkflowsTest` |
-| A3 | I can ask "what if the classifier had said X / the variable were Y / the tool had failed" for a past run, free when only logic changes, and be told when a model would be needed instead of being given a guess | `WhatIfTest`, `RecordedModelsReuseTest`, `NeedsModelStopsTest` |
-| A4 | I can compare a changed script, prompt or model against one past run with a capped spend and see the trajectory, result, cost and effect differences, unsafe ones marked | `WhatIfCandidateScriptTest`, `WhatIfLiveCapTest`, `EffectDeltaTest` |
-| A5 | I can step through a workflow, set breakpoints, read and edit variables, and step backwards, with effects simulated by default | `StepperTest`, `BreakpointTest`, `StepBackTest`, `StepperEffectsTest` |
+| A1 | For any finished, paused or failed run I can ask why it went where it did and get the condition, the values with where they came from, and the branch not taken, with no model, no keys and no network | `WhyTest`, `WhyStatesTest`, `WhyCommandTest` (no model or person reachable) |
+| A2 | The explanation is exact: re-deriving a run from its journal reproduces the run's steps and decisions | `ObserveReplayEqualsRunTest`, `GeneratedWorkflowsTest` (500 seeds) |
+| A3 | I can ask "what if the classifier had said X / the variable were Y / the tool had failed" for a past run, free when only logic changes, and be told when a model would be needed instead of being given a guess | `WhatIfTest` (recorded answers reused only for an unchanged question; the candidate stops and says what it needs), `WhatIfCommandTest` |
+| A4 | I can compare a changed script, prompt or model against one past run with a capped spend and see the trajectory, result, cost and effect differences, unsafe ones marked | `WhatIfCandidateTest`, `WhatIfCommandTest` (cap, consent), `WhatIfTest` (effect delta; unsafe marked); cost deltas are not shown, only the spend of the candidate |
+| A5 | I can step through a workflow, set breakpoints, read and edit variables, and step backwards, with effects simulated by default | `StepperTest`, `BreakpointTest`, `StepBackTest`, `StepCommandTest` |
 | A6 | In VS Code, F5 on a `.loom` debugs it with breakpoints, variables and step controls | `DapProtocolTest`, `debugConfig.test.ts`, manual §4 |
 | A7 | I can see the path a run took on the graph, and which nodes a set of runs never reached | `OverlayCountsTest`, `OverlayAggregateTest` |
-| A8 | None of this changes or writes to the original run, and none of it has an effect | `OriginalUntouchedTest`, `NoEffectsDuringWhyTest` |
-| A9 | Existing run, resume, rewind, fork, timeline, replay behaviour and journals are byte-identical | `RunUnchangedTest`, `RunUnchangedJournalTest` |
-| A10 | Output is stable and machine-readable (JSON v1) for Fabric and the editor | `WhyJsonSchemaTest`, `OverlayJsonSchemaTest` |
-| A11 | `why` on a 5,000-step run takes under 2 s | `WhyPerformanceTest` |
+| A8 | None of this changes or writes to the original run, and none of it has an effect | `WhyCommandTest`, `WhatIfCommandTest.showsHowTheRunWouldHaveGoneAndTheOriginalIsNotTouched`, `StepperTest.theOriginalJournalIsNotWritten`, `StepBackTest.backDoesNotWrite...` |
+| A9 | Existing run, resume, rewind, fork, timeline, replay behaviour and journals are byte-identical | `DecisionEventTest.aRunWithNoListenerIsExactlyWhatItWas`, the whole existing suite; the only change to what a run writes is the `#failure` note of a run that failed (§7, 13a) |
+| A10 | Output is stable and machine-readable (JSON v1) for Fabric and the editor | `WhyCommandTest.jsonIsVersioned...`, `OverlayJsonSchemaTest` |
+| A11 | `why` on a 5,000-step run takes under 2 s | `WhyStatesTest.aRunOfFiveThousandStepsIsExplainedInUnderTwoSeconds` |
 | A12 | Documented | docs review (§5) |
 
 ## 2. Traceability: requirement → tests
@@ -60,11 +60,11 @@ Status: **13a and 13b done**. Run top to bottom at the end of sub-phase 13f; the
 | R35 | `OverlayAggregateTest` (3), `GraphRunOverlayCommandTest.severalRuns...` | ✅ 13d |
 | R36 | `OverlayMermaidTest` (3), `GraphRunOverlayCommandTest.mermaidDrawsThePathBold` | ✅ 13d |
 | R37 | `OverlayJsonSchemaTest` (2), `graph-result.schema.json` gains `overlay` | ✅ 13d |
-| R38 | `DapProtocolTest` | ⬜ 13f |
-| R39 | `DapCapabilitiesTest` | ⬜ 13f |
-| R40 | `DapLiveConfirmTest` | ⬜ 13f |
-| R41 | `debugConfig.test.ts` | ⬜ 13f |
-| R42 | `DapCostInConsoleTest` | ⬜ 13f |
+| R38 | `DapProtocolTest` (the whole conversation, over pipes), `dap.integration.test.ts` (the real adapter, driven as the editor drives it) | ✅ 13f |
+| R39 | `DapProtocolTest.stepBackAndReverseContinueAreAdvertisedAndWork`, `dap.integration.test.ts` | ✅ 13f |
+| R40 | `DapLiveConfirmTest`, `debugConfig.test.ts` (the cap, the prices, the question), `dap.integration.test.ts` | ✅ 13f |
+| R41 | `debugConfig.test.ts` (F5 configuration, manifest, CodeLens, registration) | 🟨 13f (the VS Code behaviour itself is for you to try) |
+| R42 | `DapProtocolTest.lineBreakpoints...` (calls and tokens in the console at a breakpoint) | 🟨 13f (spent so far; the estimate for the remainder is not shown) |
 | R43 | `ObserveReplayEqualsRunTest` (the one component) | ✅ 13a |
 | R44 | `DecisionEventTest.aRunWithNoListenerIsExactlyWhatItWas` (same journal, same trace), the whole Java suite | ✅ 13a |
 
@@ -90,10 +90,10 @@ Wiki "Debugging a workflow"; LOOM_GUIDE sections for `why`, `step`, `whatif`, th
 
 ## 6. Exit checklist
 
-- [ ] Every row in §2 ✅ and every A-criterion has evidence
-- [ ] Journal audit result (DESIGN §11.1) recorded in §7, with any added records justified
-- [ ] Docs in §5 updated; roadmap status updated
-- [ ] DESIGN §11 questions answered and recorded
+- [x] Every A-criterion has evidence; the rows of §2 are ✅ except those marked 🟨 with what is missing, and R4 (`--verify`), which is not built
+- [x] Journal audit result (DESIGN §11.1) recorded in §7, with the one added record (`#failure`) justified
+- [x] Docs in §5 updated (wiki page, Loom guide, deployer skill and chapter, PROTOCOL, `llms.txt`, extension README and changelog); the stack-level pages wait for the end of all phases
+- [x] DESIGN §11 questions answered (§7, 13f); the product calls are D11 in `09-review-engine/OPEN_ITEMS.md`
 
 ## 7. Results
 
@@ -148,3 +148,10 @@ The one gap that matters is the first: without a record, a failed run's journal 
 - Found building it: a nested statement's parent in the step id is the id without its last part (and without the item part in a for each); an edit made while paused must outlive going back, so edits are kept apart from the journal the replay gives back; a replay goes on past the pause through whatever needs no model, so `why` counts only the statements that have run.
 - Tests: Java module 3,045; `StepperTest` (19), `BreakpointTest` (11), `StepBackTest` (7), `StepCommandTest` (12).
 - Not in 13e: real effects, paging a long value, the agent's attempts/model/latency in `vars`, the graph position as a drawing in `where`.
+
+### 13f (2026-10-23)
+
+- Built: `weave dap` (the Debug Adapter Protocol over standard input and output, hand-framed, no new dependency) mapping launch, breakpoints (line, conditional, function = agent or classifier), threads, stack, scopes, variables with provenance, next/stepIn/stepOut/continue, stepBack/reverseContinue, setVariable, evaluate and `loom/why` onto the stepper; standard output carries only the protocol. The extension contributes the `loom` debugger, the launch-config provider (F5 with no `launch.json`), a *Debug* CodeLens above each workflow, the command `loom.debug`, and the confirmation before live models. Also: the random-workflow property test (500 seeds, `-Dloom.seeds=10000` nightly), `scripts/verify-travel.sh`, the wiki page *Debugging a workflow*, the Loom guide section, the deployer chapter and skill, the PROTOCOL section, `llms.txt`, the extension README and changelog.
+- Tests: Java module 3,057; extension +13 (`debugConfig.test.ts` 10, `dap.integration.test.ts` 2 against the real adapter, one CodeLens assertion changed from 3 to 4 lenses). The five extension failures that were there before this phase are unchanged (logo script ×2, renderer copy ×2, one real-graph path).
+- DESIGN §11 answered: (1) the audit found one gap and one record was added (13a); (2) no decision records are stored: they are re-derived; (3) the stepper uses mock models by default, `model Agent "reply"` overrides, and `--models live` needs a cap and consent; (4) the command is `whatif`; (5) the debug adapter was built, after the CLI stepper.
+- Not in 13f: real effects while debugging (refused), `loom/whatif` as a debugger request, branches of a `parallel` block as separate threads, a person's answer from the debugger (the console says to use `weave step`), the estimate for the remainder of the run at a breakpoint, `--verify` (R4).
