@@ -595,6 +595,98 @@ class ReviewCommandTest {
                 .contains("nothing is sent anywhere");
     }
 
+    // ---- fixes (R24 to R29, R48)
+
+    Path script() {
+        return dir.resolve("w.loom");
+    }
+
+    @Test
+    void fixAppliesTheSafeFixesWritesTheFileAndReviewsAgain() throws Exception {
+        assertThat(run(SEARCH, "--fix")).isZero();
+        assertThat(out.toString())
+                .contains("Fixed 1 finding(s)")
+                .contains("LR01 line 3")
+                .contains("Reviewed again");
+        assertThat(Files.readString(script())).contains("-> found retry 2 backoff 2s timeout 60s");
+        // the review printed after the fix no longer lists LR01
+        assertThat(out.toString().substring(out.toString().indexOf("Reviewed again")))
+                .doesNotContain("LR01");
+    }
+
+    @Test
+    void fixIsIdempotent() throws Exception {
+        run(SEARCH, "--fix");
+        String once = Files.readString(script());
+        out.reset();
+        assertThat(run(once, "--fix")).isZero();
+        assertThat(out.toString()).contains("No fixes to apply");
+        assertThat(Files.readString(script())).isEqualTo(once);
+    }
+
+    @Test
+    void dryRunPrintsTheDiffChangesNothingAndExitsOneWhileFixesArePending() throws Exception {
+        assertThat(run(SEARCH, "--fix", "--dry-run")).isEqualTo(1);
+        assertThat(out.toString())
+                .contains("--- a/w.loom")
+                .contains("+++ b/w.loom")
+                .contains(
+                        "+  delegate \"Find: {topic}\" to Searcher -> found retry 2 backoff 2s timeout 60s");
+        assertThat(Files.readString(script())).isEqualTo(SEARCH);
+        // nothing is left behind next to the script
+        try (var files = Files.list(dir)) {
+            assertThat(files.map(p -> p.getFileName().toString()))
+                    .noneMatch(n -> n.startsWith(".review-candidate"));
+        }
+        out.reset();
+        Files.writeString(
+                script(), SEARCH.replace("-> found", "-> found retry 2 backoff 2s timeout 60s"));
+        assertThat(run(Files.readString(script()), "--fix", "--dry-run")).isZero();
+        assertThat(out.toString()).contains("No fixes are pending");
+    }
+
+    @Test
+    void aFixThatNeedsJudgementNeedsYesAndIsShownByDryRun() throws Exception {
+        String hook =
+                "tool Hook { use: webhook  url: env.HOOK }\nagent N { model: \"m\"  system: \"s\"  tools: [Hook] }\n"
+                        + "workflow Main(q) {\n  delegate \"tell {q}\" to N -> sent retry 2 backoff 2s timeout 60s\n  note \"{sent}\"\n}\n";
+        assertThat(run(hook, "--fix")).isZero();
+        assertThat(Files.readString(script())).doesNotContain("on_failure");
+        assertThat(run(hook, "--fix-rule", "LR02")).isEqualTo(2);
+        assertThat(err.toString()).contains("needs your judgement").contains("--yes");
+        out.reset();
+        assertThat(run(hook, "--fix-rule", "LR02", "--dry-run")).isEqualTo(1);
+        assertThat(out.toString()).contains("on_failure { note \"this step failed\" }");
+        assertThat(Files.readString(script())).doesNotContain("on_failure");
+        assertThat(run(hook, "--fix-rule", "LR02", "--yes")).isZero();
+        assertThat(Files.readString(script())).contains("on_failure { note \"this step failed\" }");
+    }
+
+    @Test
+    void fixFindingAppliesOnlyThatFinding() throws Exception {
+        String two =
+                "agent A { model: \"m\"  system: \"s\"  tools: [web_search] }\nagent B { model: \"m\"  system: \"s\"  tools: [web_search] }\n"
+                        + "workflow Main(topic) {\n  delegate \"one {topic}\" to A -> first\n  delegate \"two {topic}\" to B -> second\n}\n";
+        JsonNode r = report(two);
+        String fp = null;
+        for (JsonNode f : r.get("findings"))
+            if (f.get("rule").asText().equals("LR01") && f.get("title").asText().contains(" A "))
+                fp = f.get("fingerprint").asText();
+        assertThat(fp).isNotNull();
+        out.reset();
+        assertThat(run(two, "--fix-finding", fp)).isZero();
+        String after = Files.readString(script());
+        assertThat(after.split("retry 2 backoff 2s timeout 60s", -1)).hasSize(2);
+        err.reset();
+        assertThat(run(two, "--fix-finding", "0000000000000000")).isEqualTo(2);
+        assertThat(err.toString()).contains("has a fix to apply");
+    }
+
+    @Test
+    void aFixDoesNotChangeTheExitRuleWhatRemainsDecidesIt() throws Exception {
+        assertThat(run(SEARCH, "--fix", "--fail-on", "info")).isEqualTo(1); // other findings remain
+    }
+
     private com.fasterxml.jackson.databind.JsonNode json(String source, String... args)
             throws Exception {
         List<String> all = new java.util.ArrayList<>(List.of("--format", "json"));
@@ -616,7 +708,7 @@ class ReviewCommandTest {
         assertThat(rules(report)).contains("LR01", "LR03");
         for (JsonNode f : report.get("findings")) {
             if (f.get("rule").asText().equals("LR01")) {
-                assertThat(f.get("source").asText()).isEqualTo("pack core@1.3.0");
+                assertThat(f.get("source").asText()).isEqualTo("pack core@1.4.0");
                 assertThat(f.get("lens").asText()).isEqualTo("reliability");
                 assertThat(f.get("location").get("node").asText()).matches("n\\d+");
                 assertThat(f.get("title").asText()).contains("delegate Researcher");
@@ -653,7 +745,7 @@ class ReviewCommandTest {
                 .contains("LR01")
                 .contains("Lens: Reliability")
                 .contains("Severity: medium")
-                .contains("From: pack core@1.3.0")
+                .contains("From: pack core@1.4.0")
                 .contains("Why it matters")
                 .contains("What to do");
         out.reset();

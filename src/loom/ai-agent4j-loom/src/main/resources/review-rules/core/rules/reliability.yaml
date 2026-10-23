@@ -22,7 +22,7 @@
     timeout stops one call from holding the run forever. The fix adds the retry and timeout your
     project prefers (fix.retry in review.properties).
   examples:
-    fires: [ { file: examples/lr01-fires.loom, expect: 1 } ]
+    fires: [ { file: examples/lr01-fires.loom, expect: 1 } , examples/lr01-fires-multiline.loom]
     quiet: [ examples/lr01-quiet.loom, examples/lr01-quiet-no-tools.loom ]
 
 - id: LR03
@@ -39,13 +39,13 @@
   fix:
     safety: safe
     label: "Add a maximum number of rounds"
-    insertAfter: { anchor: { lineOf: line }, text: " {setting.fix.loop.max}" }
+    insertBefore: { anchor: beforeBrace, text: "{setting.fix.loop.max} " }
   since: "1.0.0"
   explain: >
     Bound every loop. With max N the runtime stops after N rounds and runs the on_exhausted block,
     so the cost of the loop has an upper limit and the run cannot spin unnoticed.
   examples:
-    fires: [ examples/lr03-fires.loom ]
+    fires: [ examples/lr03-fires.loom , examples/lr03-fires-multiline.loom]
     quiet: [ examples/lr03-quiet.loom ]
 
 - id: LR02
@@ -60,13 +60,17 @@
   title: "{label} can write or send but has no on_failure"
   why: "When a step that acts on the outside world fails half way, nothing decides what happens next: the run ends with the effect done, undone or unknown."
   fixHint: "Add an on_failure block that records the failure and asks a person what to do."
+  fix:
+    safety: review
+    label: "Add an on_failure block that records the failure"
+    insertAfter: { anchor: statementEnd, text: " on_failure { note \"this step failed\" }" }
   since: "1.2.0"
   explain: >
     An agent whose tools write or send can fail after part of its work is done. An on_failure
     block is where the workflow says what then: stop cleanly, tell someone, or ask a person.
     Without one the failure ends the run wherever it happens.
   examples:
-    fires: [ examples/lr02-fires.loom ]
+    fires: [ examples/lr02-fires.loom, examples/lr02-fires-multiline.loom ]
     quiet: [ examples/lr02-quiet-handled.loom, examples/lr02-quiet-reads.loom ]
 
 - id: LR04
@@ -138,6 +142,10 @@
   title: "The script is scheduled but declares no rate_limits"
   why: "An unattended run that hits a provider limit has no rule for waiting or giving up, so it fails or retries without bound."
   fixHint: "Add a rate_limits block saying whether to suspend, wait or fail."
+  fix:
+    safety: safe
+    label: "Add a rate_limits block"
+    insertBefore: { anchor: fileStart, text: "rate_limits { on_limit: suspend  max_wait: 24h  max_resumes: 50 }\n" }
   since: "1.2.0"
   examples:
     fires: [ examples/lr08-fires.loom ]

@@ -6,7 +6,10 @@ import io.github.llm4j.loom.review.fact.Entity;
 import io.github.llm4j.loom.review.fact.FactBase;
 import io.github.llm4j.loom.review.fact.FactBuilder;
 import io.github.llm4j.loom.review.fact.Unknown;
+import io.github.llm4j.loom.review.fix.FixBuilder;
+import io.github.llm4j.loom.review.fix.SourceText;
 import io.github.llm4j.loom.review.model.Finding;
+import io.github.llm4j.loom.review.model.Fix;
 import io.github.llm4j.loom.review.model.Note;
 import io.github.llm4j.loom.review.rule.Evaluation;
 import io.github.llm4j.loom.review.rule.Evaluator;
@@ -18,6 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * Runs the rules of one or more packs over the facts of a review and reports what fires. The facts
@@ -46,10 +50,18 @@ public final class DataRuleSource implements FindingSource {
     @Override
     public void collect(ReviewInput input, ReviewSettings settings, Sink sink) {
         FactBase base = facts.build(input, settings);
-        for (Pack pack : packs) for (RuleDoc rule : pack.rules()) run(rule, base, settings, sink);
+        Supplier<SourceText> source = source(input);
+        for (Pack pack : packs)
+            for (RuleDoc rule : pack.rules()) run(rule, base, settings, sink, source, input.file());
     }
 
-    private void run(RuleDoc rule, FactBase base, ReviewSettings settings, Sink sink) {
+    private void run(
+            RuleDoc rule,
+            FactBase base,
+            ReviewSettings settings,
+            Sink sink,
+            Supplier<SourceText> source,
+            String file) {
         if (!settings.lensOn(rule.lens())) return;
         Boolean enabled = settings.rule(rule.id()).enabled();
         if (Boolean.FALSE.equals(enabled)) return;
@@ -62,7 +74,7 @@ public final class DataRuleSource implements FindingSource {
         for (Entity e : base.entities(rule.about())) {
             Evaluation result = Evaluator.evaluate(rule.when(), e, base);
             if (result.result() != Tri.TRUE) continue;
-            sink.finding(finding(rule, e, base));
+            sink.finding(finding(rule, e, base, source, file));
         }
     }
 
@@ -82,7 +94,11 @@ public final class DataRuleSource implements FindingSource {
         return null;
     }
 
-    static Finding finding(RuleDoc rule, Entity e, FactBase base) {
+    static Finding finding(
+            RuleDoc rule, Entity e, FactBase base, Supplier<SourceText> source, String file) {
+        Optional<Fix> fix = Optional.empty();
+        SourceText text = rule.fix() == null ? null : source.get();
+        if (text != null) fix = FixBuilder.build(rule.fix(), e, base, text, file);
         return new Finding(
                 rule.id(),
                 rule.lens(),
@@ -92,10 +108,30 @@ public final class DataRuleSource implements FindingSource {
                 Template.render(rule.why(), e, base),
                 Template.render(rule.fixHint(), e, base),
                 rule.references(),
-                Optional.empty(),
+                fix,
                 List.of(),
                 "pack " + rule.pack(),
                 anchor(e, base));
+    }
+
+    /** The script's text, read once when the first fix needs it; null when it cannot be read. */
+    private static Supplier<SourceText> source(ReviewInput input) {
+        SourceText[] cache = new SourceText[1];
+        boolean[] tried = {false};
+        return () -> {
+            if (!tried[0]) {
+                tried[0] = true;
+                try {
+                    cache[0] =
+                            SourceText.of(
+                                    java.nio.file.Files.readString(
+                                            input.baseDir().resolve(input.file())));
+                } catch (java.io.IOException | RuntimeException e) {
+                    cache[0] = null;
+                }
+            }
+            return cache[0];
+        };
     }
 
     /**

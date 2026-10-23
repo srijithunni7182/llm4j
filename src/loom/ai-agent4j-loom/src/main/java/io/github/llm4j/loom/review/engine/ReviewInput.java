@@ -16,6 +16,8 @@ import java.util.Map;
  * @param lootReach what a {@code .loot} file says tools reach ({@code Name.reach = reads})
  * @param problems what the script's own validation reported
  * @param graph the workflow graphs (the ids of {@code weave graph}), or {@code null} when not built
+ * @param text the script's text when it differs from the file on disk (a candidate being verified
+ *     by the fix engine), else {@code null}
  */
 public record ReviewInput(
         String file,
@@ -23,7 +25,18 @@ public record ReviewInput(
         LoomScript script,
         Map<String, String> lootReach,
         List<ValidityProblem> problems,
-        GraphResult graph) {
+        GraphResult graph,
+        String text) {
+
+    public ReviewInput(
+            String file,
+            Path baseDir,
+            LoomScript script,
+            Map<String, String> lootReach,
+            List<ValidityProblem> problems,
+            GraphResult graph) {
+        this(file, baseDir, script, lootReach, problems, graph, null);
+    }
 
     public ReviewInput {
         lootReach = lootReach == null ? Map.of() : Map.copyOf(lootReach);

@@ -21,8 +21,23 @@ public record FixTemplate(FixSafety safety, String label, List<Operation> operat
 
     /** The anchors an operation may name, each resolved from the parsed script. */
     public static final List<String> ANCHORS =
-            List.of("statementStart", "statementEnd", "blockEnd", "lineOf", "file");
+            List.of(
+                    "statementStart",
+                    "statementEnd",
+                    "beforeBrace",
+                    "blockStart",
+                    "blockEnd",
+                    "block",
+                    "lineEnd",
+                    "line",
+                    "lineOf",
+                    "fileStart",
+                    "file");
 
     /** One edit: what to do, where (an anchor) and with what text. */
-    public record Operation(String kind, String anchor, String text) {}
+    public record Operation(String kind, String anchor, String text, String find) {
+        public Operation(String kind, String anchor, String text) {
+            this(kind, anchor, text, null);
+        }
+    }
 }

@@ -404,7 +404,7 @@ public final class RuleParser {
                                 + op
                                 + ": needs an anchor"
                                 + (op.equals("createFile") ? " or a path" : ""));
-            ops.add(new FixTemplate.Operation(op, anchor, text(o, "text")));
+            ops.add(new FixTemplate.Operation(op, anchor, text(o, "text"), text(o, "find")));
         }
         if (ops.isEmpty())
             problems.add(

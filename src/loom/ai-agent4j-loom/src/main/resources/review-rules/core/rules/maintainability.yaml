@@ -8,6 +8,10 @@
   title: "Agent {name} is defined but never used"
   why: "An agent nothing uses still has to be read, kept in step with its prompt, and reviewed for what its tools can reach."
   fixHint: "Delete the agent, or use it."
+  fix:
+    safety: safe
+    label: "Delete the unused agent"
+    deleteLines: { anchor: block }
   since: "1.0.0"
   examples:
     fires: [ examples/lm01-fires.loom ]

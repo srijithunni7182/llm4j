@@ -1,9 +1,6 @@
 package io.github.llm4j.loom.cli;
 
-import io.github.llm4j.loom.ast.LoomScript;
 import io.github.llm4j.loom.execution.LoomLoader;
-import io.github.llm4j.loom.graph.GraphResult;
-import io.github.llm4j.loom.graph.GraphService;
 import io.github.llm4j.loom.review.Reviews;
 import io.github.llm4j.loom.review.cost.Assumptions;
 import io.github.llm4j.loom.review.cost.Calibration;
@@ -13,7 +10,6 @@ import io.github.llm4j.loom.review.engine.ReviewReport;
 import io.github.llm4j.loom.review.engine.ReviewRule;
 import io.github.llm4j.loom.review.engine.RuleCatalog;
 import io.github.llm4j.loom.review.engine.RuleInfo;
-import io.github.llm4j.loom.review.engine.ValidityProblem;
 import io.github.llm4j.loom.review.handle.Baseline;
 import io.github.llm4j.loom.review.model.Severity;
 import io.github.llm4j.loom.review.pack.JavaRules;
@@ -197,6 +193,33 @@ final class ReviewCommand implements Callable<Integer> {
             defaultValue = "50")
     int noiseShare;
 
+    @Option(
+            names = "--fix",
+            description = "Apply every safe fix, checking each result, then review again.")
+    boolean fix;
+
+    @Option(
+            names = "--fix-rule",
+            paramLabel = "<RULE>",
+            description =
+                    "Apply the fixes of one rule, including ones that need your judgement (with --yes).")
+    String fixRule;
+
+    @Option(
+            names = "--fix-finding",
+            paramLabel = "<fingerprint>",
+            description = "Apply the fix of one finding (with --yes if it needs your judgement).")
+    String fixFinding;
+
+    @Option(
+            names = "--dry-run",
+            description =
+                    "With a fix option: print the diff and change nothing; exit 1 if fixes are pending.")
+    boolean dryRun;
+
+    @Option(names = "--yes", description = "Confirm fixes that need your judgement.")
+    boolean yes;
+
     @Option(names = "--out", description = "Also write the report to this file.")
     File out;
 
@@ -274,9 +297,8 @@ final class ReviewCommand implements Callable<Integer> {
             env.err().println("Error: " + e.getMessage());
             return 2;
         }
-        LoomScript loaded;
         try {
-            loaded = new LoomLoader().load(c.script.getAbsolutePath());
+            new LoomLoader().load(c.script.getAbsolutePath());
         } catch (Exception e) {
             env.err().println("Error: " + c.script + " could not be read: " + e.getMessage());
             return 2;
@@ -295,17 +317,9 @@ final class ReviewCommand implements Callable<Integer> {
             }
             reach = io.github.llm4j.loom.execution.LootLoader.reaches(c.lootFile.toPath());
         }
-        ReviewInput input =
-                new ReviewInput(
-                        c.script.getName(),
-                        c.script.getAbsoluteFile().getParentFile().toPath(),
-                        loaded,
-                        reach,
-                        validity(c, env, loaded),
-                        graph(c));
         PackSet packs;
         try {
-            packs = Reviews.packs(settings, input.baseDir());
+            packs = Reviews.packs(settings, scriptDir);
         } catch (PackException e) {
             e.problems().forEach(p -> env.err().println("Error: " + p));
             return 2;
@@ -329,8 +343,34 @@ final class ReviewCommand implements Callable<Integer> {
                                     + e.getMessage());
             return 2;
         }
-        if (c.calibrate != null) return calibrate(c, input, settings, estimator, env);
-        ReviewReport report = Reviews.engine(packs, javaRules, estimator).review(input, settings);
+        ReviewSession session =
+                new ReviewSession(
+                        c,
+                        env,
+                        settings,
+                        Reviews.engine(packs, javaRules, estimator),
+                        reach,
+                        estimator);
+        ReviewReport report;
+        try {
+            if (c.calibrate != null)
+                return calibrate(
+                        c, session.input(c.script.toPath(), null), settings, estimator, env);
+            report = session.review(c.script.toPath());
+        } catch (Exception e) {
+            env.err().println("Error: " + c.script + " could not be read: " + e.getMessage());
+            return 2;
+        }
+        if (c.fix || c.fixRule != null || c.fixFinding != null) {
+            Integer done = ReviewFixing.apply(c, session, report, env);
+            if (done != null) return done;
+            try {
+                report = session.review(c.script.toPath());
+            } catch (Exception e) {
+                env.err().println("Error: " + c.script + " could not be read: " + e.getMessage());
+                return 2;
+            }
+        }
         if (ReviewHandling.requested(c))
             return ReviewHandling.apply(c, report, scriptDir, baselinePath, today, env);
         ReviewReport shown = atLeast(report, min.get());
@@ -416,35 +456,6 @@ final class ReviewCommand implements Callable<Integer> {
         if (c.failOn == null) return settings.failOn();
         if (c.failOn.equalsIgnoreCase("none")) return Optional.empty();
         return Severity.parse(c.failOn);
-    }
-
-    /** What weave check reports, as problems the review can read without the validator. */
-    private static List<ValidityProblem> validity(
-            ReviewCommand c, WeaveEnv env, LoomScript loaded) {
-        WeaveCLI.Validation v =
-                WeaveCLI.validate(
-                        c.script,
-                        c.lootFile,
-                        new WeaveCLI.CheckSettings(false, false, c.noEnv, false),
-                        env,
-                        loaded);
-        List<ValidityProblem> out = new ArrayList<>();
-        for (String r : v.reachProblems()) out.add(new ValidityProblem(0, null, r, true));
-        for (String w : v.keyWarnings()) out.add(new ValidityProblem(0, null, w, false));
-        var error = io.github.llm4j.loom.execution.ScriptValidator.Severity.ERROR;
-        for (var p : v.problems())
-            out.add(
-                    new ValidityProblem(
-                            p.line(), p.construct(), p.message(), p.severity() == error));
-        return out;
-    }
-
-    private static GraphResult graph(ReviewCommand c) {
-        try {
-            return new GraphService().graph(c.script.toPath());
-        } catch (RuntimeException e) {
-            return null; // the graph only adds node ids; the review does not depend on it
-        }
     }
 
     private static ReviewReport atLeast(ReviewReport r, Severity min) {
