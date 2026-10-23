@@ -4,6 +4,7 @@ import io.github.llm4j.loom.review.adapt.AuditCatalog;
 import io.github.llm4j.loom.review.adapt.AuditSource;
 import io.github.llm4j.loom.review.adapt.ValidityCatalog;
 import io.github.llm4j.loom.review.adapt.ValiditySource;
+import io.github.llm4j.loom.review.cost.CostEstimator;
 import io.github.llm4j.loom.review.engine.FindingSource;
 import io.github.llm4j.loom.review.engine.Overlap;
 import io.github.llm4j.loom.review.engine.ReviewEngine;
@@ -68,9 +69,15 @@ public final class Reviews {
 
     /** As {@link #engine(PackSet)}, with Java rules the user brought in a jar. */
     public static ReviewEngine engine(PackSet packs, List<ReviewRule> javaRules) {
+        return engine(packs, javaRules, null);
+    }
+
+    /** As above, with an estimator so that the report says what the workflows cost. */
+    public static ReviewEngine engine(
+            PackSet packs, List<ReviewRule> javaRules, CostEstimator estimator) {
         List<FindingSource> all = new ArrayList<>(sources(packs));
         all.addAll(javaRules);
-        return new ReviewEngine(all, OVERLAPS);
+        return new ReviewEngine(all, OVERLAPS, estimator);
     }
 
     /**

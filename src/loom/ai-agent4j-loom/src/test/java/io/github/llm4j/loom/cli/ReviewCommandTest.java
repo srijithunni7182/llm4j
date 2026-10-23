@@ -298,6 +298,88 @@ class ReviewCommandTest {
         assertThat(report.get("findings")).extracting(n -> n.get("rule").asText()).contains("LV08");
     }
 
+    static final String LOOPY =
+            "budget { tokens: 100000 }\nagent A { model: \"m\"  system: \"You are helpful\" }\n"
+                    + "workflow Main(q) { loop until (r == \"y\") { delegate \"hello world\" to A -> r } }\n";
+
+    @Test
+    void theTextReportSaysWhatItCostsInTokensWithoutPricesAndAsksForThem() throws Exception {
+        assertThat(run(CALM)).isZero();
+        assertThat(out.toString())
+                .contains("Cost     Main: typical")
+                .contains("tokens (no price for m)")
+                .contains("These are estimates from the script alone")
+                .contains("No price table (--prices FILE)");
+    }
+
+    @Test
+    void withPricesTheCostIsMoneyAndTheFooterNamesTheTable() throws Exception {
+        Path prices = dir.resolve("prices.properties");
+        Files.writeString(prices, "m = 1 / 2\n");
+        assertThat(run(CALM, "--prices", prices.toString(), "--format", "json")).isZero();
+        JsonNode cost = new ObjectMapper().readTree(out.toString()).get("cost");
+        JsonNode main = cost.get("workflows").get(0);
+        assertThat(main.get("name").asText()).isEqualTo("Main");
+        assertThat(main.at("/typical/money").asDouble()).isGreaterThan(0);
+        assertThat(main.at("/typical/calls").asInt()).isEqualTo(1);
+        assertThat(cost.get("prices").asText()).isEqualTo("prices.properties");
+        assertThat(cost.get("estimate").asBoolean()).isTrue();
+        assertThat(main.get("steps").get(0).get("label").asText()).isEqualTo("delegate A");
+    }
+
+    @Test
+    void anUnboundedLoopIsReportedAsUnboundedAndTheBudgetIsNotConfusedForIt() throws Exception {
+        assertThat(run(LOOPY, "--format", "json")).isZero();
+        JsonNode worst = new ObjectMapper().readTree(out.toString()).at("/cost/workflows/0/worst");
+        assertThat(worst.get("unbounded").asBoolean()).isTrue();
+        out.reset();
+        assertThat(run(LOOPY)).isZero();
+        assertThat(out.toString()).contains("worst case unbounded (");
+    }
+
+    @Test
+    void assumeFlagsAndTheSettingsFileChangeTheEstimateAndAreListed() throws Exception {
+        assertThat(
+                        run(
+                                CALM.replace(
+                                                "workflow Main(q) {",
+                                                "workflow Main(q) { for each d in q {")
+                                        .replace("note \"{r}\" }", "note \"{r}\" } }"),
+                                "--format",
+                                "json",
+                                "--assume",
+                                "foreach.items=9"))
+                .isZero();
+        JsonNode cost = new ObjectMapper().readTree(out.toString()).get("cost");
+        assertThat(cost.at("/workflows/0/typical/calls").asInt()).isEqualTo(9);
+        assertThat(cost.at("/assumptions/assume.foreach.items").asInt()).isEqualTo(9);
+    }
+
+    @Test
+    void aBadAssumptionIsExitTwoWithTheNearestName() throws Exception {
+        assertThat(run(CALM, "--assume", "loop.iteration=2")).isEqualTo(2);
+        assertThat(err.toString()).contains("did you mean 'assume.loop.iterations'");
+        err.reset();
+        assertThat(run(CALM, "--assume", "nonsense")).isEqualTo(2);
+        assertThat(err.toString()).contains("--assume takes name=value");
+    }
+
+    @Test
+    void explainCostListsTheAssumptionsAndHowTheEstimateIsMade() throws Exception {
+        assertThat(run(CALM, "--explain", "cost")).isZero();
+        assertThat(out.toString())
+                .contains("never calls a model")
+                .contains("loop.iterations")
+                .contains("foreach.max")
+                .contains("unbounded");
+    }
+
+    @Test
+    void anUnreadablePriceTableIsExitTwo() throws Exception {
+        assertThat(run(CALM, "--prices", dir.resolve("nope.properties").toString())).isEqualTo(2);
+        assertThat(err.toString()).contains("price table");
+    }
+
     private com.fasterxml.jackson.databind.JsonNode json(String source, String... args)
             throws Exception {
         List<String> all = new java.util.ArrayList<>(List.of("--format", "json"));

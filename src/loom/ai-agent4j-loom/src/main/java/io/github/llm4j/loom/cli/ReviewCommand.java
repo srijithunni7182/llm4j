@@ -5,6 +5,8 @@ import io.github.llm4j.loom.execution.LoomLoader;
 import io.github.llm4j.loom.graph.GraphResult;
 import io.github.llm4j.loom.graph.GraphService;
 import io.github.llm4j.loom.review.Reviews;
+import io.github.llm4j.loom.review.cost.Assumptions;
+import io.github.llm4j.loom.review.cost.CostEstimator;
 import io.github.llm4j.loom.review.engine.ReviewInput;
 import io.github.llm4j.loom.review.engine.ReviewReport;
 import io.github.llm4j.loom.review.engine.ReviewRule;
@@ -94,6 +96,19 @@ final class ReviewCommand implements Callable<Integer> {
             description =
                     "A jar of Java rules (io.github.llm4j.loom.review.engine.ReviewRule, found with ServiceLoader). Repeatable. Nothing is loaded unless you name it.")
     List<File> rulesJars = new ArrayList<>();
+
+    @Option(
+            names = "--prices",
+            description =
+                    "The price table (lines of 'model = input / output' per million tokens), as for weave run. Without it the cost is shown in tokens.")
+    File prices;
+
+    @Option(
+            names = "--assume",
+            paramLabel = "<name=value>",
+            description =
+                    "Override a cost assumption, such as loop.iterations=5 (repeatable). weave review --explain cost lists them.")
+    List<String> assume = new ArrayList<>();
 
     @Option(names = "--out", description = "Also write the report to this file.")
     File out;
@@ -203,7 +218,19 @@ final class ReviewCommand implements Callable<Integer> {
             e.problems().forEach(p -> env.err().println("Error: " + p));
             return 2;
         }
-        ReviewReport report = Reviews.engine(packs, javaRules).review(input, settings);
+        CostEstimator estimator;
+        try {
+            estimator = estimator(c);
+        } catch (java.io.IOException | IllegalArgumentException e) {
+            env.err()
+                    .println(
+                            "Error: the price table "
+                                    + c.prices
+                                    + " could not be read: "
+                                    + e.getMessage());
+            return 2;
+        }
+        ReviewReport report = Reviews.engine(packs, javaRules, estimator).review(input, settings);
         ReviewReport shown = atLeast(report, min.get());
         String text =
                 switch (c.format) {
@@ -226,6 +253,12 @@ final class ReviewCommand implements Callable<Integer> {
         return 0;
     }
 
+    private static CostEstimator estimator(ReviewCommand c) throws java.io.IOException {
+        if (c.prices == null) return new CostEstimator();
+        return new CostEstimator(
+                io.github.llm4j.budget.PriceTable.load(c.prices.toPath()), c.prices.getName());
+    }
+
     private static ReviewSettings settings(ReviewCommand c) {
         ReviewSettings s;
         if (c.rulesFile != null) {
@@ -236,6 +269,18 @@ final class ReviewCommand implements Callable<Integer> {
             s = ReviewSettings.besides(c.script.toPath());
         }
         if (c.lens != null) s = s.withLenses(c.lens);
+        for (String a : c.assume) {
+            int eq = a.indexOf('=');
+            if (eq < 1)
+                throw new IllegalArgumentException(
+                        "--assume takes name=value, such as loop.iterations=5, not '" + a + "'");
+            String key = a.substring(0, eq).strip();
+            s =
+                    s.withValue(
+                            key.startsWith("assume.") ? key : "assume." + key,
+                            a.substring(eq + 1).strip());
+        }
+        Assumptions.of(s); // refuses an unknown or malformed assumption before anything runs
         return s;
     }
 
@@ -281,7 +326,8 @@ final class ReviewCommand implements Callable<Integer> {
                 r.suppressed(),
                 r.notes(),
                 r.lensesRun(),
-                r.lensesOff());
+                r.lensesOff(),
+                r.cost());
     }
 
     /**
@@ -308,7 +354,34 @@ final class ReviewCommand implements Callable<Integer> {
         return null;
     }
 
+    private static int explainCost(WeaveEnv env) {
+        env.out().println("cost  What a workflow is estimated to spend");
+        env.out().println();
+        env.out()
+                .println(
+                        "The estimate comes from the script alone: it never calls a model. Typical uses the assumptions below; worst uses the most the script allows (a loop's max, every retry, the larger for each). Where nothing bounds a loop the worst case is reported as unbounded, never as a number. A budget caps the worst case. Models with no price are named, never counted as free.");
+        env.out().println();
+        env.out()
+                .println(
+                        "Assumptions (change with assume.<name> in review.properties or --assume name=value):");
+        for (Assumptions.Def d : Assumptions.DEFS)
+            env.out()
+                    .println(
+                            String.format(
+                                    "  %-28s %-6d %s",
+                                    d.key().substring(7), d.defaultValue(), d.meaning()));
+        env.out().println();
+        env.out()
+                .println(
+                        "Tokens are counted as the run-time guard counts them: about 4 characters per token plus 10 %.");
+        env.out()
+                .println(
+                        "Two ways of an alt are taken as equally likely for the typical case; the dearer way is the worst case.");
+        return 0;
+    }
+
     private static int explain(String id, RuleCatalog catalog, WeaveEnv env) {
+        if (id.equalsIgnoreCase("cost")) return explainCost(env);
         Optional<RuleInfo> info = catalog.find(id.toUpperCase(Locale.ROOT));
         if (info.isEmpty()) {
             env.err()

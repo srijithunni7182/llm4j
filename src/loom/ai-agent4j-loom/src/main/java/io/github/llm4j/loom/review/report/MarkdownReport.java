@@ -78,6 +78,12 @@ public final class MarkdownReport {
                         .append(escape(n.message()))
                         .append("\n");
         }
+        if (r.cost() != null) {
+            b.append("\n## Cost\n\n");
+            for (String line : CostText.lines(r.cost()))
+                b.append("- ").append(escape(line)).append("\n");
+            b.append("\n").append(escape(CostText.footer(r.cost()))).append("\n");
+        }
         b.append("\n---\nAdvisory: open findings never block run, package or deploy.\n");
         return b.toString();
     }

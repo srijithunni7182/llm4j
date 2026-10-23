@@ -38,6 +38,7 @@ public final class JsonReport {
         root.put("file", r.file());
         root.put("summary", summary(r));
         root.put("findings", r.findings().stream().map(JsonReport::finding).toList());
+        if (r.cost() != null) root.put("cost", CostJson.of(r.cost()));
         root.put("suppressed", r.suppressed().stream().map(JsonReport::suppressed).toList());
         root.put("notes", r.notes().stream().map(JsonReport::note).toList());
         return root;

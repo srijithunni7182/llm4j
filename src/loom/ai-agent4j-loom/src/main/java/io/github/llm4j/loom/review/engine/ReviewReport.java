@@ -1,5 +1,6 @@
 package io.github.llm4j.loom.review.engine;
 
+import io.github.llm4j.loom.review.cost.CostEstimate;
 import io.github.llm4j.loom.review.model.Finding;
 import io.github.llm4j.loom.review.model.Lens;
 import io.github.llm4j.loom.review.model.Note;
@@ -17,6 +18,7 @@ import java.util.List;
  * @param notes rules not evaluated, fixes withheld, sources that failed
  * @param lensesRun the lenses that ran, in lens order
  * @param lensesOff the lenses that did not
+ * @param cost what the workflows cost, or null when no estimate was made
  */
 public record ReviewReport(
         String file,
@@ -24,10 +26,22 @@ public record ReviewReport(
         List<Suppressed> suppressed,
         List<Note> notes,
         List<Lens> lensesRun,
-        List<Lens> lensesOff) {
+        List<Lens> lensesOff,
+        CostEstimate cost) {
 
     /** Version of the JSON this report is written as. */
     public static final int VERSION = 1;
+
+    /** A report with no cost estimate. */
+    public ReviewReport(
+            String file,
+            List<Finding> findings,
+            List<Suppressed> suppressed,
+            List<Note> notes,
+            List<Lens> lensesRun,
+            List<Lens> lensesOff) {
+        this(file, findings, suppressed, notes, lensesRun, lensesOff, null);
+    }
 
     public ReviewReport {
         findings = List.copyOf(findings);

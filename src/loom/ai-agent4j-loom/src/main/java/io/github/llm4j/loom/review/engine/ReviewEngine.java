@@ -1,5 +1,7 @@
 package io.github.llm4j.loom.review.engine;
 
+import io.github.llm4j.loom.review.cost.CostEstimate;
+import io.github.llm4j.loom.review.cost.CostEstimator;
 import io.github.llm4j.loom.review.model.Finding;
 import io.github.llm4j.loom.review.model.Lens;
 import io.github.llm4j.loom.review.model.Location;
@@ -36,14 +38,22 @@ public final class ReviewEngine {
 
     private final List<FindingSource> sources;
     private final List<Overlap> overlaps;
+    private final CostEstimator estimator;
 
     public ReviewEngine(List<FindingSource> sources) {
         this(sources, List.of());
     }
 
     public ReviewEngine(List<FindingSource> sources, List<Overlap> overlaps) {
+        this(sources, overlaps, null);
+    }
+
+    /** With an estimator the report carries what the workflows cost; without one it does not. */
+    public ReviewEngine(
+            List<FindingSource> sources, List<Overlap> overlaps, CostEstimator estimator) {
         this.sources = List.copyOf(sources);
         this.overlaps = List.copyOf(overlaps);
+        this.estimator = estimator;
     }
 
     public ReviewReport review(ReviewInput input, ReviewSettings settings) {
@@ -107,7 +117,19 @@ public final class ReviewEngine {
         List<Lens> run = new ArrayList<>();
         List<Lens> off = new ArrayList<>();
         for (Lens l : Lens.values()) (settings.lensOn(l) ? run : off).add(l);
-        return new ReviewReport(input.file(), ranked, setAside, notes, run, off);
+        CostEstimate cost = null;
+        if (estimator != null) {
+            try {
+                cost = estimator.estimate(input, settings);
+            } catch (RuntimeException e) {
+                notes.add(
+                        new Note(
+                                Note.Kind.SOURCE_FAILED,
+                                null,
+                                "the cost estimate could not be made: " + e.getMessage()));
+            }
+        }
+        return new ReviewReport(input.file(), ranked, setAside, notes, run, off, cost);
     }
 
     /**

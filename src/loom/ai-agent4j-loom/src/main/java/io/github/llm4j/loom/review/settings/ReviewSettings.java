@@ -225,6 +225,15 @@ public final class ReviewSettings {
                 suppressions);
     }
 
+    /**
+     * A copy with one more value, such as {@code assume.loop.iterations}, over what the file said.
+     */
+    public ReviewSettings withValue(String key, String value) {
+        Map<String, String> v = new LinkedHashMap<>(values);
+        v.put(key, value);
+        return new ReviewSettings(failOn, lenses, heuristics, rules, v, suppressions);
+    }
+
     public ReviewSettings withHeuristics(boolean on) {
         return new ReviewSettings(failOn, lenses, on, rules, values, suppressions);
     }

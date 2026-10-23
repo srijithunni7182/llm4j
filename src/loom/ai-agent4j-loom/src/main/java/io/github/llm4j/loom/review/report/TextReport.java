@@ -22,6 +22,9 @@ public final class TextReport {
         StringBuilder b = new StringBuilder();
         b.append(Safe.line(r.file())).append("   ").append(counts(r)).append('\n');
         b.append("Lenses   ").append(lenses(r)).append('\n');
+        if (r.cost() != null)
+            for (String line : CostText.lines(r.cost()))
+                b.append("Cost     ").append(Safe.line(line)).append('\n');
         if (!r.findings().isEmpty()) b.append('\n');
         for (Finding f : r.findings()) {
             b.append(
@@ -69,6 +72,8 @@ public final class TextReport {
                         .append(Safe.line(n.message()))
                         .append('\n');
         }
+        if (r.cost() != null)
+            b.append('\n').append(Safe.line(CostText.footer(r.cost()))).append('\n');
         b.append('\n').append("Advisory: open findings never block run, package or deploy.\n");
         return b.toString();
     }
