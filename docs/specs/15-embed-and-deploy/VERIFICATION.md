@@ -1,6 +1,6 @@
 # Phase 15 verification plan: embed and deploy
 
-Status: **not started**. Run top to bottom at the end of sub-phase 15e; the relevant rows after each sub-phase. Results in §7.
+Status: **15a done** (bindgen); 15b to 15e not started. Run top to bottom at the end of sub-phase 15e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -25,18 +25,18 @@ Status: **not started**. Run top to bottom at the end of sub-phase 15e; the rele
 
 | Req | Tests | Status |
 |---|---|---|
-| R1 | `BindgenGoldenTest`, `BindgenDeterministicTest`, `NamingTest` | ⬜ 15a |
-| R2 | `RenameBreaksCompileTest`, `NamingCollisionTest` | ⬜ 15a |
-| R3 | `SchemaInferTest`, `ResultUnionNullableTest` | ⬜ 15a |
-| R4 | `SchemaInferTest` (each source of type) | ⬜ 15a |
-| R5 | `FacadeRunsTest`, `InputSerialisationTest` | ⬜ 15a |
-| R6 | `FacadeSuspendResumeTest`, `FacadeFailureTest` | ⬜ 15a |
-| R7 | `FacadeVariablesEscapeHatchTest` | ⬜ 15a |
-| R8 | `BindgenCheckFailsTest`, `BindDeployDependencyTest` | ⬜ 15a |
-| R9 | `BindgenIndeterminateShapeTest` | ⬜ 15a |
-| R10 | `BindgenDriftTest` | ⬜ 15a |
+| R1 | `BindgenGoldenTest`, `BindgenDeterministicTest`, `NamingTest` | ✅ 15a |
+| R2 | `RenameBreaksCompileTest`, `NamingCollisionTest` | ✅ 15a |
+| R3 | `SchemaInferTest`, `ResultUnionNullableTest` | ✅ 15a |
+| R4 | `SchemaInferTest` (each source of type) | ✅ 15a |
+| R5 | `FacadeRunsTest`, `InputSerialisationTest` | ✅ 15a |
+| R6 | `FacadeSuspendResumeTest`, `FacadeFailureTest` | ✅ 15a |
+| R7 | `FacadeVariablesEscapeHatchTest` | ✅ 15a |
+| R8 | `BindgenCommandTest.aScriptThatDoesNotCheckWritesNothing`; `BindDeployDependencyTest` with 15d | 🟦 15a/15d |
+| R9 | `BindgenIndeterminateShapeTest` | ✅ 15a |
+| R10 | `BindgenDriftTest` | ✅ 15a |
 | R11 | `MavenPluginBindgenIT` | ⬜ 15b |
-| R12 | `BindgenCompilesTest`, `BindgenNoExtraDepsTest` | ⬜ 15a |
+| R12 | `BindgenCompilesTest`, `BindgenNoExtraDepsTest` | ✅ 15a |
 | R13 | `CorpusParsesIdenticallyTest`, `TypedParamsParseTest` | ⬜ 15b |
 | R14 | `ParamsValidationTest`, `CallSiteTypesTest` | ⬜ 15b |
 | R15 | `ParamDefaultsTest` | ⬜ 15b |
@@ -88,3 +88,9 @@ Wiki "Typed workflows in Java" and "Deploying a workflow"; `SPRING_BOOT_LOOM_GUI
 ## 7. Results
 
 *(per sub-phase: corpus bindgen counts, compile results, structural-safety table of the deploy goldens, manual-check notes)*
+
+### 15a (2026-10-24)
+
+- Built: `bind/` (`SchemaInfer`, `Naming`, `Bindgen`) and `weave bindgen SCRIPT --package P [--out DIR] [--facade N] [--nullability none|jspecify|optional] [--check]`. One facade file per script plus one `Outcome.java` per package; per workflow a method, a `…Call` builder (`runId`, `label`, `origin`, `invoker`), `resume…`, a result record; one enum per classifier question a result carries (with `UNSURE` when the classifier escalates; `ask` gives `YES`/`NO`); `answer(...)`. The script must pass `weave check` or nothing is written. Output is deterministic and has no dependency beyond Loom.
+- Tests: `BindgenTest` 7 (compiles under `-Xlint:all -Werror`, same script same bytes, names and union, nullability choices, notes, package refusal, the facade **runs** a workflow and returns typed values), `BindgenCommandTest` 3 (write, `--check` passes and fails on drift, nothing written for a script that does not check, a renamed field changes the generated record so code using the old name stops compiling), `BindgenCorpusTest` 1 (every example script's bindings compile together).
+- Deviations, to confirm (D15): `--nullability` defaults to `none`, not `jspecify`, because the generated code must need nothing beyond Loom (R12) and `jspecify` would add a dependency; `jspecify` and `optional` are one flag away. A field whose type the script does not determine (an agent's output, a task's result) is text, said in the code, never guessed; nested records from an agent's `output_schema` are not generated yet.
