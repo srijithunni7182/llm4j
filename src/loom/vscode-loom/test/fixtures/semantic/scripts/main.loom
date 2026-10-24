@@ -1,0 +1,33 @@
+import "lib/agents.loom"
+
+intentclassifier Intent {
+    model: "claude-opus-5-5"
+    choose kind: order_status | refund | other
+    ask urgent: "Is the customer threatening to leave?"
+    confidence at least 0.8 else escalate
+}
+decision Refund {
+    proposed by: Scorer
+    choices: approve, reject
+    ask: support-lead
+}
+agent Replier { model: "claude-haiku-5-5"  prompt: "writer"  tools: [Mailer] }
+workflow Main(message, tone) {
+    intentclassify Intent on message -> intent
+    checkpoint gathered
+    alt (intent.kind == "order_status") {
+        delegate "Reply to: {message} in a {tone} tone" to Replier -> reply
+        delegate "Score {reply}" to Scorer -> verdict
+        call Escalate(memo = reply) -> handled
+        decide Refund -> choice
+        rewind to gathered when (verdict.score < 5) at most 2 times
+        run Archive(text = reply) -> archived
+        return reply
+    } else {
+        return "escalated"
+    }
+}
+workflow Escalate(memo) {
+    delegate "Escalate: {memo}" to Helper -> done
+    return done
+}

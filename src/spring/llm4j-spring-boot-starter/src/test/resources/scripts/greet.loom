@@ -1,0 +1,10 @@
+agent Greeter { model: "gemini-2.5-flash" system: "You are Greeter." }
+
+workflow Main(name) {
+    delegate "greet {name}" to Greeter -> greeting
+    return { text: greeting }
+}
+
+workflow Other() {
+    return "other"
+}

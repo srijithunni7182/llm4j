@@ -1,0 +1,8 @@
+// settings: journal=file
+agent Writer { model: "m"  system: "s" }
+workflow Main(topic) {
+  delegate "Draft {topic}" to Writer -> draft
+  human_prompt "Publish this?" -> ok
+  note "{ok}"
+}
+// ignore: LP02 LP05 LO01

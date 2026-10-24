@@ -1,0 +1,473 @@
+# Phase 9 verification plan: the review engine
+
+Status: **in progress**: 9a to 9f complete; 9g–9i not started. Run top to bottom at the end of sub-phase 9i; the relevant rows after each sub-phase. Results in §7.
+
+## 1. Acceptance criteria
+
+| # | Criterion | Evidence |
+|---|---|---|
+| A1 | One command reviews a script across security, validity, cost, reliability and prompts and prints findings most-severe first with a summary card | `ReviewCommandTest`, `ReportGoldenTest` |
+| A2 | Everything `weave check` and `weave audit` report appears in `weave review`, and both commands behave exactly as before | `ReviewSupersetOfAuditTest`, `AuditUnchangedTest`, `CheckUnchangedTest` |
+| A3 | Every workflow shows a typical and a worst-case cost with its assumptions; an unbounded loop is reported as unbounded, never as a number | `CostModelTest`, `CostUnboundedTest` |
+| A4 | The estimate is honest: on recorded runs, typical is within 2x of actual for ≥ 80 % of workflows and worst is never below actual | `CorpusCostAccuracyTest` ✅; `LiveCostAccuracyTest` ◐ (see §7) |
+| A5 | Every finding says what to do; machine-applicable fixes exist for the mechanical ones, and `--fix` applies them atomically and idempotently | `FixApplierTest`, `FixAtomicityTest`, `FixIdempotentTest` |
+| A6 | A fixed script passes `weave check` and has no new HIGH finding | `FixApplierTest` (verification case) |
+| A7 | Each default-on rule has precision ≥ 0.9 on the corpus; heuristic rules are off by default and labelled | `ReviewCorpusTest` |
+| A8 | A project can tune and suppress rules; a suppression without a reason is itself a finding, and suppressed findings are listed | `SuppressionTest`, `ReviewCommandTest` |
+| A9 | CI can consume it: JSON, SARIF, exit codes, `--fail-on`, `--fix --dry-run` | `SarifSchemaTest`, `ReviewCommandTest` |
+| A10 | Every rule has a generated explanation page | `ExplainEveryRuleTest` |
+| A11 | A warm review of a 300-line script takes under 1 s | `ReviewPerformanceTest` |
+| A12 | Review never runs a model, a tool or a task, never loads user classes, never touches the network | `ReviewIsStaticTest` |
+| A13 | Nine lenses run by default and four optional lenses are off until enabled by `--lens` or `review.properties`; the report says which ran and which are off | `LensSelectionTest`, `OptionalLensesOffByDefaultTest` |
+| A14 | A rule that needs a fact the project has not declared says it was not evaluated; it never reports a pass | `InertRuleNoteTest`, `DeclaredFactsTest` |
+| A15 | The report estimates time (critical path, with human waits shown apart) and effects (counts per kind, unbounded when unbounded) alongside cost | `TimeEstimateTest`, `EffectsEstimateTest`, `EffectsUnboundedTest` |
+| A16 | Testability findings use the project's own test files and a fresh coverage report, never run tests, and ignore a stale report with a note | `ReviewInputsTest`, `CoverageReportStaleTest`, `ReviewNeverRunsTestsTest` |
+| A17 | Every rule of every lens, including the optional ones, has an explain page, a firing and a non-firing corpus script, and meets the precision gate or is marked heuristic | `ReviewCorpusTest`, `ExplainEveryRuleTest` |
+| A18 | Every finding can be fixed, accepted (with a reason, a scope shown by count, optional expiry, kept in the repository), dismissed (local only) or baselined, and an ignore survives edits elsewhere without hiding a different finding | `FingerprintStabilityTest`, `AcceptScopesTest`, `AcceptDoesNotHideOtherFindingTest`, `BaselineTest` |
+| A19 | Serious findings cannot be ignored casually: per-entry reasons, count confirmation, accepted highs stay visible, strict mode counts them, trifecta acceptance is written in the script | `AcceptGuardrailsTest`, `TrifectaAcceptWritesScriptTest` |
+| A20 | Dismissing never changes what CI or a teammate sees; a baseline makes CI count only new findings | `DismissDoesNotAffectCiTest`, `BaselineNewOnlyFailsTest` |
+| A21 | A team can see which rules are noisy in practice | `NoiseReportTest` |
+| A22 | Open review findings never stop a run, resume, package, serve or deploy from the CLI, the extension or the skills; the developer is told in one stderr line and the output, exit code and journal are unchanged | `RunNeverBlockedByFindingsTest`, `RunUnchangedWithNoticeTest`, `NoticeStderrOnlyTest` |
+| A23 | The notice is accurate and quiet: counts only open findings, once per process, configurable, silent when nothing is open, absent on non-starting commands | `NoticeCountsOpenOnlyTest`, `NoticeOncePerProcessTest`, `NoticeThresholdTest` |
+| A24 | The notice and the review engine can never slow or fail a command beyond a stated cap | `NoticeCacheAndTimeCapTest`, `ReviewCrashDoesNotFailRunTest` |
+| A25 | Only commands chosen for enforcement exit non-zero on findings | `OnlyExplicitCommandsFailTest` |
+| A26 | The skills report findings and carry on, never withholding a run or deploy | `SkillAdvisoryTextTest` |
+| A27 | Adding or changing a rule is a file change in a rule pack, with no Java change, release or extension rebuild; a rule cannot load without its examples | `PackExamplesRequiredTest`, `RulesNewScaffoldTest` |
+| A28 | There is no new language: a rule is a document over a closed vocabulary and a published fact model, it always terminates, and what it cannot say needs a new fact or a Java rule | `RuleVocabularyTest`, `RuleTerminationTest`, `RuleSchemaRejectsExpressionsTest` |
+| A29 | Packs are safe: inert, bounded, pinned and never downloaded; a project cannot silently redefine a core rule | `PackSandboxTest`, `PackNoNetworkTest`, `PackPinHashTest`, `PackPrefixTest` |
+| A30 | A rule can be debugged and a pack upgrade previewed: `explain --at` shows each condition's value, and `rules diff` shows the findings an upgrade would change on my script | `RulesExplainAtTest`, `RulesDiffTest` |
+| A31 | Rules moved from Java to data change nothing: identical findings on the corpus, and handled findings survive an upgrade | `RuleParityTest`, `PackUpgradeKeepsHandledTest` |
+| A32 | Java rules and fact providers still work beside packs | `JavaRuleAlongsidePackTest`, `JavaFactProviderTest` |
+| A33 | Documented, including a guide for writing a rule | docs review (§5) |
+
+## 2. Traceability: requirement → tests
+
+| Req | Tests | Status |
+|---|---|---|
+| R1 | `FindingModelTest.aFindingNeedsARuleIdAndAFixHint`, `CorePackTest.everyRuleAnswersWhyAndWhatToDo…` | ✅ 9a |
+| R2 | `FindingModelTest.aLocationKnowsWhen…`, `DataRuleSourceTest.stepFindingsAreTiedToTheirGraphNode` | ✅ 9a |
+| R3 | `AdapterTest`, `ValidityClassTest` (19 real messages classified), `ReviewSupersetOfAuditTest`; `weave check`/`audit` output unchanged | ◐ 9b: messages classified by table; the exhaustive message census stays open |
+| R4 | `FixApplierTest` (every fix of the core pack fixes its own example and the rule goes quiet) | ✅ 9e |
+| R5 | `ReportFormatsTest.theJsonIsVersionedAndCarriesEveryFieldTheEditorNeeds`, `hostileTextRoundTripsThroughJsonUnchanged` | ✅ 9a |
+| R6 | `ReviewCommandTest` (exit codes, `--fail-on`, bad input = 2) | ✅ 9a |
+| R7 | `ReviewSupersetOfAuditTest` | ✅ 9a |
+| R8 | `SarifTest` (shape, levels, rules, fixes, suppressions), `ReviewCommandTest.sarifOutput…` | ✅ 9b |
+| R9 | `ReviewCommandTest` (cost line and footer in the text card); the other card lines (security, next step) come with 9e | ◐ 9c cost part; card complete in 9e |
+| R10 | `CostModelTest` (calls, loops, for each, retries, alt, tools, broadcast, call, rewind), `ReviewCommandTest` (JSON `cost` block, assumptions listed) | ✅ 9c (runtime-equivalence of the token count: `CostModelTest.tokensAreCounted…`) |
+| R11 | `CostModelTest.aBudgetCapsTheWorstCase…`, `CostRulesTest` (LC04) | ✅ 9c script-level budgets; agent- and step-level budgets not yet |
+| R12 | `CostModelTest.aLoopWithNoMax…`, `ReviewCommandTest.anUnboundedLoop…` | ✅ 9c |
+| R13 | `CostModelTest.moneyComesFromThePriceTable…`, `ReviewCommandTest.theTextReport…Tokens…` | ✅ 9c |
+| R14 | `ReviewCommandTest` (footer names the price table and the assumptions used) | ✅ 9c |
+| R15 | `CostModelTest.theSameInputsAlwaysGiveTheSameNumbers`, `ReviewIsStaticTest` | ✅ 9c |
+| R16 | `CalibrationTest` (5), `CalibrationEndToEndTest` (a real mocked-provider run), `ReviewCommandTest.calibrate…` | ✅ 9c (workflow and model level; the journal has no per-step usage that maps to a script line) |
+| R17 | `CorpusCostAccuracyTest` (10 recorded runs, 10 of 10 within 2x), `LiveCostAccuracyTest` (7 of 10 and 4 of 10 live); worst never below actual in all | ◐ 9d: met on recorded runs, not met live (table in §7) |
+| R18 | `ReviewCorpusTest` (per-rule precision and recall gate 0.9 on 44 labelled scripts) | ✅ 9d for the 18 data rules |
+| R19 | `ReviewCommandTest` (`--explain` for every rule) | ✅ 9a |
+| R20 | `JavaRuleTest.theEngineGivesTheSameFindingsWhateverTheClockOrEnvironment`, `ReviewIsStaticTest` (no clock, env, network or process in review sources) | ✅ 9b |
+| R21 | `JavaRuleTest` (jar via ServiceLoader, throwing rule becomes a note, listed in the catalog) | ✅ 9b |
+| R22 | `ReviewEngineTest` (overlap folding by line and node; no pair registered until a specific rule exists beside an audit rule) | ◐ 9b mechanism; first real pair lands with the rule (9d) |
+| R23 | `ReviewEngineTest.findingsAreRankedBySeverityThenLensThenLineThenRule` | ✅ 9a |
+| R24 | `FixApplierTest` (nothing written unless the whole pass verifies; a fix that would not load or would add a high finding is withheld with the reason), `ReviewCommandTest` (file written once, via a temp file) | ✅ 9e |
+| R25 | `FixApplierTest.aFixThatWouldBreak…`, `…AddAHighFindingIsWithheld` | ✅ 9e |
+| R26 | `FixApplierTest` (most serious first; overlapping edits and same-line edits wait for the next pass; up to 5 passes) | ✅ 9e |
+| R27 | `FixApplierTest.runningTheFixerOnItsOwnOutputChangesNothing`, `ReviewCommandTest.fixIsIdempotent` | ✅ 9e |
+| R28 | `ReviewCommandTest.dryRun…`, `UnifiedDiffTest` | ✅ 9e |
+| R29 | `FixApplierTest` (comments, CRLF and every other line kept; only the lines an edit touches change) | ✅ 9e |
+| R30 | `ReviewCorpusTest`, `CorpusCostAccuracyTest` | ◐ 9d: 44 labelled scripts and 10 recorded runs; review time is measured in 9i |
+| R31 | `SuppressionTest` (name, line, node; reason required, LV08; listed in every format) | ✅ 9b |
+| R32 | `ReviewSettingsTest.aMisspeltKeyIsAnErrorThatNamesTheNearestKey` | ✅ 9a |
+| R33 | `FindingModelTest`, `ReviewSettingsTest`, `ReviewEngineTest`, `TestabilityLensTest.theLensIsOptional…`: eight lenses on and five optional; testability is optional until `weave test` exists (O14) | ◐ 9g |
+| R34 | `TestabilityLensTest` (test files beside the script are read, one for another script is ignored, an unreadable one is a note), `ReviewIsStaticTest`; the coverage report half is not built (O14) | ◐ 9g |
+| R35 | `RunProfileTest` (tiers, sequence, parallel/broadcast/parallel for each, tool rounds, retry and backoff, timeout cap, loops, alt, waits listed, assumptions), `TimeEffectsReportTest` | ✅ 9g |
+| R36 | `RunProfileTest` (sends and writes, retries repeat effects, loops, unbounded), `TimeEffectsReportTest` | ✅ 9g |
+| R37 | `RulesOf9fTest.theHeuristicRulesStayQuiet…`, `DataRuleSourceTest`, `ReviewCorpusTest` (precision per rule) | ✅ 9f for LP02, LP05, LC07 |
+| R38 | `RulesOf9fTest.theDurabilityRuleThatNeedsTheJournalSetting…` (LD01 reported as not evaluated until `journal` is declared), `DataRuleSourceTest`, `CorePackTest` (LC01, LC03 need `data.top-models`) | ✅ 9f |
+| R39 | `OptionalLensesTest` (off until asked, `--lens +x` and `all`, rules explainable), `CorePackTest` (examples of LG01, LG02, LG05, LM02 to LM05, LH01, LH02, LH04, LB01), `ReviewCorpusTest` | ✅ 9h |
+| R40 | The engine's `Overlap` mechanism is tested in `ReviewEngineTest`; none of the 9h rules repeats an LA finding (checked against the audit catalog), so `Reviews.OVERLAPS` stays empty and no `CrossLensDedupTest` is needed yet | ✅ 9h (nothing to dedupe) |
+| R41 | `HandlingFindingsTest` (a fingerprint survives a move and number changes; differs for another thing, rule or wording), `ReviewCommandTest.anAcceptedFindingStaysAccepted…` | ✅ 9e |
+| R42 | `HandlingFindingsTest`, `ReviewCommandTest` (reason required; scope finding / on / script / project; until with expiry that reopens the finding and says so; by and at kept) | ✅ 9e |
+| R43 | `HandlingFindingsTest` (scopes), `ReviewCommandTest`; counts shown before acting are an editor job (10c) | ◐ 9e CLI; the count in the dialog is 10c |
+| R44 | `ReviewCommandTest` (bulk accept of serious findings needs `--confirm N`; LA01 refused with the trifecta wording; `--strict-accepts` counts accepted ones), `HandlingFindingsTest` | ✅ 9e; writing `trifecta: accepted` into the script is the editor's job (10c) |
+| R45 | `DismissDoesNotAffectCiTest` | ⬜ 10c |
+| R46 | `HandlingFindingsTest`, `ReviewCommandTest` (write, serious findings left out unless asked, prune, new instance not hidden) | ✅ 9e |
+| R47 | `HandlingFindingsTest.theNoiseReport…`, `ReviewCommandTest.theNoiseReport…` | ✅ 9e |
+| R48 | `FixApplierTest`, `ReviewCommandTest` (re-review after a fix; REVIEW fixes need `--yes` and are shown by `--dry-run`) | ✅ 9e CLI; group preview in the editor is 10c |
+| R49 | `RunUnchangedWithNoticeTest` (a project `fail-on = info` does not fail a run) | ✅ 9e for run and package |
+| R50 | `ReviewNoticeTest` (one line, stderr, once per process, plain text, nothing on stdout) | ✅ 9e for run and package; daemon takes no script, so there is nothing to review at its start |
+| R51 | `ReviewNoticeTest` (threshold, accepted and baselined counted apart, off by option, environment and file; the option wins) | ✅ 9e |
+| R52 | `ReviewNoticeTest` (cache keyed by script, settings, baseline, prompts, pack and date; late notice dropped via `notice.timeout`) | ✅ 9e |
+| R53 | `RunUnchangedWithNoticeTest` (stdout, exit code and every file of the run directory identical with the notice on or off) | ✅ 9e |
+| R54 | `ReviewNoticeTest` (bad settings, bad level and an unreadable script each become one `review unavailable` line) | ✅ 9e |
+| R55 | `FabricReviewAttributeTest` | ⬜ moved to the Fabric work (no run-attribute path yet) |
+| R56 | `SkillAdvisoryTextTest` (the three skills say: run review, report, let the user decide fixes and accept reasons, carry on, gate only on request; none says to stop) | ✅ 9i |
+| R57 | `CorePackTest`, `ReviewCorpusTest`: 18 core rules are data; LA, LV and the cost-estimate rules stay Java by design | ✅ 9d |
+| R58 | `RuleParserTest.thereIsNoWayToWriteAnExpressionOrACall` | ✅ 9a |
+| R59 | `FactBuilderTest.everyFactInTheCatalogIsSet…`, `RuleValidatorTest`; 8 facts added in 9d | ✅ 9a, 9d |
+| R60 | `RuleEvaluatorTest`, `DataRuleSourceTest`, `FactBuilderTest`; Java providers `PromptFacts`, `ConditionFacts`, `AgentUseFacts` | ✅ 9a, 9d, 9f |
+| R61 | `RuleParserTest`, `RuleEvaluatorTest.templatesFillFacts…` | ✅ 9a |
+| R62 | `RuleEvaluatorTest` (vocabulary, relations, regex step limit), `RuleParserTest.conditionsAreBoundedInDepthAndSize` | ✅ 9a |
+| R63 | `PackSetTest` (pins by major/minor/exact, hash, unlisted folder, missing folder, duplicates) | ✅ 9b |
+| R64 | `ReviewIsStaticTest`, `PackSetTest.aPinnedPackThatIsNotThereIsAnErrorAndNothingIsDownloaded` | ✅ 9b |
+| R65 | `PackLoaderTest`, `PackSetTest` (folder-bound reads; limits per pack) | ✅ 9b |
+| R66 | `PackLoaderTest`, `PackSetTest` (prefixes, pack name vs folder, cross-pack duplicate ids) | ✅ 9b |
+| R67 | `FixTemplateOpsTest`, `FixTemplateVerifiedTest`, `FixTemplateParityTest` | ⬜ 9e |
+| R68 | `PackLoaderTest`, `PackTesterTest`, `CorePackTest.everyRuleCarriesAtLeastOneFiringAndOneQuietExample` (18 rules, 44 example scripts) | ✅ 9d |
+| R69 | `RuleDocsGeneratedTest` (every rule has a page; the committed pages in `docs/review/rules/` are exactly what the generator writes; `weave rules docs core`) | ✅ 9i |
+| R70 | `RulesToolTest` (list, facts, check, test, new, add with diff and re-pin, explain --at) | ✅ 9b |
+| R71 | JSON/SARIF carry `source` (pack name@version); `RulesToolTest.addingANewVersion…`; handled-survives-upgrade needs fingerprints (9e) | ◐ 9b provenance done; PackUpgradeKeepsHandled in 9e |
+| R72 | Rules were written as data from the start (no Java twin), so there is no parity to test; the corpus is the guard | ✅ 9d (not applicable) |
+| R73 | `JavaRuleTest.aJavaRuleRunsBesideTheCoreRules…` | ✅ 9b (fact-provider half: `FactBuilderTest` custom provider) |
+| R74 | `RulesDiffTest` (rules added, removed, changed; bump needed; version too small; findings that appear and disappear on a script; changelog entry); `PackSemverTest` is folded into it | ✅ 9i |
+| R75 | `AssistedFixTest.aFindingListsItsOptions…`, `theTextReportNamesTheOptions`, `RuleParserTest.optionsParse…`, `optionMistakes…`, `RuleValidatorTest.anOptionMayNotUseAnAnswer…` | ✅ 9f |
+| R76 | `AssistedFixTest` (named option with `--set`; dry run; `--yes`; interactive choose, ask, diff, confirm; skip; decline; empty answer takes the default; `--set` without `=`) | ✅ 9f |
+| R77 | `AssistedFixTest.anAnswerThatBreaksTheScriptIsRefused…`, `anUnknownOptionOrABadFingerprintIsRefused…` | ✅ 9f |
+| R78 | `AssistedFixTest` (the `--fix` tests in `ReviewCommandTest` leave option-only rules alone) | ✅ 9f |
+
+## 3. Quality gates
+
+- All existing tests pass unmodified (the existing check/audit/graph/eval suites).
+- New code: line coverage ≥ 90 % in `review/`, mutation score target ≥ 70 % on `cost/` and `fix/` (PIT is already used in the repo).
+- `scripts/` gate `verify-review.sh` (new) runs the corpus, the precision/recall table and the calibration table and fails below the thresholds in A4 and A7.
+- No new runtime dependency (pom diff).
+
+## 4. Manual checks
+
+1. Run `weave review` on three real scripts of the repo's examples; read every finding as a developer would. Each is understandable without opening the guide.
+2. Apply `--fix` on a flawed script, read the diff, run the workflow in `--mock` mode: behaviour matches what the finding titles said.
+3. Compare the typical cost on one real workflow against a real, capped run (live check, done 2026-10-23: see §7, "Live check").
+4. Open the explain page of five rules and confirm the example fires and the near-miss does not.
+5. Enable all thirteen lenses on three real scripts and judge the noise: for each finding ask "would I act on this?" and record the rate per lens in §7 (a lens below 50 % moves to optional or loses its heuristic rules).
+6. Compare the time estimate on one real workflow with a real run, and the effects estimate with the effects Fabric recorded (time: done, see §7 "Live check"; effects: not checked, the three workflows have no acting tools; Fabric page not used, `--calibrate` read the run journal).
+
+## 5. Documentation owed
+
+Wiki page "Reviewing a workflow"; `LOOM_GUIDE.md` section on `weave review` and `review.properties`; `llms.txt`; the `llm4j-workflow-guide` skill's validate stage points at `weave review`; rule pages generated into `docs/review/rules/`; stack-level pages once at the end of the program.
+
+## 6. Exit checklist
+
+- [ ] Every row in §2 is ✅
+- [ ] Every A-criterion has passing evidence
+- [ ] The corpus table (§7) is filled in and meets the thresholds
+- [ ] Docs in §5 updated; roadmap status table updated
+- [ ] Open questions in DESIGN §13 answered and recorded
+
+## 7. Results
+
+*(filled in at the end of each sub-phase: corpus precision/recall per rule, estimator error table, review time, fix verification counts)*
+
+### 9a (2026-10-22)
+
+- Built: finding model, settings (`review.properties`), engine, adapters for audit (LA01–LA20) and validity (LV00), text/markdown/JSON reports, `weave review`, fact model v1 with six fact providers, data-rule parser, validator, three-valued evaluator, pack loader and tester, and a bundled core pack of six rules (LR01, LR03, LD02, LY02, LM01 optional, LG04 optional) with 17 example scripts.
+- Tests: all review tests and the full loom module (2,400 tests) pass. The one failure on the first full run, `RepositoryScriptsTest`, was real: the bundled examples used a literal webhook URL; fixed to `env.HOOK_URL`.
+- Review is a superset of audit on every bundled example (`ReviewSupersetOfAuditTest`); `weave check` and `weave audit` untouched apart from extracting `WeaveCLI.validate`.
+- Not yet measured: coverage gate, corpus precision (needs 9d), performance (A11).
+
+
+### 9b (2026-10-23)
+
+- Built: project packs from `review-rules/<name>/` pinned in `packs =` by version and sha256 (a pack that is unlisted, missing, changed or duplicating another's rule is refused with every problem listed); `weave rules list | facts | check | test | new | add | explain --at`; `weave check` messages classified into LV01–LV07 and LV09 (LV00 only for what no class claims); suppressions (`RULE.suppress = place "reason"`, LV08 when the reason is missing, listed in every format); overlap folding in the engine; SARIF 2.1.0 (`--format sarif`); Java rules from a named jar (`--rules-jar`, ServiceLoader), beside pack rules.
+- Tests added: `PackSetTest` (12), `RulesToolTest` (14), `ValidityClassTest` (3), `SuppressionTest` (10), `SarifTest` (7), `JavaRuleTest` (6), `ReviewIsStaticTest` (1), plus engine and command tests.
+- Limits, stated plainly: the classifier is a pattern table over message text, verified on real messages from `weave check`, not on every message the validator can write, so some rare messages will still be `LV00`. No overlap pair is registered yet because the specific rule (LR07) comes with 9d. `rules diff` and pack semver policy are 9i. The notice and `--explain` for third-party packs only appear when the script is given.
+
+
+### 9c (2026-10-23)
+
+- Built: the cost estimator (`review/cost`): typical and worst case per workflow and per model step, from the script alone, with nine documented assumptions (`assume.*` in `review.properties` or `--assume`), prices from `--prices`, an unbounded loop reported as unbounded, a script budget capping the worst case, unpriced models named; token counts equal to the runtime guard's (pinned by a test); the report's `cost` block (text, Markdown, JSON); `--explain cost`; cost rules LC01 and LC02 as data in the core pack (now 1.1.0; examples can now carry `settings:`), LC04, LC05 and LC06 in Java because they need the estimate; `--calibrate RUN_DIR` comparing the estimate with the usage a real run journals.
+- Tests added: `CostModelTest` (17), `CostRulesTest` (7), `CalibrationTest` (5), `CalibrationEndToEndTest` (1) plus command tests.
+- Decisions and limits, stated plainly:
+  - A typical `alt` is the average of its two ways (taken equally often); the worst case is the dearer way. The spec's wording ("most expensive branch weighted by share") was ambiguous; this is the reading that is documented in `--explain cost`.
+  - The AST has no per-agent output cap (`max_tokens` belongs to memory), so every answer is `assume.output.tokens` (600).
+  - Rewind is costed safely: the worst case repeats the whole workflow once more per allowed rewind, which can overstate it but never understate it.
+  - Budgets at agent and step level are not applied to the cap yet; only the script-level budget is.
+  - LC03, LC07, LC08, LC09 and LC10 are not built: LC03 needs a per-member view of broadcasts, LC07 is a text heuristic (9f), LC08 to LC10 need the time estimate (9g).
+  - LC01 needs `data.top-models` declared; without it the rule is reported as not evaluated rather than guessing which models are expensive.
+  - The 80 % within 2x accuracy target (A4) needs the recorded-run corpus from 9d and is not yet measured.
+
+
+### 9d (2026-10-23)
+
+- Built: eleven more data rules (LR02, LR04, LR05, LR07, LR08, LR09, LP01, LP03, LP04, LP06, LP07) and the facts they read (core pack 1.3.0); `escalate:` in rule documents; the labelled corpus runner; the recorded-run accuracy test; and a gated live test (`LiveCostAccuracyTest`, `LLM4J_LIVE=1`) that runs the same cases against a real provider.
+- **The live check changed the estimator.** Running the cases against OpenAI's gpt-4.1-nano and gpt-4.1-mini (about 22,000 tokens in all, a few cents) showed three things the mock runs had hidden:
+  1. **Loom's default memory is a shared transcript.** Every delegate's task and answer is appended to one transcript, and all of it is put in front of the next delegate (`TranscriptAccumulationEngine`). A step's input grows with every step before it, so a loop costs more each round. The first estimator ignored this and understated loops. The estimator now walks the workflow in order, keeps the transcript (bounded only by `memory { max_tokens }` or a `context` block), and treats parallel and broadcast branches as starting from the same transcript. LC02 now says this (a loop or `for each` with nothing bounding the transcript).
+  2. **Legacy bare-name substitution rewrites prompts.** Loom replaces a variable's bare name anywhere in the literal text of a prompt, even inside a word (`PayloadText.bareNames`). A variable called `r` replaced every "r" in "Explain … three short paragraphs" with an earlier answer and multiplied one prompt by thousands of tokens. This was found by an estimate that came out 4x too low. It is now rule LP07, and the labelled corpus found five more scripts of ours with the same hazard.
+  3. **Answers are shorter than assumed.** Both models answered "three short paragraphs" in about 200 to 250 tokens, so the default answer length is now 350 (was 600), a variable that holds an answer counts as an answer, and an input of the workflow counts 100 (was 200). The worst-case figures (2,000 for an answer and for a variable) are unchanged and were never below an actual run.
+- **A4 (typical within 2x for at least 80 %) is met on the recorded mock runs and not met live.** Live: 7 of 10 with gpt-4.1-nano, 4 of 10 with gpt-4.1-mini, with most misses between 2.0 and 2.9 and always on the high side (the estimate is cautious). The outliers are `for-each` (5 to 9 times too high: the cases hand a terse model the items "one", "two" and it replies in a sentence) and `parallel-three`. The worst case was never below an actual run in any live or recorded case. What to do with a workflow whose typical is off: `weave review --calibrate RUN_DIR`, then set `assume.output.tokens` and the loop and item counts from it.
+- Honest limits: the corpus was written and labelled by the same people who wrote the rules, so 1.00 means "agrees with what we meant", not "found in the wild"; the mock runs use answer lengths set to what the live runs showed (about 1,000 characters); only OpenAI models were measured live.
+
+**Rule precision and recall on the labelled corpus**
+
+| Rule | Found right | Wrong | Missed | Precision | Recall |
+|---|---|---|---|---|---|
+| LC01 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LC02 | 8 | 0 | 0 | 1.00 | 1.00 |
+| LD02 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LG04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LM01 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP01 | 2 | 0 | 0 | 1.00 | 1.00 |
+| LP03 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP06 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP07 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR01 | 8 | 0 | 0 | 1.00 | 1.00 |
+| LR02 | 6 | 0 | 0 | 1.00 | 1.00 |
+| LR03 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR05 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR07 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR08 | 2 | 0 | 0 | 1.00 | 1.00 |
+| LR09 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LY02 | 2 | 0 | 0 | 1.00 | 1.00 |
+
+Scripts: 48. Mismatches: 0
+
+
+**Estimate against recorded runs (mock provider, real executor)**
+
+| Case | Estimated typical | Actual | Ratio | Estimated worst | Worst >= actual |
+|---|---|---|---|---|---|
+| single | 474 | 377 | 1.26 | 4024 | true |
+| chain | 1691 | 1230 | 1.37 | 12091 | true |
+| loop-stops-at-typical | 2878 | 1478 | 1.95 | 60452 | true |
+| loop-hits-max | 2878 | 1724 | 1.67 | 24178 | true |
+| for-each | 7172 | 4145 | 1.73 | 5135792 | true |
+| alt-taken | 1079 | 1223 | 0.88 | 12084 | true |
+| broadcast | 948 | 754 | 1.26 | 12086 | true |
+| call-twice | 1436 | 872 | 1.65 | 12086 | true |
+| parallel-three | 1434 | 1182 | 1.21 | 24202 | true |
+| long-prompt | 728 | 630 | 1.16 | 4278 | true |
+
+Within 2x: 10 of 10.
+
+
+**Estimate against a real provider: gpt-4.1-nano**
+
+Provider model: gpt-4.1-nano
+
+| Case | Estimated typical | Actual | Ratio | Estimated worst | Worst >= actual |
+|---|---|---|---|---|---|
+| single | 474 | 342 | 1.39 | 4024 | true |
+| chain | 1691 | 1162 | 1.46 | 12091 | true |
+| loop-stops-at-typical | 2878 | 4261 | 0.68 | 60452 | true |
+| loop-hits-max | 2878 | 1417 | 2.03 | 24178 | true |
+| for-each | 7172 | 801 | 8.95 | 5135792 | true |
+| alt-taken | 1079 | 1141 | 0.95 | 12084 | true |
+| broadcast | 948 | 529 | 1.79 | 12086 | true |
+| call-twice | 1436 | 902 | 1.59 | 12086 | true |
+| parallel-three | 1434 | 521 | 2.75 | 24202 | true |
+| long-prompt | 728 | 436 | 1.67 | 4278 | true |
+
+Within 2x: 7 of 10. Tokens spent: 11512.
+
+
+**Estimate against a real provider: gpt-4.1-mini**
+
+Provider model: gpt-4.1-mini
+
+| Case | Estimated typical | Actual | Ratio | Estimated worst | Worst >= actual |
+|---|---|---|---|---|---|
+| single | 474 | 265 | 1.79 | 4024 | true |
+| chain | 1691 | 807 | 2.10 | 12091 | true |
+| loop-stops-at-typical | 2878 | 3413 | 0.84 | 60452 | true |
+| loop-hits-max | 2878 | 1335 | 2.16 | 24178 | true |
+| for-each | 7172 | 1379 | 5.20 | 5135792 | true |
+| alt-taken | 1079 | 1022 | 1.06 | 12084 | true |
+| broadcast | 948 | 432 | 2.19 | 12086 | true |
+| call-twice | 1436 | 717 | 2.00 | 12086 | true |
+| parallel-three | 1434 | 500 | 2.87 | 24202 | true |
+| long-prompt | 728 | 417 | 1.75 | 4278 | true |
+
+Within 2x: 4 of 10. Tokens spent: 10287.
+
+
+**Noise on the repository's own examples (unlabelled; reported, not gated)**
+
+Repository examples reviewed: 14 (skipped 0)
+
+| Rule | Findings |
+|---|---|
+| LC02 | 10 |
+| LM01 | 6 |
+| LP07 | 2 |
+| LR01 | 7 |
+| LR02 | 8 |
+| LR03 | 1 |
+| LR07 | 2 |
+
+
+### 9e (2026-10-23)
+
+- Built: fingerprints (`Finding.fingerprint()`, in the JSON); accept (`RULE.accept = <scope> "reason" [until D] [by "N"] [at D]`, `--accept`, `--scope`, `--until`, `--confirm`, `--strict-accepts`), `review.baseline.json` (`--baseline-write`, `--baseline-include-high`, `--baseline-prune`), `--noise-report`; the fix engine (`SourceText`, `FixBuilder`, `FixApplier`, `UnifiedDiff`) with `--fix`, `--dry-run`, `--fix-rule`, `--fix-finding`, `--yes`, and fixes for LR01, LR02 (review), LR03, LR08, LY02, LM01 (core pack 1.4.0); the advisory notice for `weave run` and `weave package`.
+- Tests added: `HandlingFindingsTest` (21), `FixApplierTest` (12), `UnifiedDiffTest` (4), `ReviewNoticeTest` (13), `RunUnchangedWithNoticeTest` (2), and 17 more in `ReviewCommandTest`.
+- Decisions and limits, stated plainly:
+  - **A fix is never guessed.** The anchors work on the lines of the script; a statement that shares its line with others (a one-line workflow) gets no fix, and `weave rules test` reports a rule whose fix cannot be built on any of its examples.
+  - **How a fix is checked.** A candidate is written beside the script under a temporary name, loaded, validated and reviewed with the same engine, then removed. It is kept only if it loads and adds no high finding.
+  - **`on <name>` accepts match** a finding that names the thing in its title or is anchored to it (an agent, or the workflow a step is in), so accepting a rule "on Main" covers its steps.
+  - **Not here:** the trifecta acceptance written into the script and the count-before-you-act dialogs (editor, 10c); Fabric attributes (9h); skill wording (9i); the notice for `serve` and `deploy` (those commands arrive in phase 15) and for `daemon` (it takes no script).
+  - **The notice thread can be dropped, not waited for.** It is computed while the command starts and printed when ready if it beat the cap; a run that ends first prints nothing.
+
+
+### 9f (2026-10-23)
+
+- Built: twelve more data rules (LD01, LD04, LY01, LY04, LY05, LY06, LO01, LO04, LC03, LP02, LP05, LC07; core pack 1.5.0) and the facts they read (`script.hasInspectRules`, `agent.feedsDecision`, `feedsBranch`, `promptStatesFormat`, `promptSaysWhenUnsure`, `promptHasPersonalData`, `step.payloadMentionsPersonal`, `payloadSaysDeterministic`, `fanOutAgents`); a fix template can now say `reviewWhen:` so a usually safe fix needs judgement in a situation (LR01's retry on a step whose agent writes or sends); `// ignore:` in the corpus; `docs/specs/09-review-engine/FIX_CAUTIONS.md`, where every place the fix engine holds back is written down for the skills.
+- The repository-examples noise table earned its place: LD04 fired seven times on the repo's own examples because it did not require the tool's reach to be declared. It now does (`reachKnown`), and a corpus script pins it.
+- LP02, LP05 and LC07 are heuristic (off by default, R18): they read the wording of prompts. LY01 goes by names: email, phone, address, dob, ssn, card, a first, last, full, customer or user name, plus whatever `data.personal` lists.
+- Not built, and why (moved to 9g in `RULES_ROADMAP.md`): LR06 (needs the schema's enum values), LO02 (needs the price and window catalogs as review inputs), LO03 (needs an analysis of how branches end), LD03 (needs the span of a rewind), LY03 (needs a provider-to-region catalog).
+- Honest limits: as before, the corpus was labelled by the people who wrote the rules. Two things the corpus cannot tell: how often LY01's name patterns misfire on real field names, and how often LP02 and LP05 fire where the prompt does say it in other words. The repository-examples table shows LP05 firing 16 times on 14 scripts, which is why it is a heuristic and an INFO.
+
+**Rule precision and recall on the labelled corpus**
+
+| Rule | Found right | Wrong | Missed | Precision | Recall |
+|---|---|---|---|---|---|
+| LC01 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LC02 | 10 | 0 | 0 | 1.00 | 1.00 |
+| LC03 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LC07 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LD01 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LD02 | 2 | 0 | 0 | 1.00 | 1.00 |
+| LD04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LG04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LM01 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LO01 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LO04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP01 | 2 | 0 | 0 | 1.00 | 1.00 |
+| LP02 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP03 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP05 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP06 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LP07 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR01 | 11 | 0 | 0 | 1.00 | 1.00 |
+| LR02 | 11 | 0 | 0 | 1.00 | 1.00 |
+| LR03 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR05 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR07 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LR08 | 4 | 0 | 0 | 1.00 | 1.00 |
+| LR09 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LY01 | 3 | 0 | 0 | 1.00 | 1.00 |
+| LY02 | 2 | 0 | 0 | 1.00 | 1.00 |
+| LY04 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LY05 | 1 | 0 | 0 | 1.00 | 1.00 |
+| LY06 | 1 | 0 | 0 | 1.00 | 1.00 |
+
+Scripts: 76. Mismatches: 0
+
+**Estimate against recorded runs (mock provider, real executor)**
+
+| Case | Estimated typical | Actual | Ratio | Estimated worst | Worst >= actual |
+|---|---|---|---|---|---|
+| single | 474 | 377 | 1.26 | 4024 | true |
+| chain | 1691 | 1230 | 1.37 | 12091 | true |
+| loop-stops-at-typical | 2878 | 1478 | 1.95 | 60452 | true |
+| loop-hits-max | 2878 | 1724 | 1.67 | 24178 | true |
+| for-each | 7172 | 4145 | 1.73 | 5135792 | true |
+| alt-taken | 1079 | 1223 | 0.88 | 12084 | true |
+| broadcast | 948 | 754 | 1.26 | 12086 | true |
+| call-twice | 1436 | 872 | 1.65 | 12086 | true |
+| parallel-three | 1434 | 1182 | 1.21 | 24202 | true |
+| long-prompt | 728 | 630 | 1.16 | 4278 | true |
+
+Within 2x: 10 of 10.
+
+**Noise on the repository's own examples (unlabelled; reported, not gated)**
+
+Repository examples reviewed: 14 (skipped 0)
+
+| Rule | Findings |
+|---|---|
+| LC02 | 10 |
+| LM01 | 6 |
+| LP02 | 3 |
+| LP05 | 16 |
+| LP07 | 2 |
+| LR01 | 7 |
+| LR02 | 8 |
+| LR03 | 1 |
+| LR07 | 2 |
+
+### 9f+ assisted fixes (2026-10-23)
+
+- Built, after the user pointed out that a fix need not fix everything: a finding can offer **options** and the developer decides (R75 to R78). `weave review --assist` walks the findings that have options; `--fix-finding FP --option ID --set name=value [--dry-run] [--yes]` does the same for a script or a skill. Options exist for LR01 (retry and timeout, or timeout only), LR02 (note the failure, or ask a person), LR03 (stop after N rounds), LY02 (mask or block) and LM01 (delete). The questions are answered by the developer; defaults are shown. Each result is checked like a fix (loads, no new HIGH) and shown as a diff before it is written.
+- This lifts most of the cautions in `FIX_CAUTIONS.md`: they are now reasons to ask rather than reasons to offer nothing. The file was rewritten around that.
+- Tests: `AssistedFixTest` (13), parser and validator tests for options.
+- Not built: options for LC01, LC02, LG04, LR08 and the LP rules; options that touch a second file; the reference search before a delete is a flag (`references: true`) that interactive mode does not yet act on.
+
+### 9g (2026-10-23)
+
+- Built: the time estimate (R35) and the effects estimate (R36) in `RunProfile`, beside the cost walk: per workflow, typical and worst time, the steps the worst case waits on, the waits for people and timers (listed, not added), and sends/writes counts with retries repeating effects and unbounded loops reported as unbounded. They are in the JSON cost block (`time`, `effects`), in the text and Markdown card, and use new assumptions (`assume.latency.small|standard|large|tool` in seconds, `assume.effects.calls`). Rules LC08 (two independent delegates that could run in a `parallel` block; the saving is the shorter of the two; data rule over the new facts `parallelizableWithPrevious`, `parallelSavingSeconds`), LC09 and LC10 (Java, over the time estimate; settings `cost.latency.limit`, `workflow.NAME.interactive`, `cost.interactive.target`), LR10 (data rule over `loopBodyHasEffects`, `checkpointBefore`), and the testability lens LT01, LT02, LT04, LT05, LT06 (heuristic), LT07 reading `tests/*.test.yaml` and `eval/golden`. Core pack 1.6.0.
+- Deviations from the design, on purpose: (1) the testability lens is optional, not default-on, until `weave test` exists, because LT01 on every script would advise writing tests that cannot yet be run; (2) a typical run counts `assume.effects.calls` (1) calls of a sending tool per step, not the typical number of tool rounds, which would overstate what a normal run does; the worst case uses the agent's maximum rounds as designed; (3) LC09's limit is `cost.latency.limit` (a setting), not an `assume.*` key, because an assumption always has a default.
+- Not built (OPEN_ITEMS.md O14): LT03 (needs the coverage report of the workflow-test phase), a fix or option for LC08 (wrapping two statements in `parallel { }` needs a two-anchor edit), LR06, LO02, LO03, LD03, LY03 (inputs still missing). `--calibrate` does not yet compare time.
+- Honest limits: latencies are assumptions by model name (`haiku`, `opus`… → small, large; everything else standard), not measurements; a run's real time depends on the provider. The repository-examples table shows LC08 once in 14 scripts.
+- Flake seen once in a loaded full build: `RunUnchangedWithNoticeTest` (the notice is dropped if the review is later than its cap); it passes alone, twice.
+
+### 9h (2026-10-23)
+
+- Built: the four optional lenses. Governance: LG01 (a model name one or two letters from a checked model), LG02 (models the project lists in `data.deprecated-models`; not evaluated until it does), LG05 (some agents use versioned prompt files and one does not). Maintainability: LM02 (long inline prompt), LM03 (large or deeply nested workflow), LM04 (two agents identical but for the name), LM05 (a number compared against in many conditions). Oversight: LH01 (a decision with no trust block or ladder followed by an acting step), LH02 (approval asked on a read-only tool), LH03 (Java: too many questions possible in one run), LH04 (a free-text `human_prompt` answer compared exactly). Blast radius: LB01 (an acting step in a repeat with no calls limit), LB02 (Java: too many effects possible in one run), LB03 (Java: a scheduled workflow with no budget per day; offers an option that adds one, sized by the developer; also compares with `blast.max-daily-cost` when prices are given). Core pack 1.7.0; the facts they read are in `OptionalLensFacts`; example scripts can now carry companion files (`companions:`) for rules about files beside the script.
+- LG03 is not built: Loom has no fallback configuration for an agent, so there is nothing to check (decision D6 in OPEN_ITEMS.md). LM04 compares agents only, not workflow bodies. LH04 cannot recommend a constrained list because `human_prompt` has no options list (D7).
+- A flake fixed along the way: a notice thread left over from an earlier test could print after `ReviewNotice.reset()` and use up the one line of the next test, so `RunUnchangedWithNoticeTest` failed under a loaded full build. A generation counter now makes a worker from before a reset print nothing.
+- Not built: R55 (the open counts as Fabric run attributes) needs a run-attribute path in the observe protocol that does not exist; it moves with the Fabric work.
+- Honest limits: the lenses are off by default, so they have had less exposure. The repository-examples table (14 scripts, all lenses on) shows LH04 five times, LG05 twice, LB01 once and LR10 twice; those are plausible but unlabelled.
+
+### 9i (2026-10-23)
+
+- Built: `weave rules diff OLD NEW [--on script] [--markdown]` (rules added, removed and changed, with changed conditions written as sentences; the smallest version the change needs; the findings that would appear or disappear on a script, by running both versions; exit 1 when the new version is too small a step), `weave rules docs core` (one page per rule and an index, generated from the rules, committed in `docs/review/rules/`, with a test that fails when they differ), the review guide (`docs/review/README.md`), the guide for rule authors (`docs/review/WRITING_RULES.md`), a review section in `LOOM_GUIDE.md`, and the advisory section in the three skills. `ReviewDocsTest` checks that every `weave review` line in those documents uses options the command has, that the rule ids they name exist, and that the author guide names real subcommands, operations and operators.
+- Version policy (R74) as built: a removed rule or a different fact model is major; a new rule or a changed condition, severity, lens, fix or option is minor; wording and examples are patch.
+- Not built: a generated `CHANGELOG.md` inside a pack (the diff prints the entry with `--markdown`; writing it into the pack is left to the author); the wiki page is `docs/review/README.md`.
+- Honest limits: the diff compares what a rule says, not how often it is right; it shows the effect on one script, not on a corpus. The reference pages for the Java rules (LA, LV, LC04 and so on) are written from their catalog text, which is shorter than the pack rules' pages.
+
+### Phase 9 closeout (2026-10-23): the acceptance criteria against the tests that exist
+
+The names in §1 are the names planned before the work; the tests were organised differently. This table is the real mapping. ✅ met, ◐ met in part (what is missing is said), ⬜ waits on a later phase.
+
+| # | State | Evidence that exists |
+|---|---|---|
+| A1 | ✅ | `ReviewCommandTest` (ranked list, summary card), `ReportFormatsTest` |
+| A2 | ✅ | `ReviewSupersetOfAuditTest`; the existing check, audit, graph and eval suites pass unmodified |
+| A3 | ✅ | `CostModelTest` (unbounded loops reported as unbounded, assumptions listed) |
+| A4 | ◐ | Met on recorded runs (`CorpusCostAccuracyTest`); not met on live provider runs, where answers are shorter than assumed (`LiveCostAccuracyTest`, gated by keys) |
+| A5 | ✅ | `FixApplierTest` (atomic write, idempotent, withheld fixes), `AssistedFixTest` |
+| A6 | ✅ | `FixApplierTest`, `AssistedFixTest` (a fix or option that breaks the script, or adds a high finding, is refused) |
+| A7 | ✅ | `ReviewCorpusTest` (every core rule at 0.9 precision and recall on 90 labelled scripts; heuristic rules off by default) |
+| A8 | ✅ | `SuppressionTest`, `HandlingFindingsTest.anAcceptWithoutAReasonHidesNothing…` |
+| A9 | ✅ | `ReviewCommandTest` (json, md, exit codes, `--fail-on`, `--dry-run`), `SarifTest` |
+| A10 | ✅ | `RuleDocsGeneratedTest` (every rule has an explanation, a title and a generated page) |
+| A11 | ✅ | `ReviewPerformanceTest`: 298 lines, all lenses, 73 ms warm |
+| A12 | ✅ | `ReviewIsStaticTest` |
+| A13 | ◐ | `ReviewSettingsTest`, `FindingModelTest`, `ReviewEngineTest`, `OptionalLensesTest`: eight lenses on by default and five optional, not nine and four, because testability waits for `weave test` (phase 11) |
+| A14 | ✅ | `DataRuleSourceTest`, `OptionalLensesTest.lg02IsNotEvaluated…` (a rule whose setting is undeclared is reported as not evaluated) |
+| A15 | ✅ | `RunProfileTest`, `TimeEffectsReportTest` |
+| A16 | ◐ | `TestabilityLensTest` reads the project's test files and never runs one; the fresh-coverage-report half (LT03) waits for phase 11 |
+| A17 | ✅ | `ReviewCorpusTest`, `RuleDocsGeneratedTest`, `CorePackTest` (examples) |
+| A18 | ◐ | `HandlingFindingsTest` (fingerprints survive moves; accept scopes; an accept never hides a different finding; baseline); dismissing is editor-side and waits for phase 10 |
+| A19 | ✅ | `HandlingFindingsTest` (reasons per entry, bulk accept of serious findings flagged and confirmed, the trifecta refused in `review.properties`), `ReviewCommandTest` |
+| A20 | ◐ | Baseline counts only new findings (`HandlingFindingsTest`); that dismiss never changes what CI sees is editor-side (phase 10) |
+| A21 | ✅ | `HandlingFindingsTest.theNoiseReportCountsPerRule…` |
+| A22 | ◐ | CLI: `RunUnchangedWithNoticeTest` (output, exit code and journal unchanged), `ReviewNoticeTest`; skills: `SkillAdvisoryTextTest`; the extension waits for phase 10 |
+| A23 | ✅ | `ReviewNoticeTest` (open only, once per process, threshold, off, accepted and baselined counted apart) |
+| A24 | ✅ | `ReviewNoticeTest` (late notice dropped, cache, crash and bad settings become one line) |
+| A25 | ✅ | `ReviewCommandTest` (only `--fail-on` exits non-zero on findings); `run`, `package` print a line and never fail |
+| A26 | ✅ | `SkillAdvisoryTextTest` |
+| A27 | ✅ | `PackLoaderTest`, `PackTesterTest`, `RulesToolTest` (a rule without both examples does not load; `rules new` scaffolds) |
+| A28 | ✅ | `RuleParserTest` (no way to write an expression; depth and size bounded), `RuleEvaluatorTest`, `RuleValidatorTest` |
+| A29 | ✅ | `PackSetTest` (pins, hash, prefixes, folder-bound reads, duplicates), `ReviewIsStaticTest` (nothing downloaded) |
+| A30 | ✅ | `RulesToolTest` (`explain --at`), `RulesDiffTest` |
+| A31 | ✅ | Not applicable as planned: the rules were written as data from the start, so there is no Java twin to compare; `ReviewCorpusTest` is the guard. Handled findings surviving an upgrade: fingerprints do not contain the pack version (`HandlingFindingsTest`) |
+| A32 | ✅ | `JavaRuleTest`, `FactBuilderTest` (a custom provider) |
+| A33 | ✅ | `docs/review/README.md`, `WRITING_RULES.md`, `docs/review/rules/`, the `LOOM_GUIDE.md` section, `llms.txt`, the three skills; `ReviewDocsTest`, `LlmsTxtTest` |
+
+Exit checklist (§6): every criterion has evidence; five are met in part, and the parts left are all in phases 10 and 11 or need a live provider run (A4). The manual checks in §4 (reading findings on three real scripts, a live cost and time comparison) are owed to you and are listed with the open decisions.
+
+### Live check (2026-10-23, items 3 and 6 of §4)
+
+Three small workflows on real models (claude-haiku-5-5 and gpt-4.1-mini), four runs each with `--max-cost 0.10`, a run journal, and a price table (`claude-haiku-5-5 = 1.00 / 5.00` is an assumed list price). Total spend about $0.03 of the $5 allowed (13 runs).
+
+| Workflow | Estimated typical | Actual (mean of 4) | Ratio | Estimated time | Actual time (run, JVM start excluded, about 2 s) | Worst case held |
+|---|---|---|---|---|---|---|
+| chain (3 agents in sequence) | $0.0061, 3,625 tokens | $0.0042, 2,700 tokens (3 calls) | 0.69 | 6 s | 4 to 7 s | yes ($0.04) |
+| fan (2 agents in parallel) | $0.0025, 933 tokens | $0.00044, 170 tokens | 0.18 | 2 s | about 1 s | yes ($0.02) |
+| loop (write, review up to 3 rounds) | $0.02, 13,236 tokens, 7 calls | $0.0011, 560 tokens, 2 calls | 0.05 | 11 s | 2 to 3 s | yes ($0.12) |
+
+- Every miss is on the high side, as the offline corpus found: the estimate assumes 350 output tokens per call and a loop that runs more than once; the models gave 40 to 150 tokens and approved the first draft. The actual run was never above the typical estimate and never near the worst case. Typical within 2x: 1 of 3 here (A4's 80 % target remains unmet live, for the same reason as before: terse answers and loops that end early; the estimate is cautious by design).
+- `weave review --calibrate RUN_DIR` named the assumption to change in both misses ("2 calls against 7 estimated: set assume.loop.iterations"). Applying it works: `--assume output.tokens=60` brings fan to $0.0006 (actual $0.00044); `--assume loop.iterations=1 --assume output.tokens=100` brings loop to $0.0013 (actual $0.0011) and its time to 5 s (actual 2 to 3 s). The worst case is unchanged, which is right.
+- Found on the way, by the first smoke run: the editor's prompt came to 1,509 tokens instead of about 300, because the variable `draft` was also an ordinary word in the prompt and was replaced by its value (rule LP07 warned at run time, as designed). After renaming the variables the estimate and the runs agreed. A workflow author who ignores that warning pays several times the estimate.
+- Not checked: the effects estimate (no acting tools in these workflows; needs a Fabric run with a webhook or email tool) and the Fabric run page (the journal was read instead).

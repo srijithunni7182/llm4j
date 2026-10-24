@@ -1,0 +1,137 @@
+- id: LP01
+  lens: prompts
+  severity: medium
+  about: agent
+  when:
+    all:
+      - { field: systemInterpolates, is: true }
+  title: "Agent {name} has a variable written into its system prompt"
+  why: "A value filled into the system prompt is read as an instruction. If it comes from a person, a tool or an input, it can rewrite the agent's rules."
+  fixHint: "Keep the system prompt fixed and pass the value in the task text, marked as data."
+  since: "1.2.0"
+  escalate:
+    - when: { field: hasTools, is: true }
+      severity: high
+  explain: >
+    The system prompt is the agent's rules. Anything interpolated into it by name can carry
+    instructions of its own. Put variable content in the task text of the delegate, where it is
+    data to work on. The severity is raised for an agent with tools, because there the injected
+    instruction can act.
+  examples:
+    fires: [ examples/lp01-fires.loom, examples/lp01-fires-tools.loom ]
+    quiet: [ examples/lp01-quiet.loom ]
+
+- id: LP03
+  lens: prompts
+  severity: low
+  about: agent
+  when:
+    all:
+      - { field: promptTokens, gt: { setting: data.prompt.max-tokens } }
+  title: "Agent {name}'s prompt is about {promptTokens} tokens"
+  why: "A very long prompt is paid for on every call, and the instructions that matter are easier to lose in it."
+  fixHint: "Cut the prompt down, or move reference text into a knowledge base the agent can search."
+  since: "1.2.0"
+  explain: >
+    The limit is data.prompt.max-tokens in review.properties (default 2000). Tokens are counted
+    the way the run-time guard counts them.
+  examples:
+    fires:
+      - file: examples/lp03-fires.loom
+        settings: { data.prompt.max-tokens: "50" }
+    quiet:
+      - file: examples/lp03-quiet.loom
+        settings: { data.prompt.max-tokens: "50" }
+
+- id: LP04
+  lens: prompts
+  severity: high
+  about: agent
+  when:
+    all:
+      - { field: promptHasSecret, is: true }
+  title: "Agent {name}'s prompt holds something shaped like a key or password"
+  why: "A key written in a prompt is committed with the script and sent to the model provider on every call."
+  fixHint: "Remove it, rotate the key, and read it from env.NAME or the secret store where it is needed."
+  since: "1.2.0"
+  examples:
+    fires: [ examples/lp04-fires.loom ]
+    quiet: [ examples/lp04-quiet.loom ]
+
+- id: LP06
+  lens: prompts
+  severity: info
+  about: agent
+  when:
+    all:
+      - { field: nearDuplicateOf, isNot: "" }
+  title: "Agent {name}'s prompt nearly repeats {nearDuplicateOf}'s"
+  why: "Two prompts that say the same thing drift apart when only one is edited."
+  fixHint: "Move the shared text into a persona both agents use."
+  since: "1.2.0"
+  examples:
+    fires: [ examples/lp06-fires.loom ]
+    quiet: [ examples/lp06-quiet.loom ]
+
+- id: LP07
+  lens: prompts
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: payloadHitsVariable, isNot: "" }
+  title: "The text of {label} contains the variable name '{payloadHitsVariable}', which Loom fills in"
+  why: "Loom replaces a bare variable name wherever it appears in the text a script wrote, even inside another word. A variable called r rewrites every r in the sentence with the variable's value, which changes the prompt and can make it huge."
+  fixHint: "Rename the variable to a longer name that does not occur in the text, and put the value in curly braces around its name."
+  since: "1.3.0"
+  explain: >
+    Older scripts wrote a variable's bare name in a prompt and Loom still honours that: the name is
+    replaced everywhere in the literal text of the prompt, with no regard for word boundaries. The
+    safe form is {name}. A short or common name (r, a, result, text) makes the old form fire
+    on words that happen to contain it. This was found measuring costs against a real provider:
+    a variable named r multiplied one prompt by the length of an earlier answer.
+  examples:
+    fires: [ examples/lp07-fires.loom ]
+    quiet: [ examples/lp07-quiet.loom ]
+
+- id: LP02
+  lens: prompts
+  severity: medium
+  heuristic: true
+  about: agent
+  when:
+    all:
+      - { field: feedsBranch, is: true }
+      - { field: hasSchema, is: false }
+      - { field: promptStatesFormat, is: false }
+  title: "Agent {name} decides a branch but its prompt does not say what shape the answer must have"
+  why: "A condition compares the agent's answer with a word. If the prompt does not say which words are allowed, \"Yes.\" and \"yes\" and \"I think so\" all appear."
+  fixHint: "Tell the agent to answer with exactly one of the allowed words, or give it an output_schema."
+  since: "1.5.0"
+  explain: >
+    This rule guesses from the wording of the prompt, so it runs only with heuristics on. It looks
+    for phrases such as respond with, one of the following, JSON, yes or no.
+  examples:
+    fires: [ examples/lp02-fires.loom ]
+    quiet: [ examples/lp02-quiet-format.loom, examples/lp02-quiet-schema.loom ]
+
+- id: LP05
+  lens: prompts
+  severity: info
+  heuristic: true
+  about: agent
+  when:
+    all:
+      - { field: promptSaysWhenUnsure, is: false }
+      - any:
+          - { field: feedsDecision, is: true }
+          - { field: hasEffects, is: true }
+  title: "Agent {name} acts or decides but its prompt does not say what to do when unsure"
+  why: "An agent that is never told it may decline will guess, and a guess that sends or decides has consequences."
+  fixHint: "Add a sentence: if you are not sure, or the request is out of scope, say so and ask a person."
+  since: "1.5.0"
+  explain: >
+    This rule guesses from the wording of the prompt, so it runs only with heuristics on.
+  examples:
+    fires: [ examples/lp05-fires.loom ]
+    quiet: [ examples/lp05-quiet.loom ]

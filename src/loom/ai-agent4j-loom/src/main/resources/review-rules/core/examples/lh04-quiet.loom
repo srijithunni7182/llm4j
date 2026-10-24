@@ -1,0 +1,4 @@
+workflow Main(q) {
+  human_prompt "Anything to add? {q}" -> extra
+  note "{extra}"
+}

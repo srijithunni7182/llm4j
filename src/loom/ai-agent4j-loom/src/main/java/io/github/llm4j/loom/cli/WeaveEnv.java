@@ -128,6 +128,13 @@ record WeaveEnv(
         this(models, human, out, err, clock, sleeper, commands, weave, env, null);
     }
 
+    /** The same, writing to other streams (a review run for the notice must not print). */
+    WeaveEnv withStreams(PrintStream newOut, PrintStream newErr) {
+        return new WeaveEnv(
+                models, human, newOut, newErr, clock, sleeper, commands, weave, env, askVia,
+                secrets, prompts, observe, invoker);
+    }
+
     /** The same, asking through a channel ({@code --ask-via}) whatever the store says. */
     WeaveEnv withAskVia(String channel) {
         return channel == null

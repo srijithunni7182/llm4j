@@ -1,0 +1,7 @@
+agent Drafter { model: "m"  system: "You improve a draft."  memory { max_tokens: 4000  compact: drop_oldest } }
+workflow Main(topic) {
+  loop until (verdict == "good") max 4 {
+    delegate "Improve a draft about {topic}" to Drafter -> verdict
+  }
+}
+// ignore: LP02 LP05 LO01

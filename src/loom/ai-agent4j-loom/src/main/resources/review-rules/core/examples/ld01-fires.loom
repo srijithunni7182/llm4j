@@ -1,0 +1,6 @@
+agent Writer { model: "m"  system: "s" }
+workflow Main(q) {
+  delegate "Draft {q}" to Writer -> draft
+  human_prompt "Publish this?" -> ok
+  note "{ok}"
+}

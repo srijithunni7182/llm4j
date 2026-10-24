@@ -1,0 +1,3 @@
+tool Docs { use: file  root: "docs"  mode: read }
+agent Reader { model: "m"  system: "s"  tools: [Docs]  approve: [Docs] } // <- LH02
+workflow Main(q) { delegate "{q}" to Reader -> r  note "{r}" }

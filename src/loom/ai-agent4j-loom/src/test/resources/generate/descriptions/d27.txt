@@ -1,0 +1,1 @@
+Summarise a day of chat messages into decisions, open questions and who owns what.

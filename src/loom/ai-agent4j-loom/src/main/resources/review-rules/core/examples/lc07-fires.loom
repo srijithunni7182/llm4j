@@ -1,0 +1,5 @@
+agent Helper { model: "m"  system: "You help." }
+workflow Main(figures) {
+  delegate "Calculate the total of {figures}" to Helper -> total
+  note "{total}"
+}

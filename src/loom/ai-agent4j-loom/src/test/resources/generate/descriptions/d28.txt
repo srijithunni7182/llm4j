@@ -1,0 +1,1 @@
+Watch a folder of text reports and write a one line summary for each into a digest file.

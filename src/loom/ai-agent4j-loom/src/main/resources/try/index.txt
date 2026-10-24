@@ -1,0 +1,2 @@
+triage|A support message is routed by a classifier, answered by an agent, and a person is asked before it is sent|intentclassify, alt, delegate, human_prompt, return
+flaky|A lookup fails twice, retry takes over; when everything fails, on_failure answers instead of a crash|retry, backoff, timeout, on_failure

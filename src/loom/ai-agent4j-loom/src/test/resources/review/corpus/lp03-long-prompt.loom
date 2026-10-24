@@ -1,0 +1,7 @@
+// settings: data.prompt.max-tokens=50
+agent Careful { model: "m"  system: "You are a careful assistant. Read the request slowly and answer in full sentences. Cite the place in the request that you are answering. Never guess a number. When two readings are possible, say so, give both, and ask which one was meant before you go on with the work that was asked for." } // <- LP03
+workflow Main(q) {
+  delegate "{q}" to Careful -> r
+  note "{r}"
+}
+// ignore: LP02 LP05 LO01

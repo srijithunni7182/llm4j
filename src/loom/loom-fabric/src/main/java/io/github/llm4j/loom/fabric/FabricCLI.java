@@ -467,6 +467,26 @@ public final class FabricCLI implements Callable<Integer> {
                 description = "Keep at most this much history (default ${DEFAULT-VALUE}).")
         String size;
 
+        @Option(
+                names = "--allow-capture",
+                description =
+                        "Let a signed-in administrator create a test from a run and try a change on it. Off by default: it shows run content.")
+        boolean allowCapture;
+
+        @Option(
+                names = "--capture-store",
+                paramLabel = "dir",
+                description =
+                        "Where the runs' journals are, as this server sees them. Without it the page shows the 'weave capture' command to run where the store is.")
+        Path captureStore;
+
+        @Option(
+                names = "--capture-folder",
+                paramLabel = "dir",
+                description =
+                        "Also write each captured case into this folder (not a source repository).")
+        Path captureFolder;
+
         Serve(Env env) {
             super(env);
         }
@@ -499,7 +519,15 @@ public final class FabricCLI implements Callable<Integer> {
                 FabricServer server =
                         new FabricServer(
                                 new FabricServer.Settings(
-                                        data, bind, port, tls, trustProxy, days, bytes(size)),
+                                        data,
+                                        bind,
+                                        port,
+                                        tls,
+                                        trustProxy,
+                                        days,
+                                        bytes(size),
+                                        new FabricLoop.Settings(
+                                                allowCapture, captureStore, captureFolder)),
                                 vault,
                                 env.out);
                 server.start();

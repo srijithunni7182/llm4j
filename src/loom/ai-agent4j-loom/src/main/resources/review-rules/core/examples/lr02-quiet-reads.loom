@@ -1,0 +1,2 @@
+agent A { model: "m"  system: "s"  tools: [web_search] }
+workflow Main(q) { delegate "{q}" to A -> r  note "{r}" }

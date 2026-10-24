@@ -1,0 +1,7 @@
+tool Docs { use: file  root: "docs"  mode: read }
+agent Reader { model: "m"  system: "s"  tools: [Docs] }
+workflow Main(items) {
+  for each item in items {
+    delegate "read {item}" to Reader -> text
+  }
+}

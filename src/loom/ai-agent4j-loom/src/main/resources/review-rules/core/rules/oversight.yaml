@@ -1,0 +1,56 @@
+- id: LH01
+  lens: oversight
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, is: decide }
+      - { field: decideLacksLadder, is: true }
+      - { field: followedByEffect, is: true }
+  title: "{label} is followed by an action, and its decision has no ladder or trust"
+  why: "The agent's choice leads to something being written or sent, and nothing in the script says how the agent earned the right to do that without a person."
+  fixHint: "Give the decision a trust block that starts at watch, so a person sees every choice until the agent has a record."
+  since: "1.6.0"
+  explain: >
+    A decision with a trust block (or a ladder) says how much freedom the agent has and how it
+    earns more. Without either, whatever follows the decision runs on the agent's word alone.
+  examples:
+    fires: [ examples/lh01-fires.loom ]
+    quiet: [ examples/lh01-quiet-trust.loom, examples/lh01-quiet-no-effect.loom ]
+
+- id: LH02
+  lens: oversight
+  severity: low
+  about: agent
+  when:
+    all:
+      - { field: approvesLowReachTool, is: true }
+  title: "Agent {name} asks a person to approve a tool that only reads"
+  why: "When people are asked to approve things that cannot do harm, they learn to click yes without reading, and the approvals that matter get the same click."
+  fixHint: "Remove the approval from the read-only tool, or declare that its reach is wider if it is."
+  since: "1.6.0"
+  explain: >
+    Approval is for tools that write or send. Asking for it on a tool whose reach is declared as
+    none or reads adds friction without protection.
+  examples:
+    fires: [ examples/lh02-fires.loom ]
+    quiet: [ examples/lh02-quiet.loom ]
+
+- id: LH04
+  lens: oversight
+  severity: low
+  about: step
+  when:
+    all:
+      - { field: kind, is: human_prompt }
+      - { field: answerCompared, is: true }
+  title: "{label} takes a free-text answer that a condition then compares"
+  why: "People type 'Yes', 'yes ', 'y' and 'ok'. A comparison against one spelling takes the others for no."
+  fixHint: "Ask a question with a fixed set of answers (a decide, or a prompt that tells the person to answer exactly yes or no) and compare against that."
+  since: "1.6.0"
+  explain: >
+    Looks for a human_prompt whose variable is used in a later condition. The free-text answer is
+    matched exactly, so only the spelling the author thought of works.
+  examples:
+    fires: [ examples/lh04-fires.loom ]
+    quiet: [ examples/lh04-quiet.loom ]

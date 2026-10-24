@@ -1,0 +1,2 @@
+agent Researcher { model: "m"  system: "s"  tools: [web_search] }
+workflow Main(q) { delegate "{q}" to Researcher -> r retry 2 backoff 2s timeout 30s  note "{r}" }

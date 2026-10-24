@@ -1,0 +1,156 @@
+package io.github.llm4j.loom.review.report;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.llm4j.loom.review.engine.ReviewReport;
+import io.github.llm4j.loom.review.model.Finding;
+import io.github.llm4j.loom.review.model.Lens;
+import io.github.llm4j.loom.review.model.Note;
+import io.github.llm4j.loom.review.model.Severity;
+import io.github.llm4j.loom.review.model.Suppressed;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * The review as JSON, version 1: {@code {version, file, summary, findings[], suppressed[],
+ * notes[]}}. New keys may be added; none is renamed or removed within a version.
+ */
+public final class JsonReport {
+
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    private JsonReport() {}
+
+    public static String write(ReviewReport report) {
+        try {
+            return JSON.writerWithDefaultPrettyPrinter().writeValueAsString(tree(report));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** The report as plain maps and lists, for callers that embed it (the editor protocol). */
+    public static Map<String, Object> tree(ReviewReport r) {
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("version", ReviewReport.VERSION);
+        root.put("file", r.file());
+        root.put("summary", summary(r));
+        root.put("findings", r.findings().stream().map(JsonReport::finding).toList());
+        if (r.cost() != null) root.put("cost", CostJson.of(r.cost()));
+        root.put("suppressed", r.suppressed().stream().map(JsonReport::suppressed).toList());
+        root.put("accepted", r.suppressed().stream().map(JsonReport::suppressed).toList());
+        root.put("baselined", r.baselined().stream().map(JsonReport::finding).toList());
+        root.put("notes", r.notes().stream().map(JsonReport::note).toList());
+        return root;
+    }
+
+    private static Map<String, Object> summary(ReviewReport r) {
+        Map<String, Object> s = new LinkedHashMap<>();
+        s.put("total", r.findings().size());
+        s.put("accepted", r.suppressed().size());
+        s.put("baselined", r.baselined().size());
+        for (Severity sev : Severity.values()) s.put(sev.word(), r.count(sev));
+        Map<String, Object> lenses = new LinkedHashMap<>();
+        lenses.put("ran", ids(r.lensesRun()));
+        lenses.put("off", ids(r.lensesOff()));
+        s.put("lenses", lenses);
+        return s;
+    }
+
+    private static List<String> ids(List<Lens> lenses) {
+        List<String> out = new ArrayList<>();
+        for (Lens l : lenses) out.add(l.id());
+        return out;
+    }
+
+    private static Map<String, Object> suppressed(Suppressed s) {
+        Map<String, Object> m = finding(s.finding());
+        m.put("suppressedAt", s.place());
+        m.put("reason", s.reason());
+        m.put("until", s.until().isEmpty() ? null : s.until());
+        m.put("by", s.by().isEmpty() ? null : s.by());
+        m.put("at", s.at().isEmpty() ? null : s.at());
+        return m;
+    }
+
+    private static Map<String, Object> finding(Finding f) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("rule", f.rule());
+        m.put("fingerprint", f.fingerprint());
+        m.put("lens", f.lens().id());
+        m.put("severity", f.severity().word());
+        Map<String, Object> where = new LinkedHashMap<>();
+        where.put("file", f.where().file());
+        where.put("line", f.where().line());
+        where.put("column", f.where().column());
+        where.put("endLine", f.where().endLine());
+        where.put("endColumn", f.where().endColumn());
+        where.put("node", f.where().nodeId());
+        m.put("location", where);
+        m.put("title", f.title());
+        m.put("why", f.why());
+        m.put("fixHint", f.fixHint());
+        m.put("owasp", f.owasp());
+        m.put("related", f.related());
+        m.put("source", f.source());
+        if (!f.options().isEmpty())
+            m.put("options", f.options().stream().map(JsonReport::option).toList());
+        f.fix()
+                .ifPresent(
+                        fix -> {
+                            Map<String, Object> x = new LinkedHashMap<>();
+                            x.put("safety", fix.safety().name().toLowerCase(java.util.Locale.ROOT));
+                            x.put("label", fix.label());
+                            x.put(
+                                    "edits",
+                                    fix.edits().stream()
+                                            .map(
+                                                    e -> {
+                                                        Map<String, Object> ed =
+                                                                new LinkedHashMap<>();
+                                                        ed.put("file", e.file());
+                                                        ed.put("startLine", e.startLine());
+                                                        ed.put("startColumn", e.startColumn());
+                                                        ed.put("endLine", e.endLine());
+                                                        ed.put("endColumn", e.endColumn());
+                                                        ed.put("newText", e.newText());
+                                                        return ed;
+                                                    })
+                                            .toList());
+                            m.put("fix", x);
+                        });
+        return m;
+    }
+
+    private static Map<String, Object> option(io.github.llm4j.loom.review.model.FixOption o) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", o.id());
+        m.put("label", o.label());
+        m.put("explain", o.explain());
+        m.put("safety", o.safety().name().toLowerCase(java.util.Locale.ROOT));
+        m.put(
+                "ask",
+                o.params().stream()
+                        .map(
+                                p -> {
+                                    Map<String, Object> q = new LinkedHashMap<>();
+                                    q.put("name", p.name());
+                                    q.put("prompt", p.prompt());
+                                    q.put("default", p.defaultValue());
+                                    return q;
+                                })
+                        .toList());
+        m.put("showReferences", o.showReferences());
+        return m;
+    }
+
+    private static Map<String, Object> note(Note n) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("kind", n.kind().name().toLowerCase(java.util.Locale.ROOT));
+        m.put("rule", n.rule());
+        m.put("message", n.message());
+        return m;
+    }
+}

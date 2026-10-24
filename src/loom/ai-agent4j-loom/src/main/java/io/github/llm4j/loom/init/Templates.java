@@ -24,6 +24,7 @@ public final class Templates {
                                     "README.md",
                                     "dot-gitignore",
                                     "dot-env.example",
+                                    "tests/main.test.yaml",
                                     "prompts/researcher/v1.md",
                                     "prompts/writer.md",
                                     "prompts/editor.md",
@@ -40,6 +41,7 @@ public final class Templates {
                                     "README.md",
                                     "dot-gitignore",
                                     "dot-env.example",
+                                    "tests/main.test.yaml",
                                     "prompts/triage.md",
                                     "prompts/drafter.md",
                                     "eval/golden/dataset.yaml",
@@ -54,6 +56,7 @@ public final class Templates {
                                     "README.md",
                                     "dot-gitignore",
                                     "dot-env.example",
+                                    "tests/main.test.yaml",
                                     "prompts/classifier.md",
                                     "eval/golden/dataset.yaml",
                                     "eval/golden/classifier.yaml",
@@ -66,6 +69,7 @@ public final class Templates {
                                     "README.md",
                                     "dot-gitignore",
                                     "dot-env.example",
+                                    "tests/main.test.yaml",
                                     "prompts/helper.md",
                                     "eval/golden/dataset.yaml",
                                     "eval/golden/workflow.yaml")));
@@ -100,6 +104,7 @@ public final class Templates {
         if (file.equals("main.loom") || file.startsWith("prompts/"))
             return "src/main/resources/" + file;
         if (file.startsWith("eval/")) return "src/test/resources/" + file;
+        if (file.startsWith("tests/")) return "src/test/resources/loom-" + file;
         return file;
     }
 

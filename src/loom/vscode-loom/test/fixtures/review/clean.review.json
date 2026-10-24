@@ -1,0 +1,107 @@
+{
+  "version" : 1,
+  "file" : "clean.loom",
+  "summary" : {
+    "total" : 0,
+    "accepted" : 0,
+    "baselined" : 0,
+    "high" : 0,
+    "medium" : 0,
+    "low" : 0,
+    "info" : 0,
+    "lenses" : {
+      "ran" : [ "security", "privacy", "durability", "reliability", "cost", "validity", "prompts", "observability" ],
+      "off" : [ "testability", "governance", "maintainability", "oversight", "blast-radius" ]
+    }
+  },
+  "findings" : [ ],
+  "cost" : {
+    "workflows" : [ {
+      "name" : "Main",
+      "typical" : {
+        "calls" : 1,
+        "tokensIn" : 105,
+        "tokensOut" : 350,
+        "money" : null,
+        "unpriced" : [ "gemini-2.5-flash" ]
+      },
+      "worst" : {
+        "calls" : 3,
+        "tokensIn" : 6015,
+        "tokensOut" : 6000,
+        "money" : null,
+        "unpriced" : [ "gemini-2.5-flash" ]
+      },
+      "steps" : [ {
+        "line" : 4,
+        "label" : "delegate Helper",
+        "model" : "gemini-2.5-flash",
+        "typicalRuns" : 1,
+        "worstRuns" : 1,
+        "typical" : {
+          "calls" : 1,
+          "tokensIn" : 105,
+          "tokensOut" : 350,
+          "money" : null,
+          "unpriced" : [ "gemini-2.5-flash" ]
+        },
+        "worst" : {
+          "calls" : 3,
+          "tokensIn" : 6015,
+          "tokensOut" : 6000,
+          "money" : null,
+          "unpriced" : [ "gemini-2.5-flash" ]
+        }
+      } ],
+      "notes" : [ ],
+      "time" : {
+        "typicalMs" : 2000,
+        "worst" : {
+          "ms" : 10000
+        },
+        "criticalPath" : [ "line 4 delegate Helper" ],
+        "waits" : [ ],
+        "sleepMs" : 0,
+        "assumptions" : {
+          "assume.latency.small" : 2,
+          "assume.effects.calls" : 1
+        }
+      },
+      "effects" : {
+        "sends" : {
+          "typical" : 0,
+          "worst" : 0
+        },
+        "writes" : {
+          "typical" : 0,
+          "worst" : 0
+        }
+      }
+    } ],
+    "assumptions" : {
+      "assume.variable.tokens" : 100,
+      "assume.variable.max" : 2000,
+      "assume.output.tokens" : 350,
+      "assume.output.max" : 2000
+    },
+    "prices" : null,
+    "unpriced" : [ "gemini-2.5-flash" ],
+    "estimate" : true
+  },
+  "suppressed" : [ ],
+  "accepted" : [ ],
+  "baselined" : [ ],
+  "notes" : [ {
+    "kind" : "not_evaluated",
+    "rule" : "LC01",
+    "message" : "LC01 was not evaluated: data.top-models is not declared in review.properties"
+  }, {
+    "kind" : "not_evaluated",
+    "rule" : "LC03",
+    "message" : "LC03 was not evaluated: data.top-models is not declared in review.properties"
+  }, {
+    "kind" : "not_evaluated",
+    "rule" : "LD01",
+    "message" : "LD01 was not evaluated: journal is not declared in review.properties"
+  } ]
+}

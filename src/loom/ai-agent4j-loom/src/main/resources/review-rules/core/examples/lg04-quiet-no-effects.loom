@@ -1,0 +1,2 @@
+agent A { model: "gemini-flash-latest"  system: "s" }
+workflow Main(q) { delegate "{q}" to A -> r  note "{r}" }

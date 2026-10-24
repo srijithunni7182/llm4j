@@ -1,0 +1,3 @@
+agent Writer { model: "m"  prompt: "lg05-writer" }
+agent Editor { model: "m"  prompt: "lg05-editor" } // <- LG05
+workflow Main(q) { delegate "{q}" to Writer -> a  delegate "{a}" to Editor -> b  note "{b}" }

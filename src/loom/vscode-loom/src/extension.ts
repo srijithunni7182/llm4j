@@ -13,6 +13,11 @@ import { createPromptFileCommand } from './commands/createPromptFile';
 import { registerCheckDiagnostics } from './commands/checkDiagnostics';
 import { registerGuideCommands } from './commands/guideCommands';
 import { WorkflowOutlineProvider } from './views/WorkflowOutlineProvider';
+import { registerEngine } from './engine/vscodeHost';
+import { registerSemantic, semanticMiddleware } from './semantic/vscodeSemantic';
+import { registerReview } from './review/vscodeReview';
+import { registerDebug } from './debug/vscodeDebug';
+import { registerGenerate } from './generate/vscodeGenerate';
 
 // Module-level client reference so deactivate() can stop it.
 let client: LanguageClient | undefined;
@@ -53,6 +58,7 @@ export function activate(context: vscode.ExtensionContext): void {
         synchronize: {
             fileEvents: vscode.workspace.createFileSystemWatcher('**/*.loom'),
         },
+        middleware: semanticMiddleware(),
     };
 
     client = new LanguageClient(
@@ -106,7 +112,12 @@ export function activate(context: vscode.ExtensionContext): void {
     // ------------------------------------------------------------------ //
     // 3c. Problems from `weave check`, the language's own parser         //
     // ------------------------------------------------------------------ //
+    registerEngine(context);
+    registerSemantic(context);
     registerCheckDiagnostics(context);
+    registerReview(context);
+    registerDebug(context);
+    registerGenerate(context);
     registerGuideCommands(context);
 
     // ------------------------------------------------------------------ //

@@ -1,0 +1,3 @@
+tool Hook { use: webhook  url: env.HOOK_URL }
+agent Sender { model: "m"  system: "s"  tools: [Hook]  approve: [Hook] }
+workflow Main(q) { delegate "{q}" to Sender -> r  note "{r}" }

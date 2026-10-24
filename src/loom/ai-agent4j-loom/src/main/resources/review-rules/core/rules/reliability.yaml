@@ -1,0 +1,232 @@
+- id: LR01
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, is: delegate }
+      - { field: agent.hasTools, is: true }
+      - { field: retry, is: false }
+      - { field: timeout, is: false }
+  title: "{label} has a tool but no retry or timeout"
+  why: "A tool call can fail or hang. Without a retry and a timeout one slow or failing call stalls or ends the whole run."
+  fixHint: "Add a retry and a timeout to this step."
+  fix:
+    safety: safe
+    reviewWhen: { field: agent.hasEffects, is: true }
+    label: "Add retry and timeout"
+    insertAfter: { anchor: statementEnd, text: " {setting.fix.retry}" }
+  options:
+    - id: retry-timeout
+      label: "Retry and time out"
+      explain: "A failed or slow call is tried again, up to the number of tries, then the step fails. If the agent writes or sends, a retry can repeat the action."
+      safety: review
+      ask:
+        - { name: policy, prompt: "Retry policy", default: "retry 2 backoff 2s timeout 60s" }
+      insertAfter: { anchor: statementEnd, text: " {ask.policy}" }
+    - id: timeout-only
+      label: "Time out only, no retry"
+      explain: "A call that takes too long is cut off and the step fails once; nothing is repeated. The right choice when the agent sends or writes."
+      safety: safe
+      ask:
+        - { name: seconds, prompt: "Time out after how many seconds", default: "60" }
+      insertAfter: { anchor: statementEnd, text: " timeout {ask.seconds}s" }
+  since: "1.0.0"
+  explain: >
+    A delegate to an agent that has tools can fail in ways a plain model call does not: a tool
+    times out, an API rate-limits, a network drops. A retry gives the step another chance and a
+    timeout stops one call from holding the run forever. The fix adds the retry and timeout your
+    project prefers (fix.retry in review.properties).
+  examples:
+    fires: [ { file: examples/lr01-fires.loom, expect: 1 } , examples/lr01-fires-multiline.loom]
+    quiet: [ examples/lr01-quiet.loom, examples/lr01-quiet-no-tools.loom ]
+
+- id: LR03
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, is: loop }
+      - { field: hasMax, is: false }
+  title: "{label} has no maximum number of rounds"
+  why: "A loop that only stops when its condition becomes true can run for ever if the condition never does, and every round may call a model."
+  fixHint: "Add a maximum, such as max 5, and say what happens when it is reached."
+  fix:
+    safety: safe
+    label: "Add a maximum number of rounds"
+    insertBefore: { anchor: beforeBrace, text: "{setting.fix.loop.max} " }
+  options:
+    - id: max-rounds
+      label: "Stop after a number of rounds"
+      explain: "The loop ends after that many rounds even if its condition still holds, so its cost has an upper limit."
+      safety: safe
+      ask:
+        - { name: rounds, prompt: "Most rounds the loop may run", default: "5" }
+      insertBefore: { anchor: beforeBrace, text: "max {ask.rounds} " }
+  since: "1.0.0"
+  explain: >
+    Bound every loop. With max N the runtime stops after N rounds and runs the on_exhausted block,
+    so the cost of the loop has an upper limit and the run cannot spin unnoticed.
+  examples:
+    fires: [ examples/lr03-fires.loom , examples/lr03-fires-multiline.loom]
+    quiet: [ examples/lr03-quiet.loom ]
+
+- id: LR02
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, is: delegate }
+      - { field: agent.hasEffects, is: true }
+      - { field: onFailure, is: false }
+  title: "{label} can write or send but has no on_failure"
+  why: "When a step that acts on the outside world fails half way, nothing decides what happens next: the run ends with the effect done, undone or unknown."
+  fixHint: "Add an on_failure block that records the failure and asks a person what to do."
+  fix:
+    safety: review
+    label: "Add an on_failure block that records the failure"
+    insertAfter: { anchor: statementEnd, text: " on_failure { note \"this step failed\" }" }
+  options:
+    - id: note
+      label: "Record the failure and carry on"
+      explain: "The failure is written to the run's notes and the workflow continues with the next step. Only right if later steps can work without this one's result."
+      safety: review
+      ask:
+        - { name: message, prompt: "What the note should say", default: "this step failed" }
+      insertAfter: { anchor: statementEnd, text: " on_failure { note \"{ask.message}\" }" }
+    - id: human
+      label: "Ask a person what to do"
+      explain: "The run pauses and a person is asked; their answer is kept in a variable. Use this when the failure leaves something half done that only a person can judge."
+      safety: review
+      ask:
+        - { name: message, prompt: "What to ask the person", default: "This step failed. Check it, then answer done." }
+        - { name: variable, prompt: "Variable that keeps their answer", default: "checked" }
+      insertAfter: { anchor: statementEnd, text: " on_failure { human_prompt \"{ask.message}\" -> {ask.variable} }" }
+  since: "1.2.0"
+  explain: >
+    An agent whose tools write or send can fail after part of its work is done. An on_failure
+    block is where the workflow says what then: stop cleanly, tell someone, or ask a person.
+    Without one the failure ends the run wherever it happens.
+  examples:
+    fires: [ examples/lr02-fires.loom, examples/lr02-fires-multiline.loom ]
+    quiet: [ examples/lr02-quiet-handled.loom, examples/lr02-quiet-reads.loom ]
+
+- id: LR04
+  lens: reliability
+  severity: low
+  about: step
+  when:
+    all:
+      - { field: kind, is: human_prompt }
+      - { field: timeout, is: false }
+      - { field: workflow.isScheduled, is: true }
+  title: "{label} waits for a person with no timeout in a scheduled workflow"
+  why: "A scheduled workflow runs when nobody is watching. A question with no timeout holds the run until someone happens to answer, and overlapping runs may pile up behind it."
+  fixHint: "Add a timeout, or an escalation, to the question."
+  since: "1.2.0"
+  examples:
+    fires: [ examples/lr04-fires.loom ]
+    quiet: [ examples/lr04-quiet-not-scheduled.loom ]
+
+- id: LR05
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, in: [alt, loop] }
+      - { field: readsFreeText, is: true }
+  title: "{label} branches on a field of an answer that has no output_schema"
+  why: "Without an output_schema the model's answer is free text, so the field the condition reads may be missing or spelt differently, and the branch silently goes the wrong way."
+  fixHint: "Give the agent an output_schema that has the field the condition reads."
+  since: "1.2.0"
+  explain: >
+    A condition such as r.score < 5 assumes the answer has a score. Only an output_schema makes the
+    model produce one and lets the runtime check it. This rule looks at conditions that read a
+    field of a variable that is bound only by agents with no output_schema.
+  examples:
+    fires: [ examples/lr05-fires.loom ]
+    quiet: [ examples/lr05-quiet-schema.loom ]
+
+- id: LR07
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, is: delegate }
+      - { field: agent.hasEffects, is: true }
+      - { field: agent.approveAll, is: false }
+      - { field: agent.approve, count: { is: 0 } }
+      - any:
+          - { field: inLoop, is: true }
+          - { field: inForEach, is: true }
+  title: "{label} can write or send inside a loop with nobody approving it"
+  why: "A loop or for each repeats the effect, so one wrong decision is made again for every round or item before anyone looks."
+  fixHint: "Put approve: on the tool, or move the effect after the loop and do it once."
+  since: "1.2.0"
+  examples:
+    fires: [ examples/lr07-fires.loom ]
+    quiet: [ examples/lr07-quiet-approved.loom, examples/lr07-quiet-no-loop.loom ]
+
+- id: LR08
+  lens: reliability
+  severity: low
+  about: script
+  when:
+    all:
+      - { field: isScheduled, is: true }
+      - { field: hasRateLimits, is: false }
+  title: "The script is scheduled but declares no rate_limits"
+  why: "An unattended run that hits a provider limit has no rule for waiting or giving up, so it fails or retries without bound."
+  fixHint: "Add a rate_limits block saying whether to suspend, wait or fail."
+  fix:
+    safety: safe
+    label: "Add a rate_limits block"
+    insertBefore: { anchor: fileStart, text: "rate_limits { on_limit: suspend  max_wait: 24h  max_resumes: 50 }\n" }
+  since: "1.2.0"
+  examples:
+    fires: [ examples/lr08-fires.loom ]
+    quiet: [ examples/lr08-quiet-declared.loom, examples/lr08-quiet-not-scheduled.loom ]
+
+- id: LR09
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, is: parallel }
+      - { field: writesSameVariableAsSibling, is: true }
+  title: "{label} has branches that bind the same variable"
+  why: "Branches of a parallel round finish in any order, so which answer ends up in the shared variable changes from run to run."
+  fixHint: "Give each branch its own variable name."
+  since: "1.2.0"
+  examples:
+    fires: [ examples/lr09-fires.loom ]
+    quiet: [ examples/lr09-quiet-distinct.loom ]
+
+- id: LR10
+  lens: reliability
+  severity: info
+  about: step
+  when:
+    all:
+      - { field: kind, is: loop }
+      - { field: loopBodyHasEffects, is: true }
+      - { field: checkpointBefore, is: false }
+      - any:
+          - { field: hasMax, is: false }
+          - { field: loopMax, gte: 5 }
+  title: "{label} repeats work that writes or sends, and no checkpoint comes before it"
+  why: "A rewind can only go back to a checkpoint. With none before a long loop that acts on the world, the only point to go back to is the start of the workflow, before everything the loop already did."
+  fixHint: "Put a checkpoint before the loop, so a rewind can return to just before it."
+  since: "1.6.0"
+  explain: >
+    Checkpoints name the places a rewind can return to. A loop that writes or sends and may turn
+    five times or more, or has no maximum, is the kind of work where going back to just before it is
+    useful. This is advice, so it is INFO.
+  examples:
+    fires: [ examples/lr10-fires.loom ]
+    quiet: [ examples/lr10-quiet-checkpoint.loom, examples/lr10-quiet-short.loom ]

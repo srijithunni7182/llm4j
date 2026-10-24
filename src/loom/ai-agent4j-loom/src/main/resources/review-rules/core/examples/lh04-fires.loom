@@ -1,0 +1,4 @@
+workflow Main(q) {
+  human_prompt "Publish this? {q}" -> ok // <- LH04
+  alt (ok == "yes") { note "published" } else { note "held" }
+}

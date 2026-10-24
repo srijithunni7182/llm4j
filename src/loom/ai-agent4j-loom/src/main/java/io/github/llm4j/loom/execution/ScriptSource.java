@@ -1,7 +1,6 @@
 package io.github.llm4j.loom.execution;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -25,7 +24,7 @@ public interface ScriptSource {
         return new ScriptSource() {
             @Override
             public String read(String location) throws IOException {
-                return Files.readString(Path.of(location));
+                return Buffers.read(Path.of(location));
             }
 
             @Override

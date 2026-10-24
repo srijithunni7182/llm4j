@@ -1,0 +1,6 @@
+agent Writer { model: "m"  system: "s" }
+workflow Main(topic) {
+  loop until (draft == "good") max 50 {
+    delegate "Improve {topic}" to Writer -> draft
+  }
+}

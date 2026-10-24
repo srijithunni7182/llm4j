@@ -1,0 +1,7 @@
+tool Mailer { use: class  class: "com.acme.MailTool"  reach: sends } // <- LD02
+agent A { model: "m"  system: "s"  tools: [Mailer] }
+workflow Main(topic) {
+  delegate "Send {topic}" to A -> sent retry 2 backoff 1s timeout 30s // <- LD04 LR02
+  note "{sent}"
+}
+// ignore: LP02 LP05 LO01

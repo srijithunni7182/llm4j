@@ -1,0 +1,6 @@
+agent Replier { model: "m"  system: "Sign emails like this: write to maria.gomez@acme-corp.com or call (415) 555-0187 for follow-ups." } // <- LY06
+workflow Main(topic) {
+  delegate "Reply about {topic}" to Replier -> reply
+  note "{reply}"
+}
+// ignore: LP02 LP05 LO01

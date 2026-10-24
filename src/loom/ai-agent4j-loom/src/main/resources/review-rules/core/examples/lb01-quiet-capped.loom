@@ -1,0 +1,8 @@
+tool Hook { use: webhook  url: env.HOOK_URL }
+agent Sender { model: "m"  system: "s"  tools: [Hook] }
+budget { calls: 20 }
+workflow Main(items) {
+  for each item in items {
+    delegate "send {item}" to Sender -> sent
+  }
+}

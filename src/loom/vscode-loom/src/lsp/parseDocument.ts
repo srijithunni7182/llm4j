@@ -61,7 +61,7 @@ function isWordApostrophe(line: string, col: number): boolean {
  * Anything outside this set is a LexError.
  * Requirements 3.3, 21.1
  */
-export const VALID_CHAR_RE = /[\w\s"{}()\[\],:+%\->=<!./]/;
+export const VALID_CHAR_RE = /[\w\s"{}()\[\],:+%\->=<!./|]/; // `|` separates the labels of an intentclassifier question (the lexer's PIPE)
 
 /**
  * Lightweight structural scanner for Loom source.

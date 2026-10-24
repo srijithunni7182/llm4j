@@ -49,6 +49,17 @@ Stages 4 (try it) and 5 and 6 (keep it) are alternatives for the first look: sta
 [ ] Operate (backup, keys)
 ```
 
+## When they want it in a container
+
+Use `weave deploy`, not a hand-written Dockerfile. It reads the script and writes text only: nothing is built, pushed or applied.
+
+1. Run `weave deploy flow.loom --target compose --dry-run` first and read the file list with the user; then without `--dry-run`. `--target docker` is the image alone, `--target k8s` writes manifests.
+2. The review is shown as a warning and never stops the files. Say in one sentence what is open (the README records it) and carry on with what they asked; the decision about a trifecta stays stage 2's. `--require-clean` is for a team that wants a gate.
+3. Tell them the two things they supply: `deploy/weave.jar` (the weave CLI, same version) beside the Dockerfile, and a Fabric image (`--fabric-image`, default `loom-fabric:6.0.0`). Secrets are only ever names (`.env.example`, an empty Kubernetes Secret template): the values come from their secret store.
+4. Fabric is published on loopback only. If they ask for more, `weave deploy` refuses (`--fabric-publish`): explain TLS and a reverse proxy (stage 5) instead of working around it.
+5. `weave deploy flow.loom --verify deploy` after a change to the script says what is stale. A file they edited by hand is kept (`--force` replaces it).
+6. Read the generated README with them: what it needs, what happens on a restart, a lost node and a lost volume.
+
 ## Rules you do not break
 
 - **A secret never goes on a command line, in a printed line or in the chat**: the admin password, a Fabric client key, a provider key, the master key. The scripts take them from the environment or standard input and store them; you never see them. If one reaches the chat, tell the user to rotate it and how.
@@ -56,6 +67,16 @@ Stages 4 (try it) and 5 and 6 (keep it) are alternatives for the first look: sta
 - **The scripts refuse an unsafe choice** (a non-loopback address without TLS or a proxy; a process reporting over plain http to a remote server). Do not work around a refusal: explain it and ask the user which safe choice they want.
 - **Never invent what the user decides**: the thresholds, which agents may hold the trifecta, who may sign in, how much text may leave the machine.
 - **Say what you did and what you saw**, in plain words, after every script and every stage. Never tick a gate that was not checked.
+
+## When the user asks why a run did what it did
+
+Do not guess from the page. Run `weave why <run-dir>` (a run kept with `--journal`) and read the choices aloud with them: each shows the condition, the values it looked at and the statement that set each value. `weave why <run-dir> --line N` answers "why did this run (or not)". To ask "what if the classifier had said X", use `weave whatif` (nothing runs, nothing is sent, the run itself is not written); to see which branches many runs never reached, `weave graph script.loom --run <dir> --run <dir>`. These need no keys. If the script has changed since the run, `why` refuses and says so: do not point it at the new script.
+
+## Review is advice, and the decision is the user's
+
+After you write or change a workflow, run `weave review <script>` (free, offline, no keys). Tell the user the open counts and the top findings in a sentence, say plainly when one is **high**, and offer to handle the rest: for a finding with **options** (`weave review --format json` lists them under `options`), put the choices to the user in your own words, let them pick and give the values (how many retries, what a failure note says), show the diff with `--dry-run`, and apply with `weave review <script> --fix-finding FINGERPRINT --option ID --set name=value` (add `--yes` only for an option marked as needing thought and only after the user said yes). `--fix` applies only the fixes with one obvious answer. Accepting a finding needs a reason that is the user's own (`--accept FINGERPRINT --reason "..."`): never write one for them. A fix proves only that the script loads and adds no high finding, so run `weave check` and the tests after it.
+
+Then **carry on with what the user asked** (run, test, package, deploy): open findings never stop a run, and you must not hold the work back because of them. You may recommend fixing first. Use `--fail-on` only when the user asks for a gate ("do not deploy unless review is clean"). `weave review <script> --explain RULE` explains one rule.
 
 ## Be honest about the edges
 
@@ -77,4 +98,6 @@ weave observe rules flow.loom                                  # check the .insp
 weave observe flush --observe-name checkout                    # deliver what an earlier process left in its outbox
 weave run flow.loom --observe                                  # the plain form, when the add-on jars are on the class path
 weave guide d5                                                 # read chapter 5: bring up a Fabric
+weave deploy flow.loom --target compose --dry-run             # the container files, derived from the script (text only)
+weave deploy flow.loom --verify deploy                         # are the files still right for the script
 ```

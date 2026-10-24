@@ -1,0 +1,9 @@
+agent Summarizer { model: "m"  system: "Summarize." }
+agent Translator { model: "m"  system: "Translate." }
+workflow Main(text) {
+  parallel {
+    delegate "Summarize {text}" to Summarizer -> summary
+    delegate "Translate {text}" to Translator -> translation
+  }
+  note "{summary} {translation}"
+}

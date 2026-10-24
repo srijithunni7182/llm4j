@@ -52,6 +52,7 @@
         <module>src/loom/loom-inspect-core</module>
         <module>src/loom/loom-inspect</module>
         <module>src/loom/loom-fabric</module>
+        <module>src/loom/loom-maven-plugin</module>
         <module>src/spring/llm4j-spring-boot-starter</module>
         <module>src/release/bundle-cleanup</module>
     </modules>

@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "entry": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/risky.loom",
+  "files": [
+    {
+      "path": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/risky.loom",
+      "imports": [ ]
+    }
+  ],
+  "workflows": [
+    {
+      "name": "Main",
+      "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/risky.loom",
+      "line": 9,
+      "params": [
+        "ticket"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "kind": "start",
+          "label": "Start"
+        },
+        {
+          "id": "n1",
+          "kind": "delegate",
+          "label": "delegate Replier",
+          "agent": "Replier",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/risky.loom",
+            "line": 10
+          },
+          "attrs": {
+            "variable": "outcome_text",
+            "text": "Handle this ticket: {ticket}"
+          }
+        },
+        {
+          "id": "n2",
+          "kind": "return",
+          "label": "return",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/risky.loom",
+            "line": 11
+          }
+        },
+        {
+          "id": "end",
+          "kind": "end",
+          "label": "End"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "n1"
+        },
+        {
+          "from": "n1",
+          "to": "n2"
+        },
+        {
+          "from": "n2",
+          "to": "end"
+        }
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "name": "Replier",
+      "model": "claude-haiku-5-5",
+      "tools": [
+        "Crm",
+        "Mailer",
+        "Shell"
+      ],
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/risky.loom",
+        "line": 4
+      }
+    }
+  ],
+  "diagnostics": [ ]
+}

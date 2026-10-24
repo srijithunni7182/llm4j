@@ -1,0 +1,5 @@
+agent Writer { model: "m"  system: "s" }
+workflow Daily(topic) {
+  delegate "Digest of {topic}" to Writer -> digest
+  note "{digest}"
+}

@@ -1,0 +1,341 @@
+{
+  "version" : 1,
+  "file" : "priced.loom",
+  "summary" : {
+    "total" : 7,
+    "accepted" : 0,
+    "baselined" : 0,
+    "high" : 0,
+    "medium" : 5,
+    "low" : 0,
+    "info" : 2,
+    "lenses" : {
+      "ran" : [ "security", "privacy", "durability", "reliability", "cost", "validity", "prompts", "observability" ],
+      "off" : [ "testability", "governance", "maintainability", "oversight", "blast-radius" ]
+    }
+  },
+  "findings" : [ {
+    "rule" : "LA03",
+    "fingerprint" : "9067f6aecf948fb6",
+    "lens" : "security",
+    "severity" : "medium",
+    "location" : {
+      "file" : "priced.loom",
+      "line" : 0,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : null
+    },
+    "title" : "No run budget",
+    "why" : "Nothing caps what one run may spend: a loop or a manipulated agent can keep calling models.",
+    "fixHint" : "Add a run budget at the top of the script, e.g. budget { tokens: 200000  calls: 150 }.",
+    "owasp" : [ "LLM10" ],
+    "related" : [ ],
+    "source" : "audit"
+  }, {
+    "rule" : "LA02",
+    "fingerprint" : "000b5300728a14b5",
+    "lens" : "security",
+    "severity" : "medium",
+    "location" : {
+      "file" : "priced.loom",
+      "line" : 7,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : null
+    },
+    "title" : "An effect with no approval",
+    "why" : "Mailer (mails fixed recipients) runs whenever Replier decides to call it.",
+    "fixHint" : "Add approve: [Mailer] to Replier, or narrow the tool so it cannot change anything.",
+    "owasp" : [ "LLM06" ],
+    "related" : [ ],
+    "source" : "audit"
+  }, {
+    "rule" : "LY05",
+    "fingerprint" : "9e223f470f8d86b9",
+    "lens" : "privacy",
+    "severity" : "medium",
+    "location" : {
+      "file" : "priced.loom",
+      "line" : 2,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : null
+    },
+    "title" : "Classifier Intent has no confidence rule, so doubtful answers are routed as if certain",
+    "why" : "A classifier always answers. Without a confidence threshold a guess and a sure answer take the same path.",
+    "fixHint" : "Add confidence at least 0.8 else escalate to the classifier.",
+    "owasp" : [ ],
+    "related" : [ ],
+    "source" : "pack core@1.7.0"
+  }, {
+    "rule" : "LR01",
+    "fingerprint" : "87dd97e8ebae8e1f",
+    "lens" : "reliability",
+    "severity" : "medium",
+    "location" : {
+      "file" : "priced.loom",
+      "line" : 11,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : "n3"
+    },
+    "title" : "delegate Replier has a tool but no retry or timeout",
+    "why" : "A tool call can fail or hang. Without a retry and a timeout one slow or failing call stalls or ends the whole run.",
+    "fixHint" : "Add a retry and a timeout to this step.",
+    "owasp" : [ ],
+    "related" : [ ],
+    "source" : "pack core@1.7.0",
+    "options" : [ {
+      "id" : "retry-timeout",
+      "label" : "Retry and time out",
+      "explain" : "A failed or slow call is tried again, up to the number of tries, then the step fails. If the agent writes or sends, a retry can repeat the action.",
+      "safety" : "review",
+      "ask" : [ {
+        "name" : "policy",
+        "prompt" : "Retry policy",
+        "default" : "retry 2 backoff 2s timeout 60s"
+      } ],
+      "showReferences" : false
+    }, {
+      "id" : "timeout-only",
+      "label" : "Time out only, no retry",
+      "explain" : "A call that takes too long is cut off and the step fails once; nothing is repeated. The right choice when the agent sends or writes.",
+      "safety" : "safe",
+      "ask" : [ {
+        "name" : "seconds",
+        "prompt" : "Time out after how many seconds",
+        "default" : "60"
+      } ],
+      "showReferences" : false
+    } ],
+    "fix" : {
+      "safety" : "review",
+      "label" : "Add retry and timeout",
+      "edits" : [ {
+        "file" : "priced.loom",
+        "startLine" : 11,
+        "startColumn" : 59,
+        "endLine" : 11,
+        "endColumn" : 59,
+        "newText" : " retry 2 backoff 2s timeout 60s"
+      } ]
+    }
+  }, {
+    "rule" : "LR02",
+    "fingerprint" : "10cb720f82e56c3f",
+    "lens" : "reliability",
+    "severity" : "medium",
+    "location" : {
+      "file" : "priced.loom",
+      "line" : 11,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : "n3"
+    },
+    "title" : "delegate Replier can write or send but has no on_failure",
+    "why" : "When a step that acts on the outside world fails half way, nothing decides what happens next: the run ends with the effect done, undone or unknown.",
+    "fixHint" : "Add an on_failure block that records the failure and asks a person what to do.",
+    "owasp" : [ ],
+    "related" : [ ],
+    "source" : "pack core@1.7.0",
+    "options" : [ {
+      "id" : "note",
+      "label" : "Record the failure and carry on",
+      "explain" : "The failure is written to the run's notes and the workflow continues with the next step. Only right if later steps can work without this one's result.",
+      "safety" : "review",
+      "ask" : [ {
+        "name" : "message",
+        "prompt" : "What the note should say",
+        "default" : "this step failed"
+      } ],
+      "showReferences" : false
+    }, {
+      "id" : "human",
+      "label" : "Ask a person what to do",
+      "explain" : "The run pauses and a person is asked; their answer is kept in a variable. Use this when the failure leaves something half done that only a person can judge.",
+      "safety" : "review",
+      "ask" : [ {
+        "name" : "message",
+        "prompt" : "What to ask the person",
+        "default" : "This step failed. Check it, then answer done."
+      }, {
+        "name" : "variable",
+        "prompt" : "Variable that keeps their answer",
+        "default" : "checked"
+      } ],
+      "showReferences" : false
+    } ],
+    "fix" : {
+      "safety" : "review",
+      "label" : "Add an on_failure block that records the failure",
+      "edits" : [ {
+        "file" : "priced.loom",
+        "startLine" : 11,
+        "startColumn" : 59,
+        "endLine" : 11,
+        "endColumn" : 59,
+        "newText" : " on_failure { note \"this step failed\" }"
+      } ]
+    }
+  }, {
+    "rule" : "LA19",
+    "fingerprint" : "8203f9da6c99145b",
+    "lens" : "security",
+    "severity" : "info",
+    "location" : {
+      "file" : "priced.loom",
+      "line" : 2,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : null
+    },
+    "title" : "A classifier sends its state to a hosted service",
+    "why" : "Intent sends the state of its intentclassify steps (message) to Anthropic (Claude API), so that text leaves this machine.",
+    "fixHint" : "Add pii: mask (or pii: block where personal data must never leave) to Intent, and treat the service as a processor of that text.",
+    "owasp" : [ "LLM02" ],
+    "related" : [ ],
+    "source" : "audit"
+  }, {
+    "rule" : "LC05",
+    "fingerprint" : "e4aa4bfaa2e7229a",
+    "lens" : "cost",
+    "severity" : "info",
+    "location" : {
+      "file" : "priced.loom",
+      "line" : 11,
+      "column" : 0,
+      "endLine" : 0,
+      "endColumn" : 0,
+      "node" : null
+    },
+    "title" : "delegate Replier is about 81 % of the typical cost of Main",
+    "why" : "One step that dominates the cost is where any saving has to come from.",
+    "fixHint" : "Look at this step first: a smaller model, a shorter prompt or fewer rounds.",
+    "owasp" : [ ],
+    "related" : [ ],
+    "source" : "cost"
+  } ],
+  "cost" : {
+    "workflows" : [ {
+      "name" : "Main",
+      "typical" : {
+        "calls" : 3,
+        "tokensIn" : 1272,
+        "tokensOut" : 535,
+        "money" : 0.00466700,
+        "unpriced" : [ ]
+      },
+      "worst" : {
+        "calls" : 11,
+        "tokensIn" : 125640,
+        "tokensOut" : 20010,
+        "money" : 0.23401000,
+        "unpriced" : [ ]
+      },
+      "steps" : [ {
+        "line" : 9,
+        "label" : "intentclassify Intent",
+        "model" : "claude-opus-5-5",
+        "typicalRuns" : 1,
+        "worstRuns" : 1,
+        "typical" : {
+          "calls" : 1,
+          "tokensIn" : 130,
+          "tokensOut" : 10,
+          "money" : 0.00090000,
+          "unpriced" : [ ]
+        },
+        "worst" : {
+          "calls" : 1,
+          "tokensIn" : 2030,
+          "tokensOut" : 10,
+          "money" : 0.01040000,
+          "unpriced" : [ ]
+        }
+      }, {
+        "line" : 11,
+        "label" : "delegate Replier",
+        "model" : "claude-haiku-5-5",
+        "typicalRuns" : 1,
+        "worstRuns" : 1,
+        "typical" : {
+          "calls" : 2,
+          "tokensIn" : 1142,
+          "tokensOut" : 525,
+          "money" : 0.00376700,
+          "unpriced" : [ ]
+        },
+        "worst" : {
+          "calls" : 10,
+          "tokensIn" : 123610,
+          "tokensOut" : 20000,
+          "money" : 0.22361000,
+          "unpriced" : [ ]
+        }
+      } ],
+      "notes" : [ ],
+      "time" : {
+        "typicalMs" : 21000,
+        "worst" : {
+          "ms" : 55000
+        },
+        "criticalPath" : [ "line 9 intentclassify Intent", "line 11 delegate Replier" ],
+        "waits" : [ ],
+        "sleepMs" : 0,
+        "assumptions" : {
+          "assume.latency.small" : 2,
+          "assume.effects.calls" : 1,
+          "assume.react.max" : 10,
+          "assume.latency.large" : 15,
+          "assume.react.rounds" : 3,
+          "assume.latency.tool" : 2
+        }
+      },
+      "effects" : {
+        "sends" : {
+          "typical" : 1,
+          "worst" : 10
+        },
+        "writes" : {
+          "typical" : 0,
+          "worst" : 0
+        }
+      }
+    } ],
+    "assumptions" : {
+      "assume.variable.tokens" : 100,
+      "assume.output.max" : 2000,
+      "assume.tool.result.tokens" : 300,
+      "assume.output.tokens" : 350,
+      "assume.react.max" : 10,
+      "assume.react.rounds" : 3,
+      "assume.variable.max" : 2000
+    },
+    "prices" : "priced.prices",
+    "unpriced" : [ ],
+    "estimate" : true
+  },
+  "suppressed" : [ ],
+  "accepted" : [ ],
+  "baselined" : [ ],
+  "notes" : [ {
+    "kind" : "not_evaluated",
+    "rule" : "LC01",
+    "message" : "LC01 was not evaluated: data.top-models is not declared in review.properties"
+  }, {
+    "kind" : "not_evaluated",
+    "rule" : "LC03",
+    "message" : "LC03 was not evaluated: data.top-models is not declared in review.properties"
+  }, {
+    "kind" : "not_evaluated",
+    "rule" : "LD01",
+    "message" : "LD01 was not evaluated: journal is not declared in review.properties"
+  } ]
+}

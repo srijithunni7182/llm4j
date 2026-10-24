@@ -130,6 +130,12 @@ record first, and say what changed and why.
 - A green mock run. It proves the wiring, not the behaviour.
 - A dashboard nobody has been shown, and incident rules nobody wrote.
 
+## Review is advice, and the decision is the user's
+
+After you write or change a workflow, run `weave review <script>` (free, offline, no keys). Tell the user the open counts and the top findings in a sentence, say plainly when one is **high**, and offer to handle the rest: for a finding with **options** (`weave review --format json` lists them under `options`), put the choices to the user in your own words, let them pick and give the values (how many retries, what a failure note says), show the diff with `--dry-run`, and apply with `weave review <script> --fix-finding FINGERPRINT --option ID --set name=value` (add `--yes` only for an option marked as needing thought and only after the user said yes). `--fix` applies only the fixes with one obvious answer. Accepting a finding needs a reason that is the user's own (`--accept FINGERPRINT --reason "..."`): never write one for them. A fix proves only that the script loads and adds no high finding, so run `weave check` and the tests after it.
+
+Then **carry on with what the user asked** (run, test, package, deploy): open findings never stop a run, and you must not hold the work back because of them. You may recommend fixing first. Use `--fail-on` only when the user asks for a gate ("do not deploy unless review is clean"). `weave review <script> --explain RULE` explains one rule.
+
 ## Be honest about the edges
 
 A harness lowers risk; it does not remove it. Injection detection reads patterns, so a careful attack can pass it. Static audits

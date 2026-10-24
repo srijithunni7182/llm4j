@@ -1,0 +1,1 @@
+Draft a weekly newsletter from a list of release notes and have an editor approve it before it is posted to a webhook.

@@ -1,0 +1,9 @@
+agent Writer { model: "m"  system: "You write one short paragraph." }
+workflow Main(q) {
+  parallel { // <- LR09
+    delegate "Intro for {q}" to Writer -> part
+    delegate "Outro for {q}" to Writer -> part
+  }
+  note "{part}"
+}
+// ignore: LP02 LP05 LO01

@@ -1,0 +1,6 @@
+tool Mailer { use: class  class: "com.acme.MailTool"  reach: sends }
+agent A { model: "m"  system: "s"  tools: [Mailer] }
+workflow Main(q) {
+  delegate "Send {q}" to A -> sent retry 2 backoff 1s timeout 30s
+  note "{sent}"
+}

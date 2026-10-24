@@ -80,6 +80,34 @@ final class NextCommand implements Callable<Integer> {
         return print(env, file, ProjectAdvisor.advise(script, loaded, check, audit));
     }
 
+    /**
+     * The first {@code limit} things {@code weave next} would say about a project, each as one line
+     * with its command; empty when the project cannot be read.
+     */
+    static List<String> briefly(Path folder, WeaveEnv env, int limit) {
+        try {
+            Path script =
+                    ProjectAdvisor.find(folder.toAbsolutePath().normalize(), new StringBuilder());
+            if (script == null) return List.of();
+            LoomScript loaded = new LoomLoader().load(script.toString());
+            WeaveEnv withKeys = new EnvFileOptions().apply(env, script);
+            if (withKeys == null) return List.of();
+            List<String> out = new ArrayList<>();
+            for (ProjectAdvisor.Step st :
+                    ProjectAdvisor.advise(
+                            script,
+                            loaded,
+                            check(script, withKeys),
+                            SecurityAudit.audit(loaded, script.getFileName().toString()))) {
+                if (out.size() >= limit) break;
+                out.add(st.what() + (st.command() == null ? "" : "   $ " + st.command()));
+            }
+            return out;
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
     /** The script's own check with no keys, read from its JSON form so the two never disagree. */
     private static ProjectAdvisor.CheckResult check(Path script, WeaveEnv env) {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();

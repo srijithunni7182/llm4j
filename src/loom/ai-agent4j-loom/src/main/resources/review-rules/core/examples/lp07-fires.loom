@@ -1,0 +1,6 @@
+agent Editor { model: "m"  system: "You edit text." }
+workflow Main(q) {
+  delegate "Draft a note about {q}" to Editor -> r
+  delegate "Improve this: {r}" to Editor -> final
+  note "{final}"
+}

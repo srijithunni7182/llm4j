@@ -1,6 +1,6 @@
 # vscode-loom
 
-VS Code extension for Loom DSL (.loom and .loot files). Provides syntax highlighting, LSP diagnostics, workflow outline, a workflow graph (Outline, Focus and Flow views), and run command.
+VS Code extension for Loom DSL (.loom and .loot files). Provides syntax highlighting, checks from the language's own parser, a workflow graph (Outline, Focus and Flow views), a review panel (findings, cost and the graph, with fixes you decide on), go to definition, find references, rename, completion and hover that know your agents and variables, and a run command. Everything runs on your machine; nothing is sent anywhere.
 
 ## Workflow graph
 
@@ -90,13 +90,81 @@ When an agent's prompt is a markdown file (`prompt: "researcher"` or `prompt: "r
 
 ## Snippets
 
-Type a keyword in a `.loom` file and press Tab to get the whole statement with its blanks: `agent`, `agent-guard`, `delegate`, `delegate-expecting`, `loop`, `alt`, `alt-else`, `human-prompt`, `approval`, `run`, `call`, `workflow`, `budget`, `tool`, `tool-class`, `note`, `halt`, `set`, `return`, `isok`, `parallel`, `on-failure`, `import`, `agent-steerable`, `on-stopped`, `intervention`, `supervise`, `intentclassifier`, `intentclassify`. Each one's description says the habit it encodes (a loop always has a `max`, variable names that are not ordinary words, prompts as files). A test types each snippet with its default values and checks the result with `weave`.
+Type a keyword in a `.loom` file and press Tab to get the whole statement with its blanks: `agent`, `agent-guard`, `delegate`, `delegate-expecting`, `loop`, `alt`, `alt-else`, `human-prompt`, `approval`, `run`, `call`, `workflow`, `budget`, `tool`, `tool-class`, `note`, `halt`, `set`, `return`, `isok`, `parallel`, `on-failure`, `import`, `agent-steerable`, `agent-grounded`, `on-stopped`, `intervention`, `supervise`, `intentclassifier`, `intentclassify`. Each one's description says the habit it encodes (a loop always has a `max`, variable names that are not ordinary words, prompts as files). A test types each snippet with its default values and checks the result with `weave`.
 
 ## The guide and the agent skill
 
 **Loom: Open Guide** (Command Palette) shows a page of the written guide: where to start, the ten chapters, or the Loom reference. It comes from the `weave` jar inside this extension, so it works with no repository and no network.
 
 **Loom: Install the Loom Skill in This Project** writes the agent skill and the guide into `.claude/skills/llm4j-workflow-guide` in the folder you have open, so an AI coding agent that reads the project knows the path. It asks before it replaces an older copy.
+
+## Review
+
+![The Review panel in Split: the steps of the workflow with their findings on the left, the findings with why they matter on the right](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/vscode-loom/review-split.png)
+
+**Loom: Review Workflow** (the command palette, the editor title bar, the editor and Explorer context menus, or the *Review* link above a workflow) opens the Loom Review panel beside the script. It shows what `weave review` finds, with the workflow graph next to it:
+
+- **Summary strip:** open findings by severity, the cost of one run (typical and worst case; money when the models have prices, tokens when they do not, and it says which), the time, the worst-case sends and writes, how many lenses ran, and a **trifecta present** chip when an agent has the lethal trifecta.
+- **Graph:** each step carries its open findings (a number, a glyph and a word, never colour alone) and the typical cost of the step. Click a step to list only its findings; click again to list all.
+- **Findings:** grouped by severity and then lens (or by lens, rule or file), in the engine's order. Click one to see why it matters and what would fix it, to select its step in the graph, and to jump to its line in the editor. Move the cursor in the script and the finding on that line is selected. Filter by text, rule, lens or file; the **Findings | Both | Graph** switch gives one half the whole panel; on a narrow panel the graph stacks above the findings.
+- **Three layouts, one panel.** **Split** (the default) puts the graph and the findings side by side. **Outline** lists the steps on the left with their findings counted, shows the chosen step with its cost and its findings in the middle, and the workflow summary and lenses on the right. **List** is a dense table of findings with a map of the steps beside it and the focused finding explained. Switch with the **Split | Outline | List** control; the filter, grouping, selected finding and step, folded groups and scroll position stay as they were, and every layout shows the same findings and numbers.
+- **Stale and running:** the moment you edit, the result shows a *stale* chip; while a new review runs the old one stays, dimmed. It never clears to an empty list.
+- **Rules not evaluated** (because a fact they need is not declared) are counted in the strip and listed on request, not hidden.
+
+The same findings appear as squiggles and in the Problems panel (source `loom-review`, the rule id as the code; the worst are warnings, the rest information and hints, never errors), as a **status-bar** count of the active script (`Loom ⚠ 3 high · 5 medium · $0.004/run`, or `Loom ✓`), and as a **CodeLens** above each workflow (`Review: 2 high · ~$0.004 typical / $0.06 worst`, then Graph and Run).
+
+**Handling findings.** Every finding has the buttons that make sense for it, and none that do not:
+
+- **Fix** (a safe fix) applies at once as one change. **Review fix…** (a fix that needs your judgement) first lets you choose among the ways to resolve it, answer its questions, and then shows the change in VS Code's diff editor before anything is applied. A finding with no automatic fix says so and shows only Accept, Dismiss and Explain.
+- **Fix all safe (n of m)** in the toolbar and on each group applies only the safe fixes, as one change (one undo); the ones that need judgement are left for Review fix…. The numbers are always in the button.
+- **Accept…** asks what it covers (this finding, this rule on the same agent or workflow, this rule in this script, this rule in the project, each with its count) and why (presets or your own words, and an *until* date for "will fix later"), then adds a line to `review.properties` with who and when. Accepting several serious findings at once asks you to type their number. The lethal trifecta cannot be accepted this way and says why.
+- **Dismiss** hides a finding on this machine only: it is kept in the editor's workspace storage, never in the repository, and never changes what `weave review` or CI report. Errors in the script cannot be dismissed. **Handled** at the bottom counts what was accepted, dismissed and baselined, lists them on request, and **Restore** brings a dismissed one back.
+- **Accept all existing…** records today's open findings in `review.baseline.json` (after showing what is in it and what stays open: serious findings stay open unless you include them), so later reviews list only new ones. It becomes the prominent button when a script has more than ten findings and no baseline.
+- **Explain** (or **Loom: Explain Review Rule**) opens the rule's page, with a firing example and a near-miss, beside the editor.
+- After an action the finding leaves the list at once and a message says what happened, with **Undo** (the editor's own undo for text changes). If the script changed while a fix was being prepared, nothing is applied and the review runs again.
+- Keyboard: in the list, the arrow keys move, **F** fixes, **A** accepts, **D** dismisses, **E** explains, **Enter** shows the line in the editor and **Space** selects (in the List layout, with checkboxes and a bulk bar for several at once).
+- The lightbulb on a squiggle offers the same: **Fix:** (safe) or **Review:** (needs judgement), **Explain LR03**, and **Suppress LR03 with a reason…**.
+
+**Findings never get in the way.** Run, the Run link and every other command start at once whatever the review says. If a script you run has open findings, a quiet message offers *Review* once for that version of the script; *Don't show again for this workspace* turns it off. Nothing in the palette depends on a clean review.
+
+![The List layout in a dark theme: a dense table of findings, the map of steps beside it and the focused finding explained](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/vscode-loom/review-list-dark.png)
+
+By default the review runs when you open or save a script. The *on* review setting (see Settings) can run the validity lens while you type (`type`), or only when asked (`manual`).
+
+## Generate and change
+
+**Loom: Generate Workflow...** asks what the workflow should do and shows a **plan** first (`PLAN.md`, and `plan.json` to edit: agents, tools and what they reach, who is asked, which effects a person approves, the budget, the tests). Nothing is written until you say *Generate*. Then `weave generate` writes the project into a new folder and holds it to the gates: it passes `weave check`, has no serious review finding after the safe fixes, its own tests pass and reach most of the steps, and the script is the plan and nothing else. If a gate cannot be met you are told which and why, and no folder is made. **Loom: Change Workflow...** takes a request (and the selected text, if any), works out a patch, checks it the same way against the script as it is, and opens it as a diff; you apply it or not (a change that makes the review or the cost worse says so and asks again). The model is called by `weave generate`, a process of its own, with the key from your environment or `.env`; the engine that checks and reviews your scripts still runs no model. See [Generating a workflow](../../../wiki/Generating-a-Workflow.md).
+
+## Debugging
+
+Press **F5** on a `.loom` file (or click **Debug** above a workflow) to step through it. You get breakpoints in the gutter (also with a condition, and on an agent name through function breakpoints), the variables with the statement that set each, step over / in / out, **step back** (the state is re-derived from the run's journal, so it is exact) and *set value* / *evaluate* on hover. Models are mock and every effect is simulated, so it needs no keys; for live models put `"models": "live"` and `"maxTokens"` (or `"maxCost"` with `"prices"`) in `launch.json` and the editor asks before it spends. The same engine runs as `weave step` in a terminal; see [Debugging a workflow](../../../wiki/Debugging-a-Workflow.md).
+
+## Editing
+
+With the engine running, the editor understands the names in your script, in every file it imports:
+
+- **Go to definition** (F12) on an agent, workflow, tool, classifier, decision, checkpoint, prompt file, import or variable; **Find references** (Shift+F12) lists every use with its role.
+- **Rename** (F2) changes a name everywhere it is used, in every file, as one undoable change. It refuses, and changes nothing, if the new name is taken or is a keyword, if a file that would change is read-only, or if an import cannot be found (so a use might be missed). Renaming a prompt also renames its file, after you confirm.
+- **Completion** offers only what fits where you are: agents after `delegate … to`, checkpoints after `rewind to` (the ones of this workflow), workflows after `call`, classifiers, decisions and tools in their places, the fields of a variable after its dot (`intent.` lists the classifier's questions with their labels), the labels of an enum after `==`, and variables in a condition or a `{placeholder}`. Nothing it offers fails `weave check`.
+- **Hover** shows an agent's model, tools and reply shape, a workflow's parameters, a classifier's fields, a variable's type and where it was made, and the values a comparison can take (with a warning for one it never has).
+- **Outline** (the Outline view and Ctrl+Shift+O) lists the blocks of the file with their checkpoints and variables. **Signature help** shows a workflow's parameters while you write `call Name(`.
+
+A half-typed line does not take this away: what the engine could read is still used, so the variables made above your cursor are still known. A setting (see Settings) turns these answers off and leaves the older, simpler ones.
+
+## The engine
+
+The extension starts one long-lived Loom engine per window (`weave serve`) and asks it for checks and graphs, so feedback does not wait for a Java process to start. It runs nothing and writes nothing, and it reads only the folders you have open. If it cannot start (no Java, a missing `weave.jar`), or stops repeatedly, the extension falls back to running `weave` for each request and the status bar says so once (**Loom: engine unavailable (using commands)**). **Loom: Restart Engine** starts it again, and **Loom: Show Engine Log** shows what it wrote. The protocol is documented in `docs/serve/PROTOCOL.md`.
+
+### When something is limited
+
+The status bar says so in one place, once, and the rest keeps working:
+
+| What happened | What still works | What the status bar says |
+|---|---|---|
+| Java is missing, or older than 17 | Syntax colours, snippets, the simpler hover, definition and completion, the guide | `Loom: Java 17+ not found (limited mode)`; a click explains how to fix it |
+| The engine will not start, or keeps stopping | All of the above, plus checks and graphs by running `weave` for each request | `Loom: engine unavailable (using commands)` |
+| The engine is slow | The last result, marked *stale*; a request that takes longer than the time limit (`loom.serve.timeoutMs`, default `10000` ms) is stopped, and an engine that stops answering is restarted | `Loom: starting engine…` while it restarts |
+| The engine and the extension disagree on the protocol | As in limited mode | `Loom: reinstall the extension (engine v2, extension v1)` |
 
 ## Problems
 
@@ -108,7 +176,22 @@ A key that is not set yet (such as `GEMINI_API_KEY`) is not reported as a proble
 
 | Setting | Default | What it does |
 |---|---|---|
-| `loom.graph.javaPath` | `java` | The Java executable used to run `weave.jar` |
+| `loom.javaPath` | `java` | The Java executable used to run `weave.jar` (the engine, checks and graphs); if only the older `loom.graph.javaPath` is set, that one is used |
+| `loom.graph.javaPath` | `java` | The older name of the same setting, still honoured |
+| `loom.review.on` | `save` | When the review runs by itself: after a save, while typing (the validity lens only), or only when you ask (`manual`) |
+| `loom.review.layout` | `split` | The layout the Review panel opens in: `split`, `outline` or `list` (your last choice in the panel is remembered per workspace) |
+| `loom.review.lenses` | `` | Which lenses run, as `weave review --lens` takes them; empty uses the project's `review.properties` |
+| `loom.review.minSeverity` | `low` | The lowest severity shown as a squiggle and in the Problems panel |
+| `loom.review.codeLens` | `true` | Findings and cost above each workflow |
+| `loom.review.statusBar` | `true` | Open findings and typical cost of the active script in the status bar |
+| `loom.review.failOn` | `high` | Colour the status bar when findings at or above this severity are open; it never stops Run |
+| `loom.generate.model` | `` | The model that writes for Generate Workflow and Change Workflow (empty: `LOOM_GENERATE_MODEL`) |
+| `loom.generate.maxCost` | `0` | The most one generation may spend, in dollars (needs a price table; 0: the command's default) |
+| `loom.generate.maxTokens` | `0` | The most tokens one generation may use (0: the command's default) |
+| `loom.generate.prices` | `` | A price table so the cost limit can be counted in dollars |
+| `loom.serve.memoryMb` | `64` | Memory the engine may use to keep answers it can reuse |
+| `loom.serve.timeoutMs` | `10000` | The longest the engine may take over one request; a slower one is marked stale |
+| `loom.semantic.enable` | `true` | Answer go to definition, references, rename, completion, hover, outline and signature help from the engine; off keeps only the older answers |
 | `loom.graph.timeoutMs` | `30000` | How long to wait for `weave graph` before stopping it |
 | `loom.graph.autoRefresh` | `true` | Redraw when the script or a file it imports is saved |
 

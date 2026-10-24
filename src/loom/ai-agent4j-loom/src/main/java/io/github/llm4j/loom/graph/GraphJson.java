@@ -29,8 +29,17 @@ public final class GraphJson {
     private GraphJson() {}
 
     public static String write(GraphResult result) {
+        return write(result, Map.of());
+    }
+
+    /**
+     * As {@link #write(GraphResult)}, with more top-level keys (the run overlay) after the rest.
+     */
+    public static String write(GraphResult result, Map<String, Object> extras) {
         try {
-            return MAPPER.writer(PRINTER).writeValueAsString(tree(result));
+            Map<String, Object> tree = tree(result);
+            tree.putAll(extras);
+            return MAPPER.writer(PRINTER).writeValueAsString(tree);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("The graph could not be written as JSON", e);
         }

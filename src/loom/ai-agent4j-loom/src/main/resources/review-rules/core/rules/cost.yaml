@@ -1,0 +1,122 @@
+- id: LC01
+  lens: cost
+  severity: medium
+  about: agent
+  requires: [setting.data.top-models]
+  when:
+    all:
+      - { field: model.id, in: { setting: data.top-models } }
+      - { field: hasTools, is: false }
+      - { field: hasSchema, is: true }
+      - { field: inlinePromptLines, lte: 10 }
+      - { field: stepCount, gte: 1 }
+  title: "Agent {name} looks like a classifier but runs on {model.id}, one of your most expensive models"
+  why: "An agent with no tools, a structured answer and a short prompt is picking from a few options. A smaller model usually does that as well for a fraction of the price, and it is paid for on every run."
+  fixHint: "Try a smaller model for this agent, or an intentclassifier, and keep the big model for the steps that need it."
+  since: "1.1.0"
+  explain: >
+    This rule needs to know which models you consider expensive, so it only runs when
+    data.top-models lists them in review.properties (for example data.top-models =
+    claude-opus-5-5, gpt-5). It looks for agents that only choose: no tools, an output_schema, and
+    a prompt of ten lines or fewer. Check the quality with weave eval before and after switching.
+  examples:
+    fires:
+      - file: examples/lc01-fires.loom
+        settings: { data.top-models: "big-model" }
+    quiet:
+      - file: examples/lc01-quiet-small.loom
+        settings: { data.top-models: "big-model" }
+      - file: examples/lc01-quiet-tools.loom
+        settings: { data.top-models: "big-model" }
+
+- id: LC02
+  lens: cost
+  severity: low
+  about: step
+  when:
+    all:
+      - { field: kind, is: delegate }
+      - any:
+          - { field: inLoop, is: true }
+          - { field: inForEach, is: true }
+      - { field: agent.hasContext, is: false }
+      - { field: agent.hasMemoryLimit, is: false }
+  title: "{label} repeats with nothing bounding the conversation, so each round re-sends everything said so far"
+  why: "Loom keeps one transcript of every task and answer in the run and puts all of it in front of the next agent. In a loop or for each it grows each round, so the cost of the rounds is not linear: ten rounds cost far more than ten times one."
+  fixHint: "Bound the transcript: give the agent memory { max_tokens: ... } or a context block."
+  since: "1.1.0"
+  explain: >
+    Measured against real providers while building this review: a loop of three rounds cost about
+    twice what three independent calls cost, because round three carries rounds one and two. The
+    shared transcript stops growing only where an agent sets memory { max_tokens } or has a
+    context block. Bounding the loop with max limits the number of rounds; this rule is about
+    what each round costs.
+  examples:
+    fires: [ examples/lc02-fires.loom, examples/lc02-fires-no-tools.loom ]
+    quiet: [ examples/lc02-quiet-context.loom, examples/lc02-quiet-memory.loom, examples/lc02-quiet-no-loop.loom ]
+
+- id: LC03
+  lens: cost
+  severity: low
+  about: step
+  requires: [setting.data.top-models]
+  when:
+    all:
+      - { field: kind, in: [broadcast, parallel] }
+      - { field: fanOutAgents, count: { gte: 2 } }
+      - field: fanOutAgents
+        some: { field: model.id, in: { setting: data.top-models } }
+  title: "{label} sends the same work to several agents and one of them runs on one of your most expensive models"
+  why: "Fanning out multiplies the cost of every call. On a top-tier model that is the part of a run most worth looking at."
+  fixHint: "Use a cheaper model for the fanned-out agents, or fan out to fewer of them."
+  since: "1.5.0"
+  examples:
+    fires:
+      - file: examples/lc03-fires.loom
+        settings: { data.top-models: "big-model" }
+    quiet:
+      - file: examples/lc03-quiet-small.loom
+        settings: { data.top-models: "big-model" }
+
+- id: LC07
+  lens: cost
+  severity: info
+  heuristic: true
+  about: step
+  when:
+    all:
+      - { field: kind, is: delegate }
+      - { field: payloadSaysDeterministic, is: true }
+  title: "{label} asks a model for something a program could do"
+  why: "Arithmetic, format checks and table lookups are exact in code and cost nothing per call; a model does them at a price and can get them wrong."
+  fixHint: "Do it in a run task and keep the model for what needs judgement."
+  since: "1.5.0"
+  explain: >
+    This rule guesses from the wording of the prompt (calculate, validate the format, check against
+    the table …), so it runs only with heuristics on.
+  examples:
+    fires: [ examples/lc07-fires.loom ]
+    quiet: [ examples/lc07-quiet.loom ]
+
+- id: LC08
+  lens: cost
+  severity: low
+  about: step
+  when:
+    all:
+      - { field: kind, is: delegate }
+      - { field: parallelizableWithPrevious, is: true }
+  title: "{label} does not use the answer of the step before it and could run beside it (saves about {parallelSavingSeconds} s)"
+  why: "Two steps that need nothing from each other, and that do not write or send, take the sum of their times when they run one after the other and only the longer when they run side by side."
+  fixHint: "Put the two steps in a parallel { } block. They then no longer see each other's answers in the shared conversation, so check that neither needs to."
+  since: "1.6.0"
+  explain: >
+    Loom steps run in order, and by default each one sees what the steps before it said. Steps that
+    are independent (the second does not mention the first one's variable, and neither agent has a
+    tool that writes or sends) can run in a parallel block, which takes the time of the longer one.
+    The saving shown is the shorter of the two, from the latency assumptions
+    (assume.latency.small|standard|large). Because parallel branches do not see each other's
+    answers, the review leaves the change to you.
+  examples:
+    fires: [ examples/lc08-fires.loom ]
+    quiet: [ examples/lc08-quiet-dependent.loom, examples/lc08-quiet-effects.loom, examples/lc08-quiet-parallel.loom ]

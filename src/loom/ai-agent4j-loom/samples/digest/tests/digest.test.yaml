@@ -1,0 +1,28 @@
+# Tests for the daily digest. Nothing is fetched, written or sent: the tools are scripted, and the
+# email tool only records what it would have sent. Run: weave test digest/tests
+script: ../core.loom
+workflow: DailyDigest
+cases:
+  - name: new stories are collected, written up and mailed to the team
+    input: { topic: "AI agents" }
+    models:
+      Collector: "1. A story about agents"
+      Writer: "Today: a story about agents."
+      Notifier:
+        - { call: Outbox, with: { subject: "Digest", body: "Today: a story about agents." } }
+        - "Sent."
+    expect:
+      calls: { Collector: 1, Writer: 1, Notifier: 2 }
+      route: [delegate Collector, delegate Writer, delegate Notifier, note]
+      effects:
+        - { tool: Outbox, kind: email }
+  - name: a Hacker News outage stops the run before anything is written or sent
+    input: { topic: "AI agents" }
+    models:
+      Collector: "never reached"
+    fail:
+      Collector: { always: true, category: server_error }
+    expect:
+      final: failed
+      calls: { Writer: 0, Notifier: 0 }
+      effects: none

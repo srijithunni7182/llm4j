@@ -1,0 +1,21 @@
+// A small support triage: a classifier decides, a reply agent answers the easy ones
+agent Replier { model: "gemini-2.5-flash"  system: "Answer the customer politely." }
+agent Escalator { model: "gemini-2.5-flash"  system: "Summarise the case for a person." }
+
+intentclassifier Intent {
+    model: "gemini-2.5-flash"
+    choose kind: order_status | refund | other
+    ask urgent: "Is the customer threatening to leave?"
+}
+
+workflow Main(message) {
+    intentclassify Intent on message -> intent
+    alt (intent.kind == "order_status") {
+        delegate "Reply to: {message}" to Replier -> reply
+        note "replied"
+        return reply
+    } else {
+        delegate "Summarise: {message}" to Escalator -> summary
+        return summary
+    }
+}

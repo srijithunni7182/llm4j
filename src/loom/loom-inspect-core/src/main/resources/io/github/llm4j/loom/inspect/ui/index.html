@@ -25,6 +25,7 @@
     </div>
     <div class="spacer"></div>
     <div id="controls" class="controls" hidden></div>
+    <div id="loopbar" class="controls" hidden></div>
     <button id="live" class="btn live" type="button" aria-pressed="false" title="Live: the page follows the runs. Paused: nothing moves until you resume."><span class="dot"></span><span id="livelbl">Live</span></button><span id="livechip" class="faint mono small" role="status" hidden></span>
     <button id="theme" class="btn" type="button" aria-label="Switch theme"><span id="themelbl">Light</span></button>
   </header>
@@ -37,6 +38,26 @@
       <div class="dlg-actions">
         <button class="btn" value="cancel" type="submit">Cancel</button>
         <button class="btn primary" id="cf-ok" value="ok" type="submit">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="loopdlg" class="dlg wide" aria-labelledby="lp-title">
+    <form method="dialog">
+      <h2 id="lp-title"></h2>
+      <p id="lp-text" class="muted"></p>
+      <div id="lp-form" hidden>
+        <label>At (a statement number or step label)<input id="lp-at" type="text" autocomplete="off"></label>
+        <label>Set a value (name=value)<input id="lp-set" type="text" autocomplete="off"></label>
+        <label>Change an answer (Agent=text)<input id="lp-answer" type="text" autocomplete="off"></label>
+        <button class="btn primary" id="lp-run" type="button">Try it</button>
+      </div>
+      <p id="lp-cmd" class="mono" hidden></p>
+      <pre id="lp-out" class="mono" hidden></pre>
+      <p id="lp-err" class="danger-t" role="alert" hidden></p>
+      <div class="dlg-actions">
+        <button class="btn" id="lp-dl" type="button" hidden>Download the test</button>
+        <button class="btn" value="close" type="submit">Close</button>
       </div>
     </form>
   </dialog>

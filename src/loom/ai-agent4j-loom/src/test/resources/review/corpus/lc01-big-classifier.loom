@@ -1,0 +1,7 @@
+// settings: data.top-models=big-model
+agent Router { model: "big-model"  system: "Pick the kind of request."  output_schema: { kind: string } } // <- LC01
+workflow Main(q) {
+  delegate "Message: {q}" to Router -> routed
+  note "{routed}"
+}
+// ignore: LP02 LP05 LO01
