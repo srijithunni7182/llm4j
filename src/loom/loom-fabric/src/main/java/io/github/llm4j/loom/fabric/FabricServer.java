@@ -50,8 +50,29 @@ public final class FabricServer implements AutoCloseable {
             SSLContext tls,
             boolean trustProxy,
             int retentionDays,
-            long retentionBytes) {
+            long retentionBytes,
+            FabricLoop.Settings capture) {
+        public Settings(
+                Path data,
+                String bind,
+                int port,
+                SSLContext tls,
+                boolean trustProxy,
+                int retentionDays,
+                long retentionBytes) {
+            this(
+                    data,
+                    bind,
+                    port,
+                    tls,
+                    trustProxy,
+                    retentionDays,
+                    retentionBytes,
+                    FabricLoop.Settings.off());
+        }
+
         public Settings {
+            capture = capture == null ? FabricLoop.Settings.off() : capture;
             bind = bind == null || bind.isBlank() ? "127.0.0.1" : bind;
             retentionDays = retentionDays <= 0 ? 30 : retentionDays;
             retentionBytes = retentionBytes <= 0 ? 2L * 1024 * 1024 * 1024 : retentionBytes;
@@ -160,6 +181,7 @@ public final class FabricServer implements AutoCloseable {
                 .controls(
                         new FabricControls(receiver, commands, () -> vault.get(Vault.ADMIN)), audit)
                 .threads(64); // many processes each hold a command long-poll open
+        c.loop(new FabricLoop(settings.capture(), settings.data(), registry), audit);
         c.gate(
                 x -> {
                     if (admin.valid(x)) return true;

@@ -66,13 +66,14 @@ public record Policy(Set<String> workflows, Set<String> denyFields, Duration max
     private static Duration age(String s) {
         if (s == null || s.isBlank()) return null;
         String t = s.trim().toLowerCase();
+        if (!t.matches("\\d+[dhw]"))
+            throw new IllegalArgumentException(
+                    "max-age = " + s.trim() + ": write a number and d, h or w, like 30d");
         long n = Long.parseLong(t.substring(0, t.length() - 1));
         return switch (t.charAt(t.length() - 1)) {
             case 'd' -> Duration.ofDays(n);
             case 'h' -> Duration.ofHours(n);
-            case 'w' -> Duration.ofDays(7 * n);
-            default -> throw new IllegalArgumentException(
-                    "max-age: write a number and d, h or w, like 30d");
+            default -> Duration.ofDays(7 * n);
         };
     }
 }

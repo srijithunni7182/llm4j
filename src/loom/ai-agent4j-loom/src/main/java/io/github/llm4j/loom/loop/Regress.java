@@ -9,9 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -267,7 +265,7 @@ public final class Regress {
                         r.strategy(),
                         r.limit(),
                         r.seed(),
-                        Regress::stratum,
+                        RunComparator::stratum,
                         run -> Candidates.classify(run).classes().contains("failed"));
         List<Comparison> comparisons = compareAll(r, sample.chosen(), baselineOf);
         boolean untouched = StoreReader.fingerprint(r.store()).equals(before);
@@ -379,28 +377,6 @@ public final class Regress {
         return names;
     }
 
-    /** The classifier labels and human answers a run recorded, and whether it failed. */
-    static String stratum(RunRecord run) {
-        List<String> parts = new ArrayList<>();
-        for (var e : new TreeMap<>(run.journal()).entrySet()) {
-            var entry = e.getValue();
-            if (entry.kind().equals("classify") && entry.value() instanceof Map<?, ?> m) {
-                m.entrySet().stream()
-                        .filter(
-                                x ->
-                                        !String.valueOf(x.getKey())
-                                                .matches(
-                                                        ".*(_confidence|_probability)|confidence|calibrated|backend|model"))
-                        .forEach(x -> parts.add(x.getKey() + "=" + x.getValue()));
-            } else if (entry.kind().equals("human")) parts.add("asked a person");
-            else if (entry.kind().equals("failed") || e.getKey().endsWith("#failure"))
-                parts.add("failed");
-        }
-        return parts.isEmpty()
-                ? "no recorded choices"
-                : String.join(", ", parts.stream().sorted().distinct().toList());
-    }
-
     private static List<Comparison> compareAll(
             Request r, List<RunRecord> chosen, Map<String, Path> baselineOf) throws Exception {
         ExecutorService pool =
@@ -420,7 +396,7 @@ public final class Regress {
                         out.add(
                                 new Comparison(
                                         run.id(),
-                                        stratum(run),
+                                        RunComparator.stratum(run),
                                         Verdict.NOT_COMPARED,
                                         List.of(),
                                         null,
@@ -437,7 +413,7 @@ public final class Regress {
                         out.add(
                                 new Comparison(
                                         run.id(),
-                                        stratum(run),
+                                        RunComparator.stratum(run),
                                         Verdict.DID_NOT_FINISH,
                                         List.of("the candidate did not finish this run"),
                                         null,
@@ -462,7 +438,7 @@ public final class Regress {
                     out.add(
                             new Comparison(
                                     run.id(),
-                                    stratum(run),
+                                    RunComparator.stratum(run),
                                     Verdict.DID_NOT_FINISH,
                                     List.of("the candidate did not finish this run (a loop?)"),
                                     null,
@@ -477,7 +453,7 @@ public final class Regress {
     }
 
     static Comparison compare(Request r, RunRecord run, Path baseline) {
-        String stratum = stratum(run);
+        String stratum = RunComparator.stratum(run);
         try {
             String first = run.workflow() + "/s0";
             // the people answered what they answered; the candidate gets those answers in order,
@@ -528,9 +504,9 @@ public final class Regress {
                         true,
                         o.candidate().tokens(),
                         o.candidate().cost());
-            List<String> unsafe = new ArrayList<>(unsafeReasons(o));
-            Function<String, String> was = labels(baseline).andThen(Regress::shape);
-            Function<String, String> now = labels(r.candidate()).andThen(Regress::shape);
+            List<String> unsafe = new ArrayList<>(UnsafeFlip.reasons(o));
+            Function<String, String> was = labels(baseline).andThen(RunComparator::shape);
+            Function<String, String> now = labels(r.candidate()).andThen(RunComparator::shape);
             List<String> routeWas = o.original().steps().stream().map(was).toList();
             List<String> routeNow = o.candidate().steps().stream().map(now).toList();
             if (o.need() != null) {
@@ -554,24 +530,24 @@ public final class Regress {
                         stratum,
                         Verdict.CHANGED_ROUTE,
                         unsafe,
-                        firstDifference(routeWas, routeNow),
+                        RunComparator.firstDifference(routeWas, routeNow),
                         took,
                         "and the candidate then needs a model's answer, so the rest of its path is not known");
             }
-            List<String> onlyWas = minus(routeWas, routeNow);
-            List<String> onlyNow = minus(routeNow, routeWas);
-            unsafe.addAll(humanRemoved(onlyWas, onlyNow));
+            List<String> onlyWas = RunComparator.minus(routeWas, routeNow);
+            List<String> onlyNow = RunComparator.minus(routeNow, routeWas);
+            unsafe.addAll(RunComparator.humanRemoved(onlyWas, onlyNow));
             boolean routeChanged = !routeWas.equals(routeNow);
             boolean resultChanged;
             try {
-                resultChanged = resultChanged(o, r.judge(), r.textJudge());
+                resultChanged = RunComparator.resultChanged(o, r.judge(), r.textJudge());
             } catch (CapReached cap) {
                 return new Comparison(
                         run.id(),
                         stratum,
                         Verdict.NOT_COMPARED,
                         unsafe,
-                        firstDifference(routeWas, routeNow),
+                        RunComparator.firstDifference(routeWas, routeNow),
                         null,
                         "the spend cap was reached before this run's answers could be judged");
             }
@@ -580,7 +556,7 @@ public final class Regress {
                             ? Verdict.CHANGED_ROUTE
                             : resultChanged ? Verdict.CHANGED_RESULT : Verdict.SAME;
             String takes = onlyNow.isEmpty() ? null : onlyNow.get(0);
-            String firstDiff = firstDifference(routeWas, routeNow);
+            String firstDiff = RunComparator.firstDifference(routeWas, routeNow);
             return new Comparison(
                     run.id(),
                     stratum,
@@ -606,15 +582,6 @@ public final class Regress {
         }
     }
 
-    /** A change from fewer effects or a person to a new effect or no person. */
-    static List<String> unsafeReasons(WhatIf.Outcome o) {
-        List<String> out = new ArrayList<>();
-        if (o.effects() != null)
-            for (WhatIf.Effect e : o.effects().onlyCandidate())
-                out.add("NEW EFFECT: " + e.statement() + " reaches " + e.via());
-        return out;
-    }
-
     private static final java.util.Map<Path, Function<String, String>> LABELS =
             new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -630,76 +597,6 @@ public final class Regress {
                 });
     }
 
-    /**
-     * A step as it counts for the route: what it does, not the wording of the condition it tests (a
-     * reworded condition that sends every run the same way is not a changed route).
-     */
-    static String shape(String label) {
-        if (label.endsWith("?")) return "decision";
-        if (label.startsWith("loop until")) return "loop";
-        return label;
-    }
-
-    /** Steps in {@code a} that {@code b} does not have as many of, in order. */
-    static List<String> minus(List<String> a, List<String> b) {
-        Map<String, Integer> left = new java.util.HashMap<>();
-        b.forEach(x -> left.merge(x, 1, Integer::sum));
-        List<String> out = new ArrayList<>();
-        for (String x : a) {
-            Integer k = left.get(x);
-            if (k != null && k > 0) left.put(x, k - 1);
-            else out.add(x);
-        }
-        return out;
-    }
-
-    static String firstDifference(List<String> was, List<String> now) {
-        int n = Math.min(was.size(), now.size());
-        for (int i = 0; i < n; i++)
-            if (!was.get(i).equals(now.get(i)))
-                return "the run took \""
-                        + was.get(i)
-                        + "\" at step "
-                        + (i + 1)
-                        + ", the candidate takes \""
-                        + now.get(i)
-                        + "\"";
-        if (was.size() != now.size())
-            return was.size() > now.size()
-                    ? "the candidate ends after "
-                            + now.size()
-                            + " steps; the run went on to \""
-                            + was.get(n)
-                            + "\""
-                    : "the candidate goes on to \"" + now.get(n) + "\" after the run's last step";
-        return null;
-    }
-
-    private static List<String> humanRemoved(List<String> onlyWas, List<String> onlyNow) {
-        long before = onlyWas.stream().filter(Regress::asksAPerson).count();
-        long after = onlyNow.stream().filter(Regress::asksAPerson).count();
-        return before > after
-                ? List.of("a person is no longer asked (" + (before - after) + " step(s))")
-                : List.of();
-    }
-
-    /** A step label that is a person being asked (the graph's wording, or the statement's). */
-    private static boolean asksAPerson(String label) {
-        return label.startsWith("ask a person") || label.startsWith("human_prompt");
-    }
-
-    private static boolean resultChanged(WhatIf.Outcome o, String judge, Judges.Judge textJudge)
-            throws Exception {
-        Object a = o.originalResult();
-        Object b = o.candidateResult();
-        if (Objects.equals(a, b)) return false;
-        boolean typed = a instanceof Map || b instanceof Map || looksTyped(a) || looksTyped(b);
-        if (typed) return true;
-        if (textJudge != null && a != null && b != null)
-            return textJudge.differs(String.valueOf(a), String.valueOf(b));
-        return judge.equals("exact") || judge.equals("label");
-    }
-
     /** Live models for one run, under what is left of the shared cap. */
     private static ObserveReplay.Live liveOf(Request r) {
         if (r.live() == null) return null;
@@ -710,9 +607,5 @@ public final class Regress {
                 sp.remainingCost(),
                 r.live().prices(),
                 r.live().env());
-    }
-
-    private static boolean looksTyped(Object o) {
-        return o instanceof String s && s.strip().startsWith("{") && s.strip().endsWith("}");
     }
 }

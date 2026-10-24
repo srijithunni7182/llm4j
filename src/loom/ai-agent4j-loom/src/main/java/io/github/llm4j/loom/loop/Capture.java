@@ -278,10 +278,24 @@ public final class Capture {
                         run.id()
                                 + " has parallel or broadcast steps, whose calls come in no fixed"
                                 + " order; a case cannot be taken from it yet.");
-            if (e == null) continue;
             String agent = null;
             if (st instanceof DelegateStmt d) agent = d.getTargetAgent();
             else if (st instanceof HandoffStmt h) agent = h.getTargetAgent();
+            RunJournal.Entry unhandled = replay.journal().get(id + "#failure");
+            if (e == null && agent != null && unhandled != null) {
+                // the call failed and nothing handled it: the run ended here; every attempt failed
+                int attempts = 1;
+                if (st instanceof DelegateStmt d2) attempts = d2.getRetryCount() + 1;
+                if (unhandled.value() instanceof Map<?, ?> f
+                        && f.get("attempts") instanceof Number n
+                        && n.intValue() > 0) attempts = n.intValue();
+                int base = calls.getOrDefault(agent, 0);
+                for (int k = 1; k <= attempts; k++)
+                    failedCalls.computeIfAbsent(agent, a -> new ArrayList<>()).add(base + k);
+                calls.put(agent, base + attempts);
+                continue;
+            }
+            if (e == null) continue;
             if (agent != null) {
                 int attempts = 1;
                 if (st instanceof DelegateStmt d2) attempts = d2.getRetryCount() + 1;

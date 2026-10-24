@@ -1,6 +1,6 @@
 # Phase 14 verification plan: the production loop
 
-Status: **14a to 14d done** (capture; regress; gate); 14e (Fabric) not started. Run top to bottom at the end of sub-phase 14e; the relevant rows after each sub-phase. Results in §7.
+Status: **14a to 14e done** (capture; regress; gate; Fabric). Phase 14 is closed except the manual checks in §4 and the documentation in §5 (written at the end of the program). Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -33,7 +33,7 @@ Status: **14a to 14d done** (capture; regress; gate); 14e (Fabric) not started. 
 | R6 | `MaskerTest`, `CaptureTest.personalDataAndSecretsNeverReachTheFileAndTheCaseStillPasses`, `CaptureCommandTest.noSeededValueReachesAFileTheOutputOrTheErrorStream` | ✅ 14a |
 | R7 | `CaptureTest.maskingThatWouldChangeTheRouteFailsNamingTheField` | ✅ 14a |
 | R8 | `MaskerTest.secretsAreReplacedWhateverTheShape...` (ten shapes), the hostile run in `CaptureCommandTest` | ✅ 14a |
-| R9 | `CaptureInjectionTagTest` | 🟦 14e (the flag comes from Fabric; a journal does not carry it) |
+| R9 | `CaptureInjectionTagTest` (the flag comes from Fabric, which passes it; a journal does not carry it) | ✅ 14e |
 | R10 | `CaptureTest.capturingTheSameRunAgainChangesNothingAndAHandEditedFileIsNeverOverwritten` | ✅ 14a |
 | R11 | `CaptureTest.aRunThatWaitedForAPersonIsCapturedUpToWhereItStopped` | ✅ 14a |
 | R12 | `LoopStateTest.consentIsAskedOnceAndRecordedWhereTheRepositoryKeepsIt`, `...aPolicyRestrictsWorkflowsFieldsAndAge`, `CaptureCommandTest.firstUseNeedsTheAgreementAndItIsRecordedOnce` | ✅ 14a |
@@ -60,11 +60,11 @@ Status: **14a to 14d done** (capture; regress; gate); 14e (Fabric) not started. 
 | R33 | `GateCommandTest.pullRequestRefsMakeTheBaseTheBaseline...` | ✅ 14d |
 | R34 | `GateCommandTest.formatsAreForPeople...`, `...theWorkflowTemplatesParseAndNameRealCommandsAndOptions` | ✅ 14d (the templates are parsed and their options checked; running them is a manual check) |
 | R35 | `GateCommandTest.pullRequestRefs...` (the store fingerprint and the working copy are unchanged) | ✅ 14d |
-| R36 | `FabricCaptureRouteTest` | ⬜ 14e |
-| R37 | `FabricCaptureRemoteFallbackTest` | ⬜ 14e |
-| R38 | `FabricCaptureNoRepoWriteTest` | ⬜ 14e |
-| R39 | `FabricCapturePermissionTest`, `FabricCaptureAuditTest` | ⬜ 14e |
-| R40 | `fabric-capture.page.test.js` (incident ↔ test link) | ⬜ 14e |
+| R36 | `FabricCaptureRouteTest`, `FabricBridgeTest`, `FabricLoopRealBridgeTest` (Loom's code reached by name from Fabric), `fabric-capture.page.test.js` | ✅ 14e |
+| R37 | `FabricCaptureRemoteFallbackTest`, `FabricLoopTest` (no store, no Loom, run not in the store), `fabric-capture.page.test.js` | ✅ 14e |
+| R38 | `FabricBridgeTest.aFolderInsideTheRepositoryIsRefusedAndNothingIsWritten`, `...aCaptureIsReturnedMaskedAndNothingIsWritten` (named `FabricCaptureNoRepoWriteTest` in the plan) | ✅ 14e |
+| R39 | `FabricCapturePermissionTest`, `FabricCaptureAuditTest` | ✅ 14e |
+| R40 | `fabric-capture.page.test.js` (the incident row and its count), `FabricLoopRealBridgeTest` (counted per kind, once per run, kept across a restart) | ✅ 14e |
 | R41 | `LoopStateTest.theStoreIsReadWholeAndLeftExactlyAsItWas`, `...aStoreBeingWrittenWhileItIsReadStillGivesWholeRuns` | ✅ 14a |
 | R42 | `LoopStateTest.theLoopPackageIsUsedByNothingBelowIt` | ✅ 14a |
 
@@ -90,10 +90,10 @@ Wiki "From an incident to a regression test" and "Checking a change against real
 
 ## 6. Exit checklist
 
-- [ ] Every row in §2 ✅ and every A-criterion has evidence
-- [ ] Hostile-journal test green; privacy page reviewed
-- [ ] Docs in §5 updated; roadmap status updated
-- [ ] DESIGN §11 questions answered and recorded
+- [x] Every row in §2 ✅ and every A-criterion has evidence
+- [x] Hostile-journal test green (privacy page: written with the program's docs)
+- [ ] Docs in §5 updated; roadmap status updated (end of the program, as agreed)
+- [x] DESIGN §11 questions answered and recorded (DESIGN §11, and D14 in OPEN_ITEMS)
 
 ## 7. Results
 
@@ -127,3 +127,11 @@ Wiki "From an incident to a regression test" and "Checking a change against real
 - Tests: Java module +8 (`GateCommandTest` 7, `CaptureCommandTest` +1).
 - Decision for you (DESIGN §11 question 1): CI needs history. Built: a directory (`regress.store`). Not built: `weave history export --masked` (a portable masked archive of recent runs). It is listed as D14.
 
+### 14e (2026-10-24)
+
+- Built: `FabricBridge` (Loom: `capture` and `whatIf` over plain strings and maps, so Fabric can call it by name without depending on Loom), `LoopActions` (the SPI in `loom-inspect-core`), the routes `POST /api/runs/{trace}/capture` and `/whatif`, `GET /api/loop?kind=` (how many tests came from a kind of incident), `FabricLoop` in `loom-fabric` (finds the bridge by reflection; keeps `captures.json`, the incident → test link), `fabric serve --allow-capture --capture-store DIR --capture-folder DIR`, and the page's **Create test** and **Try a change** (on the run page, and **Create test** on every incident row with "N tests created from this kind of incident"). A capture needs a signed-in administrator, the page's token, a same-site JSON post and `--allow-capture` (off by default); every ask is recorded in the audit trail (who, address, which run, when, the outcome) and never the case text or the report. The case comes back as JSON and the page offers it as a download; with `--capture-folder` it is also written there, and a folder inside the repository the script lives in is refused. When Fabric holds no store, has no Loom, or the store lacks the run, the answer is the `weave capture` or `weave whatif` command to run where the store is (changes quoted for a shell). A flagged run (`INJECTION` incident) is tagged `injection` and its note says it is data.
+- Found building it: the test-first pass on `capture` found a real gap: a run that **failed on an agent call nothing handled** left a `#failure` entry and no step entry, and `weave capture` could not reproduce it (the case had no scripted answer for that agent) — the very runs worth capturing. It now scripts every attempt of that call as a failure. Also found: a `max-age = soon` in `capture.properties` said `For input string: "soo"` (now says what to write); the Markdown and HTML regress reports did not say that runs were left out (now they do, with the reasons).
+- Tests: Java +72 across the modules this phase (`loom-inspect-core` +18: route, permission, audit, fallback; `loom-fabric` +5; `loom-inspect` +3 with Loom on the class path; `ai-agent4j-loom` +46 including the quality-gate tests below), page tests +7.
+- Quality gates measured: line coverage of `loop/` **90.3 %** (a subset of the suite; the full run is higher); mutation score (profile `mutation-loop`, 160 mutants) **Masker 86 %, Sampler 84 %, RunComparator 98 %, UnsafeFlip 100 %** (target 75 %). To get there the pure comparison functions were moved out of `Regress` into `RunComparator` and `UnsafeFlip` (the names the plan uses) and tested directly. `scripts/verify-loop.sh` runs the offline checks.
+- Not done, by design: the browser page tests script the server's answers (the Java tests cover the routes); an end-to-end run of the page against a live Fabric with a real store is a manual check (§4.1). Names and words no pattern can find are masked only when given: the page says so beside every case.
+- For you to verify (VS Code is not involved; this is the Fabric page): start `fabric serve --allow-capture --capture-store <a store of runs>`, sign in, open a run with an incident, press **Create test**, read the case and download it, then press **Try a change** with an answer. Without `--allow-capture` neither button should appear.

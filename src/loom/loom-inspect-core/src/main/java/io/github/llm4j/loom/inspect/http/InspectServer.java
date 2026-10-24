@@ -77,6 +77,7 @@ public final class InspectServer {
         Gate gate;
         AdminSessions sessions;
         Controls controls;
+        io.github.llm4j.loom.inspect.control.LoopActions loop;
         io.github.llm4j.loom.inspect.control.Secrets secrets;
         io.github.llm4j.loom.inspect.control.ServerConfig settings;
         AuditSink audit = AuditSink.NONE;
@@ -121,6 +122,17 @@ public final class InspectServer {
         public Config controls(Controls controls, AuditSink audit) {
             this.controls = controls;
             this.audit = audit == null ? AuditSink.NONE : audit;
+            return this;
+        }
+
+        /**
+         * Let a signed-in administrator create a test from a run and try a change on it: {@code
+         * POST /api/runs/{trace}/capture} and {@code /whatif}. Needs {@link #sessions}; each ask is
+         * recorded in the audit trail.
+         */
+        public Config loop(io.github.llm4j.loom.inspect.control.LoopActions loop, AuditSink audit) {
+            this.loop = loop;
+            if (audit != null) this.audit = audit;
             return this;
         }
 
@@ -403,8 +415,15 @@ public final class InspectServer {
 
     private Map<String, Object> withControls(
             Map<String, Object> view, String trace, HttpExchange x) {
-        if (config.controls == null) return view;
+        if (config.controls == null && config.loop == null) return view;
         Map<String, Object> out = new java.util.LinkedHashMap<>(view);
+        if (config.loop != null) {
+            Map<String, Object> l = new java.util.LinkedHashMap<>();
+            l.put("enabled", config.loop.enabled());
+            if (!config.loop.enabled()) l.put("reason", config.loop.disabledReason());
+            out.put("loop", l);
+        }
+        if (config.controls == null) return out;
         Map<String, Object> c = new java.util.LinkedHashMap<>();
         c.put("enabled", config.controls.enabled());
         if (!config.controls.enabled()) c.put("reason", config.controls.disabledReason());
@@ -466,6 +485,28 @@ public final class InspectServer {
         }
         if (config.secrets != null && path.startsWith("/api/secrets")) {
             secrets(x, admin, path);
+            return true;
+        }
+        if (config.loop != null
+                && path.startsWith("/api/runs/")
+                && "POST".equals(x.getRequestMethod())
+                && (path.endsWith("/capture") || path.endsWith("/whatif"))) {
+            String rest = path.substring("/api/runs/".length());
+            loop(
+                    x,
+                    admin,
+                    rest.substring(0, rest.indexOf('/')),
+                    rest.substring(rest.indexOf('/') + 1));
+            return true;
+        }
+        if (config.loop != null && path.equals("/api/loop") && "GET".equals(x.getRequestMethod())) {
+            Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("enabled", config.loop.enabled());
+            if (!config.loop.enabled()) m.put("reason", config.loop.disabledReason());
+            String kind = queryParam(x, "kind");
+            if (kind != null && kind.matches("[a-z][a-z0-9-]{0,40}"))
+                m.put("tests", config.loop.testsFor(kind));
+            send(x, 200, "application/json", json(m));
             return true;
         }
         if (config.controls != null
@@ -553,6 +594,87 @@ public final class InspectServer {
                 o.status(),
                 "application/json",
                 json(Map.of("ok", o.accepted(), "message", o.message())));
+    }
+
+    private static final int MAX_LOOP_BODY = 16 * 1024;
+
+    /** Create a test from a run, or try a change on it. Admin, CSRF, same site and permission. */
+    private void loop(HttpExchange x, AdminSessions admin, String trace, String word)
+            throws IOException {
+        String address = x.getRemoteAddress().getAddress().getHostAddress();
+        AdminSessions.Session s = admin.session(x);
+        if (s == null) {
+            send(x, 401, "application/json", json(Map.of("error", "sign in first")));
+            return;
+        }
+        if (!s.csrf().equals(x.getRequestHeaders().getFirst(AdminSessions.CSRF_HEADER))
+                || !sameSite(x)
+                || !isJson(x)) {
+            audit(word, address, trace, null, "refused: bad CSRF token, origin or content type");
+            send(x, 403, "application/json", json(Map.of("error", "cross-site request refused")));
+            return;
+        }
+        if (!config.loop.enabled()) {
+            audit(word, address, trace, null, "refused: capture permission is off");
+            send(x, 403, "application/json", json(Map.of("error", config.loop.disabledReason())));
+            return;
+        }
+        if (!trace.matches("[0-9a-f]{32}") || registry.findByTrace(trace).isEmpty()) {
+            send(x, 404, "application/json", json(Map.of("error", "no such run")));
+            return;
+        }
+        byte[] raw;
+        try (InputStream in = x.getRequestBody()) {
+            raw = in.readNBytes(MAX_LOOP_BODY + 1);
+        }
+        if (raw.length > MAX_LOOP_BODY) {
+            send(x, 413, "application/json", json(Map.of("error", "request too large")));
+            return;
+        }
+        com.fasterxml.jackson.databind.JsonNode body;
+        try {
+            body = raw.length == 0 ? JSON.createObjectNode() : JSON.readTree(raw);
+        } catch (IOException e) {
+            send(x, 400, "application/json", json(Map.of("error", "not JSON")));
+            return;
+        }
+        String who = "admin@" + address;
+        String client = registry.findByTrace(trace).map(r -> r.client()).orElse(null);
+        io.github.llm4j.loom.inspect.control.LoopActions.Outcome o;
+        if (word.equals("capture")) {
+            String kind = body.path("kind").asText(null);
+            o =
+                    config.loop.capture(
+                            trace,
+                            kind != null && kind.matches("[a-z][a-z0-9-]{0,40}") ? kind : null,
+                            body.path("injection").asBoolean(false),
+                            who);
+        } else {
+            o =
+                    config.loop.tryChange(
+                            trace,
+                            body.path("at").asText(null),
+                            strings(body.path("sets")),
+                            strings(body.path("answers")),
+                            who);
+        }
+        // who, which run, when: never the case text or the report
+        audit(
+                word,
+                address,
+                trace,
+                client,
+                o.ok()
+                        ? "accepted"
+                        : o.command() != null ? "elsewhere" : "refused: " + o.message());
+        send(x, o.status() == 0 ? 200 : o.status(), "application/json", json(o.toMap()));
+    }
+
+    private static Map<String, String> strings(com.fasterxml.jackson.databind.JsonNode n) {
+        Map<String, String> out = new java.util.LinkedHashMap<>();
+        if (n != null && n.isObject())
+            n.fields().forEachRemaining(e -> out.put(e.getKey(), e.getValue().asText()));
+        return out;
     }
 
     private static final int MAX_SECRET_BODY = 16 * 1024;

@@ -598,6 +598,50 @@
             </build>
         </profile>
 
+        <!-- Mutation testing of the production loop's masking, sampling and comparison: mvn -Pmutation-loop org.pitest:pitest-maven:mutationCoverage (see docs/specs/14-production-loop/VERIFICATION.md) -->
+        <profile>
+            <id>mutation-loop</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.17.4</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.1</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>io.github.llm4j.loom.loop.Masker</param>
+                                <param>io.github.llm4j.loom.loop.Sampler</param>
+                                <param>io.github.llm4j.loom.loop.RunComparator</param>
+                                <param>io.github.llm4j.loom.loop.UnsafeFlip</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.llm4j.loom.loop.MaskerTest</param>
+                                <param>io.github.llm4j.loom.loop.SamplerTest</param>
+                                <param>io.github.llm4j.loom.loop.RegressTest</param>
+                                <param>io.github.llm4j.loom.loop.RegressLiveTest</param>
+                                <param>io.github.llm4j.loom.loop.CaptureTest</param>
+                                <param>io.github.llm4j.loom.loop.MaskerStandInsTest</param>
+                                <param>io.github.llm4j.loom.loop.SamplerExactTest</param>
+                                <param>io.github.llm4j.loom.loop.RunComparatorTest</param>
+                            </targetTests>
+                            <threads>4</threads>
+                            <timeoutFactor>4</timeoutFactor>
+                            <mutationThreshold>75</mutationThreshold>
+                            <outputFormats><param>XML</param><param>HTML</param></outputFormats>
+                            <timestampedReports>false</timestampedReports>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <!-- Mutation testing of the invoker-credential path: mvn -Pmutation-invoker org.pitest:pitest-maven:mutationCoverage
              (the big classes it touches are judged on the methods that changed: see scripts/pit_survivors.py) -->
         <profile>

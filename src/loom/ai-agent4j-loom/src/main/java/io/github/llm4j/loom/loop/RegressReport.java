@@ -212,12 +212,7 @@ public final class RegressReport {
         }
         if (!r.excluded().isEmpty()) {
             b.append("\n  Left out: ").append(r.excluded().size()).append(" run(s)\n");
-            r.excluded().stream()
-                    .collect(
-                            java.util.stream.Collectors.groupingBy(
-                                    Regress.Excluded::why,
-                                    java.util.TreeMap::new,
-                                    java.util.stream.Collectors.counting()))
+            leftOut(r)
                     .forEach(
                             (k, v) ->
                                     b.append("    ").append(v).append("  ").append(k).append('\n'));
@@ -332,6 +327,16 @@ public final class RegressReport {
 
     // ---- markdown, for a pull request comment
 
+    /** Why runs were left out, and how many for each reason. */
+    private static java.util.Map<String, Long> leftOut(Regress.Report r) {
+        return r.excluded().stream()
+                .collect(
+                        java.util.stream.Collectors.groupingBy(
+                                Regress.Excluded::why,
+                                java.util.TreeMap::new,
+                                java.util.stream.Collectors.counting()));
+    }
+
     public static String markdown(Regress.Report r) {
         StringBuilder b = new StringBuilder();
         int n = r.sample().chosen().size();
@@ -357,6 +362,11 @@ public final class RegressReport {
                     .append("`: ")
                     .append(String.join("; ", c.unsafe()))
                     .append('\n');
+        if (!r.excluded().isEmpty()) {
+            b.append("\nLeft out (not compared): ").append(r.excluded().size()).append(" run(s)\n");
+            leftOut(r)
+                    .forEach((k, v) -> b.append("- ").append(v).append(" ").append(k).append('\n'));
+        }
         if (n < r.sample().population() && r.sample().strategy() != Sampler.Strategy.RANDOM)
             b.append(
                     "\n_The sample is not random: these counts are about the runs sampled, not about production._\n");
@@ -436,6 +446,20 @@ public final class RegressReport {
                         .append("</code> ")
                         .append(esc(f.name()))
                         .append("</li>");
+            b.append("</ul>");
+        }
+        if (!r.excluded().isEmpty()) {
+            b.append("<h2>Left out (not compared): ")
+                    .append(r.excluded().size())
+                    .append("</h2><ul>");
+            leftOut(r)
+                    .forEach(
+                            (k, v) ->
+                                    b.append("<li>")
+                                            .append(v)
+                                            .append(" ")
+                                            .append(esc(k))
+                                            .append("</li>"));
             b.append("</ul>");
         }
         if (r.stoppedByCap())

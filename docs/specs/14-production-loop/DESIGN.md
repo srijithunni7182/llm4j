@@ -257,3 +257,11 @@ fabric/ capture and whatif endpoints (loom-fabric), UI actions (loom-inspect-cor
 3. **Masking and replay.** Format-preserving masking may still change a model's behaviour in a live replay. Recommendation: document it; regress under `recorded` is unaffected because model replies are recorded masked as well. Confirm.
 4. **Retention default** (`max-age`). 30 days for captured text in the repository? Recommendation: no automatic deletion (it is in git); the tool warns about age in `weave next`. Confirm.
 5. **Observed vs approved default for `weave test`.** Run both (visibility) but only approved gate. Confirm.
+
+### Answers recorded (phase 14 built, 2026-10-24)
+
+1. **CI history**: a directory is supported (`regress.store`); the portable masked archive `weave history export --masked` is **not built** (D14).
+2. **Approval identity**: git `user.email`, else the OS user; recorded, not authenticated.
+3. **Masking and replay**: documented; `regress` under recorded answers is unaffected because the replies are recorded masked as well.
+4. **Retention**: no automatic deletion; `capture.properties` (`workflows`, `deny-fields`, `max-age`) limits what may be captured.
+5. **Observed vs approved**: `weave test` runs both; only approved cases fail a gate (`--require-approved`, `--ignore-observed`).
