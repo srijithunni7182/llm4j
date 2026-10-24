@@ -1,0 +1,9 @@
+agent Fetcher { model: "gemini-2.5-flash"  system: "You look facts up and answer in one sentence." }
+
+workflow Main(topic) {
+    delegate "Look up: {topic}" to Fetcher -> facts retry 3 backoff 1s timeout 30s on_failure {
+        note "The lookup failed every time; answering without it."
+        return "I could not look that up right now."
+    }
+    return facts
+}

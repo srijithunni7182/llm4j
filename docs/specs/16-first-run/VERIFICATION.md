@@ -1,6 +1,6 @@
 # Phase 16 verification plan: the first run
 
-Status: **not started**. Run top to bottom at the end of sub-phase 16e; the relevant rows after each sub-phase. Results in §7.
+Status: **16a done** (`weave try`); 16b to 16e not started. Run top to bottom at the end of sub-phase 16e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -27,15 +27,15 @@ Status: **not started**. Run top to bottom at the end of sub-phase 16e; the rele
 
 | Req | Tests | Status |
 |---|---|---|
-| R1 | `TryRunsRealInterpreterTest`, `ScenariosAreValidProjectsTest` | ⬜ 16a |
-| R2 | `NarratorTest`, `NarratorMatchesEventsTest` | ⬜ 16a |
-| R3 | `TrySummaryTest`, `NextCommandsExistTest` | ⬜ 16a |
-| R4 | `ScenarioSuitesPassTest`, `TryKeepProjectPassesTest` | ⬜ 16a |
-| R5 | `TryNoNetworkTest` | ⬜ 16a |
-| R6 | `TryNoResidueTest` | ⬜ 16a |
-| R7 | `TryStatesScriptedModelsTest` | ⬜ 16a |
-| R8 | `TryInterruptTest`, `TryClosedPipeTest`, `NarratorPlainOutputTest` | ⬜ 16a |
-| R9 | `TrySpeedTest` | ⬜ 16a |
+| R1 | `TryCommandTest.theDefaultScenarioIsNarratedFromTheRealInterpreter`, `...keepLeavesAProjectWhoseTestsPass...` | ✅ 16a |
+| R2 | `TryCommandTest` (each sentence carries values from the interpreter's own decision events and journal) | ✅ 16a |
+| R3 | `TryCommandTest.theDefaultScenario...` (path, result, cost $0, review line, three next commands) | ✅ 16a |
+| R4 | `TryCommandTest.keepLeavesAProjectWhoseTestsPassAndRefusesToOverwrite` (both scenarios' suites pass) | ✅ 16a |
+| R5 | `TryCommandTest` (the env refuses to build any model client; `try` is entirely scripted) | ✅ 16a |
+| R6 | `TryCommandTest.nothingIsWrittenUnlessKeepIsGiven...` | ✅ 16a |
+| R7 | `TryCommandTest.theDefaultScenario...` (the line opens and closes the run) | ✅ 16a |
+| R8 | no colour is ever written, and `--step`/pacing only on a terminal; a Ctrl+C message and closed-pipe handling are **not** built (the temp folder is removed in a `finally`) | 🟦 16a partial |
+| R9 | `TryCommandTest` (whole class, 7 runs: 1.5 s) | ✅ 16a |
 | R10 | `TryLiveCapTest`, `TryLiveMissingKeyTest` | ⬜ 16e |
 | R11 | `TryLiveOnlyNetworkPathTest` | ⬜ 16e |
 | R12 | `DoctorChecksTest`, `DoctorVerdictTest`, `DoctorJsonSchemaTest` | ⬜ 16b |
@@ -58,8 +58,8 @@ Status: **not started**. Run top to bottom at the end of sub-phase 16e; the rele
 | R29 | manual §4 (measured), CPU budget in `NewcomerJourneyTest` | ⬜ 16e |
 | R30 | `NewcomerJourneyTest` | ⬜ 16e |
 | R31 | `GettingStartedDocsTest` | ⬜ 16e |
-| R32 | `NoProviderClassLoadedTest` | ⬜ 16a |
-| R33 | `ScenarioIsDataTest` | ⬜ 16a |
+| R32 | `TryCommandTest` (the env refuses model clients); no provider is constructed | ✅ 16a |
+| R33 | `TryCommandTest.listNamesEveryScenario...` (scenarios are `try/index.txt` and a folder) | ✅ 16a |
 
 ## 3. Quality gates
 
@@ -92,3 +92,9 @@ Status: **not started**. Run top to bottom at the end of sub-phase 16e; the rele
 ## 7. Results
 
 *(per sub-phase: time-to-first-success measurements, doctor message review, jar size, newcomer feedback)*
+
+### 16a (2026-10-24)
+
+- Built: `weave try [scenario] [--list] [--step] [--fast] [--keep DIR] [--no-color]`, `demo/` (`Scenarios` from `try/index.txt` and a folder per scenario, `Narrator`), two scenarios (`triage`, `flaky`) shipped in the jar as real projects whose `tests/main.test.yaml` is the demo script *and* the test suite. The run is the real interpreter on scripted collaborators (`CaseProbe`), replayed (`ObserveReplay`) for the decision events; each step gets one sentence made from the statement kind, the decision it took and the journal entry. Ends with the path, the result, "this demo cost $0", the review line and three next commands; the scripted-models line opens and closes it.
+- Tests: `TryCommandTest` 7.
+- Deviations: the plan's `try/` package is `demo/` (`try` is a Java keyword); the graph is a one-line path of the steps taken, not a drawing of the whole graph; the summary's cost line says $0 for the demo and does not yet print an estimate for a real run; `--fabric` and `--live` come in 16e; the third and fourth scenarios (`newsletter`, `refund`) in 16d.

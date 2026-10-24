@@ -266,9 +266,9 @@ final class DeployCommand implements Callable<Integer> {
 
     // ---- the review: a warning, never a gate
 
-    private record Review(String warning, String summary, int high) {}
+    record Review(String warning, String summary, int high) {}
 
-    private static Review review(File script, WeaveEnv env) {
+    static Review review(File script, WeaveEnv env) {
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             ByteArrayOutputStream err = new ByteArrayOutputStream();

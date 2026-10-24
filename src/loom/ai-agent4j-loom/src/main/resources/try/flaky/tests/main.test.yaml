@@ -1,0 +1,21 @@
+# The demo models: the first two calls fail on purpose, the third works. All pre-written, offline, free.
+script: ../main.loom
+workflow: Main
+cases:
+  - name: the lookup fails twice and retry gets an answer
+    input: { topic: "the height of Mount Kenya" }
+    models:
+      Fetcher: "Mount Kenya is 5,199 metres high."
+    fail:
+      Fetcher: { on_calls: [1, 2], category: server_error }
+    expect:
+      result: "Mount Kenya is 5,199 metres high."
+      calls: { Fetcher: 3 }
+  - name: when every try fails, on_failure answers
+    input: { topic: "the height of Mount Kenya" }
+    models:
+      Fetcher: "never reached"
+    fail:
+      Fetcher: { always: true, category: server_error }
+    expect:
+      result: "I could not look that up right now."
