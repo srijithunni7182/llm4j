@@ -1,6 +1,6 @@
 # Phase 15 verification plan: embed and deploy
 
-Status: **15a to 15d done** (bindgen; Maven plugin; Spring; deploy docker and compose, and the k8s renderer); typed parameters deferred (D15); 15e (skill, docs, k8s checks) not started. Run top to bottom at the end of sub-phase 15e; the relevant rows after each sub-phase. Results in §7.
+Status: **15a to 15e done**; typed parameters deferred (D15). Manual checks (§4) and the stack-level docs (§5, written at the end of the program) remain. Run top to bottom at the end of sub-phase 15e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -55,7 +55,7 @@ Status: **15a to 15d done** (bindgen; Maven plugin; Spring; deploy docker and co
 | R28 | `DeployTest.stateGoesOnAVolumeUnlessToldOtherwise`, the README test | ✅ 15d |
 | R29 | `DeployCommandTest.aHandEditedFileIsKeptUntilForced`, `DeployTest.anEditedFileIsRecognised...` | ✅ 15d |
 | R30 | `DeployCommandTest.verifyPassesThenFlagsStaleMissingAndALostName` | ✅ 15d |
-| R31 | `SkillDriftTest` | ⬜ 15e |
+| R31 | `DeploySkillDriftTest` (the deployer skill's new section names only flags `weave deploy` has) | ✅ 15e |
 | R32 | `DeployTest.thePackagesAreIndependent...` | ✅ 15d |
 | R33 | `DeployTest.thePackagesAreIndependent...` (renders text; `docker compose config` and `kubectl --dry-run` are manual checks) | ✅ 15d |
 
@@ -81,9 +81,9 @@ Wiki "Typed workflows in Java" and "Deploying a workflow"; `SPRING_BOOT_LOOM_GUI
 
 ## 6. Exit checklist
 
-- [ ] Every row in §2 ✅ and every A-criterion has evidence
+- [x] Every row in §2 ✅ (R13 to R15 deferred, D15) and every A-criterion has evidence
 - [ ] Docs in §5 updated; roadmap status updated
-- [ ] DESIGN §8 questions answered and recorded (typed parameters decision first)
+- [x] DESIGN §8 questions answered and recorded (D15)
 
 ## 7. Results
 
@@ -112,3 +112,10 @@ Wiki "Typed workflows in Java" and "Deploying a workflow"; `SPRING_BOOT_LOOM_GUI
 - Built (`deploy/`, `weave deploy`): `DeployPlan` (env names from the models' vendors and from `env.` options of tools; hosts of the providers; schedules; whether a person is asked), renderers for a Dockerfile (non-root uid 10001, `weave.jar` copied in, healthcheck that re-checks the script, tag or digest said), `entrypoint.sh` (the daemon when the script has schedules, else `weave run`; reports to Fabric when `LOOM_FABRIC_URL` is set; reads `/run/secrets/*`), `.dockerignore`, `.env.example` (names only), `compose.yaml` (read-only root, all capabilities dropped, no-new-privileges, Fabric on an `internal: true` network and published on loopback, `depends_on` its healthcheck, a volume for journals), Kubernetes manifests (service account without a token, config map, **empty** secret template, PVC, Deployment and Fabric with non-root, read-only root filesystem, dropped capabilities, seccomp runtime default, a NetworkPolicy), and a README (needs, review state, failure cases). Each file carries a stamp (script hash and a hash of its body), so a hand edit is detected. `weave deploy SCRIPT --target docker|compose|k8s [--out] [--name] [--base-image] [--with-fabric] [--fabric-image] [--journal] [--expose] [--schedule] [--fabric-publish] [--require-clean] [--dry-run] [--force] [--verify DIR]`.
 - Tests: `DeployTest` 15, `DeployCommandTest` 9 (including the review warning on a script with a real high finding: exit 0, and `--require-clean`: exit 1 with nothing written).
 - Deviations, to confirm (D15): the image is built from the project folder plus a `deploy/weave.jar` you copy in (deploy does not know how weave was installed, and does not run `weave package`); the Kubernetes NetworkPolicy cannot name hosts, so it allows port 443 outside the private ranges only when the script uses a hosted model and lists the hosts in an annotation for an egress proxy or a policy engine that can name them; the Fabric image defaults to `loom-fabric:6.0.0` (a tag you build or mirror; no image is published by this project that deploy could rely on).
+
+### 15e (2026-10-24)
+
+- Built: the deployer skill gained "When they want it in a container" (use `weave deploy`; the review is a warning; what the user supplies; Fabric on loopback only; `--verify`; read the README together), `scripts/verify-embed-deploy.sh`, and the `mutation-embed` profile.
+- Tests: `DeploySkillDriftTest` 2, `DeployVariantsTest` 8 (each file says what it must; each option changes only what it should).
+- Quality gates measured: line coverage `bind/` **99.1 %**, `deploy/` **97.6 %**; mutation (profile `mutation-embed`, 132 mutants) `SchemaInfer` **100 %**, `Deploy` 91 %, `Kube` 92 %, `Docker` 88 %, `Compose` 82 % (the safety-relevant renderers, target 70 %), `Naming` 67 %.
+- Not done here: `docker compose config` / `kubectl --dry-run` on the output (manual checks 2 and 3: they need Docker and a cluster); the `docs/deploy/` guide chapter and wiki pages (end of the program).

@@ -49,6 +49,17 @@ Stages 4 (try it) and 5 and 6 (keep it) are alternatives for the first look: sta
 [ ] Operate (backup, keys)
 ```
 
+## When they want it in a container
+
+Use `weave deploy`, not a hand-written Dockerfile. It reads the script and writes text only: nothing is built, pushed or applied.
+
+1. Run `weave deploy flow.loom --target compose --dry-run` first and read the file list with the user; then without `--dry-run`. `--target docker` is the image alone, `--target k8s` writes manifests.
+2. The review is shown as a warning and never stops the files. Say in one sentence what is open (the README records it) and carry on with what they asked; the decision about a trifecta stays stage 2's. `--require-clean` is for a team that wants a gate.
+3. Tell them the two things they supply: `deploy/weave.jar` (the weave CLI, same version) beside the Dockerfile, and a Fabric image (`--fabric-image`, default `loom-fabric:6.0.0`). Secrets are only ever names (`.env.example`, an empty Kubernetes Secret template): the values come from their secret store.
+4. Fabric is published on loopback only. If they ask for more, `weave deploy` refuses (`--fabric-publish`): explain TLS and a reverse proxy (stage 5) instead of working around it.
+5. `weave deploy flow.loom --verify deploy` after a change to the script says what is stale. A file they edited by hand is kept (`--force` replaces it).
+6. Read the generated README with them: what it needs, what happens on a restart, a lost node and a lost volume.
+
 ## Rules you do not break
 
 - **A secret never goes on a command line, in a printed line or in the chat**: the admin password, a Fabric client key, a provider key, the master key. The scripts take them from the environment or standard input and store them; you never see them. If one reaches the chat, tell the user to rotate it and how.
@@ -87,4 +98,6 @@ weave observe rules flow.loom                                  # check the .insp
 weave observe flush --observe-name checkout                    # deliver what an earlier process left in its outbox
 weave run flow.loom --observe                                  # the plain form, when the add-on jars are on the class path
 weave guide d5                                                 # read chapter 5: bring up a Fabric
+weave deploy flow.loom --target compose --dry-run             # the container files, derived from the script (text only)
+weave deploy flow.loom --verify deploy                         # are the files still right for the script
 ```

@@ -642,6 +642,48 @@
             </build>
         </profile>
 
+        <!-- Mutation testing of the bindings and deployment renderers: mvn -Pmutation-embed org.pitest:pitest-maven:mutationCoverage (see docs/specs/15-embed-and-deploy/VERIFICATION.md) -->
+        <profile>
+            <id>mutation-embed</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.17.4</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.1</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>io.github.llm4j.loom.bind.SchemaInfer</param>
+                                <param>io.github.llm4j.loom.bind.Naming</param>
+                                <param>io.github.llm4j.loom.deploy.Deploy</param>
+                                <param>io.github.llm4j.loom.deploy.Docker</param>
+                                <param>io.github.llm4j.loom.deploy.Compose</param>
+                                <param>io.github.llm4j.loom.deploy.Kube</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.llm4j.loom.bind.*Test</param>
+                                <param>io.github.llm4j.loom.deploy.*Test</param>
+                                <param>io.github.llm4j.loom.cli.BindgenCommandTest</param>
+                                <param>io.github.llm4j.loom.cli.DeployCommandTest</param>
+                            </targetTests>
+                            <threads>4</threads>
+                            <timeoutFactor>4</timeoutFactor>
+                            <mutationThreshold>70</mutationThreshold>
+                            <outputFormats><param>XML</param><param>HTML</param></outputFormats>
+                            <timestampedReports>false</timestampedReports>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <!-- Mutation testing of the invoker-credential path: mvn -Pmutation-invoker org.pitest:pitest-maven:mutationCoverage
              (the big classes it touches are judged on the methods that changed: see scripts/pit_survivors.py) -->
         <profile>
