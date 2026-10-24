@@ -140,6 +140,7 @@ public final class ObserveReplay {
      *     recorded (the original is untouched)
      * @param calls the model calls a live replay made (0 for an observing one)
      * @param tokens the tokens those calls used
+     * @param cost what they cost, measured, when the live replay had prices; else null
      * @param statements the statement each step id belongs to, for the steps that started
      */
     /** A step starting ({@code decision} null), or a choice made inside one. */
@@ -158,6 +159,7 @@ public final class ObserveReplay {
             Map<String, RunJournal.Entry> journal,
             long calls,
             long tokens,
+            java.math.BigDecimal cost,
             Map<String, io.github.llm4j.loom.ast.Statement> statements) {}
 
     public static Result run(Options options, RunJournal original) throws java.io.IOException {
@@ -224,6 +226,8 @@ public final class ObserveReplay {
                         live ? hooks.live().models() : ObservedCollaborators.models(failing));
         if (!live) executor.setClassifierFactory(ObservedCollaborators.classifiers(failing));
         long[] spent = {0, 0};
+        java.math.BigDecimal[] money = {java.math.BigDecimal.ZERO};
+        boolean[] priced = {live && hooks.live().prices() != null};
         Map<String, io.github.llm4j.loom.ast.Statement> statements = new LinkedHashMap<>();
         executor.setStatementListener(statements::put);
         if (live) {
@@ -235,6 +239,24 @@ public final class ObserveReplay {
                         if (!io.github.llm4j.loom.execution.TraceEvent.MODEL_CALL.equals(e.type()))
                             return;
                         synchronized (spent) {
+                            if (priced[0]) {
+                                var price =
+                                        hooks.live()
+                                                .prices()
+                                                .price(String.valueOf(e.data().get("model")));
+                                if (price.isPresent())
+                                    money[0] =
+                                            money[0].add(
+                                                    price.get()
+                                                            .cost(
+                                                                    number(
+                                                                            e.data(),
+                                                                            "prompt_tokens"),
+                                                                    number(
+                                                                            e.data(),
+                                                                            "completion_tokens")));
+                                else priced[0] = false;
+                            }
                             spent[0]++;
                             spent[1] +=
                                     number(e.data(), "prompt_tokens")
@@ -386,6 +408,7 @@ public final class ObserveReplay {
                 new LinkedHashMap<>(copy.all()),
                 spent[0],
                 spent[1],
+                live && priced[0] ? money[0] : null,
                 statements);
     }
 

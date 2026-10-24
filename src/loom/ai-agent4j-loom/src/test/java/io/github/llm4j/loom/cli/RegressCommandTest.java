@@ -199,4 +199,21 @@ class RegressCommandTest {
         Out b = regress(broken.toString(), "--store", dir.resolve("store").toString());
         assertThat(b.code()).isEqualTo(2);
     }
+
+    @Test
+    void whatSpendsMoneyNeedsACapAndSaysSoBeforeAnythingRuns() throws Exception {
+        Path base = base();
+        Path store = store(base);
+        Out live = regress(base.toString(), "--models", "live", "--store", store.toString());
+        assertThat(live.code()).isEqualTo(1);
+        assertThat(live.err()).contains("costs money").contains("--max-cost");
+        Path rubric = Files.writeString(dir.resolve("rubric.md"), "Tone matters.");
+        Out judge = regress(base.toString(), "--judge", "rubric:" + rubric, "--judge-model", "m", "--store", store.toString());
+        assertThat(judge.code()).isEqualTo(1);
+        assertThat(judge.err()).contains("costs money");
+        Out noPrices = regress(base.toString(), "--models", "live", "--max-cost", "0.10", "--store", store.toString());
+        assertThat(noPrices.code()).isEqualTo(1);
+        assertThat(noPrices.err()).contains("--prices");
+        assertThat(regress(base.toString(), "--fail-on", "cost-up:x", "--store", store.toString()).code()).isEqualTo(1);
+    }
 }

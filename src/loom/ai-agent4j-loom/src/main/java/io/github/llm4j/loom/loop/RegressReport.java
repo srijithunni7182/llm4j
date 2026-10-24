@@ -59,6 +59,61 @@ public final class RegressReport {
                 100 * Math.max(0, centre - half), 100 * Math.min(1, centre + half));
     }
 
+    /** The cost of a typical run before and after, as estimated from the two scripts. */
+    static List<String> costLines(Regress.Report r) {
+        List<String> out = new java.util.ArrayList<>();
+        for (var e : r.costAfter().entrySet()) {
+            Regress.CostFigure was = r.costBefore().get(e.getKey());
+            Regress.CostFigure now = e.getValue();
+            if (was == null || was.typicalTokens() == 0) continue;
+            double pct = 100.0 * (now.typicalTokens() - was.typicalTokens()) / was.typicalTokens();
+            String money =
+                    was.typicalCost() != null && now.typicalCost() != null
+                            ? ", $"
+                                    + was.typicalCost().toPlainString()
+                                    + " to $"
+                                    + now.typicalCost().toPlainString()
+                            : "";
+            out.add(
+                    e.getKey()
+                            + ": a typical run "
+                            + was.typicalTokens()
+                            + " to "
+                            + now.typicalTokens()
+                            + " tokens ("
+                            + String.format("%+.0f", pct)
+                            + " %)"
+                            + money
+                            + " (estimated from the prompts and settings of the two scripts; not measured)");
+        }
+        return out;
+    }
+
+    /**
+     * The largest rise, in percent, of a typical run's cost between the two scripts; 0 when none.
+     */
+    public static double costUp(Regress.Report r) {
+        double worst = 0;
+        for (var e : r.costAfter().entrySet()) {
+            Regress.CostFigure was = r.costBefore().get(e.getKey());
+            if (was == null) continue;
+            Regress.CostFigure now = e.getValue();
+            double pct;
+            if (was.typicalCost() != null
+                    && now.typicalCost() != null
+                    && was.typicalCost().signum() > 0)
+                pct =
+                        100
+                                * now.typicalCost().subtract(was.typicalCost()).doubleValue()
+                                / was.typicalCost().doubleValue();
+            else if (was.typicalTokens() > 0)
+                pct = 100.0 * (now.typicalTokens() - was.typicalTokens()) / was.typicalTokens();
+            else continue;
+            worst = Math.max(worst, pct);
+        }
+        return worst;
+    }
+
     // ---- text
 
     public static String text(Regress.Report r, boolean showText, Masker masker) {
@@ -74,11 +129,39 @@ public final class RegressReport {
         row(b, "Changed route", r.count(Regress.Verdict.CHANGED_ROUTE), n);
         row(b, "Changed result", r.count(Regress.Verdict.CHANGED_RESULT), n);
         row(b, "Needs a model", r.count(Regress.Verdict.NEEDS_MODEL), n);
+        if (r.count(Regress.Verdict.NOT_COMPARED) > 0)
+            row(b, "Not compared", r.count(Regress.Verdict.NOT_COMPARED), n);
         if (r.count(Regress.Verdict.DID_NOT_FINISH) > 0)
             row(b, "Did not finish", r.count(Regress.Verdict.DID_NOT_FINISH), n);
         if (r.count(Regress.Verdict.NEEDS_MODEL) > 0)
             b.append(
                     "    (a run is counted as needing a model when the candidate changes what a model is asked; it is never guessed. Use --models live with a cap to run them.)\n");
+        if (r.spent() != null) {
+            long live = r.liveCompared();
+            b.append("\n  Compared with recorded answers: ")
+                    .append(n - live - r.count(Regress.Verdict.NOT_COMPARED))
+                    .append("   with live models: ")
+                    .append(live)
+                    .append(
+                            " (those numbers mean different things: the second says how the candidate behaved with a model asked again)\n");
+            b.append("  Spent on live models and judges: ")
+                    .append(r.spent().tokens())
+                    .append(" tokens in ")
+                    .append(r.spent().calls())
+                    .append(" calls")
+                    .append(
+                            r.spent().cost() == null
+                                    ? " (the price of a model was not known)"
+                                    : ", $"
+                                            + r.spent()
+                                                    .cost()
+                                                    .setScale(4, java.math.RoundingMode.HALF_UP)
+                                                    .toPlainString())
+                    .append(" (measured)\n");
+        }
+        if (r.stoppedByCap())
+            b.append(
+                    "  STOPPED BY THE SPEND CAP: the runs marked not compared were left out; raise --max-cost to see them.\n");
         long changed = n - r.count(Regress.Verdict.SAME);
         String ci = interval(r, changed);
         if (ci != null)
@@ -89,7 +172,17 @@ public final class RegressReport {
             b.append(
                     "\n  The sample is not random, so these counts are about the runs sampled, not about production.\n");
         List<Regress.Comparison> unsafe = r.unsafe();
-        b.append("\n  UNSAFE FLIPS  ").append(unsafe.size()).append('\n');
+        b.append("\n  UNSAFE FLIPS  ")
+                .append(unsafe.size() + r.approvedFlips().size())
+                .append('\n');
+        for (Regress.ApprovedFlip f : r.approvedFlips())
+            b.append("    [approved] ")
+                    .append(f.file())
+                    .append(": ")
+                    .append(f.name())
+                    .append("   ")
+                    .append(String.join("; ", f.failures()))
+                    .append('\n');
         for (Regress.Comparison c : unsafe) {
             b.append("    ").append(c.run()).append("   ").append(String.join("; ", c.unsafe()));
             if (c.firstDifference() != null)
@@ -128,6 +221,17 @@ public final class RegressReport {
                     .forEach(
                             (k, v) ->
                                     b.append("    ").append(v).append("  ").append(k).append('\n'));
+        }
+        if (r.approvedRun() > 0)
+            b.append("\n  Approved captured cases: ")
+                    .append(r.approvedRun())
+                    .append(" run whatever the sample was; ")
+                    .append(r.approvedFlips().size())
+                    .append(" no longer pass.\n");
+        List<String> costs = costLines(r);
+        if (!costs.isEmpty()) {
+            b.append("\n  Cost\n");
+            costs.forEach(c -> b.append("    ").append(c).append('\n'));
         }
         b.append("\n  Sample by what the runs recorded (in the population, in the sample):\n");
         r.sample()
@@ -181,7 +285,7 @@ public final class RegressReport {
         ObjectNode counts = o.putObject("counts");
         for (Regress.Verdict v : Regress.Verdict.values())
             counts.put(v.name().toLowerCase(), r.count(v));
-        counts.put("unsafe", r.unsafe().size());
+        counts.put("unsafe", r.unsafe().size() + r.approvedFlips().size());
         ArrayNode runs = o.putArray("runs");
         for (Regress.Comparison c : r.comparisons()) {
             ObjectNode x = runs.addObject();
@@ -201,6 +305,27 @@ public final class RegressReport {
         ArrayNode ex = o.putArray("excluded");
         r.excluded().forEach(e -> ex.addObject().put("run", e.run()).put("why", e.why()));
         o.put("storeUntouched", r.storeUntouched());
+        o.put("stoppedByCap", r.stoppedByCap());
+        if (r.spent() != null) {
+            ObjectNode sp = o.putObject("spent");
+            sp.put("tokens", r.spent().tokens());
+            sp.put("calls", r.spent().calls());
+            if (r.spent().cost() != null) sp.put("cost", r.spent().cost().toPlainString());
+            sp.put("liveCompared", r.liveCompared());
+        }
+        ArrayNode approved = o.putArray("approvedFlips");
+        r.approvedFlips()
+                .forEach(
+                        f -> {
+                            ObjectNode a = approved.addObject();
+                            a.put("file", f.file());
+                            a.put("case", f.name());
+                            ArrayNode fl = a.putArray("failures");
+                            f.failures().forEach(fl::add);
+                        });
+        o.put("approvedCasesRun", r.approvedRun());
+        ArrayNode cost = o.putArray("cost");
+        costLines(r).forEach(cost::add);
         o.put("cannotTell", CANNOT_TELL);
         return JSON.writerWithDefaultPrettyPrinter().writeValueAsString(o) + "\n";
     }
@@ -302,7 +427,23 @@ public final class RegressReport {
                     .append("</code> ")
                     .append(esc(String.join("; ", c.unsafe())))
                     .append("</li>");
-        b.append("</ul><p class=\"mute\">").append(esc(CANNOT_TELL)).append("</p></body></html>");
+        b.append("</ul>");
+        if (!r.approvedFlips().isEmpty()) {
+            b.append("<h2 class=\"bad\">Approved cases that no longer pass</h2><ul>");
+            for (Regress.ApprovedFlip f : r.approvedFlips())
+                b.append("<li>[approved] <code>")
+                        .append(esc(f.file()))
+                        .append("</code> ")
+                        .append(esc(f.name()))
+                        .append("</li>");
+            b.append("</ul>");
+        }
+        if (r.stoppedByCap())
+            b.append(
+                    "<p class=\"bad\">Stopped by the spend cap: runs marked not compared were left out.</p>");
+        for (String line : costLines(r))
+            b.append("<p class=\"mute\">").append(esc(line)).append("</p>");
+        b.append("<p class=\"mute\">").append(esc(CANNOT_TELL)).append("</p></body></html>");
         return b.toString();
     }
 

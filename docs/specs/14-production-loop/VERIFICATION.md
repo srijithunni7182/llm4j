@@ -1,6 +1,6 @@
 # Phase 14 verification plan: the production loop
 
-Status: **14a, 14b done** (capture; regress with recorded models); 14c to 14e not started. Run top to bottom at the end of sub-phase 14e; the relevant rows after each sub-phase. Results in §7.
+Status: **14a to 14c done** (capture; regress with recorded and live models, judges, cost); 14d, 14e not started. Run top to bottom at the end of sub-phase 14e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -43,18 +43,18 @@ Status: **14a, 14b done** (capture; regress with recorded models); 14c to 14e no
 | R16 | `TestCommandTest.aCapturedCaseRunsLikeAnyOtherAndTheSummary...` (the count); only approved cases fail a gate: `GateCountsApprovedOnlyTest` | 🟨 14a (count) / 14d (gate) |
 | R17 | `TestCommandTest.requireApprovedFailsWhileACapturedCaseIsStillObserved` | ✅ 14a |
 | R18 | `RegressTest.takingThePersonOutOfThePathIsAnUnsafeFlip...`, `...aCandidateThatAddsAnEffectToThePathIsAnUnsafeFlipNamingTheTool` (a ladder rung climb is not detected: ladders are not replayed by observe-replay) | 🟨 14b |
-| R19 | `RegressTest.aChangedPromptIsCountedAsNeedingAModelAndNeverGuessed` (live comparison and the separation of recorded from live: 14c) | 🟨 14b / 14c |
+| R19 | `RegressTest.aChangedPromptIsCountedAsNeedingAModelAndNeverGuessed`, `RegressLiveTest.liveModelsAreAskedOnlyWhereTheQuestionChanged...` (recorded and live comparisons are counted apart) | ✅ 14c |
 | R20 | `SamplerTest` (5), `RegressTest.theReportSaysWhatTheSampleIsAndNeverMoreThanItSupports` | ✅ 14b |
-| R21 | `ApprovedAlwaysIncludedTest` | ⬜ 14c |
+| R21 | `RegressLiveTest.approvedCapturedCasesAreAlwaysRunAndAFlipOnOneIsReported...` (a sample of 1, the approved case still runs and its break is listed as `[approved]` and fails every `--fail-on` but `none`) | ✅ 14c |
 | R22 | `RegressTest.theStoreIsOnlyReadAndNoTextIsInTheReport...` (fingerprint before and after), `RegressCommandTest`; there is no `--effects` flag; effects are described by observe-replay and never run | ✅ 14b |
 | R23 | `RegressTest.theStoreIsOnlyReadAndNoTextIsInTheReportUnlessAskedAndThenMasked` | ✅ 14b |
-| R24 | `JudgeCostGateTest` | ⬜ 14c |
-| R25 | `CostLabelsTest` | ⬜ 14c |
+| R24 | `RegressCommandTest.whatSpendsMoneyNeedsACapAndSaysSoBeforeAnythingRuns`, `RegressLiveTest.aJudgeSpendsFromTheSameCapAndNeverRunsWithoutOne` (rubric and classifier judges; a verdict that is neither SAME nor DIFFERENT is not taken) | ✅ 14c |
+| R25 | `RegressLiveTest.costIsLabelledEstimatedWhenItComesFromTheScriptsAndMeasuredWhenItWasSpent` | ✅ 14c (the estimate is the review's cost model on the two scripts, not on each changed call) |
 | R26 | `RegressTest.theRecordedVersionIsFoundInGitHistory...`, `...aRunOfAnotherVersionOrOfAnotherWorkflowIsLeftOutAndCounted` | ✅ 14b |
-| R27 | `RegressSpeedTest` | ⬜ 14c |
+| R27 | `RegressLiveTest.twoHundredRecordedRunsAreComparedInWellUnderThirtySeconds` | ✅ 14c |
 | R28 | `RegressCommandTest` (JSON version 1 with per-run outcomes) | ✅ 14b |
 | R29 | `RegressTest.theHtmlIsOneFileWithNothingRemoteAndEverythingEscaped` | ✅ 14b |
-| R30 | `RegressCommandTest` (0, 1 by `--fail-on`, 2); exit 4 with `--max-cost`: 14c | 🟨 14b / 14c |
+| R30 | `RegressCommandTest` (0, 1, 2, and 4 when the cap stops it, with the partial report) | ✅ 14c |
 | R31 | `GateStagesTest` | ⬜ 14d |
 | R32 | `GateSkipVisibleTest` | ⬜ 14d |
 | R33 | `GateGitRefsTest` | ⬜ 14d |
@@ -112,4 +112,11 @@ Wiki "From an incident to a regression test" and "Checking a change against real
 - Found building it: comparing steps by their id is wrong when the candidate's statements shift (a removed statement renumbers the ones after it, so phase 13's trajectory diff, written for one script, said a step was the same when it was a different statement); regress compares the route by what each step does, in each script's own words, and not by the wording of a condition (a reworded condition that sends every run the same way is not a changed route). A candidate that asks a different agent than the run did is a changed route, not "needs a model". The first version also lost the people's recorded answers and reported every run with a person as suspended.
 - Tests: Java module +25 (`SamplerTest` 5, `RegressTest` 11, `RegressCommandTest` 4 and the earlier 14a ones).
 - Not in 14b: live models and judges (14c), cost estimates and `--fail-on cost-up` (14c), approved cases always included (14c), the speed check (14c).
+
+### 14c (2026-10-24)
+
+- Built: `--models live` (one `Spent` counter for the whole command, runs compared one at a time, none after the cap; the model's measured cost is summed per call), the report keeps *compared with recorded answers* and *compared with live models* apart and says what was spent, exit 4 with a partial report at the cap, `Judges` (a rubric judge and a classifier judge, both counted against the cap), approved captured cases always run against the candidate (copies pointed at it), `Costing` (the review's estimate of a typical run of each workflow, labelled an estimate) and `--fail-on cost-up:PERCENT`. `ObserveReplay.Result` carries the measured cost of a live replay.
+- Tests: Java module +7 (`RegressLiveTest` 6, `RegressCommandTest` +1).
+- 200 recorded runs: the whole test, including building the 200-run store, takes about 2 s on this machine (target 30 s for the comparison).
+- Not in 14c: the estimate is per workflow from the scripts, not per changed call (R25 asks for the recorded token ratio of each changed call; that needs the old and new question of each call, which the replay does not hand out).
 

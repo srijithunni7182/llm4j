@@ -72,9 +72,37 @@ final class RegressCommand implements Callable<Integer> {
 
     @Option(
             names = "--models",
-            description = "recorded (the only mode so far).",
+            description =
+                    "recorded (default): only recorded answers; live: ask a real model for the runs whose question changed (needs --max-cost or --max-tokens).",
             defaultValue = "recorded")
     String models;
+
+    @Option(
+            names = "--max-cost",
+            description =
+                    "The most live models and judges may cost, in dollars, in all (needs --prices).")
+    java.math.BigDecimal maxCost;
+
+    @Option(
+            names = "--max-tokens",
+            description = "The most live models and judges may use, in tokens, in all.")
+    Long maxTokens;
+
+    @Option(
+            names = "--prices",
+            description = "A price file (model = in / out per million tokens), to count money.")
+    File prices;
+
+    @Option(
+            names = "--cases",
+            description =
+                    "A folder of captured cases; the approved ones are always run against the candidate.")
+    List<File> cases = new ArrayList<>();
+
+    @Option(
+            names = "--judge-model",
+            description = "The model that judges text with rubric: (classifier: uses its own).")
+    String judgeModel;
 
     @Option(
             names = "--prompt",
@@ -93,7 +121,8 @@ final class RegressCommand implements Callable<Integer> {
 
     @Option(
             names = "--fail-on",
-            description = "flip-unsafe (default), flip-any or none: exit 1 on this.",
+            description =
+                    "flip-unsafe (default), flip-any, cost-up:<percent> or none: exit 1 on this.",
             defaultValue = "flip-unsafe")
     String failOn;
 
@@ -131,16 +160,37 @@ final class RegressCommand implements Callable<Integer> {
                 env.err().println("Error: --format takes text, json, md or junit.");
                 return 1;
             }
-            if (!Set.of("flip-unsafe", "flip-any", "none").contains(c.failOn)) {
-                env.err().println("Error: --fail-on takes flip-unsafe, flip-any or none.");
+            if (!Set.of("flip-unsafe", "flip-any", "none").contains(c.failOn)
+                    && !c.failOn.matches("cost-up:\\d+(\\.\\d+)?")) {
+                env.err()
+                        .println(
+                                "Error: --fail-on takes flip-unsafe, flip-any, cost-up:<percent> or none.");
                 return 1;
             }
-            if (!Set.of("none", "exact", "label").contains(c.judge)) {
-                env.err().println("Error: --judge takes none, exact or label.");
+            boolean modelJudge = c.judge.startsWith("rubric:") || c.judge.startsWith("classifier:");
+            if (!Set.of("none", "exact", "label").contains(c.judge) && !modelJudge) {
+                env.err()
+                        .println(
+                                "Error: --judge takes none, exact, label, rubric:<file> or classifier:<name>.");
                 return 1;
             }
-            if (!c.models.equals("recorded")) {
-                env.err().println("Error: --models takes recorded.");
+            if (!Set.of("recorded", "live").contains(c.models)) {
+                env.err().println("Error: --models takes recorded or live.");
+                return 1;
+            }
+            boolean spends = c.models.equals("live") || modelJudge;
+            if (spends && c.maxCost == null && c.maxTokens == null) {
+                env.err()
+                        .println(
+                                "Error: "
+                                        + (modelJudge ? "--judge " + c.judge : "--models live")
+                                        + " calls a model, which costs money: give --max-cost (with --prices) or --max-tokens.");
+                return 1;
+            }
+            if (spends && c.maxCost != null && c.prices == null) {
+                env.err()
+                        .println(
+                                "Error: --max-cost counts money, so it needs --prices (or use --max-tokens).");
                 return 1;
             }
             Path cand = c.candidate.toPath().toAbsolutePath().normalize();
@@ -179,6 +229,22 @@ final class RegressCommand implements Callable<Integer> {
                                 c.baseline == null ? null : c.baseline.toPath(),
                                 c.baselineGit,
                                 temp);
+                io.github.llm4j.budget.PriceTable table =
+                        c.prices == null
+                                ? null
+                                : io.github.llm4j.budget.PriceTable.load(c.prices.toPath());
+                io.github.llm4j.loom.loop.Spent spent =
+                        spends ? new io.github.llm4j.loom.loop.Spent(c.maxTokens, c.maxCost) : null;
+                Regress.Live live =
+                        c.models.equals("live")
+                                ? new Regress.Live(env.models(), table, env.env(), spent)
+                                : null;
+                io.github.llm4j.loom.loop.Judges.Judge textJudge =
+                        judge(c, env, cand, spent, table);
+                Regress.Costing costing = script -> costOf(env, script, c.prices);
+                List<Path> caseDirs = new ArrayList<>();
+                for (File f : c.cases) caseDirs.add(f.toPath());
+                if (caseDirs.isEmpty()) caseDirs.add(cand.getParent().resolve("tests/captured"));
                 r =
                         Regress.run(
                                 new Regress.Request(
@@ -192,7 +258,11 @@ final class RegressCommand implements Callable<Integer> {
                                         c.judge,
                                         prompts,
                                         c.modelEdits,
-                                        c.perRun));
+                                        c.perRun,
+                                        live,
+                                        textJudge,
+                                        costing,
+                                        caseDirs));
             } finally {
                 deleteTree(temp);
             }
@@ -220,6 +290,7 @@ final class RegressCommand implements Callable<Integer> {
             }
             if (c.report != null)
                 Files.writeString(c.report.toPath(), RegressReport.html(r), StandardCharsets.UTF_8);
+            if (r.stoppedByCap()) return 4;
             return failing(c.failOn, r) ? 1 : 0;
         } catch (IllegalArgumentException e) {
             env.err().println("Error: " + e.getMessage());
@@ -230,7 +301,60 @@ final class RegressCommand implements Callable<Integer> {
         }
     }
 
+    private static io.github.llm4j.loom.loop.Judges.Judge judge(
+            RegressCommand c,
+            WeaveEnv env,
+            Path candidate,
+            io.github.llm4j.loom.loop.Spent spent,
+            io.github.llm4j.budget.PriceTable table)
+            throws Exception {
+        if (c.judge.startsWith("rubric:")) {
+            String rubric = Files.readString(Path.of(c.judge.substring(7)), StandardCharsets.UTF_8);
+            String model = judgeModelOf(c);
+            return io.github.llm4j.loom.loop.Judges.rubric(
+                    env.models().createClient(model), model, rubric, spent, table);
+        }
+        if (c.judge.startsWith("classifier:")) {
+            String name = c.judge.substring(11);
+            var script = new io.github.llm4j.loom.execution.LoomLoader().load(candidate.toString());
+            var def = script.findIntentClassifier(name);
+            if (def == null)
+                throw new IllegalArgumentException(
+                        "--judge classifier:"
+                                + name
+                                + ": the candidate has no such intentclassifier.");
+            String model = c.judgeModel != null ? c.judgeModel : def.getModel();
+            return io.github.llm4j.loom.loop.Judges.classifier(
+                    env.models().createClient(model), def, spent, table);
+        }
+        return null;
+    }
+
+    private static String judgeModelOf(RegressCommand c) {
+        if (c.judgeModel == null || c.judgeModel.isBlank())
+            throw new IllegalArgumentException(
+                    "--judge rubric: needs --judge-model, the model that judges.");
+        return c.judgeModel;
+    }
+
+    /** The review's estimate of what a typical run of each workflow costs, in tokens and money. */
+    private static Map<String, Regress.CostFigure> costOf(WeaveEnv env, Path script, File prices)
+            throws Exception {
+        var snapshot = GenerateReview.snapshotter(env, prices).snapshot(script);
+        Map<String, Regress.CostFigure> out = new LinkedHashMap<>();
+        snapshot.cost()
+                .forEach(
+                        (name, t) ->
+                                out.put(
+                                        name,
+                                        new Regress.CostFigure(t.typical(), t.typicalCost())));
+        return out;
+    }
+
     static boolean failing(String failOn, Regress.Report r) {
+        if (!r.approvedFlips().isEmpty() && !failOn.equals("none")) return true;
+        if (failOn.startsWith("cost-up:"))
+            return RegressReport.costUp(r) > Double.parseDouble(failOn.substring(8));
         return switch (failOn) {
             case "flip-unsafe" -> !r.unsafe().isEmpty();
             case "flip-any" -> r.comparisons().stream()

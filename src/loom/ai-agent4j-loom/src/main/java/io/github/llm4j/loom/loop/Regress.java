@@ -35,8 +35,38 @@ public final class Regress {
         CHANGED_ROUTE,
         CHANGED_RESULT,
         NEEDS_MODEL,
-        DID_NOT_FINISH
+        DID_NOT_FINISH,
+        /** Not compared: the spend cap was reached before this run. */
+        NOT_COMPARED
     }
+
+    /** Raised by a judge or a live comparison that finds the cap already spent. */
+    public static final class CapReached extends RuntimeException {
+        public CapReached() {
+            super("the spend cap is reached");
+        }
+    }
+
+    /** Live models for the runs that need one, under a cap shared by the whole regress. */
+    public record Live(
+            io.github.llm4j.loom.execution.LLMClientFactory models,
+            io.github.llm4j.budget.PriceTable prices,
+            java.util.function.Function<String, String> env,
+            Spent spent) {}
+
+    /**
+     * What a workflow costs per run, as an estimate from the script (tokens, and money if priced).
+     */
+    public record CostFigure(long typicalTokens, java.math.BigDecimal typicalCost) {}
+
+    /** The review's cost model, as a function of a script: workflow name to figure. */
+    @FunctionalInterface
+    public interface Costing {
+        Map<String, CostFigure> of(Path script) throws Exception;
+    }
+
+    /** An approved captured case that the candidate no longer passes. */
+    public record ApprovedFlip(String file, String name, List<String> failures) {}
 
     /**
      * @param prompts agent to prompt text or {@code @version}; @param models agent to model id: the
@@ -53,10 +83,46 @@ public final class Regress {
             String judge,
             Map<String, String> prompts,
             Map<String, String> models,
-            long perRunSeconds) {
+            long perRunSeconds,
+            Live live,
+            Judges.Judge textJudge,
+            Costing costing,
+            List<Path> approvedCases) {
         public Request {
             prompts = prompts == null ? Map.of() : prompts;
             models = models == null ? Map.of() : models;
+            approvedCases = approvedCases == null ? List.of() : approvedCases;
+        }
+
+        /** Recorded answers only, nothing judged, no cost figures. */
+        public Request(
+                Path candidate,
+                Baselines baselines,
+                Path store,
+                Instant since,
+                int limit,
+                Sampler.Strategy strategy,
+                long seed,
+                String judge,
+                Map<String, String> prompts,
+                Map<String, String> models,
+                long perRunSeconds) {
+            this(
+                    candidate,
+                    baselines,
+                    store,
+                    since,
+                    limit,
+                    strategy,
+                    seed,
+                    judge,
+                    prompts,
+                    models,
+                    perRunSeconds,
+                    null,
+                    null,
+                    null,
+                    null);
         }
     }
 
@@ -70,7 +136,35 @@ public final class Regress {
             String candidateTakes,
             String detail,
             String before,
-            String after) {
+            String after,
+            boolean live,
+            long tokens,
+            java.math.BigDecimal cost) {
+        public Comparison(
+                String run,
+                String stratum,
+                Verdict verdict,
+                List<String> unsafe,
+                String firstDifference,
+                String candidateTakes,
+                String detail,
+                String before,
+                String after) {
+            this(
+                    run,
+                    stratum,
+                    verdict,
+                    unsafe,
+                    firstDifference,
+                    candidateTakes,
+                    detail,
+                    before,
+                    after,
+                    false,
+                    0,
+                    null);
+        }
+
         public Comparison(
                 String run,
                 String stratum,
@@ -108,7 +202,17 @@ public final class Regress {
             List<Comparison> comparisons,
             List<Excluded> excluded,
             String judge,
-            boolean storeUntouched) {
+            boolean storeUntouched,
+            boolean stoppedByCap,
+            Spent spent,
+            Map<String, CostFigure> costBefore,
+            Map<String, CostFigure> costAfter,
+            List<ApprovedFlip> approvedFlips,
+            int approvedRun) {
+
+        public long liveCompared() {
+            return comparisons.stream().filter(Comparison::live).count();
+        }
 
         public long count(Verdict v) {
             return comparisons.stream().filter(c -> c.verdict() == v).count();
@@ -167,6 +271,20 @@ public final class Regress {
                         run -> Candidates.classify(run).classes().contains("failed"));
         List<Comparison> comparisons = compareAll(r, sample.chosen(), baselineOf);
         boolean untouched = StoreReader.fingerprint(r.store()).equals(before);
+        boolean capped = comparisons.stream().anyMatch(c -> c.verdict() == Verdict.NOT_COMPARED);
+        Map<String, CostFigure> costBefore = Map.of();
+        Map<String, CostFigure> costAfter = Map.of();
+        if (r.costing() != null && !baselineOf.isEmpty()) {
+            try {
+                Path any = baselineOf.values().iterator().next();
+                costBefore = r.costing().of(any);
+                costAfter = r.costing().of(r.candidate());
+            } catch (Exception e) {
+                // no estimate: the report says there is none
+            }
+        }
+        List<ApprovedFlip> flips = new ArrayList<>();
+        int approvedRun = approved(r, flips);
         return new Report(
                 r.candidate().getFileName().toString(),
                 r.baselines().describe(),
@@ -176,7 +294,82 @@ public final class Regress {
                 comparisons,
                 excluded,
                 r.judge(),
-                untouched);
+                untouched,
+                capped,
+                r.live() == null ? null : r.live().spent(),
+                costBefore,
+                costAfter,
+                flips,
+                approvedRun);
+    }
+
+    /**
+     * The approved captured cases, run against the candidate whatever the sample was. A flip on one
+     * is an approved behaviour broken. Returns how many cases ran.
+     */
+    private static int approved(Request r, List<ApprovedFlip> flips) throws Exception {
+        List<Path> files = new ArrayList<>();
+        for (Path p : r.approvedCases()) {
+            if (java.nio.file.Files.isDirectory(p)) {
+                try (var walk = java.nio.file.Files.walk(p)) {
+                    walk.filter(f -> f.toString().endsWith(".test.yaml"))
+                            .sorted()
+                            .forEach(files::add);
+                }
+            } else if (java.nio.file.Files.isRegularFile(p)) files.add(p);
+        }
+        List<Path> approvedFiles = new ArrayList<>();
+        for (Path f : files) {
+            var tf = io.github.llm4j.loom.wtest.TestFile.read(f);
+            if ("approved".equals(tf.capturedStatus())) approvedFiles.add(f);
+        }
+        if (approvedFiles.isEmpty()) return 0;
+        // an approved case is about "the script", wherever its file says it was captured from:
+        // point copies of the files at the candidate and run those
+        Path tmp = java.nio.file.Files.createTempDirectory("weave-regress-cases-");
+        List<Path> pointed = new ArrayList<>();
+        try {
+            for (Path f : approvedFiles) {
+                String text = java.nio.file.Files.readString(f);
+                String at = "script: " + r.candidate().toAbsolutePath().normalize();
+                String out =
+                        text.contains("\nscript:")
+                                ? text.replaceFirst(
+                                        "(?m)^script:.*$",
+                                        java.util.regex.Matcher.quoteReplacement(at))
+                                : text + "\n" + at + "\n";
+                Path copy = tmp.resolve(f.getFileName());
+                java.nio.file.Files.writeString(copy, out);
+                pointed.add(copy);
+            }
+            return runApproved(r, pointed, approvedFiles, flips);
+        } finally {
+            try (var walk = java.nio.file.Files.walk(tmp)) {
+                walk.sorted(java.util.Comparator.reverseOrder()).forEach(x -> x.toFile().delete());
+            }
+        }
+    }
+
+    private static int runApproved(
+            Request r, List<Path> approvedFiles, List<Path> named, List<ApprovedFlip> flips)
+            throws Exception {
+        var suite = io.github.llm4j.loom.wtest.TestRunner.load(r.candidate(), approvedFiles);
+        if (!suite.problems().isEmpty()) {
+            for (Path f : approvedFiles)
+                flips.add(
+                        new ApprovedFlip(
+                                f.getFileName().toString(), "(the file)", suite.problems()));
+            return approvedFiles.size();
+        }
+        var results = io.github.llm4j.loom.wtest.TestRunner.run(suite, null, false, false);
+        for (var res : results)
+            if (!res.passed())
+                flips.add(
+                        new ApprovedFlip(
+                                java.nio.file.Path.of(res.file()).getFileName().toString(),
+                                res.name(),
+                                res.failures()));
+        return results.size();
     }
 
     private static Set<String> candidateWorkflows(Path candidate) throws Exception {
@@ -219,6 +412,41 @@ public final class Regress {
                             return th;
                         });
         try {
+            if (r.live() != null) {
+                // live comparisons spend money: one at a time, and none after the cap is reached
+                List<Comparison> out = new ArrayList<>();
+                for (RunRecord run : chosen) {
+                    if (r.live().spent().exhausted()) {
+                        out.add(
+                                new Comparison(
+                                        run.id(),
+                                        stratum(run),
+                                        Verdict.NOT_COMPARED,
+                                        List.of(),
+                                        null,
+                                        null,
+                                        "the spend cap was reached before this run"));
+                        continue;
+                    }
+                    Future<Comparison> f =
+                            pool.submit(() -> compare(r, run, baselineOf.get(run.id())));
+                    try {
+                        out.add(f.get(r.perRunSeconds() * 4, TimeUnit.SECONDS));
+                    } catch (TimeoutException e) {
+                        f.cancel(true);
+                        out.add(
+                                new Comparison(
+                                        run.id(),
+                                        stratum(run),
+                                        Verdict.DID_NOT_FINISH,
+                                        List.of("the candidate did not finish this run"),
+                                        null,
+                                        null,
+                                        "stopped after " + r.perRunSeconds() * 4 + " s"));
+                    }
+                }
+                return out;
+            }
             List<Future<Comparison>> futures = new ArrayList<>();
             for (RunRecord run : chosen) {
                 Callable<Comparison> job = () -> compare(r, run, baselineOf.get(run.id()));
@@ -274,13 +502,32 @@ public final class Regress {
                                     run.asJournal(),
                                     new Why.Selector(first, null, null),
                                     people,
-                                    "recorded",
+                                    r.live() == null ? "recorded" : "live",
                                     null,
                                     Set.of(),
                                     r.candidate(),
                                     r.prompts(),
                                     r.models(),
-                                    null));
+                                    liveOf(r)));
+            boolean liveCalls = o.candidate().calls() > 0;
+            if (r.live() != null)
+                r.live()
+                        .spent()
+                        .add(o.candidate().tokens(), o.candidate().calls(), o.candidate().cost());
+            if (o.candidate().status().equals("budget"))
+                return new Comparison(
+                        run.id(),
+                        stratum,
+                        Verdict.NOT_COMPARED,
+                        List.of(),
+                        null,
+                        null,
+                        "the spend cap was reached during this run: " + o.candidate().reason(),
+                        null,
+                        null,
+                        true,
+                        o.candidate().tokens(),
+                        o.candidate().cost());
             List<String> unsafe = new ArrayList<>(unsafeReasons(o));
             Function<String, String> was = labels(baseline).andThen(Regress::shape);
             Function<String, String> now = labels(r.candidate()).andThen(Regress::shape);
@@ -315,7 +562,19 @@ public final class Regress {
             List<String> onlyNow = minus(routeNow, routeWas);
             unsafe.addAll(humanRemoved(onlyWas, onlyNow));
             boolean routeChanged = !routeWas.equals(routeNow);
-            boolean resultChanged = resultChanged(o, r.judge());
+            boolean resultChanged;
+            try {
+                resultChanged = resultChanged(o, r.judge(), r.textJudge());
+            } catch (CapReached cap) {
+                return new Comparison(
+                        run.id(),
+                        stratum,
+                        Verdict.NOT_COMPARED,
+                        unsafe,
+                        firstDifference(routeWas, routeNow),
+                        null,
+                        "the spend cap was reached before this run's answers could be judged");
+            }
             Verdict v =
                     routeChanged
                             ? Verdict.CHANGED_ROUTE
@@ -331,7 +590,10 @@ public final class Regress {
                     takes,
                     "",
                     o.originalResult() == null ? null : String.valueOf(o.originalResult()),
-                    o.candidateResult() == null ? null : String.valueOf(o.candidateResult()));
+                    o.candidateResult() == null ? null : String.valueOf(o.candidateResult()),
+                    liveCalls,
+                    o.candidate().tokens(),
+                    o.candidate().cost());
         } catch (Exception e) {
             return new Comparison(
                     run.id(),
@@ -426,13 +688,28 @@ public final class Regress {
         return label.startsWith("ask a person") || label.startsWith("human_prompt");
     }
 
-    private static boolean resultChanged(WhatIf.Outcome o, String judge) {
+    private static boolean resultChanged(WhatIf.Outcome o, String judge, Judges.Judge textJudge)
+            throws Exception {
         Object a = o.originalResult();
         Object b = o.candidateResult();
         if (Objects.equals(a, b)) return false;
         boolean typed = a instanceof Map || b instanceof Map || looksTyped(a) || looksTyped(b);
         if (typed) return true;
+        if (textJudge != null && a != null && b != null)
+            return textJudge.differs(String.valueOf(a), String.valueOf(b));
         return judge.equals("exact") || judge.equals("label");
+    }
+
+    /** Live models for one run, under what is left of the shared cap. */
+    private static ObserveReplay.Live liveOf(Request r) {
+        if (r.live() == null) return null;
+        Spent sp = r.live().spent();
+        return new ObserveReplay.Live(
+                r.live().models(),
+                sp.remainingTokens(),
+                sp.remainingCost(),
+                r.live().prices(),
+                r.live().env());
     }
 
     private static boolean looksTyped(Object o) {
