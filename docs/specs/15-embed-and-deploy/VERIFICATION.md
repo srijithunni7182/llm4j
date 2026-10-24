@@ -1,6 +1,6 @@
 # Phase 15 verification plan: embed and deploy
 
-Status: **15a to 15c done** (bindgen; Maven plugin; Spring); typed parameters deferred (D15); 15d, 15e not started. Run top to bottom at the end of sub-phase 15e; the relevant rows after each sub-phase. Results in §7.
+Status: **15a to 15d done** (bindgen; Maven plugin; Spring; deploy docker and compose, and the k8s renderer); typed parameters deferred (D15); 15e (skill, docs, k8s checks) not started. Run top to bottom at the end of sub-phase 15e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -32,7 +32,7 @@ Status: **15a to 15c done** (bindgen; Maven plugin; Spring); typed parameters de
 | R5 | `FacadeRunsTest`, `InputSerialisationTest` | ✅ 15a |
 | R6 | `FacadeSuspendResumeTest`, `FacadeFailureTest` | ✅ 15a |
 | R7 | `FacadeVariablesEscapeHatchTest` | ✅ 15a |
-| R8 | `BindgenCommandTest.aScriptThatDoesNotCheckWritesNothing`; `BindDeployDependencyTest` with 15d | 🟦 15a/15d |
+| R8 | `BindgenCommandTest.aScriptThatDoesNotCheckWritesNothing`, `DeployTest.thePackagesAreIndependent...` | ✅ 15a/15d |
 | R9 | `BindgenIndeterminateShapeTest` | ✅ 15a |
 | R10 | `BindgenDriftTest` | ✅ 15a |
 | R11 | `BindgenMojoTest` (the goal run directly; a full Maven invoker run is manual check 1) | ✅ 15b |
@@ -46,18 +46,18 @@ Status: **15a to 15c done** (bindgen; Maven plugin; Spring); typed parameters de
 | R19 | `LoomWorkflowsTest.workflowRunsLooksAtRuns...` | ✅ 15c |
 | R20 | `LoomWorkflowsTest` (`@LoomTest` runs a workflow with no model and no key) | ✅ 15c |
 | R21 | `LoomWorkflowsTest.anApplicationWithoutTheAnnotationsSeesNothingNew`, the starter's existing 146 tests | ✅ 15c |
-| R22 | `DeployPlanTest`, `EgressFromScriptTest` | ⬜ 15d |
-| R23 | `NoSecretsInDeployFilesTest` | ⬜ 15d |
-| R24 | `DeployReproducibleTest` | ⬜ 15d |
-| R25 | `DeployPreflightTest`, `TrifectaAcceptanceCarriedTest` | ⬜ 15d |
-| R26 | `UnsafeBindRefusedTest`, `SafetyPropertiesTest` | ⬜ 15d |
-| R27 | `ObserveFabricWiredTest` | ⬜ 15d |
-| R28 | `DeployStateVolumesTest` | ⬜ 15d |
-| R29 | `DeployNoOverwriteTest` | ⬜ 15d |
-| R30 | `DeployVerifyTest` | ⬜ 15d |
+| R22 | `DeployTest.thePlanIsReadFromTheScript`, `...aLocalModelNeedsNoKeyAndNoFixedHost` | ✅ 15d |
+| R23 | `DeployTest.noSecretShapedValue...` (all three targets) | ✅ 15d |
+| R24 | `DeployTest.theSameInputGivesTheSameBytes...` | ✅ 15d |
+| R25 | `DeployCommandTest.openFindingsAreAWarning...`, `...requireCleanIsTheOptInGate` (an accepted finding is listed in the README from the review's own report; there is no language statement to accept a trifecta yet: D9) | ✅ 15d |
+| R26 | `DeployTest.exposingFabricBeyondLoopbackIsRefused`, `...composeHasTheSafetyProperties...`, `...kubernetesManifests...`; `DeployCommandTest.anUnsafeFabricBind...` | ✅ 15d |
+| R27 | `DeployTest.theEntrypointRunsTheDaemon...`, `...composeHasTheSafetyProperties...` (healthcheck, depends_on) | ✅ 15d |
+| R28 | `DeployTest.stateGoesOnAVolumeUnlessToldOtherwise`, the README test | ✅ 15d |
+| R29 | `DeployCommandTest.aHandEditedFileIsKeptUntilForced`, `DeployTest.anEditedFileIsRecognised...` | ✅ 15d |
+| R30 | `DeployCommandTest.verifyPassesThenFlagsStaleMissingAndALostName` | ✅ 15d |
 | R31 | `SkillDriftTest` | ⬜ 15e |
-| R32 | `BindDeployDependencyTest` | ⬜ 15a/15d |
-| R33 | `BindDeployDependencyTest` | ⬜ 15d |
+| R32 | `DeployTest.thePackagesAreIndependent...` | ✅ 15d |
+| R33 | `DeployTest.thePackagesAreIndependent...` (renders text; `docker compose config` and `kubectl --dry-run` are manual checks) | ✅ 15d |
 
 ## 3. Quality gates
 
@@ -106,3 +106,9 @@ Wiki "Typed workflows in Java" and "Deploying a workflow"; `SPRING_BOOT_LOOM_GUI
 - Built (starter): `@LoomWorkflows` (an interface whose methods are the script's workflows, found by scanning the application's packages; a method returns `RunOutcome` and takes one `String` per parameter), `@EnableLoomWorkflows(Facade.class)` (registers bindgen facades built with their `of(LoomHost)`), `LoomWorkflowFactory` (eager, so a mismatch stops the start naming the method and the nearest workflow), `WorkflowRuns` (`answer`, `resume`, `status`, `runs`), and `@LoomTest` with `ScriptedLoomModels` (agents answer what the test scripted, in order; any model key exists and is worthless).
 - Tests: `LoomWorkflowsTest` 6; the starter's 146 tests pass (one existing test, `ZeroMagicTest`, lists the starter's beans that are inert without a Loom script; the two new inert ones were added to it).
 - Deviations: the plan puts `script = "classpath:..."` on the annotation; the script stays `llm4j.loom.script` (one host per application, one place to set it). `@LoomTest` scripts agents only; classifiers and tools are tested with `weave test`. Typed `Outcome<T>` results come from the generated facade, not from the proxy form.
+
+### 15d (2026-10-24)
+
+- Built (`deploy/`, `weave deploy`): `DeployPlan` (env names from the models' vendors and from `env.` options of tools; hosts of the providers; schedules; whether a person is asked), renderers for a Dockerfile (non-root uid 10001, `weave.jar` copied in, healthcheck that re-checks the script, tag or digest said), `entrypoint.sh` (the daemon when the script has schedules, else `weave run`; reports to Fabric when `LOOM_FABRIC_URL` is set; reads `/run/secrets/*`), `.dockerignore`, `.env.example` (names only), `compose.yaml` (read-only root, all capabilities dropped, no-new-privileges, Fabric on an `internal: true` network and published on loopback, `depends_on` its healthcheck, a volume for journals), Kubernetes manifests (service account without a token, config map, **empty** secret template, PVC, Deployment and Fabric with non-root, read-only root filesystem, dropped capabilities, seccomp runtime default, a NetworkPolicy), and a README (needs, review state, failure cases). Each file carries a stamp (script hash and a hash of its body), so a hand edit is detected. `weave deploy SCRIPT --target docker|compose|k8s [--out] [--name] [--base-image] [--with-fabric] [--fabric-image] [--journal] [--expose] [--schedule] [--fabric-publish] [--require-clean] [--dry-run] [--force] [--verify DIR]`.
+- Tests: `DeployTest` 15, `DeployCommandTest` 9 (including the review warning on a script with a real high finding: exit 0, and `--require-clean`: exit 1 with nothing written).
+- Deviations, to confirm (D15): the image is built from the project folder plus a `deploy/weave.jar` you copy in (deploy does not know how weave was installed, and does not run `weave package`); the Kubernetes NetworkPolicy cannot name hosts, so it allows port 443 outside the private ranges only when the script uses a hosted model and lists the hosts in an annotation for an egress proxy or a policy engine that can name them; the Fabric image defaults to `loom-fabric:6.0.0` (a tag you build or mirror; no image is published by this project that deploy could rely on).
