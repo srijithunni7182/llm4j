@@ -267,6 +267,21 @@ public class Llm4jLoomAutoConfiguration {
         return new LoomRuntime(host, runner);
     }
 
+    /** Beans for the interfaces annotated {@link LoomWorkflows} in the application's packages. */
+    @Bean
+    @ConditionalOnProperty(prefix = "llm4j.loom", name = "script")
+    static LoomWorkflowScanner llm4jLoomWorkflowScanner() {
+        return new LoomWorkflowScanner();
+    }
+
+    /** What an application does with runs after they start: answer, resume, look. */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "llm4j.loom", name = "script")
+    public WorkflowRuns workflowRuns(LoomRuntime runtime) {
+        return new WorkflowRuns(runtime);
+    }
+
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "llm4j.loom", name = "script")

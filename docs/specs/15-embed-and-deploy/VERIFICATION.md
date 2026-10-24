@@ -1,6 +1,6 @@
 # Phase 15 verification plan: embed and deploy
 
-Status: **15a, 15b done** (bindgen; Maven plugin; typed parameters deferred, D15); 15c to 15e not started. Run top to bottom at the end of sub-phase 15e; the relevant rows after each sub-phase. Results in §7.
+Status: **15a to 15c done** (bindgen; Maven plugin; Spring); typed parameters deferred (D15); 15d, 15e not started. Run top to bottom at the end of sub-phase 15e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -41,11 +41,11 @@ Status: **15a, 15b done** (bindgen; Maven plugin; typed parameters deferred, D15
 | R14 | `ParamsValidationTest`, `CallSiteTypesTest` | ⏸ deferred (D15) |
 | R15 | `ParamDefaultsTest` | ⏸ deferred (D15) |
 | R16 | decision recorded: typed parameters are **not** shipped in this phase (D15) | ✅ 15b |
-| R17 | `LoomWorkflowsBeanTest` | ⬜ 15c |
-| R18 | `StartupMismatchFailsFastTest` | ⬜ 15c |
-| R19 | `WorkflowRunsTest` | ⬜ 15c |
-| R20 | `LoomTestSliceTest` | ⬜ 15c |
-| R21 | `NoAnnotationNoChangeTest` | ⬜ 15c |
+| R17 | `LoomWorkflowsTest` (scanned interface runs its workflow; a facade is built with `of`) | ✅ 15c |
+| R18 | `LoomWorkflowsTest` (no matching workflow, wrong parameters, wrong return type each stop the start) | ✅ 15c |
+| R19 | `LoomWorkflowsTest.workflowRunsLooksAtRuns...` | ✅ 15c |
+| R20 | `LoomWorkflowsTest` (`@LoomTest` runs a workflow with no model and no key) | ✅ 15c |
+| R21 | `LoomWorkflowsTest.anApplicationWithoutTheAnnotationsSeesNothingNew`, the starter's existing 146 tests | ✅ 15c |
 | R22 | `DeployPlanTest`, `EgressFromScriptTest` | ⬜ 15d |
 | R23 | `NoSecretsInDeployFilesTest` | ⬜ 15d |
 | R24 | `DeployReproducibleTest` | ⬜ 15d |
@@ -100,3 +100,9 @@ Wiki "Typed workflows in Java" and "Deploying a workflow"; `SPRING_BOOT_LOOM_GUI
 - Built: a new module `loom-maven-plugin` (`io.github.srijithunni7182:loom-maven-plugin`, prefix `loom`): goal `loom:bindgen`, bound to `generate-sources`; `<scripts><script><file/><pkg/><facade/></script></scripts>`, `outputDirectory` (default `target/generated-sources/loom`, added as a source root), `nullability`, `failOnDrift` (writes nothing; fails the build naming the stale files when the checked-in bindings differ from the scripts).
 - Tests: `BindgenMojoTest` 3 (writes and adds the source root; drift fails and leaves the files alone; missing script, bad option, no scripts).
 - Typed workflow parameters (`workflow Main(message: string, priority: number = 3)`) are **not** built: a grammar change touches the parser, the validator, every tool that reads parameters, and the editor, and the bindings work without it (parameters are text, as the runtime's inputs are). D15 asks.
+
+### 15c (2026-10-24)
+
+- Built (starter): `@LoomWorkflows` (an interface whose methods are the script's workflows, found by scanning the application's packages; a method returns `RunOutcome` and takes one `String` per parameter), `@EnableLoomWorkflows(Facade.class)` (registers bindgen facades built with their `of(LoomHost)`), `LoomWorkflowFactory` (eager, so a mismatch stops the start naming the method and the nearest workflow), `WorkflowRuns` (`answer`, `resume`, `status`, `runs`), and `@LoomTest` with `ScriptedLoomModels` (agents answer what the test scripted, in order; any model key exists and is worthless).
+- Tests: `LoomWorkflowsTest` 6; the starter's 146 tests pass (one existing test, `ZeroMagicTest`, lists the starter's beans that are inert without a Loom script; the two new inert ones were added to it).
+- Deviations: the plan puts `script = "classpath:..."` on the annotation; the script stays `llm4j.loom.script` (one host per application, one place to set it). `@LoomTest` scripts agents only; classifiers and tools are tested with `weave test`. Typed `Outcome<T>` results come from the generated facade, not from the proxy form.

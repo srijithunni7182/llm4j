@@ -23,6 +23,11 @@ public final class Bindgen {
 
     public static final String VERSION = "1";
 
+    /** The Java method name bindings give a workflow, so other readers of a script agree. */
+    public static String methodName(String workflow) {
+        return Naming.member(workflow);
+    }
+
     public enum Nullability {
         NONE,
         JSPECIFY,
