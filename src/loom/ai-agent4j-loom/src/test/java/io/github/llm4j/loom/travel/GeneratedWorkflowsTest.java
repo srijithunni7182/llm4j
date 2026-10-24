@@ -23,24 +23,24 @@ import org.junit.jupiter.api.io.TempDir;
  * A failing seed is printed with its script. 500 seeds on every build; {@code -Dloom.seeds=10000}
  * for the nightly run.
  */
-class GeneratedWorkflowsTest {
+public class GeneratedWorkflowsTest {
 
     @TempDir Path dir;
 
     private static final String[] ANSWERS = {"a", "b", "c"};
 
     /** A workflow made from a seed: bounded depth and size, conditions over earlier results. */
-    static final class Generator {
+    public static final class Generator {
         private final Random random;
         private int variables;
         private final List<String> bound = new ArrayList<>();
         private int statements;
 
-        Generator(long seed) {
+        public Generator(long seed) {
             this.random = new Random(seed);
         }
 
-        String script() {
+        public String script() {
             StringBuilder body = new StringBuilder();
             block(body, 1, 2 + random.nextInt(4));
             return "agent A { model: \"m\" system: \"x\" }\n"
@@ -137,7 +137,7 @@ class GeneratedWorkflowsTest {
             }
         }
 
-        LoomTest answers(LoomTest t) {
+        public LoomTest answers(LoomTest t) {
             for (String agent : List.of("A", "B")) {
                 String[] stream = new String[12];
                 for (int i = 0; i < stream.length; i++) stream[i] = ANSWERS[random.nextInt(3)];

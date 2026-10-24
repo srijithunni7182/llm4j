@@ -2050,6 +2050,15 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     private volatile java.util.function.Consumer<String> stepListener;
+    private volatile java.util.function.BiConsumer<String, Statement> statementListener;
+
+    /**
+     * Told each statement with its step id as it is about to run (null for none, the default); a
+     * replay uses it to know what kind of step each journal entry belongs to.
+     */
+    public void setStatementListener(java.util.function.BiConsumer<String, Statement> listener) {
+        this.statementListener = listener;
+    }
 
     /**
      * Told the id of every statement as it is about to run (null for none, the default). It adds
@@ -2098,6 +2107,8 @@ public class HarnessExecutor implements LoomEngine {
                             step.get()); // an observer may have paused, suspended or stopped
                     // the run
                     if (stepListener != null) stepListener.accept(step.get());
+                    if (statementListener != null)
+                        statementListener.accept(step.get(), statements.get(i));
                     executeStatement(statements.get(i));
                     if (stopAt != null) stopPoint(step.get());
                 } catch (Rewinder.RewindSignal signal) {

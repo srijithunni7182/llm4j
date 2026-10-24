@@ -1605,6 +1605,7 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new StepCommand())
                 .addSubcommand(new DapCommand())
                 .addSubcommand(new GenerateCommand())
+                .addSubcommand(new CaptureCommand())
                 .addSubcommand(new AutonomyCommands())
                 .addSubcommand(new LadderCliCommand())
                 .addSubcommand(new ReplayCommand())

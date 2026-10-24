@@ -360,4 +360,35 @@ class TestCommandTest {
                 .contains("changed: [main.test.yaml] - running the cases of those test files")
                 .contains("2 passed, 0 failed");
     }
+
+    private static final String CAPTURED =
+            """
+            captured:
+              from: run r9
+              status: observed
+            script: ../main.loom
+            workflow: Main
+            cases:
+              - name: captured r9
+                tags: [captured]
+                input: { message: "money back" }
+                models:
+                  Intent: { kind: refund, urgent: "yes" }
+                  Escalator: "A refund request."
+                expect:
+                  result: "A refund request."
+            """;
+
+    @Test
+    void aCapturedCaseRunsLikeAnyOtherAndTheSummarySaysHowManyWaitForApproval() throws Exception {
+        assertThat(run(CAPTURED)).isZero();
+        assertThat(out.toString()).contains("1 captured case waits for a person to approve it");
+    }
+
+    @Test
+    void requireApprovedFailsWhileACapturedCaseIsStillObserved() throws Exception {
+        assertThat(run(CAPTURED, "--require-approved")).isEqualTo(1);
+        assertThat(err.toString()).contains("still observed");
+        assertThat(run(CAPTURED.replace("observed", "approved"), "--require-approved")).isZero();
+    }
 }

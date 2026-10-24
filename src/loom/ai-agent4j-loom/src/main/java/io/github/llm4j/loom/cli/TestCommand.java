@@ -62,6 +62,12 @@ final class TestCommand implements Callable<Integer> {
     @Option(names = "--check", description = "Validate the test files only; run nothing.")
     boolean check;
 
+    @Option(
+            names = "--require-approved",
+            description =
+                    "Fail when a captured case is still 'observed' (for CI: nothing unreviewed is merged).")
+    boolean requireApproved;
+
     @Option(names = "--steps", description = "List the steps a test can name, then exit.")
     boolean steps;
 
@@ -232,7 +238,31 @@ final class TestCommand implements Callable<Integer> {
                 if (c.coverage) env.out().print(Reports.uncovered(cov));
             }
         }
+        java.util.Map<String, Integer> trust =
+                io.github.llm4j.loom.loop.Approval.counts(use.files());
+        int waiting = trust.get("observed");
+        if (waiting > 0 && c.format.equals("text"))
+            env.out()
+                    .println(
+                            waiting
+                                    + " captured case"
+                                    + (waiting == 1 ? " waits" : "s wait")
+                                    + " for a person to approve "
+                                    + (waiting == 1 ? "it" : "them")
+                                    + " (weave capture --approve <file>); only approved cases fail a gate.");
         if (run.failed() > 0) return 1;
+        if (c.requireApproved && waiting > 0) {
+            env.err()
+                    .println(
+                            "Error: "
+                                    + waiting
+                                    + " captured case"
+                                    + (waiting == 1 ? " is" : "s are")
+                                    + " still observed; approve or retire "
+                                    + (waiting == 1 ? "it" : "them")
+                                    + " (--require-approved).");
+            return 1;
+        }
         if (c.minCoverage != null && cov.percent() < c.minCoverage) {
             env.err()
                     .println(

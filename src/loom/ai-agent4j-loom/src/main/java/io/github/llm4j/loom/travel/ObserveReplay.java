@@ -140,6 +140,7 @@ public final class ObserveReplay {
      *     recorded (the original is untouched)
      * @param calls the model calls a live replay made (0 for an observing one)
      * @param tokens the tokens those calls used
+     * @param statements the statement each step id belongs to, for the steps that started
      */
     /** A step starting ({@code decision} null), or a choice made inside one. */
     public record Event(String step, DecisionPoint decision) {}
@@ -156,7 +157,8 @@ public final class ObserveReplay {
             Divergence divergence,
             Map<String, RunJournal.Entry> journal,
             long calls,
-            long tokens) {}
+            long tokens,
+            Map<String, io.github.llm4j.loom.ast.Statement> statements) {}
 
     public static Result run(Options options, RunJournal original) throws java.io.IOException {
         return run(options, original, Hooks.none());
@@ -222,6 +224,8 @@ public final class ObserveReplay {
                         live ? hooks.live().models() : ObservedCollaborators.models(failing));
         if (!live) executor.setClassifierFactory(ObservedCollaborators.classifiers(failing));
         long[] spent = {0, 0};
+        Map<String, io.github.llm4j.loom.ast.Statement> statements = new LinkedHashMap<>();
+        executor.setStatementListener(statements::put);
         if (live) {
             executor.setSimulate(true);
             executor.setBudgetOverrides(hooks.live().maxTokens(), null, hooks.live().maxCost());
@@ -377,7 +381,8 @@ public final class ObserveReplay {
                 divergence,
                 new LinkedHashMap<>(copy.all()),
                 spent[0],
-                spent[1]);
+                spent[1],
+                statements);
     }
 
     private static final java.util.regex.Pattern BRANCH =

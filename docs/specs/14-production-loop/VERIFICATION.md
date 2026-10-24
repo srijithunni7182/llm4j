@@ -1,6 +1,6 @@
 # Phase 14 verification plan: the production loop
 
-Status: **not started**. Run top to bottom at the end of sub-phase 14e; the relevant rows after each sub-phase. Results in §7.
+Status: **14a done** (capture, masking, consent, policy, approval); 14b to 14e not started. Run top to bottom at the end of sub-phase 14e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -25,23 +25,23 @@ Status: **not started**. Run top to bottom at the end of sub-phase 14e; the rele
 
 | Req | Tests | Status |
 |---|---|---|
-| R1 | `CaptureCaseValidTest`, `CapturePassesTest` (property over corpus) | ⬜ 14a |
-| R2 | `CaptureContentsTest` | ⬜ 14a |
-| R3 | `ApprovalStatesTest` | ⬜ 14a |
-| R4 | `CaptureExpectNoneTest` | ⬜ 14a |
+| R1 | `CaptureTest.aRunBecomesAValidCaseThatPassesAgainstTheScriptThatRanIt`, `CapturePassesTest` (150 generated workflows: capture, then run the case: it passes) | ✅ 14a |
+| R2 | `CaptureTest.whatTheCollaboratorsSaidIsWhatTheCaseScriptsAndNothingIsInvented` (answers, classifier labels and confidence, people; failures as `fail:`; tasks; calls made inside an agent are not journaled, so tools are not scripted) | ✅ 14a |
+| R3 | `LoopStateTest.aCaseIsObservedUntilAPersonApprovesItAndTheRecordSaysWhoAndWhen`, `CaptureCommandTest.approvingAndRetiring...` | ✅ 14a |
+| R4 | `CaptureTest.expectNoneLeavesOnlyHowTheRunEnded` | ✅ 14a |
 | R5 | `CaptureAsGoldenTest` | ⬜ 14d |
-| R6 | `MaskerTest`, `MaskingNoRawOnDiskTest` | ⬜ 14a |
-| R7 | `MaskingKeepsRouteTest` | ⬜ 14a |
-| R8 | `SecretsNeverCapturedTest`, `SecretShapesTest` | ⬜ 14a |
-| R9 | `CaptureInjectionTagTest` | ⬜ 14a |
-| R10 | `CaptureIdempotentTest`, `CaptureNoOverwriteTest` | ⬜ 14a |
-| R11 | `CaptureSuspendedTest` | ⬜ 14a |
-| R12 | `ConsentTest`, `CapturePolicyTest` | ⬜ 14a |
-| R13 | `CandidatesTest` | ⬜ 14a |
-| R14 | `CaptureBatchSelectTest` | ⬜ 14a |
-| R15 | `ApproveFailingRefusedTest` | ⬜ 14a |
-| R16 | `GateCountsApprovedOnlyTest` | ⬜ 14d |
-| R17 | `RequireApprovedTest` | ⬜ 14d |
+| R6 | `MaskerTest`, `CaptureTest.personalDataAndSecretsNeverReachTheFileAndTheCaseStillPasses`, `CaptureCommandTest.noSeededValueReachesAFileTheOutputOrTheErrorStream` | ✅ 14a |
+| R7 | `CaptureTest.maskingThatWouldChangeTheRouteFailsNamingTheField` | ✅ 14a |
+| R8 | `MaskerTest.secretsAreReplacedWhateverTheShape...` (ten shapes), the hostile run in `CaptureCommandTest` | ✅ 14a |
+| R9 | `CaptureInjectionTagTest` | 🟦 14e (the flag comes from Fabric; a journal does not carry it) |
+| R10 | `CaptureTest.capturingTheSameRunAgainChangesNothingAndAHandEditedFileIsNeverOverwritten` | ✅ 14a |
+| R11 | `CaptureTest.aRunThatWaitedForAPersonIsCapturedUpToWhereItStopped` | ✅ 14a |
+| R12 | `LoopStateTest.consentIsAskedOnceAndRecordedWhereTheRepositoryKeepsIt`, `...aPolicyRestrictsWorkflowsFieldsAndAge`, `CaptureCommandTest.firstUseNeedsTheAgreementAndItIsRecordedOnce` | ✅ 14a |
+| R13 | `LoopStateTest.failedDivertedUnsure...`, `CaptureCommandTest.aSelectionCapturesEachRunOfTheClassAsItsOwnCase` (`--list`) | ✅ 14a (slow and costly cannot be picked: the journal keeps neither; said, and D11 asks) |
+| R14 | `CaptureCommandTest.aSelectionCapturesEachRunOfTheClassAsItsOwnCase` (`--select`, `--limit`) | ✅ 14a |
+| R15 | `LoopStateTest.aCaseThatNoLongerPassesCannotBeApprovedUnlessItsExpectationIsAmendedInTheSameStep` | ✅ 14a |
+| R16 | `TestCommandTest.aCapturedCaseRunsLikeAnyOtherAndTheSummary...` (the count); only approved cases fail a gate: `GateCountsApprovedOnlyTest` | 🟨 14a (count) / 14d (gate) |
+| R17 | `TestCommandTest.requireApprovedFailsWhileACapturedCaseIsStillObserved` | ✅ 14a |
 | R18 | `UnsafeFlipTest` | ⬜ 14b |
 | R19 | `NeedsModelCountedTest`, `RecordedVsLiveSeparatedTest` | ⬜ 14b/14c |
 | R20 | `SamplerTest`, `StratifiedAllocationTest`, `ReportWordingTest` | ⬜ 14b |
@@ -65,8 +65,8 @@ Status: **not started**. Run top to bottom at the end of sub-phase 14e; the rele
 | R38 | `FabricCaptureNoRepoWriteTest` | ⬜ 14e |
 | R39 | `FabricCapturePermissionTest`, `FabricCaptureAuditTest` | ⬜ 14e |
 | R40 | `fabric-capture.page.test.js` (incident ↔ test link) | ⬜ 14e |
-| R41 | `StoreReaderTest`, `StoreReaderConcurrentWriteTest` | ⬜ 14a |
-| R42 | `LoopDependencyDirectionTest` | ⬜ 14a |
+| R41 | `LoopStateTest.theStoreIsReadWholeAndLeftExactlyAsItWas`, `...aStoreBeingWrittenWhileItIsReadStillGivesWholeRuns` | ✅ 14a |
+| R42 | `LoopStateTest.theLoopPackageIsUsedByNothingBelowIt` | ✅ 14a |
 
 ## 3. Quality gates
 
@@ -98,3 +98,11 @@ Wiki "From an incident to a regression test" and "Checking a change against real
 ## 7. Results
 
 *(per sub-phase: capture round-trip pass rate over the corpus, masking test inventory, regress timings, sample/strata tables, gate demo)*
+
+### 14a (2026-10-24)
+
+- Built (`loop/`): `Masker` (personal data of the stack's detector plus a phone pattern with spaces, secrets of many shapes via `SecretShapes.scrub`, literal terms; same-shape stand-ins, stable within a case), `StoreReader` and `RunRecord` (read-only, whole-file reads, a store fingerprint), `Capture` (replay without a model, scripted collaborators from the journal, the case built and masked in memory and run through `wtest.CaseProbe` before anything is written; refuses when the script changed since the run, when masking changes the route (naming the field), or when the case does not reproduce the run), `Consent`, `Policy`, `Approval`, `Candidates`; `weave capture` (`--list`, `--select`, `--dry-run`, `--approve`, `--retire`, `--amend`, `--mask-term`, `--mask-keep`, `--expect`, `--note`, `--tag`, `--name`, `--to`, `--yes`); `weave test` counts the cases that wait for a person and `--require-approved` fails while any does. Test files may carry a `captured:` block.
+- Found building it: the hostile seed caught three real gaps in the first masker: a Google key one character longer than the review rule's pattern, a password containing `&`, and a phone number with a space after the area code (its area code survived). `ObserveReplay.Result` now says which statement each step id is (`statements`), which is how a journal entry becomes the answer of one agent.
+- Tests: Java module +37 (`MaskerTest` 6, `CaptureTest` 8, `LoopStateTest` 10, `CapturePassesTest` 1 over 150 generated workflows, `CaptureCommandTest` 7, `TestCommandTest` +2).
+- Not in 14a: injection tagging (R9, with Fabric in 14e), picking slow or costly runs (the journal does not keep time or cost: D11 asks), parallel or broadcast steps (a case cannot be taken from such a run yet: refused, said), calls an agent made to its tools (not journaled; the scripted agent does not call them), `--as golden` (14d).
+

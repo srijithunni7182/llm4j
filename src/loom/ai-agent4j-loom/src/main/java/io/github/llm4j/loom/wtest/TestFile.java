@@ -53,9 +53,16 @@ public final class TestFile {
     private final String workflow;
     private final List<Case> cases;
     private final List<String> problems;
+    private final JsonNode captured;
 
     private TestFile(
-            Path path, String script, String workflow, List<Case> cases, List<String> problems) {
+            Path path,
+            String script,
+            String workflow,
+            List<Case> cases,
+            List<String> problems,
+            JsonNode captured) {
+        this.captured = captured;
         this.path = path;
         this.script = script;
         this.workflow = workflow;
@@ -65,6 +72,21 @@ public final class TestFile {
 
     public Path path() {
         return path;
+    }
+
+    /**
+     * The {@code captured:} block of a case taken from a run (where it came from, whether a person
+     * has approved it), or null for a hand-written file.
+     */
+    public JsonNode captured() {
+        return captured;
+    }
+
+    /** The state of a captured file: observed, approved or retired; null when not captured. */
+    public String capturedStatus() {
+        return captured != null && captured.hasNonNull("status")
+                ? captured.get("status").asText()
+                : null;
     }
 
     /** The {@code script:} of the file, relative to it, or null. */
@@ -88,10 +110,22 @@ public final class TestFile {
 
     /** Reads a test file; a file that cannot be read has no cases and says why. */
     public static TestFile read(Path path) {
+        String text;
+        try {
+            text = Files.readString(path);
+        } catch (IOException e) {
+            return new TestFile(
+                    path, null, null, List.of(), List.of(path + ": " + firstLine(e)), null);
+        }
+        return parse(path, text);
+    }
+
+    /** As {@link #read(Path)} for text that is not (or not yet) a file; {@code path} names it. */
+    public static TestFile parse(Path path, String text) {
         List<String> problems = new ArrayList<>();
         JsonNode root;
         try {
-            root = YAML.readTree(Files.readString(path));
+            root = YAML.readTree(text);
         } catch (IOException | RuntimeException e) {
             String where =
                     e instanceof com.fasterxml.jackson.core.JsonProcessingException j
@@ -100,7 +134,7 @@ public final class TestFile {
                             ? " (line " + j.getLocation().getLineNr() + ")"
                             : "";
             return new TestFile(
-                    path, null, null, List.of(), List.of(path + ": " + firstLine(e) + where));
+                    path, null, null, List.of(), List.of(path + ": " + firstLine(e) + where), null);
         }
         if (root == null || !root.isObject())
             return new TestFile(
@@ -108,7 +142,8 @@ public final class TestFile {
                     null,
                     null,
                     List.of(),
-                    List.of(path + ": a test file is a map with cases"));
+                    List.of(path + ": a test file is a map with cases"),
+                    null);
         String file = path.toString();
         ObjectNode defaults =
                 root.has("defaults") && root.get("defaults").isObject()
@@ -116,12 +151,12 @@ public final class TestFile {
                         : YAML.createObjectNode();
         for (Iterator<String> it = root.fieldNames(); it.hasNext(); ) {
             String key = it.next();
-            if (!List.of("script", "workflow", "defaults", "cases").contains(key))
+            if (!List.of("script", "workflow", "defaults", "cases", "captured").contains(key))
                 problems.add(
                         file
                                 + ": unknown key '"
                                 + key
-                                + "' (a test file has script, workflow, defaults and cases)");
+                                + "' (a test file has script, workflow, defaults, cases and, when taken from a run, captured)");
         }
         List<Case> cases = new ArrayList<>();
         JsonNode list = root.get("cases");
@@ -146,7 +181,10 @@ public final class TestFile {
                 root.hasNonNull("script") ? root.get("script").asText() : null,
                 root.hasNonNull("workflow") ? root.get("workflow").asText() : null,
                 cases,
-                problems);
+                problems,
+                root.has("captured") && root.get("captured").isObject()
+                        ? root.get("captured")
+                        : null);
     }
 
     /** Maps merge by key, the case winning; anything else (a list, a value) is replaced. */
