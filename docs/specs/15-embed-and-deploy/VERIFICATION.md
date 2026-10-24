@@ -1,6 +1,6 @@
 # Phase 15 verification plan: embed and deploy
 
-Status: **15a done** (bindgen); 15b to 15e not started. Run top to bottom at the end of sub-phase 15e; the relevant rows after each sub-phase. Results in §7.
+Status: **15a, 15b done** (bindgen; Maven plugin; typed parameters deferred, D15); 15c to 15e not started. Run top to bottom at the end of sub-phase 15e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -35,12 +35,12 @@ Status: **15a done** (bindgen); 15b to 15e not started. Run top to bottom at the
 | R8 | `BindgenCommandTest.aScriptThatDoesNotCheckWritesNothing`; `BindDeployDependencyTest` with 15d | 🟦 15a/15d |
 | R9 | `BindgenIndeterminateShapeTest` | ✅ 15a |
 | R10 | `BindgenDriftTest` | ✅ 15a |
-| R11 | `MavenPluginBindgenIT` | ⬜ 15b |
+| R11 | `BindgenMojoTest` (the goal run directly; a full Maven invoker run is manual check 1) | ✅ 15b |
 | R12 | `BindgenCompilesTest`, `BindgenNoExtraDepsTest` | ✅ 15a |
-| R13 | `CorpusParsesIdenticallyTest`, `TypedParamsParseTest` | ⬜ 15b |
-| R14 | `ParamsValidationTest`, `CallSiteTypesTest` | ⬜ 15b |
-| R15 | `ParamDefaultsTest` | ⬜ 15b |
-| R16 | decision recorded (DESIGN §8.1) | ⬜ 15b |
+| R13 | `CorpusParsesIdenticallyTest`, `TypedParamsParseTest` | ⏸ deferred (D15) |
+| R14 | `ParamsValidationTest`, `CallSiteTypesTest` | ⏸ deferred (D15) |
+| R15 | `ParamDefaultsTest` | ⏸ deferred (D15) |
+| R16 | decision recorded: typed parameters are **not** shipped in this phase (D15) | ✅ 15b |
 | R17 | `LoomWorkflowsBeanTest` | ⬜ 15c |
 | R18 | `StartupMismatchFailsFastTest` | ⬜ 15c |
 | R19 | `WorkflowRunsTest` | ⬜ 15c |
@@ -94,3 +94,9 @@ Wiki "Typed workflows in Java" and "Deploying a workflow"; `SPRING_BOOT_LOOM_GUI
 - Built: `bind/` (`SchemaInfer`, `Naming`, `Bindgen`) and `weave bindgen SCRIPT --package P [--out DIR] [--facade N] [--nullability none|jspecify|optional] [--check]`. One facade file per script plus one `Outcome.java` per package; per workflow a method, a `…Call` builder (`runId`, `label`, `origin`, `invoker`), `resume…`, a result record; one enum per classifier question a result carries (with `UNSURE` when the classifier escalates; `ask` gives `YES`/`NO`); `answer(...)`. The script must pass `weave check` or nothing is written. Output is deterministic and has no dependency beyond Loom.
 - Tests: `BindgenTest` 7 (compiles under `-Xlint:all -Werror`, same script same bytes, names and union, nullability choices, notes, package refusal, the facade **runs** a workflow and returns typed values), `BindgenCommandTest` 3 (write, `--check` passes and fails on drift, nothing written for a script that does not check, a renamed field changes the generated record so code using the old name stops compiling), `BindgenCorpusTest` 1 (every example script's bindings compile together).
 - Deviations, to confirm (D15): `--nullability` defaults to `none`, not `jspecify`, because the generated code must need nothing beyond Loom (R12) and `jspecify` would add a dependency; `jspecify` and `optional` are one flag away. A field whose type the script does not determine (an agent's output, a task's result) is text, said in the code, never guessed; nested records from an agent's `output_schema` are not generated yet.
+
+### 15b (2026-10-24)
+
+- Built: a new module `loom-maven-plugin` (`io.github.srijithunni7182:loom-maven-plugin`, prefix `loom`): goal `loom:bindgen`, bound to `generate-sources`; `<scripts><script><file/><pkg/><facade/></script></scripts>`, `outputDirectory` (default `target/generated-sources/loom`, added as a source root), `nullability`, `failOnDrift` (writes nothing; fails the build naming the stale files when the checked-in bindings differ from the scripts).
+- Tests: `BindgenMojoTest` 3 (writes and adds the source root; drift fails and leaves the files alone; missing script, bad option, no scripts).
+- Typed workflow parameters (`workflow Main(message: string, priority: number = 3)`) are **not** built: a grammar change touches the parser, the validator, every tool that reads parameters, and the editor, and the bindings work without it (parameters are text, as the runtime's inputs are). D15 asks.
