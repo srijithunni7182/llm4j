@@ -1,6 +1,6 @@
 # Phase 16 verification plan: the first run
 
-Status: **16a done** (`weave try`); 16b to 16e not started. Run top to bottom at the end of sub-phase 16e; the relevant rows after each sub-phase. Results in §7.
+Status: **16a, 16b done** (`weave try`; `weave doctor`); 16c to 16e not started. Run top to bottom at the end of sub-phase 16e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -38,12 +38,12 @@ Status: **16a done** (`weave try`); 16b to 16e not started. Run top to bottom at
 | R9 | `TryCommandTest` (whole class, 7 runs: 1.5 s) | ✅ 16a |
 | R10 | `TryLiveCapTest`, `TryLiveMissingKeyTest` | ⬜ 16e |
 | R11 | `TryLiveOnlyNetworkPathTest` | ⬜ 16e |
-| R12 | `DoctorChecksTest`, `DoctorVerdictTest`, `DoctorJsonSchemaTest` | ⬜ 16b |
-| R13 | `DoctorNoSecretsTest` | ⬜ 16b |
-| R14 | `DoctorNetworkOptInTest`, `DoctorTlsConnectOnlyTest`, `DoctorProxyHintsTest` | ⬜ 16b |
-| R15 | `DoctorFixAsksFirstTest`, `DoctorFixScopeTest` | ⬜ 16b |
-| R16 | `DoctorMessageRuleTest`, `TryMessageRuleTest` | ⬜ 16b |
-| R17 | `ContributorDoctorUnchangedTest` | ⬜ 16b |
+| R12 | `DoctorCommandTest` (the verdict line; exit 0 ready, 1 warnings only, 2 not ready; `--format json` version 1) | ✅ 16b |
+| R13 | `DoctorCommandTest.aMissingKeyIsNamedWithTheOneActionAndNeverItsValue` (a seeded secret never appears: not the value, a prefix or its length) | ✅ 16b |
+| R14 | `DoctorCommandTest.nothingConnectsUnlessAskedAndThenOnlyToTheScriptsHosts` (hosts printed first; a proxy URL with a password is never printed) | ✅ 16b |
+| R15 | `DoctorCommandTest.fixAsksFirstAndOnlyDoesTheSafeLocalThings` | ✅ 16b |
+| R16 | `DoctorCommandTest.everyProblemIsOneSentenceAndOneAction` (doctor); try's own errors name the choices | ✅ 16b |
+| R17 | `scripts/doctor.sh` is untouched (git shows no change); the CONTRIBUTING link is written with the end-of-program docs | ✅ 16b (docs owed) |
 | R18 | `JbangCatalogTest` | ⬜ 16c |
 | R19 | `LauncherTest`, `ChecksumTest` | ⬜ 16c |
 | R20 | `VersionCoherenceTest`, `extensionVersionWarn.test.ts` | ⬜ 16c |
@@ -98,3 +98,10 @@ Status: **16a done** (`weave try`); 16b to 16e not started. Run top to bottom at
 - Built: `weave try [scenario] [--list] [--step] [--fast] [--keep DIR] [--no-color]`, `demo/` (`Scenarios` from `try/index.txt` and a folder per scenario, `Narrator`), two scenarios (`triage`, `flaky`) shipped in the jar as real projects whose `tests/main.test.yaml` is the demo script *and* the test suite. The run is the real interpreter on scripted collaborators (`CaseProbe`), replayed (`ObserveReplay`) for the decision events; each step gets one sentence made from the statement kind, the decision it took and the journal entry. Ends with the path, the result, "this demo cost $0", the review line and three next commands; the scripted-models line opens and closes it.
 - Tests: `TryCommandTest` 7.
 - Deviations: the plan's `try/` package is `demo/` (`try` is a Java keyword); the graph is a one-line path of the steps taken, not a drawing of the whole graph; the summary's cost line says $0 for the demo and does not yet print an estimate for a real run; `--fabric` and `--live` come in 16e; the third and fourth scenarios (`newsletter`, `refund`) in 16d.
+
+### 16b (2026-10-24)
+
+- Built (`doctor/`, `weave doctor [script] [--network] [--fix] [--yes] [--format text|json]`): checks for Java (version, `JAVA_HOME` against the Java running), CLI version, the project (`weave check` result), keys (names of the variables the script needs from its models and tools; set or not, never a value), models (a name no known provider serves, with the nearest known name), network (opt-in; a TLS connect to each provider host the script uses, no request, no key; the hosts are printed first; a proxy is mentioned, never shown), the run store (writable, 50 MB free), prices (older than 90 days is a warning), Fabric (`LOOM_FABRIC_URL`: plain http to another machine is a warning), and `.env.example` holding what looks like a real value. `--fix` lists the safe local fixes and asks (`--yes` agrees): create the store folder, add `.env` to `.gitignore`, copy `.env.example` to `.env`.
+- `DeployPlan` gained `unknownModels` (used by doctor), found because `weave check --no-env` does not flag an unknown model name: a typo only shows up when the script runs.
+- Tests: `DoctorCommandTest` 11.
+- Deviations: the extension check is not built (it needs the editor: 16e); the CLI check reports the version only (the bundled-jar comparison needs the extension); the CPU/exit codes are 0, 1, 2 for ready, ready with warnings, not ready.

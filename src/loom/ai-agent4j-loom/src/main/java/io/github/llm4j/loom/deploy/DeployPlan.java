@@ -24,6 +24,8 @@ import java.util.TreeSet;
  * @param schedules the script's {@code schedule} names
  * @param asksAPerson true when a workflow has a {@code human_prompt}
  * @param workflows the workflow names, in order
+ * @param unknownModels model names no provider Loom knows (and no provider the script declares)
+ *     serves
  */
 public record DeployPlan(
         String script,
@@ -32,7 +34,8 @@ public record DeployPlan(
         boolean localModels,
         List<String> schedules,
         boolean asksAPerson,
-        List<String> workflows) {
+        List<String> workflows,
+        List<String> unknownModels) {
 
     public static DeployPlan derive(LoomScript script, String scriptFileName) {
         TreeSet<String> env = new TreeSet<>();
@@ -42,7 +45,13 @@ public record DeployPlan(
         for (AgentDef a : script.getAgents()) if (a.getModel() != null) models.add(a.getModel());
         for (IntentClassifierDef c : script.getIntentClassifiers())
             if (c.getModel() != null) models.add(c.getModel());
-        for (String m : models) model(m, env, hosts, local);
+        java.util.Set<String> declared = new java.util.HashSet<>();
+        script.getProviders().forEach(pd -> declared.add(pd.getName().toLowerCase(Locale.ROOT)));
+        List<String> unknown = new ArrayList<>();
+        for (String m : models)
+            if (!model(m, env, hosts, local)
+                    && !declared.contains(m.toLowerCase(Locale.ROOT).split("/")[0])
+                    && !unknown.contains(m)) unknown.add(m);
         for (ToolDef t : script.getTools())
             t.getOptions()
                     .values()
@@ -65,38 +74,43 @@ public record DeployPlan(
                 local[0],
                 schedules,
                 person[0],
-                workflows);
+                workflows,
+                unknown);
     }
 
-    private static void model(
+    private static boolean model(
             String name, TreeSet<String> env, TreeSet<String> hosts, boolean[] local) {
         String m = name.toLowerCase(Locale.ROOT);
         if (m.startsWith("ollama/")) {
             local[0] = true;
-            return;
+            return true;
         }
         if (m.startsWith("anthropic/") || m.startsWith("claude-")) {
             env.add("ANTHROPIC_API_KEY");
             hosts.add("api.anthropic.com");
-            return;
+            return true;
         }
         if (m.startsWith("sarvam/")) {
             env.add("SARVAM_API_KEY");
             hosts.add("api.sarvam.ai");
-            return;
+            return true;
         }
         var vendor = io.github.llm4j.provider.openai.Vendor.ofModel(name);
         if (vendor.isPresent()) {
             var v = vendor.get().vendor();
             if (v.keyEnv() != null && !v.keyOptional()) env.add(v.keyEnv());
             hosts.addAll(v.hosts());
-            return;
+            return true;
         }
         if (m.contains("gemini")) {
             env.add("GEMINI_API_KEY");
             hosts.add("generativelanguage.googleapis.com");
-            return;
+            return true;
         }
-        if (m.contains("llama") || m.contains("gemma") || m.contains("mistral")) local[0] = true;
+        if (m.contains("llama") || m.contains("gemma") || m.contains("mistral")) {
+            local[0] = true;
+            return true;
+        }
+        return false;
     }
 }
