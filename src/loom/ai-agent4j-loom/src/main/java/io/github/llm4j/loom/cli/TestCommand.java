@@ -63,6 +63,12 @@ final class TestCommand implements Callable<Integer> {
     boolean check;
 
     @Option(
+            names = "--ignore-observed",
+            description =
+                    "Report, but do not fail on, captured cases that are still 'observed' (only approved cases gate; weave gate uses this).")
+    boolean ignoreObserved;
+
+    @Option(
             names = "--require-approved",
             description =
                     "Fail when a captured case is still 'observed' (for CI: nothing unreviewed is merged).")
@@ -250,7 +256,34 @@ final class TestCommand implements Callable<Integer> {
                                     + " for a person to approve "
                                     + (waiting == 1 ? "it" : "them")
                                     + " (weave capture --approve <file>); only approved cases fail a gate.");
-        if (run.failed() > 0) return 1;
+        long gating = results.stream().filter(x -> !x.passed()).count();
+        if (c.ignoreObserved) {
+            java.util.Set<String> observedFiles = new java.util.HashSet<>();
+            for (TestFile f : use.files())
+                if ("observed".equals(f.capturedStatus())) observedFiles.add(f.path().toString());
+            long observedFailing =
+                    results.stream()
+                            .filter(x -> !x.passed() && observedFiles.contains(x.file()))
+                            .count();
+            if (observedFailing > 0) {
+                gating -= observedFailing;
+                env.out()
+                        .println(
+                                observedFailing
+                                        + " captured case"
+                                        + (observedFailing == 1 ? "" : "s")
+                                        + " that "
+                                        + (observedFailing == 1 ? "is" : "are")
+                                        + " still observed "
+                                        + (observedFailing == 1 ? "fails" : "fail")
+                                        + " and "
+                                        + (observedFailing == 1 ? "does" : "do")
+                                        + " not gate; approve or retire "
+                                        + (observedFailing == 1 ? "it" : "them")
+                                        + ".");
+            }
+        }
+        if (gating > 0) return 1;
         if (c.requireApproved && waiting > 0) {
             env.err()
                     .println(

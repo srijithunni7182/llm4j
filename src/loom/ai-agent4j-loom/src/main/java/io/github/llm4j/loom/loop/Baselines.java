@@ -91,6 +91,11 @@ public final class Baselines {
         }
     }
 
+    /** The script at git revision {@code ref}, with its folder, extracted under {@code into}. */
+    public static Path checkoutAt(Path script, String ref, Path into) throws IOException {
+        return checkout(script.toAbsolutePath().normalize(), ref, into);
+    }
+
     /** The script at {@code ref}, with the folder it lives in, extracted under {@code into}. */
     static Path checkout(Path script, String ref, Path into) throws IOException {
         try {

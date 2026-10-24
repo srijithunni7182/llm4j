@@ -1,6 +1,6 @@
 # Phase 14 verification plan: the production loop
 
-Status: **14a to 14c done** (capture; regress with recorded and live models, judges, cost); 14d, 14e not started. Run top to bottom at the end of sub-phase 14e; the relevant rows after each sub-phase. Results in §7.
+Status: **14a to 14d done** (capture; regress; gate); 14e (Fabric) not started. Run top to bottom at the end of sub-phase 14e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -29,7 +29,7 @@ Status: **14a to 14c done** (capture; regress with recorded and live models, jud
 | R2 | `CaptureTest.whatTheCollaboratorsSaidIsWhatTheCaseScriptsAndNothingIsInvented` (answers, classifier labels and confidence, people; failures as `fail:`; tasks; calls made inside an agent are not journaled, so tools are not scripted) | ✅ 14a |
 | R3 | `LoopStateTest.aCaseIsObservedUntilAPersonApprovesItAndTheRecordSaysWhoAndWhen`, `CaptureCommandTest.approvingAndRetiring...` | ✅ 14a |
 | R4 | `CaptureTest.expectNoneLeavesOnlyHowTheRunEnded` | ✅ 14a |
-| R5 | `CaptureAsGoldenTest` | ⬜ 14d |
+| R5 | `CaptureCommandTest.asGoldenAddsAMaskedEntryToTheEvaluationDatasetOnceAndItLoads` | ✅ 14d |
 | R6 | `MaskerTest`, `CaptureTest.personalDataAndSecretsNeverReachTheFileAndTheCaseStillPasses`, `CaptureCommandTest.noSeededValueReachesAFileTheOutputOrTheErrorStream` | ✅ 14a |
 | R7 | `CaptureTest.maskingThatWouldChangeTheRouteFailsNamingTheField` | ✅ 14a |
 | R8 | `MaskerTest.secretsAreReplacedWhateverTheShape...` (ten shapes), the hostile run in `CaptureCommandTest` | ✅ 14a |
@@ -40,7 +40,7 @@ Status: **14a to 14c done** (capture; regress with recorded and live models, jud
 | R13 | `LoopStateTest.failedDivertedUnsure...`, `CaptureCommandTest.aSelectionCapturesEachRunOfTheClassAsItsOwnCase` (`--list`) | ✅ 14a (slow and costly cannot be picked: the journal keeps neither; said, and D11 asks) |
 | R14 | `CaptureCommandTest.aSelectionCapturesEachRunOfTheClassAsItsOwnCase` (`--select`, `--limit`) | ✅ 14a |
 | R15 | `LoopStateTest.aCaseThatNoLongerPassesCannotBeApprovedUnlessItsExpectationIsAmendedInTheSameStep` | ✅ 14a |
-| R16 | `TestCommandTest.aCapturedCaseRunsLikeAnyOtherAndTheSummary...` (the count); only approved cases fail a gate: `GateCountsApprovedOnlyTest` | 🟨 14a (count) / 14d (gate) |
+| R16 | `TestCommandTest` (the count), `GateCommandTest.onlyApprovedCapturedCasesCanFailTheGate` | ✅ 14d |
 | R17 | `TestCommandTest.requireApprovedFailsWhileACapturedCaseIsStillObserved` | ✅ 14a |
 | R18 | `RegressTest.takingThePersonOutOfThePathIsAnUnsafeFlip...`, `...aCandidateThatAddsAnEffectToThePathIsAnUnsafeFlipNamingTheTool` (a ladder rung climb is not detected: ladders are not replayed by observe-replay) | 🟨 14b |
 | R19 | `RegressTest.aChangedPromptIsCountedAsNeedingAModelAndNeverGuessed`, `RegressLiveTest.liveModelsAreAskedOnlyWhereTheQuestionChanged...` (recorded and live comparisons are counted apart) | ✅ 14c |
@@ -55,11 +55,11 @@ Status: **14a to 14c done** (capture; regress with recorded and live models, jud
 | R28 | `RegressCommandTest` (JSON version 1 with per-run outcomes) | ✅ 14b |
 | R29 | `RegressTest.theHtmlIsOneFileWithNothingRemoteAndEverythingEscaped` | ✅ 14b |
 | R30 | `RegressCommandTest` (0, 1, 2, and 4 when the cap stops it, with the partial report) | ✅ 14c |
-| R31 | `GateStagesTest` | ⬜ 14d |
-| R32 | `GateSkipVisibleTest` | ⬜ 14d |
-| R33 | `GateGitRefsTest` | ⬜ 14d |
-| R34 | `GateFormatsTest`, `GateWorkflowTemplateTest` | ⬜ 14d |
-| R35 | `GateReadOnlyTest` | ⬜ 14d |
+| R31 | `GateCommandTest.eachStageSaysPassFailOrSkipped...`, `...aFailingStageIsNamedWithTheOneCommandThatReproducesIt` | ✅ 14d |
+| R32 | `GateCommandTest.eachStageSaysPassFailOrSkippedAndASkipIsVisibleNotSilent` (`--require`) | ✅ 14d |
+| R33 | `GateCommandTest.pullRequestRefsMakeTheBaseTheBaseline...` | ✅ 14d |
+| R34 | `GateCommandTest.formatsAreForPeople...`, `...theWorkflowTemplatesParseAndNameRealCommandsAndOptions` | ✅ 14d (the templates are parsed and their options checked; running them is a manual check) |
+| R35 | `GateCommandTest.pullRequestRefs...` (the store fingerprint and the working copy are unchanged) | ✅ 14d |
 | R36 | `FabricCaptureRouteTest` | ⬜ 14e |
 | R37 | `FabricCaptureRemoteFallbackTest` | ⬜ 14e |
 | R38 | `FabricCaptureNoRepoWriteTest` | ⬜ 14e |
@@ -119,4 +119,11 @@ Wiki "From an incident to a regression test" and "Checking a change against real
 - Tests: Java module +7 (`RegressLiveTest` 6, `RegressCommandTest` +1).
 - 200 recorded runs: the whole test, including building the 200-run store, takes about 2 s on this machine (target 30 s for the comparison).
 - Not in 14c: the estimate is per workflow from the scripts, not per changed call (R25 asks for the recorded token ratio of each changed call; that needs the old and new question of each call, which the replay does not hand out).
+
+### 14d (2026-10-24)
+
+- Built: `weave gate` (stages check, review, test, regress, eval from `gate.properties`; each passes, fails or is skipped with a reason and the command that reproduces it; `--require`; `--base-ref` / `--candidate-ref`; text, Markdown, JUnit and SARIF; `--print-workflow github|jenkins`), `GateConfig` (an unknown key is an error), `Workflows`, `weave capture --as golden`, `weave test --ignore-observed`. `weave test` now finds the cases `weave capture` writes in `tests/captured/` (they were not found by default).
+- Found building it: a gate that stopped at the first sloppy fixture (a warning under `--strict`) showed why the check stage uses `--strict` only because the team chose the gate; the test fixtures in this file are written clean for that reason. The regress stage must read the base revision from the repository the script lives in, not from the copy extracted for the candidate (which has no history).
+- Tests: Java module +8 (`GateCommandTest` 7, `CaptureCommandTest` +1).
+- Decision for you (DESIGN §11 question 1): CI needs history. Built: a directory (`regress.store`). Not built: `weave history export --masked` (a portable masked archive of recent runs). It is listed as D14.
 

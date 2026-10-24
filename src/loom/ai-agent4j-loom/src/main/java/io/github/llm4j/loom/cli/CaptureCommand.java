@@ -57,6 +57,13 @@ final class CaptureCommand implements Callable<Integer> {
     String name;
 
     @Option(
+            names = "--as",
+            description =
+                    "test (default): a test case; golden: an entry of the evaluation dataset; both.",
+            defaultValue = "test")
+    String as;
+
+    @Option(
             names = "--expect",
             description =
                     "observed: fill the expectations from what happened (default); none: only how it ends.",
@@ -148,6 +155,10 @@ final class CaptureCommand implements Callable<Integer> {
                                 "Error: say which run (a folder or an id), or --list, or --select.");
                 return 1;
             }
+            if (!Set.of("test", "golden", "both").contains(c.as)) {
+                env.err().println("Error: --as is test, golden or both.");
+                return 1;
+            }
             if (!Set.of("observed", "none").contains(c.expect)) {
                 env.err().println("Error: --expect is observed or none.");
                 return 1;
@@ -229,6 +240,24 @@ final class CaptureCommand implements Callable<Integer> {
                         c.note,
                         c.tag,
                         c.name);
+        if (c.as.equals("golden") || c.as.equals("both")) {
+            io.github.llm4j.loom.loop.CaptureGolden.Entry g =
+                    io.github.llm4j.loom.loop.CaptureGolden.capture(r, options, !c.dryRun);
+            if (c.dryRun) env.out().print(g.entry());
+            else
+                env.out()
+                        .println(
+                                (g.already()
+                                                ? "Already in the dataset: "
+                                                : "Added to the dataset: ")
+                                        + r.id()
+                                        + " in "
+                                        + g.file()
+                                        + (g.already()
+                                                ? ""
+                                                : ". Write its rubric (what a good answer does) before weave eval uses it."));
+            if (c.as.equals("golden")) return 0;
+        }
         Capture.Captured k = Capture.capture(r, options, !c.dryRun);
         if (c.dryRun) {
             env.out().print(k.text());

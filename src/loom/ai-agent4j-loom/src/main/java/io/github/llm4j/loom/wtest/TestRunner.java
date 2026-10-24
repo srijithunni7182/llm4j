@@ -146,11 +146,17 @@ public final class TestRunner {
     static List<Path> testFiles(Path p) throws IOException {
         if (Files.isRegularFile(p)) return List.of(p);
         if (!Files.isDirectory(p)) return List.of();
-        try (Stream<Path> s = Files.list(p)) {
-            return s.filter(f -> f.getFileName().toString().endsWith(".test.yaml"))
-                    .sorted(Comparator.naturalOrder())
-                    .toList();
+        List<Path> out = new ArrayList<>();
+        // cases taken from real runs (weave capture) live in a folder of their own under tests/
+        for (Path dir : List.of(p, p.resolve("captured"))) {
+            if (!Files.isDirectory(dir)) continue;
+            try (Stream<Path> s = Files.list(dir)) {
+                s.filter(f -> f.getFileName().toString().endsWith(".test.yaml"))
+                        .sorted(Comparator.naturalOrder())
+                        .forEach(out::add);
+            }
         }
+        return out;
     }
 
     /** How a run is selected and carried out. */

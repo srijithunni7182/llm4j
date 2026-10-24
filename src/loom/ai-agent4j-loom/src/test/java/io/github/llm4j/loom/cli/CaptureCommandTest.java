@@ -3,6 +3,7 @@ package io.github.llm4j.loom.cli;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.llm4j.loom.loop.Hostile;
 import io.github.llm4j.loom.travel.ScriptHash;
 import io.github.llm4j.loom.wtest.CaseProbe;
 import java.io.ByteArrayOutputStream;
@@ -243,5 +244,35 @@ class CaptureCommandTest {
         try (var files = Files.walk(repo.resolve("tests/captured"))) {
             assertThat(files.filter(f -> f.toString().endsWith(".test.yaml")).count()).isEqualTo(2);
         }
+    }
+
+    @Test
+    void asGoldenAddsAMaskedEntryToTheEvaluationDatasetOnceAndItLoads() throws Exception {
+        Path run = hostileRun();
+        Out o =
+                capture(
+                        run.toString(),
+                        "--as",
+                        "golden",
+                        "--yes",
+                        "--mask-term",
+                        Hostile.TERMS.get(0));
+        assertThat(o.code()).as(o.err()).isZero();
+        Path file = dir.resolve("repo/eval/golden/workflow.yaml");
+        String text = Files.readString(file);
+        for (String v :
+                Hostile.mustNotSurvive().stream()
+                        .filter(x -> !x.equals(Hostile.TERMS.get(1)))
+                        .toList()) assertThat(text).as("survivor: " + v).doesNotContain(v);
+        assertThat(text).contains("source: captured").contains("TODO");
+        // nothing else was written: no test case
+        assertThat(Files.exists(dir.resolve("repo/tests"))).isFalse();
+        // idempotent
+        Out again = capture(run.toString(), "--as", "golden", "--yes");
+        assertThat(again.out()).contains("Already in the dataset");
+        assertThat(text.split("- id:").length).isEqualTo(2);
+        // the dataset is one the evaluator accepts
+        var dataset = io.github.llm4j.eval.dataset.EvalDataset.load(file.getParent());
+        assertThat(dataset.problems()).isEmpty();
     }
 }
