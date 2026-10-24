@@ -1,6 +1,6 @@
 # Phase 14 verification plan: the production loop
 
-Status: **14a done** (capture, masking, consent, policy, approval); 14b to 14e not started. Run top to bottom at the end of sub-phase 14e; the relevant rows after each sub-phase. Results in §7.
+Status: **14a, 14b done** (capture; regress with recorded models); 14c to 14e not started. Run top to bottom at the end of sub-phase 14e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -42,19 +42,19 @@ Status: **14a done** (capture, masking, consent, policy, approval); 14b to 14e n
 | R15 | `LoopStateTest.aCaseThatNoLongerPassesCannotBeApprovedUnlessItsExpectationIsAmendedInTheSameStep` | ✅ 14a |
 | R16 | `TestCommandTest.aCapturedCaseRunsLikeAnyOtherAndTheSummary...` (the count); only approved cases fail a gate: `GateCountsApprovedOnlyTest` | 🟨 14a (count) / 14d (gate) |
 | R17 | `TestCommandTest.requireApprovedFailsWhileACapturedCaseIsStillObserved` | ✅ 14a |
-| R18 | `UnsafeFlipTest` | ⬜ 14b |
-| R19 | `NeedsModelCountedTest`, `RecordedVsLiveSeparatedTest` | ⬜ 14b/14c |
-| R20 | `SamplerTest`, `StratifiedAllocationTest`, `ReportWordingTest` | ⬜ 14b |
+| R18 | `RegressTest.takingThePersonOutOfThePathIsAnUnsafeFlip...`, `...aCandidateThatAddsAnEffectToThePathIsAnUnsafeFlipNamingTheTool` (a ladder rung climb is not detected: ladders are not replayed by observe-replay) | 🟨 14b |
+| R19 | `RegressTest.aChangedPromptIsCountedAsNeedingAModelAndNeverGuessed` (live comparison and the separation of recorded from live: 14c) | 🟨 14b / 14c |
+| R20 | `SamplerTest` (5), `RegressTest.theReportSaysWhatTheSampleIsAndNeverMoreThanItSupports` | ✅ 14b |
 | R21 | `ApprovedAlwaysIncludedTest` | ⬜ 14c |
-| R22 | `RegressReadOnlyTest`, `RegressNoEffectsTest` | ⬜ 14b |
-| R23 | `RegressNoTextByDefaultTest` | ⬜ 14b |
+| R22 | `RegressTest.theStoreIsOnlyReadAndNoTextIsInTheReport...` (fingerprint before and after), `RegressCommandTest`; there is no `--effects` flag; effects are described by observe-replay and never run | ✅ 14b |
+| R23 | `RegressTest.theStoreIsOnlyReadAndNoTextIsInTheReportUnlessAskedAndThenMasked` | ✅ 14b |
 | R24 | `JudgeCostGateTest` | ⬜ 14c |
 | R25 | `CostLabelsTest` | ⬜ 14c |
-| R26 | `BaselineFromHashTest`, `BaselineGitTest`, `BaselineMissingTest` | ⬜ 14b |
+| R26 | `RegressTest.theRecordedVersionIsFoundInGitHistory...`, `...aRunOfAnotherVersionOrOfAnotherWorkflowIsLeftOutAndCounted` | ✅ 14b |
 | R27 | `RegressSpeedTest` | ⬜ 14c |
-| R28 | `RegressJsonSchemaTest` | ⬜ 14b |
-| R29 | `RegressHtmlSafetyTest` | ⬜ 14b |
-| R30 | `FailOnTest`, `RegressExitCodesTest` | ⬜ 14b |
+| R28 | `RegressCommandTest` (JSON version 1 with per-run outcomes) | ✅ 14b |
+| R29 | `RegressTest.theHtmlIsOneFileWithNothingRemoteAndEverythingEscaped` | ✅ 14b |
+| R30 | `RegressCommandTest` (0, 1 by `--fail-on`, 2); exit 4 with `--max-cost`: 14c | 🟨 14b / 14c |
 | R31 | `GateStagesTest` | ⬜ 14d |
 | R32 | `GateSkipVisibleTest` | ⬜ 14d |
 | R33 | `GateGitRefsTest` | ⬜ 14d |
@@ -105,4 +105,11 @@ Wiki "From an incident to a regression test" and "Checking a change against real
 - Found building it: the hostile seed caught three real gaps in the first masker: a Google key one character longer than the review rule's pattern, a password containing `&`, and a phone number with a space after the area code (its area code survived). `ObserveReplay.Result` now says which statement each step id is (`statements`), which is how a journal entry becomes the answer of one agent.
 - Tests: Java module +37 (`MaskerTest` 6, `CaptureTest` 8, `LoopStateTest` 10, `CapturePassesTest` 1 over 150 generated workflows, `CaptureCommandTest` 7, `TestCommandTest` +2).
 - Not in 14a: injection tagging (R9, with Fabric in 14e), picking slow or costly runs (the journal does not keep time or cost: D11 asks), parallel or broadcast steps (a case cannot be taken from such a run yet: refused, said), calls an agent made to its tools (not journaled; the scripted agent does not call them), `--as golden` (14d).
+
+### 14b (2026-10-24)
+
+- Built (`loop/`): `Sampler` (random, recent, stratified, failures-first; deterministic per seed; at least one run from every stratum, the rest by size; the sample records the population, the strategy, the seed and each stratum's size), `Baselines` (a named file, a git revision, or by default the version each run recorded, recovered from git history by fingerprint), `Regress` (each sampled run replayed from its journal with the candidate through `WhatIf`; the recorded answers of people are given in order; a run that cannot be compared is counted and never guessed; each run gets a time limit and the replay stops at the next statement when cancelled), `RegressReport` (text, JSON version 1, Markdown, JUnit, a single HTML file), `weave regress` (`--baseline`, `--baseline-git`, `--store`, `--since`, `--limit`, `--sample`, `--seed`, `--prompt`, `--model`, `--judge`, `--fail-on`, `--format`, `--report`, `--show-text`).
+- Found building it: comparing steps by their id is wrong when the candidate's statements shift (a removed statement renumbers the ones after it, so phase 13's trajectory diff, written for one script, said a step was the same when it was a different statement); regress compares the route by what each step does, in each script's own words, and not by the wording of a condition (a reworded condition that sends every run the same way is not a changed route). A candidate that asks a different agent than the run did is a changed route, not "needs a model". The first version also lost the people's recorded answers and reported every run with a person as suspended.
+- Tests: Java module +25 (`SamplerTest` 5, `RegressTest` 11, `RegressCommandTest` 4 and the earlier 14a ones).
+- Not in 14b: live models and judges (14c), cost estimates and `--fail-on cost-up` (14c), approved cases always included (14c), the speed check (14c).
 

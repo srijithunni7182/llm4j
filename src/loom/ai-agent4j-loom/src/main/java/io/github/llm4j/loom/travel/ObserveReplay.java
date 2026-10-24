@@ -259,6 +259,10 @@ public final class ObserveReplay {
                 io.github.llm4j.loom.prompt.PromptSupport.catalog(script, options.script(), null));
         executor.setStepListener(
                 step -> {
+                    // a caller that gives up on a replay interrupts its thread; the next statement
+                    // ends it
+                    if (Thread.currentThread().isInterrupted())
+                        throw new ObserveStop("the replay was cancelled");
                     if (step.equals(hooks.until())) throw new ObserveStop("to go on past " + step);
                     steps.add(step);
                     timeline.add(new Event(step, null));
