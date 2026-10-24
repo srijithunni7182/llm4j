@@ -38,6 +38,17 @@ public final class ReviewGate implements Gate {
         Reviewed reviewAndFix(Path script) throws Exception;
     }
 
+    /**
+     * How to fix the findings a model finds hardest, in the terms of this language; added to what
+     * the review says when the model is shown the finding.
+     */
+    static final java.util.Map<String, String> RECIPES =
+            java.util.Map.of(
+                    "LA01",
+                    "Recipe: give the agent that reads outside text no tools and have it answer only typed fields (delegate ... expecting { field: string }); give the tool to a second agent whose task text holds only those typed fields, never the raw text; put approve: [Tool] on the second agent if the tool changes something.",
+                    "LP07",
+                    "Recipe: rename the workflow parameter or variable to a long name that is not a word of any prompt or delegate text (for example ticket_body), everywhere it is used.");
+
     static final Set<Lens> SOFT_LENSES = Set.of(Lens.VALIDITY, Lens.RELIABILITY, Lens.PROMPTS);
 
     private final Reviewer reviewer;
@@ -74,6 +85,9 @@ public final class ReviewGate implements Gate {
                                             // what makes it a problem, so a repair can aim at it
                                             + (hard && i.why() != null && !i.why().isBlank()
                                                     ? " (" + i.why() + ")"
+                                                    : "")
+                                            + (RECIPES.containsKey(i.rule())
+                                                    ? " " + RECIPES.get(i.rule())
                                                     : "")
                                             + (i.fixHint() == null || i.fixHint().isBlank()
                                                     ? ""

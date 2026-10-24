@@ -189,4 +189,89 @@ class GatesTest {
                                         .contains(
                                                 "Agent Drafter uses model gpt-6-luna but the plan says claude-haiku-5-5"));
     }
+
+    @Test
+    void aStepThatUsesToolsNeedsATimeoutAndARetryOrAHandler() throws Exception {
+        String bare =
+                GenerateFixtures.SCRIPT.replaceAll(
+                        "(?s)(to Notifier -> sent) timeout 60s retry 1 backoff 2s on_failure \\{.*?\\n {8}\\}\\n",
+                        "$1\n");
+        assertThat(bare).isNotEqualTo(GenerateFixtures.SCRIPT);
+        assertThat(g5(script(bare), GenerateFixtures.plan()).problems())
+                .anyMatch(p -> p.message().contains("uses the tools of Notifier has no timeout"))
+                .anyMatch(
+                        p ->
+                                p.message()
+                                        .contains(
+                                                "uses the tools of Notifier has neither retry nor on_failure"));
+    }
+
+    @Test
+    void personalDataInThePlanMeansAGuardOnTheAgentsThatUseTools() throws Exception {
+        Plan p = GenerateFixtures.plan();
+        Plan personal =
+                new Plan(
+                        1,
+                        p.name(),
+                        p.summary(),
+                        p.answers(),
+                        p.agents(),
+                        p.classifiers(),
+                        p.tools(),
+                        p.humans(),
+                        p.effects(),
+                        p.budget(),
+                        p.failure(),
+                        p.tests(),
+                        true);
+        assertThat(g5(script(GenerateFixtures.SCRIPT), personal).problems())
+                .anyMatch(x -> x.message().contains("agent Notifier has no guard { pii: mask }"));
+        String guarded =
+                GenerateFixtures.SCRIPT.replace(
+                        "tools: [Hook]  approve: [Hook] }",
+                        "tools: [Hook]  approve: [Hook]  guard { pii: mask } }");
+        assertThat(g5(script(guarded), personal).problems()).isEmpty();
+    }
+
+    @Test
+    void aShellToolNeedsAReasonInThePlanAndALoopNeedsAMax() throws Exception {
+        Plan p = GenerateFixtures.plan();
+        String withShell =
+                GenerateFixtures.SCRIPT.replace(
+                        "tool Hook { use: webhook  url: env.HOOK_URL }",
+                        "tool Hook { use: webhook  url: env.HOOK_URL }\ntool Ops { use: shell  allow: \"df\"  timeout: 20s }");
+        // the plan lists the tool, without a reason
+        Plan listed = withTool(p, new Plan.Tool("Ops", "shell", "reads", false, ""));
+        assertThat(g5(script(withShell), listed).problems())
+                .anyMatch(x -> x.message().contains("A shell tool (Ops) needs a reason"));
+        Plan reasoned = withTool(p, new Plan.Tool("Ops", "shell", "reads", false, "disk checks"));
+        assertThat(g5(script(withShell), reasoned).problems())
+                .noneMatch(x -> x.message().contains("A shell tool"));
+
+        String loops =
+                GenerateFixtures.SCRIPT.replace(
+                        "human_prompt \"Send this reply?",
+                        "loop until (reply == \"x\") {\n        note \"again\"\n    }\n    human_prompt \"Send this reply?");
+        assertThat(g5(script(loops), p).problems())
+                .anyMatch(x -> x.message().contains("A loop in workflow Main has no max N"));
+    }
+
+    private static Plan withTool(Plan p, Plan.Tool extra) {
+        java.util.List<Plan.Tool> tools = new java.util.ArrayList<>(p.tools());
+        tools.add(extra);
+        return new Plan(
+                1,
+                p.name(),
+                p.summary(),
+                p.answers(),
+                p.agents(),
+                p.classifiers(),
+                tools,
+                p.humans(),
+                p.effects(),
+                p.budget(),
+                p.failure(),
+                p.tests(),
+                p.personalData());
+    }
 }

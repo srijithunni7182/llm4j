@@ -43,6 +43,9 @@ final class ScriptedClassifiers implements ClassifierFactory {
             var fail = failures.failsOn(name, call);
             if (fail.isPresent()) throw Failures.model(fail.get(), name, call);
             JsonNode script = scripts.get(name);
+            // a list answers the calls in order, the last one for every call after that
+            if (script != null && script.isArray() && script.size() > 0)
+                script = script.get(Math.min(call, script.size()) - 1);
             if (script == null || !script.isObject()) {
                 String message =
                         "classifier " + name + " has no scripted answer (call " + call + ")";

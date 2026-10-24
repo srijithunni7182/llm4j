@@ -277,6 +277,8 @@ cases:
       branches: { n2: then }
 ```
 
+`expect.final` is how the run ended: `completed` (the default), `failed`, `suspended`, `stopped`, `budget` or `halted` (a `halt` statement). A classifier's `models:` entry is one map for every call, or a list of maps, one per call in order (the last one repeats).
+
 **Strict by default.** A model call nobody scripted fails the case and names the agent, the call number and the task; `--lenient` lets it answer neutrally and says so in the report.
 
 **Everything a real run meets can be scripted:**

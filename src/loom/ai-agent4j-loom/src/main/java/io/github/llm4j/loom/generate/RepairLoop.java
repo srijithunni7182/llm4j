@@ -254,7 +254,8 @@ public final class RepairLoop {
                             "gate " + first + " still failed after " + tries + " attempts");
                 StringBuilder feedback = new StringBuilder();
                 for (GateResult r : results)
-                    if (!r.passed()) feedback.append(shifted(r).feedback()).append('\n');
+                    if (!r.passed())
+                        feedback.append(quoted(shifted(r), candidate).feedback()).append('\n');
                 user =
                         PromptAssembly.repair(
                                 plan,
@@ -292,6 +293,32 @@ public final class RepairLoop {
                                                 p.line() > 1 ? p.line() - 1 : p.line(),
                                                 p.rule(),
                                                 p.message()))
+                        .toList());
+    }
+
+    /**
+     * Each problem that points at a line of a file the model wrote also shows that line, so a
+     * syntax error is read against the text and not against a number.
+     */
+    private static GateResult quoted(GateResult r, Map<String, String> files) {
+        return new GateResult(
+                r.gate(),
+                r.name(),
+                r.problems().stream()
+                        .map(
+                                p -> {
+                                    String text = files.get(p.file());
+                                    if (text == null || p.line() <= 0) return p;
+                                    String[] lines = text.split("\\R", -1);
+                                    if (p.line() > lines.length) return p;
+                                    String at = lines[p.line() - 1].strip();
+                                    if (at.length() > 240) at = at.substring(0, 240) + "...";
+                                    return new GateResult.Problem(
+                                            p.file(),
+                                            p.line(),
+                                            p.rule(),
+                                            p.message() + "\n      that line reads: " + at);
+                                })
                         .toList());
     }
 

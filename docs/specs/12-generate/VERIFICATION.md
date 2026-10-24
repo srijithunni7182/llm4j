@@ -32,33 +32,33 @@ Status: **12a to 12d done**. Run top to bottom at the end of sub-phase 12e; the 
 | R6 | `PlanTest` (role, allowed model, built-in kind or stub, reach, effect approval, budget, tests, names) | ✅ 12a |
 | R7 | `WriterTest` (temporary project, removed on close, target untouched until commit) | ✅ 12a |
 | R8 | `WriterTest` (flat and Maven layouts, pom, .gitignore) | ✅ 12a |
-| R9 | `WriterTest`, `GatesTest` (prompt files by stem) | 🟨 12a (the prompts' header comment is for 12b's prompt assembly) |
-| R10 | `GatesTest` (no budget, no approve:, an unlisted tool), `PromptAndSummaryTest` (the defaults are in the instructions), real G2 in `GenerateBuildTest` | 🟨 12b (enforced by G2 and G5 and told to the model; no separate check for every default, e.g. max N on a loop is the review's LR rules) |
+| R9 | `WriterTest`, `GatesTest` (prompt files by stem) | ✅ 12e (the prompt files carry a header comment; `WriterTest`) |
+| R10 | `GatesTest` (no budget, no approve:, an unlisted tool), `PromptAndSummaryTest` (the defaults are in the instructions), real G2 in `GenerateBuildTest` | ✅ 12e (`SafeDefaults` in G5: loops bounded, timeout and retry or handler on tool steps, pii guard when the plan has personal data, a shell tool only with a reason; `GatesTest`; budget and approval were G5's already; `Structure.defaults` re-checks every benchmark output independently) |
 | R11 | `PromptAndSummaryTest` (language, rule catalog from the loaded rules, example by plan shape, plan, context only when given) | ✅ 12b |
 | R12 | `RepairLoopTest` (per-gate and overall limits; only changed files merged) | ✅ 12b |
-| R13 | `RepairLoopTest.theSpendCapStops...`, `GenerateBuildTest.theSpendCapGivesExit4` | 🟨 12b (tokens always; money only when --prices knows the model) |
+| R13 | `RepairLoopTest.theSpendCapStops...`, `GenerateBuildTest.theSpendCapGivesExit4` | ✅ 12e (tokens always, money with `--prices`, and a note on stderr when the model has no price; the best draft is kept in `<out>.draft` on a cap stop) |
 | R14 | `RepairLoopTest` (a worse attempt is thrown away; oscillation; repeating) | ✅ 12b |
 | R15 | `SafeFixByToolTest` | ✅ 12b |
 | R16 | `GenerateBuildTest` (exit 0, 2, 3, 4; names the gate and the last failure) | ✅ 12b |
 | R17 | `TestsGateTest.theGateRunsOnlyScriptedCollaboratorsAndSpendsNothing` (an unscripted model fails the case, it is never called) | ✅ 12c |
-| R18 | `PromptAndSummaryTest`, `GenerateBuildTest` | 🟨 12b (next steps are fixed, not from ProjectAdvisor; no review delta) |
+| R18 | `PromptAndSummaryTest`, `GenerateBuildTest` | ✅ 12e (review lines and next steps from `weave next`'s advisor; `GenerateBuildTest`) |
 | R19 | `PromptAndSummaryTest` | ✅ 12b |
 | R20 | `PatchSetTest` (named edits, exactly-once matching, new files, nothing else touched), `GenerateEditTest.applyWritesExactlyTheChangedLines...` | ✅ 12d |
-| R21 | `GenerateEditTest` (check, review delta, the project's tests, plan fidelity on a trial copy; changed tests listed) | 🟨 12d (the delta is findings and tokens; money only with prices, which edit mode does not take yet) |
+| R21 | `GenerateEditTest` (check, review delta, the project's tests, plan fidelity on a trial copy; changed tests listed) | ✅ 12e (money with `--prices`: `GenerateEditTest.withAPriceFileTheCostChangeIsAlsoShownInMoney`) |
 | R22 | `GenerateEditTest` (nothing written without --apply; a worse change needs --accept-worse; a saved patch is re-checked) | ✅ 12d |
 | R23 | `GenerateEditTest.theModelCannotReachFilesOutsideTheProjectOrTheKeys`, `PatchSetTest.pathsOutsideTheProjectAndKeysAreRefused` | ✅ 12d |
 | R24 | `GenerateEditTest.anAmbiguousChangeGetsOneQuestion...` | ✅ 12d |
 | R25 | `GenerateBuildTest.aProjectTheScriptNeverMatchedToThePlanFailsG5`, `...theModelIsShownTheDescriptionAsData...`, `GatesTest` | ✅ 12b |
 | R26 | `TranscriptTest`, `GenerateBuildTest` (no secret-shaped text in what the model is shown) | ✅ 12b |
-| R27 | `WriterTest.aFileThatIsTooBigOrHoldsAKeyIsRefused...` | 🟨 12a (files; prompts of the generator itself in 12b) |
+| R27 | `WriterTest.aFileThatIsTooBigOrHoldsAKeyIsRefused...` | ✅ 12e (files: `WriterTest`; what the model is shown: `GenerateBuildTest.whatTheGeneratorShowsTheModelHoldsNoSecretShapedText`) |
 | R28 | `WriterTest.everyFileSaysWhatMadeItAndFromWhichPlanAndNeverWhichModel` | ✅ 12a |
-| R29 | `GenerateBuildTest` (only the configured model is asked; nothing fetched or run) | 🟨 12b (by construction; there is no network guard test yet) |
+| R29 | `GenerateBuildTest` (only the configured model is asked; nothing fetched or run) | ✅ 12e (`GenerateBuildTest.generationOpensNoConnectionAnywhereExceptThroughTheModelClient`, a proxy-selector guard) |
 | R30 | `WriterTest` (empty or absent target; nothing replaced) | ✅ 12a |
 | R31 | `TranscriptTest`, `GenerateCommandTest.recordingThenReplaying...` | ✅ 12a |
 | R32 | `GateOnlyExamplesTest` (samples and every starter template), `GenerateCommandTest` | ✅ 12a (G1 and G5; G2 to G4 join as they are built) |
 | R33 | `generateCommands.test.ts` (13), `GenerateEventsTest` (the editor calls `weave generate --format json`, not `weave serve`: see DESIGN §11 answer 6) | ✅ 12e |
 | R34 | `GenerateSkillDriftTest` | ✅ 12e |
-| R35 | `GenerateBenchmarkTest` (replay of 9 recorded generations; 30 descriptions kept), `scripts/bench-generate.sh` (live; 12 of 30 run) | 🟨 12e (12 of 30 run live; the targets in DESIGN §9 are not met by the cheap model used: see §7) |
+| R35 | `GenerateBenchmarkTest` (replay of 15 recorded generations with their safe defaults and structural expectations; 30 descriptions and expectations kept), `scripts/bench-generate.sh` (live, all 30 run) | 🟥 12e (all 30 run live; the pass rate of the cheap model is 50 %, the target 90 %: see §7) |
 
 ## 3. Quality gates
 
@@ -151,4 +151,13 @@ Wiki "Generating a workflow"; LOOM_GUIDE section; the workflow skill (preferred 
   - `expect.never` takes step labels; the model writes `delegate Agent` where the label is `delegate`, so some repairs go to naming.
 - Tests: Java module 3,207 (`mvn -B -o verify -DskipITs`, 0 failures, 2 skipped as before); editor 641 tests, 636 pass: the 5 failures are the ones that were there before this phase (the logo script twice, the renderer copy twice, one real-graph path).
 - Not in 12e: the other 18 descriptions run live, a second model for comparison (§4 manual check 2), a strong model for the plan and a cheap one for the writes (the pair in DESIGN §11).
+
+### 12e, second round (2026-10-24)
+
+- **Quality gates of §3.** Line coverage of `generate/`: 94.3 % (target 90). Mutation score of `RepairLoop`, the gates, `PlanChecker` and `PatchSet` (`mvn -Pmutation-generate org.pitest:pitest-maven:mutationCoverage`, online): 76 % overall, each class 67 % to 82 % (target 70 %; the one class under it, `SafeDefaults`, was then given the tests it lacked). Network guard: `GenerateBuildTest` (a proxy selector that records any connection). The editor suite passes in full: its last 5 failures were stale paths and a stale node id in tests (the repo moved under `src/`; the graph was renumbered), now fixed.
+- **Test files learned two things** (phase 11, found because the generator needs them): a classifier can be scripted with a list of answers, one per call (the last repeats), and `expect.final: halted` asserts a `halt`.
+- **New in the generator:** the safe defaults as a gate (R10), the card's review lines and `weave next` steps (R18), money in the edit delta (R21), `--timeout`, one automatic retry of a failed model call, the offending line quoted beside each error, step labels listed when a test names a wrong one, recipes for the errors a model repeats (the lethal trifecta, `unsure` as a label, `use: class`, one-line statements), and the exact test-file format and tool kinds in the prompts.
+- **Live benchmark, all 30 descriptions, gpt-6-luna ($0.10 / $0.50 per million), cap $0.30 each, five at a time:** 15 built a project that passed every gate (50 %); 14 stopped at the attempt limit; 1 could not run (a provider timeout, now retried). The 15 that passed, the cost is about $0.02 each. The first-attempt pass rate is about 1 in 10. The 15 recordings are the replay benchmark.
+- **Why it is under the target, and why more prompt work is the wrong next step.** What stops a generation is nearly always the generated *tests*: a number of calls or questions that does not match what the script does, a step named wrongly, an assertion on effects that scripted agents never produce. Gate G3 (tests) is among the failing gates in 14 of the 15 that did not pass (in 3 of them only because the script did not parse, so the tests could not run); the lethal trifecta is also open in 2 of them; the 15th was a provider timeout (now retried). The loop repairs one error class and the model produces another; each round of prompt rules moved the rate by a few descriptions and by luck as much as by the rule (the same description passed and failed between rounds). Two things would change that, not a third prompt: **tests derived from the script by the tool** (the tool knows every branch, every classifier label and every limit, so it can write the cases that reach them; the model would only add what the plan says should hold), and **a stronger model for the write**. Phase 14's `capture` turns a recorded run into a test case; the same machinery, run on mock models down each branch, is the tool-made test.
+- **Status:** 12e is **not closed**. R35 / A11 are open and the exit checklist stays unticked on the pass-rate line. The decision (finish phase 14 first, or build tool-made tests now, and which models to compare) is D12's last part.
 

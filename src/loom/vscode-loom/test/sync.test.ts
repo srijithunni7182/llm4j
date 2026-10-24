@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-const repo = path.join(__dirname, '..', '..', '..', '..');
+const repo = path.join(__dirname, '..', '..', '..', '..', '..');
 const check = path.join(repo, 'scripts', 'check-graph-render-sync.sh');
 const nodeAvailable = spawnSync('node', ['--version']).status === 0;
 
@@ -16,7 +16,7 @@ test('V10.14: the extension\'s copy of the renderer is the canonical file', { sk
 });
 
 test('V10.14: a changed copy is caught by the check, and restoring it passes again', { skip: !nodeAvailable }, () => {
-    const copy = path.join(repo, 'loom', 'vscode-loom', 'media', 'graph-render.js');
+    const copy = path.join(repo, 'src', 'loom', 'vscode-loom', 'media', 'graph-render.js');
     const original = fs.readFileSync(copy);
     const backup = path.join(os.tmpdir(), 'graph-render.backup.js');
     fs.writeFileSync(backup, original);
@@ -24,7 +24,7 @@ test('V10.14: a changed copy is caught by the check, and restoring it passes aga
         fs.appendFileSync(copy, '\n// drift\n');
         const drifted = spawnSync('bash', [check], { encoding: 'utf8' });
         assert.equal(drifted.status, 1);
-        assert.match(drifted.stderr, /OUT OF SYNC: loom\/vscode-loom\/media\/graph-render\.js/);
+        assert.match(drifted.stderr, /OUT OF SYNC: src\/loom\/vscode-loom\/media\/graph-render\.js/);
     } finally {
         fs.writeFileSync(copy, original);
     }

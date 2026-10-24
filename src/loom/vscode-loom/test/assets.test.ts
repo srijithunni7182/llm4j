@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-const repo = path.join(__dirname, '..', '..', '..', '..');
+const repo = path.join(__dirname, '..', '..', '..', '..', '..');
 const script = path.join(repo, 'scripts', 'make-logo-assets.sh');
 const hasConvert = spawnSync('convert', ['-version']).status === 0;
 
@@ -35,5 +35,5 @@ test('the committed logos are what the script makes from the project logo', { sk
 });
 
 test('the logo source exists', () => {
-    assert.ok(fs.existsSync(path.join(repo, 'loom', 'ai-agent4j-loom', 'loom_logo.png')));
+    assert.ok(fs.existsSync(path.join(repo, 'src', 'loom', 'ai-agent4j-loom', 'loom_logo.png')));
 });

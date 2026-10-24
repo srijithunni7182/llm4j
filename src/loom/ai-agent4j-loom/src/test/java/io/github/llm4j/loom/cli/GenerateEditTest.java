@@ -391,4 +391,20 @@ class GenerateEditTest {
                 .contains("not one");
         assertThat(PatchSet.parse("").isEmpty()).isTrue();
     }
+
+    @Test
+    void withAPriceFileTheCostChangeIsAlsoShownInMoney() throws Exception {
+        Path p = project(false);
+        Path prices =
+                Files.writeString(dir.resolve("prices.txt"), "claude-haiku-5-5 = 1.00 / 5.00\n");
+        var o =
+                edit(
+                        p,
+                        new String[] {reply("main.loom", "temperature: 0.3", "temperature: 0.1")},
+                        "make the drafter more careful",
+                        "--prices",
+                        prices.toString());
+        assertThat(o.code()).as(o.out()).isZero();
+        assertThat(o.out()).contains("cost of Main: typical").contains("(about $");
+    }
 }

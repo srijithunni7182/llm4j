@@ -3,6 +3,7 @@ package io.github.llm4j.loom.cli;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
+import io.github.llm4j.loom.generate.Structure;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,6 +32,13 @@ class GenerateBenchmarkTest {
     @Test
     void thirtyDescriptionsAreKept() throws IOException {
         try (Stream<Path> s = Files.list(resources().resolve("descriptions"))) {
+            assertThat(s.count()).isEqualTo(30);
+        }
+    }
+
+    @Test
+    void everyDescriptionHasStructuralExpectations() throws IOException {
+        try (Stream<Path> s = Files.list(resources().resolve("expect"))) {
             assertThat(s.count()).isEqualTo(30);
         }
     }
@@ -73,6 +81,25 @@ class GenerateBenchmarkTest {
                                         assertThat(o.code()).as(o.out()).isZero();
                                         assertThat(out.resolve("main.loom")).isRegularFile();
                                         assertThat(out.resolve("plan.json")).isRegularFile();
+                                        // R10, A3: the safe defaults hold in every project...
+                                        assertThat(Structure.defaults(out.resolve("main.loom")))
+                                                .as(id + " safe defaults")
+                                                .isEmpty();
+                                        // ...and the description's own structural expectations
+                                        assertThat(
+                                                        Structure.expected(
+                                                                out.resolve("main.loom"),
+                                                                new com.fasterxml.jackson.databind
+                                                                                .ObjectMapper()
+                                                                        .readTree(
+                                                                                Files.readString(
+                                                                                        resources()
+                                                                                                .resolve(
+                                                                                                        "expect/"
+                                                                                                                + id
+                                                                                                                + ".json")))))
+                                                .as(id + " expectations")
+                                                .isEmpty();
                                     });
                         });
     }

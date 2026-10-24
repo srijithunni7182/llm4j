@@ -224,4 +224,41 @@ class WorkflowCasesTest {
         TestRunner.CaseResult r = Wtest.run(dir, keyed, cases).get(0);
         assertThat(r.failures()).isEmpty();
     }
+
+    @Test
+    void aClassifierGivenAListAnswersTheCallsInOrderAndTheLastOneRepeats() throws Exception {
+        String script =
+                """
+                agent Replier { model: "gemini-2.5-flash"  system: "Answer." }
+                intentclassifier Intent { model: "gemini-2.5-flash"  choose kind: order_status | refund }
+                workflow Main(message) {
+                    intentclassify Intent on message -> first
+                    intentclassify Intent on message -> second
+                    alt (first.kind == "refund") {
+                        alt (second.kind == "order_status") { return "changed" } else { return "same" }
+                    } else { return "no refund" }
+                }
+                """;
+        String yaml =
+                "script: ../main.loom\nworkflow: Main\ncases:\n  - name: the answer changes\n    input: { message: x }\n"
+                        + "    models:\n      Intent: [ { kind: refund }, { kind: order_status } ]\n    expect:\n      result: changed\n";
+        var results = Wtest.run(dir, script, yaml);
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).failures()).isEmpty();
+    }
+
+    @Test
+    void aRunThatEndsByHaltCanBeAssertedWithFinalHalted() throws Exception {
+        String script =
+                """
+                workflow Main(message) {
+                    halt "stopped on purpose"
+                }
+                """;
+        String yaml =
+                "script: ../main.loom\nworkflow: Main\ncases:\n  - name: halts\n    input: { message: x }\n    expect:\n      final: halted\n";
+        var results = Wtest.run(dir, script, yaml);
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).failures()).isEmpty();
+    }
 }

@@ -122,7 +122,14 @@ class RepairLoopTest {
         // after the bad attempt the model is shown the best draft (one BAD), not its own five
         String third = model.asked.get(2);
         assertThat(third).contains("made things worse and was thrown away");
-        assertThat(third.lines().filter(l -> l.contains("note \"BAD\"")).count()).isEqualTo(1);
+        assertThat(
+                        third.lines()
+                                .filter(
+                                        l ->
+                                                l.contains("note \"BAD\"")
+                                                        && !l.contains("that line reads"))
+                                .count())
+                .isEqualTo(1);
     }
 
     @Test
@@ -251,5 +258,16 @@ class RepairLoopTest {
         try (var left = Files.list(dir)) {
             assertThat(left.toList()).isEmpty();
         }
+    }
+
+    @Test
+    void aProblemAtALineShowsTheLineSoASyntaxErrorIsReadAgainstTheText() throws Exception {
+        ScriptedModel model =
+                ScriptedModel.of(
+                        ProjectReplies.withScript(script(1)), ProjectReplies.withScript(script(0)));
+        RepairLoop.Outcome o = run(model, 4, 8, roomy(), markers("G1"));
+        assertThat(o.passed()).isTrue();
+        assertThat(model.asked.get(1)).contains("that line reads: note \"BAD\"");
+        o.workspace().close();
     }
 }

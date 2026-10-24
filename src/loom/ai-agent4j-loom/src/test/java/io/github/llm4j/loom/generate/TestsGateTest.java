@@ -144,4 +144,18 @@ class TestsGateTest {
                                 + "tool Mailer { use: email  host: env.SMTP_HOST  username: env.SMTP_USER  password: env.SMTP_PASS  from: env.MAIL_FROM  to: env.MAIL_TO  security: \"STARTTLS\" }"));
         assertThat(run(TestsGate.passing(), f, Writer.Layout.FLAT).problems()).isEmpty();
     }
+
+    @Test
+    void aStepNamedWrongIsAnsweredWithTheStepsThatExist() throws Exception {
+        String wrong =
+                GenerateFixtures.TESTS.replace(
+                        "calls: { Drafter: 1, Notifier: 1 }",
+                        "calls: { Drafter: 1, Notifier: 1 }\n      never: [\"delegate Nobody\"]");
+        GateResult r = run(TestsGate.passing(), with(wrong), Writer.Layout.FLAT);
+        assertThat(r.passed()).isFalse();
+        assertThat(r.feedback())
+                .contains("is not a step")
+                .contains("The steps a case can name")
+                .contains("delegate Drafter");
+    }
 }

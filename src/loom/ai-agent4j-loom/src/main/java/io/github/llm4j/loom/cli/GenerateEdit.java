@@ -53,12 +53,13 @@ final class GenerateEdit {
         DeltaGate.Snapshot baseline;
         try {
             project = Project.read(script);
-            baseline = GenerateReview.snapshotter(env).snapshot(script);
+            baseline = GenerateReview.snapshotter(env, c.prices).snapshot(script);
         } catch (Exception e) {
             env.err().println("Error: " + (e.getMessage() == null ? e : e.getMessage()));
             return 2;
         }
-        DeltaGate delta = new DeltaGate(baseline, GenerateReview.snapshotter(env), c.worseFactor);
+        DeltaGate delta =
+                new DeltaGate(baseline, GenerateReview.snapshotter(env, c.prices), c.worseFactor);
         List<Gate> gates =
                 List.of(
                         new CheckGate(GenerateCommand.checker(env)),
@@ -201,6 +202,20 @@ final class GenerateEdit {
         return present(c, env, project, request, changed, results, delta.last(), spend, attempts);
     }
 
+    /** " (about $a → $b typical, $c → $d worst)" when both sides are priced. */
+    private static String money(DeltaGate.WorkflowTokens was, DeltaGate.WorkflowTokens now) {
+        if (was.typicalCost() == null || now.typicalCost() == null) return "";
+        return " (about $"
+                + was.typicalCost().toPlainString()
+                + " → $"
+                + now.typicalCost().toPlainString()
+                + " typical, $"
+                + (was.worstCost() == null ? "?" : was.worstCost().toPlainString())
+                + " → $"
+                + (now.worstCost() == null ? "?" : now.worstCost().toPlainString())
+                + " worst)";
+    }
+
     private static int present(
             GenerateCommand c,
             WeaveEnv env,
@@ -272,6 +287,7 @@ final class GenerateEdit {
                         .append(was.unbounded() ? "unbounded" : was.worst())
                         .append(" → ")
                         .append(e.getValue().unbounded() ? "unbounded" : e.getValue().worst())
+                        .append(money(was, e.getValue()))
                         .append('\n');
             }
         }

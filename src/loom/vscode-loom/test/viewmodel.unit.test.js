@@ -69,7 +69,9 @@ test('a real graph (all statements): the path runs through loops by their body a
     assert.equal(m.main[0], 'start');
     assert.equal(m.main[m.main.length - 1], 'end');
     assert.ok(m.main.includes('n10') && m.main.includes('n12') && m.main.includes('n14'));
-    assert.ok(!m.main.includes('n23'), 'the handler of an exhausted loop is off the path');
+    const handlers = wf.edges.filter((e) => e.label === 'exhausted').map((e) => e.to);
+    assert.ok(handlers.length > 0, 'the graph has an exhausted-loop handler');
+    handlers.forEach((h) => assert.ok(!m.main.includes(h), 'the handler of an exhausted loop is off the path'));
     assert.equal(new Set(m.main).size, m.main.length, 'no step twice');
     m.nodes.forEach((n) => assert.ok(M.VK[n.vk], n.id + ' has a kind: ' + n.vk));
 });

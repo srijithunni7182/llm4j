@@ -87,7 +87,7 @@ Gates, in order; each failure is fed back to the model as structured text (rule 
 | G4 coverage | node coverage of the generated tests ≥ the threshold (default 80 %) | uncovered branches fed back with suggested cases |
 | G5 plan fidelity | every agent, tool, human step and effect in the plan exists in the script and nothing in the script is absent from the plan (structural diff of plan vs graph) | the difference fed back |
 
-- **R12** At most `--max-attempts` (default 4) repair rounds per gate and 8 overall; each round changes only files named by the failure unless the model asks to restructure (counted as a new attempt with a full rewrite).
+- **R12** At most `--max-attempts` (default 6; it was 4 until the live runs of 12e showed that a syntax error is reported one at a time) repair rounds per gate and 12 overall (8 before); each round changes only files named by the failure unless the model asks to restructure (counted as a new attempt with a full rewrite).
 - **R13** Generation has its own **spend cap** (`--max-cost`, default $0.50; `--max-tokens`), enforced before each call using the same budget machinery as a Loom run. Exceeding it stops with the best draft kept in a `.draft` folder and the cap message.
 - **R14** The loop is monotone: an attempt that increases the number of failing gates or HIGH findings is discarded and the previous best draft is retried with the feedback, so the loop cannot oscillate.
 - **R15** `SAFE` fixes from phase 9 are applied by the tool, not the model (cheaper, deterministic); the model is only asked to repair what has no safe fix.

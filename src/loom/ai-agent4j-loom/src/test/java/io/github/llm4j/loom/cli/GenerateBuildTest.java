@@ -52,7 +52,8 @@ class GenerateBuildTest {
                         out.toString(),
                         "--flat",
                         "--no-ask");
-        assertThat(o.err()).isEmpty();
+        // the only thing said on standard error is that money cannot be counted without prices
+        assertThat(o.err()).startsWith("Note: no price is known for m").doesNotContain("Error");
         assertThat(o.out())
                 .as(o.out())
                 .contains("✓ Made SupportNotify")
@@ -476,5 +477,83 @@ class GenerateBuildTest {
                         "--max-attempts",
                         "1");
         assertThat(o.code()).as(o.out() + o.err()).isZero();
+    }
+
+    @Test
+    void generationOpensNoConnectionAnywhereExceptThroughTheModelClient() throws Exception {
+        // R29, A5: the plan names a webhook; building, checking, reviewing and testing it must not
+        // touch it, fetch anything, or run anything. Every connection a JVM opens by URL asks the
+        // proxy selector first, so a selector that records is a guard over all of them.
+        java.util.List<java.net.URI> attempts = new java.util.concurrent.CopyOnWriteArrayList<>();
+        java.net.ProxySelector before = java.net.ProxySelector.getDefault();
+        java.net.ProxySelector.setDefault(
+                new java.net.ProxySelector() {
+                    @Override
+                    public java.util.List<java.net.Proxy> select(java.net.URI uri) {
+                        attempts.add(uri);
+                        return java.util.List.of(java.net.Proxy.NO_PROXY);
+                    }
+
+                    @Override
+                    public void connectFailed(
+                            java.net.URI uri, java.net.SocketAddress sa, java.io.IOException e) {}
+                });
+        try {
+            var o =
+                    run(
+                            "[]",
+                            PlanJson.write(GenerateFixtures.plan()),
+                            new String[] {files(modelFiles())},
+                            "--out",
+                            dir.resolve("guarded").toString(),
+                            "--flat",
+                            "--no-ask");
+            assertThat(o.code()).as(o.out()).isZero();
+        } finally {
+            java.net.ProxySelector.setDefault(before);
+        }
+        assertThat(attempts).isEmpty();
+    }
+
+    @Test
+    void whatTheGeneratorShowsTheModelHoldsNoSecretShapedText() {
+        // R27: the instructions, the language reference, the rule catalog and the examples
+        String shown =
+                io.github.llm4j.loom.generate.PromptAssembly.system(
+                        GenerateCommand.reference(), java.util.List.of());
+        assertThat(io.github.llm4j.loom.review.fact.SecretShapes.in(shown)).isFalse();
+        // the first message carries the examples chosen for the plan
+        assertThat(
+                        io.github.llm4j.loom.review.fact.SecretShapes.in(
+                                io.github.llm4j.loom.generate.PromptAssembly.write(
+                                        GenerateFixtures.plan(), java.util.Map.of())))
+                .isFalse();
+    }
+
+    @Test
+    void aModelCallThatFailsOnceIsMadeAgain() {
+        int[] calls = {0};
+        io.github.llm4j.LLMClient flaky =
+                new io.github.llm4j.LLMClient() {
+                    @Override
+                    public io.github.llm4j.model.LLMResponse chat(
+                            io.github.llm4j.model.LLMRequest r) {
+                        if (calls[0]++ == 0) throw new IllegalStateException("timeout");
+                        return io.github.llm4j.model.LLMResponse.builder()
+                                .content("ok")
+                                .model("m")
+                                .tokenUsage(1, 1, 2)
+                                .build();
+                    }
+
+                    @Override
+                    public java.util.stream.Stream<io.github.llm4j.model.LLMResponse> chatStream(
+                            io.github.llm4j.model.LLMRequest r) {
+                        return java.util.stream.Stream.of(chat(r));
+                    }
+                };
+        var req = io.github.llm4j.model.LLMRequest.builder().model("m").addUserMessage("x").build();
+        assertThat(GenerateCommand.retrying(flaky).chat(req).getContent()).isEqualTo("ok");
+        assertThat(calls[0]).isEqualTo(2);
     }
 }

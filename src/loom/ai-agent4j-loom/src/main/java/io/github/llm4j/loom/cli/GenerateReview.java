@@ -24,9 +24,25 @@ final class GenerateReview {
      * comparing two versions.
      */
     static io.github.llm4j.loom.generate.DeltaGate.Reviewer snapshotter(WeaveEnv env) {
+        return snapshotter(env, null);
+    }
+
+    /** As above, with the price file so that the cost is also in money. */
+    static io.github.llm4j.loom.generate.DeltaGate.Reviewer snapshotter(
+            WeaveEnv env, java.io.File prices) {
         return script -> {
             ReviewCommand c = new ReviewCommand();
-            new CommandLine(c).parseArgs(script.toString(), "--format", "json", "--no-env");
+            if (prices == null)
+                new CommandLine(c).parseArgs(script.toString(), "--format", "json", "--no-env");
+            else
+                new CommandLine(c)
+                        .parseArgs(
+                                script.toString(),
+                                "--format",
+                                "json",
+                                "--no-env",
+                                "--prices",
+                                prices.toString());
             ReviewSession session;
             try {
                 session = ReviewCommand.open(c, env).session();
@@ -34,6 +50,8 @@ final class GenerateReview {
                 throw new IllegalStateException(e.getMessage());
             }
             ReviewReport report = session.review(script);
+            io.github.llm4j.budget.PriceTable table =
+                    prices == null ? null : io.github.llm4j.budget.PriceTable.load(prices.toPath());
             List<io.github.llm4j.loom.generate.DeltaGate.Found> open = new ArrayList<>();
             for (Finding f : report.findings())
                 open.add(
@@ -46,11 +64,25 @@ final class GenerateReview {
             java.util.Map<String, io.github.llm4j.loom.generate.DeltaGate.WorkflowTokens> cost =
                     new java.util.LinkedHashMap<>();
             if (report.cost() != null)
-                for (var w : report.cost().workflows())
+                for (var w : report.cost().workflows()) {
+                    java.math.BigDecimal typical = null, worst = null;
+                    if (table != null) {
+                        var t = w.typical().money(table);
+                        var x = w.worst().money(table);
+                        if (t.complete() && x.complete()) {
+                            typical = t.amount();
+                            worst = x.amount();
+                        }
+                    }
                     cost.put(
                             w.name(),
                             new io.github.llm4j.loom.generate.DeltaGate.WorkflowTokens(
-                                    w.typical().tokens(), w.worst().tokens(), w.unbounded()));
+                                    w.typical().tokens(),
+                                    w.worst().tokens(),
+                                    w.unbounded(),
+                                    typical,
+                                    worst));
+                }
             return new io.github.llm4j.loom.generate.DeltaGate.Snapshot(open, cost);
         };
     }

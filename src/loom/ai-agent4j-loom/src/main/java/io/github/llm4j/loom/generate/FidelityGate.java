@@ -174,6 +174,7 @@ public final class FidelityGate implements Gate {
                             0,
                             "plan",
                             "The script asks a person, but the plan lists nobody to ask."));
+        out.addAll(SafeDefaults.check(plan, script));
         if (script.getBudget() == null)
             out.add(
                     new GateResult.Problem(

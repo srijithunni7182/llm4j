@@ -22,7 +22,17 @@ public final class DeltaGate implements Gate {
             String fingerprint, String rule, Severity severity, int line, String title) {}
 
     /** The tokens a workflow takes in a typical run and in the worst case the script allows. */
-    public record WorkflowTokens(long typical, long worst, boolean unbounded) {}
+    public record WorkflowTokens(
+            long typical,
+            long worst,
+            boolean unbounded,
+            java.math.BigDecimal typicalCost,
+            java.math.BigDecimal worstCost) {
+        /** Tokens only: no price was given, or the models had none. */
+        public WorkflowTokens(long typical, long worst, boolean unbounded) {
+            this(typical, worst, unbounded, null, null);
+        }
+    }
 
     /** What a review says about a script, reduced to what the comparison needs. */
     public record Snapshot(List<Found> open, Map<String, WorkflowTokens> cost) {

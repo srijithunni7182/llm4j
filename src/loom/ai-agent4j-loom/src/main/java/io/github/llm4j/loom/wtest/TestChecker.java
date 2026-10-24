@@ -67,7 +67,7 @@ public final class TestChecker {
                     "branches");
 
     static final List<String> FINALS =
-            List.of("completed", "failed", "suspended", "stopped", "budget");
+            List.of("completed", "failed", "suspended", "stopped", "budget", "halted");
 
     private final LoomScript script;
     private final GraphResult graph;
@@ -361,8 +361,26 @@ public final class TestChecker {
                         .findFirst()
                         .orElse(null);
         if (def == null) return;
+        if (answer.isArray() && answer.size() > 0) {
+            // one map per call, in order
+            for (JsonNode each : answer) classifierAnswer(c, name, def, each, problems);
+            return;
+        }
+        classifierAnswer(c, name, def, answer, problems);
+    }
+
+    private void classifierAnswer(
+            TestFile.Case c,
+            String name,
+            IntentClassifierDef def,
+            JsonNode answer,
+            List<String> problems) {
         if (!answer.isObject()) {
-            problems.add(where(c) + "models." + name + ": a map with an answer for each question");
+            problems.add(
+                    where(c)
+                            + "models."
+                            + name
+                            + ": a map with an answer for each question, or a list of such maps (one per call)");
             return;
         }
         Set<String> questions = new LinkedHashSet<>();

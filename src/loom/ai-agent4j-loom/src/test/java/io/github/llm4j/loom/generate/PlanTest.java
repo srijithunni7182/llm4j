@@ -237,4 +237,9 @@ class PlanTest {
         assertThat(model.calls()).isEqualTo(2);
         assertThat(model.asked.get(1)).contains("has these problems").contains("no agent");
     }
+
+    @Test
+    void thePlannerNamesTheToolKindsThatAreBuiltIn() {
+        assertThat(Planner.SYSTEM).contains("duckduckgo").contains("webhook").contains("stub");
+    }
 }

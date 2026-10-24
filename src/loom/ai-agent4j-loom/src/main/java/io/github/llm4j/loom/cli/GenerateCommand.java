@@ -479,6 +479,14 @@ final class GenerateCommand implements Callable<Integer> {
             }
         }
         Spend spend = new Spend(c.maxTokens, c.maxCost, price);
+        if (price == null && c.replay == null)
+            env.err()
+                    .println(
+                            "Note: no price is known for "
+                                    + model
+                                    + " (give --prices), so --max-cost cannot count money here; the "
+                                    + c.maxTokens
+                                    + "-token cap applies.");
         Map<String, String> planFiles = new LinkedHashMap<>();
         planFiles.put("plan.json", PlanJson.write(plan));
         planFiles.put("PLAN.md", PlanMarkdown.render(plan));
@@ -542,9 +550,10 @@ final class GenerateCommand implements Callable<Integer> {
                                         done.written(),
                                         outcome.results(),
                                         List.of(),
+                                        reviewLines(target, env),
                                         spend,
                                         outcome.attempts().size(),
-                                        Summary.nextSteps(target.toString())));
+                                        nextSteps(target, env)));
                 return 0;
             }
             env.out()
@@ -559,7 +568,22 @@ final class GenerateCommand implements Callable<Integer> {
                 env.out().println("  " + g.gate() + " " + g.name() + " failed:");
                 g.problems().forEach(p -> env.out().println("    " + p.text()));
             }
-            if (ws != null && c.keepFailing) {
+            env.out()
+                    .println(
+                            "Generation cost: "
+                                    + spend.calls()
+                                    + " model calls, "
+                                    + spend.tokens()
+                                    + " tokens"
+                                    + (spend.cost() == null
+                                            ? ""
+                                            : ", $"
+                                                    + spend.cost()
+                                                            .setScale(
+                                                                    4,
+                                                                    java.math.RoundingMode.HALF_UP)
+                                                            .toPlainString()));
+            if (ws != null && (c.keepFailing || outcome.status() == RepairLoop.Status.CAP)) {
                 Path draft = Path.of(target + ".draft");
                 Workspace.Committed kept = ws.commit(draft, true);
                 env.out()
@@ -593,6 +617,25 @@ final class GenerateCommand implements Callable<Integer> {
         return sb.toString();
     }
 
+    /** What the review says about the finished project; nothing if it cannot be read again. */
+    private static List<String> reviewLines(Path target, WeaveEnv env) {
+        try {
+            Path file =
+                    Files.isRegularFile(target.resolve("main.loom"))
+                            ? target.resolve("main.loom")
+                            : target.resolve("src/main/resources/main.loom");
+            return Summary.reviewLines(GenerateReview.snapshotter(env).snapshot(file));
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    /** Three next steps from the same advisor as {@code weave next}; fixed ones if it has none. */
+    private static List<String> nextSteps(Path target, WeaveEnv env) {
+        List<String> advised = NextCommand.briefly(target, env, 3);
+        return advised.isEmpty() ? Summary.nextSteps(target.toString()) : advised;
+    }
+
     static String modelName(GenerateCommand c) {
         String m = c.model != null ? c.model : System.getenv("LOOM_GENERATE_MODEL");
         if (m == null || m.isBlank())
@@ -607,7 +650,27 @@ final class GenerateCommand implements Callable<Integer> {
         var models = env.models();
         if (models instanceof io.github.llm4j.loom.execution.DefaultLLMClientFactory d)
             models = d.withTimeout(java.time.Duration.ofSeconds(Math.max(1, c.timeoutSeconds)));
-        return models.createClient(modelName(c));
+        return retrying(models.createClient(modelName(c)));
+    }
+
+    /** A call that fails (a timeout, a busy provider) is made once more before the run gives up. */
+    static LLMClient retrying(LLMClient inner) {
+        return new LLMClient() {
+            @Override
+            public io.github.llm4j.model.LLMResponse chat(io.github.llm4j.model.LLMRequest r) {
+                try {
+                    return inner.chat(r);
+                } catch (RuntimeException first) {
+                    return inner.chat(r);
+                }
+            }
+
+            @Override
+            public java.util.stream.Stream<io.github.llm4j.model.LLMResponse> chatStream(
+                    io.github.llm4j.model.LLMRequest r) {
+                return inner.chatStream(r);
+            }
+        };
     }
 
     /** The language as the model is shown it: the persona that writes Loom, then the reference. */

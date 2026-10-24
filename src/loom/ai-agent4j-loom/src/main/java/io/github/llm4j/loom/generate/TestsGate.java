@@ -63,9 +63,19 @@ public final class TestsGate {
             }
             TestRunner.Suite suite = TestRunner.load(ws.script(), files);
             if (!suite.problems().isEmpty()) {
-                if (id.equals("G3"))
+                if (id.equals("G3")) {
                     for (String p : suite.problems())
                         out.add(new GateResult.Problem("tests", 0, "", p));
+                    if (suite.problems().stream().anyMatch(p -> p.contains("is not a step")))
+                        out.add(
+                                new GateResult.Problem(
+                                        "tests",
+                                        0,
+                                        "",
+                                        "The steps a case can name in route: and never: are "
+                                                + stepLabels(suite)
+                                                + "."));
+                }
                 return new GateResult(id, name, out);
             }
             List<TestRunner.CaseResult> results = TestRunner.run(suite, null, false, false);
@@ -125,6 +135,15 @@ public final class TestsGate {
                                                     "")));
         }
         return new GateResult(id, name, out);
+    }
+
+    /** The labels of the script's steps, as route: and never: write them. */
+    private static String stepLabels(TestRunner.Suite suite) {
+        java.util.LinkedHashSet<String> labels = new java.util.LinkedHashSet<>();
+        for (var w : suite.graph().workflows())
+            for (var n : w.nodes())
+                if (!n.kind().equals("start") && !n.kind().equals("end")) labels.add(n.label());
+        return String.join(", ", labels);
     }
 
     private static String fileName(String path) {
