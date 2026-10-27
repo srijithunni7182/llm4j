@@ -1,0 +1,8 @@
+agent Drafter { model: "m"  system: "You improve a draft until it reads well." }
+workflow Main(q) {
+  loop until (draft == "good") { // <- LR03
+    delegate "Improve: {q}" to Drafter -> draft // <- LC02
+  }
+  note "{draft}"
+}
+// ignore: LP02 LP05 LO01

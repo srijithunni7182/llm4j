@@ -84,3 +84,80 @@ test('the webview page and scripts load nothing from outside the extension', () 
     const panel = fs.readFileSync(path.join(root, 'media', 'panel.js'), 'utf8');
     assert.ok(!/innerHTML|insertAdjacentHTML|document\.write/.test(panel), 'script text is never put in the page as HTML');
 });
+
+test('10a: the engine commands and the java setting are declared, and the old graph key still works', () => {
+    const commands = manifest.contributes.commands.map((c: { command: string }) => c.command);
+    assert.ok(commands.includes('loom.restartEngine'));
+    assert.ok(commands.includes('loom.showEngineLog'));
+    const props = manifest.contributes.configuration.properties;
+    assert.equal(props['loom.javaPath'].default, 'java');
+    assert.ok(props['loom.graph.javaPath'], 'the older key is honoured');
+});
+
+test('10b: the review command is offered for .loom files everywhere, and no command depends on the state of a review', () => {
+    const command = manifest.contributes.commands.find((c: { command: string }) => c.command === 'loom.review');
+    assert.equal(command.title, 'Loom: Review Workflow');
+    for (const menu of ['commandPalette', 'editor/title', 'editor/context']) {
+        const entry = manifest.contributes.menus[menu].find((m: { command: string }) => m.command === 'loom.review');
+        assert.ok(entry, menu);
+        assert.equal(entry.when, 'resourceLangId == loom', menu);
+    }
+    assert.equal(manifest.contributes.menus['explorer/context'].find((m: { command: string }) => m.command === 'loom.review').when, 'resourceExtname == .loom');
+    // R43: no command is conditional on a clean review
+    const allWhen = JSON.stringify(manifest.contributes.menus);
+    assert.ok(!/review|finding|clean|loom\.has/i.test(allWhen.replace(/loom\.review[.\w]*/g, '').replace(/loom\.fixFinding/g, '')), 'no when clause mentions the review state');
+});
+
+test('10b: the review settings exist with the defaults the spec names', () => {
+    const props = manifest.contributes.configuration.properties;
+    assert.equal(props['loom.review.on'].default, 'save');
+    assert.deepEqual(props['loom.review.on'].enum, ['save', 'type', 'manual']);
+    assert.equal(props['loom.review.minSeverity'].default, 'low');
+    assert.equal(props['loom.review.codeLens'].default, true);
+    assert.equal(props['loom.review.statusBar'].default, true);
+    assert.equal(props['loom.review.failOn'].default, 'high');
+    assert.equal(props['loom.review.lenses'].default, '');
+    assert.equal(props['loom.review.layout'].default, 'split');
+    assert.deepEqual(props['loom.review.layout'].enum, ['split', 'outline', 'list']);
+});
+
+test('10b: the panel page loads exactly the files that exist in media', () => {
+    const html = fs.readFileSync(path.join(root, 'src', 'review', 'html.ts'), 'utf8');
+    const named = [...html.matchAll(/uri\('([^']+)'\)/g)].map((m) => m[1]);
+    assert.ok(named.includes('review.js') && named.includes('review-model.js') && named.includes('review.css'));
+    for (const file of named) {
+        assert.ok(fs.existsSync(path.join(root, 'media', file)), `${file} is loaded by the review page but missing`);
+    }
+});
+
+test('A10: no review file builds markup from text: no innerHTML, outerHTML, insertAdjacentHTML, eval or document.write', () => {
+    for (const file of ['review.js', 'review-model.js']) {
+        const code = fs.readFileSync(path.join(root, 'media', file), 'utf8');
+        for (const banned of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'eval(', 'new Function']) {
+            assert.ok(!code.includes(banned), `${file} uses ${banned}`);
+        }
+    }
+});
+
+test('10c: every triage command is declared with a palette title and a when clause; the ones that need arguments are hidden from the palette', () => {
+    const declared = manifest.contributes.commands.map((c: { command: string }) => c.command);
+    const palette = manifest.contributes.menus.commandPalette;
+    for (const id of ['loom.review.fixAll', 'loom.review.explain', 'loom.review.restore', 'loom.review.baseline']) {
+        assert.ok(declared.includes(id), id);
+    }
+    for (const id of ['loom.review.fixAll', 'loom.review.restore', 'loom.review.baseline']) {
+        assert.equal(palette.find((m: { command: string }) => m.command === id).when, 'resourceLangId == loom', id);
+    }
+    for (const id of ['loom.review.accept', 'loom.review.dismiss', 'loom.review.fixFinding']) {
+        assert.ok(declared.includes(id), id);
+        assert.equal(palette.find((m: { command: string }) => m.command === id).when, 'false', id + ' needs a finding, so it is not in the palette');
+    }
+    for (const c of manifest.contributes.commands) {
+        assert.match(c.title, /^Loom: /, c.command);
+    }
+});
+
+test('10c: no command is conditional on the state of a review (the hidden ones are hidden because they need arguments)', () => {
+    const when = manifest.contributes.menus.commandPalette.map((m: { when: string }) => m.when).filter((w: string) => w !== 'false');
+    assert.ok(when.every((w: string) => w === 'resourceLangId == loom'), JSON.stringify(when));
+});

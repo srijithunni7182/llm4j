@@ -457,6 +457,7 @@
     row.appendChild(ev);
     if (i.kind === 'SUSPECT_OUTPUT') { row.appendChild(el('p', 'note', 'This means no source was found for these figures in what the step was given or fetched. It does not mean they are false.')); }
     if (i.kind === 'INJECTION') { row.appendChild(el('p', 'note', 'A heuristic: the result read like instructions. Only the pattern groups are kept, never the text. Look at what the agent did next.')); }
+    incidentLoop(row, i);
     return row;
   }
 
@@ -1154,6 +1155,100 @@
     if (best != null) { goTo(best); } else { goLive(); }
   });
 
+  // ---- the production loop: turn this run into a test, or try a change on it (Fabric, signed in, capture permission on)
+  var loopView = null, loopKinds = {};
+  function loopOn(v) { return v && v.loop && v.loop.enabled && sess.signedIn; }
+
+  function loopPost(trace, action, body) {
+    return sessionCsrf().then(function (s) {
+      if (!s.signedIn) { throw new Error('Your session ended. Sign in again.'); }
+      return fetch('/api/runs/' + trace + '/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify(body || {}) });
+    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (b) { if (!r.ok) { throw new Error(b.message || b.error || ('Refused (' + r.status + ')')); } return b; }); });
+  }
+
+  function loopDialog(title, text) {
+    $('lp-title').textContent = title;
+    $('lp-text').textContent = text || '';
+    ['lp-form', 'lp-cmd', 'lp-out', 'lp-err', 'lp-dl'].forEach(function (i) { $(i).hidden = true; });
+    $('lp-out').textContent = '';
+    $('lp-cmd').textContent = '';
+    if (!$('loopdlg').open) { $('loopdlg').showModal(); }
+  }
+
+  function loopFail(e) { $('lp-err').textContent = e.message; $('lp-err').hidden = false; }
+
+  function createTest(trace, kind, injection) {
+    loopDialog('Create a test from this run', 'Working. The case is masked before it is shown.');
+    loopPost(trace, 'capture', { kind: kind || null, injection: !!injection }).then(function (b) {
+      if (b.fallback) {
+        $('lp-text').textContent = b.message;
+        $('lp-cmd').textContent = b.command;
+        $('lp-cmd').hidden = false;
+        return;
+      }
+      $('lp-text').textContent = (b.savedTo ? 'Saved to ' + b.savedTo + '. ' : '') + 'Read it before you commit it: it was taken from a real run. Emails, numbers and keys are masked; a name or a word no pattern can find is not. Fabric never writes into your repository; put the file in tests/captured/ yourself.';
+      $('lp-out').textContent = b.text;
+      $('lp-out').hidden = false;
+      $('lp-dl').hidden = false;
+      $('lp-dl').onclick = function () {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([b.text], { type: 'text/yaml' }));
+        a.download = b.name || 'captured.test.yaml';
+        document.body.appendChild(a); a.click(); a.remove();
+      };
+      if (kind) { delete loopKinds[kind]; }
+    }).catch(loopFail);
+  }
+
+  function tryChange(trace) {
+    loopDialog('Try a change on this run', 'Replays the run from its recorded answers with one thing changed. No model is called and nothing leaves this server.');
+    $('lp-form').hidden = false;
+    $('lp-run').onclick = function () {
+      var sets = {}, answers = {};
+      var s = $('lp-set').value.split('='), an = $('lp-answer').value.split('=');
+      if (s.length >= 2 && s[0].trim()) { sets[s[0].trim()] = s.slice(1).join('='); }
+      if (an.length >= 2 && an[0].trim()) { answers[an[0].trim()] = an.slice(1).join('='); }
+      $('lp-err').hidden = true;
+      loopPost(trace, 'whatif', { at: $('lp-at').value.trim(), sets: sets, answers: answers }).then(function (b) {
+        if (b.fallback) { $('lp-text').textContent = b.message; $('lp-cmd').textContent = b.command; $('lp-cmd').hidden = false; return; }
+        $('lp-out').textContent = b.text;
+        $('lp-out').hidden = false;
+      }).catch(loopFail);
+    };
+  }
+
+  function renderLoop(v) {
+    var box = $('loopbar');
+    box.textContent = '';
+    if (!loopOn(v) || showProcs || showSecrets || showConfig || showFleet) { box.hidden = true; return; }
+    box.hidden = false;
+    var t = el('button', 'btn', 'Create test');
+    t.type = 'button';
+    t.addEventListener('click', function () { createTest(v.traceId, null, false); });
+    var w = el('button', 'btn', 'Try a change');
+    w.type = 'button';
+    w.addEventListener('click', function () { tryChange(v.traceId); });
+    box.appendChild(t);
+    box.appendChild(w);
+  }
+
+  function incidentLoop(row, i) {
+    var v = loopView;
+    if (!loopOn(v)) { return; }
+    var line = el('div', 'top');
+    var b = el('button', 'btn', 'Create test');
+    b.type = 'button';
+    b.addEventListener('click', function () { createTest(v.traceId, String(i.kind || '').toLowerCase().replace(/_/g, '-'), i.kind === 'INJECTION'); });
+    line.appendChild(b);
+    var n = el('span', 'inctests', '');
+    line.appendChild(n);
+    var kind = String(i.kind || '').toLowerCase().replace(/_/g, '-');
+    var show = function (c) { n.textContent = c > 0 ? plural(c, 'test') + ' created from this kind of incident' : ''; };
+    if (loopKinds[kind] != null) { show(loopKinds[kind]); }
+    else { fetchJson('/api/loop?kind=' + encodeURIComponent(kind)).then(function (d) { loopKinds[kind] = d.tests || 0; show(loopKinds[kind]); }, function () { }); }
+    row.appendChild(line);
+  }
+
   var csrf = null;
   var ASKS = {
     pause: ['Pause this run?', 'The run holds before its next step and keeps its thread. Resume continues exactly where it stopped.', 'Pause'],
@@ -1677,6 +1772,7 @@
     pill.className = 'pill ' + v.status + (v.status === 'running' ? ' pulse' : '');
     pill.textContent = v.status;
     renderControls(v);
+    renderLoop(v);
     renderTimebar(v);
     $('meta').hidden = false;
     $('started').textContent = v.startedAt ? hms(v.startedAt) : '–';
@@ -1725,6 +1821,7 @@
 
     ensureGraph(selected);
     renderGraph(v);
+    loopView = v;
     renderIncidents(v.incidents || []);
     renderLadders(v.ladders || []);
     renderSpend(v.spend || []);

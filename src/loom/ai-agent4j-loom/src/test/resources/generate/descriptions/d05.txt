@@ -1,0 +1,1 @@
+Translate a product description into French and Spanish, then have a person approve it before it is saved to a file.

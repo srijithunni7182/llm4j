@@ -1,0 +1,1 @@
+Every morning, read a list of overnight error log lines, group them by cause and write a short report for the on-call engineer.

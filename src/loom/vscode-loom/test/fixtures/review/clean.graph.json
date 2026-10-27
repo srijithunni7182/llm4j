@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "entry": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/clean.loom",
+  "files": [
+    {
+      "path": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/clean.loom",
+      "imports": [ ]
+    }
+  ],
+  "workflows": [
+    {
+      "name": "Main",
+      "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/clean.loom",
+      "line": 3,
+      "params": [
+        "question"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "kind": "start",
+          "label": "Start"
+        },
+        {
+          "id": "n1",
+          "kind": "delegate",
+          "label": "delegate Helper",
+          "agent": "Helper",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/clean.loom",
+            "line": 4
+          },
+          "attrs": {
+            "variable": "answer_text",
+            "retry": 2,
+            "backoffMs": 2000,
+            "timeoutMs": 30000,
+            "text": "{question}"
+          }
+        },
+        {
+          "id": "n2",
+          "kind": "return",
+          "label": "return",
+          "source": {
+            "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/clean.loom",
+            "line": 5
+          }
+        },
+        {
+          "id": "end",
+          "kind": "end",
+          "label": "End"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "n1"
+        },
+        {
+          "from": "n1",
+          "to": "n2"
+        },
+        {
+          "from": "n2",
+          "to": "end"
+        }
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "name": "Helper",
+      "model": "gemini-2.5-flash",
+      "temperature": 0.2,
+      "source": {
+        "file": "/home/user/llm4j/src/loom/vscode-loom/test/fixtures/review/scripts/clean.loom",
+        "line": 2
+      }
+    }
+  ],
+  "runBudget": {
+    "tokens": 20000,
+    "calls": 10
+  },
+  "diagnostics": [ ]
+}

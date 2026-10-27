@@ -1,0 +1,9 @@
+rate_limits { on_limit: wait  max_wait: 6h  max_resumes: 10 }
+budget { tokens: 200000 per day }
+agent Analyst { model: "m"  system: "You summarise yesterday's numbers." }
+workflow Nightly(day) {
+  delegate "Summarise {day}" to Analyst -> summary
+  note "{summary}"
+}
+schedule Night { cron: "0 2 * * *"  run: Nightly(day = "yesterday") }
+// ignore: LP02 LP05 LO01

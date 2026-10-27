@@ -5,14 +5,17 @@ import { GraphPanelController, PanelHost, Scheduler, TimerHandle } from '../grap
 import { newNonce, renderPanelHtml } from '../graph/html';
 import { HostMessage } from '../graph/protocol';
 import { WeaveGraphRunner } from '../graph/runner';
+import { EngineGraphRunner } from '../engine/routing';
+import { configuredJavaPath, engineHost } from '../engine/vscodeHost';
 import { samePath } from '../graph/paths';
+import { TimeoutScheduler } from '../graph/timeoutScheduler';
 import { GraphAbortedError, GraphExitError, GraphTimeoutError, RuntimeMissingError } from '../graph/errors';
 
 /** Settings of the graph panel (package.json contributes.configuration). */
 export function readGraphSettings(): { javaPath: string; timeoutMs: number; autoRefresh: boolean } {
     const config = vscode.workspace.getConfiguration('loom.graph');
     return {
-        javaPath: config.get<string>('javaPath', 'java'),
+        javaPath: configuredJavaPath(),
         timeoutMs: config.get<number>('timeoutMs', 30000),
         autoRefresh: config.get<boolean>('autoRefresh', true),
     };
@@ -28,12 +31,7 @@ async function readSource(file: string): Promise<string | undefined> {
     return Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8');
 }
 
-export class TimeoutScheduler implements Scheduler {
-    after(ms: number, run: () => void): TimerHandle {
-        const handle = setTimeout(run, ms);
-        return { cancel: () => clearTimeout(handle) };
-    }
-}
+export { TimeoutScheduler };
 
 /** The editor side of a panel: what the controller asks for, done with the VS Code API. */
 class VsCodeHost implements PanelHost {
@@ -120,7 +118,7 @@ export class GraphPanel {
         const controller = new GraphPanelController({
             entry,
             cursor,
-            runner,
+            runner: engineHost() ? new EngineGraphRunner(engineHost()!, runner) : runner,
             host: new VsCodeHost(panel, sourceColumn, entry),
             readText: readSource,
             scheduler: new TimeoutScheduler(),

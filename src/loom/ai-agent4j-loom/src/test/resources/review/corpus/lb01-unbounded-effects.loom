@@ -1,0 +1,9 @@
+tool Hook { use: webhook  url: env.HOOK_URL }
+agent Sender { model: "m"  system: "s"  tools: [Hook] }
+workflow Main(items) {
+  for each item in items {
+    delegate "send {item}" to Sender -> sent // <- LB01
+  }
+}
+// ignore: LP02 LP05 LO01
+// ignore: LR01 LR02 LR07 LC02

@@ -1,0 +1,124 @@
+tool Mailer { use: email  outbox: "outbox"  from: "a@example.com"  to: "b@example.com" }
+agent A0 { model: "claude-haiku-5-5"  system: "Answer 0."  tools: [Mailer] }
+agent A1 { model: "claude-haiku-5-5"  system: "Answer 1."  tools: [Mailer] }
+agent A2 { model: "claude-haiku-5-5"  system: "Answer 2."  tools: [Mailer] }
+agent A3 { model: "claude-haiku-5-5"  system: "Answer 3."  tools: [Mailer] }
+agent A4 { model: "claude-haiku-5-5"  system: "Answer 4."  tools: [Mailer] }
+agent A5 { model: "claude-haiku-5-5"  system: "Answer 5."  tools: [Mailer] }
+agent A6 { model: "claude-haiku-5-5"  system: "Answer 6."  tools: [Mailer] }
+agent A7 { model: "claude-haiku-5-5"  system: "Answer 7."  tools: [Mailer] }
+agent A8 { model: "claude-haiku-5-5"  system: "Answer 8."  tools: [Mailer] }
+agent A9 { model: "claude-haiku-5-5"  system: "Answer 9."  tools: [Mailer] }
+agent A10 { model: "claude-haiku-5-5"  system: "Answer 10."  tools: [Mailer] }
+agent A11 { model: "claude-haiku-5-5"  system: "Answer 11."  tools: [Mailer] }
+agent A12 { model: "claude-haiku-5-5"  system: "Answer 12."  tools: [Mailer] }
+agent A13 { model: "claude-haiku-5-5"  system: "Answer 13."  tools: [Mailer] }
+agent A14 { model: "claude-haiku-5-5"  system: "Answer 14."  tools: [Mailer] }
+agent A15 { model: "claude-haiku-5-5"  system: "Answer 15."  tools: [Mailer] }
+agent A16 { model: "claude-haiku-5-5"  system: "Answer 16."  tools: [Mailer] }
+agent A17 { model: "claude-haiku-5-5"  system: "Answer 17."  tools: [Mailer] }
+agent A18 { model: "claude-haiku-5-5"  system: "Answer 18."  tools: [Mailer] }
+agent A19 { model: "claude-haiku-5-5"  system: "Answer 19."  tools: [Mailer] }
+agent A20 { model: "claude-haiku-5-5"  system: "Answer 20."  tools: [Mailer] }
+agent A21 { model: "claude-haiku-5-5"  system: "Answer 21."  tools: [Mailer] }
+agent A22 { model: "claude-haiku-5-5"  system: "Answer 22."  tools: [Mailer] }
+agent A23 { model: "claude-haiku-5-5"  system: "Answer 23."  tools: [Mailer] }
+agent A24 { model: "claude-haiku-5-5"  system: "Answer 24."  tools: [Mailer] }
+agent A25 { model: "claude-haiku-5-5"  system: "Answer 25."  tools: [Mailer] }
+agent A26 { model: "claude-haiku-5-5"  system: "Answer 26."  tools: [Mailer] }
+agent A27 { model: "claude-haiku-5-5"  system: "Answer 27."  tools: [Mailer] }
+agent A28 { model: "claude-haiku-5-5"  system: "Answer 28."  tools: [Mailer] }
+agent A29 { model: "claude-haiku-5-5"  system: "Answer 29."  tools: [Mailer] }
+agent A30 { model: "claude-haiku-5-5"  system: "Answer 30."  tools: [Mailer] }
+agent A31 { model: "claude-haiku-5-5"  system: "Answer 31."  tools: [Mailer] }
+agent A32 { model: "claude-haiku-5-5"  system: "Answer 32."  tools: [Mailer] }
+agent A33 { model: "claude-haiku-5-5"  system: "Answer 33."  tools: [Mailer] }
+agent A34 { model: "claude-haiku-5-5"  system: "Answer 34."  tools: [Mailer] }
+agent A35 { model: "claude-haiku-5-5"  system: "Answer 35."  tools: [Mailer] }
+agent A36 { model: "claude-haiku-5-5"  system: "Answer 36."  tools: [Mailer] }
+agent A37 { model: "claude-haiku-5-5"  system: "Answer 37."  tools: [Mailer] }
+agent A38 { model: "claude-haiku-5-5"  system: "Answer 38."  tools: [Mailer] }
+agent A39 { model: "claude-haiku-5-5"  system: "Answer 39."  tools: [Mailer] }
+agent A40 { model: "claude-haiku-5-5"  system: "Answer 40."  tools: [Mailer] }
+agent A41 { model: "claude-haiku-5-5"  system: "Answer 41."  tools: [Mailer] }
+agent A42 { model: "claude-haiku-5-5"  system: "Answer 42."  tools: [Mailer] }
+agent A43 { model: "claude-haiku-5-5"  system: "Answer 43."  tools: [Mailer] }
+agent A44 { model: "claude-haiku-5-5"  system: "Answer 44."  tools: [Mailer] }
+agent A45 { model: "claude-haiku-5-5"  system: "Answer 45."  tools: [Mailer] }
+agent A46 { model: "claude-haiku-5-5"  system: "Answer 46."  tools: [Mailer] }
+agent A47 { model: "claude-haiku-5-5"  system: "Answer 47."  tools: [Mailer] }
+agent A48 { model: "claude-haiku-5-5"  system: "Answer 48."  tools: [Mailer] }
+agent A49 { model: "claude-haiku-5-5"  system: "Answer 49."  tools: [Mailer] }
+agent A50 { model: "claude-haiku-5-5"  system: "Answer 50."  tools: [Mailer] }
+agent A51 { model: "claude-haiku-5-5"  system: "Answer 51."  tools: [Mailer] }
+agent A52 { model: "claude-haiku-5-5"  system: "Answer 52."  tools: [Mailer] }
+agent A53 { model: "claude-haiku-5-5"  system: "Answer 53."  tools: [Mailer] }
+agent A54 { model: "claude-haiku-5-5"  system: "Answer 54."  tools: [Mailer] }
+agent A55 { model: "claude-haiku-5-5"  system: "Answer 55."  tools: [Mailer] }
+agent A56 { model: "claude-haiku-5-5"  system: "Answer 56."  tools: [Mailer] }
+agent A57 { model: "claude-haiku-5-5"  system: "Answer 57."  tools: [Mailer] }
+agent A58 { model: "claude-haiku-5-5"  system: "Answer 58."  tools: [Mailer] }
+agent A59 { model: "claude-haiku-5-5"  system: "Answer 59."  tools: [Mailer] }
+workflow Main(q) {
+    delegate "Question 0: {q}" to A0 -> r0_text
+    delegate "Question 1: {q}" to A1 -> r1_text
+    delegate "Question 2: {q}" to A2 -> r2_text
+    delegate "Question 3: {q}" to A3 -> r3_text
+    delegate "Question 4: {q}" to A4 -> r4_text
+    delegate "Question 5: {q}" to A5 -> r5_text
+    delegate "Question 6: {q}" to A6 -> r6_text
+    delegate "Question 7: {q}" to A7 -> r7_text
+    delegate "Question 8: {q}" to A8 -> r8_text
+    delegate "Question 9: {q}" to A9 -> r9_text
+    delegate "Question 10: {q}" to A10 -> r10_text
+    delegate "Question 11: {q}" to A11 -> r11_text
+    delegate "Question 12: {q}" to A12 -> r12_text
+    delegate "Question 13: {q}" to A13 -> r13_text
+    delegate "Question 14: {q}" to A14 -> r14_text
+    delegate "Question 15: {q}" to A15 -> r15_text
+    delegate "Question 16: {q}" to A16 -> r16_text
+    delegate "Question 17: {q}" to A17 -> r17_text
+    delegate "Question 18: {q}" to A18 -> r18_text
+    delegate "Question 19: {q}" to A19 -> r19_text
+    delegate "Question 20: {q}" to A20 -> r20_text
+    delegate "Question 21: {q}" to A21 -> r21_text
+    delegate "Question 22: {q}" to A22 -> r22_text
+    delegate "Question 23: {q}" to A23 -> r23_text
+    delegate "Question 24: {q}" to A24 -> r24_text
+    delegate "Question 25: {q}" to A25 -> r25_text
+    delegate "Question 26: {q}" to A26 -> r26_text
+    delegate "Question 27: {q}" to A27 -> r27_text
+    delegate "Question 28: {q}" to A28 -> r28_text
+    delegate "Question 29: {q}" to A29 -> r29_text
+    delegate "Question 30: {q}" to A30 -> r30_text
+    delegate "Question 31: {q}" to A31 -> r31_text
+    delegate "Question 32: {q}" to A32 -> r32_text
+    delegate "Question 33: {q}" to A33 -> r33_text
+    delegate "Question 34: {q}" to A34 -> r34_text
+    delegate "Question 35: {q}" to A35 -> r35_text
+    delegate "Question 36: {q}" to A36 -> r36_text
+    delegate "Question 37: {q}" to A37 -> r37_text
+    delegate "Question 38: {q}" to A38 -> r38_text
+    delegate "Question 39: {q}" to A39 -> r39_text
+    delegate "Question 40: {q}" to A40 -> r40_text
+    delegate "Question 41: {q}" to A41 -> r41_text
+    delegate "Question 42: {q}" to A42 -> r42_text
+    delegate "Question 43: {q}" to A43 -> r43_text
+    delegate "Question 44: {q}" to A44 -> r44_text
+    delegate "Question 45: {q}" to A45 -> r45_text
+    delegate "Question 46: {q}" to A46 -> r46_text
+    delegate "Question 47: {q}" to A47 -> r47_text
+    delegate "Question 48: {q}" to A48 -> r48_text
+    delegate "Question 49: {q}" to A49 -> r49_text
+    delegate "Question 50: {q}" to A50 -> r50_text
+    delegate "Question 51: {q}" to A51 -> r51_text
+    delegate "Question 52: {q}" to A52 -> r52_text
+    delegate "Question 53: {q}" to A53 -> r53_text
+    delegate "Question 54: {q}" to A54 -> r54_text
+    delegate "Question 55: {q}" to A55 -> r55_text
+    delegate "Question 56: {q}" to A56 -> r56_text
+    delegate "Question 57: {q}" to A57 -> r57_text
+    delegate "Question 58: {q}" to A58 -> r58_text
+    delegate "Question 59: {q}" to A59 -> r59_text
+    return r0_text
+}

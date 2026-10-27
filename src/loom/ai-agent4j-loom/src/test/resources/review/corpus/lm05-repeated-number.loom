@@ -1,0 +1,9 @@
+// settings: data.threshold.repeats=2
+agent A { model: "m"  system: "s" }
+workflow Main(q, n) {
+  alt (n > 5) { note "high" } else { note "low" }
+  alt (n > 5) { note "again high" } else { note "again low" }
+}
+// expect-script: LM05
+// ignore: LP02 LP05 LO01
+// ignore: LM01

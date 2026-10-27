@@ -1,0 +1,9 @@
+agent Judge { model: "m"  system: "You decide whether the text is fine."  output_schema: { verdict: string } }
+workflow Main(topic) {
+  delegate "Is this fine? {topic}" to Judge -> verdict
+  alt (verdict.verdict == "yes") {
+    note "fine"
+  } else {
+    note "not fine"
+  }
+}

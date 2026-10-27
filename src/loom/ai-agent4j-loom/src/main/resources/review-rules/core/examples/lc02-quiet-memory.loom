@@ -1,0 +1,2 @@
+agent Worker { model: "m"  system: "s"  memory { max_tokens: 4000  compact: drop_oldest } }
+workflow Main(q) { loop until (x == "done") max 5 { delegate "{q}" to Worker -> x } }

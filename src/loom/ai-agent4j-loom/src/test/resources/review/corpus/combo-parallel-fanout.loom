@@ -1,0 +1,12 @@
+agent Writer { model: "m"  system: "You write one short paragraph." }
+agent Editor { model: "m"  system: "You join paragraphs into one text." }
+workflow Main(q) {
+  parallel {
+    delegate "Intro for {q}" to Writer -> intro
+    delegate "Body for {q}" to Writer -> body
+    delegate "Outro for {q}" to Writer -> outro
+  }
+  delegate "Join: {intro} {body} {outro}" to Editor -> text
+  note "{text}"
+}
+// ignore: LP02 LP05 LO01

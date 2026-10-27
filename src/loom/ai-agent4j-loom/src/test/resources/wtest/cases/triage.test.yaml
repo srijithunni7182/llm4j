@@ -1,0 +1,21 @@
+script: ../scripts/triage.loom
+workflow: Main
+cases:
+  - name: order-status questions get an automatic reply
+    input: { message: "where is my parcel?" }
+    models:
+      Intent: { kind: order_status, urgent: "no" }
+      Replier: "Your parcel shipped yesterday."
+    expect:
+      result: { contains: "shipped" }
+      calls: { Replier: 1, Escalator: 0, Intent: 1 }
+      route: [ classify Intent, delegate Replier, note ]
+      never: [ delegate Escalator ]
+  - name: anything else goes to a person's summary
+    input: { message: "I want my money back" }
+    models:
+      Intent: { kind: refund, urgent: "yes" }
+      Escalator: "Customer wants a refund."
+    expect:
+      result: "Customer wants a refund."
+      calls: { Replier: 0, Escalator: 1 }

@@ -117,6 +117,25 @@ final class ProjectAdvisor {
             }
         }
 
+        steps.add(
+                new Step(
+                        "Read the review: what could go wrong, with the fix for each",
+                        "It is free and quick, and it finds loops without limits, unguarded personal data and tools that can act without a person (advice, never a gate).",
+                        "weave review " + file));
+        if (hasTests(dir)) {
+            steps.add(
+                    new Step(
+                            "Run the tests and see what they leave uncovered",
+                            "They run on scripted models, so they are free, instant and the same every time.",
+                            "weave test " + file + " --coverage"));
+        } else {
+            steps.add(
+                    new Step(
+                            "Write tests for the branches and the limits (tests/main.test.yaml)",
+                            "A test with scripted models says a branch does what you meant, for nothing. weave init templates come with some to copy.",
+                            "weave test " + file + " --coverage"));
+        }
+
         if (loaded.getBudget() == null) {
             steps.add(
                     new Step(
@@ -172,12 +191,51 @@ final class ProjectAdvisor {
         }
         steps.add(
                 new Step(
+                        "Look at what it would take to deploy it (writes nothing)",
+                        "Env names, hosts and volumes are read from the script; the review's open findings are listed in the README it would write.",
+                        "weave deploy " + file + " --dry-run"));
+        steps.add(
+                new Step(
                         hasDataset ? "Run it for real, capped" : "Run it once for real, capped",
                         "This is the first step that costs money. It states what it will do and asks before it spends.",
                         hasDataset
                                 ? "weave eval " + file + " --max-tokens 200000"
                                 : "weave run " + file + " --max-tokens 100000 -i <input>=\"...\""));
+        if (hasRuns(dir)) {
+            steps.add(
+                    new Step(
+                            "Turn a run that went wrong into a regression test",
+                            "The runs you already have are the best test data there is; capture masks personal data and asks you to read the case.",
+                            "weave capture --list"));
+        }
         return steps;
+    }
+
+    private static boolean hasTests(Path dir) {
+        for (String d : new String[] {"tests", "src/test/resources/tests"}) {
+            Path t = dir.resolve(d);
+            if (Files.isDirectory(t))
+                try (Stream<Path> s = Files.walk(t, 2)) {
+                    if (s.anyMatch(p -> p.getFileName().toString().endsWith(".test.yaml")))
+                        return true;
+                } catch (IOException e) {
+                    return false;
+                }
+        }
+        return false;
+    }
+
+    private static boolean hasRuns(Path dir) {
+        for (String d : new String[] {".loom-triggers/runs", ".loom-triggers"}) {
+            Path r = dir.resolve(d);
+            if (Files.isDirectory(r))
+                try (Stream<Path> s = Files.list(r)) {
+                    if (s.anyMatch(p -> Files.isRegularFile(p.resolve("run.json")))) return true;
+                } catch (IOException e) {
+                    return false;
+                }
+        }
+        return false;
     }
 
     /**

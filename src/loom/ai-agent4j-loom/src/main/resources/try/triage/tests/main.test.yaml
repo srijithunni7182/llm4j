@@ -1,0 +1,30 @@
+# The demo models: every reply below is pre-written, so this runs offline, instantly, for free.
+# The first case is the one `weave try` narrates. `weave test` runs them all.
+script: ../main.loom
+workflow: Main
+cases:
+  - name: an order question is answered after a person says yes
+    input: { message: "Where is my parcel? I ordered it on Monday." }
+    models:
+      Intent: { kind: order_status, urgent: "no" }
+      Replier: "Your parcel left our warehouse on Tuesday and should arrive tomorrow."
+    humans: ["yes"]
+    expect:
+      result: "Your parcel left our warehouse on Tuesday and should arrive tomorrow."
+      calls: { Replier: 1, Escalator: 0 }
+  - name: a person can stop a reply from being sent
+    input: { message: "Where is my parcel?" }
+    models:
+      Intent: { kind: order_status, urgent: "no" }
+      Replier: "It is on its way."
+    humans: ["no"]
+    expect:
+      result: "not sent"
+  - name: a refund request goes to a person, not to the reply agent
+    input: { message: "I want my money back for order 4411." }
+    models:
+      Intent: { kind: refund, urgent: "yes" }
+      Escalator: "The customer wants a refund for order 4411 and is unhappy."
+    expect:
+      result: { contains: "refund" }
+      calls: { Replier: 0, Escalator: 1 }

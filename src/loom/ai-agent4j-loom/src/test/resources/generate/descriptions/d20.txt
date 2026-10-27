@@ -1,0 +1,1 @@
+Score a sales lead from a short description as hot, warm or cold and write the next step for the sales rep.

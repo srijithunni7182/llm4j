@@ -1,0 +1,1 @@
+Research a topic with a web search tool, write a one page brief, and have a critic agent list weaknesses before the final version.

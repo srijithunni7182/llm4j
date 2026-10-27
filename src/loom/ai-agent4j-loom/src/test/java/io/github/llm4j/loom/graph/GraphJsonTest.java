@@ -16,12 +16,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /** V3.6, V3.7: the JSON follows its schema, uses absolute paths and leaves out what is not set. */
-class GraphJsonTest {
+public class GraphJsonTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private final GraphService service = new GraphService();
 
-    static JsonSchema schema() throws Exception {
+    public static JsonSchema schema() throws Exception {
         try (InputStream in =
                 GraphJsonTest.class.getResourceAsStream(
                         "/io/github/llm4j/loom/graph/graph-result.schema.json")) {

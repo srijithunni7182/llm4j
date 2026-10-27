@@ -51,7 +51,7 @@ public record Capabilities(
      * what the {@code .loot} file declares, else a built-in by name, else the worst. The one place
      * both the static audit and the trace ask, so they cannot disagree.
      */
-    static Capabilities resolve(
+    public static Capabilities resolve(
             String toolName,
             java.util.Map<String, ToolDef> scriptTools,
             java.util.Map<String, String> lootReach) {

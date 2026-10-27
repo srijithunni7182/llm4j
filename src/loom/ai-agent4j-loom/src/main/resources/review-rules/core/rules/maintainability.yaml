@@ -1,0 +1,98 @@
+- id: LM01
+  lens: maintainability
+  severity: low
+  about: agent
+  when:
+    all:
+      - { field: referenced, is: false }
+  title: "Agent {name} is defined but never used"
+  why: "An agent nothing uses still has to be read, kept in step with its prompt, and reviewed for what its tools can reach."
+  fixHint: "Delete the agent, or use it."
+  fix:
+    safety: safe
+    label: "Delete the unused agent"
+    deleteLines: { anchor: block }
+  options:
+    - id: delete
+      label: "Delete the agent"
+      explain: "The agent's definition is removed. Check first that no other file, such as a test or a Fabric attribute, names it."
+      safety: safe
+      references: true
+      deleteLines: { anchor: block }
+  since: "1.0.0"
+  examples:
+    fires: [ examples/lm01-fires.loom ]
+    quiet: [ examples/lm01-quiet.loom, examples/lm01-quiet-parallel.loom ]
+
+- id: LM02
+  lens: maintainability
+  severity: info
+  about: agent
+  when:
+    all:
+      - { field: inlinePromptLines, gt: { setting: data.inline.max-lines } }
+  title: "Agent {name} has a prompt of {inlinePromptLines} lines written inside the script"
+  why: "A long prompt in the script buries the workflow's shape, cannot be versioned or reviewed on its own, and makes the script hard to read."
+  fixHint: "Move the prompt to prompts/<agent>.md and refer to it with prompt: \"<agent>\"."
+  since: "1.6.0"
+  explain: >
+    Prompts that are more than data.inline.max-lines lines (default 12) are better kept as files in
+    a prompts folder, where they can be versioned, diffed and pinned.
+  examples:
+    fires: [ { file: examples/lm02-fires.loom, settings: { data.inline.max-lines: "0" } } ]
+    quiet: [ examples/lm02-quiet.loom ]
+
+- id: LM03
+  lens: maintainability
+  severity: info
+  about: workflow
+  when:
+    any:
+      - { field: stepCount, gt: { setting: data.workflow.max-steps } }
+      - { field: maxDepth, gt: { setting: data.workflow.max-depth } }
+  title: "Workflow {name} is large: {stepCount} statements, nested {maxDepth} deep"
+  why: "A workflow with many statements or deep nesting is hard to read, test and change safely."
+  fixHint: "Split it into smaller workflows and join them with call."
+  since: "1.6.0"
+  explain: >
+    More than data.workflow.max-steps statements (default 60) or nesting deeper than
+    data.workflow.max-depth (default 5) is the point where a workflow is usually better split.
+  examples:
+    fires: [ { file: examples/lm03-fires.loom, settings: { data.workflow.max-steps: "1" } } ]
+    quiet: [ examples/lm03-quiet.loom ]
+
+- id: LM04
+  lens: maintainability
+  severity: info
+  about: agent
+  when:
+    all:
+      - { field: identicalTo, isNot: "" }
+  title: "Agent {name} is the same as agent {identicalTo} under another name"
+  why: "Two agents with the same model, prompt, tools and approvals are one agent. Keeping both means every change has to be made twice."
+  fixHint: "Use one agent in both places."
+  since: "1.6.0"
+  explain: >
+    Compares agents by model, prompt, tools and approvals. Two workflow bodies that are identical
+    apart from names are not compared yet.
+  examples:
+    fires: [ examples/lm04-fires.loom ]
+    quiet: [ examples/lm04-quiet.loom ]
+
+- id: LM05
+  lens: maintainability
+  severity: info
+  about: script
+  when:
+    all:
+      - { field: repeatedThresholdCount, gte: { setting: data.threshold.repeats } }
+  title: "The number {repeatedThreshold} is compared against in {repeatedThresholdCount} conditions"
+  why: "A threshold written in many places has to be changed in all of them, and one is always missed."
+  fixHint: "Keep the number in one place: a set variable, or a workflow input."
+  since: "1.6.0"
+  explain: >
+    Counts the numbers conditions compare against. When one appears data.threshold.repeats times
+    (default 4) or more, it is probably one decision written several times.
+  examples:
+    fires: [ { file: examples/lm05-fires.loom, expect: 1, settings: { data.threshold.repeats: "2" } } ]
+    quiet: [ { file: examples/lm05-quiet.loom, settings: { data.threshold.repeats: "2" } } ]

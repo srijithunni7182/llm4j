@@ -1,0 +1,110 @@
+{
+  "version" : 1,
+  "entry" : "@SCRIPTS@/lib/agents.loom",
+  "partial" : false,
+  "definitions" : [ {
+    "key" : "tool:Mailer",
+    "kind" : "tool",
+    "name" : "Mailer",
+    "file" : "@SCRIPTS@/lib/agents.loom",
+    "range" : {
+      "start" : {
+        "line" : 0,
+        "character" : 5
+      },
+      "end" : {
+        "line" : 0,
+        "character" : 11
+      }
+    },
+    "extent" : {
+      "start" : {
+        "line" : 0,
+        "character" : 0
+      },
+      "end" : {
+        "line" : 0,
+        "character" : 88
+      }
+    }
+  }, {
+    "key" : "agent:Helper",
+    "kind" : "agent",
+    "name" : "Helper",
+    "file" : "@SCRIPTS@/lib/agents.loom",
+    "range" : {
+      "start" : {
+        "line" : 1,
+        "character" : 6
+      },
+      "end" : {
+        "line" : 1,
+        "character" : 12
+      }
+    },
+    "detail" : "claude-haiku-5-5",
+    "extent" : {
+      "start" : {
+        "line" : 1,
+        "character" : 0
+      },
+      "end" : {
+        "line" : 1,
+        "character" : 63
+      }
+    }
+  }, {
+    "key" : "agent:Scorer",
+    "kind" : "agent",
+    "name" : "Scorer",
+    "file" : "@SCRIPTS@/lib/agents.loom",
+    "range" : {
+      "start" : {
+        "line" : 2,
+        "character" : 6
+      },
+      "end" : {
+        "line" : 2,
+        "character" : 12
+      }
+    },
+    "detail" : "claude-haiku-5-5",
+    "extent" : {
+      "start" : {
+        "line" : 2,
+        "character" : 0
+      },
+      "end" : {
+        "line" : 2,
+        "character" : 146
+      }
+    },
+    "type" : {
+      "kind" : "object",
+      "fields" : {
+        "score" : {
+          "kind" : "number"
+        },
+        "notes" : {
+          "kind" : "string"
+        },
+        "tags" : {
+          "kind" : "list",
+          "of" : {
+            "kind" : "string"
+          }
+        },
+        "choice" : {
+          "kind" : "string"
+        },
+        "reasoning" : {
+          "kind" : "string"
+        }
+      }
+    }
+  } ],
+  "references" : [ ],
+  "bindings" : [ ],
+  "scopes" : [ ],
+  "problems" : [ ]
+}

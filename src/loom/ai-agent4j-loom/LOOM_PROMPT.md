@@ -150,6 +150,9 @@ agent <AgentName> {
 ### Variables & Interpolation
 Loom uses a thread-safe context. **Always use curly-brace syntax for variable interpolation in strings**: `delegate "Analyze: {inputData}" to Agent`.
 
+### Be reviewable
+A script is judged by `weave check` (it must pass) and `weave review` (no high finding). `weave rules` lists every rule with its id and the reason for it; before you finish, give every tool step `timeout`, `retry` and `on_failure`, put `approve:` on any agent that can send or write, give the script a `budget`, and keep the text a person reads out of the same variable names the script uses.
+
 ---
 
 ## 3. High-Performance Example

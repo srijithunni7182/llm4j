@@ -1,0 +1,35 @@
+# Tests for the workflow logic. They run with `weave test` and cost nothing: the models are scripted.
+# Add a case here whenever you change a branch, a loop or a limit. See what is not yet covered with `weave test --coverage`.
+script: {{testScript}}
+workflow: Main
+cases:
+  - name: a refund over the limit waits for a person
+    input: { email: "Please refund my 250 dollar order" }
+    models:
+      Triage: { kind: REFUND, amount: 250, amount_stated: "YES" }
+      Drafter: "We are sorry."
+    humans: ["yes"]
+    expect:
+      asked: ["Approve"]
+  - name: a refund at the limit is not sent to a person
+    input: { email: "Please refund my 100 dollar order" }
+    models:
+      Triage: { kind: REFUND, amount: 100, amount_stated: "YES" }
+      Drafter: "We are sorry."
+    expect:
+      asked: none
+  - name: a refund with no readable amount is treated as over the limit
+    input: { email: "Refund me" }
+    models:
+      Triage: { kind: REFUND, amount: 0, amount_stated: "NO" }
+      Drafter: "We are sorry."
+    humans: ["no"]
+    expect:
+      asked: ["Approve"]
+  - name: a question is answered without asking anyone
+    input: { email: "Where is my parcel?" }
+    models:
+      Triage: { kind: QUESTION, amount: 0, amount_stated: "NO" }
+      Drafter: "It shipped."
+    expect:
+      asked: none

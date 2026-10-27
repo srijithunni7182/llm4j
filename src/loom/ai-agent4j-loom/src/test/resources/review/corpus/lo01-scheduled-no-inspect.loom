@@ -1,0 +1,7 @@
+agent Writer { model: "m"  system: "s" }
+workflow Daily(topic) {
+  delegate "Digest of {topic}" to Writer -> digest
+  note "{digest}"
+}
+schedule Morning { cron: "0 7 * * *"  run: Daily(topic = "news") } // expect-script: LO01 LR08
+// ignore: LP02 LP05

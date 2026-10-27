@@ -1,0 +1,3 @@
+agent A { model: "m"  system: "s" }
+workflow Daily(q) { delegate "{q}" to A -> r  note "{r}" }
+schedule Morning { cron: "0 7 * * *"  run: Daily(q = "x") }

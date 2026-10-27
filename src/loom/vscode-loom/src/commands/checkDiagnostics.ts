@@ -5,6 +5,8 @@ import { CheckDiagnosticsController, DiagnosticsHost } from '../check/controller
 import { WeaveCheckRunner } from '../check/runner';
 import { samePath } from '../graph/paths';
 import { WeaveGraphRunner } from '../graph/runner';
+import { EngineCheckRunner } from '../engine/routing';
+import { engineHost } from '../engine/vscodeHost';
 import { readGraphSettings, TimeoutScheduler } from '../views/GraphPanel';
 
 /** The editor side of the controller: problems go to the Problems panel and the squiggles, under the source "weave check". */
@@ -44,13 +46,16 @@ function isLoom(document: vscode.TextDocument): boolean {
 export function registerCheckDiagnostics(context: vscode.ExtensionContext): void {
     const collection = vscode.languages.createDiagnosticCollection('loom');
     const settings = readGraphSettings();
-    const runner = new WeaveCheckRunner(
+    const processRunner = new WeaveCheckRunner(
         new WeaveGraphRunner({
             javaPath: settings.javaPath,
             jarPath: context.asAbsolutePath(path.join('bin', 'weave.jar')),
             timeoutMs: settings.timeoutMs,
         }),
     );
+    // the engine answers when it is there; the command is the fallback and gives the same JSON
+    const host = engineHost();
+    const runner = host ? new EngineCheckRunner(host, processRunner) : processRunner;
     const controller = new CheckDiagnosticsController({ runner, host: new VsCodeDiagnosticsHost(collection), scheduler: new TimeoutScheduler() });
     context.subscriptions.push(
         collection,

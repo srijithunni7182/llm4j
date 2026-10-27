@@ -1,0 +1,6 @@
+agent Writer { model: "m"  system: "You write a short answer to the question." }
+workflow Main(q) {
+  delegate "Question: {q}" to Writer -> answer
+  note "{answer}"
+}
+// ignore: LP02 LP05 LO01

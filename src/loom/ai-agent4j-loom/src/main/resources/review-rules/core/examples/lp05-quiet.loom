@@ -1,0 +1,6 @@
+tool Hook { use: webhook  url: env.HOOK_URL }
+agent Notifier { model: "m"  system: "You tell the team what happened. If you are not sure what to say, ask a person instead."  tools: [Hook] }
+workflow Main(topic) {
+  delegate "Tell the team about {topic}" to Notifier -> sent
+  note "{sent}"
+}

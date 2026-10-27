@@ -1,29 +1,65 @@
 package io.github.llm4j.loom.graph;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Draws a workflow graph as Mermaid {@code flowchart} text, for docs and issues. */
 public final class MermaidRenderer {
 
     private MermaidRenderer() {}
 
     public static String render(WorkflowGraph graph) {
+        return render(graph, null);
+    }
+
+    /** What a run (or runs) did, to draw on the graph. */
+    public interface Marks {
+        /** The count to show beside the node, or a negative number for none. */
+        int times(GraphNode node);
+
+        /** Whether the node ran (bold) or did not (faded). */
+        boolean ran(GraphNode node);
+
+        /** Whether the edge was taken. */
+        boolean taken(GraphEdge edge);
+    }
+
+    /** As {@link #render(WorkflowGraph)}, with the path taken drawn bold and the rest dotted. */
+    public static String render(WorkflowGraph graph, Marks marks) {
         StringBuilder out = new StringBuilder("flowchart TD\n");
+        List<String> ran = new ArrayList<>();
+        List<String> idle = new ArrayList<>();
         for (GraphNode node : graph.nodes()) {
-            out.append("  ").append(node(node)).append('\n');
+            out.append("  ").append(node(node, marks)).append('\n');
+            if (marks == null) continue;
+            if (Kinds.START.equals(node.kind()) || Kinds.END.equals(node.kind())) continue;
+            (marks.ran(node) ? ran : idle).add(id(node.id()));
         }
         for (GraphEdge edge : graph.edges()) {
             boolean rewind = "rewind".equals(edge.label()) || "stopped".equals(edge.label());
-            out.append("  ").append(id(edge.from())).append(rewind ? " -.->" : " -->");
+            boolean taken = marks != null && marks.taken(edge);
+            String arrow = marks != null ? (taken ? " ==>" : " -.->") : rewind ? " -.->" : " -->";
+            out.append("  ").append(id(edge.from())).append(arrow);
             if (edge.label() != null) {
                 out.append('|').append(escape(edge.label())).append('|');
             }
             out.append(' ').append(id(edge.to())).append('\n');
         }
+        if (marks != null) {
+            out.append("  classDef ran stroke-width:3px\n");
+            out.append("  classDef idle stroke-dasharray:4 3,opacity:0.5\n");
+            if (!ran.isEmpty())
+                out.append("  class ").append(String.join(",", ran)).append(" ran\n");
+            if (!idle.isEmpty())
+                out.append("  class ").append(String.join(",", idle)).append(" idle\n");
+        }
         return out.toString();
     }
 
-    private static String node(GraphNode node) {
+    private static String node(GraphNode node, Marks marks) {
         String id = id(node.id());
-        String label = "\"" + escape(node.label()) + "\"";
+        int times = marks == null ? -1 : marks.times(node);
+        String label = "\"" + escape(node.label()) + (times > 1 ? " ×" + times : "") + "\"";
         switch (node.kind()) {
             case Kinds.START:
             case Kinds.END:

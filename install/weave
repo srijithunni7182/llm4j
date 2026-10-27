@@ -1,0 +1,40 @@
+#!/bin/sh
+# weave: runs the weave CLI with the Java on this machine.
+#   weave try            a first run, no key needed
+#   weave doctor         what is wrong with this setup
+# Put this file and weave.jar in the same folder (or set WEAVE_JAR to the jar).
+set -eu
+
+here=$(cd "$(dirname "$0")" && pwd)
+jar=${WEAVE_JAR:-$here/weave.jar}
+if [ ! -f "$jar" ]; then
+  echo "weave: cannot find weave.jar (looked for $jar). Put it next to this script, or set WEAVE_JAR." >&2
+  exit 2
+fi
+
+if [ -n "${JAVA_HOME:-}" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+  java="$JAVA_HOME/bin/java"
+elif command -v java >/dev/null 2>&1; then
+  java=java
+else
+  echo "weave: Java is not installed. Install a JDK 17 or newer (https://adoptium.net), then run weave again." >&2
+  exit 2
+fi
+
+# the first number of `java -version` ("17.0.9" -> 17, "1.8.0_392" -> 8)
+version=$("$java" -version 2>&1 | sed -n 's/.*version "\([0-9]*\)\.\{0,1\}\([0-9]*\).*/\1 \2/p' | head -n 1)
+major=${version%% *}
+minor=${version#* }
+if [ "$major" = "1" ]; then major=$minor; fi
+case "$major" in
+  ''|*[!0-9]*) ;;
+  *)
+    if [ "$major" -lt 17 ]; then
+      echo "weave: Java $major is too old; weave needs 17 or newer. Install a JDK 17+ (https://adoptium.net) or point JAVA_HOME at one." >&2
+      exit 2
+    fi
+    ;;
+esac
+
+# shellcheck disable=SC2086  # JAVA_OPTS is a list of options, split on purpose
+exec "$java" ${JAVA_OPTS:-} -jar "$jar" "$@"

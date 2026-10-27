@@ -34,6 +34,7 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
 
     private final Function<String, String> env;
     private final SecretStore secrets;
+    private final java.time.Duration timeout;
 
     public DefaultLLMClientFactory() {
         this(System::getenv);
@@ -53,8 +54,22 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
      *     and keeps the host binding it was stored with.
      */
     public DefaultLLMClientFactory(Function<String, String> env, SecretStore secrets) {
+        this(env, secrets, null);
+    }
+
+    private DefaultLLMClientFactory(
+            Function<String, String> env, SecretStore secrets, java.time.Duration timeout) {
         this.env = env;
         this.secrets = secrets;
+        this.timeout = timeout;
+    }
+
+    /**
+     * The same factory with a longer (or shorter) wait for each reply, for work such as writing a
+     * whole project in one answer; null keeps the provider default.
+     */
+    public DefaultLLMClientFactory withTimeout(java.time.Duration timeout) {
+        return new DefaultLLMClientFactory(env, secrets, timeout);
     }
 
     /**
@@ -158,7 +173,7 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
                     throw new IllegalStateException(
                             "GEMINI_API_KEY (an environment variable or a secret) is required for model: "
                                     + modelName);
-                yield forProvider(spec, modelName);
+                yield forProvider(spec, timeout, modelName);
             }
             case OLLAMA -> forProvider(
                     new ProviderSpec(
@@ -168,6 +183,7 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
                                     ? env("OLLAMA_BASE_URL")
                                     : "http://localhost:11434",
                             null),
+                    timeout,
                     modelName.toLowerCase(Locale.ROOT).startsWith("ollama/")
                             ? modelName.substring("ollama/".length())
                             : modelName);
@@ -177,7 +193,7 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
                     throw new IllegalStateException(
                             "SARVAM_API_KEY (an environment variable or a secret) is required for model: "
                                     + modelName);
-                yield forProvider(spec, modelName.substring("sarvam/".length()));
+                yield forProvider(spec, timeout, modelName.substring("sarvam/".length()));
             }
             case VENDOR -> {
                 var resolved =
@@ -189,7 +205,7 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
                             vendor.keyEnv()
                                     + " (an environment variable or a secret) is required for model: "
                                     + modelName);
-                yield forProvider(spec, resolved.model());
+                yield forProvider(spec, timeout, resolved.model());
             }
             case ANTHROPIC -> {
                 ProviderSpec spec =
@@ -200,6 +216,7 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
                                     + modelName);
                 yield forProvider(
                         spec,
+                        timeout,
                         modelName.startsWith("anthropic/")
                                 ? modelName.substring("anthropic/".length())
                                 : modelName);
@@ -209,7 +226,12 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
 
     /** The real client for a model at a provider. */
     public static LLMClient forProvider(ProviderSpec spec, String model) {
+        return forProvider(spec, null, model);
+    }
+
+    static LLMClient forProvider(ProviderSpec spec, java.time.Duration timeout, String model) {
         LLMConfig.Builder config = LLMConfig.builder().defaultModel(model);
+        if (timeout != null) config.timeout(timeout);
         if (spec.baseUrl() != null)
             config.baseUrl(
                     spec.kind().equals("ollama") ? ollamaApi(spec.baseUrl()) : spec.baseUrl());

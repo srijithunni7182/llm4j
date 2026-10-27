@@ -1,0 +1,7 @@
+agent Writer { model: "m"  system: "You write the daily digest." }
+workflow Daily(topic) {
+  delegate "Digest of {topic}" to Writer -> digest
+  human_prompt "Publish this? {digest}" -> ok
+  note "{ok}"
+}
+// ignore: LP02 LP05 LO01

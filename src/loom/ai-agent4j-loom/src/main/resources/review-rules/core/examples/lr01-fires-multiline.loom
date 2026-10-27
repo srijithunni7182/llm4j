@@ -1,0 +1,5 @@
+agent Researcher { model: "m"  system: "s"  tools: [web_search] }
+workflow Main(q) {
+  delegate "{q}" to Researcher -> r
+  note "{r}"
+}

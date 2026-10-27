@@ -1,0 +1,4 @@
+// settings: data.inline.max-lines=0
+agent A { model: "m"  system: "You are a careful assistant." } // <- LM02
+workflow Main(q) { delegate "{q}" to A -> r  note "{r}" }
+// ignore: LP02 LP05 LO01

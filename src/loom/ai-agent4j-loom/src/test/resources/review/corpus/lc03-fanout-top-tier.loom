@@ -1,0 +1,8 @@
+// settings: data.top-models=big-model
+agent Big { model: "big-model"  system: "You review." }
+agent Small { model: "small-model"  system: "You review." }
+workflow Main(topic) {
+  broadcast "Review {topic}" to [Big, Small] -> reviews // <- LC03
+  note "done"
+}
+// ignore: LP02 LP05 LO01

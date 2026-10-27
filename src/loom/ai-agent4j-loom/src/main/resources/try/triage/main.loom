@@ -1,0 +1,26 @@
+agent Replier { model: "gemini-2.5-flash"  system: "You answer customers about their orders, briefly and politely." }
+agent Escalator { model: "gemini-2.5-flash"  system: "You summarise a case for a person in two sentences." }
+
+intentclassifier Intent {
+    model: "gemini-2.5-flash"
+    choose kind: order_status | refund | other
+    ask urgent: "Is the customer threatening to leave?"
+    samples: 3
+    confidence at least 0.8 else escalate
+}
+
+workflow Main(message) {
+    intentclassify Intent on message -> intent
+    alt (intent.kind == "order_status") {
+        delegate "Draft an answer for: {message}" to Replier -> draft_text
+        human_prompt "Send this answer? (yes/no)" -> approval
+        alt (approval == "yes") {
+            return draft_text
+        } else {
+            return "not sent"
+        }
+    } else {
+        delegate "Summarise for a person: {message}" to Escalator -> summary
+        return summary
+    }
+}

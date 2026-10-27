@@ -1,0 +1,5 @@
+agent Replier { model: "m"  system: "You reply to customers." }
+workflow Main(topic) {
+  delegate "Write about {topic}" to Replier -> reply
+  note "{reply}"
+}

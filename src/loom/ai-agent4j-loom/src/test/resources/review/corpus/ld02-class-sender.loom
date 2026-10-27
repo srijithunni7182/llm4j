@@ -1,0 +1,7 @@
+tool Mailer { use: class  class: "com.acme.MailTool"  reach: sends } // <- LD02
+agent Replier { model: "m"  system: "You reply to a customer by mail."  tools: [Mailer] }
+workflow Main(q) {
+  delegate "Reply to: {q}" to Replier -> sent // <- LR01 LR02
+  note "{sent}"
+}
+// ignore: LP02 LP05 LO01

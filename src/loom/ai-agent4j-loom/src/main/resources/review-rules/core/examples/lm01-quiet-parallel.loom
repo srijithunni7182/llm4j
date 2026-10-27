@@ -1,0 +1,3 @@
+agent A { model: "m"  system: "s" }
+agent B { model: "m"  system: "s" }
+workflow Main(q) { parallel { delegate "{q}" to A -> a  delegate "{q}" to B -> b }  note "{a}{b}" }

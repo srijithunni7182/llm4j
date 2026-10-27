@@ -60,6 +60,57 @@ public class ConditionEvaluator {
         }
     }
 
+    /**
+     * The variable paths a condition looks at, as written: the left side of a comparison (the right
+     * side is always a text or a number, never a variable), the path of {@code x is ok}, or the
+     * flag of a bare condition. Nothing is evaluated.
+     */
+    public static java.util.List<String> operands(String condition) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (condition == null || condition.isBlank()) return out;
+        String cond = condition.trim();
+        java.util.regex.Matcher isOk = IS_OK.matcher(cond);
+        if (isOk.matches()) {
+            out.add(isOk.group(1));
+            return out;
+        }
+        for (String op : OPERATORS) {
+            if (cond.contains(op)) {
+                String[] parts = cond.split(java.util.regex.Pattern.quote(op), 2);
+                if (parts.length == 2) out.add(parts[0].trim());
+                return out;
+            }
+        }
+        out.add(cond);
+        return out;
+    }
+
+    private static final String[] OPERATORS = {"==", "!=", ">=", "<=", ">", "<"};
+
+    /**
+     * The condition as a person wrote it: spaces around the operator and a text in quotes ({@code
+     * intent.urgent == "yes"}). The parser keeps the condition without its quotes; this puts them
+     * back for display. It changes nothing about how the condition is evaluated.
+     */
+    public static String display(String condition) {
+        if (condition == null) return "";
+        String cond = condition.trim();
+        if (IS_OK.matcher(cond).matches()) return cond;
+        for (String op : OPERATORS) {
+            if (cond.contains(op)) {
+                String[] parts = cond.split(java.util.regex.Pattern.quote(op), 2);
+                if (parts.length != 2) return cond;
+                String right = parts[1].trim().replace("\"", "");
+                return parts[0].trim()
+                        + " "
+                        + op
+                        + " "
+                        + (isNumeric(right) ? right : "\"" + right + "\"");
+            }
+        }
+        return cond;
+    }
+
     private static final java.util.regex.Pattern IS_OK =
             java.util.regex.Pattern.compile("(\\S+) is (not )?ok");
 

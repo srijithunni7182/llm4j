@@ -1,0 +1,10 @@
+agent Judge { model: "m"  system: "You decide whether the text is fine. Answer with exactly one word: yes or no." }
+workflow Main(topic) {
+  delegate "Is this fine? {topic}" to Judge -> verdict
+  alt (verdict == "yes") {
+    note "fine"
+  } else {
+    note "not fine"
+  }
+}
+// ignore: LP05 LO01

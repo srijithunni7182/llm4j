@@ -1,0 +1,2 @@
+agent A { model: "m"  system: "You help with the topic you are given." }
+workflow Main(q) { delegate "Topic: {q}" to A -> r  note "{r}" }

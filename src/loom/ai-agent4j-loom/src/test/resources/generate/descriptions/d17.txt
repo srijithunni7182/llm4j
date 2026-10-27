@@ -1,0 +1,1 @@
+Rewrite a technical document for a beginner audience, then check that no technical term is left unexplained.

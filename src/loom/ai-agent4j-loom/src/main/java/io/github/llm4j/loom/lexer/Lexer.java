@@ -69,7 +69,12 @@ public class Lexer {
     private int start = 0;
     private int current = 0;
     private int line = 1;
-    private int columnStart = 1;
+    private int columnStart = 0;
+
+    /** Where the token being read began (a string can run over lines, so {@code line} moves on). */
+    private int tokenLine = 1;
+
+    private int tokenColumn = 1;
     private final List<Token> tokens = new ArrayList<>();
 
     /** How deep inside braces the scan is; a ladder or measure is only ever declared at depth 0. */
@@ -82,6 +87,8 @@ public class Lexer {
     public List<Token> tokenize() {
         while (!isAtEnd()) {
             start = current;
+            tokenLine = line;
+            tokenColumn = start - columnStart + 1;
             scanToken();
         }
         tokens.add(new Token(TokenType.EOF, "", line, current - columnStart + 1));
@@ -200,7 +207,7 @@ public class Lexer {
         while (peek() != '"' && !isAtEnd()) {
             if (peek() == '\n') {
                 line++;
-                columnStart = current;
+                columnStart = current + 1; // the column counts from the character after the newline
             }
             advance();
         }
@@ -344,7 +351,6 @@ public class Lexer {
     }
 
     private void addToken(TokenType type, String value) {
-        int col = start - columnStart + 1;
-        tokens.add(new Token(type, value, line, col));
+        tokens.add(new Token(type, value, tokenLine, tokenColumn));
     }
 }

@@ -163,6 +163,8 @@ class ZeroMagicTest {
                         ToolCatalog.class,
                         ToolRegistry.class,
                         Llm4jLoomLifecycle.class,
+                        WorkflowRuns.class,
+                        LoomWorkflowScanner.class,
                         org.springframework.beans.factory.config.BeanFactoryPostProcessor.class);
         List<String> missing = new ArrayList<>();
         for (Class<?> config :

@@ -1,0 +1,33 @@
+# The demo models: every reply below is pre-written, so this runs offline, instantly, for free.
+# The first case is the one `weave try` narrates. `weave test` runs them all.
+script: ../main.loom
+workflow: Main
+cases:
+  - name: a weak draft goes back to the writer once, then passes
+    input: { topic: "cheese" }
+    models:
+      Researcher: "Cheese sales rose 4% this year; a new aged cheddar launched in March."
+      Writer: ["Cheese is up. Buy cheese.", "Cheese sales rose 4% this year, helped by a new aged cheddar in March."]
+      Editor:
+        - { verdict: REWRITE, advice: "Use the figures from the notes." }
+        - { verdict: OK, advice: "" }
+    expect:
+      result: "Cheese sales rose 4% this year, helped by a new aged cheddar in March."
+      calls: { Writer: 2, Editor: 2 }
+  - name: an approved draft is not rewritten
+    input: { topic: "cheese" }
+    models:
+      Researcher: "Notes."
+      Writer: "A good draft."
+      Editor: { verdict: OK, advice: "" }
+    expect:
+      calls: { Writer: 1, Editor: 1 }
+  - name: the loop stops after two rounds even if the editor never approves
+    input: { topic: "cheese" }
+    models:
+      Researcher: "Notes."
+      Writer: "Draft."
+      Editor: { verdict: REWRITE, advice: "Again." }
+    repeat: last
+    expect:
+      calls: { Editor: 2, Writer: 3 }

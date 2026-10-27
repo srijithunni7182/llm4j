@@ -1,0 +1,1 @@
+Convert a recipe into a shopping list grouped by aisle, with quantities added up.

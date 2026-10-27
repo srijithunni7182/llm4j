@@ -1,0 +1,7 @@
+agent Writer { model: "m"  system: "s" }
+workflow Main(topic) {
+  loop until (draft == "good") max 50 { // <- LO04
+    delegate "Improve {topic}" to Writer -> draft // <- LC02
+  }
+}
+// ignore: LP02 LP05 LO01

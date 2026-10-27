@@ -1,0 +1,7 @@
+tool Hook { use: webhook  url: env.HOOK_URL }
+agent Notifier { model: "vendor-model-latest"  system: "You tell the team what happened."  tools: [Hook] } // <- LG04
+workflow Main(q) {
+  delegate "Tell the team: {q}" to Notifier -> sent // <- LR01 LR02
+  note "{sent}"
+}
+// ignore: LP02 LP05 LO01

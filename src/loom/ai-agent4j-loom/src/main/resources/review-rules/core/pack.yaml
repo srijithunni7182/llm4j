@@ -1,0 +1,20 @@
+# The rules that ship inside weave. Each one is a document over the fact model: Java computes the
+# facts, the rule only says what to report about them. Add a rule by adding a file here, with the
+# two examples that prove it; no Java changes. Packs follow semver: a new rule or a changed
+# condition is a minor version, a removed rule is a major one.
+name: core
+version: 1.7.0
+factModel: 1
+rulesSchema: 1
+description: The rules weave review ships with
+rules:
+  - rules/reliability.yaml
+  - rules/cost.yaml
+  - rules/durability.yaml
+  - rules/privacy.yaml
+  - rules/maintainability.yaml
+  - rules/prompts.yaml
+  - rules/observability.yaml
+  - rules/governance.yaml
+  - rules/oversight.yaml
+  - rules/blast.yaml

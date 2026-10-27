@@ -125,7 +125,17 @@ flowchart TD
 
 Exit code 0 means a graph was produced, even when some imports were missing or a `call` names a workflow that is not defined: those are reported as `diagnostics` inside the JSON, and the files that did load are still drawn. Exit code 2 means nothing could be drawn (the script is missing or has a syntax error); the message goes to standard error and standard output stays empty. The JSON follows `graph-result.schema.json` (version 1).
 
-In VS Code, **Loom: Show Workflow Graph** draws the same graph beside the editor and follows your edits; see the extension's README. The eval4j report draws it too, with what each run did laid over it.
+In VS Code, **Loom: Show Workflow Graph** draws the same graph beside the editor and follows your edits; see the extension's README.
+
+### In the editor
+
+The VS Code extension (`src/loom/vscode-loom`) puts the same engine in the editor. It starts one `weave serve --stdio` process per window and asks it for checks, graphs, reviews and a semantic index (`weave symbols`), so none of it waits for a new process. It runs no model, reads only the folders you have open and writes nothing: the editor writes any change, so undo works.
+
+- **Review:** **Loom: Review Workflow** shows the findings of `weave review` linked with the graph, in three layouts; fixes, accepts, dismissals and baselines are handled from the panel and are the same operations as `weave review --fix`, `--accept` and `--baseline-write`.
+- **Names:** go to definition, find references and rename work on agents, workflows, tools, classifiers, decisions, checkpoints, prompt files, imports and variables, across the files a script imports; completion offers only names in scope with the right kind (`intent.` lists a classifier's questions, `intent.kind ==` its labels, `delegate … to` the agents); hover shows models, types and allowed values. A script with a mistake still answers for the parts that read.
+- **Limits:** with no Java 17+, or when the engine cannot run, the editor says so once in the status bar and keeps the syntax colours, snippets and simpler completions; checks and graphs fall back to running `weave` for each request.
+
+`weave symbols FILE` prints the same index as JSON for other tools: definitions, uses with their role, and the type of every variable. See `docs/serve/PROTOCOL.md`. The eval4j report draws it too, with what each run did laid over it.
 
 ### 4. Evaluating a Workflow (`eval`)
 
@@ -182,6 +192,22 @@ weave eval newsletter/main.loom --prompt researcher@v1      # a fair A/B: the sa
 
 A runnable example is `src/examples/newsletter` (`weave eval src/examples/newsletter/main.loom --mock`).
 
+### Reviewing a Workflow (`review`)
+`weave review` reads a script and gives one ranked list of what is worth a second look: security (what the audit finds), validity (what `check` finds), cost and time, reliability, prompts, observability, durability and privacy, each finding with why it matters and what to do. It is **advice**: it runs nothing, needs no keys, exits 0 unless you ask it to fail, and never stops `run`, `package` or `deploy` (those print one line on standard error when findings are open).
+
+```bash
+weave review digest.loom                              # the ranked list and a summary card (cost, time, effects)
+weave review digest.loom --explain LR01               # what one rule checks, why it matters, what to do
+weave review digest.loom --lens all                   # also governance, maintainability, oversight, blast radius
+weave review digest.loom --fix --dry-run              # the diff of the safe fixes; nothing is written
+weave review digest.loom --assist                     # go through the findings that have options; you choose and give the values
+weave review digest.loom --accept 3fa9c2d1e0b47a55 --reason "the tool is read only here"
+weave review digest.loom --baseline-write             # adopt review on an existing script: only new findings count
+weave rules diff core-1.6 core-1.7 --on digest.loom   # what a new rule pack would change on this script
+```
+
+A finding that has several reasonable resolutions lists them as **options**: you pick one, answer its questions (how many retries, what the failure note says) and see the change before it is written. Every fix and option is checked first (the script still loads, no new high finding appears); that does not run the workflow, so run `weave check` and your tests afterwards. Settings live in `review.properties` beside the script. The full guide is `docs/review/README.md`, every rule has a page in `docs/review/rules/`, and `docs/review/WRITING_RULES.md` shows how to add your own.
+
 ### 5. Starting, Checking and Reading the Guide (`init`, `check`, `guide`)
 
 Everything here works with the jar alone: no repository, no keys and no network.
@@ -201,6 +227,18 @@ weave explain main.loom                # the script in plain English: which agen
 weave next                             # what to do next in this project, in order, with the command for each step
 ```
 
+### Starting from a description instead
+
+```bash
+weave generate "Triage support emails; refunds over 100 dollars go to a person" --plan-only --out plan   # read plan/PLAN.md, edit plan.json
+weave generate --from-plan plan/plan.json --out triage                                                    # write it, gated
+weave generate --edit src/main/resources/main.loom "ask a person before the reply is sent"               # a change, as a diff; --apply to write
+weave generate --gate-only my-project/                                                                    # the same bar for a project you wrote
+```
+
+`weave generate` asks the model named by `--model` (or `LOOM_GENERATE_MODEL`) for a **plan** you read first, writes the files into a temporary folder, and keeps them only when check, the review, the project's own tests, step coverage and plan fidelity all pass (exit 3 names the gate that did not; exit 4 is the spend cap, `--max-cost`). Nothing it writes is run against a real model or sends anything. See the wiki page "Generating a workflow".
+
+
 **Keys for a developer's machine** go in a `.env` file beside the script (`cp .env.example .env`): `NAME=value` lines, read by `run`, `check`, `eval` and `next`, which say which names
 they found and never the values. A variable already set in the shell wins. `--env-file <file>` reads another file and `--no-env-file` none. `weave` refuses a `.env` that git tracks, and
 warns when it is not in `.gitignore` or other users can read it. A deployed application uses the secret store instead (see [Secrets](#secrets-the-secret-store)).
@@ -216,6 +254,63 @@ next step. A warning is usually a real mistake in the workflow.
 ---
 
 ---
+
+### 5. Testing the Logic (`test`)
+
+`weave test` runs cases against a workflow with **scripted models**: no model, no key, no network and no spend, and the answer is the same every time. It tests what your *script* does (which branch is taken, how often a loop runs, what a failed step falls back to, who is asked) and not whether an agent writes well; that is `weave eval`.
+
+```yaml
+# tests/triage.test.yaml
+script: ../triage.loom
+workflow: Main
+cases:
+  - name: order-status questions get an automatic reply
+    tags: [fast]
+    input: { message: "where is my parcel?" }
+    models:
+      Intent: { kind: order_status, urgent: "no" }     # a classifier: a label for each question
+      Replier: "Your parcel shipped yesterday."         # a text, a list in order, a `when` list, or a typed map
+    expect:
+      result: { contains: "shipped" }
+      route: [ classify Intent, delegate Replier, note ]
+      calls: { Replier: 1, Escalator: 0 }
+      branches: { n2: then }
+```
+
+`expect.final` is how the run ended: `completed` (the default), `failed`, `suspended`, `stopped`, `budget` or `halted` (a `halt` statement). A classifier's `models:` entry is one map for every call, or a list of maps, one per call in order (the last one repeats).
+
+**Strict by default.** A model call nobody scripted fails the case and names the agent, the call number and the task; `--lenient` lets it answer neutrally and says so in the report.
+
+**Everything a real run meets can be scripted:**
+
+| Key | What it does |
+|---|---|
+| `fail:` | `Replier: { times: 2, category: timeout }` (or `on_calls`, `always`) injects `rate_limit`, `timeout`, `server_error`, `invalid_output`, `tool_error`, `refused` or `quota`, to test `retry`, `on_failure` and `rewind` |
+| `tools:`, `tasks:` | the tool or task returns this; tools that act (webhook, email, http, file, shell, sql) only *record* what they would have done, which `expect: { effects: … }` asserts |
+| `humans:`, `resume:` | the people answer in order; with no answer left the run is `suspended`, and `resume:` continues it from its journal |
+| `clock:` | time is virtual: a `sleep 6h` or a retry back-off costs no real time, and `elapsed_virtual` asserts how long the run waited |
+| `steer:`, `stop:` | a person steers or stops an agent after its Nth call (`after_call`) or Nth piece of a streamed reply (`after_chunk`); `models: { Writer: { stream: [ "Hel", "lo" ] } }` scripts the pieces |
+
+**Reading the result.** `--coverage` lists the steps no case reached, each with a hint for a case that would; `--min-coverage 90` fails the run below that. `--format junit|json|tap` is for CI, `--tag`/`--exclude-tag`, `--case GLOB`, `--shuffle --seed N`, `--parallel N`, `--fail-fast` select and order, and `--watch` runs again whenever the script, a prompt or a test changes. `--check` only validates the files (a renamed agent shows the nearest name), `--steps` lists the step names and node ids a case can use, `--show-case NAME` prints the merged case. Exit 0: all passed; 1: a case failed; 2: it could not run.
+
+`weave init` puts a passing `tests/` folder into every starter (in a Maven project it is `src/test/resources/loom-tests/`).
+
+**From Java.** The same engine is available as `LoomTest`, so a case written in Java gives the same answer as the YAML one:
+
+```java
+LoomRun run = LoomTest.of(Path.of("triage.loom"))
+        .classifier("Intent", Map.of("kind", "order_status", "urgent", "no"))
+        .model("Replier", "Your parcel shipped yesterday.")
+        .failing("Replier", LoomTest.Failure.times(1, "timeout"))
+        .run("Main", Map.of("message", "where is my parcel?"));
+
+LoomRunAssert.assertThat(run).completed().returned("Your parcel shipped yesterday.")
+        .called("Replier", 2).neverRan("delegate Escalator").noEffects();
+
+@TestFactory Stream<DynamicTest> yamlCases() {          // the test files, one JUnit test per case
+    return LoomTest.cases(Path.of("tests")).stream().map(c -> DynamicTest.dynamicTest(c.name(), c::run));
+}
+```
 
 ## 🤖 3. Deep Dive: Agent Configuration
 
@@ -2361,6 +2456,26 @@ for cron schedules, scheduled workflows and keeping them across restarts.
   - approvals;
   - memory, guard and voice events;
   - pauses.
+
+### Debugging a Run: `why`, `whatif`, `step` and the Run on the Graph
+
+Four tools answer "why did it do that?" without running anything that has an effect. All of them replay the run's own journal with the real interpreter, so the answer is the one the run gave, not a guess.
+
+```bash
+weave run script.loom --journal runs/r1 ...      # keep the run
+weave why runs/r1                                # the choices it made, with the values and where each came from
+weave why runs/r1 --line 40                      # why did this statement run (or not)?
+weave whatif runs/r1 --at 8 --answer Intent='{"kind":"refund","urgent":"yes"}'
+weave step script.loom -i message="where is my parcel?" --break 13
+weave graph script.loom --run runs/r1 --run runs/r2 --format mermaid
+```
+
+- **`weave why`** shows each `alt`, loop, `for each`, classifier, rewind, `decide` and failure the run met: the condition as written, the values it looked at (with the statement that set each), the way it went and the way it did not. Values are cut at 200 characters and masked names show `‹masked›`. If the script has changed since the run, it refuses and says so; `--script old.loom` explains against another version. `--format text|md|json` (JSON is version 1).
+- **`weave whatif`** copies the journal, cuts it back to a step, changes one thing there (`--set`, `--answer` for an agent or classifier, `--human`, `--fail Target=category[:times]`, `--tool`) and runs the script forward over the copy, then shows where the two trajectories part, the result, and the effects only one of them could cause. A model's answer is reused only where its question is unchanged; otherwise it stops and says what it needs. `--script`, `--prompt Agent=@v2|file` and `--model Agent=id` run an edited candidate; `--models live --max-cost N --prices FILE --yes` asks the real models only where nothing recorded fits, under the cap. The run itself is never written; `--save DIR` keeps the candidate as a run for `weave why`.
+- **`weave step`** runs a workflow one statement at a time (`next`, `into`, `out`, `continue`, `back`), with breakpoints on a line, a node, an agent or `when <condition>`, the variables with their provenance, `set a = value`, `model Agent "reply"`, `classifier Name {json}` and `answer`. Models are mock unless `--models live` is given with a cap. `back` replays from the journal, so the state is exact. `--record FILE` / `--replay FILE` keep and re-run a session. From an editor, `weave dap` does the same over the Debug Adapter Protocol (see [Loom in VS Code](../../../wiki/Loom-in-VS-Code.md)).
+- **`weave graph --run DIR`** adds an `overlay` to the graph: how often each statement ran, the edges taken, the choices of one run, and, over several runs, the statements none reached. In Mermaid the path taken is drawn bold and the rest dotted.
+
+None of them sends, writes or spends anything unless you ask for live models under a cap; tools that change things are only described. See [Debugging a workflow](../../../wiki/Debugging-a-Workflow.md) for a worked example.
 
 ### Observability
 Use `observe` to log the state of variables at specific points for tracing.

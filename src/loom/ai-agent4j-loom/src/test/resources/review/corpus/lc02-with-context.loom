@@ -1,0 +1,9 @@
+agent Researcher { model: "m"  system: "You search until you can answer."  tools: [web_search]  context { compact: drop_oldest  keep_recent: 2  max_compactions: 50 } }
+workflow Main(q) {
+  loop until (found == "yes") max 5 {
+    delegate "Search: {q}" to Researcher -> found retry 2 backoff 2s timeout 60s
+  } on_exhausted {
+    note "not found"
+  }
+}
+// ignore: LP02 LP05 LO01

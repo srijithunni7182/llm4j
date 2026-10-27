@@ -99,6 +99,23 @@
         "icon": "$(type-hierarchy)"
       },
       {
+        "command": "loom.review",
+        "title": "Loom: Review Workflow",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "loom.restartEngine",
+        "title": "Loom: Restart Engine"
+      },
+      {
+        "command": "loom.showEngineLog",
+        "title": "Loom: Show Engine Log"
+      },
+      {
+        "command": "loom.javaHelp",
+        "title": "Loom: Java Requirements"
+      },
+      {
         "command": "loom.createPromptFile",
         "title": "Loom: Create Prompt File"
       },
@@ -109,20 +126,229 @@
       {
         "command": "loom.installSkill",
         "title": "Loom: Install the Loom Skill in This Project"
+      },
+      {
+        "command": "loom.review.fixAll",
+        "title": "Loom: Apply Safe Fixes"
+      },
+      {
+        "command": "loom.review.explain",
+        "title": "Loom: Explain Review Rule"
+      },
+      {
+        "command": "loom.review.restore",
+        "title": "Loom: Restore Dismissed Findings"
+      },
+      {
+        "command": "loom.review.baseline",
+        "title": "Loom: Accept All Existing Findings (Baseline)"
+      },
+      {
+        "command": "loom.review.accept",
+        "title": "Loom: Accept a Finding With a Reason"
+      },
+      {
+        "command": "loom.review.dismiss",
+        "title": "Loom: Dismiss a Finding"
+      },
+      {
+        "command": "loom.review.fixFinding",
+        "title": "Loom: Fix a Finding"
+      },
+      {
+        "command": "loom.debug",
+        "title": "Loom: Debug Workflow",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "loom.generate",
+        "title": "Loom: Generate Workflow..."
+      },
+      {
+        "command": "loom.change",
+        "title": "Loom: Change Workflow..."
+      },
+      {
+        "command": "loom.try",
+        "title": "Loom: Try a Demo"
+      },
+      {
+        "command": "loom.doctor",
+        "title": "Loom: Check My Setup"
+      },
+      {
+        "command": "loom.openExample",
+        "title": "Loom: Open an Example Project"
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "loom"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "loom",
+        "label": "Loom Workflow",
+        "languages": [
+          "loom"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "script"
+            ],
+            "properties": {
+              "script": {
+                "type": "string",
+                "description": "The .loom script to debug.",
+                "default": "${file}"
+              },
+              "workflow": {
+                "type": "string",
+                "description": "The workflow to run (default: the first)."
+              },
+              "input": {
+                "type": "object",
+                "description": "Inputs of the workflow, by name.",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "effects": {
+                "type": "string",
+                "enum": [
+                  "simulate"
+                ],
+                "default": "simulate",
+                "description": "Nothing is sent or written while debugging."
+              },
+              "models": {
+                "type": "string",
+                "enum": [
+                  "mock",
+                  "scripted",
+                  "live"
+                ],
+                "default": "mock",
+                "description": "mock: fixed, well-formed replies. live: the real models, under a cap, after you agree."
+              },
+              "maxCost": {
+                "type": [
+                  "number",
+                  "string"
+                ],
+                "description": "With live models: the most they may cost (needs prices)."
+              },
+              "maxTokens": {
+                "type": "number",
+                "description": "With live models: the most tokens they may use."
+              },
+              "prices": {
+                "type": "string",
+                "description": "The price table that turns tokens into money."
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "default": true,
+                "description": "Stop before the first statement."
+              },
+              "mask": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Variables whose values are never shown."
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "loom",
+            "request": "launch",
+            "name": "Debug the open Loom workflow",
+            "script": "${file}",
+            "effects": "simulate",
+            "models": "mock",
+            "stopOnEntry": true
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Loom: Debug a workflow",
+            "body": {
+              "type": "loom",
+              "request": "launch",
+              "name": "Debug ${1:workflow}",
+              "script": "^\"\\${file}\"",
+              "effects": "simulate",
+              "models": "mock"
+            }
+          }
+        ]
       }
     ],
     "menus": {
       "commandPalette": [
         {
+          "command": "loom.debug",
+          "when": "resourceLangId == loom"
+        },
+        {
+          "command": "loom.change",
+          "when": "resourceLangId == loom"
+        },
+        {
           "command": "loom.showGraph",
+          "when": "resourceLangId == loom"
+        },
+        {
+          "command": "loom.review",
           "when": "resourceLangId == loom"
         },
         {
           "command": "loom.createPromptFile",
           "when": "resourceLangId == loom"
+        },
+        {
+          "command": "loom.review.fixAll",
+          "when": "resourceLangId == loom"
+        },
+        {
+          "command": "loom.review.restore",
+          "when": "resourceLangId == loom"
+        },
+        {
+          "command": "loom.review.baseline",
+          "when": "resourceLangId == loom"
+        },
+        {
+          "command": "loom.review.accept",
+          "when": "false"
+        },
+        {
+          "command": "loom.review.dismiss",
+          "when": "false"
+        },
+        {
+          "command": "loom.review.fixFinding",
+          "when": "false"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "loom.review",
+          "when": "resourceExtname == .loom",
+          "group": "navigation"
         }
       ],
       "editor/title": [
+        {
+          "command": "loom.review",
+          "when": "resourceLangId == loom",
+          "group": "navigation"
+        },
         {
           "command": "loom.showGraph",
           "when": "resourceLangId == loom",
@@ -130,6 +356,11 @@
         }
       ],
       "editor/context": [
+        {
+          "command": "loom.review",
+          "when": "resourceLangId == loom",
+          "group": "navigation"
+        },
         {
           "command": "loom.showGraph",
           "when": "resourceLangId == loom",
@@ -140,6 +371,110 @@
     "configuration": {
       "title": "Loom",
       "properties": {
+        "loom.javaPath": {
+          "type": "string",
+          "default": "java",
+          "description": "The java executable used to run the bundled weave.jar (the Loom engine, checks, graphs). If you set only the older loom.graph.javaPath, that one is used."
+        },
+        "loom.review.on": {
+          "type": "string",
+          "enum": [
+            "save",
+            "type",
+            "manual"
+          ],
+          "default": "save",
+          "description": "When the Loom review runs by itself: after a save, while typing (only the validity lens, so it stays fast), or only when you ask."
+        },
+        "loom.generate.model": {
+          "type": "string",
+          "default": "",
+          "description": "The model that writes when you use Generate Workflow or Change Workflow. Empty: the one named by LOOM_GENERATE_MODEL. The key is the one in your environment or your .env; it is never written to a file."
+        },
+        "loom.generate.maxCost": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "The most one generation may spend, in dollars (counted only with a price table). 0: the command's own default."
+        },
+        "loom.generate.maxTokens": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "The most tokens one generation may use. 0: the command's own default."
+        },
+        "loom.generate.prices": {
+          "type": "string",
+          "default": "",
+          "description": "A price table (lines of 'model = input / output' per million tokens) so the cost limit can be counted in dollars."
+        },
+        "loom.review.layout": {
+          "type": "string",
+          "enum": [
+            "split",
+            "outline",
+            "list"
+          ],
+          "default": "split",
+          "description": "The layout the Review panel opens in: Split (graph and findings side by side), Outline (step by step) or List (a dense table). You can switch in the panel; your last choice is remembered per workspace."
+        },
+        "loom.review.lenses": {
+          "type": "string",
+          "default": "",
+          "description": "Which review lenses run, as weave review --lens takes them: 'all', exact names (security,cost), or +name / -name to change the defaults. Empty uses the project's review.properties."
+        },
+        "loom.review.minSeverity": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low",
+            "info"
+          ],
+          "default": "low",
+          "description": "The lowest severity shown as a squiggle and in the Problems panel."
+        },
+        "loom.review.codeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the findings and cost above each workflow, with links to the graph and Run."
+        },
+        "loom.review.statusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the open findings and typical cost of the active script in the status bar."
+        },
+        "loom.review.failOn": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low",
+            "info",
+            "none"
+          ],
+          "default": "high",
+          "description": "Colour the status bar when findings at or above this severity are open. It never stops Run."
+        },
+        "loom.serve.memoryMb": {
+          "type": "number",
+          "default": 64,
+          "minimum": 8,
+          "maximum": 2048,
+          "description": "How much memory (in MB) the engine may use to keep answers it can reuse. The engine restarts when this changes."
+        },
+        "loom.serve.timeoutMs": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 1000,
+          "maximum": 120000,
+          "description": "The longest the engine may take over one request, in milliseconds. A slower one is answered as timed out and its result marked stale."
+        },
+        "loom.semantic.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Answer go to definition, find references, rename, completion, hover, outline and signature help from the Loom engine (the language's own parser). Turn off to use only the older, simpler answers."
+        },
         "loom.graph.javaPath": {
           "type": "string",
           "default": "java",
@@ -162,6 +497,13 @@
       {
         "language": "loom",
         "path": "./snippets/loom.code-snippets"
+      }
+    ],
+    "viewsWelcome": [
+      {
+        "view": "loom.workflowOutline",
+        "when": "!loom.hasLoom",
+        "contents": "No Loom workflow here yet.\n[Try a demo](command:loom.try)\nWatch a real workflow run on demo models: no key, no account.\n[Generate a workflow](command:loom.generate)\nDescribe what you want; needs a model key.\n[Open an example](command:loom.openExample)\nWrite a small project into this folder to edit.\n[Check my setup](command:loom.doctor)\nJava, keys and the run store, with the one fix for each problem."
       }
     ]
   },

@@ -1,0 +1,29 @@
+# Tests for the content factory: who is asked, and what each answer does.
+script: ../main.loom
+workflow: GenerateContent
+cases:
+  - name: an approved batch is ready for publishing
+    input: { topic: "agents" }
+    models:
+      Researcher: "Facts."
+      Copywriter: ["Post.", "Thread."]
+    humans: ["yes"]
+    expect:
+      calls: { Researcher: 1, Copywriter: 2 }
+      asked: ["Approve?"]
+      branches: { n4: then }
+  - name: a rejected batch is sent back for revision
+    input: { topic: "agents" }
+    models:
+      Researcher: "Facts."
+      Copywriter: ["Post.", "Thread."]
+    humans: ["no"]
+    expect:
+      branches: { n4: else }
+  - name: nobody answering suspends the run instead of publishing
+    input: { topic: "agents" }
+    models:
+      Researcher: "Facts."
+      Copywriter: ["Post.", "Thread."]
+    expect:
+      final: suspended

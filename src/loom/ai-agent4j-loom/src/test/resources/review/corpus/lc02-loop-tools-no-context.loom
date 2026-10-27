@@ -1,0 +1,9 @@
+agent Researcher { model: "m"  system: "You search until you can answer."  tools: [web_search] }
+workflow Main(q) {
+  loop until (found == "yes") max 5 {
+    delegate "Search: {q}" to Researcher -> found // <- LC02 LR01
+  } on_exhausted {
+    note "not found"
+  }
+}
+// ignore: LP02 LP05 LO01

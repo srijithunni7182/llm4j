@@ -1,0 +1,1018 @@
+{
+  "version" : 1,
+  "entry" : "@SCRIPTS@/main.loom",
+  "partial" : false,
+  "definitions" : [ {
+    "key" : "tool:Mailer",
+    "kind" : "tool",
+    "name" : "Mailer",
+    "file" : "@SCRIPTS@/lib/agents.loom",
+    "range" : {
+      "start" : {
+        "line" : 0,
+        "character" : 5
+      },
+      "end" : {
+        "line" : 0,
+        "character" : 11
+      }
+    },
+    "extent" : {
+      "start" : {
+        "line" : 0,
+        "character" : 0
+      },
+      "end" : {
+        "line" : 0,
+        "character" : 88
+      }
+    }
+  }, {
+    "key" : "agent:Helper",
+    "kind" : "agent",
+    "name" : "Helper",
+    "file" : "@SCRIPTS@/lib/agents.loom",
+    "range" : {
+      "start" : {
+        "line" : 1,
+        "character" : 6
+      },
+      "end" : {
+        "line" : 1,
+        "character" : 12
+      }
+    },
+    "detail" : "claude-haiku-5-5",
+    "extent" : {
+      "start" : {
+        "line" : 1,
+        "character" : 0
+      },
+      "end" : {
+        "line" : 1,
+        "character" : 63
+      }
+    }
+  }, {
+    "key" : "agent:Scorer",
+    "kind" : "agent",
+    "name" : "Scorer",
+    "file" : "@SCRIPTS@/lib/agents.loom",
+    "range" : {
+      "start" : {
+        "line" : 2,
+        "character" : 6
+      },
+      "end" : {
+        "line" : 2,
+        "character" : 12
+      }
+    },
+    "detail" : "claude-haiku-5-5",
+    "extent" : {
+      "start" : {
+        "line" : 2,
+        "character" : 0
+      },
+      "end" : {
+        "line" : 2,
+        "character" : 146
+      }
+    },
+    "type" : {
+      "kind" : "object",
+      "fields" : {
+        "score" : {
+          "kind" : "number"
+        },
+        "notes" : {
+          "kind" : "string"
+        },
+        "tags" : {
+          "kind" : "list",
+          "of" : {
+            "kind" : "string"
+          }
+        },
+        "choice" : {
+          "kind" : "string"
+        },
+        "reasoning" : {
+          "kind" : "string"
+        }
+      }
+    }
+  }, {
+    "key" : "classifier:Intent",
+    "kind" : "classifier",
+    "name" : "Intent",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 2,
+        "character" : 17
+      },
+      "end" : {
+        "line" : 2,
+        "character" : 23
+      }
+    },
+    "extent" : {
+      "start" : {
+        "line" : 2,
+        "character" : 0
+      },
+      "end" : {
+        "line" : 7,
+        "character" : 1
+      }
+    },
+    "type" : {
+      "kind" : "object",
+      "fields" : {
+        "kind" : {
+          "kind" : "enum",
+          "values" : [ "order_status", "refund", "other", "unsure" ]
+        },
+        "urgent" : {
+          "kind" : "yesno",
+          "values" : [ "yes", "no" ]
+        },
+        "confidence" : {
+          "kind" : "number"
+        },
+        "calibrated" : {
+          "kind" : "yesno",
+          "values" : [ "yes", "no" ]
+        },
+        "backend" : {
+          "kind" : "string"
+        },
+        "model" : {
+          "kind" : "string"
+        }
+      }
+    }
+  }, {
+    "key" : "decision:Refund",
+    "kind" : "decision",
+    "name" : "Refund",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 8,
+        "character" : 9
+      },
+      "end" : {
+        "line" : 8,
+        "character" : 15
+      }
+    },
+    "extent" : {
+      "start" : {
+        "line" : 8,
+        "character" : 0
+      },
+      "end" : {
+        "line" : 12,
+        "character" : 1
+      }
+    },
+    "type" : {
+      "kind" : "enum",
+      "values" : [ "approve", "reject" ]
+    }
+  }, {
+    "key" : "agent:Replier",
+    "kind" : "agent",
+    "name" : "Replier",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 13,
+        "character" : 6
+      },
+      "end" : {
+        "line" : 13,
+        "character" : 13
+      }
+    },
+    "detail" : "claude-haiku-5-5",
+    "extent" : {
+      "start" : {
+        "line" : 13,
+        "character" : 0
+      },
+      "end" : {
+        "line" : 13,
+        "character" : 78
+      }
+    }
+  }, {
+    "key" : "workflow:Main",
+    "kind" : "workflow",
+    "name" : "Main",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 14,
+        "character" : 9
+      },
+      "end" : {
+        "line" : 14,
+        "character" : 13
+      }
+    },
+    "extent" : {
+      "start" : {
+        "line" : 14,
+        "character" : 0
+      },
+      "end" : {
+        "line" : 28,
+        "character" : 1
+      }
+    }
+  }, {
+    "key" : "checkpoint:Main/gathered",
+    "kind" : "checkpoint",
+    "name" : "gathered",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 16,
+        "character" : 15
+      },
+      "end" : {
+        "line" : 16,
+        "character" : 23
+      }
+    },
+    "scope" : "Main"
+  }, {
+    "key" : "workflow:Escalate",
+    "kind" : "workflow",
+    "name" : "Escalate",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 29,
+        "character" : 9
+      },
+      "end" : {
+        "line" : 29,
+        "character" : 17
+      }
+    },
+    "extent" : {
+      "start" : {
+        "line" : 29,
+        "character" : 0
+      },
+      "end" : {
+        "line" : 32,
+        "character" : 1
+      }
+    }
+  }, {
+    "key" : "prompt:writer",
+    "kind" : "prompt",
+    "name" : "writer",
+    "file" : "@SCRIPTS@/prompts/writer.md",
+    "range" : {
+      "start" : {
+        "line" : 0,
+        "character" : 0
+      },
+      "end" : {
+        "line" : 0,
+        "character" : 0
+      }
+    }
+  } ],
+  "references" : [ {
+    "to" : "file:@SCRIPTS@/lib/agents.loom",
+    "kind" : "file",
+    "role" : "import",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 0,
+        "character" : 8
+      },
+      "end" : {
+        "line" : 0,
+        "character" : 23
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "agent:Scorer",
+    "kind" : "agent",
+    "role" : "proposer",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 9,
+        "character" : 17
+      },
+      "end" : {
+        "line" : 9,
+        "character" : 23
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "prompt:writer",
+    "kind" : "prompt",
+    "role" : "prompt-use",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 13,
+        "character" : 52
+      },
+      "end" : {
+        "line" : 13,
+        "character" : 58
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "tool:Mailer",
+    "kind" : "tool",
+    "role" : "tool-use",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 13,
+        "character" : 69
+      },
+      "end" : {
+        "line" : 13,
+        "character" : 75
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "classifier:Intent",
+    "kind" : "classifier",
+    "role" : "classify",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 15,
+        "character" : 19
+      },
+      "end" : {
+        "line" : 15,
+        "character" : 25
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "binding:Main/message",
+    "kind" : "binding",
+    "role" : "use",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 15,
+        "character" : 29
+      },
+      "end" : {
+        "line" : 15,
+        "character" : 36
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "binding:Main/intent",
+    "kind" : "binding",
+    "role" : "use",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 17,
+        "character" : 9
+      },
+      "end" : {
+        "line" : 17,
+        "character" : 15
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "binding:Main/message",
+    "kind" : "binding",
+    "role" : "use",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 18,
+        "character" : 29
+      },
+      "end" : {
+        "line" : 18,
+        "character" : 36
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "binding:Main/tone",
+    "kind" : "binding",
+    "role" : "use",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 18,
+        "character" : 44
+      },
+      "end" : {
+        "line" : 18,
+        "character" : 48
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "agent:Replier",
+    "kind" : "agent",
+    "role" : "delegate-target",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 18,
+        "character" : 59
+      },
+      "end" : {
+        "line" : 18,
+        "character" : 66
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "binding:Main/reply",
+    "kind" : "binding",
+    "role" : "use",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 19,
+        "character" : 25
+      },
+      "end" : {
+        "line" : 19,
+        "character" : 30
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "agent:Scorer",
+    "kind" : "agent",
+    "role" : "delegate-target",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 19,
+        "character" : 36
+      },
+      "end" : {
+        "line" : 19,
+        "character" : 42
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "workflow:Escalate",
+    "kind" : "workflow",
+    "role" : "call",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 20,
+        "character" : 13
+      },
+      "end" : {
+        "line" : 20,
+        "character" : 21
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "binding:Main/reply",
+    "kind" : "binding",
+    "role" : "use",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 20,
+        "character" : 29
+      },
+      "end" : {
+        "line" : 20,
+        "character" : 34
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "decision:Refund",
+    "kind" : "decision",
+    "role" : "decide",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 21,
+        "character" : 15
+      },
+      "end" : {
+        "line" : 21,
+        "character" : 21
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "checkpoint:Main/gathered",
+    "kind" : "checkpoint",
+    "role" : "rewind",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 22,
+        "character" : 18
+      },
+      "end" : {
+        "line" : 22,
+        "character" : 26
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "binding:Main/verdict",
+    "kind" : "binding",
+    "role" : "use",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 22,
+        "character" : 33
+      },
+      "end" : {
+        "line" : 22,
+        "character" : 40
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "task:Archive",
+    "kind" : "task",
+    "role" : "run",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 23,
+        "character" : 12
+      },
+      "end" : {
+        "line" : 23,
+        "character" : 19
+      }
+    },
+    "resolved" : false
+  }, {
+    "to" : "binding:Main/reply",
+    "kind" : "binding",
+    "role" : "use",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 23,
+        "character" : 27
+      },
+      "end" : {
+        "line" : 23,
+        "character" : 32
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "binding:Main/reply",
+    "kind" : "binding",
+    "role" : "use",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 24,
+        "character" : 15
+      },
+      "end" : {
+        "line" : 24,
+        "character" : 20
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "binding:Escalate/memo",
+    "kind" : "binding",
+    "role" : "use",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 30,
+        "character" : 25
+      },
+      "end" : {
+        "line" : 30,
+        "character" : 29
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "agent:Helper",
+    "kind" : "agent",
+    "role" : "delegate-target",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 30,
+        "character" : 35
+      },
+      "end" : {
+        "line" : 30,
+        "character" : 41
+      }
+    },
+    "resolved" : true
+  }, {
+    "to" : "binding:Escalate/done",
+    "kind" : "binding",
+    "role" : "use",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 31,
+        "character" : 11
+      },
+      "end" : {
+        "line" : 31,
+        "character" : 15
+      }
+    },
+    "resolved" : true
+  } ],
+  "bindings" : [ {
+    "key" : "binding:Main/message",
+    "name" : "message",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 14,
+        "character" : 14
+      },
+      "end" : {
+        "line" : 14,
+        "character" : 21
+      }
+    },
+    "scope" : "workflow:Main",
+    "role" : "param",
+    "type" : {
+      "kind" : "unknown"
+    }
+  }, {
+    "key" : "binding:Main/tone",
+    "name" : "tone",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 14,
+        "character" : 23
+      },
+      "end" : {
+        "line" : 14,
+        "character" : 27
+      }
+    },
+    "scope" : "workflow:Main",
+    "role" : "param",
+    "type" : {
+      "kind" : "unknown"
+    }
+  }, {
+    "key" : "binding:Main/intent",
+    "name" : "intent",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 15,
+        "character" : 40
+      },
+      "end" : {
+        "line" : 15,
+        "character" : 46
+      }
+    },
+    "scope" : "workflow:Main",
+    "role" : "result",
+    "producedBy" : {
+      "kind" : "intentclassify",
+      "range" : {
+        "start" : {
+          "line" : 15,
+          "character" : 4
+        },
+        "end" : {
+          "line" : 15,
+          "character" : 18
+        }
+      }
+    },
+    "type" : {
+      "kind" : "object",
+      "fields" : {
+        "kind" : {
+          "kind" : "enum",
+          "values" : [ "order_status", "refund", "other", "unsure" ]
+        },
+        "urgent" : {
+          "kind" : "yesno",
+          "values" : [ "yes", "no" ]
+        },
+        "confidence" : {
+          "kind" : "number"
+        },
+        "calibrated" : {
+          "kind" : "yesno",
+          "values" : [ "yes", "no" ]
+        },
+        "backend" : {
+          "kind" : "string"
+        },
+        "model" : {
+          "kind" : "string"
+        }
+      }
+    }
+  }, {
+    "key" : "binding:Main/reply",
+    "name" : "reply",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 18,
+        "character" : 70
+      },
+      "end" : {
+        "line" : 18,
+        "character" : 75
+      }
+    },
+    "scope" : "workflow:Main",
+    "role" : "result",
+    "producedBy" : {
+      "kind" : "delegate",
+      "range" : {
+        "start" : {
+          "line" : 18,
+          "character" : 8
+        },
+        "end" : {
+          "line" : 18,
+          "character" : 16
+        }
+      }
+    },
+    "type" : {
+      "kind" : "string"
+    }
+  }, {
+    "key" : "binding:Main/verdict",
+    "name" : "verdict",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 19,
+        "character" : 46
+      },
+      "end" : {
+        "line" : 19,
+        "character" : 53
+      }
+    },
+    "scope" : "workflow:Main",
+    "role" : "result",
+    "producedBy" : {
+      "kind" : "delegate",
+      "range" : {
+        "start" : {
+          "line" : 19,
+          "character" : 8
+        },
+        "end" : {
+          "line" : 19,
+          "character" : 16
+        }
+      }
+    },
+    "type" : {
+      "kind" : "object",
+      "fields" : {
+        "score" : {
+          "kind" : "number"
+        },
+        "notes" : {
+          "kind" : "string"
+        },
+        "tags" : {
+          "kind" : "list",
+          "of" : {
+            "kind" : "string"
+          }
+        },
+        "choice" : {
+          "kind" : "string"
+        },
+        "reasoning" : {
+          "kind" : "string"
+        }
+      }
+    }
+  }, {
+    "key" : "binding:Main/handled",
+    "name" : "handled",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 20,
+        "character" : 39
+      },
+      "end" : {
+        "line" : 20,
+        "character" : 46
+      }
+    },
+    "scope" : "workflow:Main",
+    "role" : "result",
+    "producedBy" : {
+      "kind" : "call",
+      "range" : {
+        "start" : {
+          "line" : 20,
+          "character" : 8
+        },
+        "end" : {
+          "line" : 20,
+          "character" : 12
+        }
+      }
+    },
+    "type" : {
+      "kind" : "unknown"
+    }
+  }, {
+    "key" : "binding:Main/choice",
+    "name" : "choice",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 21,
+        "character" : 25
+      },
+      "end" : {
+        "line" : 21,
+        "character" : 31
+      }
+    },
+    "scope" : "workflow:Main",
+    "role" : "result",
+    "producedBy" : {
+      "kind" : "decide",
+      "range" : {
+        "start" : {
+          "line" : 21,
+          "character" : 8
+        },
+        "end" : {
+          "line" : 21,
+          "character" : 14
+        }
+      }
+    },
+    "type" : {
+      "kind" : "enum",
+      "values" : [ "approve", "reject" ]
+    }
+  }, {
+    "key" : "binding:Main/archived",
+    "name" : "archived",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 23,
+        "character" : 37
+      },
+      "end" : {
+        "line" : 23,
+        "character" : 45
+      }
+    },
+    "scope" : "workflow:Main",
+    "role" : "result",
+    "producedBy" : {
+      "kind" : "run",
+      "range" : {
+        "start" : {
+          "line" : 23,
+          "character" : 8
+        },
+        "end" : {
+          "line" : 23,
+          "character" : 11
+        }
+      }
+    },
+    "type" : {
+      "kind" : "unknown"
+    }
+  }, {
+    "key" : "binding:Escalate/memo",
+    "name" : "memo",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 29,
+        "character" : 18
+      },
+      "end" : {
+        "line" : 29,
+        "character" : 22
+      }
+    },
+    "scope" : "workflow:Escalate",
+    "role" : "param",
+    "type" : {
+      "kind" : "unknown"
+    }
+  }, {
+    "key" : "binding:Escalate/done",
+    "name" : "done",
+    "file" : "@SCRIPTS@/main.loom",
+    "range" : {
+      "start" : {
+        "line" : 30,
+        "character" : 45
+      },
+      "end" : {
+        "line" : 30,
+        "character" : 49
+      }
+    },
+    "scope" : "workflow:Escalate",
+    "role" : "result",
+    "producedBy" : {
+      "kind" : "delegate",
+      "range" : {
+        "start" : {
+          "line" : 30,
+          "character" : 4
+        },
+        "end" : {
+          "line" : 30,
+          "character" : 12
+        }
+      }
+    },
+    "type" : {
+      "kind" : "string"
+    }
+  } ],
+  "scopes" : [ {
+    "workflow" : "Main",
+    "file" : "@SCRIPTS@/main.loom",
+    "params" : [ "message", "tone" ],
+    "range" : {
+      "start" : {
+        "line" : 14,
+        "character" : 0
+      },
+      "end" : {
+        "line" : 28,
+        "character" : 1
+      }
+    }
+  }, {
+    "workflow" : "Escalate",
+    "file" : "@SCRIPTS@/main.loom",
+    "params" : [ "memo" ],
+    "range" : {
+      "start" : {
+        "line" : 29,
+        "character" : 0
+      },
+      "end" : {
+        "line" : 32,
+        "character" : 1
+      }
+    }
+  } ],
+  "problems" : [ ]
+}

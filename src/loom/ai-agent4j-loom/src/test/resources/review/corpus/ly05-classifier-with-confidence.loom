@@ -1,0 +1,11 @@
+intentclassifier Intent {
+  model: "m"
+  choose kind: refund | order_status | other
+  confidence at least 0.8 else escalate
+}
+agent Writer { model: "m"  system: "s" }
+workflow Main(message) {
+  delegate "Reply to {message}" to Writer -> reply
+  note "{reply}"
+}
+// ignore: LP02 LP05 LO01

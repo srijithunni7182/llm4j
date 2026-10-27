@@ -358,3 +358,9 @@ tr.rl.sel td { background: var(--live-soft); }
 .tbmark:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; }
 .banner.snap { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border: 1px solid var(--live); background: var(--live-soft); color: var(--ink); }
 
+
+.dlg.wide { max-width: 720px; width: calc(100vw - 48px); }
+.dlg label { display: block; margin-top: 8px; color: var(--ink-muted); }
+#lp-out { max-height: 40vh; overflow: auto; white-space: pre-wrap; word-break: break-word; border: 1px solid var(--line); border-radius: var(--radius-md); padding: 8px 10px; }
+#lp-cmd { user-select: all; border: 1px dashed var(--line-strong); border-radius: var(--radius-md); padding: 8px 10px; }
+.inctests { color: var(--ink-muted); margin-left: 8px; }

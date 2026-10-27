@@ -1,0 +1,12 @@
+tool Mailer { use: email  outbox: "outbox"  from: "a@example.com"  to: "b@example.com" }
+tool Crm { use: http  base_url: "https://crm.example.com"  allow_paths: "/customers/*"  max_bytes: 64k }
+tool Shell { use: shell  command: "ls"  allow: "ls *" }
+agent Replier {
+    model: "claude-haiku-5-5"
+    system: "Answer the customer using their record, then email the result."
+    tools: [Crm, Mailer, Shell]
+}
+workflow Main(ticket) {
+    delegate "Handle this ticket: {ticket}" to Replier -> outcome_text
+    return outcome_text
+}

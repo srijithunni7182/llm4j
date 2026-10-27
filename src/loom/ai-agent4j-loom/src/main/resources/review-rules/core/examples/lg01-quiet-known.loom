@@ -1,0 +1,2 @@
+agent A { model: "claude-sonnet-5-5"  system: "s" }
+workflow Main(q) { delegate "{q}" to A -> r  note "{r}" }

@@ -1,0 +1,2 @@
+agent A { model: "m"  system: "s" }
+workflow Main(q) { loop until (x == "yes") max 3 { delegate "{q}" to A -> x } }

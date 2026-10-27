@@ -1,0 +1,6 @@
+agent Replier { model: "m"  system: "You reply to customers."  guard { pii: mask } }
+workflow Main(customer_email) {
+  delegate "Reply to {customer_email}" to Replier -> reply
+  note "{reply}"
+}
+// ignore: LP02 LP05 LO01

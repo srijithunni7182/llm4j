@@ -1,0 +1,1 @@
+Plan a three-day trip from a city, budget and interests, with a second agent that checks the plan fits the budget.

@@ -219,6 +219,12 @@ record RunSpec(
             if (forkOf != null) m.put("forkOf", forkOf);
             if (maxRewinds != null) m.put("maxRewinds", maxRewinds);
             if (promptsDir != null) m.put("promptsDir", promptsDir);
+            // what the script was when the run began, so an explanation can tell if it changed
+            try {
+                m.put("scriptHash", io.github.llm4j.loom.travel.ScriptHash.of(Path.of(script)));
+            } catch (RuntimeException e) {
+                // a script that cannot be read now has no fingerprint; the run reports it itself
+            }
             if (promptPins != null && !promptPins.isEmpty())
                 m.put("promptPins", new LinkedHashMap<>(promptPins));
             Files.writeString(
@@ -257,6 +263,16 @@ record RunSpec(
                     (Map<String, String>) m.get("promptPins"));
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot read " + file, e);
+        }
+    }
+
+    /** The fingerprint of the script recorded when the run began, or null for an older run. */
+    static String scriptHashOf(Path runDir) {
+        try {
+            Map<?, ?> m = JSON.readValue(runDir.resolve(FILE).toFile(), Map.class);
+            return m.get("scriptHash") instanceof String h ? h : null;
+        } catch (IOException e) {
+            return null;
         }
     }
 

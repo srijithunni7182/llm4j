@@ -53,6 +53,21 @@ final class TaskRunner {
         // be tried again
         boolean operatorRetry =
                 journal.get(stepId).filter(e -> "retry".equals(e.kind())).isPresent();
+        if (recorded.isPresent() && executor.decisions().asking()) {
+            try {
+                executor.decisions()
+                        .ask(
+                                new Ask(
+                                        stepId,
+                                        "task",
+                                        name,
+                                        String.valueOf(new java.util.TreeMap<>(arguments(stmt))),
+                                        ""),
+                                true);
+            } catch (StepFailure ignored) {
+                // no arguments to report for a step that recorded a failure
+            }
+        }
         if (recorded.isPresent()) {
             RunJournal.Entry entry = recorded.get();
             if ("failed".equals(entry.kind())) {
@@ -71,6 +86,26 @@ final class TaskRunner {
         } catch (StepFailure bad) {
             fail(stmt, stepId, bad.getMessage(), bad, true, 0, null);
             return;
+        }
+
+        if (executor.decisions().asking()) {
+            Object known =
+                    executor.decisions()
+                            .ask(
+                                    new Ask(
+                                            stepId,
+                                            "task",
+                                            name,
+                                            String.valueOf(new java.util.TreeMap<>(args)),
+                                            ""),
+                                    false);
+            if (known != null) {
+                journal.put(stepId, new RunJournal.Entry("task", known));
+                executor.setVariable(variable, known);
+                markOk(task, variable, known);
+                replayed(name, known);
+                return;
+            }
         }
 
         TaskEffect effect = task.effect();

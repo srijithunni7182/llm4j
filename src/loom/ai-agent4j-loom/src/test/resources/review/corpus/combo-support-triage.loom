@@ -1,0 +1,13 @@
+tool Hook { use: webhook  url: env.HOOK_URL }
+agent Triage { model: "small-model"  system: "Pick the kind of request: refund, order_status or other."  output_schema: { kind: string } }
+agent Replier { model: "m"  system: "You reply to a customer politely and briefly."  tools: [Hook]  guard { pii: warn } } // <- LY02
+workflow Main(message) {
+  delegate "Message: {message}" to Triage -> triage
+  alt (triage.kind == "refund") {
+    delegate "Reply to: {message}" to Replier -> reply // <- LR01 LR02
+    note "{reply}"
+  } else {
+    note "handled elsewhere"
+  }
+}
+// ignore: LP02 LP05 LO01

@@ -1,0 +1,7 @@
+agent Editor { model: "m"  system: "You edit text." }
+workflow Main(topic) {
+  delegate "Draft a note about {topic}" to Editor -> r
+  delegate "Improve this: {r}" to Editor -> polished // <- LP07
+  note "{polished}"
+}
+// ignore: LP02 LP05 LO01

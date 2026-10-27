@@ -1,0 +1,11 @@
+agent Screener { model: "m"  system: "You rate applications."  guard { bias: warn }  output_schema: { choice: string, reasoning: string } }
+decision Approve {
+  proposed by: Screener
+  choices: approve, reject
+  ask: lead
+}
+workflow Main(topic) {
+  delegate "Rate {topic}" to Screener -> rating
+  note "{rating}"
+}
+// ignore: LP02 LP05 LO01

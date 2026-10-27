@@ -77,4 +77,21 @@ class NoEnvStandInTest {
                 .contains("\"ok\" : false")
                 .contains("environment variable SMTP_HOST is not set");
     }
+
+    @Test
+    void aMisspeltOptionOnAToolThatReadsTheEnvironmentIsStillAnError() throws Exception {
+        Path script =
+                Files.writeString(
+                        dir.resolve("main.loom"),
+                        """
+                agent N { model: "ollama/llama3" system: "s" tools: [Mail] }
+                tool Mail { use: email  host: env.SMTP_HOST  tls: "yes"  from: "d@example.com"  to: env.DIGEST_TO }
+                workflow Main() { delegate "send" to N -> sent_text
+                    note "{sent_text}" }
+                """);
+
+        assertThat(check(script, "json", "--no-env"))
+                .contains("\"ok\" : false")
+                .contains("unknown option tls");
+    }
 }

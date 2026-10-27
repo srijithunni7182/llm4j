@@ -1,0 +1,8 @@
+agent Researcher { model: "m"  system: "You list the facts that bear on the question." }
+agent Writer { model: "m"  system: "You turn a list of facts into a short answer." }
+workflow Main(q) {
+  delegate "Question: {q}" to Researcher -> facts
+  delegate "Facts: {facts}" to Writer -> answer
+  note "{answer}"
+}
+// ignore: LP02 LP05 LO01

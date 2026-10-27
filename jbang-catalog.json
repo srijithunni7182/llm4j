@@ -1,0 +1,11 @@
+{
+  "catalogs": {},
+  "aliases": {
+    "weave": {
+      "script-ref": "io.github.srijithunni7182:ai-agent4j-loom:6.0.0:cli",
+      "description": "weave: write, test, review and run Loom workflows (try it with: jbang weave@srijithunni7182/llm4j try)",
+      "java": "17+"
+    }
+  },
+  "templates": {}
+}

@@ -24,6 +24,7 @@
     "workflows": { "type": "array", "items": { "$ref": "#/$defs/workflow" } },
     "agents": { "type": "array", "items": { "$ref": "#/$defs/agent" } },
     "runBudget": { "$ref": "#/$defs/budget" },
+    "overlay": { "$ref": "#/$defs/overlay" },
     "diagnostics": {
       "type": "array",
       "items": {
@@ -40,6 +41,80 @@
     }
   },
   "$defs": {
+    "overlay": {
+      "description": "What one run, or several, did on this graph (weave graph --run). The journal holds no times, token counts or costs, so none are given.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "runs", "workflows", "decisions", "neverReached"],
+      "properties": {
+        "version": { "const": 1 },
+        "runs": { "type": "array", "items": { "type": "string" } },
+        "workflows": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["nodes", "edges"],
+            "properties": {
+              "nodes": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["ran", "runs", "skipped", "failures"],
+                  "properties": {
+                    "ran": { "type": "integer", "minimum": 0 },
+                    "runs": { "type": "integer", "minimum": 0 },
+                    "skipped": { "type": "integer", "minimum": 0 },
+                    "failures": { "type": "integer", "minimum": 0 }
+                  }
+                }
+              },
+              "edges": {
+                "description": "Keyed by from->to, or from->to|label.",
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["taken"],
+                  "properties": { "taken": { "type": "integer", "minimum": 0 } }
+                }
+              }
+            }
+          }
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["workflow", "node", "kind", "taken"],
+            "properties": {
+              "workflow": { "type": "string" },
+              "node": { "type": "string" },
+              "kind": { "type": "string" },
+              "condition": { "type": "string" },
+              "result": { "type": "boolean" },
+              "taken": { "type": "string" }
+            }
+          }
+        },
+        "neverReached": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["workflow", "node", "label"],
+            "properties": {
+              "workflow": { "type": "string" },
+              "node": { "type": "string" },
+              "label": { "type": "string" },
+              "line": { "type": "integer" }
+            }
+          }
+        }
+      }
+    },
     "source": {
       "type": "object",
       "required": ["file", "line"],

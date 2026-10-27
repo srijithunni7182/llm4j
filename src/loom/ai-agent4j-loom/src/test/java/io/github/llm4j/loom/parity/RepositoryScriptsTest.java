@@ -50,7 +50,13 @@ class RepositoryScriptsTest {
                                                                     "ctk/scripts/failing_test.loom")
                                                     && !p.toString()
                                                             .endsWith(
-                                                                    "ctk/scripts/intervention_rewind_undeclared.loom"))
+                                                                    "ctk/scripts/intervention_rewind_undeclared.loom")
+                                                    // editor fixtures that are flawed on purpose,
+                                                    // so the
+                                                    // review has findings to show
+                                                    && !p.toString()
+                                                            .contains(
+                                                                    "vscode-loom/test/fixtures/review/scripts/"))
                             .sorted()
                             .toList();
         }

@@ -1,0 +1,18 @@
+# Tests for the workflow logic. They run with `weave test` and cost nothing: the models are scripted.
+# Add a case here whenever you change a branch, a loop or a limit. See what is not yet covered with `weave test --coverage`.
+script: {{testScript}}
+workflow: Main
+cases:
+  - name: a confident label is used without asking anyone
+    input: { ticket: "The app crashes when I log in" }
+    models:
+      Classifier: { label: BUG, confidence: HIGH }
+    expect:
+      asked: none
+  - name: an unsure label goes to a person, whose answer is used
+    input: { ticket: "It is odd" }
+    models:
+      Classifier: { label: BUG, confidence: LOW }
+    humans: ["FEATURE"]
+    expect:
+      asked: ["Which label"]

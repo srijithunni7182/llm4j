@@ -1,0 +1,32 @@
+# Tests for the workflow logic. They run with `weave test` and cost nothing: the models are scripted.
+# Add a case here whenever you change a branch, a loop or a limit. See what is not yet covered with `weave test --coverage`.
+script: {{testScript}}
+workflow: Main
+cases:
+  - name: an approved draft is not rewritten
+    input: { topic: "cheese" }
+    models:
+      Researcher: "Notes."
+      Writer: "A draft."
+      Editor: { verdict: OK, advice: "" }
+    expect:
+      calls: { Writer: 1, Editor: 1 }
+  - name: a weak draft goes back to the writer once, then passes
+    input: { topic: "cheese" }
+    models:
+      Researcher: "Notes."
+      Writer: ["First draft.", "Better draft."]
+      Editor:
+        - { verdict: REWRITE, advice: "Shorter." }
+        - { verdict: OK, advice: "" }
+    expect:
+      calls: { Writer: 2, Editor: 2 }
+  - name: the review loop stops after two rounds even if the editor never approves
+    input: { topic: "cheese" }
+    models:
+      Researcher: "Notes."
+      Writer: "Draft."
+      Editor: { verdict: REWRITE, advice: "Again." }
+    repeat: last
+    expect:
+      calls: { Editor: 2, Writer: 3 }

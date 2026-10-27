@@ -1,0 +1,12 @@
+agent Screener { model: "m"  system: "Rate."  output_schema: { choice: string, reasoning: string } }
+agent Writer { model: "m"  system: "Write." }
+decision Approve {
+  proposed by: Screener
+  choices: approve, reject
+  ask: lead
+}
+workflow Main(q) {
+  decide Approve -> choice
+  delegate "write {q}" to Writer -> text
+  note "{text}"
+}

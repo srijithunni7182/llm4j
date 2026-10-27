@@ -4,7 +4,6 @@ import io.github.llm4j.loom.ast.LoomScript;
 import io.github.llm4j.loom.lexer.Lexer;
 import io.github.llm4j.loom.parser.LoomParser;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -89,7 +88,7 @@ public final class ImportClosureLoader {
                 Path target = file.getParent().resolve(script.getImports().get(i)).normalize();
                 int line = script.getImportLines().get(i);
                 imports.add(target);
-                if (!Files.exists(target)) {
+                if (!io.github.llm4j.loom.execution.Buffers.exists(target)) {
                     diagnostics.add(
                             Diagnostic.error(
                                     file.toString(), line, "Imported file not found: " + target));
@@ -104,7 +103,10 @@ public final class ImportClosureLoader {
 
         private LoomScript read(Path file, Path importer, int importLine) {
             try {
-                return new LoomParser(new Lexer(Files.readString(file)).tokenize()).parseScript();
+                return new LoomParser(
+                                new Lexer(io.github.llm4j.loom.execution.Buffers.read(file))
+                                        .tokenize())
+                        .parseScript();
             } catch (IOException e) {
                 diagnostics.add(
                         Diagnostic.error(

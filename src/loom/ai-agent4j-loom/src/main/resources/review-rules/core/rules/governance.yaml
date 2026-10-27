@@ -1,0 +1,81 @@
+- id: LG04
+  lens: governance
+  severity: medium
+  about: agent
+  when:
+    all:
+      - { field: model.floatingAlias, is: true }
+      - { field: hasEffects, is: true }
+  title: "Agent {name} acts on {model.id}, an alias that can change without a commit"
+  why: "A floating alias such as -latest points at a different model when the vendor moves it, so what the agent does can change with no change to the repository."
+  fixHint: "Pin the exact model version for an agent that writes or sends."
+  since: "1.0.0"
+  examples:
+    fires: [ examples/lg04-fires.loom ]
+    quiet: [ examples/lg04-quiet-pinned.loom, examples/lg04-quiet-no-effects.loom ]
+
+- id: LG01
+  lens: governance
+  severity: low
+  about: model
+  when:
+    all:
+      - { field: known, is: false }
+      - { field: nearest, isNot: "" }
+  title: "Model {id} is not a model this library knows, and is close to {nearest}"
+  why: "A misspelt model name fails at run time, or silently calls a different model than the one intended."
+  fixHint: "Check the spelling: did you mean {nearest}?"
+  since: "1.6.0"
+  explain: >
+    The library ships a short list of models it has checked. A name that is not on it is not wrong
+    (there are many models), but a name that is one or two letters away from a listed model is
+    probably a typo.
+  examples:
+    fires: [ examples/lg01-fires.loom ]
+    quiet: [ examples/lg01-quiet-known.loom, examples/lg01-quiet-unfamiliar.loom ]
+
+- id: LG02
+  lens: governance
+  severity: medium
+  about: model
+  requires: [setting.data.deprecated-models]
+  when:
+    all:
+      - { field: deprecated, is: true }
+  title: "Model {id} is listed as deprecated by this project"
+  why: "A deprecated model is retired on a date the vendor sets; after that the agent fails or is moved to another model without a change in the repository."
+  fixHint: "Move the agent to the model that replaces it, and test it."
+  since: "1.6.0"
+  explain: >
+    The library cannot know which models are about to be retired, so the project says: list them in
+    review.properties as data.deprecated-models = model-a, model-b. Without that setting the rule is
+    not evaluated, and the report says so.
+  examples:
+    fires: [ { file: examples/lg02-fires.loom, settings: { data.deprecated-models: "old-model" } } ]
+    quiet: [ { file: examples/lg02-quiet.loom, settings: { data.deprecated-models: "old-model" } } ]
+
+- id: LG05
+  lens: governance
+  severity: info
+  about: agent
+  when:
+    all:
+      - { field: unversionedAmongVersioned, is: true }
+  title: "Agent {name} uses a prompt file that is not versioned, though other agents' are"
+  why: "Versioned prompt files (prompts/x/v2.md) can be pinned and rolled back. An agent whose prompt is not versioned changes with the file."
+  fixHint: "Move its prompt to prompts/<id>/v1.md so it can be pinned."
+  since: "1.6.0"
+  explain: >
+    Some agents of this script keep their prompts as versioned files and this one does not. If the
+    project versions prompts, do it for all of them.
+  examples:
+    fires:
+      - file: examples/lg05-fires.loom
+        companions:
+          prompts/lg05-writer/v2.md: examples/prompts/lg05-writer/v2.md
+          prompts/lg05-editor.md: examples/prompts/lg05-editor.md
+    quiet:
+      - file: examples/lg05-quiet.loom
+        companions:
+          prompts/lg05-writer/v2.md: examples/prompts/lg05-writer/v2.md
+          prompts/lg05-other/v1.md: examples/prompts/lg05-other/v1.md

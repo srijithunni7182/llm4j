@@ -1,0 +1,1 @@
+Turn meeting notes into action items with an owner and a due date, and post them to a team webhook after a person approves.

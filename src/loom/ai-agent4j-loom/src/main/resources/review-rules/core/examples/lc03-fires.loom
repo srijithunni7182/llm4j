@@ -1,0 +1,6 @@
+agent Big { model: "big-model"  system: "You review." }
+agent Small { model: "small-model"  system: "You review." }
+workflow Main(topic) {
+  broadcast "Review {topic}" to [Big, Small] -> reviews
+  note "done"
+}
