@@ -48,6 +48,9 @@ Each module answers the question the previous one raises.
 - [Agentic Workflows with Loom and Engram](../docs/AGENTIC_WORKFLOWS_GUIDE.md)
 - [Loom in VS Code](Loom-in-VS-Code.md): the review panel, rename and completion that know your script, checks as you type, a debugger
 - [Generating a workflow](Generating-a-Workflow.md): a description becomes a plan you read first, then a project that passes check, review and its own tests, or you are told which gate failed
+- [From an incident to a regression test](From-an-Incident-to-a-Regression-Test.md): capture a run as a masked test, check a change against real history, gate it in CI, one click from a Fabric incident
+- [Typed workflows in Java, and deploying them](Typed-Workflows-in-Java-and-Deploying.md): generated bindings, Spring beans, and the container files `weave deploy` writes
+- [Your first run](Your-First-Run.md): `weave try` on demo models, `weave doctor`, and the guided path
 - [Debugging a workflow](Debugging-a-Workflow.md): why a run did what it did, what it would have done, stepping through it and back, and the run drawn on the graph
 - [Observability: watching runs live](Observability.md) · [Deployment guide](../docs/OBSERVABILITY_DEPLOYMENT.md) · [Fabric server](Fabric-Server.md) · [Deployer skill](Deployer-Skill.md) · [Incidents and rules](Observability-Incidents-and-Rules.md) · [Security signals](Observability-Security-Signals.md) · [Controls, secrets and security](Observability-Controls-and-Security.md) · [Reference](Observability-Reference.md)
 - [Loom CTK (conformance)](../src/loom/ctk/README.md) · [VS Code extension](../src/loom/vscode-loom/README.md)

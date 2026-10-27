@@ -1,6 +1,6 @@
 # Loom developer experience: the program
 
-Status: **draft for review** (nothing here is built). Phases 9 to 16 of the [roadmap](README.md). Each phase has its own
+Status: **phases 9 to 16 built** (phase 12 is open on its pass rate, D13); the open decisions are in 09-review-engine/OPEN_ITEMS.md. Phases 9 to 16 of the [roadmap](README.md). Each phase has its own
 `DESIGN.md`, `TEST_STRATEGY.md` and `VERIFICATION.md`; this page is the map: why they exist, how they fit, and in what order to build them.
 
 ## 1. The thesis
