@@ -74,4 +74,21 @@ class TestSynthTest {
                         + "%");
         assertThat(c.percent()).as(project + " " + c.missed()).isGreaterThanOrEqualTo(70);
     }
+
+    @org.junit.jupiter.api.Test
+    void aBranchBehindAnInputAPersonsAnswerAndAClassifierLabelIsFound() throws Exception {
+        Path dir = copy("src/test/resources/generate/synth/gated");
+        Path script = dir.resolve("main.loom");
+        TestSynth.Derived d = TestSynth.derive(script, "../main.loom");
+        assertThat(d).isNotNull();
+        Path file = dir.resolve("tests/derived.test.yaml");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, d.yaml());
+        TestRunner.Suite suite = TestRunner.load(script, List.of(file));
+        var results = TestRunner.run(suite, null, false, false);
+        assertThat(results.stream().filter(r -> !r.passed()).toList()).isEmpty();
+        Coverage c = TestRunner.coverage(suite, results);
+        // the deepest halt needs region EU, the answer approved, the label refund and an angry tone
+        assertThat(c.percent()).as(c.missed().toString()).isEqualTo(100);
+    }
 }

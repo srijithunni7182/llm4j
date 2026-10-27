@@ -90,7 +90,9 @@ public final class Structure {
     public static List<String> expected(Path script, JsonNode expect) throws Exception {
         LoomScript s = new LoomLoader().load(script.toString());
         List<String> out = new ArrayList<>();
-        int agents = s.getAgents().size();
+        // a classifier does the work of an agent that only labels: a description that is a
+        // classification is rightly built with no agent at all
+        int agents = s.getAgents().size() + s.getIntentClassifiers().size();
         if (expect.has("agents")) {
             int min = expect.get("agents").get(0).asInt();
             int max = expect.get("agents").get(1).asInt();
