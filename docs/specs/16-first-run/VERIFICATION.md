@@ -1,6 +1,6 @@
 # Phase 16 verification plan: the first run
 
-Status: **16a, 16b done** (`weave try`; `weave doctor`); 16c to 16e not started. Run top to bottom at the end of sub-phase 16e; the relevant rows after each sub-phase. Results in §7.
+Status: **16a to 16c done** (`weave try`; `weave doctor`; launchers, JBang); 16d, 16e not started. Run top to bottom at the end of sub-phase 16e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -44,11 +44,11 @@ Status: **16a, 16b done** (`weave try`; `weave doctor`); 16c to 16e not started.
 | R15 | `DoctorCommandTest.fixAsksFirstAndOnlyDoesTheSafeLocalThings` | ✅ 16b |
 | R16 | `DoctorCommandTest.everyProblemIsOneSentenceAndOneAction` (doctor); try's own errors name the choices | ✅ 16b |
 | R17 | `scripts/doctor.sh` is untouched (git shows no change); the CONTRIBUTING link is written with the end-of-program docs | ✅ 16b (docs owed) |
-| R18 | `JbangCatalogTest` | ⬜ 16c |
-| R19 | `LauncherTest`, `ChecksumTest` | ⬜ 16c |
-| R20 | `VersionCoherenceTest`, `extensionVersionWarn.test.ts` | ⬜ 16c |
-| R21 | `ShellcheckTest`, `LauncherWindowsTest` | ⬜ 16c |
-| R22 | docs checklist (follow-ups recorded) | ⬜ 16c |
+| R18 | `LauncherTest.theJbangAliasPointsAtTheCliJarOfThisVersion` (alias `weave` -> the `cli` jar of the pom's version) | ✅ 16c |
+| R19 | `LauncherTest` (arguments untouched, `JAVA_OPTS`, `JAVA_HOME` first, old/missing Java and missing jar each say what to do), `...theChecksumFileVerifiesTheJar` | ✅ 16c |
+| R20 | `LauncherTest.theVersionLineCarriesTheProtocolOfServe` (`weave --version` prints the version and the serve protocol); the extension's warning is 16e | 🟦 16c/16e |
+| R21 | `LauncherTest` (execution with a fake java; shellcheck when installed, skipped here; the Windows launcher is checked as text, not run) | ✅ 16c |
+| R22 | `install/README.md` names the follow-ups (Homebrew, SDKMAN, Scoop) | ✅ 16c |
 | R23 | `InitInteractiveTest`, `InitNonInteractiveUnchangedTest` | ⬜ 16d |
 | R24 | `InitNoKeyGuidanceTest` | ⬜ 16d |
 | R25 | `TemplatesPassGatesTest` | ⬜ 16d |
@@ -105,3 +105,9 @@ Status: **16a, 16b done** (`weave try`; `weave doctor`); 16c to 16e not started.
 - `DeployPlan` gained `unknownModels` (used by doctor), found because `weave check --no-env` does not flag an unknown model name: a typo only shows up when the script runs.
 - Tests: `DoctorCommandTest` 11.
 - Deviations: the extension check is not built (it needs the editor: 16e); the CLI check reports the version only (the bundled-jar comparison needs the extension); the CPU/exit codes are 0, 1, 2 for ready, ready with warnings, not ready.
+
+### 16c (2026-10-24)
+
+- Built: `install/weave` and `install/weave.cmd` (find Java via `JAVA_HOME` then `PATH`, refuse Java older than 17 with a way out, pass every argument through untouched, honour `JAVA_OPTS` and `WEAVE_JAR`), `install/README.md` (the three-line install), `jbang-catalog.json` (alias `weave` for `jbang weave@srijithunni7182/llm4j try`), `scripts/make-release-launchers.sh` (the jar, the launchers and `weave.jar.sha256`), and `weave --version` now also prints the serve protocol.
+- Tests: `LauncherTest` 9 (1 skipped: shellcheck is not installed here).
+- Not verified: the JBang alias against a real published artifact (nothing is published from here), and the Windows launcher by running it.

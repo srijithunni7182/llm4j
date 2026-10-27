@@ -1669,7 +1669,11 @@ public class WeaveCLI implements Callable<Integer> {
             }
             if (version == null) return new String[] {"weave (run from classes, not a built jar)"};
             return new String[] {
-                "weave " + version + (built == null ? "" : " (built " + built + ")")
+                "weave "
+                        + version
+                        + (built == null ? "" : " (built " + built + ")")
+                        + ", serve protocol "
+                        + io.github.llm4j.loom.serve.Server.PROTOCOL
             };
         }
     }
