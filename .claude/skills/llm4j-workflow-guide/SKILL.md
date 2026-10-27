@@ -269,6 +269,8 @@ Prefer it to writing the first draft yourself. It plans first, so the user reads
 2. `weave generate --from-plan <dir>/plan.json --out <project>` builds it. The model writes into a temporary folder; the project is made only when every gate passes: **G1** `weave check`, **G2** no high review finding after the safe fixes (and nothing medium in validity, reliability or prompts; `--gate-level` moves that), **G3** the project's own tests pass, **G4** they reach at least `--coverage` percent of the steps (default 80), **G5** the script has exactly the agents, classifiers, tools, effects and people the plan lists, and a budget. Exit 0 done, 3 a gate did not pass (it names the gate and the reason), 4 the spend cap (`--max-cost` with `--prices`, or `--max-tokens`).
 3. Say plainly what it did **not** check: how good the answers are with a real model (that is `weave eval`), whether the rules are the ones they meant, and the code inside any tool stub.
 
+**The tests are mostly the tool's.** `weave generate` writes `tests/derived.test.yaml` itself: it runs the script with scripted models down every classifier label, every enum answer, every failing step and every value the conditions compare with, and records the routes (free, no model). Do not edit that file by hand; change the script. The model writes only the cases the plan lists. A case that does not hold is not repaired: it is listed in `tests/LEFT_OUT.md`; **read it to the user**, because it is either a mistake in the case or a place where the script does not follow the plan. `--plan-model <model>` names a stronger model for the questions and the plan while `--model` writes the files (a good plan is worth more than a good writer).
+
 To change a project: `weave generate --edit <script> "the change"` shows the diff, the review and cost change and the tests it changes, and writes nothing until `--apply`. A change that makes things worse needs `--accept-worse`, and you ask the user first. `--patch-out FILE` then `--apply-patch FILE` applies the same patch without asking the model again.
 
 **On a script you wrote yourself**, run `weave generate --gate-only <folder or script>` before you present it. It is the same bar (G1 to G5; G3 and G4 are skipped with a note when there are no tests, G5 when there is no plan), and what it finds is yours to fix first, not the user's to discover. A hand-written project is never held to it unless someone asks.
@@ -279,10 +281,19 @@ After you write or change a workflow, run `weave review <script>` (free, offline
 
 Then **carry on with what the user asked** (run, test, package, deploy): open findings never stop a run, and you must not hold the work back because of them. You may recommend fixing first. Use `--fail-on` only when the user asks for a gate ("do not deploy unless review is clean"). `weave review <script> --explain RULE` explains one rule.
 
+## Look commands up, and set a newcomer up
+
+Do not guess a flag. `weave man` lists every command by what a person is doing, `weave man <command>` prints its page (every option with its default, examples, exit codes), and `docs/COMMAND_REFERENCE.md` is the same text. For someone who has never used Loom: `weave try` runs a bundled workflow on demo models (no key, no network, writes nothing) and explains each step, `weave doctor` says the one thing to do for each problem in their setup, and `weave next` says what to do next in a project.
+
+## From a bad run back to a test, and on to production
+
+When a run in production went wrong, `weave capture <run-id>` turns it into a test case with the recorded answers scripted in (personal data and secrets masked first; the case is "observed" until a person reads it and approves it with `weave capture --approve <file>`). `weave regress <script>` tries a changed script, prompt or model on a sample of past runs, using recorded answers only, and lists unsafe changes first. `weave gate` runs the checks the team chose (check, review, test, regress, eval) and prints one verdict for CI. `weave bindgen <script> --package <pkg>` writes typed Java for the workflow, and `weave deploy <script> --target docker|compose|k8s` writes the container files from the script (text only; secrets never appear). Read `weave man` for each before you run it; deploy and any real run are the user's call.
+
 ## Useful commands
 
 ```
 weave next                                      # what to do next in this project, in order, free (a good first command in an existing project)
+weave man generate                              # the reference page for any command: every option, examples, exit codes (weave man lists them all)
 weave explain workflow.loom                     # the script in plain English: show it to the user to confirm it does what they meant
 weave generate "what it should do" --plan-only --out plan   # a plan to read and edit first (then --from-plan plan/plan.json); --gate-only <dir> holds any project to the gates
 weave init pipeline my-workflow                 # a small, complete Maven project: script and prompts in src/main/resources, golden dataset in src/test/resources, JUnit tests, README

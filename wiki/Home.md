@@ -51,6 +51,8 @@ Each module answers the question the previous one raises.
 - [From an incident to a regression test](From-an-Incident-to-a-Regression-Test.md): capture a run as a masked test, check a change against real history, gate it in CI, one click from a Fabric incident
 - [Typed workflows in Java, and deploying them](Typed-Workflows-in-Java-and-Deploying.md): generated bindings, Spring beans, and the container files `weave deploy` writes
 - [Your first run](Your-First-Run.md): `weave try` on demo models, `weave doctor`, and the guided path
+- [Working with a coding agent](Working-with-a-Coding-Agent.md): one click teaches Claude Code, Copilot, Cursor or any agent that reads AGENTS.md to build with Loom; it looks commands up with `weave man`
+- [Command reference](../docs/COMMAND_REFERENCE.md): every `weave` command, its options, examples and exit codes (in a terminal: `weave man`)
 - [Debugging a workflow](Debugging-a-Workflow.md): why a run did what it did, what it would have done, stepping through it and back, and the run drawn on the graph
 - [Observability: watching runs live](Observability.md) · [Deployment guide](../docs/OBSERVABILITY_DEPLOYMENT.md) · [Fabric server](Fabric-Server.md) · [Deployer skill](Deployer-Skill.md) · [Incidents and rules](Observability-Incidents-and-Rules.md) · [Security signals](Observability-Security-Signals.md) · [Controls, secrets and security](Observability-Controls-and-Security.md) · [Reference](Observability-Reference.md)
 - [Loom CTK (conformance)](../src/loom/ctk/README.md) · [VS Code extension](../src/loom/vscode-loom/README.md)

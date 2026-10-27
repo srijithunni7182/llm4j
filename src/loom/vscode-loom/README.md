@@ -96,7 +96,7 @@ Type a keyword in a `.loom` file and press Tab to get the whole statement with i
 
 **Loom: Open Guide** (Command Palette) shows a page of the written guide: where to start, the ten chapters, or the Loom reference. It comes from the `weave` jar inside this extension, so it works with no repository and no network.
 
-**Loom: Install the Loom Skill in This Project** writes the agent skill and the guide into `.claude/skills/llm4j-workflow-guide` in the folder you have open, so an AI coding agent that reads the project knows the path. It asks before it replaces an older copy.
+**Loom: Set Up My Coding Agent** asks which coding agents you use in this project and writes what each one reads, in the folder you have open: for Claude Code the skills and the guide under `.claude/skills`; for Codex, Copilot's agent mode, Gemini, Cursor and others a block in `AGENTS.md`; or `.github/copilot-instructions.md` or `.cursor/rules/loom.mdc`. The text tells the agent to look commands up with `weave man` instead of guessing, gives it the loop (describe, check, review, test, evaluate, watch, ship) and the rules (no keys in files, ask before anything that spends money). What you wrote in the same file stays: Loom's text sits between two marker lines. It asks before it replaces an older copy.
 
 ## Review
 

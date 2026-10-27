@@ -1,11 +1,11 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { GuideHost, installSkill, openGuide } from '../guide/guideCommands';
+import { AGENTS, GuideHost, installSkill, openGuide } from '../guide/guideCommands';
 import { GraphExitError } from '../graph/errors';
 import { WeaveGraphRunner } from '../graph/runner';
 import { readGraphSettings } from '../views/GraphPanel';
 
-/** "Loom: Open Guide" and "Loom: Install the Loom Skill in This Project": both just run `weave guide` from the bundled jar. */
+/** "Loom: Open Guide" and : both just run `weave guide` from the bundled jar. */
 export function registerGuideCommands(context: vscode.ExtensionContext): void {
     const settings = readGraphSettings();
     const runner = new WeaveGraphRunner({
@@ -32,6 +32,13 @@ export function registerGuideCommands(context: vscode.ExtensionContext): void {
         async showMarkdown(text) {
             const doc = await vscode.workspace.openTextDocument({ language: 'markdown', content: text });
             await vscode.commands.executeCommand('markdown.showPreview', doc.uri);
+        },
+        pickAgents: async () => {
+            const items = await vscode.window.showQuickPick(
+                AGENTS.map((a) => ({ label: a.label, description: a.detail, picked: a.picked, id: a.id })),
+                { canPickMany: true, placeHolder: 'Which coding agents do you use in this project?' },
+            );
+            return items?.map((i) => i.id);
         },
         confirm: async (message, action) => (await vscode.window.showWarningMessage(message, { modal: true }, action)) === action,
         report(message, level) {

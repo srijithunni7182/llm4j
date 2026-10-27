@@ -44,6 +44,13 @@ final class GuideCommand implements Callable<Integer> {
     String which;
 
     @Option(
+            names = "--for",
+            description =
+                    "With --install-skill: which coding agents to set up, separated by commas: claude (the skills in .claude/skills; the default), agents (AGENTS.md, read by Codex, Copilot, Gemini, Cursor and others), copilot (.github/copilot-instructions.md), cursor (.cursor/rules/loom.mdc) or all. The instruction files keep what you wrote in them: Loom's text sits between two marker lines.",
+            defaultValue = "claude")
+    String forAgents;
+
+    @Option(
             names = "--force",
             description = "With --install-skill: replace the skill if it is already there.")
     boolean force;
@@ -63,10 +70,45 @@ final class GuideCommand implements Callable<Integer> {
                                         + ").");
                 return 2;
             }
+            java.util.Set<String> targets = new java.util.LinkedHashSet<>();
+            for (String t : c.forAgents.split("\\s*,\\s*")) targets.add(t.toLowerCase());
+            if (targets.contains("all"))
+                targets.addAll(List.of("claude", "agents", "copilot", "cursor"));
+            targets.remove("all");
+            for (String t : targets)
+                if (!List.of("claude", "agents", "copilot", "cursor").contains(t)) {
+                    env.err()
+                            .println(
+                                    "Error: --for is claude, agents, copilot, cursor or all, separated by commas (not "
+                                            + t
+                                            + ").");
+                    return 2;
+                }
             try {
                 Path project = c.installTo.toPath().toAbsolutePath().normalize();
                 int installed = 0;
-                if (c.which.equals("all") || c.which.equals("harness")) {
+                for (Guide.Agent agent : Guide.Agent.values()) {
+                    if (!targets.contains(agent.flag())) continue;
+                    Guide.Written w = Guide.installAgentInstructions(project, agent, c.force);
+                    if (w.what().equals("already there"))
+                        env.err()
+                                .println(
+                                        "The instructions are already in "
+                                                + w.file()
+                                                + ". Use --force to replace them (only the block between the marker lines).");
+                    else {
+                        installed++;
+                        env.out()
+                                .println(
+                                        "Wrote the instructions for coding agents ("
+                                                + w.what()
+                                                + ") in "
+                                                + w.file()
+                                                + ": how to look commands up (weave man), the loop and the rules.");
+                    }
+                }
+                boolean claude = targets.contains("claude");
+                if (claude && (c.which.equals("all") || c.which.equals("harness"))) {
                     List<String> written = Guide.installHarnessSkill(project, c.force);
                     if (written.isEmpty())
                         env.err()
@@ -85,7 +127,7 @@ final class GuideCommand implements Callable<Integer> {
                                                 + " files): it designs the harness around a workflow and writes a HARNESS.md before the workflow is built.");
                     }
                 }
-                if (c.which.equals("all") || c.which.equals("workflow")) {
+                if (claude && (c.which.equals("all") || c.which.equals("workflow"))) {
                     List<String> written = Guide.installSkill(project, c.force);
                     if (written.isEmpty())
                         env.err()
@@ -104,7 +146,7 @@ final class GuideCommand implements Callable<Integer> {
                                                 + " files). An agent that reads this project will find it.");
                     }
                 }
-                if (c.which.equals("all") || c.which.equals("deployer")) {
+                if (claude && (c.which.equals("all") || c.which.equals("deployer"))) {
                     List<String> written = Guide.installDeployerSkill(project, c.force);
                     if (written.isEmpty())
                         env.err()

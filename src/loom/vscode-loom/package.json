@@ -125,7 +125,7 @@
       },
       {
         "command": "loom.installSkill",
-        "title": "Loom: Install the Loom Skill in This Project"
+        "title": "Loom: Set Up My Coding Agent"
       },
       {
         "command": "loom.review.fixAll",
@@ -503,7 +503,7 @@
       {
         "view": "loom.workflowOutline",
         "when": "!loom.hasLoom",
-        "contents": "No Loom workflow here yet.\n[Try a demo](command:loom.try)\nWatch a real workflow run on demo models: no key, no account.\n[Generate a workflow](command:loom.generate)\nDescribe what you want; needs a model key.\n[Open an example](command:loom.openExample)\nWrite a small project into this folder to edit.\n[Check my setup](command:loom.doctor)\nJava, keys and the run store, with the one fix for each problem."
+        "contents": "No Loom workflow here yet.\n[Try a demo](command:loom.try)\nWatch a real workflow run on demo models: no key, no account.\n[Generate a workflow](command:loom.generate)\nDescribe what you want; needs a model key.\n[Open an example](command:loom.openExample)\nWrite a small project into this folder to edit.\n[Check my setup](command:loom.doctor)\nJava, keys and the run store, with the one fix for each problem.\n[Set up my coding agent](command:loom.installSkill)\nTeach Claude Code, Copilot, Cursor or any agent that reads AGENTS.md how to build with Loom."
       }
     ]
   },

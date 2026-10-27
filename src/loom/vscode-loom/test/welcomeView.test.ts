@@ -7,14 +7,14 @@ import { protocolMismatch, protocolOf, shellKind, terminalCommand } from '../src
 const root = path.join(__dirname, '..', '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 
-test('R28: a workspace with no .loom file is welcomed with the four buttons, each a declared command', () => {
+test('R28: a workspace with no .loom file is welcomed with the five buttons, each a declared command', () => {
     const w = manifest.contributes.viewsWelcome.find((x: { view: string }) => x.view === 'loom.workflowOutline');
     assert.ok(w);
     assert.equal(w.when, '!loom.hasLoom');
     const commands = manifest.contributes.commands.map((c: { command: string }) => c.command);
-    for (const label of ['Try a demo', 'Generate a workflow', 'Open an example', 'Check my setup']) assert.ok(w.contents.includes(`[${label}]`), label);
+    for (const label of ['Try a demo', 'Generate a workflow', 'Open an example', 'Check my setup', 'Set up my coding agent']) assert.ok(w.contents.includes(`[${label}]`), label);
     const used = [...w.contents.matchAll(/\(command:([\w.]+)\)/g)].map((m) => m[1]);
-    assert.deepEqual(used.sort(), ['loom.doctor', 'loom.generate', 'loom.openExample', 'loom.try']);
+    assert.deepEqual(used.sort(), ['loom.doctor', 'loom.generate', 'loom.installSkill', 'loom.openExample', 'loom.try']);
     for (const u of used) assert.ok(commands.includes(u), u);
 });
 

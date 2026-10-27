@@ -14,7 +14,7 @@ interface Fake {
     confirms: string[];
 }
 
-function fake(opts: { folder?: string | undefined; pick?: string; confirm?: boolean; weave?: (args: string[]) => Promise<string> } = {}): Fake {
+function fake(opts: { folder?: string | undefined; pick?: string; agents?: string[] | undefined; confirm?: boolean; weave?: (args: string[]) => Promise<string> } = {}): Fake {
     const f: Fake = { calls: [], shown: [], reports: [], confirms: [], host: undefined as unknown as GuideHost };
     f.host = {
         async weave(args) {
@@ -26,6 +26,7 @@ function fake(opts: { folder?: string | undefined; pick?: string; confirm?: bool
         async showMarkdown(text) {
             f.shown.push(text);
         },
+        pickAgents: async () => ('agents' in opts ? opts.agents : ['claude']),
         confirm: async (message) => {
             f.confirms.push(message);
             return opts.confirm ?? false;
@@ -142,4 +143,31 @@ test('with the real jar: the skill is installed, then replaced only after the qu
     assert.equal(await installSkill(r.host), true);
     assert.equal(r.confirms, 1);
     assert.match(fs.readFileSync(skillFile, 'utf8'), /llm4j workflow guide/);
+});
+
+test('Set Up My Coding Agent writes what each chosen agent reads, in one call', async () => {
+    const f = fake({ agents: ['claude', 'agents', 'cursor'] });
+    assert.equal(await installSkill(f.host), true);
+    assert.deepEqual(f.calls, [['guide', '--install-skill', '/proj', '--for', 'claude,agents,cursor']]);
+});
+
+test('Set Up My Coding Agent does nothing when no agent is chosen', async () => {
+    for (const agents of [undefined, []]) {
+        const f = fake({ agents });
+        assert.equal(await installSkill(f.host), false);
+        assert.deepEqual(f.calls, []);
+    }
+});
+
+test('the replace question keeps the choice of agents', async () => {
+    const already = async (args: string[]) => (args.includes('--force') ? 'ok' : Promise.reject(new Error('The instructions are already in /proj/AGENTS.md. Use --force to replace them.')));
+    const f = fake({ agents: ['agents'], confirm: true, weave: already });
+    assert.equal(await installSkill(f.host), true);
+    assert.deepEqual(f.calls, [['guide', '--install-skill', '/proj', '--for', 'agents'], ['guide', '--install-skill', '/proj', '--for', 'agents', '--force']]);
+});
+
+test('the welcome view and the manifest offer it', () => {
+    const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8'));
+    assert.ok(manifest.contributes.commands.some((c: { command: string; title: string }) => c.command === 'loom.installSkill' && /coding agent/i.test(c.title)));
+    assert.ok(manifest.contributes.viewsWelcome[0].contents.includes('(command:loom.installSkill)'));
 });

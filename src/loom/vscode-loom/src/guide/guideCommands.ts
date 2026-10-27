@@ -23,6 +23,8 @@ export interface GuideHost {
     pick(choices: { page: string; label: string }[]): Promise<{ page: string; label: string } | undefined>;
     /** Shows text in a read-only markdown tab. */
     showMarkdown(text: string): Promise<void>;
+    /** The coding agents to set up (claude, agents, copilot, cursor); undefined when the person cancels. */
+    pickAgents(): Promise<string[] | undefined>;
     confirm(message: string, action: string): Promise<boolean>;
     report(message: string, level: 'info' | 'warning' | 'error'): void;
 }
@@ -42,29 +44,46 @@ export async function openGuide(host: GuideHost): Promise<boolean> {
     }
 }
 
-/** "Install the Loom skill in this project": writes the skill and the guide under .claude/skills, asking before it replaces an older copy. */
+/** The coding agents the editor offers to set up, each with the file it reads. */
+export const AGENTS: { id: string; label: string; detail: string; picked: boolean }[] = [
+    { id: 'claude', label: 'Claude Code', detail: '.claude/skills: the skills and the guide', picked: true },
+    { id: 'agents', label: 'AGENTS.md', detail: 'read by Codex, Copilot agent mode, Gemini, Cursor and others', picked: false },
+    { id: 'copilot', label: 'GitHub Copilot', detail: '.github/copilot-instructions.md', picked: false },
+    { id: 'cursor', label: 'Cursor', detail: '.cursor/rules/loom.mdc', picked: false },
+];
+
+/**
+ * "Set up my coding agent": writes what each chosen agent reads (the skills and the guide for Claude Code, a block in AGENTS.md or the
+ * agent's own file for the others) so it uses `weave man` and the loop instead of guessing; asks before it replaces an older copy.
+ */
 export async function installSkill(host: GuideHost): Promise<boolean> {
     const folder = host.workspaceFolder();
     if (!folder) {
-        host.report('Loom: open a folder first; the skill is installed inside the project.', 'error');
+        host.report('Loom: open a folder first; the instructions are installed inside the project.', 'error');
         return false;
     }
+    const agents = await host.pickAgents();
+    if (!agents || agents.length === 0) {
+        return false;
+    }
+    // claude alone is what `weave guide --install-skill` does with no --for
+    const forArgs = agents.length === 1 && agents[0] === 'claude' ? [] : ['--for', agents.join(',')];
     try {
-        host.report(await host.weave(['guide', '--install-skill', folder]), 'info');
+        host.report(await host.weave(['guide', '--install-skill', folder, ...forArgs]), 'info');
         return true;
     } catch (first) {
         if (!/already in/.test((first as Error).message)) {
-            host.report(`Loom: could not install the skill: ${(first as Error).message}`, 'error');
+            host.report(`Loom: could not set up the agent: ${(first as Error).message}`, 'error');
             return false;
         }
-        if (!(await host.confirm('The Loom skill is already in this project. Replace it with the one that ships with this extension?', 'Replace'))) {
+        if (!(await host.confirm('The Loom instructions are already in this project. Replace them with the ones that ship with this extension? Only the block between the marker lines (or the skill folders) changes.', 'Replace'))) {
             return false;
         }
         try {
-            host.report(await host.weave(['guide', '--install-skill', folder, '--force']), 'info');
+            host.report(await host.weave(['guide', '--install-skill', folder, ...forArgs, '--force']), 'info');
             return true;
         } catch (second) {
-            host.report(`Loom: could not install the skill: ${(second as Error).message}`, 'error');
+            host.report(`Loom: could not set up the agent: ${(second as Error).message}`, 'error');
             return false;
         }
     }
