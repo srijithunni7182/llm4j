@@ -57,7 +57,7 @@ Don't run Maven with `-o`, because the JaCoCo plugin isn't available offline. Th
 - Use try-with-resources for anything `AutoCloseable`. Don't use finalizers. Don't share mutable static state.
 - Use the module's logging API: SLF4J in `ai-agent4j`, `java.util.logging` in `ai-agent4j-loom`. Use parameterised messages and never string concatenation. Never write to `System.out` from library code (CLI entry points are the exception).
 - **Javadoc** on every public type and method of a published module. The release build runs javadoc, and a broken tag fails it. Say what the contract is, and leave out what the code obviously does.
-- Don't add a dependency lightly. Each one is a supply-chain and compatibility cost for every user of the library. Jackson's version is managed once in the parent POM. No Lombok in published modules.
+- Keep dependencies to a minimum (see principle 8).
 
 ### 2. Good object-oriented design
 
@@ -151,6 +151,61 @@ The model reasons and the code holds the authority: never rely on a prompt to en
   - Don't add a dependency with known high-severity CVEs.
 - A new `weave audit` rule must be listed in `docs/security/weave-audit.md` (`SecurityDocTest` checks this). Map new risks to `docs/security/owasp-llm-top-10.md`.
 
+### 7. Keep every piece of documentation up to date, in the same change
+
+Documentation is part of the change. A behaviour, API, setting, command or file format is not done until every page that describes it is correct. Docs ship with the code: never before it (they would describe something that doesn't exist yet) and never in a later PR.
+
+- **Find every page that mentions it.** Before finishing, grep the whole repository, not just the module, for the class, method, setting, CLI flag or Loom keyword you changed. Check each hit and update it. The places documentation lives:
+
+  | Where | What it is |
+  |---|---|
+  | `README.md` at the root | The overview, the stack and getting started |
+  | `src/**/README.md` | One per module and example (about 45) |
+  | `src/ai-agent4j/wiki/*.md` | The core library's wiki |
+  | `wiki/*.md` | The Loom, observability and deployer wiki |
+  | `docs/` | Guides, specs, security, `docs/guide/01–10` (the workflow guide), `TESTING_STRATEGY.md`, `API_COMPATIBILITY.md`, `VERSION_MATRIX.md`, release notes and migration guides |
+  | `src/loom/ai-agent4j-loom/LOOM_GUIDE.md`, `LOOM_PROMPT.md` | The language reference and the version written for models |
+  | `llms.txt` | The machine-readable summary of the project for models |
+  | `.claude/skills/*` | The skills and their references, which ship to users as packages (`make skill-package`) |
+  | `src/loom/vscode-loom/README.md`, `CHANGELOG.md` | The VS Code extension |
+  | Javadoc | The API reference users see in their IDE |
+
+- **Keep the facts consistent everywhere:** version numbers, Maven coordinates, module names, the list of providers, CLI flags and defaults. When one changes, change all of them. Never leave one page saying something different from the rest.
+- **Remove what is no longer true.** Delete or rewrite sections about removed or renamed features, and fix links that pointed at them. Never leave a "TODO: update" or a page that contradicts the code.
+- **Examples must work:**
+  - Every code sample is copied from or checked against code that compiles and runs.
+  - Several pages are tested: the ` ```loom ` blocks in `LOOM_GUIDE.md` are parse-tested, and the `*DocsTest` / `*DocsCompileTest` classes compare or compile samples against wiki pages. If one fails, fix the doc or the code; never loosen the test.
+  - When you add a sample to a page that has no such test, consider adding one.
+- **Record user-visible changes:**
+  - Add a line to the current release notes (`docs/RELEASE_NOTES_<version>.md`).
+  - For an incompatible change, update `docs/API_COMPATIBILITY.md` and the migration guide.
+  - For the VS Code extension, add a line to its `CHANGELOG.md`.
+- **Write for the reader:**
+  - Plain language and short sentences. Say what something is for before how it works.
+  - One page per topic, with links between them rather than copies of the same text.
+  - Match the voice and structure of the pages next to it.
+  - Every new page is linked from its index (`Home.md` in the wiki, the README, or `llms.txt` where it applies) so it can be found.
+- In the PR, tick the Docs box only when you've checked every page above that applies; otherwise say which ones you didn't.
+
+### 8. Keep the libraries lightweight
+
+Every dependency of a published module becomes a dependency of every application that uses it: more download size, more startup time, more version conflicts, more CVEs to patch. The project's promise is "a complete stack in idiomatic Java with no vendor SDKs", so keep the footprint small.
+
+- **Prefer the JDK.** Use `java.net.http`, `java.time`, `java.util.concurrent`, `java.nio.file`, `java.security` and `javax.crypto` before reaching for a library. Write a few lines rather than pull in a library for one helper (no Guava, Commons Lang, Lombok or the like in published modules).
+- **No vendor SDKs.** Providers talk to their APIs over the shared HTTP layer (`HttpClientWrapper`, OkHttp) and Jackson. Don't add an official provider SDK, a cloud SDK or a framework to a published module.
+- **Core stays small.** `ai-agent4j` depends only on what nearly every user needs (Jackson, OkHttp, the SLF4J API and a few small, specific libraries). Anything heavier or needed by only some users goes elsewhere:
+  - in `ai-agent4j-addons` or its own module;
+  - as an `<optional>true</optional>` dependency the user opts into (the way addons, the Spring starter and the Loom runtime already do it), loaded only when present;
+  - or behind an interface the user implements with whatever they already have.
+- **Libraries never choose the logging backend.** Depend on `slf4j-api` (or use JUL where the module already does), and keep a binding such as `slf4j-simple` in `test` scope only.
+- **Keep versions in one place.** Manage shared versions in the parent POM (as `jackson.version` already is) so a project that uses several modules gets one copy. Use `test` and `provided` scope wherever they apply.
+- **Justify every new dependency in the PR:** why the JDK or an existing dependency can't do it, its size and its own transitive dependencies (`mvn dependency:tree -pl <module>`), its licence (it must be compatible with Apache 2.0), its maintenance, and its known CVEs. If the answer is weak, don't add it.
+- **Look for removals.** When you make a change, check whether it leaves a dependency unused (`mvn dependency:analyze -pl <module>`) and remove it.
+- **Stay light at runtime too:**
+  - No static initialisers that do work, no background threads a user didn't ask for, and no classpath scanning or reflection-heavy magic.
+  - Create expensive objects (HTTP clients, thread pools) once and let users share and close them.
+  - Shaded or CLI jars (`*-cli.jar`) may bundle what they need; the library jars must not.
+
 ## Things that change together
 
 Several files are tested against each other; the full table is in the `steward` skill. The most common are:
@@ -165,7 +220,7 @@ Several files are tested against each other; the full table is in the `steward` 
 - **Commits:** conventional prefixes (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`), one concern per commit, and a message that explains why.
 - **Pull requests:** follow `.github/pull_request_template.md` and fill in every section honestly.
 - **Branches:** merge `main` into a branch rather than rebasing or force-pushing a shared one.
-- **Docs:** update README, wiki or docs in the same change as the behaviour they describe.
+- **Docs:** updated in the same change as the behaviour they describe (principle 7).
 - **Skills:**
   - Building or evaluating an agent or Loom workflow: `llm4j-workflow-guide`.
   - Deploying or observing one: `llm4j-loom-deployer`.
