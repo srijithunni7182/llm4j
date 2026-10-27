@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -51,12 +52,29 @@ final class TryCommand implements Callable<Integer> {
             description = "Write the scenario's project into this folder, to open and edit.")
     File keep;
 
+    @Option(
+            names = "--live",
+            description =
+                    "Run with the models you have configured instead of the demo models (needs keys; spends up to the cap).")
+    boolean live;
+
+    @Option(
+            names = "--max-tokens",
+            defaultValue = "30000",
+            description =
+                    "With --live: the most tokens it may use (default ${DEFAULT-VALUE}, about five cents on a small model).")
+    String maxTokens;
+
     @Option(names = "--no-color", description = "Plain text (also NO_COLOR).")
     boolean noColor;
 
     /** Held so the logger (and its level) is not collected. */
     private static final java.util.logging.Logger QUIET =
             java.util.logging.Logger.getLogger("io.github.llm4j.loom.execution");
+
+    /** How a live run is started; tests replace it. It gets the arguments of `weave run`. */
+    static java.util.function.Function<String[], Integer> liveRunner =
+            args -> WeaveCLI.commandLine().execute(args);
 
     static final String SCRIPTED =
             "Demo models: every reply is pre-written, so this works offline, instantly, for free. Real models vary.";
@@ -121,6 +139,7 @@ final class TryCommand implements Callable<Integer> {
             Path script = temp.resolve("main.loom");
             TestFile tests = TestFile.read(temp.resolve("tests/main.test.yaml"));
             TestFile.Case demo = tests.cases().get(0);
+            if (c.live) return live(c, s, env, script, tests, demo);
             env.out().println("weave try " + s.name() + ": " + s.description() + ".");
             env.out().println(SCRIPTED);
             env.out().println();
@@ -200,6 +219,71 @@ final class TryCommand implements Callable<Integer> {
                 }
             }
         }
+    }
+
+    /**
+     * The one path in `try` that reaches the network: says so, shows the cap, asks, then runs
+     * `weave run`.
+     */
+    private static int live(
+            TryCommand c,
+            Scenarios.Scenario s,
+            WeaveEnv env,
+            Path script,
+            TestFile tests,
+            TestFile.Case demo)
+            throws Exception {
+        var plan =
+                io.github.llm4j.loom.deploy.DeployPlan.derive(
+                        new io.github.llm4j.loom.execution.LoomLoader().load(script.toString()),
+                        "main.loom");
+        List<String> missing =
+                plan.envNames().stream()
+                        .filter(n -> env.env().apply(n) == null || env.env().apply(n).isBlank())
+                        .toList();
+        env.out()
+                .println(
+                        "weave try "
+                                + s.name()
+                                + " --live: this uses the models in the script, not the demo models, and goes to the network ("
+                                + String.join(", ", plan.egressHosts())
+                                + ").");
+        if (!missing.isEmpty()) {
+            env.err()
+                    .println(
+                            "Error: "
+                                    + String.join(", ", missing)
+                                    + " is not set, so a live run cannot start. Set it (weave doctor shows what else is missing), or keep the demo: weave try "
+                                    + s.name());
+            return 2;
+        }
+        env.out()
+                .println(
+                        "It will use at most "
+                                + c.maxTokens
+                                + " tokens (the cap, about five cents on a small model); a demo run costs nothing.");
+        String a;
+        try {
+            a = env.human().promptHuman("Continue? (yes/no)");
+        } catch (RuntimeException e) {
+            a = "no";
+        }
+        if (a == null || !a.trim().equalsIgnoreCase("yes")) {
+            env.out().println("Nothing was run.");
+            return 0;
+        }
+        List<String> args =
+                new java.util.ArrayList<>(
+                        List.of("run", script.toString(), "--max-tokens", c.maxTokens));
+        demo.body()
+                .path("input")
+                .fields()
+                .forEachRemaining(
+                        e -> {
+                            args.add("-i");
+                            args.add(e.getKey() + "=" + e.getValue().asText());
+                        });
+        return liveRunner.apply(args.toArray(String[]::new));
     }
 
     private static String clip(String s) {

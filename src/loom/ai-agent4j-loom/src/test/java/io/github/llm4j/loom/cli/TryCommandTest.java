@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -27,6 +28,10 @@ class TryCommandTest {
     record Out(int code, String out, String err) {}
 
     private Out run(String... args) {
+        return run(Map.of(), "no", args);
+    }
+
+    private Out run(Map<String, String> vars, String answer, String... args) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ByteArrayOutputStream err = new ByteArrayOutputStream();
         WeaveEnv env =
@@ -34,9 +39,7 @@ class TryCommandTest {
                         m -> {
                             throw new IllegalStateException("try builds no model client");
                         },
-                        q -> {
-                            throw new IllegalStateException("nobody to ask");
-                        },
+                        q -> answer,
                         new PrintStream(out, true, StandardCharsets.UTF_8),
                         new PrintStream(err, true, StandardCharsets.UTF_8),
                         Clock.systemUTC(),
@@ -45,7 +48,7 @@ class TryCommandTest {
                                 new io.github.llm4j.loom.trigger.system.CommandRunner.Result(
                                         0, "", ""),
                         List.of("weave"),
-                        k -> null);
+                        vars::get);
         TryCommand c = new TryCommand();
         new CommandLine(c).parseArgs(args);
         int code = TryCommand.run(c, env, new ByteArrayInputStream("\n\n\n\n\n\n\n\n".getBytes()));
@@ -143,5 +146,42 @@ class TryCommandTest {
         Out r = run("--step");
         assertThat(r.code()).isZero();
         assertThat(r.out()).contains("(Enter for the next step)").contains("return:");
+    }
+
+    @Test
+    void liveNeedsTheKeyAndSaysWhichBeforeAnythingRuns() {
+        java.util.concurrent.atomic.AtomicInteger started =
+                new java.util.concurrent.atomic.AtomicInteger();
+        TryCommand.liveRunner = a -> started.incrementAndGet();
+        Out r = run(Map.of(), "yes", "--live");
+        assertThat(r.code()).isEqualTo(2);
+        assertThat(r.out())
+                .contains("goes to the network")
+                .contains("generativelanguage.googleapis.com");
+        assertThat(r.err()).contains("GEMINI_API_KEY is not set").contains("weave doctor");
+        assertThat(started.get()).isZero();
+    }
+
+    @Test
+    void liveShowsTheCapAsksAndOnlyThenRunsWithTheCap() {
+        java.util.List<String[]> runs = new java.util.ArrayList<>();
+        TryCommand.liveRunner =
+                a -> {
+                    runs.add(a);
+                    return 0;
+                };
+        try {
+            Out no = run(Map.of("GEMINI_API_KEY", "x"), "no", "--live");
+            assertThat(no.out()).contains("at most 30000 tokens").contains("Nothing was run.");
+            assertThat(runs).isEmpty();
+            Out yes = run(Map.of("GEMINI_API_KEY", "x"), "yes", "--live", "--max-tokens", "5000");
+            assertThat(yes.code()).isZero();
+            assertThat(runs).hasSize(1);
+            assertThat(List.of(runs.get(0)))
+                    .contains("run", "--max-tokens", "5000", "-i")
+                    .anyMatch(x -> x.startsWith("message=Where is my parcel"));
+        } finally {
+            TryCommand.liveRunner = a -> WeaveCLI.commandLine().execute(a);
+        }
     }
 }

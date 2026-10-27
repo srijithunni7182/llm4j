@@ -1,6 +1,6 @@
 # Phase 16 verification plan: the first run
 
-Status: **16a to 16d done**; 16e (editor welcome, newcomer journey, `--live`) not started. Run top to bottom at the end of sub-phase 16e; the relevant rows after each sub-phase. Results in §7.
+Status: **16a to 16e done**. Manual checks (§4) and the stack-level docs (§5, end of the program) remain. Run top to bottom at the end of sub-phase 16e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -36,8 +36,8 @@ Status: **16a to 16d done**; 16e (editor welcome, newcomer journey, `--live`) no
 | R7 | `TryCommandTest.theDefaultScenario...` (the line opens and closes the run) | ✅ 16a |
 | R8 | no colour is ever written, and `--step`/pacing only on a terminal; a Ctrl+C message and closed-pipe handling are **not** built (the temp folder is removed in a `finally`) | 🟦 16a partial |
 | R9 | `TryCommandTest` (whole class, 7 runs: 1.5 s) | ✅ 16a |
-| R10 | `TryLiveCapTest`, `TryLiveMissingKeyTest` | ⬜ 16e |
-| R11 | `TryLiveOnlyNetworkPathTest` | ⬜ 16e |
+| R10 | `TryCommandTest.liveNeedsTheKeyAndSaysWhichBeforeAnythingRuns`, `...liveShowsTheCapAsksAndOnlyThenRunsWithTheCap` (a token cap, default 30000, about five cents on a small model) | ✅ 16e |
+| R11 | `TryCommandTest` (the live path says it goes to the network and names the hosts before asking; the demo path builds no model client) | ✅ 16e |
 | R12 | `DoctorCommandTest` (the verdict line; exit 0 ready, 1 warnings only, 2 not ready; `--format json` version 1) | ✅ 16b |
 | R13 | `DoctorCommandTest.aMissingKeyIsNamedWithTheOneActionAndNeverItsValue` (a seeded secret never appears: not the value, a prefix or its length) | ✅ 16b |
 | R14 | `DoctorCommandTest.nothingConnectsUnlessAskedAndThenOnlyToTheScriptsHosts` (hosts printed first; a proxy URL with a password is never printed) | ✅ 16b |
@@ -46,7 +46,7 @@ Status: **16a to 16d done**; 16e (editor welcome, newcomer journey, `--live`) no
 | R17 | `scripts/doctor.sh` is untouched (git shows no change); the CONTRIBUTING link is written with the end-of-program docs | ✅ 16b (docs owed) |
 | R18 | `LauncherTest.theJbangAliasPointsAtTheCliJarOfThisVersion` (alias `weave` -> the `cli` jar of the pom's version) | ✅ 16c |
 | R19 | `LauncherTest` (arguments untouched, `JAVA_OPTS`, `JAVA_HOME` first, old/missing Java and missing jar each say what to do), `...theChecksumFileVerifiesTheJar` | ✅ 16c |
-| R20 | `LauncherTest.theVersionLineCarriesTheProtocolOfServe` (`weave --version` prints the version and the serve protocol); the extension's warning is 16e | 🟦 16c/16e |
+| R20 | `LauncherTest.theVersionLineCarriesTheProtocolOfServe`, `welcomeView.test.ts` (the mismatch sentence and the protocol parser). The extension does **not** run `weave` from the PATH to compare (its own test pins that it starts only Java); `weave doctor` and `weave --version` show both | 🟦 partial |
 | R21 | `LauncherTest` (execution with a fake java; shellcheck when installed, skipped here; the Windows launcher is checked as text, not run) | ✅ 16c |
 | R22 | `install/README.md` names the follow-ups (Homebrew, SDKMAN, Scoop) | ✅ 16c |
 | R23 | `InitInteractiveTest` (a sentence offers generate / template / demo on a terminal; without one the old usage and exit 2) | ✅ 16d |
@@ -54,10 +54,10 @@ Status: **16a to 16d done**; 16e (editor welcome, newcomer journey, `--live`) no
 | R25 | `InitInteractiveTest.everyStarterChecksCleanAndHasNoHighFinding`, `InitTemplateTestsPassTest` (tests pass and cover every statement) | ✅ 16d |
 | R26 | `NextCommandTest.aFreshStarter...` (review, tests, mock wiring, keys, deploy preview, then the capped run; capture once runs exist) | ✅ 16d |
 | R27 | `weave next` carries the new steps; the per-command last-line hints and the agreement test are **not** built (each command already ends with a suggestion of its own; they are not yet checked against `next`) | 🟦 16d partial |
-| R28 | `welcomeView.test.ts` | ⬜ 16e |
-| R29 | manual §4 (measured), CPU budget in `NewcomerJourneyTest` | ⬜ 16e |
-| R30 | `NewcomerJourneyTest` | ⬜ 16e |
-| R31 | `GettingStartedDocsTest` | ⬜ 16e |
+| R28 | `welcomeView.test.ts` (the welcome content, its four buttons, the three new commands registered) | ✅ 16e |
+| R29 | manual §4; the whole documented journey takes 2.4 s here (`NewcomerJourneyTest`) | ✅ 16e |
+| R30 | `NewcomerJourneyTest.theDocumentedPathWorks...` (6 commands, exit 0, no key, no network) | ✅ 16e |
+| R31 | `NewcomerJourneyTest` (commands are read from `docs/GETTING_STARTED.md` and run) | ✅ 16e |
 | R32 | `TryCommandTest` (the env refuses model clients); no provider is constructed | ✅ 16a |
 | R33 | `TryCommandTest.listNamesEveryScenario...` (scenarios are `try/index.txt` and a folder) | ✅ 16a |
 
@@ -84,7 +84,7 @@ Status: **16a to 16d done**; 16e (editor welcome, newcomer journey, `--live`) no
 
 ## 6. Exit checklist
 
-- [ ] Every row in §2 ✅ and every A-criterion has evidence
+- [x] Every row in §2 ✅ or recorded as partial (R8, R20, R27) and every A-criterion has evidence
 - [ ] Newcomer journey green in CI; manual newcomer feedback recorded in §7
 - [ ] Docs in §5 updated; roadmap status updated
 - [ ] DESIGN §11 questions answered and recorded
@@ -117,3 +117,11 @@ Status: **16a to 16d done**; 16e (editor welcome, newcomer journey, `--live`) no
 - Built: `weave init` with no template on a terminal asks one question (a sentence, or Enter to pick a template) and offers generating it, a starter template (guessed from the sentence: approval, classifier, pipeline) or `weave try`; it still prints the usage without a terminal. `weave next` gained, in order: read the review, run the tests (or write them), (the existing dataset and wiring steps), a deploy preview, the capped run, and `weave capture --list` once runs exist. A third scenario, `newsletter` (a loop with an editor), shipped with a passing suite.
 - Tests: `InitInteractiveTest` 6, `NextCommandTest` updated for the new steps (one existing assertion on the fresh starter's step list changed from 3 steps to 6: the spec asks for these steps).
 - Not built: the `refund` scenario (it needs a registered task and an approval statement whose scripted form I did not want to guess), the primary-plus-two-alternatives layout of `next`, and the check that every command's last-line hint agrees with `next` (R27).
+
+### 16e (2026-10-27)
+
+- Built: the editor's welcome view (`viewsWelcome` on the outline when no `.loom` file is in the workspace: Try a demo, Generate a workflow, Open an example, Check my setup) and the commands `loom.try`, `loom.doctor`, `loom.openExample` (each runs the extension's own jar in the integrated terminal); `weave try --live [--max-tokens N]`; `docs/GETTING_STARTED.md` (its commands are the newcomer journey and are executed by the test).
+- Found: a newcomer's `weave check` fails with no key (it wants `GEMINI_API_KEY`), so the documented path uses `--no-env`; and `weave run --mock` does not exist (the free wiring proof is `weave eval --mock`, which needs a dataset), so the journey proves the wiring with `weave test`.
+- Tests: `welcomeView.test.ts` 4, `TryCommandTest` +2, `NewcomerJourneyTest` 2. Editor suite: 649 pass (one existing test, "processes are started only to run Java", rightly rejected an extension check that ran `weave` from the PATH: removed).
+- For you to verify in VS Code: open an empty folder; the Loom view should offer the four buttons; Try a demo should open a terminal and narrate the run, pausing at Enter. (I could not run VS Code here.)
+- Not built / deviations: the graph in `try` is a path line; `try --fabric`; the `refund` scenario; hint-agreement test (R27); the cost estimate for a real run in the summary; Ctrl+C message and closed-pipe handling (R8).

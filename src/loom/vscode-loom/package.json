@@ -167,6 +167,18 @@
       {
         "command": "loom.change",
         "title": "Loom: Change Workflow..."
+      },
+      {
+        "command": "loom.try",
+        "title": "Loom: Try a Demo"
+      },
+      {
+        "command": "loom.doctor",
+        "title": "Loom: Check My Setup"
+      },
+      {
+        "command": "loom.openExample",
+        "title": "Loom: Open an Example Project"
       }
     ],
     "breakpoints": [
@@ -178,21 +190,76 @@
       {
         "type": "loom",
         "label": "Loom Workflow",
-        "languages": ["loom"],
+        "languages": [
+          "loom"
+        ],
         "configurationAttributes": {
           "launch": {
-            "required": ["script"],
+            "required": [
+              "script"
+            ],
             "properties": {
-              "script": { "type": "string", "description": "The .loom script to debug.", "default": "${file}" },
-              "workflow": { "type": "string", "description": "The workflow to run (default: the first)." },
-              "input": { "type": "object", "description": "Inputs of the workflow, by name.", "additionalProperties": { "type": "string" } },
-              "effects": { "type": "string", "enum": ["simulate"], "default": "simulate", "description": "Nothing is sent or written while debugging." },
-              "models": { "type": "string", "enum": ["mock", "scripted", "live"], "default": "mock", "description": "mock: fixed, well-formed replies. live: the real models, under a cap, after you agree." },
-              "maxCost": { "type": ["number", "string"], "description": "With live models: the most they may cost (needs prices)." },
-              "maxTokens": { "type": "number", "description": "With live models: the most tokens they may use." },
-              "prices": { "type": "string", "description": "The price table that turns tokens into money." },
-              "stopOnEntry": { "type": "boolean", "default": true, "description": "Stop before the first statement." },
-              "mask": { "type": "array", "items": { "type": "string" }, "description": "Variables whose values are never shown." }
+              "script": {
+                "type": "string",
+                "description": "The .loom script to debug.",
+                "default": "${file}"
+              },
+              "workflow": {
+                "type": "string",
+                "description": "The workflow to run (default: the first)."
+              },
+              "input": {
+                "type": "object",
+                "description": "Inputs of the workflow, by name.",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "effects": {
+                "type": "string",
+                "enum": [
+                  "simulate"
+                ],
+                "default": "simulate",
+                "description": "Nothing is sent or written while debugging."
+              },
+              "models": {
+                "type": "string",
+                "enum": [
+                  "mock",
+                  "scripted",
+                  "live"
+                ],
+                "default": "mock",
+                "description": "mock: fixed, well-formed replies. live: the real models, under a cap, after you agree."
+              },
+              "maxCost": {
+                "type": [
+                  "number",
+                  "string"
+                ],
+                "description": "With live models: the most they may cost (needs prices)."
+              },
+              "maxTokens": {
+                "type": "number",
+                "description": "With live models: the most tokens they may use."
+              },
+              "prices": {
+                "type": "string",
+                "description": "The price table that turns tokens into money."
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "default": true,
+                "description": "Stop before the first statement."
+              },
+              "mask": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Variables whose values are never shown."
+              }
             }
           }
         },
@@ -430,6 +497,13 @@
       {
         "language": "loom",
         "path": "./snippets/loom.code-snippets"
+      }
+    ],
+    "viewsWelcome": [
+      {
+        "view": "loom.workflowOutline",
+        "when": "!loom.hasLoom",
+        "contents": "No Loom workflow here yet.\n[Try a demo](command:loom.try)\nWatch a real workflow run on demo models: no key, no account.\n[Generate a workflow](command:loom.generate)\nDescribe what you want; needs a model key.\n[Open an example](command:loom.openExample)\nWrite a small project into this folder to edit.\n[Check my setup](command:loom.doctor)\nJava, keys and the run store, with the one fix for each problem."
       }
     ]
   },
