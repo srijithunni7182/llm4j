@@ -20,6 +20,13 @@ final class Compose {
                 .append("\"\n");
         b.append("    read_only: true\n");
         b.append("    tmpfs:\n      - /tmp\n");
+        // no volume (none, or a database): the root is read-only, so /data is scratch memory
+        if (!o.journal().equals("volume"))
+            b.append("      - /data:uid=")
+                    .append(Deploy.APP_UID)
+                    .append(",gid=")
+                    .append(Deploy.APP_UID)
+                    .append('\n');
         b.append("    cap_drop:\n      - ALL\n");
         b.append("    security_opt:\n      - no-new-privileges:true\n");
         b.append("    restart: unless-stopped\n");
@@ -32,8 +39,7 @@ final class Compose {
                     .append('\n');
         if (!o.journal().equals("none") && !o.journal().equals("volume"))
             b.append("      - LOOM_JOURNAL_URL=").append(o.journal()).append('\n');
-        if (!o.journal().equals("none") && o.journal().equals("volume"))
-            b.append("    volumes:\n      - data:/data\n");
+        if (o.journal().equals("volume")) b.append("    volumes:\n      - data:/data\n");
         if (o.withFabric()) {
             b.append("    secrets:\n      - loom_fabric_client_key\n");
             b.append("    depends_on:\n      fabric:\n        condition: service_healthy\n");
@@ -81,7 +87,10 @@ final class Compose {
                     .append(Deploy.FABRIC_PORT)
                     .append("/api/session > /dev/null || exit 1\"]\n");
             b.append("      interval: 15s\n      timeout: 5s\n      retries: 5\n");
-            b.append("    networks:\n      - internal\n");
+            // a container on an internal-only network cannot publish a port, so Fabric also joins
+            // the
+            // default network; the app reaches it over "internal" either way
+            b.append("    networks:\n      - internal\n      - default\n");
         }
         if (o.journal().equals("volume") || o.withFabric()) b.append("volumes:\n");
         if (o.journal().equals("volume")) b.append("  data: {}\n");

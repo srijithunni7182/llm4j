@@ -182,4 +182,15 @@ class DeployCommandTest {
         assertThat(Files.readString(out.resolve("entrypoint.sh")))
                 .doesNotContain("--observe-fabric");
     }
+
+    @Test
+    void requireCleanStopsWhenTheReviewCouldNotRunAsWellAsWhenItFoundSomething() {
+        var clean = new DeployCommand.Review(null, "No findings were open.", 0, true);
+        var high = new DeployCommand.Review("w", "s", 2, true);
+        var unknown = new DeployCommand.Review(null, "The review could not run.", 0, false);
+        assertThat(DeployCommand.blocks(true, clean)).isFalse();
+        assertThat(DeployCommand.blocks(true, high)).isTrue();
+        assertThat(DeployCommand.blocks(true, unknown)).isTrue();
+        assertThat(DeployCommand.blocks(false, unknown)).isFalse();
+    }
 }

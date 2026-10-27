@@ -85,7 +85,7 @@ public class DeployTest {
         assertThat(f.keySet())
                 .containsExactly(
                         "Dockerfile",
-                        ".dockerignore",
+                        "Dockerfile.dockerignore",
                         "entrypoint.sh",
                         ".env.example",
                         "README.md");

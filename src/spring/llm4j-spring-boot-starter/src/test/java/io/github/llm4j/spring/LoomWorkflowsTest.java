@@ -151,4 +151,63 @@ class LoomWorkflowsTest {
                                     .isFalse();
                         });
     }
+
+    @Test
+    void facadesAreRegisteredOnlyWhereTheStarterHasAScript() {
+        Fixtures.runner()
+                .withUserConfiguration(FacadeApp.class)
+                .run(
+                        ctx -> {
+                            assertThat(ctx).hasNotFailed();
+                            assertThat(ctx).doesNotHaveBean(Facade.class);
+                        });
+        app(FacadeApp.class, TestApp.class)
+                .withPropertyValues("llm4j.enabled=false")
+                .run(ctx -> assertThat(ctx).hasNotFailed());
+    }
+
+    @Test
+    void theScriptedModelsFindTheAgentByNameWhateverTheSystemTextSaysAndWhereverItIs() {
+        ScriptedLoomModels m =
+                new ScriptedLoomModels().agent("Triage-Bot", "billing").agent("*", "anything");
+        io.github.llm4j.LLMClient client = m.createClient("any");
+        var withSystemSecond =
+                io.github.llm4j.model.LLMRequest.builder()
+                        .addUserMessage("hello")
+                        .addSystemMessage("Your role is the Triage-Bot of the shop.")
+                        .build();
+        assertThat(client.chat(withSystemSecond).getContent()).contains("billing");
+        assertThat(m.calls("Triage-Bot")).isEqualTo(1);
+        var other =
+                io.github.llm4j.model.LLMRequest.builder()
+                        .addSystemMessage("Something else entirely.")
+                        .addUserMessage("x")
+                        .build();
+        assertThat(client.chat(other).getContent()).contains("anything");
+        ScriptedLoomModels plain = new ScriptedLoomModels();
+        var youAre =
+                io.github.llm4j.model.LLMRequest.builder()
+                        .addSystemMessage("You are Writer-2.")
+                        .addUserMessage("x")
+                        .build();
+        assertThat(plain.createClient("m").chat(youAre).getContent()).contains("Writer-2#1");
+    }
+
+    @Test
+    void loomTestKeepsTheApplicationsOwnSecretsAndOnlyFakesProviderKeys() {
+        io.github.llm4j.secret.InMemorySecretStore real =
+                new io.github.llm4j.secret.InMemorySecretStore();
+        real.put("MY_SECRET", "s3");
+        app(TestApp.class)
+                .withBean(io.github.llm4j.secret.SecretStore.class, () -> real)
+                .run(
+                        ctx -> {
+                            assertThat(ctx).hasNotFailed();
+                            var store = ctx.getBean(io.github.llm4j.secret.SecretStore.class);
+                            assertThat(store.contains("MY_SECRET")).isTrue();
+                            assertThat(store.resolve("MY_SECRET")).isEqualTo("s3");
+                            assertThat(store.contains("OTHER_SECRET")).isFalse();
+                            assertThat(store.contains("GEMINI_API_KEY")).isTrue();
+                        });
+    }
 }

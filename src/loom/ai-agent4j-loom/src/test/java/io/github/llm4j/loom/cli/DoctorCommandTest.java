@@ -94,7 +94,7 @@ class DoctorCommandTest {
         assertThat(ok.out() + ok.err())
                 .doesNotContain(secret)
                 .doesNotContain("AIza")
-                .doesNotContain(String.valueOf(secret.length()));
+                .doesNotContainPattern("(?<![0-9])" + secret.length() + "(?![0-9])");
     }
 
     @Test

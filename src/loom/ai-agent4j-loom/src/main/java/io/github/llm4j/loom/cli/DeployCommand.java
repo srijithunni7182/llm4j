@@ -134,6 +134,18 @@ final class DeployCommand implements Callable<Integer> {
             }
             Review review = review(c.script, env);
             if (review.warning != null) env.err().println(review.warning);
+            if (!review.ran)
+                env.err()
+                        .println(
+                                "⚠ weave review could not run: "
+                                        + review.summary
+                                        + " Not blocking the files; --require-clean would stop here.");
+            if (c.requireClean && !review.ran()) {
+                env.err()
+                        .println(
+                                "Error: --require-clean: the review could not run, so the script is not known to be clean; nothing was generated. Run `weave review` to see why.");
+                return 1;
+            }
             if (c.requireClean && review.high > 0) {
                 env.err()
                         .println(
@@ -266,7 +278,12 @@ final class DeployCommand implements Callable<Integer> {
 
     // ---- the review: a warning, never a gate
 
-    record Review(String warning, String summary, int high) {}
+    /** True when --require-clean must stop: findings are open, or the review could not say. */
+    static boolean blocks(boolean requireClean, Review r) {
+        return requireClean && (!r.ran() || r.high() > 0);
+    }
+
+    record Review(String warning, String summary, int high, boolean ran) {}
 
     static Review review(File script, WeaveEnv env) {
         try {
@@ -279,7 +296,7 @@ final class DeployCommand implements Callable<Integer> {
             ReviewCommand rc = new ReviewCommand();
             new CommandLine(rc).parseArgs(script.getPath(), "--format", "json", "--no-env");
             if (ReviewCommand.review(rc, quiet) == 2)
-                return new Review(null, "The review could not run.", 0);
+                return new Review(null, "The review could not run.", 0, false);
             JsonNode r = new ObjectMapper().readTree(out.toString(StandardCharsets.UTF_8));
             int high = 0, medium = 0, low = 0;
             for (JsonNode f : r.path("findings"))
@@ -321,9 +338,9 @@ final class DeployCommand implements Callable<Integer> {
                                     + " medium · "
                                     + low
                                     + " low open — not blocking the deployment files. Details: weave review";
-            return new Review(warning, s.toString(), high);
+            return new Review(warning, s.toString(), high, true);
         } catch (Exception e) {
-            return new Review(null, "The review could not run (" + e.getMessage() + ").", 0);
+            return new Review(null, "The review could not run (" + e.getMessage() + ").", 0, false);
         }
     }
 }

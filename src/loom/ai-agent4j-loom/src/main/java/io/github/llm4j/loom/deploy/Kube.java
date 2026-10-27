@@ -34,6 +34,8 @@ final class Kube {
                                 + name
                                 + "-config\ndata:\n");
         b.append("  LOOM_STORE: /data\n");
+        if (o.journal().startsWith("jdbc:"))
+            b.append("  LOOM_JOURNAL_URL: \"").append(o.journal()).append("\"\n");
         if (o.withFabric())
             b.append("  LOOM_FABRIC_URL: http://")
                     .append(name)
@@ -65,6 +67,8 @@ final class Kube {
         return "      securityContext:\n        runAsNonRoot: true\n        runAsUser: "
                 + Deploy.APP_UID
                 + "\n        runAsGroup: "
+                + Deploy.APP_UID
+                + "\n        fsGroup: "
                 + Deploy.APP_UID
                 + "\n        seccompProfile:\n          type: RuntimeDefault\n";
     }
@@ -103,7 +107,10 @@ final class Kube {
                 .append("\n      automountServiceAccountToken: false\n");
         b.append(context());
         b.append("      containers:\n");
-        b.append(container(name, name + ":latest", null, true));
+        b.append(
+                "      # Set image to your registry's name, ideally name@sha256:<digest>, before production.\n");
+        b.append(container(name, name + ":local", null, true));
+        b.append("          imagePullPolicy: IfNotPresent\n");
         b.append("          envFrom:\n            - configMapRef:\n                name: ")
                 .append(name)
                 .append("-config\n");
@@ -112,8 +119,7 @@ final class Kube {
                 .append("-secrets\n");
         b.append(
                 "          volumeMounts:\n            - name: tmp\n              mountPath: /tmp\n");
-        if (o.journal().equals("volume"))
-            b.append("            - name: data\n              mountPath: /data\n");
+        b.append("            - name: data\n              mountPath: /data\n");
         b.append(
                         "          livenessProbe:\n            exec:\n              command: [\"java\", \"-jar\", \"/app/weave.jar\", \"check\", \"/app/project/")
                 .append(p.script())
@@ -126,12 +132,17 @@ final class Kube {
                             "        - name: data\n          persistentVolumeClaim:\n            claimName: ")
                     .append(name)
                     .append("-data\n");
+        else
+            // no volume (none, or a database): the root is read-only, so /data is scratch space
+            b.append("        - name: data\n          emptyDir: {}\n");
         return b.toString();
     }
 
     private static String fabric(DeployOptions o, String name) {
         String fab = name + "-fabric";
         StringBuilder b = new StringBuilder();
+        // history and client registrations must outlive the pod
+        b.append(pvc(fab)).append("---\n");
         b.append("apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: ")
                 .append(fab)
                 .append('\n');
@@ -163,7 +174,8 @@ final class Kube {
                 .append(Deploy.FABRIC_PORT)
                 .append('\n');
         b.append(
-                "      volumes:\n        - name: tmp\n          emptyDir: {}\n        - name: fabric\n          emptyDir: {}\n");
+                "      volumes:\n        - name: tmp\n          emptyDir: {}\n        - name: fabric\n          persistentVolumeClaim:\n            claimName: ");
+        b.append(fab).append("-data\n");
         b.append("---\napiVersion: v1\nkind: Service\nmetadata:\n  name: ")
                 .append(fab)
                 .append("\nspec:\n  type: ClusterIP\n  selector:\n    app: ")

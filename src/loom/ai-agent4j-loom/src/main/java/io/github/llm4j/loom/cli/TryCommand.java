@@ -88,6 +88,7 @@ final class TryCommand implements Callable<Integer> {
         Path temp = null;
         // the runs below load the script several times; what the loader warns about is in the
         // review line, and a log line in the middle of a tour is noise
+        java.util.logging.Level before = QUIET.getLevel();
         QUIET.setLevel(java.util.logging.Level.OFF);
         try {
             if (c.list) {
@@ -114,12 +115,21 @@ final class TryCommand implements Callable<Integer> {
             }
             if (c.keep != null) {
                 Path keep = c.keep.toPath();
-                if (Files.exists(keep.resolve("main.loom"))) {
-                    env.err()
-                            .println(
-                                    "Error: "
-                                            + keep
-                                            + " already has a main.loom; choose an empty folder.");
+                if (Files.isDirectory(keep)) {
+                    boolean empty;
+                    try (Stream<Path> existing = Files.list(keep)) {
+                        empty = existing.findAny().isEmpty();
+                    }
+                    if (!empty) {
+                        env.err()
+                                .println(
+                                        "Error: "
+                                                + keep
+                                                + " is not empty, and --keep would overwrite files in it; choose an empty folder.");
+                        return 2;
+                    }
+                } else if (Files.exists(keep)) {
+                    env.err().println("Error: " + keep + " is a file; choose an empty folder.");
                     return 2;
                 }
                 Scenarios.write(s, keep);
@@ -211,6 +221,7 @@ final class TryCommand implements Callable<Integer> {
             env.err().println("Error: " + (e.getMessage() == null ? e : e.getMessage()));
             return 2;
         } finally {
+            QUIET.setLevel(before);
             if (temp != null) {
                 try (Stream<Path> walk = Files.walk(temp)) {
                     walk.sorted(Comparator.reverseOrder()).forEach(p -> p.toFile().delete());

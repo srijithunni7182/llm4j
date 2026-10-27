@@ -93,6 +93,7 @@ final class DoctorCommand implements Callable<Integer> {
             Path cwd,
             Function<String, String> vars,
             Doctor.Probe probe) {
+        java.util.logging.Level before = QUIET.getLevel();
         QUIET.setLevel(java.util.logging.Level.OFF);
         try {
             Path script = c.script != null ? c.script.toPath() : findScript(cwd);
@@ -168,6 +169,8 @@ final class DoctorCommand implements Callable<Integer> {
         } catch (Exception e) {
             env.err().println("Error: " + (e.getMessage() == null ? e : e.getMessage()));
             return 2;
+        } finally {
+            QUIET.setLevel(before);
         }
     }
 

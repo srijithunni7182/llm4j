@@ -15,39 +15,86 @@ class LoomTestConfiguration {
         return new ScriptedLoomModels();
     }
 
-    /** Any key a model asks for exists, and is worthless: the scripted models never use it. */
+    /**
+     * The application's own secret store stays: what it holds is used, and what it lacks is still
+     * reported missing. Only the keys of the model providers exist (worthless: the scripted models
+     * never use them), so a script can start without them.
+     */
     @Bean
-    @Primary
-    SecretStore loomTestSecrets() {
-        return new SecretStore() {
+    static org.springframework.beans.factory.config.BeanPostProcessor loomTestSecrets() {
+        return new org.springframework.beans.factory.config.BeanPostProcessor() {
             @Override
-            public String resolve(String name) {
-                return "loom-test-key";
+            public Object postProcessAfterInitialization(Object bean, String name) {
+                return bean instanceof SecretStore store && !(bean instanceof ProviderKeys)
+                        ? new ProviderKeys(store)
+                        : bean;
             }
-
-            @Override
-            public String resolveFor(String name, String host) {
-                return resolve(name);
-            }
-
-            @Override
-            public boolean contains(String name) {
-                return true;
-            }
-
-            @Override
-            public java.util.Set<String> names() {
-                return java.util.Set.of();
-            }
-
-            @Override
-            public java.util.Optional<io.github.llm4j.secret.SecretMetadata> metadata(String name) {
-                return java.util.Optional.empty();
-            }
-
-            @Override
-            public void close() {}
         };
+    }
+
+    private static final java.util.Set<String> PROVIDER_KEYS =
+            java.util.Set.of(
+                    "GEMINI_API_KEY",
+                    "ANTHROPIC_API_KEY",
+                    "OPENAI_API_KEY",
+                    "XAI_API_KEY",
+                    "SARVAM_API_KEY",
+                    "MOONSHOT_API_KEY",
+                    "DASHSCOPE_API_KEY",
+                    "PERPLEXITY_API_KEY",
+                    "JEV_API_KEY");
+
+    /** A secret store that also has the provider keys, unless the real one has them. */
+    private static final class ProviderKeys implements SecretStore {
+        private final SecretStore real;
+
+        ProviderKeys(SecretStore real) {
+            this.real = real;
+        }
+
+        private boolean fake(String name) {
+            return PROVIDER_KEYS.contains(name) && !real.contains(name);
+        }
+
+        @Override
+        public String resolve(String name) {
+            return fake(name) ? "loom-test-key" : real.resolve(name);
+        }
+
+        @Override
+        public String resolveFor(String name, String host) {
+            return fake(name) ? "loom-test-key" : real.resolveFor(name, host);
+        }
+
+        @Override
+        public boolean contains(String name) {
+            return fake(name) || real.contains(name);
+        }
+
+        @Override
+        public java.util.Set<String> names() {
+            return real.names();
+        }
+
+        @Override
+        public java.util.Optional<io.github.llm4j.secret.SecretMetadata> metadata(String name) {
+            return real.metadata(name);
+        }
+
+        @Override
+        public void put(String name, char[] value, io.github.llm4j.secret.SecretMetadata metadata) {
+            real.put(name, value, metadata);
+        }
+
+        @Override
+        public boolean remove(String name) {
+            return real.remove(name);
+        }
+
+        @Override
+        public void close() {
+            real.close();
+        }
     }
 
     @Bean

@@ -219,4 +219,68 @@ public class BindgenTest {
                 cl.loadClass("com.acme.triage.Outcome").getMethod("orElseThrow").invoke(outcome);
         assertThat(orElse).isEqualTo(value);
     }
+
+    private Bindgen.Generated of(String script) throws Exception {
+        return Bindgen.generate(script(script), "com.acme.triage", null, Bindgen.Nullability.NONE);
+    }
+
+    private static String wf(String params) {
+        return "agent A { model: \"gemini-2.5-flash\"  system: \"s\" }\nworkflow Main("
+                + params
+                + ") {\n    delegate \"x\" to A -> r\n    return r\n}\n";
+    }
+
+    @Test
+    void aParameterNamedLikeACallOptionStillCompilesAndKeepsItsMeaning() throws Exception {
+        Bindgen.Generated g = of(wf("label, origin, invoker, run_id, run"));
+        compile(g, dir.resolve("opt"));
+        String f = g.files().get("com/acme/triage/TriageWorkflows.java");
+        assertThat(f)
+                .contains("MainCall label_(String value)")
+                .contains("MainCall origin_(String value)")
+                .contains("MainCall invoker_(String value)")
+                .contains("MainCall run_(String value)")
+                .contains("MainCall label(String text)");
+    }
+
+    @Test
+    void aWorkflowNamedLikeAFacadeMethodStillCompiles() throws Exception {
+        String script =
+                "agent A { model: \"gemini-2.5-flash\"  system: \"s\" }\n"
+                        + "workflow answer(a, b, c, d) { delegate \"x\" to A -> r  return r }\n"
+                        + "workflow of() { delegate \"x\" to A -> r  return r }\n";
+        Bindgen.Generated g = of(script);
+        compile(g, dir.resolve("names"));
+        assertThat(g.files().get("com/acme/triage/TriageWorkflows.java"))
+                .contains("answer_(String a, String b, String c, String d)")
+                .contains("Outcome<OfResult> of_()");
+    }
+
+    @Test
+    void namesThatWouldBeGeneratedTwiceAreRefusedByName() throws Exception {
+        String two =
+                "agent A { model: \"gemini-2.5-flash\"  system: \"s\" }\n"
+                        + "workflow ticket_body() { delegate \"x\" to A -> r  return r }\n"
+                        + "workflow ticketBody() { delegate \"x\" to A -> r  return r }\n";
+        assertThatThrownBy(() -> of(two))
+                .hasMessageContaining(
+                        "\"ticket_body\" and \"ticketBody\" both become `ticketBody`");
+        assertThatThrownBy(() -> of(wf("ticket_body, ticketBody")))
+                .hasMessageContaining("the parameters of Main")
+                .hasMessageContaining("both become");
+        String fields =
+                "agent A { model: \"gemini-2.5-flash\"  system: \"s\" }\nworkflow Main() { delegate \"x\" to A -> r  return { a_b: r, aB: r } }\n";
+        assertThatThrownBy(() -> of(fields)).hasMessageContaining("the returned fields of Main");
+    }
+
+    @Test
+    void enumChoicesThatCollapseAreRefusedAndOddLabelsAreEscaped() throws Exception {
+        String clash =
+                "intentclassifier Intent { model: \"gemini-2.5-flash\"  choose kind: \"a-b\" | \"a_b\" }\n"
+                        + "workflow Main(q) { intentclassify Intent on q -> i  return { kind: i.kind } }\n";
+        assertThatThrownBy(() -> of(clash))
+                .hasMessageContaining("the choices of IntentKind")
+                .hasMessageContaining("both become `A_B`");
+        assertThat(Bindgen.esc("a\"b\\c\nd")).isEqualTo("a\\\"b\\\\c\\nd");
+    }
 }
