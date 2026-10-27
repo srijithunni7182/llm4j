@@ -465,6 +465,29 @@ class GenerateBuildTest {
     }
 
     @Test
+    void aPlanModelAsksTheQuestionsAndWritesThePlanAndTheModelWritesTheFiles() throws Exception {
+        var strong =
+                new io.github.llm4j.loom.generate.ScriptedModel(
+                        n -> n == 0 ? "[]" : PlanJson.write(GenerateFixtures.plan()), 100);
+        var cheap = new io.github.llm4j.loom.generate.ScriptedModel(n -> files(modelFiles()), 100);
+        var o =
+                GenerateCommandTest.generate(
+                        m -> m.equals("strong") ? strong : cheap,
+                        "x",
+                        "--model",
+                        "cheap",
+                        "--plan-model",
+                        "strong",
+                        "--out",
+                        dir.resolve("pair").toString(),
+                        "--flat");
+        assertThat(o.code()).as(o.out() + o.err()).isZero();
+        // the interview and the plan are the strong model's; the files are the cheap model's
+        assertThat(strong.calls()).isEqualTo(2);
+        assertThat(cheap.calls()).isEqualTo(1);
+    }
+
+    @Test
     void theCoverageBarCanBeMovedOrDropped() throws Exception {
         Map<String, String> thin = modelFiles();
         thin.put(

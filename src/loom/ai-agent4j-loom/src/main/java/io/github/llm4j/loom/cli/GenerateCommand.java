@@ -65,8 +65,15 @@ final class GenerateCommand implements Callable<Integer> {
 
     @Option(
             names = "--model",
-            description = "The model that writes the plan (default: LOOM_GENERATE_MODEL).")
+            description =
+                    "The model that writes the files (default: LOOM_GENERATE_MODEL); also the one that writes the plan unless --plan-model is given.")
     String model;
+
+    @Option(
+            names = "--plan-model",
+            description =
+                    "A different, usually stronger, model for the questions and the plan; --model still writes the files and repairs them. The plan is what the gates hold the files to, so a better plan costs little and helps most.")
+    String planModel;
 
     @Option(
             names = "--plan-only",
@@ -326,9 +333,11 @@ final class GenerateCommand implements Callable<Integer> {
         Transcript.Recording recording = null;
         LLMClient client = null;
         String model = null;
+        String planning = null;
         if (!(c.fromPlan != null && c.planOnly)) {
             try {
                 model = c.replay != null ? "replay" : modelName(c);
+                planning = c.replay != null || c.planModel == null ? model : c.planModel;
                 client = clientFor(c, env);
             } catch (IllegalArgumentException | java.io.IOException e) {
                 env.err().println("Error: " + e.getMessage());
@@ -351,7 +360,7 @@ final class GenerateCommand implements Callable<Integer> {
                 c.progress.event("stage", Map.of("stage", "clarify"));
                 List<Plan.Answer> answers =
                         Interview.answers(
-                                Interview.questions(client, model, c.description),
+                                Interview.questions(client, planning, c.description),
                                 c.noAsk || !c.interactive
                                         ? null
                                         : q ->
@@ -362,7 +371,7 @@ final class GenerateCommand implements Callable<Integer> {
                                                                         + q.proposed()
                                                                         + "]"));
                 c.progress.event("stage", Map.of("stage", "plan"));
-                plan = Planner.plan(client, model, c.description, answers, reference(), allowed);
+                plan = Planner.plan(client, planning, c.description, answers, reference(), allowed);
                 c.progress.event(
                         "plan",
                         Map.of(
@@ -660,7 +669,24 @@ final class GenerateCommand implements Callable<Integer> {
         var models = env.models();
         if (models instanceof io.github.llm4j.loom.execution.DefaultLLMClientFactory d)
             models = d.withTimeout(java.time.Duration.ofSeconds(Math.max(1, c.timeoutSeconds)));
-        return retrying(models.createClient(modelName(c)));
+        LLMClient writer = retrying(models.createClient(modelName(c)));
+        if (c.planModel == null || c.planModel.equals(modelName(c))) return writer;
+        LLMClient planner = retrying(models.createClient(c.planModel));
+        // one client for the run, so a recording keeps every call in order
+        return new LLMClient() {
+            @Override
+            public io.github.llm4j.model.LLMResponse chat(io.github.llm4j.model.LLMRequest r) {
+                return c.planModel.equals(r.getModel()) ? planner.chat(r) : writer.chat(r);
+            }
+
+            @Override
+            public java.util.stream.Stream<io.github.llm4j.model.LLMResponse> chatStream(
+                    io.github.llm4j.model.LLMRequest r) {
+                return c.planModel.equals(r.getModel())
+                        ? planner.chatStream(r)
+                        : writer.chatStream(r);
+            }
+        };
     }
 
     /** A call that fails (a timeout, a busy provider) is made once more before the run gives up. */
