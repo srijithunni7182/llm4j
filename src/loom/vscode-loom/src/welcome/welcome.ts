@@ -14,8 +14,10 @@ export function protocolMismatch(bundled: string, onPath: string): string | unde
     return `The weave on your PATH speaks protocol ${b} but this extension's engine speaks ${a}. Update one so they match (weave --version shows it); the extension keeps using its own engine.`;
 }
 
-/** The command a button runs in the integrated terminal: always the extension's own jar, never a guess. */
-export function terminalCommand(javaPath: string, jarPath: string, args: string[]): string {
-    const q = (s: string) => (/^[A-Za-z0-9_\/.:\\-]+$/.test(s) ? s : `"${s.replace(/(["\\$`])/g, '\\$1')}"`);
-    return [q(javaPath), '-jar', q(jarPath), ...args.map(q)].join(' ');
+/**
+ * How a button starts Java in the integrated terminal: the executable and its arguments, with no
+ * shell in between, so no quoting is needed (and none can be wrong for PowerShell, cmd or bash).
+ */
+export function terminalOptions(javaPath: string, jarPath: string, args: string[], name: string, cwd?: string): { name: string; shellPath: string; shellArgs: string[]; cwd?: string } {
+    return { name, shellPath: javaPath, shellArgs: ['-jar', jarPath, ...args], ...(cwd ? { cwd } : {}) };
 }

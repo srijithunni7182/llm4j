@@ -233,7 +233,7 @@ public class DeployTest {
                         "127.0.0.1",
                         null);
         assertThat(Deploy.render(plan(SCRIPT), jdbc, "abc").get("compose.yaml"))
-                .contains("LOOM_JOURNAL_URL=jdbc:postgresql://db/loom");
+                .contains("LOOM_JOURNAL_URL");
     }
 
     @Test

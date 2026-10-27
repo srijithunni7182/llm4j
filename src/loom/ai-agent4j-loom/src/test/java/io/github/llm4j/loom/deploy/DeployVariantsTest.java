@@ -226,7 +226,8 @@ class DeployVariantsTest {
         assertThat(
                         render("k8s", true, "jdbc:postgresql://db/loom", "none", null)
                                 .get("k8s/configmap.yaml"))
-                .contains("LOOM_JOURNAL_URL: \"jdbc:postgresql://db/loom\"");
+                .doesNotContain("LOOM_JOURNAL_URL")
+                .doesNotContain("jdbc:");
         assertThat(render("k8s", true, "none", "none", null).get("k8s/configmap.yaml"))
                 .doesNotContain("LOOM_JOURNAL_URL");
     }
@@ -286,5 +287,37 @@ class DeployVariantsTest {
         assertThat(p.waitFor()).as(out).isZero();
         assertThat(out).contains("k1,k2").contains("skipping the secret file");
         assertThat(Files.exists(dir.resolve("pwned"))).isFalse();
+    }
+
+    @Test
+    void aJdbcUrlThatMayCarryCredentialsIsNeverWrittenAnywhere() throws Exception {
+        String url = "jdbc:postgresql://db/loom?user=loom&password=" + "hunter" + "2";
+        for (String target : new String[] {"compose", "k8s"}) {
+            Map<String, String> f = render(target, true, url, "none", null);
+            f.forEach(
+                    (name, text) ->
+                            assertThat(text)
+                                    .as(target + " " + name)
+                                    .doesNotContain("hunter")
+                                    .doesNotContain("password="));
+        }
+        assertThat(render("k8s", true, url, "none", null).get("k8s/secret.template.yaml"))
+                .contains("LOOM_JOURNAL_URL: \"\"");
+        assertThat(render("compose", true, url, "none", null).get(".env.example"))
+                .contains("LOOM_JOURNAL_URL=<the jdbc url");
+        assertThat(render("compose", true, url, "none", null).get("README.md"))
+                .contains("`LOOM_JOURNAL_URL`");
+    }
+
+    @Test
+    void theDocumentedBuildTagIsTheOneTheManifestsUse() throws Exception {
+        Map<String, String> f = render("k8s", true, "volume", "none", null);
+        assertThat(f.get("Dockerfile"))
+                .contains("-t my-app:local .")
+                .contains("kind load docker-image my-app:local");
+        assertThat(f.get("k8s/deployment.yaml")).contains("image: my-app:local");
+        assertThat(f.get("README.md"))
+                .contains("-t my-app:local")
+                .contains("kind load docker-image my-app:local");
     }
 }

@@ -210,4 +210,19 @@ class LoomWorkflowsTest {
                             assertThat(store.contains("GEMINI_API_KEY")).isTrue();
                         });
     }
+
+    @Test
+    void anOrchestratorThatMentionsAnotherAgentIsStillTheOrchestrator() {
+        ScriptedLoomModels m = new ScriptedLoomModels().agent("Triage", "t").agent("Boss", "b");
+        var req =
+                io.github.llm4j.model.LLMRequest.builder()
+                        .addSystemMessage("You are Boss. Hand billing questions off to Triage.")
+                        .addUserMessage("x")
+                        .build();
+        for (int i = 0; i < 5; i++)
+            assertThat(m.createClient("m").chat(req).getContent())
+                    .contains("\"b\"".replace("\"", ""));
+        assertThat(m.calls("Boss")).isEqualTo(5);
+        assertThat(m.calls("Triage")).isZero();
+    }
 }

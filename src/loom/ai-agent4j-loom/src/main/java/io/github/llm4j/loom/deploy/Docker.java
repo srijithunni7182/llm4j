@@ -16,7 +16,10 @@ final class Docker {
         StringBuilder b = new StringBuilder();
         b.append("# Build from the project's folder:  docker build -f deploy/Dockerfile -t ")
                 .append(Deploy.safeName(o.name()))
-                .append(" .\n");
+                .append(":local .\n");
+        b.append("# For kind or minikube, then load it:  kind load docker-image ")
+                .append(Deploy.safeName(o.name()))
+                .append(":local\n");
         b.append(
                 "# Put the weave CLI jar (the same version you ran weave deploy with) at deploy/weave.jar first.\n");
         if (base.contains("@sha256:")) b.append("# The base image is pinned by digest.\n");
@@ -97,6 +100,9 @@ final class Docker {
             b.append("LOOM_FABRIC_URL=http://fabric:9090\n");
             b.append("LOOM_FABRIC_CLIENT_KEY=<this process's key from fabric client add>\n");
         }
+        if (o.journal().startsWith("jdbc:"))
+            b.append(
+                    "LOOM_JOURNAL_URL=<the jdbc url of the journal database, with its credentials>\n");
         if (p.localModels()) b.append("OLLAMA_HOST=<where the local model server is>\n");
         return b.toString();
     }

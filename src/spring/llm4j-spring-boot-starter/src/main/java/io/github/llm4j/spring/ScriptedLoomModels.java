@@ -18,7 +18,8 @@ import java.util.stream.Stream;
  */
 public final class ScriptedLoomModels implements LLMClientFactory {
 
-    private final Map<String, List<String>> replies = new ConcurrentHashMap<>();
+    private final Map<String, List<String>> replies =
+            new java.util.concurrent.ConcurrentSkipListMap<>();
     private final Map<String, AtomicInteger> calls = new ConcurrentHashMap<>();
 
     /** What the agent answers, in order. */
@@ -53,6 +54,12 @@ public final class ScriptedLoomModels implements LLMClientFactory {
      */
     private String agentOf(LLMRequest request) {
         String system = systemText(request);
+        // the explicit "You are <name>." wins: a prompt that merely mentions another agent is not
+        // it
+        java.util.regex.Matcher you =
+                java.util.regex.Pattern.compile("You are ([\\w-]+)\\.").matcher(system);
+        if (you.find() && replies.containsKey(you.group(1))) return you.group(1);
+        // then a scripted name as a word, in name order (the same every run)
         for (String name : replies.keySet()) {
             if (name.equals("*")) continue;
             if (java.util.regex.Pattern.compile(

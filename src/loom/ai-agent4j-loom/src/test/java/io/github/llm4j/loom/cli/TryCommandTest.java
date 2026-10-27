@@ -213,4 +213,30 @@ class TryCommandTest {
             l.setLevel(before);
         }
     }
+
+    @Test
+    void aBadTokenCapIsRejectedBeforeAnythingIsAsked() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> run("--live", "--max-tokens", "abc"))
+                .isInstanceOf(CommandLine.ParameterException.class);
+    }
+
+    @Test
+    void aLiveRunKeepsItsLogging() {
+        java.util.logging.Logger l =
+                java.util.logging.Logger.getLogger("io.github.llm4j.loom.execution");
+        java.util.logging.Level before = l.getLevel();
+        l.setLevel(java.util.logging.Level.FINE);
+        TryCommand.liveRunner =
+                a -> {
+                    assertThat(l.getLevel()).isEqualTo(java.util.logging.Level.FINE);
+                    return 0;
+                };
+        try {
+            run(Map.of("GEMINI_API_KEY", "x"), "yes", "--live");
+        } finally {
+            TryCommand.liveRunner = a -> WeaveCLI.commandLine().execute(a);
+            l.setLevel(before);
+        }
+    }
 }

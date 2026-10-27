@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'fs';
 import * as path from 'path';
-import { protocolMismatch, protocolOf, terminalCommand } from '../src/welcome/welcome';
+import { protocolMismatch, protocolOf, terminalOptions } from '../src/welcome/welcome';
 
 const root = path.join(__dirname, '..', '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
@@ -32,8 +32,12 @@ test('R20: a CLI that speaks another protocol than the bundled engine is named i
     assert.equal(protocolMismatch(bundled, 'weave 5.0.0'), undefined, 'an old CLI that prints no protocol is not a mismatch');
 });
 
-test('the terminal command uses the extension\'s own jar and quotes what needs it', () => {
-    assert.equal(terminalCommand('java', '/ext/bin/weave.jar', ['try', '--step']), 'java -jar /ext/bin/weave.jar try --step');
-    assert.equal(terminalCommand('java', '/my ext/weave.jar', ['try']), 'java -jar "/my ext/weave.jar" try');
-    assert.equal(terminalCommand('java', '/j.jar', ['x$(y)']), 'java -jar /j.jar "x\\$(y)"');
+test('the terminal runs Java directly with the extension\'s own jar, so there is no shell quoting to get wrong', () => {
+    assert.deepEqual(terminalOptions('java', 'C:\\Program Files\\ext\\bin\\weave.jar', ['try', '--step'], 'Loom demo', '/ws'), {
+        name: 'Loom demo',
+        shellPath: 'java',
+        shellArgs: ['-jar', 'C:\\Program Files\\ext\\bin\\weave.jar', 'try', '--step'],
+        cwd: '/ws',
+    });
+    assert.equal('cwd' in terminalOptions('java', '/j.jar', ['doctor'], 'x'), false);
 });

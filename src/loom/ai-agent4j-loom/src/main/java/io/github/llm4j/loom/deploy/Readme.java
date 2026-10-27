@@ -28,9 +28,19 @@ final class Readme {
                     .append(n)
                     .append(
                             "` (a secret: set it in your secret store or `.env`; it is never written to a file here)\n");
+        if (o.journal().startsWith("jdbc:"))
+            b.append(
+                    "- `LOOM_JOURNAL_URL`: the JDBC URL of the journal database (a secret: it may carry credentials, so it is never written here).\n");
         if (o.withFabric())
             b.append(
                     "- `LOOM_FABRIC_CLIENT_KEY`: this process's key for Fabric (`fabric client add`), as a secret.\n");
+        String image = Deploy.safeName(o.name()) + ":local";
+        b.append(
+                "- A built image: `docker build -f deploy/Dockerfile -t "
+                        + image
+                        + " .` (for kind or minikube then `kind load docker-image "
+                        + image
+                        + "`). The Kubernetes manifests use that tag: push it to your registry and edit the image before production.\n");
         b.append(
                 "- `deploy/weave.jar`: the weave CLI of the same version, copied in before `docker build`.\n");
         if (!p.egressHosts().isEmpty())

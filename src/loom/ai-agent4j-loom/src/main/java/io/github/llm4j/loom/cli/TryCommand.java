@@ -63,7 +63,7 @@ final class TryCommand implements Callable<Integer> {
             defaultValue = "30000",
             description =
                     "With --live: the most tokens it may use (default ${DEFAULT-VALUE}, about five cents on a small model).")
-    String maxTokens;
+    long maxTokens;
 
     @Option(names = "--no-color", description = "Plain text (also NO_COLOR).")
     boolean noColor;
@@ -86,10 +86,7 @@ final class TryCommand implements Callable<Integer> {
 
     static int run(TryCommand c, WeaveEnv env, java.io.InputStream in) {
         Path temp = null;
-        // the runs below load the script several times; what the loader warns about is in the
-        // review line, and a log line in the middle of a tour is noise
         java.util.logging.Level before = QUIET.getLevel();
-        QUIET.setLevel(java.util.logging.Level.OFF);
         try {
             if (c.list) {
                 for (Scenarios.Scenario s : Scenarios.list())
@@ -150,6 +147,9 @@ final class TryCommand implements Callable<Integer> {
             TestFile tests = TestFile.read(temp.resolve("tests/main.test.yaml"));
             TestFile.Case demo = tests.cases().get(0);
             if (c.live) return live(c, s, env, script, tests, demo);
+            // the demo loads the script several times; what the loader warns about is in the review
+            // line, and a log line in the middle of a tour is noise. A live run keeps its logging.
+            QUIET.setLevel(java.util.logging.Level.OFF);
             env.out().println("weave try " + s.name() + ": " + s.description() + ".");
             env.out().println(SCRIPTED);
             env.out().println();
@@ -285,7 +285,11 @@ final class TryCommand implements Callable<Integer> {
         }
         List<String> args =
                 new java.util.ArrayList<>(
-                        List.of("run", script.toString(), "--max-tokens", c.maxTokens));
+                        List.of(
+                                "run",
+                                script.toString(),
+                                "--max-tokens",
+                                Long.toString(c.maxTokens)));
         demo.body()
                 .path("input")
                 .fields()

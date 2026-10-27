@@ -34,8 +34,7 @@ final class Kube {
                                 + name
                                 + "-config\ndata:\n");
         b.append("  LOOM_STORE: /data\n");
-        if (o.journal().startsWith("jdbc:"))
-            b.append("  LOOM_JOURNAL_URL: \"").append(o.journal()).append("\"\n");
+
         if (o.withFabric())
             b.append("  LOOM_FABRIC_URL: http://")
                     .append(name)
@@ -54,6 +53,8 @@ final class Kube {
                 .append("-secrets\ntype: Opaque\nstringData:\n");
         for (String n : p.envNames()) b.append("  ").append(n).append(": \"\"\n");
         if (o.withFabric()) b.append("  LOOM_FABRIC_CLIENT_KEY: \"\"\n");
+        // the url may carry credentials, so it is a secret, never a config map entry
+        if (o.journal().startsWith("jdbc:")) b.append("  LOOM_JOURNAL_URL: \"\"\n");
         return b.toString();
     }
 

@@ -134,24 +134,20 @@ final class DeployCommand implements Callable<Integer> {
             }
             Review review = review(c.script, env);
             if (review.warning != null) env.err().println(review.warning);
-            if (!review.ran)
+            if (!review.ran())
                 env.err()
                         .println(
                                 "⚠ weave review could not run: "
                                         + review.summary
                                         + " Not blocking the files; --require-clean would stop here.");
-            if (c.requireClean && !review.ran()) {
+            if (blocks(c.requireClean, review)) {
                 env.err()
                         .println(
-                                "Error: --require-clean: the review could not run, so the script is not known to be clean; nothing was generated. Run `weave review` to see why.");
-                return 1;
-            }
-            if (c.requireClean && review.high > 0) {
-                env.err()
-                        .println(
-                                "Error: --require-clean: "
-                                        + review.high
-                                        + " high finding(s) are open; nothing was generated.");
+                                review.ran()
+                                        ? "Error: --require-clean: "
+                                                + review.high()
+                                                + " high finding(s) are open; nothing was generated."
+                                        : "Error: --require-clean: the review could not run, so the script is not known to be clean; nothing was generated. Run `weave review` to see why.");
                 return 1;
             }
             var loaded = new LoomLoader().load(c.script.toString());

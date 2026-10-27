@@ -38,7 +38,9 @@ final class Compose {
                     .append(Deploy.FABRIC_PORT)
                     .append('\n');
         if (!o.journal().equals("none") && !o.journal().equals("volume"))
-            b.append("      - LOOM_JOURNAL_URL=").append(o.journal()).append('\n');
+            b.append(
+                    "      - LOOM_JOURNAL_URL\n"); // the url may carry credentials: its value comes
+        // from .env, never from this file
         if (o.journal().equals("volume")) b.append("    volumes:\n      - data:/data\n");
         if (o.withFabric()) {
             b.append("    secrets:\n      - loom_fabric_client_key\n");

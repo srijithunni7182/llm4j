@@ -1,15 +1,14 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { terminalCommand } from './welcome';
+import { terminalOptions } from './welcome';
 
 /** The welcome view's buttons. They run the extension's own jar in the integrated terminal; the extension itself starts no process for them. */
 export function registerWelcome(context: vscode.ExtensionContext): void {
     const jar = context.asAbsolutePath(path.join('bin', 'weave.jar'));
     const java = (): string => vscode.workspace.getConfiguration('loom.graph').get<string>('javaPath', 'java');
     const run = (name: string, args: string[]): void => {
-        const terminal = vscode.window.createTerminal({ name, cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath });
+        const terminal = vscode.window.createTerminal(terminalOptions(java(), jar, args, name, vscode.workspace.workspaceFolders?.[0]?.uri.fsPath));
         terminal.show();
-        terminal.sendText(terminalCommand(java(), jar, args));
     };
     context.subscriptions.push(
         vscode.commands.registerCommand('loom.try', () => run('Loom demo', ['try', '--step'])),
