@@ -1,0 +1,9 @@
+## EXAMPLES
+weave check main.loom                 tools, knowledge, secrets and names
+weave check main.loom --no-env        without the keys (a stand-in is used for env.NAME)
+weave check main.loom --format json   every problem with its line, for an editor
+weave check main.loom --strict        warnings count as errors
+## EXIT STATUS
+0 no errors. 2 errors (or warnings with --strict).
+## SEE ALSO
+weave man review, weave man test

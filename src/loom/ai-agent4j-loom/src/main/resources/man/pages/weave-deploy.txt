@@ -1,0 +1,9 @@
+## EXAMPLES
+weave deploy main.loom --target docker --out deploy/
+weave deploy main.loom --target compose --with-fabric --out deploy/
+weave deploy main.loom --target k8s --out deploy/
+weave deploy main.loom --verify deploy/      check that the files still match the script
+## EXIT STATUS
+0 done. 1 with --verify, the directory differs from the script; with --require-clean, high findings remain in the review. 2 could not run.
+## SEE ALSO
+weave man bindgen, weave man audit

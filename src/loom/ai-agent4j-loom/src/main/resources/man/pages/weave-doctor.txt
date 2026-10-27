@@ -1,0 +1,9 @@
+## EXAMPLES
+weave doctor                      check this folder
+weave doctor main.loom --network  also test the connection to each provider the script uses
+weave doctor --fix                create the run store, ignore .env in git, copy .env.example (asks first)
+weave doctor --format json        for CI or an editor
+## EXIT STATUS
+0 ready. 1 ready with warnings. 2 not ready.
+## SEE ALSO
+weave man check, weave man try

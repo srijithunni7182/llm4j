@@ -1,0 +1,13 @@
+## DESCRIPTION
+Test files (tests/*.test.yaml) hold cases: an input, what each agent, classifier, tool or person answers, failures to inject, and what must hold (the result, the route, the calls, what was asked of a person). Models and tools are always scripted, so a run takes milliseconds, costs nothing and is the same every time. A case with no script for a call fails rather than getting a default answer.
+## EXAMPLES
+weave test main.loom                         run every case beside the script
+weave test main.loom --coverage              also list the steps no case reaches
+weave test main.loom --min-coverage 80       exit 1 below 80 % of the steps
+weave test main.loom --steps                 list the step names a case may use
+weave test main.loom --case "refund*" --watch
+weave test main.loom --format junit          for CI
+## EXIT STATUS
+0 all passed. 1 a case failed (or coverage is below --min-coverage). 2 it could not run (a test file or the script is unsound).
+## SEE ALSO
+weave man capture (a real run as a case), weave man eval, weave man gate

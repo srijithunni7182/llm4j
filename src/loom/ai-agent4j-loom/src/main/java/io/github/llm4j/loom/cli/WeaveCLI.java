@@ -35,7 +35,11 @@ import picocli.CommandLine.Parameters;
         name = "weave",
         mixinStandardHelpOptions = true,
         versionProvider = WeaveCLI.BuildVersion.class,
-        description = "Loom Orchestration CLI - Weave workflows into executable reality.")
+        description = "Loom Orchestration CLI - Weave workflows into executable reality.",
+        footer = {
+            "",
+            "weave man lists every command by what you are doing; weave man <command> shows its page."
+        })
 public class WeaveCLI implements Callable<Integer> {
 
     @Override
@@ -1583,7 +1587,7 @@ public class WeaveCLI implements Callable<Integer> {
         }
     }
 
-    private static CommandLine build() {
+    static CommandLine build() {
         return new CommandLine(new WeaveCLI())
                 .addSubcommand(new RunCommand())
                 .addSubcommand(new CheckCommand())
@@ -1627,6 +1631,7 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new ServeCommand())
                 .addSubcommand(new InitCommand())
                 .addSubcommand(new GuideCommand())
+                .addSubcommand(new ManCommand())
                 .addSubcommand(new SecretCommands());
     }
 
