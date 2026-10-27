@@ -1,0 +1,17 @@
+agent Researcher { model: "gemini-2.5-flash"  system: "You gather background and recent news on a topic, in short notes."  temperature: 0.3 }
+agent Writer { model: "gemini-2.5-flash"  system: "You write a short newsletter issue from notes."  temperature: 0.7 }
+agent Editor { model: "gemini-2.5-flash"  system: "You review a draft and say OK, or REWRITE with advice."  temperature: 0.1 }
+
+workflow Main(topic) {
+    delegate "Background and recent news on: {topic}" to Researcher -> research_notes
+    delegate "Write this week's issue about {topic} from these notes:\n{research_notes}" to Writer -> draft_text
+
+    loop until (review.verdict == "OK") max 2 {
+        delegate "Review this draft:\n{draft_text}" to Editor -> review expecting { verdict: enum["OK", "REWRITE"], advice: string }
+        alt (review.verdict == "REWRITE") {
+            delegate "Rewrite the draft. The editor says: {review.advice}\n\n{draft_text}" to Writer -> draft_text
+        }
+    }
+
+    return draft_text
+}

@@ -1,6 +1,6 @@
 # Phase 16 verification plan: the first run
 
-Status: **16a to 16c done** (`weave try`; `weave doctor`; launchers, JBang); 16d, 16e not started. Run top to bottom at the end of sub-phase 16e; the relevant rows after each sub-phase. Results in §7.
+Status: **16a to 16d done**; 16e (editor welcome, newcomer journey, `--live`) not started. Run top to bottom at the end of sub-phase 16e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -49,11 +49,11 @@ Status: **16a to 16c done** (`weave try`; `weave doctor`; launchers, JBang); 16d
 | R20 | `LauncherTest.theVersionLineCarriesTheProtocolOfServe` (`weave --version` prints the version and the serve protocol); the extension's warning is 16e | 🟦 16c/16e |
 | R21 | `LauncherTest` (execution with a fake java; shellcheck when installed, skipped here; the Windows launcher is checked as text, not run) | ✅ 16c |
 | R22 | `install/README.md` names the follow-ups (Homebrew, SDKMAN, Scoop) | ✅ 16c |
-| R23 | `InitInteractiveTest`, `InitNonInteractiveUnchangedTest` | ⬜ 16d |
-| R24 | `InitNoKeyGuidanceTest` | ⬜ 16d |
-| R25 | `TemplatesPassGatesTest` | ⬜ 16d |
-| R26 | `NextOrderTest` | ⬜ 16d |
-| R27 | `NextAgreesWithHintsTest` | ⬜ 16d |
+| R23 | `InitInteractiveTest` (a sentence offers generate / template / demo on a terminal; without one the old usage and exit 2) | ✅ 16d |
+| R24 | `InitInteractiveTest.generatingWithoutAKeyExplains...` (points at `weave doctor`; options 2 and 3 need no key) | ✅ 16d |
+| R25 | `InitInteractiveTest.everyStarterChecksCleanAndHasNoHighFinding`, `InitTemplateTestsPassTest` (tests pass and cover every statement) | ✅ 16d |
+| R26 | `NextCommandTest.aFreshStarter...` (review, tests, mock wiring, keys, deploy preview, then the capped run; capture once runs exist) | ✅ 16d |
+| R27 | `weave next` carries the new steps; the per-command last-line hints and the agreement test are **not** built (each command already ends with a suggestion of its own; they are not yet checked against `next`) | 🟦 16d partial |
 | R28 | `welcomeView.test.ts` | ⬜ 16e |
 | R29 | manual §4 (measured), CPU budget in `NewcomerJourneyTest` | ⬜ 16e |
 | R30 | `NewcomerJourneyTest` | ⬜ 16e |
@@ -111,3 +111,9 @@ Status: **16a to 16c done** (`weave try`; `weave doctor`; launchers, JBang); 16d
 - Built: `install/weave` and `install/weave.cmd` (find Java via `JAVA_HOME` then `PATH`, refuse Java older than 17 with a way out, pass every argument through untouched, honour `JAVA_OPTS` and `WEAVE_JAR`), `install/README.md` (the three-line install), `jbang-catalog.json` (alias `weave` for `jbang weave@srijithunni7182/llm4j try`), `scripts/make-release-launchers.sh` (the jar, the launchers and `weave.jar.sha256`), and `weave --version` now also prints the serve protocol.
 - Tests: `LauncherTest` 9 (1 skipped: shellcheck is not installed here).
 - Not verified: the JBang alias against a real published artifact (nothing is published from here), and the Windows launcher by running it.
+
+### 16d (2026-10-27)
+
+- Built: `weave init` with no template on a terminal asks one question (a sentence, or Enter to pick a template) and offers generating it, a starter template (guessed from the sentence: approval, classifier, pipeline) or `weave try`; it still prints the usage without a terminal. `weave next` gained, in order: read the review, run the tests (or write them), (the existing dataset and wiring steps), a deploy preview, the capped run, and `weave capture --list` once runs exist. A third scenario, `newsletter` (a loop with an editor), shipped with a passing suite.
+- Tests: `InitInteractiveTest` 6, `NextCommandTest` updated for the new steps (one existing assertion on the fresh starter's step list changed from 3 steps to 6: the spec asks for these steps).
+- Not built: the `refund` scenario (it needs a registered task and an approval statement whose scripted form I did not want to guess), the primary-plus-two-alternatives layout of `next`, and the check that every command's last-line hint agrees with `next` (R27).

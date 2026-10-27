@@ -65,6 +65,89 @@ final class InitCommand implements Callable<Integer> {
     }
 
     static int init(InitCommand c, WeaveEnv env) {
+        return init(c, env, System.console() != null);
+    }
+
+    /** The key names a hosted model may need; any one set means generate can be offered. */
+    private static final List<String> KEYS =
+            List.of("GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "XAI_API_KEY");
+
+    /**
+     * With no template on a terminal, asks one question and offers generating it, a template, or
+     * the demo. Without a terminal it prints the usage as it always did, so scripts are not broken.
+     */
+    static int init(InitCommand c, WeaveEnv env, boolean terminal) {
+        if (c.template == null && !c.list && terminal) {
+            String want =
+                    ask(
+                            env,
+                            "What do you want to build? (a sentence, or press Enter to pick a template)");
+            String pick;
+            if (want.isBlank()) {
+                env.out().println("Templates:");
+                for (Templates.Template t : Templates.all())
+                    env.out().println("  " + String.format("%-11s", t.name()) + t.description());
+                pick = ask(env, "Which template?");
+            } else {
+                boolean hasKey =
+                        KEYS.stream()
+                                .anyMatch(
+                                        k ->
+                                                env.env().apply(k) != null
+                                                        && !env.env().apply(k).isBlank());
+                String sentence = want.replace("\"", "'");
+                env.out()
+                        .println(
+                                "I can generate this for you (needs a model key), or start from a template.");
+                env.out().println("  1) Generate it      weave generate \"" + sentence + "\"");
+                env.out().println("  2) Start from the '" + guess(want) + "' template");
+                env.out().println("  3) Look at a demo first      weave try");
+                String choice = ask(env, "Which? (1, 2 or 3)");
+                if (choice.equals("1")) {
+                    env.out()
+                            .println(
+                                    hasKey
+                                            ? "Run: weave generate \"" + sentence + "\""
+                                            : "Generating needs a model key, and none is set. Run `weave doctor` to see which, set it, then: weave generate \""
+                                                    + sentence
+                                                    + "\". Options 2 and 3 need no key.");
+                    return 0;
+                }
+                if (choice.equals("3")) {
+                    env.out().println("Run: weave try");
+                    return 0;
+                }
+                pick = guess(want);
+            }
+            if (pick.isBlank()) {
+                env.err().println("Error: no template chosen. Run weave init --list to see them.");
+                return 2;
+            }
+            c.template = pick;
+        }
+        return create(c, env);
+    }
+
+    private static String ask(WeaveEnv env, String question) {
+        try {
+            String a = env.human().promptHuman(question);
+            return a == null ? "" : a.trim();
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
+
+    /** The template a sentence is closest to: a person approving, a label, else a pipeline. */
+    static String guess(String sentence) {
+        String s = sentence.toLowerCase(java.util.Locale.ROOT);
+        if (s.matches(".*\\b(approv|sign off|review by a person|ask a person|human)\\w*.*"))
+            return "approval";
+        if (s.matches(".*\\b(route|classif|triage|categor|label|sort|tag)\\w*.*"))
+            return "classifier";
+        return "pipeline";
+    }
+
+    private static int create(InitCommand c, WeaveEnv env) {
         if (c.list || c.template == null) {
             env.out().println("Templates for weave init <template> [dir]:");
             for (Templates.Template t : Templates.all())
