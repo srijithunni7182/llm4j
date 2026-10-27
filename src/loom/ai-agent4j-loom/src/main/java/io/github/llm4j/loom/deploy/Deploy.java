@@ -33,7 +33,9 @@ public final class Deploy {
         Map<String, String> files = new LinkedHashMap<>();
         String from = plan.script() + " sha256:" + scriptHash;
         files.put("Dockerfile", stamp("#", from, Docker.dockerfile(plan, o)));
-        files.put(".dockerignore", stamp("#", from, Docker.dockerignore()));
+        // BuildKit reads <Dockerfile>.dockerignore beside the Dockerfile; a plain .dockerignore in
+        // deploy/ is not read
+        files.put("Dockerfile.dockerignore", stamp("#", from, Docker.dockerignore()));
         files.put("entrypoint.sh", stamp("#", from, Docker.entrypoint(plan, o)));
         files.put(".env.example", stamp("#", from, Docker.envExample(plan, o)));
         switch (o.target()) {

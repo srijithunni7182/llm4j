@@ -136,8 +136,7 @@ class TryCommandTest {
             assertThat(results)
                     .isNotEmpty()
                     .allMatch(x -> x.passed(), "every case of " + s.name() + " passes");
-            assertThat(run(s.name(), "--keep", out.toString()).err())
-                    .contains("already has a main.loom");
+            assertThat(run(s.name(), "--keep", out.toString()).err()).contains("is not empty");
         }
     }
 
@@ -182,6 +181,36 @@ class TryCommandTest {
                     .anyMatch(x -> x.startsWith("message=Where is my parcel"));
         } finally {
             TryCommand.liveRunner = a -> WeaveCLI.commandLine().execute(a);
+        }
+    }
+
+    @Test
+    void keepRefusesAFolderWithAnythingInItAndLeavesItAlone() throws Exception {
+        Path target = Files.createDirectories(dir.resolve("mine"));
+        Files.createDirectories(target.resolve("tests"));
+        Files.writeString(target.resolve("tests/main.test.yaml"), "mine");
+        Out r = run("--keep", target.toString());
+        assertThat(r.code()).isEqualTo(2);
+        assertThat(r.err()).contains("is not empty");
+        assertThat(Files.readString(target.resolve("tests/main.test.yaml"))).isEqualTo("mine");
+        assertThat(Files.exists(target.resolve("main.loom"))).isFalse();
+        Path file = Files.writeString(dir.resolve("afile"), "x");
+        assertThat(run("--keep", file.toString()).err()).contains("is a file");
+        assertThat(run("--keep", Files.createDirectories(dir.resolve("empty")).toString()).code())
+                .isZero();
+    }
+
+    @Test
+    void theLoggerLevelIsPutBackWhenTheCommandEnds() {
+        java.util.logging.Logger l =
+                java.util.logging.Logger.getLogger("io.github.llm4j.loom.execution");
+        java.util.logging.Level before = l.getLevel();
+        l.setLevel(java.util.logging.Level.FINE);
+        try {
+            run("--fast");
+            assertThat(l.getLevel()).isEqualTo(java.util.logging.Level.FINE);
+        } finally {
+            l.setLevel(before);
         }
     }
 }

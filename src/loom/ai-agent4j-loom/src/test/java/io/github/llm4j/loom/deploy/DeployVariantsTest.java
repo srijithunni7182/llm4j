@@ -128,12 +128,12 @@ class DeployVariantsTest {
     }
 
     @Test
-    void noJournalMeansNoVolumeNoClaimAndNoMount() throws Exception {
+    void noJournalMeansNoVolumeAndNoClaimOnlyScratchSpace() throws Exception {
         Map<String, String> f = render("k8s", true, "none", "none", null);
         assertThat(f).doesNotContainKey("k8s/pvc.yaml");
         assertThat(f.get("k8s/deployment.yaml"))
-                .doesNotContain("claimName")
-                .doesNotContain("mountPath: /data");
+                .doesNotContain("claimName: my-app-data")
+                .contains("mountPath: /data"); // scratch space on a read-only root
         Map<String, String> c = render("compose", false, "none", "none", null);
         assertThat(c.get("compose.yaml")).doesNotContain("volumes:");
     }
@@ -149,12 +149,15 @@ class DeployVariantsTest {
 
     @Test
     void theDockerignoreKeepsSecretsAndHistoryOutOfTheImage() throws Exception {
-        String ignore = render("docker", false, "volume", "none", null).get(".dockerignore");
+        String ignore =
+                render("docker", false, "volume", "none", null).get("Dockerfile.dockerignore");
         assertThat(ignore)
                 .contains(".git\n")
                 .contains(".env\n")
                 .contains("!.env.example")
-                .contains("deploy/")
+                .contains("deploy/*")
+                .contains("!deploy/weave.jar")
+                .contains("!deploy/entrypoint.sh")
                 .contains("loom-inspect-outbox/");
     }
 
@@ -179,5 +182,109 @@ class DeployVariantsTest {
                 .contains("ENV LOOM_STORE=/data")
                 .contains("chmod 0555");
         assertThat(f.get("entrypoint.sh")).contains("mkdir -p /data/triggers");
+    }
+
+    @Test
+    void theDockerignoreIsTheOneBuildKitReadsAndKeepsWhatTheDockerfileCopies() throws Exception {
+        Map<String, String> f = render("compose", true, "volume", "none", null);
+        assertThat(f).containsKey("Dockerfile.dockerignore").doesNotContainKey(".dockerignore");
+        String ignore = f.get("Dockerfile.dockerignore");
+        // COPY deploy/weave.jar and deploy/entrypoint.sh must survive; deploy/ itself must not be
+        // dropped whole
+        assertThat(ignore)
+                .doesNotContain("\ndeploy/\n")
+                .contains("deploy/*\n!deploy/weave.jar\n!deploy/entrypoint.sh");
+        assertThat(f.get("Dockerfile"))
+                .contains("COPY deploy/weave.jar")
+                .contains("COPY deploy/entrypoint.sh");
+    }
+
+    @Test
+    void fabricCanBeReachedFromTheHostBecauseItIsNotOnlyOnAnInternalNetwork() throws Exception {
+        String c = render("compose", true, "volume", "none", null).get("compose.yaml");
+        String fabric = c.substring(c.indexOf("  fabric:\n"), c.lastIndexOf("\nvolumes:"));
+        assertThat(fabric).contains("127.0.0.1:9090:9090").contains("- internal\n      - default");
+    }
+
+    @Test
+    void noJournalOrADatabaseStillLeavesAWritableDataFolderOnAReadOnlyRoot() throws Exception {
+        for (String journal : new String[] {"none", "jdbc:postgresql://db/loom"}) {
+            String c = render("compose", false, journal, "none", null).get("compose.yaml");
+            assertThat(c)
+                    .as(journal)
+                    .contains("- /data:uid=10001,gid=10001")
+                    .contains("read_only: true");
+            assertThat(c.indexOf("tmpfs:")).isEqualTo(c.lastIndexOf("tmpfs:"));
+            Map<String, String> k = render("k8s", true, journal, "none", null);
+            assertThat(k.get("k8s/deployment.yaml"))
+                    .as(journal)
+                    .contains("mountPath: /data")
+                    .contains("name: data\n          emptyDir: {}")
+                    .contains("fsGroup: 10001");
+            assertThat(k).doesNotContainKey("k8s/pvc.yaml");
+        }
+        assertThat(
+                        render("k8s", true, "jdbc:postgresql://db/loom", "none", null)
+                                .get("k8s/configmap.yaml"))
+                .contains("LOOM_JOURNAL_URL: \"jdbc:postgresql://db/loom\"");
+        assertThat(render("k8s", true, "none", "none", null).get("k8s/configmap.yaml"))
+                .doesNotContain("LOOM_JOURNAL_URL");
+    }
+
+    @Test
+    void fabricKeepsItsHistoryOnAClaimAndTheAppImageIsNotAlwaysPulled() throws Exception {
+        Map<String, String> k = render("k8s", true, "volume", "none", null);
+        String fabric = k.get("k8s/fabric.yaml");
+        assertThat(fabric)
+                .startsWith("# weave deploy")
+                .contains("kind: PersistentVolumeClaim")
+                .contains("name: my-app-fabric-data")
+                .contains("claimName: my-app-fabric-data")
+                .doesNotContain("name: fabric\n          emptyDir");
+        String d = k.get("k8s/deployment.yaml");
+        assertThat(d)
+                .contains("imagePullPolicy: IfNotPresent")
+                .doesNotContain(":latest")
+                .contains("name@sha256");
+    }
+
+    @Test
+    void theEntrypointNeverEvaluatesASecretFileName() throws Exception {
+        String e = render("compose", true, "volume", "none", null).get("entrypoint.sh");
+        assertThat(e)
+                .doesNotContain("eval ")
+                .contains("tr 'a-z-' 'A-Z_'")
+                .contains("''|[0-9]*|*[!A-Z0-9_]*)")
+                .contains("export \"$name=$(cat \"$f\")\"");
+    }
+
+    @Test
+    void theSecretLoopExportsGoodNamesSkipsBadOnesAndRunsNothing() throws Exception {
+        org.junit.jupiter.api.Assumptions.assumeTrue(Files.isExecutable(Path.of("/bin/sh")));
+        String e = render("compose", true, "volume", "none", null).get("entrypoint.sh");
+        String loop =
+                e.substring(
+                        e.indexOf("for f in /run/secrets/*"),
+                        e.indexOf("done\n", e.indexOf("for f in")) + 5);
+        Path secrets = Files.createDirectories(dir.resolve("secrets"));
+        Files.writeString(secrets.resolve("openai-api-key"), "k1");
+        Files.writeString(secrets.resolve("GEMINI_API_KEY"), "k2");
+        Files.writeString(secrets.resolve("a;touch pwned"), "x");
+        Files.writeString(secrets.resolve("1bad"), "x");
+        Path script = dir.resolve("loop.sh");
+        Files.writeString(
+                script,
+                "set -eu\n"
+                        + loop.replace("/run/secrets", secrets.toString())
+                        + "echo \"$OPENAI_API_KEY,$GEMINI_API_KEY\"\n");
+        Process p =
+                new ProcessBuilder("/bin/sh", script.toString())
+                        .directory(dir.toFile())
+                        .redirectErrorStream(true)
+                        .start();
+        String out = new String(p.getInputStream().readAllBytes());
+        assertThat(p.waitFor()).as(out).isZero();
+        assertThat(out).contains("k1,k2").contains("skipping the secret file");
+        assertThat(Files.exists(dir.resolve("pwned"))).isFalse();
     }
 }

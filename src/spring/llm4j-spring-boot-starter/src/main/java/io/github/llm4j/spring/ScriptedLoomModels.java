@@ -34,13 +34,44 @@ public final class ScriptedLoomModels implements LLMClientFactory {
         return n == null ? 0 : n.get();
     }
 
+    /** The system text of a request: its system message, else the first message. */
+    private static String systemText(LLMRequest request) {
+        String first = null;
+        for (var m : request.getMessages()) {
+            if (m.getContent() == null) continue;
+            if (first == null) first = m.getContent();
+            if (m.getRole() == io.github.llm4j.model.Message.Role.SYSTEM) return m.getContent();
+        }
+        return first == null ? "" : first;
+    }
+
+    /**
+     * Which agent is asking: the first scripted agent whose name appears in the system text as a
+     * word (an agent's prompt usually says "You are Triage."), else a catch-all scripted as {@code
+     * "*"}, else the name after "You are", else "agent". An agent nobody scripted answers {@code
+     * <Agent>#n}.
+     */
+    private String agentOf(LLMRequest request) {
+        String system = systemText(request);
+        for (String name : replies.keySet()) {
+            if (name.equals("*")) continue;
+            if (java.util.regex.Pattern.compile(
+                            "(?<![\\w-])" + java.util.regex.Pattern.quote(name) + "(?![\\w-])")
+                    .matcher(system)
+                    .find()) return name;
+        }
+        if (replies.containsKey("*")) return "*";
+        java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile("You are ([\\w-]+)\\.").matcher(system);
+        return m.find() ? m.group(1) : "agent";
+    }
+
     @Override
     public LLMClient createClient(String model) {
         return new LLMClient() {
             @Override
             public LLMResponse chat(LLMRequest request) {
-                String system = request.getMessages().get(0).getContent();
-                String agent = system.replaceAll("(?s).*?You are (\\w+)\\..*", "$1");
+                String agent = agentOf(request);
                 int n = calls.computeIfAbsent(agent, k -> new AtomicInteger()).incrementAndGet();
                 List<String> scripted = replies.getOrDefault(agent, new ArrayList<>());
                 String answer =

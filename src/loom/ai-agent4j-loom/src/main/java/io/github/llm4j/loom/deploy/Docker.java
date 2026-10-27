@@ -49,7 +49,10 @@ final class Docker {
     }
 
     static String dockerignore() {
-        return ".git\n.env\n.env.*\n!.env.example\ndeploy/\n**/target/\n**/node_modules/\nloom-inspect-outbox/\n*.log\n.loom-triggers/\n";
+        return ".git\n.env\n.env.*\n!.env.example\n"
+                + "# the build needs only these two files from deploy/\n"
+                + "deploy/*\n!deploy/weave.jar\n!deploy/entrypoint.sh\n"
+                + "**/target/\n**/node_modules/\nloom-inspect-outbox/\n*.log\n.loom-triggers/\n";
     }
 
     static String entrypoint(DeployPlan p, DeployOptions o) {
@@ -58,7 +61,14 @@ final class Docker {
         b.append(
                 "# Secrets arrive as environment variables, or as files under /run/secrets; nothing is baked into the image.\n");
         b.append(
-                "for f in /run/secrets/*; do\n  [ -f \"$f\" ] || continue\n  name=$(basename \"$f\" | tr 'a-z' 'A-Z')\n  eval \"export $name=\\$(cat \\\"$f\\\")\"\ndone\n");
+                "for f in /run/secrets/*; do\n"
+                        + "  [ -f \"$f\" ] || continue\n"
+                        + "  name=$(basename \"$f\" | tr 'a-z-' 'A-Z_')\n"
+                        + "  case \"$name\" in\n"
+                        + "    ''|[0-9]*|*[!A-Z0-9_]*) echo \"weave: skipping the secret file $f: its name is not a variable name\" >&2; continue;;\n"
+                        + "  esac\n"
+                        + "  export \"$name=$(cat \"$f\")\"\n"
+                        + "done\n");
         String observe = "";
         if (o.withFabric())
             observe =

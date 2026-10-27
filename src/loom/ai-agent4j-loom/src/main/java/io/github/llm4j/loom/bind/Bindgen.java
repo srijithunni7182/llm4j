@@ -23,9 +23,109 @@ public final class Bindgen {
 
     public static final String VERSION = "1";
 
+    /**
+     * The options every call has, so a parameter with one of these names gets a trailing
+     * underscore.
+     */
+    private static final java.util.Set<String> CALL_OPTIONS =
+            java.util.Set.of("runId", "label", "origin", "invoker", "run");
+
+    /** The builder method for a workflow parameter. */
+    static String callMethod(String parameter) {
+        String m = Naming.member(parameter);
+        return CALL_OPTIONS.contains(m) ? m + "_" : m;
+    }
+
+    /** Text as the inside of a Java string literal. */
+    static String esc(String s) {
+        StringBuilder b = new StringBuilder();
+        for (char c : s.toCharArray())
+            switch (c) {
+                case '"' -> b.append("\\\"");
+                case '\\' -> b.append("\\\\");
+                case '\n' -> b.append("\\n");
+                case '\r' -> b.append("\\r");
+                case '\t' -> b.append("\\t");
+                default -> {
+                    if (c < 0x20 || c > 0x7e) b.append(String.format("\\u%04x", (int) c));
+                    else b.append(c);
+                }
+            }
+        return b.toString();
+    }
+
+    /** Names that would be generated twice make Java that does not compile: refuse, naming them. */
+    private static void unique(
+            String what,
+            java.util.Collection<String> generated,
+            java.util.Collection<String> from) {
+        java.util.Map<String, String> seen = new java.util.HashMap<>();
+        java.util.Iterator<String> g = generated.iterator();
+        java.util.Iterator<String> f = from.iterator();
+        while (g.hasNext() && f.hasNext()) {
+            String name = g.next();
+            String source = f.next();
+            String earlier = seen.put(name, source);
+            if (earlier != null)
+                throw new IllegalArgumentException(
+                        what
+                                + " \""
+                                + earlier
+                                + "\" and \""
+                                + source
+                                + "\" both become `"
+                                + name
+                                + "` in Java; rename one in the script.");
+        }
+    }
+
+    private static void check(LoomScript script, Map<String, SchemaInfer.Shape> shapes) {
+        List<String> wf = script.getWorkflows().stream().map(WorkflowDef::getName).toList();
+        unique("the workflows", wf.stream().map(Bindgen::methodName).toList(), wf);
+        unique("the workflows", wf.stream().map(Naming::type).toList(), wf);
+        List<String> types = new ArrayList<>(List.of("Impl", "Outcome"));
+        for (WorkflowDef w : script.getWorkflows()) {
+            unique(
+                    "the parameters of " + w.getName(),
+                    w.getParameters().stream().map(Bindgen::callMethod).toList(),
+                    w.getParameters());
+            unique(
+                    "the parameters of " + w.getName(),
+                    w.getParameters().stream().map(Naming::member).toList(),
+                    w.getParameters());
+            List<String> fields =
+                    shapes.get(w.getName()).fields().stream().map(SchemaInfer.Field::name).toList();
+            unique(
+                    "the returned fields of " + w.getName(),
+                    fields.stream().map(Naming::member).toList(),
+                    fields);
+            types.add(Naming.type(w.getName()) + "Result");
+            types.add(Naming.type(w.getName()) + "Call");
+            for (SchemaInfer.Field f : shapes.get(w.getName()).fields())
+                if (f.type().kind() == SchemaInfer.Type.Kind.ENUM) {
+                    unique(
+                            "the choices of " + f.type().enumName(),
+                            f.type().labels().stream().map(Naming::constant).toList(),
+                            f.type().labels());
+                }
+        }
+        java.util.Set<String> enums = new java.util.LinkedHashSet<>();
+        shapes.values()
+                .forEach(
+                        sh ->
+                                sh.fields().stream()
+                                        .filter(f -> f.type().kind() == SchemaInfer.Type.Kind.ENUM)
+                                        .forEach(f -> enums.add(f.type().enumName())));
+        List<String> all = new ArrayList<>(types);
+        all.addAll(enums);
+        unique("the generated types", all, all);
+    }
+
     /** The Java method name bindings give a workflow, so other readers of a script agree. */
     public static String methodName(String workflow) {
-        return Naming.member(workflow);
+        String m = Naming.member(workflow);
+        // the facade has `answer(...)` and `of(host)` of its own
+        return m.equals("answer") || m.equals("of") ? m + "_" : m;
     }
 
     public enum Nullability {
@@ -143,9 +243,9 @@ public final class Bindgen {
                                 + w.getName()
                                 + " returns no object: its result record is empty; read the final context with variables()");
         }
+        check(script, shapes);
         StringBuilder b = new StringBuilder(header(source, hash));
         b.append("package ").append(pkg).append(";\n\n");
-        b.append("import io.github.llm4j.loom.host.AnswerResult;\n");
         b.append("import io.github.llm4j.loom.host.LoomHost;\n");
         b.append("import io.github.llm4j.loom.host.RunOutcome;\n");
         b.append("import io.github.llm4j.loom.host.RunRequest;\n");
@@ -156,7 +256,7 @@ public final class Bindgen {
         b.append("public interface ").append(name).append(" {\n\n");
 
         for (WorkflowDef w : workflows) {
-            String m = Naming.member(w.getName());
+            String m = methodName(w.getName());
             String t = Naming.type(w.getName());
             b.append("    /** workflow ")
                     .append(w.getName())
@@ -179,7 +279,7 @@ public final class Bindgen {
         }
         b.append("    /** Gives a run waiting for a person its answer. */\n");
         b.append(
-                "    AnswerResult answer(String runId, String stepId, String text, String by);\n\n");
+                "    io.github.llm4j.loom.host.AnswerResult answer(String runId, String stepId, String text, String by);\n\n");
         b.append("    static ").append(name).append(" of(LoomHost host) {\n");
         b.append("        return new Impl(host);\n    }\n\n");
 
@@ -203,7 +303,8 @@ public final class Bindgen {
                 "    /** A choice of the classifier; UNSURE is what the runtime produces when it is not sure. */\n");
         b.append("    enum ").append(e.enumName()).append(" {\n");
         List<String> consts = new ArrayList<>();
-        for (String l : e.labels()) consts.add("        " + Naming.constant(l) + "(\"" + l + "\")");
+        for (String l : e.labels())
+            consts.add("        " + Naming.constant(l) + "(\"" + esc(l) + "\")");
         b.append(String.join(",\n", consts)).append(";\n\n");
         b.append("        private final String label;\n\n");
         b.append("        ")
@@ -274,14 +375,14 @@ public final class Bindgen {
                 .append(t)
                 .append("Result>> runner) {\n            this.runner = runner;\n        }\n\n");
         for (String p : w.getParameters()) {
-            String m = Naming.member(p);
+            String m = callMethod(p);
             b.append("        public ")
                     .append(t)
                     .append("Call ")
                     .append(m)
                     .append("(String value) {\n");
             b.append("            if (value != null) inputs.put(\"")
-                    .append(p)
+                    .append(esc(p))
                     .append("\", value);\n            return this;\n        }\n\n");
         }
         b.append("        public ")
@@ -302,7 +403,7 @@ public final class Bindgen {
                         "Call invoker(InvokerCredentials credentials) {\n            this.invoker = credentials;\n            return this;\n        }\n\n");
         b.append("        public Outcome<").append(t).append("Result> run() {\n");
         b.append("            return runner.apply(new RunRequest(\"")
-                .append(w.getName())
+                .append(esc(w.getName()))
                 .append("\", inputs, runId, label, origin, invoker));\n        }\n    }\n\n");
     }
 
@@ -317,7 +418,7 @@ public final class Bindgen {
         b.append(
                 "        Impl(LoomHost host) {\n            this.host = java.util.Objects.requireNonNull(host, \"host\");\n        }\n\n");
         for (WorkflowDef w : workflows) {
-            String m = Naming.member(w.getName());
+            String m = methodName(w.getName());
             String t = Naming.type(w.getName());
             b.append("        @Override\n        public Outcome<")
                     .append(t)
@@ -329,7 +430,7 @@ public final class Bindgen {
             b.append("            return ").append(m).append("Call()");
             for (String p : w.getParameters())
                 b.append('.')
-                        .append(Naming.member(p))
+                        .append(callMethod(p))
                         .append('(')
                         .append(Naming.member(p))
                         .append(')');
@@ -354,7 +455,7 @@ public final class Bindgen {
                     .append("(host.resume(runId, null));\n        }\n\n");
         }
         b.append(
-                "        @Override\n        public AnswerResult answer(String runId, String stepId, String text, String by) {\n            return host.answer(runId, stepId, text, by);\n        }\n\n");
+                "        @Override\n        public io.github.llm4j.loom.host.AnswerResult answer(String runId, String stepId, String text, String by) {\n            return host.answer(runId, stepId, text, by);\n        }\n\n");
         for (WorkflowDef w : workflows) wrapSource(b, w, shapes.get(w.getName()), nullability);
         b.append(HELPERS);
         b.append("    }\n");
@@ -396,7 +497,7 @@ public final class Bindgen {
         b.append("            Map<?, ?> m = result instanceof Map<?, ?> x ? x : Map.of();\n");
         List<String> args = new ArrayList<>();
         for (SchemaInfer.Field f : s.fields()) {
-            String v = convert(f.type(), "m.get(\"" + f.name() + "\")");
+            String v = convert(f.type(), "m.get(\"" + esc(f.name()) + "\")");
             args.add(
                     f.nullable() && nullability == Nullability.OPTIONAL
                             ? "Optional.ofNullable(" + v + ")"
