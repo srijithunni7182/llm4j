@@ -1,0 +1,12 @@
+## DESCRIPTION
+Turns a real run from the run store into a test case: the answers it got are scripted in, so the case reproduces what production did with no model. Personal data and secrets are masked first. The case is marked observed until a person approves it with --approve. The tool never writes into a source repository you did not point it at, and never deletes captured text.
+## EXAMPLES
+(run ids come from `weave capture --list`)
+weave capture --list                             the runs that could be captured
+weave capture <run-id> --dry-run                 show the masked case, write nothing
+weave capture <run-id> --name late-refund --mask-term "Priya"
+weave capture --approve tests/captured/late-refund.test.yaml     after reading it
+## EXIT STATUS
+0 done. 1 usage. 2 could not (refused, or the case would not hold). 3 a different file is already there.
+## SEE ALSO
+weave man test, weave man regress, wiki page "From an Incident to a Regression Test"

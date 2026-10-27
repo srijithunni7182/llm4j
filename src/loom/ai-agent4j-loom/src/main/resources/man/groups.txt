@@ -1,0 +1,14 @@
+# The order a person meets the commands in. A command not named here is listed under "Other",
+# and ManPageTest fails until it is placed.
+Start here: try doctor init next guide man
+Describe it and build it: generate
+Understand and check a script: check explain graph symbols review audit rules
+Test and evaluate: test eval gate
+Run it: run step package resume
+Watch a run and ask why: observe why whatif timeline
+Answer people and fix a run: questions answer rewind reset fork replay
+From production back to tests: capture regress
+Triggers and schedules: tick daemon triggers schedule
+Decisions that earn autonomy: autonomy ladder
+Ship it: bindgen deploy secrets
+Editors and debuggers: serve dap

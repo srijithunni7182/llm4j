@@ -1,0 +1,8 @@
+## EXAMPLES
+weave gate                               the checks your team chose, one verdict
+weave gate main.loom --require test,review    a skipped stage is a failure
+weave gate --base-ref origin/main        compare with the base of a pull request
+## EXIT STATUS
+0 passed. 1 failed. 2 could not run (a bad option or configuration).
+## SEE ALSO
+weave man check, weave man review, weave man test, weave man regress, weave man eval

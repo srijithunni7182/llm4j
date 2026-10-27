@@ -1,0 +1,11 @@
+## DESCRIPTION
+Runs a workflow that ships inside the jar on demo models whose replies are pre-written, so it needs no key and no network and writes nothing. It explains each step as it goes. Use it to see what Loom does before you write anything.
+## EXAMPLES
+weave try                      the support-triage demo, with pauses
+weave try --list               the scenarios and what each shows
+weave try flaky --fast         a step that fails and is retried, without pauses
+weave try triage --keep demo   leave the project in ./demo to open and edit
+## EXIT STATUS
+0 the scenario ran. 2 unknown scenario or bad option.
+## SEE ALSO
+weave man doctor, weave man init, weave man next

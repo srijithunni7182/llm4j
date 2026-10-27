@@ -70,6 +70,10 @@ public final class Guide {
                             "Cost and model choice: suggest models from evidence, estimate and cap the cost",
                             "guide/16-cost-and-model-choice.md"),
                     new Page(
+                            "agents",
+                            "Instructions for a coding agent: look things up, the loop, the rules",
+                            "guide/AGENT_INSTRUCTIONS.md"),
+                    new Page(
                             "recipes",
                             "Recipes: change the starter to do what you want",
                             "guide/RECIPES.md"),
@@ -330,5 +334,84 @@ public final class Guide {
             written.add("references/" + name);
         }
         return written;
+    }
+
+    // ---- instructions for coding agents that do not read .claude/skills
+
+    /** The coding agents whose own instruction files can be written. */
+    public enum Agent {
+        /**
+         * The cross-agent file (Codex, Copilot's agent mode, Gemini, Cursor and others read it).
+         */
+        AGENTS("AGENTS.md", "AGENTS.md"),
+        COPILOT("copilot", ".github/copilot-instructions.md"),
+        CURSOR("cursor", ".cursor/rules/loom.mdc");
+
+        final String flag;
+        final String file;
+
+        Agent(String flag, String file) {
+            this.flag = flag;
+            this.file = file;
+        }
+
+        public String file() {
+            return file;
+        }
+
+        /** The name given to {@code --for}. */
+        public String flag() {
+            return flag.equals("AGENTS.md") ? "agents" : flag;
+        }
+    }
+
+    static final String BEGIN =
+            "<!-- loom:begin (written by weave guide --install-skill; edit outside this block) -->";
+    static final String END = "<!-- loom:end -->";
+
+    /** What was done with one file. */
+    public record Written(Agent agent, Path file, String what) {}
+
+    /**
+     * Writes the instructions for a coding agent into its own file under {@code project}. The text
+     * sits between two marker lines, so what a person wrote in the same file stays: a file that has
+     * no block gets one appended; a block that is already there is left alone unless {@code force}
+     * replaces it (and only it).
+     */
+    public static Written installAgentInstructions(Path project, Agent agent, boolean force)
+            throws IOException {
+        String body =
+                read("guide/AGENT_INSTRUCTIONS.md")
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "this jar has no guide/AGENT_INSTRUCTIONS.md (a broken jar?)"));
+        String block = BEGIN + "\n" + body.strip() + "\n" + END + "\n";
+        Path file = project.resolve(agent.file());
+        Files.createDirectories(file.getParent());
+        String existing =
+                Files.isRegularFile(file) ? Files.readString(file, StandardCharsets.UTF_8) : null;
+        if (existing == null) {
+            String head =
+                    agent == Agent.CURSOR
+                            ? "---\ndescription: How to build, test and ship Loom workflows with weave\nglobs: \"**/*.loom,**/*.test.yaml,**/tools.loot\"\nalwaysApply: false\n---\n\n"
+                            : "";
+            Files.writeString(file, head + block, StandardCharsets.UTF_8);
+            return new Written(agent, file, "created");
+        }
+        int from = existing.indexOf(BEGIN);
+        int to = existing.indexOf(END);
+        if (from < 0 || to < from) {
+            String sep = existing.endsWith("\n\n") ? "" : existing.endsWith("\n") ? "\n" : "\n\n";
+            Files.writeString(file, existing + sep + block, StandardCharsets.UTF_8);
+            return new Written(agent, file, "added to the end");
+        }
+        if (!force) return new Written(agent, file, "already there");
+        String replaced =
+                existing.substring(0, from)
+                        + block
+                        + existing.substring(to + END.length()).replaceFirst("^\\R", "");
+        Files.writeString(file, replaced, StandardCharsets.UTF_8);
+        return new Written(agent, file, "replaced");
     }
 }

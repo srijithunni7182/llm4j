@@ -1,0 +1,7 @@
+## EXAMPLES
+weave eval main.loom --init          create eval/golden/ with a starter dataset
+weave eval main.loom --check         validate the dataset; calls no model
+weave eval main.loom --mock          run it with mock models; costs nothing
+weave eval main.loom --max-cost 0.50 --prices prices.txt     against real models, capped
+## SEE ALSO
+weave man test, weave man capture

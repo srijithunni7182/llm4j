@@ -1,0 +1,11 @@
+## DESCRIPTION
+Reads the script, never runs it. Findings are ranked, each with why it matters and what to do; some come with a fix the tool can apply (--fix, --dry-run first). Advisory by default: it exits 1 only when you give --fail-on.
+## EXAMPLES
+weave review main.loom
+weave review main.loom --fail-on high         exit 1 on a high finding, for CI
+weave review main.loom --fix --dry-run        show the safe fixes as a diff
+weave review main.loom --explain LA01         what a rule means
+## EXIT STATUS
+0 unless --fail-on (or --dry-run with fixes pending) says otherwise. 2 it could not run.
+## SEE ALSO
+weave man audit, weave man rules, weave man check

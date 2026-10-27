@@ -1,0 +1,5 @@
+## EXAMPLES
+weave next            what to do next in this folder
+weave next support/   for another project
+## SEE ALSO
+weave man doctor, weave man gate

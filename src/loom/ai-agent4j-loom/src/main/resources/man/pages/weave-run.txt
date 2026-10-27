@@ -1,0 +1,9 @@
+## EXAMPLES
+weave run main.loom
+weave run main.loom --observe                   a live page of the run on localhost
+weave run main.loom --max-cost 1.00 --prices prices.txt
+weave run main.loom --journal runs/             make the run durable: it can pause, resume, be explained or captured
+## EXIT STATUS
+0 done. 1 failed. 2 bad options. 3 stopped by a budget. 4 paused (waiting for a person or a time). 5 stopped where it was told to.
+## SEE ALSO
+weave man why, weave man resume, weave man capture

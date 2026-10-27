@@ -1,0 +1,7 @@
+## EXAMPLES
+weave init --list                  the templates
+weave init pipeline support        a pipeline project in ./support
+weave init approval refunds        a project with a person's approval step
+weave init classifier triage       a project built round a classifier
+## SEE ALSO
+weave man generate (a project from a description), weave man next

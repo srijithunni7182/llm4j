@@ -1,0 +1,8 @@
+## EXAMPLES
+weave regress main.loom --since 7d     try a changed script on past runs (store: .loom-triggers by default; --store DIR)
+weave regress main.loom --prompt Replier=prompts/replier-v2.md      try a changed prompt
+weave regress main.loom --model Replier=claude-haiku-5-5 --fail-on flip-unsafe     try another model
+## EXIT STATUS
+0 nothing at or above --fail-on. 1 a failing condition (default: a changed outcome that is unsafe). 2 could not run.
+## SEE ALSO
+weave man capture, weave man gate

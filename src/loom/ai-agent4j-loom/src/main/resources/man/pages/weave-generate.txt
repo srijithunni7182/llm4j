@@ -1,0 +1,14 @@
+## DESCRIPTION
+Describe a workflow in your own words. generate asks at most five questions (with defaults, skip them with --no-ask), writes a plan (PLAN.md and plan.json) and shows it, then writes the project: the script, a prompt file for each agent, a tool mapping if needed, tests, a golden-dataset stub and a README. The project is moved into place only when it has passed five gates: G1 check, G2 review (no high finding after the safe fixes), G3 tests, G4 coverage of the script's steps by those tests, and G5 the script matches the plan. A failing gate is fed back to the model with the line and the reason, for at most six tries per gate and twelve in all.
+The tests are mostly written by the tool: tests/derived.test.yaml runs the script with scripted models down every classifier label, every enum answer, every failing step and every value its conditions compare with, and records the routes. The model writes only the cases the plan lists; one that does not hold is listed in tests/LEFT_OUT.md instead of being repaired. Nothing here calls a model during the tests.
+## EXAMPLES
+weave generate "Triage support emails; send refunds over 100 dollars to a person" --model gpt-6-luna
+weave generate "..." --plan-model claude-sonnet-5-5 --model gpt-6-luna     a stronger model plans, a cheap one writes
+weave generate "..." --plan-only                                         only the plan, to read and edit
+weave generate --from-plan support/plan.json --model gpt-6-luna          build from an edited plan
+weave generate --edit support/main.loom "Also escalate legal threats"    a change, shown as a diff; add --apply to write it
+weave generate --gate-only support/                                      run the five gates on any project
+## EXIT STATUS
+0 done. 1 usage. 2 could not run (no model, no key, a file in the way). 3 a gate or the plan did not pass (nothing is written; --keep-failing leaves <out>.draft). 4 the spend cap (--max-cost, needs --prices; --max-tokens) was reached.
+## SEE ALSO
+weave man check, weave man review, weave man test, weave man eval, wiki page "Generating a Workflow"

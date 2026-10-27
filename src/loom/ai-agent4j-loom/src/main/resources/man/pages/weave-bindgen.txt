@@ -1,0 +1,7 @@
+## EXAMPLES
+weave bindgen main.loom --package com.acme.support --out src/main/java
+weave bindgen main.loom --package com.acme.support --out src/main/java --check     CI: fail when out of date
+## EXIT STATUS
+0 done (or up to date). 1 with --check, the files differ from what would be written. 2 could not run.
+## SEE ALSO
+weave man deploy, wiki page "Typed Workflows in Java and Deploying"

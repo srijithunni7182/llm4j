@@ -1,0 +1,6 @@
+## EXAMPLES
+weave man                       every command, by what you are doing
+weave man generate              one page
+weave man observe flush         a command under a command
+weave man --all > weave.txt     everything, to read or search
+weave man --all --format markdown > docs/COMMAND_REFERENCE.md
