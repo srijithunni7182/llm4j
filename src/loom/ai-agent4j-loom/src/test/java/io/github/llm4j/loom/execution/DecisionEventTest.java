@@ -59,7 +59,16 @@ class DecisionEventTest {
                         new MockModels());
         List<String> trace = new ArrayList<>();
         executor.addTraceListener(
-                e -> trace.add(e.type() + "|" + e.agent() + "|" + e.step() + "|" + e.text()));
+                e ->
+                        trace.add(
+                                e.type()
+                                        + "|"
+                                        + e.agent()
+                                        + "|"
+                                        + e.step()
+                                        + "|"
+                                        // wall-clock durations differ between two runs
+                                        + e.text().replaceAll("\\b\\d+ ms\\b", "N ms")));
         List<DecisionPoint> decisions = new ArrayList<>();
         if (extra != null)
             executor.setDecisionListener(
