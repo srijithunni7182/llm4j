@@ -25,7 +25,7 @@ public final class Workspace implements AutoCloseable {
 
     private Workspace(Path dir, List<String> files, boolean owned, Path script) {
         this.dir = dir;
-        this.files = List.copyOf(files);
+        this.files = new ArrayList<>(files);
         this.owned = owned;
         this.script = script;
     }
@@ -49,7 +49,17 @@ public final class Workspace implements AutoCloseable {
 
     /** Every file, relative to the project folder, in the layout the project has. */
     public List<String> files() {
-        return files;
+        return java.util.Collections.unmodifiableList(files);
+    }
+
+    /** A file the tool wrote into the folder itself, so a commit takes it along. */
+    synchronized void register(String relative) {
+        if (!files.contains(relative)) files.add(relative);
+    }
+
+    /** A file the tool removed from the folder. */
+    synchronized void unregister(String relative) {
+        files.remove(relative);
     }
 
     /** The script, wherever the layout put it. */

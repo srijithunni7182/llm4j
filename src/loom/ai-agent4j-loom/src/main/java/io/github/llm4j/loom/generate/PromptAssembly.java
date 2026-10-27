@@ -39,7 +39,7 @@ public final class PromptAssembly {
             - never list unsure as a classifier label; `confidence at least 0.8 else escalate` makes the answer unsure by itself;
             - write one statement per line; never put several statements, or a whole delegate with its settings, on one line;
             - the model of every agent and classifier is one the plan lists; do not use another;
-            Write tests/main.test.yaml with the cases the plan lists (scripted models; see the example), covering every branch and every limit.
+            The tool writes tests/derived.test.yaml itself (it runs your script down every classifier label, every enum answer and every failing step and records the routes). You write tests/main.test.yaml with ONLY the cases the plan lists, each saying what must hold (scripted models; see the example). A case of yours that does not hold is not repaired: it is left out and reported to the developer, so keep each one short and certain.
             A case whose run ends any way but completed says so with expect: { final: failed } (the values are completed, which is also what a return gives, failed, suspended, stopped, budget and halted, nothing else); a failed step is injected with fail: { Agent: { always: true, category: server_error } }; the first line of a test file is script: main.loom (the generator corrects the path).
             Test file format, exactly (invent no other key; quote every text that holds a colon, brackets or a $):
               script: main.loom / workflow: Main / cases: - name: "text" / input: { param: "text" }

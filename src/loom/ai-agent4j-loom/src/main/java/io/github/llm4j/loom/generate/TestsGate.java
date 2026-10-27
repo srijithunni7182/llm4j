@@ -18,6 +18,15 @@ public final class TestsGate {
 
     /** G3: there are tests, they fit the script, and every case passes. */
     public static Gate passing() {
+        return passing(false);
+    }
+
+    /**
+     * G3 for a project being generated: the tool writes the tests that reach every branch itself
+     * ({@link TestSynth}) and takes the model's cases that do not hold out of the way ({@link
+     * DerivedTests}).
+     */
+    public static Gate passing(boolean derive) {
         return new Gate() {
             @Override
             public String id() {
@@ -26,7 +35,7 @@ public final class TestsGate {
 
             @Override
             public GateResult run(Workspace ws, Plan plan) {
-                return result(ws, "G3", "tests", 0);
+                return result(ws, "G3", "tests", 0, derive);
             }
         };
     }
@@ -35,6 +44,11 @@ public final class TestsGate {
      * G4: the cases that pass between them reach at least {@code percent} of the script's steps.
      */
     public static Gate coverage(int percent) {
+        return coverage(percent, false);
+    }
+
+    /** G4, after the tool-made tests are in the project (see {@link #passing(boolean)}). */
+    public static Gate coverage(int percent, boolean derive) {
         return new Gate() {
             @Override
             public String id() {
@@ -43,14 +57,17 @@ public final class TestsGate {
 
             @Override
             public GateResult run(Workspace ws, Plan plan) {
-                return result(ws, "G4", "coverage", percent);
+                return result(ws, "G4", "coverage", percent, derive);
             }
         };
     }
 
-    private static GateResult result(Workspace ws, String id, String name, int percent) {
+    private static GateResult result(
+            Workspace ws, String id, String name, int percent, boolean derive) {
         List<GateResult.Problem> out = new ArrayList<>();
         try {
+            // G3 puts the tool-made file in; G4 runs after it on the same project
+            if (derive && (id.equals("G3") || !DerivedTests.present(ws))) DerivedTests.refresh(ws);
             List<Path> files = ws.testFiles();
             if (files.isEmpty()) {
                 out.add(

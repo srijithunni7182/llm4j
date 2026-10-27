@@ -1,0 +1,28 @@
+agent Drafter { model: "m" system: "Write a reply." output_schema: { reply: string, tone: enum["calm", "angry"] } }
+intentclassifier Kind {
+    model: "m"
+    choose kind: refund | status
+    confidence at least 0.8 else escalate
+}
+
+workflow Main(ticket, region) {
+    alt (region == "EU") {
+        human_prompt "Reply exactly approved to continue." -> gate
+        alt (gate == "approved") {
+            intentclassify Kind on ticket -> k
+            alt (k.kind == "refund") {
+                delegate "Draft a refund reply for {ticket}" to Drafter -> draft
+                alt (draft.tone == "angry") {
+                    halt "Angry refund requests go to a person."
+                }
+                return draft.reply
+            } else {
+                return "status"
+            }
+        } else {
+            halt "Not approved."
+        }
+    } else {
+        halt "Region not served."
+    }
+}

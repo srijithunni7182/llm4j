@@ -415,16 +415,21 @@ class GenerateBuildTest {
                         dir.resolve("tfix").toString(),
                         "--flat");
         assertThat(o.code()).as(o.out() + o.err()).isZero();
-        assertThat(model.asked.get(3))
-                .contains("Gate G3 (tests) failed")
-                .contains("case \"approved reply is sent\" failed");
-        // only the test file was sent again; the script stayed as it was
-        assertThat(model.calls()).isEqualTo(4);
-        assertThat(o.out()).contains("✓ G3 tests").contains("✓ G4 coverage").contains("2 attempts");
+        // the case of the model that does not hold is not repaired: it is left out and reported
+        assertThat(model.calls()).isEqualTo(3);
+        assertThat(o.out())
+                .contains("✓ G3 tests")
+                .contains("✓ G4 coverage")
+                .contains("left out")
+                .contains("LEFT_OUT.md");
+        String note = java.nio.file.Files.readString(dir.resolve("tfix/tests/LEFT_OUT.md"));
+        assertThat(note).contains("approved reply is sent");
+        assertThat(java.nio.file.Files.exists(dir.resolve("tfix/tests/derived.test.yaml")))
+                .isTrue();
     }
 
     @Test
-    void tooLittleCoverageIsFedBackAsTheStepsNotReached() throws Exception {
+    void thinTestsFromTheModelAreMadeUpByTheToolsOwnCases() throws Exception {
         Map<String, String> thin = modelFiles();
         thin.put(
                 "tests/main.test.yaml",
@@ -453,9 +458,33 @@ class GenerateBuildTest {
                         dir.resolve("cov").toString(),
                         "--flat");
         assertThat(o.code()).as(o.out() + o.err()).isZero();
-        assertThat(model.asked.get(3))
-                .contains("Gate G4 (coverage) failed")
-                .contains("not reached:");
+        // the tool's own cases reach the steps the model's did not: no second ask
+        assertThat(model.calls()).isEqualTo(3);
+        assertThat(java.nio.file.Files.readString(dir.resolve("cov/tests/derived.test.yaml")))
+                .contains("Written by weave generate");
+    }
+
+    @Test
+    void aPlanModelAsksTheQuestionsAndWritesThePlanAndTheModelWritesTheFiles() throws Exception {
+        var strong =
+                new io.github.llm4j.loom.generate.ScriptedModel(
+                        n -> n == 0 ? "[]" : PlanJson.write(GenerateFixtures.plan()), 100);
+        var cheap = new io.github.llm4j.loom.generate.ScriptedModel(n -> files(modelFiles()), 100);
+        var o =
+                GenerateCommandTest.generate(
+                        m -> m.equals("strong") ? strong : cheap,
+                        "x",
+                        "--model",
+                        "cheap",
+                        "--plan-model",
+                        "strong",
+                        "--out",
+                        dir.resolve("pair").toString(),
+                        "--flat");
+        assertThat(o.code()).as(o.out() + o.err()).isZero();
+        // the interview and the plan are the strong model's; the files are the cheap model's
+        assertThat(strong.calls()).isEqualTo(2);
+        assertThat(cheap.calls()).isEqualTo(1);
     }
 
     @Test
