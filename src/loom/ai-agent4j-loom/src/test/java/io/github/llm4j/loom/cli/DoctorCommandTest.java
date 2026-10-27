@@ -94,7 +94,8 @@ class DoctorCommandTest {
         assertThat(ok.out() + ok.err())
                 .doesNotContain(secret)
                 .doesNotContain("AIza")
-                .doesNotContain(String.valueOf(secret.length()));
+                // a whole number only: the temp-dir name in the Store line is random digits
+                .doesNotContainPattern("\\b" + secret.length() + "\\b");
     }
 
     @Test
