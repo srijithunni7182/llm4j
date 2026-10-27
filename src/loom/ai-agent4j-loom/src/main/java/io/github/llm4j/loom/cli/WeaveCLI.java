@@ -1556,6 +1556,13 @@ public class WeaveCLI implements Callable<Integer> {
     private static final java.util.Set<String> PROGRESS =
             java.util.Set.of("run", "resume", "tick", "daemon");
 
+    /**
+     * Commands that load the script again for every case: the loader's warnings (they are the
+     * check's and the review's to report) would be printed once for each case.
+     */
+    private static final java.util.Set<String> ONCE_IS_ENOUGH =
+            java.util.Set.of("test", "regress", "gate", "capture");
+
     private static int executeQuietly(CommandLine.ParseResult parseResult) {
         java.util.logging.Logger loom = java.util.logging.Logger.getLogger("io.github.llm4j.loom");
         java.util.logging.Level before = loom.getLevel();
@@ -1565,8 +1572,12 @@ public class WeaveCLI implements Callable<Integer> {
                 !PROGRESS.contains(command) && !"info".equalsIgnoreCase(System.getenv("WEAVE_LOG"));
         if (quiet)
             loom.setLevel(
-                    java.util.logging.Level
-                            .WARNING); // "Loading Loom script" on every command buried the answers;
+                    ONCE_IS_ENOUGH.contains(command)
+                                    && !"warn".equalsIgnoreCase(System.getenv("WEAVE_LOG"))
+                            ? java.util.logging.Level.OFF
+                            : java.util.logging.Level
+                                    .WARNING); // "Loading Loom script" on every command buried the
+        // answers;
         // WEAVE_LOG=info brings them back
         try {
             return new CommandLine.RunLast().execute(parseResult);

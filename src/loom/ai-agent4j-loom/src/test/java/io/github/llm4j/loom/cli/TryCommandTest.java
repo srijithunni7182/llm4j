@@ -239,4 +239,17 @@ class TryCommandTest {
             l.setLevel(before);
         }
     }
+
+    @org.junit.jupiter.api.Test
+    void aStepIsNarratedOnceNotOncePerEventItLeft() {
+        var lines =
+                java.util.Arrays.stream(run("--fast").out().split("\\R"))
+                        .filter(l -> l.matches("^\\d+\\. .*"))
+                        .map(l -> l.replaceFirst("^\\d+\\. ", ""))
+                        .toList();
+        assertThat(lines).isNotEmpty();
+        assertThat(lines.stream().distinct().count())
+                .as(String.join("\n", lines))
+                .isEqualTo(lines.size());
+    }
 }

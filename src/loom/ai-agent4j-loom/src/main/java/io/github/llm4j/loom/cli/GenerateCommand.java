@@ -570,9 +570,9 @@ final class GenerateCommand implements Callable<Integer> {
                                 f ->
                                         env.out()
                                                 .println(
-                                                        "! Some test cases the plan listed do not hold for the script and were left out; read "
+                                                        "! Some of what the model wrote was left out (a test case that does not hold, or a dataset file eval4j cannot read); read "
                                                                 + f
-                                                                + " and decide which is wrong, the case or the script."));
+                                                                + " and decide what to do about each."));
                 return 0;
             }
             env.out()

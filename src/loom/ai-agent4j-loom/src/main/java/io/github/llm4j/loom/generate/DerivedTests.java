@@ -60,6 +60,7 @@ final class DerivedTests {
             if (f.getFileName().toString().equals(DERIVED)) continue;
             leftOut.addAll(sort(ws, script, f));
         }
+        leftOut.addAll(unreadableDatasets(ws, script));
         Path note = testsDir.resolve(LEFT_OUT);
         if (leftOut.isEmpty()) {
             if (Files.deleteIfExists(note)) ws.unregister(rel(ws, note));
@@ -68,6 +69,32 @@ final class DerivedTests {
             ws.register(rel(ws, note));
         }
         return new Done(derived, leftOut);
+    }
+
+    /**
+     * A dataset file the model wrote that eval4j cannot read (a map where a list of scenarios is
+     * expected) is taken out: {@code weave eval} refuses a whole dataset for one bad file, and the
+     * generator's own stub is there to be filled in.
+     */
+    private static List<String> unreadableDatasets(Workspace ws, Path script) throws IOException {
+        List<String> out = new ArrayList<>();
+        Path golden = io.github.llm4j.loom.init.ProjectLayout.dataset(script);
+        if (!Files.isDirectory(golden)) return out;
+        for (var problem : io.github.llm4j.loom.eval.UnreadableDatasets.in(golden)) {
+            Path file = golden.resolve(problem.file());
+            if (!Files.isRegularFile(file)) continue;
+            Files.delete(file);
+            ws.unregister(rel(ws, file));
+            out.add(
+                    "eval/golden/"
+                            + problem.file()
+                            + ": left out, eval4j cannot read it ("
+                            + (problem.message().contains("Cannot deserialize")
+                                    ? "a map where a list of scenarios is expected"
+                                    : problem.message())
+                            + "); weave eval --init adds a starter file for each agent");
+        }
+        return out;
     }
 
     /** Keeps the cases of one model-written file that hold; returns what was taken out. */
@@ -128,10 +155,10 @@ final class DerivedTests {
     private static String noteText(List<String> leftOut) {
         StringBuilder sb =
                 new StringBuilder(
-                        "# Test cases left out\n\n"
-                                + "`weave generate` wrote these cases from the plan, but the script does not do what they say, "
-                                + "so they are not run. Each is either a mistake in the case or a place where the script "
-                                + "does not follow the plan: read them and decide which.\n\n");
+                        "# Left out\n\n"
+                                + "`weave generate` wrote these from the plan, but they do not stand: a test case the script does not "
+                                + "satisfy is not run, and a dataset file eval4j cannot read is removed. A test case is either a mistake "
+                                + "in the case or a place where the script does not follow the plan: read it and decide which.\n\n");
         for (String l : leftOut) sb.append("- ").append(l.replace("\n", " ")).append('\n');
         return sb.toString();
     }
