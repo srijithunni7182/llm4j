@@ -495,8 +495,8 @@ final class GenerateCommand implements Callable<Integer> {
                 List.of(
                         new CheckGate(checker(env)),
                         new ReviewGate(GenerateReview.reviewer(env), soft),
-                        TestsGate.passing(),
-                        TestsGate.coverage(c.coverage),
+                        TestsGate.passing(true),
+                        TestsGate.coverage(c.coverage, true),
                         new FidelityGate());
         Writer.Layout layout = c.flat ? Writer.Layout.FLAT : Writer.Layout.MAVEN;
         RepairLoop.Outcome outcome;
@@ -554,6 +554,16 @@ final class GenerateCommand implements Callable<Integer> {
                                         spend,
                                         outcome.attempts().size(),
                                         nextSteps(target, env)));
+                done.written().stream()
+                        .filter(f -> f.endsWith("tests/LEFT_OUT.md"))
+                        .findFirst()
+                        .ifPresent(
+                                f ->
+                                        env.out()
+                                                .println(
+                                                        "! Some test cases the plan listed do not hold for the script and were left out; read "
+                                                                + f
+                                                                + " and decide which is wrong, the case or the script."));
                 return 0;
             }
             env.out()
