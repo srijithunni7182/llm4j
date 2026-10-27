@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'fs';
 import * as path from 'path';
-import { protocolMismatch, protocolOf, terminalOptions } from '../src/welcome/welcome';
+import { protocolMismatch, protocolOf, shellKind, terminalCommand } from '../src/welcome/welcome';
 
 const root = path.join(__dirname, '..', '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
@@ -32,12 +32,19 @@ test('R20: a CLI that speaks another protocol than the bundled engine is named i
     assert.equal(protocolMismatch(bundled, 'weave 5.0.0'), undefined, 'an old CLI that prints no protocol is not a mismatch');
 });
 
-test('the terminal runs Java directly with the extension\'s own jar, so there is no shell quoting to get wrong', () => {
-    assert.deepEqual(terminalOptions('java', 'C:\\Program Files\\ext\\bin\\weave.jar', ['try', '--step'], 'Loom demo', '/ws'), {
-        name: 'Loom demo',
-        shellPath: 'java',
-        shellArgs: ['-jar', 'C:\\Program Files\\ext\\bin\\weave.jar', 'try', '--step'],
-        cwd: '/ws',
-    });
-    assert.equal('cwd' in terminalOptions('java', '/j.jar', ['doctor'], 'x'), false);
+test('the command is quoted for the shell the terminal runs, and typed into it so the output stays on screen', () => {
+    assert.equal(terminalCommand('java', '/ext/bin/weave.jar', ['try', '--step'], 'posix'), 'java -jar /ext/bin/weave.jar try --step');
+    assert.equal(terminalCommand('java', '/my ext/weave.jar', ['x$(y)'], 'posix'), 'java -jar "/my ext/weave.jar" "x\\$(y)"');
+    assert.equal(terminalCommand('java', 'C:\\Program Files\\ext\\weave.jar', ['try'], 'powershell'), "& 'java' '-jar' 'C:\\Program Files\\ext\\weave.jar' 'try'");
+    assert.equal(terminalCommand('java', "C:\\it's\\w.jar", ['doctor'], 'powershell'), "& 'java' '-jar' 'C:\\it''s\\w.jar' 'doctor'");
+    assert.equal(terminalCommand('java', 'C:\\Program Files\\ext\\weave.jar', ['try'], 'cmd'), 'java -jar "C:\\Program Files\\ext\\weave.jar" try');
+});
+
+test('the shell kind comes from the terminal shell path', () => {
+    assert.equal(shellKind('/bin/bash', 'linux'), 'posix');
+    assert.equal(shellKind('C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe', 'win32'), 'powershell');
+    assert.equal(shellKind('C:\\Program Files\\PowerShell\\7\\pwsh.exe', 'win32'), 'powershell');
+    assert.equal(shellKind('C:\\Windows\\System32\\cmd.exe', 'win32'), 'cmd');
+    assert.equal(shellKind(undefined, 'win32'), 'powershell');
+    assert.equal(shellKind(undefined, 'darwin'), 'posix');
 });

@@ -14,10 +14,28 @@ export function protocolMismatch(bundled: string, onPath: string): string | unde
     return `The weave on your PATH speaks protocol ${b} but this extension's engine speaks ${a}. Update one so they match (weave --version shows it); the extension keeps using its own engine.`;
 }
 
+export type ShellKind = 'posix' | 'powershell' | 'cmd';
+
+/** Which quoting a terminal's shell needs, from the shell's path (vscode.env.shell). */
+export function shellKind(shellPath: string | undefined, platform: string): ShellKind {
+    const name = (shellPath ?? '').toLowerCase().replace(/\\/g, '/').split('/').pop() ?? '';
+    if (name.startsWith('pwsh') || name.startsWith('powershell')) return 'powershell';
+    if (name === 'cmd' || name === 'cmd.exe') return 'cmd';
+    return !shellPath && platform === 'win32' ? 'powershell' : 'posix';
+}
+
 /**
- * How a button starts Java in the integrated terminal: the executable and its arguments, with no
- * shell in between, so no quoting is needed (and none can be wrong for PowerShell, cmd or bash).
+ * The line a button types into the integrated terminal, quoted for that terminal's shell. It is typed
+ * into the user's shell, and not started as the terminal's own process, so the terminal stays open
+ * with its output when the command ends.
  */
-export function terminalOptions(javaPath: string, jarPath: string, args: string[], name: string, cwd?: string): { name: string; shellPath: string; shellArgs: string[]; cwd?: string } {
-    return { name, shellPath: javaPath, shellArgs: ['-jar', jarPath, ...args], ...(cwd ? { cwd } : {}) };
+export function terminalCommand(javaPath: string, jarPath: string, args: string[], kind: ShellKind): string {
+    const plain = /^[A-Za-z0-9_\/.:\\-]+$/;
+    const q = (s: string): string => {
+        if (kind === 'powershell') return `'${s.replace(/'/g, "''")}'`;
+        if (kind === 'cmd') return plain.test(s) ? s : `"${s.replace(/"/g, '')}"`;
+        return plain.test(s) ? s : `"${s.replace(/(["\\$`])/g, '\\$1')}"`;
+    };
+    const line = [javaPath, '-jar', jarPath, ...args].map(q).join(' ');
+    return kind === 'powershell' ? `& ${line}` : line;
 }
