@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-label="llm4j: the one stop shop for rapid development of enterprise ready autonomous agentic workflows">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/><stop offset="0.55" stop-color="#1b1147"/><stop offset="1" stop-color="#0a3b52"/>
+    </linearGradient>
+    <linearGradient id="hot" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff7a59"/><stop offset="0.5" stop-color="#ffb23e"/><stop offset="1" stop-color="#ffe45e"/>
+    </linearGradient>
+    <linearGradient id="cool" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7c5cff"/><stop offset="0.5" stop-color="#2fb8ff"/><stop offset="1" stop-color="#31e1b0"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="0.15" cy="0.2" r="0.6"><stop offset="0" stop-color="#7c5cff" stop-opacity="0.55"/><stop offset="1" stop-color="#7c5cff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glow2" cx="0.9" cy="0.9" r="0.6"><stop offset="0" stop-color="#31e1b0" stop-opacity="0.4"/><stop offset="1" stop-color="#31e1b0" stop-opacity="0"/></radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="0.6"/></filter>
+  </defs>
+  <rect width="1280" height="400" rx="22" fill="url(#bg)"/>
+  <rect width="1280" height="400" rx="22" fill="url(#glow1)"/>
+  <rect width="1280" height="400" rx="22" fill="url(#glow2)"/>
+  <!-- a small woven graph, the Loom mark: nodes and edges -->
+  <g stroke="#ffffff" stroke-opacity="0.18" stroke-width="2" fill="none">
+    <path d="M980 70 L1090 120 L1000 200 L1130 250 L1040 330"/><path d="M1090 120 L1190 90"/><path d="M1000 200 L900 260 L1040 330"/><path d="M1130 250 L1210 330"/>
+  </g>
+  <g>
+    <circle cx="980" cy="70" r="11" fill="#7c5cff"/><circle cx="1090" cy="120" r="14" fill="#2fb8ff"/><circle cx="1190" cy="90" r="9" fill="#31e1b0"/>
+    <circle cx="1000" cy="200" r="13" fill="#ffb23e"/><circle cx="1130" cy="250" r="16" fill="#ff7a59"/><circle cx="900" cy="260" r="9" fill="#31e1b0"/>
+    <circle cx="1040" cy="330" r="12" fill="#7c5cff"/><circle cx="1210" cy="330" r="9" fill="#2fb8ff"/>
+  </g>
+  <text x="64" y="92" font-family="Inter,Segoe UI,Helvetica,Arial,sans-serif" font-size="24" font-weight="700" letter-spacing="6" fill="#9fb4ff">LLM4J  ·  AI-AGENT4J  ·  LOOM  ·  EVAL4J  ·  FABRIC</text>
+  <text x="64" y="176" font-family="Inter,Segoe UI,Helvetica,Arial,sans-serif" font-size="66" font-weight="800" fill="#ffffff">The one stop shop for</text>
+  <text x="64" y="252" font-family="Inter,Segoe UI,Helvetica,Arial,sans-serif" font-size="66" font-weight="800" fill="url(#hot)">rapid development of</text>
+  <text x="64" y="328" font-family="Inter,Segoe UI,Helvetica,Arial,sans-serif" font-size="66" font-weight="800" fill="url(#cool)">enterprise ready autonomous</text>
+  <text x="64" y="376" font-family="Inter,Segoe UI,Helvetica,Arial,sans-serif" font-size="40" font-weight="700" fill="url(#cool)">agentic workflows.</text>
+</svg>

@@ -20,12 +20,55 @@
   <a href="src/ai-agent4j/wiki/Getting-Started.md">Get started</a> ·
   <a href="docs/THE_STACK.md">The stack</a> ·
   <a href="docs/EXAMPLES.md">Examples</a> ·
+  <a href="DEVELOPER_GUIDE.md"><b>Developer guide</b></a> ·
+  <a href="docs/COMMAND_REFERENCE.md">Command reference</a> ·
   <a href="docs/README.md">Docs</a> ·
   <a href="docs/ABOUT.md">About</a> ·
   <a href="src/ai-agent4j/wiki/WHY_AI_AGENT4J.md">Why ai-agent4j?</a> ·
   <a href="src/loom/ai-agent4j-loom/WHY_LOOM.md">Why Loom?</a> ·
   <a href="SECURITY.md"><b>Security</b></a>
 </p>
+
+<p align="center">
+  <a href="DEVELOPER_GUIDE.md"><img src="docs/images/developer-guide/hero.svg" width="100%" alt="The one stop shop for rapid development of enterprise ready autonomous agentic workflows"></a>
+</p>
+
+<p align="center">
+  <a href="DEVELOPER_GUIDE.md"><img alt="Read the developer guide" src="https://img.shields.io/badge/%E2%96%B6%20Developer%20guide-from%20a%20sentence%20to%20a%20deployed%2C%20watched%20workflow-2ea44f?style=for-the-badge"></a>
+</p>
+
+## 💬 Say what you want. Watch it get built, tested, reviewed, watched and shipped.
+
+```
+jbang weave@srijithunni7182/llm4j try        # ⚡ Java 17, one line, no key, no account
+weave generate "Turn meeting notes into action items and post them to a team webhook after a person approves."
+```
+
+<p align="center">
+  <a href="DEVELOPER_GUIDE.md"><img src="docs/images/developer-guide/graph-meeting-dark.png" width="49%" alt="The graph of a generated workflow in VS Code"></a>
+  <a href="DEVELOPER_GUIDE.md"><img src="docs/images/developer-guide/review-meeting-dark.png" width="49%" alt="The review panel beside the graph"></a>
+</p>
+
+<p align="center">
+  <a href="DEVELOPER_GUIDE.md"><img src="docs/images/developer-guide/stack.svg" width="100%" alt="The whole stack: where you work, Loom, ai-agent4j, eval4j, Fabric, security, building blocks"></a>
+</p>
+
+| | |
+|---|---|
+| ✍️ **Describe it** | A sentence in. A **plan you read first**, then a project that has passed five gates before it lands in your folder. |
+| 👀 **See it** | A live graph in VS Code, and the whole thing in plain English: `weave explain`. |
+| 🛡️ **Have it reviewed** | Security, cost, reliability, prompts: ranked, offline, free, with the fix. The ☠️ *lethal trifecta* is found before an attacker finds it. |
+| 🧪 **Test it for free** | Scripted models, no key, no spend, milliseconds. The tool writes the tests that reach every branch. |
+| 📊 **Evaluate it** | Golden datasets, LLM judges under a spend cap, and an **eval4j** report you can open, compare and share. |
+| 🔭 **Watch it run** | A live page per run, a Fabric server for the fleet: cost, context, incidents, a time bar, and ⏸️ Pause / ⛔ Stop. |
+| 🔁 **Learn from production** | A bad run becomes a test (`capture`), a change is tried on real history (`regress`), CI gets one verdict (`gate`). |
+| 🚢 **Ship it** | Docker, compose or Kubernetes written from the script. Typed Java and Spring beans for the workflow. |
+| 🏢 **Enterprise ready** | Approvals, budgets, audit trail, PII masking, secrets, an OWASP audit, crash-safe runs that last days. |
+| 🤝 **Bring your coding agent** | One click teaches Claude Code, Copilot, Cursor or any `AGENTS.md` agent to build with Loom, and to look commands up instead of guessing. |
+
+**[🚀 Take the tour: the Developer guide →](DEVELOPER_GUIDE.md)** · [📖 Command reference](docs/COMMAND_REFERENCE.md) · [🧩 VS Code extension](src/loom/vscode-loom/README.md)
+
+---
 
 <p align="center">
   <a href="src/ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md"><img src="docs/images/xai_banner.svg" alt="The most complete explainable-AI toolkit for Java agents: traceability, confidence and escalation, PII privacy, fairness" width="100%"></a>

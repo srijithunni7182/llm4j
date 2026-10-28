@@ -81,6 +81,25 @@ class GenerateBenchmarkTest {
                                         assertThat(o.code()).as(o.out()).isZero();
                                         assertThat(out.resolve("main.loom")).isRegularFile();
                                         assertThat(out.resolve("plan.json")).isRegularFile();
+                                        // the dataset a project is given can be read by weave eval
+                                        assertThat(
+                                                        io
+                                                                .github
+                                                                .llm4j
+                                                                .eval
+                                                                .dataset
+                                                                .EvalDataset
+                                                                .load(out.resolve("eval/golden"))
+                                                                .problems()
+                                                                .stream()
+                                                                .filter(
+                                                                        io.github.llm4j.eval.dataset
+                                                                                        .EvalDataset
+                                                                                        .Problem
+                                                                                ::fatal)
+                                                                .toList())
+                                                .as(id + " dataset")
+                                                .isEmpty();
                                         // R10, A3: the safe defaults hold in every project...
                                         assertThat(Structure.defaults(out.resolve("main.loom")))
                                                 .as(id + " safe defaults")

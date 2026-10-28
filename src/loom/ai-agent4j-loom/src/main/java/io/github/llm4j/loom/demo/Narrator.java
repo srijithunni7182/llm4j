@@ -38,7 +38,9 @@ public final class Narrator {
             RunJournal.Entry e = r.journal().get(ev.step());
             DecisionPoint d = ev.decision();
             Line line = line(ev.step(), st, e, d);
-            if (line != null) out.add(line);
+            // a step can leave two events (the step and the decision it took): say it once
+            if (line != null && (out.isEmpty() || !out.get(out.size() - 1).equals(line)))
+                out.add(line);
         }
         return out;
     }

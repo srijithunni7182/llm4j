@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-label="The llm4j stack: build, orchestrate, test, watch, ship">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1226"/><stop offset="1" stop-color="#141a35"/></linearGradient>
+    <linearGradient id="a" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#9b7bff"/></linearGradient>
+    <linearGradient id="b" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1b8bff"/><stop offset="1" stop-color="#2fd0ff"/></linearGradient>
+    <linearGradient id="c" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#14b88a"/><stop offset="1" stop-color="#3fe6b0"/></linearGradient>
+    <linearGradient id="d" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff7a59"/><stop offset="1" stop-color="#ffb23e"/></linearGradient>
+    <linearGradient id="e" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e44f9b"/><stop offset="1" stop-color="#ff7ac0"/></linearGradient>
+    <style>
+      .t{font-family:Inter,'Segoe UI',Helvetica,Arial,sans-serif;fill:#fff}
+      .h{font-size:25px;font-weight:800}.s{font-size:16px;font-weight:500;fill:#eaf0ff;opacity:.95}.k{font-size:13px;font-weight:700;letter-spacing:3px;fill:#9fb4ff}
+    </style>
+  </defs>
+  <rect width="1280" height="640" rx="22" fill="url(#bg)"/>
+  <text class="t k" x="48" y="46">THE WHOLE STACK, ONE EXPERIENCE</text>
+
+  <!-- top: where you work -->
+  <rect x="48" y="64" width="1184" height="86" rx="16" fill="url(#e)"/>
+  <text class="t h" x="72" y="100">Where you work</text>
+  <text class="t s" x="72" y="130">VS Code extension  ·  weave CLI (one command per job)  ·  your coding agent (Claude Code, Copilot, Cursor, AGENTS.md)  ·  weave man</text>
+
+  <!-- loom -->
+  <rect x="48" y="166" width="580" height="150" rx="16" fill="url(#a)"/>
+  <text class="t h" x="72" y="202">Loom: workflows that run for days</text>
+  <text class="t s" x="72" y="232">A small language: journaled and resumable, budgeted, scheduled,</text>
+  <text class="t s" x="72" y="256">human approvals, retries and handlers, earned autonomy,</text>
+  <text class="t s" x="72" y="280">steer / stop / supervise. Generated from a sentence.</text>
+
+  <!-- ai-agent4j -->
+  <rect x="652" y="166" width="580" height="150" rx="16" fill="url(#b)"/>
+  <text class="t h" x="676" y="202">ai-agent4j: agents as ordinary Java</text>
+  <text class="t s" x="676" y="232">ReAct agents, tools, skills, memory, RAG, budgets, one contract</text>
+  <text class="t s" x="676" y="256">over Gemini, Claude, OpenAI, xAI, Perplexity, Kimi, Qwen,</text>
+  <text class="t s" x="676" y="280">Sarvam, Ollama and any OpenAI-style server. No vendor SDKs.</text>
+
+  <!-- three equal -->
+  <rect x="48" y="332" width="384" height="132" rx="16" fill="url(#c)"/>
+  <text class="t h" x="72" y="368">eval4j: know it works</text>
+  <text class="t s" x="72" y="396">AssertJ for agents, LLM judges, golden</text>
+  <text class="t s" x="72" y="418">datasets, a report you open and share,</text>
+  <text class="t s" x="72" y="440">prompt A/B and an optimizer.</text>
+
+  <rect x="448" y="332" width="384" height="132" rx="16" fill="url(#d)"/>
+  <text class="t h" x="472" y="368">Fabric: watch it live</text>
+  <text class="t s" x="472" y="396">Cost, context windows, incidents, injection</text>
+  <text class="t s" x="472" y="418">and trifecta signals, a time bar, and</text>
+  <text class="t s" x="472" y="440">Pause / Suspend / Stop. One page or a fleet.</text>
+
+  <rect x="848" y="332" width="384" height="132" rx="16" fill="url(#e)"/>
+  <text class="t h" x="872" y="368">Secure by construction</text>
+  <text class="t s" x="872" y="396">Approvals, budgets, journaled effects,</text>
+  <text class="t s" x="872" y="418">PII masking, secrets, weave audit mapped</text>
+  <text class="t s" x="872" y="440">to the OWASP Top 10 for LLM apps.</text>
+
+  <!-- bottom: building blocks -->
+  <rect x="48" y="480" width="1184" height="112" rx="16" fill="#1d2547" stroke="#33407a"/>
+  <text class="t k" x="72" y="508">BUILDING BLOCKS YOU PLUG IN</text>
+  <text class="t s" x="72" y="538">Engram memory  ·  Addons: local ONNX embeddings, pgvector, Pinecone  ·  Tools: webhook, email, http, file, shell, read-only SQL</text>
+  <text class="t s" x="72" y="564">MCP servers and OpenAPI as tools  ·  Classification  ·  Spring Boot starter  ·  Docker, compose and Kubernetes from the script</text>
+  <text class="t k" x="48" y="624" fill="#6f7db8">DESCRIBE  ·  BUILD  ·  REVIEW  ·  TEST  ·  EVALUATE  ·  WATCH  ·  LEARN  ·  SHIP</text>
+</svg>
