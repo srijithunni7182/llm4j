@@ -2331,6 +2331,8 @@ workflow Digest(topic) {
 
 Nothing in the script says *how* the person is reached, so the same script runs at a console on your laptop and from a chat on a small server.
 
+At a console, the question is read from the terminal. When there is no terminal to read from (standard input is closed: a pipe, a scheduler, `< /dev/null`), the run ends with exit code 1 and says so, with the question and the way out, instead of failing with a stack trace: give it a `--store` and a channel (below) so it pauses and is answered later.
+
 Setup, once (Telegram; five minutes):
 
 1. In Telegram, message **@BotFather**, send `/newbot`, and keep the token it gives you.

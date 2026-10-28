@@ -1,6 +1,7 @@
 package io.github.llm4j.loom.cli;
 
 import io.github.llm4j.loom.execution.InterventionCommands;
+import io.github.llm4j.loom.runtime.NoHumanAvailable;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,6 +10,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The one reader of the console while a run can be steered from it ({@code --steer-via console}). A
@@ -18,12 +20,15 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 final class ConsoleInput {
 
+    private static final long CLOSED_CHECK_MILLIS = 100;
+
     private static ConsoleInput active;
 
     private final BlockingQueue<String> answers = new LinkedBlockingQueue<>();
     private final PrintStream out;
     private final InterventionCommands commands;
     private volatile boolean asking;
+    private volatile boolean closed;
 
     private ConsoleInput(PrintStream out, InterventionCommands commands) {
         this.out = out;
@@ -55,13 +60,26 @@ final class ConsoleInput {
      * The next line a person types as an answer; commands typed meanwhile are still carried out.
      */
     static String answer() {
+        return answer("");
+    }
+
+    /**
+     * As {@link #answer()}, naming the question so that a console that closes can say what it was.
+     */
+    static String answer(String question) {
         ConsoleInput router;
         synchronized (ConsoleInput.class) {
             router = active;
         }
         router.asking = true;
         try {
-            return router.answers.take();
+            // the console may close while a question is open: stop waiting for a line that cannot
+            // come
+            while (true) {
+                String line = router.answers.poll(CLOSED_CHECK_MILLIS, TimeUnit.MILLISECONDS);
+                if (line != null) return line;
+                if (router.closed && router.answers.isEmpty()) throw new NoHumanAvailable(question);
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("interrupted while waiting for an answer", e);
@@ -87,6 +105,8 @@ final class ConsoleInput {
             }
         } catch (IOException e) {
             // the console closed: nothing more can be typed
+        } finally {
+            closed = true;
         }
     }
 }
