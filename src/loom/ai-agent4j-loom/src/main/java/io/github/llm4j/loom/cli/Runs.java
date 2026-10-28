@@ -264,7 +264,7 @@ final class Runs {
             env.err().println("   The question was: " + nobody.question());
             env.err()
                     .println(
-                            "   Run it in a terminal, or add --journal DIR --store DIR --ask-via telegram|command so it pauses and can be answered later (weave questions, weave answer).");
+                            "   Run it in a terminal, or add --journal DIR --store DIR --ask-via CHANNEL so it pauses and can be answered later (weave questions, weave answer).");
             return new Result(1, null, null, nobody.getMessage());
         } catch (Exception e) {
             env.err().println("❌ Execution failed: " + e.getMessage());
