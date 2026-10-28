@@ -41,6 +41,47 @@ LangChain 1.4.7: the built-in limit middleware are `ModelCallLimitMiddleware(thr
 weave test probes/budget/loom/main.loom
 ```
 
-## Not yet probed
+## P3 and P7. A router, tested with no model: how much to write, how long it takes
 
-Router tests without a model (lines and time), failure injection without waiting, an approval that survives a restart, the static lethal-trifecta finding, and what each stack shows about a run without a paid service.
+The same router on both stacks: classify a message (order status, refund or other); an order question goes to a reply agent, anything else to an agent that summarises for a person. Fake models only. `router-tests/`.
+
+| | Loom | LangGraph (1.2.18) |
+|---|---|---|
+| The workflow | 18 lines (`main.loom`, including the agent and classifier declarations) | 32 lines (`router.py`) |
+| Tests written by hand, 3 branches | 21 lines (`tests/router.test.yaml`), 3 cases | 27 lines (`test_router.py`), 3 cases |
+| Tests written by the tool | `TestSynth` wrote 4 cases (the plain path, each classifier label, each agent failing), **0 lines by hand** | none |
+| Run time | 157 ms for 3 cases (1.0 s with JVM start) | 0.34 s for 3 tests (1.9 s with Python start) |
+| Step coverage | **6 of 6 steps, reported** by `weave test --coverage` | not part of the framework (a line-coverage plugin could be added) |
+
+## P4. A retry with a 2-second backoff: can it be tested without waiting?
+
+`retry-tests/`. A model call fails twice (a timeout), then answers; the workflow retries twice with a 2-second backoff.
+
+- **Loom:** the real `retry 2 backoff 2s` is tested with the failure injected (`fail: { Replier: { times: 2, category: timeout } }`) on a virtual clock: two cases (retry succeeds; retries run out and the handler takes over) finished in **about 100 ms**.
+- **LangChain 1.4.7:** `ModelRetryMiddleware(max_retries=2, initial_delay=2.0, backoff_factor=2.0)` on a fake model that fails twice took **6.01 s** of real time (the 2 s and 4 s waits). With `initial_delay=0` it is instant, but then the configuration under test is not the one you ship.
+
+## P5. An approval, then the process ends, then the answer
+
+`approval-restart/`. A person must approve before a send; the first process ends while the question is open; a later process supplies the answer.
+
+| | Loom | LangGraph (1.2.18, SQLite checkpointer) |
+|---|---|---|
+| Survives the restart | Yes: the run pauses (exit code 4), a later process records the answer, the run carries on | Yes: `interrupt()` returns the question to the caller, a later process resumes the thread with `Command(resume="yes")` |
+| Sends | 1; a second `weave tick` sends nothing more | 1; resuming a finished thread again sends nothing more |
+| How the question reaches the person | built in: a channel (a command that receives each question as one line of JSON, or Telegram) with a code, `weave questions` and `weave answer` | the question is returned to your code; delivering it and routing the answer back is yours to build |
+
+This one is a draw on survival and sends; the difference is the delivery.
+
+## P6. The lethal trifecta, found before the run
+
+`trifecta/`. One agent that reads the web, reads a folder of customer files and can send mail.
+
+- **Loom:** `weave audit main.loom` reports `HIGH LA01 One agent holds the lethal trifecta with an open way out` (mapped to OWASP LLM01, LLM02 and LLM06), names the three tools, adds no-budget and unapproved-effect findings, and exits 1.
+- **LangChain 1.4.7, LangGraph 1.2.18, langchain-core 1.7.0 (the installed packages):** we searched them for any analysis of this kind and found none (the only hits were a comment in the shell tool about exfiltration and graph-drawing notes about static analysis of declared writes). Run-time protections do exist there (for example the PII middleware); a static review of the agent before it runs was not found.
+
+## P8. What each stack shows about a finished run, with no account
+
+`run-visibility/`. The same two-step flow ran to the end on both.
+
+- **Loom:** `weave timeline` (a row per step with its generation, kind, state, tokens and cost), `weave why` (each step's result in words), `weave graph --format mermaid`, all offline; with a model, `--observe` adds a live page with cost, context and incidents, and Fabric shows many runs, both free and self-hosted.
+- **LangGraph:** `get_state_history` (one snapshot per step with the state values and the next node) and `get_graph().draw_mermaid()`. Per-step tokens, cost and latency are not in that history; they come from the model's usage metadata or from LangSmith tracing (which needs an account).

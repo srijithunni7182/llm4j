@@ -1,0 +1,21 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: an order question is answered by the reply agent
+    input: { message: "Where is my parcel?" }
+    models:
+      Intent: { kind: order_status }
+      Replier: "It ships tomorrow."
+    expect: { result: "It ships tomorrow.", calls: { Replier: 1, Escalator: 0 } }
+  - name: a refund request goes to a person
+    input: { message: "I want my money back." }
+    models:
+      Intent: { kind: refund }
+      Escalator: "Customer wants a refund."
+    expect: { result: "Customer wants a refund.", calls: { Replier: 0, Escalator: 1 } }
+  - name: anything else goes to a person
+    input: { message: "Hello" }
+    models:
+      Intent: { kind: other }
+      Escalator: "Customer said hello."
+    expect: { result: "Customer said hello.", calls: { Replier: 0, Escalator: 1 } }

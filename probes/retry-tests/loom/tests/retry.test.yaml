@@ -1,0 +1,13 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: the model times out twice, then answers
+    input: { message: "hi" }
+    models: { Replier: "hello" }
+    fail: { Replier: { times: 2, category: timeout } }
+    expect: { result: "hello", calls: { Replier: 3 } }
+  - name: the model keeps timing out, so a person gets it
+    input: { message: "hi" }
+    models: { Replier: "hello" }
+    fail: { Replier: { always: true, category: timeout } }
+    expect: { result: "handed to a person", calls: { Replier: 3 } }

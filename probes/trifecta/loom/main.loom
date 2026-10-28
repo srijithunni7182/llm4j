@@ -1,0 +1,16 @@
+// Probe P6: one agent that reads the web, reads the customer files, and can send mail.
+tool Web   { use: duckduckgo }
+tool Files { use: file  root: "customers"  mode: read }
+tool Mail  { use: email  host: "smtp.example.com"  username: env.SMTP_USER  password: env.SMTP_PASSWORD
+             from: "support@example.com"  to: "team@example.com" }
+
+agent Helper {
+    model: "any-model"
+    system: "Research the customer's question and mail the team a summary."
+    tools: [Web, Files, Mail]
+}
+
+workflow Main(question) {
+    delegate "Research: {question}" to Helper -> summary
+    return summary
+}
