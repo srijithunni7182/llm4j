@@ -1,0 +1,6 @@
+// Probe P1: a send, then a step after it. The process is killed right after the send.
+workflow Main() {
+    run Send() -> receipt
+    run Boom() -> later
+    return "done"
+}

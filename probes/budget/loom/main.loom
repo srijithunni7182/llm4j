@@ -1,0 +1,9 @@
+// Probe P2: three questions to a model, with a budget of 1000 tokens. Each scripted answer reports 600 tokens.
+budget { tokens: 1000 }
+agent A { model: "any-model" system: "answer" }
+workflow Main() {
+    delegate "first question" to A -> a
+    delegate "second question" to A -> b
+    delegate "third question" to A -> c
+    return c
+}
