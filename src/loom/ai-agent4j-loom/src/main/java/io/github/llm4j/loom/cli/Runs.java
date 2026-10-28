@@ -257,6 +257,15 @@ final class Runs {
         } catch (io.github.llm4j.loom.runtime.RunHalted halted) {
             env.out().println("🛑 Halted by the workflow: " + halted.reason());
             return new Result(6, null, null, halted.reason());
+        } catch (io.github.llm4j.loom.runtime.NoHumanAvailable nobody) {
+            env.err()
+                    .println(
+                            "❌ The workflow needs a person, and nobody can answer: standard input is closed.");
+            env.err().println("   The question was: " + nobody.question());
+            env.err()
+                    .println(
+                            "   Run it in a terminal, or add --journal DIR --store DIR --ask-via CHANNEL so it pauses and can be answered later (weave questions, weave answer).");
+            return new Result(1, null, null, nobody.getMessage());
         } catch (Exception e) {
             env.err().println("❌ Execution failed: " + e.getMessage());
             e.printStackTrace(env.err());
