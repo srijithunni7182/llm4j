@@ -147,6 +147,27 @@ function terminalHtml(title, command, output, columns) {
     await page.close();
   }
 
+  // 7. the commands the extension adds, listed as the Command Palette lists them (drawn from the extension's manifest, not a screenshot of VS Code)
+  {
+    const manifest = JSON.parse(fs.readFileSync(path.join(ext, 'package.json'), 'utf8'));
+    const hidden = new Set(['loom.restartEngine', 'loom.showEngineLog', 'loom.javaHelp', 'loom.review.accept', 'loom.review.dismiss', 'loom.review.fixFinding', 'loom.review.explain', 'loom.review.restore', 'loom.review.baseline', 'loom.review.fixAll', 'loom.createPromptFile', 'loom.runWorkflow']);
+    const order = ['loom.try', 'loom.doctor', 'loom.openExample', 'loom.generate', 'loom.change', 'loom.showGraph', 'loom.review', 'loom.test', 'loom.eval', 'loom.debug', 'loom.observe', 'loom.deploy', 'loom.next', 'loom.commands', 'loom.openGuide', 'loom.installSkill'];
+    const titles = Object.fromEntries(manifest.contributes.commands.map((c) => [c.command, c.title]));
+    const icons = { 'loom.try': '👋', 'loom.doctor': '🩺', 'loom.openExample': '📂', 'loom.generate': '✍️', 'loom.change': '🔧', 'loom.showGraph': '👀', 'loom.review': '🛡️', 'loom.test': '🧪', 'loom.eval': '📊', 'loom.debug': '🐞', 'loom.observe': '🔭', 'loom.deploy': '🚢', 'loom.next': '🧭', 'loom.commands': '📖', 'loom.openGuide': '📚', 'loom.installSkill': '🤝' };
+    const rows = order.filter((id) => titles[id] && !hidden.has(id)).map((id, i) => `<div class="r${i === 0 ? ' on' : ''}"><span class="i">${icons[id] || ''}</span>${esc(titles[id].replace(/^Loom: /, ''))}<span class="k">Loom</span></div>`).join('');
+    const page = await (await browser.newContext({ viewport: { width: 760, height: 200 }, deviceScaleFactor: 2 })).newPage();
+    await page.setContent(`<!doctype html><meta charset="utf-8"><style>
+      body{margin:0;background:transparent;font-family:Inter,'Segoe UI',system-ui,sans-serif}
+      .p{width:680px;background:#252526;border:1px solid #454545;border-radius:8px;box-shadow:0 18px 50px rgba(0,0,0,.5);overflow:hidden;color:#ccc}
+      .q{margin:8px;padding:6px 10px;background:#3c3c3c;border:1px solid #007fd4;border-radius:3px;font-size:14px;color:#fff}
+      .r{display:flex;align-items:center;padding:5px 16px;font-size:14px;height:22px}.r.on{background:#04395e;color:#fff}
+      .i{width:30px;font-size:15px}.k{margin-left:auto;color:#8b8b8b;font-size:12px}
+    </style><div class="p"><div class="q">&gt; Loom</div>${rows}<div style="height:8px"></div></div>`);
+    await (await page.$('.p')).screenshot({ path: path.join(out, 'vscode-commands.png'), omitBackground: true });
+    await page.close();
+    console.log('wrote vscode-commands');
+  }
+
   await browser.close();
   fs.rmSync(work, { recursive: true, force: true });
 })();

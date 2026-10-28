@@ -39,8 +39,10 @@
 
 ## 💬 Say what you want. Watch it get built, tested, reviewed, watched and shipped.
 
+🧩 **In VS Code:** install the **Loom** extension (Java 17 is all it needs), open a folder, press `Ctrl/Cmd+Shift+P`, type **Loom**: *Try a Demo*, then *Generate Workflow...* and say what you want.
+
 ```
-jbang weave@srijithunni7182/llm4j try        # ⚡ Java 17, one line, no key, no account
+jbang weave@srijithunni7182/llm4j try        # ⌨️ or from a terminal: Java 17, one line, no key, no account
 weave generate "Turn meeting notes into action items and post them to a team webhook after a person approves."
 ```
 
@@ -64,7 +66,7 @@ weave generate "Turn meeting notes into action items and post them to a team web
 | 🔁 **Learn from production** | A bad run becomes a test (`capture`), a change is tried on real history (`regress`), CI gets one verdict (`gate`). |
 | 🚢 **Ship it** | Docker, compose or Kubernetes written from the script. Typed Java and Spring beans for the workflow. |
 | 🏢 **Enterprise ready** | Approvals, budgets, audit trail, PII masking, secrets, an OWASP audit, crash-safe runs that last days. |
-| 🤝 **Bring your coding agent** | One click teaches Claude Code, Copilot, Cursor or any `AGENTS.md` agent to build with Loom, and to look commands up instead of guessing. |
+| 🤝 **Bring your coding agent** | **Loom: Set Up My Coding Agent** teaches Claude Code, Copilot, Cursor or any `AGENTS.md` agent to build with Loom, and to look commands up instead of guessing. |
 
 **[🚀 Take the tour: the Developer guide →](DEVELOPER_GUIDE.md)** · [📖 Command reference](docs/COMMAND_REFERENCE.md) · [🧩 VS Code extension](src/loom/vscode-loom/README.md)
 

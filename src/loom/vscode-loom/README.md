@@ -92,6 +92,29 @@ When an agent's prompt is a markdown file (`prompt: "researcher"` or `prompt: "r
 
 Type a keyword in a `.loom` file and press Tab to get the whole statement with its blanks: `agent`, `agent-guard`, `delegate`, `delegate-expecting`, `loop`, `alt`, `alt-else`, `human-prompt`, `approval`, `run`, `call`, `workflow`, `budget`, `tool`, `tool-class`, `note`, `halt`, `set`, `return`, `isok`, `parallel`, `on-failure`, `import`, `agent-steerable`, `agent-grounded`, `on-stopped`, `intervention`, `supervise`, `intentclassifier`, `intentclassify`. Each one's description says the habit it encodes (a loop always has a `max`, variable names that are not ordinary words, prompts as files). A test types each snippet with its default values and checks the result with `weave`.
 
+## The whole journey, without leaving the editor
+
+Open the Command Palette and type **Loom**. The commands below run the same `weave` jar the extension already ships, so there is nothing else to install; the ones that run a command type it into an integrated terminal, where the output stays on screen.
+
+| Step | Command | What it does | Costs |
+|---|---|---|---|
+| Try | **Loom: Try a Demo**, **Loom: Open an Example Project** | A bundled workflow on demo models, explained step by step; or its project written into your folder | nothing |
+| Check | **Loom: Check My Setup** | Java, keys, the run store, with the one fix for each problem | nothing |
+| Describe | **Loom: Generate Workflow...** | A sentence in, a plan to read, then a project that passed five gates | a few cents |
+| Change | **Loom: Change Workflow...** | A change as a diff with the review and cost difference; nothing is written until you accept | a few cents |
+| See | **Loom: Show Workflow Graph** | The live graph (Outline, Focus, Flow) | nothing |
+| Review | **Loom: Review Workflow** | Findings beside the graph; fix, accept or dismiss each | nothing |
+| Test | **Loom: Run Tests** | `weave test --coverage`: scripted models, no keys, every step reached or listed | nothing |
+| Evaluate | **Loom: Evaluate Workflow...** | Choose: run with mock models, check the dataset, or create a starter dataset | nothing |
+| Debug | **Loom: Debug Workflow** (F5) | Step through, set breakpoints, see the variables; nothing has an effect | nothing |
+| Watch | **Loom: Run With Live Page...** | A real run with your keys, capped by `loom.observe.maxTokens` (default `50000` tokens), with the live page (cost, context, incidents, Pause and Stop). It asks first | tokens, capped |
+| Ship | **Loom: Write Deployment Files...** | Docker, Compose or Kubernetes files, read from the script; nothing is built or started | nothing |
+| Next | **Loom: What Should I Do Next?** | The next step for this project, in order | nothing |
+| Look up | **Loom: Show All Commands (weave man)**, **Loom: Open Guide** | Every `weave` command, grouped by what you are doing; the written guide | nothing |
+| Agent | **Loom: Set Up My Coding Agent** | Teaches Claude Code, Copilot, Cursor or any `AGENTS.md` agent to build with Loom | nothing |
+
+Turning a bad run into a test (`weave capture`), trying a change on past runs (`weave regress`) and the CI verdict (`weave gate`) are terminal commands; see the [command reference](../../../docs/COMMAND_REFERENCE.md).
+
 ## The guide and the agent skill
 
 **Loom: Open Guide** (Command Palette) shows a page of the written guide: where to start, the ten chapters, or the Loom reference. It comes from the `weave` jar inside this extension, so it works with no repository and no network.
@@ -189,6 +212,7 @@ A key that is not set yet (such as `GEMINI_API_KEY`) is not reported as a proble
 | `loom.generate.maxCost` | `0` | The most one generation may spend, in dollars (needs a price table; 0: the command's default) |
 | `loom.generate.maxTokens` | `0` | The most tokens one generation may use (0: the command's default) |
 | `loom.generate.prices` | `` | A price table so the cost limit can be counted in dollars |
+| `loom.observe.maxTokens` | `50000` | The most tokens a run started from Run With Live Page may use (it is a real run with your model keys) |
 | `loom.serve.memoryMb` | `64` | Memory the engine may use to keep answers it can reuse |
 | `loom.serve.timeoutMs` | `10000` | The longest the engine may take over one request; a slower one is marked stale |
 | `loom.semantic.enable` | `true` | Answer go to definition, references, rename, completion, hover, outline and signature help from the engine; off keeps only the older answers |

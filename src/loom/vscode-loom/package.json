@@ -179,6 +179,30 @@
       {
         "command": "loom.openExample",
         "title": "Loom: Open an Example Project"
+      },
+      {
+        "command": "loom.test",
+        "title": "Loom: Run Tests"
+      },
+      {
+        "command": "loom.eval",
+        "title": "Loom: Evaluate Workflow..."
+      },
+      {
+        "command": "loom.observe",
+        "title": "Loom: Run With Live Page..."
+      },
+      {
+        "command": "loom.deploy",
+        "title": "Loom: Write Deployment Files..."
+      },
+      {
+        "command": "loom.next",
+        "title": "Loom: What Should I Do Next?"
+      },
+      {
+        "command": "loom.commands",
+        "title": "Loom: Show All Commands (weave man)"
       }
     ],
     "breakpoints": [
@@ -365,6 +389,16 @@
           "command": "loom.showGraph",
           "when": "resourceLangId == loom",
           "group": "navigation"
+        },
+        {
+          "command": "loom.test",
+          "when": "resourceLangId == loom",
+          "group": "navigation"
+        },
+        {
+          "command": "loom.eval",
+          "when": "resourceLangId == loom",
+          "group": "navigation"
         }
       ]
     },
@@ -490,6 +524,12 @@
           "type": "boolean",
           "default": true,
           "description": "Redraw the workflow graph when the script or a file it imports is saved."
+        },
+        "loom.observe.maxTokens": {
+          "type": "number",
+          "default": 50000,
+          "minimum": 1000,
+          "description": "The most tokens a run started from Loom: Run With Live Page may use. It is a real run with your model keys; it stops when it reaches this."
         }
       }
     },
