@@ -26,17 +26,25 @@
 
 ---
 
-## ⚡ Try it in the next five minutes. No key. No account. Nothing to install but Java.
+## 🧩 Start in VS Code. Three steps.
 
-```
-jbang weave@srijithunni7182/llm4j try
-```
-
-One line, and a real workflow runs in front of you: a classifier routes a message, an agent answers, **Loom itself checks every branch** (no model decides it), a person is asked before anything goes out, and every step is explained in plain English as it happens. Cost: **$0**. Files written: **none**.
+1. **Install the Loom extension** (`srijithunni7182.vscode-loom`). It carries its own engine, so **Java 17 is all you need**: no CLI to install, no key, no account.
+2. **Open a folder.** In a folder with no workflow yet, the Loom view greets you with five buttons: 👋 *Try a demo* · ✍️ *Generate a workflow* · 📂 *Open an example* · 🩺 *Check my setup* · 🤝 *Set up my coding agent*.
+3. **Open the Command Palette** and type **Loom**. Everything in this guide is in that list.
 
 <p align="center">
-  <img src="docs/images/developer-guide/terminal-try.png" width="900" alt="weave try: a workflow runs on demo models and explains each step">
+  <img src="docs/images/developer-guide/vscode-commands.png" width="560" alt="The Loom commands in the VS Code Command Palette">
+  <br><sub>Everything the extension adds to the Command Palette, from the extension's manifest.</sub>
 </p>
+
+Click **👋 Try a demo** and a real workflow runs in front of you: a classifier routes a message, an agent answers, **Loom itself checks every branch** (no model decides it), a person is asked before anything goes out, and every step is explained in plain English as it happens. Cost: **$0**. Files written: **none**.
+
+<p align="center">
+  <img src="docs/images/developer-guide/terminal-try.png" width="900" alt="Loom: Try a Demo: a workflow runs on demo models and explains each step">
+</p>
+
+> [!TIP]
+> ⌨️ **Prefer a terminal?** Every step below is also one `weave` command, and `jbang weave@srijithunni7182/llm4j try` runs the same demo with nothing installed but Java. `weave man` lists them all; the [command reference](docs/COMMAND_REFERENCE.md) has every option.
 
 Then make one of your own. 👇
 
@@ -44,14 +52,14 @@ Then make one of your own. 👇
 
 ## 🎯 Why teams reach for it
 
-| | | |
+| | | In VS Code |
 |---|---|---|
-| ⚡ **Rapid** | A **sentence** becomes a tested, reviewed project in minutes, for a few cents. | `weave generate "..."` |
-| 🏢 **Enterprise ready** | Approvals, budgets, audit trail, PII masking, secrets, an OWASP audit. Built in, not bolted on. | `weave audit` |
-| 🤖 **Truly autonomous** | Workflows that run for **days**: journaled, resumable, scheduled, crash-safe, with autonomy that is *earned*. | `weave run --journal` |
-| 🧪 **Testable** | Agent logic tested with **no model, no key, no spend**, in milliseconds. The tool writes the tests. | `weave test` |
-| 🔭 **Observable** | Cost, context, incidents and injection signals live, on one page or across a fleet. | `weave run --observe` |
-| ☕ **Java-native** | An agent is as ordinary as a `PaymentService`: builders, JUnit, Spring, Maven. No vendor SDKs. | `ai-agent4j` |
+| ⚡ **Rapid** | A **sentence** becomes a tested, reviewed project in minutes, for a few cents. | **Generate Workflow...** |
+| 🏢 **Enterprise ready** | Approvals, budgets, audit trail, PII masking, secrets, an OWASP audit. Built in, not bolted on. | **Review Workflow** |
+| 🤖 **Truly autonomous** | Workflows that run for **days**: journaled, resumable, scheduled, crash-safe, with autonomy that is *earned*. | **Run With Live Page...** |
+| 🧪 **Testable** | Agent logic tested with **no model, no key, no spend**, in milliseconds. The tool writes the tests. | **Run Tests** |
+| 🔭 **Observable** | Cost, context, incidents and injection signals live, on one page or across a fleet. | **Run With Live Page...** |
+| ☕ **Java-native** | An agent is as ordinary as a `PaymentService`: builders, JUnit, Spring, Maven. No vendor SDKs. | IntelliJ, Eclipse or VS Code: it is plain Java |
 
 ---
 
@@ -83,10 +91,9 @@ Then make one of your own. 👇
 
 You don't start from a blank file. You start from a sentence.
 
-```
-weave generate "Turn meeting notes into action items with an owner and a due date,
-                and post them to a team webhook after a person approves."
-```
+🧩 **In VS Code:** Command Palette → **Loom: Generate Workflow...** and type it: *"Turn meeting notes into action items with an owner and a due date, and post them to a team webhook after a person approves."* The plan opens for you to read and edit, then it builds and tells you which gates passed. (The button is also in the Loom view when a folder has no workflow yet.)
+
+⌨️ *Terminal:* `weave generate "Turn meeting notes into action items ... after a person approves."`
 
 It asks at most five questions (with sensible defaults), then **shows you the plan first**: the agents, the tools and *what each one can reach*, who is asked, which effects need a person's approval, the budget, what happens when something fails. Correct the plan: it is the cheapest place to be wrong. Then it builds the project: the script, a prompt for each agent, tests, an evaluation dataset, a README.
 
@@ -97,21 +104,21 @@ And it hands you nothing it hasn't proven. The project lands in your folder only
 </p>
 
 > [!TIP]
-> 💸 A cheap model writes it for a few cents. Want a better plan? `--plan-model` lets a stronger model plan while a cheap one writes. Want a change later? `weave generate --edit main.loom "also escalate legal threats"` shows the diff, the review change and the cost change, and writes nothing until you say so.
+> 💸 A cheap model writes it for a few cents. Want a better plan? `--plan-model` lets a stronger model plan while a cheap one writes. Want a change later? **Loom: Change Workflow...** (`weave generate --edit`) shows the diff, the review change and the cost change, and writes nothing until you say so.
 
 ## 2️⃣ 👀 See it
 
-A workflow is a picture before it is a file. In VS Code the graph is live: every agent, branch, loop, approval and failure handler, the happy path along the bottom, the cost of each step, and a click from any box to the line that wrote it.
+A workflow is a picture before it is a file. 🧩 **Loom: Show Workflow Graph** (or the graph icon in the editor's title bar) draws it beside your code, and it is live: every agent, branch, loop, approval and failure handler, the happy path along the bottom, the cost of each step, and a click from any box to the line that wrote it.
 
 <p align="center">
   <img src="docs/images/developer-guide/graph-meeting-dark.png" width="900" alt="The Loom graph of the generated workflow in VS Code">
 </p>
 
-Prefer words? `weave explain main.loom` says, in plain English, which agent is asked what, where a person decides, and what can spend money. Read it back and ask: *is that what I meant?*
+Prefer words? `weave explain main.loom` (terminal) says, in plain English, which agent is asked what, where a person decides, and what can spend money. Read it back and ask: *is that what I meant?*
 
 ## 3️⃣ 🛡️ Have it reviewed
 
-Every workflow is reviewed the moment it exists: offline, free, ranked. Security, privacy, cost, reliability, prompts, validity and more, each finding with **why it matters** and **what to do**. The famous one is the ☠️ *lethal trifecta*: untrusted text, private data and a way out meeting in one agent. Loom finds it before an attacker does, and offers the fix for you to apply.
+🧩 **Loom: Review Workflow** opens the review beside the graph, and a status-bar badge keeps the open findings and typical cost in view as you type. It is offline, free and ranked. Security, privacy, cost, reliability, prompts, validity and more, each finding with **why it matters** and **what to do**. The famous one is the ☠️ *lethal trifecta*: untrusted text, private data and a way out meeting in one agent. Loom finds it before an attacker does. Click a finding to select its step on the graph; **Fix**, **Accept with a reason**, **Dismiss**, or **Apply Safe Fixes** for all of them at once.
 
 <p align="center">
   <img src="docs/images/developer-guide/review-meeting-dark.png" width="900" alt="The Loom review panel: findings beside the graph">
@@ -121,7 +128,7 @@ Every workflow is reviewed the moment it exists: offline, free, ranked. Security
 
 ## 4️⃣ 🧪 Test it. For free.
 
-This is the part that changes how building with agents feels. Tests run on **scripted models and tools**: no key, no network, no spend, the same result every time, in milliseconds. And you don't write most of them. The tool walks the script down every classifier label, every answer, every failing step, every value a condition compares with, and writes the cases for you.
+🧩 **Loom: Run Tests** (also in the right-click menu of any `.loom` file). This is the part that changes how building with agents feels. Tests run on **scripted models and tools**: no key, no network, no spend, the same result every time, in milliseconds. And you don't write most of them. The tool walks the script down every classifier label, every answer, every failing step, every value a condition compares with, and writes the cases for you.
 
 <p align="center">
   <img src="docs/images/developer-guide/terminal-test.png" width="860" alt="weave test: every step reached, in under half a second">
@@ -131,7 +138,7 @@ Twenty-one cases, every step reached, in under half a second, for **$0**. Change
 
 ## 5️⃣ 📊 Evaluate it
 
-Tests prove the *logic*. Evaluation tells you whether the *answers* are any good. `weave eval` runs your golden dataset against real models with LLM judges, under a spend cap you set, and **eval4j** turns the result into a report you can open, compare, filter and share: pass rate against your goal, every dimension, every case, cost, models, prompt A/B.
+Tests prove the *logic*. Evaluation tells you whether the *answers* are any good. 🧩 **Loom: Evaluate Workflow...** creates a starter dataset, checks it, or runs it with mock models, all free; against real models `weave eval` uses LLM judges under a spend cap you set. In Java, **eval4j** turns evaluation runs into a report you can open, compare, filter and share: pass rate against your goal, every dimension, every case, cost, models, prompt A/B.
 
 <p align="center">
   <img src="src/eval4j-report/docs/images/overview-dark.png" width="900" alt="The eval4j report: pass rate against a goal, by dimension">
@@ -148,13 +155,11 @@ Tests prove the *logic*. Evaluation tells you whether the *answers* are any good
   </tr>
 </table>
 
-`weave eval --mock` runs the same wiring for nothing. In Java the same checks are plain JUnit: `assertThat(agent.run(question)).usesTool("refund").completedSuccessfully()`.
+In Java the same checks are plain JUnit: `assertThat(agent.run(question)).usesTool("refund").completedSuccessfully()`.
 
 ## 6️⃣ 🔭 Watch it run
 
-```
-weave run main.loom --observe
-```
+🧩 **Loom: Run With Live Page...** (it asks first: it is a real run with your keys, capped by the `loom.observe.maxTokens` setting). ⌨️ *Terminal:* `weave run main.loom --observe`.
 
 A live page for the run with no set-up: 💵 cost as it grows, 🤖 which agent is working, the step it is on, each agent's 🪟 context window and what compaction cut, 🔧 tool health, 💉 suspected prompt injection, 🔁 loops, a ⏪ time bar to scrub back to how the run looked at any moment, and **⏸️ Pause · 💤 Suspend · ⛔ Stop** for when you want to step in. Run many workflows and one **Fabric** server shows them all.
 
@@ -173,7 +178,7 @@ Something odd? `weave why <run>` explains each choice the run made, and why the 
 
 ## 7️⃣ 🔁 Learn from production
 
-The loop that makes it better every week:
+The loop that makes it better every week (terminal commands today; the editor shows the result as a test you can run):
 
 1. 🔥 A real run goes wrong. **`weave capture`** turns it into a test case with the recorded answers scripted in, personal data masked, waiting for a person to read and approve it.
 2. 🔧 You fix the script, the prompt or the model.
@@ -184,10 +189,7 @@ An incident becomes a regression test **before lunch**.
 
 ## 8️⃣ 🚢 Ship it
 
-```
-weave deploy main.loom --target docker      # or compose, or k8s
-weave bindgen main.loom --package com.acme  # typed Java for the workflow
-```
+🧩 **Loom: Write Deployment Files...** → Docker, Docker Compose or Kubernetes. ⌨️ *Terminal:* `weave deploy main.loom --target docker` (or `compose`, `k8s`), and `weave bindgen main.loom --package com.acme` for typed Java.
 
 🐳 A container recipe, a compose file or Kubernetes manifests, **read from the script**: the environment names, the hosts it talks to, the volumes, the schedules. Text only; secrets never appear. ☕ In Java, `bindgen` writes one typed method per workflow and a result type, and the Spring Boot starter runs it as a bean.
 
@@ -197,11 +199,7 @@ weave bindgen main.loom --package com.acme  # typed Java for the workflow
 
 ## 9️⃣ 🤝 Bring your coding agent
 
-You don't have to type any of it. Run **Loom: Set Up My Coding Agent** in VS Code, or:
-
-```
-weave guide --install-skill . --for claude,agents,copilot,cursor
-```
+You don't have to type any of it. 🧩 **Loom: Set Up My Coding Agent** asks which agents you use (⌨️ *terminal:* `weave guide --install-skill . --for claude,agents,copilot,cursor`) and writes what each one reads.
 
 🧠 Claude Code gets the skills. Codex, Copilot, Gemini, Cursor and any agent that reads `AGENTS.md` get the rules. They learn to **look commands up instead of guessing** (`weave man`), to read you the plan before building, to show you the graph and the plain-English explanation, to run the free checks as often as they like, and to ask before anything that spends money.
 
@@ -265,22 +263,24 @@ So the session goes like this: **you** say what you want. Your agent plans it, b
 
 ## 🗺️ The whole experience on one page
 
-| You want to | You run | It costs |
-|---|---|---|
-| 👋 See what Loom does | `weave try` | nothing |
-| 🩺 Check your setup | `weave doctor` | nothing |
-| ✍️ Build from a sentence | `weave generate "..."` | a few cents |
-| 🔧 Change what you built | `weave generate --edit main.loom "..."` | a few cents |
-| 👀 See it | `weave graph`, `weave explain`, the VS Code graph | nothing |
-| 🛡️ Have it reviewed | `weave review`, `weave audit` | nothing |
-| 🧪 Test it | `weave test --coverage` | nothing |
-| 📊 Evaluate answers | `weave eval` (`--mock` is free) | a cap you set |
-| 🔭 Watch a run | `weave run --observe`, Fabric | nothing extra |
-| 🕵️ Understand a run | `weave why`, `weave whatif`, `weave replay` | nothing |
-| 🔁 Turn a bad run into a test | `weave capture`, `weave regress`, `weave gate` | nothing |
-| 🚢 Ship it | `weave deploy`, `weave bindgen` | nothing |
-| 🧭 Know what to do next | `weave next` | nothing |
-| 📖 Look anything up | `weave man` | nothing |
+| You want to | In VS Code | In a terminal | It costs |
+|---|---|---|---|
+| 👋 See what Loom does | **Try a Demo** | `weave try` | nothing |
+| 🩺 Check your setup | **Check My Setup** | `weave doctor` | nothing |
+| ✍️ Build from a sentence | **Generate Workflow...** | `weave generate "..."` | a few cents |
+| 🔧 Change what you built | **Change Workflow...** | `weave generate --edit main.loom "..."` | a few cents |
+| 👀 See it | **Show Workflow Graph** | `weave graph`, `weave explain` | nothing |
+| 🛡️ Have it reviewed | **Review Workflow** | `weave review`, `weave audit` | nothing |
+| 🧪 Test it | **Run Tests** | `weave test --coverage` | nothing |
+| 📊 Evaluate answers | **Evaluate Workflow...** | `weave eval` (`--mock` is free) | a cap you set |
+| 🐞 Step through it | **Debug Workflow** (F5) | `weave step` | nothing |
+| 🔭 Watch a run | **Run With Live Page...** | `weave run --observe`, Fabric | tokens, capped |
+| 🕵️ Understand a run | (live page) | `weave why`, `weave whatif` | nothing |
+| 🔁 Turn a bad run into a test | (run the case with **Run Tests**) | `weave capture`, `weave regress`, `weave gate` | nothing |
+| 🚢 Ship it | **Write Deployment Files...** | `weave deploy`, `weave bindgen` | nothing |
+| 🧭 Know what to do next | **What Should I Do Next?** | `weave next` | nothing |
+| 📖 Look anything up | **Show All Commands**, **Open Guide** | `weave man` | nothing |
+| 🤝 Teach your coding agent | **Set Up My Coding Agent** | `weave guide --install-skill --for ...` | nothing |
 
 ---
 

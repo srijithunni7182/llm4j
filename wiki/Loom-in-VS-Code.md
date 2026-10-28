@@ -14,7 +14,10 @@ Install it from the Marketplace, or from the `.vsix` of a release. It needs **Ja
 | **Handling findings** | Fix one or all the safe ones as a single undoable change, review a fix that needs your judgement (you choose, you see the diff), accept a finding with a reason and a scope, dismiss it on your machine only, or record today's findings as a baseline. |
 | **Editing** | Go to definition, find references, rename across files, completion that knows the fields of a variable and the labels of an enum, hover, outline and signature help. |
 | **Debugging** | Press F5 on a `.loom` file, or click *Debug* above a workflow: breakpoints (line, conditional, on an agent), variables with the statement that set each, step over / in / out, **step back**, edit a variable, with mock models and nothing sent or written; live models ask first and run under a cap. See [Debugging a workflow](Debugging-a-Workflow.md). |
-| **Guide** | **Loom: Open Guide** opens the written guide from the jar; **Install the Loom Skill** puts the agent skill in your project. |
+| **First run** | **Loom: Try a Demo**, **Open an Example Project** and **Check My Setup**, also as buttons in the Loom view of a folder with no workflow yet. |
+| **Generate and change** | **Loom: Generate Workflow...** (a sentence in, a plan to read, a project that passed five gates) and **Loom: Change Workflow...** (a diff with the review and cost difference; nothing is written until you accept). |
+| **Test, evaluate, run, ship** | **Loom: Run Tests** (scripted models, no keys), **Evaluate Workflow...** (mock run, dataset check, starter dataset), **Run With Live Page...** (a real run, asks first, capped by `loom.observe.maxTokens`), **Write Deployment Files...** (Docker, Compose, Kubernetes) and **What Should I Do Next?**. Each types one `weave` command into an integrated terminal. |
+| **Guide and coding agents** | **Loom: Open Guide** opens the written guide from the jar; **Show All Commands (weave man)** lists every command; **Set Up My Coding Agent** teaches Claude Code, Copilot, Cursor or any `AGENTS.md` agent to build with Loom. |
 
 ![The Review panel in Split](../docs/images/vscode-loom/review-split.png)
 
@@ -45,6 +48,7 @@ The status bar says so once, in one place, and everything else keeps working. No
 | `loom.review.layout` | `split` | The layout the panel opens in |
 | `loom.review.minSeverity` | `low` | The lowest severity shown as a squiggle |
 | `loom.semantic.enable` | `true` | Definition, references, rename, completion and hover from the engine |
+| `loom.observe.maxTokens` | `50000` | The most tokens a run started from Run With Live Page may use |
 | `loom.serve.memoryMb`, `loom.serve.timeoutMs` | `64`, `10000` | How much the engine may keep, and the longest it may take for one request |
 
 The full list, the keyboard keys and the commands are in the [extension README](../src/loom/vscode-loom/README.md); the protocol between the extension and the engine is in [docs/serve/PROTOCOL.md](../docs/serve/PROTOCOL.md); the language itself is in the [Loom guide](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md).
