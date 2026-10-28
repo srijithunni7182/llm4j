@@ -1,0 +1,9 @@
+// Probe P4: a model call that is retried with a backoff of 2 seconds, then falls back to a person.
+agent Replier { model: "any-model"  system: "Answer briefly." }
+
+workflow Main(message) {
+    delegate "Answer: {message}" to Replier -> reply
+        retry 2 backoff 2s
+        on_failure { return "handed to a person" }
+    return reply
+}

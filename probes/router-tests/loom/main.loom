@@ -1,0 +1,18 @@
+agent Replier   { model: "any-model"  system: "Answer a customer about their order, briefly." }
+agent Escalator { model: "any-model"  system: "Summarise a case for a person in two sentences." }
+
+intentclassifier Intent {
+    model: "any-model"
+    choose kind: order_status | refund | other
+}
+
+workflow Main(message) {
+    intentclassify Intent on message -> intent
+    alt (intent.kind == "order_status") {
+        delegate "Answer: {message}" to Replier -> reply
+        return reply
+    } else {
+        delegate "Summarise for a person: {message}" to Escalator -> summary
+        return summary
+    }
+}

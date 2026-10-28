@@ -1,0 +1,10 @@
+// Probe P5: a person must approve before the send; the process ends while the question is open.
+workflow Main() {
+    human_prompt "Approve sending the refund? (yes/no)" -> approval
+    alt (approval == "yes") {
+        run Send() -> receipt
+        return "sent"
+    } else {
+        return "not sent"
+    }
+}

@@ -1,0 +1,11 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: no model call starts once the token budget is spent
+    models:
+      A: "an answer"
+    usage:
+      A: { in: 400, out: 200 }
+    expect:
+      final: budget
+      calls: { A: 2 }

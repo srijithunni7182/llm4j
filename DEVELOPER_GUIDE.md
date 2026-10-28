@@ -291,6 +291,7 @@ So the session goes like this: **you** say what you want. Your agent plans it, b
 - 🏁 **[Getting started with Loom](docs/GETTING_STARTED.md)** · **[Your first run](wiki/Your-First-Run.md)**
 - ✍️ **[Generating a workflow](wiki/Generating-a-Workflow.md)** · 🔁 **[From an incident to a regression test](wiki/From-an-Incident-to-a-Regression-Test.md)** · ☕ **[Typed workflows in Java, and deploying](wiki/Typed-Workflows-in-Java-and-Deploying.md)** · 🤝 **[Working with a coding agent](wiki/Working-with-a-Coding-Agent.md)**
 - 🔭 **[Observability](docs/OBSERVABILITY.md)** · **[Fabric server](wiki/Fabric-Server.md)** · 📊 **[eval4j report guide](src/eval4j-report/docs/USER-GUIDE.md)**
+- 🏆 **[Why teams choose llm4j and Loom](docs/WHY_LLM4J.md)**: what you get out of the box, and what you would otherwise build.
 - 🧱 **[The stack](docs/THE_STACK.md)** · **[Why ai-agent4j](src/ai-agent4j/wiki/WHY_AI_AGENT4J.md)** · **[Why Loom](src/loom/ai-agent4j-loom/WHY_LOOM.md)** · **[Why eval4j](src/ai-agent4j/wiki/WHY_EVAL4J.md)**
 
 <p align="center">
