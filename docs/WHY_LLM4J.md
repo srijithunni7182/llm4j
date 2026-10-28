@@ -21,8 +21,8 @@
 
 | You need | 🧵 llm4j + Loom | On the usual path |
 |---|---|---|
-| 🔁 **A crash must never send twice** | Every step and effect is **journaled**. A resume, a retry or a rewind **never repeats a send**. Nothing for you to design. | LangGraph's docs tell you the resumed node **runs again from its start**, and that side effects before an interrupt "should (ideally) be idempotent": it is yours to design and to test. |
-| 💸 **A run must not overspend** | **Tokens, calls and dollars**, per run and per step, enforced **before** each model call. | LangChain's built-in limits count **model calls and tool calls**. |
+| 🔁 **A crash must never send twice** | Every step and effect is **journaled**. After a crash, a send whose outcome is unknown is **not run again** (you check, then retry), and an idempotent one runs again with **the same key the runtime supplies**. Nothing for you to design. | LangGraph's docs say the resumed node **runs again from its start** and that side effects before an interrupt "should (ideally) be idempotent". In our [crash probe](../probes/README.md), LangGraph 1.2.18 **sent twice** in every durability mode when the process died right after the send, and with its default settings even after the step had been recorded. |
+| 💸 **A run must not overspend** | **Tokens, calls and dollars**, per run and per step, enforced **before** each model call. | LangChain 1.4.7's built-in limit middleware (`ModelCallLimitMiddleware`, `ToolCallLimitMiddleware`) count **model calls and tool calls**; a token or dollar cap is yours to write ([probe](../probes/README.md)). |
 | 🧪 **Test the logic without a model, for free** | `weave test`: scripted models and tools, failures injected on a schedule, **step coverage**, in milliseconds. **The tool writes the cases** that reach every branch. | LangGraph's testing guide shows pytest with an in-memory checkpointer; the cases are yours to write. |
 | 🛡️ **Review for security before anything runs** | `weave review` and `weave audit` read the **whole script**: the lethal trifecta, unapproved effects, missing budgets, mapped to the **OWASP Top 10 for LLM Applications**. | Guardrails (such as LangChain4j's input guardrails, including a prompt-injection pattern guardrail) check what arrives **at run time**. |
 | ✍️ **Start from a sentence** | `weave generate`: a plan you read first, then a project that passed **five gates** (it checks, it reviews clean, its tests pass, they reach the steps, it matches the plan). | LangGraph graphs are written in code. |
@@ -31,7 +31,7 @@
 | ☕ **A stack for Java teams** | Your agents, workflows, tests and evaluation in the language your services are written in: JUnit, Spring, Maven. | LangChain and LangGraph are Python and JavaScript; LangChain4j's `agentic` module is documented as experimental. |
 | 🏢 **Compliance, mapped** | Audit events, PII masking, approvals, secrets that never become text, **mapped to GDPR, the EU AI Act and the NIST AI RMF**. | See each project's own documentation. |
 
-<sub>Compared with the public documentation of LangChain and LangGraph (v1), LangSmith and LangChain4j as read in October 2026.</sub>
+<sub>Compared with the public documentation of LangChain and LangGraph (v1), LangSmith and LangChain4j as read in October 2026. The crash and budget rows are [reproducible probes](../probes/README.md): fake models, no keys, one script per stack.</sub>
 
 ---
 
