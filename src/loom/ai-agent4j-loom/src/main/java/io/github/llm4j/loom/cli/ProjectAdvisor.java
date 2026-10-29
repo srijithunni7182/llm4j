@@ -63,10 +63,10 @@ final class ProjectAdvisor {
         if (!keysInTemplate.isEmpty()) {
             steps.add(
                     new Step(
-                            "Move the key out of .env.example: it holds a value for "
+                            "Move the key out of the template: it holds a value for "
                                     + String.join(", ", keysInTemplate),
-                            ".env.example is a template that gets committed, so a key in it is shared with everyone who sees the project. .env is the file git ignores.",
-                            "cp .env.example .env        (then empty the value in .env.example)"));
+                            "A template like .env.example gets committed, so a key in it is shared with everyone who sees the project. The secret store keeps it encrypted and bound to the hosts it may be sent to.",
+                            "weave secrets import-env --from .env.example --secrets keys.store        (it offers to blank the template; create the store first with weave secrets create)"));
         }
 
         Path golden = io.github.llm4j.loom.init.ProjectLayout.dataset(script);

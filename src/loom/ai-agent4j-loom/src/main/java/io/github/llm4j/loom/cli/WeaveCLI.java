@@ -798,8 +798,9 @@ public class WeaveCLI implements Callable<Integer> {
         if (lootFile != null && lootFile.exists())
             new LootLoader().loadIntoRegistry(lootFile.getAbsolutePath(), registry);
         java.util.List<String> keyWarnings = new java.util.ArrayList<>();
-        java.util.List<String> keyNames = EnvExampleCheck.namesWithValues(scriptFile.toPath());
-        if (!keyNames.isEmpty()) keyWarnings.add(EnvExampleCheck.warning(keyNames));
+        java.util.List<EnvExampleCheck.Finding> inTemplates =
+                EnvExampleCheck.findings(scriptFile.toPath());
+        if (!inTemplates.isEmpty()) keyWarnings.add(EnvExampleCheck.warning(inTemplates));
         java.util.List<String> reachProblems =
                 lootFile != null && lootFile.exists()
                         ? LootLoader.reachProblems(lootFile.toPath())

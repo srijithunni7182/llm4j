@@ -30,7 +30,7 @@ class EnvExampleCheckTest {
                 project(
                         "# keys\nOPENAI_API_KEY=sk-live-abcdef123456\nEMPTY=\nOTHER=your-key-here\n");
         assertThat(EnvExampleCheck.namesWithValues(script)).containsExactly("OPENAI_API_KEY");
-        assertThat(EnvExampleCheck.warning(EnvExampleCheck.namesWithValues(script)))
+        assertThat(EnvExampleCheck.warning(EnvExampleCheck.findings(script)))
                 .contains("OPENAI_API_KEY")
                 .doesNotContain("sk-live");
     }

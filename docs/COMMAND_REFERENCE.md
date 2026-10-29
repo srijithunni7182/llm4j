@@ -1962,7 +1962,7 @@ weave secrets <command>
 - `set` — Stores a secret.
 - `list` — Lists the names, allowed hosts and update times.
 - `remove` — Removes a secret.
-- `import-env` — Copies environment variables into the store under the same names (the value never touches the command line).
+- `import-env` — Copies secrets into the store: from variables in the environment, or with --from from a file of NAME=value lines (a template such as .env.example is then offered to be blanked).
 - `rekey` — Re-encrypts the store under a new master key (asked for at the console, or --new-key-file).
 
 #### `weave secrets create`
@@ -2041,18 +2041,22 @@ weave secrets remove [OPTIONS] <name>
 
 #### `weave secrets import-env`
 
-Copies environment variables into the store under the same names (the value never touches the command line).
+Copies secrets into the store: from variables in the environment, or with --from from a file of NAME=value lines (a template such as .env.example is then offered to be blanked).
+
+Values are never printed.
 
 ```
-weave secrets import-env [OPTIONS] <variables>...
+weave secrets import-env [OPTIONS] [<variables>...]
 ```
 
 **Arguments**
 
-- `<variables>...` — The variables to import.
+- `<variables>...` — The variables to import (with --from: only these; default: every secret-named value in the file).
 
 **Options**
 
+- `--blank` — With --from a template file (.example, .sample, .template): blank the imported values without asking. A real .env is never changed.
+- `--from=<file>` — Read NAME=value lines from this file instead of the environment.
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.

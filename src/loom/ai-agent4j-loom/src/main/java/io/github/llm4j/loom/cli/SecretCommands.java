@@ -213,19 +213,56 @@ final class SecretCommands implements Callable<Integer> {
     @Command(
             name = "import-env",
             description =
-                    "Copies environment variables into the store under the same names (the value never touches the command line).")
+                    "Copies secrets into the store: from variables in the environment, or with --from from a file of NAME=value lines (a template such as .env.example is then offered to be blanked). Values are never printed.")
     static class ImportEnv extends Base {
-        @Parameters(arity = "1..*", description = "The variables to import.")
-        String[] variables;
+        @Parameters(
+                arity = "0..*",
+                description = "The variables to import (with --from: only these; default: every secret-named value in the file).")
+        String[] variables = new String[0];
+
+        @Option(
+                names = "--from",
+                paramLabel = "<file>",
+                description = "Read NAME=value lines from this file instead of the environment.")
+        java.io.File from;
+
+        @Option(
+                names = "--blank",
+                description =
+                        "With --from a template file (.example, .sample, .template): blank the imported values without asking. A real .env is never changed.")
+        boolean blank;
 
         @Override
         Integer body(WeaveEnv env, Prompts prompts) {
+            if (from == null && variables.length == 0) {
+                env.err().println("Error: name the variables to import, or give --from <file>");
+                return 2;
+            }
+            java.util.Map<String, String> source = null;
+            java.util.List<String> names = new java.util.ArrayList<>(java.util.List.of(variables));
+            if (from != null) {
+                try {
+                    source =
+                            EnvFile.parse(
+                                    java.nio.file.Files.readString(from.toPath()),
+                                    from.getName());
+                } catch (java.io.IOException | IllegalArgumentException e) {
+                    env.err().println("Error: " + e.getMessage());
+                    return 2;
+                }
+                if (names.isEmpty()) names.addAll(EnvExampleCheck.namesWithValuesIn(from.toPath()));
+                if (names.isEmpty()) {
+                    env.err().println("Error: " + from.getName() + " has nothing to import: no secret-named name has a value");
+                    return 1;
+                }
+            }
             MasterKey key = secrets.masterKey(env, prompts, "Master key: ");
             int missing = 0;
+            java.util.List<String> imported = new java.util.ArrayList<>();
             try (EncryptedFileSecretStore store =
                     EncryptedFileSecretStore.open(secrets.file.toPath(), key)) {
-                for (String v : variables) {
-                    String value = env.env().apply(v);
+                for (String v : names) {
+                    String value = source != null ? source.get(v) : env.env().apply(v);
                     if (value == null || value.isBlank()) {
                         env.err().println("Error: " + v + " is not set");
                         missing++;
@@ -237,12 +274,51 @@ final class SecretCommands implements Callable<Integer> {
                     } finally {
                         SecretOptions.wipe(chars);
                     }
+                    imported.add(v);
                     env.out().println("Imported " + v);
                 }
             } finally {
                 key.destroy();
             }
+            if (from != null && !imported.isEmpty()) offerToBlank(env, prompts, imported);
             return missing == 0 ? 0 : 1;
+        }
+
+        /** A template is meant to be committed, so its values go once they are safe in the store. */
+        private void offerToBlank(WeaveEnv env, Prompts prompts, java.util.List<String> imported) {
+            String name = from.getName();
+            boolean template =
+                    name.equals(".env.example")
+                            || name.endsWith(".example")
+                            || name.endsWith(".sample")
+                            || name.endsWith(".template");
+            if (!template) return;
+            if (!blank) {
+                env.out()
+                        .println(
+                                name
+                                        + " is meant to be committed. Blank the imported values in it? (yes/no)");
+                String answer = prompts.readLine();
+                if (answer == null || !answer.strip().equalsIgnoreCase("yes") && !answer.strip().equalsIgnoreCase("y"))
+                    return;
+            }
+            try {
+                java.util.List<String> lines = java.nio.file.Files.readAllLines(from.toPath());
+                java.util.regex.Pattern line =
+                        java.util.regex.Pattern.compile("^(\\s*(?:export\\s+)?)([A-Za-z_][A-Za-z0-9_]*)(\\s*=).*$");
+                java.util.List<String> rewritten = new java.util.ArrayList<>();
+                for (String raw : lines) {
+                    java.util.regex.Matcher m = line.matcher(raw);
+                    rewritten.add(
+                            m.matches() && imported.contains(m.group(2))
+                                    ? m.group(1) + m.group(2) + "="
+                                    : raw);
+                }
+                java.nio.file.Files.write(from.toPath(), rewritten);
+                env.out().println("Blanked the imported values in " + name + ".");
+            } catch (java.io.IOException e) {
+                env.err().println("Error: could not blank " + name + ": " + e.getMessage());
+            }
         }
     }
 

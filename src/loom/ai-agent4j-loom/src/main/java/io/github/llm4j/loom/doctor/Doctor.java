@@ -239,7 +239,7 @@ public final class Doctor {
                             ".env.example holds what looks like a real value for "
                                     + String.join(", ", c.envExampleWithValues())
                                     + ".",
-                            "Replace it with a placeholder in .env.example, and rotate the key if it was committed."));
+                            "Move it with `weave secrets import-env --from <that file> --secrets <store>` and blank the file; rotate the key if the file was ever committed."));
         return out;
     }
 
