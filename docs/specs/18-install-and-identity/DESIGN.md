@@ -1,7 +1,7 @@
 # Phase 18 design: install, identity and environment (the first ten minutes)
 
 Status: **draft for review**. Layer: Loom CLI (`ai-agent4j-loom`: `--version`, `doctor`, `init`, `check`, `guide`), the skills (`.claude/skills/*`), the VS Code extension, the build (`pom.xml`, release scripts), the model and price catalogue (`ai-agent4j`).
-Part of the [field findings program](../FIELD_FINDINGS.md); read its §2 and §5 (decisions D5, D6) first. Documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md). Builds on [Phase 16](../16-first-run/DESIGN.md) (`weave doctor`, the launcher, the JBang catalogue).
+Part of the [field findings program](../FIELD_FINDINGS.md); read its §2 and §5 (decisions D5 and D6, answered 2026-10-29: D5 b, D6 b) first. Documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md). Builds on [Phase 16](../16-first-run/DESIGN.md) (`weave doctor`, the launcher, the JBang catalogue).
 Findings owned: **F10 to F19**.
 
 ## 1. Problem
@@ -53,7 +53,7 @@ Non-goals:
 
 ### 3.3 The skills install complete (F13; decision D6)
 
-**R3.1 One lookup for the tools a skill needs.** The deployer skill's scripts (`lib.sh`, `lib.ps1`) find `weave`, the Fabric jar and the inspect add-on in this order: the environment variable (`WEAVE_JAR`, `FABRIC_JAR`, `INSPECT_JARS`); a `weave` on `PATH` (and its sibling jars when it is a launcher); the editor extension's jar (for `weave` only); the skill's own `bin/`; then a **named, asked-for** fetch (R3.3). The order is the same in the shell and PowerShell versions and is tested for both.
+**R3.1 One lookup for the tools a skill needs.** The deployer skill's scripts (`lib.sh`, `lib.ps1`) find `weave`, the Fabric jar and the inspect add-on in this order: the environment variable (`WEAVE_JAR`, `FABRIC_JAR`, `INSPECT_JARS`); a `weave` on `PATH` (and its sibling jars when it is a launcher); the editor extension's jar (for `weave` only); the skill's own `bin/`; then the **named, asked-for, checksummed** fetch (R3.3). By decision D6 (b) the fetch is the main documented route for the Fabric and inspect jars, not only a last resort; it is still never silent. The order is the same in the shell and PowerShell versions and is tested for both.
 **R3.2 No silent holes.** `weave guide --install-skill` ends with a short **"what is here and what is missing"** table: `weave` (found at …, build id …), Fabric (found / missing: run `weave tools fetch fabric`), inspect add-on (found / missing: …). It never claims a skill is ready when a script it ships cannot run.
 **R3.3 `weave tools fetch <fabric|inspect|all>`.** Downloads the jar of **the version this weave was released as** from Maven Central into `~/.llm4j/tools/<version>/`, after listing the URL and size and asking (`--yes` to skip), checks the published SHA-256 (or SHA-1 where Central offers only that, saying so), refuses a development build ("this is a development build; build the module or install a release"), and prints the path and the environment variable to set. No other network access; the hosts are listed first, as `doctor --network` does.
 **R3.4** The skills' own text stops saying "put the jar in `bin/`" as the only route and names R3.1's order.

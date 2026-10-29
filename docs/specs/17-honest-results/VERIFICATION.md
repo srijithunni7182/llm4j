@@ -3,7 +3,7 @@
 Status: **not started** (specs in draft). Run §0 first, then top to bottom at the end of each sub-phase (17a to 17e, proposed in [DESIGN §3](DESIGN.md)); the relevant rows after each. Results in §7.
 Findings: F01 to F09 of the [register](../FIELD_FINDINGS.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
-Proposed sub-phases: **17a** reproduce and field replay (no product change); **17b** shared prompt (R1); **17c** output limit, usage and grounding times (R2, R3, R6); **17d** degraded runs, output contract and `weave eval` (R4, R5); **17e** citations and the record (R7, R1.7).
+Decisions D1 to D4 are answered (see the program page). Proposed sub-phases: **17a** reproduce and field replay (no product change); **17b** shared prompt (R1); **17c** output limit, usage and grounding times (R2, R3, R6); **17d** degraded runs, output contract and `weave eval` (R4, R5); **17e** citations and the record (R7, R1.7).
 
 ## 0. Reproduce first
 
@@ -28,7 +28,7 @@ Record the date, the jar's build id (`weave --version`, and the git commit), and
 
 | # | Criterion | Evidence |
 |---|---|---|
-| A1 | If a script declares `shared_prompt`, every request of every agent carries it once, before the agent's own text, on every path and in every provider adapter; or the script is refused before any request | `SharedPromptReachesTheModelTest`, `<Vendor>SystemInstructionContractTest`, `UnresolvedSharedPromptTest`, P1 to P3 |
+| A1 | If a script declares `shared_prompt`, every request of every agent carries it once, before the agent's own text, on every path and in every provider adapter; or, where it cannot be resolved, the run summary and `weave explain` say it was not applied (D4: warn, do not refuse) | `SharedPromptReachesTheModelTest`, `<Vendor>SystemInstructionContractTest`, `UnresolvedSharedPromptIsVisibleTest`, P1 to P3 |
 | A2 | `weave check` never says a referenced shared prompt is unused, and still says it of a prompt nothing names | `SharedPromptIsNotReportedUnusedTest`, P4 |
 | A3 | A developer can see, without a model call, what each agent will be told | `ExplainWhatEachAgentIsToldTest`, manual M3 |
 | A4 | No model call is shortened by a default nobody chose; the effective limit is stated; an answer cut at a limit is named in the run summary | `OutputLimitDecisionTest`, `NoSilentClipTest`, `OutputLimitNoteTest`, `CutAnswerIsReportedTest`, P5, P6 |
@@ -49,7 +49,7 @@ Record the date, the jar's build id (`weave --version`, and the git commit), and
 | R1.1 | P1 to P3 (§0) | ⬜ |
 | R1.2 | `EveryModelRequestComposesItsSystemTextInOnePlaceTest`, `SharedPromptReachesTheModelTest` | ⬜ |
 | R1.3 | `GeminiSystemInstructionContractTest`, `AnthropicSystemContractTest`, `OpenAiCompatibleSystemContractTest`, `OpenAiResponsesInstructionsContractTest`, `OllamaSystemContractTest`, `SarvamSystemContractTest` | ⬜ |
-| R1.4 | `UnresolvedSharedPromptTest` | ⬜ |
+| R1.4 | dropped by D4; replaced by `UnresolvedSharedPromptIsVisibleTest` (visibility, R1.6) | ⬜ |
 | R1.5 | `SharedPromptIsNotReportedUnusedTest` | ⬜ |
 | R1.6 | `ExplainWhatEachAgentIsToldTest`, `reviewPanelAgentPrompts.test.ts` (if the editor shows it) | ⬜ |
 | R1.7 | docs tests; review | ⬜ |
@@ -72,8 +72,8 @@ Record the date, the jar's build id (`weave --version`, and the git commit), and
 - [ ] PIT: the `mutation` profile of `ai-agent4j-loom` and the budget classes of `ai-agent4j`; the score does not fall; `AgentPrompts`, `BudgetSet.reserve`, the degraded classifier and the output-contract function are in the profile.
 - [ ] `make format-check` and `make release-check` green.
 - [ ] `FieldReplayTest` runs in the default build in under 30 s and is hermetic (loopback only).
-- [ ] Every guard of R1.4, R2.1, R4.2 and R5.4 removed once by hand; the failing test is named in §7.
-- [ ] `SecurityDocTest` and the docs tests green; `docs/security/secure-by-construction.md` lists R1.4 (a rule that cannot apply stops the run).
+- [ ] Every guard of R2.1, R4.2 and R5.4 removed once by hand; the failing test is named in §7.
+- [ ] `SecurityDocTest` and the docs tests green; `docs/security/secure-by-construction.md` records the D4 decision (a shared prompt that cannot apply only warns; revisit at 7.0).
 - [ ] No new dependency, or its justification (size, licence, CVEs, `mvn dependency:tree`) is in the pull request.
 
 ## 4. Manual checks (need the owner, a real key from the environment, and a spend cap)
@@ -89,7 +89,7 @@ Record the date, the jar's build id (`weave --version`, and the git commit), and
 
 ## 5. Documentation owed
 
-Release notes (6.1.1, 6.2.0), `LOOM_GUIDE.md`, `docs/guide` chapters 6 and 9, the generated command pages, `docs/API_COMPATIBILITY.md`, `docs/security/secure-by-construction.md`, the workflow skill, `llms.txt`, the Loom wiki, the
+Release notes (6.2.0), `LOOM_GUIDE.md`, `docs/guide` chapters 6 and 9, the generated command pages, `docs/API_COMPATIBILITY.md`, `docs/security/secure-by-construction.md`, the workflow skill, `llms.txt`, the Loom wiki, the
 VS Code README if the editor shows R1.6. Stack-level pages once at the end of the program ([specs README](../README.md)).
 
 ## 6. Exit checklist

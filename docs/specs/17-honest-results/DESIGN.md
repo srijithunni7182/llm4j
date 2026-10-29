@@ -1,7 +1,7 @@
 # Phase 17 design: honest results (no wrong result that looks right)
 
 Status: **draft for review**. Layer: Loom runtime (`ai-agent4j-loom`), `ai-agent4j` (budget, Google provider), eval4j (one contract), the `weave` CLI.
-Part of the [field findings program](../FIELD_FINDINGS.md); read its §2 (evidence labels) and §5 (decisions D1 to D4) first. Documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md).
+Part of the [field findings program](../FIELD_FINDINGS.md); read its §2 (evidence labels) and §5 (decisions D1 to D4, answered 2026-10-29: D1 b, D2 c, D3 c, D4 a) first. Documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md).
 Findings owned: **F01 to F09**.
 
 ## 1. Problem
@@ -48,7 +48,7 @@ the request body in the field that adapter uses for system instructions. A recor
 block or ignoring it when the agent's own prompt is long); (H3) the jar in the session predated the feature; (H4) an instruction placed first is out-weighed by later instructions (a model behaviour, not a bug, but
 then the documentation must say where the text goes and the canary in the preflight must test the real ordering).
 
-**R1.4 A shared prompt that cannot apply stops the run (D4).** If `shared_prompt` names a file that does not exist, or the catalog is not available, `weave check` reports an **error** (not a warning) and `weave run`
+**R1.4 (dropped by decision D4, 2026-10-29).** The owner chose to keep today's behaviour: a `shared_prompt` that cannot be resolved (missing file, no catalog) logs a warning and agents run without it. This is the opposite of the project's rule that a missing safety setting denies, and the owner knowingly accepted it. To keep the failure from being quiet, R1.6 is extended: `weave explain` and `weave check` state, per agent, whether the shared prompt is **applied** or **not applied (and why)**, and `weave run` prints the warning in the run summary, not only in the log. The decision can be revisited at 7.0.
 refuses to start. Today `AgentPrompts.sharedPrompt()` logs a warning and "agents run without it". That line is the opposite of the project's own rule that a missing safety setting denies, and is removed.
 
 **R1.5 The unused-prompt warning is right (F02).** The `prompt files` check counts a prompt named by `shared_prompt: prompt "id"` (and by `id@vN`) as used. It reproduces today on the minimal script in
@@ -65,8 +65,7 @@ request as the fix, with the dates. If R1.1 shows the code was never wrong (H4),
 ### 3.2 No silent output limit (F03, F08)
 
 **R2.1 The limit is explicit.** The effective output limit of every model call is decided in one place and is one of: the agent's `per_call`; the model's known maximum output (from the model catalogue, with a
-documented default when the model is unknown); or what the active budget still affords, whichever is smallest. **A fixed 1,024 is no longer a default** (decision D1 recommends this; options a and c are in the
-program page). `BudgetSet.reserve` takes the model's maximum as its `wanted` when the agent gave none.
+documented default when the model is unknown); or what the active budget still affords, whichever is smallest. **A fixed 1,024 is no longer a default** (decision D1, answered **b**). `BudgetSet.reserve` takes the model's maximum as its `wanted` when the agent gave none.
 
 **R2.2 `weave check` and `weave review` say what the limit is.** For an agent in a script with an active budget, one note names the effective limit and where it comes from ("output limit 8,192 tokens: the
 model's maximum; the run budget would allow more"). A limit that is smaller than the model's maximum because of the budget is reported as such.
@@ -133,7 +132,7 @@ for missing sources is never the only signal.
 
 | Change | Existing scripts |
 |---|---|
-| R1.4 (refuse an unresolved shared prompt) | A script whose shared prompt silently did not apply now fails to start. This is the point. It is listed in the release notes as a behaviour change. |
+| R1.4 (dropped, D4) | None. An unresolved shared prompt still only warns; the warning now also appears in the run summary and in `weave explain`. |
 | R2.1 (no 1,024 default) | Answers that were clipped become whole; token use rises to what the agent really writes, still inside the budget. Scripts that relied on the clipping to save cost must set `per_call`. Listed in the release notes. |
 | R3 | Pure fix. |
 | R4 | Summary lines and a new optional exit code. No exit code changes unless asked. |
@@ -157,5 +156,5 @@ for missing sources is never the only signal.
 
 ## 7. Documentation affected
 
-Release notes (6.1.1 and 6.2.0 sections), `LOOM_GUIDE.md` (`shared_prompt`, budgets and `per_call`, `return`/`note` and the output contract, exit codes, grounding and `_citations`), `weave man run`/`eval`/`explain`
+Release notes (the 6.2.0 section; D9: no 6.1.1), `LOOM_GUIDE.md` (`shared_prompt`, budgets and `per_call`, `return`/`note` and the output contract, exit codes, grounding and `_citations`), `weave man run`/`eval`/`explain`
 (generated), `docs/API_COMPATIBILITY.md`, `docs/security/secure-by-construction.md`, the `llm4j-workflow-guide` skill (budgets, the preflight hook), `docs/guide/` chapters 6 and 9, `llms.txt`, the Loom wiki.

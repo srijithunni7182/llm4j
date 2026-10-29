@@ -1,6 +1,6 @@
 # Field findings program (phases 17 to 23): from a first real build to results you can trust
 
-Status: **draft for review**. Nothing here is built. This page is the overview of seven phases, [17](17-honest-results/DESIGN.md) to [23](23-eval-design-skill/DESIGN.md), written
+Status: **decisions D1 to D13 answered 2026-10-29; specs otherwise draft**. Nothing here is built. This page is the overview of seven phases, [17](17-honest-results/DESIGN.md) to [23](23-eval-design-skill/DESIGN.md), written
 from what happened when a person used the llm4j skills, `weave`, the Loom extension, eval4j and Fabric to build a real workflow (`article-flow`) from scratch. Each phase has the usual
 three documents (`DESIGN.md`, `TEST_STRATEGY.md`, `VERIFICATION.md`); this page holds what they share: the evidence, the register of every finding, the order, and the decisions the owner
 must make before building starts.
@@ -169,27 +169,27 @@ Every finding has a stable id. The last column is the phase that owns it. A find
 - **19 and 23 together**: 23 (the design skill) can start once 19's inventory (VERIFICATION §0) says which capabilities exist, because the skill's mapping page must say, truthfully, what the stack can and cannot do today. Where the stack lacks a capability, the skill names the workaround and the gap is Phase 19's work.
 - **23 before 20**: Phase 20 inserts a "design the evaluation" stage into the workflow skill that hands over to the new skill, and builds the preflight stage on a working `weave eval` (F06, F25) and the By-agent recipe.
 - **21 and 22** do not block the rest and can be built in parallel by different hands.
-- **Release plan (decision D9):** Phase 17 and the cheap parts of 18 (F11, F12, F19) go out as **6.1.1** as soon as they are verified, because they fix wrong results. The remainder ships as **6.2.0**. The extension is versioned separately and its CI publishes it when a version bump merges ([PUBLISHING_VSCODE.md](../PUBLISHING_VSCODE.md)).
+- **Release plan (decision D9, answered: one release):** everything ships as **6.2.0**. The earlier proposal of a 6.1.1 with Phase 17 and the cheap parts of 18 (F11, F12, F19) was declined; the wrong-result fixes wait for the release, so the 6.1.0 release notes' known issues carry the F01 correction (R1.7) until then. The extension is versioned separately and its CI publishes it when a version bump merges ([PUBLISHING_VSCODE.md](../PUBLISHING_VSCODE.md)).
 
 ## 5. Decisions needed from the owner before building
 
 Each is also recorded in the DESIGN of the phase it affects. A recommendation is given so the owner can answer with one word.
 
-| # | Decision | Options | Recommendation |
-|---|---|---|---|
-| D1 | What a model call's output limit is when a budget is active and the agent has no `per_call` (F03) | (a) keep 1,024; (b) use the model's known maximum output, bounded by what the budget still affords; (c) require `per_call` and fail `weave check` without it | **(b)**, plus a run-summary line when any answer hit the limit, and a `weave check` note naming the effective limit |
-| D2 | The exit code of a run that finished but used a fallback (F05) | (a) always 0; (b) a new code (7) by default; (c) 0 by default, 7 with an option | **(c)** now, so no existing script changes meaning; revisit at 7.0 |
-| D3 | Variable replacement outside `{braces}` (F50) | (a) keep and widen the lint; (b) `{name}` only from now on; (c) `{name}` only behind a script-level setting, default off, default on at 7.0 | **(c)** |
-| D4 | A `shared_prompt` that cannot be resolved at run time (F01) | (a) log a warning; (b) refuse to start | **(b)**: a rule that was meant to apply must not quietly not apply |
-| D5 | Version of development builds (F12) | (a) as now; (b) `X.Y.Z-SNAPSHOT` on `main` between releases | **(b)**, with a build id in `weave --version` regardless |
-| D6 | How the skill install carries the jars (F13) | (a) copy the jars in (big); (b) fetch with a checksum on first use; (c) rely on `weave` on PATH (JBang) and the extension's jar | **(c) first**, (b) as the fallback; never a silent download |
-| D7 | A preflight spends tokens (F30) | (a) a command that spends a few cents under a default cap and asks first; (b) a command that never spends | **(a)**, cap 0.05 by default, `--yes` to skip the question |
-| D8 | The canonical real-evaluation path (F21, F25) | (a) `weave eval` writes the eval4j bundle; (b) a generated JUnit class; (c) both | **(c)**: `weave eval` writes the bundle (one command), and the generator exists for projects that want the full API |
-| D9 | The release plan | one 6.2.0 or 6.1.1 then 6.2.0 | **6.1.1 then 6.2.0** (§4) |
-| D10 | What the Outline's progress is computed from (F39) | (a) `weave next` run in the editor; (b) the extension inspects files itself | **(a)**: one source of truth for the CLI, the skill and the editor |
-| D11 | Using the owner's QA guide as the source of the evaluation design skill (F27) | (a) distil it into the skill's reference pages with credit and a link; (b) ship the document as is; (c) reference it only | **(a)**, with the owner confirming the licence and what may be quoted; the cited external works (Husain, Willison, OWASP, Zheng et al.) are linked, never copied |
-| D12 | How strictly a sealed held-out set is protected (F55) | (a) a naming and tag convention only; (b) `weave eval` refuses to run held-out cases unless asked for a release gate, and records that it did; (c) cryptographic sealing | **(b)**: a guard, not a fence; the point is that it cannot happen by accident |
-| D13 | The language of the skill's examples (F27) | The guide's examples are Python, pytest and DeepEval; this stack is Java, Loom and eval4j | Rewrite every example in Loom YAML and eval4j terms; keep the guide's method and numbers; name the Python tools only where the reader may meet them |
+| # | Decision | Options | Recommendation | Owner's answer |
+|---|---|---|---|---|
+| D1 | What a model call's output limit is when a budget is active and the agent has no `per_call` (F03) | (a) keep 1,024; (b) use the model's known maximum output, bounded by what the budget still affords; (c) require `per_call` and fail `weave check` without it | **(b)**, plus a run-summary line when any answer hit the limit, and a `weave check` note naming the effective limit | **(b)** Answered 2026-10-29. |
+| D2 | The exit code of a run that finished but used a fallback (F05) | (a) always 0; (b) a new code (7) by default; (c) 0 by default, 7 with an option | **(c)** now, so no existing script changes meaning; revisit at 7.0 | **(c)** Answered 2026-10-29. |
+| D3 | Variable replacement outside `{braces}` (F50) | (a) keep and widen the lint; (b) `{name}` only from now on; (c) `{name}` only behind a script-level setting, default off, default on at 7.0 | **(c)** | **(c)** Answered 2026-10-29. |
+| D4 | A `shared_prompt` that cannot be resolved at run time (F01) | (a) log a warning; (b) refuse to start | **(b)**: a rule that was meant to apply must not quietly not apply | **(a) log a warning.** Answered 2026-10-29, **against the recommendation**. Phase 17 R1.4 is dropped; the visibility work (R1.5, R1.6) stays, so a missing shared prompt is visible but does not stop a run. |
+| D5 | Version of development builds (F12) | (a) as now; (b) `X.Y.Z-SNAPSHOT` on `main` between releases | **(b)**, with a build id in `weave --version` regardless | **(b)** Answered 2026-10-29. |
+| D6 | How the skill install carries the jars (F13) | (a) copy the jars in (big); (b) fetch with a checksum on first use; (c) rely on `weave` on PATH (JBang) and the extension's jar | **(c) first**, (b) as the fallback; never a silent download | **(b) fetch with a checksum**, against the recommendation. Answered 2026-10-29. Never silent: the fetch lists the URL and size and asks first. |
+| D7 | A preflight spends tokens (F30) | (a) a command that spends a few cents under a default cap and asks first; (b) a command that never spends | **(a)**, cap 0.05 by default, `--yes` to skip the question | **(a)** Answered 2026-10-29. |
+| D8 | The canonical real-evaluation path (F21, F25) | (a) `weave eval` writes the eval4j bundle; (b) a generated JUnit class; (c) both | **(c)**: `weave eval` writes the bundle (one command), and the generator exists for projects that want the full API | **(c)** Answered 2026-10-29. |
+| D9 | The release plan | one 6.2.0 or 6.1.1 then 6.2.0 | **6.1.1 then 6.2.0** (§4) | **One 6.2.0**, against the recommendation. Answered 2026-10-29. No 6.1.1: Phase 17 and 18 ship with the rest. |
+| D10 | What the Outline's progress is computed from (F39) | (a) `weave next` run in the editor; (b) the extension inspects files itself | **(a)**: one source of truth for the CLI, the skill and the editor | **(a)** Answered 2026-10-29. |
+| D11 | Using the owner's QA guide as the source of the evaluation design skill (F27) | (a) distil it into the skill's reference pages with credit and a link; (b) ship the document as is; (c) reference it only | **(a)**, with the owner confirming the licence and what may be quoted; the cited external works (Husain, Willison, OWASP, Zheng et al.) are linked, never copied | **(a)** Answered 2026-10-29. Still owed by the owner: the licence and attribution wording, before any reference page is written. |
+| D12 | How strictly a sealed held-out set is protected (F55) | (a) a naming and tag convention only; (b) `weave eval` refuses to run held-out cases unless asked for a release gate, and records that it did; (c) cryptographic sealing | **(b)**: a guard, not a fence; the point is that it cannot happen by accident | **(b)** Answered 2026-10-29. |
+| D13 | The language of the skill's examples (F27) | The guide's examples are Python, pytest and DeepEval; this stack is Java, Loom and eval4j | Rewrite every example in Loom YAML and eval4j terms; keep the guide's method and numbers; name the Python tools only where the reader may meet them | **Rewrite in Loom and eval4j.** Answered 2026-10-29. |
 
 ## 6. Operational follow-ups for the reporter (not product work)
 
