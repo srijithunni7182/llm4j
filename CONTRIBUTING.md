@@ -30,6 +30,7 @@ See `docs/TESTING_STRATEGY.md` for execution model and CI mapping.
 ## Documentation Expectations
 
 - Update README/wiki/docs when changing setup, coordinates, or API behavior.
+- A change to the VS Code extension (`src/loom/vscode-loom`, other than its tests) must bump `version` in `package.json` and `package-lock.json` and add a `## <version>` section to its `CHANGELOG.md`: CI publishes it to the Marketplace when it lands on `main`, and a pull request without a bump fails the "Is there a new version to publish?" check (see `docs/PUBLISHING_VSCODE.md`).
 - For compatibility-impacting changes, update:
   - `docs/API_COMPATIBILITY.md`
   - migration guides (for example `docs/MIGRATION_GUIDE_5_0.md`)
