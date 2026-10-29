@@ -128,4 +128,27 @@ eval4j user guide and wiki, the Loom guide ("Evaluating a Workflow"), `docs/guid
 
 ## 7. Results
 
+### 0.2 The inventory, done by hand (2026-10-29)
+
+Method: read the class lists of `eval4j`, `eval4j-report` and `ai-agent4j-loom`; ran `weave eval --help`; searched with the pattern named in the row and **read the hits** (not counted them). Evidence is a file or a command.
+
+| # | Capability | Present? (evidence) | Requirement now |
+|---|---|---|---|
+| I1 | Repeated runs per case; pass@1, pass^N | **No.** `weave eval --help` has no repetitions option; nothing in `eval4j`, `eval4j-report` or Loom computes pass^N. (A judge can sample: `LlmJudgeCondition.Builder.samples(int)`, and the bundle's `Evaluation.samples(List<Double>)` exists.) | R11 **needed** |
+| I2 | Confidence intervals; smallest detectable change | **Partly.** A 95% Wilson interval exists twice: `eval4j/.../compare/PromptComparison.Interval` (used by the optimizer's `Comparison`) and `loom/autonomy/expr/Wilson.java`. `SPEC-deepeval-parity.md` §: "No statistical significance testing in v1". No "smallest change this run can detect" statement. | R11 **narrowed**: reuse Wilson, add the resolution sentence |
+| I3 | Unstable-case detection | **No.** | R11 **needed** |
+| I4 | Dataset `version` recorded and enforced | **No.** `EvalScenario` has `name, input, expected*, context, id, dimensions, tags, rubric, expect, inputs, min/max words`; no version, and `dataset.yaml` is not versioned. | R8 **needed** |
+| I5 | Baseline with approver and reason; previous-baseline comparison | **Partly.** `eval4j/.../report/BaselineGate` + `EvalBaseline` keep a JSON baseline (`suite#test#metric` to score) and report regressions beyond a threshold (JUnit path). No approver, no reason, no previous baseline, nothing in `weave eval`. `eval4j-report` also has `analysis/Baselines`. | R8 **narrowed**: add approver and reason, the previous baseline, and `weave eval` use |
+| I6 | Splits; held-out guard; generalisation gap | **No in datasets.** `eval/optimize/Split` and `DataSplit` split data for the prompt optimizer and warn about held-out leakage (`Split.java:127`), but a scenario has no split field. Scenarios do have free `tags`, so `split:heldout` can be carried as a tag without a schema change. | R9 **needed**; stored as a tag convention plus the guard (D12 b) |
+| I7 | Accepted equivalents, rejected answers, unmatched rate | **No.** | R10 **needed** |
+| I8 | Judge validation (kappa), audit sampling, bias notes | **Partly, only as test code.** `eval4j/src/test/.../CalibrationRunner.kappa` computes unweighted Cohen's kappa for RAG chunk labels in a verification study (`docs/verification-results/2026-09-29/calibration.md`: labels by the module author, not independent humans). `PairwiseJudge` cancels position bias. No command, no weighted kappa for rubric scores, no human reference-set format, no audit sampler. | R12 **narrowed**: reuse the formula, add the command and the formats |
+| I9 | Cost per success, p95 cost, runaway and graceful-termination rates | **No.** `JudgeStats` has judge latency p95 only; `SpendGuard` exists for tests. | R13 **needed** |
+| I10 | Named run protocols; a scheduled drift check | **No.** (`weave gate` text says "run it nightly".) | R14 **needed** |
+| I11 | Case classes and slice-size warnings | **No.** (tags can carry `class:unanswerable`). | R15 **needed** |
+| I12 | Metamorphic case derivation | **No.** `DatasetSynthesizer` has five question rewrites (`Evolution`: reasoning, multi-context, concretizing, constrained, comparative), which change difficulty, not meaning-preserving relations. | R16 **needed** |
+| I13 | Injection-payload corpus runner and the controls-held check | **No.** `weave audit` checks a script statically; `weave test` injects faults, not payloads. | R17 **needed** |
+| I14 | Routing confusion matrix; handoff probe; loop induction; eviction probe; turn vs session metrics | **Partly.** `weave test` scripts models and failures and asserts route and calls; the optimizer docs mention a confusion matrix of its own verdicts, not of routing. | R18 **needed**, scoped to what `weave test` lacks |
+
+Also found (changes Part A): the dashboard's **By agent** table already exists and is on by default (`ReportConfig.defaults()` has `breakdownKeys = ["agent"]`, `Analyzer.breakdowns`), built from scenario **tags** `agent:<Name>`; a row per agent, a column per quality dimension. So F20 was mostly "not documented and needs tags", not "missing". What does not exist: any `weave eval` path to the bundle (it writes its own HTML page from `EvalReport`), the agent's cost, cut answers and fallbacks next to the dimensions, and the nine-section structure.
+
 *(empty until 19a)*
