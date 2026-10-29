@@ -1,46 +1,61 @@
 # Publishing the Loom extension to the VS Code Marketplace
 
-The extension is `src/loom/vscode-loom`. It bundles the `weave` command line (`bin/weave.jar`, the `cli` jar from the Loom build, about 22 MB),
-so a published `.vsix` is about 21 MB, well under the Marketplace's 200 MB limit. Everything below is a one-time setup, then one command per release.
+The extension is `src/loom/vscode-loom`, published as `srijithunni7182.vscode-llm4j-loom`. It bundles the `weave` command line (`bin/weave.jar`, the `cli` jar from the Loom build, about 24 MB),
+so a published `.vsix` is about 24 MB, well under the Marketplace's 200 MB limit.
 
-## One-time setup (about 20 minutes, all in a browser)
+**A change to the extension is published by CI when it lands on `main`.** You do not run `vsce` yourself. The workflow is
+[`.github/workflows/publish-vscode-extension.yml`](../.github/workflows/publish-vscode-extension.yml), and it uses Trusted Publishing: GitHub proves to the Marketplace which repository and workflow is asking, so no token is stored anywhere.
 
-1. **A Microsoft account** (any personal one works) and an **Azure DevOps organization**: sign in at
-   [dev.azure.com](https://dev.azure.com) and create an organization if you have none. It exists only to issue the access token.
-2. **A Personal Access Token (PAT).** In Azure DevOps: *User settings* (top right) → *Personal access tokens* → *New Token*:
-   - Organization: **All accessible organizations** (this is required, a token for one organization is rejected)
-   - Scopes: *Custom defined* → *Show all scopes* → **Marketplace → Manage**
-   - Expiration: up to a year. Copy the token now; it is shown once. Treat it like a password.
-3. **A publisher.** Go to [marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage) → *Create publisher*.
-   The **ID must be exactly** `srijithunni7182` (it is `publisher` in `src/loom/vscode-loom/package.json`, and part of the extension's permanent name
-   `srijithunni7182.vscode-llm4j-loom`). The display name can be anything.
-4. **Log in once** from the repository root:
-   ```bash
-   cd src/loom/vscode-loom
-   npx --yes @vscode/vsce@3.2.1 login srijithunni7182     # paste the PAT when asked
-   ```
+## How a change reaches the Marketplace
 
-## Every release
+1. **Change the extension in a pull request, and bump the version.** In `src/loom/vscode-loom`, raise `version` in `package.json` and `package-lock.json` (the two places at the top of each), and add a `## <version>` section to `CHANGELOG.md` that says what changed. The Marketplace takes a version only once, so a change without a new version can never be released: the check **Is there a new version to publish?** fails the pull request with a message saying so.
+2. **Merge.** The workflow asks the Marketplace which version it has. If `package.json` is newer it builds `weave.jar` from `main`, packages the extension around it, unpacks the package and runs the bundled jar (`scripts/verify-vsix.sh`), runs the extension's tests, and publishes exactly that file. If the version is not newer there is nothing to publish and the run ends green.
+3. **Wait a few minutes.** Microsoft scans the package before it shows. Progress is on [marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage); the page is `marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-llm4j-loom`.
+
+What starts the workflow: a change under `src/loom/vscode-loom`, except its `test/` folder (tests change nothing for a user), and a change to the workflow or its scripts. A change to the engine the extension carries (`src/loom/ai-agent4j-loom`) does **not** start a release; it ships with the next extension version, which rebuilds the jar from `main`. To release it sooner, bump the extension version in a pull request.
+
+The version is plain `1.2.3`. The Marketplace takes no pre-release versions, and the check refuses one. Versions only go up, and a version cannot be re-used or deleted: fix forward with a new one.
+
+To run it again without a change (a publish that failed after a green build, for example), start the workflow by hand from `main` in the Actions tab (*Run workflow*). It publishes only if the version is new.
+
+## One-time setup (about 10 minutes, in two browser tabs)
+
+1. **Tell the Marketplace to trust the workflow.** Go to [marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage), open the publisher `srijithunni7182`, select **Trusted Publishing**, expand **Create**, and enter:
+
+   | Field | Value |
+   |---|---|
+   | Policy name | `GitHub release workflow` (anything descriptive) |
+   | Repository owner | `srijithunni7182` |
+   | Repository | `llm4j` |
+   | Workflow | `publish-vscode-extension.yml` |
+   | Environment | `vscode-marketplace` |
+
+   Select **Create**. The values must match exactly: the Marketplace compares them with what GitHub signs into the token. (If the repository is private, run the workflow within 48 hours of creating the policy; the first successful run activates it for good.)
+2. **Create the GitHub environment and lock it to `main`.** In the repository: *Settings* → *Environments* → *New environment*, name it `vscode-marketplace`, and under *Deployment branches and tags* choose *Selected branches and tags* and add `main`. Without this, a workflow run from any branch could ask for a Marketplace token. Optionally add *Required reviewers*: every release then waits for your approval, which is a manual click, so leave it off if you want releases fully automatic.
+3. **Leave the check optional.** Do not mark *Is there a new version to publish?* as a required status check. It runs only for pull requests that change the extension, and GitHub waits forever for a required check on any other pull request.
+
+After this, the first merge that bumps the version publishes it.
+
+## What the workflow does and why it is built this way
+
+- **No stored secret.** The `publish` job asks GitHub for a short-lived OpenID Connect token and trades it for a Marketplace credential that lasts 15 minutes. Each GitHub token can be traded only once.
+- **Only one job can publish.** `build` has no publishing rights. `publish` has `id-token: write`, runs nothing from the repository, and publishes the file `build` made, with a pinned `vsce` (`4.0.0`, the first stable release with `--oidc`). Raise that version on purpose, not by accident.
+- **A failed lookup is never "nothing published".** `scripts/published-extension-version.sh` fails on a bad reply, so a flaky network cannot cause a duplicate upload. The decision logic, `scripts/check-extension-release.sh`, is tested in `src/loom/vscode-loom/test/releaseCheck.test.ts`.
+- **A pull request cannot publish.** It runs only the cheap version check, and the `publish` job runs only on `main`.
+
+## Publishing by hand
+
+Keep this for an emergency, or for a first look at a package you built yourself.
 
 ```bash
-# 1. bump the version in src/loom/vscode-loom/package.json and add a section to src/loom/vscode-loom/CHANGELOG.md
-# 2. build the jar and the extension, and check the package
-scripts/build-vsix.sh                  # builds weave (the cli jar), compiles, packages src/loom/vscode-loom/vscode-llm4j-loom-<version>.vsix
-scripts/verify-vsix.sh                 # unpacks it and runs the bundled jar the way the extension does
-
-# 3. try it before the world can: install the file into your own VS Code
-code --install-extension src/loom/vscode-loom/vscode-llm4j-loom-<version>.vsix
-
-# 4. publish
-cd src/loom/vscode-loom && npx --yes @vscode/vsce@3.2.1 publish        # compiles, packages and uploads (or add --packagePath <file>.vsix to upload the one you tried)
+scripts/build-vsix.sh      # builds weave (the cli jar), compiles, packages src/loom/vscode-loom/vscode-llm4j-loom-<version>.vsix
+scripts/verify-vsix.sh     # unpacks it and runs the bundled jar the way the extension does
+code --install-extension src/loom/vscode-loom/vscode-llm4j-loom-<version>.vsix   # try it in your own VS Code first
 ```
 
-The extension appears at `marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-llm4j-loom` after a few minutes of verification
-(Microsoft scans the package; the first publish can take longer). `vsce publish` (without `--packagePath`) fails if `bin/weave.jar` is missing, so an extension that
-cannot draw a graph is never published.
+Then upload the file on [marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage): open the publisher, then *New extension* → *Visual Studio Code* for the first upload, or the **⋮** menu next to the extension → *Update* for a later one.
 
-Versions cannot be re-used or deleted from the file you uploaded: fix forward with a new version. `vsce unpublish` exists but removes the
-listing for everyone, so avoid it.
+Publishing from a terminal with `vsce publish` needs a Personal Access Token. Microsoft retires global Azure DevOps tokens on **1 December 2026**, so do not build a process on one.
 
 ## Also on Open VSX (optional)
 
@@ -54,13 +69,16 @@ npx --yes ovsx@latest publish src/loom/vscode-loom/vscode-llm4j-loom-<version>.v
 ## What the Marketplace page shows
 
 The listing is built from files in `src/loom/vscode-loom`: `README.md` (the page body; relative image links need `repository` in `package.json`, which is set),
-`CHANGELOG.md` (the Changelog tab), `LICENSE`, the icon `media/loom-mark-128.png`, and the categories, keywords and banner in `package.json`.
+`CHANGELOG.md` (the Changelog tab), `LICENSE`, the icon `media/loom-mark-128.png`, and the display name, description, categories, keywords and banner in `package.json`.
 The README already carries screenshots of the workflow graph (`docs/images/vscode-loom/`, linked by `https://raw.githubusercontent.com/...` so they show on the Marketplace). Retake them when the panel changes; the generator is described in `docs/images/vscode-loom/README.md`.
+The page shows the README of the newest version only, so a documentation change reaches the page only with a new version.
 
 ## Troubleshooting
 
-- **`Error: Failed request: Unauthorized (401)`** or *Access Denied*: the PAT was created for one organization, lacks *Marketplace → Manage*, or expired.
-- **`The Personal Access Token verification has failed`**: log in again with `vsce login srijithunni7182`.
-- **`Make sure the publisher name matches`**: the publisher ID in the Marketplace and `package.json` differ.
-- **`Missing publisher`/`license` warnings**: `package.json` needs `publisher` and `license`, and a `LICENSE` file beside it (both present).
-- **`bin/weave.jar is missing`**: run `scripts/build-vsix.sh` from the repository root first.
+- **The pull request check says the version must be bumped:** `package.json` has the version that is already published (or on `main`). Raise it, in `package-lock.json` too, and add a `## <version>` section to `CHANGELOG.md`.
+- **The `publish` job fails with a 401 or "no trusted publishing policy":** the policy in the Marketplace does not match. Compare the owner, repository, workflow file name and environment name with the table above, letter for letter.
+- **The `publish` job is skipped:** the version was not new (read the `release-check` summary), or the run was not on `main`.
+- **`The extension ... already exists` or a version is refused:** the version is already on the Marketplace. Bump it.
+- **The Marketplace page still shows the old text:** Microsoft is still verifying the new version, which takes a few minutes. Check the status on the manage page.
+- **`Make sure the publisher name matches`:** the publisher ID in the Marketplace and `publisher` in `package.json` differ.
+- **`bin/weave.jar is missing` when packaging by hand:** run `scripts/build-vsix.sh` from the repository root first.
