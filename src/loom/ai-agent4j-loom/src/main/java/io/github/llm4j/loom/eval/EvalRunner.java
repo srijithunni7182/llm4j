@@ -91,13 +91,30 @@ public final class EvalRunner {
             executor = executors.create(e -> {});
             AgentResult result = executor.runAgentTask(agent, s.input());
             String answer = result.getFinalAnswer() == null ? "" : result.getFinalAnswer();
+            boolean limitReached = result.budgetExhausted();
+            if (limitReached) stoppedByLimit = true;
+            if (answer.isBlank())
+                return finish(
+                        "agent",
+                        agent,
+                        file,
+                        s,
+                        checks,
+                        cost(executor),
+                        limitReached
+                                ? "stopped by a limit: the budget ran out before agent "
+                                        + agent
+                                        + " answered, so no judge was asked"
+                                : "agent "
+                                        + agent
+                                        + " produced no output (its final answer was empty), so no"
+                                        + " judge was asked");
             Set<String> tools = new HashSet<>();
             result.getSteps()
                     .forEach(
                             step -> {
                                 if (step.getAction() != null) tools.add(step.getAction());
                             });
-            if (result.budgetExhausted()) stoppedByLimit = true;
             answerChecks(s, answer, tools, checks);
             judge("rubric", s.rubricLines(), answer, s, modelOf.apply(agent), checks);
             return finish("agent", agent, file, s, checks, cost(executor), null);
@@ -204,7 +221,18 @@ public final class EvalRunner {
         try {
             executor = executors.create(e -> e.addTraceListener(events::add));
             executor.executeWorkflow(workflow, workflowInputs(parameters, s));
-            String output = lastResult(executor, events);
+            String output = outputOf(executor, events);
+            if (output.isBlank())
+                return finish(
+                        "workflow",
+                        workflow,
+                        file,
+                        s,
+                        checks,
+                        cost(executor),
+                        "the workflow produced no output: it ended without a return and without an"
+                                + " answer or a note to read, so no judge was asked. Add a `return`"
+                                + " of the text to evaluate");
             Set<String> tools = new HashSet<>();
             events.stream()
                     .filter(e -> TraceEvent.ACTION.equals(e.type()) && e.data().get("tool") != null)
@@ -406,6 +434,20 @@ public final class EvalRunner {
     /**
      * What the last agent step that ended produced: the variable it was stored in, else its text.
      */
+    /**
+     * What a scenario is judged on: the workflow's {@code return}; else the answer of the last
+     * agent it asked (how evaluations read a workflow before it had a defined output, kept so that
+     * they do not change); else its last {@code note}.
+     */
+    private static String outputOf(HarnessExecutor executor, List<TraceEvent> events) {
+        var output = executor.output();
+        if (output.source() == io.github.llm4j.loom.execution.WorkflowOutput.Source.RETURN
+                && !output.text().isBlank()) return output.text();
+        String answered = lastResult(executor, events);
+        if (!answered.isBlank()) return answered;
+        return output.text();
+    }
+
     private static String lastResult(HarnessExecutor executor, List<TraceEvent> events) {
         String variable = null;
         String text = "";

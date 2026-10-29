@@ -155,6 +155,17 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin private InvokerOptions invokerOptions = new InvokerOptions();
 
         @Option(
+                names = "--exit-degraded",
+                description =
+                        "Exit with code 7 when the run finished but some step used its on_failure fallback (default: 0).")
+        private boolean exitDegraded;
+
+        @Option(
+                names = {"-q", "--quiet"},
+                description = "Do not print the workflow's returned value after the run.")
+        private boolean quiet;
+
+        @Option(
                 names = "--review-notice",
                 paramLabel = "high|medium|low|off",
                 description =
@@ -199,6 +210,8 @@ public class WeaveCLI implements Callable<Integer> {
                         trace,
                         stopAt,
                         maxRewinds,
+                        exitDegraded,
+                        quiet,
                         env);
             } finally {
                 observed.finish();
@@ -419,6 +432,49 @@ public class WeaveCLI implements Callable<Integer> {
             String stopAt,
             Integer maxRewinds,
             WeaveEnv env) {
+        return run(
+                scriptFile,
+                lootFile,
+                workflowName,
+                inputs,
+                maxTokens,
+                maxCalls,
+                maxCost,
+                pricesFile,
+                journal,
+                store,
+                wait,
+                lenient,
+                trace,
+                stopAt,
+                maxRewinds,
+                false,
+                true,
+                env);
+    }
+
+    /** The exit code a degraded run (finished, but with fallbacks) ends with when asked for. */
+    static final int EXIT_DEGRADED = 7;
+
+    static int run(
+            File scriptFile,
+            File lootFile,
+            String workflowName,
+            Map<String, String> inputs,
+            Long maxTokens,
+            Long maxCalls,
+            String maxCost,
+            File pricesFile,
+            Path journal,
+            Path store,
+            boolean wait,
+            boolean lenient,
+            String trace,
+            String stopAt,
+            Integer maxRewinds,
+            boolean exitDegraded,
+            boolean quiet,
+            WeaveEnv env) {
         if (trace != null && !trace.equals("text") && !trace.equals("json")) {
             env.err().println("Error: --trace takes text or json, got " + trace);
             return 2;
@@ -450,7 +506,10 @@ public class WeaveCLI implements Callable<Integer> {
         if (result.exit() == 4 && wait && runDir != null && result.resumeAt() != null) {
             return waitForRun(runDir, storeDir, env);
         }
-        return result.exit();
+        if (result.exit() == 0 && !quiet) Runs.printResult(result.output(), env);
+        return result.exit() == 0 && result.degraded() && exitDegraded
+                ? EXIT_DEGRADED
+                : result.exit();
     }
 
     /**

@@ -29,7 +29,29 @@ final class Runs {
      * How a run ended: exit code 0 done, 1 failed, 2 bad options, 3 stopped by a budget, 4 paused,
      * 5 stopped where it was told to.
      */
-    record Result(int exit, Instant resumeAt, RunSuspended.Reason reason, String message) {}
+    record Result(
+            int exit,
+            Instant resumeAt,
+            RunSuspended.Reason reason,
+            String message,
+            java.util.Map<String, Long> fallbacks,
+            io.github.llm4j.loom.execution.WorkflowOutput output) {
+
+        Result(int exit, Instant resumeAt, RunSuspended.Reason reason, String message) {
+            this(
+                    exit,
+                    resumeAt,
+                    reason,
+                    message,
+                    java.util.Map.of(),
+                    io.github.llm4j.loom.execution.WorkflowOutput.NOTHING);
+        }
+
+        /** True when the run finished but some step took its {@code on_failure} fallback. */
+        boolean degraded() {
+            return !fallbacks.isEmpty();
+        }
+    }
 
     private static final DateTimeFormatter WHEN = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm z");
 
@@ -231,8 +253,7 @@ final class Runs {
                 io.github.llm4j.loom.execution.LiveRuns.shared()
                         .register(spec.workflow(), executor)) {
             executor.executeWorkflow(spec.workflow(), spec.inputs(), env.invoker());
-            env.out().println("✅ Workflow completed successfully.");
-            return new Result(0, null, null, null);
+            return finished(executor, env);
         } catch (RunSuspended paused) {
             printPaused(paused, runDir, spec, env);
             return new Result(4, paused.resumeAt(), paused.reason(), paused.getMessage());
@@ -272,6 +293,7 @@ final class Runs {
             return new Result(1, null, null, e.getMessage());
         } finally {
             printCutAnswers(executor.truncatedAnswers(), env);
+            printUnsourced(executor.groundedWithoutSources(), env);
             if (executor.getRunBudget() != null) {
                 env.out().println();
                 env.out().println("💸 Spend");
@@ -291,6 +313,70 @@ final class Runs {
             }
             executor.shutdown();
         }
+    }
+
+    /**
+     * How a run that reached its end is reported. A run that needed fallbacks says which; a run in
+     * which no model step succeeded is a failure, because nothing in its result came from a model.
+     */
+    private static Result finished(
+            io.github.llm4j.loom.execution.HarnessExecutor executor, WeaveEnv env) {
+        java.util.Map<String, Long> fell = executor.fallbacksTaken();
+        io.github.llm4j.loom.execution.WorkflowOutput output = executor.output();
+        if (fell.isEmpty()) {
+            env.out().println("✅ Workflow completed successfully.");
+            return new Result(0, null, null, null, fell, output);
+        }
+        String names = String.join(", ", fell.keySet());
+        long steps = fell.values().stream().mapToLong(Long::longValue).sum();
+        if (executor.successfulModelCalls() == 0 && executor.modelSteps() > 0) {
+            String why = "all model steps failed; the result is entirely from fallbacks (" + names + ")";
+            env.out().println("❌ The run ended, but " + why + ". Nothing here came from a model.");
+            return new Result(1, null, null, why, fell, output);
+        }
+        env.out().println("⚠ Workflow completed, but not cleanly.");
+        env.out()
+                .println(
+                        "⚠ Degraded: "
+                                + names
+                                + (fell.size() == 1 ? " took its fallback (" : " took their fallback (")
+                                + steps
+                                + " of "
+                                + executor.modelSteps()
+                                + " model steps). Check the result before you rely on it.");
+        return new Result(0, null, null, null, fell, output);
+    }
+
+    /**
+     * Prints what the workflow returned, after the run's own lines. A value that was only a {@code
+     * note} has already been shown as one.
+     */
+    static void printResult(
+            io.github.llm4j.loom.execution.WorkflowOutput output, WeaveEnv env) {
+        switch (output.source()) {
+            case RETURN -> {
+                env.out().println();
+                env.out().println("Result:");
+                env.out().println(output.text());
+            }
+            case NOTE -> {}
+            case NONE -> env.out().println("The workflow returned nothing.");
+        }
+    }
+
+    /** Names grounded agents that came back with no sources; says nothing when there are none. */
+    static void printUnsourced(java.util.Map<String, Long> unsourced, WeaveEnv env) {
+        if (unsourced.isEmpty()) return;
+        String named =
+                unsourced.entrySet().stream()
+                        .map(e -> e.getKey() + " (" + e.getValue() + ")")
+                        .collect(java.util.stream.Collectors.joining(", "));
+        env.out()
+                .println(
+                        "⚠ Grounded but no sources came back: "
+                                + named
+                                + ". The model probably did not search, so a {name}_citations variable"
+                                + " is not set.");
     }
 
     /** Names the agents whose answers were cut at the output limit; says nothing when none were. */

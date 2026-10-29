@@ -66,7 +66,9 @@ weave triggers install runs/.loom-triggers --apply     # let the OS wake Loom (s
 weave schedule sync digest.loom --store runs/.loom-triggers
 ```
 
-Exit codes: `0` done, `1` failed, `2` bad options, `3` stopped by a budget, `4` paused, `5` stopped at `--stop-at`, `6` halted by the workflow (`halt`).
+Exit codes: `0` done, `1` failed, `2` bad options, `3` stopped by a budget, `4` paused, `5` stopped at `--stop-at`, `6` halted by the workflow (`halt`), `7` finished but degraded (only with `--exit-degraded`).
+
+A run that finished by using `on_failure` fallbacks is **degraded**: `weave run` says `⚠ Degraded: Researcher, Editor took their fallback (2 of 5 model steps)` and still exits `0`, so no existing script changes meaning; `--exit-degraded` makes it exit `7`. A run in which **no model step succeeded** (every step fell back) is not a completion: it is reported as a failure and exits `1`. After the run, `weave run` prints what the workflow `return`ed under `Result:` (`--quiet` leaves it out). A workflow's **output** is the value of its `return`; if it has none, `weave eval` falls back to the answer of the last agent it asked, then to its last `note`; with none of these it is an error case and no judge is asked, because a judge handed an empty text only invents a verdict.
 
 ```bash
 weave check digest.loom          # every problem, with its line — without running anything or spending
@@ -288,6 +290,7 @@ cases:
 | `fail:` | `Replier: { times: 2, category: timeout }` (or `on_calls`, `always`) injects `rate_limit`, `timeout`, `server_error`, `invalid_output`, `tool_error`, `refused` or `quota`, to test `retry`, `on_failure` and `rewind` |
 | `tools:`, `tasks:` | the tool or task returns this; tools that act (webhook, email, http, file, shell, sql) only *record* what they would have done, which `expect: { effects: … }` asserts |
 | `humans:`, `resume:` | the people answer in order; with no answer left the run is `suspended`, and `resume:` continues it from its journal |
+| `expect.degraded`, `expect.fallbacks` | `degraded: true` asserts that the run used an `on_failure` fallback; `fallbacks: [ Writer ]` asserts exactly which agents or tasks did |
 | `clock:` | time is virtual: a `sleep 6h` or a retry back-off costs no real time, and `elapsed_virtual` asserts how long the run waited |
 | `steer:`, `stop:` | a person steers or stops an agent after its Nth call (`after_call`) or Nth piece of a streamed reply (`after_chunk`); `models: { Writer: { stream: [ "Hel", "lo" ] } }` scripts the pieces |
 
@@ -1274,7 +1277,7 @@ workflow Main(topic) {
 
 - `grounding: web` alone turns it on; the block narrows it. `allow: [...]` or `block: [...]` (not both) limit the sites, `recency:` is `day`, `week`, `month` or `year`, `country:` a two-letter code, `max_searches:` a cap per call. Lists are written in brackets, like `tools:`.
 - **Who can search.** Perplexity (`perplexity/...`), Claude (`claude-...`), Gemini, and OpenAI or xAI through a provider declared with `api: responses`. Each honours only some settings; Perplexity and Gemini have no search cap, Gemini only `recency`, xAI only `allow` and `block`. `weave check` refuses, by name, grounding on a model that cannot search and a setting its provider cannot honour. There is no `lenient` in a script: you see every limit.
-- **The sources.** After `delegate ... -> notes`, `{notes_citations}` is a list of `index`, `url`, `title` and `snippet` (a missing title or snippet is left out). It is saved with the step, so a resumed run still has it. Some vendors list what they *cited* in the answer, Perplexity lists what it *consulted*.
+- **The sources.** After `delegate ... -> notes`, `{notes_citations}` is a list of `index`, `url`, `title` and `snippet` (a missing title or snippet is left out). It is saved with the step, so a resumed run still has it. Some vendors list what they *cited* in the answer, Perplexity lists what it *consulted*. If a grounded agent comes back with **no** sources (the model did not search), `{notes_citations}` is not set at all and the run prints `⚠ Grounded but no sources came back: Researcher (1)`, so a fallback for missing sources is never the only sign of it. `weave check` warns when a script reads `{x_citations}` for an agent that has no `grounding:`.
 - **Budgets.** `budget { searches: 20 }` at the top, in an agent, or `budget 2 searches` on a step. A grounded call is refused before it is made when no search is left; a plain call still runs. `_budget.searches` reads the run's count.
 - **The trace** shows `searches` and `citations` counts on each model call and `searches` on the run's end. Queries, addresses and text are never in the trace.
 - **Audit.** A grounded agent reads the open web, so `weave audit` counts it as reading untrusted content for the lethal trifecta whatever its `allow:` list says (rule LA20). Keep it away from private data and from tools that send or act, and check its sources in tests (`citesOnlyFrom(...)`).

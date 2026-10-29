@@ -64,6 +64,8 @@ public final class TestChecker {
                     "ran",
                     "elapsed_virtual",
                     "tokens",
+                    "degraded",
+                    "fallbacks",
                     "branches");
 
     static final List<String> FINALS =

@@ -47,6 +47,15 @@ public final class WorkflowLint {
     private WorkflowLint() {}
 
     public static List<Finding> check(WorkflowDef workflow) {
+        return check(workflow, null);
+    }
+
+    /**
+     * As {@link #check(WorkflowDef)}, with the script's agents, so that a read of {@code
+     * {x_citations}} can be checked against whether agent {@code x} is grounded.
+     */
+    public static List<Finding> check(
+            WorkflowDef workflow, io.github.llm4j.loom.ast.LoomScript script) {
         List<Statement> all = new ArrayList<>();
         StatementWalker.walk(workflow.getStatements(), all::add);
         Map<Statement, String> texts = new HashMap<>();
@@ -98,9 +107,45 @@ public final class WorkflowLint {
                                 "both answers to the question lead to the same steps, so the question changes nothing"));
             }
         }
+        if (script != null) findings.addAll(citationsOfUngroundedAgents(script, all, texts, who));
         findings.addAll(wordsThatAreVariables(workflow, all, who));
         findings.addAll(loopsThatNeverRun(workflow, all, who));
         findings.sort(java.util.Comparator.comparingInt(Finding::line));
+        return findings;
+    }
+
+    /**
+     * {@code {x_citations}} exists only when agent {@code x} was grounded and searched. Reading it
+     * for an agent that is not grounded can never work, and a fallback for missing sources then
+     * hides that; reported once per read.
+     */
+    private static List<Finding> citationsOfUngroundedAgents(
+            io.github.llm4j.loom.ast.LoomScript script,
+            List<Statement> all,
+            Map<Statement, String> texts,
+            String who) {
+        List<Finding> findings = new ArrayList<>();
+        for (Statement s : all) {
+            if (!(s instanceof DelegateStmt delegate) || delegate.getVariableName() == null)
+                continue;
+            var agent =
+                    script.getAgents().stream()
+                            .filter(a -> a.getName().equals(delegate.getTargetAgent()))
+                            .findFirst();
+            if (agent.isEmpty() || agent.get().getGrounding() != null) continue;
+            String placeholder = "{" + delegate.getVariableName() + "_citations}";
+            for (Statement t : all) {
+                if (texts.get(t).contains(placeholder))
+                    findings.add(
+                            new Finding(
+                                    t.getLine(),
+                                    who,
+                                    placeholder
+                                            + " is never set: agent "
+                                            + agent.get().getName()
+                                            + " is not grounded (add grounding: web to it)"));
+            }
+        }
         return findings;
     }
 

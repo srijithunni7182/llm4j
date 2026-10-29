@@ -104,6 +104,7 @@ weave run [OPTIONS] <scriptFile>
 - `--classes=<dir|jar>` — Folder or jar with the classes of your own tasks and tools, repeatable (weave only sees what is on its class path). Default: target/classes of the project, when it has been built (mvn compile).
 - `--context-windows=<file>` — A windows file: 'model = window / reserve' per line (the size of each model's context window). Repeatable; a later file wins. Layered over <script>.windows, ~/.llm4j/context-windows and the built-in catalogue. (repeatable)
 - `--env-file=<file>` — Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.
+- `--exit-degraded` — Exit with code 7 when the run finished but some step used its on_failure fallback (default: 0).
 - `-i, --input <String=String>` — Initial context variables in key=value format. (repeatable)
 - `--invoker-env=<NAME=VARIABLE>` — Supply invoker.NAME from an environment variable, e.g. --invoker-env token=MY_API_TOKEN (repeatable).
 - `--journal=<journal>` — Run directory: makes the run durable, so it can pause on limits and resume later.
@@ -133,6 +134,7 @@ weave run [OPTIONS] <scriptFile>
 - `--prices=<prices>` — Price table: lines of 'model = input / output' per million tokens.
 - `--prompt=<id@vN>` — Run this version of a prompt for this run only, e.g. --prompt researcher@v2 (repeatable).
 - `--prompts=<dir>` — The folder of prompt files (default: the script's prompts: line, else a prompts/ folder beside the script).
+- `-q, --quiet` — Do not print the workflow's returned value after the run.
 - `--review-notice=<high|medium|low|off>` — The lowest severity of open review findings mentioned in one line on standard error before the run (default: review.properties, else low). Never blocks the run.
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
@@ -151,11 +153,14 @@ weave run main.loom
 weave run main.loom --observe                   a live page of the run on localhost
 weave run main.loom --max-cost 1.00 --prices prices.txt
 weave run main.loom --journal runs/             make the run durable: it can pause, resume, be explained or captured
+weave run main.loom --exit-degraded             exit 7 when the run finished but a step used its on_failure fallback
+weave run main.loom --quiet                     do not print what the workflow returned
 ```
 
 **Exit status**
 
-0 done. 1 failed. 2 bad options. 3 stopped by a budget. 4 paused (waiting for a person or a time). 5 stopped where it was told to.
+0 done. 1 failed. 2 bad options. 3 stopped by a budget. 4 paused (waiting for a person or a time). 5 stopped where it was told to. 6 halted by the workflow. 7 finished, but a step used its fallback (only with --exit-degraded; without it a degraded run exits 0 and says which steps fell back).
+A run in which every model step fell back is a failure (1). After the run, weave run prints what the workflow returned under "Result:".
 
 **See also**
 
