@@ -13,6 +13,15 @@ Status: **in progress** (the field findings program, [docs/specs/FIELD_FINDINGS.
 - **A cost that is an estimate says so.** The spend table marks estimated rows `~$` and names the agents whose provider reported no usage, instead of the generic note.
 - **Gemini grounding with `recency:` works again on clocks with sub-second precision.** The times sent are whole seconds. (Verified by a unit test; a recorded request from the real API is still owed.)
 
+## `weave eval`: a report that always has the same shape, and a by-agent view
+
+- **The report has nine fixed sections** (*Read this first*, *Overall*, **By agent**, *By dimension*, *By slice*, *Cases*, *Cost*, *Cautions*, *How to reproduce*) in the terminal, in `--report` and in `--json` (`sections`). A section with nothing to show says why instead of disappearing. Tests pin the structure.
+- **A by-agent view, for every run, with no tag or setting.** Each agent that took part gets a row built from the run: its pass rate on the cases aimed at it (with a 95% interval), calls, tokens, cost, answers cut at the output limit, steps that used a fallback, and its worst outputs with the judge's reason. (Before, the dashboard's By-agent table needed `agent:` tags written by hand and `weave eval` did not feed the dashboard at all.)
+- **Outputs are kept and shown.** *Cases* shows each case's input, the output that was judged and every line's verdict with its reason. The output of a case that fails an `expected_output_not_contains` check is withheld, so a report never repeats what the case guards against (a card number, a secret).
+- **The judge's cost is in the cost,** shown beside the agents' and the total, with the cost per passing case. Without `--prices` the figure is `unknown`, not zero.
+- **`weave eval` writes the dashboard bundle** (`target/eval4j/runs/<id>/` or `eval-runs/runs/<id>/`): all cases, their outputs and verdicts, and a case per agent for the By-agent table. Render it with the `eval4j-report` command line.
+- **A workflow's output is defined** (its `return`, else the last agent's answer, else its last `note`) and an empty one is an error case; it is no longer sent to a judge.
+
 ## Which build is this? (identity and snapshot versions)
 
 - **`weave --version` says what it is**: `weave 6.2.0-SNAPSHOT (development, 3d683a35, built 2026-10-29T15:30:00Z), serve protocol 1`, or `release` for a published build. Every module jar carries the same facts in its manifest

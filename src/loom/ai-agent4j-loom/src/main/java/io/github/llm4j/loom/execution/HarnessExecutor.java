@@ -1399,6 +1399,11 @@ public class HarnessExecutor implements LoomEngine {
         return tracing.stats();
     }
 
+    /** What each agent used in this run (successful model calls and their tokens), by name. */
+    public Map<String, AgentUsage> usageByAgent() {
+        return tracing.usageByAgent();
+    }
+
     /**
      * How many answers each agent had cut short at the model's output limit during this run. An
      * answer cut mid-sentence still counts as a completed step, so the run reports it by name.

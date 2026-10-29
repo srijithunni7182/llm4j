@@ -1787,6 +1787,14 @@ weave eval main.loom --mock          run it with mock models; costs nothing
 weave eval main.loom --max-cost 0.50 --prices prices.txt     against real models, capped
 ```
 
+**The report**
+
+Nine sections, always, in the terminal, in --report and in --json: Read this first, Overall, By agent, By dimension, By slice, Cases, Cost, Cautions, How to reproduce. By agent has a row for every agent that took part, with no tag. Cases shows each input and output. A dashboard bundle is written too (target/eval4j/runs/<id>/ or eval-runs/runs/<id>/).
+
+**Exit status**
+
+0 nothing failed. 1 something failed (an empty output is an error case). 2 a dataset or option problem.
+
 **See also**
 
 weave man test, weave man capture

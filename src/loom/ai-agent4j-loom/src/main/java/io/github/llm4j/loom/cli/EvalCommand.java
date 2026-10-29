@@ -5,6 +5,7 @@ import io.github.llm4j.eval.dataset.EvalScenario;
 import io.github.llm4j.loom.ast.LoomScript;
 import io.github.llm4j.loom.eval.DatasetFolder;
 import io.github.llm4j.loom.eval.EvalReport;
+import io.github.llm4j.loom.eval.EvalSections;
 import io.github.llm4j.loom.eval.EvalRunner;
 import io.github.llm4j.loom.eval.Fixtures;
 import io.github.llm4j.loom.eval.MockModels;
@@ -399,6 +400,7 @@ final class EvalCommand implements Callable<Integer> {
                     return e;
                 };
         Map<String, RubricJudge> judges = new HashMap<>();
+        List<io.github.llm4j.loom.eval.JudgeMeter> meters = new ArrayList<>();
         java.util.function.Function<String, RubricJudge> judgeFor =
                 model -> {
                     if (c.mock) return null;
@@ -409,8 +411,12 @@ final class EvalCommand implements Callable<Integer> {
                                     name,
                                     n -> {
                                         try {
-                                            LLMClient client = env.models().createClient(n);
-                                            return RubricJudge.model(client, n);
+                                            // counted, so the judge's cost is part of the run's cost
+                                            var meter =
+                                                    new io.github.llm4j.loom.eval.JudgeMeter(
+                                                            env.models().createClient(n), n);
+                                            meters.add(meter);
+                                            return RubricJudge.model(meter, n);
                                         } catch (RuntimeException ex) {
                                             env.out().println("? no judge: " + ex.getMessage());
                                             return null;
@@ -455,6 +461,17 @@ final class EvalCommand implements Callable<Integer> {
                     stopped = "a limit was reached (" + spend.describe() + ")";
             }
         }
+        String runId = bundleRunId();
+        Path bundleRoot = bundleRoot(scriptFile);
+        Map<String, String> settings = new java.util.LinkedHashMap<>();
+        settings.put(
+                "dataset",
+                DatasetFolder.locate(scriptFile, c.dataset == null ? null : c.dataset.toPath())
+                        .toString());
+        settings.put("weave", io.github.llm4j.BuildIdentity.ofClass(WeaveCLI.class).describe());
+        settings.put("mode", c.mock ? "mock" : "real");
+        settings.put("repetitions", "1");
+        settings.put("bundle", bundleRoot.resolve("runs").resolve(runId).toString());
         EvalReport.Run run =
                 new EvalReport.Run(
                         c.script.getName(),
@@ -462,10 +479,24 @@ final class EvalCommand implements Callable<Integer> {
                         results,
                         notRun,
                         stopped,
-                        plan.dataset().dimensions());
+                        plan.dataset().dimensions(),
+                        judgeFacts(meters, c),
+                        settings,
+                        reproduce(c));
         env.out().println();
-        env.out().print(EvalReport.detail(run));
-        env.out().println(EvalReport.summary(run));
+        env.out().print(EvalSections.terminal(run));
+        try {
+            io.github.llm4j.loom.eval.EvalBundleWriter.write(run, bundleRoot, runId);
+            env.out()
+                    .println(
+                            "Bundle for the eval4j dashboard: "
+                                    + settings.get("bundle")
+                                    + "  (render it: java -jar eval4j-report-<version>-cli.jar render "
+                                    + bundleRoot
+                                    + ")");
+        } catch (RuntimeException e) {
+            env.err().println("Warning: could not write the dashboard bundle: " + e.getMessage());
+        }
         try {
             if (c.json != null) Files.writeString(c.json.toPath(), EvalReport.json(run));
             if (c.report != null) Files.writeString(c.report.toPath(), EvalReport.html(run));
@@ -474,6 +505,65 @@ final class EvalCommand implements Callable<Integer> {
             return 2;
         }
         return run.exitCode();
+    }
+
+    /** Where the dashboard bundle goes: beside a Maven project's other outputs, else next to the script. */
+    private static Path bundleRoot(Path scriptFile) {
+        Path project = io.github.llm4j.loom.init.ProjectLayout.root(scriptFile);
+        return Files.exists(project.resolve("pom.xml"))
+                ? project.resolve("target").resolve("eval4j")
+                : project.resolve("eval-runs");
+    }
+
+    /** A run id that sorts by start time and cannot collide with another run of the same second. */
+    private static String bundleRunId() {
+        return "eval-"
+                + java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'")
+                        .withZone(java.time.ZoneOffset.UTC)
+                        .format(java.time.Instant.now())
+                + "-"
+                + java.util.UUID.randomUUID().toString().substring(0, 4);
+    }
+
+    /** What the judge used in this run, with its cost when prices are known; null when none ran. */
+    private static EvalReport.JudgeFacts judgeFacts(
+            List<io.github.llm4j.loom.eval.JudgeMeter> meters, EvalCommand c) {
+        if (meters.isEmpty()) return null;
+        io.github.llm4j.budget.PriceTable prices = null;
+        try {
+            if (c.prices != null) prices = io.github.llm4j.budget.PriceTable.load(c.prices.toPath());
+        } catch (java.io.IOException | RuntimeException e) {
+            prices = null; // the run's own check of the price file has already said so
+        }
+        String model = null;
+        long calls = 0, in = 0, out = 0;
+        java.math.BigDecimal cost = java.math.BigDecimal.ZERO;
+        boolean priced = true;
+        for (var meter : meters) {
+            EvalReport.JudgeFacts f = meter.facts(prices);
+            model = model == null ? f.model() : model + ", " + f.model();
+            calls += f.calls();
+            in += f.promptTokens();
+            out += f.completionTokens();
+            if (f.cost() == null) priced = false;
+            else cost = cost.add(f.cost());
+        }
+        return new EvalReport.JudgeFacts(model, calls, in, out, priced ? cost : null, false);
+    }
+
+    /** The command that runs this evaluation again, from the options it was given. */
+    private static String reproduce(EvalCommand c) {
+        StringBuilder b = new StringBuilder("weave eval ").append(c.script.getName());
+        if (c.mock) b.append(" --mock");
+        if (c.judge != null) b.append(" --judge ").append(c.judge);
+        if (c.agent != null) b.append(" --agent ").append(c.agent);
+        if (c.workflow != null) b.append(" --workflow ").append(c.workflow);
+        if (c.dataset != null) b.append(" --dataset ").append(c.dataset);
+        if (c.maxTokens != null) b.append(" --max-tokens ").append(c.maxTokens);
+        if (c.maxCalls != null) b.append(" --max-calls ").append(c.maxCalls);
+        if (c.maxCost != null) b.append(" --max-cost ").append(c.maxCost);
+        if (c.prices != null) b.append(" --prices ").append(c.prices);
+        return b.toString();
     }
 
     static List<String> parameters(LoomScript script, String workflow) {

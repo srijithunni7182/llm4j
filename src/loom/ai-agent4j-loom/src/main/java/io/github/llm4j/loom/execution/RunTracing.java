@@ -36,6 +36,7 @@ final class RunTracing {
             new java.util.concurrent.atomic.AtomicLong();
     private final Map<String, java.util.concurrent.atomic.LongAdder> truncatedByAgent =
             new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, long[]> usageByAgent = new java.util.concurrent.ConcurrentHashMap<>();
 
     RunTracing(Host host) {
         this.host = host;
@@ -59,6 +60,18 @@ final class RunTracing {
 
     long compactions() {
         return compactionCount.get();
+    }
+
+    /** What each agent used in this run: successful model calls and their tokens. */
+    Map<String, AgentUsage> usageByAgent() {
+        Map<String, AgentUsage> out = new java.util.TreeMap<>();
+        usageByAgent.forEach(
+                (agent, u) -> {
+                    synchronized (u) {
+                        out.put(agent, new AgentUsage(u[0], u[1], u[2]));
+                    }
+                });
+        return out;
     }
 
     /** How many answers each agent had cut short at the output limit, in the order they began. */
@@ -86,6 +99,14 @@ final class RunTracing {
             @Override
             public void onModelCall(io.github.llm4j.telemetry.ModelCallEvent event) {
                 runStats.onModelCall(event);
+                if (!event.failed()) {
+                    long[] u = usageByAgent.computeIfAbsent(agentName, k -> new long[3]);
+                    synchronized (u) {
+                        u[0]++;
+                        u[1] += event.promptTokens();
+                        u[2] += event.completionTokens();
+                    }
+                }
                 if (event.truncated())
                     truncatedByAgent
                             .computeIfAbsent(

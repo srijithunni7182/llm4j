@@ -9,6 +9,7 @@ import io.github.llm4j.loom.execution.TraceEvent;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -108,7 +109,8 @@ public final class EvalRunner {
                                 : "agent "
                                         + agent
                                         + " produced no output (its final answer was empty), so no"
-                                        + " judge was asked");
+                                        + " judge was asked",
+                        facts(executor, s, answer));
             Set<String> tools = new HashSet<>();
             result.getSteps()
                     .forEach(
@@ -117,7 +119,7 @@ public final class EvalRunner {
                             });
             answerChecks(s, answer, tools, checks);
             judge("rubric", s.rubricLines(), answer, s, modelOf.apply(agent), checks);
-            return finish("agent", agent, file, s, checks, cost(executor), null);
+            return finish("agent", agent, file, s, checks, cost(executor), null, facts(executor, s, answer));
         } catch (BudgetExceeded e) {
             stoppedByLimit = true;
             return finish(
@@ -127,11 +129,12 @@ public final class EvalRunner {
                     s,
                     checks,
                     cost(executor),
-                    "stopped by a limit: " + e.getMessage());
+                    "stopped by a limit: " + e.getMessage(),
+                    facts(executor, s, null));
         } catch (RuntimeException e) {
-            return finish("agent", agent, file, s, checks, cost(executor), message(e));
+            return finish("agent", agent, file, s, checks, cost(executor), message(e), facts(executor, s, null));
         } catch (Exception e) {
-            return finish("agent", agent, file, s, checks, null, message(e));
+            return finish("agent", agent, file, s, checks, null, message(e), facts(executor, s, null));
         } finally {
             if (executor != null) executor.shutdown();
         }
@@ -232,7 +235,8 @@ public final class EvalRunner {
                         cost(executor),
                         "the workflow produced no output: it ended without a return and without an"
                                 + " answer or a note to read, so no judge was asked. Add a `return`"
-                                + " of the text to evaluate");
+                                + " of the text to evaluate",
+                        facts(executor, s, output));
             Set<String> tools = new HashSet<>();
             events.stream()
                     .filter(e -> TraceEvent.ACTION.equals(e.type()) && e.data().get("tool") != null)
@@ -240,7 +244,7 @@ public final class EvalRunner {
             answerChecks(s, output, tools, checks);
             judge("rubric", s.rubricLines(), output, s, judgeModel, checks);
             judge("expect", s.expectLines(), account(events), s, judgeModel, checks);
-            return finish("workflow", workflow, file, s, checks, cost(executor), null);
+            return finish("workflow", workflow, file, s, checks, cost(executor), null, facts(executor, s, output));
         } catch (BudgetExceeded e) {
             stoppedByLimit = true;
             return finish(
@@ -250,11 +254,12 @@ public final class EvalRunner {
                     s,
                     checks,
                     cost(executor),
-                    "stopped by a limit: " + e.getMessage());
+                    "stopped by a limit: " + e.getMessage(),
+                    facts(executor, s, null));
         } catch (RuntimeException e) {
-            return finish("workflow", workflow, file, s, checks, cost(executor), message(e));
+            return finish("workflow", workflow, file, s, checks, cost(executor), message(e), facts(executor, s, null));
         } catch (Exception e) {
-            return finish("workflow", workflow, file, s, checks, null, message(e));
+            return finish("workflow", workflow, file, s, checks, null, message(e), facts(executor, s, null));
         } finally {
             if (executor != null) executor.shutdown();
         }
@@ -405,6 +410,60 @@ public final class EvalRunner {
         }
     }
 
+    /**
+     * What stands in for an output that contains what its case says must never appear: the report
+     * and the bundle would otherwise repeat the very thing (a card number, a secret) the case
+     * guards against.
+     */
+    public static final String WITHHELD =
+            "(withheld: the output contains text this case says must never appear)";
+
+    private static boolean forbidden(List<ScenarioResult.Check> checks) {
+        return checks.stream()
+                .anyMatch(c -> c.kind().equals("answer never contains") && c.status() == Status.FAIL);
+    }
+
+    /** What a run kept beyond its verdicts: what was judged and what each agent did. */
+    private record RunFacts(String output, List<AgentFacts> agents) {
+        static final RunFacts NONE = new RunFacts(null, List.of());
+    }
+
+    /** The output that was judged and, from the trace, what each agent that took part used. */
+    private static RunFacts facts(HarnessExecutor executor, EvalScenario s, String output) {
+        if (executor == null) return new RunFacts(output, List.of());
+        Map<String, io.github.llm4j.loom.execution.AgentUsage> usage = new LinkedHashMap<>();
+        Map<String, Long> cut = Map.of();
+        Map<String, Long> fell = Map.of();
+        Map<String, java.math.BigDecimal> costs = new LinkedHashMap<>();
+        try {
+            usage.putAll(executor.usageByAgent());
+            cut = executor.truncatedAnswers();
+            fell = executor.fallbacksTaken();
+            executor.spend().byAgent().forEach((agent, t) -> {
+                if (t.cost() != null && !(t.estimated() && t.cost().signum() == 0)) costs.put(agent, t.cost());
+            });
+        } catch (RuntimeException e) {
+            // a run that cannot say what it used still has its output
+        }
+        java.util.Set<String> names = new java.util.TreeSet<>(usage.keySet());
+        names.addAll(cut.keySet());
+        names.addAll(fell.keySet());
+        List<AgentFacts> out = new ArrayList<>();
+        for (String name : names) {
+            var u = usage.getOrDefault(name, new io.github.llm4j.loom.execution.AgentUsage(0, 0, 0));
+            out.add(
+                    new AgentFacts(
+                            name,
+                            u.calls(),
+                            u.promptTokens(),
+                            u.completionTokens(),
+                            costs.get(name),
+                            cut.getOrDefault(name, 0L),
+                            fell.getOrDefault(name, 0L)));
+        }
+        return new RunFacts(output, out);
+    }
+
     private static ScenarioResult finish(
             String kind,
             String target,
@@ -413,6 +472,18 @@ public final class EvalRunner {
             List<ScenarioResult.Check> checks,
             BigDecimal cost,
             String error) {
+        return finish(kind, target, file, s, checks, cost, error, RunFacts.NONE);
+    }
+
+    private static ScenarioResult finish(
+            String kind,
+            String target,
+            String file,
+            EvalScenario s,
+            List<ScenarioResult.Check> checks,
+            BigDecimal cost,
+            String error,
+            RunFacts facts) {
         Status status = Status.PASS;
         for (ScenarioResult.Check c : checks) status = status.and(c.status());
         if (error != null) status = Status.FAIL;
@@ -426,7 +497,21 @@ public final class EvalRunner {
                             Status.UNJUDGED,
                             "the scenario has no expected_output_contains, expected_output, expected_tools, rubric or expect"));
         }
-        return new ScenarioResult(target, kind, file, s.id(), s.name(), status, shown, cost, error);
+        return new ScenarioResult(
+                target,
+                kind,
+                file,
+                s.id(),
+                s.name(),
+                status,
+                shown,
+                cost,
+                error,
+                s.input(),
+                forbidden(shown) ? WITHHELD : facts.output(),
+                s.tags(),
+                s.dimensions(),
+                facts.agents());
     }
 
     // ── what a workflow run says ─────────────────────────────────────────────────────────────
