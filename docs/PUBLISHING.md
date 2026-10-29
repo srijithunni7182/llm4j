@@ -42,7 +42,7 @@ Every release runs the default tests; `-Prelease` never skips them. Slow tests (
    After the tag, `scripts/release-version.sh next 6.2.1-SNAPSHOT` moves `main` on (`llm4j.released` stays `6.2.0`); commit that as `chore: start 6.2.1-SNAPSHOT`.
    A jar says what it is: `weave --version` prints `release` or `development`, the commit and the build time, and the same facts are in every module jar's manifest (`Implementation-Version`, `Build-Kind`, `Build-Commit`, `Build-Dirty`, `Build-Time`). `-Prelease` marks the build a release.
 2. Check locally, without a key:
-   `make release-check` (= `mvn -Prelease -Dgpg.skip=true verify`, then `java scripts/CheckJars.java src`). It builds the sources and javadoc jars and the `cli` jar, and refuses any jar that does not say what it is or holds a half-compiled class from an editor's language server (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
+   `make release-check` (= `mvn -Prelease -Dgpg.skip=true clean verify`, then `java scripts/CheckJars.java src`). It builds the sources and javadoc jars and the `cli` jar, and refuses any jar that does not say what it is or holds a half-compiled class from an editor's language server (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
 3. Tag and push: `git tag v5.1 && git push origin v5.1`. The workflow `Build, Validate, and Deploy` runs the tests on JDK 17 and 21,
    then `mvn -B -Prelease deploy` (tests again, sign, upload). You can also start it by hand with *Run workflow → deploy*.
 4. **Review in the Portal.** By default the upload is *not* published (`central.autoPublish=false`): open

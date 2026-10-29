@@ -32,7 +32,7 @@ smoke-apps:
 	mvn -q -Pextended -DskipTests compile
 
 release-check:
-	mvn -q -Prelease -Dgpg.skip=true verify
+	mvn -q -Prelease -Dgpg.skip=true clean verify
 	java scripts/CheckJars.java src
 
 quick:

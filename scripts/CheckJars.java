@@ -20,9 +20,9 @@ import java.util.zip.ZipEntry;
  *       compilation problem" when it is loaded, and a plain {@code mvn package} then ships it.
  * </ul>
  *
- * Usage: {@code java scripts/CheckJars.java <folder or jar>...}. Looks in each folder for {@code
- * *.jar} files (not {@code -sources}, {@code -javadoc} or {@code -tests}), recursively under {@code
- * target} folders. Exits 1 and names each problem; prints nothing but a count when all is well.
+ * Usage: {@code java scripts/CheckJars.java <folder or jar>...}. Looks in each folder for the
+ * {@code *.jar} files a build puts directly in a {@code target} folder (not {@code -sources}, {@code
+ * -javadoc} or {@code -tests} jars, and not the third-party copies in {@code target/lib}). Exits 1 and names each problem; prints nothing but a count when all is well.
  */
 public final class CheckJars {
     private static final String STUB_MARKER = "Unresolved compilation problem";
@@ -48,7 +48,7 @@ public final class CheckJars {
         if (!Files.isDirectory(path)) return;
         try (Stream<Path> walk = Files.walk(path)) {
             walk.filter(p -> p.getFileName().toString().endsWith(".jar"))
-                    .filter(p -> p.toString().contains("target"))
+                    .filter(p -> p.getParent() != null && p.getParent().getFileName().toString().equals("target"))
                     .filter(p -> !p.getFileName().toString().matches(".*-(sources|javadoc|tests)\\.jar"))
                     .sorted()
                     .forEach(out::add);
