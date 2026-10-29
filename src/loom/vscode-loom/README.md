@@ -82,6 +82,8 @@ Open the Command Palette and type **Loom**. The commands below run the same `wea
 
 Turning a bad run into a test (`weave capture`), trying a change on past runs (`weave regress`) and the CI verdict (`weave gate`) are terminal commands; see the [command reference](../../../docs/COMMAND_REFERENCE.md).
 
+**Typing `weave` yourself.** The extension carries its own engine and starts it for every command above, but it does not add a `weave` command to your terminal. To use the command line, install it once: `jbang app install weave@srijithunni7182/llm4j` puts `weave` on your PATH (Java 17 or newer; [other ways](../../../install/README.md)).
+
 ## Workflow graph
 
 **Loom: Show Workflow Graph** draws the workflows of the active `.loom` file beside the editor. It follows `import`s, so a workflow that `call`s another file's workflow shows where that workflow is defined, and you can open it.
