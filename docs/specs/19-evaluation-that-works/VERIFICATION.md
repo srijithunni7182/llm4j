@@ -15,6 +15,7 @@ Findings: F20 to F26 and F55 to F65 of the [register](../FIELD_FINDINGS.md). Str
 | P4 | F22 | A scenario with two dimensions and three rubric lines; run with a scripted judge; read the per-dimension counts. | each line filed under both dimensions | ⬜ |
 | P5 | F23 | A scripted judge that varies; run the same case twice. | a different score each time and one sample per line, with no spread shown | ⬜ |
 | P6 | F24 | Read the dashboard's cost for a run with a judge. | the judge's cost is absent | ⬜ |
+| P7 | F20, F25 | Run a two-agent workflow through `weave eval` and read the trace and the eval4j scenario model: does each step record **which agent** produced it, with its tokens, cost and finish reason? Can the dashboard's By-agent table be filled from that without an `agent:` tag? (Decides how R4 is built.) | the agent is known only from tags | ⬜ |
 
 ### 0.2 Inventory the capabilities of Part B
 
@@ -46,7 +47,8 @@ The result of §0.2 is written into §7 and into the register's evidence column 
 | A1 | One command, `weave eval`, produces the bundle the dashboard reads, with outputs, per-line reasoning, per-dimension and per-agent results, agent and judge cost, and the configuration fingerprint | `EvalWritesTheBundleTest`, `HtmlReportIsRenderedFromTheBundleTest`, P1, M1 |
 | A2 | An empty output is never judged | `EmptyOutputIsAnErrorCaseTest`, `EvalNeverJudgesEmptyOutputTest` |
 | A3 | A rubric line can belong to one dimension; plain lines keep their counting and `--check` says so | `RubricLineDimensionTest`, P4 |
-| A4 | The By-agent view is on by default for agent-tagged cases and the recipe is in the guides and executed by a test | `ByAgentIsOnWhenCasesAreAgentTaggedTest`, the docs test, P2 |
+| A4 | Every report has the By-agent view, with no tag or configuration, taken from the run's trace; the recipe is in the guides and executed by a test | `ByAgentViewIsAlwaysPresentTest`, `ByAgentColumnsTest`, the docs test, P2 |
+| A4a | Every report has the nine sections of the report contract, in order, in the bundle, the HTML and the terminal; an empty section says why | `ReportContractStructureTest`, `EmptySectionStillSaysWhyTest`, M1 |
 | A5 | A project can generate the opt-in real-evaluation class | `EmitTestCompilesAndRunsHermeticTest`, P3 |
 | A6 | The judge's cost is shown and bounded with the agents' | `JudgeCostIsSeparateAndInTheTotalTest`, `MaxCostBoundsTheTotalTest`, P6 |
 | A7 | Judge samples give a median and a spread; an unstable line does not gate | `JudgeSamplesMedianAndSpreadTest`, `UnstableLineIsNotCountedForAGateTest`, P5 |
@@ -73,7 +75,8 @@ Criteria for requirements that §0.2 marks **met** are replaced by "confirmed pr
 |---|---|---|
 | R1, R2 | `EvalWritesTheBundleTest`, `HtmlReportIsRenderedFromTheBundleTest`, `EmptyOutputIsAnErrorCaseTest` | ⬜ |
 | R3 | `RubricLineDimensionTest` | ⬜ |
-| R4 | `ByAgentIsOnWhenCasesAreAgentTaggedTest`, `EvalInitWritesReportConfigTest`, docs test | ⬜ |
+| R4 | `ByAgentViewIsAlwaysPresentTest`, `ByAgentColumnsTest`, `EvalInitWritesReportConfigTest`, docs test | ⬜ |
+| R4.1 | `ReportContractStructureTest`, `EmptySectionStillSaysWhyTest` | ⬜ |
 | R5 | `EmitTestCompilesAndRunsHermeticTest` | ⬜ |
 | R6 | `JudgeCostIsSeparateAndInTheTotalTest`, `MaxCostBoundsTheTotalTest` | ⬜ |
 | R7 | `JudgeSamplesMedianAndSpreadTest`, `UnstableLineIsNotCountedForAGateTest` | ⬜ |

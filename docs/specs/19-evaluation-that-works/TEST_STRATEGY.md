@@ -33,7 +33,8 @@ A report test never asserts "the quality is 87%". It asserts that a scripted mod
 |---|---|
 | **R1, R2** | `EvalWritesTheBundleTest`: outputs, per-line reasoning, dimensions, agent tag, agent and judge cost, fingerprint and dataset version are in the bundle and are read back by the loader; `HtmlReportIsRenderedFromTheBundleTest`; `EmptyOutputIsAnErrorCaseTest` (with Phase 17) |
 | **R3** | `RubricLineDimensionTest`: a line with `dimension:` counts once under it; a plain line keeps the old counting; `--check` says so once per case; mixed lists parse |
-| **R4** | `ByAgentIsOnWhenCasesAreAgentTaggedTest`, `EvalInitWritesReportConfigTest`, the recipe's docs test |
+| **R4** | `ByAgentViewIsAlwaysPresentTest` (no tags, no config, agents taken from the trace; a workflow returning one text gets the explained empty state, never a missing section), `ByAgentColumnsTest`, `EvalInitWritesReportConfigTest`, the recipe's docs test |
+| **R4.1** | `ReportContractStructureTest`: one golden structure per fixture, checked against the JSON bundle, the HTML and the terminal summary; fails when a section, a By-agent column or a case field is missing or out of order; `EmptySectionStillSaysWhyTest` |
 | **R5** | `EmitTestCompilesAndRunsHermeticTest`: the emitted class compiles against eval4j and, with the switch off, runs zero real tests; with a scripted client it produces a bundle |
 | **R6** | `JudgeCostIsSeparateAndInTheTotalTest`, `MaxCostBoundsTheTotalTest` |
 | **R7** | `JudgeSamplesMedianAndSpreadTest`; `UnstableLineIsNotCountedForAGateTest` |
