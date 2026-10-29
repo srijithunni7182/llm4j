@@ -107,6 +107,7 @@ Language at a glance:
 
 ## Optional
 
+- [Why teams choose llm4j and Loom](https://github.com/srijithunni7182/llm4j/blob/main/docs/WHY_LLM4J.md): the guarantees you get out of the box (journaled effects, budgets before each call, audit) against the usual path, backed by the [probes](https://github.com/srijithunni7182/llm4j/blob/main/probes/README.md)
 - [Why ai-agent4j?](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/WHY_AI_AGENT4J.md) (versus LangChain4j and Spring AI) and [Why eval4j?](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/WHY_EVAL4J.md) (versus deepeval)
 - [Migration Guide 5.0](https://github.com/srijithunni7182/llm4j/blob/main/docs/MIGRATION_GUIDE_5_0.md), [API Compatibility](https://github.com/srijithunni7182/llm4j/blob/main/docs/API_COMPATIBILITY.md), [Version Matrix](https://github.com/srijithunni7182/llm4j/blob/main/docs/VERSION_MATRIX.md), [Testing Strategy](https://github.com/srijithunni7182/llm4j/blob/main/docs/TESTING_STRATEGY.md)
 - Feature specifications with requirements, designs, verification plans and sign-off evidence: `.kiro/specs/` (generic tools, rewind and fork, earned autonomy, remote answers, workflow control, structured output)
