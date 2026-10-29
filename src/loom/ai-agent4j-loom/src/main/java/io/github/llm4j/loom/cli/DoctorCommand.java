@@ -161,7 +161,8 @@ final class DoctorCommand implements Callable<Integer> {
                         .println(
                                 "Testing a TLS connection (no request, no key) to: "
                                         + String.join(", ", plan.egressHosts()));
-            List<Doctor.Check> checks = Doctor.run(ctx);
+            List<Doctor.Check> checks = new java.util.ArrayList<>(Doctor.run(ctx));
+            jarsCheck(vars).ifPresent(checks::add);
             if (c.format.equals("json")) env.out().println(json(checks));
             else text(checks, env);
             if (c.fix && !c.format.equals("json")) fixes(c, env, cwd, script);
@@ -264,5 +265,21 @@ final class DoctorCommand implements Callable<Integer> {
         if (todo.stream().anyMatch(t -> t.contains("copy .env.example")))
             Files.copy(base.resolve(".env.example"), base.resolve(".env"));
         env.out().println("Done.");
+    }
+
+    /**
+     * Two Loom jars with one version number but different builds are the cause of "it behaves
+     * differently here"; looks at local files only, and says nothing when they agree.
+     */
+    private static java.util.Optional<Doctor.Check> jarsCheck(
+            java.util.function.Function<String, String> vars) {
+        io.github.llm4j.BuildIdentity running = io.github.llm4j.BuildIdentity.ofClass(WeaveCLI.class);
+        if (running.fromClasses()) return java.util.Optional.empty();
+        return Doctor.jars(
+                io.github.llm4j.loom.doctor.JarDiscovery.discover(
+                        Path.of(System.getProperty("user.home")),
+                        vars,
+                        new io.github.llm4j.loom.doctor.JarDiscovery.Found(
+                                "the weave you are running", null, running)));
     }
 }

@@ -17,6 +17,12 @@ public final class InspectObserveProvider implements ObserveProvider {
 
     @Override
     public Session open(ObserveOptions options, PrintStream out) {
+        // an add-on built from one commit against a core from another fails later with a missing
+        // class; refuse now, and say which two builds met
+        CoreMatch.require(
+                "loom-inspect",
+                InspectObserveProvider.class,
+                io.github.llm4j.loom.execution.HarnessExecutor.class);
         return new InspectSession(options, out);
     }
 

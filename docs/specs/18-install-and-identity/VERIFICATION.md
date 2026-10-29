@@ -102,6 +102,13 @@ Guards removed by hand once: the stub marker in `CheckJars` (the stub test fails
 Verified: `mvn -B verify` on the whole reactor, all 13 modules BUILD SUCCESS (the Loom module alone 6 min 47 s); `make format-check` exit 0; `java scripts/CheckJars.java src` on the freshly built jars passes **after a correction**: the first version of the script also scanned the third-party copies in `target/lib` and failed on them, and leftover `6.1.0` jars from before the identity change failed it too. It now checks only the jars a build puts directly in `target/`, and `make release-check` now runs `clean verify` so a stale jar cannot be mistaken for a release jar. My first commit message for this sub-phase said the jar check passed; it had not been run on the real output yet.
 **Not run:** the fragile test inside the default build (it runs with `-Pextended`; I ran it by hand and it passes), PIT, the `-Pextended` build, `make release-check` in full (its `CheckJars` step was run separately), the VS Code extension build.
 Changed existing tests: `LauncherTest` (the version line format, and the catalogue test now asks for "a published version"; the exact tie moved to `ReleasedVersionSourceOfTruthTest`).
+### 18b (R2), 2026-10-29
+
+Built: `Doctor.jars` and `JarDiscovery` (the running jar, `~/.m2` copies, the editor extension's bundled jar, `WEAVE_JAR`; local files only; a jar it cannot read is skipped; silent when all agree), wired into `weave doctor`; `CoreMatch` in `loom-inspect-core` (JDK-only manifest comparison, so it still works against a core older than any class it could ask for), called by `InspectObserveProvider.open` and `FabricCLI.main`.
+Tests first: `DoctorJarsTest` (5), `CoreMatchTest` (6). Guard removed by hand once: forcing `same = true` in `CoreMatch` fails 2 of its tests.
+Verified: `mvn verify` on `ai-agent4j-loom` (3,544 tests, 0 failures, 3 skipped), `loom-inspect-core` (61), `loom-fabric` (215), `loom-inspect` (357), all BUILD SUCCESS, gates passed.
+**Not reproduced end to end (P2, P3):** I did not put a real older jar and a development jar side by side or run `weave observe` against a deliberately mismatched add-on; the checks are proven on fake jars and manifests. The fabric check compares Fabric with the inspect core it bundles, not with a separately installed Loom core.
+
 Note for the owner: every file name that carried `6.1.0` for a build output now carries `6.2.0-SNAPSHOT` (samples' `run.sh` were changed to find the jar by pattern). Nothing was tagged, published or pushed to a tag.
 
 

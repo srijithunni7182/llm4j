@@ -1093,6 +1093,10 @@ weave doctor --fix                create the run store, ignore .env in git, copy
 weave doctor --format json        for CI or an editor
 ```
 
+**Jars**
+
+Doctor lists the Loom jars it can reach (the one running, the local Maven repository, the editor extension's bundled jar, WEAVE_JAR) and, only when two share a version number but are different builds, says which and how to fix it. It reads local files and says nothing when they agree.
+
 **Exit status**
 
 0 ready. 1 ready with warnings. 2 not ready.

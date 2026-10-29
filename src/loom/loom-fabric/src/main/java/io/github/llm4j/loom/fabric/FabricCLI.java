@@ -80,6 +80,13 @@ public final class FabricCLI implements Callable<Integer> {
     }
 
     public static void main(String[] args) {
+        try {
+            io.github.llm4j.loom.inspect.CoreMatch.require(
+                    "loom-fabric", FabricCLI.class, io.github.llm4j.loom.inspect.CoreMatch.class);
+        } catch (IllegalStateException mismatch) {
+            System.err.println("Error: " + mismatch.getMessage());
+            System.exit(2);
+        }
         System.exit(commandLine().execute(args));
     }
 

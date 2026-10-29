@@ -20,6 +20,10 @@ Status: **in progress** (the field findings program, [docs/specs/FIELD_FINDINGS.
 - **Between releases `main` carries `X.Y.Z-SNAPSHOT`.** Two jars that both said `6.0.0` but behaved differently were one release and one build from the repository. A development build can no longer carry a release's number.
   What must name a downloadable version (the JBang catalogue, `weave init`'s generated test project, a deployment's Fabric image) uses the last published release, kept in one property (`llm4j.released`); the release step is
   `scripts/release-version.sh` ([PUBLISHING.md](PUBLISHING.md)). **For contributors:** jar file names now carry the snapshot version (`ai-agent4j-loom-6.2.0-SNAPSHOT-cli.jar`).
+- **`weave doctor` names two Loom jars that share a version but are different builds** (the running one, copies in `~/.m2`, the editor extension's bundled jar, `WEAVE_JAR`) in one sentence with the fix, and says nothing
+  when they agree. Local files only.
+- **The inspect and Fabric add-ons refuse a mismatched core in one sentence.** `loom-inspect` checks at start-up that it is the same build as the `ai-agent4j-loom` it runs against; `loom-fabric` does the same against the
+  inspect core it bundles. A development build must match by commit; two releases match by version. Before, the mismatch showed up later as a missing class.
 - **A jar with a half-compiled class cannot be released.** `make release-check` and the CI release job run `scripts/CheckJars.java`, which refuses a jar holding an editor's `Unresolved compilation problem` stub or lacking its
   identity; `scripts/verify-vsix.sh` does the same for the jar the extension bundles; `scripts/doctor.sh` warns when `target/classes` holds a stub. See CONTRIBUTING.md.
 
