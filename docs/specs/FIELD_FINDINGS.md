@@ -56,15 +56,16 @@ Every finding has a stable id. The last column is the phase that owns it. A find
 
 | ID | Finding | Source | Evidence |
 |---|---|---|---|
-| F01 | `shared_prompt` (file and inline forms) is accepted but its text did not reach the model in a real run: a canary instruction was ignored there and obeyed in the agent's own prompt. The injection defences the project relied on were not in force for hours, and three agents then obeyed injected orders. | S2 3.1.1 | V, **X** (code and a unit test say it works) |
-| F02 | `weave check` says "prompt house-rules is not used by any agent" for a file named by `shared_prompt: prompt "house-rules"`. | S1, S2 | V, **R** (reproduced with a minimal script on the 2026-10-29 jar) |
-| F03 | With a token or cost budget active and no `per_call` on an agent, every model call is capped at 1,024 output tokens. Articles were cut mid-sentence (about 780 words) and the run reported success; several agents showed a completion count of about 1,020. | S2 3.1.2 | V, **C** (`BudgetSet.DEFAULT_OUTPUT = 1024`, used when `wanted == null`) |
-| F04 | Gemini grounding with `recency:` fails with HTTP 400 "time_range_filter: Granularity of nano is not supported"; both grounded agents failed. | S2 3.1.3 | V, **C** (`GoogleGrounding` sends `Instant.toString()`, which carries sub-second digits) |
-| F05 | Fallbacks (`on_failure`) can hide total failure: a run in which four of five agents failed ended "completed successfully" and saved a 42-word stub. There is no first-class degraded status or exit code. | S2 3.1.4 | V |
+| F01 | `shared_prompt` (file and inline forms) is accepted but its text did not reach the model in a real run: a canary instruction was ignored there and obeyed in the agent's own prompt. The injection defences the project relied on were not in force for hours, and three agents then obeyed injected orders. | S2 3.1.1 | V, **R** 2026-10-29 (cause: `LoomScript.merge` dropped it; X resolved, the 6.1.0 note was false) |
+| F02 | `weave check` says "prompt house-rules is not used by any agent" for a file named by `shared_prompt: prompt "house-rules"`. | S1, S2 | V, **R** 2026-10-29 (same cause as F01) |
+| F03 | With a token or cost budget active and no `per_call` on an agent, every model call is capped at 1,024 output tokens. Articles were cut mid-sentence (about 780 words) and the run reported success; several agents showed a completion count of about 1,020. | S2 3.1.2 | V, **R** 2026-10-29, C |
+| F04 | Gemini grounding with `recency:` fails with HTTP 400 "time_range_filter: Granularity of nano is not supported"; both grounded agents failed. | S2 3.1.3 | V, **R** 2026-10-29 (unit; live pending), C |
+| F05 | Fallbacks (`on_failure`) can hide total failure: a run in which four of five agents failed ended "completed successfully" and saved a 42-word stub. There is no first-class degraded status or exit code. | S2 3.1.4 | V, **R** 2026-10-29 |
 | F06 | `weave eval` reported "no actual output" to three different judges for agent scenarios whose agents returned good text when run directly. Its report does not store the agents' outputs. | S2 obs 6, 3.4 | V (cause unknown; see Phase 17 R5 for the leading hypothesis) |
-| F07 | `weave run` prints `note` lines but not a workflow's `return` value. | S2 3.1.6 | V |
+| F07 | `weave run` prints `note` lines but not a workflow's `return` value. | S2 3.1.6 | V, **R** 2026-10-29 |
 | F08 | Token accounting looks estimated for Gemini ("some usage was estimated: a provider reported none"); several agents showed the same completion count. Cost figures are approximate and not labelled as such. | S2 3.1.7 | I |
 | F09 | Gemini grounding citations never arrived: every real article lacked its Sources section because `{research_citations}` was missing and a fallback skipped it silently. | S2 3.1.8 | V (symptom), cause unknown |
+| F66 | Found while tracing F01: `LoomScript.merge` also dropped a script's own `supervise` and `intervention` blocks, so a supervised script ran unsupervised in every `weave` command, and `weave explain` omitted them. | M (17a) | **R** 2026-10-29 |
 
 ### Phase 18: install, identity and environment (P1: the first ten minutes)
 
@@ -152,7 +153,7 @@ Every finding has a stable id. The last column is the phase that owns it. A find
 |---|---|---|---|
 | F27 | There is no evaluation skill: the path from "I have a script" to "I have a trustworthy per-agent report" is not written down anywhere a coding agent will read. The harness has a design-first skill (`llm4j-harness-design`); evaluation has none. The owner's QA guide is the method such a skill would carry. | S2 obs 7, §5; Q | V |
 
-65 findings (F27 is counted once; it moved here from Phase 19 when the QA guide arrived). The reporter's own list of open items (the Sources section, StyleScout's length, Fabric pages not checked, two secrets to rotate) is project work, not product work, and is in §6.
+66 findings (F66 was found by Phase 17a and is owned by Phase 17; F27 is counted once; it moved here from Phase 19 when the QA guide arrived). The reporter's own list of open items (the Sources section, StyleScout's length, Fabric pages not checked, two secrets to rotate) is project work, not product work, and is in §6.
 
 ## 4. Order of work and the release plan
 

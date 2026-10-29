@@ -308,6 +308,12 @@ public class LoomScript implements Node {
         this.ladders.addAll(other.ladders);
         this.measures.addAll(other.measures);
         this.intentClassifiers.addAll(other.intentClassifiers);
+        // Supervision travels with the agents it watches. The script merged last (the importing
+        // file) wins the intervention defaults.
+        this.supervisions.addAll(other.supervisions);
+        if (other.intervention != null) {
+            this.intervention = other.intervention;
+        }
         if (this.auditConfig == null) {
             this.auditConfig = other.auditConfig;
         }

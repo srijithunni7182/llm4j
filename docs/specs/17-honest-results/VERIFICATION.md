@@ -12,17 +12,17 @@ Record the date, the jar's build id (`weave --version`, and the git commit), and
 
 | # | Finding | Procedure | If the finding is real, you see | Result |
 |---|---|---|---|---|
-| P1 | F01 | Run `weave run` on a script with `shared_prompt: "CANARY-A …"` and an agent with `system:` against the fake server; then with `shared_prompt: prompt "rules"` and an agent with `prompt: "own"`; then each inside `in parallel`, with `grounding: web`, with `expecting`. Read the request bodies. | any request whose system-level text lacks the canary | ⬜ |
-| P2 | F01 | Repeat P1 with the Gemini adapter and the Anthropic adapter pointed at the fake server, reading each vendor's system field. | a request where the vendor's system field lacks the canary | ⬜ |
-| P3 | F01 | **Live, capped:** the owner's `article-flow` project: one agent, the canary "begin every answer with CANARY-7QX" in `shared_prompt`, then in the agent's own prompt; run each once and read the answer. | the model ignores the canary only when it is shared | ⬜ |
-| P4 | F02 | `weave check` on the minimal script in [FIELD_FINDINGS §3 (F02)](../FIELD_FINDINGS.md): `prompts: "prompts"`, `shared_prompt: prompt "house-rules"`, one agent with `prompt: "helper"`. Reproduced once on 2026-10-29 on the extension's jar; repeat on current `main`, and trace `ScriptValidator.checkPromptFolder`'s `used` set to the cause. | the warning "not used by any agent" | ✅ 2026-10-29 (once); cause open |
-| P5 | F03 | Script with `budget { tokens: 100000 calls: 20 }` and an agent with no `per_call`; the fake answers 2,000 tokens. Read the request's output-limit field and the answer the run keeps. | `max_tokens` (or the vendor's field) = 1024 and a cut answer with exit 0 | ⬜ |
-| P6 | F03 | Same script without a budget. | no limit sent (control) | ⬜ |
-| P7 | F04 | **Unit:** `GoogleGrounding` with a clock returning nanoseconds; read `timeRangeFilter`. **Live, capped:** one Gemini grounded request with `recency:`. | sub-second digits in the times; HTTP 400 "Granularity of nano is not supported" | ⬜ |
-| P8 | F05 | The field-replay script with the fake failing four of five agents. | "Workflow completed successfully", exit 0, a stub saved, no degraded line | ⬜ |
-| P9 | F06, F07 | A workflow that ends with `note` and no `return`; run it with `weave run`, then `weave eval` with a counting fake judge. | no `Result:` printed; the judge receives an empty output | ⬜ |
-| P10 | F08 | Fake provider with no `usage`; read the run summary and events. Fake that answers exactly at the limit; read the completion counts. | cost shown without a label; counts clustered at the limit (explaining the "1,020") | ⬜ |
-| P11 | F09 | Recorded real Gemini grounded response through a plain `delegate`, inside `in parallel`, and with `expecting`; print `{x_citations}`. **Live, capped:** the same on the real API. | an empty or missing variable in at least one case | ⬜ |
+| P1 | F01 | Run `weave run` on a script with `shared_prompt: "CANARY-A …"` and an agent with `system:` against the fake server; then with `shared_prompt: prompt "rules"` and an agent with `prompt: "own"`; then each inside `in parallel`, with `grounding: web`, with `expecting`. Read the request bodies. | any request whose system-level text lacks the canary | ✅ 2026-10-29: **reproduced.** The request to the fake lacked the canary, text form and file form (`RealRunKeepsItsDeclarationsTest`). Cause found, see §7. |
+| P2 | F01 | Repeat P1 with the Gemini adapter and the Anthropic adapter pointed at the fake server, reading each vendor's system field. | a request where the vendor's system field lacks the canary | ⏳ Gemini and Anthropic adapters not yet read; the cause (loading) is before any adapter, so H2 is not needed to explain F01. Contract tests still owed (R1.3). |
+| P3 | F01 | **Live, capped:** the owner's `article-flow` project: one agent, the canary "begin every answer with CANARY-7QX" in `shared_prompt`, then in the agent's own prompt; run each once and read the answer. | the model ignores the canary only when it is shared | ⏳ owner, live, capped (M2) |
+| P4 | F02 | `weave check` on the minimal script in [FIELD_FINDINGS §3 (F02)](../FIELD_FINDINGS.md): `prompts: "prompts"`, `shared_prompt: prompt "house-rules"`, one agent with `prompt: "helper"`. Reproduced once on 2026-10-29 on the extension's jar; repeat on current `main`, and trace `ScriptValidator.checkPromptFolder`'s `used` set to the cause. | the warning "not used by any agent" | ✅ 2026-10-29: **reproduced again and explained**: same cause as P1 |
+| P5 | F03 | Script with `budget { tokens: 100000 calls: 20 }` and an agent with no `per_call`; the fake answers 2,000 tokens. Read the request's output-limit field and the answer the run keeps. | `max_tokens` (or the vendor's field) = 1024 and a cut answer with exit 0 | ✅ 2026-10-29: **reproduced.** `max_tokens` = 1024 on the request with `budget { tokens: 100000 calls: 20 }`; the answer is cut (test kept for 17c) |
+| P6 | F03 | Same script without a budget. | no limit sent (control) | ✅ 2026-10-29: control passes: no limit sent without a budget |
+| P7 | F04 | **Unit:** `GoogleGrounding` with a clock returning nanoseconds; read `timeRangeFilter`. **Live, capped:** one Gemini grounded request with `recency:`. | sub-second digits in the times; HTTP 400 "Granularity of nano is not supported" | ✅ 2026-10-29 unit: **reproduced** (`.123456789Z` sent). Live request ⏳ owner (M1) |
+| P8 | F05 | The field-replay script with the fake failing four of five agents. | "Workflow completed successfully", exit 0, a stub saved, no degraded line | ✅ 2026-10-29: **reproduced.** A run where both model steps were rejected printed "Workflow completed successfully", exit 0 (test kept for 17d) |
+| P9 | F06, F07 | A workflow that ends with `note` and no `return`; run it with `weave run`, then `weave eval` with a counting fake judge. | no `Result:` printed; the judge receives an empty output | ◐ 2026-10-29: `weave run` printed no `Result:` (F07 reproduced). `weave eval` side (F06) not yet tried |
+| P10 | F08 | Fake provider with no `usage`; read the run summary and events. Fake that answers exactly at the limit; read the completion counts. | cost shown without a label; counts clustered at the limit (explaining the "1,020") | ◐ 2026-10-29: a response without usage printed no "estimated" label anywhere (F08 label part reproduced). The 1,020 clustering is explained by P5 |
+| P11 | F09 | Recorded real Gemini grounded response through a plain `delegate`, inside `in parallel`, and with `expecting`; print `{x_citations}`. **Live, capped:** the same on the real API. | an empty or missing variable in at least one case | ⏳ needs a recorded Gemini grounded response (17e) |
 
 ## 1. Acceptance criteria
 
@@ -103,4 +103,18 @@ VS Code README if the editor shows R1.6. Stack-level pages once at the end of th
 
 ## 7. Results
 
-*(empty until 17a)*
+### 17a/17b: reproduction and the first fix (2026-10-29)
+
+Build under test: `weave 6.1.0` as built from commit `9e1afdce` (manifest `Build-Time: 2026-10-29T18:21:21Z`); `weave --version` carries no commit, which is Phase 18's F11. Tests ran against a recording fake provider on loopback (`RecordingModelServer`, `FieldCli` in `src/test`), through the real `weave` command line.
+
+**The contradiction in F01 is settled.** `AgentPrompts.resolveSystemPrompt` is correct, and `SharedPromptTest` is right that it works when a script is parsed directly. But every `weave` command loads a script through `LoomLoader`, which builds the result by `LoomScript.merge`, and `merge` did not copy `shared_prompt`. So in a real run no agent was told the shared prompt: the 6.1.0 release-note sentence "The prompt is applied at run time" was **false**, and the field report (F01) was right. Hypotheses H1 (a path that composes its own text), H2 (an adapter dropping a block) and H4 (a model ignoring first text) were not needed. F02 has the same cause: the validator read the merged script, which no longer named the prompt, so the file looked unused.
+
+**A related finding, F66** (not in the register): `merge` also dropped `supervise` and `intervention` blocks, so a supervised script ran unsupervised and `weave explain` omitted them.
+
+Fixes: `LoomLoader` keeps the importing file's own `shared_prompt` (as it does for `prompts:`); `LoomScript.merge` carries `supervise` blocks and `intervention`; Gemini recency times are truncated to whole seconds (F04, R3.1).
+
+Tests written first (red on the unmodified code, then green): `RealRunKeepsItsDeclarationsTest` (4), `LoaderKeepsEveryDeclarationTest` (4), `GoogleRecencyWholeSecondsTest` (2), `EveryProviderTimestampIsWholeSecondsTest` (R3.2 audit: only the Google adapter reads the clock).
+Guards removed by hand once: removing the loader and merge change fails 7 of the 8 loader and real-run tests (the eighth checks that an imported file's shared prompt is not imposed, which holds either way); removing the truncation fails both Google tests.
+
+Still red on purpose, to be committed with their fixes: output limit 1,024 (F03), a degraded run reported as success (F05), `weave run` prints no result (F07), no estimated label (F08).
+
