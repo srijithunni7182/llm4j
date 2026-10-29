@@ -2,7 +2,85 @@
 
 **Install:** search the Extensions view for `Loom for llm4j`, run `ext install srijithunni7182.vscode-llm4j-loom` in the Command Palette (Quick Open), or [open it on the Marketplace](https://marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-llm4j-loom). It carries its own engine and needs Java 17 or newer.
 
-VS Code extension for Loom DSL (.loom and .loot files). Provides syntax highlighting, checks from the language's own parser, a workflow graph (Outline, Focus and Flow views), a review panel (findings, cost and the graph, with fixes you decide on), go to definition, find references, rename, completion and hover that know your agents and variables, and a run command. Everything runs on your machine; nothing is sent anywhere.
+**Build autonomous AI agent workflows without leaving VS Code.** Say what you want in a sentence and get a checked project. See it as a graph, review it for cost and security, test it with no model and no key, evaluate it against a dataset, step through it in a debugger, run it with a live page, and write the files to ship it. This extension is the whole toolkit for **llm4j** workflows. The language they are written in is called **Loom**.
+
+## What is Loom?
+
+Loom is a small, readable language for workflows of AI agents. A script (a `.loom` file) says which agents exist, what each may use, and the steps in order: who works on what, which branch is taken, when a person must approve, and how much the run may spend. A separate `.loot` file maps the tools an agent may call to the Java code behind them.
+
+The idea is to let each side do what it is good at. **The model reads, writes and judges. The script holds the rules.** In this workflow a model reads a customer's email, but plain script logic, not the model, decides whether a refund needs a person, so no wording in an email can talk the workflow past the limit:
+
+```loom
+budget { tokens: 100000  calls: 20 }
+
+agent Triage {
+    model: "gemini-2.5-flash"
+    system: "Read the customer's email. Say what they want and any refund amount they state."
+    guard { pii: mask }
+}
+
+workflow Main(email) {
+    delegate "Classify this message:\n{email}" to Triage -> triage expecting {
+        kind: enum["REFUND", "QUESTION"],
+        amount: number
+    }
+
+    alt (triage.kind == "REFUND") {
+        alt (triage.amount > 100) {
+            human_prompt "A refund of {triage.amount} needs your approval. Approve? (yes/no)" -> decision
+            note "Decision: {decision}"
+        } else {
+            note "Within the limit: refund approved automatically."
+        }
+    } else {
+        note "Not a refund: reply directly."
+    }
+}
+```
+
+- `budget` caps what a run may spend, and the run stops when it is reached.
+- `agent` names a model, what it is told, and what may happen to the text it sees (`guard { pii: mask }` hides card numbers and the like before they reach the model).
+- `delegate ... expecting { ... }` asks an agent for an answer of a stated shape, so the script can branch on `triage.amount` as a number.
+- `alt` is a branch the script decides. `human_prompt` stops the run and asks a person.
+
+You don't need to learn it first. **Loom: Generate Workflow...** writes scripts like this from a sentence, and the graph and the review read them back to you in plain terms. When you do edit, the extension knows the language: colours, checks from the same parser that runs your workflows, completion, hover, go to definition and rename.
+
+## More than a language extension
+
+The language support is one part. The rest of the extension covers each step from the idea to a running workflow, and the only thing to install is Java 17:
+
+- **Describe and change:** write a workflow from a sentence, and change it with a diff you accept or reject.
+- **See and review:** the live graph, and a Review panel with findings on cost, security and risk beside it.
+- **Test and evaluate:** tests with scripted models that cost nothing, and evaluations of a workflow against a dataset.
+- **Debug:** breakpoints, stepping (and stepping back), and the variables; with the models mocked, nothing is sent or written.
+- **Run and watch:** a real run with a live page for cost, context and incidents, with Pause and Stop.
+- **Ship:** Docker, Compose and Kubernetes files read from the script.
+- **Bring your coding agent:** one command teaches Claude Code, Copilot, Cursor or any `AGENTS.md` agent to build with Loom.
+
+Editing, checks, graphs, review and tests run on your machine and send nothing anywhere. The commands that use a model (generate, change, and a live run) call it with your keys and are capped by a setting, and a live run asks before it starts.
+
+## The whole journey, without leaving the editor
+
+Open the Command Palette and type **Loom**. The commands below run the same `weave` jar the extension already ships, so there is nothing else to install; the ones that run a command type it into an integrated terminal, where the output stays on screen.
+
+| Step | Command | What it does | Costs |
+|---|---|---|---|
+| Try | **Loom: Try a Demo**, **Loom: Open an Example Project** | A bundled workflow on demo models, explained step by step; or its project written into your folder | nothing |
+| Check | **Loom: Check My Setup** | Java, keys, the run store, with the one fix for each problem | nothing |
+| Describe | **Loom: Generate Workflow...** | A sentence in, a plan to read, then a project that passed five gates | a few cents |
+| Change | **Loom: Change Workflow...** | A change as a diff with the review and cost difference; nothing is written until you accept | a few cents |
+| See | **Loom: Show Workflow Graph** | The live graph (Outline, Focus, Flow) | nothing |
+| Review | **Loom: Review Workflow** | Findings beside the graph; fix, accept or dismiss each | nothing |
+| Test | **Loom: Run Tests** | `weave test --coverage`: scripted models, no keys, every step reached or listed | nothing |
+| Evaluate | **Loom: Evaluate Workflow...** | Choose: run with mock models, check the dataset, or create a starter dataset | nothing |
+| Debug | **Loom: Debug Workflow** (F5) | Step through, set breakpoints, see the variables; nothing has an effect | nothing |
+| Watch | **Loom: Run With Live Page...** | A real run with your keys, capped by `loom.observe.maxTokens` (default `50000` tokens), with the live page (cost, context, incidents, Pause and Stop). It asks first | tokens, capped |
+| Ship | **Loom: Write Deployment Files...** | Docker, Compose or Kubernetes files, read from the script; nothing is built or started | nothing |
+| Next | **Loom: What Should I Do Next?** | The next step for this project, in order | nothing |
+| Look up | **Loom: Show All Commands (weave man)**, **Loom: Open Guide** | Every `weave` command, grouped by what you are doing; the written guide | nothing |
+| Agent | **Loom: Set Up My Coding Agent** | Teaches Claude Code, Copilot, Cursor or any `AGENTS.md` agent to build with Loom | nothing |
+
+Turning a bad run into a test (`weave capture`), trying a change on past runs (`weave regress`) and the CI verdict (`weave gate`) are terminal commands; see the [command reference](../../../docs/COMMAND_REFERENCE.md).
 
 ## Workflow graph
 
@@ -93,29 +171,6 @@ When an agent's prompt is a markdown file (`prompt: "researcher"` or `prompt: "r
 ## Snippets
 
 Type a keyword in a `.loom` file and press Tab to get the whole statement with its blanks: `agent`, `agent-guard`, `delegate`, `delegate-expecting`, `loop`, `alt`, `alt-else`, `human-prompt`, `approval`, `run`, `call`, `workflow`, `budget`, `tool`, `tool-class`, `note`, `halt`, `set`, `return`, `isok`, `parallel`, `on-failure`, `import`, `agent-steerable`, `agent-grounded`, `on-stopped`, `intervention`, `supervise`, `intentclassifier`, `intentclassify`. Each one's description says the habit it encodes (a loop always has a `max`, variable names that are not ordinary words, prompts as files). A test types each snippet with its default values and checks the result with `weave`.
-
-## The whole journey, without leaving the editor
-
-Open the Command Palette and type **Loom**. The commands below run the same `weave` jar the extension already ships, so there is nothing else to install; the ones that run a command type it into an integrated terminal, where the output stays on screen.
-
-| Step | Command | What it does | Costs |
-|---|---|---|---|
-| Try | **Loom: Try a Demo**, **Loom: Open an Example Project** | A bundled workflow on demo models, explained step by step; or its project written into your folder | nothing |
-| Check | **Loom: Check My Setup** | Java, keys, the run store, with the one fix for each problem | nothing |
-| Describe | **Loom: Generate Workflow...** | A sentence in, a plan to read, then a project that passed five gates | a few cents |
-| Change | **Loom: Change Workflow...** | A change as a diff with the review and cost difference; nothing is written until you accept | a few cents |
-| See | **Loom: Show Workflow Graph** | The live graph (Outline, Focus, Flow) | nothing |
-| Review | **Loom: Review Workflow** | Findings beside the graph; fix, accept or dismiss each | nothing |
-| Test | **Loom: Run Tests** | `weave test --coverage`: scripted models, no keys, every step reached or listed | nothing |
-| Evaluate | **Loom: Evaluate Workflow...** | Choose: run with mock models, check the dataset, or create a starter dataset | nothing |
-| Debug | **Loom: Debug Workflow** (F5) | Step through, set breakpoints, see the variables; nothing has an effect | nothing |
-| Watch | **Loom: Run With Live Page...** | A real run with your keys, capped by `loom.observe.maxTokens` (default `50000` tokens), with the live page (cost, context, incidents, Pause and Stop). It asks first | tokens, capped |
-| Ship | **Loom: Write Deployment Files...** | Docker, Compose or Kubernetes files, read from the script; nothing is built or started | nothing |
-| Next | **Loom: What Should I Do Next?** | The next step for this project, in order | nothing |
-| Look up | **Loom: Show All Commands (weave man)**, **Loom: Open Guide** | Every `weave` command, grouped by what you are doing; the written guide | nothing |
-| Agent | **Loom: Set Up My Coding Agent** | Teaches Claude Code, Copilot, Cursor or any `AGENTS.md` agent to build with Loom | nothing |
-
-Turning a bad run into a test (`weave capture`), trying a change on past runs (`weave regress`) and the CI verdict (`weave gate`) are terminal commands; see the [command reference](../../../docs/COMMAND_REFERENCE.md).
 
 ## The guide and the agent skill
 
