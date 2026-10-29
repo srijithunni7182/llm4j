@@ -1,4 +1,6 @@
-# vscode-loom
+# Loom for llm4j: AI agent workflows
+
+**Install:** search the Extensions view for `Loom for llm4j`, run `ext install srijithunni7182.vscode-llm4j-loom` in the Command Palette (Quick Open), or [open it on the Marketplace](https://marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-llm4j-loom). It carries its own engine and needs Java 17 or newer.
 
 VS Code extension for Loom DSL (.loom and .loot files). Provides syntax highlighting, checks from the language's own parser, a workflow graph (Outline, Focus and Flow views), a review panel (findings, cost and the graph, with fixes you decide on), go to definition, find references, rename, completion and hover that know your agents and variables, and a run command. Everything runs on your machine; nothing is sent anywhere.
 
