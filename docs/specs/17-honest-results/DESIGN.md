@@ -65,9 +65,9 @@ request as the fix, with the dates. If R1.1 shows the code was never wrong (H4),
 ### 3.2 No silent output limit (F03, F08)
 
 **R2.1 The limit is explicit.** The effective output limit of every model call is decided in one place and is one of: the agent's `per_call`; the model's known maximum output (from the model catalogue, with a
-documented default when the model is unknown); or what the active budget still affords, whichever is smallest. **A fixed 1,024 is no longer a default** (decision D1, answered **b**). `BudgetSet.reserve` takes the model's maximum as its `wanted` when the agent gave none.
+documented default when the model is unknown); or what the active budget still affords, whichever is smallest. **A fixed 1,024 is no longer a default** (decision D1, answered **b**). `BudgetSet.reserve` takes the model's maximum when the agent gave none, sends min(that, what the budget affords), and holds back at most `UNSPECIFIED_HOLD` (8,192) of it so that parallel branches are not starved.
 
-**R2.2 `weave check` and `weave review` say what the limit is.** For an agent in a script with an active budget, one note names the effective limit and where it comes from ("output limit 8,192 tokens: the
+**R2.2 (built in `weave explain`; check and review owed) `weave check` and `weave review` say what the limit is.** `Severity` has only ERROR and WARNING, and a review rule needs new facts, so 17c puts the note in the plain-language "Worth knowing" list of `weave explain`; a `weave review` finding is still to do. For an agent in a script with an active budget, one note names the effective limit and where it comes from ("output limit 8,192 tokens: the
 model's maximum; the run budget would allow more"). A limit that is smaller than the model's maximum because of the budget is reported as such.
 
 **R2.3 A cut answer is reported.** When a provider reports that an answer stopped at the limit (`finish_reason` `length`, Gemini `MAX_TOKENS`, Anthropic `max_tokens`), the model-call event carries
@@ -116,7 +116,7 @@ with the reason (for example "ended with `halt` and no `return`"), the evaluatio
 
 **R6.1** Where a provider's response carries usage (Gemini `usageMetadata`, Anthropic `usage`, OpenAI `usage`), it is read and used. A recorded-response contract test per provider proves it.
 **R6.2** Where it does not, the figure is an **estimate** and every place that shows a cost or a token count says so: the run summary ("Cost $0.016 (estimated for Researcher, StyleScout)"), the events (`usage_source: measured | estimated`), the spend table.
-**R6.3** An estimate is never used to *clear* a budget silently: when usage is estimated, the budget check uses the larger of the estimate and the reserved limit.
+**R6.3 (narrowed in 17c)** An estimate is never used to *clear* a budget silently. Charging the whole reserved limit for every call whose provider reported no usage would exhaust budgets for providers that never report it, so 17c charges the estimator's figure, marks it estimated (`~$`), and names the agents. Owner to confirm, or ask for the stricter rule.
 
 ### 3.7 Citations reach the workflow, or the run says why not (F09)
 

@@ -271,6 +271,7 @@ final class Runs {
             e.printStackTrace(env.err());
             return new Result(1, null, null, e.getMessage());
         } finally {
+            printCutAnswers(executor.truncatedAnswers(), env);
             if (executor.getRunBudget() != null) {
                 env.out().println();
                 env.out().println("💸 Spend");
@@ -290,6 +291,24 @@ final class Runs {
             }
             executor.shutdown();
         }
+    }
+
+    /** Names the agents whose answers were cut at the output limit; says nothing when none were. */
+    static void printCutAnswers(java.util.Map<String, Long> cut, WeaveEnv env) {
+        long total = cut.values().stream().mapToLong(Long::longValue).sum();
+        if (total == 0) return;
+        String named =
+                cut.entrySet().stream()
+                        .map(e -> e.getKey() + " (" + e.getValue() + ")")
+                        .collect(java.util.stream.Collectors.joining(", "));
+        env.out()
+                .println(
+                        "✂ "
+                                + total
+                                + (total == 1 ? " answer was" : " answers were")
+                                + " cut at the output limit: "
+                                + named
+                                + ". Raise the agent's per_call, or shorten what it is asked for.");
     }
 
     private static void printPaused(RunSuspended paused, Path runDir, RunSpec spec, WeaveEnv env) {

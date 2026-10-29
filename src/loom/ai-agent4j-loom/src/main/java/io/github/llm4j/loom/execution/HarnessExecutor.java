@@ -1337,6 +1337,14 @@ public class HarnessExecutor implements LoomEngine {
         return tracing.stats();
     }
 
+    /**
+     * How many answers each agent had cut short at the model's output limit during this run. An
+     * answer cut mid-sentence still counts as a completed step, so the run reports it by name.
+     */
+    public Map<String, Long> truncatedAnswers() {
+        return tracing.truncatedAnswers();
+    }
+
     boolean tracing() {
         return tracing.tracing();
     }
@@ -2411,7 +2419,7 @@ public class HarnessExecutor implements LoomEngine {
             // tools), so a stopped agent can tell whether it may have changed anything
             agentBuilder.effectClassifier((tool, args) -> !ReadClass.isRead(tool, args));
             applyContext(agentDef, agentBuilder);
-            agentBuilder.addListener(tracing.statsAdapter());
+            agentBuilder.addListener(tracing.statsAdapter(agentDef.getName()));
             if (script.getSupervisions().stream()
                     .anyMatch(d -> d.getAgent().equals(agentDef.getName())))
                 agentBuilder.addListener(Supervision.adapter());

@@ -34,6 +34,8 @@ final class RunTracing {
             new io.github.llm4j.agent.StatsCollector();
     private final java.util.concurrent.atomic.AtomicLong compactionCount =
             new java.util.concurrent.atomic.AtomicLong();
+    private final Map<String, java.util.concurrent.atomic.LongAdder> truncatedByAgent =
+            new java.util.concurrent.ConcurrentHashMap<>();
 
     RunTracing(Host host) {
         this.host = host;
@@ -59,11 +61,18 @@ final class RunTracing {
         return compactionCount.get();
     }
 
+    /** How many answers each agent had cut short at the output limit, in the order they began. */
+    Map<String, Long> truncatedAnswers() {
+        Map<String, Long> out = new java.util.TreeMap<>();
+        truncatedByAgent.forEach((agent, n) -> out.put(agent, n.sum()));
+        return out;
+    }
+
     /**
      * Always attached to an agent: keeps the run's statistics and counts compactions, whether or
      * not anyone listens to the trace.
      */
-    io.github.llm4j.agent.AgentEventListener statsAdapter() {
+    io.github.llm4j.agent.AgentEventListener statsAdapter(String agentName) {
         return new io.github.llm4j.agent.AgentEventListener() {
             @Override
             public void onThought(String thought) {}
@@ -77,6 +86,11 @@ final class RunTracing {
             @Override
             public void onModelCall(io.github.llm4j.telemetry.ModelCallEvent event) {
                 runStats.onModelCall(event);
+                if (event.truncated())
+                    truncatedByAgent
+                            .computeIfAbsent(
+                                    agentName, k -> new java.util.concurrent.atomic.LongAdder())
+                            .increment();
             }
 
             @Override

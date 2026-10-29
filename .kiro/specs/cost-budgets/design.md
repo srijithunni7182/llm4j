@@ -111,7 +111,7 @@ without rebuilding clients.
 
 ```
 promptEst  = estimator.prompt(request)                       // chars/4 × 1.1 over all messages
-wanted     = request.maxTokens ?? perCallCap ?? DEFAULT_OUTPUT (1024)
+wanted     = request.maxTokens ?? perCallCap ?? modelMaximum ?? DEFAULT_OUTPUT (8192; was 1024 before 6.2.0)
 affordable = min over budgets of (remainingTokens - promptEst)
 if affordable < min(wanted, MIN_OUTPUT)  → throw BudgetExceeded(first short budget)   // nothing sent
                                                               // MIN_OUTPUT = 64

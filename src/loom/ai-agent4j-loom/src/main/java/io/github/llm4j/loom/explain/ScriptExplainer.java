@@ -126,6 +126,7 @@ public final class ScriptExplainer {
                                         + (facts.people == 1 ? "" : "s")
                                         + ".")
                 .append('\n');
+        outputLimits(script, out);
         List<String> approving =
                 script.getAgents().stream()
                         .filter(a -> a.isApproveAll() || !a.getApprove().isEmpty())
@@ -238,6 +239,46 @@ public final class ScriptExplainer {
         if (a.getGuard() != null && a.getGuard().getPii() != null)
             parts.add("personal data " + a.getGuard().getPii());
         return a.getName() + ": " + String.join("; ", parts) + ".";
+    }
+
+    /**
+     * With a token or cost budget on the run, each agent's answers are sent with a limit; say what
+     * it is and where it comes from, because a limit nobody chose once cut answers short in silence.
+     */
+    private static void outputLimits(LoomScript script, StringBuilder out) {
+        BudgetDef run = script.getBudget();
+        boolean runLimitsOutput = run != null && (run.getTokens() != null || run.getCost() != null);
+        io.github.llm4j.context.ContextWindows windows =
+                io.github.llm4j.context.ContextWindows.defaults();
+        for (AgentDef agent : script.getAgents()) {
+            BudgetDef own = agent.getBudget();
+            boolean ownLimitsOutput =
+                    own != null && (own.getTokens() != null || own.getCost() != null);
+            if (own != null && own.getPerCall() != null) {
+                out.append(
+                        String.format(
+                                Locale.ROOT,
+                                "  - %s may write up to %,d tokens per answer (its per_call).%n",
+                                agent.getName(),
+                                own.getPerCall()));
+                continue;
+            }
+            if (!runLimitsOutput && !ownLimitsOutput) continue;
+            long known =
+                    agent.getModel() == null
+                            ? 0
+                            : windows.window(agent.getModel())
+                                    .map(io.github.llm4j.context.ContextWindow::reservedForOutput)
+                                    .orElse(0);
+            out.append(
+                    String.format(
+                            Locale.ROOT,
+                            "  - %s may write up to %,d tokens per answer (%s; the budget can lower it)."
+                                    + " Set per_call to choose.%n",
+                            agent.getName(),
+                            known > 0 ? known : io.github.llm4j.budget.BudgetSet.DEFAULT_OUTPUT,
+                            known > 0 ? "the model's maximum" : "the default, the model's maximum is not known"));
+        }
     }
 
     private static String budget(BudgetDef b, String lead) {

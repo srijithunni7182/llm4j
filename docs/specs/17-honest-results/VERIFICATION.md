@@ -116,5 +116,14 @@ Fixes: `LoomLoader` keeps the importing file's own `shared_prompt` (as it does f
 Tests written first (red on the unmodified code, then green): `RealRunKeepsItsDeclarationsTest` (4), `LoaderKeepsEveryDeclarationTest` (4), `GoogleRecencyWholeSecondsTest` (2), `EveryProviderTimestampIsWholeSecondsTest` (R3.2 audit: only the Google adapter reads the clock).
 Guards removed by hand once: removing the loader and merge change fails 7 of the 8 loader and real-run tests (the eighth checks that an imported file's shared prompt is not imposed, which holds either way); removing the truncation fails both Google tests.
 
-Still red on purpose, to be committed with their fixes: output limit 1,024 (F03), a degraded run reported as success (F05), `weave run` prints no result (F07), no estimated label (F08).
+Full `mvn -pl src/loom/ai-agent4j-loom verify` after the fix: **BUILD SUCCESS, 3,501 tests, 0 failures, 0 errors, 3 skipped** (the skips are not from this change), JaCoCo gates passed. Not yet run for this commit: `ai-agent4j` full verify, `make format-check`, `make release-check`, PIT.
+
+### 17c: output limit, cut answers, estimate labels (2026-10-29)
+
+Tests written first (red, then green): `OutputLimitDecisionTest` (7) and `NoSilentClipTest` (3) in `ai-agent4j`; `NoSilentClipTest` (4, through the real CLI), `BudgetExhaustedStillExit3Test`, `OutputLimitNoteTest` (4) and a tightened `BudgetReportingTest` in the Loom module. P5 and P6 now read: limit sent is above 1,024 with a budget, none without.
+Guard removed by hand once: removing the `weave explain` limit note fails 3 of the 4 `OutputLimitNoteTest` tests; removing the `BudgetSet` change failed the decision tests at compile time (the overload did not exist).
+Verified after the change: `mvn -pl src/ai-agent4j verify` exit 0; `mvn -pl src/loom/ai-agent4j-loom verify` BUILD SUCCESS, 3,510 tests, 0 failures, 3 skipped, JaCoCo gates passed; `make format-check` exit 0. **Not run:** PIT mutation profiles, `make release-check`.
+Narrowed against the design, to be confirmed by the owner: R2.2 is built in `weave explain` only; R6.3 charges the estimator's figure, marked estimated, rather than the whole reserved limit. R6.1 is covered by the existing provider contract tests (Google, Anthropic, Sarvam, xAI, OpenAI).
+
+Still red on purpose, to be committed with their fixes: output limit 1,024 a degraded run reported as success (F05), `weave run` prints no result (F07).
 

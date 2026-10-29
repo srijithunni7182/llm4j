@@ -1,6 +1,8 @@
 package io.github.llm4j.budget;
 
 import io.github.llm4j.LLMClient;
+import io.github.llm4j.context.ContextWindow;
+import io.github.llm4j.context.ContextWindows;
 import io.github.llm4j.grounding.SearchUsage;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
@@ -51,6 +53,7 @@ public final class BudgetedLLMClient implements LLMClient {
     private final PriceTable prices;
     private final String model;
     private final Integer perCallCap;
+    private final ContextWindows windows;
     private final List<ChargeListener> chargeListeners = new CopyOnWriteArrayList<>();
 
     private BudgetedLLMClient(Builder b) {
@@ -60,6 +63,7 @@ public final class BudgetedLLMClient implements LLMClient {
         this.prices = b.prices;
         this.model = b.model;
         this.perCallCap = b.perCallCap;
+        this.windows = b.windows != null ? b.windows : ContextWindows.defaults();
     }
 
     public static Builder builder(LLMClient delegate) {
@@ -161,7 +165,8 @@ public final class BudgetedLLMClient implements LLMClient {
                                 request.getGrounding().maxSearches() == null
                                         ? 1
                                         : request.getGrounding().maxSearches());
-        BudgetSet.Lease lease = set.reserve(prompt, wanted, price, searchCap);
+        BudgetSet.Lease lease =
+                set.reserve(prompt, wanted, modelMaximum(modelId), price, searchCap);
         LLMRequest sent = request;
         if (lease.output() != null) {
             int cap = (int) Math.min(Integer.MAX_VALUE, lease.output());
@@ -169,6 +174,16 @@ public final class BudgetedLLMClient implements LLMClient {
                 sent = withMaxTokens(request, cap);
         }
         return new Call(sent, lease, prompt, price, modelId, searchCap);
+    }
+
+    /** The most the model can write, when the catalogue knows it; null otherwise. */
+    private Long modelMaximum(String modelId) {
+        if (modelId == null) return null;
+        return windows.window(modelId)
+                .map(ContextWindow::reservedForOutput)
+                .filter(reserve -> reserve > 0)
+                .map(Integer::longValue)
+                .orElse(null);
     }
 
     private final class Call {
@@ -288,6 +303,7 @@ public final class BudgetedLLMClient implements LLMClient {
         private PriceTable prices;
         private String model;
         private Integer perCallCap;
+        private ContextWindows windows;
 
         private Builder(LLMClient delegate) {
             this.delegate = delegate;
@@ -318,6 +334,15 @@ public final class BudgetedLLMClient implements LLMClient {
         /** The model id used for pricing when requests don't name one. */
         public Builder model(String model) {
             this.model = model;
+            return this;
+        }
+
+        /**
+         * The models whose maximum output is known, used as the answer limit when a request names
+         * none. Default: {@link ContextWindows#defaults()}.
+         */
+        public Builder contextWindows(ContextWindows windows) {
+            this.windows = windows;
             return this;
         }
 

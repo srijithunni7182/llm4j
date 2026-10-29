@@ -73,7 +73,10 @@ class BudgetReportingTest {
         assertThat(mixed.total().estimated()).isTrue();
         assertThat(mixed.byAgent().get("Writer").estimated()).isFalse();
         assertThat(mixed.byAgent().get("Local").estimated()).isTrue();
-        assertThat(mixed.table()).contains("(some usage was estimated: a provider reported none)");
+        assertThat(mixed.table())
+                .contains("(usage was estimated for Local: the provider reported none;")
+                .doesNotContain("Writer: ")
+                .contains("~$");
     }
 
     @Test
