@@ -33,6 +33,7 @@ smoke-apps:
 
 release-check:
 	mvn -q -Prelease -Dgpg.skip=true verify
+	java scripts/CheckJars.java src
 
 quick:
 	scripts/quick-build.sh

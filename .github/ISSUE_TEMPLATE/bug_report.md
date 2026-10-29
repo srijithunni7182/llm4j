@@ -23,6 +23,7 @@ What should have happened?
 ## Environment
 
 - Module(s):
+- Output of `weave --version` (it names the commit, so we can find the code you ran):
 - Java version:
 - Maven version:
 - OS:

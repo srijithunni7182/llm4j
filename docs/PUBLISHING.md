@@ -37,12 +37,12 @@ Every release runs the default tests; `-Prelease` never skips them. Slow tests (
 
 ## Releasing
 
-1. Set the version once, in every pom, and commit it (a released version can never be changed or deleted on Central):
-   `mvn versions:set -DnewVersion=5.1 -DgenerateBackupPoms=false` (then fix the `5.0` the examples and `llm4j-parent` references by hand if the
-   command leaves any: `grep -rn "<version>5.0" --include=pom.xml .`).
-   `jbang-catalog.json` is part of the same change: it names the CLI jar of the version (`ai-agent4j-loom:<version>:cli`), and `LauncherTest` fails if it differs from the pom. JBang reads the catalog from `main`, so `jbang weave@srijithunni7182/llm4j` does not resolve until Central has the new version: merge the release and push the tag together, and expect it to work again 10 to 30 minutes after you publish.
+1. **Between releases `main` carries the next `-SNAPSHOT` version** (for example `6.2.0-SNAPSHOT`), so a jar built from the repository can never be mistaken for the published release of the same number. What must name a version someone can download (the JBang catalogue, generated projects, a deployment's Fabric image, the docs) reads the last published release from one place: the `llm4j.released` property of the parent `pom.xml`. To release, run
+   `scripts/release-version.sh release 6.2.0` (sets every pom, `llm4j.released` and `jbang-catalog.json`), commit it, and continue below. A released version can never be changed or deleted on Central. `ReleasedVersionSourceOfTruthTest` fails if the catalogue and `llm4j.released` differ.
+   After the tag, `scripts/release-version.sh next 6.2.1-SNAPSHOT` moves `main` on (`llm4j.released` stays `6.2.0`); commit that as `chore: start 6.2.1-SNAPSHOT`.
+   A jar says what it is: `weave --version` prints `release` or `development`, the commit and the build time, and the same facts are in every module jar's manifest (`Implementation-Version`, `Build-Kind`, `Build-Commit`, `Build-Dirty`, `Build-Time`). `-Prelease` marks the build a release.
 2. Check locally, without a key:
-   `make release-check` (= `mvn -Prelease -Dgpg.skip=true -DskipTests verify`). It builds the sources and javadoc jars and the `cli` jar.
+   `make release-check` (= `mvn -Prelease -Dgpg.skip=true verify`, then `java scripts/CheckJars.java src`). It builds the sources and javadoc jars and the `cli` jar, and refuses any jar that does not say what it is or holds a half-compiled class from an editor's language server (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
 3. Tag and push: `git tag v5.1 && git push origin v5.1`. The workflow `Build, Validate, and Deploy` runs the tests on JDK 17 and 21,
    then `mvn -B -Prelease deploy` (tests again, sign, upload). You can also start it by hand with *Run workflow → deploy*.
 4. **Review in the Portal.** By default the upload is *not* published (`central.autoPublish=false`): open

@@ -33,6 +33,16 @@ if [ -f "$bundled" ]; then
   else echo "current  extension bin/weave.jar"; fi
 fi
 
+# A half-compiled class: an editor's Java language server writes into target/classes, and a file that did not
+# compile becomes a class that throws "Unresolved compilation problem" when loaded. A plain `mvn package` packages it.
+stubs="$(grep -rl --include='*.class' 'Unresolved compilation problem' "$root"/src/*/target/classes "$root"/src/*/*/target/classes 2>/dev/null | head -n 5)"
+if [ -n "$stubs" ]; then
+  echo "STUB     half-compiled classes in target/classes (an editor's Java language server wrote them):"
+  echo "$stubs" | sed 's/^/           /'
+  echo "         Use 'mvn clean package' for anything you ship or run; set the server's build output elsewhere or turn its auto-build off (CONTRIBUTING.md)."
+  stale=1
+fi
+
 if [ "$stale" -ne 0 ]; then
   cat <<FIX
 

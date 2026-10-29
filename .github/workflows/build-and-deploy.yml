@@ -69,6 +69,10 @@ jobs:
     - name: Build the release artifacts without signing
       run: mvn -B -Prelease -Dgpg.skip=true -DskipTests verify
 
+    # Every jar says what it is, and none holds a half-compiled class from an editor's language server.
+    - name: Check the jars
+      run: java scripts/CheckJars.java src
+
     - name: Keep the runnable weave jar
       uses: actions/upload-artifact@v4
       with:

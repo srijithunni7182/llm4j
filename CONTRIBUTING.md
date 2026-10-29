@@ -11,6 +11,14 @@ Thanks for contributing. This document applies to the full monorepo.
    - `make smoke-apps`
 4. Open a pull request using the repository template.
 
+### Build output and your editor
+
+An editor's Java language server (the "Language Support for Java" extension in VS Code, Eclipse JDT in other editors) compiles in the background and can write into `target/classes`. A file that did not compile becomes a class that throws `Unresolved compilation problem` when it is loaded, and a plain `mvn package` over it packages the stub. Two symptoms from this: a jar that fails at run time with a missing class, and `mvn test` failing with `NoClassDefFoundError` while the editor compiles at the same moment.
+
+- Use `mvn clean package` for anything you ship or run. `make release-check` and the CI release job refuse a jar that holds such a class (`scripts/CheckJars.java`), and `scripts/verify-vsix.sh` does the same for the jar the extension bundles.
+- Set the server's build output somewhere else (`java.import.maven.enabled` off for this repository, or an output folder outside `target/`), or turn its auto-build off.
+- `scripts/doctor.sh` warns when `target/classes` holds a stub.
+
 ## Commit Style
 
 - Prefer conventional prefixes: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`.

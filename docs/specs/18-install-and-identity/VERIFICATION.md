@@ -92,4 +92,16 @@ Findings: F10 to F19 of the [register](../FIELD_FINDINGS.md). Strategy: [TEST_ST
 
 ## 7. Results
 
-*(empty until 18a)*
+### 18a and 18b-part (R1, R6), 2026-10-29
+
+**Reproduced first:** P1 and F12: before the change `weave --version` printed `weave 6.1.0 (built <time>)` with no commit or kind, and `main` carried the released number, so a jar built from the repository was indistinguishable by number from the release. P6: `scripts/doctor.sh` on a planted `Unresolved compilation problem` class found nothing before; after, it names the file. (P2, P3, P4, P5, P7 to P10 are for 18b to 18d.)
+
+Built: `BuildIdentity` (core) and the manifest attributes on every module jar (`git-commit-id-maven-plugin`, a build plugin only, no runtime dependency); `weave --version` shows kind, commit, dirty flag and time; main is `6.2.0-SNAPSHOT` with `llm4j.released` (6.1.0) as the one source of truth for the JBang catalogue, `weave init`'s generated test project and the deploy default; `scripts/release-version.sh` (rehearsed in a scratch clone: `release 6.2.0` leaves no snapshot, `next 6.2.1-SNAPSHOT` keeps `llm4j.released`, a `-SNAPSHOT` release is refused); `scripts/CheckJars.java` in `make release-check`, the CI release job and `verify-vsix.sh`; `doctor.sh` stub warning; CONTRIBUTING and PUBLISHING; issue template.
+Tests first: `BuildIdentityTest` (6), `VersionLineTest` (3), `ReleasedVersionSourceOfTruthTest` (4), `ReleaseCheckRejectsEclipseStubsTest` (3, tagged fragile: starts a JVM), `IssueTemplateAsksForTheBuildTest`.
+Guards removed by hand once: the stub marker in `CheckJars` (the stub test fails), `llm4j.released` changed to a different number (`ReleasedVersionSourceOfTruthTest` fails).
+Verified: `mvn -B verify` on the whole reactor, all 13 modules BUILD SUCCESS (the Loom module alone 6 min 47 s); `make format-check` exit 0; `java scripts/CheckJars.java src` on the freshly built jars passes.
+**Not run:** the fragile test inside the default build (it runs with `-Pextended`; I ran it by hand and it passes), PIT, the `-Pextended` build, `make release-check` in full (its `CheckJars` step was run separately), the VS Code extension build.
+Changed existing tests: `LauncherTest` (the version line format, and the catalogue test now asks for "a published version"; the exact tie moved to `ReleasedVersionSourceOfTruthTest`).
+Note for the owner: every file name that carried `6.1.0` for a build output now carries `6.2.0-SNAPSHOT` (samples' `run.sh` were changed to find the jar by pattern). Nothing was tagged, published or pushed to a tag.
+
+

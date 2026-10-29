@@ -6,7 +6,7 @@
 
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>llm4j-parent</artifactId>
-    <version>6.1.0</version>
+    <version>6.2.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>llm4j Parent</name>
@@ -58,6 +58,13 @@
     </modules>
 
     <properties>
+        <!-- What every jar says it is (see BuildIdentity). The git properties are replaced by the
+             git-commit-id plugin when the build runs in a checkout; "unknown" otherwise. A release
+             build (-Prelease) says "release". -->
+        <llm4j.build.kind>development</llm4j.build.kind>
+        <!-- The last published release: what the JBang catalogue, generated projects and the docs name
+             while main carries the next -SNAPSHOT version. The release step changes it with the version. -->
+        <llm4j.released>6.1.0</llm4j.released>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>17</maven.compiler.release>
         <maven.compiler.source>17</maven.compiler.source>
@@ -142,6 +149,29 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
                     <version>3.4.1</version>
+                    <configuration>
+                        <archive>
+                            <manifestEntries>
+                                <Implementation-Version>${project.version}</Implementation-Version>
+                                <Build-Commit>${git.commit.id.abbrev}</Build-Commit>
+                                <Build-Dirty>${git.dirty}</Build-Dirty>
+                                <Build-Kind>${llm4j.build.kind}</Build-Kind>
+                                <Build-Time>${maven.build.timestamp}</Build-Time>
+                            </manifestEntries>
+                        </archive>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>io.github.git-commit-id</groupId>
+                    <artifactId>git-commit-id-maven-plugin</artifactId>
+                    <version>9.0.1</version>
+                    <configuration>
+                        <failOnNoGitDirectory>false</failOnNoGitDirectory>
+                        <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
+                        <generateGitPropertiesFile>false</generateGitPropertiesFile>
+                        <abbrevLength>8</abbrevLength>
+                        <skipPoms>false</skipPoms>
+                    </configuration>
                 </plugin>
                 <!-- Run on demand: mvn spotless:check, mvn dependency-check:check -DnvdApiKey=... -->
                 <plugin>
@@ -174,6 +204,18 @@
         </pluginManagement>
 
         <plugins>
+            <!-- Which commit a jar was built from, for BuildIdentity and the jar manifest. -->
+            <plugin>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>build-identity</id>
+                        <phase>initialize</phase>
+                        <goals><goal>revision</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

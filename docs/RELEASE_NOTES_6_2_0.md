@@ -13,6 +13,16 @@ Status: **in progress** (the field findings program, [docs/specs/FIELD_FINDINGS.
 - **A cost that is an estimate says so.** The spend table marks estimated rows `~$` and names the agents whose provider reported no usage, instead of the generic note.
 - **Gemini grounding with `recency:` works again on clocks with sub-second precision.** The times sent are whole seconds. (Verified by a unit test; a recorded request from the real API is still owed.)
 
+## Which build is this? (identity and snapshot versions)
+
+- **`weave --version` says what it is**: `weave 6.2.0-SNAPSHOT (development, 3d683a35, built 2026-10-29T15:30:00Z), serve protocol 1`, or `release` for a published build. Every module jar carries the same facts in its manifest
+  (`Implementation-Version`, `Build-Kind`, `Build-Commit`, `Build-Dirty`, `Build-Time`). A bug report that quotes the line is enough to find the commit. The `serve protocol` suffix the editor reads is unchanged.
+- **Between releases `main` carries `X.Y.Z-SNAPSHOT`.** Two jars that both said `6.0.0` but behaved differently were one release and one build from the repository. A development build can no longer carry a release's number.
+  What must name a downloadable version (the JBang catalogue, `weave init`'s generated test project, a deployment's Fabric image) uses the last published release, kept in one property (`llm4j.released`); the release step is
+  `scripts/release-version.sh` ([PUBLISHING.md](PUBLISHING.md)). **For contributors:** jar file names now carry the snapshot version (`ai-agent4j-loom-6.2.0-SNAPSHOT-cli.jar`).
+- **A jar with a half-compiled class cannot be released.** `make release-check` and the CI release job run `scripts/CheckJars.java`, which refuses a jar holding an editor's `Unresolved compilation problem` stub or lacking its
+  identity; `scripts/verify-vsix.sh` does the same for the jar the extension bundles; `scripts/doctor.sh` warns when `target/classes` holds a stub. See CONTRIBUTING.md.
+
 ## Sources: a missing set is now said, not skipped
 
 - **A grounded agent that returns no sources is named.** When a grounded agent's answer comes back without any sources (the model did not search), the run prints `⚠ Grounded but no sources came back: Researcher (1)`.

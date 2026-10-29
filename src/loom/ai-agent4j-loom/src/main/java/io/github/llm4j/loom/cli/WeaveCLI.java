@@ -1724,32 +1724,20 @@ public class WeaveCLI implements Callable<Integer> {
     static final class BuildVersion implements CommandLine.IVersionProvider {
         @Override
         public String[] getVersion() {
-            Package p = WeaveCLI.class.getPackage();
-            String version = p == null ? null : p.getImplementationVersion();
-            String built = null;
-            try {
-                java.net.URL url = WeaveCLI.class.getResource("WeaveCLI.class");
-                if (url != null && url.toString().startsWith("jar:")) {
-                    String jar = url.toString().substring(0, url.toString().indexOf("!/") + 2);
-                    try (java.io.InputStream in =
-                            new java.net.URL(jar + "META-INF/MANIFEST.MF").openStream()) {
-                        built =
-                                new java.util.jar.Manifest(in)
-                                        .getMainAttributes()
-                                        .getValue("Build-Time");
-                    }
-                }
-            } catch (java.io.IOException | RuntimeException e) {
-                built = null;
-            }
-            if (version == null) return new String[] {"weave (run from classes, not a built jar)"};
-            return new String[] {
-                "weave "
-                        + version
-                        + (built == null ? "" : " (built " + built + ")")
-                        + ", serve protocol "
-                        + io.github.llm4j.loom.serve.Server.PROTOCOL
-            };
+            return new String[] {line(io.github.llm4j.BuildIdentity.ofClass(WeaveCLI.class))};
+        }
+
+        /**
+         * {@code weave 6.2.0-SNAPSHOT (development, 3d683a35, built 2026-10-29T15:30:00Z), serve
+         * protocol 1}: enough for a bug report to find the commit, and for the editor to read the
+         * protocol.
+         */
+        static String line(io.github.llm4j.BuildIdentity identity) {
+            if (identity.fromClasses()) return "weave (run from classes, not a built jar)";
+            return "weave "
+                    + identity.describe()
+                    + ", serve protocol "
+                    + io.github.llm4j.loom.serve.Server.PROTOCOL;
         }
     }
 }
