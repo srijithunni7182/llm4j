@@ -75,6 +75,15 @@ Order matters: each phase builds on the one below and is shippable on its own.
 | 14 | [The production loop](14-production-loop/DESIGN.md) | Loom, Fabric, CI | `weave capture` (a real run becomes a test), `weave regress` (a change against real history), `weave gate` (CI), Fabric incident actions; masking, consent and approval built in | 11, 13 |
 | 15 | [Embed and deploy](15-embed-and-deploy/DESIGN.md) | Loom, Spring | Typed Java bindings and `@LoomWorkflows`; optional typed workflow parameters; `weave deploy` to Docker, compose and Kubernetes with Fabric wired and secrets kept out | 9, Spring starter, `package` |
 | 16 | [First run](16-first-run/DESIGN.md) | Loom, VS Code | `weave try` (zero keys, narrated), `weave doctor`, JBang and a launcher, an interactive `init`, `weave next` as the spine, an editor welcome view | 11, 12 |
+| **17** | [Honest results](17-honest-results/DESIGN.md) | Loom, ai-agent4j, eval4j | A shared prompt that reaches the model or stops the run; no silent output limit; Gemini recency that works; degraded runs that say so; one defined workflow output that `weave run` prints and `weave eval` never judges empty; measured or estimated usage; citations that arrive | 9 to 16 |
+| 18 | [Install, identity and environment](18-install-and-identity/DESIGN.md) | Loom, skills, VS Code, build | Build identity and snapshot versions; `weave doctor` finding disagreeing jars; complete skill installs and `weave tools fetch`; `weave` for coding agents in any terminal; a build that refuses half-compiled classes; a dated model catalogue and `check --online`; secrets in the store | 16, 17 |
+| 19 | [Evaluation that works](19-evaluation-that-works/DESIGN.md) | eval4j, Loom | `weave eval` writing the dashboard's bundle; rubric lines with their own dimension; the By-agent recipe; splits and a sealed held-out set; verdicts with an unmatched rate; consistency and resolution; judge validation; run protocols; security corpus and probes | 11, 14, 17 |
+| 20 | [The guided path and the skills](20-guided-path-and-skills/DESIGN.md) | Loom CLI, skills, VS Code | `weave preflight`; `weave next` as the roadmap and checklist for CLI, skills and editor; datasets that show who wrote and reviewed each case; the skills' rules made checkable | 16, 17, 18, 23 |
+| 21 | [Editor polish](21-editor-polish/DESIGN.md) | VS Code, graph renderer, Loom | An Outline that is never blank and shows progress; a Review panel that does not jump; `set` grouped; parallel drawn as lanes; one click to a capped real run | 10, 20 |
+| 22 | [CLI and language ergonomics](22-cli-and-language-ergonomics/DESIGN.md) | Loom | `weave test --classes`; quiet output; known mistakes that say their fix; `\"` in strings; variable replacement by braces; real tasks in tests; `weave fabric`; honest cost estimates | 11, 17 |
+| 23 | [The evaluation design skill](23-eval-design-skill/DESIGN.md) | skills | `llm4j-eval-design`: design-first evaluation, from the owner's QA guide, writing `EVAL_DESIGN.md` and reviewing existing evaluations | 17, 18, 19 |
+
+Phases 17 to 23 are the **field findings** program: [the overview](FIELD_FINDINGS.md) has the register of 65 findings from real sessions, the evidence for each, the order of work and the decisions the owner must make before building starts. Every phase's `VERIFICATION.md` starts with a step that **reproduces its findings first**.
 
 Phases 9 to 16 are the **Loom developer experience** program: [the overview](LOOM_DX.md) has the thesis, the shared contracts, the promises and the build order.
 
@@ -101,3 +110,10 @@ done, so that what we learn building a lower layer shapes the spec above it.
 | 14 | draft for review | not started | not started | not started |
 | 15 | draft for review | not started | not started | not started |
 | 16 | draft for review | not started | not started | not started |
+| 17 | draft for review | not started | not started | not started |
+| 18 | draft for review | not started | not started | not started |
+| 19 | draft for review | not started | not started | not started |
+| 20 | draft for review | not started | not started | not started |
+| 21 | draft for review | not started | not started | not started |
+| 22 | draft for review | not started | not started | not started |
+| 23 | draft for review | not started | not started | not started |

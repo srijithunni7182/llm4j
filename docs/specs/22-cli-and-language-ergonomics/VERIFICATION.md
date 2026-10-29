@@ -1,0 +1,91 @@
+# Phase 22 verification plan: CLI and language ergonomics
+
+Status: **not started** (specs in draft). Run §0 first, then top to bottom at the end of each sub-phase (proposed: **22a** options, output and messages, R1 to R3; **22b** strings and substitution, R4, R5 (after decision D3); **22c** the harness and the review, R7, R9, R11; **22d** observe and Fabric, R8, R10; **R6** has no build here). Results in §7.
+Findings: F43 to F54 of the [register](../FIELD_FINDINGS.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
+
+## 0. Reproduce first
+
+| # | Finding | Procedure | If the finding is real, you see | Result |
+|---|---|---|---|---|
+| P1 | F43 | `weave test --help` and `weave run --help`; run `weave test` on a project whose tasks are in `target/classes`. | no `--classes` on `test`; the tasks are not found | ⬜ |
+| P2 | F46 | `weave run` and `weave test --coverage` on any sample. | several `INFO: Loading Loom script` lines and a log header per case | ⬜ (code read 2026-10-29: `LoomLoader` logs at INFO) |
+| P3 | F47 | A `delegate … retry 1 expecting {…}` script; `weave check`. | a parse error that does not name the order | ⬜ |
+| P4 | F48 | A scripted test case whose task result map has the key `value`. | a reserved-word error with no alternative | ⬜ |
+| P5 | F49 | A script with `"say \"hi\""`; `weave check`. | the string ends at the escaped quote and the rest is a parse error | ⬜ (code read 2026-10-29: `Lexer.string()` has no escape handling) |
+| P6 | F50 | A script with a variable `out` and the string `"length-out-of-range(...)"` in a `note`, a `halt` and a `set`; `weave check` and `weave run --mock`. | the lint is silent for one or more positions and the path is printed into the message | ⬜ |
+| P7 | F52 | A scripted workflow test of a script that calls a real task; try to run the task's real code. | no way to | ⬜ |
+| P8 | F44 | `weave observe rules` without the add-on; then with an empty rules file. | a failure for both | ⬜ |
+| P9 | F45 | `weave review` on a clean script with no key set. | five HIGH findings for the key | ⬜ |
+| P10 | F53 | Follow the deployer skill from `fabric-up` to `run-observed` with a master key kept elsewhere; run `fabric-status`. | `<store>.key` required; no last-report time | ⬜ |
+| P11 | F54 | `weave review` on the `article-flow` script with no price table and a 150,000-token cap. | typical and worst-case tokens, no dollars, nothing about the cap biting first | ⬜ |
+| P12 | R7's premise | List the effect policy declared by each built-in and example task. | undeclared tasks exist (they would be refused) | ⬜ |
+
+## 1. Acceptance criteria
+
+| # | Criterion | Evidence |
+|---|---|---|
+| A1 | `weave test`, `run` and `eval` share the same class and loot options, from one definition; a Maven project's classes are found and the line says so | `OptionParityTest`, `TestUsesTargetClassesInAMavenProjectTest`, P1 |
+| A2 | A command prints the answer, not the log; `-v` restores the log | `DefaultLogLevelIsWarningTest`, `VerboseRestoresInfoTest`, `ScriptedCaseHeaderOnlyOnFailureTest`, P2 |
+| A3 | Known mistakes are answered with their fix, from a registry with golden tests | `KnownMistakesRegistryTest`, `ExpectingBeforeRetryHintTest`, `ReservedValueHintTest`, P3, P4 |
+| A4 | A string can hold `\"` and `\\`; every script in the repository means what it meant | `StringEscapesTest`, `StringEscapeCorpusUnchangedTest`, P5 |
+| A5 | The lint scans every position the runtime substitutes; `substitution: braces` replaces only `{name}`; a preview and a rewrite exist; the default is unchanged until the next major version | `LintCoversEverySubstitutedPositionTest`, `OutInsideAMessageIsReportedTest`, `SubstitutionBracesSettingTest`, `SubstitutionDefaultIsLegacyTest`, `CheckSubstitutionPreviewTest`, `FixSubstitutionShowsADiffAndNeedsAYesTest`, P6 |
+| A6 | The current pattern for parallel fallbacks is documented and tested; no construct is added | `ParallelFallbackPatternDocsTest` |
+| A7 | A workflow test can run an effect-free task's real code and refuses any task with effects (and any undeclared one) | `RealTaskRunsTheActualClassTest`, `RealTaskWithEffectsIsRefusedTest`, `UndeclaredTaskIsTreatedAsHavingEffectsTest`, P7, P12 |
+| A8 | `weave observe rules` tells how to get the add-on, treats an empty file as no rules, and can write a starter | `ObserveRulesWithoutAddOnSaysHowTest`, `ObserveRulesEmptyFileMeansDefaultsTest`, `ObserveRulesInitWritesStarterTest`, P8 |
+| A9 | A missing key is a setup finding, not a HIGH script finding, and does not count toward `--fail-on` or the panel's open count | `MissingKeyIsASetupFindingTest`, `SetupFindingsAreNotCountedByFailOnTest`, `ReviewPanelOpenCountExcludesSetupTest`, `AFindingMustBeClearableByEditingTheScriptTest`, P9 |
+| A10 | `weave fabric up/down/status` exist, the password is never shown, the bind is loopback, `status` shows the last report per client, and the deployer skill delegates | `FabricUpGeneratesOwnerOnlyPasswordFileTest`, `FabricUpRefusesUnsafeBindTest`, `FabricStatusShowsLastReportPerClientTest`, `RunObservedSecretsKeyFileTest`, `DeployerScriptsDelegateToWeaveFabricTest`, P10 |
+| A11 | The cost block states its assumptions, prints dollars when it can, says when the cap bites first, and uses measured usage when present | `CostBlockStatesAssumptionsTest`, `CostBlockPrintsDollarsWhenPriceKnownTest`, `CapBitesBeforeWorstCaseSentenceTest`, `EstimateUsesMeasuredUsageTest`, P11 |
+| A12 | Existing scripts and options keep working; every change is in the release notes and `API_COMPATIBILITY.md` | existing tests unmodified; the table in [DESIGN §4](DESIGN.md) |
+| A13 | Each guard is noticed when removed | PIT score not lower; by-hand removals named in §7 |
+
+## 2. Traceability: requirement → tests
+
+| Req | Tests | Status |
+|---|---|---|
+| R1 | `OptionParityTest`, `TestUsesTargetClassesInAMavenProjectTest`, `TestWithExplicitClassesTest` | ⬜ |
+| R2 | `DefaultLogLevelIsWarningTest`, `VerboseRestoresInfoTest`, `ScriptedCaseHeaderOnlyOnFailureTest`, `LoaderLineIsFineTest`, `LibraryLoggingUnaffectedTest`, `UserLoggingConfigWinsTest` | ⬜ |
+| R3 | `KnownMistakesRegistryTest`, `ExpectingBeforeRetryHintTest`, `ReservedValueHintTest`, `HintsNeverEchoPromptTextTest` | ⬜ |
+| R4 | `StringEscapesTest`, `StringEscapeCorpusUnchangedTest`, `PromptFilePlaceholdersUnaffectedTest`, a CTK scenario | ⬜ |
+| R5 | the A5 tests, a CTK scenario | ⬜ |
+| R6 | `ParallelFallbackPatternDocsTest` | ⬜ |
+| R7 | the A7 tests, `OtherTasksStayScriptedTest` | ⬜ |
+| R8 | the A8 tests | ⬜ |
+| R9 | the A9 tests, `IncludeSetupRestoresCountingTest` | ⬜ |
+| R10 | the A10 tests, `FabricUpFindsTheJarByLookupOrderTest`, `FabricDownTest` | ⬜ |
+| R11 | the A11 tests, `CostBlockNamesMissingPriceTest` | ⬜ |
+
+## 3. Quality gates
+
+- [ ] `mvn verify` green on `ai-agent4j-loom` and any module touched, coverage gates held, none lowered.
+- [ ] PIT: the Loom `mutation` profile with R3, R4, R5, R7 and R9 added; score not lower.
+- [ ] `RepositoryScriptsTest` green; the corpus lexes to identical strings except the listed ones; the CTK has scenarios for R4 and R5.
+- [ ] For each Loom syntax or setting change (R4, R5): `LOOM_GUIDE.md` (its `loom` blocks are parse-tested), `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md`, the `llm4j-workflow-guide` skill, the VS Code grammar and snippets updated, and a CTK scenario added ([CLAUDE.md "things that change together"](../../../CLAUDE.md)).
+- [ ] `make format-check`, `make release-check` green.
+- [ ] `SecurityDocTest` green; `secure-by-construction.md` mentions R7's effect rule and R10's password file.
+- [ ] No new dependency.
+
+## 4. Manual checks
+
+| # | Check | Pass |
+|---|---|---|
+| M1 | Rebuild the owner's `article-flow` with only the fixed tools: `weave test` runs with no `java -cp`; the output is readable; the strings that needed workarounds are written naturally | ⬜ |
+| M2 | Read each registry message aloud: it names the fix | ⬜ |
+| M3 | Run `weave check --substitution braces` on the owner's project and read what it would change; decide the date for the default flip (D3) | ⬜ |
+| M4 | `weave fabric up` from a clean machine with a fetched jar; open the page; `status` shows when the owner's process last reported | ⬜ |
+| M5 | `weave review` on a project with no key set: the panel's count and the exit code are as the owner would expect | ⬜ |
+
+## 5. Documentation owed
+
+Generated command pages; `LOOM_GUIDE.md`; `LOOM_PROMPT.md`; `docs/guide/06-build-the-workflow.md` and the others named in §3; the workflow and deployer skills; the VS Code grammar and snippets; `CONTRIBUTING.md` (the registry); `docs/API_COMPATIBILITY.md`; `docs/security/secure-by-construction.md`; release notes; `llms.txt`. Stack-level pages once at the end of the program.
+
+## 6. Exit checklist
+
+- [ ] §0 recorded with dates and build ids; findings that did not reproduce reported
+- [ ] Every row in §2 ✅ or partial with a reason; every A-criterion has evidence
+- [ ] M1 to M5 done and recorded in §7
+- [ ] DESIGN §6 questions answered; decision D3 recorded in the program page
+- [ ] Docs in §5 updated; roadmap status updated
+
+## 7. Results
+
+*(empty until 22a)*
