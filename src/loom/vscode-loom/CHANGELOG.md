@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.0
+
+- `weave` works in VS Code's integrated terminals. The extension carries the Loom command line, and now adds it to the PATH of terminals (after your existing entries, so a `weave` you installed yourself still wins), so every `weave` command in the guides works there with nothing else installed. It applies to terminals opened after the extension has started. The setting `loom.terminal.addWeaveToPath` (default on) turns it off.
+- The documentation says where `weave` comes from, for people who use it outside VS Code.
+
 ## 1.0.2
 
 - The README opens with what Loom is (a short, checked sample script) and what the extension covers beyond the language, from describing a workflow to shipping it, and the package description says the same. The journey table comes right after it.
@@ -44,8 +49,6 @@
 - Ladders: `ladder`, `rung`, `measure`, `climb`, `slip`, `sample`, `escalate`, `climbing`, `ceiling` and `proposes` are highlighted; durations (`30d`), percentages (`90%`) and decimals are numbers; the mode after `mode:` is told apart.
 - Completion inside a ladder: the ladders of the file after `ladder:`, the rungs after `ceiling:` and `slip to`, the three modes after `mode:`, the measures (yours, `dangerous`, and the standard ones when `loom/autonomy` is imported) and the fields of a case inside the brackets of a collection method, the methods and fields of a collection after a dot, the parts of a ratio after `rate(...).`, and the words of a rung at the start of a line.
 - A ladder's mistakes are underlined on the line `weave check` reports, with its guess.
-
-## 1.0.0
 
 First release on the Visual Studio Marketplace.
 

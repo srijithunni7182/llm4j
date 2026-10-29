@@ -28,7 +28,7 @@
 
 ## 🧩 Start in VS Code. Three steps.
 
-1. **Install the Loom extension** ([Loom for llm4j on the Marketplace](https://marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-llm4j-loom), or `ext install srijithunni7182.vscode-llm4j-loom`). It carries its own engine, so **Java 17 is all you need** to use everything in the Command Palette: no key, no account. (The extension does not put a `weave` command in your terminal; the tip below says how to get one.)
+1. **Install the Loom extension** ([Loom for llm4j on the Marketplace](https://marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-llm4j-loom), or `ext install srijithunni7182.vscode-llm4j-loom`). It carries its own engine, so **Java 17 is all you need** to use everything in the Command Palette: no key, no account. It also makes the `weave` command available in VS Code's terminals, so every `weave` line in this guide works there.
 2. **Open a folder.** In a folder with no workflow yet, the Loom view greets you with five buttons: 👋 *Try a demo* · ✍️ *Generate a workflow* · 📂 *Open an example* · 🩺 *Check my setup* · 🤝 *Set up my coding agent*.
 3. **Open the Command Palette** and type **Loom**. Everything in this guide is in that list.
 
@@ -44,7 +44,7 @@ Click **👋 Try a demo** and a real workflow runs in front of you: a classifier
 </p>
 
 > [!TIP]
-> ⌨️ **Prefer a terminal?** Every step below is also one `weave` command, and `jbang weave@srijithunni7182/llm4j try` runs the same demo with nothing installed but Java. To type `weave` yourself, put it on your PATH once with `jbang app install weave@srijithunni7182/llm4j` ([how](install/README.md)). `weave man` lists them all; the [command reference](docs/COMMAND_REFERENCE.md) has every option.
+> ⌨️ **Prefer a terminal?** Every step below is also one `weave` command, and `jbang weave@srijithunni7182/llm4j try` runs the same demo with nothing installed but Java. In a VS Code terminal `weave` already works once the extension has started (open a `.loom` file or run any Loom command). Outside VS Code, put it on your PATH once with `jbang app install weave@srijithunni7182/llm4j` ([how](install/README.md)). `weave man` lists them all; the [command reference](docs/COMMAND_REFERENCE.md) has every option.
 
 Then make one of your own. 👇
 
