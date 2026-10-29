@@ -21,7 +21,7 @@ Four design rules shape everything you see:
 <dependency>
   <groupId>io.github.srijithunni7182</groupId>
   <artifactId>eval4j-report</artifactId>
-  <version>6.0.0</version>
+  <version>6.1.0</version>
   <scope>test</scope>
 </dependency>
 ```
@@ -211,8 +211,8 @@ A case that is not judged records **not evaluated** and its test is reported **a
 ## Command line
 
 ```
-mvn -P cli package            # eval4j-report-6.0.0-cli.jar, about 3 MB, no other dependencies
-java -jar eval4j-report-6.0.0-cli.jar <command> [<export-dir>] [options]
+mvn -P cli package            # eval4j-report-6.1.0-cli.jar, about 3 MB, no other dependencies
+java -jar eval4j-report-6.1.0-cli.jar <command> [<export-dir>] [options]
 ```
 
 | Command | What it does |

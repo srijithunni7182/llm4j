@@ -25,5 +25,5 @@ public record DeployOptions(
         String reviewSummary) {
 
     public static final String DEFAULT_BASE = "eclipse-temurin:17-jre";
-    public static final String DEFAULT_FABRIC = "loom-fabric:6.0.0";
+    public static final String DEFAULT_FABRIC = "loom-fabric:6.1.0";
 }

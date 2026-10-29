@@ -19,7 +19,7 @@ A message over 16 MB, a header without `Content-Length`, or a header line over 8
 `initialize` with `{ "roots": ["/abs/folder", …] }` (default: the working directory) answers
 
 ```json
-{ "protocol": 1, "weave": "6.0.0", "methods": ["loom/check", "loom/graph", …], "roots": ["…"] }
+{ "protocol": 1, "weave": "6.1.0", "methods": ["loom/check", "loom/graph", …], "roots": ["…"] }
 ```
 
 A client refuses a server whose `protocol` differs from the one it speaks and tells the user to reinstall. The protocol is **additive**: unknown request fields are ignored; unknown methods get a typed error; new fields appear in answers within version 1.

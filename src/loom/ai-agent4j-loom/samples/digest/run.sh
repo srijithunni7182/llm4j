@@ -11,7 +11,7 @@ if [ -z "${GEMINI_API_KEY:-}" ]; then
 fi
 export HN_URL="${HN_URL:-https://hacker-news.firebaseio.com}"
 
-LOOM_JAR="../../target/ai-agent4j-loom-6.0.0.jar"
+LOOM_JAR="../../target/ai-agent4j-loom-6.1.0.jar"
 weave() { java -cp "$LOOM_JAR:../../target/lib/*" io.github.llm4j.loom.cli.WeaveCLI "$@"; }
 
 SCRIPT=digest.loom

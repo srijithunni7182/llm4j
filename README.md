@@ -110,7 +110,7 @@ assertThat(support.run(question)).usesTool("refund").completedSuccessfully();   
 <dependency>
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j</artifactId>
-    <version>6.0.0</version>
+    <version>6.1.0</version>
 </dependency>
 ```
 

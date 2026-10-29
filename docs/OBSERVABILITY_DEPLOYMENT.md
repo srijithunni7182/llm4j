@@ -22,7 +22,7 @@ You can combine them. Everything below is the Fabric path; embedded needs only t
 - **On each Loom process:** `loom-inspect` and `loom-inspect-core` jars on the class path beside `weave`
   (`mvn -DskipTests -pl src/loom/loom-inspect -am package`). Without them an `--observe*` option says so and does nothing.
 - **The Fabric jar:** `mvn -DskipTests -pl src/loom/loom-fabric -am package` gives
-  `src/loom/loom-fabric/target/loom-fabric-6.0.0-all.jar`.
+  `src/loom/loom-fabric/target/loom-fabric-6.1.0-all.jar`.
 - **A name** for each process, such as `getviral-prod`. It is how the process is shown, keyed and revoked.
 - **Network:** each process must reach the server **outbound** (HTTPS). Fabric never connects to a process, so firewalls
   between them only need to allow that one direction.
@@ -31,7 +31,7 @@ You can combine them. Everything below is the Fabric path; embedded needs only t
 
 ```bash
 sudo useradd --system --home-dir /var/lib/fabric --create-home fabric
-sudo mkdir -p /opt/fabric && sudo cp loom-fabric-6.0.0-all.jar /opt/fabric/fabric.jar
+sudo mkdir -p /opt/fabric && sudo cp loom-fabric-6.1.0-all.jar /opt/fabric/fabric.jar
 
 # once: data directory, vault, admin password (12+ characters). Not on the command line.
 sudo -u fabric LOOM_FABRIC_ADMIN_PASSWORD='a long password' java -jar /opt/fabric/fabric.jar init --data /var/lib/fabric

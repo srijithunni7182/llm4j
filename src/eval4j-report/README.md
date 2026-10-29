@@ -29,7 +29,7 @@ The report **informs** the release decision, it does not make it: there is no pa
    <dependency>
      <groupId>io.github.srijithunni7182</groupId>
      <artifactId>eval4j-report</artifactId>
-     <version>6.0.0</version>
+     <version>6.1.0</version>
      <scope>test</scope>
    </dependency>
    ```
@@ -39,14 +39,14 @@ The report **informs** the release decision, it does not make it: there is no pa
 3. Or render from the command line, from any directory of bundles (CI archive, a teammate's run):
 
    ```
-   mvn -P cli package                       # builds eval4j-report-6.0.0-cli.jar (about 3 MB, no other dependencies)
-   java -jar eval4j-report-6.0.0-cli.jar render target/eval4j
-   java -jar eval4j-report-6.0.0-cli.jar compare target/eval4j --baseline <runId>
-   java -jar eval4j-report-6.0.0-cli.jar list target/eval4j
-   java -jar eval4j-report-6.0.0-cli.jar validate target/eval4j
-   java -jar eval4j-report-6.0.0-cli.jar merge target/eval4j --group build-148      # bundles of one build
-   java -jar eval4j-report-6.0.0-cli.jar import-legacy old/eval4j-report.json       # a v1 report
-   java -jar eval4j-report-6.0.0-cli.jar prune target/eval4j --keep 50
+   mvn -P cli package                       # builds eval4j-report-6.1.0-cli.jar (about 3 MB, no other dependencies)
+   java -jar eval4j-report-6.1.0-cli.jar render target/eval4j
+   java -jar eval4j-report-6.1.0-cli.jar compare target/eval4j --baseline <runId>
+   java -jar eval4j-report-6.1.0-cli.jar list target/eval4j
+   java -jar eval4j-report-6.1.0-cli.jar validate target/eval4j
+   java -jar eval4j-report-6.1.0-cli.jar merge target/eval4j --group build-148      # bundles of one build
+   java -jar eval4j-report-6.1.0-cli.jar import-legacy old/eval4j-report.json       # a v1 report
+   java -jar eval4j-report-6.1.0-cli.jar prune target/eval4j --keep 50
    ```
 
 Exit codes: `0` success, `2` bad usage, `3` unreadable input, `4` unexpected failure.
