@@ -40,6 +40,7 @@ Every release runs the default tests; `-Prelease` never skips them. Slow tests (
 1. Set the version once, in every pom, and commit it (a released version can never be changed or deleted on Central):
    `mvn versions:set -DnewVersion=5.1 -DgenerateBackupPoms=false` (then fix the `5.0` the examples and `llm4j-parent` references by hand if the
    command leaves any: `grep -rn "<version>5.0" --include=pom.xml .`).
+   `jbang-catalog.json` is part of the same change: it names the CLI jar of the version (`ai-agent4j-loom:<version>:cli`), and `LauncherTest` fails if it differs from the pom. JBang reads the catalog from `main`, so `jbang weave@srijithunni7182/llm4j` does not resolve until Central has the new version: merge the release and push the tag together, and expect it to work again 10 to 30 minutes after you publish.
 2. Check locally, without a key:
    `make release-check` (= `mvn -Prelease -Dgpg.skip=true -DskipTests verify`). It builds the sources and javadoc jars and the `cli` jar.
 3. Tag and push: `git tag v5.1 && git push origin v5.1`. The workflow `Build, Validate, and Deploy` runs the tests on JDK 17 and 21,
