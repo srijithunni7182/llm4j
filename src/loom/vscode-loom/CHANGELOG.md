@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- The README opens with what Loom is (a short, checked sample script) and what the extension covers beyond the language, from describing a workflow to shipping it, and the package description says the same. The journey table comes right after it.
+
 ## 1.0.1
 
 - The Marketplace page shows the settings as a list instead of a table that it failed to draw, and the three settings whose default is empty say so. The repository entry in the manifest names its type (`git`).
