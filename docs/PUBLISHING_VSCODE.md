@@ -13,7 +13,7 @@ so a published `.vsix` is about 21 MB, well under the Marketplace's 200 MB limit
    - Expiration: up to a year. Copy the token now; it is shown once. Treat it like a password.
 3. **A publisher.** Go to [marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage) → *Create publisher*.
    The **ID must be exactly** `srijithunni7182` (it is `publisher` in `src/loom/vscode-loom/package.json`, and part of the extension's permanent name
-   `srijithunni7182.vscode-loom`). The display name can be anything.
+   `srijithunni7182.vscode-llm4j-loom`). The display name can be anything.
 4. **Log in once** from the repository root:
    ```bash
    cd src/loom/vscode-loom
@@ -25,17 +25,17 @@ so a published `.vsix` is about 21 MB, well under the Marketplace's 200 MB limit
 ```bash
 # 1. bump the version in src/loom/vscode-loom/package.json and add a section to src/loom/vscode-loom/CHANGELOG.md
 # 2. build the jar and the extension, and check the package
-scripts/build-vsix.sh                  # builds weave (the cli jar), compiles, packages src/loom/vscode-loom/vscode-loom-<version>.vsix
+scripts/build-vsix.sh                  # builds weave (the cli jar), compiles, packages src/loom/vscode-loom/vscode-llm4j-loom-<version>.vsix
 scripts/verify-vsix.sh                 # unpacks it and runs the bundled jar the way the extension does
 
 # 3. try it before the world can: install the file into your own VS Code
-code --install-extension src/loom/vscode-loom/vscode-loom-<version>.vsix
+code --install-extension src/loom/vscode-loom/vscode-llm4j-loom-<version>.vsix
 
 # 4. publish
 cd src/loom/vscode-loom && npx --yes @vscode/vsce@3.2.1 publish        # compiles, packages and uploads (or add --packagePath <file>.vsix to upload the one you tried)
 ```
 
-The extension appears at `marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-loom` after a few minutes of verification
+The extension appears at `marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-llm4j-loom` after a few minutes of verification
 (Microsoft scans the package; the first publish can take longer). `vsce publish` (without `--packagePath`) fails if `bin/weave.jar` is missing, so an extension that
 cannot draw a graph is never published.
 
@@ -48,7 +48,7 @@ VS Code forks (VSCodium, Gitpod, Cursor and others) read [open-vsx.org](https://
 there, link your GitHub, claim the namespace `srijithunni7182`, create an access token, then:
 
 ```bash
-npx --yes ovsx@latest publish src/loom/vscode-loom/vscode-loom-<version>.vsix -p <token>
+npx --yes ovsx@latest publish src/loom/vscode-loom/vscode-llm4j-loom-<version>.vsix -p <token>
 ```
 
 ## What the Marketplace page shows

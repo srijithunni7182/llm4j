@@ -28,7 +28,7 @@
 
 ## 🧩 Start in VS Code. Three steps.
 
-1. **Install the Loom extension** (`srijithunni7182.vscode-loom`). It carries its own engine, so **Java 17 is all you need**: no CLI to install, no key, no account.
+1. **Install the Loom extension** ([Loom for llm4j on the Marketplace](https://marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-llm4j-loom), or `ext install srijithunni7182.vscode-llm4j-loom`). It carries its own engine, so **Java 17 is all you need**: no CLI to install, no key, no account.
 2. **Open a folder.** In a folder with no workflow yet, the Loom view greets you with five buttons: 👋 *Try a demo* · ✍️ *Generate a workflow* · 📂 *Open an example* · 🩺 *Check my setup* · 🤝 *Set up my coding agent*.
 3. **Open the Command Palette** and type **Loom**. Everything in this guide is in that list.
 

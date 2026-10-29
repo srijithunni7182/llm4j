@@ -1,8 +1,8 @@
 # Loom in VS Code
 
-The **vscode-loom** extension is the quickest way to see what a Loom workflow does and what could go wrong with it, before anything runs. Everything in it uses the same parser and the same review engine as `weave check` and `weave review`, so the editor and the command line cannot disagree, and nothing is sent anywhere: it needs no keys, no network and runs no model.
+The **Loom** extension (`srijithunni7182.vscode-llm4j-loom`) is the quickest way to see what a Loom workflow does and what could go wrong with it, before anything runs. Everything in it uses the same parser and the same review engine as `weave check` and `weave review`, so the editor and the command line cannot disagree, and nothing is sent anywhere: it needs no keys, no network and runs no model.
 
-Install it from the Marketplace, or from the `.vsix` of a release. It needs **Java 17 or newer** (it uses the `weave` jar it carries); the setting `loom.javaPath` points it at a particular Java.
+Install it from [the Marketplace](https://marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-llm4j-loom) (search for *Loom for llm4j*), or from the `.vsix` of a release. It needs **Java 17 or newer** (it uses the `weave` jar it carries); the setting `loom.javaPath` points it at a particular Java.
 
 ## What you get
 

@@ -68,7 +68,7 @@ weave generate "Turn meeting notes into action items and post them to a team web
 | 🏢 **Enterprise ready** | Approvals, budgets, audit trail, PII masking, secrets, an OWASP audit, crash-safe runs that last days. |
 | 🤝 **Bring your coding agent** | **Loom: Set Up My Coding Agent** teaches Claude Code, Copilot, Cursor or any `AGENTS.md` agent to build with Loom, and to look commands up instead of guessing. |
 
-**[🚀 Take the tour: the Developer guide →](DEVELOPER_GUIDE.md)** · [📖 Command reference](docs/COMMAND_REFERENCE.md) · [🧩 VS Code extension](src/loom/vscode-loom/README.md)
+**[🚀 Take the tour: the Developer guide →](DEVELOPER_GUIDE.md)** · [📖 Command reference](docs/COMMAND_REFERENCE.md) · [🧩 VS Code extension](src/loom/vscode-loom/README.md) · [⬇️ Install from the Marketplace](https://marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-llm4j-loom)
 
 ---
 
