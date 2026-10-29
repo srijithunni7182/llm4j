@@ -163,6 +163,12 @@ final class DoctorCommand implements Callable<Integer> {
                                         + String.join(", ", plan.egressHosts()));
             List<Doctor.Check> checks = new java.util.ArrayList<>(Doctor.run(ctx));
             jarsCheck(vars).ifPresent(checks::add);
+            if (!io.github.llm4j.BuildIdentity.ofClass(WeaveCLI.class).fromClasses())
+                Doctor.weaveOnPath(
+                                vars.apply("PATH"),
+                                java.io.File.pathSeparator,
+                                System.getProperty("os.name", "").toLowerCase().contains("win"))
+                        .ifPresent(checks::add);
             if (c.format.equals("json")) env.out().println(json(checks));
             else text(checks, env);
             if (c.fix && !c.format.equals("json")) fixes(c, env, cwd, script);

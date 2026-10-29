@@ -78,6 +78,7 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 - [`weave bindgen`](#weave-bindgen) — Writes typed Java bindings for a script: one method per workflow, a record per result, and an Outcome that is Done, Waiting or Stopped.
 - [`weave deploy`](#weave-deploy) — Writes a container recipe, a compose file or Kubernetes manifests for a workflow, from the script: env names, hosts, volumes and schedules are read from it.
 - [`weave secrets`](#weave-secrets) — Manages an encrypted secret store: create, set, list, remove, import-env, rekey.
+- [`weave tools`](#weave-tools) — Gets the extra jars a deployment needs (the Fabric server, the inspect add-on) from Maven Central, after asking and checking their checksums.
 
 ### Editors and debuggers
 
@@ -2070,4 +2071,55 @@ weave secrets rekey [OPTIONS]
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
+
+### `weave tools`
+
+Gets the extra jars a deployment needs (the Fabric server, the inspect add-on) from Maven Central, after asking and checking their checksums.
+
+```
+weave tools <command>
+```
+
+**Commands**
+
+- `fetch` — Downloads fabric, inspect or all for this weave's version into ~/.llm4j/tools/<version>/.
+
+**Examples**
+
+```
+weave tools fetch fabric         get the Fabric server for this weave's version (asks first)
+weave tools fetch inspect --yes  get the inspect add-on and its core without the question
+weave tools fetch all --dir ./tools
+```
+
+**Notes**
+
+Only repo1.maven.org is contacted, over https. Each file is kept only if its published SHA-256 (or, where Central offers only that, SHA-1) matches, and is written under ~/.llm4j/tools/<version>/. What is downloaded is never run. A development build is refused: build the module or install a release.
+
+**Exit status**
+
+0 done. 1 a download failed or its checksum did not match. 2 refused (development build, a no, or a bad option).
+
+**See also**
+
+weave man doctor, weave man deploy
+
+#### `weave tools fetch`
+
+Downloads fabric, inspect or all for this weave's version into ~/.llm4j/tools/<version>/.
+
+Lists what it will download and asks first. Refuses a development build.
+
+```
+weave tools fetch [OPTIONS] <fabric|inspect|all>
+```
+
+**Arguments**
+
+- `<fabric|inspect|all>` — What to fetch.
+
+**Options**
+
+- `--dir=<folder>` — Where to put them (default: ~/.llm4j/tools).
+- `--yes` — Do not ask first.
 

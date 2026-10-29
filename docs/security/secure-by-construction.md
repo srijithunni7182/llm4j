@@ -23,6 +23,8 @@ the model says.
 
 **A rule that cannot apply is not the same as a rule that holds.** Until 6.2.0 a script's `shared_prompt`, `supervise` and `intervention` blocks were silently dropped when the script was loaded, so rules the author believed were in force were not. They are now carried through loading and tested through the real command line (`RealRunKeepsItsDeclarationsTest`). One gap is accepted by decision (D4 of the field findings program, 2026-10-29): a `shared_prompt` that names a file that does not exist still only logs a warning and the agents run without it, where a stricter reading of the fail-closed rule would refuse to start. `weave check` reports the missing file; the decision is to be revisited at 7.0.
 
+**Downloading code is a decision, not a side effect.** `weave tools fetch` is the only place a `weave` command downloads a jar. It names the files and the one host (Maven Central over https), asks first, refuses to run for a development build, keeps a file only if its published checksum matches, writes only under `~/.llm4j/tools`, and never runs or loads what it fetched (`ToolsFetchTest`).
+
 These controls are tested like features: hostile-input suites, secrets sweeps, and **sabotage runs** that break each
 guard on purpose to prove a test catches it.
 

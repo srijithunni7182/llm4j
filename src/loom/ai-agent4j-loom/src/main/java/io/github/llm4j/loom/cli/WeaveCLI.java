@@ -1702,7 +1702,8 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new InitCommand())
                 .addSubcommand(new GuideCommand())
                 .addSubcommand(new ManCommand())
-                .addSubcommand(new SecretCommands());
+                .addSubcommand(new SecretCommands())
+                .addSubcommand(new ToolsCommand());
     }
 
     public static void main(String[] args) {

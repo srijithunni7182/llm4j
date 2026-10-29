@@ -333,6 +333,16 @@ public final class Guide {
                     StandardCharsets.UTF_8);
             written.add("references/" + name);
         }
+        // the launcher for a terminal with no `weave` on its PATH
+        for (String script : new String[] {"weave", "weave.cmd"}) {
+            Optional<String> text = read("skill/scripts/" + script);
+            if (text.isEmpty()) continue;
+            Path target = folder.resolve("scripts").resolve(script);
+            Files.createDirectories(target.getParent());
+            Files.writeString(target, text.get(), StandardCharsets.UTF_8);
+            target.toFile().setExecutable(true, false);
+            written.add("scripts/" + script);
+        }
         return written;
     }
 

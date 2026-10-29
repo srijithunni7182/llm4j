@@ -165,6 +165,15 @@ final class GuideCommand implements Callable<Integer> {
                                                 + " files): it takes a finished workflow to a running, watched one. Its scripts are in scripts/; the jars they launch come with the skill package (bin/) or from FABRIC_JAR, WEAVE_JAR, INSPECT_JAR and INSPECT_CORE_JAR.");
                     }
                 }
+                if (claude && (c.which.equals("all") || c.which.equals("deployer"))) {
+                    env.out().println();
+                    io.github.llm4j.loom.install.InstallSummary.lines(
+                                    Path.of(System.getProperty("user.home")),
+                                    env.env() == null ? System::getenv : env.env(),
+                                    Guide.deployerFolder(project),
+                                    io.github.llm4j.BuildIdentity.ofClass(WeaveCLI.class).describe())
+                            .forEach(env.out()::println);
+                }
                 return installed == 0 ? 2 : 0;
             } catch (java.io.IOException | IllegalStateException e) {
                 env.err().println("Error: could not install the skill: " + e.getMessage());

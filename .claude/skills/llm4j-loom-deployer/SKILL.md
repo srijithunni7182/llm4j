@@ -12,7 +12,7 @@ You are taking a **finished, tested workflow** to a **running, watched** one, an
 - `weave guide deploy` prints the map of this skill's chapters; `weave guide d1` ... `d8` print them. They are also in `references/` next to this file.
 - `scripts/` next to this file launches things for you: `fabric-up`, `fabric-status`, `fabric-down`, `run-observed` (`.sh` on macOS and Linux, `.ps1` on Windows). Run them with their full path from the user's project folder, read their output, and do not reimplement them by hand.
 - `weave --help`, `weave <command> --help` and `java -jar fabric.jar <command> --help` are the truth about options. Do not guess a name; look.
-- The jars the scripts use are in `bin/` next to this file (or named in `FABRIC_JAR`, `WEAVE_JAR`, `INSPECT_JAR`, `INSPECT_CORE_JAR`). Java 17 or newer is the only prerequisite (`java -version`).
+- The scripts look for each jar in this order: the variable (`FABRIC_JAR`, `WEAVE_JAR`, `INSPECT_JAR`, `INSPECT_CORE_JAR`); the editor extension's bundled jar (it holds the command line only); `bin/` next to this file; `~/.llm4j/tools/<version>/`, where `weave tools fetch fabric|inspect|all` puts what it downloads (it lists the files, asks first, checks the published checksum and refuses a development build); then a build in the repository. `weave guide --install-skill` ends with what was found and what is missing. If a jar is missing, run the `weave tools fetch` command the message names, and tell the person it will download from Maven Central. Java 17 or newer is the only prerequisite (`java -version`).
 
 ## The path
 

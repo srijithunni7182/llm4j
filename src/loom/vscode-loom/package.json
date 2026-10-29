@@ -2,7 +2,7 @@
   "name": "vscode-llm4j-loom",
   "displayName": "Loom for llm4j: AI agent workflows",
   "description": "Build autonomous AI agent workflows in VS Code: generate one from a sentence, see it as a graph, review, test, evaluate, debug, run with a live page and ship it. Includes Loom language support (.loom, .loot).",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "publisher": "srijithunni7182",
   "homepage": "https://github.com/srijithunni7182/llm4j/tree/main/src/loom",
   "bugs": {

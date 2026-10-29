@@ -11,6 +11,7 @@ may not be here, so never send the user to a repository path and never ask them 
 - `weave guide` lists the guide; `weave guide 6` prints chapter 6; `weave guide loom` prints the Loom reference (every statement, option and
   command); `weave guide llms` prints a one-page index of the framework. The chapters are also in `references/` next to this file when the
   skill was installed with `weave guide --install-skill`.
+- **No `weave` in your terminal?** Outside VS Code's own terminals there may be none on the PATH. Run `scripts/weave <command>` from this skill instead: it finds a weave (the extension's jar, `bin/`, a fetched jar) or prints the one line that installs it (`jbang app install weave@srijithunni7182/llm4j`). Tell the person once if it prints the install line; do not build the command line from source.
 - `weave init <template>` creates a small, complete, working project (`weave init --list` shows them).
 - `weave --help` and `weave <command> --help` are the truth about options. Do not guess a name; look.
 

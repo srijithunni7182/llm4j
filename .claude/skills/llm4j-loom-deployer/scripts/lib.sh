@@ -16,35 +16,54 @@ need_java() {
   [ -n "$v" ] && [ "$v" -ge 17 ] 2>/dev/null || die "Java 17 or newer is needed (found version '${v:-unknown}')." 2
 }
 
-# find_jar ENVVAR PATTERN...  -> prints the jar: the variable if set, else bin/ of this skill, else a build in the repository this skill sits in
+# Where the jars may be, in order (the same order as lib.ps1, and one rule for every jar):
+#   1. the environment variable (FABRIC_JAR, WEAVE_JAR, INSPECT_JAR, INSPECT_CORE_JAR), handled in find_jar
+#   2. the editor extension's bundled jar (weave only: it holds nothing else)
+#   3. bin/ of this skill
+#   4. ~/.llm4j/tools/<version>/, where `weave tools fetch` puts what it downloads (newest first)
+#   5. a build in the repository this skill sits in
+# A `weave` on PATH is a launcher, not a jar: scripts/weave in the skill package uses it; these scripts need the jars themselves.
+tool_dirs() {
+  local d
+  for d in "$HOME"/.vscode*/extensions/srijithunni7182.vscode-llm4j-loom-*/bin; do [ -d "$d" ] && printf '%s\n' "$d"; done
+  printf '%s\n' "$SKILL_DIR/bin"
+  # ls -t, because a glob cannot order by modification time on both Linux and macOS: the newest fetched version first
+  # shellcheck disable=SC2045
+  for d in $(ls -dt "$HOME"/.llm4j/tools/*/ 2>/dev/null); do printf '%s\n' "${d%/}"; done
+  for d in loom-fabric loom-inspect loom-inspect-core ai-agent4j-loom; do printf '%s\n' "$SKILL_DIR/../../../src/loom/$d/target"; done
+}
+
+# find_jar ENVVAR PATTERN...  -> prints the jar: the variable if set, else the first place in tool_dirs that has one (the newest file there)
 find_jar() {
   local var="$1"; shift
   local given="${!var:-}"
   if [ -n "$given" ]; then [ -f "$given" ] || die "$var points at '$given', which is not a file" 2; printf '%s\n' "$given"; return 0; fi
   local pat dir hit
   for pat in "$@"; do
-    for dir in "$SKILL_DIR/bin" "$SKILL_DIR/../../../src/loom/loom-fabric/target" "$SKILL_DIR/../../../src/loom/loom-inspect/target" "$SKILL_DIR/../../../src/loom/loom-inspect-core/target" "$SKILL_DIR/../../../src/loom/ai-agent4j-loom/target"; do
-      hit="$(ls "$dir"/$pat 2>/dev/null | grep -v -E 'sources|javadoc|tests' | head -n 1 || true)"
+    while IFS= read -r dir; do
+      # the pattern is a glob and the newest file wins (ls -t); the names are jar names, never anything else
+      # shellcheck disable=SC2010
+      hit="$(ls -t "$dir"/$pat 2>/dev/null | grep -v -E 'sources|javadoc|tests' | head -n 1 || true)"
       [ -n "$hit" ] && { printf '%s\n' "$hit"; return 0; }
-    done
+    done < <(tool_dirs)
   done
   return 1
 }
 
 fabric_jar() {
   find_jar FABRIC_JAR 'fabric.jar' 'loom-fabric-*-all.jar' \
-    || die "the Fabric jar was not found. Put it in $SKILL_DIR/bin/ or set FABRIC_JAR=/path/to/loom-fabric-<version>-all.jar (build: mvn -DskipTests -pl src/loom/loom-fabric -am package)." 2
+    || die "the Fabric jar was not found. Run: weave tools fetch fabric (it asks first and checks the checksum), or set FABRIC_JAR=/path/to/loom-fabric-<version>-all.jar, or put the jar in $SKILL_DIR/bin/." 2
 }
 
 weave_jar() {
   find_jar WEAVE_JAR 'weave.jar' 'ai-agent4j-loom-*-cli.jar' \
-    || die "the weave jar was not found. Put it in $SKILL_DIR/bin/ or set WEAVE_JAR=/path/to/ai-agent4j-loom-<version>-cli.jar." 2
+    || die "the weave jar was not found. Install it (jbang app install weave@srijithunni7182/llm4j, or the VS Code extension), or set WEAVE_JAR=/path/to/ai-agent4j-loom-<version>-cli.jar, or put the jar in $SKILL_DIR/bin/." 2
 }
 
 # the add-on's two jars, joined for a class path
 inspect_jars() {
   local a b
-  a="$(find_jar INSPECT_JAR 'loom-inspect.jar' 'loom-inspect-[0-9]*.jar')" || die "the loom-inspect add-on jar was not found. Put loom-inspect.jar and loom-inspect-core.jar in $SKILL_DIR/bin/ or set INSPECT_JAR and INSPECT_CORE_JAR." 2
+  a="$(find_jar INSPECT_JAR 'loom-inspect.jar' 'loom-inspect-[0-9]*.jar')" || die "the loom-inspect add-on jar was not found. Run: weave tools fetch inspect, or set INSPECT_JAR and INSPECT_CORE_JAR, or put loom-inspect.jar and loom-inspect-core.jar in $SKILL_DIR/bin/." 2
   b="$(find_jar INSPECT_CORE_JAR 'loom-inspect-core.jar' 'loom-inspect-core-[0-9]*.jar')" || die "the loom-inspect-core jar was not found (see INSPECT_CORE_JAR)." 2
   printf '%s:%s\n' "$a" "$b"
 }

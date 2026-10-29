@@ -87,10 +87,16 @@ class SkillKitTest {
                         "mvn -pl",
                         "mvn -q -pl",
                         "hexamind-hub",
-                        "samples/",
-                        "scripts/")) {
+                        "samples/")) {
             assertThat(installed).as(repoOnly).doesNotContain(repoOnly);
         }
+        // the only scripts the installed skill may name are its own launchers (scripts/weave and
+        // scripts/weave.cmd, installed beside SKILL.md); any other scripts/ path is the repository's
+        Matcher scripts = Pattern.compile("scripts/[\\w.-]+").matcher(installed);
+        while (scripts.find())
+            assertThat(scripts.group())
+                    .as("a scripts/ path the installed skill names")
+                    .isIn("scripts/weave", "scripts/weave.cmd");
     }
 
     @Test

@@ -1,0 +1,10 @@
+## EXAMPLES
+weave tools fetch fabric         get the Fabric server for this weave's version (asks first)
+weave tools fetch inspect --yes  get the inspect add-on and its core without the question
+weave tools fetch all --dir ./tools
+## NOTES
+Only repo1.maven.org is contacted, over https. Each file is kept only if its published SHA-256 (or, where Central offers only that, SHA-1) matches, and is written under ~/.llm4j/tools/<version>/. What is downloaded is never run. A development build is refused: build the module or install a release.
+## EXIT STATUS
+0 done. 1 a download failed or its checksum did not match. 2 refused (development build, a no, or a bad option).
+## SEE ALSO
+weave man doctor, weave man deploy

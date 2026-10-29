@@ -13,6 +13,7 @@ import { createPromptFileCommand } from './commands/createPromptFile';
 import { registerCheckDiagnostics } from './commands/checkDiagnostics';
 import { registerGuideCommands } from './commands/guideCommands';
 import { registerWelcome } from './welcome/register';
+import { registerAgentOffer } from './guide/registerOffer';
 import { registerTools } from './tools/register';
 import { registerWeaveOnPath } from './terminal/register';
 import { WorkflowOutlineProvider } from './views/WorkflowOutlineProvider';
@@ -123,6 +124,7 @@ export function activate(context: vscode.ExtensionContext): void {
     registerGenerate(context);
     registerGuideCommands(context);
     registerWelcome(context);
+    registerAgentOffer(context);
     registerTools(context);
     registerWeaveOnPath(context);
 

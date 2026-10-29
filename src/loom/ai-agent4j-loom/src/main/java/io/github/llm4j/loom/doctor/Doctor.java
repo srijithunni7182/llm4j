@@ -140,6 +140,34 @@ public final class Doctor {
         return java.util.Optional.empty();
     }
 
+    /**
+     * Whether this terminal can run {@code weave} by name. The editor extension puts weave on the
+     * PATH of VS Code's own terminals only, so a coding agent's terminal, an ssh session or a CI
+     * step may have none; says so once, with the way out. Empty when weave is on the PATH.
+     */
+    public static java.util.Optional<Check> weaveOnPath(
+            String path, String separator, boolean windows) {
+        if (path != null && !path.isBlank()) {
+            List<String> names =
+                    windows ? List.of("weave.cmd", "weave.exe", "weave.bat") : List.of("weave");
+            for (String dir : path.split(java.util.regex.Pattern.quote(separator))) {
+                if (dir.isBlank()) continue;
+                for (String name : names)
+                    if (Files.isRegularFile(Path.of(dir).resolve(name)))
+                        return java.util.Optional.empty();
+            }
+        }
+        return java.util.Optional.of(
+                new Check(
+                        "weave command",
+                        Status.WARN,
+                        "weave is not on this terminal's PATH. The editor extension puts it on the PATH"
+                                + " of VS Code's own terminals only; other terminals (a coding agent's,"
+                                + " ssh, a CI step) need it installed.",
+                        "Run `jbang app install weave@srijithunni7182/llm4j` once, or use scripts/weave"
+                                + " from the installed skill, which finds a weave or prints this line."));
+    }
+
     private static boolean isOlder(JarDiscovery.Found a, JarDiscovery.Found b) {
         String ta = a.identity().builtAt();
         String tb = b.identity().builtAt();

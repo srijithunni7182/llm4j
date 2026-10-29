@@ -1,0 +1,43 @@
+#!/usr/bin/env sh
+# Runs weave for a coding agent whose terminal has no `weave` command (the editor extension puts weave on the PATH of
+# VS Code's own terminals only). Looks, in order: WEAVE_JAR; a `weave` on PATH that is not this script; the editor
+# extension's bundled jar; bin/weave.jar next to this skill; a jar fetched into ~/.llm4j/tools. Otherwise it prints the
+# one line that installs weave and stops. Changes nothing and contacts no one.
+self="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+skill="$(cd "$(dirname "$0")/.." && pwd)"
+
+
+if [ -n "${WEAVE_JAR:-}" ]; then
+  [ -f "$WEAVE_JAR" ] || { echo "WEAVE_JAR points at '$WEAVE_JAR', which is not a file." >&2; exit 2; }
+  jar="$WEAVE_JAR"
+  command -v java >/dev/null 2>&1 || { echo "weave needs Java 17 or newer, and 'java' was not found." >&2; exit 2; }
+  exec java -jar "$jar" "$@"
+fi
+
+old_ifs="$IFS"; IFS=:
+for dir in $PATH; do
+  candidate="$dir/weave"
+  if [ -x "$candidate" ] && [ -f "$candidate" ]; then
+    real="$(cd "$(dirname "$candidate")" && pwd)/weave"
+    if [ "$real" != "$self" ]; then IFS="$old_ifs"; exec "$candidate" "$@"; fi
+  fi
+done
+IFS="$old_ifs"
+
+for jar in \
+  $(ls -t "$HOME"/.vscode*/extensions/srijithunni7182.vscode-llm4j-loom-*/bin/weave.jar 2>/dev/null) \
+  "$skill/bin/weave.jar" \
+  $(ls -t "$HOME"/.llm4j/tools/*/ai-agent4j-loom-*-cli.jar 2>/dev/null); do
+  if [ -f "$jar" ]; then
+    command -v java >/dev/null 2>&1 || { echo "weave needs Java 17 or newer, and 'java' was not found." >&2; exit 2; }
+    exec java -jar "$jar" "$@"
+  fi
+done
+
+cat >&2 <<'MSG'
+weave was not found in this terminal. Install it once:
+  jbang app install weave@srijithunni7182/llm4j        (needs JBang: https://www.jbang.dev)
+or install the "Loom" extension in VS Code, which bundles weave (its own terminals get `weave` on the PATH; other terminals
+need this launcher or the install above), or set WEAVE_JAR=/path/to/ai-agent4j-loom-<version>-cli.jar.
+MSG
+exit 2

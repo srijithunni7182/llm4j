@@ -10,5 +10,5 @@ Answer people and fix a run: questions answer rewind reset fork replay
 From production back to tests: capture regress
 Triggers and schedules: tick daemon triggers schedule
 Decisions that earn autonomy: autonomy ladder
-Ship it: bindgen deploy secrets
+Ship it: bindgen deploy secrets tools
 Editors and debuggers: serve dap

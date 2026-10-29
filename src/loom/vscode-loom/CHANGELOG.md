@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0
+
+- **Loom: Set Up My Coding Agent** is offered once. When you open a folder that has a `.loom` file and no coding-agent set-up, a notification asks whether to set it up (*Set up*, *Not now*, *Don't ask again*). *Not now* is remembered for that workspace, *Don't ask again* for all of them, and it writes nothing until you choose; *Set up* runs the same command as the welcome view's button, which shows what it will write first.
+- The engine this extension carries now reports whether it is a release or a development build, and which commit (`weave --version`).
+
 ## 1.1.0
 
 - `weave` works in VS Code's integrated terminals. The extension carries the Loom command line, and now adds it to the PATH of terminals (after your existing entries, so a `weave` you installed yourself still wins), so every `weave` command in the guides works there with nothing else installed. It applies to terminals opened after the extension has started. The setting `loom.terminal.addWeaveToPath` (default on) turns it off.
