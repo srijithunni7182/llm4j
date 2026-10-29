@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.0.1
+
+- The Marketplace page shows the settings as a list instead of a table that it failed to draw, and the three settings whose default is empty say so. The repository entry in the manifest names its type (`git`).
+
+## 1.0.0
 
 - The rest of the journey in the editor: **Loom: Run Tests**, **Loom: Evaluate Workflow...** (mock run, dataset check, starter dataset), **Loom: Run With Live Page...** (a real run, asks first, capped by `loom.observe.maxTokens`), **Loom: Write Deployment Files...** (Docker, Compose, Kubernetes), **Loom: What Should I Do Next?** and **Loom: Show All Commands (weave man)**. Each types one `weave` command into an integrated terminal.
 - **Loom: Set Up My Coding Agent** (was *Install the Loom Skill in This Project*): choose Claude Code, `AGENTS.md` (Codex, Copilot agent mode, Gemini, Cursor and others), GitHub Copilot or Cursor; it writes the file each reads, keeping what you wrote in it. The text points the agent at `weave man` (the command reference) and the loop and rules for working with Loom. The welcome view has a button for it.

@@ -199,27 +199,25 @@ A key that is not set yet (such as `GEMINI_API_KEY`) is not reported as a proble
 
 ### Settings
 
-| Setting | Default | What it does |
-|---|---|---|
-| `loom.javaPath` | `java` | The Java executable used to run `weave.jar` (the engine, checks and graphs); if only the older `loom.graph.javaPath` is set, that one is used |
-| `loom.graph.javaPath` | `java` | The older name of the same setting, still honoured |
-| `loom.review.on` | `save` | When the review runs by itself: after a save, while typing (the validity lens only), or only when you ask (`manual`) |
-| `loom.review.layout` | `split` | The layout the Review panel opens in: `split`, `outline` or `list` (your last choice in the panel is remembered per workspace) |
-| `loom.review.lenses` | `` | Which lenses run, as `weave review --lens` takes them; empty uses the project's `review.properties` |
-| `loom.review.minSeverity` | `low` | The lowest severity shown as a squiggle and in the Problems panel |
-| `loom.review.codeLens` | `true` | Findings and cost above each workflow |
-| `loom.review.statusBar` | `true` | Open findings and typical cost of the active script in the status bar |
-| `loom.review.failOn` | `high` | Colour the status bar when findings at or above this severity are open; it never stops Run |
-| `loom.generate.model` | `` | The model that writes for Generate Workflow and Change Workflow (empty: `LOOM_GENERATE_MODEL`) |
-| `loom.generate.maxCost` | `0` | The most one generation may spend, in dollars (needs a price table; 0: the command's default) |
-| `loom.generate.maxTokens` | `0` | The most tokens one generation may use (0: the command's default) |
-| `loom.generate.prices` | `` | A price table so the cost limit can be counted in dollars |
-| `loom.observe.maxTokens` | `50000` | The most tokens a run started from Run With Live Page may use (it is a real run with your model keys) |
-| `loom.serve.memoryMb` | `64` | Memory the engine may use to keep answers it can reuse |
-| `loom.serve.timeoutMs` | `10000` | The longest the engine may take over one request; a slower one is marked stale |
-| `loom.semantic.enable` | `true` | Answer go to definition, references, rename, completion, hover, outline and signature help from the engine; off keeps only the older answers |
-| `loom.graph.timeoutMs` | `30000` | How long to wait for `weave graph` before stopping it |
-| `loom.graph.autoRefresh` | `true` | Redraw when the script or a file it imports is saved |
+- **`loom.javaPath`** (default `java`): The Java executable used to run `weave.jar` (the engine, checks and graphs); if only the older `loom.graph.javaPath` is set, that one is used
+- **`loom.graph.javaPath`** (default `java`): The older name of the same setting, still honoured
+- **`loom.review.on`** (default `save`): When the review runs by itself: after a save, while typing (the validity lens only), or only when you ask (`manual`)
+- **`loom.review.layout`** (default `split`): The layout the Review panel opens in: `split`, `outline` or `list` (your last choice in the panel is remembered per workspace)
+- **`loom.review.lenses`** (default `` ``, empty): Which lenses run, as `weave review --lens` takes them; empty uses the project's `review.properties`
+- **`loom.review.minSeverity`** (default `low`): The lowest severity shown as a squiggle and in the Problems panel
+- **`loom.review.codeLens`** (default `true`): Findings and cost above each workflow
+- **`loom.review.statusBar`** (default `true`): Open findings and typical cost of the active script in the status bar
+- **`loom.review.failOn`** (default `high`): Colour the status bar when findings at or above this severity are open; it never stops Run
+- **`loom.generate.model`** (default `` ``, empty): The model that writes for Generate Workflow and Change Workflow (empty: `LOOM_GENERATE_MODEL`)
+- **`loom.generate.maxCost`** (default `0`): The most one generation may spend, in dollars (needs a price table; 0: the command's default)
+- **`loom.generate.maxTokens`** (default `0`): The most tokens one generation may use (0: the command's default)
+- **`loom.generate.prices`** (default `` ``, empty): A price table so the cost limit can be counted in dollars
+- **`loom.observe.maxTokens`** (default `50000`): The most tokens a run started from Run With Live Page may use (it is a real run with your model keys)
+- **`loom.serve.memoryMb`** (default `64`): Memory the engine may use to keep answers it can reuse
+- **`loom.serve.timeoutMs`** (default `10000`): The longest the engine may take over one request; a slower one is marked stale
+- **`loom.semantic.enable`** (default `true`): Answer go to definition, references, rename, completion, hover, outline and signature help from the engine; off keeps only the older answers
+- **`loom.graph.timeoutMs`** (default `30000`): How long to wait for `weave graph` before stopping it
+- **`loom.graph.autoRefresh`** (default `true`): Redraw when the script or a file it imports is saved
 
 ### Command line
 
