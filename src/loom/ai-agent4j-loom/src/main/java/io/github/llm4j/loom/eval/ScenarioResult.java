@@ -50,9 +50,16 @@ public record ScenarioResult(
 
     /**
      * One thing that was checked: {@code answer contains}, {@code tools}, {@code rubric}, {@code
-     * expect}.
+     * expect}. {@code dimension} is the quality dimension a rubric line names for itself, else
+     * null (then it counts under every dimension of its scenario).
      */
-    public record Check(String kind, String text, Status status, String detail) {}
+    public record Check(String kind, String text, Status status, String detail, String dimension) {
+
+        /** A check that names no dimension of its own. */
+        public Check(String kind, String text, Status status, String detail) {
+            this(kind, text, status, detail, null);
+        }
+    }
 
     public ScenarioResult {
         checks = List.copyOf(checks);

@@ -1752,6 +1752,9 @@ weave eval [OPTIONS] <script>
 **Options**
 
 - `--agent=<agent>` — Only this agent's scenarios.
+- `--allow-version-change=<why>` — With --baseline: compare with a baseline taken on a different dataset anyway; the reason is recorded in the report.
+- `--approver=<name>` — With --save-baseline: who approves this baseline.
+- `--baseline` — Compare this run with the saved baselines (the current one and the one before it) and list the cases that regressed. Refused when the dataset differs, unless --allow-version-change is given.
 - `--check` — Only validate the dataset: names, fields, dimensions, fixtures. No model is called.
 - `--classes=<dir|jar>` — Folder or jar with the classes of your own tasks and tools, repeatable (weave only sees what is on its class path). Default: target/classes of the project, when it has been built (mvn compile).
 - `--context-windows=<file>` — A windows file: 'model = window / reserve' per line (the size of each model's context window). Repeatable; a later file wins. Layered over <script>.windows, ~/.llm4j/context-windows and the built-in catalogue. (repeatable)
@@ -1759,6 +1762,7 @@ weave eval [OPTIONS] <script>
 - `--env-file=<file>` — Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.
 - `--init` — Create eval/golden with one starter scenario per agent and one for the workflow. Never overwrites a file.
 - `--json=<file>` — Also write the results as JSON.
+- `--judge-samples=<n>` — Judge each rubric line this many times and use the median (default 1, at most 9). Samples that disagree widely leave the line unjudged. Each sample is a paid call.
 - `--judge=<model>` — The model that judges rubric and expect lines (default: the agent's own model).
 - `-l, --loot <lootFile>` — The .loot tool mapping file, for a script that uses your own tools (a real run calls them; --mock does not).
 - `--loct=<file>` — A .loct file mapping a name to a class of your own compaction strategy ('keep_decisions = com.acme.KeepDecisions'), for use as 'compact: keep_decisions' in a script. Repeatable. (repeatable)
@@ -1770,11 +1774,16 @@ weave eval [OPTIONS] <script>
 - `--prices=<prices>` — Price table: lines of 'model = input / output' per million tokens.
 - `--prompt=<id@vN>` — Run this version of a prompt for this run only, e.g. --prompt researcher@v2 (repeatable).
 - `--prompts=<dir>` — The folder of prompt files (default: the script's prompts: line, else a prompts/ folder beside the script).
+- `--release-gate` — This run is the release gate: held-out cases (split:heldout) run too, and the report records that it was a gate run. Without it held-out cases never run.
+- `--repetitions=<n>` — Run each case this many times (default 1, at most 10): the report then gives pass@1, pass^N, consistency and the unstable cases. Every repetition is a paid run.
 - `--report=<file>` — Also write the results as a single HTML page.
+- `--save-baseline` — After a finished real run, save its results as a new baseline. Needs --approver and --why; a baseline is never replaced.
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
+- `--split=<development|validation|heldout>` — Run only the cases tagged split:<name> (a case with no split tag is development). heldout needs --release-gate.
 - `--verbose` — Show what each agent is doing as it runs (by default only the result is shown).
+- `--why=<text>` — With --save-baseline: why this run is the new baseline.
 - `--workflow=<workflow>` — Only this workflow's scenarios (and which workflow workflow.yaml is for).
 - `-y, --yes` — Do not ask before a real run.
 
@@ -1786,6 +1795,14 @@ weave eval main.loom --check         validate the dataset; calls no model
 weave eval main.loom --mock          run it with mock models; costs nothing
 weave eval main.loom --max-cost 0.50 --prices prices.txt     against real models, capped
 ```
+
+**More options**
+
+weave eval main.loom --repetitions 5              run every case 5 times: pass@1, pass^N, consistency, unstable cases
+weave eval main.loom --judge-samples 3            judge each rubric line 3 times; wide disagreement leaves it unjudged
+weave eval main.loom --release-gate               also run the held-out cases (split:heldout); recorded in the report
+weave eval main.loom --save-baseline --approver ana --why "release 6.2"
+weave eval main.loom --baseline                   compare with the current and the previous baseline
 
 **The report**
 

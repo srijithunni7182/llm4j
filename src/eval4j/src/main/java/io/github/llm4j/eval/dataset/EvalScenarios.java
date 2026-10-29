@@ -113,10 +113,11 @@ public final class EvalScenarios {
             return s;
         }
         List<String> context = new java.util.ArrayList<>();
-        List<String> rubric = new java.util.ArrayList<>(s.rubricLines());
+        List<String> rubricFromContext = new java.util.ArrayList<>();
         List<String> expect = new java.util.ArrayList<>(s.expectLines());
         for (String line : s.context()) {
-            if (line.startsWith("RUBRIC:")) rubric.add(line.substring("RUBRIC:".length()).strip());
+            if (line.startsWith("RUBRIC:"))
+                rubricFromContext.add(line.substring("RUBRIC:".length()).strip());
             else if (line.startsWith("EXPECT:"))
                 expect.add(line.substring("EXPECT:".length()).strip());
             else context.add(line);
@@ -132,7 +133,9 @@ public final class EvalScenarios {
                 s.id(),
                 s.dimensions(),
                 s.tags(),
-                rubric.isEmpty() ? null : rubric,
+                s.rubricLines().isEmpty() && rubricFromContext.isEmpty()
+                        ? null
+                        : DimensionedLines.appending(s.rubricLines(), rubricFromContext),
                 expect.isEmpty() ? null : expect,
                 s.inputs(),
                 s.expectedOutputNotContains(),

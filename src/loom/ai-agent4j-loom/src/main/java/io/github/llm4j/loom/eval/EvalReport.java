@@ -19,6 +19,7 @@ public final class EvalReport {
      * @param judge what the judge did and cost, or null when none ran
      * @param settings the run's fingerprint: what it was run with (dataset, weave build, bundle)
      * @param reproduce the command that runs it again, or null
+     * @param baseline how it compares with the saved baselines, as lines (empty when not asked)
      */
     public record Run(
             String script,
@@ -29,7 +30,22 @@ public final class EvalReport {
             Map<String, String> dimensions,
             JudgeFacts judge,
             Map<String, String> settings,
-            String reproduce) {
+            String reproduce,
+            List<String> baseline) {
+
+        /** A run with no comparison against baselines. */
+        public Run(
+                String script,
+                boolean mock,
+                List<ScenarioResult> results,
+                int notRun,
+                String stoppedBecause,
+                Map<String, String> dimensions,
+                JudgeFacts judge,
+                Map<String, String> settings,
+                String reproduce) {
+            this(script, mock, results, notRun, stoppedBecause, dimensions, judge, settings, reproduce, List.of());
+        }
 
         /** A run with no judge facts, no fingerprint and no command, as before they were kept. */
         public Run(
@@ -39,11 +55,12 @@ public final class EvalReport {
                 int notRun,
                 String stoppedBecause,
                 Map<String, String> dimensions) {
-            this(script, mock, results, notRun, stoppedBecause, dimensions, null, Map.of(), null);
+            this(script, mock, results, notRun, stoppedBecause, dimensions, null, Map.of(), null, List.of());
         }
 
         public Run {
             settings = settings == null ? Map.of() : Map.copyOf(settings);
+            baseline = baseline == null ? List.of() : List.copyOf(baseline);
         }
 
         public long count(Status s) {

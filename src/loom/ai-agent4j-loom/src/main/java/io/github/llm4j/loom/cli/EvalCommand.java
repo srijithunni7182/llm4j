@@ -6,6 +6,7 @@ import io.github.llm4j.loom.ast.LoomScript;
 import io.github.llm4j.loom.eval.DatasetFolder;
 import io.github.llm4j.loom.eval.EvalReport;
 import io.github.llm4j.loom.eval.EvalSections;
+import io.github.llm4j.loom.eval.Splits;
 import io.github.llm4j.loom.eval.EvalRunner;
 import io.github.llm4j.loom.eval.Fixtures;
 import io.github.llm4j.loom.eval.MockModels;
@@ -104,6 +105,58 @@ final class EvalCommand implements Callable<Integer> {
             description = "Cap the tokens of a real run (default " + DEFAULT_MAX_TOKENS + ").")
     Long maxTokens;
 
+    @Option(
+            names = "--baseline",
+            description =
+                    "Compare this run with the saved baselines (the current one and the one before it) and list the cases that regressed. Refused when the dataset differs, unless --allow-version-change is given.")
+    boolean baseline;
+
+    @Option(
+            names = "--save-baseline",
+            description =
+                    "After a finished real run, save its results as a new baseline. Needs --approver and --why; a baseline is never replaced.")
+    boolean saveBaseline;
+
+    @Option(names = "--approver", paramLabel = "<name>", description = "With --save-baseline: who approves this baseline.")
+    String approver;
+
+    @Option(names = "--why", paramLabel = "<text>", description = "With --save-baseline: why this run is the new baseline.")
+    String why;
+
+    @Option(
+            names = "--allow-version-change",
+            paramLabel = "<why>",
+            description =
+                    "With --baseline: compare with a baseline taken on a different dataset anyway; the reason is recorded in the report.")
+    String allowVersionChange;
+
+    @Option(
+            names = "--split",
+            paramLabel = "development|validation|heldout",
+            description =
+                    "Run only the cases tagged split:<name> (a case with no split tag is development). heldout needs --release-gate.")
+    String split;
+
+    @Option(
+            names = "--release-gate",
+            description =
+                    "This run is the release gate: held-out cases (split:heldout) run too, and the report records that it was a gate run. Without it held-out cases never run.")
+    boolean releaseGate;
+
+    @Option(
+            names = "--repetitions",
+            paramLabel = "<n>",
+            description =
+                    "Run each case this many times (default 1, at most 10): the report then gives pass@1, pass^N, consistency and the unstable cases. Every repetition is a paid run.")
+    int repetitions = 1;
+
+    @Option(
+            names = "--judge-samples",
+            paramLabel = "<n>",
+            description =
+                    "Judge each rubric line this many times and use the median (default 1, at most 9). Samples that disagree widely leave the line unjudged. Each sample is a paid call.")
+    int judgeSamples = 1;
+
     @Option(names = "--max-calls", description = "Cap the model calls of a real run.")
     Long maxCalls;
 
@@ -175,6 +228,52 @@ final class EvalCommand implements Callable<Integer> {
             env.err().println("Error: --check and --init cannot be used together.");
             return 2;
         }
+        if (c.split != null && !Splits.ALL.contains(c.split)) {
+            env.err()
+                    .println(
+                            "Error: --split takes development, validation or heldout, got " + c.split + ".");
+            return 2;
+        }
+        if (Splits.HELD_OUT.equals(c.split) && !c.releaseGate) {
+            env.err()
+                    .println(
+                            "Error: held-out cases run only at a release gate, so that no one looks at them by accident while tuning. Add --release-gate (the report will record that this was a gate run).");
+            return 2;
+        }
+        if (c.saveBaseline) {
+            String missing =
+                    c.approver == null || c.approver.isBlank()
+                            ? "--approver <name>"
+                            : c.why == null || c.why.isBlank() ? "--why \"<reason>\"" : null;
+            if (missing != null) {
+                env.err().println("Error: --save-baseline needs " + missing + " (a baseline is a decision someone owns and explains).");
+                return 2;
+            }
+            if (c.mock) {
+                env.err().println("Error: a mock run judged nothing, so it cannot be a baseline.");
+                return 2;
+            }
+        }
+        if (c.repetitions < 1 || c.repetitions > MAX_REPETITIONS) {
+            env.err()
+                    .println(
+                            "Error: --repetitions must be between 1 and "
+                                    + MAX_REPETITIONS
+                                    + ", got "
+                                    + c.repetitions
+                                    + ".");
+            return 2;
+        }
+        if (c.judgeSamples < 1 || c.judgeSamples > RubricJudge.MAX_SAMPLES) {
+            env.err()
+                    .println(
+                            "Error: --judge-samples must be between 1 and "
+                                    + RubricJudge.MAX_SAMPLES
+                                    + ", got "
+                                    + c.judgeSamples
+                                    + ".");
+            return 2;
+        }
         Path scriptFile = c.script.toPath().toAbsolutePath();
         LoomScript script;
         try {
@@ -195,6 +294,13 @@ final class EvalCommand implements Callable<Integer> {
                                 + (s.id() != null
                                         ? " " + s.id()
                                         : s.name() != null ? " " + s.name() : "");
+                String named = Splits.named(s);
+                if (named != null && !Splits.ALL.contains(named))
+                    problems.add(
+                            label
+                                    + ": split:"
+                                    + named
+                                    + " is not a split; use development, validation or heldout");
                 if (t.isAgent()) {
                     if (!s.namedInputs().isEmpty())
                         problems.add(
@@ -258,6 +364,14 @@ final class EvalCommand implements Callable<Integer> {
                                             : ", fixtures for "
                                                     + String.join(", ", fixtures.names()))
                                     + ", ready to run");
+            boolean anyHeldOut =
+                    plan.targets().stream()
+                            .flatMap(t -> t.scenarios().stream())
+                            .anyMatch(s -> Splits.HELD_OUT.equals(Splits.of(s)));
+            if (!anyHeldOut)
+                env.out()
+                        .println(
+                                "note: no held-out cases. Tag a sealed set split:heldout, so that you can tell whether prompts were tuned to the cases you can see.");
             return 0;
         }
         return run(c, env, script, scriptFile, plan, fixtures);
@@ -272,13 +386,37 @@ final class EvalCommand implements Callable<Integer> {
             Path scriptFile,
             DatasetFolder.Plan plan,
             Fixtures fixtures) {
+        io.github.llm4j.loom.eval.DatasetIdentity identity = io.github.llm4j.loom.eval.DatasetIdentity.of(plan.dir());
+        Path project = plan.dir().toAbsolutePath().getParent() == null ? null : plan.dir().toAbsolutePath().getParent().getParent();
+        List<io.github.llm4j.loom.eval.Baselines.Baseline> saved =
+                project == null ? List.of() : io.github.llm4j.loom.eval.Baselines.load(project);
+        if (c.baseline && c.allowVersionChange == null) {
+            var refusal = io.github.llm4j.loom.eval.Baselines.mismatch(saved, identity);
+            if (refusal.isPresent()) {
+                env.err().println("Error: " + refusal.get());
+                return 2;
+            }
+        }
         List<DatasetFolder.Target> targets = new ArrayList<>();
+        int heldOutLeftOut = 0;
         for (DatasetFolder.Target t : plan.targets()) {
             if (c.agent != null && !(t.isAgent() && t.name().equalsIgnoreCase(c.agent))) continue;
             if (c.workflow != null && !(!t.isAgent() && t.name().equalsIgnoreCase(c.workflow)))
                 continue;
-            targets.add(t);
+            List<EvalScenario> chosen = new ArrayList<>();
+            for (EvalScenario s : t.scenarios()) {
+                String split = Splits.of(s);
+                if (c.split != null && !c.split.equals(split)) continue;
+                if (split.equals(Splits.HELD_OUT) && !c.releaseGate) {
+                    heldOutLeftOut++;
+                    continue;
+                }
+                chosen.add(s);
+            }
+            if (!chosen.isEmpty())
+                targets.add(new DatasetFolder.Target(t.kind(), t.name(), t.file(), chosen));
         }
+        final int heldOutLeftOutCount = heldOutLeftOut;
         if (targets.isEmpty()) {
             env.err()
                     .println(
@@ -347,10 +485,11 @@ final class EvalCommand implements Callable<Integer> {
                                     + scenarios
                                     + " scenario"
                                     + (scenarios == 1 ? "" : "s")
+                                    + (c.repetitions > 1 ? ", each run " + c.repetitions + " times" : "")
                                     + ", at least one agent call each, and up to "
-                                    + judgedLines
+                                    + judgedLines * c.repetitions * c.judgeSamples
                                     + " judge call"
-                                    + (judgedLines == 1 ? "" : "s")
+                                    + (judgedLines * c.repetitions * c.judgeSamples == 1 ? "" : "s")
                                     + ". Use --mock to check the wiring for free.");
             if (judgedLines > 0) env.out().println(judgeLine(script, targets, c.judge, env));
             if (!c.yes
@@ -416,7 +555,8 @@ final class EvalCommand implements Callable<Integer> {
                                                     new io.github.llm4j.loom.eval.JudgeMeter(
                                                             env.models().createClient(n), n);
                                             meters.add(meter);
-                                            return RubricJudge.model(meter, n);
+                                            return RubricJudge.sampled(
+                                                    RubricJudge.model(meter, n), c.judgeSamples);
                                         } catch (RuntimeException ex) {
                                             env.out().println("? no judge: " + ex.getMessage());
                                             return null;
@@ -446,19 +586,30 @@ final class EvalCommand implements Callable<Integer> {
                     notRun++;
                     continue;
                 }
-                ScenarioResult r =
-                        t.isAgent()
-                                ? runner.agent(t.file(), t.name(), s)
-                                : runner.workflow(
-                                        t.file(),
-                                        t.name(),
-                                        parameters(script, t.name()),
-                                        s,
-                                        firstModel);
-                results.add(r);
-                env.out().println(EvalReport.mark(r.status()) + " " + t.name() + " · " + r.label());
-                if (runner.stoppedByLimit() || spend.exhausted())
-                    stopped = "a limit was reached (" + spend.describe() + ")";
+                for (int repetition = 1; repetition <= c.repetitions && stopped == null; repetition++) {
+                    ScenarioResult r =
+                            t.isAgent()
+                                    ? runner.agent(t.file(), t.name(), s)
+                                    : runner.workflow(
+                                            t.file(),
+                                            t.name(),
+                                            parameters(script, t.name()),
+                                            s,
+                                            firstModel);
+                    results.add(r);
+                    env.out()
+                            .println(
+                                    EvalReport.mark(r.status())
+                                            + " "
+                                            + t.name()
+                                            + " · "
+                                            + r.label()
+                                            + (c.repetitions > 1
+                                                    ? "  (run " + repetition + " of " + c.repetitions + ")"
+                                                    : ""));
+                    if (runner.stoppedByLimit() || spend.exhausted())
+                        stopped = "a limit was reached (" + spend.describe() + ")";
+                }
             }
         }
         String runId = bundleRunId();
@@ -470,7 +621,14 @@ final class EvalCommand implements Callable<Integer> {
                         .toString());
         settings.put("weave", io.github.llm4j.BuildIdentity.ofClass(WeaveCLI.class).describe());
         settings.put("mode", c.mock ? "mock" : "real");
-        settings.put("repetitions", "1");
+        settings.put("repetitions", String.valueOf(c.repetitions));
+        settings.put("judge samples", String.valueOf(c.judgeSamples));
+        settings.put("release gate", c.releaseGate ? "yes" : "no");
+        settings.put("dataset version", identity.describe());
+        if (c.baseline && c.allowVersionChange != null)
+            settings.put("version change allowed", c.allowVersionChange);
+        if (c.split != null) settings.put("split", c.split);
+        if (heldOutLeftOutCount > 0) settings.put("held-out not run", String.valueOf(heldOutLeftOutCount));
         settings.put("bundle", bundleRoot.resolve("runs").resolve(runId).toString());
         EvalReport.Run run =
                 new EvalReport.Run(
@@ -482,7 +640,14 @@ final class EvalCommand implements Callable<Integer> {
                         plan.dataset().dimensions(),
                         judgeFacts(meters, c),
                         settings,
-                        reproduce(c));
+                        reproduce(c),
+                        List.of());
+        if (c.baseline)
+            run =
+                    new EvalReport.Run(
+                            run.script(), run.mock(), run.results(), run.notRun(), run.stoppedBecause(),
+                            run.dimensions(), run.judge(), run.settings(), run.reproduce(),
+                            io.github.llm4j.loom.eval.Baselines.compare(saved, run, identity));
         env.out().println();
         env.out().print(EvalSections.terminal(run));
         try {
@@ -497,6 +662,22 @@ final class EvalCommand implements Callable<Integer> {
         } catch (RuntimeException e) {
             env.err().println("Warning: could not write the dashboard bundle: " + e.getMessage());
         }
+        if (c.saveBaseline) {
+            if (stopped != null || notRun > 0) {
+                env.err().println("The baseline was not saved: the run did not finish, and a partial run is not a baseline.");
+            } else if (project == null) {
+                env.err().println("The baseline was not saved: no place for it beside the dataset.");
+            } else {
+                try {
+                    Path file =
+                            io.github.llm4j.loom.eval.Baselines.save(
+                                    project, identity, run, c.approver, c.why, java.time.Instant.now());
+                    env.out().println("Baseline saved: " + file + " (approved by " + c.approver + ").");
+                } catch (RuntimeException e) {
+                    env.err().println("The baseline was not saved: " + e.getMessage());
+                }
+            }
+        }
         try {
             if (c.json != null) Files.writeString(c.json.toPath(), EvalReport.json(run));
             if (c.report != null) Files.writeString(c.report.toPath(), EvalReport.html(run));
@@ -508,6 +689,9 @@ final class EvalCommand implements Callable<Integer> {
     }
 
     /** Where the dashboard bundle goes: beside a Maven project's other outputs, else next to the script. */
+    /** The most times a case may be run in one evaluation (each is a paid run). */
+    static final int MAX_REPETITIONS = 10;
+
     private static Path bundleRoot(Path scriptFile) {
         Path project = io.github.llm4j.loom.init.ProjectLayout.root(scriptFile);
         return Files.exists(project.resolve("pom.xml"))
@@ -555,7 +739,13 @@ final class EvalCommand implements Callable<Integer> {
     private static String reproduce(EvalCommand c) {
         StringBuilder b = new StringBuilder("weave eval ").append(c.script.getName());
         if (c.mock) b.append(" --mock");
+        if (c.repetitions != 1) b.append(" --repetitions ").append(c.repetitions);
+        if (c.baseline) b.append(" --baseline");
+        if (c.allowVersionChange != null) b.append(" --allow-version-change \"").append(c.allowVersionChange).append('"');
+        if (c.releaseGate) b.append(" --release-gate");
+        if (c.split != null) b.append(" --split ").append(c.split);
         if (c.judge != null) b.append(" --judge ").append(c.judge);
+        if (c.judgeSamples != 1) b.append(" --judge-samples ").append(c.judgeSamples);
         if (c.agent != null) b.append(" --agent ").append(c.agent);
         if (c.workflow != null) b.append(" --workflow ").append(c.workflow);
         if (c.dataset != null) b.append(" --dataset ").append(c.dataset);

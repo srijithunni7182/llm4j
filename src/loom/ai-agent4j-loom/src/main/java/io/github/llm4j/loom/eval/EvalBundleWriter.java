@@ -62,12 +62,16 @@ public final class EvalBundleWriter {
             bundle.declareAgent(agent, null, null, null, null, List.of());
         if (run.judge() != null)
             bundle.declareJudge(run.judge().model(), null, run.judge().model(), null, 1, "single sample");
-        List<EvalScenario> scenarios = new ArrayList<>();
+        // a case that ran several times is declared once; its runs are separate evaluations of it
+        java.util.Map<String, EvalScenario> scenarios = new java.util.LinkedHashMap<>();
         for (ScenarioResult r : run.results()) {
-            scenarios.add(scenario(r, r.label(), taggedWithAgent(r)));
-            for (AgentFacts a : r.agents()) if (!isAimedAt(r, a)) scenarios.add(stepScenario(r, a));
+            scenarios.putIfAbsent(r.label(), scenario(r, r.label(), taggedWithAgent(r)));
+            for (AgentFacts a : r.agents())
+                if (!isAimedAt(r, a))
+                    scenarios.putIfAbsent(r.label() + "/" + a.agent(), stepScenario(r, a));
         }
-        bundle.declareDataset("golden", run.script(), run.settings().get("dataset"), scenarios);
+        bundle.declareDataset(
+                "golden", run.script(), run.settings().get("dataset"), new ArrayList<>(scenarios.values()));
     }
 
     private static boolean isAimedAt(ScenarioResult r, AgentFacts a) {
@@ -116,7 +120,9 @@ public final class EvalBundleWriter {
                                 .details(r.input(), r.output(), null, null));
             for (ScenarioResult.Check c : r.checks()) {
                 String name = c.text().isEmpty() ? c.kind() : c.text();
-                Evaluation.Builder e = Evaluation.builder(metric(name, name, dimension)).details(r.input(), r.output(), null, null);
+                Evaluation.Builder e =
+                        Evaluation.builder(metric(name, name, c.dimension() != null ? c.dimension() : dimension))
+                                .details(r.input(), r.output(), null, null);
                 switch (c.status()) {
                     case UNJUDGED -> e.status(EvalStatus.NOT_EVALUATED).reason(c.detail());
                     case PASS, FAIL -> {

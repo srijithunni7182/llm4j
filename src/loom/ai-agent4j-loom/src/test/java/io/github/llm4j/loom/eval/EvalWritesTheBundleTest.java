@@ -155,4 +155,23 @@ class EvalWritesTheBundleTest {
         assertThat(first).isDirectory();
         assertThat(second).isDirectory();
     }
+
+    @Test
+    void aCaseThatRanSeveralTimesIsDeclaredOnceAndEvaluatedEachTime() throws Exception {
+        List<ScenarioResult> runs = new ArrayList<>();
+        for (int i = 0; i < 3; i++)
+            runs.add(result("Writer", "agent", "w-1", i == 1 ? Status.FAIL : Status.PASS, "o", "score 0.9: ok",
+                    List.of(), List.of(), agent("Writer", 0, 0)));
+        EvalReport.Run repeated = new EvalReport.Run("main.loom", false, runs, 0, null, Map.of(),
+                null, Map.of("repetitions", "3"), null);
+
+        Path bundle = EvalBundleWriter.write(repeated, root, "run-test-0009");
+
+        long declared = lines(bundle.resolve("scenarios.jsonl")).stream()
+                .filter(s -> "w-1".equals(s.path("id").asText())).count();
+        long evaluated = lines(bundle.resolve("evaluations.jsonl")).stream()
+                .filter(e -> "w-1".equals(e.path("scenarioId").asText()) && "is-whole".equals(e.path("metric").asText())).count();
+        assertThat(declared).isEqualTo(1);
+        assertThat(evaluated).isEqualTo(3);
+    }
 }

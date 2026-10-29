@@ -41,7 +41,7 @@ public record EvalScenario(
         String id,
         List<String> dimensions,
         @JsonDeserialize(using = TagsDeserializer.class) List<String> tags,
-        List<String> rubric,
+        @JsonDeserialize(using = RubricDeserializer.class) List<String> rubric,
         List<String> expect,
         @JsonDeserialize(using = InputsDeserializer.class) Map<String, String> inputs,
         @JsonAlias("expected_output_not_contains")
@@ -237,6 +237,15 @@ public record EvalScenario(
     /** The judged expectations about the answer ({@code rubric}), never null. */
     public List<String> rubricLines() {
         return rubric == null ? List.of() : rubric;
+    }
+
+    /**
+     * The quality dimension line {@code index} of the rubric names (written as {@code {text: ...,
+     * dimension: ...}}), or null when it names none. A line with a dimension counts under that
+     * dimension only; one without counts under every dimension of the scenario.
+     */
+    public String rubricDimension(int index) {
+        return DimensionedLines.dimensionOf(rubricLines(), index);
     }
 
     /** The judged expectations about what a workflow run did ({@code expect}), never null. */

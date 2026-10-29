@@ -87,8 +87,15 @@ public final class EvalSections {
                         + " failed, "
                         + run.count(Status.UNJUDGED)
                         + " unjudged (unjudged is not a pass).");
-        l.add(
-                "Each case ran once: a difference of a few points between two runs may be noise, not a change.");
+        l.addAll(consistency(run));
+        l.add("Release gate: " + run.settings().getOrDefault("release gate", "no") + ".");
+        Double gap = generalisationGap(run);
+        if (gap != null)
+            l.add(
+                    String.format(
+                            Locale.ROOT,
+                            "Generalisation gap (validation minus held-out pass rate): %+.0f points.",
+                            gap * 100));
         EvalReport.JudgeFacts j = run.judge();
         l.add(
                 j == null
@@ -108,11 +115,94 @@ public final class EvalSections {
         return l;
     }
 
+    /** How many times each case ran, as the run was told. */
+    private static int repetitions(EvalReport.Run run) {
+        try {
+            return Math.max(1, Integer.parseInt(run.settings().getOrDefault("repetitions", "1")));
+        } catch (NumberFormatException e) {
+            return 1;
+        }
+    }
+
+    /** The runs of each case, in the order they ran, by target and label. */
+    private static Map<String, List<ScenarioResult>> byCase(EvalReport.Run run) {
+        Map<String, List<ScenarioResult>> out = new LinkedHashMap<>();
+        for (ScenarioResult r : run.results())
+            out.computeIfAbsent(r.target() + " · " + r.label(), k -> new ArrayList<>()).add(r);
+        return out;
+    }
+
+    /**
+     * What repetition shows and what this run can resolve: pass@1 beside pass^N and consistency
+     * when cases ran more than once, and always how finely the case count lets a pass rate be read.
+     */
+    private static List<String> consistency(EvalReport.Run run) {
+        List<String> l = new ArrayList<>();
+        Map<String, List<ScenarioResult>> cases = byCase(run);
+        int reps = repetitions(run);
+        if (reps == 1)
+            l.add("Each case ran once: a difference of a few points between two runs may be noise, not a change.");
+        else if (!cases.isEmpty()) {
+            long firstPass = cases.values().stream().filter(rs -> rs.get(0).status() == Status.PASS).count();
+            long allPass =
+                    cases.values().stream()
+                            .filter(rs -> rs.stream().allMatch(r -> r.status() == Status.PASS))
+                            .count();
+            long same =
+                    cases.values().stream()
+                            .filter(rs -> rs.stream().map(ScenarioResult::status).distinct().count() == 1)
+                            .count();
+            l.add(
+                    "Each case ran "
+                            + reps
+                            + " times: pass@1 "
+                            + percent(firstPass, cases.size())
+                            + " (the first run passed), pass^"
+                            + reps
+                            + " "
+                            + percent(allPass, cases.size())
+                            + " (every run passed), consistency "
+                            + percent(same, cases.size())
+                            + " (every run gave the same result).");
+        }
+        if (!cases.isEmpty()) {
+            int n = cases.size();
+            double halfWidth = (Wilson.upper(n / 2, n) - Wilson.lower(n / 2, n)) / 2;
+            l.add(
+                    "Resolution: with "
+                            + n
+                            + " case"
+                            + (n == 1 ? "" : "s")
+                            + " a pass rate is known to within about ±"
+                            + Math.round(halfWidth * 100)
+                            + " points (95% interval at 50%); a smaller change between two runs is below this run's resolution.");
+        }
+        return l;
+    }
+
+    /** Validation pass rate minus held-out pass rate, when both were run; null otherwise. */
+    static Double generalisationGap(EvalReport.Run run) {
+        Double validation = passRate(run, "split:validation");
+        Double heldOut = passRate(run, "split:heldout");
+        return validation == null || heldOut == null ? null : validation - heldOut;
+    }
+
+    private static Double passRate(EvalReport.Run run, String tag) {
+        long pass = 0, fail = 0;
+        for (ScenarioResult r : run.results())
+            if (r.tags().contains(tag)) {
+                if (r.status() == Status.PASS) pass++;
+                else if (r.status() == Status.FAIL) fail++;
+            }
+        return pass + fail == 0 ? null : (double) pass / (pass + fail);
+    }
+
     // ── 2. Overall ───────────────────────────────────────────────────────────────────────────
 
     private static List<String> overall(EvalReport.Run run) {
         List<String> l = new ArrayList<>();
         l.addAll(EvalReport.summary(run).lines().toList());
+        l.addAll(run.baseline());
         return l;
     }
 
@@ -222,11 +312,15 @@ public final class EvalSections {
         Map<String, long[]> counts = new LinkedHashMap<>();
         Map<String, java.util.Set<String>> cases = new LinkedHashMap<>();
         for (ScenarioResult r : run.results()) {
-            if (r.dimensions().isEmpty()) continue;
-            for (String d : r.dimensions()) {
-                long[] c = counts.computeIfAbsent(d, k -> new long[3]);
-                cases.computeIfAbsent(d, k -> new java.util.LinkedHashSet<>()).add(r.label());
-                for (ScenarioResult.Check ch : r.checks()) c[index(ch.status())]++;
+            for (ScenarioResult.Check ch : r.checks()) {
+                // a line that names its dimension counts there only; a plain one under every
+                // dimension of its case
+                List<String> where = ch.dimension() != null ? List.of(ch.dimension()) : r.dimensions();
+                for (String d : where) {
+                    long[] c = counts.computeIfAbsent(d, k -> new long[3]);
+                    cases.computeIfAbsent(d, k -> new java.util.LinkedHashSet<>()).add(r.label());
+                    c[index(ch.status())]++;
+                }
             }
         }
         if (counts.isEmpty())
@@ -404,15 +498,45 @@ public final class EvalSections {
             l.add(unjudged + " case" + (unjudged == 1 ? " is" : "s are") + " unjudged: nothing confirmed " + (unjudged == 1 ? "it" : "them") + ". Unjudged is not a pass.");
         if (run.notRun() > 0) l.add(run.notRun() + " case(s) were not run because a limit stopped the evaluation.");
         if (run.stoppedBecause() != null) l.add("Stopped early: " + run.stoppedBecause());
-        boolean heldOut = run.results().stream().anyMatch(r -> r.tags().contains("split:heldout"));
-        if (!heldOut)
+        boolean heldOut = run.results().stream().anyMatch(r -> Splits.isHeldOut(r.tags()));
+        int leftOut = 0;
+        try {
+            leftOut = Integer.parseInt(run.settings().getOrDefault("held-out not run", "0"));
+        } catch (NumberFormatException e) {
+            leftOut = 0;
+        }
+        if (leftOut > 0)
+            l.add(
+                    leftOut
+                            + " held-out case"
+                            + (leftOut == 1 ? " was" : "s were")
+                            + " not run: they run only at a release gate (--release-gate), so that no one looks at them while tuning.");
+        else if (!heldOut)
             l.add("There are no held-out cases: nothing here tells you whether prompts were tuned to the cases you can see (tag a sealed set split:heldout).");
+        Double gap = generalisationGap(run);
+        if (gap != null && gap > 0.10)
+            l.add(
+                    String.format(
+                            Locale.ROOT,
+                            "The held-out pass rate is %.0f points below validation: the prompts may be fitted to the cases you can see; refresh the dataset.",
+                            gap * 100));
         if (run.judge() != null && !run.judge().validated())
             l.add("The judge has not been validated against human scores, so its verdicts may be systematically off.");
         slices(run).forEach((tag, rs) -> {
             if (rs.size() < SMALL_SLICE)
                 l.add("Slice " + tag + " has fewer than " + SMALL_SLICE + " cases (" + rs.size() + "): read it as an anecdote, not a rate.");
         });
+        long shared = 0;
+        for (ScenarioResult r : run.results())
+            if (r.dimensions().size() > 1)
+                shared +=
+                        r.checks().stream()
+                                .filter(c -> c.kind().equals("rubric") && c.dimension() == null)
+                                .count();
+        if (shared > 0)
+            l.add(
+                    shared
+                            + " rubric line(s) are counted under every dimension of their case, so one verdict is counted more than once; give each a dimension: ({text: ..., dimension: ...}) to count it once.");
         Map<String, Long> cut = new TreeMap<>();
         Map<String, Long> fell = new TreeMap<>();
         for (ScenarioResult r : run.results())
@@ -424,7 +548,25 @@ public final class EvalSections {
             l.add(cut.values().stream().mapToLong(Long::longValue).sum() + " answer(s) were cut at the output limit: " + named(cut) + ". A cut answer is judged as written.");
         if (!fell.isEmpty())
             l.add("Agents that took their fallback: " + named(fell) + ". Text from a fallback did not come from a model.");
-        l.add("Each case ran once: a small difference between two runs may be noise.");
+        if (repetitions(run) > 1) {
+            byCase(run)
+                    .forEach(
+                            (name, rs) -> {
+                                long passed = rs.stream().filter(r -> r.status() == Status.PASS).count();
+                                double rate = (double) passed / rs.size();
+                                if (rate >= 0.4 && rate <= 0.6)
+                                    l.add(
+                                            "Unstable: "
+                                                    + name.substring(name.indexOf(" · ") + 3)
+                                                    + " ("
+                                                    + passed
+                                                    + " of "
+                                                    + rs.size()
+                                                    + " passed). A case that passes about half the time is usually under-specified: send it to the dataset's owner.");
+                            });
+        } else {
+            l.add("Each case ran once: a small difference between two runs may be noise.");
+        }
         return l;
     }
 

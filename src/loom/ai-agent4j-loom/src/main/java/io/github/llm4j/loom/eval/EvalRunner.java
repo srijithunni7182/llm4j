@@ -387,9 +387,14 @@ public final class EvalRunner {
             String model,
             List<ScenarioResult.Check> checks) {
         RubricJudge judge = lines.isEmpty() ? null : judges == null ? null : judges.apply(model);
-        for (String line : lines) {
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i);
+            // only rubric lines can name a dimension of their own
+            String dimension = kind.equals("rubric") ? s.rubricDimension(i) : null;
             if (judge == null) {
-                checks.add(new ScenarioResult.Check(kind, line, Status.UNJUDGED, "no judge ran"));
+                checks.add(
+                        new ScenarioResult.Check(
+                                kind, line, Status.UNJUDGED, "no judge ran", dimension));
                 continue;
             }
             try {
@@ -401,11 +406,20 @@ public final class EvalRunner {
                                 line,
                                 ok ? Status.PASS : Status.FAIL,
                                 String.format(
-                                        Locale.ROOT, "score %.2f: %s", v.score(), v.reason())));
+                                        Locale.ROOT, "score %.2f: %s", v.score(), v.reason()),
+                                dimension));
+            } catch (RubricJudge.UnstableJudgement e) {
+                checks.add(
+                        new ScenarioResult.Check(
+                                kind, line, Status.UNJUDGED, e.getMessage(), dimension));
             } catch (RuntimeException e) {
                 checks.add(
                         new ScenarioResult.Check(
-                                kind, line, Status.UNJUDGED, "the judge failed: " + message(e)));
+                                kind,
+                                line,
+                                Status.UNJUDGED,
+                                "the judge failed: " + message(e),
+                                dimension));
             }
         }
     }

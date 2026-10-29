@@ -20,6 +20,10 @@ Status: **in progress** (the field findings program, [docs/specs/FIELD_FINDINGS.
 - **Outputs are kept and shown.** *Cases* shows each case's input, the output that was judged and every line's verdict with its reason. The output of a case that fails an `expected_output_not_contains` check is withheld, so a report never repeats what the case guards against (a card number, a secret).
 - **The judge's cost is in the cost,** shown beside the agents' and the total, with the cost per passing case. Without `--prices` the figure is `unknown`, not zero.
 - **`weave eval` writes the dashboard bundle** (`target/eval4j/runs/<id>/` or `eval-runs/runs/<id>/`): all cases, their outputs and verdicts, and a case per agent for the By-agent table. Render it with the `eval4j-report` command line.
+- **A rubric line can name its dimension** (`{ text: ..., dimension: tone }`), counted under that dimension only; plain lines still count under every dimension of their case, and the report says how many do.
+- **`--repetitions N`, `--judge-samples N`.** The report gives pass@1 beside pass^N and consistency, names unstable cases, and states its resolution (how small a change this many cases can tell). A line whose judge samples disagree widely is left unjudged.
+- **A sealed held-out set.** Cases tagged `split:heldout` run only with `--release-gate`, which the report records; the generalisation gap (validation minus held-out) is reported and warned about above 10 points.
+- **Datasets and baselines that cannot slide.** The report names the dataset's identity (declared `version:` plus a hash of its cases). `--save-baseline` needs an approver and a reason and never replaces an earlier baseline; `--baseline` compares with the current and the previous baseline and lists regressions; a different dataset is refused unless `--allow-version-change "<why>"`.
 - **A workflow's output is defined** (its `return`, else the last agent's answer, else its last `note`) and an empty one is an error case; it is no longer sent to a judge.
 
 ## Which build is this? (identity and snapshot versions)
