@@ -24,6 +24,7 @@
   <a href="docs/COMMAND_REFERENCE.md">Command reference</a> ·
   <a href="docs/README.md">Docs</a> ·
   <a href="docs/ABOUT.md">About</a> ·
+  <a href="docs/WHY_LLM4J.md"><b>Why llm4j?</b></a> ·
   <a href="src/ai-agent4j/wiki/WHY_AI_AGENT4J.md">Why ai-agent4j?</a> ·
   <a href="src/loom/ai-agent4j-loom/WHY_LOOM.md">Why Loom?</a> ·
   <a href="SECURITY.md"><b>Security</b></a>
@@ -183,7 +184,7 @@ and a [Gmail MCP app](src/examples/gmail-mcp-app/). [All examples](docs/EXAMPLES
 [Contributing](CONTRIBUTING.md)
 
 > [!TIP]
-> How it compares: [vs LangChain4j and Spring AI](src/ai-agent4j/wiki/WHY_AI_AGENT4J.md) ·
+> How it compares: [Why teams choose llm4j and Loom](docs/WHY_LLM4J.md) · [vs LangChain4j and Spring AI](src/ai-agent4j/wiki/WHY_AI_AGENT4J.md) ·
 > [Loom vs LangGraph](src/loom/ai-agent4j-loom/WHY_LOOM.md) · [eval4j vs deepeval](src/ai-agent4j/wiki/WHY_EVAL4J.md)
 
 **Philosophy:** Java first. Ground up, with minimal dependencies. Glass-box AI you can see inside. Authority in code, not in prompts.
