@@ -8,15 +8,15 @@ One console for every workflow of every Loom process. Processes report to it; it
 
 ```bash
 # once: the data directory, the vault, the admin password (12+ characters)
-LOOM_FABRIC_ADMIN_PASSWORD='a long password' java -jar loom-fabric-6.0.0-all.jar init --data /var/lib/fabric
+LOOM_FABRIC_ADMIN_PASSWORD='a long password' java -jar loom-fabric-6.1.0-all.jar init --data /var/lib/fabric
 
 # one key per process, shown once
-java -jar loom-fabric-6.0.0-all.jar clients add getviral-prod --data /var/lib/fabric
-java -jar loom-fabric-6.0.0-all.jar clients list --data /var/lib/fabric
-java -jar loom-fabric-6.0.0-all.jar clients revoke getviral-prod --data /var/lib/fabric   # takes effect at once
+java -jar loom-fabric-6.1.0-all.jar clients add getviral-prod --data /var/lib/fabric
+java -jar loom-fabric-6.1.0-all.jar clients list --data /var/lib/fabric
+java -jar loom-fabric-6.1.0-all.jar clients revoke getviral-prod --data /var/lib/fabric   # takes effect at once
 
 # run it (loopback only without TLS)
-java -jar loom-fabric-6.0.0-all.jar serve --data /var/lib/fabric --port 9090
+java -jar loom-fabric-6.1.0-all.jar serve --data /var/lib/fabric --port 9090
 ```
 
 `init` writes `master.key` beside the vault unless you give the master key through `--master-key-file` or `LOOM_FABRIC_MASTER_KEY`. Keep it apart from the vault's backups; without it the vault cannot be read. Passwords and keys are never taken from the command line.
@@ -30,8 +30,8 @@ Public certificate (Let's Encrypt, a load balancer): `--tls-cert chain.pem --tls
 Private CA, made for you:
 
 ```bash
-java -jar loom-fabric-6.0.0-all.jar tls init --host fabric.example.com --also 10.0.2.5 --out /var/lib/fabric/tls
-java -jar loom-fabric-6.0.0-all.jar serve --data /var/lib/fabric --bind 0.0.0.0 \
+java -jar loom-fabric-6.1.0-all.jar tls init --host fabric.example.com --also 10.0.2.5 --out /var/lib/fabric/tls
+java -jar loom-fabric-6.1.0-all.jar serve --data /var/lib/fabric --bind 0.0.0.0 \
      --tls-keystore /var/lib/fabric/tls/server.p12 --tls-password-file /var/lib/fabric/tls/server.password
 ```
 

@@ -27,13 +27,13 @@
         <dependency>
             <groupId>io.github.srijithunni7182</groupId>
             <artifactId>ai-agent4j-loom</artifactId>
-            <version>6.0.0</version>
+            <version>6.1.0</version>
         </dependency>
         <!-- With this on the test classpath, `mvn test` also writes the eval4j dashboard: target/eval4j/report/index.html -->
         <dependency>
             <groupId>io.github.srijithunni7182</groupId>
             <artifactId>eval4j-report</artifactId>
-            <version>6.0.0</version>
+            <version>6.1.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>

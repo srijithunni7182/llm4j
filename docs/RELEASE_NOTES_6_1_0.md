@@ -1,7 +1,31 @@
-# Release notes: 6.1.0 (in preparation)
+# Release notes: 6.1.0
 
-This page is written as the release is built. Each item says whether it **works now** on the release branch or is **coming**; nothing
-that is not finished is described as working. The API policy is in [API_COMPATIBILITY.md](API_COMPATIBILITY.md).
+All eleven artifacts are at `6.1.0`, aligned ([VERSION_MATRIX.md](VERSION_MATRIX.md)). Each item says whether it **works now** or is **preview** (built, but not yet checked
+against a real service or by hand); what is not in this release is listed at the end. Nothing that is not finished is described as working. The API policy is in [API_COMPATIBILITY.md](API_COMPATIBILITY.md).
+
+## Loom: from a sentence to a running, watched workflow
+
+6.0.0 had the Loom language and its runtime. 6.1.0 adds the tools around it, so one person can describe a workflow, see it, check it, test it, debug it, run it and ship it. All of it is in the
+`weave` command line (16 new commands; `weave man` lists every command and `weave man <command>` prints one page, [docs/COMMAND_REFERENCE.md](COMMAND_REFERENCE.md) is the same text) and
+the VS Code extension, which carries the same engine.
+
+| Piece | Status |
+|---|---|
+| **First run.** `weave try` runs a bundled workflow on demo models (no key, no network) and explains each step; `weave doctor` checks Java, keys, models and the run store and says the one thing to do for each problem | **works now** |
+| **Generate.** `weave generate` turns a sentence into a plan you can read and edit, then a project that passed `check`, `review` and tests the tool wrote for it (`--plan-model` lets a stronger model write the plan). `--gate-only`, `--edit` (a change as a diff with the review and cost difference), `--max-cost` | **works now**; measured by replaying recorded model replies for 30 workflow descriptions, 27 produced a project that passed every gate; it is not a promise about your description |
+| **Review.** `weave review` reads a script without running it: 44 rules in ten lenses (cost, reliability, prompts, durability, observability, privacy, and the optional model, maintainability, human and blast-radius lenses), each finding with why it matters and what to do; a cost estimate (typical and worst case); `--fix` for safe fixes, baselines and accepted findings, `weave rules` to list, test, add, diff and document rule packs | **works now** |
+| **Test without a model.** `weave test` with scripted models, injected failures and a virtual clock; step coverage | **works now** |
+| **Editor engine.** `weave serve` answers check, graph and review for an editor; `weave symbols` lists definitions and uses; `weave dap` and `weave step` debug a workflow one statement at a time with breakpoints, variables and a way back | **works now** |
+| **Time travel.** `weave why` explains a run: each choice, over which values, and the way it did not go; `weave whatif` changes one thing in a past run and shows how it would have gone | **works now** |
+| **Production loop.** `weave capture` turns a real run into a test case, `weave regress` tries a change on past runs (unsafe changes first), `weave gate` prints one verdict for CI | **works now** |
+| **Embed and deploy.** `weave deploy` writes a container recipe, a compose file or Kubernetes manifests from the script; `weave bindgen` writes typed Java bindings (an `Outcome` of `Done`, `Waiting` or `Stopped`) | **works now** |
+| **Coding agents.** `weave guide --install-skill --for <agent>` writes what Claude Code, Codex, Copilot, Cursor and others read, so they build with Loom and look commands up in `weave man` | **works now** |
+| **A question on a closed console.** `weave run` with no terminal to answer (a pipe, a scheduler) now stops with exit code 1, says what the question was and how to let the run pause and be answered later (`--store`, `--ask-via`), and no longer ends in a stack trace | **works now** |
+
+**The VS Code extension** is published as `srijithunni7182.vscode-llm4j-loom` on the Visual Studio Marketplace (it is not a Maven artifact). It carries `weave.jar`, needs only Java 17, and adds the
+live workflow graph, the Review panel, generate and change, tests, evaluation, a step debugger, a run with a live page, deployment files and agent set-up, and (from extension 1.1.0) makes
+`weave` available in VS Code's integrated terminals. The graph and the review panel were tried by hand in VS Code before this release. Extension versions are separate from the library version; see its
+[changelog](../src/loom/vscode-loom/CHANGELOG.md).
 
 ## More providers: OpenAI, xAI, Perplexity, Kimi, Qwen and any OpenAI-style server
 
@@ -49,7 +73,7 @@ cannot do it, or cannot honour one setting, is refused before any network call, 
 | Perplexity Agent API, OpenAI Responses, xAI Responses: native grounding | **supported**: tested on responses recorded 2026-10-22 (allow and block lists, recency and country where the vendor has them, OpenAI's search cap) |
 | Google (Gemini) and Anthropic (Claude) native grounding | **supported**: a grounded answer and stream recorded from each real API on 2026-10-22, and an allowed-domain call for Claude. Not yet checked against the real API: Claude's `blockDomains` and `country`, a Claude tool turn sent back with its search blocks, and Gemini's recency beyond one accepted request |
 | Kimi and Qwen grounding | **left out**: no key, and Kimi's search function is deprecated |
-| Grounding in `ReActAgent` and `AgentResult.citations`, Loom `grounding:` with its `weave check` and `weave audit` rules, eval4j citation assertions | **coming** |
+| Grounding in `ReActAgent` and `AgentResult.citations`, Loom `grounding:` with its `weave check` and `weave audit` rules (LA20), eval4j citation assertions | **works now** |
 
 Found against the real APIs: Perplexity lists what it *consulted* and leaves the message's `annotations` empty, while OpenAI and xAI *cite* with spans; OpenAI reports
 no search count, so completed search items are counted; only Perplexity reports what the searches cost; Perplexity has no cap on searches and xAI's was not tested, so
@@ -80,3 +104,13 @@ measured it against Claude Opus 5.5 and Claude Haiku 5.5 on labelled data before
   median) and 2 to 4 times cheaper than the cheap chat model (about 100 times cheaper than the strong one), and the same answer on every repeat.
 - **As the only safety guardrail for shell commands: not recommended.** It was below the cheap chat model on both sets and once called `> /etc/passwd` safe with confidence 0.95.
 - The sets are small (30 to 65 cases per task) and ours; differences of one or two cases are noise. Rerun the comparison on your own cases before relying on it.
+
+## Not in this release, and known issues
+
+- **Typed workflow parameters** (a language change) are deferred; embedding passes parameters as text.
+- **`weave why --verify`** (re-running a past run to confirm an explanation) is not built.
+- **Kimi, Qwen, `openai_compatible` and the Perplexity Orchestrator** are **preview**, as listed above: their fixtures come from documentation, not from the real services.
+- **`weave check` can warn that a shared prompt file is "not used by any agent"** although `shared_prompt: prompt "house-rules"` names it. The prompt is applied at run time (a test shows its text reaching the
+  model); only the warning is wrong. Tracked for a later release.
+- **A build made from the repository between two releases reports the version of the last release.** A jar built from the repository before this release said `6.0.0` while differing from the `6.0.0` on
+  Maven Central, so a project could end up with two different `6.0.0` jars. `weave --version` also prints the build time, which tells them apart.

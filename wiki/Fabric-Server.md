@@ -26,19 +26,19 @@ It is a single JAR that needs a JDK and nothing else: no Loom runtime, no model 
 
 ```bash
 # once: the data directory, the vault, the admin password (12+ characters)
-LOOM_FABRIC_ADMIN_PASSWORD='a long password' java -jar loom-fabric-6.0.0-all.jar init --data /var/lib/fabric
+LOOM_FABRIC_ADMIN_PASSWORD='a long password' java -jar loom-fabric-6.1.0-all.jar init --data /var/lib/fabric
 
 # one key per process, printed once
-java -jar loom-fabric-6.0.0-all.jar clients add getviral-prod --data /var/lib/fabric
-java -jar loom-fabric-6.0.0-all.jar clients list   --data /var/lib/fabric       # names only, never keys
-java -jar loom-fabric-6.0.0-all.jar clients revoke getviral-prod --data /var/lib/fabric
+java -jar loom-fabric-6.1.0-all.jar clients add getviral-prod --data /var/lib/fabric
+java -jar loom-fabric-6.1.0-all.jar clients list   --data /var/lib/fabric       # names only, never keys
+java -jar loom-fabric-6.1.0-all.jar clients revoke getviral-prod --data /var/lib/fabric
 
 # run it (loopback only, without TLS)
-java -jar loom-fabric-6.0.0-all.jar serve --data /var/lib/fabric --port 9090
+java -jar loom-fabric-6.1.0-all.jar serve --data /var/lib/fabric --port 9090
 ```
 
 - **Build the jar** from the repository root: `mvn -q -DskipTests -pl src/loom/loom-fabric -am package` gives
-  `src/loom/loom-fabric/target/loom-fabric-6.0.0-all.jar`.
+  `src/loom/loom-fabric/target/loom-fabric-6.1.0-all.jar`.
 - **The vault** (`vault.json`) is Fabric's own AES-256-GCM store for the admin password (stored as a salted PBKDF2 hash)
   and each client's key. `init` writes `master.key` beside it unless you give the master key through
   `--master-key-file` or `LOOM_FABRIC_MASTER_KEY`. Keep the master key apart from the vault's backups: without it the vault

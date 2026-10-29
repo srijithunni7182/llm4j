@@ -13,7 +13,7 @@
 
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>nirmaan-yantra-server</artifactId>
-    <version>6.0.0</version>
+    <version>6.1.0</version>
     <packaging>jar</packaging>
 
     <name>nirmaan-yantra-server</name>
@@ -23,7 +23,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <llm4j.version>6.0.0</llm4j.version>
+        <llm4j.version>6.1.0</llm4j.version>
         <junit.version>5.10.2</junit.version>
     </properties>
 

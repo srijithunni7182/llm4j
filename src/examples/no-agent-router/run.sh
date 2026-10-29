@@ -2,7 +2,7 @@
 # Compiles the three tasks and runs the workflow with weave. Usage: ./run.sh "message" [order] [amount]
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-weave="${WEAVE_JAR:-$here/../../loom/ai-agent4j-loom/target/ai-agent4j-loom-6.0.0-cli.jar}"
+weave="${WEAVE_JAR:-$here/../../loom/ai-agent4j-loom/target/ai-agent4j-loom-6.1.0-cli.jar}"
 out="$here/tasks/out"; rm -rf "$out"; mkdir -p "$out"
 javac -cp "$weave" -d "$out" "$here"/tasks/src/router/*.java
 cp -r "$here/tasks/META-INF" "$out/"

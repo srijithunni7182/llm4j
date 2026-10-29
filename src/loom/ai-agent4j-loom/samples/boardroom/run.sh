@@ -4,7 +4,7 @@ if [ -z "$GEMINI_API_KEY" ]; then
   exit 1
 fi
 
-LOOM_JAR="../../target/ai-agent4j-loom-6.0.0.jar"
+LOOM_JAR="../../target/ai-agent4j-loom-6.1.0.jar"
 PROPOSAL="${1:-Should we migrate our entire stack to Neuro-Symbolic AI?}"
 
 java -cp "$LOOM_JAR:../../target/lib/*" \
