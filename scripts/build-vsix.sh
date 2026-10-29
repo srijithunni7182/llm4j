@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the Loom VS Code extension package (.vsix) with a freshly built weave.jar inside.
-# Usage: scripts/build-vsix.sh   -> src/loom/vscode-loom/vscode-loom-<version>.vsix
+# Usage: scripts/build-vsix.sh   -> src/loom/vscode-loom/vscode-llm4j-loom-<version>.vsix
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ext="$root/src/loom/vscode-loom"

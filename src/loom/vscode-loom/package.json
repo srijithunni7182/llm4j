@@ -1,5 +1,5 @@
 {
-  "name": "vscode-loom",
+  "name": "vscode-llm4j-loom",
   "displayName": "Loom",
   "description": "VS Code extension for Loom DSL (.loom and .loot files). Provides syntax highlighting, LSP diagnostics, workflow outline, a workflow graph, and run command.",
   "version": "1.0.0",
