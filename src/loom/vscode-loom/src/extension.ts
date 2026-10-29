@@ -14,6 +14,7 @@ import { registerCheckDiagnostics } from './commands/checkDiagnostics';
 import { registerGuideCommands } from './commands/guideCommands';
 import { registerWelcome } from './welcome/register';
 import { registerTools } from './tools/register';
+import { registerWeaveOnPath } from './terminal/register';
 import { WorkflowOutlineProvider } from './views/WorkflowOutlineProvider';
 import { registerEngine } from './engine/vscodeHost';
 import { registerSemantic, semanticMiddleware } from './semantic/vscodeSemantic';
@@ -123,6 +124,7 @@ export function activate(context: vscode.ExtensionContext): void {
     registerGuideCommands(context);
     registerWelcome(context);
     registerTools(context);
+    registerWeaveOnPath(context);
 
     // ------------------------------------------------------------------ //
     // 4. Workflow Outline tree view (Requirement 6.1)                    //

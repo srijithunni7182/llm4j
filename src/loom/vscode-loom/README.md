@@ -82,7 +82,7 @@ Open the Command Palette and type **Loom**. The commands below run the same `wea
 
 Turning a bad run into a test (`weave capture`), trying a change on past runs (`weave regress`) and the CI verdict (`weave gate`) are terminal commands; see the [command reference](../../../docs/COMMAND_REFERENCE.md).
 
-**Typing `weave` yourself.** The extension carries its own engine and starts it for every command above, but it does not add a `weave` command to your terminal. To use the command line, install it once: `jbang app install weave@srijithunni7182/llm4j` puts `weave` on your PATH (Java 17 or newer; [other ways](../../../install/README.md)).
+**Typing `weave` yourself.** The extension carries the Loom command line and adds it to VS Code's integrated terminals, so `weave check`, `weave test` and the rest work there with nothing else installed. It is added after your existing PATH entries, so a `weave` you installed yourself wins, and it applies to terminals opened after the extension has started (open a `.loom` file or run any Loom command). The setting `loom.terminal.addWeaveToPath` (default `true`) turns it off. Outside VS Code, install the command line once: `jbang app install weave@srijithunni7182/llm4j` puts `weave` on your PATH (Java 17 or newer; [other ways](../../../install/README.md)).
 
 ## Workflow graph
 
@@ -265,6 +265,7 @@ A key that is not set yet (such as `GEMINI_API_KEY`) is not reported as a proble
 - **`loom.review.codeLens`** (default `true`): Findings and cost above each workflow
 - **`loom.review.statusBar`** (default `true`): Open findings and typical cost of the active script in the status bar
 - **`loom.review.failOn`** (default `high`): Colour the status bar when findings at or above this severity are open; it never stops Run
+- **`loom.terminal.addWeaveToPath`** (default `true`): Make the `weave` command available in the integrated terminals, after any `weave` you installed yourself; it takes effect in terminals opened afterwards
 - **`loom.generate.model`** (default `` ``, empty): The model that writes for Generate Workflow and Change Workflow (empty: `LOOM_GENERATE_MODEL`)
 - **`loom.generate.maxCost`** (default `0`): The most one generation may spend, in dollars (needs a price table; 0: the command's default)
 - **`loom.generate.maxTokens`** (default `0`): The most tokens one generation may use (0: the command's default)
