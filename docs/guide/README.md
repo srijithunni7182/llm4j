@@ -4,6 +4,8 @@ A guided path from "which agents do I need?" to "my workflow runs against real A
 well-tested parts. Every chapter says what to do, why, shows a worked example from the **Hexamind Hub** (a real six-agent
 debate app evaluated end to end with llm4j), and ends with a **gate**: the check that tells you it is safe to move on.
 
+**`weave` is the Loom command line.** If a terminal says `weave: command not found`, install it once with `jbang app install weave@srijithunni7182/llm4j` (Java 17 or newer; [other ways](https://github.com/srijithunni7182/llm4j/blob/main/install/README.md)). The VS Code extension runs the engine it carries but does not put `weave` on your PATH.
+
 **Start from a template, not from an example.** `weave init pipeline` (or `approval`, `classifier`) creates a small, complete Maven project:
 the script and its prompts as files in `src/main/resources`, the golden dataset (the eval tests) in `src/test/resources/eval/golden`, JUnit tests that run every scenario
 (`mvn test`) and a README. Everything in it runs free: `weave check src/main/resources/main.loom --no-env`, `weave eval ... --mock`, `mvn test`.

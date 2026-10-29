@@ -14,6 +14,8 @@ Without JBang, download `weave.jar` and the `weave` launcher (`weave.cmd` on Win
 
 The launcher finds Java (`JAVA_HOME`, then `PATH`), says plainly if it is missing or older than 17, passes every argument through untouched, and honours `JAVA_OPTS`.
 
+**With the VS Code extension.** The Loom extension carries its own engine, and its commands work without anything else. It does not put `weave` on your PATH, so to type `weave` in a terminal, install it one of the ways above.
+
 `weave --version` prints the version and the protocol version of `weave serve`; the VS Code extension warns when its bundled engine and a `weave` on your PATH speak different protocols.
 
 Package managers (Homebrew tap, SDKMAN candidate, Scoop manifest) are follow-ups: each needs `weave.jar`, its checksum and a one-line `weave` wrapper, which is exactly what the release publishes.

@@ -4,6 +4,8 @@ The **Loom** extension (`srijithunni7182.vscode-llm4j-loom`) is the quickest way
 
 Install it from [the Marketplace](https://marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-llm4j-loom) (search for *Loom for llm4j*), or from the `.vsix` of a release. It needs **Java 17 or newer** (it uses the `weave` jar it carries); the setting `loom.javaPath` points it at a particular Java.
 
+The extension does not add a `weave` command to your terminal. Everything in the Command Palette works without one, because the extension starts the engine it carries. To type `weave` yourself, install the command line once: `jbang app install weave@srijithunni7182/llm4j` ([other ways](../install/README.md)).
+
 ## What you get
 
 | | |
