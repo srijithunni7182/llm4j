@@ -124,3 +124,32 @@ export class ProgressSource {
         return this.last ? { journey: this.last.journey, ageSeconds: Math.round((this.now() - this.last.at) / 1000) } : undefined;
     }
 }
+
+/** What the status bar shows for a journey: where the project stands, and the step to take next. */
+export function progressStatus(journey: Journey | undefined): { text: string; tooltip: string; command?: string; argument?: string } | undefined {
+    if (!journey) {
+        return undefined;
+    }
+    const finished = journey.stages.filter((s) => s.state === 'done' || s.state === 'skipped').length;
+    const total = journey.stages.length;
+    const next = journey.stages.find((s) => s.id === journey.primaryId) ?? journey.stages.find((s) => s.state !== 'done' && s.state !== 'skipped');
+    if (!next) {
+        return { text: `$(pass) Loom ${finished}/${total} · all done`, tooltip: `All ${total} stages are done or skipped` };
+    }
+    const reason = next.detail ? `${WORDS[next.state]}: ${next.detail}` : WORDS[next.state];
+    return {
+        text: `$(${ICONS[next.state]}) Loom ${finished}/${total} · ${next.title}`,
+        tooltip: `${finished} of ${total} stages done or skipped. Next: ${next.number}. ${next.title} (${reason})`,
+        command: next.command ? 'loom.progress.type' : undefined,
+        argument: next.command ?? undefined,
+    };
+}
+
+/** Whether a changed file can change a stage of the journey, so the Outline and status bar ask again. */
+export function isProgressFile(file: string): boolean {
+    const unix = file.replace(/\\/g, '/');
+    if (unix.split('/').includes('node_modules')) {
+        return false;
+    }
+    return /(^|\/)eval\//.test(unix) || /(^|\/)EVAL_DESIGN\.md$/.test(unix) || /\.loom$/.test(unix) || /\.test\.ya?ml$/.test(unix);
+}

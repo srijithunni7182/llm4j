@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { outlineRows, LoomFileFacts } from '../src/views/outlineModel';
-import { ProgressSource, parseJourney, progressRows } from '../src/views/progressModel';
+import { ProgressSource, parseJourney, progressRows, progressStatus, isProgressFile } from '../src/views/progressModel';
 
 const file: LoomFileFacts = { path: '/p/main.loom', relative: 'main.loom', symbols: [{ kind: 'agent', name: 'Writer', line: 1 }] };
 
@@ -107,4 +107,27 @@ test('R3: when the engine fails the last known progress stays, and with none the
     assert.ok((await source.get())!.journey, 'the last known result is kept');
     const empty = new ProgressSource(() => Promise.reject(new Error('engine is not ready')), () => 0, 0);
     assert.equal(await empty.get(), undefined);
+});
+
+test('R3: the status bar names the next step and how far along the project is; it is empty without a journey', () => {
+    const journey = parseJourney({ result: answer })!;
+    const bar = progressStatus(journey)!;
+    assert.equal(bar.text, '$(error) Loom 4/10 · The script checks clean');
+    assert.match(bar.tooltip, /Next: 4\. The script checks clean \(failing: line 4/);
+    assert.equal(bar.command, 'loom.progress.type');
+    assert.equal(bar.argument, 'weave check main.loom --no-env');
+    assert.equal(progressStatus(undefined), undefined);
+});
+
+test('R3: when every stage is done or skipped the status bar says so', () => {
+    const done = parseJourney({ result: { stages: answer.stages.map((s) => ({ ...s, state: 'done' })) } })!;
+    assert.equal(progressStatus(done)!.text, '$(pass) Loom 10/10 · all done');
+});
+
+test('R3: files that change a stage (eval, dataset, tests, loom) are the ones watched', () => {
+    for (const f of ['eval/dataset.jsonl', 'a/eval/judge-validation.json', 'EVAL_DESIGN.md', 'main.loom', 'tests/x.test.yaml']) {
+        assert.ok(isProgressFile(f), f);
+    }
+    assert.ok(!isProgressFile('node_modules/x/eval/a.json'));
+    assert.ok(!isProgressFile('README.txt'));
 });

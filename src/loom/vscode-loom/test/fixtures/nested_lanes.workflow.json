@@ -1,0 +1,224 @@
+{
+ "name": "Main",
+ "file": "nested.loom",
+ "line": 3,
+ "params": [
+  "t"
+ ],
+ "nodes": [
+  {
+   "id": "start",
+   "kind": "start",
+   "label": "Start"
+  },
+  {
+   "id": "n1",
+   "kind": "parallel",
+   "label": "in parallel: A",
+   "source": {
+    "file": "nested.loom",
+    "line": 4
+   },
+   "attrs": {
+    "agents": [
+     "A"
+    ],
+    "branches": 2,
+    "lanes": [
+     {
+      "label": "A",
+      "nodes": [
+       "n4"
+      ]
+     },
+     {
+      "label": "in parallel: B",
+      "nodes": [
+       "n5",
+       "n7",
+       "n8"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "n2",
+   "kind": "parallel",
+   "label": "in parallel: A",
+   "source": {
+    "file": "nested.loom",
+    "line": 11
+   },
+   "attrs": {
+    "agents": [
+     "A"
+    ],
+    "branches": 1,
+    "lanes": [
+     {
+      "label": "A",
+      "nodes": [
+       "n6"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "n3",
+   "kind": "return",
+   "label": "return",
+   "source": {
+    "file": "nested.loom",
+    "line": 14
+   }
+  },
+  {
+   "id": "n4",
+   "kind": "delegate",
+   "label": "delegate A",
+   "agent": "A",
+   "source": {
+    "file": "nested.loom",
+    "line": 5
+   },
+   "parent": "n1",
+   "branch": "lane 1",
+   "attrs": {
+    "variable": "x",
+    "text": "x {t}"
+   }
+  },
+  {
+   "id": "n5",
+   "kind": "parallel",
+   "label": "in parallel: B",
+   "source": {
+    "file": "nested.loom",
+    "line": 6
+   },
+   "parent": "n1",
+   "branch": "lane 2",
+   "attrs": {
+    "agents": [
+     "B"
+    ],
+    "branches": 2,
+    "lanes": [
+     {
+      "label": "B",
+      "nodes": [
+       "n7"
+      ]
+     },
+     {
+      "label": "B",
+      "nodes": [
+       "n8"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "n6",
+   "kind": "delegate",
+   "label": "delegate A",
+   "agent": "A",
+   "source": {
+    "file": "nested.loom",
+    "line": 12
+   },
+   "parent": "n2",
+   "branch": "lane 1",
+   "attrs": {
+    "variable": "o",
+    "text": "only {t}"
+   }
+  },
+  {
+   "id": "n7",
+   "kind": "delegate",
+   "label": "delegate B",
+   "agent": "B",
+   "source": {
+    "file": "nested.loom",
+    "line": 7
+   },
+   "parent": "n5",
+   "branch": "lane 1",
+   "attrs": {
+    "variable": "y",
+    "text": "y {t}"
+   }
+  },
+  {
+   "id": "n8",
+   "kind": "delegate",
+   "label": "delegate B",
+   "agent": "B",
+   "source": {
+    "file": "nested.loom",
+    "line": 8
+   },
+   "parent": "n5",
+   "branch": "lane 2",
+   "attrs": {
+    "variable": "z",
+    "text": "z {t}"
+   }
+  },
+  {
+   "id": "end",
+   "kind": "end",
+   "label": "End"
+  }
+ ],
+ "edges": [
+  {
+   "from": "start",
+   "to": "n1"
+  },
+  {
+   "from": "n4",
+   "to": "n2"
+  },
+  {
+   "from": "n7",
+   "to": "n2"
+  },
+  {
+   "from": "n8",
+   "to": "n2"
+  },
+  {
+   "from": "n6",
+   "to": "n3"
+  },
+  {
+   "from": "n3",
+   "to": "end"
+  },
+  {
+   "from": "n1",
+   "to": "n4"
+  },
+  {
+   "from": "n1",
+   "to": "n5"
+  },
+  {
+   "from": "n2",
+   "to": "n6"
+  },
+  {
+   "from": "n5",
+   "to": "n7"
+  },
+  {
+   "from": "n5",
+   "to": "n8"
+  }
+ ]
+}

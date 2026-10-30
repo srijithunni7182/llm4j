@@ -9,6 +9,7 @@
 
 - **`substitution`** is highlighted as a keyword (the setting that makes only `{name}` replaced); a string with `\"` no longer ends early in the editor.
 - **The Outline shows how far the project is.** A *Project progress* group at the top lists the ten stages of `weave next` with an icon and a word for each state (done, failing, not started, skipped, stale), marks the next step, and a click types that step's command into a terminal for you to run. It asks the engine at most once in three seconds and keeps the last answer when the engine is busy; without Java it says progress needs the engine.
+- **The status bar shows the next step** (`Loom 4/10 · The script checks clean`); clicking it types that step's command into a terminal. The Outline and the status bar ask again when a file under `eval/`, `EVAL_DESIGN.md`, a `*.test.yaml` or a `.loom` file changes, not only on a `.loom` save.
 - **Loom: Run Once With a Cap…** (also a button on the Outline) starts the first real run with the cap as the first question, the worst-case estimate beside it, then any inputs, and types `weave run … --max-cost` (or `--max-tokens`) into a terminal. Nothing runs until you press Enter.
 
 - **The graph draws a `parallel` block as lanes.** In the Flow view the block forks into one lane per branch (named for its agent), each step's `on_failure` handler hangs under it on a dashed edge, and the lanes join before the next step. The Outline view lists the branches under the block. Needs this version's engine (`weave` 6.2.0); a graph from an older engine still draws as before.

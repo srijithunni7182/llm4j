@@ -37,8 +37,10 @@ public final class MermaidRenderer {
             for (Map<String, Object> lane : lanes(node))
                 for (Object member : (List<?>) lane.get("nodes")) inLanes.add(String.valueOf(member));
         for (GraphNode node : graph.nodes()) {
-            if (!inLanes.contains(node.id())) out.append("  ").append(node(node, marks)).append('\n');
-            lanesOf(out, graph, node, marks);
+            if (!inLanes.contains(node.id())) {
+                out.append("  ").append(node(node, marks)).append('\n');
+                lanesOf(out, graph, node, marks, 1);
+            }
             if (marks == null) continue;
             if (Kinds.START.equals(node.kind()) || Kinds.END.equals(node.kind())) continue;
             (marks.ran(node) ? ran : idle).add(id(node.id()));
@@ -71,21 +73,35 @@ public final class MermaidRenderer {
         return lanes instanceof List<?> list ? (List<Map<String, Object>>) list : List.of();
     }
 
-    /** Draws each lane of a parallel node as a subgraph holding the lane's steps. */
-    private static void lanesOf(StringBuilder out, WorkflowGraph graph, GraphNode owner, Marks marks) {
+    /**
+     * Draws each lane of a parallel node as a subgraph holding the lane's steps. A parallel block
+     * inside a lane is drawn as a subgraph inside that lane, and its steps are declared once, there.
+     */
+    private static void lanesOf(StringBuilder out, WorkflowGraph graph, GraphNode owner, Marks marks, int depth) {
+        String pad = "  ".repeat(depth);
         int number = 0;
         for (Map<String, Object> lane : lanes(owner)) {
-            out.append("  subgraph ")
+            out.append(pad)
+                    .append("subgraph ")
                     .append(id(owner.id()))
                     .append("_lane")
                     .append(++number)
                     .append("[\"")
                     .append(escape(String.valueOf(lane.get("label"))))
                     .append("\"]\n");
+            Set<String> inner = new HashSet<>();
             for (Object member : (List<?>) lane.get("nodes"))
                 for (GraphNode node : graph.nodes())
-                    if (node.id().equals(member)) out.append("    ").append(node(node, marks)).append('\n');
-            out.append("  end\n");
+                    if (node.id().equals(member) && !node.id().equals(owner.id()))
+                        for (Map<String, Object> nested : lanes(node))
+                            for (Object deeper : (List<?>) nested.get("nodes")) inner.add(String.valueOf(deeper));
+            for (Object member : (List<?>) lane.get("nodes"))
+                for (GraphNode node : graph.nodes())
+                    if (node.id().equals(member) && !inner.contains(node.id())) {
+                        out.append(pad).append("  ").append(node(node, marks)).append('\n');
+                        lanesOf(out, graph, node, marks, depth + 1);
+                    }
+            out.append(pad).append("end\n");
         }
     }
 

@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { EngineClient } from '../engine/client';
 import { Debouncer, LoomFileFacts, OUTLINE_FILE_LIMIT, OutlineRow, outlineRows, symbolsOf, WorkspaceFacts } from './outlineModel';
-import { ProgressSource, progressRows } from './progressModel';
+import { ProgressSource, isProgressFile, progressRows, progressStatus } from './progressModel';
 
 /** A file bigger than this is listed but not read for its definitions. */
 const MAX_READ_BYTES = 1_000_000;
@@ -41,6 +41,35 @@ export class WorkflowOutlineProvider implements vscode.TreeDataProvider<OutlineR
         watcher?.onDidCreate(poke);
         watcher?.onDidDelete(poke);
         watcher?.onDidChange(poke);
+        // the evaluation's files and tests change stages without touching a .loom file
+        const products = vscode.workspace.createFileSystemWatcher?.('**/{eval/**,EVAL_DESIGN.md,*.test.yaml,*.test.yml}');
+        const pokeIfStage = (uri: vscode.Uri): void => {
+            if (isProgressFile(uri.fsPath)) {
+                poke();
+            }
+        };
+        products?.onDidCreate(pokeIfStage);
+        products?.onDidDelete(pokeIfStage);
+        products?.onDidChange(pokeIfStage);
+        this.status = vscode.window.createStatusBarItem?.(vscode.StatusBarAlignment.Left, 50);
+    }
+
+    private readonly status: vscode.StatusBarItem | undefined;
+
+    /** Shows the next step in the status bar, or hides the item when there is no journey. */
+    private showStatus(journey: Parameters<typeof progressStatus>[0]): void {
+        const bar = progressStatus(journey);
+        if (!this.status) {
+            return;
+        }
+        if (!bar) {
+            this.status.hide();
+            return;
+        }
+        this.status.text = bar.text;
+        this.status.tooltip = bar.tooltip;
+        this.status.command = bar.command ? { command: bar.command, title: bar.text, arguments: [bar.argument] } : undefined;
+        this.status.show();
     }
 
     getTreeItem(row: OutlineRow): vscode.TreeItem {
@@ -113,6 +142,7 @@ export class WorkflowOutlineProvider implements vscode.TreeDataProvider<OutlineR
     private async progress(script: string): Promise<OutlineRow> {
         const engine = this.engine();
         if (!engine || engine.state === 'unavailable' || engine.state === 'mismatch' || engine.state === 'stopped') {
+            this.showStatus(undefined);
             return { kind: 'message', label: 'Project progress needs the Loom engine (Java 17 or newer)', command: 'loom.javaHelp' };
         }
         if (this.progressFor?.script !== script) {
@@ -125,6 +155,7 @@ export class WorkflowOutlineProvider implements vscode.TreeDataProvider<OutlineR
             };
         }
         const known = await this.progressFor.source.get();
+        this.showStatus(known?.journey);
         if (!known) {
             return { kind: 'message', label: 'Project progress is not ready yet', description: 'it appears when the engine has answered' };
         }
