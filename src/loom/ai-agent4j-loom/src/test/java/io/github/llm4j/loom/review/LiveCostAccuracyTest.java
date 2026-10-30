@@ -22,9 +22,10 @@ import org.junit.jupiter.api.io.TempDir;
  * cheapest model, with a hard cap per run and a cap on the total.
  */
 @EnabledIfEnvironmentVariable(named = "LLM4J_LIVE", matches = "1")
+@org.junit.jupiter.api.Timeout(600)
 class LiveCostAccuracyTest {
 
-    static final String MODEL = System.getenv().getOrDefault("LLM4J_LIVE_MODEL", "gpt-4.1-nano");
+    static final String MODEL = System.getenv().getOrDefault("LLM4J_LIVE_MODEL", "gpt-4o-mini");
     static final long TOTAL_CAP = 150_000;
 
     @TempDir Path dir;

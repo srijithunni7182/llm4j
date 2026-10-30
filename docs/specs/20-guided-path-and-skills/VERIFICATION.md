@@ -89,5 +89,7 @@ The four skills (and their `conventions.md`); `docs/guide/` README and chapters 
 
 - Tests: `PreflightRunnerTest` (11), `PreflightCommandTest` (6), `NextKnowsThePreflightTest` (7), `NextCommandTest` (8, fresh starter now 7 steps).
 - Guard removed once by hand: C4 (`answer.stripLeading().startsWith(canary)` replaced by `true`) made `aModelThatIgnoresTheCanaryFailsTheSharedPromptCheck` fail; restored.
-- Not run: the live preflight against a real provider (manual check, needs the owner's key and cap); PIT.
+- Live preflight, run with the owner's go-ahead (OpenAI key from the environment, cap $3, spent well under 1 cent): on `gpt-4.1-nano` it failed C2 with the provider's "model has been deprecated" 404 and spent 0 tokens; on `gpt-5-nano` and `gpt-4o-mini` C1-C4 and C7 passed (C4: the model began its answer with the random canary) and C6 warned that no price or window was given. C5 (grounded sources) was skipped, since the test agent is not grounded, so it is not proven live.
+- The live cost-accuracy check (`LiveCostAccuracyTest`) was run once on `gpt-4o-mini` after its deprecated default model was replaced: worst case >= actual in 10 of 10, typical within 2x in 8 of 10 (14,398 tokens). A first run failed on the 60 s default test timeout and one transient provider error on `long-prompt`; the test now has a 600 s timeout.
+- Not run: PIT.
 - Still open in Phase 20: the skill rules R3.x and the shared `conventions.md` with its drift test.
