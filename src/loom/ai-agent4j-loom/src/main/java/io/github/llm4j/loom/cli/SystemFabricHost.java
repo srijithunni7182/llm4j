@@ -15,25 +15,36 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /** The real processes, network and clock behind {@code weave fabric}. */
 final class SystemFabricHost implements FabricHost {
 
     private static final Duration HEALTH_TIMEOUT = Duration.ofSeconds(3);
-    private static final long RUN_LIMIT_SECONDS = 60;
+    private static final long DEFAULT_RUN_LIMIT_SECONDS = 60;
     private static final long STOP_LIMIT_SECONDS = 10;
     private static final int CONNECT_TIMEOUT_MILLIS = 1000;
 
     private final java.util.function.Function<String, String> env;
     private final Path home;
     private final Path cwd;
+    private final long runLimitSeconds;
 
     SystemFabricHost() {
         this(System::getenv, Path.of(System.getProperty("user.home")), Path.of("").toAbsolutePath());
     }
 
     SystemFabricHost(java.util.function.Function<String, String> env, Path home, Path cwd) {
+        this(env, home, cwd, DEFAULT_RUN_LIMIT_SECONDS);
+    }
+
+    SystemFabricHost(
+            java.util.function.Function<String, String> env,
+            Path home,
+            Path cwd,
+            long runLimitSeconds) {
+        this.runLimitSeconds = runLimitSeconds;
         this.env = env;
         this.home = home;
         this.cwd = cwd;
@@ -55,12 +66,25 @@ final class SystemFabricHost implements FabricHost {
             ProcessBuilder builder = new ProcessBuilder(command).redirectErrorStream(true);
             builder.environment().putAll(extraEnvironment);
             Process process = builder.start();
-            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            if (!process.waitFor(RUN_LIMIT_SECONDS, TimeUnit.SECONDS)) {
-                process.destroyForcibly();
-                return new Result(1, output + "\n(stopped after " + RUN_LIMIT_SECONDS + " seconds)");
+            // the output is read on another thread: reading it here would wait for the process to end
+            // and the limit below would never apply
+            CompletableFuture<String> output =
+                    CompletableFuture.supplyAsync(
+                            () -> {
+                                try {
+                                    return new String(
+                                            process.getInputStream().readAllBytes(),
+                                            StandardCharsets.UTF_8);
+                                } catch (IOException e) {
+                                    return "";
+                                }
+                            });
+            if (!process.waitFor(runLimitSeconds, TimeUnit.SECONDS)) {
+                process.destroyForcibly().waitFor();
+                return new Result(
+                        1, output.join() + "\n(stopped after " + runLimitSeconds + " seconds)");
             }
-            return new Result(process.exitValue(), output);
+            return new Result(process.exitValue(), output.join());
         } catch (IOException e) {
             return new Result(1, e.getMessage());
         } catch (InterruptedException e) {

@@ -17,6 +17,9 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <java.version>17</java.version>
+        <!-- The core this kit runs against: the version of the reactor's ai-agent4j jar. The kit has its
+             own version, so ${project.version} cannot stand for it; change this with the parent version. -->
+        <ai-agent4j.version>6.2.0-SNAPSHOT</ai-agent4j.version>
         
         <!-- Dependency Versions -->
         <jackson.version>2.18.11</jackson.version>
@@ -28,9 +31,9 @@
         <dependency>
             <groupId>io.github.srijithunni7182</groupId>
             <artifactId>ai-agent4j</artifactId>
-            <version>6.1.0</version>
+            <version>${ai-agent4j.version}</version>
             <scope>system</scope>
-            <systemPath>${project.basedir}/../../ai-agent4j/target/ai-agent4j-6.1.0.jar</systemPath>
+            <systemPath>${project.basedir}/../../ai-agent4j/target/ai-agent4j-${ai-agent4j.version}.jar</systemPath>
         </dependency>
 
         <!-- JSON Processing -->

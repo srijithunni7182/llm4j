@@ -373,7 +373,17 @@ final class FabricLauncher {
 
     private static String baseUrl(UpOptions o) {
         boolean tls = o.extra().stream().anyMatch(a -> a.startsWith("--tls-"));
-        return (tls ? "https" : "http") + "://127.0.0.1:" + o.port();
+        return (tls ? "https" : "http") + "://" + probeHost(o.bind()) + ":" + o.port();
+    }
+
+    /**
+     * Where to knock: the address the server was told to listen on. A server bound to one interface
+     * does not answer on the loopback; one bound to every address does.
+     */
+    private static String probeHost(String bind) {
+        String address = bind.startsWith("[") && bind.endsWith("]") ? bind.substring(1, bind.length() - 1) : bind;
+        if (address.equals("0.0.0.0") || address.equals("::") || address.equals("*")) return "127.0.0.1";
+        return address.contains(":") ? "[" + address + "]" : address;
     }
 
     private static Long pid(Path pidFile) {

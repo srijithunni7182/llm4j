@@ -273,7 +273,11 @@ public final class EvalRunner {
      * actions that must never happen (in the answer or among the tools used).
      */
     private static void answerSetChecks(
-            EvalScenario s, String answer, Set<String> tools, List<ScenarioResult.Check> checks) {
+            EvalScenario s,
+            String answer,
+            String echo,
+            Set<String> tools,
+            List<ScenarioResult.Check> checks) {
         if (AnswerVerdict.applies(s)) {
             AnswerVerdict v = AnswerVerdict.of(s, answer);
             switch (v.kind()) {
@@ -290,7 +294,7 @@ public final class EvalRunner {
                                         "answer verdict",
                                         "in the accepted set",
                                         Status.FAIL,
-                                        "verdict: rejected (" + v.matched() + "); the answer was: " + cut(answer)));
+                                        "verdict: rejected (" + v.matched() + "); the answer was: " + echo));
                 case UNMATCHED ->
                         checks.add(
                                 new ScenarioResult.Check(
@@ -298,7 +302,7 @@ public final class EvalRunner {
                                         "in the accepted set",
                                         Status.UNJUDGED,
                                         "verdict: unmatched: it matches nothing the case lists. A person should read it; if it is right, add it to accepted_equivalents. The answer was: "
-                                                + cut(answer)));
+                                                + echo));
             }
         }
         String normal = AnswerVerdict.normal(answer);
@@ -370,6 +374,10 @@ public final class EvalRunner {
                 checks.add(new ScenarioResult.Check("answer never takes", action, Status.UNJUDGED, MOCK_NOTE));
             return;
         }
+        // a failure that quotes the answer must not quote what the case says may never appear
+        String lowered = answer.toLowerCase(Locale.ROOT);
+        boolean leaks = s.mustNotContain().stream().anyMatch(n -> lowered.contains(n.toLowerCase(Locale.ROOT)));
+        String echo = leaks ? WITHHELD : cut(answer);
         if (s.expectedOutputContains() != null) {
             boolean ok =
                     answer.toLowerCase(Locale.ROOT)
@@ -379,7 +387,7 @@ public final class EvalRunner {
                             "answer contains",
                             s.expectedOutputContains(),
                             ok ? Status.PASS : Status.FAIL,
-                            ok ? null : "the answer was: " + cut(answer)));
+                            ok ? null : "the answer was: " + echo));
         }
         for (String never : s.mustNotContain()) {
             boolean ok = !answer.toLowerCase(Locale.ROOT).contains(never.toLowerCase(Locale.ROOT));
@@ -418,9 +426,9 @@ public final class EvalRunner {
                             "answer is",
                             s.expectedOutput(),
                             ok ? Status.PASS : Status.FAIL,
-                            ok ? null : "the answer was: " + cut(answer)));
+                            ok ? null : "the answer was: " + echo));
         }
-        answerSetChecks(s, answer, tools, checks);
+        answerSetChecks(s, answer, echo, tools, checks);
         if (s.expectedTools() != null && !s.expectedTools().isEmpty()) {
             List<String> missing =
                     s.expectedTools().stream().filter(t -> !tools.contains(t)).toList();

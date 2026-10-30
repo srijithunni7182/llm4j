@@ -113,6 +113,23 @@ class EvalKeepsWhatWasJudgedTest {
     }
 
     @Test
+    void noFailureDetailRepeatsTheForbiddenTextEither() {
+        EvalScenario forbids =
+                new EvalScenario(
+                        "n", "q", "refund", "Refund issued.", null, null, null, "h-2", null, null,
+                        null, null, null, List.of("4111"));
+
+        ScenarioResult r = runner(answering("Your card 4111 is fine.")).agent("f", "Helper", forbids);
+
+        assertThat(r.checks()).extracting(c -> c.kind()).contains("answer contains", "answer is");
+        assertThat(r.checks())
+                .allSatisfy(c -> assertThat(String.valueOf(c.detail())).doesNotContain("4111"));
+        assertThat(r.checks())
+                .filteredOn(c -> c.kind().equals("answer is"))
+                .allSatisfy(c -> assertThat(c.detail()).contains("withheld"));
+    }
+
+    @Test
     void anOutputIsKeptWhenTheForbiddenTextIsAbsent() {
         EvalScenario forbids =
                 new EvalScenario(

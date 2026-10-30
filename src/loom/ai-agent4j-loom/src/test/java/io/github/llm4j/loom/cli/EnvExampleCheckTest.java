@@ -36,6 +36,21 @@ class EnvExampleCheckTest {
     }
 
     @Test
+    void aUrlThatCarriesACredentialIsFlaggedWhateverItsNameIs() throws Exception {
+        Path script =
+                project(
+                        "DATABASE_URL=postgres://user:realpass@db.internal/app\n"
+                                + "SMTP_URL=smtps://u:p@mail.internal\n"
+                                + "API_URL=https://api.internal/v1\n"
+                                + "PLACEHOLDER_URL=postgres://user:<password>@host/db\n"
+                                + "NO_PASSWORD_URL=postgres://host/db\n");
+        assertThat(EnvExampleCheck.namesWithValues(script))
+                .containsExactly("DATABASE_URL", "SMTP_URL");
+        assertThat(EnvExampleCheck.warning(EnvExampleCheck.findings(script)))
+                .doesNotContain("realpass");
+    }
+
+    @Test
     void templateWithEmptyValuesIsQuiet() throws Exception {
         assertThat(
                         EnvExampleCheck.namesWithValues(

@@ -182,15 +182,15 @@ public final class EvalSections {
 
     /** Validation pass rate minus held-out pass rate, when both were run; null otherwise. */
     static Double generalisationGap(EvalReport.Run run) {
-        Double validation = passRate(run, "split:validation");
-        Double heldOut = passRate(run, "split:heldout");
+        Double validation = passRate(run, Splits.VALIDATION);
+        Double heldOut = passRate(run, Splits.HELD_OUT);
         return validation == null || heldOut == null ? null : validation - heldOut;
     }
 
-    private static Double passRate(EvalReport.Run run, String tag) {
+    private static Double passRate(EvalReport.Run run, String split) {
         long pass = 0, fail = 0;
         for (ScenarioResult r : run.results())
-            if (r.tags().contains(tag)) {
+            if (Splits.has(r.tags(), split)) {
                 if (r.status() == Status.PASS) pass++;
                 else if (r.status() == Status.FAIL) fail++;
             }

@@ -119,7 +119,8 @@ public final class BudgetSet {
      *
      * <p>When {@code wanted} is null, the limit is {@code modelMaximum} (the most the model can
      * write; null when unknown, then {@link #DEFAULT_OUTPUT}), bounded by what every member can
-     * still afford. At most {@link #UNSPECIFIED_HOLD} of it is held back from the budget.
+     * still afford and by {@link #UNSPECIFIED_HOLD}. What is sent is what is held, so one call
+     * cannot spend more than was reserved; a caller who needs a longer answer sets the limit.
      */
     public Lease reserve(
             long promptTokens, Long wanted, Long modelMaximum, Pricing pricing, long searches) {
@@ -216,12 +217,11 @@ public final class BudgetSet {
                             binding.limits(),
                             binding.windowEndLocked());
                 }
-                output = out;
+                // With no limit asked for, never send more than is held: a call may then spend
+                // only what was reserved, so parallel calls cannot overshoot a hard budget
+                output = wanted == null ? Math.min(out, UNSPECIFIED_HOLD) : out;
             }
-            long held =
-                    output == null
-                            ? 0
-                            : wanted == null ? Math.min(output, UNSPECIFIED_HOLD) : output;
+            long held = output == null ? 0 : output;
             long reservedTokens = promptTokens + held;
             BigDecimal reservedCost =
                     pricing == null

@@ -276,6 +276,9 @@
                 The tests are NOT skipped: a release is gated on the default (hermetic) tests.
             -->
             <id>release</id>
+            <properties>
+                <llm4j.build.kind>release</llm4j.build.kind>
+            </properties>
             <build>
                 <plugins>
                     <plugin>

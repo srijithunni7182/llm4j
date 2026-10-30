@@ -276,8 +276,16 @@ public final class ScriptExplainer {
                             "  - %s may write up to %,d tokens per answer (%s; the budget can lower it)."
                                     + " Set per_call to choose.%n",
                             agent.getName(),
-                            known > 0 ? known : io.github.llm4j.budget.BudgetSet.DEFAULT_OUTPUT,
-                            known > 0 ? "the model's maximum" : "the default, the model's maximum is not known"));
+                            Math.min(
+                                    known > 0
+                                            ? known
+                                            : io.github.llm4j.budget.BudgetSet.DEFAULT_OUTPUT,
+                                    io.github.llm4j.budget.BudgetSet.UNSPECIFIED_HOLD),
+                            known > 0 && known <= io.github.llm4j.budget.BudgetSet.UNSPECIFIED_HOLD
+                                    ? "the model's maximum"
+                                    : known > 0
+                                            ? "the most held for a call with no per_call, less than the model's maximum"
+                                            : "the default, the model's maximum is not known"));
         }
     }
 

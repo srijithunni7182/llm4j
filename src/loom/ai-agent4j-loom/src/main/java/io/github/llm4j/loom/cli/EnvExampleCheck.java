@@ -38,6 +38,10 @@ final class EnvExampleCheck {
             Pattern.compile(
                     "(?i).*(KEY|TOKEN|SECRET|PASSWORD|PASSWD|PASSPHRASE|CREDENTIALS?)|.*API_?KEY.*|.*PRIVATE.*");
 
+    /** A URL with a user and a password in it ({@code scheme://user:pass@host}): a secret whatever the name. */
+    private static final Pattern URL_WITH_PASSWORD =
+            Pattern.compile("(?i)^[a-z][a-z0-9+.-]*://[^/\\s@:]*:[^/\\s@]+@.*");
+
     /** One value found in a template: which file, and the name it is set for (never the value). */
     record Finding(String file, String name) {}
 
@@ -81,7 +85,10 @@ final class EnvExampleCheck {
         return findings(script).stream().map(Finding::name).distinct().toList();
     }
 
-    /** The secret-named entries of one file that have a value which is not a placeholder. */
+    /**
+     * The entries of one file that have a value which is not a placeholder and are secrets: named
+     * like one, or holding a URL with a password in it.
+     */
     static List<String> namesWithValuesIn(Path file) {
         List<String> out = new ArrayList<>();
         List<String> lines;
@@ -94,7 +101,7 @@ final class EnvExampleCheck {
             String line = raw.strip();
             if (line.isEmpty() || line.startsWith("#")) continue;
             Matcher m = LINE.matcher(line);
-            if (!m.matches() || !SECRET_NAME.matcher(m.group(1)).matches()) continue;
+            if (!m.matches()) continue;
             String value = m.group(2).strip();
             if (value.length() >= 2
                     && (value.startsWith("\"") && value.endsWith("\"")
@@ -103,6 +110,8 @@ final class EnvExampleCheck {
             int hash = value.indexOf(" #");
             if (hash >= 0) value = value.substring(0, hash).strip();
             if (value.isEmpty()) continue;
+            if (!SECRET_NAME.matcher(m.group(1)).matches() && !URL_WITH_PASSWORD.matcher(value).matches())
+                continue;
             String lower = value.toLowerCase(Locale.ROOT);
             if (PLACEHOLDERS.stream().anyMatch(lower::contains)) continue;
             out.add(m.group(1));

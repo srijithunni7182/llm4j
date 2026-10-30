@@ -50,8 +50,25 @@ class OutputLimitDecisionTest {
         var first = set.reserve(100, null, 128_000L, null, 0);
         var second = set.reserve(100, null, 128_000L, null, 0);
 
-        assertThat(first.output()).isEqualTo(128_000L);
-        assertThat(second.output()).isGreaterThan(BudgetSet.MIN_OUTPUT);
+        assertThat(first.output()).isEqualTo(BudgetSet.UNSPECIFIED_HOLD);
+        assertThat(second.output()).isEqualTo(BudgetSet.UNSPECIFIED_HOLD);
+    }
+
+    @Test
+    void theLimitSentIsNeverMoreThanTheAmountHeld() {
+        BudgetSet set = tokens(1_000_000);
+
+        var lease = set.reserve(100, null, 128_000L, null, 0);
+
+        assertThat(lease.output()).isEqualTo(BudgetSet.UNSPECIFIED_HOLD);
+        assertThat(set.reserve(100, null, 128_000L, null, 0).output())
+                .isLessThanOrEqualTo(BudgetSet.UNSPECIFIED_HOLD);
+    }
+
+    @Test
+    void anAgentsOwnBigLimitIsKeptAndFullyHeld() {
+        assertThat(tokens(1_000_000).reserve(100, 50_000L, 128_000L, null, 0).output())
+                .isEqualTo(50_000L);
     }
 
     @Test

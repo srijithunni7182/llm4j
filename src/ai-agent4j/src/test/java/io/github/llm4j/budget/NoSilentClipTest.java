@@ -21,8 +21,8 @@ class NoSilentClipTest {
     }
 
     @Test
-    void aKnownModelsMaximumIsSentWhenTheBudgetAffordsIt() {
-        assertThat(sentLimit("claude-opus-5-5", 1_000_000)).isEqualTo(128_000);
+    void aKnownModelsLimitIsSentUpToWhatIsHeld() {
+        assertThat(sentLimit("claude-opus-5-5", 1_000_000)).isEqualTo((int) BudgetSet.UNSPECIFIED_HOLD);
     }
 
     @Test

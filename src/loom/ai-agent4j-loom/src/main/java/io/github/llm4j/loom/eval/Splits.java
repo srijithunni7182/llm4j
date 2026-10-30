@@ -19,24 +19,48 @@ public final class Splits {
 
     private Splits() {}
 
-    /** The split a case belongs to; development when it names none (or names one that is not a split). */
+    /**
+     * The split a case belongs to. Held-out wins over every other split tag, then validation;
+     * development when it names none. A sealed case is never taken for an open one.
+     */
     public static String of(EvalScenario s) {
-        String named = named(s);
-        return named != null && ALL.contains(named) ? named : DEVELOPMENT;
+        return of(s.tags());
     }
 
-    /** The name written after {@code split:}, even if it is not a split; null when there is no such tag. */
+    /** As {@link #of(EvalScenario)}, from the tags alone (null for none). */
+    public static String of(List<String> tags) {
+        if (has(tags, HELD_OUT)) return HELD_OUT;
+        if (has(tags, VALIDATION)) return VALIDATION;
+        return DEVELOPMENT;
+    }
+
+    /**
+     * The name written after {@code split:} that is not a split, else the first one; null when there
+     * is no such tag. Used to report a misspelt split.
+     */
     public static String named(EvalScenario s) {
-        if (s.tags() == null) return null;
-        return s.tags().stream()
-                .filter(t -> t != null && t.startsWith(PREFIX))
-                .map(t -> t.substring(PREFIX.length()).strip())
-                .findFirst()
-                .orElse(null);
+        List<String> names = names(s.tags());
+        return names.stream().filter(n -> !ALL.contains(n)).findFirst().orElse(names.stream().findFirst().orElse(null));
     }
 
     /** Whether the tags of a result name the held-out split. */
     public static boolean isHeldOut(List<String> tags) {
-        return tags.contains(PREFIX + HELD_OUT);
+        return has(tags, HELD_OUT);
+    }
+
+    /** Whether any tag names this split, however it is spaced or cased. */
+    public static boolean has(List<String> tags, String split) {
+        return names(tags).contains(split);
+    }
+
+    /** The split names written in the tags, normalised: stripped, lower case. */
+    private static List<String> names(List<String> tags) {
+        if (tags == null) return List.of();
+        return tags.stream()
+                .filter(t -> t != null)
+                .map(String::strip)
+                .filter(t -> t.regionMatches(true, 0, PREFIX, 0, PREFIX.length()))
+                .map(t -> t.substring(PREFIX.length()).strip().toLowerCase(java.util.Locale.ROOT))
+                .toList();
     }
 }

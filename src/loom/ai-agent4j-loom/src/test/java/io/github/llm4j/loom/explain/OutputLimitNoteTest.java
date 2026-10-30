@@ -17,13 +17,13 @@ class OutputLimitNoteTest {
     private static final String BODY = "workflow Main() { delegate \"hi\" to A -> o }\n";
 
     @Test
-    void anAgentWithoutPerCallUnderABudgetNamesTheModelsMaximum() {
+    void aBigModelIsOnlyGivenWhatTheBudgetHoldsForIt() {
         String text =
                 explain(
                         "budget { tokens: 100000 }\nagent A { model: \"claude-opus-5-5\" }\n"
                                 + BODY);
 
-        assertThat(text).contains("A may write up to 128,000 tokens per answer (the model's maximum");
+        assertThat(text).contains("A may write up to 8,192 tokens per answer (the most held for a call with no per_call");
     }
 
     @Test

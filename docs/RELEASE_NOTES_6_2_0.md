@@ -5,11 +5,10 @@ Status: **in progress** (the field findings program, [docs/specs/FIELD_FINDINGS.
 ## Fixed: answers are no longer cut short without a word
 
 - **No more silent 1,024-token limit.** With a token or cost budget and no `per_call`, every model call was capped at 1,024 output tokens (`BudgetSet.DEFAULT_OUTPUT`), so long answers ended mid-sentence while the run
-  reported success. The limit is now the model's known maximum (from the seeded model list; 8,192 for a model not on it), bounded by what the budget still affords. **Behaviour change:** answers that were clipped
-  become whole, so token use rises to what the agent really writes, still inside the budget. A script that relied on the clipping to save cost should set `per_call`. Only up to 8,192 tokens per call are held back
-  from the budget while the call runs (`BudgetSet.UNSPECIFIED_HOLD`), so parallel branches are not starved.
+  reported success. The limit is now 8,192 tokens (`BudgetSet.UNSPECIFIED_HOLD`), or the model's known maximum from the seeded model list when that is smaller, bounded by what the budget still affords. What is sent is what is held, so one call cannot spend more than was reserved. An agent that needs longer answers sets `per_call`, which is held in full. **Behaviour change:** answers that were clipped
+  become whole, so token use rises to what the agent really writes, still inside the budget. A script that relied on the clipping to save cost should set `per_call`. Parallel branches are not starved, because each holds at most 8,192.
 - **A cut answer is named.** When a provider stops an answer at its limit, the run prints `✂ N answers were cut at the output limit: Writer (2)`. The count was already in the trace as `truncated`.
-- **`weave explain` states each agent's output limit** and where it comes from (its `per_call`, the model's maximum, or the default).
+- **`weave explain` states each agent's output limit** and where it comes from (its `per_call`, the model's maximum when that is under 8,192, or the default).
 - **A cost that is an estimate says so.** The spend table marks estimated rows `~$` and names the agents whose provider reported no usage, instead of the generic note.
 - **Gemini grounding with `recency:` works again on clocks with sub-second precision.** The times sent are whole seconds. (Verified by a unit test; a recorded request from the real API is still owed.)
 
@@ -87,7 +86,7 @@ Status: **in progress** (the field findings program, [docs/specs/FIELD_FINDINGS.
 
 ## Changed: strings, hints for known mistakes, and the options of `weave test`
 
-- **A string can hold a double quote and end with a backslash.** `\"` is a double quote and `\\` a backslash inside a string; any other backslash stays as written (`\n` and `\t` are read later, as before). **A string that ended in `\"` expecting the backslash to be text now reads differently**: none of the scripts in this repository does (a test lists any), but check yours; the lexer says what to write when a string would end in a lone backslash. The editor's parser reads strings the same way.
+- **A string can hold a double quote and end with a backslash.** `\"` is a double quote and `\\` a backslash inside a string; any other backslash stays as written (`\n` and `\t` are read later, as before). **A string with a doubled backslash (`"C:\\dir"`, `"\\d+"`) now holds one backslash, and a string that ended in `\"` expecting the backslash to be text now reads differently**: none of the scripts in this repository does (a test lists any), but check yours; the lexer says what to write when a string would end in a lone backslash. The editor's parser reads strings the same way.
 - **A known mistake says its fix.** `expecting {…}` after `retry N` on a `delegate` is a parse error that names the right order, and a scripted task result with the reserved key `value` says what to write instead. The registry (`KnownMistakes`, see `CONTRIBUTING.md`) is one row and a test per mistake.
 - **`weave test` takes `--classes`, `--loot` and `--env-file`**, like `weave run` and `weave eval`. In a built Maven project the three use `target/classes` and say so in one line; `--no-auto-classes` turns that off. (`--loot` is checked to exist and otherwise ignored by `test`, which scripts every tool.)
 - **The log is not the answer.** Every command logs at WARNING by default; `-v` (or `--verbose`) shows the progress lines and `-vv` the detail. `weave run`, `resume`, `tick` and `daemon` no longer print Loom's INFO progress lines unless you pass `-v` (or set `WEAVE_LOG=info`); a script that read `INFO:` lines from them must pass `-v`. `weave eval --verbose` works as before.

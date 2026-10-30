@@ -70,6 +70,7 @@ class FabricLauncherTest {
         int initExit = 0;
         String clientsList = "";
         boolean answers = true;
+        final List<String> asked = new ArrayList<>();
         boolean aliveAfterStop = false;
         Set<Long> alive = new java.util.HashSet<>();
         Map<String, String> environment = Map.of();
@@ -119,6 +120,7 @@ class FabricLauncherTest {
 
         @Override
         public boolean answers(String baseUrl, int seconds) {
+            asked.add(baseUrl);
             return answers;
         }
 
@@ -252,6 +254,27 @@ class FabricLauncherTest {
         launcher.up(up("127.0.0.1", "--tls-keystore", "k.p12"));
 
         assertThat(said()).contains("https://127.0.0.1:9090");
+    }
+
+    @Test
+    void upProbesTheAddressItWasToldToListenOn() {
+        launcher.up(up("192.168.1.5", "--tls-keystore", "k.p12"));
+
+        assertThat(host.asked).isNotEmpty().allMatch(url -> url.equals("https://192.168.1.5:9090"));
+    }
+
+    @Test
+    void upProbesTheLoopbackWhenItListensOnEveryAddress() {
+        launcher.up(up("0.0.0.0", "--trust-proxy"));
+
+        assertThat(host.asked).isNotEmpty().allMatch(url -> url.equals("http://127.0.0.1:9090"));
+    }
+
+    @Test
+    void upBracketsAnIpv6Address() {
+        launcher.up(up("fd00::5", "--tls-keystore", "k.p12"));
+
+        assertThat(host.asked).isNotEmpty().allMatch(url -> url.equals("https://[fd00::5]:9090"));
     }
 
     @Test
