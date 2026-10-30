@@ -236,6 +236,11 @@ final class FabricLauncher {
     // ---- status
 
     int status(Path dataFolder, int port) {
+        return status(dataFolder, port, "127.0.0.1");
+    }
+
+    /** As {@link #status(Path, int)} for a server that was told to listen on {@code bind}. */
+    int status(Path dataFolder, int port, String bind) {
         Path data = dataFolder.toAbsolutePath().normalize();
         if (!Files.isDirectory(data)) {
             err.println(
@@ -246,8 +251,9 @@ final class FabricLauncher {
         }
         Long pid = pid(data.resolve("fabric.pid"));
         if (pid != null && host.alive(pid) && host.looksLikeFabric(pid)) {
-            if (host.answers("http://127.0.0.1:" + port, STATUS_CHECK_SECONDS)
-                    || host.answers("https://127.0.0.1:" + port, 1)) {
+            String where = probeHost(bind) + ":" + port;
+            if (host.answers("http://" + where, STATUS_CHECK_SECONDS)
+                    || host.answers("https://" + where, 1)) {
                 out.println("running: pid " + pid + ", port " + port + ", data " + data);
             } else {
                 out.println(
@@ -355,11 +361,22 @@ final class FabricLauncher {
 
     // ---- small helpers
 
+    private static final Pattern IPV4_LITERAL = Pattern.compile("\\d{1,3}(\\.\\d{1,3}){3}");
+
+    /**
+     * Whether the address is this computer. Only {@code localhost} and an IP literal count: a name
+     * that merely begins with 127. is a host name anyone can point elsewhere. A literal is parsed
+     * without any name lookup.
+     */
     private static boolean loopback(String bind) {
-        return bind.startsWith("127.")
-                || bind.equals("localhost")
-                || bind.equals("::1")
-                || bind.equals("[::1]");
+        if (bind.equals("localhost")) return true;
+        String address = bind.startsWith("[") && bind.endsWith("]") ? bind.substring(1, bind.length() - 1) : bind;
+        if (!IPV4_LITERAL.matcher(address).matches() && !address.contains(":")) return false;
+        try {
+            return java.net.InetAddress.getByName(address).isLoopbackAddress();
+        } catch (java.net.UnknownHostException e) {
+            return false;
+        }
     }
 
     private static boolean protectedBeyondThisComputer(List<String> extra) {

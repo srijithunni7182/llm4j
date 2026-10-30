@@ -51,6 +51,16 @@ class EnvExampleCheckTest {
     }
 
     @Test
+    void aUrlWhosePasswordIsAReferenceToAVariableIsNotASecret() throws Exception {
+        Path script =
+                project(
+                        "DATABASE_URL=postgres://app:${DB_PASSWORD}@db/app\n"
+                                + "CACHE_URL=redis://app:$CACHE_PASS@cache:6379\n"
+                                + "REAL_URL=postgres://app:hunter2@db/app\n");
+        assertThat(EnvExampleCheck.namesWithValues(script)).containsExactly("REAL_URL");
+    }
+
+    @Test
     void templateWithEmptyValuesIsQuiet() throws Exception {
         assertThat(
                         EnvExampleCheck.namesWithValues(

@@ -58,7 +58,28 @@ class JudgeBiasTest {
     void aDifferentFamilyIsFineAndTheFamilyIsTheNameBeforeTheFirstSeparator() {
         assertThat(JudgeValidation.family("gemini-2.5-flash")).isEqualTo("gemini");
         assertThat(JudgeValidation.family("anthropic/claude-opus-5-5")).isEqualTo("claude");
-        assertThat(JudgeValidation.family("gpt-4o")).isEqualTo("gpt");
+        assertThat(JudgeValidation.family("gpt-4o")).isEqualTo("openai");
         assertThat(JudgeValidation.validate(rows(false), 40, "gemini-2.5-flash", "claude-opus-5-5").usableForGating()).isTrue();
+    }
+
+    @Test
+    void theSameVendorsModelsAreOneFamilyWhateverTheirNamingScheme() {
+        assertThat(JudgeValidation.family("o1")).isEqualTo(JudgeValidation.family("gpt-4o"));
+        assertThat(JudgeValidation.family("o3-mini")).isEqualTo(JudgeValidation.family("gpt-5"));
+        assertThat(JudgeValidation.family("llama3.1")).isEqualTo(JudgeValidation.family("llama-3"));
+        assertThat(JudgeValidation.family("ollama/llama3:8b")).isEqualTo("llama");
+        assertThat(JudgeValidation.family("some-new-model")).isEqualTo("some");
+    }
+
+    @Test
+    void aValidationThatDidNotCheckSelfPreferenceMayNotGate() {
+        for (var r :
+                List.of(
+                        JudgeValidation.validate(rows(false), 40),
+                        JudgeValidation.validate(rows(false), 40, "gemini-2.5-flash", null),
+                        JudgeValidation.validate(rows(false), 40, null, "claude-opus-5-5"))) {
+            assertThat(r.usableForGating()).isFalse();
+            assertThat(r.summary()).contains("Self-preference was not checked").contains("--system-model");
+        }
     }
 }

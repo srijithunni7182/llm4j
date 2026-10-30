@@ -276,13 +276,20 @@ final class EvalCommand implements Callable<Integer> {
     /** Writes the JUnit class of {@code --emit-test}. */
     private static int emitTest(EvalCommand c, WeaveEnv env) {
         Path target = c.emitTest.toPath();
+        String source;
+        try {
+            source = io.github.llm4j.loom.eval.EmittedTest.source(target, c.script.toPath().toAbsolutePath());
+        } catch (IllegalArgumentException e) {
+            env.err().println("Error: --emit-test: " + e.getMessage() + ". Nothing was written.");
+            return 2;
+        }
         try {
             if (Files.exists(target)) {
                 env.err().println("Error: " + target + " already exists; it is never overwritten. Name a new file.");
                 return 2;
             }
             if (target.toAbsolutePath().getParent() != null) Files.createDirectories(target.toAbsolutePath().getParent());
-            Files.writeString(target, io.github.llm4j.loom.eval.EmittedTest.source(target, c.script.toPath().toAbsolutePath()));
+            Files.writeString(target, source);
             env.out().println("Wrote " + target + ". It runs the wiring on a mock model for free; a real evaluation runs only with -Deval.real=true (and -Deval.maxCost=<amount> -Deval.prices=<file>, else a 200,000 token cap).");
             return 0;
         } catch (java.io.IOException e) {

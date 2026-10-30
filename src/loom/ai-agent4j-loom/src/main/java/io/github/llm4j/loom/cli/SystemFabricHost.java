@@ -1,5 +1,6 @@
 package io.github.llm4j.loom.cli;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -15,7 +16,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /** The real processes, network and clock behind {@code weave fabric}. */
@@ -24,6 +24,8 @@ final class SystemFabricHost implements FabricHost {
     private static final Duration HEALTH_TIMEOUT = Duration.ofSeconds(3);
     private static final long DEFAULT_RUN_LIMIT_SECONDS = 60;
     private static final long STOP_LIMIT_SECONDS = 10;
+    private static final long OUTPUT_GRACE_MILLIS = 1000;
+    private static final int DRAIN_BUFFER_BYTES = 4096;
     private static final int CONNECT_TIMEOUT_MILLIS = 1000;
 
     private final java.util.function.Function<String, String> env;
@@ -66,30 +68,52 @@ final class SystemFabricHost implements FabricHost {
             ProcessBuilder builder = new ProcessBuilder(command).redirectErrorStream(true);
             builder.environment().putAll(extraEnvironment);
             Process process = builder.start();
-            // the output is read on another thread: reading it here would wait for the process to end
-            // and the limit below would never apply
-            CompletableFuture<String> output =
-                    CompletableFuture.supplyAsync(
-                            () -> {
-                                try {
-                                    return new String(
-                                            process.getInputStream().readAllBytes(),
-                                            StandardCharsets.UTF_8);
-                                } catch (IOException e) {
-                                    return "";
-                                }
-                            });
-            if (!process.waitFor(runLimitSeconds, TimeUnit.SECONDS)) {
+            // the output is read on a thread of its own: reading it here would wait for the process
+            // to end and the limit below would never apply
+            ByteArrayOutputStream captured = new ByteArrayOutputStream();
+            Thread reader = new Thread(() -> drain(process, captured), "fabric-output");
+            reader.setDaemon(true);
+            reader.start();
+            boolean finished = process.waitFor(runLimitSeconds, TimeUnit.SECONDS);
+            if (!finished) {
+                process.descendants().forEach(ProcessHandle::destroyForcibly);
                 process.destroyForcibly().waitFor();
-                return new Result(
-                        1, output.join() + "\n(stopped after " + runLimitSeconds + " seconds)");
             }
-            return new Result(process.exitValue(), output.join());
+            // a descendant that inherited the pipe keeps it open after the process is gone: wait a
+            // moment for the rest of the output, then take what there is
+            reader.join(OUTPUT_GRACE_MILLIS);
+            if (reader.isAlive()) {
+                process.getInputStream().close();
+                reader.join(OUTPUT_GRACE_MILLIS);
+            }
+            String output = textOf(captured);
+            return finished
+                    ? new Result(process.exitValue(), output)
+                    : new Result(1, output + "\n(stopped after " + runLimitSeconds + " seconds)");
         } catch (IOException e) {
             return new Result(1, e.getMessage());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return new Result(1, "interrupted");
+        }
+    }
+
+    private static void drain(Process process, ByteArrayOutputStream into) {
+        byte[] buffer = new byte[DRAIN_BUFFER_BYTES];
+        try (var in = process.getInputStream()) {
+            for (int n = in.read(buffer); n >= 0; n = in.read(buffer)) {
+                synchronized (into) {
+                    into.write(buffer, 0, n);
+                }
+            }
+        } catch (IOException e) {
+            // the stream was closed on purpose, or the process is gone: what was read is what there is
+        }
+    }
+
+    private static String textOf(ByteArrayOutputStream captured) {
+        synchronized (captured) {
+            return captured.toString(StandardCharsets.UTF_8);
         }
     }
 

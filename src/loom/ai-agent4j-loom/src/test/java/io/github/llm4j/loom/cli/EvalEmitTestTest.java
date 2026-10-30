@@ -65,6 +65,37 @@ class EvalEmitTestTest {
     }
 
     @Test
+    void aQuoteInTheScriptPathIsEscapedSoTheSourceStillCompiles() throws Exception {
+        Path target = dir.resolve("gen/QuotedTest.java");
+
+        String text = io.github.llm4j.loom.eval.EmittedTest.source(target, dir.resolve("my\"flow.loom"));
+
+        assertThat(text).contains("my\\\"flow.loom").doesNotContain("my\"flow");
+    }
+
+    @Test
+    void aFileNameOrFolderThatIsNotAJavaNameIsRefusedAndNothingIsWritten() throws Exception {
+        Path script = project();
+        Path badClass = dir.resolve("gen/Bad-Name.java");
+        Path badPackage = dir.resolve("src/test/java/my-pkg/RealEvaluationTest.java");
+
+        assertThat(emit(script, badClass)).isEqualTo(2);
+        assertThat(emit(script, badPackage)).isEqualTo(2);
+
+        assertThat(badClass).doesNotExist();
+        assertThat(badPackage).doesNotExist();
+        assertThat(out.toString(StandardCharsets.UTF_8)).contains("not a Java").contains("Bad-Name").contains("my-pkg");
+    }
+
+    @Test
+    void aScriptPathWithALineBreakIsRefused() throws Exception {
+        Path script = project();
+
+        assertThat(emit(dir.resolve("a\nb.loom"), dir.resolve("gen/LineTest.java"))).isEqualTo(2);
+        assertThat(script).exists();
+    }
+
+    @Test
     void anExistingFileIsNeverOverwritten() throws Exception {
         Path script = project();
         Path target = Files.writeString(dir.resolve("Keep.java"), "keep");

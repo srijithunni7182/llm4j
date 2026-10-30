@@ -2444,6 +2444,7 @@ weave fabric status [OPTIONS]
 
 **Options**
 
+- `--bind=<bind>` — Address the server was told to listen on (default: 127.0.0.1).
 - `--data=<folder>` — The server's data folder (default: ./fabric-data).
 - `--port=<port>` — Port it listens on (default: 9090).
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)

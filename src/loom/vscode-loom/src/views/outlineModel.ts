@@ -135,4 +135,12 @@ export class Debouncer {
             this.action();
         });
     }
+
+    /** Drops a refresh that is waiting. */
+    stop(): void {
+        if (this.pending !== undefined) {
+            this.cancel(this.pending);
+            this.pending = undefined;
+        }
+    }
 }

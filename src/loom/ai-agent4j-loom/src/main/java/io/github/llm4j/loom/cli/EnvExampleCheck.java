@@ -38,9 +38,13 @@ final class EnvExampleCheck {
             Pattern.compile(
                     "(?i).*(KEY|TOKEN|SECRET|PASSWORD|PASSWD|PASSPHRASE|CREDENTIALS?)|.*API_?KEY.*|.*PRIVATE.*");
 
-    /** A URL with a user and a password in it ({@code scheme://user:pass@host}): a secret whatever the name. */
+    /**
+     * A URL with a user and a password in it ({@code scheme://user:pass@host}): a secret whatever the
+     * name. A password that starts with {@code $} is a reference to a variable, the safe way to write
+     * a template.
+     */
     private static final Pattern URL_WITH_PASSWORD =
-            Pattern.compile("(?i)^[a-z][a-z0-9+.-]*://[^/\\s@:]*:[^/\\s@]+@.*");
+            Pattern.compile("(?i)^[a-z][a-z0-9+.-]*://[^/\\s@:]*:(?!\\$)[^/\\s@]+@.*");
 
     /** One value found in a template: which file, and the name it is set for (never the value). */
     record Finding(String file, String name) {}

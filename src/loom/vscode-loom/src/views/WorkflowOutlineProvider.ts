@@ -30,30 +30,39 @@ export class WorkflowOutlineProvider implements vscode.TreeDataProvider<OutlineR
     /** @param engine the running engine, or undefined when there is none (no Java, still starting): progress then says it needs one. */
     constructor(private readonly engine: () => EngineClient | undefined = () => undefined) {
         const poke = (): void => this.refreshSoon.poke();
-        vscode.workspace.onDidSaveTextDocument((document) => {
-            if (document.languageId === 'loom') {
-                poke();
+        const track = <T extends vscode.Disposable | undefined>(item: T): T => {
+            if (item) {
+                this.disposables.push(item);
             }
-        });
-        vscode.window.onDidChangeActiveTextEditor(poke);
-        vscode.workspace.onDidChangeWorkspaceFolders?.(poke);
-        const watcher = vscode.workspace.createFileSystemWatcher?.('**/*.loom');
-        watcher?.onDidCreate(poke);
-        watcher?.onDidDelete(poke);
-        watcher?.onDidChange(poke);
+            return item;
+        };
+        track(
+            vscode.workspace.onDidSaveTextDocument((document) => {
+                if (document.languageId === 'loom') {
+                    poke();
+                }
+            }),
+        );
+        track(vscode.window.onDidChangeActiveTextEditor(poke));
+        track(vscode.workspace.onDidChangeWorkspaceFolders?.(poke));
+        const watcher = track(vscode.workspace.createFileSystemWatcher?.('**/*.loom'));
+        track(watcher?.onDidCreate(poke));
+        track(watcher?.onDidDelete(poke));
+        track(watcher?.onDidChange(poke));
         // the evaluation's files and tests change stages without touching a .loom file
-        const products = vscode.workspace.createFileSystemWatcher?.('**/{eval/**,EVAL_DESIGN.md,*.test.yaml,*.test.yml}');
+        const products = track(vscode.workspace.createFileSystemWatcher?.('**/{eval/**,EVAL_DESIGN.md,*.test.yaml,*.test.yml}'));
         const pokeIfStage = (uri: vscode.Uri): void => {
             if (isProgressFile(uri.fsPath)) {
                 poke();
             }
         };
-        products?.onDidCreate(pokeIfStage);
-        products?.onDidDelete(pokeIfStage);
-        products?.onDidChange(pokeIfStage);
-        this.status = vscode.window.createStatusBarItem?.(vscode.StatusBarAlignment.Left, 50);
+        track(products?.onDidCreate(pokeIfStage));
+        track(products?.onDidDelete(pokeIfStage));
+        track(products?.onDidChange(pokeIfStage));
+        this.status = track(vscode.window.createStatusBarItem?.(vscode.StatusBarAlignment.Left, 50));
     }
 
+    private readonly disposables: vscode.Disposable[] = [];
     private readonly status: vscode.StatusBarItem | undefined;
 
     /** Shows the next step in the status bar, or hides the item when there is no journey. */
@@ -70,6 +79,15 @@ export class WorkflowOutlineProvider implements vscode.TreeDataProvider<OutlineR
         this.status.tooltip = bar.tooltip;
         this.status.command = bar.command ? { command: bar.command, title: bar.text, arguments: [bar.argument] } : undefined;
         this.status.show();
+    }
+
+    /** Stops listening, drops the file watchers and removes the status-bar item. */
+    dispose(): void {
+        this.refreshSoon.stop();
+        this.changed.dispose();
+        for (const item of this.disposables.splice(0)) {
+            item.dispose();
+        }
     }
 
     getTreeItem(row: OutlineRow): vscode.TreeItem {

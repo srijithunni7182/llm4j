@@ -20,6 +20,27 @@ class SystemFabricHostRunTest {
         }
     }
 
+    /** A program that starts a longer-lived child sharing its output, says something and exits. */
+    public static final class LeavesAChild {
+        public static void main(String[] args) throws Exception {
+            new ProcessBuilder(
+                            Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                            "-cp",
+                            System.getProperty("java.class.path"),
+                            SleepsBriefly.class.getName())
+                    .inheritIO()
+                    .start();
+            System.out.println("parent done");
+        }
+    }
+
+    /** The child: holds the shared output open for a while. */
+    public static final class SleepsBriefly {
+        public static void main(String[] args) throws Exception {
+            Thread.sleep(30_000);
+        }
+    }
+
     /** A program that answers at once. */
     public static final class Answers {
         public static void main(String[] args) {
@@ -48,6 +69,15 @@ class SystemFabricHostRunTest {
         assertThat(result.output())
                 .contains("waiting for the master key")
                 .contains("stopped after 1 seconds");
+    }
+
+    @Test
+    @Timeout(20)
+    void doesNotWaitForADescendantThatKeepsTheOutputOpen() {
+        var result = host(30).run(java(LeavesAChild.class), Map.of());
+
+        assertThat(result.exit()).isZero();
+        assertThat(result.output()).contains("parent done");
     }
 
     @Test

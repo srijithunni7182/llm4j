@@ -15,10 +15,19 @@ public final class EmittedTest {
 
     private EmittedTest() {}
 
-    /** The class text for {@code file}, evaluating {@code script}. */
+    /**
+     * The class text for {@code file}, evaluating {@code script}.
+     *
+     * @throws IllegalArgumentException when the file name or a folder of its package is not a Java
+     *     name, or the script path has a line break: the class would not compile
+     */
     public static String source(Path file, Path script) {
         String name = file.getFileName().toString().replaceFirst("\\.java$", "");
+        requireJavaName(name, "the class name (from " + file.getFileName() + ")");
         String pkg = packageOf(file);
+        for (String part : pkg.isEmpty() ? new String[0] : pkg.split("\\.")) requireJavaName(part, "the package folder " + part);
+        if (script.toString().matches("(?s).*[\\r\\n].*"))
+            throw new IllegalArgumentException("the script path has a line break and cannot be written into a Java string");
         return (pkg.isEmpty() ? "" : "package " + pkg + ";\n\n")
                 + """
                 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,8 +66,14 @@ public final class EmittedTest {
                 }
                 """
                         .replace("%NAME%", name)
-                        .replace("%SCRIPT%", script.toString().replace("\\", "/"))
+                        .replace("%SCRIPT%", script.toString().replace("\\", "/").replace("\"", "\\\""))
                         .replace("%TOKENS%", Long.toString(TOKEN_CAP));
+    }
+
+    private static void requireJavaName(String name, String what) {
+        boolean valid = !name.isEmpty() && Character.isJavaIdentifierStart(name.codePointAt(0)) && name.codePoints().allMatch(Character::isJavaIdentifierPart);
+        if (!valid)
+            throw new IllegalArgumentException(what + " is not a Java name; use letters, digits and underscores, starting with a letter");
     }
 
     private static String packageOf(Path file) {

@@ -72,7 +72,7 @@ class JudgeValidateCommandTest {
 
     @Test
     void aJudgeThatAgreesIsUsableAndTheResultIsRecordedForTheReport() throws Exception {
-        assertThat(validate(set(0))).isZero();
+        assertThat(validate(set(0), "--system-model=system-m")).isZero();
 
         assertThat(said()).contains("Usable for gating");
         assertThat(io.github.llm4j.loom.eval.JudgeValidationRecord.validatedFor(dir.resolve("eval"), "judge-m")).isTrue();
@@ -92,5 +92,13 @@ class JudgeValidateCommandTest {
         assertThat(said()).contains("at least 4");
 
         assertThat(validate("{ not a list")).isEqualTo(2);
+    }
+
+    @Test
+    void aJudgeIsNotUsableWhenTheSystemModelWasNotNamed() throws Exception {
+        assertThat(validate(set(0))).isEqualTo(1);
+
+        assertThat(said()).contains("Self-preference was not checked").contains("--system-model");
+        assertThat(io.github.llm4j.loom.eval.JudgeValidationRecord.validatedFor(dir.resolve("eval"), "judge-m")).isFalse();
     }
 }

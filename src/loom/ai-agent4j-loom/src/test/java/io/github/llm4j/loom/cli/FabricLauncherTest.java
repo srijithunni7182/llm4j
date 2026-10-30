@@ -20,6 +20,8 @@ import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
@@ -241,6 +243,38 @@ class FabricLauncherTest {
         assertThat(said()).contains("'0.0.0.0' is not this computer").contains("--trust-proxy");
         assertThat(host.started).isEmpty();
         assertThat(data.resolve("vault.json")).doesNotExist();
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "127.evil.example",
+                "127.0.0.1.nip.io",
+                "127.example.com",
+                "127.0.0",
+                "localhost.evil.example"
+            })
+    void aHostNameThatOnlyStartsLikeTheLoopbackIsNotThisComputer(String bind) {
+        int exit = launcher.up(up(bind));
+
+        assertThat(exit).isEqualTo(3);
+        assertThat(host.started).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"127.0.0.1", "127.1.2.3", "localhost", "::1", "[::1]"})
+    void theLoopbackAddressesAreThisComputer(String bind) {
+        assertThat(launcher.up(up(bind))).isZero();
+    }
+
+    @Test
+    void statusProbesTheAddressItWasToldTheServerListensOn() throws Exception {
+        launcher.up(up("192.168.1.5", "--tls-keystore", "k.p12"));
+        host.asked.clear();
+
+        launcher.status(data, 9090, "192.168.1.5");
+
+        assertThat(host.asked).isNotEmpty().allMatch(url -> url.endsWith("://192.168.1.5:9090"));
     }
 
     @Test

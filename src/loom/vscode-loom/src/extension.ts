@@ -138,7 +138,7 @@ export function activate(context: vscode.ExtensionContext): void {
         'loom.workflowOutline',
         provider
     );
-    context.subscriptions.push(treeViewDisposable);
+    context.subscriptions.push(treeViewDisposable, provider);
 }
 
 /**

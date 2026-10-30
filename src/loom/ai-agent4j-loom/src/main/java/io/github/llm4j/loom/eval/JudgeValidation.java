@@ -48,16 +48,26 @@ public final class JudgeValidation {
             double meanBias,
             List<String> offByTwoOrMore,
             List<String> biasNotes,
-            boolean sameFamily) {
+            boolean sameFamily,
+            boolean selfPreferenceChecked) {
 
-        /** A result with no bias findings. */
+        /** A result with no bias findings, whose self-preference check was made. */
         public Result(int outputs, double interHumanKappa, boolean rubricUnderSpecified, Double judgeKappa, double meanBias, List<String> offByTwoOrMore) {
-            this(outputs, interHumanKappa, rubricUnderSpecified, judgeKappa, meanBias, offByTwoOrMore, List.of(), false);
+            this(outputs, interHumanKappa, rubricUnderSpecified, judgeKappa, meanBias, offByTwoOrMore, List.of(), false, true);
         }
 
-        /** True only when the people agree, the judge agrees with them and it is not the system's own family. */
+        /** As before self-preference could be left unchecked: it was checked. */
+        public Result(int outputs, double interHumanKappa, boolean rubricUnderSpecified, Double judgeKappa, double meanBias, List<String> offByTwoOrMore, List<String> biasNotes, boolean sameFamily) {
+            this(outputs, interHumanKappa, rubricUnderSpecified, judgeKappa, meanBias, offByTwoOrMore, biasNotes, sameFamily, true);
+        }
+
+        /**
+         * True only when the people agree, the judge agrees with them, and it is known not to be the
+         * system's own family. A check that was not made does not pass: without both model names the
+         * answer is no.
+         */
         public boolean usableForGating() {
-            return !rubricUnderSpecified && !sameFamily && judgeKappa != null && judgeKappa >= JUDGE_MUST_AGREE;
+            return !rubricUnderSpecified && selfPreferenceChecked && !sameFamily && judgeKappa != null && judgeKappa >= JUDGE_MUST_AGREE;
         }
 
         /** The judge's band, or the humans' when the judge was never reached. */
@@ -75,6 +85,7 @@ public final class JudgeValidation {
             if (!offByTwoOrMore.isEmpty())
                 b.append(" Off by two or more on: ").append(String.join(", ", offByTwoOrMore)).append(".");
             for (String note : biasNotes) b.append(" ").append(note);
+            if (!selfPreferenceChecked) b.append(" Self-preference was not checked: name the judge (--model) and the model the agents run on (--system-model); a judge from the system's own family may not gate.");
             if (sameFamily) b.append(" The judge is from the same model family as the system it judges (self-preference): use a different family.");
             b.append(usableForGating() ? " Usable for gating on this dimension." : " The judge is not usable for gating on this dimension: improve the anchors, use another family if it is the system's own, and validate again.");
             return b.toString();
@@ -99,15 +110,28 @@ public final class JudgeValidation {
         return validate(rows, minOutputs, null, null);
     }
 
-    /** The model family: the name before its first separator, ignoring a provider prefix. */
+    /** A model name that starts the name of a family, as the vendor's models are named. */
+    private static final java.util.Map<java.util.regex.Pattern, String> FAMILIES =
+            java.util.Map.of(
+                    java.util.regex.Pattern.compile("^(gpt|chatgpt|davinci|o\\d).*"), "openai",
+                    java.util.regex.Pattern.compile("^claude.*"), "claude",
+                    java.util.regex.Pattern.compile("^(gemini|gemma|palm|bard).*"), "gemini",
+                    java.util.regex.Pattern.compile("^(llama|codellama).*"), "llama",
+                    java.util.regex.Pattern.compile("^(mistral|mixtral|codestral|ministral|pixtral).*"), "mistral",
+                    java.util.regex.Pattern.compile("^(command|cohere).*"), "cohere");
+
+    /**
+     * The model family, so that two names of one vendor's models compare equal: a provider prefix
+     * is ignored, the vendors' naming schemes are known ({@code o3-mini} and {@code gpt-4o} are
+     * both OpenAI's, {@code llama3.1} and {@code llama-3} both Meta's Llama), and any other name is
+     * taken as its leading letters.
+     */
     public static String family(String model) {
         String name = model.substring(model.lastIndexOf('/') + 1).toLowerCase(java.util.Locale.ROOT);
-        int cut = name.length();
-        for (char c : new char[] {'-', ':', '.', '_'}) {
-            int i = name.indexOf(c);
-            if (i > 0) cut = Math.min(cut, i);
-        }
-        return name.substring(0, cut);
+        for (var e : FAMILIES.entrySet()) if (e.getKey().matcher(name).matches()) return e.getValue();
+        int end = 0;
+        while (end < name.length() && Character.isLetter(name.charAt(end))) end++;
+        return end > 0 ? name.substring(0, end) : name;
     }
 
     /** As {@link #validate(List, int)}, also checking the judge's family against the system's. */
@@ -127,7 +151,7 @@ public final class JudgeValidation {
                 throw new IllegalArgumentException("output " + r.id() + " has no judge score: run the judge over the reference outputs and add its scores");
         }
         double inter = interHuman(rows);
-        if (inter < HUMANS_MUST_AGREE) return new Result(rows.size(), inter, true, null, 0, List.of(), List.of(), false);
+        if (inter < HUMANS_MUST_AGREE) return new Result(rows.size(), inter, true, null, 0, List.of(), List.of(), false, judgeModel != null && systemModel != null);
         int[] consensus = new int[rows.size()];
         int[] judge = new int[rows.size()];
         double bias = 0;
@@ -140,7 +164,7 @@ public final class JudgeValidation {
             if (Math.abs(judge[i] - consensus[i]) >= WIDE_MISS) off.add(r.id());
         }
         boolean same = judgeModel != null && systemModel != null && family(judgeModel).equals(family(systemModel));
-        return new Result(rows.size(), inter, false, kappa(consensus, judge), bias / rows.size(), off, verbosity(rows, judge, consensus), same);
+        return new Result(rows.size(), inter, false, kappa(consensus, judge), bias / rows.size(), off, verbosity(rows, judge, consensus), same, judgeModel != null && systemModel != null);
     }
 
     private static final double VERBOSITY_R = 0.3;

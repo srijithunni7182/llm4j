@@ -73,7 +73,7 @@ class JudgeValidationTest {
 
     @Test
     void aJudgeThatAgreesWithTheHumanConsensusIsUsableForGating() {
-        JudgeValidation.Result r = JudgeValidation.validate(agreeing(40, 1, 2, 3, 4, 5), 40);
+        JudgeValidation.Result r = JudgeValidation.validate(agreeing(40, 1, 2, 3, 4, 5), 40, "judge-m", "system-m");
 
         assertThat(r.interHumanKappa()).isEqualTo(1.0);
         assertThat(r.judgeKappa()).isEqualTo(1.0);

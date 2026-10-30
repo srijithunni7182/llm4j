@@ -81,9 +81,12 @@ final class FabricCommand implements Callable<Integer> {
         @Option(names = "--port", description = "Port it listens on (default: ${DEFAULT-VALUE}).")
         int port = 9090;
 
+        @Option(names = "--bind", description = "Address the server was told to listen on (default: ${DEFAULT-VALUE}).")
+        String bind = "127.0.0.1";
+
         @Override
         public Integer call() {
-            return launcher().status(data, port);
+            return launcher().status(data, port, bind);
         }
     }
 
