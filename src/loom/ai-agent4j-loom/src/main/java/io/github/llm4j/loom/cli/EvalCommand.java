@@ -141,6 +141,13 @@ final class EvalCommand implements Callable<Integer> {
     boolean releaseGate;
 
     @Option(
+            names = "--protocol",
+            paramLabel = "<name>",
+            description =
+                    "Run a named protocol of eval-protocol.yaml (a commit, nightly, release or drift run): its split, repetitions, release gate, judge samples and caps, for what you did not give yourself. The report records its name.")
+    String protocol;
+
+    @Option(
             names = "--repetitions",
             paramLabel = "<n>",
             description =
@@ -220,11 +227,44 @@ final class EvalCommand implements Callable<Integer> {
         }
     }
 
+    /**
+     * Fills in what the named protocol sets and the command line did not. Prints why and returns
+     * false when the file is missing, wrong, or has no such protocol.
+     */
+    private static boolean applyProtocol(EvalCommand c, WeaveEnv env) {
+        java.util.Map<String, io.github.llm4j.loom.eval.Protocols.Protocol> all;
+        try {
+            all = io.github.llm4j.loom.eval.Protocols.load(io.github.llm4j.loom.init.ProjectLayout.root(c.script.toPath()));
+        } catch (java.io.IOException | RuntimeException e) {
+            env.err().println("Error: " + io.github.llm4j.loom.eval.Protocols.FILE + ": " + e.getMessage());
+            return false;
+        }
+        io.github.llm4j.loom.eval.Protocols.Protocol p = all.get(c.protocol);
+        if (p == null) {
+            env.err()
+                    .println(
+                            "Error: there is no protocol named "
+                                    + c.protocol
+                                    + (all.isEmpty()
+                                            ? " (there is no " + io.github.llm4j.loom.eval.Protocols.FILE + " in the project)."
+                                            : "; the file has " + String.join(", ", all.keySet()) + "."));
+            return false;
+        }
+        if (c.split == null) c.split = p.split();
+        if (c.repetitions == 1 && p.repetitions() != null) c.repetitions = p.repetitions();
+        if (!c.releaseGate) c.releaseGate = p.releaseGate();
+        if (c.judgeSamples == 1 && p.judgeSamples() != null) c.judgeSamples = p.judgeSamples();
+        if (c.maxCost == null) c.maxCost = p.maxCost();
+        if (c.maxTokens == null) c.maxTokens = p.maxTokens();
+        return true;
+    }
+
     private static int evaluate(EvalCommand c, WeaveEnv env) {
         if (c.check && c.init) {
             env.err().println("Error: --check and --init cannot be used together.");
             return 2;
         }
+        if (c.protocol != null && !applyProtocol(c, env)) return 2;
         if (c.split != null && !Splits.ALL.contains(c.split)) {
             env.err()
                     .println(
@@ -638,6 +678,7 @@ final class EvalCommand implements Callable<Integer> {
             settings.put("version change allowed", c.allowVersionChange);
         if (c.split != null) settings.put("split", c.split);
         if (heldOutLeftOutCount > 0) settings.put("held-out not run", String.valueOf(heldOutLeftOutCount));
+        if (c.protocol != null) settings.put("protocol", c.protocol);
         settings.put("bundle", bundleRoot.resolve("runs").resolve(runId).toString());
         EvalReport.Run run =
                 new EvalReport.Run(

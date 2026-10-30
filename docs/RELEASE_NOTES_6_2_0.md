@@ -126,3 +126,8 @@ Status: **in progress** (the field findings program, [docs/specs/FIELD_FINDINGS.
 - **`weave judge validate`** compares a judge with people on a scored reference set (people against each other first, then the judge against their median, with kappa), exits 0, 1 or 2, and records the result so a report can say the judge was validated (and only for that model).
 - **The cost section gives the median and p95 cost of a case and the runaway count**, so a few runaway runs show.
 - **`weave eval --check` names a thin case class, a slice under ten cases, and the source mix** (from `class:`, `domain:`/`difficulty:`/`split:` and `source:` tags).
+
+## New: run protocols and metamorphic cases
+
+- **`eval-protocol.yaml` and `weave eval --protocol <name>`** write the run protocol down (a commit run, nightly, a release gate, a weekly drift check) as named sets of `weave eval` options; the command line wins over the file, the report names the protocol, and a wrong file is refused by name.
+- **`weave metamorphic`** derives, with no model, the cases that test a relation between two runs (an irrelevant addition, a reordering) and writes them beside the originals in a new folder; the report names a case that passes alone and fails perturbed.

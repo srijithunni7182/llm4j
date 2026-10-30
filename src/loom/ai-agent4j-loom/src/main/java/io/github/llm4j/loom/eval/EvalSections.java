@@ -513,6 +513,7 @@ public final class EvalSections {
         long unjudged = run.count(Status.UNJUDGED);
         if (unjudged > 0)
             l.add(unjudged + " case" + (unjudged == 1 ? " is" : "s are") + " unjudged: nothing confirmed " + (unjudged == 1 ? "it" : "them") + ". Unjudged is not a pass.");
+        l.addAll(Metamorphic.fragile(run.results()));
         int[] verdicts = verdictCounts(run);
         int judged = verdicts[0] + verdicts[1] + verdicts[2];
         if (judged > 0 && verdicts[2] * 10 > judged)

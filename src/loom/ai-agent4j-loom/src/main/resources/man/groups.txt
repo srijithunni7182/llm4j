@@ -3,7 +3,7 @@
 Start here: try doctor init next guide man
 Describe it and build it: generate
 Understand and check a script: check explain graph symbols review audit rules
-Test and evaluate: test eval judge gate preflight
+Test and evaluate: test eval judge metamorphic gate preflight
 Run it: run step package resume
 Watch a run and ask why: observe why whatif timeline
 Answer people and fix a run: questions answer rewind reset fork replay

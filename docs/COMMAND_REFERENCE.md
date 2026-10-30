@@ -32,6 +32,7 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 - [`weave test`](#weave-test) — Runs test cases against a workflow with scripted models and no keys: routes, calls and results are checked, nothing is spent.
 - [`weave eval`](#weave-eval) — Runs a script's golden dataset (eval/golden/*.yaml) against it and reports passed, failed and unjudged.
 - [`weave judge`](#weave-judge) — Checks whether an LLM judge may gate: its scores against people's scores.
+- [`weave metamorphic`](#weave-metamorphic) — Derives metamorphic cases from a golden dataset with no model: an irrelevant addition and a reordering of the input must not change the conclusion, so each derived case keeps the original's expectations and is tagged relation:<name> and pair:<id>.
 - [`weave gate`](#weave-gate) — Runs the checks your team chose (check, review, test, regress, eval) and prints one verdict, for CI.
 - [`weave preflight`](#weave-preflight) — Sends one small probe per agent through its real prompts and checks: the key, the model, one whole answer, that the shared prompt reaches the model, sources for grounded agents, price and window.
 
@@ -1882,6 +1883,7 @@ weave eval [OPTIONS] <script>
 - `--prices=<prices>` — Price table: lines of 'model = input / output' per million tokens.
 - `--prompt=<id@vN>` — Run this version of a prompt for this run only, e.g. --prompt researcher@v2 (repeatable).
 - `--prompts=<dir>` — The folder of prompt files (default: the script's prompts: line, else a prompts/ folder beside the script).
+- `--protocol=<name>` — Run a named protocol of eval-protocol.yaml (a commit, nightly, release or drift run): its split, repetitions, release gate, judge samples and caps, for what you did not give yourself. The report records its name.
 - `--release-gate` — This run is the release gate: held-out cases (split:heldout) run too, and the report records that it was a gate run. Without it held-out cases never run.
 - `--repetitions=<n>` — Run each case this many times (default 1, at most 10): the report then gives pass@1, pass^N, consistency and the unstable cases. Every repetition is a paid run.
 - `--report=<file>` — Also write the results as a single HTML page.
@@ -1956,6 +1958,23 @@ weave judge validate [OPTIONS]
 - `--model=<name>` — The judge model the scores came from (as in weave eval --judge). The record names it, and a report says validated only for this model.
 - `--project=<folder>` — The project: the result is recorded in <folder>/eval/judge-validation.json (default: this folder).
 - `--reference=<file>` — The scored reference set.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+### `weave metamorphic`
+
+Derives metamorphic cases from a golden dataset with no model: an irrelevant addition and a reordering of the input must not change the conclusion, so each derived case keeps the original's expectations and is tagged relation:<name> and pair:<id>.
+
+Writes the originals and the derived cases to --out. Paraphrase, monotonicity and negation need a model or the domain's evidence: write those pairs by hand.
+
+```
+weave metamorphic [OPTIONS]
+```
+
+**Options**
+
+- `--from=<dir>` — The dataset folder (eval/golden).
+- `--out=<dir>` — Where to write the dataset with the derived cases added. It must be empty or new.
+- `--relations=<relations>` — irrelevant, order (default: irrelevant,order).
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave test`
