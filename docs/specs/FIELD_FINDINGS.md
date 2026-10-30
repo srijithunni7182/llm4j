@@ -211,3 +211,12 @@ Each is also recorded in the DESIGN of the phase it affects. A recommendation is
 2. For each phase, `VERIFICATION.md` §0 reproduces the findings on the current build. Anything that does not reproduce is reported and dropped or reshaped.
 3. Then the usual loop of [the specs README](README.md): tests first, implement in small pieces, iterate, verify, document, ship.
 4. This page's register is updated as findings are reproduced, fixed or declined, so that nothing is lost and nothing is claimed that was not checked.
+
+## Final live run (2026-10-30)
+
+`make test-live` (`mvn -q -Plive verify`) on the branch, with the keys this machine has (`OPENAI_API_KEY`, `JEV_API_KEY`, `XAI_API_KEY`, `SPIKE_ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY`; no Anthropic, Gemini, Sarvam or Ollama key for the main live suites). Spend was not measured; the tests send short prompts and the owner's cap was $3.
+
+- **Passed, against real providers:** `ProviderSmokeIntegrationTest` (every vendor with a key answers and its wire formats still parse), `ClassifierJudgeLiveTest` (3), `JevVsLlmStudyIntegrationTest`, `LiveProviderContractTest.l9_aBadKeyIsAnAuthenticationFailure`, `ScrubTest` (2).
+- **Skipped, with the reason "no provider credentials set" (the keys those suites read are not here):** `LiveProviderContractTest` l1 to l8 (8), `LiveNativeToolCallingTest` l12 and l13 (2), `LiveSwitchingTest` l10, `LoomLiveTest` l11, and the unicode-path and `LLM4J_LIVE` tests of the default build. The behaviour of the Phase 17 to 19 fixes against Anthropic, Gemini, Sarvam and Ollama is therefore **not** verified live.
+- **The make target exited non-zero** at `loom-inspect-core` on a JaCoCo coverage rule: a live-only run cannot meet a coverage gate. No test failed. The limits were not touched; whether the `live` profile should skip the gate is a decision for the owner.
+- Not run in the live suites: the manual checks M1 to M6 of Phases 17 to 22, the scripted dry run of the evaluation design skill, PIT mutation profiles, `make release-check`.
