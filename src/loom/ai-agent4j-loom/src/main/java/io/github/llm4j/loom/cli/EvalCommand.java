@@ -54,10 +54,7 @@ final class EvalCommand implements Callable<Integer> {
                     "The .loot tool mapping file, for a script that uses your own tools (a real run calls them; --mock does not).")
     File lootFile;
 
-    @Option(
-            names = "--verbose",
-            description =
-                    "Show what each agent is doing as it runs (by default only the result is shown).")
+    /** Set from the global {@code -v} / {@code --verbose} (see {@link WeaveCLI}): show the agents' progress lines. */
     boolean verbose;
 
     @Option(

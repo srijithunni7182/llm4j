@@ -42,6 +42,14 @@ import picocli.CommandLine.Parameters;
         })
 public class WeaveCLI implements Callable<Integer> {
 
+    /** {@code -v} gives the INFO lines, {@code -vv} the FINE ones; the answer is printed either way. */
+    @CommandLine.Option(
+            names = {"-v", "--verbose"},
+            scope = CommandLine.ScopeType.INHERIT,
+            description =
+                    "Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed.")
+    boolean[] verbosity = new boolean[0];
+
     @Override
     public Integer call() throws Exception {
         CommandLine.usage(this, System.out);
@@ -1610,13 +1618,6 @@ public class WeaveCLI implements Callable<Integer> {
     }
 
     /**
-     * Commands that run for a while and report as they go keep Loom's progress lines; every other
-     * command prints only its own answer.
-     */
-    private static final java.util.Set<String> PROGRESS =
-            java.util.Set.of("run", "resume", "tick", "daemon");
-
-    /**
      * Commands that load the script again for every case: the loader's warnings (they are the
      * check's and the review's to report) would be printed once for each case.
      */
@@ -1628,17 +1629,20 @@ public class WeaveCLI implements Callable<Integer> {
         java.util.logging.Level before = loom.getLevel();
         String command =
                 parseResult.hasSubcommand() ? parseResult.subcommand().commandSpec().name() : "";
-        boolean quiet =
-                !PROGRESS.contains(command) && !"info".equalsIgnoreCase(System.getenv("WEAVE_LOG"));
-        if (quiet)
-            loom.setLevel(
-                    ONCE_IS_ENOUGH.contains(command)
-                                    && !"warn".equalsIgnoreCase(System.getenv("WEAVE_LOG"))
-                            ? java.util.logging.Level.OFF
-                            : java.util.logging.Level
-                                    .WARNING); // "Loading Loom script" on every command buried the
-        // answers;
-        // WEAVE_LOG=info brings them back
+        Object root = parseResult.commandSpec().userObject();
+        int verbosity = root instanceof WeaveCLI w ? w.verbosity.length : 0;
+        String env = System.getenv("WEAVE_LOG");
+        java.util.logging.Level level;
+        if (verbosity >= 2) level = java.util.logging.Level.FINE;
+        else if (verbosity == 1 || "info".equalsIgnoreCase(env)) level = java.util.logging.Level.INFO;
+        else if (ONCE_IS_ENOUGH.contains(command) && !"warn".equalsIgnoreCase(env))
+            // the loader's warnings are the check's and the review's to report, not once per case
+            level = java.util.logging.Level.OFF;
+        else level = java.util.logging.Level.WARNING;
+        loom.setLevel(level);
+        if (parseResult.hasSubcommand()
+                && parseResult.subcommand().commandSpec().userObject() instanceof EvalCommand e)
+            e.verbose = verbosity >= 1;
         try {
             return new CommandLine.RunLast().execute(parseResult);
         } finally {

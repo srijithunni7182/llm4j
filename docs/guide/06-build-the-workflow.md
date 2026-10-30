@@ -148,6 +148,7 @@ workflow Main(topic) {
 }
 ```
 
+- On a `delegate`, `expecting { ... }` comes before `retry N`; a string can hold a quote as `\"` and a backslash as `\\`.
 - `retry N` tries the step again (a task that changes things is retried only if it is idempotent; `weave check` refuses otherwise).
 - `on_failure { ... }` takes over when the retries are used up, and the workflow goes on: a person is asked, a note is made, another path is taken. A step that has **no** `on_failure` ends the run as failed, and the run says which step did it: `failed_kind` (`task` or `delegate`), `failed_name`, `failed_step` and `failed_category` in the trace. A watched run shows this as a banner naming the step, and a step that went through its `on_failure` is shown as a quieter *diverted* line.
 - Decide for each task and delegate: is a failure here worth stopping the run, worth a retry, or worth a person? Do not leave it to chance.

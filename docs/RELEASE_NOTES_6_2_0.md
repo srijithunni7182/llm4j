@@ -85,3 +85,10 @@ Status: **in progress** (the field findings program, [docs/specs/FIELD_FINDINGS.
 - The editor's Flow view and the shared renderer (Fabric, the eval report) draw a fork, one lane per branch with its failure handler under its step, and a join; consecutive `set`s are one small card that opens to list them (`loom.graph.groupSets` turns that off).
 - **The graph-render tests had been failing since the `classify` statement was added to the sample script (19 of 73 on a clean checkout), unnoticed because no CI job runs them.** The table now matches the sample; the tests pass (91).
 
+## Changed: strings, hints for known mistakes, and the options of `weave test`
+
+- **A string can hold a double quote and end with a backslash.** `\"` is a double quote and `\\` a backslash inside a string; any other backslash stays as written (`\n` and `\t` are read later, as before). **A string that ended in `\"` expecting the backslash to be text now reads differently**: none of the scripts in this repository does (a test lists any), but check yours; the lexer says what to write when a string would end in a lone backslash. The editor's parser reads strings the same way.
+- **A known mistake says its fix.** `expecting {…}` after `retry N` on a `delegate` is a parse error that names the right order, and a scripted task result with the reserved key `value` says what to write instead. The registry (`KnownMistakes`, see `CONTRIBUTING.md`) is one row and a test per mistake.
+- **`weave test` takes `--classes`, `--loot` and `--env-file`**, like `weave run` and `weave eval`. In a built Maven project the three use `target/classes` and say so in one line; `--no-auto-classes` turns that off. (`--loot` is checked to exist and otherwise ignored by `test`, which scripts every tool.)
+- **The log is not the answer.** Every command logs at WARNING by default; `-v` (or `--verbose`) shows the progress lines and `-vv` the detail. `weave run`, `resume`, `tick` and `daemon` no longer print Loom's INFO progress lines unless you pass `-v` (or set `WEAVE_LOG=info`); a script that read `INFO:` lines from them must pass `-v`. `weave eval --verbose` works as before.
+

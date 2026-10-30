@@ -74,7 +74,16 @@ final class ScriptedTasks {
                     Map<String, Object> data = new LinkedHashMap<>();
                     chosen.fields()
                             .forEachRemaining(e -> data.put(e.getKey(), plain(e.getValue())));
-                    return TaskResult.ok(data);
+                    try {
+                        return TaskResult.ok(data);
+                    } catch (IllegalArgumentException e) {
+                        // a reserved key: say what to write instead (the registry of known mistakes)
+                        String message =
+                                io.github.llm4j.loom.hints.KnownMistakes.withHint(
+                                        "task " + name + ": " + e.getMessage(), java.util.List.of(), -1);
+                        recorder.violation(message);
+                        throw new IllegalStateException(message, e);
+                    }
                 }
                 return TaskResult.value(plain(chosen));
             }

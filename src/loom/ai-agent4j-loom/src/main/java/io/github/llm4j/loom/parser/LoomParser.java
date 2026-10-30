@@ -3433,13 +3433,16 @@ public class LoomParser {
 
     private RuntimeException error(Token token, String message) {
         return new RuntimeException(
-                "Parse error at line "
-                        + token.getLine()
-                        + " col "
-                        + token.getColumn()
-                        + " ("
-                        + token.getType()
-                        + "): "
-                        + message);
+                io.github.llm4j.loom.hints.KnownMistakes.withHint(
+                        "Parse error at line "
+                                + token.getLine()
+                                + " col "
+                                + token.getColumn()
+                                + " ("
+                                + token.getType()
+                                + "): "
+                                + message,
+                        tokens,
+                        tokens.indexOf(token)));
     }
 }

@@ -195,3 +195,21 @@ test('a character that is not valid is still reported next to a ladder', () => {
     const r = parseDocument(['ladder L { rung a { mode: blind } }', 'agent A { model: "m" system: "s" # }'].join('\n'));
     assert.deepEqual(r.errors.filter((e) => e.kind === 'LexError').map((e) => `${e.line}:${e.message}`), ["1:Unexpected character: '#'"]);
 });
+
+// Phase 22 R4: the language's lexer reads \" as a quote and \\ as a backslash inside a string; so must the editor's parser.
+
+test('an escaped quote inside a string does not end the string', () => {
+    const src = ['agent A { model: "m" }', 'workflow W(t) {', '    note "say \\"hi\\" to {t}"', '}'].join('\n');
+    assert.deepEqual(parseDocument(src).errors, []);
+});
+
+test('an escaped backslash ends nothing, so a string may end in one', () => {
+    const src = ['workflow W() {', '    note "C:\\\\dir\\\\"', '}'].join('\n');
+    assert.deepEqual(parseDocument(src).errors, []);
+});
+
+test('a string that ends in a lone backslash before the quote is still reported as unterminated', () => {
+    const src = ['workflow W() {', '    note "ends with a backslash\\"', '}'].join('\n');
+    const kinds = parseDocument(src).errors.map((e) => e.message);
+    assert.ok(kinds.includes('Unterminated string literal'), kinds.join(' | '));
+});

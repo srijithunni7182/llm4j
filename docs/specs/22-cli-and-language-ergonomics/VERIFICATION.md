@@ -89,3 +89,14 @@ Generated command pages; `LOOM_GUIDE.md`; `LOOM_PROMPT.md`; `docs/guide/06-build
 ## 7. Results
 
 *(empty until 22a)*
+
+## 7. Results
+
+### 22a: R1 to R4 (done)
+
+- **Reproduced first (P1, P3, P5, P2, P4):** `weave test` had no `--classes`, `--loot` or `--env-file` (P1); `expecting` after `retry` was a parse error with no hint (P3); `"say \"hi\""` failed with "Unexpected character '\'" (P5). **P2 did not reproduce as written:** `weave test` and the other non-progress commands were already quiet (`executeQuietly`, `WEAVE_LOG`); the real gaps were no `-v` flag and the progress commands (`run`, `resume`, `tick`, `daemon`) still logging INFO. **P4's cause was not the language:** `value` is reserved by `TaskResult.ok(map)`, so it surfaced as a Java message in a scripted case, not as a parse error; the hint is added there.
+- **R4:** the lexer reads `\"` and `\\`, keeps every other backslash, and says what to write for a string ending in one; the editor's parser matches. `StringEscapesTest` (7, with the corpus of every `.loom` file: only the new CTK script contains `\"`), `parseDocument.test.ts` (3), CTK scenario `string_escapes` with `StringEscapesCtkTest`.
+- **R3:** `KnownMistakes` registry (two rows) with `KnownMistakesTest` (7) and a scripted-case test in `ScriptedWorldTest`; documented in `CONTRIBUTING.md`.
+- **R1:** `weave test` has `--classes`, `--no-auto-classes`, `--loot`, `--env-file`, `--no-env-file`; the first, third and fourth are mixins shared with `run` and `eval`. `OptionParityTest` (5). **`--loot` is accepted and checked to exist but otherwise ignored by `test`**, which scripts every tool.
+- **R2:** global `-v` / `-vv` (an inherited option on the root command), default WARNING for every command including `run`; `VerboseFlagTest` (4). The old `eval --verbose` is now the global flag. **Behaviour change:** `weave run` no longer prints INFO progress lines unless `-v` is given.
+- Not done in 22a: the "scripted case header only on failure" part of R2 (the case lines of `weave test` are its answer and were left as they are); `--classes` help text is shared by mixin, `--loot`'s is not (it differs per command); the `weave test --classes` path with real task classes was not exercised end to end, only the option and the note.

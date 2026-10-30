@@ -276,7 +276,7 @@ next step. A warning is usually a real mistake in the workflow.
 
 ### 5. Testing the Logic (`test`)
 
-`weave test` runs cases against a workflow with **scripted models**: no model, no key, no network and no spend, and the answer is the same every time. It tests what your *script* does (which branch is taken, how often a loop runs, what a failed step falls back to, who is asked) and not whether an agent writes well; that is `weave eval`.
+`weave test` runs cases against a workflow with **scripted models**: no model, no key, no network and no spend, and the answer is the same every time. It takes the same `--classes`, `--loot` and `--env-file` as `weave run` and `weave eval`; in a built Maven project it uses `target/classes` and says so (`--no-auto-classes` turns that off). It tests what your *script* does (which branch is taken, how often a loop runs, what a failed step falls back to, who is asked) and not whether an agent writes well; that is `weave eval`.
 
 ```yaml
 # tests/triage.test.yaml
@@ -1391,6 +1391,20 @@ Loom provides **Symbolic Controls** that ensure your agents follow a rigid seque
 > **New in this release:** [cost budgets](#cost-budgets), [durable runs](#durable-runs-no-new-syntax), [`for each` with runtime routing](#for-each),
 > [bounded loops](#bounded-loops), [retry backoff and timeouts](#retry-backoff-and-timeouts),
 > [per-step schemas](#per-step-schemas-expecting), agent `temperature:` and `{var.list.0}` payload paths.
+
+### Strings and Quotes
+A string is written between double quotes and may run over several lines. Inside it, `\"` is a double quote and `\\` is a backslash, so a string can hold a quote and can end with a backslash. Any other backslash stays as written: `\n` and `\t` are read later, as they always were. A string cannot end in a single backslash before its closing quote (that reads as an escaped quote); write two.
+
+```loom
+agent Greeter { model: "gemini-2.5-flash" system: "You greet people." }
+
+workflow Greet(name) {
+    delegate "Say \"hello\" to {name} and sign off as C:\\Greeter\\" to Greeter -> greeting
+    return greeting
+}
+```
+
+On a `delegate`, `expecting { ... }` comes before `retry N`: `delegate "..." to A -> x expecting { ok: boolean } retry 1`. The other order is a parse error that says so.
 
 ### Concurrency Example (Parallel Branches)
 ```loom

@@ -43,6 +43,10 @@ See `docs/TESTING_STRATEGY.md` for execution model and CI mapping.
   - `docs/API_COMPATIBILITY.md`
   - migration guides (for example `docs/MIGRATION_GUIDE_5_0.md`)
 
+## Known Mistakes
+
+A failure that says X when it meant Y, and has a known fix, is answered with the fix. The registry is `KnownMistakes` (`src/loom/ai-agent4j-loom/.../hints/KnownMistakes.java`): a row is an id, a condition on the failure message and (for a parse error) the tokens around it, and one sentence that names the fix. Add the row and a test that shows the message, the hint and that the fix really works. A hint names the words of the language and their order, never the text of a prompt, a key or a value.
+
 ## Security and Secrets
 
 - Never commit credentials, API keys, or secrets.
