@@ -263,11 +263,42 @@
     return set;
   }
 
-  /** The graph with collapsed blocks folded into their container node. */
-  function visibleGraph(graph, collapsed) {
+  /**
+   * Runs of consecutive `set` steps, as lists of ids: a set joins the run before it only when it is that set's one successor and
+   * the run is its one predecessor, so nothing that branches or joins is ever folded away.
+   */
+  function setRuns(graph) {
+    var byId = {}, out = {}, inn = {}, taken = {}, runs = [];
+    graph.nodes.forEach(function (n) { byId[n.id] = n; out[n.id] = []; inn[n.id] = []; });
+    graph.edges.forEach(function (e) { if (out[e.from] && inn[e.to]) { out[e.from].push(e); inn[e.to].push(e); } });
+    function joins(a, b) { return out[a.id].length === 1 && inn[b.id].length === 1 && b.kind === 'set' && parentOf(a) === parentOf(b) && !isBackLabel(out[a.id][0].label); }
+    graph.nodes.forEach(function (n) {
+      if (n.kind !== 'set' || taken[n.id]) { return; }
+      var before = inn[n.id].length === 1 ? byId[inn[n.id][0].from] : null;
+      if (before && before.kind === 'set' && joins(before, n)) { return; } // not the first of its run
+      var run = [n.id], cur = n;
+      while (out[cur.id].length === 1) {
+        var next = byId[out[cur.id][0].to];
+        if (!next || !joins(cur, next) || taken[next.id]) { break; }
+        run.push(next.id); cur = next;
+      }
+      if (run.length > 1) { run.forEach(function (id) { taken[id] = 1; }); runs.push(run); }
+    });
+    return runs;
+  }
+
+  /** The graph with collapsed blocks folded into their container node, and (unless `groupSets` is false) runs of sets into their first. */
+  function visibleGraph(graph, collapsed, groupSets) {
     collapsed = collapsed || new Set();
-    if (!collapsed.size) { return { nodes: graph.nodes, edges: graph.edges, hiddenCount: {} }; }
-    var rep = representatives(graph, collapsed), counts = descendantCounts(graph);
+    var runs = groupSets === false ? [] : setRuns(graph);
+    if (!collapsed.size && !runs.length) { return { nodes: graph.nodes, edges: graph.edges, hiddenCount: {}, groups: {} }; }
+    var rep = collapsed.size ? representatives(graph, collapsed) : (function () { var r = {}; graph.nodes.forEach(function (n) { r[n.id] = n.id; }); return r; })();
+    var counts = descendantCounts(graph), groups = {};
+    runs.forEach(function (run) {
+      if (rep[run[0]] !== run[0]) { return; } // the run is inside a block that is folded away
+      groups[run[0]] = run;
+      run.slice(1).forEach(function (id) { rep[id] = run[0]; });
+    });
     var nodes = graph.nodes.filter(function (n) { return rep[n.id] === n.id; });
     var seen = {}, edges = [];
     graph.edges.forEach(function (e) {
@@ -277,7 +308,7 @@
       if (!seen[key]) { seen[key] = 1; edges.push({ from: a, to: b, label: e.label }); }
     });
     var hidden = {}; collapsed.forEach(function (id) { hidden[id] = counts[id] || 0; });
-    return { nodes: nodes, edges: edges, hiddenCount: hidden };
+    return { nodes: nodes, edges: edges, hiddenCount: hidden, groups: groups };
   }
 
   /* ----------------------------------------------------------------- layout */
@@ -452,10 +483,14 @@
    * bounds}. `collapsed` is a Set of container ids drawn as a single node.
    */
   function layout(graph, ctx, collapsed) {
-    var vg = visibleGraph(graph, collapsed), items = {}, ids = [];
+    var vg = visibleGraph(graph, collapsed, ctx && ctx.groupSets), items = {}, ids = [];
     if (!vg.nodes.length) { return { nodes: [], routes: [], bounds: { x: -MARGIN, y: -MARGIN, w: 2 * MARGIN, h: 2 * MARGIN }, hiddenCount: {} }; }
+    var byId = {}; graph.nodes.forEach(function (n) { byId[n.id] = n; });
     vg.nodes.forEach(function (n) {
-      var p = prepared(n, ctx), hidden = vg.hiddenCount[n.id];
+      var run = vg.groups[n.id], names = run && run.map(function (id) { return String(byId[id].label || id).replace(/^set /, ''); });
+      // a run of sets is one node: named for what it holds, with its members kept so the host can still address each of them
+      var p = prepared(run ? Object.assign({}, n, { label: 'sets ' + run.length + ' variables' }) : n, ctx), hidden = vg.hiddenCount[n.id];
+      if (run) { p.members = run; p.sub = names.join(', '); p.h = Math.max(p.h, 44); }
       if (hidden) { p.hidden = hidden; p.chips = p.chips.slice(0, 2).concat([{ t: '+' + hidden + ' steps', v: 'toggle' }]); p.w = Math.max(p.w, 188); p.h = Math.max(p.h, 14 + 18 + (p.sub ? 16 : 0) + 26 + 6); }
       items[n.id] = p; ids.push(n.id);
     });
@@ -469,7 +504,7 @@
     if (!isFinite(minX)) { minX = 0; maxX = 0; }
     var placed = {}, nodes = [];
     ids.forEach(function (id) {
-      var it = items[id], p = { id: id, node: it.node, info: it.info, w: it.w, h: it.h, chips: it.chips, sub: it.sub, hidden: it.hidden, x: x[id] - it.w / 2 - minX, y: y[id], layer: layer[id] };
+      var it = items[id], p = { id: id, node: it.node, info: it.info, w: it.w, h: it.h, chips: it.chips, sub: it.sub, hidden: it.hidden, members: it.members, x: x[id] - it.w / 2 - minX, y: y[id], layer: layer[id] };
       placed[id] = p; nodes.push(p);
     });
     var geometry = {
@@ -592,7 +627,7 @@
       (opts.selected === p.id ? ' lg-sel' : '') + (st ? ' lg-state-' + st : '') + (st === 'none' ? ' lg-dim' : '');
     var label = title(node) + (node.source ? ', line ' + node.source.line : '');
     var aria = label + (st && MARK[st] ? ', ' + MARK[st].text : '');
-    var out = '<g class="' + cls + '" data-id="' + esc(p.id) + '" role="button" tabindex="0" aria-label="' + esc(aria) + '"><title>' + esc(cut(node.label || node.id, 500)) + '</title>';
+    var out = '<g class="' + cls + '" data-id="' + esc(p.id) + '"' + (p.members ? ' data-members="' + esc(p.members.join(' ')) + '"' : '') + ' role="button" tabindex="0" aria-label="' + esc(aria) + '"><title>' + esc(cut(node.label || node.id, 500)) + '</title>';
     out += shapeSvg(p);
     if (pill) {
       out += '<text class="lg-title" x="' + (p.x + p.w / 2) + '" y="' + (p.y + 19) + '" text-anchor="middle">' + esc(title(node)) + '</text>';

@@ -3,13 +3,22 @@ flowchart TD
   start(["Start"])
   n1["observe Proposal Ingested"]
   n2["in parallel: CFO, CTO"]
+  subgraph n2_lane1["CFO"]
+    n6["delegate CFO"]
+  end
+  subgraph n2_lane2["CTO"]
+    n7["delegate CTO"]
+  end
   n3["observe Analyses Complete"]
   n4["delegate CEO"]
   n5["handoff CEO"]
   end_(["End"])
   start --> n1
   n1 --> n2
-  n2 --> n3
+  n6 --> n3
+  n7 --> n3
   n3 --> n4
   n4 --> n5
+  n2 --> n6
+  n2 --> n7
   n5 --> end_

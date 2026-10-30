@@ -112,6 +112,15 @@ public final class TestSynth {
                 if (!node.kind().equals("start") && !node.kind().equals("end"))
                     real.add(w.name() + "/" + node.id());
         int total = real.size();
+        Set<String> parallelNodes = new LinkedHashSet<>();
+        Set<String> laneLabels = new LinkedHashSet<>();
+        for (var w : graph.workflows())
+            for (var node : w.nodes()) {
+                if (node.kind().equals("parallel")) parallelNodes.add(w.name() + "/" + node.id());
+                // a failed branch leaves nothing in the journal, so its label is what gives it away
+                if (node.branch() != null && node.branch().startsWith("lane "))
+                    laneLabels.add(node.label());
+            }
 
         List<ObjectNode> kept = new ArrayList<>();
         Set<String> seenEnds = new LinkedHashSet<>();
@@ -167,6 +176,10 @@ public final class TestSynth {
                 expect.put("final", finalOf(r.status()));
                 ArrayNode route = expect.putArray("route");
                 r.route().forEach(route::add);
+                // the branches of a parallel block finish in whatever order the threads run, so a
+                // route through one is not an expectation that holds from one run to the next
+                if (nodes.stream().anyMatch(parallelNodes::contains)
+                        || r.route().stream().anyMatch(laneLabels::contains)) expect.remove("route");
                 if (!holds(script, main, body)) {
                     // a route the test file cannot name (a step label it does not know) is left out
                     // of the case; the final state and the cases themselves still stand
@@ -175,7 +188,11 @@ public final class TestSynth {
                 }
                 seenEnds.add(end);
                 kept.add(body);
-                reached.addAll(nodes);
+                // the branches of a parallel block run with it, though a run does not name them
+                reached.addAll(
+                        io.github.llm4j.loom.wtest.Coverage.withLanes(graph, nodes).stream()
+                                .filter(real::contains)
+                                .toList());
                 if (news) queue.add(s);
             }
         }

@@ -122,6 +122,7 @@ export class GraphPanel {
             host: new VsCodeHost(panel, sourceColumn, entry),
             readText: readSource,
             scheduler: new TimeoutScheduler(),
+            groupSets: () => vscode.workspace.getConfiguration('loom.graph').get<boolean>('groupSets', true),
         });
         const graphPanel = new GraphPanel(panel, controller, entry);
         GraphPanel.open.set(entry, graphPanel);

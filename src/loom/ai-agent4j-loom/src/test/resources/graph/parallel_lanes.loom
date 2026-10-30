@@ -1,0 +1,14 @@
+agent A { model: "m" }
+agent B { model: "m" }
+agent C { model: "m" }
+workflow Main(t) {
+    set a = 1
+    set b = 2
+    set c = 3
+    parallel {
+        delegate "x {t}" to A -> ra on_failure { note "a failed" }
+        delegate "y {t}" to B -> rb
+        delegate "z {t}" to C -> rc retry 1 on_failure { note "c failed" }
+    }
+    return ra
+}

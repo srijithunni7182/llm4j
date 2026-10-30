@@ -36,6 +36,8 @@ export interface ControllerOptions {
     readText?: (file: string) => Promise<string | undefined>;
     /** Wait this long after the last save before running again. */
     debounceMs?: number;
+    /** Whether consecutive `set` steps are drawn as one card (`loom.graph.groupSets`); true when absent. */
+    groupSets?: () => boolean;
 }
 
 export const DEFAULT_DEBOUNCE_MS = 300;
@@ -221,7 +223,7 @@ export class GraphPanelController {
 
     private postGraph(): void {
         if (this.current) {
-            this.options.host.post({ type: 'graph', result: this.current, workflow: this.selected ?? '', ...(Object.keys(this.sections).length ? { sections: this.sections } : {}) });
+            this.options.host.post({ type: 'graph', result: this.current, workflow: this.selected ?? '', ...(Object.keys(this.sections).length ? { sections: this.sections } : {}), ...(this.options.groupSets && !this.options.groupSets() ? { groupSets: false as const } : {}) });
         }
     }
 

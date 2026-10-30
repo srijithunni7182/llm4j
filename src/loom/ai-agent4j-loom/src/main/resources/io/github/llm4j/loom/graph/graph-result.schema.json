@@ -184,6 +184,19 @@
             "budget": { "$ref": "#/$defs/budget" },
             "agents": { "type": "array", "items": { "type": "string" } },
             "branches": { "type": "integer", "minimum": 1 },
+            "value": { "type": "string" },
+            "lanes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "label": { "type": "string" },
+                  "nodes": { "type": "array", "items": { "type": "string" } }
+                },
+                "required": ["label", "nodes"],
+                "additionalProperties": false
+              }
+            },
             "args": { "type": "integer", "minimum": 1 },
             "task": { "type": "string" },
             "model": { "type": "string" },

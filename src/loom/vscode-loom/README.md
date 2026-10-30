@@ -101,7 +101,7 @@ A real script is too long to read as one big flowchart, so the panel shows the s
 |---|---|
 | **Outline** (default) | Find your place. A tree of the steps on the left, grouped by section; the middle shows only the selected step's section at full size; the inspector on the right shows its settings. Blocks fold with the − and + buttons. |
 | **Focus** | Follow the logic one step at a time. The selected step is large in the middle, with what it **comes from** on the left and what it **goes to** on the right, each edge labelled (`then`, `else`, `each round`, `when done`, `loops back`). Click a neighbour to move there. |
-| **Flow** | See the whole shape. The main path runs left to right, with section bands above it; everything off the main path hangs below the step it belongs to. A loop's way round is a dashed line labelled `again ≤3`. Selecting a step scrolls it to the middle. |
+| **Flow** | See the whole shape. The main path runs left to right, with section bands above it; everything off the main path hangs below the step it belongs to. A loop's way round is a dashed line labelled `again ≤3`. Selecting a step scrolls it to the middle. A `parallel` block forks into one lane per branch under the block (the branch's `on_failure` handler hangs under its step on a dashed edge) and the lanes join before the next step. Consecutive `set` steps are one small card that opens to list them. |
 
 ![The Flow view: the main path left to right, a rewrite loop hanging below its safety check, and an exit that ends the run](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/vscode-loom/graph-flow.png)
 
@@ -260,6 +260,7 @@ A key that is not set yet (such as `GEMINI_API_KEY`) is not reported as a proble
 
 - **`loom.javaPath`** (default `java`): The Java executable used to run `weave.jar` (the engine, checks and graphs); if only the older `loom.graph.javaPath` is set, that one is used
 - **`loom.graph.javaPath`** (default `java`): The older name of the same setting, still honoured
+- **`loom.graph.groupSets`** (default `true`): Draw consecutive `set` steps in the graph's Flow view as one small card that opens to list them; turn it off to draw every set as its own box.
 - **`loom.review.openSourceOnClick`** (default `false`): Open the `.loom` file when you click a finding in the Review panel. By default a click only selects the finding; **Go to source** (or Ctrl+Enter / Cmd+Enter) opens the file.
 - **`loom.review.on`** (default `save`): When the review runs by itself: after a save, while typing (the validity lens only), or only when you ask (`manual`)
 - **`loom.review.layout`** (default `split`): The layout the Review panel opens in: `split`, `outline` or `list` (your last choice in the panel is remembered per workspace)

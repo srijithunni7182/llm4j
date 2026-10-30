@@ -52,7 +52,21 @@
               "CFO",
               "CTO"
             ],
-            "branches": 2
+            "branches": 2,
+            "lanes": [
+              {
+                "label": "CFO",
+                "nodes": [
+                  "n6"
+                ]
+              },
+              {
+                "label": "CTO",
+                "nodes": [
+                  "n7"
+                ]
+              }
+            ]
           }
         },
         {
@@ -95,6 +109,38 @@
           }
         },
         {
+          "id": "n6",
+          "kind": "delegate",
+          "label": "delegate CFO",
+          "agent": "CFO",
+          "source": {
+            "file": "<root>/samples/boardroom/main.loom",
+            "line": 13
+          },
+          "parent": "n2",
+          "branch": "lane 1",
+          "attrs": {
+            "variable": "finance_report",
+            "text": "Analyze financial risk"
+          }
+        },
+        {
+          "id": "n7",
+          "kind": "delegate",
+          "label": "delegate CTO",
+          "agent": "CTO",
+          "source": {
+            "file": "<root>/samples/boardroom/main.loom",
+            "line": 14
+          },
+          "parent": "n2",
+          "branch": "lane 2",
+          "attrs": {
+            "variable": "tech_report",
+            "text": "Analyze technical feasibility"
+          }
+        },
+        {
           "id": "end",
           "kind": "end",
           "label": "End"
@@ -110,7 +156,11 @@
           "to": "n2"
         },
         {
-          "from": "n2",
+          "from": "n6",
+          "to": "n3"
+        },
+        {
+          "from": "n7",
           "to": "n3"
         },
         {
@@ -120,6 +170,14 @@
         {
           "from": "n4",
           "to": "n5"
+        },
+        {
+          "from": "n2",
+          "to": "n6"
+        },
+        {
+          "from": "n2",
+          "to": "n7"
         },
         {
           "from": "n5",

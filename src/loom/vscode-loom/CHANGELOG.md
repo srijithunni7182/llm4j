@@ -10,6 +10,9 @@
 - **The Outline shows how far the project is.** A *Project progress* group at the top lists the ten stages of `weave next` with an icon and a word for each state (done, failing, not started, skipped, stale), marks the next step, and a click types that step's command into a terminal for you to run. It asks the engine at most once in three seconds and keeps the last answer when the engine is busy; without Java it says progress needs the engine.
 - **Loom: Run Once With a Cap…** (also a button on the Outline) starts the first real run with the cap as the first question, the worst-case estimate beside it, then any inputs, and types `weave run … --max-cost` (or `--max-tokens`) into a terminal. Nothing runs until you press Enter.
 
+- **The graph draws a `parallel` block as lanes.** In the Flow view the block forks into one lane per branch (named for its agent), each step's `on_failure` handler hangs under it on a dashed edge, and the lanes join before the next step. The Outline view lists the branches under the block. Needs this version's engine (`weave` 6.2.0); a graph from an older engine still draws as before.
+- **Consecutive `set` steps are one small card** ("sets 3 variables") that opens to list each name and value; choosing one selects that step, with its own line. `loom.graph.groupSets` (default on) turns it off.
+
 ## 1.1.0
 
 - `weave` works in VS Code's integrated terminals. The extension carries the Loom command line, and now adds it to the PATH of terminals (after your existing entries, so a `weave` you installed yourself still wins), so every `weave` command in the guides works there with nothing else installed. It applies to terminals opened after the extension has started. The setting `loom.terminal.addWeaveToPath` (default on) turns it off.

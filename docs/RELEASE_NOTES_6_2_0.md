@@ -78,3 +78,10 @@ Status: **in progress** (the field findings program, [docs/specs/FIELD_FINDINGS.
 - **The skills share one `references/conventions.md`** (nine rules: roadmap and checklist, the planner question, co-written datasets, a real answer read early, read-back, tested README commands, keys asked first, selection shares, visible skipping). It is installed with the workflow, deployer and harness-design skills, and a test keeps the three copies identical.
 - **`weave next --format json` reports the ten stages of the journey**, each `done`, `failing`, `not-started`, `skipped` or `stale`, read from the project's files and recorded results, and names the one to take now (a failing stage first). `weave eval` now records its last finished run (mock or real, the dataset version and the script) in `.loom/eval.json`, so a real evaluation of an older script shows as `stale` and a mock one does not count. The engine answers the same JSON as `loom/next` ([PROTOCOL.md](serve/PROTOCOL.md)).
 
+## Changed: the graph draws parallel blocks as lanes and groups consecutive `set`s
+
+- **A `parallel` block is a node whose branches are lanes.** In `weave graph` JSON the branches are now nodes with their own lines and `on_failure` handlers, grouped in the block's `attrs.lanes`; in Mermaid each lane is a `subgraph`. Steps after the block keep their ids. See [API_COMPATIBILITY.md](API_COMPATIBILITY.md). **A consumer that expected the block to be one node with an edge to the next step now sees the branches in between.**
+- **A `set` node carries its `value`** (masked and cut at 200 characters).
+- The editor's Flow view and the shared renderer (Fabric, the eval report) draw a fork, one lane per branch with its failure handler under its step, and a join; consecutive `set`s are one small card that opens to list them (`loom.graph.groupSets` turns that off).
+- **The graph-render tests had been failing since the `classify` statement was added to the sample script (19 of 73 on a clean checkout), unnoticed because no CI job runs them.** The table now matches the sample; the tests pass (91).
+

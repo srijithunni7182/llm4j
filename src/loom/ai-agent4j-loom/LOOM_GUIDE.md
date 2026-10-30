@@ -100,7 +100,7 @@ weave graph digest.loom --format mermaid                      # Mermaid flowchar
 weave graph digest.loom --workflow Digest                     # one workflow only
 ```
 
-Each step is one node: `delegate`, `run` (a task), `handoff`, `broadcast`, `parallel`, `alt`, `loop`, `for each`, `human_prompt`, `checkpoint`, `rewind`, `call`, `guardrail`, `decide`, `observe` and `note`. A step carries the settings written on it (`retry`, `backoff`, `timeout`, `budget`, `expecting`, a loop's `max`, …). `alt` has `then` and `else` edges; a loop has an `again` edge back and a `done` edge out; handler blocks (`on_failure`, `on_exhausted`, `on_violation`, a rewind's `if it still fails`) hang off their step and rejoin the main path. A `call` names the file that defines its workflow, but the callee is never drawn inside the caller.
+Each step is one node: `delegate`, `run` (a task), `handoff`, `broadcast`, `parallel`, `alt`, `loop`, `for each`, `human_prompt`, `checkpoint`, `rewind`, `call`, `guardrail`, `decide`, `observe` and `note`. A step carries the settings written on it (`retry`, `backoff`, `timeout`, `budget`, `expecting`, a loop's `max`, …). `alt` has `then` and `else` edges; a loop has an `again` edge back and a `done` edge out; handler blocks (`on_failure`, `on_exhausted`, `on_violation`, a rewind's `if it still fails`) hang off their step and rejoin the main path. A `parallel` block is a node whose branches are lanes: each branch is a step of its own (with its line and its `on_failure` handler), grouped in the node's `lanes` attribute, drawn as a subgraph per lane in Mermaid. The steps after the block keep their ids. A `call` names the file that defines its workflow, but the callee is never drawn inside the caller.
 
 <!-- graph-example: samples/content_factory/main.loom GenerateContent -->
 ```
@@ -110,6 +110,12 @@ flowchart TD
   start(["Start"])
   n1["delegate Researcher"]
   n2["in parallel: Copywriter"]
+  subgraph n2_lane1["Copywriter"]
+    n7["delegate Copywriter"]
+  end
+  subgraph n2_lane2["Copywriter"]
+    n8["delegate Copywriter"]
+  end
   n3[/"ask a person"/]
   n4{{"approval==yes?"}}
   n5["note"]
@@ -117,10 +123,13 @@ flowchart TD
   end_(["End"])
   start --> n1
   n1 --> n2
-  n2 --> n3
+  n7 --> n3
+  n8 --> n3
   n3 --> n4
   n4 -->|then| n5
   n4 -->|else| n6
+  n2 --> n7
+  n2 --> n8
   n5 --> end_
   n6 --> end_
 ```

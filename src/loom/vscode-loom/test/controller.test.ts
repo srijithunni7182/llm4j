@@ -310,3 +310,15 @@ test('a cancelled save says so, and bytes that are not a PNG are refused', async
     assert.equal(s.host.saved.length, 1);
     assert.match(s.host.reports.at(-1)!.message, /not a PNG/);
 });
+
+test('R4: the graph message says sets are not grouped only when the setting is off', async () => {
+    for (const [grouped, expected] of [[true, undefined], [false, false]] as const) {
+        const runner = new FakeRunner();
+        const host = new FakeHost();
+        const controller = new GraphPanelController({ entry: '/p/main.loom', cursor: { file: '/p/main.loom', line: 1 }, runner, host, scheduler: new FakeScheduler(), groupSets: () => grouped });
+        const load = controller.load();
+        runner.finish(json());
+        await load;
+        assert.equal(host.ofType('graph')[0].groupSets, expected, `groupSets ${grouped}`);
+    }
+});

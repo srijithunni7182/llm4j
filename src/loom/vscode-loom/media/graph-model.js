@@ -123,6 +123,8 @@
       if (n.parent) { by[n.parent].children.push(n.id); }
     });
 
+    edges = detachLanes(nodes, by, edges);
+
     var out = Object.create(null), inn = Object.create(null);
     nodes.forEach(function (n) { out[n.id] = []; inn[n.id] = []; });
     edges.forEach(function (e) {
@@ -167,9 +169,60 @@
     nodes.forEach(function (n) { n.anchor = anchorOf(n, by, onMain, nodes); });
 
     sections.forEach(function (s, i) { s.index = i; s.main = main.filter(function (id) { return by[id].section === i; }); });
+    if (options.groupSets !== false) { groupSets(main, by); }
 
     var endless = !main.some(function (id) { return by[id].kind === 'end'; });
     return { name: workflow.name, nodes: nodes, by: by, out: out, inn: inn, sections: sections, main: main, endless: endless, hasSections: sections.length > 1 || !!sections[0].real };
+  }
+
+  /**
+   * Consecutive `set` steps on the main path (in the same block) are drawn as one card, so a line of initialisations does not bury the
+   * steps that matter. This is only how they are drawn: every set keeps its node, line and place, so selection, breakpoints and links
+   * to a step still address each one. The first set of a run holds `setGroup` (its members' ids); the others point at it by `inSetGroup`.
+   */
+  function groupSets(main, by) {
+    var run = [];
+    function close() {
+      if (run.length > 1) {
+        by[run[0]].setGroup = { ids: run.slice() };
+        run.slice(1).forEach(function (id) { by[id].inSetGroup = run[0]; });
+      }
+      run = [];
+    }
+    main.forEach(function (id) {
+      var n = by[id];
+      if (n.kind === 'set' && (!run.length || by[run[0]].parent === n.parent)) { run.push(id); } else { close(); if (n.kind === 'set') { run.push(id); } }
+    });
+    close();
+  }
+
+  /**
+   * A parallel block with `lanes` (an older engine has none): its branches are drawn as lanes under it, so the edges that fork into
+   * them and join out of them are not the main path. The block leads straight on to what follows the lanes, a failure handler keeps
+   * its edge from its step, and the block and each of its steps learn their lanes. Returns the edges the main path should read.
+   */
+  function detachLanes(nodes, by, edges) {
+    nodes.forEach(function (owner) {
+      var lanes = attrsOf(owner.raw).lanes;
+      if (!Array.isArray(lanes) || !lanes.length) { return; }
+      var member = Object.create(null), clean = [];
+      lanes.forEach(function (lane, i) {
+        var ids = (lane && Array.isArray(lane.nodes) ? lane.nodes : []).filter(function (id) { return has(by, id) && !member[id]; });
+        ids.forEach(function (id) { member[id] = true; by[id].lane = { owner: owner.id, index: i }; });
+        if (ids.length) { clean.push({ label: String(lane.label || by[ids[0]].label), nodes: ids }); }
+      });
+      if (!clean.length) { return; }
+      owner.lanes = clean;
+      var joins = [], kept = [];
+      edges.forEach(function (e) {
+        if (e.from === owner.id && member[e.to]) { return; }
+        if (member[e.from] && !member[e.to] && !has(BACK, e.label)) { if (joins.indexOf(e.to) < 0) { joins.push(e.to); } return; }
+        kept.push(e);
+      });
+      joins.forEach(function (to) { kept.push({ from: owner.id, to: to, label: '' }); });
+      edges = kept;
+    });
+    return edges;
   }
 
   /**

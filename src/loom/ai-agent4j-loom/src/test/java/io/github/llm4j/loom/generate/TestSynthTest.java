@@ -91,4 +91,15 @@ class TestSynthTest {
         // the deepest halt needs region EU, the answer approved, the label refund and an angry tone
         assertThat(c.percent()).as(c.missed().toString()).isEqualTo(100);
     }
+
+    @org.junit.jupiter.api.Test
+    void aRunThroughAParallelBlockIsNotGivenAnOrderedRoute() throws Exception {
+        Path dir = copy("samples/boardroom");
+        TestSynth.Derived d = TestSynth.derive(dir.resolve("main.loom"), "../main.loom");
+
+        // the branches of a parallel block finish in whatever order the threads happen to run, so a
+        // route that lists them would pass or fail by chance
+        assertThat(d.yaml()).doesNotContain("delegate CFO").doesNotContain("delegate CTO");
+        assertThat(d.yaml()).contains("final:");
+    }
 }

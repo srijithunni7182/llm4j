@@ -160,6 +160,8 @@ final class ConditionFacts implements FactProvider {
             StatementWalker.walk(
                     w.getStatements(),
                     s -> {
+                        // the branches of a parallel block already run side by side
+                        if (s instanceof ParallelStmt) return;
                         for (List<Statement> nested : StatementWalker.nested(s))
                             scan(nested, input, out, agents, found);
                     });

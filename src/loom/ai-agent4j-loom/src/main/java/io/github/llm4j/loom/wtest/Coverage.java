@@ -55,9 +55,42 @@ public final class Coverage {
     public int covered() {
         int n = 0;
         for (WorkflowGraph w : graph.workflows())
-            for (GraphNode x : w.nodes())
-                if (real(x) && reached.contains(w.name() + "/" + x.id())) n++;
+            for (GraphNode x : w.nodes()) if (real(x) && ran(w, x)) n++;
         return n;
+    }
+
+    /**
+     * The nodes (as {@code workflow/nodeId}) that count as reached when {@code reached} were: those,
+     * and the branches of every parallel block among them (see {@link #ran}).
+     */
+    public static Set<String> withLanes(GraphResult graph, Collection<String> reached) {
+        Set<String> all = new LinkedHashSet<>(reached);
+        for (WorkflowGraph w : graph.workflows()) {
+            boolean grew = true;
+            while (grew) {
+                grew = false;
+                for (GraphNode n : w.nodes())
+                    if (n.parent() != null
+                            && n.branch() != null
+                            && n.branch().startsWith("lane ")
+                            && all.contains(w.name() + "/" + n.parent())
+                            && all.add(w.name() + "/" + n.id())) grew = true;
+            }
+        }
+        return all;
+    }
+
+    /**
+     * Whether a node ran. A run does not report the steps inside the branches of a parallel block
+     * one by one, but every branch runs whenever the block does, so a branch counts as reached with
+     * its block (a failure handler inside a branch still needs a case of its own).
+     */
+    private boolean ran(WorkflowGraph w, GraphNode n) {
+        if (reached.contains(w.name() + "/" + n.id())) return true;
+        if (n.parent() == null || n.branch() == null || !n.branch().startsWith("lane ")) return false;
+        for (GraphNode owner : w.nodes())
+            if (owner.id().equals(n.parent()) && owner.kind().equals("parallel")) return ran(w, owner);
+        return false;
     }
 
     public int percent() {
@@ -74,7 +107,7 @@ public final class Coverage {
         List<Missed> out = new ArrayList<>();
         for (WorkflowGraph w : graph.workflows())
             for (GraphNode n : w.nodes()) {
-                if (!real(n) || reached.contains(w.name() + "/" + n.id())) continue;
+                if (!real(n) || ran(w, n)) continue;
                 out.add(
                         new Missed(
                                 w.name(),
@@ -101,7 +134,7 @@ public final class Coverage {
                 for (GraphNode m : w.nodes())
                     if (n.parent().equals(m.parent())
                             && n.branch().equals(m.branch())
-                            && reached.contains(w.name() + "/" + m.id())) covered = true;
+                            && ran(w, m)) covered = true;
                 out.add(new Branch(w.name(), n.parent(), n.branch(), covered));
             }
         }
