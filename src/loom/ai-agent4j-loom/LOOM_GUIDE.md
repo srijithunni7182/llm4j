@@ -227,6 +227,8 @@ weave rules diff core-1.6 core-1.7 --on digest.loom   # what a new rule pack wou
 
 A finding that has several reasonable resolutions lists them as **options**: you pick one, answer its questions (how many retries, what the failure note says) and see the change before it is written. Every fix and option is checked first (the script still loads, no new high finding appears); that does not run the workflow, so run `weave check` and your tests afterwards. Settings live in `review.properties` beside the script. The full guide is `docs/review/README.md`, every rule has a page in `docs/review/rules/`, and `docs/review/WRITING_RULES.md` shows how to add your own.
 
+A key that is not set on this machine is not a finding in the script: `weave review` lists it under **Setup**, apart from the findings, and it is never counted as open nor what `--fail-on` fails on (`--include-setup` counts it). The cost block says what it assumed for each step (how often it runs and what a run costs, typical and at most), prints dollars when every model has a price and names the one that has not, and says when the script's token cap will stop a run before its worst case.
+
 ### 5. Starting, Checking and Reading the Guide (`init`, `check`, `guide`)
 
 Everything here works with the jar alone: no repository, no keys and no network.

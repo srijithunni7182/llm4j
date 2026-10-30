@@ -20,6 +20,8 @@ import java.util.List;
  * @param lensesOff the lenses that did not
  * @param cost what the workflows cost, or null when no estimate was made
  * @param baselined findings recorded in the project's baseline: known, not counted as open
+ * @param setup findings about the machine, not the script (a key that is not set): listed apart, not
+ *     counted as open, never what {@code --fail-on} fails on; see {@link Setup}
  */
 public record ReviewReport(
         String file,
@@ -29,10 +31,24 @@ public record ReviewReport(
         List<Lens> lensesRun,
         List<Lens> lensesOff,
         CostEstimate cost,
-        List<Finding> baselined) {
+        List<Finding> baselined,
+        List<Finding> setup) {
 
     /** Version of the JSON this report is written as. */
     public static final int VERSION = 1;
+
+    /** A report with a baseline and no setup findings. */
+    public ReviewReport(
+            String file,
+            List<Finding> findings,
+            List<Suppressed> suppressed,
+            List<Note> notes,
+            List<Lens> lensesRun,
+            List<Lens> lensesOff,
+            CostEstimate cost,
+            List<Finding> baselined) {
+        this(file, findings, suppressed, notes, lensesRun, lensesOff, cost, baselined, List.of());
+    }
 
     /** A report with no cost estimate. */
     public ReviewReport(
@@ -64,6 +80,16 @@ public record ReviewReport(
         lensesRun = List.copyOf(lensesRun);
         lensesOff = List.copyOf(lensesOff);
         baselined = List.copyOf(baselined);
+        setup = List.copyOf(setup);
+    }
+
+    /** The same report with the setup findings counted as open ones (for {@code --include-setup}). */
+    public ReviewReport withSetupAsFindings() {
+        List<Finding> all = new java.util.ArrayList<>(findings);
+        all.addAll(setup);
+        all.sort(ReviewEngine.RANK);
+        return new ReviewReport(
+                file, all, suppressed, notes, lensesRun, lensesOff, cost, baselined, List.of());
     }
 
     /** Open findings of exactly this severity. */

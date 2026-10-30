@@ -133,3 +133,21 @@ test('R1: a click only selects a finding; the source opens on a deliberate act o
     assert.equal(shouldOpenSource(click, true), true, 'loom.review.openSourceOnClick restores the old behaviour');
     assert.equal(shouldOpenSource(chosen, false), true);
 });
+
+test('R9: setup findings in the review JSON (a key that is not set) are never counted as open findings', () => {
+    const raw = JSON.parse(JSON.stringify(reviewFixture('risky').review));
+    const real = (raw.findings ?? []).length;
+    const withSetup = parseReview({
+        version: 1,
+        file: 'main.loom',
+        summary: { total: real, high: 0, medium: 0, low: 0, info: 0, setup: 2 },
+        findings: [],
+        setup: [
+            { rule: 'LV02', lens: 'validity', severity: 'high', title: 'agent A: model needs GEMINI_API_KEY in the environment or the secret store', why: '', fix: 'set it', location: { file: 'main.loom', line: 1 } },
+        ],
+        notes: [],
+    });
+    assert.ok(withSetup, 'a review with a setup list still reads');
+    assert.deepEqual(countsOf(withSetup), { high: 0, medium: 0, low: 0, info: 0 });
+    assert.equal(withSetup!.findings.length, 0);
+});

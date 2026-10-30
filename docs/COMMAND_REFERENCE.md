@@ -421,6 +421,7 @@ weave observe rules [OPTIONS] <script>
 
 **Options**
 
+- `--init` — Write a commented starter rules file beside the script (never over an existing one). Everything in it is a comment, so nothing changes until you uncomment a line.
 - `--observe-rules=<file>` — The rules file (default: <script>.inspect).
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
@@ -1534,6 +1535,7 @@ Reads the script, never runs it. Findings are ranked, each with why it matters a
 - `--fix-finding=<fingerprint>` — Apply the fix of one finding (with --yes if it needs your judgement).
 - `--fix-rule=<RULE>` — Apply the fixes of one rule, including ones that need your judgement (with --yes).
 - `--format=<format>` — text (default), md, json or sarif (for code scanning).
+- `--include-setup` — Count the setup findings (a key that is not set on this machine) as findings: they are listed apart and never counted or failed on by default.
 - `--lens=<lens>` — Which lenses run: 'all', exact names (security,cost), or +name / -name to change the defaults.
 - `-l, --loot <lootFile>` — The .loot tool mapping file: its Name.reach lines say what your own tools reach.
 - `--loct=<file>` — A .loct file mapping a name to a class of your own compaction strategy ('keep_decisions = com.acme.KeepDecisions'), for use as 'compact: keep_decisions' in a script. Repeatable. (repeatable)

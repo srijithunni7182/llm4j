@@ -41,6 +41,10 @@ final class CostJson {
             if (c.cappedWorst(w) != null) worst.put("cappedMoney", c.cappedWorst(w));
         }
         m.put("worst", worst);
+        if (c.budgetTokens() != null) {
+            m.put("tokenCap", c.budgetTokens());
+            m.put("capStopsBeforeWorstCase", c.tokenCapStopsFirst(w));
+        }
         List<Object> steps = new ArrayList<>();
         for (StepCost s : w.steps()) steps.add(step(c, s));
         m.put("steps", steps);

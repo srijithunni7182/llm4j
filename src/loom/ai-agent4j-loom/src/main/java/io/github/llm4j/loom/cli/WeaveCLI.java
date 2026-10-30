@@ -1238,29 +1238,50 @@ public class WeaveCLI implements Callable<Integer> {
                 description = "The rules file (default: <script>.inspect).")
         private File rules;
 
+        @Option(
+                names = "--init",
+                description =
+                        "Write a commented starter rules file beside the script (never over an existing one). Everything in it is a comment, so nothing changes until you uncomment a line.")
+        private boolean init;
+
+        /** What a new rules file holds: all comments, so the defaults still apply. */
+        private static final String STARTER =
+                "# Rules for this workflow: what counts as trouble, per agent. Everything is optional;\n"
+                        + "# the defaults are sensible. Uncomment a line and change it to make an agent more or less\n"
+                        + "# sensitive. Check the file with: weave observe rules <script>\n"
+                        + "#\n"
+                        + "# Researcher { context_nearly_full: warn at 80%, high at 92% }\n"
+                        + "# Editor     { same_action: 3 times }\n"
+                        + "# *          { paused_longer_than: 90s\n"
+                        + "#              compaction_thrash: 4 in 10 calls\n"
+                        + "#              tool_success_rate: below 70% over 10 calls\n"
+                        + "#              access_denied: 3 in 60s }\n";
+
         @Override
         public Integer call() {
             if (!script.exists()) {
                 System.err.println("Error: Script file not found: " + script);
                 return 2;
             }
+            File file =
+                    rules != null
+                            ? rules
+                            : new File(
+                                    script.getParentFile() == null
+                                            ? new File(".")
+                                            : script.getParentFile(),
+                                    script.getName().replaceFirst("\\.[^.]*$", "") + ".inspect");
+            if (init) return writeStarter(file);
+            if (!hasRules(file)) {
+                System.out.println(
+                        file
+                                + (file.exists() ? " has no rules" : " does not exist")
+                                + ": the defaults apply. weave observe rules "
+                                + script
+                                + " --init writes a commented starter file.");
+                return 0;
+            }
             try {
-                File file =
-                        rules != null
-                                ? rules
-                                : new File(
-                                        script.getParentFile() == null
-                                                ? new File(".")
-                                                : script.getParentFile(),
-                                        script.getName().replaceFirst("\\.[^.]*$", "")
-                                                + ".inspect");
-                if (!file.exists()) {
-                    System.err.println(
-                            "Error: no rules file: "
-                                    + file
-                                    + " (create it, or pass --observe-rules)");
-                    return 2;
-                }
                 LoomScript loaded =
                         new io.github.llm4j.loom.execution.LoomLoader()
                                 .load(script.getAbsolutePath());
@@ -1273,6 +1294,33 @@ public class WeaveCLI implements Callable<Integer> {
                     | RuntimeException e) {
                 System.err.println("Error: " + e.getMessage());
                 return 2;
+            }
+        }
+
+        private static int writeStarter(File file) {
+            if (file.exists()) {
+                System.err.println("Error: " + file + " already exists; --init never overwrites a file.");
+                return 2;
+            }
+            try {
+                java.nio.file.Files.writeString(file.toPath(), STARTER);
+            } catch (java.io.IOException e) {
+                System.err.println("Error: could not write " + file + ": " + e.getMessage());
+                return 2;
+            }
+            System.out.println("Wrote " + file + " (all comments: the defaults still apply until you uncomment a line).");
+            return 0;
+        }
+
+        /** Whether the file holds a rule: anything left after blank lines and {@code #} / {@code //} comments. */
+        private static boolean hasRules(File file) {
+            if (!file.isFile()) return false;
+            try {
+                return java.nio.file.Files.readAllLines(file.toPath()).stream()
+                        .map(String::strip)
+                        .anyMatch(l -> !l.isEmpty() && !l.startsWith("#") && !l.startsWith("//"));
+            } catch (java.io.IOException e) {
+                return true; // let the add-on say what is wrong with it
             }
         }
     }

@@ -63,7 +63,8 @@ class ObserveCliTest {
     void withoutTheAddOnOnTheClassPathTheCommandSaysSoAndRunsNothing() throws Exception {
         Path store = Files.createDirectory(dir.resolve("store"));
         assertThat(run("tick", store.toString(), "--observe=0")).isEqualTo(2);
-        assertThat(err.toString()).contains("loom-inspect add-on");
+        // worded by Phase 22 R8: it says what is missing and how to get it
+        assertThat(err.toString()).contains("inspect add-on").contains("weave tools fetch inspect");
     }
 
     @Test
