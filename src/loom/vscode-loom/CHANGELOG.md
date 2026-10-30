@@ -2,6 +2,8 @@
 
 ## 1.2.0
 
+- **Clicking a finding in the Review panel no longer moves your editor.** A click (or Enter) selects the finding and its step; **Go to source**, or Ctrl+Enter / Cmd+Enter, opens the file. Set `loom.review.openSourceOnClick` to `true` to get the old behaviour back.
+- **The Workflow Outline is never blank.** With a folder of `.loom` files and none open, it lists the workflows in the folder (click one to open it); with a Loom file open, it shows that file's steps first. With no folder open it says so and offers to open one, and a failure to read it is shown as a row with the fix. It refreshes when a `.loom` file is created, changed, deleted or renamed.
 - **Loom: Set Up My Coding Agent** is offered once. When you open a folder that has a `.loom` file and no coding-agent set-up, a notification asks whether to set it up (*Set up*, *Not now*, *Don't ask again*). *Not now* is remembered for that workspace, *Don't ask again* for all of them, and it writes nothing until you choose; *Set up* runs the same command as the welcome view's button, which shows what it will write first.
 - The engine this extension carries now reports whether it is a release or a development build, and which commit (`weave --version`).
 

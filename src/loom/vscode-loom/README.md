@@ -258,6 +258,7 @@ A key that is not set yet (such as `GEMINI_API_KEY`) is not reported as a proble
 
 - **`loom.javaPath`** (default `java`): The Java executable used to run `weave.jar` (the engine, checks and graphs); if only the older `loom.graph.javaPath` is set, that one is used
 - **`loom.graph.javaPath`** (default `java`): The older name of the same setting, still honoured
+- **`loom.review.openSourceOnClick`** (default `false`): Open the `.loom` file when you click a finding in the Review panel. By default a click only selects the finding; **Go to source** (or Ctrl+Enter / Cmd+Enter) opens the file.
 - **`loom.review.on`** (default `save`): When the review runs by itself: after a save, while typing (the validity lens only), or only when you ask (`manual`)
 - **`loom.review.layout`** (default `split`): The layout the Review panel opens in: `split`, `outline` or `list` (your last choice in the panel is remembered per workspace)
 - **`loom.review.lenses`** (default `` ``, empty): Which lenses run, as `weave review --lens` takes them; empty uses the project's `review.properties`

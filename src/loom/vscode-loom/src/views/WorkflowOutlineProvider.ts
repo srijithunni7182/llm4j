@@ -1,131 +1,116 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
+import { Debouncer, LoomFileFacts, OUTLINE_FILE_LIMIT, OutlineRow, outlineRows, symbolsOf, WorkspaceFacts } from './outlineModel';
+
+/** A file bigger than this is listed but not read for its definitions. */
+const MAX_READ_BYTES = 1_000_000;
+const REFRESH_DELAY_MS = 150;
+/** How many files to look for: the limit, plus enough to say how many were left out. */
+const SEARCH_LIMIT = 1000;
 
 /**
- * Represents a single node in the Workflow Outline tree.
- * Full definition is in Task 5.
+ * The Workflow Outline: the active file's agents, workflows, schedules and routing, and the other
+ * workflows in the folder. It is never blank: with no folder, no Loom file, or an error, it says
+ * what is the case (see outlineModel).
  */
-export interface OutlineNode {
-    kind: 'agent' | 'workflow' | 'schedule' | 'routing';
-    name: string;
-    range: vscode.Range;
-}
-
-/**
- * Full implementation of the WorkflowOutlineProvider.
- * (Requirements 6.1, 6.2, 6.3, 6.4, 6.5)
- *
- * Implements vscode.TreeDataProvider<OutlineNode> to provide a navigable
- * tree of agents, workflows, schedules, and routing policies defined in
- * the active .loom file.
- */
-export class WorkflowOutlineProvider implements vscode.TreeDataProvider<OutlineNode> {
-    private _onDidChangeTreeData = new vscode.EventEmitter<OutlineNode | undefined | null | void>();
-    readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
-    private hasLoomFile = false;
+export class WorkflowOutlineProvider implements vscode.TreeDataProvider<OutlineRow> {
+    private readonly changed = new vscode.EventEmitter<OutlineRow | undefined | null | void>();
+    readonly onDidChangeTreeData = this.changed.event;
+    private readonly refreshSoon = new Debouncer(
+        () => this.changed.fire(),
+        (fn) => setTimeout(fn, REFRESH_DELAY_MS) as unknown as number,
+        (id) => clearTimeout(id as unknown as NodeJS.Timeout),
+    );
 
     constructor() {
-        // Task 5.2: Wire to document save and active editor change
+        const poke = (): void => this.refreshSoon.poke();
         vscode.workspace.onDidSaveTextDocument((document) => {
             if (document.languageId === 'loom') {
-                this.refresh();
+                poke();
             }
         });
-
-        vscode.window.onDidChangeActiveTextEditor((editor) => {
-            if (!editor || editor.document.languageId !== 'loom') {
-                // Clear the tree when switching away from .loom files
-                this.hasLoomFile = false;
-                this._onDidChangeTreeData.fire();
-            } else {
-                this.hasLoomFile = true;
-                this.refresh();
-            }
-        });
+        vscode.window.onDidChangeActiveTextEditor(poke);
+        vscode.workspace.onDidChangeWorkspaceFolders?.(poke);
+        const watcher = vscode.workspace.createFileSystemWatcher?.('**/*.loom');
+        watcher?.onDidCreate(poke);
+        watcher?.onDidDelete(poke);
+        watcher?.onDidChange(poke);
     }
 
-    /**
-     * Task 5.1: Return a TreeItem with a command to navigate to element.range
-     */
-    getTreeItem(element: OutlineNode): vscode.TreeItem {
-        const item = new vscode.TreeItem(element.name);
-        item.description = element.kind;
-        
-        // Task 5.3: Click-to-navigate command
-        const editor = vscode.window.activeTextEditor;
-        if (editor) {
+    getTreeItem(row: OutlineRow): vscode.TreeItem {
+        const collapsible =
+            row.children && row.children.length > 0
+                ? row.collapsed || row.kind === 'file'
+                    ? vscode.TreeItemCollapsibleState.Collapsed
+                    : vscode.TreeItemCollapsibleState.Expanded
+                : vscode.TreeItemCollapsibleState.None;
+        const item = new vscode.TreeItem(row.label, collapsible);
+        item.description = row.description;
+        item.accessibilityInformation = { label: row.description ? `${row.label}, ${row.description}` : row.label };
+        if (row.command) {
+            item.command = { command: row.command, title: row.label };
+        } else if (row.file) {
+            const position = new vscode.Position(Math.max(0, (row.line ?? 1) - 1), 0);
             item.command = {
                 command: 'vscode.open',
-                title: 'Go to Definition',
-                arguments: [
-                    editor.document.uri,
-                    { selection: element.range }
-                ]
+                title: 'Go to definition',
+                arguments: [vscode.Uri.file(row.file), { selection: new vscode.Range(position, position) }],
             };
         }
-        
         return item;
     }
 
-    /**
-     * Task 5.1: Parse the active .loom document and return all OutlineNode objects
-     * in hierarchical order (agents first, then workflows, then schedules, then routing policies)
-     */
-    getChildren(element?: OutlineNode): Thenable<OutlineNode[]> {
-        // Flat tree: no children for individual nodes
-        if (element) {
-            return Promise.resolve([]);
+    async getChildren(row?: OutlineRow): Promise<OutlineRow[]> {
+        if (row) {
+            return row.children ?? [];
         }
-
-        // If no .loom file is active, return empty
-        if (!this.hasLoomFile) {
-            return Promise.resolve([]);
+        try {
+            return outlineRows(await this.facts());
+        } catch (e) {
+            return outlineRows({
+                hasFolder: true,
+                files: [],
+                error: { message: `The outline could not be read: ${e instanceof Error ? e.message : String(e)}`, fix: 'Reload the window, or open the Output panel (Loom) for details' },
+            });
         }
-
-        const editor = vscode.window.activeTextEditor;
-        if (!editor || editor.document.languageId !== 'loom') {
-            return Promise.resolve([]);
-        }
-
-        const nodes = this.parseDocument(editor.document);
-        return Promise.resolve(nodes);
     }
 
-    /**
-     * Trigger a tree refresh — called on document save.
-     */
     refresh(): void {
-        this._onDidChangeTreeData.fire();
+        this.changed.fire();
     }
 
-    /**
-     * Parse the document and extract all agent, workflow, schedule, and routing definitions.
-     * Returns nodes in the order: agents, workflows, schedules, routing policies.
-     */
-    private parseDocument(document: vscode.TextDocument): OutlineNode[] {
-        const text = document.getText();
-        const nodes: OutlineNode[] = [];
-
-        // Regex patterns for each definition type
-        const patterns = [
-            { kind: 'agent' as const, regex: /^agent\s+(\w+)/gm },
-            { kind: 'workflow' as const, regex: /^workflow\s+(\w+)/gm },
-            { kind: 'schedule' as const, regex: /^schedule\s+(\w+)/gm },
-            { kind: 'routing' as const, regex: /^routing\s+(\w+)/gm }
-        ];
-
-        // Extract nodes for each kind in order
-        for (const { kind, regex } of patterns) {
-            let match: RegExpExecArray | null;
-            while ((match = regex.exec(text)) !== null) {
-                const name = match[1];
-                const startPos = document.positionAt(match.index);
-                const endPos = document.positionAt(match.index + match[0].length);
-                const range = new vscode.Range(startPos, endPos);
-                
-                nodes.push({ kind, name, range });
-            }
+    private async facts(): Promise<WorkspaceFacts> {
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders || folders.length === 0) {
+            return { hasFolder: false, files: [] };
         }
+        const found = await vscode.workspace.findFiles('**/*.loom', '**/node_modules/**', SEARCH_LIMIT);
+        const shown = found.slice(0, OUTLINE_FILE_LIMIT);
+        const files = await Promise.all(shown.map((uri) => this.read(uri.fsPath)));
+        files.sort((a, b) => a.relative.localeCompare(b.relative));
+        const editor = vscode.window.activeTextEditor;
+        const active =
+            editor && editor.document.languageId === 'loom'
+                ? { path: editor.document.uri.fsPath, relative: this.relative(editor.document.uri.fsPath), symbols: symbolsOf(editor.document.getText()) }
+                : undefined;
+        return { hasFolder: true, files, moreFiles: Math.max(0, found.length - shown.length), active };
+    }
 
-        return nodes;
+    private async read(file: string): Promise<LoomFileFacts> {
+        let symbols: LoomFileFacts['symbols'] = [];
+        try {
+            if ((await fs.promises.stat(file)).size <= MAX_READ_BYTES) {
+                symbols = symbolsOf(await fs.promises.readFile(file, 'utf8'));
+            }
+        } catch {
+            // a file that vanished between the search and the read is listed with nothing in it
+        }
+        return { path: file, relative: this.relative(file), symbols };
+    }
+
+    private relative(file: string): string {
+        const folder = vscode.workspace.workspaceFolders?.find((f) => file.startsWith(f.uri.fsPath));
+        return (folder ? path.relative(folder.uri.fsPath, file) : path.basename(file)).split(path.sep).join('/');
     }
 }

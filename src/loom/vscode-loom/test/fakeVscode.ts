@@ -74,6 +74,8 @@ export function createFakeVscode(settings: Record<string, unknown>) {
         selection: new FakeEvent<any>(),
         activeEditorChanged: new FakeEvent<any>(),
         channels: [] as Array<{ name: string; lines: string[] }>,
+        folders: undefined as undefined | Array<{ uri: { fsPath: string } }>,
+        loomFiles: [] as string[],
     };
     class EventEmitter<T> {
         private readonly inner = new FakeEvent<T>();
@@ -83,8 +85,10 @@ export function createFakeVscode(settings: Record<string, unknown>) {
     class TreeItem {
         description?: string;
         command?: unknown;
-        constructor(readonly label: string) {}
+        accessibilityInformation?: unknown;
+        constructor(readonly label: string, readonly collapsibleState = 0) {}
     }
+    const TreeItemCollapsibleState = { None: 0, Collapsed: 1, Expanded: 2 };
     class Position { constructor(readonly line: number, readonly character: number) {} }
     class Range { constructor(readonly start: Position, readonly end: Position) {} }
     const Uri = {
@@ -96,7 +100,7 @@ export function createFakeVscode(settings: Record<string, unknown>) {
         return Promise.resolve(state.answers.get(message.split('.')[0]) ?? state.answers.get('*'));
     };
     const vscode = {
-        Position, Range, Uri, EventEmitter, TreeItem,
+        Position, Range, Uri, EventEmitter, TreeItem, TreeItemCollapsibleState,
         ViewColumn: { Active: -1, Beside: -2, One: 1, Two: 2 },
         window: {
             get activeTextEditor() { return state.activeEditor; },
@@ -124,6 +128,8 @@ export function createFakeVscode(settings: Record<string, unknown>) {
                     settings[`${section}.${key}`] === undefined ? undefined : { globalValue: settings[`${section}.${key}`] as T },
             }),
             onDidSaveTextDocument: (listener: Listener<any>) => state.save.subscribe(listener),
+            get workspaceFolders() { return state.folders; },
+            findFiles: () => Promise.resolve(state.loomFiles.map((f) => Uri.file(f))),
         },
         commands: {
             executeCommand: (command: string, ...args: unknown[]) => { state.executed.push({ command, args }); return Promise.resolve(undefined); },

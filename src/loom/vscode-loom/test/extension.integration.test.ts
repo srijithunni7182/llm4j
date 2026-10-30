@@ -342,21 +342,23 @@ test('VP.6: from a save to the redrawn graph takes at most 3.5 s, a JVM start in
     } finally { s.restore(); }
 });
 
-test('VG.3: the outline view and the run command behave as before', { skip }, async () => {
+test('VG.3: the outline view lists the active file and the folder; the run command behaves as before', { skip }, async () => {
     const s = session();
     try {
         const { WorkflowOutlineProvider } = require('../src/views/WorkflowOutlineProvider');
         const { runWorkflowCommand } = require('../src/commands/runWorkflow');
         const provider = new WorkflowOutlineProvider();
         const text = 'import "x.loom"\nagent Researcher { model: "m" }\nworkflow Main() { note "a" }\nschedule Daily { cron: "0 7 * * *" }\nrouting Smart { strategy: fallback }\n';
-        const offsets = (needle: string) => text.indexOf(needle);
-        const document = { languageId: 'loom', getText: () => text, positionAt: (o: number) => new s.fake.vscode.Position(text.slice(0, o).split('\n').length - 1, 0), uri: { fsPath: '/p/a.loom' } };
+        const document = { languageId: 'loom', getText: () => text, uri: { fsPath: '/p/a.loom' } };
+        s.fake.state.folders = [{ uri: { fsPath: '/p' } }];
+        s.fake.state.loomFiles = ['/p/a.loom'];
         s.fake.state.activeEditor = { document };
         s.fake.state.activeEditorChanged.fire(s.fake.state.activeEditor);
-        const nodes = await provider.getChildren();
-        assert.deepEqual(nodes.map((n: any) => [n.kind, n.name]), [['agent', 'Researcher'], ['workflow', 'Main'], ['schedule', 'Daily'], ['routing', 'Smart']]);
-        assert.ok(offsets('agent') > 0);
-        assert.equal((await provider.getChildren(nodes[0])).length, 0);
+        const rows = await provider.getChildren();
+        // changed on purpose by Phase 21 R2: the file's steps sit under "This file", with the folder's workflows after them
+        assert.equal(rows[0].label, 'This file');
+        assert.deepEqual(rows[0].children.map((n: any) => [n.description, n.label]), [['agent', 'Researcher'], ['workflow', 'Main'], ['schedule', 'Daily'], ['routing', 'Smart']]);
+        assert.equal((await provider.getChildren(rows[0].children[0])).length, 0);
 
         s.fake.state.activeEditor = { document: { ...document, uri: { fsPath: '/p/readme.md' } } };
         runWorkflowCommand({ asAbsolutePath: (p: string) => p });
@@ -366,4 +368,30 @@ test('VG.3: the outline view and the run command behave as before', { skip }, as
         runWorkflowCommand({ asAbsolutePath: (p: string) => p });
         assert.match(s.fake.state.errors[1].message, /No active editor/);
     } finally { s.restore(); }
+});
+
+test('R2: a folder with workflows and no Loom file open (the owner\'s screenshot) shows the folder view, never nothing', { skip }, async () => {
+    const s = session();
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'outline-'));
+    try {
+        const { WorkflowOutlineProvider } = require('../src/views/WorkflowOutlineProvider');
+        const file = path.join(dir, 'article.loom');
+        fs.writeFileSync(file, 'agent Writer { model: "m" }\nworkflow Article() { note "a" }\n');
+        s.fake.state.folders = [{ uri: { fsPath: dir } }];
+        s.fake.state.loomFiles = [file];
+        s.fake.state.activeEditor = undefined;
+        const provider = new WorkflowOutlineProvider();
+
+        const rows = await provider.getChildren();
+        assert.equal(rows[0].label, 'Workflows in this folder');
+        assert.deepEqual(rows[0].children[0].children.map((n: any) => n.label), ['Writer', 'Article']);
+        assert.match(rows[1].label, /Open a \.loom file/);
+
+        s.fake.state.folders = undefined;
+        assert.match((await provider.getChildren())[0].label, /Open a folder/);
+
+        s.fake.state.folders = [{ uri: { fsPath: dir } }];
+        s.fake.state.loomFiles = [];
+        assert.deepEqual(await provider.getChildren(), [], 'no Loom file at all: the welcome content shows');
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); s.restore(); }
 });

@@ -147,7 +147,7 @@
   }
 
   function revealButton(f) {
-    return el('button', { class: 'ghost', type: 'button', 'data-act': 'reveal', title: 'Show this in the editor', text: where(f) + (f.file ? ' · ' + R.baseName(f.file) + (f.line > 0 ? ':' + f.line : '') : ''), onclick: function (e) { e.stopPropagation(); reveal(f); } });
+    return el('button', { class: 'ghost', type: 'button', 'data-act': 'reveal', title: 'Go to source: show this in the editor (Ctrl+Enter)', text: where(f) + (f.file ? ' · ' + R.baseName(f.file) + (f.line > 0 ? ':' + f.line : '') : ''), onclick: function (e) { e.stopPropagation(); reveal(f, false, true); } });
   }
 
   function actionButton(label, act, f, options) {
@@ -532,7 +532,7 @@
     var card = document.querySelector('[data-node="' + cssEscape(id) + '"]');
     if (card && card.scrollIntoView) { card.scrollIntoView({ block: 'nearest' }); }
   }
-  function reveal(f, beside) { if (f.line > 0) { post({ type: 'reveal', file: f.file, line: f.line, beside: !!beside }); } }
+  function reveal(f, beside, deliberate) { if (f.line > 0) { post({ type: 'reveal', file: f.file, line: f.line, beside: !!beside, deliberate: !!deliberate }); } }
 
   function onRowKey(e) {
     // keys pressed on a button inside the row belong to the button (Enter must press it, not reveal the line)
@@ -541,7 +541,7 @@
     var i = rows.indexOf(e.currentTarget);
     if (e.key === 'ArrowDown' && i < rows.length - 1) { e.preventDefault(); rows[i + 1].focus(); selectFinding(rows[i + 1].getAttribute('data-finding'), false); }
     else if (e.key === 'ArrowUp' && i > 0) { e.preventDefault(); rows[i - 1].focus(); selectFinding(rows[i - 1].getAttribute('data-finding'), false); }
-    else if (e.key === 'Enter') { e.preventDefault(); var f = model.byId[e.currentTarget.getAttribute('data-finding')]; if (f) { reveal(f, true); } }
+    else if (e.key === 'Enter') { e.preventDefault(); var f = model.byId[e.currentTarget.getAttribute('data-finding')]; if (f) { if (e.ctrlKey || e.metaKey) { reveal(f, true, true); } else { selectFinding(f.id, false); } } }
     else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.target === e.currentTarget) {
       var g = model.byId[e.currentTarget.getAttribute('data-finding')];
       if (!g) { return; }

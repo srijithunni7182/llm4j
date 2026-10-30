@@ -81,4 +81,11 @@ The extension README and CHANGELOG; developer guide screenshots and journey; `do
 
 ## 7. Results
 
+### 21a: R1 and R2 (done in code; P1/P2 and M1/M4 need the owner's VS Code)
+
+- R1: a click or Enter on a finding or a step only selects; **Go to source** and Ctrl/Cmd+Enter open the file; `loom.review.openSourceOnClick` restores the old behaviour. The host decides (`shouldOpenSource`), so the page needs no knowledge of the setting. The graph panel already never moved the editor (`media/panel.js`), so nothing changed there. Tests: `reviewPresentation.test.ts` (parse and decision), `review.browser.test.js` (click is not deliberate, Enter selects, Ctrl+Enter and the button are deliberate). Two existing browser tests were changed on purpose (click no longer asks to reveal; Enter no longer reveals).
+- R2: `outlineModel.ts` (pure) and the rewritten `WorkflowOutlineProvider`: no folder, folder with no `.loom` (welcome shows), the blank case (folder view plus hint), a Loom file active (This file first, folder collapsed), a 200-file limit with a "N more not shown" row, an error row with the fix, a debounced refresh on file events. Tests: `outlineStates.test.ts` (9) and the integration test for the owner's screenshot state. The old `VG.3` outline test was changed on purpose to the new tree. Guard: disabling the active-file branch failed the tests.
+- Whole extension suite: 712 tests, 0 failed, 0 skipped.
+- Not done here: the symbols come from a line scan, not from the engine (DESIGN §6 question 1 proposed the engine when it is up); the folder view reads at most 1,000 files and says "N more" from what it found, so beyond 1,000 the count is a lower bound. No screenshot was taken, and M1 (install the `.vsix` and look) needs VS Code.
+
 *(empty until 21a)*

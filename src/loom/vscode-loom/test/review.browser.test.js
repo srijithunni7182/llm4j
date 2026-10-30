@@ -132,7 +132,7 @@ test('R4: severity is a word, a glyph and a shape, never colour alone', async (t
   await p.close();
 });
 
-test('R3: clicking a finding selects it, shows why, selects its step in the graph and asks the extension to reveal the line', async (t) => {
+test('R3: clicking a finding selects it, shows why, selects its step in the graph and tells the extension it was a click, not a request to open the file', async (t) => {
   if (skip(t)) { return; }
   const p = await open();
   const f = await p.show('risky');
@@ -144,7 +144,7 @@ test('R3: clicking a finding selects it, shows why, selects its step in the grap
   assert.match((await p.texts(`[data-finding="${lr01.fingerprint}"]`))[0], new RegExp(lr01.why.slice(0, 30).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.equal(await p.page.getAttribute('[data-node="n1"]', 'aria-pressed'), 'true', 'its step is outlined');
   const reveal = (await p.posted()).find((m) => m.type === 'reveal');
-  assert.deepEqual(reveal, { type: 'reveal', file: lr01.location.file, line: lr01.location.line, beside: true });
+  assert.deepEqual(reveal, { type: 'reveal', file: lr01.location.file, line: lr01.location.line, beside: true, deliberate: false });
   await p.close();
 });
 
@@ -295,7 +295,7 @@ test('R3: moving the cursor in the editor selects the finding on that line', asy
   await p.close();
 });
 
-test('R41: the list is a listbox; arrow keys move the selection and Enter reveals the line', async (t) => {
+test('R41: the list is a listbox; arrow keys move the selection, Enter selects and Ctrl+Enter opens the line', async (t) => {
   if (skip(t)) { return; }
   const p = await open();
   await p.show('risky');
@@ -308,8 +308,10 @@ test('R41: the list is a listbox; arrow keys move the selection and Enter reveal
   assert.equal(selected, 1);
   await p.clearPosted();
   await p.page.keyboard.press('Enter');
+  assert.ok(!(await p.posted()).some((m) => m.type === 'reveal' && m.deliberate), 'Enter only selects');
+  await p.page.keyboard.press('Control+Enter');
   const posted = await p.posted();
-  assert.ok(posted.some((m) => m.type === 'reveal'), JSON.stringify(posted));
+  assert.ok(posted.some((m) => m.type === 'reveal' && m.deliberate === true), JSON.stringify(posted));
   await p.close();
 });
 
@@ -414,4 +416,17 @@ test('A10: the page works in the dark and high-contrast themes (text keeps contr
     }
     await p.close();
   }
+});
+
+test('R1: the Go to source button on a finding asks for the file on purpose', async (t) => {
+  if (skip(t)) { return; }
+  const p = await open();
+  const f = await p.show('risky');
+  const lr01 = f.review.findings.find((x) => x.rule === 'LR01');
+  await p.page.click(`[data-finding="${lr01.fingerprint}"]`);
+  await p.clearPosted();
+  await p.page.click(`[data-finding="${lr01.fingerprint}"] [data-act="reveal"]`);
+  const reveal = (await p.posted()).find((m) => m.type === 'reveal');
+  assert.equal(reveal && reveal.deliberate, true);
+  await p.close();
 });

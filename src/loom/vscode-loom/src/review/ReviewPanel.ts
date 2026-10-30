@@ -6,7 +6,7 @@ import { samePath } from '../graph/paths';
 import { TimeoutScheduler } from '../graph/timeoutScheduler';
 import { ReviewController, ReviewState } from './controller';
 import { renderReviewHtml } from './html';
-import { parseReviewMessage, ReviewHostMessage } from './protocol';
+import { parseReviewMessage, ReviewHostMessage, shouldOpenSource } from './protocol';
 import { PanelTriage } from './vscodeTriage';
 
 /** `loom.review.layout`: the layout a panel opens in when this workspace has not chosen one yet. */
@@ -101,7 +101,9 @@ export class ReviewPanel {
                 void this.controller.request(this.entry);
                 break;
             case 'reveal':
-                void this.reveal(m.file, m.line, m.beside);
+                if (shouldOpenSource(m, vscode.workspace.getConfiguration('loom.review').get<boolean>('openSourceOnClick', false))) {
+                    void this.reveal(m.file, m.line, m.beside);
+                }
                 break;
             case 'selectWorkflow':
                 break; // the page keeps the choice; nothing on this side depends on it

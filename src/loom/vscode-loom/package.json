@@ -421,6 +421,11 @@
           "default": "save",
           "description": "When the Loom review runs by itself: after a save, while typing (only the validity lens, so it stays fast), or only when you ask."
         },
+        "loom.review.openSourceOnClick": {
+          "type": "boolean",
+          "default": false,
+          "description": "Open the .loom file when you click a finding in the Review panel. Off by default: a click only selects the finding, and Go to source (or Ctrl+Enter / Cmd+Enter) opens the file."
+        },
         "loom.terminal.addWeaveToPath": {
           "type": "boolean",
           "default": true,
