@@ -89,4 +89,14 @@ class PositionBiasTest {
         assertThat(biased.usableForGating()).isFalse();
         assertThat(biased.summary()).contains("changes its verdict when the order is swapped").contains("not usable for gating");
     }
+
+    @Test
+    void anEmptyListIsNeverClearedAndAMinimumBelowOneIsRefused() {
+        PositionBias.Result r = PositionBias.check(List.of(), 1);
+
+        assertThat(r.biased()).isTrue();
+        assertThat(String.join(" ", r.notes())).contains("0 pairs");
+        assertThatThrownBy(() -> PositionBias.check(List.of(), 0)).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("at least 1");
+        assertThatThrownBy(() -> PositionBias.check(pairs(20, 0, 0), -3)).isInstanceOf(IllegalArgumentException.class);
+    }
 }

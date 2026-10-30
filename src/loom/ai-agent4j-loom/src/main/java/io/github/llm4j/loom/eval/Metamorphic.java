@@ -119,12 +119,16 @@ public final class Metamorphic {
 
     /** The original's expectations, kept: the conclusion must not change. */
     private static EvalScenario same(EvalScenario s, String id, String input, Relation r, List<String> extraTags) {
-        return copy(s, id + "~" + r.word(), input, r, id, extraTags, s.correctConclusion(), s.acceptedEquivalents(), s.rejected());
+        return copy(s, id + "~" + r.word(), input, r, id, extraTags, s.correctConclusion(), s.acceptedEquivalents(), s.rejected(), true);
     }
 
     /**
      * The evidence taken away or flipped: the original conclusion (and what counted as it) becomes
-     * a rejected answer, so a system that still gives it did not use the evidence.
+     * a rejected answer, so a system that still gives it did not use the evidence. What the
+     * original required of its answer (contains, is, tools, rubric, expect, citations, acceptable
+     * actions) described the old conclusion and is dropped; what it forbade is kept. With no
+     * positive oracle such a case can fail or be unjudged, never pass: a changed answer is for a
+     * person to read.
      */
     private static EvalScenario changed(EvalScenario s, String id, Relation r, List<String> skipped) {
         String input = s.input();
@@ -163,7 +167,7 @@ public final class Metamorphic {
         }
         List<String> rejected = new ArrayList<>(s.rejectedAnswers());
         rejected.addAll(forbidden);
-        return copy(s, id + "~" + r.word(), changed, r, id, List.of(), null, null, rejected);
+        return copy(s, id + "~" + r.word(), changed, r, id, List.of(), null, null, rejected, false);
     }
 
     private static String tagValue(EvalScenario s, String prefix) {
@@ -188,7 +192,8 @@ public final class Metamorphic {
             List<String> extraTags,
             String conclusion,
             List<String> equivalents,
-            List<String> rejected) {
+            List<String> rejected,
+            boolean keepPositive) {
         List<String> tags = new ArrayList<>(s.tags() == null ? List.of() : s.tags());
         tags.removeIf(t -> t.startsWith(RELATION) || t.startsWith(PAIR) || t.startsWith("split:heldout"));
         if (s.tags() != null && s.tags().contains("split:heldout")) tags.add("split:heldout");
@@ -199,16 +204,16 @@ public final class Metamorphic {
         return new EvalScenario(
                 id,
                 input,
-                s.expectedOutputContains(),
-                s.expectedOutput(),
-                s.expectedTools(),
+                keepPositive ? s.expectedOutputContains() : null,
+                keepPositive ? s.expectedOutput() : null,
+                keepPositive ? s.expectedTools() : null,
                 s.context(),
                 s.retrievalContext(),
                 id,
                 s.dimensions(),
                 tags,
-                s.rubric(),
-                s.expect(),
+                keepPositive ? s.rubric() : null,
+                keepPositive ? s.expect() : null,
                 s.inputs(),
                 s.expectedOutputNotContains(),
                 s.expectedMinWords(),
@@ -216,9 +221,9 @@ public final class Metamorphic {
                 conclusion,
                 equivalents,
                 rejected,
-                s.acceptableActions(),
+                keepPositive ? s.acceptableActions() : null,
                 s.unacceptableActions(),
-                s.requiredCitations());
+                keepPositive ? s.requiredCitations() : null);
     }
 
     /** What {@link #deriveFolder} did: how many cases it derived and what it skipped. */

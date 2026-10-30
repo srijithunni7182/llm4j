@@ -96,4 +96,30 @@ class MetamorphicEvidenceTest {
 
         assertThat(Metamorphic.fragile(List.of(orig, derived))).singleElement().asString().contains("inv-1").contains("monotonicity").contains("did not change its conclusion").doesNotContain("passes alone and fails");
     }
+
+    @Test
+    void theChangedCasesDropWhatTheOriginalRequiredAndKeepWhatItForbade() {
+        EvalScenario s =
+                new EvalScenario(
+                        "inv-4", INPUT, "approve", "Approved.", List.of("lookup"), null, null, "inv-4", null,
+                        List.of("decisive:The invoice is signed."), List.of("states the decision"), List.of("cites the signature"), null,
+                        List.of("4111"), 3, 50, "approve", null, null, List.of("log it"), List.of("send email"), List.of("invoice.pdf"));
+
+        EvalScenario kept = Metamorphic.derive(List.of(s), List.of(Metamorphic.Relation.MONOTONICITY)).cases().get(0);
+        EvalScenario paraphrased = Metamorphic.derive(List.of(s), List.of(Metamorphic.Relation.PARAPHRASE), Map.of("inv-4", "Signed, small, listed.")).cases().get(0);
+
+        assertThat(kept.expectedOutputContains()).isNull();
+        assertThat(kept.expectedOutput()).isNull();
+        assertThat(kept.expectedTools()).isNull();
+        assertThat(kept.rubric()).isNullOrEmpty();
+        assertThat(kept.expect()).isNullOrEmpty();
+        assertThat(kept.acceptableActions()).isNullOrEmpty();
+        assertThat(kept.citations()).isEmpty();
+        assertThat(kept.unacceptableActions()).containsExactly("send email");
+        assertThat(kept.expectedOutputNotContains()).containsExactly("4111");
+        assertThat(kept.rejectedAnswers()).contains("approve");
+        // a relation that keeps the conclusion keeps all of it
+        assertThat(paraphrased.expectedOutputContains()).isEqualTo("approve");
+        assertThat(paraphrased.citations()).containsExactly("invoice.pdf");
+    }
 }

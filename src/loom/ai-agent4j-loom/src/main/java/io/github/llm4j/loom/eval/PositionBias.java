@@ -44,10 +44,12 @@ public final class PositionBias {
     /**
      * Checks the pairs.
      *
-     * @param minPairs the fewest pairs the check may rest on
-     * @throws IllegalArgumentException when a pick is not A, B or tie; the pair is named
+     * @param minPairs the fewest pairs the check may rest on, at least 1
+     * @throws IllegalArgumentException when a pick is not A, B or tie (the pair is named) or {@code
+     *     minPairs} is below 1; an empty list is never cleared
      */
     public static Result check(List<Pair> pairs, int minPairs) {
+        if (minPairs < 1) throw new IllegalArgumentException("the fewest pairs a position check may rest on is at least 1, got " + minPairs);
         int inconsistent = 0;
         int firstPicks = 0;
         int picks = 0;
