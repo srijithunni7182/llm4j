@@ -101,4 +101,36 @@ class JudgeValidateCommandTest {
         assertThat(said()).contains("Self-preference was not checked").contains("--system-model");
         assertThat(io.github.llm4j.loom.eval.JudgeValidationRecord.validatedFor(dir.resolve("eval"), "judge-m")).isFalse();
     }
+
+    private Path pairsFile(int consistent, int alwaysFirst) throws Exception {
+        StringBuilder b = new StringBuilder("[");
+        for (int i = 0; i < consistent + alwaysFirst; i++) {
+            if (i > 0) b.append(",");
+            b.append("{\"id\":\"p").append(i).append("\",\"first\":\"A\",\"swapped\":\"").append(i < consistent ? "B" : "A").append("\"}");
+        }
+        return Files.writeString(dir.resolve("pairs.json"), b.append("]").toString());
+    }
+
+    @Test
+    void aJudgeWhosePairwiseVerdictFollowsThePositionIsNotUsableAndNothingIsRecordedAsValidated() throws Exception {
+        Path pairs = pairsFile(10, 10);
+
+        assertThat(validate(set(0), "--system-model=system-m", "--swapped=" + pairs)).isEqualTo(1);
+
+        assertThat(said()).contains("changes its verdict when the order is swapped").contains("not usable for gating");
+        assertThat(io.github.llm4j.loom.eval.JudgeValidationRecord.validatedFor(dir.resolve("eval"), "judge-m")).isFalse();
+    }
+
+    @Test
+    void aJudgeThatPicksTheSameAnswerBothWaysStaysUsable() throws Exception {
+        assertThat(validate(set(0), "--system-model=system-m", "--swapped=" + pairsFile(20, 0))).isZero();
+    }
+
+    @Test
+    void aPairsFileWithAPairMissingASideIsAProblemWithTheFile() throws Exception {
+        Path bad = Files.writeString(dir.resolve("bad.json"), "[{\"id\":\"x\",\"first\":\"A\"}]");
+
+        assertThat(validate(set(0), "--system-model=system-m", "--swapped=" + bad)).isEqualTo(2);
+        assertThat(said()).contains("pair x needs both first and swapped");
+    }
 }

@@ -49,7 +49,20 @@ public final class JudgeValidation {
             List<String> offByTwoOrMore,
             List<String> biasNotes,
             boolean sameFamily,
-            boolean selfPreferenceChecked) {
+            boolean selfPreferenceChecked,
+            boolean positionBiased) {
+
+        /** A result whose pairwise position check, if any, found nothing. */
+        public Result(int outputs, double interHumanKappa, boolean rubricUnderSpecified, Double judgeKappa, double meanBias, List<String> offByTwoOrMore, List<String> biasNotes, boolean sameFamily, boolean selfPreferenceChecked) {
+            this(outputs, interHumanKappa, rubricUnderSpecified, judgeKappa, meanBias, offByTwoOrMore, biasNotes, sameFamily, selfPreferenceChecked, false);
+        }
+
+        /** This result with the findings of a pairwise position-bias check added; a biased judge may not gate. */
+        public Result withPosition(PositionBias.Result position) {
+            List<String> notes = new ArrayList<>(biasNotes);
+            notes.addAll(position.notes());
+            return new Result(outputs, interHumanKappa, rubricUnderSpecified, judgeKappa, meanBias, offByTwoOrMore, List.copyOf(notes), sameFamily, selfPreferenceChecked, positionBiased || position.biased());
+        }
 
         /** A result with no bias findings, whose self-preference check was made. */
         public Result(int outputs, double interHumanKappa, boolean rubricUnderSpecified, Double judgeKappa, double meanBias, List<String> offByTwoOrMore) {
@@ -67,7 +80,7 @@ public final class JudgeValidation {
          * answer is no.
          */
         public boolean usableForGating() {
-            return !rubricUnderSpecified && selfPreferenceChecked && !sameFamily && judgeKappa != null && judgeKappa >= JUDGE_MUST_AGREE;
+            return !rubricUnderSpecified && selfPreferenceChecked && !sameFamily && !positionBiased && judgeKappa != null && judgeKappa >= JUDGE_MUST_AGREE;
         }
 
         /** The judge's band, or the humans' when the judge was never reached. */

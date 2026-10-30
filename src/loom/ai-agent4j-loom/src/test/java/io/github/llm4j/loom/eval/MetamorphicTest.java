@@ -67,15 +67,13 @@ class MetamorphicTest {
     }
 
     @Test
-    void relationsAreReadFromTheirNamesAndAModelDependentOneIsSaidNotToBeBuilt() {
+    void relationsAreReadFromTheirNames() {
         assertThat(Metamorphic.Relation.parse("irrelevant,order")).containsExactly(Metamorphic.Relation.IRRELEVANT, Metamorphic.Relation.ORDER);
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> Metamorphic.Relation.parse("paraphrase"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("paraphrase")
-                .hasMessageContaining("needs a model")
-                .hasMessageContaining("irrelevant, order");
+        assertThat(Metamorphic.Relation.parse("paraphrase, monotonicity ,negation"))
+                .containsExactly(Metamorphic.Relation.PARAPHRASE, Metamorphic.Relation.MONOTONICITY, Metamorphic.Relation.NEGATION);
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> Metamorphic.Relation.parse("sideways"))
-                .hasMessageContaining("sideways");
+                .hasMessageContaining("sideways")
+                .hasMessageContaining("paraphrase, monotonicity, negation");
     }
 
     @Test

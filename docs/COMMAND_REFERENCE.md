@@ -32,8 +32,9 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 - [`weave test`](#weave-test) — Runs test cases against a workflow with scripted models and no keys: routes, calls and results are checked, nothing is spent.
 - [`weave eval`](#weave-eval) — Runs a script's golden dataset (eval/golden/*.yaml) against it and reports passed, failed and unjudged.
 - [`weave judge`](#weave-judge) — Checks whether an LLM judge may gate: its scores against people's scores.
-- [`weave metamorphic`](#weave-metamorphic) — Derives metamorphic cases from a golden dataset with no model: an irrelevant addition and a reordering of the input must not change the conclusion, so each derived case keeps the original's expectations and is tagged relation:<name> and pair:<id>.
+- [`weave metamorphic`](#weave-metamorphic) — Derives metamorphic cases from a golden dataset; it calls no model.
 - [`weave security`](#weave-security) — Injection testing: turns a corpus of payloads into eval cases.
+- [`weave probe`](#weave-probe) — Probes of a mechanism with no model: how the context manager evicts on a small window.
 - [`weave gate`](#weave-gate) — Runs the checks your team chose (check, review, test, regress, eval) and prints one verdict, for CI.
 - [`weave preflight`](#weave-preflight) — Sends one small probe per agent through its real prompts and checks: the key, the model, one whole answer, that the shared prompt reaches the model, sources for grounded agents, price and window.
 
@@ -1959,17 +1960,19 @@ weave judge validate [OPTIONS]
 **Options**
 
 - `--min-outputs=<minOutputs>` — The fewest outputs a validation may rest on (default: 40).
+- `--min-pairs=<minPairs>` — The fewest pairs a position check may rest on (default: 10).
 - `--model=<name>` — The judge model the scores came from (as in weave eval --judge). The record names it, and a report says validated only for this model.
 - `--project=<folder>` — The project: the result is recorded in <folder>/eval/judge-validation.json (default: this folder).
 - `--reference=<file>` — The scored reference set.
+- `--swapped=<file>` — For a judge that compares two answers: a list (JSON or YAML) of {id, first, swapped}, each pair judged twice, the second time with the answers swapped; first and swapped are the picks (A, B or tie) in the letters of each presentation. Checks that the verdict does not follow the position. A biased judge may not gate.
 - `--system-model=<name>` — The model the agents run on. A judge from the same family may not gate (self-preference).
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave metamorphic`
 
-Derives metamorphic cases from a golden dataset with no model: an irrelevant addition and a reordering of the input must not change the conclusion, so each derived case keeps the original's expectations and is tagged relation:<name> and pair:<id>.
+Derives metamorphic cases from a golden dataset; it calls no model.
 
-Writes the originals and the derived cases to --out. Paraphrase, monotonicity and negation need a model or the domain's evidence: write those pairs by hand.
+An irrelevant addition, a reordering and a paraphrase must not change the conclusion, so each derived case keeps the original's expectations. Monotonicity (remove the evidence a case marks with the tag decisive:<text>) and negation (flip it, as the tag negate:<from>=><to> says) must change it, so the derived case forbids the original conclusion. Paraphrase takes the reworded inputs from --paraphrases, written by a person or a model, and tags the cases source:synthetic. Each derived case is tagged relation:<name> and pair:<id>. Writes the originals and the derived cases to --out.
 
 ```
 weave metamorphic [OPTIONS]
@@ -1979,7 +1982,8 @@ weave metamorphic [OPTIONS]
 
 - `--from=<dir>` — The dataset folder (eval/golden).
 - `--out=<dir>` — Where to write the dataset with the derived cases added. It must be empty or new.
-- `--relations=<relations>` — irrelevant, order (default: irrelevant,order).
+- `--paraphrases=<file>` — For the paraphrase relation: a JSON or YAML map from a case id to its reworded input.
+- `--relations=<relations>` — irrelevant, order, paraphrase, monotonicity, negation (default: irrelevant,order).
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave security`
@@ -2016,6 +2020,43 @@ weave security generate [OPTIONS]
 - `--target=<name>` — The dataset file name: the workflow or agent the cases are for (default: workflow).
 - `--templates=<dir>` — Your realistic artefacts, named after a placement (default: <corpus>/templates).
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+### `weave probe`
+
+Probes of a mechanism with no model: how the context manager evicts on a small window.
+
+```
+weave probe [OPTIONS] <command>
+```
+
+**Commands**
+
+- `eviction` — Plants a fact early in a long simulated run on a small context window, lets the real context manager compact as the window fills, and checks that the oldest material went first, that the task stayed, and that the model was told something was removed (so no conclusion silently rests on what is gone).
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+#### `weave probe eviction`
+
+Plants a fact early in a long simulated run on a small context window, lets the real context manager compact as the window fills, and checks that the oldest material went first, that the task stayed, and that the model was told something was removed (so no conclusion silently rests on what is gone).
+
+Exit 0 it behaved, 1 it did not or the probe tested no eviction, 2 a problem with the options. It calls no model, so it proves the mechanism and not what an agent does with a gap: pair it with a monotonicity case from weave metamorphic.
+
+```
+weave probe eviction [OPTIONS]
+```
+
+**Options**
+
+- `--fact-at=<factAt>` — The turn that carries the planted fact (default: 2).
+- `--fact=<fact>` — The planted fact (default: the vault code is 4417).
+- `--keep-recent=<keepRecent>` — How many of the latest messages compaction must leave alone (default: 2).
+- `--strategy=<name>` — The compaction strategy, one that calls no model, such as drop_oldest or trim_tool_results (default: drop_oldest).
+- `--turn-chars=<turnChars>` — How long each turn's output is (default: 800).
+- `--turns=<turns>` — How many turns the run has (default: 30).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+- `--window=<window>` — The simulated model window in tokens (default: 4000).
 
 ### `weave test`
 

@@ -70,9 +70,32 @@ class MetamorphicCommandTest {
     }
 
     @Test
-    void aRelationThatNeedsAModelIsRefusedWithWhy() throws Exception {
+    void theParaphraseRelationNeedsTheRewordedInputsAndSaysSo() throws Exception {
         assertThat(run("--from", dataset().toString(), "--out", dir.resolve("m").toString(), "--relations", "paraphrase")).isEqualTo(2);
 
-        assertThat(out.toString(StandardCharsets.UTF_8)).contains("paraphrase needs a model");
+        assertThat(out.toString(StandardCharsets.UTF_8)).contains("paraphrase relation needs --paraphrases");
+    }
+
+    @Test
+    void paraphrasesFromAFileBecomeSyntheticCasesAndTheOthersAreSkipped() throws Exception {
+        Path data = dataset();
+        String id = io.github.llm4j.eval.dataset.EvalScenarios.fromDirectory(data).values().iterator().next().get(0).id();
+        Path file = Files.writeString(dir.resolve("paraphrases.json"), "{\"" + id + "\": \"The same question in other words.\"}");
+
+        int exit = run("--from", data.toString(), "--out", dir.resolve("m").toString(), "--relations", "paraphrase", "--paraphrases", file.toString());
+
+        assertThat(exit).isZero();
+        String text = out.toString(StandardCharsets.UTF_8);
+        assertThat(text).contains("Derived 1 case");
+        assertThat(Files.walk(dir.resolve("m")).filter(Files::isRegularFile).map(f -> { try { return Files.readString(f); } catch (Exception e) { return ""; } }).reduce("", String::concat))
+                .contains("source:synthetic").contains("relation:paraphrase").contains("The same question in other words.");
+    }
+
+    @Test
+    void aParaphrasesFileThatIsNotAMapIsAProblemWithTheFile() throws Exception {
+        Path file = Files.writeString(dir.resolve("p.json"), "[1,2]");
+
+        assertThat(run("--from", dataset().toString(), "--out", dir.resolve("m").toString(), "--relations", "paraphrase", "--paraphrases", file.toString())).isEqualTo(2);
+        assertThat(out.toString(StandardCharsets.UTF_8)).contains("a map from a case id");
     }
 }
