@@ -70,6 +70,10 @@ public final class Guide {
                             "Cost and model choice: suggest models from evidence, estimate and cap the cost",
                             "guide/16-cost-and-model-choice.md"),
                     new Page(
+                            "tutorial",
+                            "The Loom tutorial, as one web page: weave guide tutorial writes loom-tutorial.html",
+                            "guide/loom-tutorial.html"),
+                    new Page(
                             "agents",
                             "Instructions for a coding agent: look things up, the loop, the rules",
                             "guide/AGENT_INSTRUCTIONS.md"),

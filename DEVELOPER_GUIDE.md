@@ -48,6 +48,9 @@ Click **👋 Try a demo** and a real workflow runs in front of you: a classifier
 
 Then make one of your own. 👇
 
+> [!TIP]
+> 🎓 **Want to understand what you are generating, or write a workflow yourself?** The **[Loom tutorial](docs/tutorial/README.md)** teaches the language in fourteen chapters with diagrams, from a first workflow to production, and the **[starter set](src/loom/starters/README.md)** has fifteen small, tested workflows to copy (a router, a review loop, an approval, a daily digest, an agent that earns the right to act alone, and more).
+
 ---
 
 ## 🎯 Why teams reach for it
@@ -286,6 +289,8 @@ So the session goes like this: **you** say what you want. Your agent plans it, b
 
 ## 📌 Where to go next
 
+- 🎓 **[The Loom tutorial](docs/tutorial/README.md)**: learn the language from a first workflow to production, with diagrams and runnable examples. Start here if you want to write workflows by hand.
+- 🧵 **[The starter set](src/loom/starters/README.md)**: fifteen small workflows, each with tests that need no key and a picture of itself. Copy one and change it.
 - 📖 **[Command reference](docs/COMMAND_REFERENCE.md)**: every command, every option with its default, examples and exit codes. In a terminal: `weave man`.
 - 🧩 **[VS Code extension](src/loom/vscode-loom/README.md)**: the graph, the review panel, generate and change, the step debugger, the guide and the agent set-up.
 - 🏁 **[Getting started with Loom](docs/GETTING_STARTED.md)** · **[Your first run](wiki/Your-First-Run.md)**

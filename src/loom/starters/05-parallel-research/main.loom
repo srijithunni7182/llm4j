@@ -1,0 +1,32 @@
+// 05-parallel-research: ask several specialists at the same time, and carry on even if one of them fails.
+// Each branch has its own flag (web_ok, docs_ok): branches run together, so they must never share one variable.
+
+substitution: braces
+
+budget { tokens: 200000  calls: 20 }
+
+agent WebResearcher  { model: "gemini-2.5-flash"  system: "Search the web and report what you find in five lines."  tools: [web_search] }
+agent DocsResearcher { model: "gemini-2.5-flash"  system: "Report what the company documents say, in five lines." }
+agent Writer         { model: "gemini-2.5-flash"  system: "Write a short report from the notes you are given. Say what is missing."  temperature: 0.4 }
+
+workflow Main(topic) {
+    set web_ok = "yes"
+    set docs_ok = "yes"
+
+    parallel {
+        delegate "Find recent public information about {topic}" to WebResearcher -> web_notes retry 1 timeout 60s
+            on_failure { set web_ok = "no"  set web_notes = "nothing found on the web" }
+        delegate "Find what our documents say about {topic}" to DocsResearcher -> docs_notes retry 1 timeout 60s
+            on_failure { set docs_ok = "no"  set docs_notes = "nothing found in the documents" }
+    }
+
+    alt (web_ok == "no") {
+        note "The web research failed, so the report below rests on documents only."
+    }
+    alt (docs_ok == "no") {
+        note "The document research failed, so the report below rests on the web only."
+    }
+
+    delegate "Topic: {topic}\nWeb notes: {web_notes}\nDocument notes: {docs_notes}" to Writer -> report
+    return report
+}

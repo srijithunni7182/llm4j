@@ -1,0 +1,26 @@
+// 09-handbook-qa: answer questions from your own documents. The relevant passages are found first (by meaning) and put
+// in front of the question, and the agent is told to say so when the handbook does not answer.
+
+substitution: braces
+
+budget { tokens: 80000  calls: 10 }
+
+knowledge Handbook {
+    source: "handbook/"
+    embedding: "gemini/text-embedding-004"
+    chunk_size: 600
+    top_k: 3
+    store: "index/handbook.json"
+}
+
+agent Answerer {
+    model: "gemini-2.5-flash"
+    system: "Answer only from the handbook passages you are given. If they do not answer the question, say: The handbook does not say."
+    temperature: 0.1
+    knowledge: [Handbook]
+}
+
+workflow Main(question) {
+    delegate "{question}" to Answerer -> answer
+    return answer
+}

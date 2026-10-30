@@ -1,0 +1,38 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: each task goes to the owner the plan names, and the editor combines them
+    input: { goal: "Explain solar roofs" }
+    models:
+      Planner:
+        tasks:
+          - { name: facts, description: "Find three facts.", owner: Researcher }
+          - { name: intro, description: "Write an intro.", owner: Writer }
+      Researcher: "Three facts."
+      Writer: "An intro."
+      Editor: "One document."
+    expect:
+      result: { contains: "One document" }
+      calls: { Planner: 1, Researcher: 1, Writer: 1, Editor: 1 }
+  - name: an empty plan runs no tasks but still ends cleanly
+    input: { goal: "Nothing to do" }
+    models:
+      Planner: { tasks: [] }
+      Editor: "Empty document."
+    expect:
+      calls: { Researcher: 0, Writer: 0, Editor: 1 }
+  - name: a task that fails is reported and the others still count
+    input: { goal: "Explain solar roofs" }
+    models:
+      Planner:
+        tasks:
+          - { name: facts, description: "Find three facts.", owner: Researcher }
+          - { name: intro, description: "Write an intro.", owner: Writer }
+      Researcher: "x"
+      Writer: "An intro."
+      Editor: "Document without the facts."
+    fail:
+      Researcher: { always: true, category: server_error }
+    expect:
+      degraded: true
+      calls: { Writer: 1, Editor: 1 }

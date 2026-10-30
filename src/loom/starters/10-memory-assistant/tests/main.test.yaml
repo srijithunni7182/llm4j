@@ -1,0 +1,10 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: the assistant answers for the person who asked
+    input: { user_id: "u-17", message: "Do you have a quiet room?" }
+    models:
+      Assistant: "Yes, we have a quiet room on the third floor. For which nights?"
+    expect:
+      result: { contains: "quiet room" }
+      calls: { Assistant: 1 }

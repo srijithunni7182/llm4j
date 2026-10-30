@@ -1,0 +1,30 @@
+// 04-router: decide which specialist should answer. The classifier only labels; the script's own `alt` does the routing,
+// so no wording in a message can change which branch runs.
+
+substitution: braces
+
+agent Classifier {
+    model: "gemini-2.5-flash"
+    system: "Classify the customer message."
+    temperature: 0.0
+    output_schema: { kind: enum["BILLING", "TECHNICAL", "OTHER"] }
+}
+agent Billing   { model: "gemini-2.5-flash"  system: "You answer billing questions politely and briefly." }
+agent Technical { model: "gemini-2.5-flash"  system: "You answer technical questions with numbered steps." }
+agent Generalist { model: "gemini-2.5-flash"  system: "You answer general questions briefly." }
+
+workflow Main(message) {
+    delegate "Classify: {message}" to Classifier -> label
+
+    alt (label.kind == "BILLING") {
+        delegate "{message}" to Billing -> reply
+    } else {
+        alt (label.kind == "TECHNICAL") {
+            delegate "{message}" to Technical -> reply
+        } else {
+            delegate "{message}" to Generalist -> reply
+        }
+    }
+
+    return reply
+}

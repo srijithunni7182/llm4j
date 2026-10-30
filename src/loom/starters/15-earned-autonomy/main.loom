@@ -1,0 +1,51 @@
+// 15-earned-autonomy: an agent does not get to act on its own because you hope it is good. It proposes, a person decides, and a
+// ledger of both moves it up a ladder (watch, suggest, act) only as the record supports. It also drops back when the record turns bad.
+// `weave autonomy status` shows where each ladder stands.
+
+substitution: braces
+
+budget { tokens: 100000  calls: 20 }
+
+agent Triager {
+    model: "gemini-2.5-flash"
+    system: "You are Triager. Decide whether a refund request should be approved, rejected or escalated."
+    output_schema: { choice: enum["approve", "reject", "escalate"], reasoning: string, confidence: number }
+    guard { bias: warn }
+}
+
+decision Refund {
+    proposed by:            Triager
+    choices:                approve, reject, escalate
+    group cases by:         tier
+    remember:               amount, reason
+    dangerous mistake:      propose approve, person decides reject
+    ask:                    support-lead
+    keep records for:       180 days
+    when the agent changes: test it on past cases
+
+    trust {
+        start at watch
+        never go above suggest
+
+        to suggest:  after 100 cases over 14 days, agreeing at least 90%
+        to act:      after 300 cases over 30 days, agreeing at least 97%, with no dangerous mistakes
+        judge on the latest 300 cases
+
+        check 5% of cases with a person who doesn't see the proposal
+        always ask a person when amount > 200
+
+        drop to suggest when 2 dangerous mistakes in 50 cases
+        drop to suggest when agreement falls below 92%
+
+        moving up needs approval from: risk-owner
+    }
+}
+
+workflow Triage(ticket, tier, amount, reason) {
+    decide Refund -> verdict
+    alt (verdict == "approve") {
+        note "Refund approved for {ticket}."
+    } else {
+        note "Refund for {ticket} not approved automatically: {verdict}."
+    }
+}

@@ -1,0 +1,32 @@
+// 13-rewind-and-retry: when a late check shows an early step was wrong, go back to a named point, keep what was learned, and try
+// again, a limited number of times. Compare with 03-review-loop, which only rewrites the last step.
+
+substitution: braces
+
+budget { tokens: 250000  calls: 30 }
+
+agent Collector { model: "gemini-2.5-flash"  system: "Collect sources on the topic. Use the feedback to look somewhere new."  temperature: 0.5 }
+agent Writer    { model: "gemini-2.5-flash"  system: "Write a short report from the sources."  temperature: 0.5 }
+agent Reviewer  {
+    model: "gemini-2.5-flash"
+    system: "Score the report from 1 to 10 for how well the sources support it, and say what to fix."
+    temperature: 0.0
+    output_schema: { score: number, notes: string }
+}
+
+workflow Report(topic) {
+    checkpoint collected starting with feedback = "none"
+
+    delegate "Collect sources on {topic}. Feedback so far: {feedback}" to Collector -> data
+    delegate "Write the report from these sources:\n{data}" to Writer -> draft
+    delegate "Review this report against its sources.\nSources: {data}\nReport: {draft}" to Reviewer -> review
+
+    rewind to collected
+        when (review.score < 7)
+        at most 2 times
+        carrying feedback = "{review.notes}"
+        side effects: keep
+        if it still fails { note "Three attempts did not reach a score of 7; keeping the last report for a person to read." }
+
+    return draft
+}

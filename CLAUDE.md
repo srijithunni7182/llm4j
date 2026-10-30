@@ -210,7 +210,9 @@ Every dependency of a published module becomes a dependency of every application
 
 Several files are tested against each other; the full table is in the `steward` skill. The most common are:
 
-- **Loom syntax:** update `LOOM_GUIDE.md` (its `loom` blocks are parse-tested), `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md`, the `llm4j-workflow-guide` skill, the VS Code grammar and snippets, and add a CTK scenario.
+- **Loom syntax:** update `LOOM_GUIDE.md` (its `loom` blocks are parse-tested), `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md`, the `docs/tutorial` chapters and the `src/loom/starters` that use it (`TutorialExamplesTest` and `StartersTest` fail on a block that no longer loads), the `llm4j-workflow-guide` skill, the VS Code grammar and snippets, and add a CTK scenario.
+- **The tutorial's markdown:** regenerate the web page the jar carries with `bash scripts/make-tutorial-html.sh` (needs Node 18+; `GuideTutorialPageTest` fails on a stale page).
+- **A starter's `main.loom`:** redraw its picture with `bash scripts/make-starter-diagrams.sh` (its README shows the script itself and the graph `weave graph` draws now, and `StartersTest` compares both).
 - **Graph node or edge kinds:** run `bash scripts/sync-graph-render.sh`, then `bash scripts/check-graph-render-sync.sh`.
 - **A public API or file format:** update `docs/API_COMPATIBILITY.md`. When you add a component to a record, keep its old constructor.
 - **Any `.loom` file:** it must pass `RepositoryScriptsTest`.

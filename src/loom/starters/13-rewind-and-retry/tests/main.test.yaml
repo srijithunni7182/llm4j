@@ -1,0 +1,34 @@
+script: ../main.loom
+workflow: Report
+cases:
+  - name: a good first report is kept and nothing is repeated
+    input: { topic: "solar roofs" }
+    models:
+      Collector: "Sources."
+      Writer: "A good report."
+      Reviewer: { score: 9, notes: "" }
+    expect:
+      result: { contains: "good report" }
+      calls: { Collector: 1, Writer: 1, Reviewer: 1 }
+  - name: a weak report sends the run back to collecting, carrying the notes
+    input: { topic: "solar roofs" }
+    models:
+      Collector: ["Weak sources.", "Better sources."]
+      Writer: ["A thin report.", "A solid report."]
+      Reviewer:
+        - { score: 4, notes: "Cite the 2025 survey." }
+        - { score: 8, notes: "" }
+    expect:
+      result: { contains: "solid report" }
+      calls: { Collector: 2, Writer: 2, Reviewer: 2 }
+      told: { Collector: [ "Cite the 2025 survey." ] }
+  - name: after the limit the run stops going back and says so
+    input: { topic: "solar roofs" }
+    models:
+      Collector: "Sources."
+      Writer: "A thin report."
+      Reviewer: { score: 3, notes: "Not enough." }
+    repeat: last
+    expect:
+      calls: { Reviewer: 3 }
+      route: [ checkpoint, delegate Collector, delegate Writer, delegate Reviewer, rewind, delegate Collector, delegate Writer, delegate Reviewer, rewind, delegate Collector, delegate Writer, delegate Reviewer, note ]

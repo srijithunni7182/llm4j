@@ -1,0 +1,35 @@
+// 11-daily-digest: a workflow that runs itself on a clock. The `schedule` block is kept in a trigger store, so it survives restarts
+// (weave schedule sync, then weave daemon or weave tick). A missed run happens once, not once per missed day.
+
+substitution: braces
+
+budget { tokens: 120000  calls: 12 }
+
+tool Slack { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
+
+agent Reader {
+    model: "gemini-2.5-flash"
+    system: "Find today's most useful news for the topic and report five items with one line each."
+    tools: [web_search]
+}
+agent Poster {
+    model: "gemini-2.5-flash"
+    system: "Post the digest you are given to Slack with a short title. Do nothing else."
+    tools: [Slack]
+}
+
+workflow Digest(topic) {
+    delegate "Today's news about {topic}" to Reader -> items retry 1 timeout 90s
+        on_failure { halt "No digest today: the reader failed ({_error})." }
+    delegate "Post this digest:\n{items}" to Poster -> receipt retry 1 timeout 30s
+        on_failure { halt "The digest was written but may not have been posted: {_error}." }
+    return receipt
+}
+
+schedule Morning {
+    cron: "0 7 * * 1-5"
+    timezone: "Asia/Kolkata"
+    run: Digest(topic="renewable energy")
+    misfire: run_once
+    overlap: skip
+}

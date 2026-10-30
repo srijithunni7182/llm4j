@@ -2183,13 +2183,14 @@ weave guide [OPTIONS] [<page>]
 
 **Arguments**
 
-- `<page>` — A chapter number (1 to 14), readme, loom (the reference), llms, deploy (the deployer skill's map) or d1 to d8.
+- `<page>` — A chapter number (1 to 16), readme, tutorial (the Loom tutorial as a web page: it is written to a file), loom (the reference), llms, deploy (the deployer skill's map) or d1 to d8.
 
 **Options**
 
 - `--for=<forAgents>` — With --install-skill: which coding agents to set up, separated by commas: claude (the skills in .claude/skills; the default), agents (AGENTS.md, read by Codex, Copilot, Gemini, Cursor and others), copilot (.github/copilot-instructions.md), cursor (.cursor/rules/loom.mdc) or all. The instruction files keep what you wrote in them: Loom's text sits between two marker lines.
-- `--force` — With --install-skill: replace the skill if it is already there.
+- `--force` — With --install-skill: replace the skill if it is already there. With the tutorial: replace the file if it is already there.
 - `--install-skill=<installTo>` — Write the skills and the guide into <dir>/.claude/skills (default: this folder): llm4j-eval-design (design the evaluation), llm4j-harness-design (design the harness), llm4j-workflow-guide (build, test, secure, ship) and llm4j-loom-deployer (run it, watched).
+- `--out=<file>` — With the tutorial: where to write the web page (default: loom-tutorial.html in this folder).
 - `--skill=<which>` — With --install-skill: eval, harness, workflow, deployer or all (default all).
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 

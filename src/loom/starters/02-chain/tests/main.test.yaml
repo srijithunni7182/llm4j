@@ -1,0 +1,13 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: each step uses what the step before it wrote
+    input: { text: "Loom runs agents in a fixed order." }
+    models:
+      Summarizer: "- Loom runs agents."
+      Critic: "It forgot the order."
+      Rewriter: "- Loom runs agents in order."
+    expect:
+      result: { contains: "in order" }
+      route: [ delegate Summarizer, delegate Critic, delegate Rewriter ]
+      told: { Critic: [ "Loom runs agents." ], Rewriter: [ "It forgot the order." ] }

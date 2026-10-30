@@ -26,7 +26,7 @@ final class GuideCommand implements Callable<Integer> {
             arity = "0..1",
             paramLabel = "<page>",
             description =
-                    "A chapter number (1 to 14), readme, loom (the reference), llms, deploy (the deployer skill's map) or d1 to d8.")
+                    "A chapter number (1 to 16), readme, tutorial (the Loom tutorial as a web page: it is written to a file), loom (the reference), llms, deploy (the deployer skill's map) or d1 to d8.")
     String page;
 
     @Option(
@@ -52,9 +52,24 @@ final class GuideCommand implements Callable<Integer> {
     String forAgents;
 
     @Option(
+            names = "--out",
+            paramLabel = "<file>",
+            description =
+                    "With the tutorial: where to write the web page (default: loom-tutorial.html in this folder).")
+    File out;
+
+    @Option(
             names = "--force",
-            description = "With --install-skill: replace the skill if it is already there.")
+            description =
+                    "With --install-skill: replace the skill if it is already there. With the tutorial: replace the file if it is already there.")
     boolean force;
+
+    /** Where the tutorial's web page is written: {@code --out}, else {@code loom-tutorial.html} here. */
+    File tutorialFile() {
+        return out != null ? out : new File(TUTORIAL_FILE);
+    }
+
+    private static final String TUTORIAL_FILE = "loom-tutorial.html";
 
     @Override
     public Integer call() {
@@ -223,6 +238,7 @@ final class GuideCommand implements Callable<Integer> {
                                     + " Run weave guide to see them.");
             return 2;
         }
+        if (found.get().resource().endsWith(".html")) return writeWebPage(c, found.get(), env);
         var text = Guide.text(found.get());
         if (text.isEmpty()) {
             env.err()
@@ -233,6 +249,29 @@ final class GuideCommand implements Callable<Integer> {
             return 2;
         }
         env.out().print(text.get());
+        return 0;
+    }
+
+    /** A page that is a web page is written to a file, because printing it to a terminal would help nobody. */
+    private static int writeWebPage(GuideCommand c, Guide.Page page, WeaveEnv env) {
+        var html = Guide.text(page);
+        if (html.isEmpty()) {
+            env.err().println("Error: this jar does not contain " + page.resource() + ". Reinstall weave.");
+            return 2;
+        }
+        Path target = c.tutorialFile().toPath().toAbsolutePath().normalize();
+        try {
+            if (java.nio.file.Files.exists(target) && !c.force) {
+                env.err().println("Error: " + target + " already exists. Name another file with --out, or replace it with --force.");
+                return 2;
+            }
+            if (target.getParent() != null) java.nio.file.Files.createDirectories(target.getParent());
+            java.nio.file.Files.writeString(target, html.get(), java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.io.IOException e) {
+            env.err().println("Error: could not write " + target + ": " + e.getMessage());
+            return 2;
+        }
+        env.out().println("Wrote " + target + ". Open it in a browser. It works offline: the diagrams are drawn into the page, and the fonts fall back to your own.");
         return 0;
     }
 }

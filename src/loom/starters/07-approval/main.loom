@@ -1,0 +1,35 @@
+// 07-approval: the model drafts, a person approves, and only then does anything leave the building.
+// The approval is plain script logic and an `approve:` on the agent that holds the sending tool, so no wording in
+// a message can talk the model past it.
+
+substitution: braces
+
+budget { tokens: 100000  calls: 20 }
+
+tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
+
+agent Drafter {
+    model: "gemini-2.5-flash"
+    system: "Draft a short, polite announcement from the facts you are given."
+    temperature: 0.4
+    guard { pii: mask }
+}
+agent Sender {
+    model: "gemini-2.5-flash"
+    system: "Send the announcement you are given with the Notify tool. Do nothing else."
+    tools: [Notify]
+    approve: [Notify]
+}
+
+workflow Main(facts) {
+    delegate "Draft an announcement from: {facts}" to Drafter -> draft
+
+    human_prompt "Here is the draft:\n\n{draft}\n\nSend it to the team channel? (yes/no)" -> answer
+    alt (answer == "yes") {
+        delegate "Send this announcement:\n{draft}" to Sender -> receipt retry 1 timeout 30s
+            on_failure { halt "The announcement may not have been sent: {_error}. Check the channel before trying again." }
+        note "Sent. {receipt}"
+    } else {
+        note "Not sent. The draft is kept for editing:\n{draft}"
+    }
+}

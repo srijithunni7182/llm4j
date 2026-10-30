@@ -1,0 +1,26 @@
+// 14-supervised-agent: rules that watch an agent and act without a person. Every signal is a count (repeats, failures, steps, how
+// full the window is), never a model's opinion, so a rule cannot be talked out of firing.
+
+substitution: braces
+
+budget { tokens: 200000  calls: 40 }
+
+agent Researcher {
+    model: "gemini-2.5-flash"
+    system: "Research the question with the tools you have, then answer in a short paragraph."
+    tools: [web_search, calculator]
+    max_iterations: 20
+}
+
+supervise Researcher {
+    when looping(3)                  { steer "You are repeating yourself. Try a different search." once }
+    when tool_failing(web_search, 3) { wrap_up }
+    when context > 90%               { wrap_up }
+    when steps > 15                  { cancel use partial }
+}
+
+workflow Brief(question) {
+    delegate "{question}" to Researcher -> findings retry 1 timeout 180s
+        on_failure { halt "The research failed: {_error}" }
+    return findings
+}

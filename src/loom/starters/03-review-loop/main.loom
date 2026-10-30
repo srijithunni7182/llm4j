@@ -1,0 +1,23 @@
+// 03-review-loop: write, review, rewrite until the reviewer is satisfied. The loop is bounded: it can never run away.
+
+substitution: braces
+
+budget { tokens: 150000  calls: 20 }
+
+agent Writer   { model: "gemini-2.5-flash"  system: "Write clear, short product descriptions."  temperature: 0.7 }
+agent Reviewer { model: "gemini-2.5-flash"  system: "Review the description. Say OK only if it is clear and under 60 words."  temperature: 0.1 }
+
+workflow Main(product) {
+    delegate "Write a product description for: {product}" to Writer -> draft
+
+    loop until (review.verdict == "OK") max 3 {
+        delegate "Review this description:\n{draft}" to Reviewer -> review expecting { verdict: enum["OK", "REWRITE"], advice: string }
+        alt (review.verdict == "REWRITE") {
+            delegate "Rewrite it. The reviewer says: {review.advice}\n\n{draft}" to Writer -> draft
+        }
+    } on_exhausted {
+        note "The reviewer was still not satisfied after {_loopRound} rounds; using the last draft."
+    }
+
+    return draft
+}
