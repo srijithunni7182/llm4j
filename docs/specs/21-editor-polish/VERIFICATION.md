@@ -105,3 +105,10 @@ The extension README and CHANGELOG; developer guide screenshots and journey; `do
 - Shared renderer (Fabric, eval report): the layered layout already draws lanes as fan-out and fan-in; added grouping of runs of sets (`data-members`), tests in `lanes.test.js` (10); copies synced and checked. **The graph-render tests were already failing on a clean checkout of `HEAD` (19 of 73) and no CI job runs them**; I repaired the stale table and they pass (91).
 - Verification: Loom module 3,719 tests, 0 failed, 2 skipped (same two), gates met; `eval4j-report` 68, 0 failed; extension 757, 0 failed, 0 skipped; graph-render 91.
 - Not done: Fabric's live page was not looked at (M5); the Outline tree view in the editor was not retaken as a screenshot for the README (M6); nested parallel blocks are stacked in the outer lane, not drawn as nested lanes (DESIGN §6.3); a block with one branch is drawn as a lane, not a "parallel (1)" step; `weave graph` text and `weave explain` do not list lanes; the `.vsix` was not built or installed.
+
+### 21 leftovers (done in code; M-checks stay with the owner)
+
+- **Status-bar item and refresh on evaluation files (R3):** `progressStatus` (text such as `Loom 4/10 · The script checks clean`, a tooltip, and the next step's command as the click) and `isProgressFile` (`eval/`, `EVAL_DESIGN.md`, `*.test.yaml`, `.loom`) are pure and tested in `outlineProgress.test.ts`; the Outline provider watches those files and drives the item. Not done: refresh on terminal-command-ended events; the "Mark as read" prompt has no spec in this folder, so it was not built.
+- **Nested `parallel` blocks (R5):** the editor already drew a lane inside a lane (the innermost lane wins); `nestedLanes.unit.test.js` and a fixture pin it. Mermaid declared the inner nodes twice; it now nests the inner block as a `subgraph` (`NestedLanesMermaidTest`).
+- **`weave graph` text lanes:** `weave graph` has two formats, JSON (lanes in `attrs.lanes`) and Mermaid (subgraphs). There is no text format, so nothing to add; the decision is in the release notes.
+- Extension suite: 769 tests, 0 failed, 0 skipped.
