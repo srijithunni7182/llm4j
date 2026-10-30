@@ -89,6 +89,10 @@ jobs:
       with:
         node-version: 22
 
+    # build-vsix.sh remakes the extension's images from the project logo with ImageMagick, which the runner image does not carry.
+    - name: Install ImageMagick
+      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends imagemagick
+
     # Builds weave.jar from this commit, packages the extension around it, then unpacks the package and runs the bundled jar.
     - name: Build the package
       run: bash scripts/build-vsix.sh
