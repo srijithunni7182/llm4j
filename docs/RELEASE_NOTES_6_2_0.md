@@ -131,3 +131,11 @@ Status: **in progress** (the field findings program, [docs/specs/FIELD_FINDINGS.
 
 - **`eval-protocol.yaml` and `weave eval --protocol <name>`** write the run protocol down (a commit run, nightly, a release gate, a weekly drift check) as named sets of `weave eval` options; the command line wins over the file, the report names the protocol, and a wrong file is refused by name.
 - **`weave metamorphic`** derives, with no model, the cases that test a relation between two runs (an irrelevant addition, a reordering) and writes them beside the originals in a new folder; the report names a case that passes alone and fails perturbed.
+
+## New: injection testing, routing matrix, handoff probe, `--emit-test`, judge biases
+
+- **`weave security generate`** turns a corpus of injection payloads into a dataset (your own realistic artefacts with the payload embedded, a canary, the actions that must never happen). The report separates the model's obedience (a percentage, a mitigation) from the controls (a forbidden action fails the run).
+- **Routing as a confusion matrix** (`route:<Agent>` tags) with `--route-danger Expected>Actual`: a case in a dangerous cell fails the run whatever the average says.
+- **`expect.told`** in `weave test` asserts what an agent was told, which makes a handoff context probe a test; a loop-induction recipe (the bound fires and the work is said) is tested and documented.
+- **`weave eval --emit-test <file>`** writes the opt-in JUnit class (free wiring test; real evaluation only with `-Deval.real=true`, capped); **`WeaveCLI.run(String...)`** is the public in-process entry it uses.
+- **`weave judge validate`** also refuses a judge from the system's own model family (`--system-model`) and names a verbosity bias when the reference rows carry the output text. **`weave gate --protocol <name>`** runs the gate's eval stage as a protocol.

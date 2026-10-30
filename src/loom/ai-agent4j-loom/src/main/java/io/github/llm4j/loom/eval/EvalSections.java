@@ -202,6 +202,8 @@ public final class EvalSections {
     private static List<String> overall(EvalReport.Run run) {
         List<String> l = new ArrayList<>();
         l.addAll(EvalReport.summary(run).lines().toList());
+        l.addAll(RoutingMatrix.of(run.results()).lines(run.routingDangerNamed()));
+        l.addAll(SecuritySummary.lines(run.results()));
         int[] v = verdictCounts(run);
         if (v[0] + v[1] + v[2] > 0)
             l.add("answer verdicts: " + v[0] + " in the accepted set, " + v[1] + " rejected, " + v[2] + " unmatched.");
@@ -514,6 +516,8 @@ public final class EvalSections {
         if (unjudged > 0)
             l.add(unjudged + " case" + (unjudged == 1 ? " is" : "s are") + " unjudged: nothing confirmed " + (unjudged == 1 ? "it" : "them") + ". Unjudged is not a pass.");
         l.addAll(Metamorphic.fragile(run.results()));
+        l.addAll(run.routingDanger());
+        l.addAll(SecuritySummary.controlFailures(run.results()));
         int[] verdicts = verdictCounts(run);
         int judged = verdicts[0] + verdicts[1] + verdicts[2];
         if (judged > 0 && verdicts[2] * 10 > judged)

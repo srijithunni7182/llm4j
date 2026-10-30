@@ -38,6 +38,20 @@ final class Recorder implements TraceListener {
         return calls.computeIfAbsent(name, k -> new AtomicInteger()).incrementAndGet();
     }
 
+    private final Map<String, StringBuilder> told = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Records what an agent was told on one call (everything from the user side). */
+    void told(String agent, String text) {
+        if (text == null || text.isEmpty()) return;
+        told.computeIfAbsent(agent, k -> new StringBuilder()).append(text).append('\n');
+    }
+
+    /** Everything an agent was told over the run, in order. */
+    String toldTo(String agent) {
+        StringBuilder b = told.get(agent);
+        return b == null ? "" : b.toString();
+    }
+
     int calls(String name) {
         AtomicInteger n = calls.get(name);
         return n == null ? 0 : n.get();

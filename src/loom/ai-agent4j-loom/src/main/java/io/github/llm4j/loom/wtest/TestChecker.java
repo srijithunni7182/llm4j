@@ -60,6 +60,7 @@ public final class TestChecker {
                     "attempts",
                     "never",
                     "context",
+                    "told",
                     "models_used",
                     "asked",
                     "effects",
@@ -518,6 +519,17 @@ public final class TestChecker {
                     problems.add(
                             where(c)
                                     + "expect.models_used: '"
+                                    + n
+                                    + "' is not an agent"
+                                    + Suggest.hint(n, agents));
+            }
+        if (expect.has("told") && expect.get("told").isObject())
+            for (Iterator<String> it = expect.get("told").fieldNames(); it.hasNext(); ) {
+                String n = it.next();
+                if (!agents.contains(n))
+                    problems.add(
+                            where(c)
+                                    + "expect.told: '"
                                     + n
                                     + "' is not an agent"
                                     + Suggest.hint(n, agents));

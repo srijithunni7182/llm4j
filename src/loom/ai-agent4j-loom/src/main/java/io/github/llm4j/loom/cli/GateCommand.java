@@ -69,6 +69,13 @@ final class GateCommand implements Callable<Integer> {
     List<String> require = new ArrayList<>();
 
     @Option(
+            names = "--protocol",
+            paramLabel = "<name>",
+            description =
+                    "Run the eval stage as a named protocol of eval-protocol.yaml (for example release), so a gate and a nightly run mean the same thing.")
+    String protocol;
+
+    @Option(
             names = "--include-observed",
             description = "Let captured cases that are still 'observed' fail the gate too.")
     boolean includeObserved;
@@ -147,7 +154,7 @@ final class GateCommand implements Callable<Integer> {
                 results.add(review(script, cfg, env));
                 results.add(test(script, cfg, c, env));
                 results.add(regress(script, working, cfg, c, env, temp));
-                results.add(eval(script, cfg, env));
+                results.add(eval(script, cfg, c.protocol, env));
                 GateReport report =
                         new GateReport(
                                 working.getFileName().toString(), results, changed, c.require);
@@ -313,8 +320,8 @@ final class GateCommand implements Callable<Integer> {
                 reproduce);
     }
 
-    private static Stage eval(Path script, GateConfig cfg, WeaveEnv env) {
-        String reproduce = "weave eval " + script.getFileName();
+    private static Stage eval(Path script, GateConfig cfg, String protocol, WeaveEnv env) {
+        String reproduce = "weave eval " + script.getFileName() + (protocol == null ? "" : " --protocol " + protocol);
         if (!cfg.eval())
             return new Stage(
                     "eval",
@@ -326,7 +333,10 @@ final class GateCommand implements Callable<Integer> {
         try {
             System.setOut(new PrintStream(buf, true, StandardCharsets.UTF_8));
             System.setErr(new PrintStream(buf, true, StandardCharsets.UTF_8));
-            int code = new CommandLine(new EvalCommand()).execute(script.toString());
+            int code =
+                    protocol == null
+                            ? new CommandLine(new EvalCommand()).execute(script.toString())
+                            : new CommandLine(new EvalCommand()).execute(script.toString(), "--protocol", protocol);
             String last =
                     buf.toString(StandardCharsets.UTF_8)
                             .lines()

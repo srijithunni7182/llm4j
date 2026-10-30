@@ -84,7 +84,18 @@ public final class EvalReport {
          * are never counted as passes.
          */
         public int exitCode() {
-            return count(Status.FAIL) > 0 ? 1 : 0;
+            return count(Status.FAIL) > 0 || !routingDanger().isEmpty() ? 1 : 0;
+        }
+
+        /** The dangerous routing cells the run was told about ({@code --route-danger}), as written. */
+        public List<String> routingDangerNamed() {
+            String named = settings().get("route-danger");
+            return named == null || named.isBlank() ? List.of() : List.of(named.split(","));
+        }
+
+        /** The named dangerous routing cells that have a case in them: any of these fails the run. */
+        public List<String> routingDanger() {
+            return RoutingMatrix.of(results()).dangerous(routingDangerNamed());
         }
     }
 

@@ -9,7 +9,7 @@ An agentic system has no expected result to compare with: the same input gives d
 
 You are helping the user **design** the evaluation. The output is a design record, `EVAL_DESIGN.md`, in the user's project. The `llm4j-workflow-guide` skill then builds the dataset, the tests and the runs from it. This skill writes no Loom script and no dataset case the person did not choose.
 
-The method comes from the owner's guide *Quality Assurance for AI agentic systems*. Each reference page says so and links the external works it names. The guide's numbers (shares, sizes, thresholds) are **starting points**: the domain expert sets them for the product, and nothing here is a standard.
+The method comes from the project owner's guide *Quality Assurance for AI agentic systems*, whose structure and layout this skill follows; its content is released here under the same licence as the project, Apache 2.0. Each reference page says so and links the external works it names. The guide's numbers (shares, sizes, thresholds) are **starting points**: the domain expert sets them for the product, and nothing here is a standard.
 
 **The repository may not be here: never send the user to a repository path and never ask them to fetch one.** What you need is in this skill's `references/` folder and in the tools:
 

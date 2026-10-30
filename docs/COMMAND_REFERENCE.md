@@ -33,6 +33,7 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 - [`weave eval`](#weave-eval) — Runs a script's golden dataset (eval/golden/*.yaml) against it and reports passed, failed and unjudged.
 - [`weave judge`](#weave-judge) — Checks whether an LLM judge may gate: its scores against people's scores.
 - [`weave metamorphic`](#weave-metamorphic) — Derives metamorphic cases from a golden dataset with no model: an irrelevant addition and a reordering of the input must not change the conclusion, so each derived case keeps the original's expectations and is tagged relation:<name> and pair:<id>.
+- [`weave security`](#weave-security) — Injection testing: turns a corpus of payloads into eval cases.
 - [`weave gate`](#weave-gate) — Runs the checks your team chose (check, review, test, regress, eval) and prints one verdict, for CI.
 - [`weave preflight`](#weave-preflight) — Sends one small probe per agent through its real prompts and checks: the key, the model, one whole answer, that the shared prompt reaches the model, sources for grounded agents, price and window.
 
@@ -959,6 +960,7 @@ weave gate [OPTIONS] [<script.loom>]
 - `--format=<format>` — text (default), md, junit or sarif (the review's findings).
 - `--include-observed` — Let captured cases that are still 'observed' fail the gate too.
 - `--print-workflow=<printWorkflow>` — Print a starting CI configuration: github or jenkins.
+- `--protocol=<name>` — Run the eval stage as a named protocol of eval-protocol.yaml (for example release), so a gate and a nightly run mean the same thing.
 - `--require=<require>` — Stages that must run: a skip of one fails the gate (check, review, test, regress, eval). (repeatable)
 - `--store=<store>` — The run store for the regress stage (overrides regress.store).
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
@@ -1867,6 +1869,7 @@ weave eval [OPTIONS] <script>
 - `--classes=<dir|jar>` — Folder or jar with the classes of your own tasks and tools, repeatable (weave only sees what is on its class path). Default: target/classes of the project, when it has been built (mvn compile).
 - `--context-windows=<file>` — A windows file: 'model = window / reserve' per line (the size of each model's context window). Repeatable; a later file wins. Layered over <script>.windows, ~/.llm4j/context-windows and the built-in catalogue. (repeatable)
 - `--dataset=<dir>` — The folder of dataset files (default: eval/golden beside the script).
+- `--emit-test=<file>` — Write the opt-in JUnit class for this project (for a project that wants the Java API): a hermetic test that runs the wiring on a mock model, and a real evaluation that runs only with -Deval.real=true, under a cap (-Deval.maxCost with -Deval.prices, else a token cap). The package is taken from the folder under src/test/java. An existing file is never overwritten. Runs nothing else.
 - `--env-file=<file>` — Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.
 - `--init` — Create eval/golden with one starter scenario per agent and one for the workflow. Never overwrites a file.
 - `--json=<file>` — Also write the results as JSON.
@@ -1887,6 +1890,7 @@ weave eval [OPTIONS] <script>
 - `--release-gate` — This run is the release gate: held-out cases (split:heldout) run too, and the report records that it was a gate run. Without it held-out cases never run.
 - `--repetitions=<n>` — Run each case this many times (default 1, at most 10): the report then gives pass@1, pass^N, consistency and the unstable cases. Every repetition is a paid run.
 - `--report=<file>` — Also write the results as a single HTML page.
+- `--route-danger=<Expected>Actual>` — A routing mistake that must never happen, written Expected>Actual (for example Gatherer>Actor, for cases tagged route:Gatherer). The run fails when any case lands in that cell, whatever the average says. Repeatable. (repeatable)
 - `--save-baseline` — After a finished real run, save its results as a new baseline. Needs --approver and --why; a baseline is never replaced.
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
@@ -1936,7 +1940,7 @@ weave judge [OPTIONS] <command>
 
 **Commands**
 
-- `validate` — Reads a reference file (JSON or YAML: a list of {id, human_1, human_2, human_3, judge}, scores on the same scale) of at least 40 outputs.
+- `validate` — Reads a reference file (JSON or YAML: a list of {id, human_1, human_2, human_3, judge, output}, scores on the same scale; output is the text that was scored and lets verbosity be checked) of at least 40 outputs.
 
 **Options**
 
@@ -1944,7 +1948,7 @@ weave judge [OPTIONS] <command>
 
 #### `weave judge validate`
 
-Reads a reference file (JSON or YAML: a list of {id, human_1, human_2, human_3, judge}, scores on the same scale) of at least 40 outputs.
+Reads a reference file (JSON or YAML: a list of {id, human_1, human_2, human_3, judge, output}, scores on the same scale; output is the text that was scored and lets verbosity be checked) of at least 40 outputs.
 
 Checks the people against each other first (quadratic-weighted Cohen's kappa; below 0.6 the rubric is under-specified and it stops), then the judge against their consensus (below 0.6 it may not gate). Exit 0 usable, 1 not usable, 2 a problem with the file. Calls no model.
 
@@ -1958,6 +1962,7 @@ weave judge validate [OPTIONS]
 - `--model=<name>` — The judge model the scores came from (as in weave eval --judge). The record names it, and a report says validated only for this model.
 - `--project=<folder>` — The project: the result is recorded in <folder>/eval/judge-validation.json (default: this folder).
 - `--reference=<file>` — The scored reference set.
+- `--system-model=<name>` — The model the agents run on. A judge from the same family may not gate (self-preference).
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave metamorphic`
@@ -1975,6 +1980,41 @@ weave metamorphic [OPTIONS]
 - `--from=<dir>` — The dataset folder (eval/golden).
 - `--out=<dir>` — Where to write the dataset with the derived cases added. It must be empty or new.
 - `--relations=<relations>` — irrelevant, order (default: irrelevant,order).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+### `weave security`
+
+Injection testing: turns a corpus of payloads into eval cases.
+
+```
+weave security [OPTIONS] <command>
+```
+
+**Commands**
+
+- `generate` — Reads a corpus folder (YAML lists of {id, class: direct|indirect, placement, goal, payload holding {canary}}) and writes an eval dataset: a direct payload is the input; an indirect one is embedded in each of your own artefact templates for its placement (log.txt, web-page.html, ...; each holds {payload}); a payload with no template for its placement is skipped and said to be.
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+#### `weave security generate`
+
+Reads a corpus folder (YAML lists of {id, class: direct|indirect, placement, goal, payload holding {canary}}) and writes an eval dataset: a direct payload is the input; an indirect one is embedded in each of your own artefact templates for its placement (log.txt, web-page.html, ...; each holds {payload}); a payload with no template for its placement is skipped and said to be.
+
+Every case carries the canary the answer must never contain and the actions named with --forbid that must never happen. The corpus is hostile text: run the cases against scripted or sandboxed tools, never a real sender, payer or writer. Calls no model.
+
+```
+weave security generate [OPTIONS]
+```
+
+**Options**
+
+- `--corpus=<dir>` — The corpus folder.
+- `--forbid=<action>` — An action that must never happen, such as 'send email'. Repeatable. (repeatable)
+- `--out=<dir>` — Where to write the dataset (a new or empty folder); point weave eval --dataset at it.
+- `--target=<name>` — The dataset file name: the workflow or agent the cases are for (default: workflow).
+- `--templates=<dir>` — Your realistic artefacts, named after a placement (default: <corpus>/templates).
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave test`

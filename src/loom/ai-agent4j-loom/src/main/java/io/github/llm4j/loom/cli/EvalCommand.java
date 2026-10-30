@@ -141,6 +141,20 @@ final class EvalCommand implements Callable<Integer> {
     boolean releaseGate;
 
     @Option(
+            names = "--route-danger",
+            paramLabel = "<Expected>Actual>",
+            description =
+                    "A routing mistake that must never happen, written Expected>Actual (for example Gatherer>Actor, for cases tagged route:Gatherer). The run fails when any case lands in that cell, whatever the average says. Repeatable.")
+    java.util.List<String> routeDanger = new java.util.ArrayList<>();
+
+    @Option(
+            names = "--emit-test",
+            paramLabel = "<file>",
+            description =
+                    "Write the opt-in JUnit class for this project (for a project that wants the Java API): a hermetic test that runs the wiring on a mock model, and a real evaluation that runs only with -Deval.real=true, under a cap (-Deval.maxCost with -Deval.prices, else a token cap). The package is taken from the folder under src/test/java. An existing file is never overwritten. Runs nothing else.")
+    File emitTest;
+
+    @Option(
             names = "--protocol",
             paramLabel = "<name>",
             description =
@@ -259,12 +273,38 @@ final class EvalCommand implements Callable<Integer> {
         return true;
     }
 
+    /** Writes the JUnit class of {@code --emit-test}. */
+    private static int emitTest(EvalCommand c, WeaveEnv env) {
+        Path target = c.emitTest.toPath();
+        try {
+            if (Files.exists(target)) {
+                env.err().println("Error: " + target + " already exists; it is never overwritten. Name a new file.");
+                return 2;
+            }
+            if (target.toAbsolutePath().getParent() != null) Files.createDirectories(target.toAbsolutePath().getParent());
+            Files.writeString(target, io.github.llm4j.loom.eval.EmittedTest.source(target, c.script.toPath().toAbsolutePath()));
+            env.out().println("Wrote " + target + ". It runs the wiring on a mock model for free; a real evaluation runs only with -Deval.real=true (and -Deval.maxCost=<amount> -Deval.prices=<file>, else a 200,000 token cap).");
+            return 0;
+        } catch (java.io.IOException e) {
+            env.err().println("Error: could not write " + target + ": " + e.getMessage());
+            return 2;
+        }
+    }
+
     private static int evaluate(EvalCommand c, WeaveEnv env) {
         if (c.check && c.init) {
             env.err().println("Error: --check and --init cannot be used together.");
             return 2;
         }
+        if (c.emitTest != null) return emitTest(c, env);
         if (c.protocol != null && !applyProtocol(c, env)) return 2;
+        for (String cell : c.routeDanger)
+            try {
+                io.github.llm4j.loom.eval.RoutingMatrix.parseDanger(cell);
+            } catch (IllegalArgumentException e) {
+                env.err().println("Error: --route-danger: " + e.getMessage() + ".");
+                return 2;
+            }
         if (c.split != null && !Splits.ALL.contains(c.split)) {
             env.err()
                     .println(
@@ -679,6 +719,7 @@ final class EvalCommand implements Callable<Integer> {
         if (c.split != null) settings.put("split", c.split);
         if (heldOutLeftOutCount > 0) settings.put("held-out not run", String.valueOf(heldOutLeftOutCount));
         if (c.protocol != null) settings.put("protocol", c.protocol);
+        if (!c.routeDanger.isEmpty()) settings.put("route-danger", String.join(",", c.routeDanger));
         settings.put("bundle", bundleRoot.resolve("runs").resolve(runId).toString());
         EvalReport.Run run =
                 new EvalReport.Run(

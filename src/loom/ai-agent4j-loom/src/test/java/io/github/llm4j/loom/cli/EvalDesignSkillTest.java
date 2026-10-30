@@ -402,6 +402,11 @@ class EvalDesignSkillTest {
                 .contains("https://www.promptfoo.dev/docs/red-team/");
     }
 
+    @Test
+    void theSkillSaysTheGuidesContentIsUnderTheProjectsLicence() throws Exception {
+        assertThat(skill()).contains("Apache 2.0").contains("structure and layout");
+    }
+
     // ---- safety
 
     @Test

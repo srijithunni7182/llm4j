@@ -32,7 +32,12 @@ public final class JudgeValidation {
      * @param humans each person's score, two or three
      * @param judge the judge's score, null when it has none
      */
-    public record Row(String id, int[] humans, Integer judge) {}
+    public record Row(String id, int[] humans, Integer judge, String output) {
+        /** A row without the output's text (verbosity then cannot be checked). */
+        public Row(String id, int[] humans, Integer judge) {
+            this(id, humans, judge, null);
+        }
+    }
 
     /** What the validation found. */
     public record Result(
@@ -41,11 +46,18 @@ public final class JudgeValidation {
             boolean rubricUnderSpecified,
             Double judgeKappa,
             double meanBias,
-            List<String> offByTwoOrMore) {
+            List<String> offByTwoOrMore,
+            List<String> biasNotes,
+            boolean sameFamily) {
 
-        /** True only when the people agree and the judge agrees with them. */
+        /** A result with no bias findings. */
+        public Result(int outputs, double interHumanKappa, boolean rubricUnderSpecified, Double judgeKappa, double meanBias, List<String> offByTwoOrMore) {
+            this(outputs, interHumanKappa, rubricUnderSpecified, judgeKappa, meanBias, offByTwoOrMore, List.of(), false);
+        }
+
+        /** True only when the people agree, the judge agrees with them and it is not the system's own family. */
         public boolean usableForGating() {
-            return !rubricUnderSpecified && judgeKappa != null && judgeKappa >= JUDGE_MUST_AGREE;
+            return !rubricUnderSpecified && !sameFamily && judgeKappa != null && judgeKappa >= JUDGE_MUST_AGREE;
         }
 
         /** The judge's band, or the humans' when the judge was never reached. */
@@ -62,7 +74,9 @@ public final class JudgeValidation {
             b.append(String.format(java.util.Locale.ROOT, " Judge against the human consensus: kappa %.2f (%s), mean bias %+.2f.", judgeKappa, band(judgeKappa), meanBias));
             if (!offByTwoOrMore.isEmpty())
                 b.append(" Off by two or more on: ").append(String.join(", ", offByTwoOrMore)).append(".");
-            b.append(usableForGating() ? " Usable for gating on this dimension." : " The judge is not usable for gating on this dimension: improve the anchors and validate again.");
+            for (String note : biasNotes) b.append(" ").append(note);
+            if (sameFamily) b.append(" The judge is from the same model family as the system it judges (self-preference): use a different family.");
+            b.append(usableForGating() ? " Usable for gating on this dimension." : " The judge is not usable for gating on this dimension: improve the anchors, use another family if it is the system's own, and validate again.");
             return b.toString();
         }
     }
@@ -82,6 +96,22 @@ public final class JudgeValidation {
      *     people, or a row has no judge score: each says which
      */
     public static Result validate(List<Row> rows, int minOutputs) {
+        return validate(rows, minOutputs, null, null);
+    }
+
+    /** The model family: the name before its first separator, ignoring a provider prefix. */
+    public static String family(String model) {
+        String name = model.substring(model.lastIndexOf('/') + 1).toLowerCase(java.util.Locale.ROOT);
+        int cut = name.length();
+        for (char c : new char[] {'-', ':', '.', '_'}) {
+            int i = name.indexOf(c);
+            if (i > 0) cut = Math.min(cut, i);
+        }
+        return name.substring(0, cut);
+    }
+
+    /** As {@link #validate(List, int)}, also checking the judge's family against the system's. */
+    public static Result validate(List<Row> rows, int minOutputs, String judgeModel, String systemModel) {
         if (rows.size() < minOutputs)
             throw new IllegalArgumentException(
                     "the reference set has "
@@ -97,7 +127,7 @@ public final class JudgeValidation {
                 throw new IllegalArgumentException("output " + r.id() + " has no judge score: run the judge over the reference outputs and add its scores");
         }
         double inter = interHuman(rows);
-        if (inter < HUMANS_MUST_AGREE) return new Result(rows.size(), inter, true, null, 0, List.of());
+        if (inter < HUMANS_MUST_AGREE) return new Result(rows.size(), inter, true, null, 0, List.of(), List.of(), false);
         int[] consensus = new int[rows.size()];
         int[] judge = new int[rows.size()];
         double bias = 0;
@@ -109,7 +139,40 @@ public final class JudgeValidation {
             bias += judge[i] - consensus[i];
             if (Math.abs(judge[i] - consensus[i]) >= WIDE_MISS) off.add(r.id());
         }
-        return new Result(rows.size(), inter, false, kappa(consensus, judge), bias / rows.size(), off);
+        boolean same = judgeModel != null && systemModel != null && family(judgeModel).equals(family(systemModel));
+        return new Result(rows.size(), inter, false, kappa(consensus, judge), bias / rows.size(), off, verbosity(rows, judge, consensus), same);
+    }
+
+    private static final double VERBOSITY_R = 0.3;
+
+    /** Whether the judge's error runs with the output's length. */
+    private static List<String> verbosity(List<Row> rows, int[] judge, int[] consensus) {
+        long withText = rows.stream().filter(r -> r.output() != null).count();
+        if (withText < rows.size())
+            return List.of("Verbosity was not checked: the reference rows carry no output text.");
+        double[] length = new double[rows.size()];
+        double[] error = new double[rows.size()];
+        for (int i = 0; i < rows.size(); i++) {
+            length[i] = rows.get(i).output().length();
+            error[i] = judge[i] - consensus[i];
+        }
+        double r = pearson(length, error);
+        return r > VERBOSITY_R
+                ? List.of(String.format(java.util.Locale.ROOT, "Possible verbosity bias: the judge scores longer outputs higher than the people do (r=%.2f). Add a rubric note that length is not quality.", r))
+                : List.of();
+    }
+
+    private static double pearson(double[] x, double[] y) {
+        int n = x.length;
+        double mx = java.util.Arrays.stream(x).average().orElse(0);
+        double my = java.util.Arrays.stream(y).average().orElse(0);
+        double sxy = 0, sxx = 0, syy = 0;
+        for (int i = 0; i < n; i++) {
+            sxy += (x[i] - mx) * (y[i] - my);
+            sxx += (x[i] - mx) * (x[i] - mx);
+            syy += (y[i] - my) * (y[i] - my);
+        }
+        return sxx == 0 || syy == 0 ? 0 : sxy / Math.sqrt(sxx * syy);
     }
 
     /** The mean of every pair of people's kappas over the outputs they both scored. */

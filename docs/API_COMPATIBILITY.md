@@ -84,3 +84,5 @@ Before introducing a breaking change:
 - **`weave fabric up | down | status`**, a new command. The deployer scripts keep working without it; with it, `fabric-up` generates a first-start admin password instead of refusing, and `run-observed` gains `--secrets-key-file`.
 - **eval4j `EvalScenario`** gains six components (`correctConclusion`, `acceptedEquivalents`, `rejected`, `acceptableActions`, `unacceptableActions`, `requiredCitations`); the sixteen-component constructor and every older one are kept, and datasets without them read as before.
 - **`weave judge validate`**, a new command; `eval/judge-validation.json`, a new file.
+- **`WeaveCLI.run(String...)`**, a new public method: runs `weave` in the process and returns the exit code (`main` now calls it).
+- **`weave security generate`**, `--route-danger`, `--emit-test`, `weave gate --protocol`, `weave judge validate --system-model`, and the `expect.told` key of test cases: new.

@@ -281,4 +281,15 @@ class GateCommandTest {
         assertThat(gate(script.toString(), "--require", "bogus").code()).isEqualTo(1);
         assertThat(gate(dir.resolve("none.loom").toString()).code()).isEqualTo(2);
     }
+
+    @Test
+    void theEvalStageRunsAProtocolAndNamesItInTheReproduceLine() throws Exception {
+        Path script = project();
+        Files.writeString(script.getParent().resolve("gate.properties"), "eval = true\nreview = off\n");
+
+        Out o = gate(script.toString(), "--protocol", "release");
+
+        assertThat(o.code()).isEqualTo(1);
+        assertThat(o.out()).contains("no protocol named release").contains("reproduce: weave eval").contains("--protocol release");
+    }
 }

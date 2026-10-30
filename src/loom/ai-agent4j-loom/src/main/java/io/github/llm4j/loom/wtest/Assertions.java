@@ -47,6 +47,7 @@ final class Assertions {
         if (expect.has("route") || expect.has("never")) route(expect, o, failures);
         if (expect.has("calls")) calls(expect.get("calls"), o, failures);
         if (expect.has("context")) context(expect.get("context"), o, failures);
+        if (expect.has("told")) told(expect.get("told"), o, failures);
         if (expect.has("models_used")) modelsUsed(expect.get("models_used"), o, failures);
         if (expect.has("attempts")) calls(expect.get("attempts"), o, failures, "attempts");
         if (expect.has("ran")) ran(expect.get("ran"), o, failures);
@@ -171,6 +172,20 @@ final class Assertions {
                         new Failure(
                                 key,
                                 key + "." + e.getKey() + ": " + problem.replaceFirst("^: ", "")));
+        }
+    }
+
+    /** {@code told:} what each agent must have been told: texts it must have received over the run. */
+    private static void told(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        for (Iterator<Map.Entry<String, JsonNode>> it = want.fields(); it.hasNext(); ) {
+            var e = it.next();
+            String heard = o.recorder().toldTo(e.getKey()).toLowerCase(java.util.Locale.ROOT);
+            List<String> texts = new java.util.ArrayList<>();
+            if (e.getValue().isArray()) e.getValue().forEach(n -> texts.add(n.asText()));
+            else texts.add(e.getValue().asText());
+            for (String text : texts)
+                if (!heard.contains(text.toLowerCase(java.util.Locale.ROOT)))
+                    failures.add(new Failure("told", "told." + e.getKey() + ": the agent was never told \"" + text + "\""));
         }
     }
 

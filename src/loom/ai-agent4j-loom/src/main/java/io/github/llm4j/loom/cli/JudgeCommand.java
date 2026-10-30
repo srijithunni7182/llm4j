@@ -38,7 +38,7 @@ final class JudgeCommand implements Callable<Integer> {
             name = "validate",
             mixinStandardHelpOptions = true,
             description =
-                    "Reads a reference file (JSON or YAML: a list of {id, human_1, human_2, human_3, judge}, scores on the same scale) of at least 40 outputs. Checks the people against each other first (quadratic-weighted Cohen's kappa; below 0.6 the rubric is under-specified and it stops), then the judge against their consensus (below 0.6 it may not gate). Exit 0 usable, 1 not usable, 2 a problem with the file. Calls no model.")
+                    "Reads a reference file (JSON or YAML: a list of {id, human_1, human_2, human_3, judge, output}, scores on the same scale; output is the text that was scored and lets verbosity be checked) of at least 40 outputs. Checks the people against each other first (quadratic-weighted Cohen's kappa; below 0.6 the rubric is under-specified and it stops), then the judge against their consensus (below 0.6 it may not gate). Exit 0 usable, 1 not usable, 2 a problem with the file. Calls no model.")
     static final class Validate implements Callable<Integer> {
         @Option(names = "--reference", required = true, paramLabel = "<file>", description = "The scored reference set.")
         File reference;
@@ -55,6 +55,12 @@ final class JudgeCommand implements Callable<Integer> {
                 paramLabel = "<folder>",
                 description = "The project: the result is recorded in <folder>/eval/judge-validation.json (default: this folder).")
         File project = new File(".");
+
+        @Option(
+                names = "--system-model",
+                paramLabel = "<name>",
+                description = "The model the agents run on. A judge from the same family may not gate (self-preference).")
+        String systemModel;
 
         @Option(names = "--min-outputs", defaultValue = "40", description = "The fewest outputs a validation may rest on (default: ${DEFAULT-VALUE}).")
         int minOutputs;
@@ -74,7 +80,7 @@ final class JudgeCommand implements Callable<Integer> {
             }
             JudgeValidation.Result result;
             try {
-                result = JudgeValidation.validate(rows, c.minOutputs);
+                result = JudgeValidation.validate(rows, c.minOutputs, c.model, c.systemModel);
             } catch (IllegalArgumentException e) {
                 env.err().println("Error: " + e.getMessage() + ".");
                 return 2;
@@ -106,7 +112,8 @@ final class JudgeCommand implements Callable<Integer> {
                 if (n.has("humans") && n.get("humans").isArray()) n.get("humans").forEach(h -> humans.add(h.asInt()));
                 for (int k = 1; k <= 3; k++) if (n.hasNonNull("human_" + k)) humans.add(n.get("human_" + k).asInt());
                 Integer judge = n.hasNonNull("judge") ? n.get("judge").asInt() : null;
-                rows.add(new JudgeValidation.Row(id, humans.stream().mapToInt(Integer::intValue).toArray(), judge));
+                String output = n.hasNonNull("output") ? n.get("output").asText() : null;
+                rows.add(new JudgeValidation.Row(id, humans.stream().mapToInt(Integer::intValue).toArray(), judge, output));
             }
             return rows;
         }

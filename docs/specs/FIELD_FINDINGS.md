@@ -220,3 +220,7 @@ Each is also recorded in the DESIGN of the phase it affects. A recommendation is
 - **Skipped, with the reason "no provider credentials set" (the keys those suites read are not here):** `LiveProviderContractTest` l1 to l8 (8), `LiveNativeToolCallingTest` l12 and l13 (2), `LiveSwitchingTest` l10, `LoomLiveTest` l11, and the unicode-path and `LLM4J_LIVE` tests of the default build. The behaviour of the Phase 17 to 19 fixes against Anthropic, Gemini, Sarvam and Ollama is therefore **not** verified live.
 - **The make target exited non-zero** at `loom-inspect-core` on a JaCoCo coverage rule: a live-only run cannot meet a coverage gate. No test failed. The limits were not touched; whether the `live` profile should skip the gate is a decision for the owner.
 - Not run in the live suites: the manual checks M1 to M6 of Phases 17 to 22, the scripted dry run of the evaluation design skill, PIT mutation profiles, `make release-check`.
+
+## Decisions recorded later
+
+- **D11 (resolved by the owner, 2026-10-30):** the QA guide's structure and layout are the owner's own; its content ships with the repository under the project's licence, **Apache 2.0**. External works it cites are linked, not copied. The skill pages stay close to the guide's layout with credit.

@@ -1783,6 +1783,7 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new EvalCommand())
                 .addSubcommand(new JudgeCommand())
                 .addSubcommand(new MetamorphicCommand())
+                .addSubcommand(new SecurityCommand())
                 .addSubcommand(new TestCommand())
                 .addSubcommand(new ServeCommand())
                 .addSubcommand(new InitCommand())
@@ -1795,7 +1796,19 @@ public class WeaveCLI implements Callable<Integer> {
     }
 
     public static void main(String[] args) {
-        System.exit(commandLine().execute(args));
+        System.exit(run(args));
+    }
+
+    /**
+     * Runs {@code weave} with these arguments and returns its exit code, without ending the JVM:
+     * for a test or a program that drives the command line (the JUnit class of {@code weave eval
+     * --emit-test} uses it).
+     *
+     * @param args what would follow {@code weave} on the command line
+     * @return the exit code
+     */
+    public static int run(String... args) {
+        return commandLine().execute(args);
     }
 
     /**
