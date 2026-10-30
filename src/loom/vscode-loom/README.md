@@ -74,6 +74,7 @@ Open the Command Palette and type **Loom**. The commands below run the same `wea
 | Test | **Loom: Run Tests** | `weave test --coverage`: scripted models, no keys, every step reached or listed | nothing |
 | Evaluate | **Loom: Evaluate Workflow...** | Choose: run with mock models, check the dataset, or create a starter dataset | nothing |
 | Debug | **Loom: Debug Workflow** (F5) | Step through, set breakpoints, see the variables; nothing has an effect | nothing |
+| Watch | **Loom: Run Once With a Cap...** | The first real run: asks for the cap first (`$2` or `50000 tokens`, with the review's worst-case estimate beside it), then any inputs, and types `weave run ... --max-cost` into a terminal for you to run | the cap you give |
 | Watch | **Loom: Run With Live Page...** | A real run with your keys, capped by `loom.observe.maxTokens` (default `50000` tokens), with the live page (cost, context, incidents, Pause and Stop). It asks first | tokens, capped |
 | Ship | **Loom: Write Deployment Files...** | Docker, Compose or Kubernetes files, read from the script; nothing is built or started | nothing |
 | Next | **Loom: What Should I Do Next?** | The next step for this project, in order | nothing |
@@ -229,7 +230,8 @@ With the engine running, the editor understands the names in your script, in eve
 - **Rename** (F2) changes a name everywhere it is used, in every file, as one undoable change. It refuses, and changes nothing, if the new name is taken or is a keyword, if a file that would change is read-only, or if an import cannot be found (so a use might be missed). Renaming a prompt also renames its file, after you confirm.
 - **Completion** offers only what fits where you are: agents after `delegate … to`, checkpoints after `rewind to` (the ones of this workflow), workflows after `call`, classifiers, decisions and tools in their places, the fields of a variable after its dot (`intent.` lists the classifier's questions with their labels), the labels of an enum after `==`, and variables in a condition or a `{placeholder}`. Nothing it offers fails `weave check`.
 - **Hover** shows an agent's model, tools and reply shape, a workflow's parameters, a classifier's fields, a variable's type and where it was made, and the values a comparison can take (with a warning for one it never has).
-- **Outline** (the Outline view and Ctrl+Shift+O) lists the blocks of the file with their checkpoints and variables. **Signature help** shows a workflow's parameters while you write `call Name(`.
+- **The Workflow Outline view** shows *Project progress* first (the ten stages of `weave next`, the next step marked; a click types its command into a terminal), then this file's agents, workflows, schedules and routing, then the other workflows in the folder. With no folder open, or none with a `.loom` file, it says what to do.
+- **Outline** (Ctrl+Shift+O) lists the blocks of the file with their checkpoints and variables. **Signature help** shows a workflow's parameters while you write `call Name(`.
 
 A half-typed line does not take this away: what the engine could read is still used, so the variables made above your cursor are still known. A setting (see Settings) turns these answers off and leaves the older, simpler ones.
 

@@ -62,6 +62,7 @@ final class CliEngine implements Server.Engine {
         m.put("loom/check", this::check);
         m.put("loom/graph", this::graph);
         m.put("loom/symbols", this::symbols);
+        m.put("loom/next", this::next);
         m.put("loom/review", this::review);
         m.put("loom/explainRule", this::explainRule);
         m.put("loom/applyFix", this::applyFix);
@@ -123,6 +124,38 @@ final class CliEngine implements Server.Engine {
                     return SymbolsCommand.symbols(c, env);
                 },
                 false);
+    }
+
+    /**
+     * Where the project stands, as {@code weave next --format json} prints it. It is never cached:
+     * the answer depends on many files (results recorded under {@code .loom}, the dataset, the
+     * README) that the cache does not watch.
+     */
+    private JsonNode next(Server.Request r) throws Exception {
+        Path file = r.file();
+        Captured c =
+                Buffers.with(
+                        r.texts(),
+                        new LinkedHashSet<>(),
+                        () ->
+                                run(
+                                        env -> {
+                                            NextCommand n = new NextCommand();
+                                            new CommandLine(n)
+                                                    .parseArgs(file.toString(), "--format", "json");
+                                            return NextCommand.next(n, env);
+                                        }));
+        if (c.stdout.isBlank())
+            throw new RpcError(
+                    RpcError.ENGINE,
+                    "engine-failure",
+                    c.stderr.isBlank() ? "exit status " + c.status : c.stderr.strip());
+        ObjectNode answer = JSON.createObjectNode();
+        answer.put("file", file.toString());
+        answer.put("status", c.status);
+        answer.set("result", JSON.readTree(c.stdout));
+        answer.put("cached", false);
+        return answer;
     }
 
     private JsonNode review(Server.Request r) throws Exception {

@@ -673,6 +673,17 @@ final class EvalCommand implements Callable<Integer> {
         } catch (RuntimeException e) {
             env.err().println("Warning: could not write the dashboard bundle: " + e.getMessage());
         }
+        if (stopped == null && notRun == 0) {
+            try {
+                EvalRecord.write(
+                        io.github.llm4j.loom.init.ProjectLayout.root(scriptFile),
+                        c.mock ? "mock" : EvalRecord.REAL,
+                        identity.describe(),
+                        PreflightCommand.hash(Files.readString(scriptFile)));
+            } catch (java.io.IOException | RuntimeException e) {
+                env.err().println("Warning: could not record this evaluation for weave next: " + e.getMessage());
+            }
+        }
         if (c.saveBaseline) {
             if (stopped != null || notRun > 0) {
                 env.err().println("The baseline was not saved: the run did not finish, and a partial run is not a baseline.");

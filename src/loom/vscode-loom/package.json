@@ -109,6 +109,15 @@
         "title": "Loom: Restart Engine"
       },
       {
+        "command": "loom.runOnceWithCap",
+        "title": "Loom: Run Once With a Cap…",
+        "icon": "$(play-circle)"
+      },
+      {
+        "command": "loom.progress.type",
+        "title": "Loom: Type a Progress Step Into the Terminal"
+      },
+      {
         "command": "loom.showEngineLog",
         "title": "Loom: Show Engine Log"
       },
@@ -315,7 +324,18 @@
       }
     ],
     "menus": {
+      "view/title": [
+        {
+          "command": "loom.runOnceWithCap",
+          "when": "view == loom.workflowOutline",
+          "group": "navigation"
+        }
+      ],
       "commandPalette": [
+        {
+          "command": "loom.progress.type",
+          "when": "false"
+        },
         {
           "command": "loom.debug",
           "when": "resourceLangId == loom"

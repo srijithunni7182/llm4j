@@ -354,7 +354,9 @@ test('VG.3: the outline view lists the active file and the folder; the run comma
         s.fake.state.loomFiles = ['/p/a.loom'];
         s.fake.state.activeEditor = { document };
         s.fake.state.activeEditorChanged.fire(s.fake.state.activeEditor);
-        const rows = await provider.getChildren();
+        const all = await provider.getChildren();
+        assert.match(all[0].label, /Project progress needs the Loom engine/, 'no engine in this test: progress says so');
+        const rows = all.slice(1);
         // changed on purpose by Phase 21 R2: the file's steps sit under "This file", with the folder's workflows after them
         assert.equal(rows[0].label, 'This file');
         assert.deepEqual(rows[0].children.map((n: any) => [n.description, n.label]), [['agent', 'Researcher'], ['workflow', 'Main'], ['schedule', 'Daily'], ['routing', 'Smart']]);
@@ -382,7 +384,7 @@ test('R2: a folder with workflows and no Loom file open (the owner\'s screenshot
         s.fake.state.activeEditor = undefined;
         const provider = new WorkflowOutlineProvider();
 
-        const rows = await provider.getChildren();
+        const rows = (await provider.getChildren()).slice(1);
         assert.equal(rows[0].label, 'Workflows in this folder');
         assert.deepEqual(rows[0].children[0].children.map((n: any) => n.label), ['Writer', 'Article']);
         assert.match(rows[1].label, /Open a \.loom file/);
@@ -393,5 +395,33 @@ test('R2: a folder with workflows and no Loom file open (the owner\'s screenshot
         s.fake.state.folders = [{ uri: { fsPath: dir } }];
         s.fake.state.loomFiles = [];
         assert.deepEqual(await provider.getChildren(), [], 'no Loom file at all: the welcome content shows');
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); s.restore(); }
+});
+
+test('R3: the Outline asks the engine for progress and shows it first; a click types the step and does not run it', { skip }, async () => {
+    const s = session();
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'outline-progress-'));
+    try {
+        const { WorkflowOutlineProvider } = require('../src/views/WorkflowOutlineProvider');
+        const { FakeEngine } = require('../src/engine/fake');
+        const file = path.join(dir, 'main.loom');
+        fs.writeFileSync(file, 'agent Writer { model: "m" }\nworkflow Main() { note "a" }\n');
+        s.fake.state.folders = [{ uri: { fsPath: dir } }];
+        s.fake.state.loomFiles = [file];
+        const engine = new FakeEngine().on('loom/next', () => ({
+            file, status: 0, cached: false,
+            result: { projectRoot: dir, stages: [{ number: 1, id: 'script', title: 'The script checks clean', state: 'failing', detail: 'line 2', command: 'weave check main.loom --no-env' }], primary: { id: 'script' } },
+        }));
+        const provider = new WorkflowOutlineProvider(() => engine);
+
+        const rows = await provider.getChildren();
+        assert.match(rows[0].label, /^Project progress: 0 of 1/);
+        const item = provider.getTreeItem(rows[0].children[0]);
+        assert.equal(item.iconPath.id, 'error');
+        assert.deepEqual(item.command, { command: 'loom.progress.type', title: '1. The script checks clean', arguments: ['weave check main.loom --no-env'] });
+        assert.equal(engine.calls.length, 1);
+
+        const none = new WorkflowOutlineProvider(() => undefined);
+        assert.match((await none.getChildren())[0].label, /needs the Loom engine/);
     } finally { fs.rmSync(dir, { recursive: true, force: true }); s.restore(); }
 });

@@ -88,6 +88,7 @@ export function createFakeVscode(settings: Record<string, unknown>) {
         accessibilityInformation?: unknown;
         constructor(readonly label: string, readonly collapsibleState = 0) {}
     }
+    class ThemeIcon { constructor(readonly id: string) {} }
     const TreeItemCollapsibleState = { None: 0, Collapsed: 1, Expanded: 2 };
     class Position { constructor(readonly line: number, readonly character: number) {} }
     class Range { constructor(readonly start: Position, readonly end: Position) {} }
@@ -100,7 +101,7 @@ export function createFakeVscode(settings: Record<string, unknown>) {
         return Promise.resolve(state.answers.get(message.split('.')[0]) ?? state.answers.get('*'));
     };
     const vscode = {
-        Position, Range, Uri, EventEmitter, TreeItem, TreeItemCollapsibleState,
+        Position, Range, Uri, EventEmitter, TreeItem, TreeItemCollapsibleState, ThemeIcon,
         ViewColumn: { Active: -1, Beside: -2, One: 1, Two: 2 },
         window: {
             get activeTextEditor() { return state.activeEditor; },

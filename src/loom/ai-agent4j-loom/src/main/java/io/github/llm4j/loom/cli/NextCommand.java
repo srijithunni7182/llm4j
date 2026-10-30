@@ -105,13 +105,24 @@ final class NextCommand implements Callable<Integer> {
                                     Set.of()),
                             null),
                     c.format,
-                    script);
+                    script,
+                    JourneyStages.of(
+                            script,
+                            null,
+                            new ProjectAdvisor.CheckResult(false, List.of(String.valueOf(e.getMessage())), List.of(), Set.of()),
+                            null));
         }
         WeaveEnv withKeys = new EnvFileOptions().apply(env, script);
         if (withKeys == null) return 2;
         ProjectAdvisor.CheckResult check = check(script, withKeys);
         AuditReport audit = SecurityAudit.audit(loaded, file);
-        return print(env, file, ProjectAdvisor.advise(script, loaded, check, audit), c.format, script);
+        return print(
+                env,
+                file,
+                ProjectAdvisor.advise(script, loaded, check, audit),
+                c.format,
+                script,
+                JourneyStages.of(script, loaded, check, audit));
     }
 
     /**
@@ -181,15 +192,28 @@ final class NextCommand implements Callable<Integer> {
         return new ProjectAdvisor.CheckResult(true, errors, warnings, keys);
     }
 
+    private static java.util.Map<String, Object> stageJson(JourneyStages.Stage st) {
+        java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
+        row.put("number", st.number());
+        row.put("id", st.id());
+        row.put("title", st.title());
+        row.put("state", st.state());
+        row.put("detail", st.detail());
+        row.put("command", st.command());
+        return row;
+    }
+
     private static int print(
             WeaveEnv env,
             String file,
             List<ProjectAdvisor.Step> steps,
             String format,
-            Path script) {
+            Path script,
+            List<JourneyStages.Stage> stages) {
         if (format.equals("json")) {
             java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
             m.put("script", file);
+            m.put("projectRoot", io.github.llm4j.loom.init.ProjectLayout.root(script).toString());
             List<java.util.Map<String, Object>> rows = new ArrayList<>();
             for (ProjectAdvisor.Step st : steps) {
                 java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
@@ -199,6 +223,8 @@ final class NextCommand implements Callable<Integer> {
                 rows.add(row);
             }
             m.put("steps", rows);
+            m.put("stages", stages.stream().map(NextCommand::stageJson).toList());
+            m.put("primary", JourneyStages.primary(stages).map(NextCommand::stageJson).orElse(null));
             PreflightState pre = PreflightState.read(io.github.llm4j.loom.init.ProjectLayout.root(script), script);
             java.util.Map<String, Object> p = new java.util.LinkedHashMap<>();
             p.put("state", pre.state());

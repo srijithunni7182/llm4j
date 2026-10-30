@@ -113,6 +113,7 @@ export interface Methods {
     'loom/check': { params: CheckParams; answer: CommandAnswer };
     'loom/graph': { params: GraphParams; answer: CommandAnswer };
     'loom/symbols': { params: FileParams; answer: CommandAnswer };
+    'loom/next': { params: FileParams; answer: CommandAnswer };
     'loom/review': { params: ReviewParams; answer: CommandAnswer };
     'loom/explainRule': { params: { rule: string }; answer: ExplainAnswer };
     'loom/applyFix': { params: ApplyFixParams; answer: ApplyFixAnswer };

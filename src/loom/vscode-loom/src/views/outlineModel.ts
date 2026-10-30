@@ -28,10 +28,12 @@ export interface WorkspaceFacts {
     /** The file in the active editor, when it is a Loom file. */
     active?: LoomFileFacts;
     error?: { message: string; fix: string };
+    /** The project's progress group (from `loom/next`), or a message saying why there is none. */
+    progress?: OutlineRow;
 }
 
 export interface OutlineRow {
-    kind: 'message' | 'error' | 'section' | 'file' | 'symbol' | 'more';
+    kind: 'message' | 'error' | 'section' | 'file' | 'symbol' | 'more' | 'stage';
     label: string;
     description?: string;
     /** Opens this file, at `line` when given. */
@@ -41,6 +43,14 @@ export interface OutlineRow {
     command?: string;
     children?: OutlineRow[];
     collapsed?: boolean;
+    /** The id of a theme icon to show. */
+    icon?: string;
+    /** For a progress stage: its id in `weave next`. */
+    stageId?: string;
+    /** What a screen reader says: the state in words, not only an icon. */
+    accessibleLabel?: string;
+    /** A weave command a click types into a terminal; the person presses Enter. */
+    typeCommand?: string;
 }
 
 /** More files than this are not read; the tree says how many were left out. */
@@ -99,10 +109,11 @@ export function outlineRows(facts: WorkspaceFacts): OutlineRow[] {
     if (facts.files.length === 0) {
         return [];
     }
+    const progress = facts.progress ? [facts.progress] : [];
     if (facts.active) {
-        return [{ kind: 'section', label: 'This file', children: symbolRows(facts.active) }, folderSection(facts, true)];
+        return [...progress, { kind: 'section', label: 'This file', children: symbolRows(facts.active) }, folderSection(facts, true)];
     }
-    return [folderSection(facts, false), { kind: 'message', label: 'Open a .loom file to see its steps' }];
+    return [...progress, folderSection(facts, false), { kind: 'message', label: 'Open a .loom file to see its steps' }];
 }
 
 /** Batches a burst of events (a save, a rename, many file changes) into one refresh. */

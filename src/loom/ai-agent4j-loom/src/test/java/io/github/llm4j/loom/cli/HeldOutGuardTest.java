@@ -126,4 +126,21 @@ class HeldOutGuardTest {
         eval("- {id: p-1, input: q}\n", "--check");
         assertThat(said()).doesNotContain("drafted by an assistant");
     }
+
+    @Test
+    void aFinishedEvaluationIsRecordedSoWeaveNextCanTellMockFromReal() throws Exception {
+        assertThat(eval(DATASET, "--mock")).isZero();
+
+        var recorded = EvalRecord.read(dir).orElseThrow();
+        assertThat(recorded.mode()).isEqualTo("mock");
+        assertThat(recorded.datasetVersion()).isNotBlank();
+        assertThat(recorded.scriptHash()).isEqualTo(PreflightCommand.hash(Files.readString(dir.resolve("main.loom"))));
+    }
+
+    @Test
+    void aCheckRecordsNothingBecauseNothingWasEvaluated() throws Exception {
+        eval(DATASET, "--check");
+
+        assertThat(EvalRecord.read(dir)).isEmpty();
+    }
 }
