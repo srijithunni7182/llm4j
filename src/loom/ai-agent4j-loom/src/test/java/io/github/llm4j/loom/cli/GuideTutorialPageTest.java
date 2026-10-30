@@ -91,7 +91,9 @@ class GuideTutorialPageTest {
         }
 
         assertThat(html).startsWith("<!doctype html>").contains("</html>").contains("<title>The Loom Tutorial</title>");
-        assertThat(Pattern.compile("<pre class=\"mermaid\">").matcher(html).results().count()).isEqualTo(diagrams);
+        assertThat(Pattern.compile("<figure class=\"diagram\">").matcher(html).results().count()).as("a figure for every diagram of the markdown").isEqualTo(diagrams);
+        assertThat(Pattern.compile("<figure class=\"diagram\"><div class=\"plate\"><svg ").matcher(html).results().count()).as("each one drawn as an SVG, not left as source").isEqualTo(diagrams);
+        assertThat(html).as("the page needs no script from anywhere to draw them").doesNotContain("cdn.jsdelivr.net").doesNotContain("class=\"mermaid\"").doesNotContain("<script src=").doesNotContain("type=\"module\"");
         assertThat(html).contains("id=\"c01\"").contains("id=\"c14\"");
         assertThat(html).as("the page never prints a literal key").doesNotContainPattern("AIza[0-9A-Za-z_-]{20,}");
     }

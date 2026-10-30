@@ -271,7 +271,7 @@ final class GuideCommand implements Callable<Integer> {
             env.err().println("Error: could not write " + target + ": " + e.getMessage());
             return 2;
         }
-        env.out().println("Wrote " + target + ". Open it in a browser. The diagrams are drawn by a script the page loads, so they need a connection; everything else works offline.");
+        env.out().println("Wrote " + target + ". Open it in a browser. It works offline: the diagrams are drawn into the page, and the fonts fall back to your own.");
         return 0;
     }
 }

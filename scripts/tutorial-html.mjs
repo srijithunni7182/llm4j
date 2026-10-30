@@ -1,7 +1,11 @@
 // Makes the tutorial's web page from the markdown in docs/tutorial (see scripts/make-tutorial-html.sh, which installs the one dependency).
+// The diagrams are drawn to SVG here, with Mermaid in a headless browser, so the page needs no script and no connection.
+// Needs a Chromium: set CHROMIUM_PATH to one, or install Playwright's (npx playwright install chromium), or have Chrome.
 // Usage: node tutorial-html.mjs <repository root> <output html>
 import fs from 'fs';
 import crypto from 'crypto';
+import { createRequire } from 'module';
+import { chromium } from 'playwright-core';
 import path from 'path';
 import { marked } from 'marked';
 
@@ -61,6 +65,7 @@ function resolveHref(href, file) {
   return `${GH}/${isDir ? 'tree' : 'blob'}/main/${rel}${anchor ? '#' + anchor : ''}`;
 }
 
+const diagramSources = [];
 const chapters = [];
 for (const f of order) {
   const id = chapterId(f);
@@ -76,7 +81,10 @@ for (const f of order) {
   };
   renderer.code = (code, info) => {
     const lang = (info || '').split(/\s+/)[0];
-    if (lang === 'mermaid') return `<div class="diagram"><pre class="mermaid">${esc(code)}</pre></div>\n`;
+    if (lang === 'mermaid') {
+      diagramSources.push(code);
+      return `<!--DIAGRAM:${diagramSources.length - 1}-->\n`;
+    }
     if (lang.startsWith('loom')) {
       const tag = lang === 'loom-error' ? 'this one is meant to fail' : lang === 'loom-parse' ? 'excerpt' : 'Loom';
       return `<figure class="code"><figcaption>${tag}</figcaption><pre><code>${highlightLoom(code)}</code></pre></figure>\n`;
@@ -94,6 +102,74 @@ for (const f of order) {
   const titleMatch = src.match(/^#\s+(.+)$/m);
   chapters.push({ id, file: f, title: titleMatch ? titleMatch[1].replace(/`/g, '') : f, body });
 }
+
+
+const requireHere = createRequire(import.meta.url);
+
+/** One Mermaid configuration for every diagram: the page's own colours, a safe font, and the natural size of each drawing. */
+const MERMAID_CONFIG = {
+  startOnLoad: false,
+  securityLevel: 'strict',
+  theme: 'base',
+  themeVariables: {
+    fontFamily: 'Arial, Helvetica, "Liberation Sans", sans-serif',
+    fontSize: '15px',
+    primaryColor: '#d9efec',
+    primaryBorderColor: '#0f766e',
+    primaryTextColor: '#161a2b',
+    secondaryColor: '#eef0f7',
+    tertiaryColor: '#f5f6fa',
+    lineColor: '#5a6078',
+    textColor: '#161a2b',
+    noteBkgColor: '#fff6d6',
+    noteTextColor: '#161a2b',
+    actorBkg: '#d9efec',
+    actorBorder: '#0f766e',
+    signalColor: '#5a6078',
+    clusterBkg: '#f5f6fa',
+    clusterBorder: '#b9c0d4',
+  },
+  flowchart: { useMaxWidth: false, htmlLabels: false, nodeSpacing: 26, rankSpacing: 26, padding: 8, curve: 'basis' },
+  sequence: { useMaxWidth: false, actorMargin: 38, boxMargin: 8, messageMargin: 28, width: 130 },
+  state: { useMaxWidth: false },
+};
+
+async function drawDiagrams(sources) {
+  if (sources.length === 0) return [];
+  const launch = process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {};
+  let browser;
+  try {
+    browser = await chromium.launch(launch);
+  } catch (first) {
+    try {
+      browser = await chromium.launch({ channel: 'chrome' });
+    } catch {
+      throw new Error('No Chromium to draw the diagrams with. Set CHROMIUM_PATH, or run: npx playwright install chromium. (' + first.message.split('\n')[0] + ')');
+    }
+  }
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<!doctype html><html><body></body></html>');
+    await page.addScriptTag({ path: requireHere.resolve('mermaid/dist/mermaid.min.js') });
+    await page.evaluate((config) => window.mermaid.initialize(config), MERMAID_CONFIG);
+    const out = [];
+    for (let i = 0; i < sources.length; i++) {
+      out.push(await page.evaluate(async ([id, code]) => (await window.mermaid.render(id, code)).svg, ['d' + i, sources[i]]));
+    }
+    return out;
+  } finally {
+    await browser.close();
+  }
+}
+
+/** The drawing as an inline SVG at its natural size (never wider than the column), named for a reader who cannot see it. */
+function figure(svg, n) {
+  const fixed = svg.replace(/<svg /, `<svg role="img" aria-label="Diagram ${n}" `).replace(/ style="max-width:[^"]*"/, '');
+  return `<figure class="diagram"><div class="plate">${fixed}</div><button type="button" class="bigger" aria-label="Show the diagram larger">Larger</button></figure>\n`;
+}
+
+const drawings = await drawDiagrams(diagramSources);
+for (const c of chapters) c.body = c.body.replace(/<!--DIAGRAM:(\d+)-->/g, (_, i) => figure(drawings[+i], +i + 1));
 
 const nav = chapters
   .map((c) => {
@@ -195,8 +271,14 @@ figure.code figcaption { font-family: var(--display); font-size: 11.5px; letter-
 figure.code pre { margin: 0; padding: 8px 14px 14px; overflow-x: auto; }
 figure.code code { overflow-wrap: normal; background: none; padding: 0; color: var(--code-ink); font-size: 13.5px; line-height: 1.55; white-space: pre; }
 .tk-k { color: var(--tk-k); } .tk-s { color: var(--tk-s); } .tk-c { color: var(--tk-c); font-style: italic; } .tk-n { color: var(--tk-n); } .tk-v { color: var(--tk-v); }
-.diagram { margin: 1.5em 0; padding: 18px; background: var(--bg); border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; text-align: center; }
-.diagram pre.mermaid { margin: 0; background: none; }
+/* A diagram is drawn once, in light colours, so it sits on a light plate in either theme. */
+.diagram { position: relative; margin: 1.5em 0; padding: 14px; background: #f5f6fa; border: 1px solid #dfe2ec; border-radius: 8px; }
+.diagram .plate { overflow: auto; text-align: center; max-height: 540px; }
+.diagram svg { display: inline-block; max-width: 100%; height: auto; max-height: 520px; vertical-align: top; }
+.diagram.open .plate { max-height: none; }
+.diagram.open svg { max-height: none; }
+.diagram .bigger { position: absolute; top: 8px; right: 8px; font: 600 12px var(--display); color: #0f766e; background: #ffffff; border: 1px solid #b9c0d4; border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+.diagram .bigger:hover { background: #d9efec; }
 .tablewrap, table { max-width: 100%; }
 table { border-collapse: collapse; margin: 1.3em 0; display: block; overflow-x: auto; font-size: 15.5px; line-height: 1.45; }
 th { font-family: var(--display); font-size: 13px; text-align: left; letter-spacing: 0.02em; color: var(--muted); }
@@ -215,9 +297,6 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
 @media (min-width: 861px) { .top select { display: none; } }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outline-offset: 2px; }
-/* a diagram that has not been drawn (no connection): show its source as code */
-.diagram:has(pre.mermaid:not([data-processed]))::before { content: "Diagram source: the picture needs a connection to draw"; display: block; font-family: var(--display); font-size: 12px; color: var(--muted); margin-bottom: 8px; }
-.diagram pre.mermaid:not([data-processed]) { text-align: left; font-family: var(--mono); font-size: 13px; white-space: pre; }
 </style>
 </head>
 <body>
@@ -255,16 +334,17 @@ ${sections}
     where.textContent = a ? a.textContent.replace(/^[·\\d]+/, '').trim() : '';
     jump.value = id;
   }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('.bigger');
+    if (!b) return;
+    var d = b.parentNode;
+    var open = d.classList.toggle('open');
+    b.textContent = open ? 'Smaller' : 'Larger';
+  });
   jump.addEventListener('change', function () { location.hash = jump.value; });
   window.addEventListener('scroll', mark, { passive: true });
   mark();
 })();
-</script>
-<script type="module">
-import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs";
-var dark = matchMedia("(prefers-color-scheme: dark)").matches || document.documentElement.dataset.theme === "dark";
-mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "neutral", securityLevel: "strict" });
-await mermaid.run({ querySelector: "pre.mermaid" });
 </script>
 </body>
 </html>
