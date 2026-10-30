@@ -76,3 +76,8 @@ Before introducing a breaking change:
 
 **Review setup findings and cost fields (6.2.0), additive.** `ReviewReport` gains a `setup` component (findings about the machine, such as a key that is not set); its previous constructors are kept and give it no setup findings, and `withSetupAsFindings()` merges them back. The JSON report gains `setup` and `summary.setup`, and each cost workflow `tokenCap` and `capStopsBeforeWorstCase`. `weave review` gains `--include-setup`; the default now excludes setup findings from `--fail-on`. `weave observe rules` gains `--init`.
 
+## Additions in 6.2.0 (Loom language and test files)
+
+- **`substitution: legacy|braces`**, a new top-level script setting. Absent means `legacy`, today's behaviour; `braces` becomes the default only in the next major version.
+- **`real:`**, a new key of a workflow test case. Test files without it behave as before.
+- **`weave check --substitution`, `--fix-substitution`, `--yes`**, new options.

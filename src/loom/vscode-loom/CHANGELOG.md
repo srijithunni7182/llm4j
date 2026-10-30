@@ -7,6 +7,7 @@
 - **Loom: Set Up My Coding Agent** is offered once. When you open a folder that has a `.loom` file and no coding-agent set-up, a notification asks whether to set it up (*Set up*, *Not now*, *Don't ask again*). *Not now* is remembered for that workspace, *Don't ask again* for all of them, and it writes nothing until you choose; *Set up* runs the same command as the welcome view's button, which shows what it will write first.
 - The engine this extension carries now reports whether it is a release or a development build, and which commit (`weave --version`).
 
+- **`substitution`** is highlighted as a keyword (the setting that makes only `{name}` replaced); a string with `\"` no longer ends early in the editor.
 - **The Outline shows how far the project is.** A *Project progress* group at the top lists the ten stages of `weave next` with an icon and a word for each state (done, failing, not started, skipped, stale), marks the next step, and a click types that step's command into a terminal for you to run. It asks the engine at most once in three seconds and keeps the last answer when the engine is busy; without Java it says progress needs the engine.
 - **Loom: Run Once With a Cap…** (also a button on the Outline) starts the first real run with the cap as the first question, the worst-case estimate beside it, then any inputs, and types `weave run … --max-cost` (or `--max-tokens`) into a terminal. Nothing runs until you press Enter.
 

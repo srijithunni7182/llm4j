@@ -207,9 +207,14 @@ final class CaseRunner {
                         if (s instanceof RunStmt r) names.add(r.getTaskName());
                     });
         TaskRegistry registry = new TaskRegistry();
+        Set<String> real = RealTasks.names(c.get("real"));
+        TaskRegistry found = real.isEmpty() ? null : TaskRegistry.discovered();
         for (String name : names)
             registry.register(
-                    ScriptedTasks.of(name, scripts.get(name), failures, repeatLast, recorder));
+                    real.contains(name)
+                            ? RealTasks.recorded(found.get(name), recorder)
+                            : ScriptedTasks.of(
+                                    name, scripts.get(name), failures, repeatLast, recorder));
         return registry;
     }
 

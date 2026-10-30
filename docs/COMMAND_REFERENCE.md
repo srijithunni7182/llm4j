@@ -187,6 +187,7 @@ weave check [OPTIONS] <scriptFile>
 - `--classes=<dir|jar>` — Folder or jar with the classes of your own tasks and tools, repeatable (weave only sees what is on its class path). Default: target/classes of the project, when it has been built (mvn compile).
 - `--context-windows=<file>` — A windows file: 'model = window / reserve' per line (the size of each model's context window). Repeatable; a later file wins. Layered over <script>.windows, ~/.llm4j/context-windows and the built-in catalogue. (repeatable)
 - `--env-file=<file>` — Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.
+- `--fix-substitution` — Rewrite the bare words that were meant as variables to {name}, after showing the changed lines and asking. A word inside another word is left for you.
 - `--format=<format>` — text (default) or json: one JSON object with the problems in it, for tools (the editor reads this).
 - `--lenient` — Treat features that aren't supported yet as warnings.
 - `-l, --loot <lootFile>` — The .loot tool mapping file.
@@ -200,7 +201,9 @@ weave check [OPTIONS] <scriptFile>
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
 - `--strict` — Treat warnings as errors (exit 2), so a build can require a clean script.
+- `--substitution=<braces>` — Preview what would change under `substitution: braces`: every string where a variable's bare name is replaced today. Writes nothing.
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+- `--yes` — With --fix-substitution: do not ask, write the rewrite.
 
 **Examples**
 

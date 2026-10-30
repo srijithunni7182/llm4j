@@ -67,11 +67,15 @@ public class LoomLoader {
         // leaves it alone).
         effectiveScript.setPromptsDir(script.getPromptsDir(), script.getPromptsDirLine());
         // The shared prompt is the importing file's own business too. Merging used to drop it, so a
-        // script run through the loader (every weave command) never told its agents the shared text.
+        // script run through the loader (every weave command) never told its agents the shared
+        // text.
         effectiveScript.setSharedPrompt(
                 script.getSharedPrompt(),
                 script.getSharedPromptRef(),
                 script.getSharedPromptLine());
+
+        // So is how it replaces variables: an imported file never chooses it for the importer.
+        effectiveScript.setSubstitution(script.getSubstitution());
 
         visitedFiles.remove(path);
         return effectiveScript;

@@ -6,7 +6,6 @@ import io.github.llm4j.loom.ast.CallStmt;
 import io.github.llm4j.loom.ast.DecideStmt;
 import io.github.llm4j.loom.ast.DelegateStmt;
 import io.github.llm4j.loom.ast.HumanPromptStmt;
-import io.github.llm4j.loom.ast.NoteStmt;
 import io.github.llm4j.loom.ast.Statement;
 import io.github.llm4j.loom.ast.StatementWalker;
 import io.github.llm4j.loom.ast.WorkflowDef;
@@ -208,6 +207,8 @@ public final class WorkflowLint {
      * "Review this draft" into "Review this <the whole draft>". Reported once per variable, where
      * it first happens.
      */
+    // A text that is exactly a variable's name is a reference (call Other(order = order)), not an
+    // ordinary word that happens to match.
     private static List<Finding> wordsThatAreVariables(
             WorkflowDef workflow, List<Statement> all, String who) {
         java.util.Set<String> names = new java.util.LinkedHashSet<>(workflow.getParameters());
@@ -220,15 +221,16 @@ public final class WorkflowLint {
             if (name == null || name.length() < 2 || name.startsWith("_") || name.startsWith("{"))
                 continue;
             for (Statement s : all) {
-                String payload =
-                        s instanceof DelegateStmt d
-                                ? d.getPayload()
-                                : s instanceof BroadcastStmt b
-                                        ? b.getPayload()
-                                        : s instanceof HumanPromptStmt h
-                                                ? h.getMessage()
-                                                : s instanceof NoteStmt n ? n.getMessage() : null;
-                if (payload != null && PLACEHOLDER.matcher(payload).replaceAll("").contains(name)) {
+                boolean bare =
+                        SubstitutedText.of(s).stream()
+                                .anyMatch(
+                                        t ->
+                                                !t.equals(name)
+                                                        && PLACEHOLDER
+                                                                .matcher(t)
+                                                                .replaceAll("")
+                                                                .contains(name));
+                if (bare) {
                     out.add(
                             new Finding(
                                     s.getLine(),
@@ -243,6 +245,13 @@ public final class WorkflowLint {
             }
         }
         return out;
+    }
+
+    /**
+     * The variable a statement sets, or null: used by the lint and by the substitution migration.
+     */
+    static String assignedName(Statement s) {
+        return assigned(s);
     }
 
     private static String assigned(Statement s) {

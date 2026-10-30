@@ -308,6 +308,7 @@ cases:
 |---|---|
 | `fail:` | `Replier: { times: 2, category: timeout }` (or `on_calls`, `always`) injects `rate_limit`, `timeout`, `server_error`, `invalid_output`, `tool_error`, `refused` or `quota`, to test `retry`, `on_failure` and `rewind` |
 | `tools:`, `tasks:` | the tool or task returns this; tools that act (webhook, email, http, file, shell, sql) only *record* what they would have done, which `expect: { effects: … }` asserts |
+| `real:` | `real: [RefundPolicy]` runs that task's own code instead of a scripted result, and `expect.calls` still counts it. Only a task that declares no effect on the world (`TaskEffect.NONE`) may be real; naming one that changes things, or does not say, is an error: *has effects; a test cannot run it for real; script its result in tasks:*. The class has to be on the class path (`weave test --classes <dir>`, or `target/classes`); a name in both `real:` and `tasks:` is an error |
 | `humans:`, `resume:` | the people answer in order; with no answer left the run is `suspended`, and `resume:` continues it from its journal |
 | `expect.degraded`, `expect.fallbacks` | `degraded: true` asserts that the run used an `on_failure` fallback; `fallbacks: [ Writer ]` asserts exactly which agents or tasks did |
 | `clock:` | time is virtual: a `sleep 6h` or a retry back-off costs no real time, and `elapsed_virtual` asserts how long the run waited |
@@ -1420,6 +1421,31 @@ workflow AuditData(data) {
 }
 ```
 
+### Parallel branches that fall back
+
+When one branch of a `parallel` block may fail and the others must still count, give each branch its own flag and set it in the branch's `on_failure`. One variable per branch (`web_ok`, `docs_ok`), never one shared flag: the branches run at the same time, and two writing the same variable leave the last writer's value. Name the flag after the branch, set it to its good value before the block, and set the branch's output to a stand-in in the fallback so later text never shows a bare `{web_notes}`.
+
+```loom
+agent WebResearcher { model: "gemini-2.5-flash"  system: "Search the web and report what you find." }
+agent DocsResearcher { model: "gemini-2.5-flash"  system: "Search the documents and report what you find." }
+agent Writer { model: "gemini-2.5-flash"  system: "Write the report from the notes you are given." }
+
+workflow Report(topic) {
+    set web_ok = "yes"
+    set docs_ok = "yes"
+    parallel {
+        delegate "Search the web for {topic}" to WebResearcher -> web_notes
+            on_failure { set web_ok = "no"  set web_notes = "nothing found" }
+        delegate "Search the documents for {topic}" to DocsResearcher -> docs_notes
+            on_failure { set docs_ok = "no"  set docs_notes = "nothing found" }
+    }
+    delegate "Write about {topic}. Web: {web_notes}. Documents: {docs_notes}" to Writer -> report
+    return report
+}
+```
+
+The run still counts as degraded and says which agents took their fallback (`expect.fallbacks` in a test). Whether a condition may one day read that list directly (`alt (_fallbacks contains "WebResearcher")`) is an open question and not part of the language yet.
+
 ### Human-in-the-Loop (Interactive flows)
 ```loom
 workflow ApprovedTransfer(amount) {
@@ -1433,6 +1459,21 @@ workflow ApprovedTransfer(amount) {
     }
 }
 ```
+
+### Where a variable is replaced (`substitution`)
+
+A variable is replaced where the text says `{name}` or `{name.field}`. Today a **bare** name is replaced too, in the same texts (the older form), so a message such as `length out of range` becomes wrong when a variable called `out` exists. That stays the default (`substitution: legacy`) until the next major version, which makes `braces` the default. Choose it now, at the top of the script:
+
+```loom
+substitution: braces
+```
+
+With `braces`, only `{name}` and `{name.field}` are replaced, in every text the runtime fills in: the payloads of `delegate`, `broadcast` and `handoff`, the messages of `human_prompt`, `note` and `halt`, `set` and `return` values, task arguments, observe labels and expressions, and the `checkpoint` and `rewind` texts. `weave check` warns about a bare word that is also a variable in any of those places.
+
+To move an existing script over:
+
+- `weave check --substitution braces script.loom` lists every text that would change, with the variable and the position, and changes nothing.
+- `weave check --fix-substitution script.loom` shows the rewrite of each bare word that was meant as a variable (to `{name}`) as a diff and writes the file only after you answer yes (`--yes` answers for you in a script). A word that may be a variable or may be plain text is listed and left alone.
 
 ### Tasks: deterministic steps (`run`)
 

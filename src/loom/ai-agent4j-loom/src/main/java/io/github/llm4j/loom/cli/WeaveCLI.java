@@ -42,7 +42,9 @@ import picocli.CommandLine.Parameters;
         })
 public class WeaveCLI implements Callable<Integer> {
 
-    /** {@code -v} gives the INFO lines, {@code -vv} the FINE ones; the answer is printed either way. */
+    /**
+     * {@code -v} gives the INFO lines, {@code -vv} the FINE ones; the answer is printed either way.
+     */
     @CommandLine.Option(
             names = {"-v", "--verbose"},
             scope = CommandLine.ScopeType.INHERIT,
@@ -598,6 +600,24 @@ public class WeaveCLI implements Callable<Integer> {
                         "Treat warnings as errors (exit 2), so a build can require a clean script.")
         private boolean strict;
 
+        @Option(
+                names = "--substitution",
+                paramLabel = "braces",
+                description =
+                        "Preview what would change under `substitution: braces`: every string where a variable's bare name is replaced today. Writes nothing.")
+        private String substitution;
+
+        @Option(
+                names = "--fix-substitution",
+                description =
+                        "Rewrite the bare words that were meant as variables to {name}, after showing the changed lines and asking. A word inside another word is left for you.")
+        private boolean fixSubstitution;
+
+        @Option(
+                names = "--yes",
+                description = "With --fix-substitution: do not ask, write the rewrite.")
+        private boolean yes;
+
         @CommandLine.Mixin private SecretOptions secrets = new SecretOptions();
 
         @CommandLine.Mixin private EnvFileOptions envFile = new EnvFileOptions();
@@ -610,6 +630,9 @@ public class WeaveCLI implements Callable<Integer> {
 
         @Override
         public Integer call() {
+            if (substitution != null || fixSubstitution)
+                return SubstitutionCheck.run(
+                        scriptFile, substitution, fixSubstitution, yes, WeaveEnv.system());
             WeaveEnv env = envFile.apply(WeaveEnv.system(), scriptFile.toPath());
             if (env == null
                     || !classesOptions.apply(scriptFile.toPath(), env)
@@ -1299,7 +1322,8 @@ public class WeaveCLI implements Callable<Integer> {
 
         private static int writeStarter(File file) {
             if (file.exists()) {
-                System.err.println("Error: " + file + " already exists; --init never overwrites a file.");
+                System.err.println(
+                        "Error: " + file + " already exists; --init never overwrites a file.");
                 return 2;
             }
             try {
@@ -1308,11 +1332,17 @@ public class WeaveCLI implements Callable<Integer> {
                 System.err.println("Error: could not write " + file + ": " + e.getMessage());
                 return 2;
             }
-            System.out.println("Wrote " + file + " (all comments: the defaults still apply until you uncomment a line).");
+            System.out.println(
+                    "Wrote "
+                            + file
+                            + " (all comments: the defaults still apply until you uncomment a line).");
             return 0;
         }
 
-        /** Whether the file holds a rule: anything left after blank lines and {@code #} / {@code //} comments. */
+        /**
+         * Whether the file holds a rule: anything left after blank lines and {@code #} / {@code //}
+         * comments.
+         */
         private static boolean hasRules(File file) {
             if (!file.isFile()) return false;
             try {
@@ -1682,7 +1712,8 @@ public class WeaveCLI implements Callable<Integer> {
         String env = System.getenv("WEAVE_LOG");
         java.util.logging.Level level;
         if (verbosity >= 2) level = java.util.logging.Level.FINE;
-        else if (verbosity == 1 || "info".equalsIgnoreCase(env)) level = java.util.logging.Level.INFO;
+        else if (verbosity == 1 || "info".equalsIgnoreCase(env))
+            level = java.util.logging.Level.INFO;
         else if (ONCE_IS_ENOUGH.contains(command) && !"warn".equalsIgnoreCase(env))
             // the loader's warnings are the check's and the review's to report, not once per case
             level = java.util.logging.Level.OFF;

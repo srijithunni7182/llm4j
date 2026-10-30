@@ -188,6 +188,11 @@ public class HarnessExecutor implements LoomEngine {
                         public VariableContext context() {
                             return context;
                         }
+
+                        @Override
+                        public boolean bareNamesReplaced() {
+                            return !"braces".equals(script.getSubstitution());
+                        }
                     });
 
     /** Fills {@code {name}} and {@code {var.field}} placeholders in text the script wrote. */
