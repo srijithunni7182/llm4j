@@ -92,4 +92,10 @@ The four skills (and their `conventions.md`); `docs/guide/` README and chapters 
 - Live preflight, run with the owner's go-ahead (OpenAI key from the environment, cap $3, spent well under 1 cent): on `gpt-4.1-nano` it failed C2 with the provider's "model has been deprecated" 404 and spent 0 tokens; on `gpt-5-nano` and `gpt-4o-mini` C1-C4 and C7 passed (C4: the model began its answer with the random canary) and C6 warned that no price or window was given. C5 (grounded sources) was skipped, since the test agent is not grounded, so it is not proven live.
 - The live cost-accuracy check (`LiveCostAccuracyTest`) was run once on `gpt-4o-mini` after its deprecated default model was replaced: worst case >= actual in 10 of 10, typical within 2x in 8 of 10 (14,398 tokens). A first run failed on the 60 s default test timeout and one transient provider error on `long-prompt`; the test now has a 600 s timeout.
 - Not run: PIT.
-- Still open in Phase 20: the skill rules R3.x and the shared `conventions.md` with its drift test.
+### 20b: skill rules, `conventions.md`, `--confirm real-run` (done)
+
+- One `references/conventions.md` (nine rules R3.1-R3.9) in the workflow, deployer and harness-design skills, installed by `weave guide --install-skill` for each; `SkillConventionsTest` (5): copies identical, each SKILL.md points to it, commands and options it names exist, it reaches every installed skill, descriptions do not overlap. Guard: an extra line in one copy made it fail; restored.
+- `weave next --confirm real-run` (`RealRunRead`, tied to the script hash) and the "Read one real answer" step; `NextKnowsThePreflightTest` now 12. Guard: removing the hash check made the changed-script test fail.
+- `weave eval --check` reports assistant-drafted cases no person reviewed (`Authorship`, tags `author:assistant` / `reviewed_by:<name>`; the dataset format is unchanged, which departs from the spec's "schema gains fields"). `AuthorshipTest` (4) and a check test. Guard: forcing `needsReview` false failed both.
+- Loom module `mvn verify`: 3,684 tests, 0 failures, 2 skipped (the live cost test, which needs `LLM4J_LIVE=1`, and a Unicode path test the container's file-system encoding cannot run), coverage gates met.
+- The fourth skill (evaluation design, Phase 23) does not exist yet, so the rules are in three skills. `make skill-package` not yet run.

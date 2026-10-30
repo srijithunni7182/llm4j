@@ -109,4 +109,57 @@ class NextKnowsThePreflightTest {
     void aBadFormatIsRefused() {
         assertThat(next(project().toString(), "--format", "xml").code()).isEqualTo(2);
     }
+
+    @Test
+    void afterAPassingPreflightTheNextStepIsToReadTheRealAnswer() throws Exception {
+        Path p = project();
+        record(p, "", false, "pass");
+
+        assertThat(next(p.toString()).out())
+                .contains("Read one real answer")
+                .contains("$ weave next --confirm real-run");
+    }
+
+    @Test
+    void confirmingTheReadRemovesTheStepAndIsRemembered() throws Exception {
+        Path p = project();
+        record(p, "", false, "pass");
+
+        Out confirmed = next(p.toString(), "--confirm", "real-run");
+
+        assertThat(confirmed.code()).isZero();
+        assertThat(Files.readString(p.resolve(".loom/confirmed.json"))).contains("real-run");
+        assertThat(next(p.toString()).out()).doesNotContain("Read one real answer");
+    }
+
+    @Test
+    void aChangedScriptNeedsTheAnswerReadAgain() throws Exception {
+        Path p = project();
+        record(p, "", false, "pass");
+        next(p.toString(), "--confirm", "real-run");
+        Files.writeString(p.resolve("main.loom"), Files.readString(p.resolve("main.loom")) + "\n// edited\n");
+        record(p, "", false, "pass");
+
+        assertThat(next(p.toString()).out()).contains("Read one real answer");
+    }
+
+    @Test
+    void onlyKnownStepsCanBeConfirmed() {
+        Out refused = next(project().toString(), "--confirm", "everything");
+
+        assertThat(refused.code()).isEqualTo(2);
+    }
+
+    @Test
+    void jsonSaysWhetherTheRealAnswerWasRead() throws Exception {
+        Path p = project();
+        record(p, "", false, "pass");
+        assertThat(new ObjectMapper().readTree(next(p.toString(), "--format", "json").out())
+                        .path("realRun").path("confirmed").asBoolean(true)).isFalse();
+
+        next(p.toString(), "--confirm", "real-run");
+
+        assertThat(new ObjectMapper().readTree(next(p.toString(), "--format", "json").out())
+                        .path("realRun").path("confirmed").asBoolean(false)).isTrue();
+    }
 }

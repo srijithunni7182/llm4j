@@ -146,6 +146,7 @@ public final class Guide {
                     "failure-modes.md",
                     "loom-mapping.md",
                     "design-record.md",
+                    "conventions.md",
                     "cost-and-models.md");
 
     private Guide() {}
@@ -245,6 +246,7 @@ public final class Guide {
                     StandardCharsets.UTF_8);
             written.add("references/" + name);
         }
+        writeConventions(folder, "skill-deployer", written);
         for (String script : DEPLOYER_SCRIPTS) {
             Path target = folder.resolve("scripts").resolve(script);
             Files.writeString(
@@ -297,6 +299,21 @@ public final class Guide {
         return written;
     }
 
+    /** The rules every skill shares, copied from the jar into the skill's references. */
+    private static void writeConventions(Path folder, String resourceRoot, List<String> written)
+            throws IOException {
+        Files.writeString(
+                folder.resolve("references").resolve("conventions.md"),
+                read(resourceRoot + "/references/conventions.md")
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "this jar has no conventions.md for "
+                                                        + resourceRoot)),
+                StandardCharsets.UTF_8);
+        written.add("references/conventions.md");
+    }
+
     /** Where the skill goes inside a project. */
     public static Path skillFolder(Path project) {
         return project.resolve(".claude").resolve("skills").resolve("llm4j-workflow-guide");
@@ -333,6 +350,7 @@ public final class Guide {
                     StandardCharsets.UTF_8);
             written.add("references/" + name);
         }
+        writeConventions(folder, "skill", written);
         // the launcher for a terminal with no `weave` on its PATH
         for (String script : new String[] {"weave", "weave.cmd"}) {
             Optional<String> text = read("skill/scripts/" + script);

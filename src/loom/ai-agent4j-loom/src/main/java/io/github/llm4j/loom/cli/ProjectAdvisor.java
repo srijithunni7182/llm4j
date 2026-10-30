@@ -209,7 +209,14 @@ final class ProjectAdvisor {
                                     "Fix what the preflight found: " + preflight.detail(),
                                     "A real answer is cut, empty or missing something the script depends on; everything built on it inherits that.",
                                     "weave preflight " + file));
-            default -> {}
+            default -> {
+                if (!RealRunRead.confirmed(dir, script))
+                    steps.add(
+                            new Step(
+                                    "Read one real answer and say what is right and wrong with it",
+                                    "A passing preflight shows the answer was whole, not that it was good. Read it before you build the dataset on it, then record that you did.",
+                                    "weave next --confirm real-run"));
+            }
         }
         steps.add(
                 new Step(

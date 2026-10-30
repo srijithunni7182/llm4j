@@ -44,6 +44,13 @@ final class NextCommand implements Callable<Integer> {
             defaultValue = "text")
     String format;
 
+    @picocli.CommandLine.Option(
+            names = "--confirm",
+            paramLabel = "<step>",
+            description =
+                    "Record that a person did a step no command can check. Takes real-run: they read one real answer and said what is right and wrong with it.")
+    String confirm;
+
     @Override
     public Integer call() {
         return next(this, WeaveEnv.system());
@@ -65,6 +72,20 @@ final class NextCommand implements Callable<Integer> {
         if (!c.format.equals("text") && !c.format.equals("json")) {
             env.err().println("Error: --format takes text or json, got " + c.format + ".");
             return 2;
+        }
+        if (c.confirm != null) {
+            if (!c.confirm.equals(RealRunRead.STEP)) {
+                env.err().println("Error: --confirm takes " + RealRunRead.STEP + ", got " + c.confirm + ".");
+                return 2;
+            }
+            try {
+                RealRunRead.confirm(io.github.llm4j.loom.init.ProjectLayout.root(script), script, env.clock());
+            } catch (java.io.IOException e) {
+                env.err().println("Error: could not record it: " + e.getMessage());
+                return 1;
+            }
+            env.out().println("Recorded: a real answer of " + script.getFileName() + " was read.");
+            return 0;
         }
         String file = script.getFileName().toString();
         LoomScript loaded = null;
@@ -183,6 +204,7 @@ final class NextCommand implements Callable<Integer> {
             p.put("state", pre.state());
             if (pre.at() != null) p.put("at", pre.at());
             m.put("preflight", p);
+            m.put("realRun", java.util.Map.of("confirmed", RealRunRead.confirmed(io.github.llm4j.loom.init.ProjectLayout.root(script), script)));
             try {
                 env.out().println(new com.fasterxml.jackson.databind.ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(m));
             } catch (com.fasterxml.jackson.core.JsonProcessingException e) {

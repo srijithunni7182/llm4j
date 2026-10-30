@@ -1727,6 +1727,7 @@ weave next [OPTIONS] [<folder or script>]
 
 **Options**
 
+- `--confirm=<step>` — Record that a person did a step no command can check. Takes real-run: they read one real answer and said what is right and wrong with it.
 - `--format=<text|json>` — The steps as text (default) or as JSON, for a coding agent or the editor.
 
 **Examples**
@@ -1734,6 +1735,8 @@ weave next [OPTIONS] [<folder or script>]
 ```
 weave next            what to do next in this folder
 weave next support/   for another project
+weave next --format json   the steps and the preflight state, for a coding agent or the editor
+weave next --confirm real-run   record that you read one real answer and said what is right and wrong with it
 ```
 
 **See also**

@@ -364,6 +364,17 @@ final class EvalCommand implements Callable<Integer> {
                                             : ", fixtures for "
                                                     + String.join(", ", fixtures.names()))
                                     + ", ready to run");
+            List<EvalScenario> everyCase =
+                    plan.targets().stream().flatMap(t -> t.scenarios().stream()).toList();
+            long unreviewed = io.github.llm4j.loom.eval.Authorship.unreviewed(everyCase);
+            if (unreviewed > 0)
+                env.out()
+                        .println(
+                                "note: "
+                                        + unreviewed
+                                        + " of "
+                                        + everyCase.size()
+                                        + " cases were drafted by an assistant and no person has reviewed them. Read each, edit it if it is wrong, and add the tag reviewed_by:<your name>.");
             boolean anyHeldOut =
                     plan.targets().stream()
                             .flatMap(t -> t.scenarios().stream())

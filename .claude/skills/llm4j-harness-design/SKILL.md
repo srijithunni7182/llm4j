@@ -49,6 +49,10 @@ this skill's `references/` folder and in the tools:
 10. **Test the harness, not just the agents.** Kill it mid-run, fail its tools, exhaust its budget, feed it hostile input, and check
     it does what the design says.
 
+## Conventions every llm4j skill follows
+
+Read `references/conventions.md` before you start. It sets nine rules the llm4j skills share: show the roadmap first and the checklist after every stage; ask whether a coordinating step needs a model; write datasets with the person; read one real answer early; read back what you wrote; run the README's commands once; ask about keys before anything else; say once that selecting text shares it; and make every skipped step visible.
+
 ## The path
 
 | # | Stage | Read | Gate before moving on |

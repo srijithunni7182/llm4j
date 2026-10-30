@@ -188,8 +188,8 @@ class GuideCommandTest {
         }
         assertThat(stdout())
                 .contains("Installed the skill in")
-                // the guide pages, SKILL.md and the two launcher scripts (scripts/weave, scripts/weave.cmd)
-                .contains((guidePages + 3) + " files");
+                // the guide pages, SKILL.md, references/conventions.md and the two launcher scripts (scripts/weave, scripts/weave.cmd)
+                .contains((guidePages + 4) + " files");
     }
 
     @Test

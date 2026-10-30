@@ -36,6 +36,10 @@ may not be here, so never send the user to a repository path and never ask them 
 
 Start with `weave guide readme` if the user is new to the path. When the user wants to change a starter, `weave guide recipes` has tested before-and-after changes (a different model, ask a person before publishing, escalate when a loop gives up, add an agent, add a tool, mask personal data); use them as patterns and give the user the matching "Ask your agent" sentence.
 
+## Conventions every llm4j skill follows
+
+Read `references/conventions.md` before you start. It sets nine rules the llm4j skills share: show the roadmap first and the checklist after every stage; ask whether a coordinating step needs a model; write datasets with the person; read one real answer early; read back what you wrote; run the README's commands once; ask about keys before anything else; say once that selecting text shares it; and make every skipped step visible.
+
 ## How to guide
 
 0. **Start from a template, not from an example.** For a new project run `weave init pipeline|approval|classifier|empty` (`empty` has nothing from a sample to delete; otherwise delete the sample's leftover agents, prompts and examples as soon as you rename the project, and tell the user which you removed and why) (pick the one nearest what the

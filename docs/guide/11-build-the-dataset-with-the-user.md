@@ -85,6 +85,16 @@ Each thing the user said becomes one line, in the right place:
 
 List the five names under `dimensions:` in `dataset.yaml` with one line each, in the user's words, so a report shows all five even when nothing has judged them yet.
 
+## Mark the cases you drafted
+
+A case you wrote for the user, and they did not write, gets the tag `author:assistant`. When they read it and accept or fix it, they add `reviewed_by:<their name>`; you add it only when they say they have. `weave eval <script> --check` then says how many drafted cases no person has reviewed, so a dataset made mostly of guesses cannot pass for the user's own judgement. A case with no `author:` tag is taken to be the user's.
+
+```yaml
+- id: refund-after-30-days
+  input: "I bought this 45 days ago and want my money back."
+  tags: ["author:assistant", "reviewed_by:Asha"]
+```
+
 ## What you must tell the user about the report
 
 A free run fills only one row of the report: **wiring** (the pieces run). The other qualities show "no results" until a paid evaluation reads the answers. That is not a failure; it is the honest state. Say it before opening the report, and open the report to read what is on it before describing it. The dashboard names each row "<agent> · <example>" so the user can see whose example it is.

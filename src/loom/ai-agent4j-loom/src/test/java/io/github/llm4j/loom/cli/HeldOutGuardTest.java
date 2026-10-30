@@ -111,4 +111,19 @@ class HeldOutGuardTest {
         eval(DATASET, "--check");
         assertThat(said()).doesNotContain("no held-out cases");
     }
+
+    @Test
+    void checkSaysHowManyCasesAnAssistantDraftedAndNoPersonReviewed() throws Exception {
+        eval(
+                "- {id: a-1, input: q, tags: [\"author:assistant\"]}\n"
+                        + "- {id: a-2, input: q, tags: [\"author:assistant\", \"reviewed_by:Asha\"]}\n"
+                        + "- {id: p-1, input: q}\n",
+                "--check");
+        assertThat(said()).contains("1 of 3 cases were drafted by an assistant");
+
+        out.reset();
+        err.reset();
+        eval("- {id: p-1, input: q}\n", "--check");
+        assertThat(said()).doesNotContain("drafted by an assistant");
+    }
 }

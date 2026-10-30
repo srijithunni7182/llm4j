@@ -14,6 +14,10 @@ You are taking a **finished, tested workflow** to a **running, watched** one, an
 - `weave --help`, `weave <command> --help` and `java -jar fabric.jar <command> --help` are the truth about options. Do not guess a name; look.
 - The scripts look for each jar in this order: the variable (`FABRIC_JAR`, `WEAVE_JAR`, `INSPECT_JAR`, `INSPECT_CORE_JAR`); the editor extension's bundled jar (it holds the command line only); `bin/` next to this file; `~/.llm4j/tools/<version>/`, where `weave tools fetch fabric|inspect|all` puts what it downloads (it lists the files, asks first, checks the published checksum and refuses a development build); then a build in the repository. `weave guide --install-skill` ends with what was found and what is missing. If a jar is missing, run the `weave tools fetch` command the message names, and tell the person it will download from Maven Central. Java 17 or newer is the only prerequisite (`java -version`).
 
+## Conventions every llm4j skill follows
+
+Read `references/conventions.md` before you start. It sets nine rules the llm4j skills share: show the roadmap first and the checklist after every stage; ask whether a coordinating step needs a model; write datasets with the person; read one real answer early; read back what you wrote; run the README's commands once; ask about keys before anything else; say once that selecting text shares it; and make every skipped step visible.
+
 ## The path
 
 | # | Stage | Chapter (`weave guide dN`) | Gate before moving on |
