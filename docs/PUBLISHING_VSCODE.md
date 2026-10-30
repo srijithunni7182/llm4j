@@ -39,7 +39,7 @@ After this, the first merge that bumps the version publishes it.
 ## What the workflow does and why it is built this way
 
 - **No stored secret.** The `publish` job asks GitHub for a short-lived OpenID Connect token and trades it for a Marketplace credential that lasts 15 minutes. Each GitHub token can be traded only once.
-- **Only one job can publish.** `build` has no publishing rights. `publish` has `id-token: write`, runs nothing from the repository, and publishes the file `build` made, with a pinned `vsce` (`4.0.0`, the first stable release with `--oidc`). Raise that version on purpose, not by accident.
+- **Only one job can publish.** `build` has no publishing rights. `publish` has `id-token: write`, runs nothing from the repository, and publishes the file `build` made, with a pinned `vsce` (`4.1.0`; `4.0.0` has `--oidc` but sends its Marketplace token request without an `api-version`, which the Marketplace refuses with a 400). Raise that version on purpose, not by accident.
 - **A failed lookup is never "nothing published".** `scripts/published-extension-version.sh` fails on a bad reply, so a flaky network cannot cause a duplicate upload. The decision logic, `scripts/check-extension-release.sh`, is tested in `src/loom/vscode-loom/test/releaseCheck.test.ts`.
 - **A pull request cannot publish.** It runs only the cheap version check, and the `publish` job runs only on `main`.
 
