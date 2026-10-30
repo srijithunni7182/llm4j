@@ -1,0 +1,284 @@
+{
+  "version": 1,
+  "entry": "<root>/src/test/resources/graph/parallel_lanes.loom",
+  "files": [
+    {
+      "path": "<root>/src/test/resources/graph/parallel_lanes.loom",
+      "imports": [ ]
+    }
+  ],
+  "workflows": [
+    {
+      "name": "Main",
+      "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
+      "line": 4,
+      "params": [
+        "t"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "kind": "start",
+          "label": "Start"
+        },
+        {
+          "id": "n1",
+          "kind": "set",
+          "label": "set a",
+          "source": {
+            "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
+            "line": 5
+          },
+          "attrs": {
+            "value": "1"
+          }
+        },
+        {
+          "id": "n2",
+          "kind": "set",
+          "label": "set b",
+          "source": {
+            "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
+            "line": 6
+          },
+          "attrs": {
+            "value": "2"
+          }
+        },
+        {
+          "id": "n3",
+          "kind": "set",
+          "label": "set c",
+          "source": {
+            "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
+            "line": 7
+          },
+          "attrs": {
+            "value": "3"
+          }
+        },
+        {
+          "id": "n4",
+          "kind": "parallel",
+          "label": "in parallel: A, B, C",
+          "source": {
+            "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
+            "line": 8
+          },
+          "attrs": {
+            "agents": [
+              "A",
+              "B",
+              "C"
+            ],
+            "branches": 3,
+            "lanes": [
+              {
+                "label": "A",
+                "nodes": [
+                  "n6",
+                  "n9"
+                ]
+              },
+              {
+                "label": "B",
+                "nodes": [
+                  "n7"
+                ]
+              },
+              {
+                "label": "C",
+                "nodes": [
+                  "n8",
+                  "n10"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "n5",
+          "kind": "return",
+          "label": "return",
+          "source": {
+            "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
+            "line": 13
+          }
+        },
+        {
+          "id": "n6",
+          "kind": "delegate",
+          "label": "delegate A",
+          "agent": "A",
+          "source": {
+            "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
+            "line": 9
+          },
+          "parent": "n4",
+          "branch": "lane 1",
+          "attrs": {
+            "variable": "ra",
+            "text": "x {t}"
+          }
+        },
+        {
+          "id": "n7",
+          "kind": "delegate",
+          "label": "delegate B",
+          "agent": "B",
+          "source": {
+            "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
+            "line": 10
+          },
+          "parent": "n4",
+          "branch": "lane 2",
+          "attrs": {
+            "variable": "rb",
+            "text": "y {t}"
+          }
+        },
+        {
+          "id": "n8",
+          "kind": "delegate",
+          "label": "delegate C",
+          "agent": "C",
+          "source": {
+            "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
+            "line": 11
+          },
+          "parent": "n4",
+          "branch": "lane 3",
+          "attrs": {
+            "variable": "rc",
+            "retry": 1,
+            "text": "z {t}"
+          }
+        },
+        {
+          "id": "n9",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
+            "line": 9
+          },
+          "parent": "n6",
+          "branch": "failure",
+          "attrs": {
+            "text": "a failed"
+          }
+        },
+        {
+          "id": "n10",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
+            "line": 11
+          },
+          "parent": "n8",
+          "branch": "failure",
+          "attrs": {
+            "text": "c failed"
+          }
+        },
+        {
+          "id": "end",
+          "kind": "end",
+          "label": "End"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "n1"
+        },
+        {
+          "from": "n1",
+          "to": "n2"
+        },
+        {
+          "from": "n2",
+          "to": "n3"
+        },
+        {
+          "from": "n3",
+          "to": "n4"
+        },
+        {
+          "from": "n6",
+          "to": "n5"
+        },
+        {
+          "from": "n9",
+          "to": "n5"
+        },
+        {
+          "from": "n7",
+          "to": "n5"
+        },
+        {
+          "from": "n8",
+          "to": "n5"
+        },
+        {
+          "from": "n10",
+          "to": "n5"
+        },
+        {
+          "from": "n5",
+          "to": "end"
+        },
+        {
+          "from": "n4",
+          "to": "n6"
+        },
+        {
+          "from": "n4",
+          "to": "n7"
+        },
+        {
+          "from": "n4",
+          "to": "n8"
+        },
+        {
+          "from": "n6",
+          "to": "n9",
+          "label": "failure"
+        },
+        {
+          "from": "n8",
+          "to": "n10",
+          "label": "failure"
+        }
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "name": "A",
+      "model": "m",
+      "source": {
+        "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
+        "line": 1
+      }
+    },
+    {
+      "name": "B",
+      "model": "m",
+      "source": {
+        "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
+        "line": 2
+      }
+    },
+    {
+      "name": "C",
+      "model": "m",
+      "source": {
+        "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
+        "line": 3
+      }
+    }
+  ],
+  "diagnostics": [ ]
+}

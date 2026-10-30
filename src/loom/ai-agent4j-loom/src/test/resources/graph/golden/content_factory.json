@@ -53,7 +53,21 @@
             "agents": [
               "Copywriter"
             ],
-            "branches": 2
+            "branches": 2,
+            "lanes": [
+              {
+                "label": "Copywriter",
+                "nodes": [
+                  "n7"
+                ]
+              },
+              {
+                "label": "Copywriter",
+                "nodes": [
+                  "n8"
+                ]
+              }
+            ]
           }
         },
         {
@@ -110,6 +124,38 @@
           }
         },
         {
+          "id": "n7",
+          "kind": "delegate",
+          "label": "delegate Copywriter",
+          "agent": "Copywriter",
+          "source": {
+            "file": "<root>/samples/content_factory/main.loom",
+            "line": 8
+          },
+          "parent": "n2",
+          "branch": "lane 1",
+          "attrs": {
+            "variable": "linkedin_post",
+            "text": "Write a 500-word blog post for: LinkedIn"
+          }
+        },
+        {
+          "id": "n8",
+          "kind": "delegate",
+          "label": "delegate Copywriter",
+          "agent": "Copywriter",
+          "source": {
+            "file": "<root>/samples/content_factory/main.loom",
+            "line": 9
+          },
+          "parent": "n2",
+          "branch": "lane 2",
+          "attrs": {
+            "variable": "twitter_thread",
+            "text": "Draft a thread of 5 tweets for: Twitter"
+          }
+        },
+        {
           "id": "end",
           "kind": "end",
           "label": "End"
@@ -125,7 +171,11 @@
           "to": "n2"
         },
         {
-          "from": "n2",
+          "from": "n7",
+          "to": "n3"
+        },
+        {
+          "from": "n8",
           "to": "n3"
         },
         {
@@ -141,6 +191,14 @@
           "from": "n4",
           "to": "n6",
           "label": "else"
+        },
+        {
+          "from": "n2",
+          "to": "n7"
+        },
+        {
+          "from": "n2",
+          "to": "n8"
         },
         {
           "from": "n5",

@@ -74,6 +74,7 @@ Open the Command Palette and type **Loom**. The commands below run the same `wea
 | Test | **Loom: Run Tests** | `weave test --coverage`: scripted models, no keys, every step reached or listed | nothing |
 | Evaluate | **Loom: Evaluate Workflow...** | Choose: run with mock models, check the dataset, or create a starter dataset | nothing |
 | Debug | **Loom: Debug Workflow** (F5) | Step through, set breakpoints, see the variables; nothing has an effect | nothing |
+| Watch | **Loom: Run Once With a Cap...** | The first real run: asks for the cap first (`$2` or `50000 tokens`, with the review's worst-case estimate beside it), then any inputs, and types `weave run ... --max-cost` into a terminal for you to run | the cap you give |
 | Watch | **Loom: Run With Live Page...** | A real run with your keys, capped by `loom.observe.maxTokens` (default `50000` tokens), with the live page (cost, context, incidents, Pause and Stop). It asks first | tokens, capped |
 | Ship | **Loom: Write Deployment Files...** | Docker, Compose or Kubernetes files, read from the script; nothing is built or started | nothing |
 | Next | **Loom: What Should I Do Next?** | The next step for this project, in order | nothing |
@@ -100,7 +101,7 @@ A real script is too long to read as one big flowchart, so the panel shows the s
 |---|---|
 | **Outline** (default) | Find your place. A tree of the steps on the left, grouped by section; the middle shows only the selected step's section at full size; the inspector on the right shows its settings. Blocks fold with the − and + buttons. |
 | **Focus** | Follow the logic one step at a time. The selected step is large in the middle, with what it **comes from** on the left and what it **goes to** on the right, each edge labelled (`then`, `else`, `each round`, `when done`, `loops back`). Click a neighbour to move there. |
-| **Flow** | See the whole shape. The main path runs left to right, with section bands above it; everything off the main path hangs below the step it belongs to. A loop's way round is a dashed line labelled `again ≤3`. Selecting a step scrolls it to the middle. |
+| **Flow** | See the whole shape. The main path runs left to right, with section bands above it; everything off the main path hangs below the step it belongs to. A loop's way round is a dashed line labelled `again ≤3`. Selecting a step scrolls it to the middle. A `parallel` block forks into one lane per branch under the block (the branch's `on_failure` handler hangs under its step on a dashed edge) and the lanes join before the next step. Consecutive `set` steps are one small card that opens to list them. |
 
 ![The Flow view: the main path left to right, a rewrite loop hanging below its safety check, and an exit that ends the run](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/vscode-loom/graph-flow.png)
 
@@ -178,7 +179,7 @@ Type a keyword in a `.loom` file and press Tab to get the whole statement with i
 
 **Loom: Open Guide** (Command Palette) shows a page of the written guide: where to start, the ten chapters, or the Loom reference. It comes from the `weave` jar inside this extension, so it works with no repository and no network.
 
-**Loom: Set Up My Coding Agent** asks which coding agents you use in this project and writes what each one reads, in the folder you have open: for Claude Code the skills and the guide under `.claude/skills`; for Codex, Copilot's agent mode, Gemini, Cursor and others a block in `AGENTS.md`; or `.github/copilot-instructions.md` or `.cursor/rules/loom.mdc`. The text tells the agent to look commands up with `weave man` instead of guessing, gives it the loop (describe, check, review, test, evaluate, watch, ship) and the rules (no keys in files, ask before anything that spends money). What you wrote in the same file stays: Loom's text sits between two marker lines. It asks before it replaces an older copy.
+**Loom: Set Up My Coding Agent** asks which coding agents you use in this project and writes what each one reads, in the folder you have open: for Claude Code the skills and the guide under `.claude/skills`; for Codex, Copilot's agent mode, Gemini, Cursor and others a block in `AGENTS.md`; or `.github/copilot-instructions.md` or `.cursor/rules/loom.mdc`. The text tells the agent to look commands up with `weave man` instead of guessing, gives it the loop (describe, check, review, test, evaluate, watch, ship) and the rules (no keys in files, ask before anything that spends money). What you wrote in the same file stays: Loom's text sits between two marker lines. It asks before it replaces an older copy. When you open a folder with a `.loom` file and no set-up, the extension offers it once (a notification; *Not now* and *Don't ask again* are remembered, and nothing is written until you choose).
 
 ## Review
 
@@ -229,7 +230,8 @@ With the engine running, the editor understands the names in your script, in eve
 - **Rename** (F2) changes a name everywhere it is used, in every file, as one undoable change. It refuses, and changes nothing, if the new name is taken or is a keyword, if a file that would change is read-only, or if an import cannot be found (so a use might be missed). Renaming a prompt also renames its file, after you confirm.
 - **Completion** offers only what fits where you are: agents after `delegate … to`, checkpoints after `rewind to` (the ones of this workflow), workflows after `call`, classifiers, decisions and tools in their places, the fields of a variable after its dot (`intent.` lists the classifier's questions with their labels), the labels of an enum after `==`, and variables in a condition or a `{placeholder}`. Nothing it offers fails `weave check`.
 - **Hover** shows an agent's model, tools and reply shape, a workflow's parameters, a classifier's fields, a variable's type and where it was made, and the values a comparison can take (with a warning for one it never has).
-- **Outline** (the Outline view and Ctrl+Shift+O) lists the blocks of the file with their checkpoints and variables. **Signature help** shows a workflow's parameters while you write `call Name(`.
+- **The Workflow Outline view** shows *Project progress* first (the ten stages of `weave next`, the next step marked; a click types its command into a terminal; the status bar shows the next step too and both refresh when `eval/`, `EVAL_DESIGN.md`, tests or `.loom` files change), then this file's agents, workflows, schedules and routing, then the other workflows in the folder. With no folder open, or none with a `.loom` file, it says what to do.
+- **Outline** (Ctrl+Shift+O) lists the blocks of the file with their checkpoints and variables. **Signature help** shows a workflow's parameters while you write `call Name(`.
 
 A half-typed line does not take this away: what the engine could read is still used, so the variables made above your cursor are still known. A setting (see Settings) turns these answers off and leaves the older, simpler ones.
 
@@ -258,6 +260,8 @@ A key that is not set yet (such as `GEMINI_API_KEY`) is not reported as a proble
 
 - **`loom.javaPath`** (default `java`): The Java executable used to run `weave.jar` (the engine, checks and graphs); if only the older `loom.graph.javaPath` is set, that one is used
 - **`loom.graph.javaPath`** (default `java`): The older name of the same setting, still honoured
+- **`loom.graph.groupSets`** (default `true`): Draw consecutive `set` steps in the graph's Flow view as one small card that opens to list them; turn it off to draw every set as its own box.
+- **`loom.review.openSourceOnClick`** (default `false`): Open the `.loom` file when you click a finding in the Review panel. By default a click only selects the finding; **Go to source** (or Ctrl+Enter / Cmd+Enter) opens the file.
 - **`loom.review.on`** (default `save`): When the review runs by itself: after a save, while typing (the validity lens only), or only when you ask (`manual`)
 - **`loom.review.layout`** (default `split`): The layout the Review panel opens in: `split`, `outline` or `list` (your last choice in the panel is remembered per workspace)
 - **`loom.review.lenses`** (default `` ``, empty): Which lenses run, as `weave review --lens` takes them; empty uses the project's `review.properties`

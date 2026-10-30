@@ -74,17 +74,25 @@ export function createFakeVscode(settings: Record<string, unknown>) {
         selection: new FakeEvent<any>(),
         activeEditorChanged: new FakeEvent<any>(),
         channels: [] as Array<{ name: string; lines: string[] }>,
+        statusBarItems: [] as any[],
+        watchers: [] as any[],
+        folders: undefined as undefined | Array<{ uri: { fsPath: string } }>,
+        loomFiles: [] as string[],
     };
     class EventEmitter<T> {
         private readonly inner = new FakeEvent<T>();
         readonly event = this.inner.subscribe;
         fire(value?: T): void { this.inner.fire(value as T); }
+        dispose(): void { /* nothing is kept that needs releasing in the fake */ }
     }
     class TreeItem {
         description?: string;
         command?: unknown;
-        constructor(readonly label: string) {}
+        accessibilityInformation?: unknown;
+        constructor(readonly label: string, readonly collapsibleState = 0) {}
     }
+    class ThemeIcon { constructor(readonly id: string) {} }
+    const TreeItemCollapsibleState = { None: 0, Collapsed: 1, Expanded: 2 };
     class Position { constructor(readonly line: number, readonly character: number) {} }
     class Range { constructor(readonly start: Position, readonly end: Position) {} }
     const Uri = {
@@ -96,10 +104,17 @@ export function createFakeVscode(settings: Record<string, unknown>) {
         return Promise.resolve(state.answers.get(message.split('.')[0]) ?? state.answers.get('*'));
     };
     const vscode = {
-        Position, Range, Uri, EventEmitter, TreeItem,
+        Position, Range, Uri, EventEmitter, TreeItem, TreeItemCollapsibleState, ThemeIcon,
         ViewColumn: { Active: -1, Beside: -2, One: 1, Two: 2 },
+        StatusBarAlignment: { Left: 1, Right: 2 },
         window: {
             get activeTextEditor() { return state.activeEditor; },
+            createStatusBarItem: (alignment: number, priority: number) => {
+                const item = { alignment, priority, text: '', tooltip: undefined as unknown, command: undefined as unknown, shown: false, disposed: false,
+                    show() { item.shown = true; }, hide() { item.shown = false; }, dispose() { item.disposed = true; item.shown = false; } };
+                state.statusBarItems.push(item);
+                return item;
+            },
             createWebviewPanel: (viewType: string, title: string, showOptions: unknown, options: unknown) => {
                 const panel = new FakeWebviewPanel(viewType, title, showOptions, options);
                 state.panels.push(panel);
@@ -124,6 +139,15 @@ export function createFakeVscode(settings: Record<string, unknown>) {
                     settings[`${section}.${key}`] === undefined ? undefined : { globalValue: settings[`${section}.${key}`] as T },
             }),
             onDidSaveTextDocument: (listener: Listener<any>) => state.save.subscribe(listener),
+            createFileSystemWatcher: (glob: string) => {
+                const watcher = { glob, disposed: false, created: new FakeEvent<any>(), deleted: new FakeEvent<any>(), changed: new FakeEvent<any>(),
+                    onDidCreate: (l: Listener<any>) => watcher.created.subscribe(l), onDidDelete: (l: Listener<any>) => watcher.deleted.subscribe(l),
+                    onDidChange: (l: Listener<any>) => watcher.changed.subscribe(l), dispose() { watcher.disposed = true; } };
+                state.watchers.push(watcher);
+                return watcher;
+            },
+            get workspaceFolders() { return state.folders; },
+            findFiles: () => Promise.resolve(state.loomFiles.map((f) => Uri.file(f))),
         },
         commands: {
             executeCommand: (command: string, ...args: unknown[]) => { state.executed.push({ command, args }); return Promise.resolve(undefined); },

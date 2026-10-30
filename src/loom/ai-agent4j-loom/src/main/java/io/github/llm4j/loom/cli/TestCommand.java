@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.function.BooleanSupplier;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
@@ -127,16 +128,38 @@ final class TestCommand implements Callable<Integer> {
             description = "Run again whenever the script, its prompts or the tests change.")
     boolean watch;
 
+    @Option(
+            names = {"-l", "--loot"},
+            description =
+                    "The .loot tool mapping file, for a script that uses your own tools. A test scripts every tool, so it is only checked to exist here; it is accepted so the same command line works for run, eval and test.")
+    File lootFile;
+
+    @Mixin ClassesOptions classesOptions = new ClassesOptions();
+
+    @Mixin EnvFileOptions envFile = new EnvFileOptions();
+
+    /** The environment with the keys of the project's .env added; null (after saying why) when the file is refused. */
+    private static WeaveEnv withKeys(TestCommand c, WeaveEnv base) {
+        return c.script == null ? base : c.envFile.apply(base, c.script.toPath());
+    }
+
     @Override
     public Integer call() {
         return run(this, WeaveEnv.system());
     }
 
-    static int run(TestCommand c, WeaveEnv env) {
+    static int run(TestCommand c, WeaveEnv base) {
+        final WeaveEnv env = withKeys(c, base);
+        if (env == null) return 2;
         if (!List.of("text", "json", "junit", "tap").contains(c.format)) {
             env.err().println("Error: --format takes text, json, junit or tap.");
             return 2;
         }
+        if (c.lootFile != null && !c.lootFile.exists()) {
+            env.err().println("Error: --loot " + c.lootFile + " does not exist.");
+            return 2;
+        }
+        if (c.script != null && !c.classesOptions.apply(c.script.toPath(), env)) return 2;
         List<Path> paths = new ArrayList<>();
         for (File f : c.tests) paths.add(f.toPath());
         if (paths.isEmpty()) {

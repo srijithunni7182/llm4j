@@ -6,6 +6,7 @@ import io.github.llm4j.loom.ast.DelegateStmt;
 import io.github.llm4j.loom.ast.ForEachStmt;
 import io.github.llm4j.loom.ast.GuardrailStmt;
 import io.github.llm4j.loom.ast.LoopStmt;
+import io.github.llm4j.loom.ast.ParallelStmt;
 import io.github.llm4j.loom.ast.RewindStmt;
 import io.github.llm4j.loom.ast.RunStmt;
 import io.github.llm4j.loom.ast.Statement;
@@ -14,6 +15,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -163,6 +165,7 @@ public final class GraphBuilder {
             while (!pending.isEmpty()) {
                 layOut(pending.poll());
             }
+            describeLanes();
             nodes.add(marker(Kinds.END, "End"));
             List<GraphEdge> expanded = new ArrayList<>();
             for (GraphEdge edge : edges) {
@@ -186,6 +189,37 @@ public final class GraphBuilder {
                     workflow.getParameters(),
                     nodes,
                     new ArrayList<>(new LinkedHashSet<>(expanded)));
+        }
+
+        /**
+         * Gives every parallel node its lanes: one per branch, with the branch's step and whatever
+         * hangs off it (its failure handler), in order.
+         */
+        private void describeLanes() {
+            for (int i = 0; i < nodes.size(); i++) {
+                GraphNode owner = nodes.get(i);
+                if (!owner.kind().equals(Kinds.PARALLEL)) continue;
+                List<Map<String, Object>> lanes = new ArrayList<>();
+                for (GraphNode first : nodes) {
+                    if (!owner.id().equals(first.parent())
+                            || first.branch() == null
+                            || !first.branch().startsWith("lane ")) continue;
+                    List<String> members = new ArrayList<>();
+                    collect(first, members);
+                    Map<String, Object> lane = new LinkedHashMap<>();
+                    lane.put("label", first.agent() != null ? first.agent() : first.label());
+                    lane.put("nodes", members);
+                    lanes.add(lane);
+                }
+                if (!lanes.isEmpty()) nodes.set(i, owner.withAttr("lanes", lanes));
+            }
+        }
+
+        /** A node and everything laid out inside it, in the order they were laid out. */
+        private void collect(GraphNode node, List<String> members) {
+            members.add(node.id());
+            for (GraphNode child : nodes)
+                if (node.id().equals(child.parent())) collect(child, members);
         }
 
         private GraphNode marker(String kind, String label) {
@@ -226,6 +260,15 @@ public final class GraphBuilder {
                 List<Exit> body = block(guard.getBody(), List.of(new Exit(id, null)), id, "body");
                 exits.addAll(guard.getBody().isEmpty() ? List.of(new Exit(id, null)) : body);
                 defer(exits, id, "violation", "violation", guard.getOnViolation());
+            } else if (statement instanceof ParallelStmt parallel
+                    && !parallel.getBody().isEmpty()) {
+                // each branch is a lane, laid out after the main path so no existing step is
+                // renumbered; control forks from the block into every lane and joins after them
+                int lane = 0;
+                for (Statement branchStatement : parallel.getBody()) {
+                    String name = "lane " + (++lane);
+                    defer(exits, id, name, null, List.of(branchStatement));
+                }
             } else if (statement instanceof DelegateStmt delegate) {
                 exits.add(new Exit(id, null));
                 defer(exits, id, "failure", "failure", delegate.getOnFailure());

@@ -11,6 +11,7 @@ may not be here, so never send the user to a repository path and never ask them 
 - `weave guide` lists the guide; `weave guide 6` prints chapter 6; `weave guide loom` prints the Loom reference (every statement, option and
   command); `weave guide llms` prints a one-page index of the framework. The chapters are also in `references/` next to this file when the
   skill was installed with `weave guide --install-skill`.
+- **No `weave` in your terminal?** Outside VS Code's own terminals there may be none on the PATH. Run `scripts/weave <command>` from this skill instead: it finds a weave (the extension's jar, `bin/`, a fetched jar) or prints the one line that installs it (`jbang app install weave@srijithunni7182/llm4j`). Tell the person once if it prints the install line; do not build the command line from source.
 - `weave init <template>` creates a small, complete, working project (`weave init --list` shows them).
 - `weave --help` and `weave <command> --help` are the truth about options. Do not guess a name; look.
 
@@ -34,6 +35,10 @@ may not be here, so never send the user to a repository path and never ask them 
 | 15 | Steer, stop and supervise a running workflow (optional, when a person will watch a run and may step in, or an agent can loop or run long) | `docs/guide/15-steer-stop-and-supervise.md` | every steerable agent is marked on purpose and can stream; every step whose stop matters has an `on_stopped` or `intervention` default the user agreed to; every rewind names a declared checkpoint and a limit; an agent that can loop has a `supervise` rule or a decision not to; the user knows how a person reaches the run and who may |
 
 Start with `weave guide readme` if the user is new to the path. When the user wants to change a starter, `weave guide recipes` has tested before-and-after changes (a different model, ask a person before publishing, escalate when a loop gives up, add an agent, add a tool, mask personal data); use them as patterns and give the user the matching "Ask your agent" sentence.
+
+## Conventions every llm4j skill follows
+
+Read `references/conventions.md` before you start. It sets nine rules the llm4j skills share: show the roadmap first and the checklist after every stage; ask whether a coordinating step needs a model; write datasets with the person; read one real answer early; read back what you wrote; run the README's commands once; ask about keys before anything else; say once that selecting text shares it; and make every skipped step visible.
 
 ## How to guide
 
@@ -176,6 +181,8 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
 
 **2. A decision for every step that can fail (chapter 6).** A `run` task or a `delegate` can fail. For each one whose failure matters, decide with the user: `retry N` (only for a task that is idempotent), `on_failure { ... }` (a note, a person, another path), or let the run fail on purpose. A step with no `on_failure` ends the run as failed, and the run names the step (`failed_kind`, `failed_name`, `failed_step`, `failed_category`).
 
+**2b. Where a variable is replaced (chapter 6).** Start a new script with `substitution: braces`, so only `{name}` is replaced. For an existing script, run `weave check --substitution braces` (a preview) and, if the changes are right, `weave check --fix-substitution` (shows a diff, asks before writing). In a workflow test, `real: [TaskName]` runs a task's own code when it declares no effects; a task that changes things stays scripted in `tasks:`.
+
 **2a. Rules every agent needs (chapter 6).** If the same rules or background are pasted into more than one agent, move them to one top-level `shared_prompt: "…"` (or `shared_prompt: prompt "house-rules"`); keep it stable, with no dates or run ids.
 
 **2b. Who may step in, and what a stop means (chapter 15, `weave guide 15`).** Ask: will a person watch this run and possibly correct it? Can an agent loop, run long, or spend a lot? If yes, walk the user through the four tools and pick the smallest that fits: **steer** corrects an agent's reasoning and never alters the workflow; **wrap up** makes it finish now with what it has; **cancel** stops the step and something decides what happens next; **cancel, sent back** returns the run to a declared checkpoint carrying the person's reason (the input to the step was wrong). Then, with the user:
@@ -191,6 +198,10 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
 ## When the workflow is ready to be watched
 
 Chapters 1 to 10 end at a tested workflow that can run. Running it where people can see it (the live page, a Fabric server for many processes, the rules that say what counts as trouble, who may sign in, TLS, retention, the incidents and what to do about them) is a separate job with its own skill, **`llm4j-loom-deployer`**; it is installed beside this one by `weave guide --install-skill`. Hand over when the user wants to run the workflow for real and have anyone but themselves look at it. Before you do, make sure these are in the project: the windows for its models, the trifecta decisions in `<script>.inspect`, the `retry` and `on_failure` decisions, and the spend limits of chapter 9. Say plainly what the deployer will do (start a server and the application, report the run to it) and that it will ask before anything that opens a port beyond this computer.
+
+## Design the evaluation first, when the person wants to know their agents are good
+
+The golden dataset is the one artefact that outlives every model and prompt, and it is the thing most often built by trial. Before stage 2 (the dataset), offer the **`llm4j-eval-design`** skill: it decides with the person and a domain expert what *correct* means, which oracle checks each property, what the dataset must hold (including the cases nobody builds), how the judge is validated, how often to run, and what the gates are, and writes it into `EVAL_DESIGN.md`. Then build from that record: this skill writes the dataset, the tests and the runs. If the person skips the design, record the skip (conventions, rule 9) and go on.
 
 ## Show the stages as a checklist
 

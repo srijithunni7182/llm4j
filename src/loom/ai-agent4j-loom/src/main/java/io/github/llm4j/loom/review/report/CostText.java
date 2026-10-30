@@ -22,11 +22,48 @@ final class CostText {
         for (WorkflowCost w : c.workflows()) {
             if (w.typical().isEmpty() && w.worst().isEmpty() && !w.unbounded()) continue;
             out.add(w.name() + ": typical " + typical(c, w) + "   worst case " + worst(c, w));
+            if (c.tokenCapStopsFirst(w))
+                out.add(
+                        "  "
+                                + w.name()
+                                + ": the cap, "
+                                + String.format(Locale.ROOT, "%,d", c.budgetTokens())
+                                + " tokens, will stop the run before the worst case, "
+                                + (w.unbounded()
+                                        ? "which has no bound (" + tokens(w.worst()) + " at least)"
+                                        : tokens(w.worst()))
+                                + ": expect cut results");
             String more = timeAndEffects(w);
             if (!more.isEmpty()) out.add("  " + w.name() + ": " + more);
         }
         if (out.isEmpty()) out.add("no model calls");
         return out;
+    }
+
+    /**
+     * What each step was assumed to do: how often it runs and what a run costs, typical and at
+     * most, so the totals can be checked against the script.
+     */
+    static List<String> assumedLines(CostEstimate c) {
+        List<String> out = new ArrayList<>();
+        for (WorkflowCost w : c.workflows())
+            for (io.github.llm4j.loom.review.cost.StepCost s : w.steps()) {
+                String typical =
+                        s.typicalRuns() + " run" + (s.typicalRuns() == 1 ? "" : "s")
+                                + ", " + perRun(s.typical().tokens(), s.typicalRuns());
+                String worst =
+                        s.worstRuns() < 0
+                                ? "no bound on runs"
+                                : s.worstRuns() + " runs, " + perRun(s.worstUsage().tokens(), s.worstRuns());
+                out.add(
+                        s.label() + " (line " + s.line() + ", " + s.model() + "): " + typical
+                                + "; at most " + worst);
+            }
+        return out;
+    }
+
+    private static String perRun(long tokens, long runs) {
+        return String.format(Locale.ROOT, "%,d tokens a run", runs <= 0 ? 0 : Math.round((double) tokens / runs));
     }
 
     /** {@code time typical 6 s, worst 41 s (+ waits: 1 person) effects worst 1 send}, or empty. */

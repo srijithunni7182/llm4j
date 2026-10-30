@@ -9,7 +9,7 @@ work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/skills" "$work/project"
 unzip -q "$zip" -d "$work/skills"
 skill="$work/skills/llm4j-workflow-guide"
-for f in SKILL.md bin/weave.jar scripts/weave scripts/weave.cmd references/LOOM_GUIDE.md references/RECIPES.md references/01-decide-your-agents.md; do
+for f in SKILL.md bin/weave.jar scripts/weave scripts/weave.cmd references/LOOM_GUIDE.md references/RECIPES.md references/01-decide-your-agents.md references/conventions.md; do
   [ -e "$skill/$f" ] || { echo "missing from the package: $f" >&2; exit 1; }
 done
 [ -x "$skill/scripts/weave" ] || { echo "scripts/weave is not executable" >&2; exit 1; }
@@ -38,7 +38,7 @@ if [ -f "$dzip" ]; then
   dwork="$(mktemp -d)"; trap 'rm -rf "$work" "$dwork"' EXIT
   unzip -q "$dzip" -d "$dwork"
   dep="$dwork/llm4j-loom-deployer"
-  for f in SKILL.md bin/weave.jar bin/fabric.jar bin/loom-inspect.jar bin/loom-inspect-core.jar scripts/fabric-up.sh scripts/run-observed.sh scripts/fabric-down.sh scripts/fabric-status.sh scripts/fabric-up.ps1 references/01-decide-the-shape.md references/08-operate-and-troubleshoot.md; do
+  for f in SKILL.md bin/weave.jar bin/fabric.jar bin/loom-inspect.jar bin/loom-inspect-core.jar scripts/fabric-up.sh scripts/run-observed.sh scripts/fabric-down.sh scripts/fabric-status.sh scripts/fabric-up.ps1 references/01-decide-the-shape.md references/08-operate-and-troubleshoot.md references/conventions.md; do
     [ -e "$dep/$f" ] || { echo "missing from the deployer package: $f" >&2; exit 1; }
   done
   if grep -rEn 'docs/deploy|docs/guide|\]\(\.\./' "$dep/SKILL.md" "$dep/references" | grep -v "https://" >/dev/null; then
@@ -63,7 +63,7 @@ if [ -f "$hzip" ]; then
   hwork="$(mktemp -d)"; trap 'rm -rf "$hwork" "${work:-}" "${dwork:-}"' EXIT
   unzip -q "$hzip" -d "$hwork"
   har="$hwork/llm4j-harness-design"
-  for f in SKILL.md references/principles.md references/failure-modes.md references/loom-mapping.md references/design-record.md; do
+  for f in SKILL.md references/principles.md references/failure-modes.md references/loom-mapping.md references/design-record.md references/conventions.md; do
     [ -e "$har/$f" ] || { echo "missing from the harness-design package: $f" >&2; exit 1; }
   done
   grep -q '^name: llm4j-harness-design' "$har/SKILL.md" || { echo "the harness-design SKILL.md has no name" >&2; exit 1; }
@@ -73,4 +73,23 @@ if [ -f "$hzip" ]; then
   echo "ok: the harness-design package is complete and stands alone"
 else
   echo "(no harness-design package at $hzip: run scripts/package-skill.sh)"
+fi
+
+# ---------------------------------------------------------------------------------------------------------------------------------------
+# The evaluation-design skill, from its own zip, away from the repository: text only, so it must be complete and point at no repository path.
+ezip="${4:-$root/dist/llm4j-eval-design.zip}"
+if [ -f "$ezip" ]; then
+  ework="$(mktemp -d)"; trap 'rm -rf "$ework" "${hwork:-}" "${work:-}" "${dwork:-}"' EXIT
+  unzip -q "$ezip" -d "$ework"
+  evl="$ework/llm4j-eval-design"
+  for f in SKILL.md references/principles.md references/oracles.md references/dataset-and-labelling.md references/quality-dimensions.md references/security-testing.md references/trajectory-and-multi-turn.md references/judge-and-pipeline.md references/eval4j-loom-mapping.md references/failure-modes.md references/design-record.md references/conventions.md; do
+    [ -e "$evl/$f" ] || { echo "missing from the eval-design package: $f" >&2; exit 1; }
+  done
+  grep -q '^name: llm4j-eval-design' "$evl/SKILL.md" || { echo "the eval-design SKILL.md has no name" >&2; exit 1; }
+  if grep -rEn 'docs/(guide|deploy|specs)|\]\(\.\./' "$evl/SKILL.md" "$evl/references" | grep -v "https://" >/dev/null; then
+    echo "the eval-design skill points at a repository path" >&2; exit 1
+  fi
+  echo "ok: the eval-design package is complete and stands alone"
+else
+  echo "(no eval-design package at $ezip: run scripts/package-skill.sh)"
 fi

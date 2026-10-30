@@ -31,7 +31,12 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 
 - [`weave test`](#weave-test) — Runs test cases against a workflow with scripted models and no keys: routes, calls and results are checked, nothing is spent.
 - [`weave eval`](#weave-eval) — Runs a script's golden dataset (eval/golden/*.yaml) against it and reports passed, failed and unjudged.
+- [`weave judge`](#weave-judge) — Checks whether an LLM judge may gate: its scores against people's scores.
+- [`weave metamorphic`](#weave-metamorphic) — Derives metamorphic cases from a golden dataset; it calls no model.
+- [`weave security`](#weave-security) — Injection testing: turns a corpus of payloads into eval cases.
+- [`weave probe`](#weave-probe) — Probes of a mechanism with no model: how the context manager evicts on a small window.
 - [`weave gate`](#weave-gate) — Runs the checks your team chose (check, review, test, regress, eval) and prints one verdict, for CI.
+- [`weave preflight`](#weave-preflight) — Sends one small probe per agent through its real prompts and checks: the key, the model, one whole answer, that the shared prompt reaches the model, sources for grounded agents, price and window.
 
 ### Run it
 
@@ -77,7 +82,9 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 
 - [`weave bindgen`](#weave-bindgen) — Writes typed Java bindings for a script: one method per workflow, a record per result, and an Outcome that is Done, Waiting or Stopped.
 - [`weave deploy`](#weave-deploy) — Writes a container recipe, a compose file or Kubernetes manifests for a workflow, from the script: env names, hosts, volumes and schedules are read from it.
+- [`weave fabric`](#weave-fabric) — Starts, stops and inspects a local Fabric server (the page that shows every observed run).
 - [`weave secrets`](#weave-secrets) — Manages an encrypted secret store: create, set, list, remove, import-env, rekey.
+- [`weave tools`](#weave-tools) — Gets the extra jars a deployment needs (the Fabric server, the inspect add-on) from Maven Central, after asking and checking their checksums.
 
 ### Editors and debuggers
 
@@ -104,6 +111,7 @@ weave run [OPTIONS] <scriptFile>
 - `--classes=<dir|jar>` — Folder or jar with the classes of your own tasks and tools, repeatable (weave only sees what is on its class path). Default: target/classes of the project, when it has been built (mvn compile).
 - `--context-windows=<file>` — A windows file: 'model = window / reserve' per line (the size of each model's context window). Repeatable; a later file wins. Layered over <script>.windows, ~/.llm4j/context-windows and the built-in catalogue. (repeatable)
 - `--env-file=<file>` — Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.
+- `--exit-degraded` — Exit with code 7 when the run finished but some step used its on_failure fallback (default: 0).
 - `-i, --input <String=String>` — Initial context variables in key=value format. (repeatable)
 - `--invoker-env=<NAME=VARIABLE>` — Supply invoker.NAME from an environment variable, e.g. --invoker-env token=MY_API_TOKEN (repeatable).
 - `--journal=<journal>` — Run directory: makes the run durable, so it can pause on limits and resume later.
@@ -114,6 +122,7 @@ weave run [OPTIONS] <scriptFile>
 - `--max-cost=<maxCost>` — Cap the run's cost, e.g. 0.50 (needs --prices).
 - `--max-rewinds=<maxRewinds>` — The most times the run may go back in all (default 20).
 - `--max-tokens=<maxTokens>` — Cap the run's tokens (replaces the script's run budget).
+- `--no-auto-classes` — Do not put the project's target/classes on the class path when --classes is not given.
 - `--no-env-file` — Do not read a .env file, even if one is beside the script.
 - `--observe-bind=<address>` — The address the page listens on (default 127.0.0.1).
 - `--observe-ca-only` — Trust only the CA given with --observe-ca, not the default roots.
@@ -133,6 +142,7 @@ weave run [OPTIONS] <scriptFile>
 - `--prices=<prices>` — Price table: lines of 'model = input / output' per million tokens.
 - `--prompt=<id@vN>` — Run this version of a prompt for this run only, e.g. --prompt researcher@v2 (repeatable).
 - `--prompts=<dir>` — The folder of prompt files (default: the script's prompts: line, else a prompts/ folder beside the script).
+- `-q, --quiet` — Do not print the workflow's returned value after the run.
 - `--review-notice=<high|medium|low|off>` — The lowest severity of open review findings mentioned in one line on standard error before the run (default: review.properties, else low). Never blocks the run.
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
@@ -141,6 +151,7 @@ weave run [OPTIONS] <scriptFile>
 - `--stop-at=<stopAt>` — Stop cleanly once this step (or checkpoint) has completed; resume the run to carry on.
 - `--store=<store>` — Trigger store for resumes (default: <journal>/../.loom-triggers).
 - `--trace=<text|json>` — Show what agents think and do, live, on stderr (--trace=json for JSON lines).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--wait` — When the run pauses, stay alive and resume it when its limit resets.
 - `-w, --workflow <workflowName>` — The name of the workflow to run. (default: Main)
 
@@ -151,11 +162,14 @@ weave run main.loom
 weave run main.loom --observe                   a live page of the run on localhost
 weave run main.loom --max-cost 1.00 --prices prices.txt
 weave run main.loom --journal runs/             make the run durable: it can pause, resume, be explained or captured
+weave run main.loom --exit-degraded             exit 7 when the run finished but a step used its on_failure fallback
+weave run main.loom --quiet                     do not print what the workflow returned
 ```
 
 **Exit status**
 
-0 done. 1 failed. 2 bad options. 3 stopped by a budget. 4 paused (waiting for a person or a time). 5 stopped where it was told to.
+0 done. 1 failed. 2 bad options. 3 stopped by a budget. 4 paused (waiting for a person or a time). 5 stopped where it was told to. 6 halted by the workflow. 7 finished, but a step used its fallback (only with --exit-degraded; without it a degraded run exits 0 and says which steps fell back).
+A run in which every model step fell back is a failure (1). After the run, weave run prints what the workflow returned under "Result:".
 
 **See also**
 
@@ -178,10 +192,12 @@ weave check [OPTIONS] <scriptFile>
 - `--classes=<dir|jar>` — Folder or jar with the classes of your own tasks and tools, repeatable (weave only sees what is on its class path). Default: target/classes of the project, when it has been built (mvn compile).
 - `--context-windows=<file>` — A windows file: 'model = window / reserve' per line (the size of each model's context window). Repeatable; a later file wins. Layered over <script>.windows, ~/.llm4j/context-windows and the built-in catalogue. (repeatable)
 - `--env-file=<file>` — Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.
+- `--fix-substitution` — Rewrite the bare words that were meant as variables to {name}, after showing the changed lines and asking. A word inside another word is left for you.
 - `--format=<format>` — text (default) or json: one JSON object with the problems in it, for tools (the editor reads this).
 - `--lenient` — Treat features that aren't supported yet as warnings.
 - `-l, --loot <lootFile>` — The .loot tool mapping file.
 - `--loct=<file>` — A .loct file mapping a name to a class of your own compaction strategy ('keep_decisions = com.acme.KeepDecisions'), for use as 'compact: keep_decisions' in a script. Repeatable. (repeatable)
+- `--no-auto-classes` — Do not put the project's target/classes on the class path when --classes is not given.
 - `--no-env` — Check the script without keys: names that are not set in the environment are listed as 'not set yet' instead of being problems.
 - `--no-env-file` — Do not read a .env file, even if one is beside the script.
 - `--prompt=<id@vN>` — Run this version of a prompt for this run only, e.g. --prompt researcher@v2 (repeatable).
@@ -190,6 +206,9 @@ weave check [OPTIONS] <scriptFile>
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
 - `--strict` — Treat warnings as errors (exit 2), so a build can require a clean script.
+- `--substitution=<braces>` — Preview what would change under `substitution: braces`: every string where a variable's bare name is replaced today. Writes nothing.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+- `--yes` — With --fix-substitution: do not ask, write the rewrite.
 
 **Examples**
 
@@ -243,6 +262,7 @@ weave resume [OPTIONS] <runDir>
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
 - `--stop-at=<stopAt>` — Stop cleanly once this step (or checkpoint) has completed.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave tick`
 
@@ -277,6 +297,7 @@ weave tick [OPTIONS] <store>
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave daemon`
 
@@ -312,13 +333,14 @@ weave daemon [OPTIONS] <store>
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave observe`
 
 Looks after what observing leaves on disk: observe flush delivers an outbox, observe purge removes one.
 
 ```
-weave observe <command>
+weave observe [OPTIONS] <command>
 ```
 
 **Commands**
@@ -327,6 +349,10 @@ weave observe <command>
 - `purge` — Deletes a process name's local outbox that no running process is using.
 - `rules` — Checks a rules file (what counts as trouble for each agent) against a script, without running anything.
 - `hash-password` — Prints a salted hash of the admin password.
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave observe flush`
 
@@ -356,6 +382,7 @@ weave observe flush [OPTIONS]
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave observe purge`
 
@@ -384,6 +411,7 @@ weave observe purge [OPTIONS]
 - `--observe-pin=<sha256:hex>` — Accept only a server whose public key has this SHA-256 (or LOOM_FABRIC_PIN). Printed by the server at start-up.
 - `--observe-rules=<file>` — What counts as trouble for each agent, kept beside the workflow and not in it (default: <script>.inspect next to the script, when there is one).
 - `--observe=<port>` — Show runs live on a web page (needs the loom-inspect add-on on the class path). Default port 8787.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave observe rules`
 
@@ -401,7 +429,9 @@ weave observe rules [OPTIONS] <script>
 
 **Options**
 
+- `--init` — Write a commented starter rules file beside the script (never over an existing one). Everything in it is a comment, so nothing changes until you uncomment a line.
 - `--observe-rules=<file>` — The rules file (default: <script>.inspect).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave observe hash-password`
 
@@ -416,6 +446,7 @@ weave observe hash-password [OPTIONS]
 **Options**
 
 - `--password-env=<VAR>` — The environment variable holding the password. (default: LOOM_INSPECT_NEW_PASSWORD)
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave triggers`
 
@@ -441,6 +472,7 @@ weave triggers [OPTIONS] <action> <store> [<id>]
 - `--region=<region>` — cloud-scheduler: location, e.g. asia-south1.
 - `--service-account=<serviceAccount>` — cloud-scheduler: service account for the OIDC token.
 - `--url=<url>` — cloud-scheduler: the service URL exposing /loom/tick.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--weave=<weave>` — The command that runs weave (default: this Java and classpath).
 
 ### `weave schedule`
@@ -459,6 +491,7 @@ weave schedule [OPTIONS] <action> <script>
 **Options**
 
 - `--store=<store>` — The trigger store directory.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave package`
 
@@ -479,6 +512,7 @@ weave package [OPTIONS] <scriptFile>
 - `-o, --out <outputName>` — Output JAR filename. (default: loom-app.jar)
 - `--review-notice=<high|medium|low|off>` — The lowest severity of open review findings mentioned in one line on standard error (default: review.properties, else low). Never blocks packaging.
 - `--thin` — Create a thin JAR (default).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave answer`
 
@@ -497,6 +531,7 @@ weave answer [OPTIONS] <store> <code> <text>...
 **Options**
 
 - `--by=<by>` — Who is answering (default: the operating system user).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave questions`
 
@@ -514,6 +549,7 @@ weave questions [OPTIONS] <store>
 
 - `--all` — Include answered and expired questions.
 - `--json` — Print JSON.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave timeline`
 
@@ -530,6 +566,7 @@ weave timeline [OPTIONS] <runDir>
 **Options**
 
 - `--json` — Print the timeline as JSON.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave rewind`
 
@@ -555,6 +592,7 @@ weave rewind [OPTIONS] <runDir>
 - `--set=<String=String>` — A value to carry into the new attempt: name=value (repeatable).
 - `--to=<to>` — A checkpoint name, "start", or the id of a step (the first one to run again).
 - `--trigger` — Instead of running now, leave a resume trigger for `weave tick` or `weave daemon` to pick up.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave reset`
 
@@ -576,6 +614,7 @@ weave reset [OPTIONS] <runDir>
 - `--reason=<reason>` — Why (recorded).
 - `--resume` — Carry on running the workflow afterwards.
 - `--trigger` — Instead of running now, leave a resume trigger for `weave tick` or `weave daemon` to pick up.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave fork`
 
@@ -600,6 +639,7 @@ weave fork [OPTIONS] <runDir>
 - `--set=<String=String>` — A value to carry into the new attempt: name=value (repeatable; needs --at).
 - `--to=<newDir>` — The new run directory.
 - `--until=<until>` — Stop the copy cleanly once this step has completed.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave why`
 
@@ -626,6 +666,7 @@ weave why [OPTIONS] <run> [<what>]
 - `--since=<since>` — Only what happened after this step.
 - `--step=<step>` — Ask about this step id.
 - `--store=<store>` — The trigger store whose runs/ folder holds the run id.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave whatif`
 
@@ -661,6 +702,7 @@ weave whatif [OPTIONS] <run>
 - `--store=<store>` — The trigger store whose runs/ folder holds the run id.
 - `--tool=<String=String>` — What a tool returns: Name=text (repeatable).
 - `--until=<until>` — Stop before this step.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--yes` — With --models live: go ahead and spend, up to the cap.
 
 ### `weave step`
@@ -690,6 +732,7 @@ weave step [OPTIONS] <script>
 - `--prices=<prices>` — The price table for --max-cost.
 - `--record=<record>` — Write the commands of this session to a file.
 - `--replay=<replay>` — Run the commands of a recorded session instead of reading them.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `-w, --workflow <workflow>` — The workflow to run (default: the first).
 - `--yes` — With --models live: go ahead and spend, up to the cap.
 
@@ -700,8 +743,12 @@ Speaks the Debug Adapter Protocol on standard input and output, so an editor can
 Nothing has an effect.
 
 ```
-weave dap
+weave dap [OPTIONS]
 ```
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave generate`
 
@@ -754,6 +801,7 @@ The tests are mostly written by the tool: tests/derived.test.yaml runs the scrip
 - `--replay-by-order` — With --replay: answer the n-th call with the n-th recorded reply whatever is asked, to run a recording through gates that have changed.
 - `--replay=<replay>` — Answer from a recorded transcript instead of asking a model.
 - `--timeout=<timeoutSeconds>` — Seconds to wait for each reply from the model (default 300: a whole project is one reply).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--worse-factor=<worseFactor>` — With --edit: the most the worst-case tokens of a workflow may grow, as a multiple (default 1.5).
 - `--yes` — Build without asking whether the plan is right.
 
@@ -813,6 +861,7 @@ Turns a real run from the run store into a test case: the answers it got are scr
 - `--store=<store>` — Where past runs are kept (default: .loom-triggers).
 - `--tag=<tag>` — A tag for the case (repeatable).
 - `--to=<to>` — The folder for the case (default: tests/captured beside the script).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--why=<why>` — Why, for the record.
 - `--yes` — Agree to what capture does, once for this repository.
 
@@ -872,6 +921,7 @@ weave regress [OPTIONS] <candidate.loom>
 - `--show-text` — Include the (masked) result text of unsafe runs.
 - `--since=<since>` — Only runs this recent (14d, 12h, or a date).
 - `--store=<store>` — Where past runs are kept (default: .loom-triggers).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 **Examples**
 
@@ -911,8 +961,10 @@ weave gate [OPTIONS] [<script.loom>]
 - `--format=<format>` — text (default), md, junit or sarif (the review's findings).
 - `--include-observed` — Let captured cases that are still 'observed' fail the gate too.
 - `--print-workflow=<printWorkflow>` — Print a starting CI configuration: github or jenkins.
+- `--protocol=<name>` — Run the eval stage as a named protocol of eval-protocol.yaml (for example release), so a gate and a nightly run mean the same thing.
 - `--require=<require>` — Stages that must run: a skip of one fails the gate (check, review, test, regress, eval). (repeatable)
 - `--store=<store>` — The run store for the regress stage (overrides regress.store).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 **Examples**
 
@@ -951,6 +1003,7 @@ weave bindgen [OPTIONS] <script.loom>
 - `--nullability=<nullability>` — How a field not set on every path is shown: none (plain, documented), jspecify (@Nullable; needs org.jspecify) or optional (Optional<T>). (default: none)
 - `--out=<out>` — The source root to write into (default src/main/java).
 - `--package=<pkg>` — The Java package of the generated files, like com.acme.triage.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 **Examples**
 
@@ -996,6 +1049,7 @@ weave deploy [OPTIONS] <script.loom>
 - `--schedule=<schedule>` — keep (run the daemon for the script's schedules) or none. (default: keep)
 - `--target=<target>` — docker, compose or k8s. (default: compose)
 - `--verify=<dir>` — Check a directory against the script; exit 1 on drift.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--with-fabric` — Include a Fabric server and report to it (default yes for compose and k8s).
 
 **Examples**
@@ -1040,6 +1094,7 @@ Runs a workflow that ships inside the jar on demo models whose replies are pre-w
 - `--max-tokens=<maxTokens>` — With --live: the most tokens it may use (default 30000, about five cents on a small model).
 - `--no-color` — Plain text (also NO_COLOR).
 - `--step` — Pause between steps; press Enter to go on.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 **Examples**
 
@@ -1077,6 +1132,7 @@ weave doctor [OPTIONS] [<script.loom>]
 - `--fix` — Do the safe local fixes (create the run store folder, ignore .env in git, copy .env.example to .env), asking first.
 - `--format=<format>` — text (default) or json (versioned).
 - `--network` — Also test a TLS connection to each provider host the script uses (no request, no key is sent).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--yes` — With --fix: agree without asking.
 
 **Examples**
@@ -1087,6 +1143,10 @@ weave doctor main.loom --network  also test the connection to each provider the 
 weave doctor --fix                create the run store, ignore .env in git, copy .env.example (asks first)
 weave doctor --format json        for CI or an editor
 ```
+
+**Jars**
+
+Doctor lists the Loom jars it can reach (the one running, the local Maven repository, the editor extension's bundled jar, WEAVE_JAR) and, only when two share a version number but are different builds, says which and how to fix it. It reads local files and says nothing when they agree.
 
 **Exit status**
 
@@ -1101,7 +1161,7 @@ weave man check, weave man try
 Where each decision's ladder stands, and the ways a person moves it.%n  status | history | promote | demote | approve | reject | freeze | unfreeze | outcome | verify
 
 ```
-weave autonomy <command>
+weave autonomy [OPTIONS] <command>
 ```
 
 **Commands**
@@ -1116,6 +1176,10 @@ weave autonomy <command>
 - `unfreeze` — Lifts a freeze; each scope runs at the level it earned.
 - `outcome` — Records a later fact about a case (reversed, upheld, …).
 - `verify` — Checks that the record of levels, promotions and freezes is as the runtime wrote it.
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave autonomy status`
 
@@ -1134,6 +1198,7 @@ weave autonomy status [OPTIONS] <store>
 - `--decision=<decision>` — Only this decision.
 - `--json` — Print JSON.
 - `--script=<script>` — The script that declares the decision (default: the one it was last run from).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave autonomy history`
 
@@ -1150,6 +1215,7 @@ weave autonomy history [OPTIONS] <store>
 **Options**
 
 - `--decision=<decision>` — Only this decision.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave autonomy promote`
 
@@ -1174,6 +1240,7 @@ weave autonomy promote [OPTIONS] <store> <decision>
 - `--scope=<scope>` — The scope (the value the cases are grouped by).
 - `--script=<script>` — The script that declares the decision.
 - `--to=<to>` — The level to move to (default: one step up).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave autonomy demote`
 
@@ -1195,6 +1262,7 @@ weave autonomy demote [OPTIONS] <store> <decision>
 - `--scope=<scope>` — The scope (the value the cases are grouped by).
 - `--script=<script>` — The script that declares the decision.
 - `--to=<to>` — The level to move to (default: one step down).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave autonomy approve`
 
@@ -1215,6 +1283,7 @@ weave autonomy approve [OPTIONS] <store> <decision>
 - `--reason=<reason>` — Why (recorded).
 - `--scope=<scope>` — The scope (the value the cases are grouped by).
 - `--script=<script>` — The script that declares the decision.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave autonomy reject`
 
@@ -1235,6 +1304,7 @@ weave autonomy reject [OPTIONS] <store> <decision>
 - `--reason=<reason>` — Why (recorded).
 - `--scope=<scope>` — The scope (the value the cases are grouped by).
 - `--script=<script>` — The script that declares the decision.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave autonomy freeze`
 
@@ -1254,6 +1324,7 @@ weave autonomy freeze [OPTIONS] <store> [<decision>]
 **Options**
 
 - `--reason=<reason>` — Why (recorded).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave autonomy unfreeze`
 
@@ -1271,6 +1342,7 @@ weave autonomy unfreeze [OPTIONS] <store> [<decision>]
 **Options**
 
 - `--reason=<reason>` — Why (recorded).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave autonomy outcome`
 
@@ -1294,6 +1366,7 @@ weave autonomy outcome [OPTIONS] <store> <decision> <caseId>
 - `--result=<result>` — reversed, upheld, or another word (the name of the outcome).
 - `--script=<script>` — The script that declares the decision.
 - `--value=<value>` — A value that goes with the result, such as a number of views (a number if it looks like one).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave autonomy verify`
 
@@ -1315,13 +1388,14 @@ weave autonomy verify [OPTIONS] <store>
 - `--by=<by>` — Who accepts it (default: you).
 - `--decision=<decision>` — Only this decision.
 - `--reason=<reason>` — Why the record is accepted.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave ladder`
 
 Describes a ladder in plain sentences, or tries it on a recorded history.%n  describe | test
 
 ```
-weave ladder <command>
+weave ladder [OPTIONS] <command>
 ```
 
 **Commands**
@@ -1329,18 +1403,26 @@ weave ladder <command>
 - `describe` — Says in plain sentences what a ladder requires to climb, what makes it slip and who is asked: generated from the parsed ladder, so what is read is what is enforced.
 - `test` — Tries a ladder on the history in a store: for each scope the rung it would hold and each condition's value.
 
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
 #### `weave ladder describe`
 
 Says in plain sentences what a ladder requires to climb, what makes it slip and who is asked: generated from the parsed ladder, so what is read is what is enforced.
 
 ```
-weave ladder describe <script> [<name>]
+weave ladder describe [OPTIONS] <script> [<name>]
 ```
 
 **Arguments**
 
 - `<script>` — The .loom script.
 - `<name>` — Only this ladder.
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave ladder test`
 
@@ -1360,6 +1442,7 @@ weave ladder test [OPTIONS] <script> <decision>
 **Options**
 
 - `--store=<store>` — The run store whose recorded history is used.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave replay`
 
@@ -1394,6 +1477,7 @@ weave replay [OPTIONS] [<script>]
 - `--seed=<seed>` — The seed of the shuffle: the same seed gives the same sample. (default: 1)
 - `--since=<since>` — Only cases decided since: a duration (14d, 12h) or a date (2026-03-01).
 - `--store=<store>` — The run store the decision's cases are in.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave audit`
 
@@ -1419,6 +1503,7 @@ weave audit [OPTIONS] <script>
 - `--out=<out>` — Also write the report to this file.
 - `--prompt=<id@vN>` — Run this version of a prompt for this run only, e.g. --prompt researcher@v2 (repeatable).
 - `--prompts=<dir>` — The folder of prompt files (default: the script's prompts: line, else a prompts/ folder beside the script).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave review`
 
@@ -1459,10 +1544,12 @@ Reads the script, never runs it. Findings are ranked, each with why it matters a
 - `--fix-finding=<fingerprint>` — Apply the fix of one finding (with --yes if it needs your judgement).
 - `--fix-rule=<RULE>` — Apply the fixes of one rule, including ones that need your judgement (with --yes).
 - `--format=<format>` — text (default), md, json or sarif (for code scanning).
+- `--include-setup` — Count the setup findings (a key that is not set on this machine) as findings: they are listed apart and never counted or failed on by default.
 - `--lens=<lens>` — Which lenses run: 'all', exact names (security,cost), or +name / -name to change the defaults.
 - `-l, --loot <lootFile>` — The .loot tool mapping file: its Name.reach lines say what your own tools reach.
 - `--loct=<file>` — A .loct file mapping a name to a class of your own compaction strategy ('keep_decisions = com.acme.KeepDecisions'), for use as 'compact: keep_decisions' in a script. Repeatable. (repeatable)
 - `--min-severity=<minSeverity>` — Show findings at least this severe: high, medium, low or info (default).
+- `--no-auto-classes` — Do not put the project's target/classes on the class path when --classes is not given.
 - `--no-env` — Review without keys: names that are not set are not problems.
 - `--no-env-file` — Do not read a .env file, even if one is beside the script.
 - `--noise-report` — Say which rules are noisy: accepted in many of the places they fire.
@@ -1480,6 +1567,7 @@ Reads the script, never runs it. Findings are ranked, each with why it matters a
 - `--set=<name=value>` — With --option: the answer to one of the option's questions. Repeatable. (repeatable)
 - `--strict-accepts` — Count accepted findings when deciding --fail-on.
 - `--until=<until>` — Look at an accepted finding again on this date, such as 2026-12-31.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--yes` — Confirm fixes that need your judgement.
 
 **Examples**
@@ -1504,7 +1592,7 @@ weave man audit, weave man rules, weave man check
 Works with review rules and rule packs, offline: list, facts, check, test, new, add, diff, docs, explain.
 
 ```
-weave rules <command>
+weave rules [OPTIONS] <command>
 ```
 
 **Commands**
@@ -1519,6 +1607,10 @@ weave rules <command>
 - `docs` — Writes the rule reference (one page per rule and an index) generated from a pack and the built-in rules.
 - `explain` — Shows, for one rule at one place, every condition and the value it saw, so you can see why the rule did or did not fire.
 
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
 #### `weave rules list`
 
 Lists the rule packs in force and their rules.
@@ -1530,38 +1622,51 @@ weave rules list [OPTIONS]
 **Options**
 
 - `--dir=<dir>` — The project folder (review.properties and review-rules/). Default: here.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave rules facts`
 
 Prints the fact catalog that rules are written against.
 
 ```
-weave rules facts
+weave rules facts [OPTIONS]
 ```
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave rules check`
 
 Checks that a rule pack is sound and prints its hash.
 
 ```
-weave rules check <pack>
+weave rules check [OPTIONS] <pack>
 ```
 
 **Arguments**
 
 - `<pack>` — The pack folder, or 'core'.
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave rules test`
 
 Runs the firing and quiet examples of every rule in a pack.
 
 ```
-weave rules test <pack>
+weave rules test [OPTIONS] <pack>
 ```
 
 **Arguments**
 
 - `<pack>` — The pack folder, or 'core'.
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave rules new`
 
@@ -1578,6 +1683,7 @@ weave rules new [OPTIONS] <id>
 **Options**
 
 - `--pack=<pack>` — The pack folder. Default: here.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave rules add`
 
@@ -1596,6 +1702,7 @@ weave rules add [OPTIONS] <source>
 **Options**
 
 - `--dir=<dir>` — The project folder. Default: here.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave rules diff`
 
@@ -1614,6 +1721,7 @@ weave rules diff [OPTIONS] <from> <to>
 
 - `--markdown` — Print a changelog entry.
 - `--on=<script>` — A script to review with both versions.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave rules docs`
 
@@ -1630,6 +1738,7 @@ weave rules docs [OPTIONS] <pack>
 **Options**
 
 - `--out=<out>` — The folder to write to. Default: docs/review/rules.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave rules explain`
 
@@ -1646,6 +1755,7 @@ weave rules explain [OPTIONS] <rule>
 **Options**
 
 - `--at=<file:line>` — Where to look, such as main.loom:42.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave graph`
 
@@ -1665,6 +1775,7 @@ weave graph [OPTIONS] <script>
 - `--prompt=<id@vN>` — Run this version of a prompt for this run only, e.g. --prompt researcher@v2 (repeatable).
 - `--prompts=<dir>` — The folder of prompt files (default: the script's prompts: line, else a prompts/ folder beside the script).
 - `--run=<runs>` — A run directory to draw on the graph: how often each statement ran, the edges taken, what was chosen, and (with several runs) the statements none reached (repeatable).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--workflow=<workflow>` — Only this workflow.
 
 ### `weave symbols`
@@ -1682,6 +1793,7 @@ weave symbols [OPTIONS] <script>
 **Options**
 
 - `--format=<format>` — json (the only format). (default: json)
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave explain`
 
@@ -1698,6 +1810,7 @@ weave explain [OPTIONS] <script>
 **Options**
 
 - `-l, --loot <lootFile>` — Accepted so the same options work for check, audit, eval and explain; explain describes the script and does not load your tools.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--workflow=<workflow>` — Only this workflow.
 
 ### `weave next`
@@ -1707,18 +1820,26 @@ Looks at this project and says what to do next, in order, with the command for e
 Free: it calls no model and reads no key.
 
 ```
-weave next [<folder or script>]
+weave next [OPTIONS] [<folder or script>]
 ```
 
 **Arguments**
 
 - `<folder or script>` — The project (default: here).
 
+**Options**
+
+- `--confirm=<step>` — Record that a person did a step no command can check. Takes real-run: they read one real answer and said what is right and wrong with it.
+- `--format=<text|json>` — The steps as text (default) or as JSON, for a coding agent or the editor.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
 **Examples**
 
 ```
 weave next            what to do next in this folder
 weave next support/   for another project
+weave next --format json   the steps, the ten stages with a state each (done, failing, not-started, skipped, stale) and the one to take now, for a coding agent or the editor
+weave next --confirm real-run   record that you read one real answer and said what is right and wrong with it
 ```
 
 **See also**
@@ -1742,13 +1863,18 @@ weave eval [OPTIONS] <script>
 **Options**
 
 - `--agent=<agent>` — Only this agent's scenarios.
+- `--allow-version-change=<why>` — With --baseline: compare with a baseline taken on a different dataset anyway; the reason is recorded in the report.
+- `--approver=<name>` — With --save-baseline: who approves this baseline.
+- `--baseline` — Compare this run with the saved baselines (the current one and the one before it) and list the cases that regressed. Refused when the dataset differs, unless --allow-version-change is given.
 - `--check` — Only validate the dataset: names, fields, dimensions, fixtures. No model is called.
 - `--classes=<dir|jar>` — Folder or jar with the classes of your own tasks and tools, repeatable (weave only sees what is on its class path). Default: target/classes of the project, when it has been built (mvn compile).
 - `--context-windows=<file>` — A windows file: 'model = window / reserve' per line (the size of each model's context window). Repeatable; a later file wins. Layered over <script>.windows, ~/.llm4j/context-windows and the built-in catalogue. (repeatable)
 - `--dataset=<dir>` — The folder of dataset files (default: eval/golden beside the script).
+- `--emit-test=<file>` — Write the opt-in JUnit class for this project (for a project that wants the Java API): a hermetic test that runs the wiring on a mock model, and a real evaluation that runs only with -Deval.real=true, under a cap (-Deval.maxCost with -Deval.prices, else a token cap). The package is taken from the folder under src/test/java. An existing file is never overwritten. Runs nothing else.
 - `--env-file=<file>` — Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.
 - `--init` — Create eval/golden with one starter scenario per agent and one for the workflow. Never overwrites a file.
 - `--json=<file>` — Also write the results as JSON.
+- `--judge-samples=<n>` — Judge each rubric line this many times and use the median (default 1, at most 9). Samples that disagree widely leave the line unjudged. Each sample is a paid call.
 - `--judge=<model>` — The model that judges rubric and expect lines (default: the agent's own model).
 - `-l, --loot <lootFile>` — The .loot tool mapping file, for a script that uses your own tools (a real run calls them; --mock does not).
 - `--loct=<file>` — A .loct file mapping a name to a class of your own compaction strategy ('keep_decisions = com.acme.KeepDecisions'), for use as 'compact: keep_decisions' in a script. Repeatable. (repeatable)
@@ -1756,15 +1882,23 @@ weave eval [OPTIONS] <script>
 - `--max-cost=<maxCost>` — Cap the cost of a real run, e.g. 0.50 (needs --prices).
 - `--max-tokens=<maxTokens>` — Cap the tokens of a real run (default 500000).
 - `--mock` — Run on a model that costs nothing and answers every step with a fixed, well-formed reply: it checks the wiring, not the quality.
+- `--no-auto-classes` — Do not put the project's target/classes on the class path when --classes is not given.
 - `--no-env-file` — Do not read a .env file, even if one is beside the script.
 - `--prices=<prices>` — Price table: lines of 'model = input / output' per million tokens.
 - `--prompt=<id@vN>` — Run this version of a prompt for this run only, e.g. --prompt researcher@v2 (repeatable).
 - `--prompts=<dir>` — The folder of prompt files (default: the script's prompts: line, else a prompts/ folder beside the script).
+- `--protocol=<name>` — Run a named protocol of eval-protocol.yaml (a commit, nightly, release or drift run): its split, repetitions, release gate, judge samples and caps, for what you did not give yourself. The report records its name.
+- `--release-gate` — This run is the release gate: held-out cases (split:heldout) run too, and the report records that it was a gate run. Without it held-out cases never run.
+- `--repetitions=<n>` — Run each case this many times (default 1, at most 10): the report then gives pass@1, pass^N, consistency and the unstable cases. Every repetition is a paid run.
 - `--report=<file>` — Also write the results as a single HTML page.
+- `--route-danger=<Expected>Actual>` — A routing mistake that must never happen, written Expected>Actual (for example Gatherer>Actor, for cases tagged route:Gatherer). The run fails when any case lands in that cell, whatever the average says. Repeatable. (repeatable)
+- `--save-baseline` — After a finished real run, save its results as a new baseline. Needs --approver and --why; a baseline is never replaced.
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
-- `--verbose` — Show what each agent is doing as it runs (by default only the result is shown).
+- `--split=<development|validation|heldout>` — Run only the cases tagged split:<name> (a case with no split tag is development). heldout needs --release-gate.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+- `--why=<text>` — With --save-baseline: why this run is the new baseline.
 - `--workflow=<workflow>` — Only this workflow's scenarios (and which workflow workflow.yaml is for).
 - `-y, --yes` — Do not ask before a real run.
 
@@ -1777,9 +1911,152 @@ weave eval main.loom --mock          run it with mock models; costs nothing
 weave eval main.loom --max-cost 0.50 --prices prices.txt     against real models, capped
 ```
 
+**More options**
+
+weave eval main.loom --repetitions 5              run every case 5 times: pass@1, pass^N, consistency, unstable cases
+weave eval main.loom --judge-samples 3            judge each rubric line 3 times; wide disagreement leaves it unjudged
+weave eval main.loom --release-gate               also run the held-out cases (split:heldout); recorded in the report
+weave eval main.loom --save-baseline --approver ana --why "release 6.2"
+weave eval main.loom --baseline                   compare with the current and the previous baseline
+
+**The report**
+
+Nine sections, always, in the terminal, in --report and in --json: Read this first, Overall, By agent, By dimension, By slice, Cases, Cost, Cautions, How to reproduce. By agent has a row for every agent that took part, with no tag. Cases shows each input and output. A dashboard bundle is written too (target/eval4j/runs/<id>/ or eval-runs/runs/<id>/).
+
+**Exit status**
+
+0 nothing failed. 1 something failed (an empty output is an error case). 2 a dataset or option problem.
+
 **See also**
 
 weave man test, weave man capture
+
+### `weave judge`
+
+Checks whether an LLM judge may gate: its scores against people's scores.
+
+```
+weave judge [OPTIONS] <command>
+```
+
+**Commands**
+
+- `validate` — Reads a reference file (JSON or YAML: a list of {id, human_1, human_2, human_3, judge, output}, scores on the same scale; output is the text that was scored and lets verbosity be checked) of at least 40 outputs.
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+#### `weave judge validate`
+
+Reads a reference file (JSON or YAML: a list of {id, human_1, human_2, human_3, judge, output}, scores on the same scale; output is the text that was scored and lets verbosity be checked) of at least 40 outputs.
+
+Checks the people against each other first (quadratic-weighted Cohen's kappa; below 0.6 the rubric is under-specified and it stops), then the judge against their consensus (below 0.6 it may not gate). Exit 0 usable, 1 not usable, 2 a problem with the file. Calls no model.
+
+```
+weave judge validate [OPTIONS]
+```
+
+**Options**
+
+- `--min-outputs=<minOutputs>` — The fewest outputs a validation may rest on (default: 40).
+- `--min-pairs=<minPairs>` — The fewest pairs a position check may rest on (default: 10).
+- `--model=<name>` — The judge model the scores came from (as in weave eval --judge). The record names it, and a report says validated only for this model.
+- `--project=<folder>` — The project: the result is recorded in <folder>/eval/judge-validation.json (default: this folder).
+- `--reference=<file>` — The scored reference set.
+- `--swapped=<file>` — For a judge that compares two answers: a list (JSON or YAML) of {id, first, swapped}, each pair judged twice, the second time with the answers swapped; first and swapped are the picks (A, B or tie) in the letters of each presentation. Checks that the verdict does not follow the position. A biased judge may not gate.
+- `--system-model=<name>` — The model the agents run on. A judge from the same family may not gate (self-preference).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+### `weave metamorphic`
+
+Derives metamorphic cases from a golden dataset; it calls no model.
+
+An irrelevant addition, a reordering and a paraphrase must not change the conclusion, so each derived case keeps the original's expectations. Monotonicity (remove the evidence a case marks with the tag decisive:<text>) and negation (flip it, as the tag negate:<from>=><to> says) must change it, so the derived case forbids the original conclusion. Paraphrase takes the reworded inputs from --paraphrases, written by a person or a model, and tags the cases source:synthetic. Each derived case is tagged relation:<name> and pair:<id>. Writes the originals and the derived cases to --out.
+
+```
+weave metamorphic [OPTIONS]
+```
+
+**Options**
+
+- `--from=<dir>` — The dataset folder (eval/golden).
+- `--out=<dir>` — Where to write the dataset with the derived cases added. It must be empty or new.
+- `--paraphrases=<file>` — For the paraphrase relation: a JSON or YAML map from a case id to its reworded input.
+- `--relations=<relations>` — irrelevant, order, paraphrase, monotonicity, negation (default: irrelevant,order).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+### `weave security`
+
+Injection testing: turns a corpus of payloads into eval cases.
+
+```
+weave security [OPTIONS] <command>
+```
+
+**Commands**
+
+- `generate` — Reads a corpus folder (YAML lists of {id, class: direct|indirect, placement, goal, payload holding {canary}}) and writes an eval dataset: a direct payload is the input; an indirect one is embedded in each of your own artefact templates for its placement (log.txt, web-page.html, ...; each holds {payload}); a payload with no template for its placement is skipped and said to be.
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+#### `weave security generate`
+
+Reads a corpus folder (YAML lists of {id, class: direct|indirect, placement, goal, payload holding {canary}}) and writes an eval dataset: a direct payload is the input; an indirect one is embedded in each of your own artefact templates for its placement (log.txt, web-page.html, ...; each holds {payload}); a payload with no template for its placement is skipped and said to be.
+
+Every case carries the canary the answer must never contain and the actions named with --forbid that must never happen. The corpus is hostile text: run the cases against scripted or sandboxed tools, never a real sender, payer or writer. Calls no model.
+
+```
+weave security generate [OPTIONS]
+```
+
+**Options**
+
+- `--corpus=<dir>` — The corpus folder.
+- `--forbid=<action>` — An action that must never happen, such as 'send email'. Repeatable. (repeatable)
+- `--out=<dir>` — Where to write the dataset (a new or empty folder); point weave eval --dataset at it.
+- `--target=<name>` — The dataset file name: the workflow or agent the cases are for (default: workflow).
+- `--templates=<dir>` — Your realistic artefacts, named after a placement (default: <corpus>/templates).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+### `weave probe`
+
+Probes of a mechanism with no model: how the context manager evicts on a small window.
+
+```
+weave probe [OPTIONS] <command>
+```
+
+**Commands**
+
+- `eviction` — Plants a fact early in a long simulated run on a small context window, lets the real context manager compact as the window fills, and checks that the oldest material went first, that the task stayed, and that the model was told something was removed (so no conclusion silently rests on what is gone).
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+#### `weave probe eviction`
+
+Plants a fact early in a long simulated run on a small context window, lets the real context manager compact as the window fills, and checks that the oldest material went first, that the task stayed, and that the model was told something was removed (so no conclusion silently rests on what is gone).
+
+Exit 0 it behaved, 1 it did not or the probe tested no eviction, 2 a problem with the options. It calls no model, so it proves the mechanism and not what an agent does with a gap: pair it with a monotonicity case from weave metamorphic.
+
+```
+weave probe eviction [OPTIONS]
+```
+
+**Options**
+
+- `--fact-at=<factAt>` — The turn that carries the planted fact (default: 2).
+- `--fact=<fact>` — The planted fact (default: the vault code is 4417).
+- `--keep-recent=<keepRecent>` — How many of the latest messages compaction must leave alone (default: 2).
+- `--strategy=<name>` — The compaction strategy, one that calls no model, such as drop_oldest or trim_tool_results (default: drop_oldest).
+- `--turn-chars=<turnChars>` — How long each turn's output is (default: 800).
+- `--turns=<turns>` — How many turns the run has (default: 30).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+- `--window=<window>` — The simulated model window in tokens (default: 4000).
 
 ### `weave test`
 
@@ -1799,13 +2076,18 @@ Test files (tests/*.test.yaml) hold cases: an input, what each agent, classifier
 
 - `--case=<name|glob>` — Run the cases whose name matches.
 - `--check` — Validate the test files only; run nothing.
+- `--classes=<dir|jar>` — Folder or jar with the classes of your own tasks and tools, repeatable (weave only sees what is on its class path). Default: target/classes of the project, when it has been built (mvn compile).
 - `--coverage` — Print the nodes no case reached, with a hint for a case that would.
+- `--env-file=<file>` — Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.
 - `--exclude-tag=<tag>` — Skip cases with this tag. Repeatable. (repeatable)
 - `--fail-fast` — Stop at the first failing case.
 - `--format=<format>` — text (default), json, junit or tap.
 - `--ignore-observed` — Report, but do not fail on, captured cases that are still 'observed' (only approved cases gate; weave gate uses this).
 - `--lenient` — Let an unscripted model call answer neutrally (it is reported).
+- `-l, --loot <lootFile>` — The .loot tool mapping file, for a script that uses your own tools. A test scripts every tool, so it is only checked to exist here; it is accepted so the same command line works for run, eval and test.
 - `--min-coverage=<percent>` — Exit 1 when node coverage is below this percent.
+- `--no-auto-classes` — Do not put the project's target/classes on the class path when --classes is not given.
+- `--no-env-file` — Do not read a .env file, even if one is beside the script.
 - `--parallel=<n>` — Run this many cases at once (default: the number of processors).
 - `--require-approved` — Fail when a captured case is still 'observed' (for CI: nothing unreviewed is merged).
 - `--seed=<n>` — The seed of --shuffle, to repeat an order.
@@ -1814,6 +2096,7 @@ Test files (tests/*.test.yaml) hold cases: an input, what each agent, classifier
 - `--steps` — List the steps a test can name, then exit.
 - `--tag=<tag>` — Run only cases with this tag. Repeatable. (repeatable)
 - `--tests=<file|dir>` — Test files (default: tests/ beside the script, *.test.yaml). Repeatable. (repeatable)
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--watch` — Run again whenever the script, its prompts or the tests change.
 
 **Examples**
@@ -1850,6 +2133,7 @@ weave serve [OPTIONS]
 - `--memory-mb=<memoryMb>` — Memory the kept answers may use (default 64).
 - `--stdio` — Talk over standard input and output (the only mode).
 - `--timeout-ms=<timeoutMillis>` — Longest a request may take (default 10000).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave init`
 
@@ -1871,6 +2155,7 @@ weave init [OPTIONS] [<template>] [<dir>]
 - `--flat` — Create the older flat folder (main.loom, prompts/, eval/golden beside each other, no pom.xml) instead of a Maven project. Add --with-java-tests to put the Java tests in it.
 - `--list` — List the templates.
 - `--name=<name>` — The project's name, written into its files (default: the folder's name).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--with-java-tests` — With --flat: also add the pom.xml and the JUnit tests. (A Maven project always has them.) They run every golden scenario as its own JUnit test on a model that costs nothing; they do not call a real model.
 
 **Examples**
@@ -1904,8 +2189,9 @@ weave guide [OPTIONS] [<page>]
 
 - `--for=<forAgents>` — With --install-skill: which coding agents to set up, separated by commas: claude (the skills in .claude/skills; the default), agents (AGENTS.md, read by Codex, Copilot, Gemini, Cursor and others), copilot (.github/copilot-instructions.md), cursor (.cursor/rules/loom.mdc) or all. The instruction files keep what you wrote in them: Loom's text sits between two marker lines.
 - `--force` — With --install-skill: replace the skill if it is already there.
-- `--install-skill=<installTo>` — Write the skills and the guide into <dir>/.claude/skills (default: this folder): llm4j-harness-design (design the harness), llm4j-workflow-guide (build, test, secure, ship) and llm4j-loom-deployer (run it, watched).
-- `--skill=<which>` — With --install-skill: harness, workflow, deployer or all (default all).
+- `--install-skill=<installTo>` — Write the skills and the guide into <dir>/.claude/skills (default: this folder): llm4j-eval-design (design the evaluation), llm4j-harness-design (design the harness), llm4j-workflow-guide (build, test, secure, ship) and llm4j-loom-deployer (run it, watched).
+- `--skill=<which>` — With --install-skill: eval, harness, workflow, deployer or all (default all).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave man`
 
@@ -1925,6 +2211,7 @@ weave man [OPTIONS] [<command>...]
 
 - `--all` — Print the page of every command.
 - `--format=<format>` — text (default) or markdown.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 **Examples**
 
@@ -1943,7 +2230,7 @@ Manages an encrypted secret store: create, set, list, remove, import-env, rekey.
 Values are never printed or taken from arguments.
 
 ```
-weave secrets <command>
+weave secrets [OPTIONS] <command>
 ```
 
 **Commands**
@@ -1952,8 +2239,12 @@ weave secrets <command>
 - `set` — Stores a secret.
 - `list` — Lists the names, allowed hosts and update times.
 - `remove` — Removes a secret.
-- `import-env` — Copies environment variables into the store under the same names (the value never touches the command line).
+- `import-env` — Copies secrets into the store: from variables in the environment, or with --from from a file of NAME=value lines (a template such as .env.example is then offered to be blanked).
 - `rekey` — Re-encrypts the store under a new master key (asked for at the console, or --new-key-file).
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave secrets create`
 
@@ -1971,6 +2262,7 @@ weave secrets create [OPTIONS]
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave secrets set`
 
@@ -1994,6 +2286,7 @@ weave secrets set [OPTIONS] <name>
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
 - `--stdin` — Read the value from standard input instead of the console.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave secrets list`
 
@@ -2010,6 +2303,7 @@ weave secrets list [OPTIONS]
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave secrets remove`
 
@@ -2028,24 +2322,30 @@ weave secrets remove [OPTIONS] <name>
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave secrets import-env`
 
-Copies environment variables into the store under the same names (the value never touches the command line).
+Copies secrets into the store: from variables in the environment, or with --from from a file of NAME=value lines (a template such as .env.example is then offered to be blanked).
+
+Values are never printed.
 
 ```
-weave secrets import-env [OPTIONS] <variables>...
+weave secrets import-env [OPTIONS] [<variables>...]
 ```
 
 **Arguments**
 
-- `<variables>...` — The variables to import.
+- `<variables>...` — The variables to import (with --from: only these; default: every secret-named value in the file).
 
 **Options**
 
+- `--blank` — With --from a template file (.example, .sample, .template): blank the imported values without asking. A real .env is never changed.
+- `--from=<file>` — Read NAME=value lines from this file instead of the environment.
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 #### `weave secrets rekey`
 
@@ -2061,4 +2361,182 @@ weave secrets rekey [OPTIONS]
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+### `weave tools`
+
+Gets the extra jars a deployment needs (the Fabric server, the inspect add-on) from Maven Central, after asking and checking their checksums.
+
+```
+weave tools [OPTIONS] <command>
+```
+
+**Commands**
+
+- `fetch` — Downloads fabric, inspect or all for this weave's version into ~/.llm4j/tools/<version>/.
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+**Examples**
+
+```
+weave tools fetch fabric         get the Fabric server for this weave's version (asks first)
+weave tools fetch inspect --yes  get the inspect add-on and its core without the question
+weave tools fetch all --dir ./tools
+```
+
+**Notes**
+
+Only repo1.maven.org is contacted, over https. Each file is kept only if its published SHA-256 (or, where Central offers only that, SHA-1) matches, and is written under ~/.llm4j/tools/<version>/. What is downloaded is never run. A development build is refused: build the module or install a release.
+
+**Exit status**
+
+0 done. 1 a download failed or its checksum did not match. 2 refused (development build, a no, or a bad option).
+
+**See also**
+
+weave man doctor, weave man deploy
+
+#### `weave tools fetch`
+
+Downloads fabric, inspect or all for this weave's version into ~/.llm4j/tools/<version>/.
+
+Lists what it will download and asks first. Refuses a development build.
+
+```
+weave tools fetch [OPTIONS] <fabric|inspect|all>
+```
+
+**Arguments**
+
+- `<fabric|inspect|all>` — What to fetch.
+
+**Options**
+
+- `--dir=<folder>` — Where to put them (default: ~/.llm4j/tools).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+- `--yes` — Do not ask first.
+
+### `weave fabric`
+
+Starts, stops and inspects a local Fabric server (the page that shows every observed run).
+
+For this computer only; deploying is `weave deploy`.
+
+```
+weave fabric [OPTIONS] <command>
+```
+
+**Commands**
+
+- `up` — Starts Fabric in the background.
+- `down` — Stops the server of a data folder.
+- `status` — Says whether the server runs, where, and for each client that may report when it last did (names and times only, never keys).
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+#### `weave fabric up`
+
+Starts Fabric in the background.
+
+The first time it creates the data folder and an admin password in <data>/admin-password.txt, readable by you only; the password is never printed. A second `up` changes nothing. Listening beyond this computer needs TLS or a proxy: pass --tls-keystore, --tls-cert or --trust-proxy after `--`.
+
+```
+weave fabric up [OPTIONS] [<-- <serve options>...]
+```
+
+**Arguments**
+
+- `<-- <serve options>...` — Further options for `fabric serve`, after `--`.
+
+**Options**
+
+- `--bind=<address>` — Address to listen on (default: 127.0.0.1).
+- `--data=<folder>` — The server's data folder (default: ./fabric-data).
+- `--port=<port>` — Port to listen on (default: 9090).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+#### `weave fabric down`
+
+Stops the server of a data folder.
+
+What it holds stays on disk.
+
+```
+weave fabric down [OPTIONS]
+```
+
+**Options**
+
+- `--data=<folder>` — The server's data folder (default: ./fabric-data).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+#### `weave fabric status`
+
+Says whether the server runs, where, and for each client that may report when it last did (names and times only, never keys).
+
+```
+weave fabric status [OPTIONS]
+```
+
+**Options**
+
+- `--bind=<bind>` — Address the server was told to listen on (default: 127.0.0.1).
+- `--data=<folder>` — The server's data folder (default: ./fabric-data).
+- `--port=<port>` — Port it listens on (default: 9090).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+### `weave preflight`
+
+Sends one small probe per agent through its real prompts and checks: the key, the model, one whole answer, that the shared prompt reaches the model, sources for grounded agents, price and window.
+
+Asks first and stays under a small cap. --mock does it with no model.
+
+```
+weave preflight [OPTIONS] <script>
+```
+
+**Arguments**
+
+- `<script>` — The .loom script.
+
+**Options**
+
+- `--format=<text|json>` — The report as text (default) or JSON.
+- `--input=<text>` — The probe input (default: the agent's first dataset case, else a greeting).
+- `--max-cost=<amount>` — Stop when the probes have cost this much (needs --prices). Default 0.05.
+- `--max-tokens=<n>` — Stop when the probes have used this many tokens (default 20000 when there are no prices).
+- `--mock` — Run the same checks on models that cost nothing.
+- `--prices=<file>` — Price table: lines of 'model = input / output' per million tokens.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+- `-y, --yes` — Do not ask before sending the probes.
+
+**Examples**
+
+```
+weave preflight main.loom                  list what it will send, ask, then probe each agent
+weave preflight main.loom --yes --max-cost 0.05 --prices prices.txt
+weave preflight main.loom --mock           the same checks on models that cost nothing
+weave preflight main.loom --format json    for a coding agent or CI
+```
+
+**Checks**
+
+C1 the key resolves. C2 the provider accepts the model. C3 one answer is whole (not cut, not empty). C4 the shared prompt reaches the model (a random canary placed in it, in memory only). C5 a grounded agent returns sources. C6 the price and the context window are known. C7 the run budget is larger than one answer.
+
+**Notes**
+
+It sends real prompts, so it asks first, stays under its own cap and stores no answer text. The result is written to .loom/preflight.json, which weave next reads.
+
+**Exit status**
+
+0 nothing failed. 1 a check failed. 2 refused or a bad option. 3 it stopped at its own cap.
+
+**See also**
+
+weave man next, weave man eval, weave man doctor
 

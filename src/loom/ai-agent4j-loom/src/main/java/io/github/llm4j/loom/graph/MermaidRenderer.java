@@ -1,7 +1,10 @@
 package io.github.llm4j.loom.graph;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /** Draws a workflow graph as Mermaid {@code flowchart} text, for docs and issues. */
 public final class MermaidRenderer {
@@ -29,8 +32,15 @@ public final class MermaidRenderer {
         StringBuilder out = new StringBuilder("flowchart TD\n");
         List<String> ran = new ArrayList<>();
         List<String> idle = new ArrayList<>();
+        Set<String> inLanes = new HashSet<>();
+        for (GraphNode node : graph.nodes())
+            for (Map<String, Object> lane : lanes(node))
+                for (Object member : (List<?>) lane.get("nodes")) inLanes.add(String.valueOf(member));
         for (GraphNode node : graph.nodes()) {
-            out.append("  ").append(node(node, marks)).append('\n');
+            if (!inLanes.contains(node.id())) {
+                out.append("  ").append(node(node, marks)).append('\n');
+                lanesOf(out, graph, node, marks, 1);
+            }
             if (marks == null) continue;
             if (Kinds.START.equals(node.kind()) || Kinds.END.equals(node.kind())) continue;
             (marks.ran(node) ? ran : idle).add(id(node.id()));
@@ -54,6 +64,45 @@ public final class MermaidRenderer {
                 out.append("  class ").append(String.join(",", idle)).append(" idle\n");
         }
         return out.toString();
+    }
+
+    /** A parallel node's lanes, as the graph model gives them; none for any other node. */
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> lanes(GraphNode node) {
+        Object lanes = node.attrs().get("lanes");
+        return lanes instanceof List<?> list ? (List<Map<String, Object>>) list : List.of();
+    }
+
+    /**
+     * Draws each lane of a parallel node as a subgraph holding the lane's steps. A parallel block
+     * inside a lane is drawn as a subgraph inside that lane, and its steps are declared once, there.
+     */
+    private static void lanesOf(StringBuilder out, WorkflowGraph graph, GraphNode owner, Marks marks, int depth) {
+        String pad = "  ".repeat(depth);
+        int number = 0;
+        for (Map<String, Object> lane : lanes(owner)) {
+            out.append(pad)
+                    .append("subgraph ")
+                    .append(id(owner.id()))
+                    .append("_lane")
+                    .append(++number)
+                    .append("[\"")
+                    .append(escape(String.valueOf(lane.get("label"))))
+                    .append("\"]\n");
+            Set<String> inner = new HashSet<>();
+            for (Object member : (List<?>) lane.get("nodes"))
+                for (GraphNode node : graph.nodes())
+                    if (node.id().equals(member) && !node.id().equals(owner.id()))
+                        for (Map<String, Object> nested : lanes(node))
+                            for (Object deeper : (List<?>) nested.get("nodes")) inner.add(String.valueOf(deeper));
+            for (Object member : (List<?>) lane.get("nodes"))
+                for (GraphNode node : graph.nodes())
+                    if (node.id().equals(member) && !inner.contains(node.id())) {
+                        out.append(pad).append("  ").append(node(node, marks)).append('\n');
+                        lanesOf(out, graph, node, marks, depth + 1);
+                    }
+            out.append(pad).append("end\n");
+        }
     }
 
     private static String node(GraphNode node, Marks marks) {

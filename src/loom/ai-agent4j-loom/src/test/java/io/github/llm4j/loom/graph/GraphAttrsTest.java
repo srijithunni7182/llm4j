@@ -70,7 +70,9 @@ class GraphAttrsTest {
         assertThat(byLabel("broadcast").attrs())
                 .containsEntry("agents", List.of("Critic", "Copywriter"));
         assertThat(byLabel("in parallel: Copywriter").attrs())
-                .containsExactly(entry("agents", List.of("Copywriter")), entry("branches", 2L));
+                .containsEntry("agents", List.of("Copywriter"))
+                .containsEntry("branches", 2L)
+                .containsKey("lanes"); // added by Phase 21 R5; the two old attributes are unchanged
     }
 
     @Test

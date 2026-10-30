@@ -2,6 +2,8 @@
 #   1. Copy this file to .env        (cp .env.example .env)
 #   2. Put your key after the = sign
 # .env is ignored by git, so it is never committed. weave reads it when you run or evaluate here.
+# Never put a key in THIS file (.env.example): it is committed and shared. Keys go in .env. To keep them encrypted instead, see:
+#   weave secrets create --secrets keys.store ; weave secrets import-env --from .env --secrets keys.store
 # A variable already set in your shell wins over this file. Empty lines are ignored.
 
 # Needed for the models in main.loom (gemini-2.5-flash):

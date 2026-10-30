@@ -14,20 +14,43 @@ function Need-Java {
   if ([int]$Matches[1] -lt 17) { Die "Java 17 or newer is needed (found version $($Matches[1]))." 2 }
 }
 
+# Where the jars may be, in the same order as lib.sh: the variable (in Find-Jar), the editor extension's bundled jar (weave only), bin\ of this skill,
+# ~\.llm4j\tools\<version>\ (where `weave tools fetch` puts what it downloads, newest first), then a build in the repository this skill sits in.
+function Tool-Dirs {
+  $home_ = [Environment]::GetFolderPath('UserProfile'); if ($env:HOME) { $home_ = $env:HOME }
+  $d = @()
+  $d += Get-ChildItem -Path $home_ -Filter '.vscode*' -Directory -ErrorAction SilentlyContinue | ForEach-Object { Get-ChildItem -Path (Join-Path $_.FullName 'extensions') -Filter 'srijithunni7182.vscode-llm4j-loom-*' -Directory -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName 'bin' } }
+  $d += "$SkillDir\bin"
+  $tools = Join-Path $home_ '.llm4j\tools'
+  if (Test-Path $tools) { $d += Get-ChildItem -Path $tools -Directory | Sort-Object LastWriteTime -Descending | ForEach-Object { $_.FullName } }
+  foreach ($m in 'loom-fabric', 'loom-inspect', 'loom-inspect-core', 'ai-agent4j-loom') { $d += "$SkillDir\..\..\..\src\loom\$m\target" }
+  $d
+}
+
 function Find-Jar([string]$EnvVar, [string[]]$Patterns) {
   $given = [Environment]::GetEnvironmentVariable($EnvVar)
   if ($given) { if (-not (Test-Path $given -PathType Leaf)) { Die "$EnvVar points at '$given', which is not a file" 2 }; return $given }
-  $dirs = @("$SkillDir\bin", "$SkillDir\..\..\..\src\loom\loom-fabric\target", "$SkillDir\..\..\..\src\loom\loom-inspect\target", "$SkillDir\..\..\..\src\loom\loom-inspect-core\target", "$SkillDir\..\..\..\src\loom\ai-agent4j-loom\target")
+  $dirs = Tool-Dirs
   foreach ($p in $Patterns) { foreach ($d in $dirs) {
-    if (Test-Path $d) { $hit = Get-ChildItem -Path $d -Filter $p -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch 'sources|javadoc|tests' } | Select-Object -First 1; if ($hit) { return $hit.FullName } }
+    if (Test-Path $d) { $hit = Get-ChildItem -Path $d -Filter $p -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch 'sources|javadoc|tests' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if ($hit) { return $hit.FullName } }
   } }
   return $null
 }
-function Fabric-Jar { $j = Find-Jar 'FABRIC_JAR' @('fabric.jar', 'loom-fabric-*-all.jar'); if (-not $j) { Die "the Fabric jar was not found. Put it in $SkillDir\bin or set FABRIC_JAR." 2 }; $j }
-function Weave-Jar  { $j = Find-Jar 'WEAVE_JAR' @('weave.jar', 'ai-agent4j-loom-*-cli.jar'); if (-not $j) { Die "the weave jar was not found. Put it in $SkillDir\bin or set WEAVE_JAR." 2 }; $j }
+# Weave-Fabric ARGS... runs `weave fabric ARGS` with a weave that is new enough (one on PATH, else the weave jar) and returns its exit code, or $null when there
+# is none (an older weave is missing the `fabric` command), so the caller keeps its own logic. One implementation for the scripts and the command.
+function Weave-Fabric([string[]]$FabricArgs) {
+  # this folder knows places weave does not (the skill's own bin\): the jar found here is the one weave fabric uses
+  if (-not $env:FABRIC_JAR) { $fj = $null; try { $fj = Find-Jar 'FABRIC_JAR' @('fabric.jar', 'loom-fabric-*-all.jar') } catch { }; if ($fj) { $env:FABRIC_JAR = $fj } }
+  if (Get-Command weave -ErrorAction SilentlyContinue) { & weave fabric --help *> $null; if ($LASTEXITCODE -eq 0) { & weave fabric @FabricArgs; return $LASTEXITCODE } }
+  $w = $null; try { $w = Find-Jar 'WEAVE_JAR' @('weave.jar', 'ai-agent4j-loom-*-cli.jar') } catch { }
+  if ($w -and (Get-Command java -ErrorAction SilentlyContinue)) { & java -jar $w fabric --help *> $null; if ($LASTEXITCODE -eq 0) { & java -jar $w fabric @FabricArgs; return $LASTEXITCODE } }
+  return $null
+}
+function Fabric-Jar { $j = Find-Jar 'FABRIC_JAR' @('fabric.jar', 'loom-fabric-*-all.jar'); if (-not $j) { Die "the Fabric jar was not found. Run: weave tools fetch fabric, or set FABRIC_JAR, or put the jar in $SkillDir\bin." 2 }; $j }
+function Weave-Jar  { $j = Find-Jar 'WEAVE_JAR' @('weave.jar', 'ai-agent4j-loom-*-cli.jar'); if (-not $j) { Die "the weave jar was not found. Install it (jbang app install weave@srijithunni7182/llm4j, or the VS Code extension), or set WEAVE_JAR, or put the jar in $SkillDir\bin." 2 }; $j }
 function Inspect-Jars {
   $a = Find-Jar 'INSPECT_JAR' @('loom-inspect.jar', 'loom-inspect-[0-9]*.jar'); $b = Find-Jar 'INSPECT_CORE_JAR' @('loom-inspect-core.jar', 'loom-inspect-core-[0-9]*.jar')
-  if (-not $a -or -not $b) { Die "the loom-inspect add-on jars were not found. Put loom-inspect.jar and loom-inspect-core.jar in $SkillDir\bin or set INSPECT_JAR and INSPECT_CORE_JAR." 2 }
+  if (-not $a -or -not $b) { Die "the loom-inspect add-on jars were not found. Run: weave tools fetch inspect, or set INSPECT_JAR and INSPECT_CORE_JAR, or put loom-inspect.jar and loom-inspect-core.jar in $SkillDir\bin." 2 }
   "$a;$b"
 }
 function Is-Loopback([string]$a) { $a -match '^(127\.|localhost$|::1$|\[::1\]$)' }

@@ -445,7 +445,9 @@ class EvalCommandTest {
                 .doesNotContain("Helper · h-1");
         out.reset();
         assertThat(run("--mock", "--workflow", "Main")).isZero();
-        assertThat(out.toString()).contains("Main · w-1").doesNotContain("Helper");
+        // the report names every agent that took part (Main delegates to Helper), so the
+        // filter is shown by the scenario not having run, not by the agent's name being absent
+        assertThat(out.toString()).contains("Main · w-1").doesNotContain("Helper · h-1");
 
         out.reset();
         assertThat(run("--mock", "--agent", "Nobody")).isEqualTo(2);
@@ -704,9 +706,15 @@ class EvalCommandTest {
                 .contains("answer never contains")
                 .contains("4111")
                 .contains("the answer contains it");
-        assertThat(text)
+        // the report now shows the output of every case that passed, and h-2 passed with the same
+        // reply; what must not echo the answer is the case that forbade it, h-1
+        int start = text.lastIndexOf("✗ Helper · h-1");
+        int end = text.indexOf("Helper · h-2", start);
+        String failing = text.substring(start, end);
+        assertThat(failing)
                 .as("the failure does not echo the answer it is about")
-                .doesNotContain("Your card 4111 is fine");
+                .doesNotContain("Your card 4111 is fine")
+                .contains("withheld");
     }
 
     @Test

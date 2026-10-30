@@ -24,6 +24,11 @@ public final class ProjectClasses {
      * {@link IllegalArgumentException} for a given path that is not there.
      */
     public static List<Path> use(Path script, List<File> given) {
+        return use(script, given, true);
+    }
+
+    /** As {@link #use(Path, List)}; with {@code auto} false the project's {@code target/classes} is not looked for. */
+    public static List<Path> use(Path script, List<File> given, boolean auto) {
         List<Path> entries = new ArrayList<>();
         if (given != null) {
             for (File f : given) {
@@ -35,7 +40,7 @@ public final class ProjectClasses {
                 entries.add(f.toPath().toAbsolutePath().normalize());
             }
         }
-        if (entries.isEmpty()) {
+        if (entries.isEmpty() && auto) {
             Path built = ProjectLayout.root(script).resolve("target").resolve("classes");
             if (Files.isDirectory(built)) entries.add(built);
         }

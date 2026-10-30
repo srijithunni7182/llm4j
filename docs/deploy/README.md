@@ -19,10 +19,12 @@ Everything you need is in this guide and in the scripts of this skill. The repos
 
 ## The scripts (in `scripts/` next to this skill's `SKILL.md`)
 
+The three `fabric-*` scripts call `weave fabric up | status | down` when the `weave` in use has that command, and keep their own logic only as the fallback. `run-observed` takes `--secrets-key-file FILE` (or `LOOM_SECRETS_KEY_FILE`) for a master key kept away from the store.
+
 | Script (macOS and Linux `.sh`; Windows `.ps1`) | What it does |
 |---|---|
 | `fabric-up` | creates the data directory and admin password the first time, starts Fabric in the background, waits until it answers; does nothing if it is already running |
-| `fabric-status` | running or not, where, and which processes may report (names, never keys) |
+| `fabric-status` | running or not, where, and which processes may report with when each last did (names and times, never keys) |
 | `fabric-down` | stops it; what it holds stays on disk |
 | `run-observed` | runs a workflow with observing on, embedded or reporting to Fabric; creates the client key and keeps it in the process's secret store |
 

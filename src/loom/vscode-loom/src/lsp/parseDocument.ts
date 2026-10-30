@@ -114,6 +114,12 @@ export function parseDocument(text: string): ParseResult {
 
             if (inString) {
                 logical[col] = ' ';
+                // \" is a quote and \\ a backslash, as the language's lexer reads them
+                if (ch === '\\' && col + 1 < line.length && (line[col + 1] === '"' || line[col + 1] === '\\')) {
+                    logical[col + 1] = ' ';
+                    col++;
+                    continue;
+                }
                 if (ch === '"') {
                     inString = false;
                     stringStart = null;

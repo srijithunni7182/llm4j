@@ -13,10 +13,12 @@ import { createPromptFileCommand } from './commands/createPromptFile';
 import { registerCheckDiagnostics } from './commands/checkDiagnostics';
 import { registerGuideCommands } from './commands/guideCommands';
 import { registerWelcome } from './welcome/register';
+import { registerAgentOffer } from './guide/registerOffer';
 import { registerTools } from './tools/register';
 import { registerWeaveOnPath } from './terminal/register';
 import { WorkflowOutlineProvider } from './views/WorkflowOutlineProvider';
-import { registerEngine } from './engine/vscodeHost';
+import { engineHost, registerEngine } from './engine/vscodeHost';
+import { registerProgressCommands } from './commands/progressCommands';
 import { registerSemantic, semanticMiddleware } from './semantic/vscodeSemantic';
 import { registerReview } from './review/vscodeReview';
 import { registerDebug } from './debug/vscodeDebug';
@@ -123,18 +125,20 @@ export function activate(context: vscode.ExtensionContext): void {
     registerGenerate(context);
     registerGuideCommands(context);
     registerWelcome(context);
+    registerProgressCommands(context);
+    registerAgentOffer(context);
     registerTools(context);
     registerWeaveOnPath(context);
 
     // ------------------------------------------------------------------ //
     // 4. Workflow Outline tree view (Requirement 6.1)                    //
     // ------------------------------------------------------------------ //
-    const provider = new WorkflowOutlineProvider();
+    const provider = new WorkflowOutlineProvider(() => engineHost()?.engine());
     const treeViewDisposable = vscode.window.registerTreeDataProvider(
         'loom.workflowOutline',
         provider
     );
-    context.subscriptions.push(treeViewDisposable);
+    context.subscriptions.push(treeViewDisposable, provider);
 }
 
 /**

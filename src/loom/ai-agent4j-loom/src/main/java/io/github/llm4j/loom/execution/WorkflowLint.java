@@ -6,7 +6,6 @@ import io.github.llm4j.loom.ast.CallStmt;
 import io.github.llm4j.loom.ast.DecideStmt;
 import io.github.llm4j.loom.ast.DelegateStmt;
 import io.github.llm4j.loom.ast.HumanPromptStmt;
-import io.github.llm4j.loom.ast.NoteStmt;
 import io.github.llm4j.loom.ast.Statement;
 import io.github.llm4j.loom.ast.StatementWalker;
 import io.github.llm4j.loom.ast.WorkflowDef;
@@ -47,6 +46,15 @@ public final class WorkflowLint {
     private WorkflowLint() {}
 
     public static List<Finding> check(WorkflowDef workflow) {
+        return check(workflow, null);
+    }
+
+    /**
+     * As {@link #check(WorkflowDef)}, with the script's agents, so that a read of {@code
+     * {x_citations}} can be checked against whether agent {@code x} is grounded.
+     */
+    public static List<Finding> check(
+            WorkflowDef workflow, io.github.llm4j.loom.ast.LoomScript script) {
         List<Statement> all = new ArrayList<>();
         StatementWalker.walk(workflow.getStatements(), all::add);
         Map<Statement, String> texts = new HashMap<>();
@@ -98,9 +106,45 @@ public final class WorkflowLint {
                                 "both answers to the question lead to the same steps, so the question changes nothing"));
             }
         }
+        if (script != null) findings.addAll(citationsOfUngroundedAgents(script, all, texts, who));
         findings.addAll(wordsThatAreVariables(workflow, all, who));
         findings.addAll(loopsThatNeverRun(workflow, all, who));
         findings.sort(java.util.Comparator.comparingInt(Finding::line));
+        return findings;
+    }
+
+    /**
+     * {@code {x_citations}} exists only when agent {@code x} was grounded and searched. Reading it
+     * for an agent that is not grounded can never work, and a fallback for missing sources then
+     * hides that; reported once per read.
+     */
+    private static List<Finding> citationsOfUngroundedAgents(
+            io.github.llm4j.loom.ast.LoomScript script,
+            List<Statement> all,
+            Map<Statement, String> texts,
+            String who) {
+        List<Finding> findings = new ArrayList<>();
+        for (Statement s : all) {
+            if (!(s instanceof DelegateStmt delegate) || delegate.getVariableName() == null)
+                continue;
+            var agent =
+                    script.getAgents().stream()
+                            .filter(a -> a.getName().equals(delegate.getTargetAgent()))
+                            .findFirst();
+            if (agent.isEmpty() || agent.get().getGrounding() != null) continue;
+            String placeholder = "{" + delegate.getVariableName() + "_citations}";
+            for (Statement t : all) {
+                if (texts.get(t).contains(placeholder))
+                    findings.add(
+                            new Finding(
+                                    t.getLine(),
+                                    who,
+                                    placeholder
+                                            + " is never set: agent "
+                                            + agent.get().getName()
+                                            + " is not grounded (add grounding: web to it)"));
+            }
+        }
         return findings;
     }
 
@@ -163,6 +207,8 @@ public final class WorkflowLint {
      * "Review this draft" into "Review this <the whole draft>". Reported once per variable, where
      * it first happens.
      */
+    // A text that is exactly a variable's name is a reference (call Other(order = order)), not an
+    // ordinary word that happens to match.
     private static List<Finding> wordsThatAreVariables(
             WorkflowDef workflow, List<Statement> all, String who) {
         java.util.Set<String> names = new java.util.LinkedHashSet<>(workflow.getParameters());
@@ -175,15 +221,16 @@ public final class WorkflowLint {
             if (name == null || name.length() < 2 || name.startsWith("_") || name.startsWith("{"))
                 continue;
             for (Statement s : all) {
-                String payload =
-                        s instanceof DelegateStmt d
-                                ? d.getPayload()
-                                : s instanceof BroadcastStmt b
-                                        ? b.getPayload()
-                                        : s instanceof HumanPromptStmt h
-                                                ? h.getMessage()
-                                                : s instanceof NoteStmt n ? n.getMessage() : null;
-                if (payload != null && PLACEHOLDER.matcher(payload).replaceAll("").contains(name)) {
+                boolean bare =
+                        SubstitutedText.of(s).stream()
+                                .anyMatch(
+                                        t ->
+                                                !t.equals(name)
+                                                        && PLACEHOLDER
+                                                                .matcher(t)
+                                                                .replaceAll("")
+                                                                .contains(name));
+                if (bare) {
                     out.add(
                             new Finding(
                                     s.getLine(),
@@ -198,6 +245,13 @@ public final class WorkflowLint {
             }
         }
         return out;
+    }
+
+    /**
+     * The variable a statement sets, or null: used by the lint and by the substitution migration.
+     */
+    static String assignedName(Statement s) {
+        return assigned(s);
     }
 
     private static String assigned(Statement s) {

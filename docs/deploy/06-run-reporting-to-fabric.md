@@ -24,12 +24,14 @@ The admin creates the client (`fabric clients add checkout --data <dir>`) and gi
 scripts/run-observed.sh --script main.loom --fabric https://fabric.example.com --name checkout --key-stdin < key.txt
 ```
 
+The process's secret store is opened with a master key; by default that is the file named like the store with `.key` in place of `.store`. Keep it elsewhere with `--secrets-key-file /path/to/master.key` (or `LOOM_SECRETS_KEY_FILE`); it is created there, readable by you only, if it does not exist.
+
 For a private CA add `--ca ca.pem`; for a pinned self-signed server, run `weave run ... --observe-pin sha256:...` directly (`weave run --help` lists every `--observe-*` option). `--observe-detail metadata` keeps all text on the machine.
 
 ## Check
 
 - The Processes page shows the name within about 5 seconds, **online**, and the run appears under it.
-- Not there? `scripts/fabric-status.sh` (is the server up?), the server log `fabric-data/fabric.log`, and the process's console: a wrong key says so once and the process keeps working, delivering later from its outbox.
+- Not there? `scripts/fabric-status.sh` or `weave fabric status` (is the server up, and when did this client last report?), the server log `fabric-data/fabric.log`, and the process's console: a wrong key says so once and the process keeps working, delivering later from its outbox.
 - Stop the server, run again, start it: the run appears (the **outbox** held its events: 256 MB or 7 days per name). `weave observe flush` delivers one by hand.
 
 ## Daemons and other commands

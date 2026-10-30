@@ -30,6 +30,12 @@ final class DelegateRunner {
 
     /** What a delegate step needs from the run. */
     interface Host {
+        /** A {@code delegate} step was reached; counted so a run can say how many fell back. */
+        default void modelStepReached() {}
+
+        /** A grounded agent's answer came back with no sources, so the run can say so. */
+        default void groundedWithoutSources(String agent) {}
+
         /** The script's {@code intervention { }} defaults, or null. */
         io.github.llm4j.loom.ast.InterventionDef intervention();
 
@@ -176,6 +182,7 @@ final class DelegateRunner {
     }
 
     void execute(DelegateStmt del) {
+        host.modelStepReached();
         host.beginAttempt();
         String agentName = host.resolveName(del.getTargetAgent());
         String variableName = host.resolveName(del.getVariableName());
@@ -566,6 +573,10 @@ final class DelegateRunner {
                                             .put(
                                                     stepId + "#citations",
                                                     new RunJournal.Entry("citations", sources));
+                                } else if (agentDef.getGrounding() != null) {
+                                    // {name}_citations is then not set at all; a script's fallback
+                                    // for missing sources must not be the only sign of it
+                                    host.groundedWithoutSources(agentName);
                                 }
                                 if (audio != null) {
                                     host.context().setVariable(variableName + "_audio", audio);

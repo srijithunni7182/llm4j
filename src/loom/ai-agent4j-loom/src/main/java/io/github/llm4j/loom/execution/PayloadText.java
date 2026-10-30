@@ -20,6 +20,11 @@ final class PayloadText {
 
         /** The workflow's own variables. */
         VariableContext context();
+
+        /** Whether a variable's bare name is replaced too (the default), or only {@code {name}}. */
+        default boolean bareNamesReplaced() {
+            return true;
+        }
     }
 
     private static final java.util.regex.Pattern PAYLOAD_PATH =
@@ -70,7 +75,7 @@ final class PayloadText {
      * {like.this}.
      */
     private String bareNames(String text) {
-        if (text.isEmpty()) return text;
+        if (text.isEmpty() || !host.bareNamesReplaced()) return text;
         Map<String, Object> vars = host.context().getAll();
         if (vars.isEmpty()) return text;
         // One pass, longest names first: a value put in is never scanned again.

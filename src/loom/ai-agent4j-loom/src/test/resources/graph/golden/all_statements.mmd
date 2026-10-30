@@ -7,6 +7,12 @@ flowchart TD
   n4["run RefundPolicy"]
   n5["broadcast"]
   n6["in parallel: Copywriter"]
+  subgraph n6_lane1["Copywriter"]
+    n24["delegate Copywriter"]
+  end
+  subgraph n6_lane2["Copywriter"]
+    n25["delegate Copywriter"]
+  end
   n7[/"ask a person"/]
   n8{{"approval==yes?"}}
   n9["note"]
@@ -24,8 +30,8 @@ flowchart TD
   n21["delegate Critic"]
   n22["rewind to collected"]
   n23["handoff Critic"]
-  n24["note"]
-  n25["note"]
+  n26["note"]
+  n27["note"]
   end_(["End"])
   start --> n1
   n1 --> n2
@@ -33,7 +39,8 @@ flowchart TD
   n3 --> n4
   n4 --> n5
   n5 --> n6
-  n6 --> n7
+  n24 --> n7
+  n25 --> n7
   n7 --> n8
   n8 -->|then| n9
   n8 -->|else| n10
@@ -42,7 +49,7 @@ flowchart TD
   n11 --> n12
   n12 -->|again| n11
   n11 -->|done| n13
-  n24 --> n13
+  n26 --> n13
   n13 --> n14
   n14 -->|again| n13
   n13 -->|done| n15
@@ -51,14 +58,16 @@ flowchart TD
   n15 -->|done| n17
   n17 --> n18
   n18 --> n19
-  n25 --> n19
+  n27 --> n19
   n19 --> n20
   n20 --> n21
   n21 --> n22
   n22 -.->|rewind| n1
   n22 --> n23
-  n11 -->|exhausted| n24
-  n17 -->|violation| n25
+  n6 --> n24
+  n6 --> n25
+  n11 -->|exhausted| n26
+  n17 -->|violation| n27
   n23 --> end_
 
 %% workflow Helper

@@ -37,6 +37,20 @@ final class NextCommand implements Callable<Integer> {
             description = "The project (default: here).")
     File where;
 
+    @picocli.CommandLine.Option(
+            names = "--format",
+            paramLabel = "text|json",
+            description = "The steps as text (default) or as JSON, for a coding agent or the editor.",
+            defaultValue = "text")
+    String format;
+
+    @picocli.CommandLine.Option(
+            names = "--confirm",
+            paramLabel = "<step>",
+            description =
+                    "Record that a person did a step no command can check. Takes real-run: they read one real answer and said what is right and wrong with it.")
+    String confirm;
+
     @Override
     public Integer call() {
         return next(this, WeaveEnv.system());
@@ -55,6 +69,24 @@ final class NextCommand implements Callable<Integer> {
             env.err().println(why);
             return 2;
         }
+        if (!c.format.equals("text") && !c.format.equals("json")) {
+            env.err().println("Error: --format takes text or json, got " + c.format + ".");
+            return 2;
+        }
+        if (c.confirm != null) {
+            if (!c.confirm.equals(RealRunRead.STEP)) {
+                env.err().println("Error: --confirm takes " + RealRunRead.STEP + ", got " + c.confirm + ".");
+                return 2;
+            }
+            try {
+                RealRunRead.confirm(io.github.llm4j.loom.init.ProjectLayout.root(script), script, env.clock());
+            } catch (java.io.IOException e) {
+                env.err().println("Error: could not record it: " + e.getMessage());
+                return 1;
+            }
+            env.out().println("Recorded: a real answer of " + script.getFileName() + " was read.");
+            return 0;
+        }
         String file = script.getFileName().toString();
         LoomScript loaded = null;
         try {
@@ -71,13 +103,26 @@ final class NextCommand implements Callable<Integer> {
                                     List.of(String.valueOf(e.getMessage())),
                                     List.of(),
                                     Set.of()),
+                            null),
+                    c.format,
+                    script,
+                    JourneyStages.of(
+                            script,
+                            null,
+                            new ProjectAdvisor.CheckResult(false, List.of(String.valueOf(e.getMessage())), List.of(), Set.of()),
                             null));
         }
         WeaveEnv withKeys = new EnvFileOptions().apply(env, script);
         if (withKeys == null) return 2;
         ProjectAdvisor.CheckResult check = check(script, withKeys);
         AuditReport audit = SecurityAudit.audit(loaded, file);
-        return print(env, file, ProjectAdvisor.advise(script, loaded, check, audit));
+        return print(
+                env,
+                file,
+                ProjectAdvisor.advise(script, loaded, check, audit),
+                c.format,
+                script,
+                JourneyStages.of(script, loaded, check, audit));
     }
 
     /**
@@ -147,7 +192,52 @@ final class NextCommand implements Callable<Integer> {
         return new ProjectAdvisor.CheckResult(true, errors, warnings, keys);
     }
 
-    private static int print(WeaveEnv env, String file, List<ProjectAdvisor.Step> steps) {
+    private static java.util.Map<String, Object> stageJson(JourneyStages.Stage st) {
+        java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
+        row.put("number", st.number());
+        row.put("id", st.id());
+        row.put("title", st.title());
+        row.put("state", st.state());
+        row.put("detail", st.detail());
+        row.put("command", st.command());
+        return row;
+    }
+
+    private static int print(
+            WeaveEnv env,
+            String file,
+            List<ProjectAdvisor.Step> steps,
+            String format,
+            Path script,
+            List<JourneyStages.Stage> stages) {
+        if (format.equals("json")) {
+            java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("script", file);
+            m.put("projectRoot", io.github.llm4j.loom.init.ProjectLayout.root(script).toString());
+            List<java.util.Map<String, Object>> rows = new ArrayList<>();
+            for (ProjectAdvisor.Step st : steps) {
+                java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
+                row.put("what", st.what());
+                row.put("why", st.why());
+                row.put("command", st.command());
+                rows.add(row);
+            }
+            m.put("steps", rows);
+            m.put("stages", stages.stream().map(NextCommand::stageJson).toList());
+            m.put("primary", JourneyStages.primary(stages).map(NextCommand::stageJson).orElse(null));
+            PreflightState pre = PreflightState.read(io.github.llm4j.loom.init.ProjectLayout.root(script), script);
+            java.util.Map<String, Object> p = new java.util.LinkedHashMap<>();
+            p.put("state", pre.state());
+            if (pre.at() != null) p.put("at", pre.at());
+            m.put("preflight", p);
+            m.put("realRun", java.util.Map.of("confirmed", RealRunRead.confirmed(io.github.llm4j.loom.init.ProjectLayout.root(script), script)));
+            try {
+                env.out().println(new com.fasterxml.jackson.databind.ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(m));
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
+            return 0;
+        }
         env.out().println("weave next: " + file);
         int n = 0;
         for (ProjectAdvisor.Step s : steps) {

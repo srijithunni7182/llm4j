@@ -152,6 +152,12 @@ final class ReviewCommand implements Callable<Integer> {
     Integer confirm;
 
     @Option(
+            names = "--include-setup",
+            description =
+                    "Count the setup findings (a key that is not set on this machine) as findings: they are listed apart and never counted or failed on by default.")
+    boolean includeSetup;
+
+    @Option(
             names = "--strict-accepts",
             description = "Count accepted findings when deciding --fail-on.")
     boolean strictAccepts;
@@ -438,6 +444,7 @@ final class ReviewCommand implements Callable<Integer> {
         }
         if (ReviewHandling.requested(c))
             return ReviewHandling.apply(c, report, scriptDir, baselinePath, today, env);
+        if (c.includeSetup) report = report.withSetupAsFindings();
         ReviewReport shown = atLeast(report, min.get());
         String text =
                 switch (c.format) {
@@ -532,7 +539,8 @@ final class ReviewCommand implements Callable<Integer> {
                 r.lensesRun(),
                 r.lensesOff(),
                 r.cost(),
-                r.baselined());
+                r.baselined(),
+                r.setup());
     }
 
     /**

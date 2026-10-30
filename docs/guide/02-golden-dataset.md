@@ -2,6 +2,8 @@
 
 **Goal:** a set of scenarios that says what "good" means for each agent, before you test anything.
 
+> **Design the evaluation first.** What counts as correct, who the domain expert is, which cases the dataset must hold (including the ones nobody builds) and how a judge is validated are decisions of their own: the `llm4j-eval-design` skill makes them with you and writes `EVAL_DESIGN.md`, and then this chapter builds from it.
+
 ## Why
 
 A golden dataset is the only thing that turns "it seems fine" into a measurement. It is also reusable: the same cases

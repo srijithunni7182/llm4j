@@ -95,7 +95,7 @@ workflow.
 
 - **Set it up with an agent.** The `llm4j-loom-deployer` skill brings up Fabric, launches the application and teaches the
   pages; its siblings `llm4j-workflow-guide` (builds and tests the workflow first) and `llm4j-harness-design` (designs the
-  harness before that) come earlier in the path ([the skills](PUBLISHING_SKILL.md)).
+  harness before that) and `llm4j-eval-design` (designs how it will be evaluated, before the dataset is built) come earlier in the path ([the skills](PUBLISHING_SKILL.md)).
 
 👉 [Observability guide](OBSERVABILITY.md) · [Fabric server](../wiki/Fabric-Server.md) · [Deployer skill](../wiki/Deployer-Skill.md) ·
 [Try it with no model](../src/examples/fabric-sim/README.md)

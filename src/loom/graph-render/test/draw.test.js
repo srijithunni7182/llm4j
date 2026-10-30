@@ -51,7 +51,7 @@ test('every node is a focusable button with a label that names its line', () => 
   const result = golden('content_factory');
   const svg = G.svgText(workflow(result, 'GenerateContent'), { agents: agents(result) });
   const nodes = svg.match(/<g class="lg-node[^>]*>/g);
-  assert.equal(nodes.length, 8);
+  assert.equal(nodes.length, 10); // the eight steps and the two branches of the parallel block (Phase 21 R5)
   nodes.forEach((g) => { assert.ok(g.includes('role="button"') && g.includes('tabindex="0"') && g.includes('aria-label="')); });
   assert.ok(svg.includes('delegate Researcher, line 5'));
 });

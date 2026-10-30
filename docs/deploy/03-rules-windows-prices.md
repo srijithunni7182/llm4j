@@ -19,8 +19,11 @@ Support    { trifecta: accepted "customer support: reads the page, looks up the 
 The behaviours: `same_action`, `same_output`, `tool_failures`, `ungrounded_figures`, `paused_longer_than`, `no_progress`, `context_nearly_full`, `truncated_answers`, `compaction_thrash`, `tool_success_rate`, `latency_spike`, `access_denied`, `injection_scan`, `trifecta`. Check the file against the script, free:
 
 ```
-weave observe rules flow.loom
+weave observe rules flow.loom           # check the file against the script
+weave observe rules flow.loom --init    # write a commented starter (never over an existing file)
 ```
+
+A missing file, or one with only comments, means no rules: the defaults apply and the command says so. Checking a file that has rules needs the inspect add-on (`weave tools fetch inspect`, or add `loom-inspect` to `--classes`).
 
 A Fabric keeps rules centrally too: on its **Configuration** page an admin picks an agent, a behaviour and a threshold (no syntax to type); they are laid over each process's own rules and apply at once to every run, running ones included.
 

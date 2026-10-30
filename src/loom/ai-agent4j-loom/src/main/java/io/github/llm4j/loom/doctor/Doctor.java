@@ -105,6 +105,77 @@ public final class Doctor {
         }
     }
 
+    /**
+     * Two Loom jars that share a version number but are different builds are named in one sentence,
+     * with the fix; nothing is returned when all the jars found agree (or only one was found).
+     */
+    public static java.util.Optional<Check> jars(List<JarDiscovery.Found> found) {
+        for (int i = 0; i < found.size(); i++) {
+            for (int j = i + 1; j < found.size(); j++) {
+                var a = found.get(i);
+                var b = found.get(j);
+                if (!a.identity().version().equals(b.identity().version())
+                        || a.identity().sameBuildAs(b.identity())) continue;
+                var older = isOlder(a, b) ? a : b;
+                var newer = older == a ? b : a;
+                return java.util.Optional.of(
+                        new Check(
+                                "Jars",
+                                Status.WARN,
+                                older.label()
+                                        + " ("
+                                        + older.identity().describe()
+                                        + ") and "
+                                        + newer.label()
+                                        + " ("
+                                        + newer.identity().describe()
+                                        + ") both say "
+                                        + a.identity().version()
+                                        + ", but they are different builds.",
+                                "Remove the older copy"
+                                        + (older.path() == null ? "" : " (" + older.path() + ")")
+                                        + ", or set WEAVE_JAR to the one you mean."));
+            }
+        }
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Whether this terminal can run {@code weave} by name. The editor extension puts weave on the
+     * PATH of VS Code's own terminals only, so a coding agent's terminal, an ssh session or a CI
+     * step may have none; says so once, with the way out. Empty when weave is on the PATH.
+     */
+    public static java.util.Optional<Check> weaveOnPath(
+            String path, String separator, boolean windows) {
+        if (path != null && !path.isBlank()) {
+            List<String> names =
+                    windows ? List.of("weave.cmd", "weave.exe", "weave.bat") : List.of("weave");
+            for (String dir : path.split(java.util.regex.Pattern.quote(separator))) {
+                if (dir.isBlank()) continue;
+                for (String name : names)
+                    if (Files.isRegularFile(Path.of(dir).resolve(name)))
+                        return java.util.Optional.empty();
+            }
+        }
+        return java.util.Optional.of(
+                new Check(
+                        "weave command",
+                        Status.WARN,
+                        "weave is not on this terminal's PATH. The editor extension puts it on the PATH"
+                                + " of VS Code's own terminals only; other terminals (a coding agent's,"
+                                + " ssh, a CI step) need it installed.",
+                        "Run `jbang app install weave@srijithunni7182/llm4j` once, or use scripts/weave"
+                                + " from the installed skill, which finds a weave or prints this line."));
+    }
+
+    private static boolean isOlder(JarDiscovery.Found a, JarDiscovery.Found b) {
+        String ta = a.identity().builtAt();
+        String tb = b.identity().builtAt();
+        if (ta == null) return true;
+        if (tb == null) return false;
+        return ta.compareTo(tb) <= 0;
+    }
+
     public static Check cli(Context c) {
         return new Check("CLI", Status.OK, "weave " + c.version() + ".", "");
     }
@@ -168,7 +239,7 @@ public final class Doctor {
                             ".env.example holds what looks like a real value for "
                                     + String.join(", ", c.envExampleWithValues())
                                     + ".",
-                            "Replace it with a placeholder in .env.example, and rotate the key if it was committed."));
+                            "Move it with `weave secrets import-env --from <that file> --secrets <store>` and blank the file; rotate the key if the file was ever committed."));
         return out;
     }
 

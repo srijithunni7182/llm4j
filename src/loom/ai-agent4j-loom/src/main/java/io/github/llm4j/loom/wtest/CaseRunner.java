@@ -47,7 +47,8 @@ final class CaseRunner {
             String error,
             long millis,
             Duration elapsedVirtual,
-            RunJournal journal) {}
+            RunJournal journal,
+            Map<String, Long> fallbacks) {}
 
     static Outcome run(Path script, String workflow, TestFile.Case c) {
         long start = System.nanoTime();
@@ -57,6 +58,7 @@ final class CaseRunner {
         HarnessExecutor executor = null;
         String error = null;
         RunJournal journal = null;
+        Map<String, Long> fallbacks = Map.of();
         try {
             Map<String, JsonNode> models = fields(c.get("models"));
             Failures failures = new Failures(c.get("fail"));
@@ -115,6 +117,7 @@ final class CaseRunner {
                     error = message(e);
                 }
                 vars = new LinkedHashMap<>(executor.getContext().getAll());
+                fallbacks = executor.fallbacksTaken();
                 executor.shutdown();
                 if (waiting != null && !resume.isEmpty()) {
                     // the run waited for a person: record the next answer as a person would, and
@@ -135,7 +138,8 @@ final class CaseRunner {
                     error,
                     millis(start),
                     clock.elapsed(),
-                    journal);
+                    journal,
+                    fallbacks);
         } catch (Exception e) {
             return new Outcome(
                     "failed",
@@ -146,7 +150,8 @@ final class CaseRunner {
                     message(e),
                     millis(start),
                     clock.elapsed(),
-                    journal);
+                    journal,
+                    fallbacks);
         }
     }
 
@@ -202,9 +207,14 @@ final class CaseRunner {
                         if (s instanceof RunStmt r) names.add(r.getTaskName());
                     });
         TaskRegistry registry = new TaskRegistry();
+        Set<String> real = RealTasks.names(c.get("real"));
+        TaskRegistry found = real.isEmpty() ? null : TaskRegistry.discovered();
         for (String name : names)
             registry.register(
-                    ScriptedTasks.of(name, scripts.get(name), failures, repeatLast, recorder));
+                    real.contains(name)
+                            ? RealTasks.recorded(found.get(name), recorder)
+                            : ScriptedTasks.of(
+                                    name, scripts.get(name), failures, repeatLast, recorder));
         return registry;
     }
 

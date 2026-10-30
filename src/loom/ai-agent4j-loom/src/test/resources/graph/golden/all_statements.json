@@ -128,7 +128,21 @@
             "agents": [
               "Copywriter"
             ],
-            "branches": 2
+            "branches": 2,
+            "lanes": [
+              {
+                "label": "Copywriter",
+                "nodes": [
+                  "n24"
+                ]
+              },
+              {
+                "label": "Copywriter",
+                "nodes": [
+                  "n25"
+                ]
+              }
+            ]
           }
         },
         {
@@ -383,6 +397,38 @@
         },
         {
           "id": "n24",
+          "kind": "delegate",
+          "label": "delegate Copywriter",
+          "agent": "Copywriter",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 34
+          },
+          "parent": "n6",
+          "branch": "lane 1",
+          "attrs": {
+            "variable": "a",
+            "text": "Draft A"
+          }
+        },
+        {
+          "id": "n25",
+          "kind": "delegate",
+          "label": "delegate Copywriter",
+          "agent": "Copywriter",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 35
+          },
+          "parent": "n6",
+          "branch": "lane 2",
+          "attrs": {
+            "variable": "b",
+            "text": "Draft B"
+          }
+        },
+        {
+          "id": "n26",
           "kind": "note",
           "label": "note",
           "source": {
@@ -396,7 +442,7 @@
           }
         },
         {
-          "id": "n25",
+          "id": "n27",
           "kind": "note",
           "label": "note",
           "source": {
@@ -441,7 +487,11 @@
           "to": "n6"
         },
         {
-          "from": "n6",
+          "from": "n24",
+          "to": "n7"
+        },
+        {
+          "from": "n25",
           "to": "n7"
         },
         {
@@ -481,7 +531,7 @@
           "label": "done"
         },
         {
-          "from": "n24",
+          "from": "n26",
           "to": "n13"
         },
         {
@@ -521,7 +571,7 @@
           "to": "n19"
         },
         {
-          "from": "n25",
+          "from": "n27",
           "to": "n19"
         },
         {
@@ -546,13 +596,21 @@
           "to": "n23"
         },
         {
+          "from": "n6",
+          "to": "n24"
+        },
+        {
+          "from": "n6",
+          "to": "n25"
+        },
+        {
           "from": "n11",
-          "to": "n24",
+          "to": "n26",
           "label": "exhausted"
         },
         {
           "from": "n17",
-          "to": "n25",
+          "to": "n27",
           "label": "violation"
         },
         {

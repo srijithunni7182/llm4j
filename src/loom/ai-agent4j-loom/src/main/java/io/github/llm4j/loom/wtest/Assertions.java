@@ -47,6 +47,7 @@ final class Assertions {
         if (expect.has("route") || expect.has("never")) route(expect, o, failures);
         if (expect.has("calls")) calls(expect.get("calls"), o, failures);
         if (expect.has("context")) context(expect.get("context"), o, failures);
+        if (expect.has("told")) told(expect.get("told"), o, failures);
         if (expect.has("models_used")) modelsUsed(expect.get("models_used"), o, failures);
         if (expect.has("attempts")) calls(expect.get("attempts"), o, failures, "attempts");
         if (expect.has("ran")) ran(expect.get("ran"), o, failures);
@@ -54,9 +55,32 @@ final class Assertions {
         if (expect.has("effects")) effects(expect.get("effects"), o, failures);
         if (expect.has("elapsed_virtual")) elapsed(expect.get("elapsed_virtual"), o, failures);
         if (expect.has("tokens")) tokens(expect.get("tokens"), o, failures);
+        if (expect.has("degraded") || expect.has("fallbacks")) degraded(expect, o, failures);
         if (expect.has("branches") && graph != null)
             branches(expect.get("branches"), o, graph, workflow, failures);
         return failures;
+    }
+
+    /** {@code degraded:} and {@code fallbacks:}: whether and which steps took their on_failure. */
+    private static void degraded(JsonNode expect, CaseRunner.Outcome o, List<Failure> failures) {
+        boolean degraded = !o.fallbacks().isEmpty();
+        if (expect.has("degraded") && expect.get("degraded").asBoolean() != degraded)
+            failures.add(
+                    new Failure(
+                            "degraded",
+                            degraded
+                                    ? "degraded: expected the run not to be degraded, but "
+                                            + o.fallbacks().keySet()
+                                            + " took their fallback"
+                                    : "degraded: expected the run to be degraded, but no step used"
+                                            + " its fallback"));
+        if (expect.has("fallbacks")) {
+            java.util.Set<String> want = new java.util.TreeSet<>();
+            expect.get("fallbacks").forEach(n -> want.add(n.asText()));
+            java.util.Set<String> got = new java.util.TreeSet<>(o.fallbacks().keySet());
+            if (!want.equals(got))
+                failures.add(new Failure("fallbacks", "fallbacks: expected " + want + ", got " + got));
+        }
     }
 
     private static void result(JsonNode expect, CaseRunner.Outcome o, List<Failure> failures) {
@@ -148,6 +172,20 @@ final class Assertions {
                         new Failure(
                                 key,
                                 key + "." + e.getKey() + ": " + problem.replaceFirst("^: ", "")));
+        }
+    }
+
+    /** {@code told:} what each agent must have been told: texts it must have received over the run. */
+    private static void told(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        for (Iterator<Map.Entry<String, JsonNode>> it = want.fields(); it.hasNext(); ) {
+            var e = it.next();
+            String heard = o.recorder().toldTo(e.getKey()).toLowerCase(java.util.Locale.ROOT);
+            List<String> texts = new java.util.ArrayList<>();
+            if (e.getValue().isArray()) e.getValue().forEach(n -> texts.add(n.asText()));
+            else texts.add(e.getValue().asText());
+            for (String text : texts)
+                if (!heard.contains(text.toLowerCase(java.util.Locale.ROOT)))
+                    failures.add(new Failure("told", "told." + e.getKey() + ": the agent was never told \"" + text + "\""));
         }
     }
 

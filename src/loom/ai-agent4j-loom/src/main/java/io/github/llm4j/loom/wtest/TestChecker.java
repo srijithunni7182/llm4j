@@ -1,6 +1,7 @@
 package io.github.llm4j.loom.wtest;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.github.llm4j.agent.task.TaskRegistry;
 import io.github.llm4j.loom.ast.AgentDef;
 import io.github.llm4j.loom.ast.IntentClassifierDef;
 import io.github.llm4j.loom.ast.LoomScript;
@@ -41,6 +42,7 @@ public final class TestChecker {
                     "resume",
                     "tools",
                     "tasks",
+                    "real",
                     "clock",
                     "usage",
                     "steer",
@@ -58,12 +60,15 @@ public final class TestChecker {
                     "attempts",
                     "never",
                     "context",
+                    "told",
                     "models_used",
                     "asked",
                     "effects",
                     "ran",
                     "elapsed_virtual",
                     "tokens",
+                    "degraded",
+                    "fallbacks",
                     "branches");
 
     static final List<String> FINALS =
@@ -180,6 +185,7 @@ public final class TestChecker {
         }
         scripts(c, "tools", tools, problems);
         scripts(c, "tasks", tasks, problems);
+        real(c, problems);
         fail(c, problems);
         for (String key : List.of("humans", "resume"))
             if (c.has(key) && !c.get(key).isArray())
@@ -308,6 +314,26 @@ public final class TestChecker {
                                 + (key.equals("tools") ? "a tool" : "a task run by")
                                 + " the script"
                                 + Suggest.hint(name, known));
+        }
+    }
+
+    /**
+     * {@code real:} names tasks that run their own code. Only a task that changes nothing outside
+     * the run may, so a test never sends, pays or writes by accident.
+     */
+    private void real(TestFile.Case c, List<String> problems) {
+        JsonNode real = c.get("real");
+        if (real == null) return;
+        if (!real.isArray()) {
+            problems.add(where(c) + "real: a list of task names, such as real: [RefundPolicy]");
+            return;
+        }
+        TaskRegistry registry = TaskRegistry.discovered();
+        for (JsonNode n : real) {
+            String name = n.asText();
+            String problem = RealTasks.problem(name, tasks, c.get("tasks"), registry);
+            if (problem != null)
+                problems.add(where(c) + "real: " + problem + Suggest.hint(name, tasks));
         }
     }
 
@@ -493,6 +519,17 @@ public final class TestChecker {
                     problems.add(
                             where(c)
                                     + "expect.models_used: '"
+                                    + n
+                                    + "' is not an agent"
+                                    + Suggest.hint(n, agents));
+            }
+        if (expect.has("told") && expect.get("told").isObject())
+            for (Iterator<String> it = expect.get("told").fieldNames(); it.hasNext(); ) {
+                String n = it.next();
+                if (!agents.contains(n))
+                    problems.add(
+                            where(c)
+                                    + "expect.told: '"
                                     + n
                                     + "' is not an agent"
                                     + Suggest.hint(n, agents));

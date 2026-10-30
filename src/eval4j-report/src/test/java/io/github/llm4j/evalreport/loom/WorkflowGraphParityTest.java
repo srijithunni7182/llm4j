@@ -8,6 +8,7 @@ import io.github.llm4j.eval.export.WorkflowTrace;
 import io.github.llm4j.loom.ast.ForEachStmt;
 import io.github.llm4j.loom.ast.GuardrailStmt;
 import io.github.llm4j.loom.ast.LoomScript;
+import io.github.llm4j.loom.ast.ParallelStmt;
 import io.github.llm4j.loom.ast.StatementWalker;
 import io.github.llm4j.loom.ast.WorkflowDef;
 import io.github.llm4j.loom.execution.LoomLoader;
@@ -36,10 +37,17 @@ class WorkflowGraphParityTest {
 
     private static final Path REPO = Path.of("..").toAbsolutePath().normalize();
 
-    /** Workflows whose ids move because a for-each or guardrail body now has nodes. */
+    /** Workflows whose ids move because a for-each, guardrail or parallel body now has nodes. */
     private static final Set<String> BODIES_NOW_HAVE_NODES =
             Set.of(
                     "examples/getviral/src/main/resources/getviral/getviral.loom#GetViral",
+                    // with a parallel block (its branches are nodes since Phase 21 R5; the steps
+                    // after the block keep their ids, but the block no longer leads straight on)
+                    "examples/hexamind-hub/eval/hexamind.loom#Collaborate",
+                    "examples/hexamind-hub/eval/hexamind.loom#Refine",
+                    "loom/ai-agent4j-loom/samples/boardroom/main.loom#EvaluateProposal",
+                    "loom/ai-agent4j-loom/samples/content_factory/main.loom#GenerateContent",
+                    "loom/ai-agent4j-loom/src/test/resources/concurrency-test.loom#ConcurrencyTest",
                     "loom/ai-agent4j-loom/src/test/resources/docs/readme_examples.loom#Main",
                     "loom/ai-agent4j-loom/src/test/resources/graph/all_statements.loom#Everything",
                     "loom/ai-agent4j-loom/src/test/resources/graph/handlers.loom#Handlers",
@@ -76,6 +84,10 @@ class WorkflowGraphParityTest {
                         found[0] = true;
                     }
                     if (s instanceof GuardrailStmt g && !g.getBody().isEmpty()) {
+                        found[0] = true;
+                    }
+                    // the branches of a parallel block are nodes since Phase 21 R5
+                    if (s instanceof ParallelStmt p && !p.getBody().isEmpty()) {
                         found[0] = true;
                     }
                 });

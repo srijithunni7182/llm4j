@@ -4,6 +4,8 @@
 # -GeneratePassword to have one written to DIR\admin-password.txt for the developer to read. A second run changes nothing.
 param([string]$Data = '.\fabric-data', [int]$Port = 9090, [string]$Bind = '127.0.0.1', [switch]$GeneratePassword, [string[]]$Extra = @())
 . "$PSScriptRoot\lib.ps1"
+$fa = @('up', '--data', $Data, '--port', "$Port", '--bind', $Bind); if ($Extra) { $fa += '--'; $fa += $Extra }
+$rc = Weave-Fabric $fa; if ($null -ne $rc) { exit $rc }   # `weave fabric up` when the installed weave is new enough; the logic below is the fallback
 Need-Java; $jar = Fabric-Jar
 New-Item -ItemType Directory -Force -Path $Data | Out-Null; $Data = (Resolve-Path $Data).Path
 if (-not (Is-Loopback $Bind)) {

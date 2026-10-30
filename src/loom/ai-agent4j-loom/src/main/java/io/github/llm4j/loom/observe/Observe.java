@@ -19,7 +19,7 @@ public final class Observe {
     public static ObserveProvider provider() throws Unavailable {
         for (ObserveProvider p : ServiceLoader.load(ObserveProvider.class)) return p;
         throw new Unavailable(
-                "this needs the loom-inspect add-on on the class path (add the loom-inspect jar next to weave).");
+                "the inspect add-on is not on the class path: `weave tools fetch inspect` gets it, or add loom-inspect to --classes.");
     }
 
     /** Opens a session with the first provider found by {@link ServiceLoader}. */
@@ -34,6 +34,6 @@ public final class Observe {
             throws Unavailable {
         for (ObserveProvider p : providers) return p.open(options, out);
         throw new Unavailable(
-                "--observe needs the loom-inspect add-on on the class path (add the loom-inspect jar next to weave). Nothing was run.");
+                "--observe needs the inspect add-on, which is not on the class path: `weave tools fetch inspect` gets it, or add loom-inspect to --classes. Nothing was run.");
     }
 }

@@ -16,6 +16,10 @@ public final class EvalReport {
 
     /**
      * @param notRun scenarios that were not run because a limit stopped the evaluation
+     * @param judge what the judge did and cost, or null when none ran
+     * @param settings the run's fingerprint: what it was run with (dataset, weave build, bundle)
+     * @param reproduce the command that runs it again, or null
+     * @param baseline how it compares with the saved baselines, as lines (empty when not asked)
      */
     public record Run(
             String script,
@@ -23,7 +27,42 @@ public final class EvalReport {
             List<ScenarioResult> results,
             int notRun,
             String stoppedBecause,
-            Map<String, String> dimensions) {
+            Map<String, String> dimensions,
+            JudgeFacts judge,
+            Map<String, String> settings,
+            String reproduce,
+            List<String> baseline) {
+
+        /** A run with no comparison against baselines. */
+        public Run(
+                String script,
+                boolean mock,
+                List<ScenarioResult> results,
+                int notRun,
+                String stoppedBecause,
+                Map<String, String> dimensions,
+                JudgeFacts judge,
+                Map<String, String> settings,
+                String reproduce) {
+            this(script, mock, results, notRun, stoppedBecause, dimensions, judge, settings, reproduce, List.of());
+        }
+
+        /** A run with no judge facts, no fingerprint and no command, as before they were kept. */
+        public Run(
+                String script,
+                boolean mock,
+                List<ScenarioResult> results,
+                int notRun,
+                String stoppedBecause,
+                Map<String, String> dimensions) {
+            this(script, mock, results, notRun, stoppedBecause, dimensions, null, Map.of(), null, List.of());
+        }
+
+        public Run {
+            settings = settings == null ? Map.of() : Map.copyOf(settings);
+            baseline = baseline == null ? List.of() : List.copyOf(baseline);
+        }
+
         public long count(Status s) {
             return results.stream().filter(r -> r.status() == s).count();
         }
@@ -45,9 +84,35 @@ public final class EvalReport {
          * are never counted as passes.
          */
         public int exitCode() {
-            return count(Status.FAIL) > 0 ? 1 : 0;
+            return count(Status.FAIL) > 0 || !routingDanger().isEmpty() ? 1 : 0;
+        }
+
+        /** The dangerous routing cells the run was told about ({@code --route-danger}), as written. */
+        public List<String> routingDangerNamed() {
+            String named = settings().get("route-danger");
+            return named == null || named.isBlank() ? List.of() : List.of(named.split(","));
+        }
+
+        /** The named dangerous routing cells that have a case in them: any of these fails the run. */
+        public List<String> routingDanger() {
+            return RoutingMatrix.of(results()).dangerous(routingDangerNamed());
         }
     }
+
+    /**
+     * What the judge did in a run.
+     *
+     * @param model the judge model
+     * @param calls judge calls made
+     * @param validated whether the judge was checked against human scores
+     */
+    public record JudgeFacts(
+            String model,
+            long calls,
+            long promptTokens,
+            long completionTokens,
+            BigDecimal cost,
+            boolean validated) {}
 
     private EvalReport() {}
 
@@ -134,6 +199,23 @@ public final class EvalReport {
             x.put("status", r.status().name().toLowerCase());
             if (r.error() != null) x.put("error", r.error());
             if (r.cost() != null) x.put("cost", r.cost().toPlainString());
+            if (r.input() != null) x.put("input", r.input());
+            if (r.output() != null) x.put("output", r.output());
+            if (!r.tags().isEmpty()) x.put("tags", r.tags());
+            if (!r.dimensions().isEmpty()) x.put("dimensions", r.dimensions());
+            List<Map<String, Object>> agentRows = new ArrayList<>();
+            for (AgentFacts a : r.agents()) {
+                Map<String, Object> y = new LinkedHashMap<>();
+                y.put("agent", a.agent());
+                y.put("calls", a.calls());
+                y.put("promptTokens", a.promptTokens());
+                y.put("completionTokens", a.completionTokens());
+                if (a.cost() != null) y.put("cost", a.cost().toPlainString());
+                y.put("cutAnswers", a.cutAnswers());
+                y.put("fallbacks", a.fallbacks());
+                agentRows.add(y);
+            }
+            if (!agentRows.isEmpty()) x.put("agents", agentRows);
             List<Map<String, Object>> cs = new ArrayList<>();
             for (ScenarioResult.Check c : r.checks()) {
                 Map<String, Object> y = new LinkedHashMap<>();
@@ -147,6 +229,14 @@ public final class EvalReport {
             rs.add(x);
         }
         m.put("results", rs);
+        Map<String, Object> sections = new LinkedHashMap<>();
+        for (EvalSections.Section sec : EvalSections.of(run)) {
+            Map<String, Object> one = new LinkedHashMap<>();
+            one.put("title", sec.title());
+            one.put("lines", sec.lines());
+            sections.put(sec.id(), one);
+        }
+        m.put("sections", sections);
         try {
             return new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(m);
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
@@ -189,6 +279,20 @@ public final class EvalReport {
         b.append("</div><p><small>")
                 .append(esc(summary(run)).replace("\n", "<br>"))
                 .append("</small></p>");
+        for (EvalSections.Section sec : EvalSections.of(run)) {
+            b.append("<section id=\"").append(sec.id()).append("\"><h2>").append(esc(sec.title())).append("</h2>");
+            if (sec.id().equals("cases")) b.append(casesTable(run));
+            else b.append("<pre>").append(esc(String.join("\n", sec.lines()))).append("</pre>");
+            if (sec.id().equals("by-dimension")) b.append(dimensionList(run));
+            b.append("</section>");
+        }
+        return b.append("</body></html>").toString();
+    }
+
+
+    /** The cases as a table: what each did, with the input and the output that was judged. */
+    private static String casesTable(Run run) {
+        StringBuilder b = new StringBuilder();
         b.append(
                 "<table><tr><th>Result</th><th>Target</th><th>Scenario</th><th>What happened</th></tr>");
         for (ScenarioResult r : run.results()) {
@@ -206,6 +310,10 @@ public final class EvalReport {
                     .append(esc(r.label()))
                     .append("</td><td>");
             if (r.error() != null) b.append("<b>error:</b> ").append(esc(r.error())).append("<br>");
+            if (r.input() != null)
+                b.append("<small><b>input:</b> ").append(esc(r.input())).append("</small><br>");
+            if (r.output() != null)
+                b.append("<small><b>output:</b> ").append(esc(r.output())).append("</small><br>");
             for (ScenarioResult.Check c : r.checks()) {
                 b.append("<span class=\"")
                         .append(c.status().name().toLowerCase())
@@ -221,6 +329,11 @@ public final class EvalReport {
             b.append("</td></tr>");
         }
         b.append("</table>");
+        return b.toString();
+    }
+
+    private static String dimensionList(Run run) {
+        StringBuilder b = new StringBuilder();
         if (!run.dimensions().isEmpty()) {
             b.append("<h2>Dimensions</h2><ul>");
             run.dimensions()
@@ -233,7 +346,7 @@ public final class EvalReport {
                                             .append("</li>"));
             b.append("</ul>");
         }
-        return b.append("</body></html>").toString();
+        return b.toString();
     }
 
     private static String esc(String s) {

@@ -31,7 +31,8 @@ Every method takes `file` (absolute or relative to the working directory; it mus
 | Method | Extra params | Answer |
 |---|---|---|
 | `loom/check` | | `{ file, status, result, stderr?, cached, requestVersion }` where `result` is the JSON of `weave check --format json --no-env`; `status` 0 or 2 |
-| `loom/graph` | `workflow?` | as above, `result` is the JSON of `weave graph` |
+| `loom/graph` | `workflow?` | as above, `result` is the JSON of `weave graph`. A `parallel` node carries `attrs.lanes` (`[{label, nodes: [ids]}]`, each lane's steps and the handlers hanging off them), and a `set` node `attrs.value`; see [API_COMPATIBILITY.md](../API_COMPATIBILITY.md) |
+| `loom/next` | | as above, `result` is the JSON of `weave next --format json`: `steps`, the ten `stages` (`number`, `id`, `title`, `state` of `done`, `failing`, `not-started`, `skipped` or `stale`, `detail`, `command`), the `primary` stage, `preflight`, `realRun` and `projectRoot`. It is never cached (`cached` is always false): the answer depends on files the cache does not watch |
 | `loom/review` | `tier` (`full` default, or `instant`: the validity lens only), `lenses?`, `minSeverity?`, `prices?`, `assume?` (list of `name=value`) | as above, `result` is the JSON of `weave review --format json --no-env` |
 | `loom/symbols` | | as above, `result` is the JSON of `weave symbols`: the semantic index of the script and its imports (below) |
 | `loom/explainRule` | `rule` | `{ rule, text }` the text of `weave review --explain RULE` |

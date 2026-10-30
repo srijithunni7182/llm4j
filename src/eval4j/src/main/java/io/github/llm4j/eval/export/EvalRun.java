@@ -381,7 +381,7 @@ public final class EvalRun {
             return;
         }
         record(Evaluation.builder(metric).status(EvalStatus.NOT_EVALUATED).reason(reason));
-        throw new org.opentest4j.TestAbortedException("eval4j: " + reason);
+        throw StopTest.because("eval4j: " + reason);
     }
 
     private boolean sampled(MetricRef metric) {

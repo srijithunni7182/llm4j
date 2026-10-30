@@ -1,0 +1,8 @@
+// With substitution: braces only {name} and {name.field} are replaced; a bare word stays as written.
+substitution: braces
+agent Checker { model: "gemini-2.5-flash" system: "You check lengths." }
+
+workflow Check(out) {
+    delegate "length out of range: {out}" to Checker -> verdict
+    return verdict
+}

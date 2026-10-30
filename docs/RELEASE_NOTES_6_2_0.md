@@ -1,0 +1,143 @@
+# Release notes: 6.2.0
+
+Status: **in progress** (the field findings program, [docs/specs/FIELD_FINDINGS.md](specs/FIELD_FINDINGS.md)). This page lists what is finished so far; each item says what changed for you.
+
+## Fixed: answers are no longer cut short without a word
+
+- **No more silent 1,024-token limit.** With a token or cost budget and no `per_call`, every model call was capped at 1,024 output tokens (`BudgetSet.DEFAULT_OUTPUT`), so long answers ended mid-sentence while the run
+  reported success. The limit is now 8,192 tokens (`BudgetSet.UNSPECIFIED_HOLD`), or the model's known maximum from the seeded model list when that is smaller, bounded by what the budget still affords. What is sent is what is held, so one call cannot spend more than was reserved. An agent that needs longer answers sets `per_call`, which is held in full. **Behaviour change:** answers that were clipped
+  become whole, so token use rises to what the agent really writes, still inside the budget. A script that relied on the clipping to save cost should set `per_call`. Parallel branches are not starved, because each holds at most 8,192.
+- **A cut answer is named.** When a provider stops an answer at its limit, the run prints `✂ N answers were cut at the output limit: Writer (2)`. The count was already in the trace as `truncated`.
+- **`weave explain` states each agent's output limit** and where it comes from (its `per_call`, the model's maximum when that is under 8,192, or the default).
+- **A cost that is an estimate says so.** The spend table marks estimated rows `~$` and names the agents whose provider reported no usage, instead of the generic note.
+- **Gemini grounding with `recency:` works again on clocks with sub-second precision.** The times sent are whole seconds. (Verified by a unit test; a recorded request from the real API is still owed.)
+
+## `weave eval`: a report that always has the same shape, and a by-agent view
+
+- **The report has nine fixed sections** (*Read this first*, *Overall*, **By agent**, *By dimension*, *By slice*, *Cases*, *Cost*, *Cautions*, *How to reproduce*) in the terminal, in `--report` and in `--json` (`sections`). A section with nothing to show says why instead of disappearing. Tests pin the structure.
+- **A by-agent view, for every run, with no tag or setting.** Each agent that took part gets a row built from the run: its pass rate on the cases aimed at it (with a 95% interval), calls, tokens, cost, answers cut at the output limit, steps that used a fallback, and its worst outputs with the judge's reason. (Before, the dashboard's By-agent table needed `agent:` tags written by hand and `weave eval` did not feed the dashboard at all.)
+- **Outputs are kept and shown.** *Cases* shows each case's input, the output that was judged and every line's verdict with its reason. The output of a case that fails an `expected_output_not_contains` check is withheld, so a report never repeats what the case guards against (a card number, a secret).
+- **The judge's cost is in the cost,** shown beside the agents' and the total, with the cost per passing case. Without `--prices` the figure is `unknown`, not zero.
+- **`weave eval` writes the dashboard bundle** (`target/eval4j/runs/<id>/` or `eval-runs/runs/<id>/`): all cases, their outputs and verdicts, and a case per agent for the By-agent table. Render it with the `eval4j-report` command line.
+- **A rubric line can name its dimension** (`{ text: ..., dimension: tone }`), counted under that dimension only; plain lines still count under every dimension of their case, and the report says how many do.
+- **`--repetitions N`, `--judge-samples N`.** The report gives pass@1 beside pass^N and consistency, names unstable cases, and states its resolution (how small a change this many cases can tell). A line whose judge samples disagree widely is left unjudged.
+- **A sealed held-out set.** Cases tagged `split:heldout` run only with `--release-gate`, which the report records; the generalisation gap (validation minus held-out) is reported and warned about above 10 points.
+- **Datasets and baselines that cannot slide.** The report names the dataset's identity (declared `version:` plus a hash of its cases). `--save-baseline` needs an approver and a reason and never replaces an earlier baseline; `--baseline` compares with the current and the previous baseline and lists regressions; a different dataset is refused unless `--allow-version-change "<why>"`.
+- **A workflow's output is defined** (its `return`, else the last agent's answer, else its last `note`) and an empty one is an error case; it is no longer sent to a judge.
+
+## Which build is this? (identity and snapshot versions)
+
+- **`weave --version` says what it is**: `weave 6.2.0-SNAPSHOT (development, 3d683a35, built 2026-10-29T15:30:00Z), serve protocol 1`, or `release` for a published build. Every module jar carries the same facts in its manifest
+  (`Implementation-Version`, `Build-Kind`, `Build-Commit`, `Build-Dirty`, `Build-Time`). A bug report that quotes the line is enough to find the commit. The `serve protocol` suffix the editor reads is unchanged.
+- **Between releases `main` carries `X.Y.Z-SNAPSHOT`.** Two jars that both said `6.0.0` but behaved differently were one release and one build from the repository. A development build can no longer carry a release's number.
+  What must name a downloadable version (the JBang catalogue, `weave init`'s generated test project, a deployment's Fabric image) uses the last published release, kept in one property (`llm4j.released`); the release step is
+  `scripts/release-version.sh` ([PUBLISHING.md](PUBLISHING.md)). **For contributors:** jar file names now carry the snapshot version (`ai-agent4j-loom-6.2.0-SNAPSHOT-cli.jar`).
+- **`weave doctor` names two Loom jars that share a version but are different builds** (the running one, copies in `~/.m2`, the editor extension's bundled jar, `WEAVE_JAR`) in one sentence with the fix, and says nothing
+  when they agree. Local files only.
+- **The inspect and Fabric add-ons refuse a mismatched core in one sentence.** `loom-inspect` checks at start-up that it is the same build as the `ai-agent4j-loom` it runs against; `loom-fabric` does the same against the
+  inspect core it bundles. A development build must match by commit; two releases match by version. Before, the mismatch showed up later as a missing class.
+- **The skills install complete.** The deployer skill's scripts look for each jar in one order (the variable, the editor extension's jar, `bin/`, `~/.llm4j/tools/<version>/`, a build), the same in the shell and PowerShell versions, and newest first. `weave guide --install-skill` ends with what was found and what is missing (`weave tools fetch fabric` for a missing Fabric jar) and never says the scripts are ready when one would stop. New: **`weave tools fetch fabric|inspect|all`** downloads the jars for this weave's version from Maven Central after listing them and asking (`--yes` skips the question), keeps a file only if its published SHA-256 (or, where Central offers only that, SHA-1) matches, writes only under `~/.llm4j/tools/<version>/`, refuses a development build, and never runs what it downloads.
+- **`weave` for a coding agent in a plain terminal.** The workflow skill ships `scripts/weave` (and `weave.cmd`): it finds a weave or prints the one install line. `weave doctor` says when `weave` is not on this terminal's PATH, what the editor extension's PATH entry covers (VS Code's own terminals only) and what to do.
+- **The editor offers the coding-agent set-up once** (extension 1.2.0): a notification when a folder with a `.loom` file has none; it writes nothing until you choose.
+- **Keys in a template file are caught more precisely, and moving them is one command.** `weave check` (and `doctor`, `next`) now watch `.env.example` and any `*.example`, `*.sample` or `*.template` file in the project root, and flag only names that hold a secret (ending in `KEY`, `TOKEN`, `SECRET`, `PASSWORD`, and so on): `PORT=8080` or `LOG_LEVEL=debug` no longer raise it. The warning names the file and the name, never the value, a prefix or its length, and gives the way out: `weave secrets import-env --from <file> --secrets <store>`. **New:** `import-env --from <file>` reads `NAME=value` lines from a file (every secret-named value, or just the names you list), stores them encrypted, and for a template offers to blank the imported values afterwards (`--blank` does it without asking); a real `.env` is never changed. Every starter's `.env.example` now says not to put a key in it and shows the store as the encrypted alternative.
+- **A jar with a half-compiled class cannot be released.** `make release-check` and the CI release job run `scripts/CheckJars.java`, which refuses a jar holding an editor's `Unresolved compilation problem` stub or lacking its
+  identity; `scripts/verify-vsix.sh` does the same for the jar the extension bundles; `scripts/doctor.sh` warns when `target/classes` holds a stub. See CONTRIBUTING.md.
+
+## Sources: a missing set is now said, not skipped
+
+- **A grounded agent that returns no sources is named.** When a grounded agent's answer comes back without any sources (the model did not search), the run prints `⚠ Grounded but no sources came back: Researcher (1)`.
+  Before, `{research_citations}` was simply not set and a script's own fallback hid it. Checked against the answer recorded from the real Gemini API: sources do reach the workflow from a plain delegate, from inside
+  `parallel` and from a step with `expecting`, so the field report's "citations never arrived" is explained by the model not searching, not by the workflow dropping them (the cause there is still unconfirmed).
+- **`weave check` warns when a script reads `{x_citations}` for an agent that is not grounded**, since that variable can never be set.
+
+## Fixed: a run that fell back says so, and what it returned is shown
+
+- **A degraded run is named.** A run that finished by using `on_failure` fallbacks prints `⚠ Degraded: Researcher, Editor took their fallback (2 of 5 model steps)`. The exit code stays `0` (no existing script
+  changes meaning); `weave run --exit-degraded` exits `7`. **Behaviour change:** a run in which *no* model step succeeded (every step fell back) is now a failure, exit `1`, not "completed successfully": it
+  ended with a result no model contributed to. `weave test` can assert `degraded:` and `fallbacks:`.
+- **`weave run` prints what the workflow returned** under `Result:` (`--quiet` leaves it out). A workflow that returns nothing says so. Scripts that parse `weave run`'s output should use `--quiet`.
+- **`weave eval` never judges an empty output.** A workflow or agent with nothing to judge is an `ERROR` case with the reason, no judge call is spent on it, and the evaluation exits non-zero. A workflow's output
+  is its `return`; else (as before) the answer of the last agent it asked; else its last `note`.
+
+## Fixed: what a script declares now reaches the run
+
+- **`shared_prompt` is applied.** In 6.1.0 and earlier no `weave` command (`run`, `eval`, `test`, `serve`) told the agents the shared prompt, in either form (`shared_prompt: "text"` or
+  `shared_prompt: prompt "house-rules"`). It is now put first in every agent's system text. If your workflow relied on rules in the shared prompt, they were not in force before; check a run's behaviour
+  after upgrading. See the correction in [RELEASE_NOTES_6_1_0.md](RELEASE_NOTES_6_1_0.md).
+- **`weave check` no longer calls a named shared prompt file "not used by any agent".** It was the same fault.
+- **`supervise` and `intervention` blocks are applied.** A script's own `supervise Agent { ... }` rules and `intervention { ... }` defaults were dropped when the script was loaded, so a supervised workflow ran
+  unsupervised and `weave explain` did not list them. They now apply, including `supervise` blocks in imported files. An imported file's `shared_prompt` is not imposed on the file that imports it.
+
+## New: `weave preflight`, one real answer before you spend more
+
+- **`weave preflight script.loom`** asks each agent one real, capped question and checks what a run needs: the key works (C1), the model accepts the request (C2), the answer is whole, not cut or empty (C3), the shared prompt reaches the model (C4, with a random canary kept in memory only), grounded agents return sources (C5), the price and context window are known (C6) and the budget is sensible (C7). It asks before spending unless `--yes` or `--mock`, stops at `--max-tokens` / `--max-cost`, and exits `0` (pass or warnings), `1` (a failing check) or `3` (stopped by the cap). `--format json` is for scripts. It writes `.loom/preflight.json`.
+- **`weave next` knows the preflight** and offers it before the deploy step (and again when the script changed since or the last one failed). `weave next --format json` lists the steps and the preflight state.
+- **`weave next --confirm real-run`** records that a person read one real answer and judged it. After a passing preflight, `weave next` asks for that read before the dataset is built on it; an edited script needs it again.
+- **`weave eval --check` says how many drafted cases no person has reviewed.** A case an assistant drafted carries the tag `author:assistant`; the person who accepts or edits it adds `reviewed_by:<name>`.
+- **The skills share one `references/conventions.md`** (nine rules: roadmap and checklist, the planner question, co-written datasets, a real answer read early, read-back, tested README commands, keys asked first, selection shares, visible skipping). It is installed with the workflow, deployer and harness-design skills, and a test keeps the three copies identical.
+- **`weave next --format json` reports the ten stages of the journey**, each `done`, `failing`, `not-started`, `skipped` or `stale`, read from the project's files and recorded results, and names the one to take now (a failing stage first). `weave eval` now records its last finished run (mock or real, the dataset version and the script) in `.loom/eval.json`, so a real evaluation of an older script shows as `stale` and a mock one does not count. The engine answers the same JSON as `loom/next` ([PROTOCOL.md](serve/PROTOCOL.md)).
+
+## Changed: the graph draws parallel blocks as lanes and groups consecutive `set`s
+
+- **A `parallel` block is a node whose branches are lanes.** In `weave graph` JSON the branches are now nodes with their own lines and `on_failure` handlers, grouped in the block's `attrs.lanes`; in Mermaid each lane is a `subgraph`, and a `parallel` inside a lane nests as a `subgraph` inside it (each node declared once). `weave graph` has two formats, JSON and Mermaid; there is no separate text format, and `weave explain` lists the branches. Steps after the block keep their ids. See [API_COMPATIBILITY.md](API_COMPATIBILITY.md). **A consumer that expected the block to be one node with an edge to the next step now sees the branches in between.**
+- **A `set` node carries its `value`** (masked and cut at 200 characters).
+- The editor's Flow view and the shared renderer (Fabric, the eval report) draw a fork, one lane per branch with its failure handler under its step, and a join; consecutive `set`s are one small card that opens to list them (`loom.graph.groupSets` turns that off).
+- **The graph-render tests had been failing since the `classify` statement was added to the sample script (19 of 73 on a clean checkout), unnoticed because no CI job runs them.** The table now matches the sample; the tests pass (91).
+
+## Changed: strings, hints for known mistakes, and the options of `weave test`
+
+- **A string can hold a double quote and end with a backslash.** `\"` is a double quote and `\\` a backslash inside a string; any other backslash stays as written (`\n` and `\t` are read later, as before). **A string with a doubled backslash (`"C:\\dir"`, `"\\d+"`) now holds one backslash, and a string that ended in `\"` expecting the backslash to be text now reads differently**: none of the scripts in this repository does (a test lists any), but check yours; the lexer says what to write when a string would end in a lone backslash. The editor's parser reads strings the same way.
+- **A known mistake says its fix.** `expecting {…}` after `retry N` on a `delegate` is a parse error that names the right order, and a scripted task result with the reserved key `value` says what to write instead. The registry (`KnownMistakes`, see `CONTRIBUTING.md`) is one row and a test per mistake.
+- **`weave test` takes `--classes`, `--loot` and `--env-file`**, like `weave run` and `weave eval`. In a built Maven project the three use `target/classes` and say so in one line; `--no-auto-classes` turns that off. (`--loot` is checked to exist and otherwise ignored by `test`, which scripts every tool.)
+- **The log is not the answer.** Every command logs at WARNING by default; `-v` (or `--verbose`) shows the progress lines and `-vv` the detail. `weave run`, `resume`, `tick` and `daemon` no longer print Loom's INFO progress lines unless you pass `-v` (or set `WEAVE_LOG=info`); a script that read `INFO:` lines from them must pass `-v`. `weave eval --verbose` works as before.
+
+## Changed: the review separates the machine from the script, the cost block says what it assumed
+
+- **A key that is not set is a setup finding, not a HIGH one.** `weave review` lists it under **Setup** ("about this machine, not a finding in the script"), outside the counts, `--fail-on` and the editor's open-findings number; `--include-setup` counts it as before. The JSON gains a `setup` list and `summary.setup`. The rule: a finding is a script finding only if editing the script can clear it. (A missing prompt file stays a finding.) **A CI job that failed on `--fail-on high` only because no key was set will now pass; add `--include-setup` to keep the old behaviour.**
+- **The cost block says what it assumed.** Under the totals, an "Assumed per step" list gives each step's runs and tokens a run, typical and at most, and when the script's token cap is at or below the worst case it says so: "the cap, 150,000 tokens, will stop the run before the worst case, 179,000 tokens: expect cut results". The JSON adds `tokenCap` and `capStopsBeforeWorstCase` per workflow. (Not yet: measured usage from a preflight or a recorded run is not fed into the estimate automatically.)
+- **`weave observe rules` works without ceremony.** A missing rules file, or one with only comments, means the defaults apply (it says so and exits 0); a file with rules and no add-on says `weave tools fetch inspect` or `--classes`; `--init` writes a commented starter beside the script and never overwrites.
+
+
+## New: `substitution: braces`, `real:` tasks in tests, and the parallel fallback pattern
+
+- **`substitution: braces`** (a top-level setting of a script) replaces only `{name}` and `{name.field}`. The default stays `legacy`, where a bare name is replaced too, so no existing script changes meaning; **the next major version makes `braces` the default**, and `LOOM_GUIDE.md` says so. `weave check` now warns about a bare word that is also a variable in every text the runtime fills in (it looked at four statements before; it now looks at all fifteen positions, listed in one place that a test compares with the runtime).
+- **`weave check --substitution braces`** previews each text that would change (variable, position); **`--fix-substitution`** shows the rewrite of each bare word meant as a variable as a diff and writes only after a yes (`--yes`).
+- **`real: [Task]` in a test case** runs that task's own code instead of a scripted result and still counts it in `expect.calls`. Only a task that declares no effect (`TaskEffect.NONE`) may be real; a task that changes things, or does not say, is refused with the reason. A name in both `real:` and `tasks:` is an error.
+- **Parallel branches that fall back** now have a documented pattern with a naming rule (one flag per branch). The language has no new construct for it; whether a condition may read the list of fallbacks is left open.
+
+## New: `weave fabric up | down | status`, one front door for a local Fabric server
+
+- **`weave fabric up`** finds the Fabric jar (`FABRIC_JAR`, then what `weave tools fetch fabric` put in `~/.llm4j/tools/<version>/`, then a build in the checkout), starts it as a separate process, and on the first start writes a generated admin password to `<data>/admin-password.txt` (readable by you only, never printed or put on a command line). A bind beyond this computer is refused without TLS or a proxy. A second `up` changes nothing.
+- **`weave fabric status`** shows whether the server runs and, for each client that may report, **when it last reported** (or *never reported*), read from the history Fabric keeps. **`weave fabric down`** stops it, and only ever a process whose command line is Fabric's.
+- **The deployer skill's scripts hand over to it** when the `weave` in use has the command (same exit codes) and keep their own logic as the fallback. **A change you can see:** `fabric-up` without a password now generates one instead of refusing; `--generate-password` is still accepted and changes nothing.
+- **`run-observed` takes `--secrets-key-file FILE`** (or `LOOM_SECRETS_KEY_FILE`; `-SecretsKeyFile` in PowerShell), so a master key kept elsewhere needs no file named after the store.
+- **Fixed: `weave eval` crashed at the end in the standalone `weave` jar.** After the report it writes the dashboard bundle, which loaded a class that names JUnit's abort exception, and the standalone jar carries no JUnit (`NoClassDefFoundError: org/opentest4j/TestAbortedException`). It was found by the skill-package check from an empty folder, not by the unit tests, which have JUnit on their class path. eval4j now loads that exception by name, only when a test is really being stopped (`RunsWithoutJUnitTest` loads the exporter with `org.opentest4j` hidden).
+
+## New: the evaluation design skill, `llm4j-eval-design`
+
+- **A fourth skill designs how a workflow will be evaluated** before the golden dataset is built, and writes it into an `EVAL_DESIGN.md`: eleven stages (readiness, layer map, dimensions, oracles, dataset, harness, run protocol, security, regression and baselines, gates, ownership), a checklist after each, and the nine rules an evaluation lives by. It **asks** the developer and a domain expert and never writes the answer key for a domain fact; anything it drafts is tagged `author:assistant` until a person reviews it. Asked "is my evaluation any good?", it reviews an existing one against the known anti-patterns into an `EVAL_REVIEW.md`, and marks what it cannot confirm from the files as *not verified*.
+- **The method comes from the owner's guide** *Quality Assurance for AI agentic systems*, distilled into llm4j terms with credit on every page (the guide's numbers are stated as starting points the domain expert sets). A mapping page says what the stack does for each decision **today**, and lists each gap with its register id and a workaround; a test checks that every `weave` command and option the pages name exists.
+- **`weave guide --install-skill` installs four skills** (`--skill eval` for this one), `make skill-package` builds `dist/llm4j-eval-design.zip`, and `weave next` offers the design when a project has agents and no `EVAL_DESIGN.md` (before the dataset when there is none, or as a review step when there is one; `Evaluation: skipped` in the README silences it).
+
+## New in `weave eval`: answer sets, a validated judge, the cost tail, what the dataset is made of
+
+- **A case may state the answers it accepts** (`correct_conclusion`, `accepted_equivalents`, `rejected`, `acceptable_actions`, `unacceptable_actions`, `required_citations`). The verdict is exact, acceptable, rejected or unmatched; an unmatched answer is unjudged and goes to a person; the report counts the verdicts and warns above a tenth unmatched. Matching is a deterministic key-phrase test; embedding and model matching are not built. Existing datasets read as before.
+- **`weave judge validate`** compares a judge with people on a scored reference set (people against each other first, then the judge against their median, with kappa), exits 0, 1 or 2, and records the result so a report can say the judge was validated (and only for that model).
+- **The cost section gives the median and p95 cost of a case and the runaway count**, so a few runaway runs show.
+- **`weave eval --check` names a thin case class, a slice under ten cases, and the source mix** (from `class:`, `domain:`/`difficulty:`/`split:` and `source:` tags).
+
+## New: run protocols and metamorphic cases
+
+- **`eval-protocol.yaml` and `weave eval --protocol <name>`** write the run protocol down (a commit run, nightly, a release gate, a weekly drift check) as named sets of `weave eval` options; the command line wins over the file, the report names the protocol, and a wrong file is refused by name.
+- **`weave metamorphic`** derives, with no model, the cases that test a relation between two runs (an irrelevant addition, a reordering) and writes them beside the originals in a new folder; the report names a case that passes alone and fails perturbed.
+
+## New: injection testing, routing matrix, handoff probe, `--emit-test`, judge biases
+
+- **`weave security generate`** turns a corpus of injection payloads into a dataset (your own realistic artefacts with the payload embedded, a canary, the actions that must never happen). The report separates the model's obedience (a percentage, a mitigation) from the controls (a forbidden action fails the run).
+- **Routing as a confusion matrix** (`route:<Agent>` tags) with `--route-danger Expected>Actual`: a case in a dangerous cell fails the run whatever the average says.
+- **`expect.told`** in `weave test` asserts what an agent was told, which makes a handoff context probe a test; a loop-induction recipe (the bound fires and the work is said) is tested and documented.
+- **`weave eval --emit-test <file>`** writes the opt-in JUnit class (free wiring test; real evaluation only with `-Deval.real=true`, capped); **`WeaveCLI.run(String...)`** is the public in-process entry it uses.
+- **`weave judge validate`** also refuses a judge from the system's own model family (`--system-model`) and names a verbosity bias when the reference rows carry the output text. **`weave gate --protocol <name>`** runs the gate's eval stage as a protocol.
+
+- **Review follow-ups (Phase 19 and 22):** `weave judge validate` is not usable for gating unless both `--model` and `--system-model` are named (a check that was not made does not pass), and model families are matched by vendor naming. A security summary says "not judged" instead of "controls held" when a mock run or an error judged nothing. `weave fabric up` treats only `localhost` and IP literals as this computer (a host name that starts `127.` is not), and `weave fabric status` takes `--bind`. `weave eval --emit-test` refuses a class or package name that is not a Java name. A committed template URL whose password is a `$VARIABLE` reference is not flagged.
+- **Phase 19 gaps closed.** `weave metamorphic` also derives `paraphrase` (from `--paraphrases`, tagged `source:synthetic`), `monotonicity` (remove the evidence marked `decisive:<text>`) and `negation` (flip it with `negate:<from>=><to>`); the last two forbid the original conclusion. `weave judge validate --swapped <file>` checks that a pairwise judge's verdict does not follow the position (`--min-pairs`, default 10); a biased judge may not gate. `weave probe eviction` runs the real context manager on a small window with no model and checks that the oldest material goes first, the task stays and the model is told.

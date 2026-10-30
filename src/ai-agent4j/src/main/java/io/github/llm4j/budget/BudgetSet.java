@@ -16,8 +16,19 @@ import java.util.Map;
  */
 public final class BudgetSet {
 
-    /** Output tokens reserved when nothing else says how long the answer may be. */
-    public static final long DEFAULT_OUTPUT = 1024;
+    /**
+     * The output limit when nothing says how long the answer may be: neither the agent's own limit
+     * nor a known maximum for the model. A model's real answers fit well inside it, and it is
+     * accepted by current models. (It was 1,024, which cut long answers short without a word.)
+     */
+    public static final long DEFAULT_OUTPUT = 8192;
+
+    /**
+     * The most that is held back from the budget for one call whose limit nobody chose. The limit
+     * sent can be larger (a model's maximum), but holding all of it would let one parallel branch
+     * leave its siblings nothing; the call is settled at what it really used.
+     */
+    public static final long UNSPECIFIED_HOLD = 8192;
 
     /**
      * Below this many affordable output tokens (or the requested amount, if smaller) a call is
@@ -84,14 +95,20 @@ public final class BudgetSet {
     /**
      * Reserves one call. With token or cost limits in the set, the output is capped to what every
      * member can still afford (at most {@code wanted}, or {@link #DEFAULT_OUTPUT} when {@code
-     * wanted} is null) and the call is refused if that is below {@code min(wanted, MIN_OUTPUT)}.
-     * Without them, the output is left as {@code wanted} (possibly null: no cap).
+     * wanted} is null; see the overload with a model maximum) and the call is refused if that is
+     * below {@code min(wanted, MIN_OUTPUT)}. Without them, the output is left as {@code wanted}
+     * (possibly null: no cap).
      *
      * @throws BudgetExceeded naming the first member that can't afford the call; nothing is
      *     reserved
      */
     public Lease reserve(long promptTokens, Long wanted, Pricing pricing) {
-        return reserve(promptTokens, wanted, pricing, 0);
+        return reserve(promptTokens, wanted, null, pricing, 0);
+    }
+
+    /** As {@link #reserve(long, Long, Pricing, long)} for a call that runs no searches. */
+    public Lease reserve(long promptTokens, Long wanted, Pricing pricing, long searches) {
+        return reserve(promptTokens, wanted, null, pricing, searches);
     }
 
     /**
@@ -99,8 +116,14 @@ public final class BudgetSet {
      * provider-side web searches (0 for a call that runs none). The call is refused when a member
      * has no search left; the reservation is the requested cap, and what is settled is what the
      * provider reports.
+     *
+     * <p>When {@code wanted} is null, the limit is {@code modelMaximum} (the most the model can
+     * write; null when unknown, then {@link #DEFAULT_OUTPUT}), bounded by what every member can
+     * still afford and by {@link #UNSPECIFIED_HOLD}. What is sent is what is held, so one call
+     * cannot spend more than was reserved; a caller who needs a longer answer sets the limit.
      */
-    public Lease reserve(long promptTokens, Long wanted, Pricing pricing, long searches) {
+    public Lease reserve(
+            long promptTokens, Long wanted, Long modelMaximum, Pricing pricing, long searches) {
         if (members.isEmpty()) return new Lease(this, wanted, 0, 0, 0, BigDecimal.ZERO);
         members.forEach(b -> b.lock.lock());
         BudgetEvent exhausted = null;
@@ -154,7 +177,10 @@ public final class BudgetSet {
             }
             Long output = wanted;
             if (constrainsOutput()) {
-                long target = wanted != null ? wanted : DEFAULT_OUTPUT;
+                long target =
+                        wanted != null
+                                ? wanted
+                                : modelMaximum != null ? modelMaximum : DEFAULT_OUTPUT;
                 long need = Math.min(target, MIN_OUTPUT);
                 long out = target;
                 Budget binding = null;
@@ -191,14 +217,16 @@ public final class BudgetSet {
                             binding.limits(),
                             binding.windowEndLocked());
                 }
-                output = out;
+                // With no limit asked for, never send more than is held: a call may then spend
+                // only what was reserved, so parallel calls cannot overshoot a hard budget
+                output = wanted == null ? Math.min(out, UNSPECIFIED_HOLD) : out;
             }
-            long reservedTokens = promptTokens + (output == null ? 0 : output);
+            long held = output == null ? 0 : output;
+            long reservedTokens = promptTokens + held;
             BigDecimal reservedCost =
                     pricing == null
                             ? BigDecimal.ZERO
-                            : pricing.cost(promptTokens, output == null ? 0 : output)
-                                    .add(pricing.searchCost(searches));
+                            : pricing.cost(promptTokens, held).add(pricing.searchCost(searches));
             for (Budget b : members) b.reserveLocked(reservedTokens, 1, searches, reservedCost);
             return new Lease(this, output, reservedTokens, 1, searches, reservedCost);
         } finally {

@@ -29,7 +29,7 @@ import java.util.Set;
  */
 public final class ReviewEngine {
 
-    private static final Comparator<Finding> RANK =
+    static final Comparator<Finding> RANK =
             Comparator.comparing(Finding::severity)
                     .thenComparing(Finding::lens)
                     .thenComparingInt((Finding f) -> f.where().line())
@@ -121,8 +121,12 @@ public final class ReviewEngine {
                                         + s.line()
                                         + ") matched no finding; remove it if the problem is gone."));
         }
+        // a key that is not set is about the machine, not the script: listed apart
+        List<Finding> setup = new ArrayList<>(open.stream().filter(Setup::is).toList());
+        open.removeIf(Setup::is);
         List<Finding> ranked = open;
         ranked.sort(RANK);
+        setup.sort(RANK);
         setAside.sort(Comparator.comparing((Suppressed x) -> x.finding(), RANK));
         baselined.sort(RANK);
         List<Lens> run = new ArrayList<>();
@@ -140,7 +144,8 @@ public final class ReviewEngine {
                                 "the cost estimate could not be made: " + e.getMessage()));
             }
         }
-        return new ReviewReport(input.file(), ranked, setAside, notes, run, off, cost, baselined);
+        return new ReviewReport(
+                input.file(), ranked, setAside, notes, run, off, cost, baselined, setup);
     }
 
     /**

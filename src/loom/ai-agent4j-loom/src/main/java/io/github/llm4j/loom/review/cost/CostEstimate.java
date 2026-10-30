@@ -56,6 +56,14 @@ public record CostEstimate(
         return w.unbounded() || (m.complete() && m.amount().compareTo(budgetCost) > 0);
     }
 
+    /**
+     * True when the script's token budget is at or below the worst case (or the worst case has no
+     * bound): the run stops at the cap before it could reach it, so results may be cut.
+     */
+    public boolean tokenCapStopsFirst(WorkflowCost w) {
+        return budgetTokens != null && (w.unbounded() || w.worst().tokens() >= budgetTokens);
+    }
+
     /** Models used by some workflow that have no price. */
     public List<String> unpriced() {
         return workflows.stream()

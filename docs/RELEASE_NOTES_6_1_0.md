@@ -110,7 +110,9 @@ measured it against Claude Opus 5.5 and Claude Haiku 5.5 on labelled data before
 - **Typed workflow parameters** (a language change) are deferred; embedding passes parameters as text.
 - **`weave why --verify`** (re-running a past run to confirm an explanation) is not built.
 - **Kimi, Qwen, `openai_compatible` and the Perplexity Orchestrator** are **preview**, as listed above: their fixtures come from documentation, not from the real services.
-- **`weave check` can warn that a shared prompt file is "not used by any agent"** although `shared_prompt: prompt "house-rules"` names it. The prompt is applied at run time (a test shows its text reaching the
-  model); only the warning is wrong. Tracked for a later release.
+- **Correction, 2026-10-29: in 6.1.0 and earlier, `shared_prompt` was not applied by any `weave` command.** An earlier version of this note said the prompt "is applied at run time (a test shows its text reaching
+  the model); only the warning is wrong". That was written from a unit test that parsed the script directly. A real run loads the script through `LoomLoader`, which dropped the shared prompt, so no agent was
+  ever told it. The same loading step also dropped a script's own `supervise` and `intervention` blocks. Both are fixed in 6.2.0 ([RELEASE_NOTES_6_2_0.md](RELEASE_NOTES_6_2_0.md)); until you upgrade, put rules
+  every agent must follow in each agent's own `system:` or prompt file. The warning "prompt house-rules is not used by any agent" had the same cause and is gone with it.
 - **A build made from the repository between two releases reports the version of the last release.** A jar built from the repository before this release said `6.0.0` while differing from the `6.0.0` on
   Maven Central, so a project could end up with two different `6.0.0` jars. `weave --version` also prints the build time, which tells them apart.

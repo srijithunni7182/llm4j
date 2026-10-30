@@ -1,5 +1,7 @@
 ## EXAMPLES
 weave next            what to do next in this folder
 weave next support/   for another project
+weave next --format json   the steps, the ten stages with a state each (done, failing, not-started, skipped, stale) and the one to take now, for a coding agent or the editor
+weave next --confirm real-run   record that you read one real answer and said what is right and wrong with it
 ## SEE ALSO
 weave man doctor, weave man gate

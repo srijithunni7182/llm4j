@@ -12,7 +12,11 @@ You are taking a **finished, tested workflow** to a **running, watched** one, an
 - `weave guide deploy` prints the map of this skill's chapters; `weave guide d1` ... `d8` print them. They are also in `references/` next to this file.
 - `scripts/` next to this file launches things for you: `fabric-up`, `fabric-status`, `fabric-down`, `run-observed` (`.sh` on macOS and Linux, `.ps1` on Windows). Run them with their full path from the user's project folder, read their output, and do not reimplement them by hand.
 - `weave --help`, `weave <command> --help` and `java -jar fabric.jar <command> --help` are the truth about options. Do not guess a name; look.
-- The jars the scripts use are in `bin/` next to this file (or named in `FABRIC_JAR`, `WEAVE_JAR`, `INSPECT_JAR`, `INSPECT_CORE_JAR`). Java 17 or newer is the only prerequisite (`java -version`).
+- The scripts look for each jar in this order: the variable (`FABRIC_JAR`, `WEAVE_JAR`, `INSPECT_JAR`, `INSPECT_CORE_JAR`); the editor extension's bundled jar (it holds the command line only); `bin/` next to this file; `~/.llm4j/tools/<version>/`, where `weave tools fetch fabric|inspect|all` puts what it downloads (it lists the files, asks first, checks the published checksum and refuses a development build); then a build in the repository. `weave guide --install-skill` ends with what was found and what is missing. If a jar is missing, run the `weave tools fetch` command the message names, and tell the person it will download from Maven Central. Java 17 or newer is the only prerequisite (`java -version`).
+
+## Conventions every llm4j skill follows
+
+Read `references/conventions.md` before you start. It sets nine rules the llm4j skills share: show the roadmap first and the checklist after every stage; ask whether a coordinating step needs a model; write datasets with the person; read one real answer early; read back what you wrote; run the README's commands once; ask about keys before anything else; say once that selecting text shares it; and make every skipped step visible.
 
 ## The path
 
@@ -60,6 +64,10 @@ Use `weave deploy`, not a hand-written Dockerfile. It reads the script and write
 5. `weave deploy flow.loom --verify deploy` after a change to the script says what is stale. A file they edited by hand is kept (`--force` replaces it).
 6. Read the generated README with them: what it needs, what happens on a restart, a lost node and a lost volume.
 
+## Evaluation, once it is live
+
+The weekly drift check (a fixed configuration, whatever changed), the growth of the golden dataset from incidents, and the production cases captured from real runs are part of the evaluation design in **`llm4j-eval-design`**'s `EVAL_DESIGN.md` (its run protocol and governance sections). When an incident teaches something, it becomes a case there; offer that skill when the person asks whether the evaluation is still any good.
+
 ## Rules you do not break
 
 - **A secret never goes on a command line, in a printed line or in the chat**: the admin password, a Fabric client key, a provider key, the master key. The scripts take them from the environment or standard input and store them; you never see them. If one reaches the chat, tell the user to rotate it and how.
@@ -88,8 +96,8 @@ Then **carry on with what the user asked** (run, test, package, deploy): open fi
 ## Useful commands
 
 ```
-scripts/fabric-up.sh --data ./fabric-data --port 9090          # the first time: creates the data directory and admin password (12+ characters, from the environment or --generate-password)
-scripts/fabric-status.sh --data ./fabric-data --port 9090      # running or not; which processes may report (names only)
+scripts/fabric-up.sh --data ./fabric-data --port 9090          # the first time: creates the data directory and an admin password (from LOOM_FABRIC_ADMIN_PASSWORD, else generated into <data>/admin-password.txt, owner-only, never printed); calls `weave fabric up` when the installed weave is new enough
+scripts/fabric-status.sh --data ./fabric-data --port 9090      # running or not; each client that may report, and when it last did (names and times only)
 scripts/run-observed.sh --script flow.loom --embedded 8787     # the run's own page
 scripts/run-observed.sh --script flow.loom --fabric http://127.0.0.1:9090 --name checkout --data ./fabric-data   # reports to Fabric; the client key is stored, not printed
 scripts/fabric-down.sh --data ./fabric-data                    # stop it (what it holds stays on disk)

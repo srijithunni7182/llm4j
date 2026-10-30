@@ -2,6 +2,7 @@
 #   fabric-status.ps1 [-Data DIR] [-Port N]
 param([string]$Data = '.\fabric-data', [int]$Port = 9090)
 . "$PSScriptRoot\lib.ps1"
+$rc = Weave-Fabric @('status', '--data', $Data, '--port', "$Port"); if ($null -ne $rc) { exit $rc }   # `weave fabric status` when the installed weave is new enough
 if (-not (Test-Path $Data)) { Say "No Fabric data directory at ${Data}: it has not been set up here. Run fabric-up.ps1."; exit 1 }
 $Data = (Resolve-Path $Data).Path; $pidFile = Join-Path $Data 'fabric.pid'
 if ((Test-Path $pidFile) -and (Pid-Alive (Get-Content $pidFile))) {

@@ -250,6 +250,9 @@ body.vscode-high-contrast .card { border-width: 2px; }
 .fpaths path { fill: none; stroke-width: 2; stroke-linejoin: round; }
 .fpaths .p-main { stroke: var(--accent-700); }
 .fpaths .p-detour, .fpaths .p-rejoin { stroke: var(--n500); stroke-width: 1.5; }
+.fpaths .p-fork, .fpaths .p-join { stroke: var(--accent-700); stroke-width: 2.5; }
+.fpaths .p-failure { stroke-dasharray: 5 3; }
+.edgechip.abs.lanechip { transform: none; font-weight: 600; color: var(--vscode-foreground); }
 .fpaths .p-back { stroke: var(--accent-600); stroke-width: 1.5; stroke-dasharray: 4 3; }
 /* interventions: each has its own pattern as well as its own colour, so neither alone is the signal */
 .fpaths .p-stopped, .linelegend .p-stopped { stroke: oklch(52% 0.15 45); stroke-width: 2.2; stroke-dasharray: 1.5 5; stroke-linecap: round; }
@@ -259,6 +262,16 @@ body.vscode-high-contrast .card { border-width: 2px; }
 .linelegend .sample { fill: none; }
 .linelegend.inplace { position: absolute; left: 14px; bottom: 6px; padding: 3px 8px; border: 1px solid var(--lg-line); border-radius: 6px; background: var(--vscode-editor-background, #fff); font-size: 11px; }
 .stage .card { position: absolute; max-width: none; }
+.stage .card.setcard { overflow: visible; gap: 2px; padding: 6px 10px; justify-content: center; }
+.setcard .kick { display: flex; align-items: center; gap: 6px; }
+.setcard .kick .t { font-size: 13px; white-space: nowrap; }
+.setcard .setopen { all: unset; cursor: pointer; font: 11px var(--lg-mono); color: var(--vscode-descriptionForeground); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setcard .setopen:focus-visible, .setcard .setrow:focus-visible { outline: 2px solid var(--vscode-focusBorder, var(--accent-700)); outline-offset: 1px; }
+.setcard .setlist { position: absolute; left: 0; top: 100%; z-index: 4; margin: 2px 0 0; padding: 4px; list-style: none; min-width: 100%; max-width: 360px; background: var(--vscode-editor-background); border: 1px solid var(--lg-line); box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+.setcard .setlist[hidden] { display: none; }
+.setcard .setrow { all: unset; display: block; box-sizing: border-box; width: 100%; padding: 2px 6px; cursor: pointer; font: 11.5px var(--lg-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--vscode-foreground); }
+.setcard .setrow:hover, .setcard .setrow.sel { background: var(--vscode-list-hoverBackground, rgba(127,127,127,.18)); }
+body.vscode-high-contrast .setcard .setrow.sel { outline: 1px solid var(--vscode-contrastActiveBorder, currentColor); }
 .band { position: absolute; border-top: 2px solid var(--lg-line); padding-top: 6px; display: flex; align-items: baseline; gap: 8px; overflow: hidden; white-space: nowrap; color: var(--n600); }
 .band.on { border-top-color: var(--accent); color: var(--accent-700); }
 .band .bn { font-size: 22px; font-weight: 600; line-height: 1; }

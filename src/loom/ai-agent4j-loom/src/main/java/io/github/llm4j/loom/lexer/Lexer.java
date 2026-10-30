@@ -204,24 +204,36 @@ public class Lexer {
     }
 
     private void string() {
+        // \" is a quote and \\ a backslash; any other backslash is kept as written, so \n and \t
+        // are still read later, as they always were
+        StringBuilder value = new StringBuilder();
         while (peek() != '"' && !isAtEnd()) {
-            if (peek() == '\n') {
+            char c = peek();
+            if (c == '\n') {
                 line++;
                 columnStart = current + 1; // the column counts from the character after the newline
             }
+            if (c == '\\' && (peekNext() == '"' || peekNext() == '\\')) {
+                advance();
+                value.append(peek());
+                advance();
+                continue;
+            }
+            value.append(c);
             advance();
         }
 
         if (isAtEnd()) {
-            throw new RuntimeException("Unterminated string at line " + line);
+            throw new RuntimeException(
+                    "Unterminated string at line "
+                            + line
+                            + ". A backslash before a quote escapes the quote, so a string cannot end in a single backslash:"
+                            + " write two (\\\\) for one backslash at the end.");
         }
 
         // The closing ".
         advance();
-
-        // Trim the surrounding quotes.
-        String value = source.substring(start + 1, current - 1);
-        addToken(TokenType.STRING_LITERAL, value);
+        addToken(TokenType.STRING_LITERAL, value.toString());
     }
 
     private void number() {

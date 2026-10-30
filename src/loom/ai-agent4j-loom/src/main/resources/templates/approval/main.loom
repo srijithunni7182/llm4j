@@ -35,7 +35,7 @@ workflow Main(email) {
                 note "A refund at or under the 100 dollar limit. Reply ready to send:\n{reply_text}"
             }
         } else {
-            call AskPerson(reply_text=reply_text, why="No amount could be read from the email.") -> result
+            call AskPerson(reply_text=reply_text, why="No amount could be read from the request.") -> result
         }
     } else {
         note "Reply ready to send:\n{reply_text}"

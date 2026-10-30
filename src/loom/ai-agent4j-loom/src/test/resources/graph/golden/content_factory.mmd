@@ -3,6 +3,12 @@ flowchart TD
   start(["Start"])
   n1["delegate Researcher"]
   n2["in parallel: Copywriter"]
+  subgraph n2_lane1["Copywriter"]
+    n7["delegate Copywriter"]
+  end
+  subgraph n2_lane2["Copywriter"]
+    n8["delegate Copywriter"]
+  end
   n3[/"ask a person"/]
   n4{{"approval==yes?"}}
   n5["note"]
@@ -10,9 +16,12 @@ flowchart TD
   end_(["End"])
   start --> n1
   n1 --> n2
-  n2 --> n3
+  n7 --> n3
+  n8 --> n3
   n3 --> n4
   n4 -->|then| n5
   n4 -->|else| n6
+  n2 --> n7
+  n2 --> n8
   n5 --> end_
   n6 --> end_

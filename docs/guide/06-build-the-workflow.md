@@ -148,11 +148,14 @@ workflow Main(topic) {
 }
 ```
 
+- On a `delegate`, `expecting { ... }` comes before `retry N`; a string can hold a quote as `\"` and a backslash as `\\`.
 - `retry N` tries the step again (a task that changes things is retried only if it is idempotent; `weave check` refuses otherwise).
 - `on_failure { ... }` takes over when the retries are used up, and the workflow goes on: a person is asked, a note is made, another path is taken. A step that has **no** `on_failure` ends the run as failed, and the run says which step did it: `failed_kind` (`task` or `delegate`), `failed_name`, `failed_step` and `failed_category` in the trace. A watched run shows this as a banner naming the step, and a step that went through its `on_failure` is shown as a quieter *diverted* line.
 - Decide for each task and delegate: is a failure here worth stopping the run, worth a retry, or worth a person? Do not leave it to chance.
 
 ### Rules every agent needs
+
+Put `substitution: braces` at the top of a new script so that only `{name}` is replaced; with the default (`legacy`) a bare word that is also a variable name (an `out` inside "length out of range") is replaced too. `weave check --substitution braces` shows what an existing script would change and `--fix-substitution` rewrites it after you see the diff. When a `parallel` branch may fail while the others still count, give each branch its own flag set in its `on_failure` (see `LOOM_GUIDE.md`, "Parallel branches that fall back").
 
 Put what every agent must know (house rules, a glossary, the brief) in one `shared_prompt: "…"` or `shared_prompt: prompt "house-rules"` at the top of the script instead of pasting it into each agent. It comes first in every agent's system prompt, the same bytes each time; keep dates and run ids out of it. See `LOOM_GUIDE.md`, "A Prompt Every Agent Starts With".
 

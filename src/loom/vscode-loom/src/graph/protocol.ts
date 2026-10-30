@@ -3,7 +3,7 @@ import { GraphResult, SectionInfo } from './model';
 /** What the extension tells the panel. */
 export type HostMessage =
     | { type: 'loading'; file: string }
-    | { type: 'graph'; result: GraphResult; workflow: string; sections?: Record<string, SectionInfo[]> }
+    | { type: 'graph'; result: GraphResult; workflow: string; sections?: Record<string, SectionInfo[]>; groupSets?: false }
     | { type: 'exported'; file: string | null }
     | { type: 'stale'; message: string; file?: string; line?: number }
     | { type: 'highlight'; id: string | null };

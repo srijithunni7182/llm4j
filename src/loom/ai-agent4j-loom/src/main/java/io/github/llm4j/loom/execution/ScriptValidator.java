@@ -320,7 +320,7 @@ public class ScriptValidator {
     /** Warnings about what a workflow stores and never reads (see {@link WorkflowLint}). */
     private void checkWorkflowLint(Checker c) {
         for (io.github.llm4j.loom.ast.WorkflowDef workflow : c.script().getWorkflows()) {
-            for (WorkflowLint.Finding f : WorkflowLint.check(workflow))
+            for (WorkflowLint.Finding f : WorkflowLint.check(workflow, c.script()))
                 c.warn(f.line(), f.construct(), f.message());
         }
     }

@@ -11,7 +11,7 @@ export type ReviewHostMessage =
 
 export type ReviewWebviewMessage =
     | { type: 'ready' }
-    | { type: 'reveal'; file: string; line: number; beside: boolean }
+    | { type: 'reveal'; file: string; line: number; beside: boolean; deliberate: boolean }
     | { type: 'rerun' }
     | { type: 'selectWorkflow'; name: string }
     | { type: 'fix'; ids: string[] }
@@ -47,7 +47,7 @@ export function parseReviewMessage(raw: unknown): ReviewWebviewMessage | undefin
             return { type: 'rerun' };
         case 'reveal':
             if (text(raw.file) && Number.isInteger(raw.line) && (raw.line as number) >= 1 && (raw.line as number) <= MAX_LINE) {
-                return { type: 'reveal', file: raw.file, line: raw.line as number, beside: raw.beside === true };
+                return { type: 'reveal', file: raw.file, line: raw.line as number, beside: raw.beside === true, deliberate: raw.deliberate === true };
             }
             return undefined;
         case 'selectWorkflow':
@@ -116,4 +116,13 @@ function strings(value: unknown): Record<string, string> | undefined {
         out[k] = v;
     }
     return out;
+}
+
+/**
+ * Whether a reveal request should move the editor. A click on a finding only selects it; the file
+ * opens when the person asked for it (the Go to source button, Ctrl+Enter) or when they chose the
+ * old behaviour with `loom.review.openSourceOnClick`.
+ */
+export function shouldOpenSource(message: { deliberate: boolean }, openSourceOnClick: boolean): boolean {
+    return message.deliberate || openSourceOnClick;
 }

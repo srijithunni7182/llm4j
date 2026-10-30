@@ -69,11 +69,12 @@ class HarnessSkillTest {
     }
 
     @Test
-    void allInstallsThreeSkillsAndASecondRunWithoutForceInstallsNone() {
+    void allInstallsFourSkillsAndASecondRunWithoutForceInstallsNone() {
         assertThat(guide("--install-skill", dir.toString())).isZero();
         assertThat(Guide.harnessFolder(dir).resolve("SKILL.md")).exists();
         assertThat(Guide.skillFolder(dir).resolve("SKILL.md")).exists();
         assertThat(Guide.deployerFolder(dir).resolve("SKILL.md")).exists();
+        assertThat(Guide.evalFolder(dir).resolve("SKILL.md")).exists();
         assertThat(guide("--install-skill", dir.toString())).isEqualTo(2);
         assertThat(err.toString()).contains("already in").contains("--force");
         assertThat(guide("--install-skill", dir.toString(), "--skill", "harness", "--force"))

@@ -146,7 +146,23 @@ public final class Guide {
                     "failure-modes.md",
                     "loom-mapping.md",
                     "design-record.md",
+                    "conventions.md",
                     "cost-and-models.md");
+
+    /** The references that travel with the evaluation-design skill. */
+    public static final List<String> EVAL_REFERENCES =
+            List.of(
+                    "principles.md",
+                    "oracles.md",
+                    "dataset-and-labelling.md",
+                    "quality-dimensions.md",
+                    "security-testing.md",
+                    "trajectory-and-multi-turn.md",
+                    "judge-and-pipeline.md",
+                    "eval4j-loom-mapping.md",
+                    "failure-modes.md",
+                    "design-record.md",
+                    "conventions.md");
 
     private Guide() {}
 
@@ -245,6 +261,7 @@ public final class Guide {
                     StandardCharsets.UTF_8);
             written.add("references/" + name);
         }
+        writeConventions(folder, "skill-deployer", written);
         for (String script : DEPLOYER_SCRIPTS) {
             Path target = folder.resolve("scripts").resolve(script);
             Files.writeString(
@@ -297,6 +314,57 @@ public final class Guide {
         return written;
     }
 
+    /** Where the evaluation-design skill goes inside a project. */
+    public static Path evalFolder(Path project) {
+        return project.resolve(".claude").resolve("skills").resolve("llm4j-eval-design");
+    }
+
+    /**
+     * Writes the evaluation-design skill into {@code project/.claude/skills/llm4j-eval-design}:
+     * {@code SKILL.md} and {@code references/}. It is text only: it needs no jar and no script.
+     * Without {@code force} nothing is written when the skill is already there.
+     *
+     * @return the files written, relative to the skill folder; empty when it was already there
+     */
+    public static List<String> installEvalSkill(Path project, boolean force) throws IOException {
+        Path folder = evalFolder(project);
+        if (Files.exists(folder.resolve("SKILL.md")) && !force) return List.of();
+        String skill =
+                read("skill-eval/SKILL.md")
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "this jar has no evaluation-design skill (a broken jar?)"));
+        List<String> written = new ArrayList<>();
+        Files.createDirectories(folder.resolve("references"));
+        Files.writeString(folder.resolve("SKILL.md"), skill, StandardCharsets.UTF_8);
+        written.add("SKILL.md");
+        for (String ref : EVAL_REFERENCES) {
+            Files.writeString(
+                    folder.resolve("references").resolve(ref),
+                    read("skill-eval/references/" + ref)
+                            .orElseThrow(() -> new IllegalStateException("this jar has no " + ref)),
+                    StandardCharsets.UTF_8);
+            written.add("references/" + ref);
+        }
+        return written;
+    }
+
+    /** The rules every skill shares, copied from the jar into the skill's references. */
+    private static void writeConventions(Path folder, String resourceRoot, List<String> written)
+            throws IOException {
+        Files.writeString(
+                folder.resolve("references").resolve("conventions.md"),
+                read(resourceRoot + "/references/conventions.md")
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "this jar has no conventions.md for "
+                                                        + resourceRoot)),
+                StandardCharsets.UTF_8);
+        written.add("references/conventions.md");
+    }
+
     /** Where the skill goes inside a project. */
     public static Path skillFolder(Path project) {
         return project.resolve(".claude").resolve("skills").resolve("llm4j-workflow-guide");
@@ -332,6 +400,17 @@ public final class Guide {
                                                     "this jar has no " + p.resource())),
                     StandardCharsets.UTF_8);
             written.add("references/" + name);
+        }
+        writeConventions(folder, "skill", written);
+        // the launcher for a terminal with no `weave` on its PATH
+        for (String script : new String[] {"weave", "weave.cmd"}) {
+            Optional<String> text = read("skill/scripts/" + script);
+            if (text.isEmpty()) continue;
+            Path target = folder.resolve("scripts").resolve(script);
+            Files.createDirectories(target.getParent());
+            Files.writeString(target, text.get(), StandardCharsets.UTF_8);
+            target.toFile().setExecutable(true, false);
+            written.add("scripts/" + script);
         }
         return written;
     }

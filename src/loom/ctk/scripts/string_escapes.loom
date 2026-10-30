@@ -1,0 +1,8 @@
+// A string can hold a double quote (\") and a backslash (\\); any other backslash stays as written.
+agent Greeter { model: "gemini-2.5-flash" system: "You greet people." }
+
+workflow Greet(name) {
+    delegate "Say \"hello\" to {name} and sign off as C:\\Greeter\\" to Greeter -> greeting
+    note "asked for: \"hello\", a tab (\t) and a line break (\n) stay as written"
+    return greeting
+}

@@ -188,6 +188,11 @@ public class HarnessExecutor implements LoomEngine {
                         public VariableContext context() {
                             return context;
                         }
+
+                        @Override
+                        public boolean bareNamesReplaced() {
+                            return !"braces".equals(script.getSubstitution());
+                        }
                     });
 
     /** Fills {@code {name}} and {@code {var.field}} placeholders in text the script wrote. */
@@ -486,6 +491,16 @@ public class HarnessExecutor implements LoomEngine {
                         public void trace(
                                 String type, String agent, String text, Map<String, Object> data) {
                             HarnessExecutor.this.trace(type, agent, text, data);
+                        }
+
+                        @Override
+                        public void groundedWithoutSources(String agent) {
+                            groundedWithoutSources.merge(agent, 1L, Long::sum);
+                        }
+
+                        @Override
+                        public void modelStepReached() {
+                            modelSteps.incrementAndGet();
                         }
 
                         @Override
@@ -1101,6 +1116,58 @@ public class HarnessExecutor implements LoomEngine {
         return guard == null ? text : guard.forStorage(text);
     }
 
+    // What the run produced and which steps fell back; reset when a top-level run begins.
+    private volatile String returnedValue;
+    private volatile String lastNote;
+    private final Map<String, Long> fallbacks =
+            java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>());
+    private final java.util.concurrent.atomic.AtomicLong modelSteps =
+            new java.util.concurrent.atomic.AtomicLong();
+    private final Map<String, Long> groundedWithoutSources =
+            java.util.Collections.synchronizedMap(new java.util.TreeMap<>());
+
+    /**
+     * Grounded agents that answered without any sources in this run, with how many times. A
+     * grounded answer with none usually means the model did not search.
+     */
+    public Map<String, Long> groundedWithoutSources() {
+        synchronized (groundedWithoutSources) {
+            return new java.util.TreeMap<>(groundedWithoutSources);
+        }
+    }
+
+    /**
+     * What the last top-level run produced: its {@code return}, else its last {@code note}, else
+     * {@link WorkflowOutput#NOTHING}.
+     */
+    public WorkflowOutput output() {
+        if (returnedValue != null)
+            return new WorkflowOutput(returnedValue, WorkflowOutput.Source.RETURN);
+        if (lastNote != null) return new WorkflowOutput(lastNote, WorkflowOutput.Source.NOTE);
+        return WorkflowOutput.NOTHING;
+    }
+
+    /**
+     * The steps of this run that took their {@code on_failure} fallback, by agent or task name,
+     * with how many times, in the order they first did. Empty for a run that needed none.
+     */
+    public Map<String, Long> fallbacksTaken() {
+        synchronized (fallbacks) {
+            return new java.util.LinkedHashMap<>(fallbacks);
+        }
+    }
+
+    /** How many {@code delegate} steps this run reached (whether they succeeded or fell back). */
+    public long modelSteps() {
+        return modelSteps.get();
+    }
+
+    /** How many model calls succeeded (a call that fell back to {@code on_failure} did not). */
+    public long successfulModelCalls() {
+        io.github.llm4j.telemetry.RunStats totals = tracing.stats();
+        return totals.totalModelCalls() - totals.totalModelFailures();
+    }
+
     private final RunTracing tracing =
             new RunTracing(
                     new RunTracing.Host() {
@@ -1335,6 +1402,19 @@ public class HarnessExecutor implements LoomEngine {
      */
     public io.github.llm4j.telemetry.RunStats stats() {
         return tracing.stats();
+    }
+
+    /** What each agent used in this run (successful model calls and their tokens), by name. */
+    public Map<String, AgentUsage> usageByAgent() {
+        return tracing.usageByAgent();
+    }
+
+    /**
+     * How many answers each agent had cut short at the model's output limit during this run. An
+     * answer cut mid-sentence still counts as a completed step, so the run reports it by name.
+     */
+    public Map<String, Long> truncatedAnswers() {
+        return tracing.truncatedAnswers();
     }
 
     boolean tracing() {
@@ -2411,7 +2491,7 @@ public class HarnessExecutor implements LoomEngine {
             // tools), so a stopped agent can tell whether it may have changed anything
             agentBuilder.effectClassifier((tool, args) -> !ReadClass.isRead(tool, args));
             applyContext(agentDef, agentBuilder);
-            agentBuilder.addListener(tracing.statsAdapter());
+            agentBuilder.addListener(tracing.statsAdapter(agentDef.getName()));
             if (script.getSupervisions().stream()
                     .anyMatch(d -> d.getAgent().equals(agentDef.getName())))
                 agentBuilder.addListener(Supervision.adapter());
@@ -2602,6 +2682,11 @@ public class HarnessExecutor implements LoomEngine {
         if (topLevel) {
             beginRun();
             control.reset(); // a stop asked for an earlier run is not meant for this one
+            returnedValue = null;
+            lastNote = null;
+            fallbacks.clear();
+            groundedWithoutSources.clear();
+            modelSteps.set(0);
         }
         step.set(topLevel ? workflowName : parent + ">" + workflowName);
         String ended = "completed";
@@ -2621,6 +2706,10 @@ public class HarnessExecutor implements LoomEngine {
             log.info("Workflow terminated via handoff: " + hs.getMessage());
         } catch (ReturnSignal returned) {
             log.info("Workflow returned: " + workflowName);
+            if (topLevel) {
+                Object value = context.getVariable("result");
+                returnedValue = value == null ? null : String.valueOf(value);
+            }
         } catch (io.github.llm4j.loom.runtime.RunHalted halted) {
             ended = "halted";
             endData.put("reason", halted.reason());
@@ -2759,6 +2848,7 @@ public class HarnessExecutor implements LoomEngine {
             decider.decide(decide);
         } else if (stmt instanceof NoteStmt note) {
             String noteText = resolvePayload(note.getMessage());
+            lastNote = noteText;
             log.info("NOTE: " + noteText);
             trace(TraceEvent.NOTE, null, noteText, null);
         } else if (stmt instanceof io.github.llm4j.loom.ast.HaltStmt halt) {
@@ -3242,6 +3332,7 @@ public class HarnessExecutor implements LoomEngine {
             io.github.llm4j.telemetry.ErrorCategory given,
             int attempts,
             boolean handled) {
+        if (handled && name != null) fallbacks.merge(name, 1L, Long::sum);
         Map<String, Object> d = new java.util.LinkedHashMap<>();
         d.put("kind", kind);
         d.put("name", name);

@@ -832,3 +832,96 @@ test('Flow: a graph without interventions shows no key for them', async (t) => {
   assert.equal(await p.page.locator('.linelegend').count(), 0);
   await p.close();
 });
+
+/* ---- Phase 21 R4 and R5: sets are one card, a parallel block is lanes ---- */
+
+const lanesGraph = (extra) => Object.assign({ type: 'graph', result: golden('parallel_lanes'), workflow: 'Main' }, extra || {});
+const boxes = (p, selector) => p.page.$$eval(selector, (els) => els.map((e) => { const r = e.getBoundingClientRect(); return { id: e.getAttribute('data-id'), x: r.x, y: r.y, w: r.width, h: r.height }; }));
+
+test('R4: three consecutive sets are one card that says so, and opening it lists each variable with its value', async (t) => {
+  if (skipIfNoBrowser(t)) { return; }
+  const p = await open();
+  await p.send(lanesGraph());
+  await view(p, 'flow');
+  const card = p.page.locator('.card.setcard');
+  assert.equal(await card.count(), 1);
+  assert.match(await card.getAttribute('aria-label'), /sets 3 variables: a, b, c/);
+  assert.equal(await p.page.locator('.setlist').isHidden(), true);
+  await p.page.locator('.setopen').click();
+  assert.equal(await p.page.locator('.setopen').getAttribute('aria-expanded'), 'true');
+  assert.deepEqual(await p.page.locator('.setrow').allTextContents(), ['a = 1', 'b = 2', 'c = 3']);
+  await p.close();
+});
+
+test('R4: choosing a variable in the group selects that set, with its own line', async (t) => {
+  if (skipIfNoBrowser(t)) { return; }
+  const p = await open();
+  await p.send(lanesGraph());
+  await view(p, 'flow');
+  await p.page.locator('.setopen').click();
+  await p.page.locator('.setrow[data-id=n2]').click();
+  await p.page.waitForTimeout(80);
+  assert.match(await p.page.locator('#viewHost').innerText(), /set b/);
+  assert.equal(await p.page.locator('.setrow[data-id=n2]').getAttribute('aria-pressed'), 'true');
+  assert.match(await p.page.locator('.inspector, #inspector').first().innerText(), /parallel_lanes\.loom:6|set b/);
+  await p.close();
+});
+
+test('R4: with the setting off every set is its own card', async (t) => {
+  if (skipIfNoBrowser(t)) { return; }
+  const p = await open();
+  await p.send(lanesGraph({ groupSets: false }));
+  await view(p, 'flow');
+  assert.equal(await p.page.locator('.card.k-note[data-id=n1], .card.k-note[data-id=n2], .card.k-note[data-id=n3]').count(), 3);
+  assert.equal(await p.page.locator('.setlist').count(), 0);
+  await p.close();
+});
+
+test('R5: Flow draws the parallel block as a fork, one lane per branch with its name, a failure edge and a join', async (t) => {
+  if (skipIfNoBrowser(t)) { return; }
+  const p = await open();
+  await p.send(lanesGraph());
+  await view(p, 'flow');
+  assert.ok(await p.page.locator('.fpaths .p-fork').count() >= 2, 'fork bar and ticks');
+  assert.ok(await p.page.locator('.fpaths .p-join').count() >= 2, 'join bar and ticks');
+  assert.equal(await p.page.locator('.fpaths .p-failure').count(), 2, 'a dashed edge from each step that has a failure handler');
+  assert.deepEqual(await p.page.locator('.edgechip.lanechip').allTextContents(), ['A', 'B', 'C']);
+  await p.close();
+});
+
+for (const theme of ['light', 'dark', 'hc']) {
+  test(`R5: lanes do not overlap each other or the main path in the ${theme} theme, at 100% and 200% zoom`, async (t) => {
+    if (skipIfNoBrowser(t)) { return; }
+    for (const zoom of [1, 2]) {
+      const p = await open(theme, { viewport: { width: 1700, height: 1000 } });
+      await p.page.evaluate((z) => { document.body.style.zoom = String(z); }, zoom);
+      await p.send(lanesGraph());
+      await view(p, 'flow');
+      const cards = await boxes(p, '.stage .card');
+      for (let i = 0; i < cards.length; i++) for (let j = i + 1; j < cards.length; j++) {
+        const a = cards[i], b = cards[j];
+        const overlap = a.x < b.x + b.w - 1 && b.x < a.x + a.w - 1 && a.y < b.y + b.h - 1 && b.y < a.y + a.h - 1;
+        assert.ok(!overlap, `${a.id} and ${b.id} overlap at ${zoom * 100}% in ${theme}`);
+      }
+      assert.deepEqual(p.errors, []);
+      await p.close();
+    }
+  });
+}
+
+test('A8: a graph from an older engine (a parallel block with no lanes) still draws as one step', async (t) => {
+  if (skipIfNoBrowser(t)) { return; }
+  const p = await open();
+  const result = JSON.parse(JSON.stringify(golden('parallel_lanes')));
+  const wf = result.workflows[0];
+  wf.nodes = wf.nodes.filter((n) => !n.parent);
+  wf.nodes.forEach((n) => { if (n.attrs) { delete n.attrs.lanes; } });
+  const ids = wf.nodes.map((n) => n.id);
+  wf.edges = ids.slice(0, -1).map((id, i) => ({ from: id, to: ids[i + 1] }));
+  await p.send({ type: 'graph', result, workflow: 'Main' });
+  await view(p, 'flow');
+  assert.equal(await p.page.locator('.fpaths .p-fork').count(), 0);
+  assert.equal(await p.page.locator('.stage .card[data-id=n4]').count(), 1);
+  assert.deepEqual(p.errors, []);
+  await p.close();
+});

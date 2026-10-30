@@ -20,7 +20,8 @@ import java.util.regex.Pattern;
  * <p>A part names the kind of block with a letter: {@code s} the workflow's own statements, {@code
  * a} and {@code b} the then and else of an alt (and {@code b} the body of a for each), {@code
  * r}N{@code .} a round of a loop, {@code x} the {@code on_exhausted} handler, {@code f} the {@code
- * on_failure} handler, {@code g} and {@code v} a guardrail's body and violation handler. A part
+ * on_failure} handler, {@code g} and {@code v} a guardrail's body and violation handler, {@code p}N the
+ * N-th branch (lane) of a parallel block, which is one statement. A part
  * that cannot be read stops the walk at the last node found, which is still a node the case
  * reached.
  */
@@ -61,9 +62,10 @@ public final class StepResolver {
                 if (!"s".equals(key)) break;
                 next = child(nodes, null, null, index);
             } else {
-                String branch = branch(key, current);
+                String branch = branch(key, current, index);
                 if (branch == null) break;
-                next = child(nodes, current.id(), branch, index);
+                // a branch of a parallel block is a lane of its own holding the one statement
+                next = child(nodes, current.id(), branch, key.equals("p") ? 0 : index);
             }
             if (next == null) break;
             current = next;
@@ -71,7 +73,7 @@ public final class StepResolver {
         return current == null ? Optional.empty() : Optional.of(parts[0] + "/" + current.id());
     }
 
-    private static String branch(String key, GraphNode owner) {
+    private static String branch(String key, GraphNode owner, int index) {
         return switch (key) {
             case "a" -> "then";
             case "b" -> owner.kind().equals("foreach") ? "body" : "else";
@@ -80,6 +82,7 @@ public final class StepResolver {
             case "f" -> "failure";
             case "g" -> "body";
             case "v" -> "violation";
+            case "p" -> owner.kind().equals("parallel") ? "lane " + (index + 1) : null;
             default -> null;
         };
     }

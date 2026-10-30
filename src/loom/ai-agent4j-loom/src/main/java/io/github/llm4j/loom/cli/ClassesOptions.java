@@ -19,10 +19,18 @@ final class ClassesOptions {
                     "Folder or jar with the classes of your own tasks and tools, repeatable (weave only sees what is on its class path). Default: target/classes of the project, when it has been built (mvn compile).")
     List<File> classes;
 
+    @Option(
+            names = "--no-auto-classes",
+            description =
+                    "Do not put the project's target/classes on the class path when --classes is not given.")
+    boolean noAuto;
+
     /** Puts the classes on the class path; false (after saying why) when one given is missing. */
     boolean apply(Path script, WeaveEnv env) {
         try {
-            ProjectClasses.use(script, classes);
+            List<Path> used = ProjectClasses.use(script, classes, !noAuto);
+            if (!used.isEmpty() && (classes == null || classes.isEmpty()))
+                env.err().println("note: using the project's classes from " + used.get(0) + " (--no-auto-classes turns this off)");
             return true;
         } catch (IllegalArgumentException e) {
             env.err().println("Error: " + e.getMessage());

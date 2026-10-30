@@ -30,9 +30,34 @@ class EnvExampleCheckTest {
                 project(
                         "# keys\nOPENAI_API_KEY=sk-live-abcdef123456\nEMPTY=\nOTHER=your-key-here\n");
         assertThat(EnvExampleCheck.namesWithValues(script)).containsExactly("OPENAI_API_KEY");
-        assertThat(EnvExampleCheck.warning(EnvExampleCheck.namesWithValues(script)))
+        assertThat(EnvExampleCheck.warning(EnvExampleCheck.findings(script)))
                 .contains("OPENAI_API_KEY")
                 .doesNotContain("sk-live");
+    }
+
+    @Test
+    void aUrlThatCarriesACredentialIsFlaggedWhateverItsNameIs() throws Exception {
+        Path script =
+                project(
+                        "DATABASE_URL=postgres://user:realpass@db.internal/app\n"
+                                + "SMTP_URL=smtps://u:p@mail.internal\n"
+                                + "API_URL=https://api.internal/v1\n"
+                                + "PLACEHOLDER_URL=postgres://user:<password>@host/db\n"
+                                + "NO_PASSWORD_URL=postgres://host/db\n");
+        assertThat(EnvExampleCheck.namesWithValues(script))
+                .containsExactly("DATABASE_URL", "SMTP_URL");
+        assertThat(EnvExampleCheck.warning(EnvExampleCheck.findings(script)))
+                .doesNotContain("realpass");
+    }
+
+    @Test
+    void aUrlWhosePasswordIsAReferenceToAVariableIsNotASecret() throws Exception {
+        Path script =
+                project(
+                        "DATABASE_URL=postgres://app:${DB_PASSWORD}@db/app\n"
+                                + "CACHE_URL=redis://app:$CACHE_PASS@cache:6379\n"
+                                + "REAL_URL=postgres://app:hunter2@db/app\n");
+        assertThat(EnvExampleCheck.namesWithValues(script)).containsExactly("REAL_URL");
     }
 
     @Test

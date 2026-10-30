@@ -3,11 +3,12 @@
 # secret store and is never printed or put on a command line.
 #   run-observed.sh --script FLOW.loom [--embedded [PORT]] [--linger 5m]
 #   run-observed.sh --script FLOW.loom --fabric URL --name NAME [--data FABRIC_DATA_DIR | --key-stdin] [--ca FILE] [--detail truncated|metadata|full]
-#                   [--rules FILE] [--secrets STORE] [--] [more 'weave run' options: --max-cost 0.50 --prices p.properties ...]
+#                   [--rules FILE] [--secrets STORE] [--secrets-key-file FILE] [--] [more 'weave run' options: --max-cost 0.50 --prices p.properties ...]
+# The store's master key is read from --secrets-key-file (or LOOM_SECRETS_KEY_FILE), else from STORE with .key in place of .store; a key kept elsewhere needs no link.
 # With --data (a Fabric on this computer) the client NAME is created if it does not exist. For a remote Fabric, the admin gives you the key:
 #   pipe it in with --key-stdin the first time (it is stored, then not needed again).
 . "$(dirname "$0")/lib.sh"
-SCRIPT=""; MODE=embedded; PORT=8787; URL=""; NAME=""; DATA=""; CA=""; DETAIL=""; RULES=""; STORE=""; KEYSTDIN=0; LINGER=""; REST=()
+KEYFILE_GIVEN="${LOOM_SECRETS_KEY_FILE:-}"; SCRIPT=""; MODE=embedded; PORT=8787; URL=""; NAME=""; DATA=""; CA=""; DETAIL=""; RULES=""; STORE=""; KEYSTDIN=0; LINGER=""; REST=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --script) SCRIPT="$2"; shift 2 ;;
@@ -19,6 +20,7 @@ while [ $# -gt 0 ]; do
     --detail) DETAIL="$2"; shift 2 ;;
     --rules) RULES="$2"; shift 2 ;;
     --secrets) STORE="$2"; shift 2 ;;
+    --secrets-key-file) KEYFILE_GIVEN="$2"; shift 2 ;;
     --key-stdin) KEYSTDIN=1; shift ;;
     --linger) LINGER="$2"; shift 2 ;;
     --) shift; REST=("$@"); break ;;
@@ -38,10 +40,10 @@ if [ "$MODE" = fabric ]; then
   [ -n "$URL" ] || die "--fabric needs the server's address" 2
   [ -n "$NAME" ] || die "--fabric needs --name (how this process is shown on the server)" 2
   case "$URL" in http://127.0.0.1*|http://localhost*|https://*) ;; *) die "'$URL': a process reports to a server over https (plain http is accepted only for this computer's own address)." 3 ;; esac
-  STORE="${STORE:-$SCRIPT_DIR/.loom/secrets.store}"; KEYFILE="${STORE%.store}.key"
+  STORE="${STORE:-$SCRIPT_DIR/.loom/secrets.store}"; KEYFILE="${KEYFILE_GIVEN:-${STORE%.store}.key}"
   mkdir -p "$(dirname "$STORE")"; chmod 700 "$(dirname "$STORE")" 2>/dev/null || true
   if [ ! -f "$STORE" ]; then
-    umask 077; [ -f "$KEYFILE" ] || { random_secret 40 > "$KEYFILE"; printf '\n' >> "$KEYFILE"; chmod 600 "$KEYFILE"; }
+    umask 077; mkdir -p "$(dirname "$KEYFILE")"; [ -f "$KEYFILE" ] || { random_secret 40 > "$KEYFILE"; printf '\n' >> "$KEYFILE"; chmod 600 "$KEYFILE"; }
     "${RUN[@]}" secrets create --secrets "$STORE" --secrets-key-file "$KEYFILE" >/dev/null
     say "Created the process's secret store $STORE (master key in $KEYFILE, mode 600; keep both out of git)."
   fi

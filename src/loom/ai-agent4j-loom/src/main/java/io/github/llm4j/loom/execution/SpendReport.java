@@ -76,8 +76,16 @@ public final class SpendReport {
                         "agent", "calls", "prompt", "completion", "cost"));
         byAgent().forEach((agent, t) -> out.append(row(agent, t)));
         out.append(row("total", total()));
-        if (total().estimated())
-            out.append("(some usage was estimated: a provider reported none)\n");
+        List<String> estimated =
+                byAgent().entrySet().stream()
+                        .filter(e -> e.getValue().estimated())
+                        .map(Map.Entry::getKey)
+                        .toList();
+        if (!estimated.isEmpty())
+            out.append(
+                    "(usage was estimated for "
+                            + String.join(", ", estimated)
+                            + ": the provider reported none; figures marked ~ are approximate)\n");
         return out.toString();
     }
 
@@ -97,7 +105,7 @@ public final class SpendReport {
                 t.calls(),
                 t.promptTokens(),
                 t.completionTokens(),
-                "$"
+                (t.estimated() ? "~$" : "$")
                         + (t.cost().signum() == 0
                                 ? "0"
                                 : t.cost().stripTrailingZeros().toPlainString()));

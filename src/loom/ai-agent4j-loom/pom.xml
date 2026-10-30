@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.srijithunni7182</groupId>
         <artifactId>llm4j-parent</artifactId>
-        <version>6.1.0</version>
+        <version>6.2.0-SNAPSHOT</version>
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
@@ -155,9 +155,34 @@
     </dependencies>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <configuration>
+                        <useDefaultDelimiters>false</useDefaultDelimiters>
+                        <delimiters><delimiter>@</delimiter></delimiters>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
+                <excludes>
+                    <exclude>released.properties</exclude>
+                    <exclude>templates/_java-tests/pom.xml</exclude>
+                </excludes>
+            </resource>
+            <!-- these two name the last published release (llm4j.released), not this build's -SNAPSHOT version; only @...@ is filtered -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>released.properties</include>
+                    <include>templates/_java-tests/pom.xml</include>
+                </includes>
             </resource>
             <!-- The guide, the Loom reference and the skill travel inside the jar, so `weave guide` works with no repository (see weave guide). -->
             <resource>
@@ -178,7 +203,7 @@
             <resource>
                 <directory>../../../.claude/skills/llm4j-workflow-guide</directory>
                 <targetPath>skill</targetPath>
-                <includes><include>SKILL.md</include></includes>
+                <includes><include>SKILL.md</include><include>scripts/*</include><include>references/conventions.md</include></includes>
             </resource>
             <!-- the deployer skill: its chapters, its SKILL.md and its launch scripts (the jars it launches are not here: they travel in the skill package) -->
             <resource>
@@ -189,7 +214,13 @@
             <resource>
                 <directory>../../../.claude/skills/llm4j-loom-deployer</directory>
                 <targetPath>skill-deployer</targetPath>
-                <includes><include>SKILL.md</include><include>scripts/*</include></includes>
+                <includes><include>SKILL.md</include><include>scripts/*</include><include>references/conventions.md</include></includes>
+            </resource>
+            <!-- the evaluation-design skill: text only (its SKILL.md and references) -->
+            <resource>
+                <directory>../../../.claude/skills/llm4j-eval-design</directory>
+                <targetPath>skill-eval</targetPath>
+                <includes><include>SKILL.md</include><include>references/*.md</include></includes>
             </resource>
             <!-- the harness-design skill: text only (its SKILL.md and references) -->
             <resource>
@@ -455,6 +486,9 @@
                                     <!-- what the version command prints, so two jars of "the same" version can be told apart -->
                                     <manifestEntries>
                                         <Implementation-Version>${project.version}</Implementation-Version>
+                                        <Build-Commit>${git.commit.id.abbrev}</Build-Commit>
+                                        <Build-Dirty>${git.dirty}</Build-Dirty>
+                                        <Build-Kind>${llm4j.build.kind}</Build-Kind>
                                         <Build-Time>${maven.build.timestamp}</Build-Time>
                                     </manifestEntries>
                                 </transformer>

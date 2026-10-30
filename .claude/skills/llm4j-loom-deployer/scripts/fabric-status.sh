@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Says whether the Fabric server of a data directory is running, where, and which processes may report to it (names only, never keys).
+# (delegates to `weave fabric status` when the weave in use has it) Says whether the Fabric server of a data directory is running, where, and which processes may report to it (names only, never keys).
 #   fabric-status.sh [--data DIR] [--port N]
 . "$(dirname "$0")/lib.sh"
 DATA="./fabric-data"; PORT=9090
@@ -11,6 +11,8 @@ while [ $# -gt 0 ]; do
     *) die "unknown option '$1' (see --help)" 2 ;;
   esac
 done
+rc=0; weave_fabric status --data "$DATA" --port "$PORT" || rc=$?
+[ "$rc" = 127 ] || exit "$rc"
 [ -d "$DATA" ] || { say "No Fabric data directory at $DATA: it has not been set up here. Run fabric-up.sh."; exit 1; }
 DATA="$(cd "$DATA" && pwd)"
 PIDFILE="$DATA/fabric.pid"

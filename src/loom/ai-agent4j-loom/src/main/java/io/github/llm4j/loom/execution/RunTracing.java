@@ -34,6 +34,9 @@ final class RunTracing {
             new io.github.llm4j.agent.StatsCollector();
     private final java.util.concurrent.atomic.AtomicLong compactionCount =
             new java.util.concurrent.atomic.AtomicLong();
+    private final Map<String, java.util.concurrent.atomic.LongAdder> truncatedByAgent =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, long[]> usageByAgent = new java.util.concurrent.ConcurrentHashMap<>();
 
     RunTracing(Host host) {
         this.host = host;
@@ -59,11 +62,30 @@ final class RunTracing {
         return compactionCount.get();
     }
 
+    /** What each agent used in this run: successful model calls and their tokens. */
+    Map<String, AgentUsage> usageByAgent() {
+        Map<String, AgentUsage> out = new java.util.TreeMap<>();
+        usageByAgent.forEach(
+                (agent, u) -> {
+                    synchronized (u) {
+                        out.put(agent, new AgentUsage(u[0], u[1], u[2]));
+                    }
+                });
+        return out;
+    }
+
+    /** How many answers each agent had cut short at the output limit, in the order they began. */
+    Map<String, Long> truncatedAnswers() {
+        Map<String, Long> out = new java.util.TreeMap<>();
+        truncatedByAgent.forEach((agent, n) -> out.put(agent, n.sum()));
+        return out;
+    }
+
     /**
      * Always attached to an agent: keeps the run's statistics and counts compactions, whether or
      * not anyone listens to the trace.
      */
-    io.github.llm4j.agent.AgentEventListener statsAdapter() {
+    io.github.llm4j.agent.AgentEventListener statsAdapter(String agentName) {
         return new io.github.llm4j.agent.AgentEventListener() {
             @Override
             public void onThought(String thought) {}
@@ -77,6 +99,19 @@ final class RunTracing {
             @Override
             public void onModelCall(io.github.llm4j.telemetry.ModelCallEvent event) {
                 runStats.onModelCall(event);
+                if (!event.failed()) {
+                    long[] u = usageByAgent.computeIfAbsent(agentName, k -> new long[3]);
+                    synchronized (u) {
+                        u[0]++;
+                        u[1] += event.promptTokens();
+                        u[2] += event.completionTokens();
+                    }
+                }
+                if (event.truncated())
+                    truncatedByAgent
+                            .computeIfAbsent(
+                                    agentName, k -> new java.util.concurrent.atomic.LongAdder())
+                            .increment();
             }
 
             @Override

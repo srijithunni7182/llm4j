@@ -79,6 +79,7 @@ final class ScriptedModels implements LLMClientFactory {
             private LLMResponse respond(LLMRequest request, boolean hook) {
                 int n = recorder.call(agent);
                 String task = userText(request);
+                recorder.told(agent, task);
                 var fail = failures.failsOn(agent, n);
                 if (fail.isPresent()) {
                     if (fail.get().equals("invalid_output"))

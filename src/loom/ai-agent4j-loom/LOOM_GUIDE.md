@@ -66,7 +66,9 @@ weave triggers install runs/.loom-triggers --apply     # let the OS wake Loom (s
 weave schedule sync digest.loom --store runs/.loom-triggers
 ```
 
-Exit codes: `0` done, `1` failed, `2` bad options, `3` stopped by a budget, `4` paused, `5` stopped at `--stop-at`, `6` halted by the workflow (`halt`).
+Exit codes: `0` done, `1` failed, `2` bad options, `3` stopped by a budget, `4` paused, `5` stopped at `--stop-at`, `6` halted by the workflow (`halt`), `7` finished but degraded (only with `--exit-degraded`).
+
+A run that finished by using `on_failure` fallbacks is **degraded**: `weave run` says `⚠ Degraded: Researcher, Editor took their fallback (2 of 5 model steps)` and still exits `0`, so no existing script changes meaning; `--exit-degraded` makes it exit `7`. A run in which **no model step succeeded** (every step fell back) is not a completion: it is reported as a failure and exits `1`. After the run, `weave run` prints what the workflow `return`ed under `Result:` (`--quiet` leaves it out). A workflow's **output** is the value of its `return`; if it has none, `weave eval` falls back to the answer of the last agent it asked, then to its last `note`; with none of these it is an error case and no judge is asked, because a judge handed an empty text only invents a verdict.
 
 ```bash
 weave check digest.loom          # every problem, with its line — without running anything or spending
@@ -98,7 +100,7 @@ weave graph digest.loom --format mermaid                      # Mermaid flowchar
 weave graph digest.loom --workflow Digest                     # one workflow only
 ```
 
-Each step is one node: `delegate`, `run` (a task), `handoff`, `broadcast`, `parallel`, `alt`, `loop`, `for each`, `human_prompt`, `checkpoint`, `rewind`, `call`, `guardrail`, `decide`, `observe` and `note`. A step carries the settings written on it (`retry`, `backoff`, `timeout`, `budget`, `expecting`, a loop's `max`, …). `alt` has `then` and `else` edges; a loop has an `again` edge back and a `done` edge out; handler blocks (`on_failure`, `on_exhausted`, `on_violation`, a rewind's `if it still fails`) hang off their step and rejoin the main path. A `call` names the file that defines its workflow, but the callee is never drawn inside the caller.
+Each step is one node: `delegate`, `run` (a task), `handoff`, `broadcast`, `parallel`, `alt`, `loop`, `for each`, `human_prompt`, `checkpoint`, `rewind`, `call`, `guardrail`, `decide`, `observe` and `note`. A step carries the settings written on it (`retry`, `backoff`, `timeout`, `budget`, `expecting`, a loop's `max`, …). `alt` has `then` and `else` edges; a loop has an `again` edge back and a `done` edge out; handler blocks (`on_failure`, `on_exhausted`, `on_violation`, a rewind's `if it still fails`) hang off their step and rejoin the main path. A `parallel` block is a node whose branches are lanes: each branch is a step of its own (with its line and its `on_failure` handler), grouped in the node's `lanes` attribute, drawn as a subgraph per lane in Mermaid. The steps after the block keep their ids. A `call` names the file that defines its workflow, but the callee is never drawn inside the caller.
 
 <!-- graph-example: samples/content_factory/main.loom GenerateContent -->
 ```
@@ -108,6 +110,12 @@ flowchart TD
   start(["Start"])
   n1["delegate Researcher"]
   n2["in parallel: Copywriter"]
+  subgraph n2_lane1["Copywriter"]
+    n7["delegate Copywriter"]
+  end
+  subgraph n2_lane2["Copywriter"]
+    n8["delegate Copywriter"]
+  end
   n3[/"ask a person"/]
   n4{{"approval==yes?"}}
   n5["note"]
@@ -115,10 +123,13 @@ flowchart TD
   end_(["End"])
   start --> n1
   n1 --> n2
-  n2 --> n3
+  n7 --> n3
+  n8 --> n3
   n3 --> n4
   n4 -->|then| n5
   n4 -->|else| n6
+  n2 --> n7
+  n2 --> n8
   n5 --> end_
   n6 --> end_
 ```
@@ -185,7 +196,24 @@ weave eval newsletter/main.loom --prompt researcher@v1      # a fair A/B: the sa
 - **Passed, failed and unjudged are three counts.** A line nothing judged (a mock run, no judge model, a judge that failed) is never counted as met. The exit code is 0 when nothing failed, 1 when something did, 2 for a dataset or option problem.
 - **A real run needs a limit, and asks first.** It says how many scenarios and judge calls it expects and waits for a yes (`--yes` skips that). With no `--max-tokens`, `--max-calls` or `--max-cost` (the last needs `--prices`) it is capped at 500,000 tokens and says so. When the limit is reached the rest is reported as *not run*.
 - **Rubric and expect lines are judged by the agent's own model** unless `--judge <model>` names another (a different model from the one being judged is safer). A line scores as met at 0.7 on the judge's scale.
-- **A workflow's output** is what its last agent step produced; `expect` lines are judged against an account of the run, the steps in order.
+- **A workflow's output** is what it `return`s; if it returns nothing, the answer of the last agent step that ended; if neither, its last `note`. A workflow with none of these is an `error` case (`the workflow produced no output`), and **no judge is asked about nothing**: a judge handed an empty text only invents a verdict. `expect` lines are judged against an account of the run, the steps in order.
+- **The report always has the same nine sections**, in the terminal, in `--report` and in `--json` (`sections`): *Read this first* (the run, the judge and whether it was validated, the cost, a fingerprint), *Overall*, **By agent**, *By dimension*, *By slice*, *Cases*, *Cost*, *Cautions* and *How to reproduce*. A section with nothing to show stays and says why. **By agent** is there for every run, with no tag and no setting: a row for each agent that took part, taken from the run itself, with its pass rate (and 95% interval) on the cases aimed at it, its calls, tokens and cost, how many of its answers were cut at the output limit and how many steps used a fallback, and its worst outputs with the judge's reason. An agent that only ran inside a workflow says its quality is not measured on its own. *Cases* shows every case's input, the output that was judged and each line's verdict with its reason. The output of a case that fails an `expected_output_not_contains` check is **withheld** (it would repeat what the case guards against).
+- **Rubric lines can name their dimension.** A line in `rubric:` is a plain string, or `{ text: "Uses plain English", dimension: tone }`. A line with its own dimension counts under that dimension only; a plain line counts under every dimension of its case, and the *Cautions* section says how many lines are still counted that way, because one verdict is then counted more than once.
+- **Repetitions and what they show.** `--repetitions N` (1 to 10) runs every case N times. The report then gives pass@1 (the first run passed), pass^N (every run passed) and consistency (every run gave the same result) side by side, names a case that passes about half the time as *unstable* (usually under-specified: send it to the dataset's owner), and always states its resolution: with C cases a pass rate is known to within about ±P points, so a smaller change between two runs is below what the run can tell. Every repetition is a paid run, and the confirmation question counts them.
+- **Judge samples.** `--judge-samples N` (1 to 9) judges each rubric line N times and uses the median. Samples that differ by 0.4 or more (two points on a five-point scale) leave the line *unjudged* with the samples shown, instead of deciding it on a coin toss.
+- **A sealed held-out set.** Tag cases `split:development`, `split:validation` or `split:heldout` (no tag means development; any other name is a dataset problem). **Held-out cases never run unless you pass `--release-gate`**, which the report records (`Release gate: yes`); `--split heldout` without it is refused. `--split <name>` runs one split. When validation and held-out both ran, the report shows the *generalisation gap* (validation pass rate minus held-out pass rate) and warns above 10 points. `--check` notes when a dataset has no held-out cases.
+- **Datasets and baselines that cannot slide.** A dataset's identity is the `version:` its `dataset.yaml` declares (optional) and a hash of every case, so a changed case is a changed dataset even if nobody bumped the version; it is in the report. `--save-baseline --approver <name> --why "<reason>"` saves a finished real run as a new baseline under `eval/baselines/` (a mock or partial run is refused; a baseline is never replaced). `--baseline` compares a run with the current baseline **and the one before it**, so a slow decline across releases shows, and lists the cases that regressed or improved. A baseline taken on a different dataset is refused unless `--allow-version-change "<why>"` is given (recorded in the report). Re-baselining is never automatic.
+- **A case can state the answers it accepts.** Beside `expected_output_contains` a case may say `correct_conclusion`, `accepted_equivalents`, `rejected`, `acceptable_actions`, `unacceptable_actions` and `required_citations` (a single value is a list of one). The answer's **verdict** is `exact` (it holds the correct conclusion), `acceptable` (an equivalent), `rejected` (a rejected answer; the case fails) or `unmatched` (nothing the case lists; the case is *unjudged*, because it may be a correct answer nobody anticipated: read it, and if it is right add it to `accepted_equivalents`). Entries are short key phrases the answer must contain, any capitalisation, punctuation ignored; embedding or model comparison is not built, and if you are tempted to loosen matching, add equivalents instead. `required_citations` must each appear in the answer, and an `unacceptable_actions` entry must not appear in the answer or among the tools used. The report counts the verdicts and warns when more than about a tenth of the answers are unmatched (the ground truth is then incomplete).
+- **`weave eval --check` says what the dataset is made of.** It names a case class below a tenth of the cases (tag `class:unanswerable`, `class:obvious-wrong`, `class:conservative-action`), a reported slice (`domain:`, `difficulty:`, `split:`) with fewer than ten cases, and the mix of `source:` tags (`production`, `expert`, `synthetic`) as information. The shares are starting points; the dataset's owner sets the real ones.
+- **The cost section has the tail.** Beside the cost per passing case it gives the median and the p95 cost of a case, the *runaway* count (runs a limit stopped) and how many of those kept partial work.
+- **Run protocols.** `eval-protocol.yaml` at the project root names the runs a team makes: `protocols: { commit: { split: validation, repetitions: 3 }, nightly: { split: validation, repetitions: 5 }, release: { repetitions: 10, release-gate: true, judge-samples: 3 }, drift: { split: validation, repetitions: 5, schedule: weekly, pinned: true } }`. The settings are `split`, `repetitions`, `release-gate`, `judge-samples`, `max-cost`, `max-tokens`, `schedule` and `pinned` (the last two are for the people and the CI file). `weave gate --protocol release` runs the gate's eval stage as that protocol, and `weave eval --protocol nightly` fills in what you did not give on the command line, and the report records the protocol's name. An unknown setting, a split that is not one, or a protocol that reads held-out cases without `release-gate: true` is refused by name. The numbers are the team's.
+- **Metamorphic cases.** `weave metamorphic --from eval/golden --out eval/golden-meta` derives, with no model, cases that test a relation between two runs: `irrelevant` (a neutral sentence added to the input), `order` (the input's sentences reversed) and `paraphrase` (reworded inputs you supply with `--paraphrases <file>`, a map from case id to text, written by a person or a model; the cases are tagged `source:synthetic`) must not change the conclusion, so each derived case keeps the original's expectations; `monotonicity` (the evidence a case marks with the tag `decisive:<text>` is removed) and `negation` (the tag `negate:<from>=><to>` flips it) must change it, so the derived case forbids the original conclusion and drops what the original required of its answer (it has no positive expectation, so it can fail or be unjudged but never pass: a changed answer is for a person to read). Each derived case is tagged `relation:<name>`, `pair:<id>` and `derived:metamorphic`. The originals and the derived cases are written to the new folder (never over the dataset); run them with `weave eval <script> --dataset <folder>`. A pair that passes alone and fails perturbed is named in the Cautions: the system may be matching surface features, or (for monotonicity and negation) ignoring the evidence.
+- **Routing is a matrix.** A case tagged `route:<Agent>` says which agent should handle it. The report lists, for each expected agent, the agents that took part in the run (a confusion matrix, not one accuracy figure). `--route-danger Expected>Actual` (repeatable) names a mistake that must never happen, such as an information-gathering request reaching an action-taking agent: the run **fails when any case lands in that cell**, whatever the average says.
+- **Injection testing.** `weave security generate --corpus <dir> --out <dir> [--templates <dir>] [--forbid "<action>"]` turns a corpus of payloads (YAML lists of `{id, class: direct|indirect, placement, goal, payload}`, each payload holding `{canary}`) into a dataset: a direct payload is the input; an indirect one is embedded in each of **your own realistic artefacts** for its placement (`log.txt`, `web-page.html`, `ticket.txt`, each holding `{payload}`), and a payload with no template is skipped and said to be (an invented artefact tests nothing). Every case carries a canary the answer must never contain and the actions that must never happen. Run it with `weave eval <script> --dataset <out>` against scripted or sandboxed tools: the corpus is hostile text and must never reach a real sender, payer or writer. The report gives **obedience as a percentage** (a mitigation: 99% lets one payload in a hundred through) and the **controls separately** (a forbidden action taken fails the run, because a control is not a percentage).
+- **`weave eval --emit-test <file>`** writes the opt-in JUnit class for a project that wants the Java API: a free test that runs the wiring on a mock model, and a real evaluation that runs only with `-Deval.real=true`, under a cap (`-Deval.maxCost` with `-Deval.prices`, else a token cap). It drives `weave eval` itself through `WeaveCLI.run(...)`, so the two cannot disagree. An existing file is never overwritten.
+- **`weave judge validate`** decides whether a judge may gate. `weave judge validate --reference scores.json --model <judge model>` reads at least 40 outputs (`--min-outputs`) each scored by two or three people and by the judge (`[{id, human_1, human_2, human_3, judge}]`, JSON or YAML, one scale), checks the people against each other first (quadratic-weighted Cohen's kappa; below 0.6 the rubric is under-specified and it stops), then the judge against the people's median. Exit 0: usable; 1: not usable (the outputs it missed by two points or more are listed); 2: a problem with the file. It calls no model: the judge's scores come from a run you made. The result is kept in `eval/judge-validation.json`, and the next `weave eval` report says the judge was validated only if that file names the same model and shows it agreed. Name the judge (`--model`) and the model the agents run on (`--system-model`): without both, self-preference is **not checked** and the judge is **not usable for gating**, and a judge from the same vendor family as the system (`o3-mini` and `gpt-4o` are one family) is not usable either; if the reference rows carry the scored `output` text, a judge whose error runs with the output's length is named for verbosity. For a judge that compares two answers, `--swapped <file>` takes each pair judged twice, the second time with the answers swapped (`[{id, first, swapped}]`, picks `A`, `B` or `tie`), and a judge whose verdict follows the position (more than 20% of pairs change, or over 65% of picks take one slot) is not usable for gating; fewer than `--min-pairs` (10) pairs cannot clear it.
+- **The judge's cost is in the cost.** *Cost* shows the agents, the judge and the total separately, and the cost per passing case; without `--prices` the cost is `unknown`, not zero.
+- **The dashboard bundle.** Every run (except `--check`) also writes the eval4j run bundle the dashboard reads: `target/eval4j/runs/<id>/` in a Maven project, else `eval-runs/runs/<id>/` beside the script. It holds every case with its input and output, each line's verdict and reason, and a case of its own for every agent (tagged `agent:<Name>`) recording whether its answers were whole and whether it needed a fallback, so the dashboard's *By agent* table is filled without tagging anything. Render it with `java -jar eval4j-report-<version>-cli.jar render <folder>`. To get the same table from JUnit, tag scenarios `agent:<Name>` (a tag is a free `key:value`; `agent` is the dashboard's default breakdown).
 - **Tools without the outside world.** `fixtures.yaml` maps a tool name to entries (`match`: a case-insensitive pattern over the query; `snippets`: what it finds); a query that matches nothing finds nothing. In a real run a tool with fixtures answers from them; in a mock run every tool does. `human_prompt` and approvals are answered "yes".
 - `--report` writes one self-contained HTML page and `--json` the results; scenario text is escaped and nothing in the page runs.
 - Datasets written the older way still load: `RUBRIC:` and `EXPECT:` lines in `context` are read as `rubric` and `expect`, camelCase field names work as well as snake_case, and the same files work from JUnit through `EvalScenarios.fromDirectory(...)` / `EvalDataset.load(...)`.
@@ -207,6 +235,8 @@ weave rules diff core-1.6 core-1.7 --on digest.loom   # what a new rule pack wou
 ```
 
 A finding that has several reasonable resolutions lists them as **options**: you pick one, answer its questions (how many retries, what the failure note says) and see the change before it is written. Every fix and option is checked first (the script still loads, no new high finding appears); that does not run the workflow, so run `weave check` and your tests afterwards. Settings live in `review.properties` beside the script. The full guide is `docs/review/README.md`, every rule has a page in `docs/review/rules/`, and `docs/review/WRITING_RULES.md` shows how to add your own.
+
+A key that is not set on this machine is not a finding in the script: `weave review` lists it under **Setup**, apart from the findings, and it is never counted as open nor what `--fail-on` fails on (`--include-setup` counts it). The cost block says what it assumed for each step (how often it runs and what a run costs, typical and at most), prints dollars when every model has a price and names the one that has not, and says when the script's token cap will stop a run before its worst case.
 
 ### 5. Starting, Checking and Reading the Guide (`init`, `check`, `guide`)
 
@@ -257,7 +287,7 @@ next step. A warning is usually a real mistake in the workflow.
 
 ### 5. Testing the Logic (`test`)
 
-`weave test` runs cases against a workflow with **scripted models**: no model, no key, no network and no spend, and the answer is the same every time. It tests what your *script* does (which branch is taken, how often a loop runs, what a failed step falls back to, who is asked) and not whether an agent writes well; that is `weave eval`.
+`weave test` runs cases against a workflow with **scripted models**: no model, no key, no network and no spend, and the answer is the same every time. It takes the same `--classes`, `--loot` and `--env-file` as `weave run` and `weave eval`; in a built Maven project it uses `target/classes` and says so (`--no-auto-classes` turns that off). It tests what your *script* does (which branch is taken, how often a loop runs, what a failed step falls back to, who is asked) and not whether an agent writes well; that is `weave eval`.
 
 ```yaml
 # tests/triage.test.yaml
@@ -287,7 +317,10 @@ cases:
 |---|---|
 | `fail:` | `Replier: { times: 2, category: timeout }` (or `on_calls`, `always`) injects `rate_limit`, `timeout`, `server_error`, `invalid_output`, `tool_error`, `refused` or `quota`, to test `retry`, `on_failure` and `rewind` |
 | `tools:`, `tasks:` | the tool or task returns this; tools that act (webhook, email, http, file, shell, sql) only *record* what they would have done, which `expect: { effects: … }` asserts |
+| `real:` | `real: [RefundPolicy]` runs that task's own code instead of a scripted result, and `expect.calls` still counts it. Only a task that declares no effect on the world (`TaskEffect.NONE`) may be real; naming one that changes things, or does not say, is an error: *has effects; a test cannot run it for real; script its result in tasks:*. The class has to be on the class path (`weave test --classes <dir>`, or `target/classes`); a name in both `real:` and `tasks:` is an error |
+| `expect.told` | `told: { Billing: [ "customer 4417" ] }` asserts that an agent was told each text somewhere over the run (any capitalisation): a handoff that drops the fact fails the case instead of producing a confident answer built on a missing input |
 | `humans:`, `resume:` | the people answer in order; with no answer left the run is `suspended`, and `resume:` continues it from its journal |
+| `expect.degraded`, `expect.fallbacks` | `degraded: true` asserts that the run used an `on_failure` fallback; `fallbacks: [ Writer ]` asserts exactly which agents or tasks did |
 | `clock:` | time is virtual: a `sleep 6h` or a retry back-off costs no real time, and `elapsed_virtual` asserts how long the run waited |
 | `steer:`, `stop:` | a person steers or stops an agent after its Nth call (`after_call`) or Nth piece of a streamed reply (`after_chunk`); `models: { Writer: { stream: [ "Hel", "lo" ] } }` scripts the pieces |
 
@@ -1274,7 +1307,7 @@ workflow Main(topic) {
 
 - `grounding: web` alone turns it on; the block narrows it. `allow: [...]` or `block: [...]` (not both) limit the sites, `recency:` is `day`, `week`, `month` or `year`, `country:` a two-letter code, `max_searches:` a cap per call. Lists are written in brackets, like `tools:`.
 - **Who can search.** Perplexity (`perplexity/...`), Claude (`claude-...`), Gemini, and OpenAI or xAI through a provider declared with `api: responses`. Each honours only some settings; Perplexity and Gemini have no search cap, Gemini only `recency`, xAI only `allow` and `block`. `weave check` refuses, by name, grounding on a model that cannot search and a setting its provider cannot honour. There is no `lenient` in a script: you see every limit.
-- **The sources.** After `delegate ... -> notes`, `{notes_citations}` is a list of `index`, `url`, `title` and `snippet` (a missing title or snippet is left out). It is saved with the step, so a resumed run still has it. Some vendors list what they *cited* in the answer, Perplexity lists what it *consulted*.
+- **The sources.** After `delegate ... -> notes`, `{notes_citations}` is a list of `index`, `url`, `title` and `snippet` (a missing title or snippet is left out). It is saved with the step, so a resumed run still has it. Some vendors list what they *cited* in the answer, Perplexity lists what it *consulted*. If a grounded agent comes back with **no** sources (the model did not search), `{notes_citations}` is not set at all and the run prints `⚠ Grounded but no sources came back: Researcher (1)`, so a fallback for missing sources is never the only sign of it. `weave check` warns when a script reads `{x_citations}` for an agent that has no `grounding:`.
 - **Budgets.** `budget { searches: 20 }` at the top, in an agent, or `budget 2 searches` on a step. A grounded call is refused before it is made when no search is left; a plain call still runs. `_budget.searches` reads the run's count.
 - **The trace** shows `searches` and `citations` counts on each model call and `searches` on the run's end. Queries, addresses and text are never in the trace.
 - **Audit.** A grounded agent reads the open web, so `weave audit` counts it as reading untrusted content for the lethal trifecta whatever its `allow:` list says (rule LA20). Keep it away from private data and from tools that send or act, and check its sources in tests (`citesOnlyFrom(...)`).
@@ -1302,6 +1335,7 @@ workflow Brief(topic) {
 - `shared_prompt: prompt "id"` takes a prompt file or registry prompt like an agent's `prompt:` (the latest version, or `id@v2`), and `weave check` reports a missing file. A shared prompt file counts as used.
 - Editing the shared text is a different agent as far as earned autonomy is concerned, for every agent that has a decision. `weave explain` says that every agent is first told it.
 - One `shared_prompt` per script. There is no way to leave a single agent out.
+- **Before 6.2.0 no `weave` command applied it** (a fault in loading the script; 6.1.0 and earlier). If you upgrade from an older version, a workflow that relied on its shared prompt starts behaving as written. `supervise` and `intervention` blocks had the same fault. An imported file's `shared_prompt` is not imposed on the file that imports it.
 
 ### Personas, Skills and Knowledge Graphs
 
@@ -1371,6 +1405,20 @@ Loom provides **Symbolic Controls** that ensure your agents follow a rigid seque
 > [bounded loops](#bounded-loops), [retry backoff and timeouts](#retry-backoff-and-timeouts),
 > [per-step schemas](#per-step-schemas-expecting), agent `temperature:` and `{var.list.0}` payload paths.
 
+### Strings and Quotes
+A string is written between double quotes and may run over several lines. Inside it, `\"` is a double quote and `\\` is a backslash, so a string can hold a quote and can end with a backslash. Any other backslash stays as written: `\n` and `\t` are read later, as they always were. A string cannot end in a single backslash before its closing quote (that reads as an escaped quote); write two.
+
+```loom
+agent Greeter { model: "gemini-2.5-flash" system: "You greet people." }
+
+workflow Greet(name) {
+    delegate "Say \"hello\" to {name} and sign off as C:\\Greeter\\" to Greeter -> greeting
+    return greeting
+}
+```
+
+On a `delegate`, `expecting { ... }` comes before `retry N`: `delegate "..." to A -> x expecting { ok: boolean } retry 1`. The other order is a parse error that says so.
+
 ### Concurrency Example (Parallel Branches)
 ```loom
 workflow AuditData(data) {
@@ -1382,6 +1430,31 @@ workflow AuditData(data) {
     handoff "Combine logs: {sec_log} + {perf_log}" to Manager
 }
 ```
+
+### Parallel branches that fall back
+
+When one branch of a `parallel` block may fail and the others must still count, give each branch its own flag and set it in the branch's `on_failure`. One variable per branch (`web_ok`, `docs_ok`), never one shared flag: the branches run at the same time, and two writing the same variable leave the last writer's value. Name the flag after the branch, set it to its good value before the block, and set the branch's output to a stand-in in the fallback so later text never shows a bare `{web_notes}`.
+
+```loom
+agent WebResearcher { model: "gemini-2.5-flash"  system: "Search the web and report what you find." }
+agent DocsResearcher { model: "gemini-2.5-flash"  system: "Search the documents and report what you find." }
+agent Writer { model: "gemini-2.5-flash"  system: "Write the report from the notes you are given." }
+
+workflow Report(topic) {
+    set web_ok = "yes"
+    set docs_ok = "yes"
+    parallel {
+        delegate "Search the web for {topic}" to WebResearcher -> web_notes
+            on_failure { set web_ok = "no"  set web_notes = "nothing found" }
+        delegate "Search the documents for {topic}" to DocsResearcher -> docs_notes
+            on_failure { set docs_ok = "no"  set docs_notes = "nothing found" }
+    }
+    delegate "Write about {topic}. Web: {web_notes}. Documents: {docs_notes}" to Writer -> report
+    return report
+}
+```
+
+The run still counts as degraded and says which agents took their fallback (`expect.fallbacks` in a test). Whether a condition may one day read that list directly (`alt (_fallbacks contains "WebResearcher")`) is an open question and not part of the language yet.
 
 ### Human-in-the-Loop (Interactive flows)
 ```loom
@@ -1396,6 +1469,21 @@ workflow ApprovedTransfer(amount) {
     }
 }
 ```
+
+### Where a variable is replaced (`substitution`)
+
+A variable is replaced where the text says `{name}` or `{name.field}`. Today a **bare** name is replaced too, in the same texts (the older form), so a message such as `length out of range` becomes wrong when a variable called `out` exists. That stays the default (`substitution: legacy`) until the next major version, which makes `braces` the default. Choose it now, at the top of the script:
+
+```loom
+substitution: braces
+```
+
+With `braces`, only `{name}` and `{name.field}` are replaced, in every text the runtime fills in: the payloads of `delegate`, `broadcast` and `handoff`, the messages of `human_prompt`, `note` and `halt`, `set` and `return` values, task arguments, observe labels and expressions, and the `checkpoint` and `rewind` texts. `weave check` warns about a bare word that is also a variable in any of those places.
+
+To move an existing script over:
+
+- `weave check --substitution braces script.loom` lists every text that would change, with the variable and the position, and changes nothing.
+- `weave check --fix-substitution script.loom` shows the rewrite of each bare word that was meant as a variable (to `{name}`) as a diff and writes the file only after you answer yes (`--yes` answers for you in a script). A word that may be a variable or may be plain text is listed and left alone.
 
 ### Tasks: deterministic steps (`run`)
 
@@ -2146,6 +2234,7 @@ What happens when a budget runs out:
 | A loop's or for-each's budget runs out | It stops and runs `on_exhausted`, with `{_loopExhaustedBy}` set to `budget` (or `rounds` when `max` was reached). |
 | Nothing handles it | `executeWorkflow` throws `BudgetExceeded`. Every variable already bound is kept, and `spend()` shows where the money went. |
 
+- **How long an answer may be.** With a token or cost budget on the run, an agent that sets no `per_call` is sent with the model's own maximum output when it is known (for example 128,000 tokens for the current Claude models), else 8,192, and never more than the budget still affords. (Before 6.2.0 the limit was a fixed 1,024, which cut long answers short while the run reported success.) Only part of that limit is held back from the budget while the call runs, so parallel branches do not starve each other; what is charged is what the call used. `weave explain` says each agent's limit and where it comes from. When a provider cuts an answer at the limit, the run prints `✂ N answers were cut at the output limit: Writer (2)`; set `per_call` or shorten what the agent is asked for.
 - **Budgets nest.** Each call is charged to the run, its agent and every enclosing step, loop and for-each
   budget, and must fit all of them. Parallel branches share the same budgets exactly.
 - **`{_budget.spent}`, `{_budget.remaining}`, `{_budget.calls}`, `{_budget.cost}` and

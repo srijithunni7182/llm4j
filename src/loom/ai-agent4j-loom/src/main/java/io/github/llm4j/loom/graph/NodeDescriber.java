@@ -178,7 +178,8 @@ final class NodeDescriber {
                     .attrs(Attrs.create().text("text", h.getMessage()));
         }
         if (st instanceof io.github.llm4j.loom.ast.SetStmt s) {
-            return new Described(Kinds.SET, "set " + s.getName());
+            return new Described(Kinds.SET, "set " + s.getName())
+                    .attrs(Attrs.create().text("value", valueText(s.getValue())));
         }
         if (st instanceof io.github.llm4j.loom.ast.ReturnStmt) {
             return new Described(Kinds.RETURN, "return");
@@ -270,6 +271,19 @@ final class NodeDescriber {
                         Attrs.create()
                                 .list("agents", new ArrayList<>(agents))
                                 .positive("branches", p.getBody().size()));
+    }
+
+    /** A value as the script wrote it, short: an object shows only its field names. */
+    private static String valueText(io.github.llm4j.loom.ast.ValueExpr value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Text t) return "\"" + t.text() + "\"";
+        if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Num n) return n.literal();
+        if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Bool b) return String.valueOf(b.value());
+        if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Ref r) return r.path();
+        io.github.llm4j.loom.ast.ValueExpr.Obj o = (io.github.llm4j.loom.ast.ValueExpr.Obj) value;
+        return "{ " + String.join(", ", o.fields().keySet()) + " }";
     }
 
     private static String cut(String text) {

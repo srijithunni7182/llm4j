@@ -2,6 +2,7 @@
 #   fabric-down.ps1 [-Data DIR]
 param([string]$Data = '.\fabric-data')
 . "$PSScriptRoot\lib.ps1"
+$rc = Weave-Fabric @('down', '--data', $Data); if ($null -ne $rc) { exit $rc }   # `weave fabric down` when the installed weave is new enough
 $pidFile = Join-Path $Data 'fabric.pid'
 if (-not (Test-Path $pidFile)) { Say "Fabric is not running (no pid file in $Data). Nothing to do."; exit 0 }
 $p = Get-Content $pidFile

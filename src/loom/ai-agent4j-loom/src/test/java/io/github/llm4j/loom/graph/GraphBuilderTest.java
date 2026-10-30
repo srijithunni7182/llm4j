@@ -21,18 +21,24 @@ class GraphBuilderTest {
     private static final String AGENTS = "agent A { model: \"m\" }\nagent B { model: \"m\" }\n";
 
     @Test
-    void theContentFactoryWorkflowHasEightNodesAndEightEdges() {
+    void theContentFactoryWorkflowHasItsEightStepsAndTheTwoBranchesOfItsParallelBlock() {
         WorkflowGraph graph = graphOfFile("samples/content_factory/main.loom", "GenerateContent");
 
-        assertThat(ids(graph)).containsExactly("start", "n1", "n2", "n3", "n4", "n5", "n6", "end");
+        // Phase 21 R5 changed this on purpose: the parallel block's two branches are nodes now
+        // (n7, n8), laid out after the main path so n3 to n6 keep the ids they always had
+        assertThat(ids(graph))
+                .containsExactly("start", "n1", "n2", "n3", "n4", "n5", "n6", "n7", "n8", "end");
         assertThat(edges(graph))
                 .containsExactly(
                         "start->n1",
                         "n1->n2",
-                        "n2->n3",
+                        "n7->n3",
+                        "n8->n3",
                         "n3->n4",
                         "n4->n5[then]",
                         "n4->n6[else]",
+                        "n2->n7",
+                        "n2->n8",
                         "n5->end",
                         "n6->end");
         assertThat(graph.nodes().stream().map(GraphNode::kind).collect(Collectors.toList()))
@@ -44,6 +50,8 @@ class GraphBuilderTest {
                         "alt",
                         "note",
                         "note",
+                        "delegate",
+                        "delegate",
                         "end");
     }
 
@@ -152,7 +160,7 @@ class GraphBuilderTest {
     }
 
     @Test
-    void aParallelBlockIsOneNodeStandingForTheWholeRound() {
+    void aParallelBlockIsOneNodeWhoseBranchesAreLanes() {
         WorkflowGraph graph =
                 graphOf(
                         AGENTS
@@ -167,12 +175,14 @@ class GraphBuilderTest {
                 """,
                         "W");
 
-        assertThat(ids(graph)).containsExactly("start", "n1", "end");
+        // the block keeps the id and attributes it always had; its three branches follow as lanes
+        assertThat(ids(graph)).containsExactly("start", "n1", "n2", "n3", "n4", "end");
         assertThat(node(graph, "n1").kind()).isEqualTo("parallel");
         assertThat(node(graph, "n1").label()).isEqualTo("in parallel: A, B");
         assertThat(node(graph, "n1").attrs())
                 .containsEntry("agents", List.of("A", "B"))
-                .containsEntry("branches", 3L);
+                .containsEntry("branches", 3L)
+                .containsKey("lanes");
     }
 
     @Test

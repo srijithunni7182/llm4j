@@ -42,6 +42,16 @@ import picocli.CommandLine.Parameters;
         })
 public class WeaveCLI implements Callable<Integer> {
 
+    /**
+     * {@code -v} gives the INFO lines, {@code -vv} the FINE ones; the answer is printed either way.
+     */
+    @CommandLine.Option(
+            names = {"-v", "--verbose"},
+            scope = CommandLine.ScopeType.INHERIT,
+            description =
+                    "Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed.")
+    boolean[] verbosity = new boolean[0];
+
     @Override
     public Integer call() throws Exception {
         CommandLine.usage(this, System.out);
@@ -155,6 +165,17 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin private InvokerOptions invokerOptions = new InvokerOptions();
 
         @Option(
+                names = "--exit-degraded",
+                description =
+                        "Exit with code 7 when the run finished but some step used its on_failure fallback (default: 0).")
+        private boolean exitDegraded;
+
+        @Option(
+                names = {"-q", "--quiet"},
+                description = "Do not print the workflow's returned value after the run.")
+        private boolean quiet;
+
+        @Option(
                 names = "--review-notice",
                 paramLabel = "high|medium|low|off",
                 description =
@@ -199,6 +220,8 @@ public class WeaveCLI implements Callable<Integer> {
                         trace,
                         stopAt,
                         maxRewinds,
+                        exitDegraded,
+                        quiet,
                         env);
             } finally {
                 observed.finish();
@@ -419,6 +442,49 @@ public class WeaveCLI implements Callable<Integer> {
             String stopAt,
             Integer maxRewinds,
             WeaveEnv env) {
+        return run(
+                scriptFile,
+                lootFile,
+                workflowName,
+                inputs,
+                maxTokens,
+                maxCalls,
+                maxCost,
+                pricesFile,
+                journal,
+                store,
+                wait,
+                lenient,
+                trace,
+                stopAt,
+                maxRewinds,
+                false,
+                true,
+                env);
+    }
+
+    /** The exit code a degraded run (finished, but with fallbacks) ends with when asked for. */
+    static final int EXIT_DEGRADED = 7;
+
+    static int run(
+            File scriptFile,
+            File lootFile,
+            String workflowName,
+            Map<String, String> inputs,
+            Long maxTokens,
+            Long maxCalls,
+            String maxCost,
+            File pricesFile,
+            Path journal,
+            Path store,
+            boolean wait,
+            boolean lenient,
+            String trace,
+            String stopAt,
+            Integer maxRewinds,
+            boolean exitDegraded,
+            boolean quiet,
+            WeaveEnv env) {
         if (trace != null && !trace.equals("text") && !trace.equals("json")) {
             env.err().println("Error: --trace takes text or json, got " + trace);
             return 2;
@@ -450,7 +516,10 @@ public class WeaveCLI implements Callable<Integer> {
         if (result.exit() == 4 && wait && runDir != null && result.resumeAt() != null) {
             return waitForRun(runDir, storeDir, env);
         }
-        return result.exit();
+        if (result.exit() == 0 && !quiet) Runs.printResult(result.output(), env);
+        return result.exit() == 0 && result.degraded() && exitDegraded
+                ? EXIT_DEGRADED
+                : result.exit();
     }
 
     /**
@@ -531,6 +600,24 @@ public class WeaveCLI implements Callable<Integer> {
                         "Treat warnings as errors (exit 2), so a build can require a clean script.")
         private boolean strict;
 
+        @Option(
+                names = "--substitution",
+                paramLabel = "braces",
+                description =
+                        "Preview what would change under `substitution: braces`: every string where a variable's bare name is replaced today. Writes nothing.")
+        private String substitution;
+
+        @Option(
+                names = "--fix-substitution",
+                description =
+                        "Rewrite the bare words that were meant as variables to {name}, after showing the changed lines and asking. A word inside another word is left for you.")
+        private boolean fixSubstitution;
+
+        @Option(
+                names = "--yes",
+                description = "With --fix-substitution: do not ask, write the rewrite.")
+        private boolean yes;
+
         @CommandLine.Mixin private SecretOptions secrets = new SecretOptions();
 
         @CommandLine.Mixin private EnvFileOptions envFile = new EnvFileOptions();
@@ -543,6 +630,9 @@ public class WeaveCLI implements Callable<Integer> {
 
         @Override
         public Integer call() {
+            if (substitution != null || fixSubstitution)
+                return SubstitutionCheck.run(
+                        scriptFile, substitution, fixSubstitution, yes, WeaveEnv.system());
             WeaveEnv env = envFile.apply(WeaveEnv.system(), scriptFile.toPath());
             if (env == null
                     || !classesOptions.apply(scriptFile.toPath(), env)
@@ -739,8 +829,9 @@ public class WeaveCLI implements Callable<Integer> {
         if (lootFile != null && lootFile.exists())
             new LootLoader().loadIntoRegistry(lootFile.getAbsolutePath(), registry);
         java.util.List<String> keyWarnings = new java.util.ArrayList<>();
-        java.util.List<String> keyNames = EnvExampleCheck.namesWithValues(scriptFile.toPath());
-        if (!keyNames.isEmpty()) keyWarnings.add(EnvExampleCheck.warning(keyNames));
+        java.util.List<EnvExampleCheck.Finding> inTemplates =
+                EnvExampleCheck.findings(scriptFile.toPath());
+        if (!inTemplates.isEmpty()) keyWarnings.add(EnvExampleCheck.warning(inTemplates));
         java.util.List<String> reachProblems =
                 lootFile != null && lootFile.exists()
                         ? LootLoader.reachProblems(lootFile.toPath())
@@ -1170,29 +1261,50 @@ public class WeaveCLI implements Callable<Integer> {
                 description = "The rules file (default: <script>.inspect).")
         private File rules;
 
+        @Option(
+                names = "--init",
+                description =
+                        "Write a commented starter rules file beside the script (never over an existing one). Everything in it is a comment, so nothing changes until you uncomment a line.")
+        private boolean init;
+
+        /** What a new rules file holds: all comments, so the defaults still apply. */
+        private static final String STARTER =
+                "# Rules for this workflow: what counts as trouble, per agent. Everything is optional;\n"
+                        + "# the defaults are sensible. Uncomment a line and change it to make an agent more or less\n"
+                        + "# sensitive. Check the file with: weave observe rules <script>\n"
+                        + "#\n"
+                        + "# Researcher { context_nearly_full: warn at 80%, high at 92% }\n"
+                        + "# Editor     { same_action: 3 times }\n"
+                        + "# *          { paused_longer_than: 90s\n"
+                        + "#              compaction_thrash: 4 in 10 calls\n"
+                        + "#              tool_success_rate: below 70% over 10 calls\n"
+                        + "#              access_denied: 3 in 60s }\n";
+
         @Override
         public Integer call() {
             if (!script.exists()) {
                 System.err.println("Error: Script file not found: " + script);
                 return 2;
             }
+            File file =
+                    rules != null
+                            ? rules
+                            : new File(
+                                    script.getParentFile() == null
+                                            ? new File(".")
+                                            : script.getParentFile(),
+                                    script.getName().replaceFirst("\\.[^.]*$", "") + ".inspect");
+            if (init) return writeStarter(file);
+            if (!hasRules(file)) {
+                System.out.println(
+                        file
+                                + (file.exists() ? " has no rules" : " does not exist")
+                                + ": the defaults apply. weave observe rules "
+                                + script
+                                + " --init writes a commented starter file.");
+                return 0;
+            }
             try {
-                File file =
-                        rules != null
-                                ? rules
-                                : new File(
-                                        script.getParentFile() == null
-                                                ? new File(".")
-                                                : script.getParentFile(),
-                                        script.getName().replaceFirst("\\.[^.]*$", "")
-                                                + ".inspect");
-                if (!file.exists()) {
-                    System.err.println(
-                            "Error: no rules file: "
-                                    + file
-                                    + " (create it, or pass --observe-rules)");
-                    return 2;
-                }
                 LoomScript loaded =
                         new io.github.llm4j.loom.execution.LoomLoader()
                                 .load(script.getAbsolutePath());
@@ -1205,6 +1317,40 @@ public class WeaveCLI implements Callable<Integer> {
                     | RuntimeException e) {
                 System.err.println("Error: " + e.getMessage());
                 return 2;
+            }
+        }
+
+        private static int writeStarter(File file) {
+            if (file.exists()) {
+                System.err.println(
+                        "Error: " + file + " already exists; --init never overwrites a file.");
+                return 2;
+            }
+            try {
+                java.nio.file.Files.writeString(file.toPath(), STARTER);
+            } catch (java.io.IOException e) {
+                System.err.println("Error: could not write " + file + ": " + e.getMessage());
+                return 2;
+            }
+            System.out.println(
+                    "Wrote "
+                            + file
+                            + " (all comments: the defaults still apply until you uncomment a line).");
+            return 0;
+        }
+
+        /**
+         * Whether the file holds a rule: anything left after blank lines and {@code #} / {@code //}
+         * comments.
+         */
+        private static boolean hasRules(File file) {
+            if (!file.isFile()) return false;
+            try {
+                return java.nio.file.Files.readAllLines(file.toPath()).stream()
+                        .map(String::strip)
+                        .anyMatch(l -> !l.isEmpty() && !l.startsWith("#") && !l.startsWith("//"));
+            } catch (java.io.IOException e) {
+                return true; // let the add-on say what is wrong with it
             }
         }
     }
@@ -1550,13 +1696,6 @@ public class WeaveCLI implements Callable<Integer> {
     }
 
     /**
-     * Commands that run for a while and report as they go keep Loom's progress lines; every other
-     * command prints only its own answer.
-     */
-    private static final java.util.Set<String> PROGRESS =
-            java.util.Set.of("run", "resume", "tick", "daemon");
-
-    /**
      * Commands that load the script again for every case: the loader's warnings (they are the
      * check's and the review's to report) would be printed once for each case.
      */
@@ -1568,17 +1707,21 @@ public class WeaveCLI implements Callable<Integer> {
         java.util.logging.Level before = loom.getLevel();
         String command =
                 parseResult.hasSubcommand() ? parseResult.subcommand().commandSpec().name() : "";
-        boolean quiet =
-                !PROGRESS.contains(command) && !"info".equalsIgnoreCase(System.getenv("WEAVE_LOG"));
-        if (quiet)
-            loom.setLevel(
-                    ONCE_IS_ENOUGH.contains(command)
-                                    && !"warn".equalsIgnoreCase(System.getenv("WEAVE_LOG"))
-                            ? java.util.logging.Level.OFF
-                            : java.util.logging.Level
-                                    .WARNING); // "Loading Loom script" on every command buried the
-        // answers;
-        // WEAVE_LOG=info brings them back
+        Object root = parseResult.commandSpec().userObject();
+        int verbosity = root instanceof WeaveCLI w ? w.verbosity.length : 0;
+        String env = System.getenv("WEAVE_LOG");
+        java.util.logging.Level level;
+        if (verbosity >= 2) level = java.util.logging.Level.FINE;
+        else if (verbosity == 1 || "info".equalsIgnoreCase(env))
+            level = java.util.logging.Level.INFO;
+        else if (ONCE_IS_ENOUGH.contains(command) && !"warn".equalsIgnoreCase(env))
+            // the loader's warnings are the check's and the review's to report, not once per case
+            level = java.util.logging.Level.OFF;
+        else level = java.util.logging.Level.WARNING;
+        loom.setLevel(level);
+        if (parseResult.hasSubcommand()
+                && parseResult.subcommand().commandSpec().userObject() instanceof EvalCommand e)
+            e.verbose = verbosity >= 1;
         try {
             return new CommandLine.RunLast().execute(parseResult);
         } finally {
@@ -1638,16 +1781,35 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new ExplainCommand())
                 .addSubcommand(new NextCommand())
                 .addSubcommand(new EvalCommand())
+                .addSubcommand(new JudgeCommand())
+                .addSubcommand(new MetamorphicCommand())
+                .addSubcommand(new SecurityCommand())
+                .addSubcommand(new ProbeCommand())
                 .addSubcommand(new TestCommand())
                 .addSubcommand(new ServeCommand())
                 .addSubcommand(new InitCommand())
                 .addSubcommand(new GuideCommand())
                 .addSubcommand(new ManCommand())
-                .addSubcommand(new SecretCommands());
+                .addSubcommand(new SecretCommands())
+                .addSubcommand(new ToolsCommand())
+                .addSubcommand(new FabricCommand())
+                .addSubcommand(new PreflightCommand());
     }
 
     public static void main(String[] args) {
-        System.exit(commandLine().execute(args));
+        System.exit(run(args));
+    }
+
+    /**
+     * Runs {@code weave} with these arguments and returns its exit code, without ending the JVM:
+     * for a test or a program that drives the command line (the JUnit class of {@code weave eval
+     * --emit-test} uses it).
+     *
+     * @param args what would follow {@code weave} on the command line
+     * @return the exit code
+     */
+    public static int run(String... args) {
+        return commandLine().execute(args);
     }
 
     /**
@@ -1665,32 +1827,20 @@ public class WeaveCLI implements Callable<Integer> {
     static final class BuildVersion implements CommandLine.IVersionProvider {
         @Override
         public String[] getVersion() {
-            Package p = WeaveCLI.class.getPackage();
-            String version = p == null ? null : p.getImplementationVersion();
-            String built = null;
-            try {
-                java.net.URL url = WeaveCLI.class.getResource("WeaveCLI.class");
-                if (url != null && url.toString().startsWith("jar:")) {
-                    String jar = url.toString().substring(0, url.toString().indexOf("!/") + 2);
-                    try (java.io.InputStream in =
-                            new java.net.URL(jar + "META-INF/MANIFEST.MF").openStream()) {
-                        built =
-                                new java.util.jar.Manifest(in)
-                                        .getMainAttributes()
-                                        .getValue("Build-Time");
-                    }
-                }
-            } catch (java.io.IOException | RuntimeException e) {
-                built = null;
-            }
-            if (version == null) return new String[] {"weave (run from classes, not a built jar)"};
-            return new String[] {
-                "weave "
-                        + version
-                        + (built == null ? "" : " (built " + built + ")")
-                        + ", serve protocol "
-                        + io.github.llm4j.loom.serve.Server.PROTOCOL
-            };
+            return new String[] {line(io.github.llm4j.BuildIdentity.ofClass(WeaveCLI.class))};
+        }
+
+        /**
+         * {@code weave 6.2.0-SNAPSHOT (development, 3d683a35, built 2026-10-29T15:30:00Z), serve
+         * protocol 1}: enough for a bug report to find the commit, and for the editor to read the
+         * protocol.
+         */
+        static String line(io.github.llm4j.BuildIdentity identity) {
+            if (identity.fromClasses()) return "weave (run from classes, not a built jar)";
+            return "weave "
+                    + identity.describe()
+                    + ", serve protocol "
+                    + io.github.llm4j.loom.serve.Server.PROTOCOL;
         }
     }
 }

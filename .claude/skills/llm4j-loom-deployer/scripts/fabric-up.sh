@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Brings up a Fabric server in the background: creates its data directory and admin password the first time, starts it, waits until it answers.
+# Brings up a Fabric server in the background (delegates to `weave fabric up` when the weave in use has it; the logic below is the fallback): creates its data directory and admin password the first time, starts it, waits until it answers.
 #   fabric-up.sh [--data DIR] [--port N] [--bind ADDR] [--generate-password] [-- extra 'fabric serve' options]
 # The admin password is never taken from a command line and never printed: set LOOM_FABRIC_ADMIN_PASSWORD (12+ characters) for the first start, or pass
 # --generate-password to have one written to DIR/admin-password.txt (mode 600) for the developer to read. A second run changes nothing.
@@ -17,6 +17,9 @@ while [ $# -gt 0 ]; do
     *) die "unknown option '$1' (see --help)" 2 ;;
   esac
 done
+# one implementation: `weave fabric up` when the installed weave is new enough (it also generates the password by default, so --generate-password changes nothing)
+rc=0; weave_fabric up --data "$DATA" --port "$PORT" --bind "$BIND" ${EXTRA[@]+-- "${EXTRA[@]}"} || rc=$?
+[ "$rc" = 127 ] || exit "$rc"
 need_java
 JAR="$(fabric_jar)"
 mkdir -p "$DATA"; DATA="$(cd "$DATA" && pwd)"

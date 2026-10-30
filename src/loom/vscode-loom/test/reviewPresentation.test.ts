@@ -2,7 +2,7 @@ import { strict as assert } from 'assert';
 import { test } from 'node:test';
 import { codeLensFor, diagnosticsFor, DIAGNOSTIC_SOURCE, statusFor, typicalCost, worstCost } from '../src/review/presentation';
 import { MUTE_KEY, RunNotice } from '../src/review/runNotice';
-import { parseReviewMessage } from '../src/review/protocol';
+import { parseReviewMessage, shouldOpenSource } from '../src/review/protocol';
 import { atLeast, countsText, countsOf, parseReview } from '../src/review/model';
 import { reviewFixture } from './reviewSupport';
 
@@ -118,9 +118,36 @@ test('R42, A17: the run notice is offered once for an unchanged script, never wh
 test('the panel may send only the four messages the extension understands', () => {
     assert.deepEqual(parseReviewMessage({ type: 'ready' }), { type: 'ready' });
     assert.deepEqual(parseReviewMessage({ type: 'rerun' }), { type: 'rerun' });
-    assert.deepEqual(parseReviewMessage({ type: 'reveal', file: 'a.loom', line: 3, beside: true }), { type: 'reveal', file: 'a.loom', line: 3, beside: true });
+    assert.deepEqual(parseReviewMessage({ type: 'reveal', file: 'a.loom', line: 3, beside: true }), { type: 'reveal', file: 'a.loom', line: 3, beside: true, deliberate: false });
+    assert.deepEqual(parseReviewMessage({ type: 'reveal', file: 'a.loom', line: 3, beside: true, deliberate: true }), { type: 'reveal', file: 'a.loom', line: 3, beside: true, deliberate: true });
     assert.deepEqual(parseReviewMessage({ type: 'selectWorkflow', name: 'Main' }), { type: 'selectWorkflow', name: 'Main' });
     for (const bad of [null, 'x', {}, { type: 'exec', cmd: 'rm' }, { type: 'reveal', file: 'a', line: 0 }, { type: 'reveal', file: '', line: 1 }, { type: 'reveal', file: 'a', line: 1.5 }, { type: 'selectWorkflow' }]) {
         assert.equal(parseReviewMessage(bad), undefined, JSON.stringify(bad));
     }
+});
+
+test('R1: a click only selects a finding; the source opens on a deliberate act or when the setting says so', () => {
+    const click = { type: 'reveal' as const, file: 'a.loom', line: 3, beside: true, deliberate: false };
+    const chosen = { ...click, deliberate: true };
+    assert.equal(shouldOpenSource(click, false), false);
+    assert.equal(shouldOpenSource(click, true), true, 'loom.review.openSourceOnClick restores the old behaviour');
+    assert.equal(shouldOpenSource(chosen, false), true);
+});
+
+test('R9: setup findings in the review JSON (a key that is not set) are never counted as open findings', () => {
+    const raw = JSON.parse(JSON.stringify(reviewFixture('risky').review));
+    const real = (raw.findings ?? []).length;
+    const withSetup = parseReview({
+        version: 1,
+        file: 'main.loom',
+        summary: { total: real, high: 0, medium: 0, low: 0, info: 0, setup: 2 },
+        findings: [],
+        setup: [
+            { rule: 'LV02', lens: 'validity', severity: 'high', title: 'agent A: model needs GEMINI_API_KEY in the environment or the secret store', why: '', fix: 'set it', location: { file: 'main.loom', line: 1 } },
+        ],
+        notes: [],
+    });
+    assert.ok(withSetup, 'a review with a setup list still reads');
+    assert.deepEqual(countsOf(withSetup), { high: 0, medium: 0, low: 0, info: 0 });
+    assert.equal(withSetup!.findings.length, 0);
 });

@@ -83,6 +83,7 @@
     var previous = state.workflow;
     state.result = message.result;
     state.sections = message.sections || {};
+    state.groupSets = message.groupSets !== false;
     state.stale = null; $('stale').hidden = true;
     renderRunBudget(); renderFiles(); renderDiagnostics();
     if (!message.result.workflows.length) { renderWorkflowSelect(null); state.model = null; showEmpty(); return; }
@@ -98,7 +99,7 @@
     var wf = workflowNamed(name);
     if (!wf) { return; }
     state.workflow = wf.name;
-    state.model = M.build(wf, { sections: state.sections[wf.name + '@' + wf.file], workflows: state.result.workflows });
+    state.model = M.build(wf, { sections: state.sections[wf.name + '@' + wf.file], workflows: state.result.workflows, groupSets: state.groupSets !== false });
     if (!keep) { state.collapsed = new Set(); }
     else { state.collapsed = new Set(Array.from(state.collapsed).filter(function (id) { return !!state.model.by[id]; })); }
     if (!state.selected || !state.model.by[state.selected]) { state.selected = defaultSelection(); }
@@ -233,7 +234,7 @@
 
   function context() {
     return {
-      view: state.view, model: state.model, selected: state.selected, collapsed: state.collapsed, agents: agentMap(),
+      view: state.view, model: state.model, selected: state.selected, collapsed: state.collapsed, openSets: state.openSets || (state.openSets = new Set()), agents: agentMap(),
       chips: function (raw) { return G.chips(raw); }, budgetLine: budgetLine,
       on: {
         select: function (id, reveal) { select(id, { reveal: reveal !== false }); },

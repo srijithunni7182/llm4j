@@ -42,6 +42,7 @@ public final class JsonReport {
         root.put("suppressed", r.suppressed().stream().map(JsonReport::suppressed).toList());
         root.put("accepted", r.suppressed().stream().map(JsonReport::suppressed).toList());
         root.put("baselined", r.baselined().stream().map(JsonReport::finding).toList());
+        root.put("setup", r.setup().stream().map(JsonReport::finding).toList());
         root.put("notes", r.notes().stream().map(JsonReport::note).toList());
         return root;
     }
@@ -51,6 +52,7 @@ public final class JsonReport {
         s.put("total", r.findings().size());
         s.put("accepted", r.suppressed().size());
         s.put("baselined", r.baselined().size());
+        s.put("setup", r.setup().size());
         for (Severity sev : Severity.values()) s.put(sev.word(), r.count(sev));
         Map<String, Object> lenses = new LinkedHashMap<>();
         lenses.put("ran", ids(r.lensesRun()));

@@ -13,6 +13,7 @@ import io.github.llm4j.model.LLMResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,8 +23,9 @@ import java.util.Set;
 /**
  * Grounding with Google Search for Gemini: the {@code googleSearch} tool in the request and the
  * sources read from the candidate's {@code groundingMetadata}. Checked against a grounded answer
- * and stream recorded from the real API (2026-10-22), and the request with a recency interval was
- * accepted by it.
+ * and stream recorded from the real API (2026-10-22). The recency request has not been recorded
+ * from the real API: an earlier note here said it was accepted, which held only on a clock with
+ * millisecond precision (see {@code GoogleRecencyWholeSecondsTest}).
  *
  * <p>Gemini's supports give segment positions as <b>UTF-8 byte offsets</b> into the answer; they
  * become Java string offsets here, and a segment that does not fit the answer is dropped. The
@@ -48,9 +50,12 @@ final class GoogleGrounding {
     static void addTool(ArrayNode tools, Grounding grounding, Instant now) {
         ObjectNode search = tools.addObject().putObject("googleSearch");
         if (grounding.recency() != null) {
+            // Gemini rejects sub-second digits ("Granularity of nano is not supported"), and a
+            // clock with micro- or nanosecond precision produces them.
+            Instant end = now.truncatedTo(ChronoUnit.SECONDS);
             search.putObject("timeRangeFilter")
-                    .put("startTime", now.minus(within(grounding.recency())).toString())
-                    .put("endTime", now.toString());
+                    .put("startTime", end.minus(within(grounding.recency())).toString())
+                    .put("endTime", end.toString());
         }
     }
 

@@ -49,6 +49,10 @@ this skill's `references/` folder and in the tools:
 10. **Test the harness, not just the agents.** Kill it mid-run, fail its tools, exhaust its budget, feed it hostile input, and check
     it does what the design says.
 
+## Conventions every llm4j skill follows
+
+Read `references/conventions.md` before you start. It sets nine rules the llm4j skills share: show the roadmap first and the checklist after every stage; ask whether a coordinating step needs a model; write datasets with the person; read one real answer early; read back what you wrote; run the README's commands once; ask about keys before anything else; say once that selecting text shares it; and make every skipped step visible.
+
 ## The path
 
 | # | Stage | Read | Gate before moving on |
@@ -129,6 +133,10 @@ record first, and say what changed and why.
 - An approval nobody can reach when the run is unattended.
 - A green mock run. It proves the wiring, not the behaviour.
 - A dashboard nobody has been shown, and incident rules nobody wrote.
+
+## Where evaluation meets the harness
+
+How the workflow will be **evaluated** is a design of its own: the **`llm4j-eval-design`** skill writes `EVAL_DESIGN.md`. The two records point at each other: the bounds that must fire and the loop-induction cases (stage 4 here) are tested from `EVAL_DESIGN.md`, and its trajectory and security stages name this record's boundary table and human gates. Offer it when the person asks how to test the workflow or whether it is any good.
 
 ## Review is advice, and the decision is the user's
 

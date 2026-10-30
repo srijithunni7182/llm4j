@@ -122,6 +122,7 @@
       node.title = n.label + (folded ? ' (click to show its steps)' : ' (click to hide its steps)');
       fold = el('span', { class: 'ln', text: (folded ? '▸ ' : '▾ ') + n.children.length + ' steps' });
     }
+    if (variant === 'flow' && n.kind === 'set') { return setCard(ctx, n, node); }
     if (variant === 'flow') {
       node.appendChild(el('div', { class: 'kick' }, badge(n.vk, size), el('span', { class: 'kname', text: (VK[n.vk] || VK.unknown).name.toUpperCase() }), fold));
       node.appendChild(el('div', { class: 't', text: n.label }));
@@ -135,6 +136,37 @@
       variant === 'stack' ? chipRow(ctx, n, 3) : null,
       variant === 'stack' ? toolChips(ctx, n, 'names') : null,
       variant === 'compact' ? toolChips(ctx, n, 'count') : null));
+    return node;
+  }
+
+  /** One `set`, or a run of them, as a small card; a run lists its members (name and value, cut short) when opened. */
+  function setCard(ctx, n, node) {
+    var ids = n.setGroup ? n.setGroup.ids : [n.id], members = ids.map(function (id) { return ctx.model.by[id]; });
+    var selectedMember = ids.indexOf(ctx.selected) >= 0;
+    node.classList.add('setcard');
+    if (selectedMember) { node.classList.add('sel'); node.setAttribute('aria-pressed', 'true'); }
+    function text(member) { var v = (member.raw.attrs || {}).value; return member.label.replace(/^set /, '') + (v ? ' = ' + (v.length > 28 ? v.slice(0, 27) + '…' : v) : ''); }
+    var title = ids.length > 1 ? 'sets ' + ids.length + ' variables' : n.label;
+    node.setAttribute('aria-label', ids.length > 1 ? title + ': ' + members.map(function (x) { return x.label.replace(/^set /, ''); }).join(', ') : 'Note: ' + n.label);
+    node.appendChild(el('div', { class: 'kick' }, badge('note', 20), el('span', { class: 't', text: title })));
+    if (ids.length === 1) {
+      var value = (n.raw.attrs || {}).value;
+      if (value) { node.appendChild(el('div', { class: 'sub', text: text(n).replace(/^[^=]*= /, '= ') })); }
+      return node;
+    }
+    var open = !!(ctx.openSets && ctx.openSets.has(n.id));
+    var list = el('ul', { class: 'setlist', role: 'list' }, members.map(function (member) {
+      return el('li', null, el('button', { type: 'button', class: 'setrow' + (member.id === ctx.selected ? ' sel' : ''), 'data-id': member.id, 'aria-pressed': member.id === ctx.selected ? 'true' : 'false', title: member.label + (member.line ? ' (line ' + member.line + ')' : ''), text: text(member), onclick: function (e) { e.stopPropagation(); if (ctx.openSets) { ctx.openSets.add(n.id); } ctx.on.select(member.id, false); } }));
+    }));
+    list.hidden = !open;
+    var toggle = el('button', { type: 'button', class: 'setopen', 'aria-expanded': open ? 'true' : 'false', 'aria-label': (open ? 'Hide' : 'Show') + ' the ' + ids.length + ' variables', text: (open ? '▾ ' : '▸ ') + members.map(function (x) { return x.label.replace(/^set /, ''); }).join(', '), onclick: function (e) {
+      e.stopPropagation();
+      var shown = list.hidden; list.hidden = !shown; toggle.setAttribute('aria-expanded', String(shown));
+      toggle.textContent = (shown ? '▾ ' : '▸ ') + members.map(function (x) { return x.label.replace(/^set /, ''); }).join(', ');
+      if (ctx.openSets) { if (shown) { ctx.openSets.add(n.id); } else { ctx.openSets.delete(n.id); } }
+    } });
+    node.appendChild(toggle);
+    node.appendChild(list);
     return node;
   }
 
@@ -295,27 +327,70 @@
 
   /* -------------------------------------------------------------------- flow */
 
-  var FLOW = { W: 184, G: 44, X0: 24, SY: 56, SH: 104, DH: 56, DG: 12, PILL_W: 110, PILL_H: 48 };
+  var FLOW = { W: 184, G: 44, X0: 24, SY: 56, SH: 104, DH: 56, DG: 12, PILL_W: 110, PILL_H: 48, SET_W: 170 };
 
   /** The positions of everything in the Flow view, from the model alone (so it can be tested without a page). */
   function flowLayout(m, collapsed) {
     var shown = Object.create(null); M.visibleOrder(m, collapsed).forEach(function (n) { shown[n.id] = true; });
     var F = FLOW, pos = Object.create(null), drops = [], paths = [], labels = [], maxY = F.SY + F.SH;
     function edgeLabel(a, b) { var e = m.out[a].filter(function (x) { return x.to === b; })[0]; return e && e.label; }
-    m.main.forEach(function (id, i) {
-      var n = m.by[id], pill = n.vk === 'term';
-      pos[id] = { x: F.X0 + i * (F.W + F.G), y: pill ? F.SY + (F.SH - F.PILL_H) / 2 : F.SY, w: pill ? F.PILL_W : F.W, h: pill ? F.PILL_H : F.SH };
+    var column = Object.create(null), columns = 0;
+    m.main.forEach(function (id) {
+      var n = m.by[id], pill = n.vk === 'term', small = n.kind === 'set';
+      column[id] = n.inSetGroup ? column[n.inSetGroup] : columns++;
+      pos[id] = { x: F.X0 + column[id] * (F.W + F.G), y: pill || small ? F.SY + (F.SH - F.PILL_H) / 2 : F.SY, w: pill ? F.PILL_W : small ? F.SET_W : F.W, h: pill || small ? F.PILL_H : F.SH };
     });
-    var midY = F.SY + F.SH / 2;
+    var midY = F.SY + F.SH / 2, maxX = 0;
+    /**
+     * A parallel block's lanes, under the block: a fork bar down its left, one lane per branch (the branch's step, then its failure
+     * handler under it on a dashed edge), and a join bar up the gap after the block that meets the main line.
+     */
+    function laneBlock(id) {
+      var owner = m.by[id], p = pos[id];
+      if (!owner.lanes || !shown[id] || (collapsed && collapsed.has && collapsed.has(id))) { return; }
+      var lx = p.x + 22, x = lx + 18, w = F.W - 34, y = F.SY + F.SH + 40, joinX = p.x + F.W + F.G / 2, deepest = null, lastHead = null;
+      owner.lanes.forEach(function (lane) {
+        var ids = lane.nodes.filter(function (nid) { return shown[nid]; });
+        if (!ids.length) { return; }
+        labels.push({ t: lane.label, x: x, y: y - 14, lane: true });
+        var depthOf = Object.create(null);
+        ids.forEach(function (nid, k) {
+          var n = m.by[nid], parent = n.parent && depthOf[n.parent] != null ? n.parent : null;
+          var ind = parent ? Math.min((depthOf[parent] + 1) * 18, 54) : 0;
+          depthOf[nid] = parent ? depthOf[parent] + 1 : 0;
+          pos[nid] = { x: x + ind, y: y, w: w - ind, h: F.DH };
+          drops.push(nid);
+          var mid = y + F.DH / 2;
+          if (!parent) {
+            paths.push({ d: 'M' + lx + ' ' + mid + 'H' + (x - 2), cls: 'p-fork' });
+            lastHead = mid;
+          } else {
+            var q = pos[parent];
+            paths.push({ d: 'M' + (q.x + 10) + ' ' + (q.y + q.h) + 'V' + mid + 'H' + (x + ind - 2), cls: 'p-detour p-failure' });
+            labels.push({ t: edgeLabel(parent, nid) || 'then', x: q.x + 16, y: q.y + q.h - 2 });
+          }
+          paths.push({ d: 'M' + (x + ind + w - ind) + ' ' + mid + 'H' + joinX, cls: 'p-join' });
+          deepest = mid;
+          y += F.DH + F.DG;
+        });
+        y += 22;
+      });
+      if (deepest === null) { return; }
+      paths.push({ d: 'M' + lx + ' ' + (F.SY + F.SH) + 'V' + lastHead, cls: 'p-fork' });
+      paths.push({ d: 'M' + joinX + ' ' + deepest + 'V' + midY, cls: 'p-join' });
+      maxY = Math.max(maxY, y);
+      maxX = Math.max(maxX, joinX + F.X0);
+    }
     m.main.forEach(function (id, i) {
-      if (!i) { return; }
+      if (!i || m.by[id].inSetGroup) { return; }
       var q = pos[m.main[i - 1]], p = pos[id];
       paths.push({ d: 'M' + (q.x + q.w) + ' ' + midY + 'H' + (p.x - 2), cls: 'p-main' });
       var t = edgeLabel(m.main[i - 1], id);
       if (t) { labels.push({ t: t, x: (q.x + q.w + p.x) / 2, y: midY - 22 }); }
     });
     m.main.forEach(function (id) {
-      var off = m.nodes.filter(function (n) { return !n.main && n.anchor === id && shown[n.id] && n.kind !== 'start' && n.kind !== 'end'; });
+      laneBlock(id);
+      var off = m.nodes.filter(function (n) { return !n.main && !n.lane && n.anchor === id && shown[n.id] && n.kind !== 'start' && n.kind !== 'end'; });
       if (!off.length) { return; }
       var p = pos[id], lx = p.x + 22, y = F.SY + F.SH + 40, anchor = m.by[id];
       var first = off[0], why = edgeLabel(id, first.id) || (first.parent && edgeLabel(first.parent, first.id)) || first.branch || 'then';
@@ -389,7 +464,7 @@
       var a = pos[ids[0]], b = pos[ids[ids.length - 1]];
       bands.push({ index: i, n: s.n, title: s.title, x: a.x - F.G / 2 + 6, w: b.x + (m.by[ids[ids.length - 1]].vk === 'term' ? F.W : b.w) - a.x + F.G - 12 });
     });
-    return { pos: pos, drops: drops, paths: paths, labels: labels, bands: bands, width: F.X0 * 2 + m.main.length * (F.W + F.G), height: maxY + 30 };
+    return { pos: pos, drops: drops, paths: paths, labels: labels, bands: bands, width: Math.max(F.X0 * 2 + columns * (F.W + F.G), maxX), height: maxY + 30 };
   }
 
   function flow(ctx) {
@@ -411,9 +486,9 @@
       c.style.left = px(p.x); c.style.top = px(p.y); c.style.width = px(p.w); c.style.height = px(p.h);
       stage.appendChild(c);
     }
-    m.main.forEach(function (id) { place(m.by[id], 'flow'); });
+    m.main.forEach(function (id) { if (!m.by[id].inSetGroup) { place(m.by[id], 'flow'); } });
     L.drops.forEach(function (id) { place(m.by[id], 'drop'); });
-    L.labels.forEach(function (l) { var chip = el('span', { class: 'edgechip abs', text: l.t }); chip.style.left = px(l.x); chip.style.top = px(l.y); stage.appendChild(chip); });
+    L.labels.forEach(function (l) { var chip = el('span', { class: 'edgechip abs' + (l.lane ? ' lanechip' : ''), text: l.t }); chip.style.left = px(l.x); chip.style.top = px(l.y); stage.appendChild(chip); });
     var lines = lineLegend(M.lineKinds(m));
     if (lines) { lines.classList.add('inplace'); stage.appendChild(lines); }
     return el('div', { class: 'flow dots', tabindex: '-1' }, stage);

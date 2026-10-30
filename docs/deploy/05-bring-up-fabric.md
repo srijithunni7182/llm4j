@@ -11,11 +11,13 @@ Ask the user for an admin password, or have one made. **It never goes on a comma
 ```
 # the user sets it in their own shell (12 or more characters), then you run:
 scripts/fabric-up.sh --data ./fabric-data --port 9090
-# or, to have a strong one written to a private file (the script prints only the path):
-scripts/fabric-up.sh --data ./fabric-data --port 9090 --generate-password
+# or leave it out: the first start writes a strong one to <data>/admin-password.txt (readable by you only) and prints only the path.
+# `--generate-password` is still accepted and changes nothing.
 ```
 
-(Windows: `scripts\fabric-up.ps1 -Data .\fabric-data -Port 9090 [-GeneratePassword]`.) The script initialises the data directory the first time (the vault, the admin password hash, `master.key`), starts the server in the background, waits for it to answer, and says where it is and where the password is. Running it again changes nothing. Then:
+The same thing without the scripts: `weave fabric up --data ./fabric-data --port 9090`, then `weave fabric status` and `weave fabric down`. The scripts call these when your `weave` has them. `status` lists each client that may report with when it last did (`billing: last reported 2026-10-30T09:56:00Z (4 minutes ago)`, or `never reported`), which answers "is my process reporting?".
+
+(Windows: `scripts\fabric-up.ps1 -Data .\fabric-data -Port 9090`.) The script initialises the data directory the first time (the vault, the admin password hash, `master.key`), starts the server in the background, waits for it to answer, and says where it is and where the password is. Running it again changes nothing. Then:
 
 ```
 scripts/fabric-status.sh --data ./fabric-data --port 9090

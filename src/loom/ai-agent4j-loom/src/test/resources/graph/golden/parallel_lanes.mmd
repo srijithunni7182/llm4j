@@ -1,0 +1,35 @@
+%% workflow Main
+flowchart TD
+  start(["Start"])
+  n1["set a"]
+  n2["set b"]
+  n3["set c"]
+  n4["in parallel: A, B, C"]
+  subgraph n4_lane1["A"]
+    n6["delegate A"]
+    n9["note"]
+  end
+  subgraph n4_lane2["B"]
+    n7["delegate B"]
+  end
+  subgraph n4_lane3["C"]
+    n8["delegate C"]
+    n10["note"]
+  end
+  n5["return"]
+  end_(["End"])
+  start --> n1
+  n1 --> n2
+  n2 --> n3
+  n3 --> n4
+  n6 --> n5
+  n9 --> n5
+  n7 --> n5
+  n8 --> n5
+  n10 --> n5
+  n5 --> end_
+  n4 --> n6
+  n4 --> n7
+  n4 --> n8
+  n6 -->|failure| n9
+  n8 -->|failure| n10

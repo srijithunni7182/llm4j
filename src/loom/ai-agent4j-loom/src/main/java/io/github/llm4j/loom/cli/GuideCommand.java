@@ -32,14 +32,15 @@ final class GuideCommand implements Callable<Integer> {
     @Option(
             names = "--install-skill",
             description =
-                    "Write the skills and the guide into <dir>/.claude/skills (default: this folder): llm4j-harness-design (design the harness), llm4j-workflow-guide (build, test, secure, ship) and llm4j-loom-deployer (run it, watched).",
+                    "Write the skills and the guide into <dir>/.claude/skills (default: this folder): llm4j-eval-design (design the evaluation), llm4j-harness-design (design the harness), llm4j-workflow-guide (build, test, secure, ship) and llm4j-loom-deployer (run it, watched).",
             arity = "0..1",
             fallbackValue = ".")
     File installTo;
 
     @Option(
             names = "--skill",
-            description = "With --install-skill: harness, workflow, deployer or all (default all).",
+            description =
+                    "With --install-skill: eval, harness, workflow, deployer or all (default all).",
             defaultValue = "all")
     String which;
 
@@ -62,10 +63,10 @@ final class GuideCommand implements Callable<Integer> {
 
     static int guide(GuideCommand c, WeaveEnv env) {
         if (c.installTo != null) {
-            if (!List.of("all", "harness", "workflow", "deployer").contains(c.which)) {
+            if (!List.of("all", "eval", "harness", "workflow", "deployer").contains(c.which)) {
                 env.err()
                         .println(
-                                "Error: --skill is harness, workflow, deployer or all (not "
+                                "Error: --skill is eval, harness, workflow, deployer or all (not "
                                         + c.which
                                         + ").");
                 return 2;
@@ -108,6 +109,25 @@ final class GuideCommand implements Callable<Integer> {
                     }
                 }
                 boolean claude = targets.contains("claude");
+                if (claude && (c.which.equals("all") || c.which.equals("eval"))) {
+                    List<String> written = Guide.installEvalSkill(project, c.force);
+                    if (written.isEmpty())
+                        env.err()
+                                .println(
+                                        "The skill is already in "
+                                                + Guide.evalFolder(project)
+                                                + ". Use --force to replace it.");
+                    else {
+                        installed++;
+                        env.out()
+                                .println(
+                                        "Installed the skill in "
+                                                + Guide.evalFolder(project)
+                                                + " ("
+                                                + written.size()
+                                                + " files): it designs how the workflow will be evaluated and writes an EVAL_DESIGN.md before the golden dataset is built.");
+                    }
+                }
                 if (claude && (c.which.equals("all") || c.which.equals("harness"))) {
                     List<String> written = Guide.installHarnessSkill(project, c.force);
                     if (written.isEmpty())
@@ -164,6 +184,15 @@ final class GuideCommand implements Callable<Integer> {
                                                 + written.size()
                                                 + " files): it takes a finished workflow to a running, watched one. Its scripts are in scripts/; the jars they launch come with the skill package (bin/) or from FABRIC_JAR, WEAVE_JAR, INSPECT_JAR and INSPECT_CORE_JAR.");
                     }
+                }
+                if (claude && (c.which.equals("all") || c.which.equals("deployer"))) {
+                    env.out().println();
+                    io.github.llm4j.loom.install.InstallSummary.lines(
+                                    Path.of(System.getProperty("user.home")),
+                                    env.env() == null ? System::getenv : env.env(),
+                                    Guide.deployerFolder(project),
+                                    io.github.llm4j.BuildIdentity.ofClass(WeaveCLI.class).describe())
+                            .forEach(env.out()::println);
                 }
                 return installed == 0 ? 2 : 0;
             } catch (java.io.IOException | IllegalStateException e) {

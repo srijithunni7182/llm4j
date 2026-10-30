@@ -73,6 +73,18 @@ public class LoomParser {
                                         "Expect a folder for prompts, e.g. prompts: \"./prompts\".")
                                 .getValue(),
                         keyword.getLine());
+            } else if (isNamedAttribute("substitution")) {
+                // Contextual, like shared_prompt: stays usable as a name everywhere else.
+                Token keyword = advance();
+                advance(); // the colon
+                Token mode = advance();
+                if (!"braces".equals(mode.getValue()) && !"legacy".equals(mode.getValue()))
+                    throw error(
+                            mode,
+                            "substitution is braces (only {name} is replaced) or legacy (a bare name is replaced too), not "
+                                    + mode.getValue()
+                                    + ".");
+                script.setSubstitution(mode.getValue());
             } else if (isNamedAttribute("shared_prompt")) {
                 // Contextual: stays usable as a name everywhere else.
                 Token keyword = advance();
@@ -3433,13 +3445,16 @@ public class LoomParser {
 
     private RuntimeException error(Token token, String message) {
         return new RuntimeException(
-                "Parse error at line "
-                        + token.getLine()
-                        + " col "
-                        + token.getColumn()
-                        + " ("
-                        + token.getType()
-                        + "): "
-                        + message);
+                io.github.llm4j.loom.hints.KnownMistakes.withHint(
+                        "Parse error at line "
+                                + token.getLine()
+                                + " col "
+                                + token.getColumn()
+                                + " ("
+                                + token.getType()
+                                + "): "
+                                + message,
+                        tokens,
+                        tokens.indexOf(token)));
     }
 }

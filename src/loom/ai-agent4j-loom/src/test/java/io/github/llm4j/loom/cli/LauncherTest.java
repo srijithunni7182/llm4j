@@ -183,18 +183,13 @@ class LauncherTest {
     }
 
     @Test
-    void theJbangAliasPointsAtTheCliJarOfThisVersion() throws Exception {
+    void theJbangAliasPointsAtTheCliJarOfAPublishedVersion() throws Exception {
         JsonNode catalog = new ObjectMapper().readTree(ROOT.resolve("jbang-catalog.json").toFile());
         JsonNode alias = catalog.path("aliases").path("weave");
-        String pom = Files.readString(ROOT.resolve("src/loom/ai-agent4j-loom/pom.xml"));
-        java.util.regex.Matcher m =
-                java.util.regex.Pattern.compile(
-                                "<parent>.*?<version>([^<]+)</version>",
-                                java.util.regex.Pattern.DOTALL)
-                        .matcher(pom);
-        assertThat(m.find()).isTrue();
+        // main carries the next -SNAPSHOT; the catalogue names the last published release, which
+        // ReleasedVersionSourceOfTruthTest ties to the parent pom
         assertThat(alias.path("script-ref").asText())
-                .isEqualTo("io.github.srijithunni7182:ai-agent4j-loom:" + m.group(1) + ":cli");
+                .matches("io\\.github\\.srijithunni7182:ai-agent4j-loom:\\d+\\.\\d+\\.\\d+:cli");
         assertThat(alias.path("java").asText()).isEqualTo("17+");
         assertThat(alias.path("description").asText()).contains("try");
     }
@@ -237,7 +232,7 @@ class LauncherTest {
         assertThat(v).hasSize(1);
         assertThat(v[0])
                 .matches(
-                        "weave \\S+( \\(built [^)]+\\))?, serve protocol \\d+|weave \\(run from classes.*");
+                        "weave \\S+ \\([^)]+\\), serve protocol \\d+|weave \\(run from classes.*");
     }
 
     private static void deleteTree(Path p) throws Exception {

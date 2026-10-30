@@ -25,6 +25,13 @@ public final class TextReport {
         if (r.cost() != null)
             for (String line : CostText.lines(r.cost()))
                 b.append("Cost     ").append(Safe.line(line)).append('\n');
+        if (r.cost() != null) {
+            List<String> assumed = CostText.assumedLines(r.cost());
+            if (!assumed.isEmpty()) {
+                b.append("Assumed per step (override with --assume, or assume.* in review.properties)\n");
+                for (String line : assumed) b.append("  ").append(Safe.line(line)).append('\n');
+            }
+        }
         if (!r.findings().isEmpty()) b.append('\n');
         for (Finding f : r.findings()) {
             b.append(
@@ -53,6 +60,16 @@ public final class TextReport {
                     b.append(" [").append(o.id()).append("] ").append(Safe.line(o.label()));
                 b.append('\n');
             }
+        }
+        if (!r.setup().isEmpty()) {
+            b.append('\n').append("Setup (about this machine, not a finding in the script; set it up and run again)\n");
+            for (Finding f : r.setup())
+                b.append("  ")
+                        .append(where(f))
+                        .append("  ")
+                        .append(Safe.line(f.title()))
+                        .append('\n');
+            b.append("  fix: set the key in the environment, a .env beside the script, or the secret store (weave secrets); --include-setup counts these as findings\n");
         }
         if (!r.suppressed().isEmpty()) {
             b.append('\n')

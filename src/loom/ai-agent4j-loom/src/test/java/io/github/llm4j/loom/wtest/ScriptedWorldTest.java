@@ -263,6 +263,25 @@ class ScriptedWorldTest {
                 .anyMatch(f -> f.contains("task RefundPolicy has no scripted result"));
     }
 
+    @Test
+    void aScriptedTaskResultWithTheReservedKeyValueSaysWhatToWriteInstead() throws Exception {
+        String withTask =
+                "workflow Main(message) {\n run RefundPolicy(amount = 40) -> verdict\n return verdict\n}\n";
+
+        TestRunner.CaseResult r =
+                one(
+                        withTask,
+                        cases(
+                                "  - name: reserved\n    input: { message: x }\n    tasks: { RefundPolicy: { value: 12, verdict: allow } }\n"));
+
+        assertThat(r.failures())
+                .anyMatch(
+                        f ->
+                                f.contains("`value` is reserved in a scripted result")
+                                        && f.contains("plain string")
+                                        && f.contains("answer"));
+    }
+
     // ---- people
 
     static final String ASKS =
