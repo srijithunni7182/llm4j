@@ -25,8 +25,10 @@ weave guide deploy                   # the map; weave guide d1 ... d8 print the 
 
 `fabric-up`, `fabric-status`, `fabric-down` and `run-observed` (`.sh` for macOS and Linux, `.ps1` for Windows) do the launching, so the agent does not improvise a server with shell one-liners. Each says what it did, and each is safe to run twice. They never take a password or key on a command line, never print one, and refuse to listen beyond this computer without TLS or a proxy.
 
+**One implementation.** The same thing is a command: `weave fabric up | down | status` (local use; `weave deploy` is for deployments). It finds the Fabric jar in the scripts' order (`FABRIC_JAR`, then `~/.llm4j/tools/<version>/` from `weave tools fetch fabric`, then a build in the checkout), starts it as a separate process, writes the admin password to `<data>/admin-password.txt` readable by you only (never printed, never on a command line), refuses a bind beyond this computer without TLS or a proxy, and in `status` shows each client with **when it last reported**. The scripts hand over to `weave fabric` when the `weave` in use has it, with the same exit code, and keep their own logic only as the fallback for an older `weave`. `run-observed` takes `--secrets-key-file FILE` (or `LOOM_SECRETS_KEY_FILE`) so a master key kept elsewhere needs no file named after the store.
+
 ```
-scripts/fabric-up.sh --data ./fabric-data --port 9090 --generate-password
+scripts/fabric-up.sh --data ./fabric-data --port 9090
 scripts/run-observed.sh --script flow.loom --fabric http://127.0.0.1:9090 --name checkout --data ./fabric-data
 scripts/fabric-status.sh --data ./fabric-data --port 9090
 scripts/fabric-down.sh --data ./fabric-data

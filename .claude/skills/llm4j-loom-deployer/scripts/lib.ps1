@@ -36,6 +36,16 @@ function Find-Jar([string]$EnvVar, [string[]]$Patterns) {
   } }
   return $null
 }
+# Weave-Fabric ARGS... runs `weave fabric ARGS` with a weave that is new enough (one on PATH, else the weave jar) and returns its exit code, or $null when there
+# is none (an older weave is missing the `fabric` command), so the caller keeps its own logic. One implementation for the scripts and the command.
+function Weave-Fabric([string[]]$FabricArgs) {
+  # this folder knows places weave does not (the skill's own bin\): the jar found here is the one weave fabric uses
+  if (-not $env:FABRIC_JAR) { $fj = $null; try { $fj = Find-Jar 'FABRIC_JAR' @('fabric.jar', 'loom-fabric-*-all.jar') } catch { }; if ($fj) { $env:FABRIC_JAR = $fj } }
+  if (Get-Command weave -ErrorAction SilentlyContinue) { & weave fabric --help *> $null; if ($LASTEXITCODE -eq 0) { & weave fabric @FabricArgs; return $LASTEXITCODE } }
+  $w = $null; try { $w = Find-Jar 'WEAVE_JAR' @('weave.jar', 'ai-agent4j-loom-*-cli.jar') } catch { }
+  if ($w -and (Get-Command java -ErrorAction SilentlyContinue)) { & java -jar $w fabric --help *> $null; if ($LASTEXITCODE -eq 0) { & java -jar $w fabric @FabricArgs; return $LASTEXITCODE } }
+  return $null
+}
 function Fabric-Jar { $j = Find-Jar 'FABRIC_JAR' @('fabric.jar', 'loom-fabric-*-all.jar'); if (-not $j) { Die "the Fabric jar was not found. Run: weave tools fetch fabric, or set FABRIC_JAR, or put the jar in $SkillDir\bin." 2 }; $j }
 function Weave-Jar  { $j = Find-Jar 'WEAVE_JAR' @('weave.jar', 'ai-agent4j-loom-*-cli.jar'); if (-not $j) { Die "the weave jar was not found. Install it (jbang app install weave@srijithunni7182/llm4j, or the VS Code extension), or set WEAVE_JAR, or put the jar in $SkillDir\bin." 2 }; $j }
 function Inspect-Jars {

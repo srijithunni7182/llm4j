@@ -81,3 +81,4 @@ Before introducing a breaking change:
 - **`substitution: legacy|braces`**, a new top-level script setting. Absent means `legacy`, today's behaviour; `braces` becomes the default only in the next major version.
 - **`real:`**, a new key of a workflow test case. Test files without it behave as before.
 - **`weave check --substitution`, `--fix-substitution`, `--yes`**, new options.
+- **`weave fabric up | down | status`**, a new command. The deployer scripts keep working without it; with it, `fabric-up` generates a first-start admin password instead of refusing, and `run-observed` gains `--secrets-key-file`.

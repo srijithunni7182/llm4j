@@ -50,6 +50,19 @@ find_jar() {
   return 1
 }
 
+# weave_fabric ARGS... -> runs `weave fabric ARGS` with a weave that is new enough (one on PATH, else the weave jar), so the scripts and the command
+# are one implementation. Returns 127 when there is none (an older weave is missing the `fabric` command), and the caller keeps its own logic below.
+weave_fabric() {
+  local w j
+  # this folder knows places weave does not (the skill's own bin/): the jar found here is the one weave fabric uses
+  if [ -z "${FABRIC_JAR:-}" ] && j="$(find_jar FABRIC_JAR 'fabric.jar' 'loom-fabric-*-all.jar')"; then export FABRIC_JAR="$j"; fi
+  if command -v weave >/dev/null 2>&1 && weave fabric --help >/dev/null 2>&1; then weave fabric "$@"; return $?; fi
+  if command -v java >/dev/null 2>&1 && w="$(find_jar WEAVE_JAR 'weave.jar' 'ai-agent4j-loom-*-cli.jar')" && java -jar "$w" fabric --help >/dev/null 2>&1; then
+    java -jar "$w" fabric "$@"; return $?
+  fi
+  return 127
+}
+
 fabric_jar() {
   find_jar FABRIC_JAR 'fabric.jar' 'loom-fabric-*-all.jar' \
     || die "the Fabric jar was not found. Run: weave tools fetch fabric (it asks first and checks the checksum), or set FABRIC_JAR=/path/to/loom-fabric-<version>-all.jar, or put the jar in $SKILL_DIR/bin/." 2

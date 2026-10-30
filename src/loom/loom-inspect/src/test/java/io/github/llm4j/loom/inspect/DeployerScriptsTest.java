@@ -199,11 +199,21 @@ class DeployerScriptsTest {
                         work.resolve("fd").toString(),
                         "--port",
                         String.valueOf(port));
-        assertThat(none.code()).isEqualTo(2);
-        assertThat(none.out())
-                .contains("LOOM_FABRIC_ADMIN_PASSWORD")
-                .contains("never taken from a command line");
-        assertThat(Files.exists(work.resolve("fd/fabric.pid"))).isFalse();
+        // Phase 22 R10.1: the first start generates the password into a file only its owner reads
+        // (it used to refuse and ask for --generate-password); it is never printed
+        assertThat(none.code()).as(none.out()).isZero();
+        assertThat(none.out()).contains("admin-password.txt").contains("not printed");
+        String generated = Files.readString(work.resolve("fd/admin-password.txt")).strip();
+        assertThat(none.out()).doesNotContain(generated);
+        assertThat(Files.getPosixFilePermissions(work.resolve("fd/admin-password.txt")))
+                .containsExactlyInAnyOrder(
+                        PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE);
+        assertThat(run(Map.of(), "fabric-down.sh", "--data", work.resolve("fd").toString()).code())
+                .isZero();
+        try (Stream<Path> tree = Files.walk(work.resolve("fd"))) {
+            for (Path p : tree.sorted(java.util.Comparator.reverseOrder()).toList())
+                Files.delete(p);
+        }
 
         Result opt =
                 run(
@@ -296,6 +306,16 @@ class DeployerScriptsTest {
         assertThat(api("/api/processes").get("processes").findValuesAsText("name"))
                 .contains("deploytest");
         assertThat(api("/api/runs").get("runs").findValuesAsText("client")).contains("deploytest");
+        // R10.1: status says when each client last reported, read from what Fabric stored
+        Result status =
+                run(
+                        Map.of(),
+                        "fabric-status.sh",
+                        "--data",
+                        work.resolve("fd").toString(),
+                        "--port",
+                        String.valueOf(port));
+        assertThat(status.out()).containsPattern("deploytest: last reported \\d{4}-\\d\\d-\\d\\dT");
 
         // the key is written nowhere readable: not in a log, not in the files the scripts made
         try (Stream<Path> files = Files.walk(work)) {
@@ -304,6 +324,39 @@ class DeployerScriptsTest {
                         .as(work.relativize(f).toString())
                         .doesNotContain("lfk_");
         }
+    }
+
+    @Test
+    void aMasterKeyKeptElsewhereNeedsNoFileNamedAfterTheStore() throws Exception {
+        assertThat(up().code()).isZero();
+        Path flow = work.resolve("flow.loom");
+        Files.writeString(flow, "workflow Main() {\n    note \"key kept elsewhere\"\n}\n");
+        Path key = work.resolve("elsewhere/master.key");
+
+        Result r =
+                run(
+                        Map.of(),
+                        "run-observed.sh",
+                        "--script",
+                        flow.toString(),
+                        "--fabric",
+                        url(),
+                        "--name",
+                        "keyelsewhere",
+                        "--data",
+                        work.resolve("fd").toString(),
+                        "--secrets-key-file",
+                        key.toString());
+
+        assertThat(r.code()).as(r.out()).isZero();
+        assertThat(r.out()).contains(key.toString()).doesNotContain("lfk_");
+        assertThat(Files.exists(key)).as("the key is where it was asked to be").isTrue();
+        assertThat(Files.getPosixFilePermissions(key))
+                .containsExactlyInAnyOrder(
+                        PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE);
+        assertThat(Files.exists(work.resolve(".loom/secrets.key")))
+                .as("no key beside the store")
+                .isFalse();
     }
 
     @Test

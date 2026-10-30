@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stops the Fabric server of a data directory (what it holds stays on disk). Safe to run when it is not running.
+# Stops the Fabric server of a data directory (delegates to `weave fabric down` when the weave in use has it) (what it holds stays on disk). Safe to run when it is not running.
 #   fabric-down.sh [--data DIR]
 . "$(dirname "$0")/lib.sh"
 DATA="./fabric-data"
@@ -10,6 +10,8 @@ while [ $# -gt 0 ]; do
     *) die "unknown option '$1' (see --help)" 2 ;;
   esac
 done
+rc=0; weave_fabric down --data "$DATA" || rc=$?
+[ "$rc" = 127 ] || exit "$rc"
 PIDFILE="$DATA/fabric.pid"
 if [ ! -f "$PIDFILE" ]; then say "Fabric is not running (no pid file in $DATA). Nothing to do."; exit 0; fi
 PID="$(cat "$PIDFILE")"

@@ -78,6 +78,7 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 
 - [`weave bindgen`](#weave-bindgen) — Writes typed Java bindings for a script: one method per workflow, a record per result, and an Outcome that is Done, Waiting or Stopped.
 - [`weave deploy`](#weave-deploy) — Writes a container recipe, a compose file or Kubernetes manifests for a workflow, from the script: env names, hosts, volumes and schedules are read from it.
+- [`weave fabric`](#weave-fabric) — Starts, stops and inspects a local Fabric server (the page that shows every observed run).
 - [`weave secrets`](#weave-secrets) — Manages an encrypted secret store: create, set, list, remove, import-env, rekey.
 - [`weave tools`](#weave-tools) — Gets the extra jars a deployment needs (the Fabric server, the inspect add-on) from Maven Central, after asking and checking their checksums.
 
@@ -2282,6 +2283,76 @@ weave tools fetch [OPTIONS] <fabric|inspect|all>
 - `--dir=<folder>` — Where to put them (default: ~/.llm4j/tools).
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--yes` — Do not ask first.
+
+### `weave fabric`
+
+Starts, stops and inspects a local Fabric server (the page that shows every observed run).
+
+For this computer only; deploying is `weave deploy`.
+
+```
+weave fabric [OPTIONS] <command>
+```
+
+**Commands**
+
+- `up` — Starts Fabric in the background.
+- `down` — Stops the server of a data folder.
+- `status` — Says whether the server runs, where, and for each client that may report when it last did (names and times only, never keys).
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+#### `weave fabric up`
+
+Starts Fabric in the background.
+
+The first time it creates the data folder and an admin password in <data>/admin-password.txt, readable by you only; the password is never printed. A second `up` changes nothing. Listening beyond this computer needs TLS or a proxy: pass --tls-keystore, --tls-cert or --trust-proxy after `--`.
+
+```
+weave fabric up [OPTIONS] [<-- <serve options>...]
+```
+
+**Arguments**
+
+- `<-- <serve options>...` — Further options for `fabric serve`, after `--`.
+
+**Options**
+
+- `--bind=<address>` — Address to listen on (default: 127.0.0.1).
+- `--data=<folder>` — The server's data folder (default: ./fabric-data).
+- `--port=<port>` — Port to listen on (default: 9090).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+#### `weave fabric down`
+
+Stops the server of a data folder.
+
+What it holds stays on disk.
+
+```
+weave fabric down [OPTIONS]
+```
+
+**Options**
+
+- `--data=<folder>` — The server's data folder (default: ./fabric-data).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+#### `weave fabric status`
+
+Says whether the server runs, where, and for each client that may report when it last did (names and times only, never keys).
+
+```
+weave fabric status [OPTIONS]
+```
+
+**Options**
+
+- `--data=<folder>` — The server's data folder (default: ./fabric-data).
+- `--port=<port>` — Port it listens on (default: 9090).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave preflight`
 

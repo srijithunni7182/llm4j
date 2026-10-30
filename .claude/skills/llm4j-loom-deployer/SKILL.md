@@ -92,8 +92,8 @@ Then **carry on with what the user asked** (run, test, package, deploy): open fi
 ## Useful commands
 
 ```
-scripts/fabric-up.sh --data ./fabric-data --port 9090          # the first time: creates the data directory and admin password (12+ characters, from the environment or --generate-password)
-scripts/fabric-status.sh --data ./fabric-data --port 9090      # running or not; which processes may report (names only)
+scripts/fabric-up.sh --data ./fabric-data --port 9090          # the first time: creates the data directory and an admin password (from LOOM_FABRIC_ADMIN_PASSWORD, else generated into <data>/admin-password.txt, owner-only, never printed); calls `weave fabric up` when the installed weave is new enough
+scripts/fabric-status.sh --data ./fabric-data --port 9090      # running or not; each client that may report, and when it last did (names and times only)
 scripts/run-observed.sh --script flow.loom --embedded 8787     # the run's own page
 scripts/run-observed.sh --script flow.loom --fabric http://127.0.0.1:9090 --name checkout --data ./fabric-data   # reports to Fabric; the client key is stored, not printed
 scripts/fabric-down.sh --data ./fabric-data                    # stop it (what it holds stays on disk)
