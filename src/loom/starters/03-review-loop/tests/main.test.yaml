@@ -1,0 +1,29 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: an approved draft is kept as it is
+    input: { product: "a steel water bottle" }
+    models:
+      Writer: "A bottle that keeps drinks cold."
+      Reviewer: { verdict: OK, advice: "" }
+    expect:
+      result: { contains: "cold" }
+      calls: { Writer: 1, Reviewer: 1 }
+  - name: a weak draft is rewritten once and then approved
+    input: { product: "a steel water bottle" }
+    models:
+      Writer: ["Too long draft.", "A short draft."]
+      Reviewer:
+        - { verdict: REWRITE, advice: "Shorter." }
+        - { verdict: OK, advice: "" }
+    expect:
+      result: { contains: "short draft" }
+      calls: { Writer: 2, Reviewer: 2 }
+  - name: a reviewer that is never satisfied cannot loop forever
+    input: { product: "a steel water bottle" }
+    models:
+      Writer: "A draft."
+      Reviewer: { verdict: REWRITE, advice: "Again." }
+    repeat: last
+    expect:
+      calls: { Reviewer: 3 }

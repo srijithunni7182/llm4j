@@ -1,0 +1,29 @@
+// 06-plan-and-fan-out: one agent makes a plan (a list), and the script runs one step per item, all at once.
+// The agent for each item comes from the plan itself, so one line routes work to whoever should do it.
+
+substitution: braces
+
+budget { tokens: 300000  calls: 40 }
+
+agent Planner {
+    model: "gemini-2.5-flash"
+    system: "Split the goal into 2 to 4 small tasks. Give each task a name, a description and an owner: Researcher or Writer."
+    temperature: 0.2
+    output_schema: { tasks: list }
+}
+agent Researcher { model: "gemini-2.5-flash"  system: "Do the research task and report briefly." }
+agent Writer     { model: "gemini-2.5-flash"  system: "Do the writing task and report briefly." }
+agent Editor     { model: "gemini-2.5-flash"  system: "Combine the pieces into one short, consistent document." }
+
+workflow Main(goal) {
+    delegate "Plan this goal: {goal}" to Planner -> plan
+
+    parallel for each task in plan.tasks {
+        delegate "{task.description}" to {task.owner} -> {task.name}
+            retry 1 timeout 90s
+            on_failure { note "Task {task.name} failed: {_error}" }
+    }
+
+    delegate "Goal: {goal}\nHere is what the team produced:\n{plan.tasks}" to Editor -> document
+    return document
+}

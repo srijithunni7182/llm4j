@@ -1,0 +1,38 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: both researchers answer and the writer uses both
+    input: { topic: "solar roofs" }
+    models:
+      WebResearcher: "Prices fell 12%."
+      DocsResearcher: "We installed 40 roofs."
+      Writer: "Report: prices fell and we installed 40 roofs."
+    expect:
+      result: { contains: "40 roofs" }
+      calls: { WebResearcher: 1, DocsResearcher: 1, Writer: 1 }
+      told: { Writer: [ "Prices fell 12%.", "We installed 40 roofs." ] }
+  - name: the report is still written when the web research keeps failing
+    input: { topic: "solar roofs" }
+    models:
+      WebResearcher: "x"
+      DocsResearcher: "We installed 40 roofs."
+      Writer: "Report from documents only."
+    fail:
+      WebResearcher: { always: true, category: server_error }
+    expect:
+      degraded: true
+      fallbacks: [ WebResearcher ]
+      calls: { Writer: 1 }
+      told: { Writer: [ "nothing found on the web" ] }
+  - name: the report is still written when the document research keeps failing
+    input: { topic: "solar roofs" }
+    models:
+      WebResearcher: "Prices fell 12%."
+      DocsResearcher: "x"
+      Writer: "Report from the web only."
+    fail:
+      DocsResearcher: { always: true, category: server_error }
+    expect:
+      degraded: true
+      fallbacks: [ DocsResearcher ]
+      told: { Writer: [ "nothing found in the documents" ] }

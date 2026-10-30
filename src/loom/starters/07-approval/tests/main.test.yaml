@@ -1,0 +1,29 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: nothing is sent unless the person says yes
+    input: { facts: "Office closed on Friday." }
+    models:
+      Drafter: "The office is closed on Friday."
+    humans: [ "no" ]
+    expect:
+      calls: { Sender: 0 }
+      effects: none
+  - name: a yes sends the announcement once
+    input: { facts: "Office closed on Friday." }
+    models:
+      Drafter: "The office is closed on Friday."
+      Sender: "Sent to slack."
+    humans: [ "yes" ]
+    expect:
+      calls: { Drafter: 1, Sender: 1 }
+  - name: when sending fails the run stops and says the announcement may not have gone out
+    input: { facts: "Office closed on Friday." }
+    models:
+      Drafter: "The office is closed on Friday."
+      Sender: "x"
+    humans: [ "yes" ]
+    fail:
+      Sender: { always: true, category: server_error }
+    expect:
+      final: halted

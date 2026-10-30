@@ -1,0 +1,10 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: the answer comes back from the helper
+    input: { question: "What is a workflow?" }
+    models:
+      Helper: "A workflow is a list of steps done in order."
+    expect:
+      result: { contains: "list of steps" }
+      calls: { Helper: 1 }

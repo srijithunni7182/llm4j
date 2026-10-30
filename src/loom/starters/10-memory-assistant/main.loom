@@ -1,0 +1,26 @@
+// 10-memory-assistant: an assistant that remembers each person's conversation between runs, and keeps personal data away from the model.
+// `session: "{user_id}"` is read from the workflow's variables on every call, so one agent serves many people and they never see
+// each other's messages.
+
+substitution: braces
+
+budget { tokens: 60000  calls: 12 }
+
+persona Concierge {
+    role: "a hotel concierge"
+    tone: "warm and concise"
+    constraints: ["Never promise a room you cannot confirm.", "Ask one question at a time."]
+}
+
+agent Assistant {
+    model: "gemini-2.5-flash"
+    persona: Concierge
+    temperature: 0.5
+    memory { conversation: "chats"  limit: 10  session: "{user_id}" }
+    guard { pii: mask }
+}
+
+workflow Main(user_id, message) {
+    delegate "{message}" to Assistant -> reply
+    return reply
+}

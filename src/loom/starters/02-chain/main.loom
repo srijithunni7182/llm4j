@@ -1,0 +1,16 @@
+// 02-chain: agents in a row. Each step's answer is stored in a variable and used by the next step.
+
+substitution: braces
+
+budget { tokens: 60000  calls: 10 }
+
+agent Summarizer { model: "gemini-2.5-flash"  system: "Summarize the text in three bullet points."  temperature: 0.2 }
+agent Critic     { model: "gemini-2.5-flash"  system: "Point out what the summary left out. Be brief."  temperature: 0.2 }
+agent Rewriter   { model: "gemini-2.5-flash"  system: "Improve the summary using the critique. Keep three bullets."  temperature: 0.3 }
+
+workflow Main(text) {
+    delegate "Summarize:\n{text}" to Summarizer -> summary
+    delegate "Text:\n{text}\n\nSummary:\n{summary}" to Critic -> critique
+    delegate "Summary:\n{summary}\n\nCritique:\n{critique}" to Rewriter -> final_summary
+    return final_summary
+}

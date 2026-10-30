@@ -107,7 +107,9 @@ public final class WorkflowLint {
             }
         }
         if (script != null) findings.addAll(citationsOfUngroundedAgents(script, all, texts, who));
-        findings.addAll(wordsThatAreVariables(workflow, all, who));
+        // under `substitution: braces` only {name} is replaced, so a plain word is only a word
+        if (script == null || !"braces".equals(script.getSubstitution()))
+            findings.addAll(wordsThatAreVariables(workflow, all, who));
         findings.addAll(loopsThatNeverRun(workflow, all, who));
         findings.sort(java.util.Comparator.comparingInt(Finding::line));
         return findings;

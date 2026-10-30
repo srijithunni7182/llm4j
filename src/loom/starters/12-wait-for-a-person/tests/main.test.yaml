@@ -1,0 +1,34 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: a yes sends, waits two days (virtually) and checks for a reply
+    input: { customer: "Asha", topic: "renewal" }
+    models:
+      Drafter: "Hello Asha, your plan renews soon."
+      Checker: { replied: "no" }
+    humans: [ "yes" ]
+    clock: { start: "2026-01-05T09:00:00Z" }
+    expect:
+      calls: { Drafter: 1, Checker: 1 }
+      elapsed_virtual: 2d
+  - name: a no sends nothing and never waits
+    input: { customer: "Asha", topic: "renewal" }
+    models:
+      Drafter: "Hello Asha."
+    humans: [ "no" ]
+    expect:
+      calls: { Checker: 0 }
+  - name: with nobody to answer the run is suspended, not failed
+    input: { customer: "Asha", topic: "renewal" }
+    models:
+      Drafter: "Hello Asha."
+    expect:
+      final: suspended
+  - name: a customer who replied needs no follow-up
+    input: { customer: "Asha", topic: "renewal" }
+    models:
+      Drafter: "Hello Asha."
+      Checker: { replied: "yes" }
+    humans: [ "yes" ]
+    expect:
+      calls: { Checker: 1 }

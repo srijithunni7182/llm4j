@@ -4,7 +4,7 @@
 
 Loom is a **Neuro-Symbolic Domain Specific Language (DSL)** designed to bridge the gap between the probabilistic world of LLMs (**Neural**) and the deterministic world of business logic (**Symbolic**). 
 
-This guide provides a comprehensive technical reference for setting up, writing, and executing Loom-based agentic workflows.
+This guide provides a comprehensive technical reference for setting up, writing, and executing Loom-based agentic workflows. **New to Loom?** Start with the [tutorial](../../../docs/tutorial/README.md) (fourteen chapters with diagrams, from a first workflow to production) and the [starter set](../starters/README.md) (fifteen small, tested workflows to copy). This page is the reference you come back to for every option.
 
 ### ⚒️ The 'weave' CLI Utility
 Loom comes with a built-in CLI called `weave` to simplify the developer experience.
@@ -2234,7 +2234,7 @@ What happens when a budget runs out:
 | A loop's or for-each's budget runs out | It stops and runs `on_exhausted`, with `{_loopExhaustedBy}` set to `budget` (or `rounds` when `max` was reached). |
 | Nothing handles it | `executeWorkflow` throws `BudgetExceeded`. Every variable already bound is kept, and `spend()` shows where the money went. |
 
-- **How long an answer may be.** With a token or cost budget on the run, an agent that sets no `per_call` is sent with the model's own maximum output when it is known (for example 128,000 tokens for the current Claude models), else 8,192, and never more than the budget still affords. (Before 6.2.0 the limit was a fixed 1,024, which cut long answers short while the run reported success.) Only part of that limit is held back from the budget while the call runs, so parallel branches do not starve each other; what is charged is what the call used. `weave explain` says each agent's limit and where it comes from. When a provider cuts an answer at the limit, the run prints `✂ N answers were cut at the output limit: Writer (2)`; set `per_call` or shorten what the agent is asked for.
+- **How long an answer may be.** With a token or cost budget on the run, an agent that sets no `per_call` is sent with a limit of 8,192 tokens (or the model's own maximum when that is smaller), and never more than the budget still affords. What is sent is what is held back from the budget while the call runs, so one call cannot spend more than was reserved and parallel branches do not starve each other; what is charged is what the call used. An agent that needs longer answers sets `per_call`, which is held in full. (Before 6.2.0 the limit was a fixed 1,024, which cut long answers short while the run reported success.) `weave explain` says each agent's limit and where it comes from. When a provider cuts an answer at the limit, the run prints `✂ N answers were cut at the output limit: Writer (2)`; set `per_call` or shorten what the agent is asked for.
 - **Budgets nest.** Each call is charged to the run, its agent and every enclosing step, loop and for-each
   budget, and must fit all of them. Parallel branches share the same budgets exactly.
 - **`{_budget.spent}`, `{_budget.remaining}`, `{_budget.calls}`, `{_budget.cost}` and

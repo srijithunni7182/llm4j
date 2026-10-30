@@ -1,0 +1,29 @@
+// 12-wait-for-a-person: a workflow that can wait for days. With a run journal (weave run --journal ...), a question to a person or a
+// `sleep` pauses the run and holds no thread; it carries on when the answer arrives or the time has passed. Write the script as if
+// the time simply passes.
+
+substitution: braces
+
+budget { tokens: 80000  calls: 15 }
+
+rate_limits { on_limit: suspend  max_wait: 24h  max_resumes: 50 }
+
+agent Drafter  { model: "gemini-2.5-flash"  system: "Write a short, polite message to the customer."  temperature: 0.4 }
+agent Checker  { model: "gemini-2.5-flash"  system: "State whether the customer replied. Answer yes or no."  output_schema: { replied: enum["yes", "no"] } }
+
+workflow Main(customer, topic) {
+    delegate "Write to {customer} about: {topic}" to Drafter -> message
+    human_prompt "Draft for {customer}:\n{message}\nSend it? (yes/no)" -> go
+    alt (go == "yes") {
+        note "Sent to {customer}."
+        sleep 2d
+        delegate "Did {customer} reply about {topic}?" to Checker -> status
+        alt (status.replied == "no") {
+            note "No reply from {customer} after two days: follow up."
+        } else {
+            note "{customer} replied."
+        }
+    } else {
+        note "Not sent."
+    }
+}

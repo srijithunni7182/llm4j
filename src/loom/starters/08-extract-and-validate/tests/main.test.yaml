@@ -1,0 +1,25 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: a readable invoice is returned as fields
+    input: { text: "ACME Ltd invoice INV-7, total 120.50 USD" }
+    models:
+      Extractor: { vendor: "ACME Ltd", invoice_number: "INV-7", total: 120.5, currency: USD }
+    expect:
+      result: { contains: "INV-7" }
+      calls: { Extractor: 1 }
+  - name: a missing total is asked of a person, not guessed
+    input: { text: "ACME Ltd invoice INV-8" }
+    models:
+      Extractor: { vendor: "ACME Ltd", invoice_number: "INV-8", total: 0, currency: USD }
+    humans: [ "99" ]
+    expect:
+      result: { contains: "99" }
+  - name: text that cannot be read stops the run on purpose
+    input: { text: "hello" }
+    models:
+      Extractor: "x"
+    fail:
+      Extractor: { always: true, category: invalid_output }
+    expect:
+      final: halted

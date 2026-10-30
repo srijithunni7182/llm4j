@@ -1,0 +1,18 @@
+script: ../main.loom
+workflow: Brief
+cases:
+  - name: an agent that answers at once is left alone
+    input: { question: "What is 12 times 12?" }
+    models:
+      Researcher: "144."
+    expect:
+      result: { contains: "144" }
+      calls: { Researcher: 1 }
+  - name: a research failure stops the run on purpose
+    input: { question: "What is the capital of Peru?" }
+    models:
+      Researcher: "x"
+    fail:
+      Researcher: { always: true, category: server_error }
+    expect:
+      final: halted

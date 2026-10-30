@@ -1,0 +1,30 @@
+script: ../main.loom
+workflow: Digest
+cases:
+  - name: the digest is read and then posted
+    input: { topic: "renewable energy" }
+    models:
+      Reader: "1. Solar is cheap."
+      Poster: "Posted."
+    expect:
+      result: { contains: "Posted" }
+      route: [ delegate Reader, delegate Poster ]
+  - name: when the reader fails nothing is posted and the run stops on purpose
+    input: { topic: "renewable energy" }
+    models:
+      Reader: "x"
+      Poster: "Posted."
+    fail:
+      Reader: { always: true, category: server_error }
+    expect:
+      final: halted
+      calls: { Poster: 0 }
+  - name: when posting fails the run stops and says the digest may not have been posted
+    input: { topic: "renewable energy" }
+    models:
+      Reader: "1. Solar is cheap."
+      Poster: "x"
+    fail:
+      Poster: { always: true, category: server_error }
+    expect:
+      final: halted

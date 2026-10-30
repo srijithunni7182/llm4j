@@ -1,0 +1,17 @@
+script: ../main.loom
+workflow: Triage
+cases:
+  - name: at the start a person decides and the agent only proposes quietly
+    input: { ticket: "T-1", tier: "gold", amount: 50, reason: "late parcel" }
+    models:
+      Triager: { choice: approve, reasoning: "Small and justified.", confidence: 0.9 }
+    humans: [ "approve" ]
+    expect:
+      calls: { Triager: 1 }
+  - name: a person who rejects the proposal decides the outcome
+    input: { ticket: "T-2", tier: "gold", amount: 500, reason: "damaged item" }
+    models:
+      Triager: { choice: approve, reasoning: "Looks fine.", confidence: 0.8 }
+    humans: [ "reject" ]
+    expect:
+      calls: { Triager: 1 }

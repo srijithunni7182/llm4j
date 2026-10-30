@@ -135,4 +135,16 @@ class SubstitutedPositionsTest {
                 .as("decide whether the runtime substitutes these (SubstitutedText)")
                 .isEmpty();
     }
+
+    @Test
+    void underSubstitutionBracesAWordThatMatchesAVariableIsNotReported() {
+        LoomScript script = parse("substitution: braces\n" + AGENT + "workflow W(out) {\n  note \"length out of range\"\n}\n");
+
+        assertThat(WorkflowLint.check(script.getWorkflows().get(0), script)).noneMatch(f -> f.message().contains("ordinary word"));
+    }
+
+    @Test
+    void underTheOlderFormTheSameWordIsStillReported() {
+        assertThat(lint("  note \"length out of range\"")).anyMatch(m -> m.contains("ordinary word"));
+    }
 }

@@ -1,0 +1,25 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: a billing message goes to the billing agent only
+    input: { message: "I was charged twice." }
+    models:
+      Classifier: { kind: BILLING }
+      Billing: "Sorry about that; we will refund one charge."
+    expect:
+      result: { contains: "refund" }
+      calls: { Billing: 1, Technical: 0, Generalist: 0 }
+  - name: a technical message goes to the technical agent only
+    input: { message: "The app crashes on start." }
+    models:
+      Classifier: { kind: TECHNICAL }
+      Technical: "1. Update the app. 2. Restart."
+    expect:
+      calls: { Billing: 0, Technical: 1, Generalist: 0 }
+  - name: anything else goes to the generalist
+    input: { message: "Do you have an office in Pune?" }
+    models:
+      Classifier: { kind: OTHER }
+      Generalist: "Yes, we do."
+    expect:
+      calls: { Billing: 0, Technical: 0, Generalist: 1 }
