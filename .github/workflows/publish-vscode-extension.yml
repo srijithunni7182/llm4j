@@ -143,4 +143,4 @@ jobs:
         set -euo pipefail
         files=(vsix/*.vsix)
         [ "${#files[@]}" -eq 1 ] || { echo "Expected one .vsix, found ${#files[@]}." >&2; exit 1; }
-        npx --yes @vscode/vsce@4.0.0 publish --oidc --packagePath "${files[0]}"
+        npx --yes @vscode/vsce@4.1.0 publish --oidc --packagePath "${files[0]}"
