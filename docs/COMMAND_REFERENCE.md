@@ -32,6 +32,7 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 - [`weave test`](#weave-test) — Runs test cases against a workflow with scripted models and no keys: routes, calls and results are checked, nothing is spent.
 - [`weave eval`](#weave-eval) — Runs a script's golden dataset (eval/golden/*.yaml) against it and reports passed, failed and unjudged.
 - [`weave gate`](#weave-gate) — Runs the checks your team chose (check, review, test, regress, eval) and prints one verdict, for CI.
+- [`weave preflight`](#weave-preflight) — Sends one small probe per agent through its real prompts and checks: the key, the model, one whole answer, that the shared prompt reaches the model, sources for grounded agents, price and window.
 
 ### Run it
 
@@ -1717,12 +1718,16 @@ Looks at this project and says what to do next, in order, with the command for e
 Free: it calls no model and reads no key.
 
 ```
-weave next [<folder or script>]
+weave next [OPTIONS] [<folder or script>]
 ```
 
 **Arguments**
 
 - `<folder or script>` — The project (default: here).
+
+**Options**
+
+- `--format=<text|json>` — The steps as text (default) or as JSON, for a coding agent or the editor.
 
 **Examples**
 
@@ -2151,4 +2156,53 @@ weave tools fetch [OPTIONS] <fabric|inspect|all>
 
 - `--dir=<folder>` — Where to put them (default: ~/.llm4j/tools).
 - `--yes` — Do not ask first.
+
+### `weave preflight`
+
+Sends one small probe per agent through its real prompts and checks: the key, the model, one whole answer, that the shared prompt reaches the model, sources for grounded agents, price and window.
+
+Asks first and stays under a small cap. --mock does it with no model.
+
+```
+weave preflight [OPTIONS] <script>
+```
+
+**Arguments**
+
+- `<script>` — The .loom script.
+
+**Options**
+
+- `--format=<text|json>` — The report as text (default) or JSON.
+- `--input=<text>` — The probe input (default: the agent's first dataset case, else a greeting).
+- `--max-cost=<amount>` — Stop when the probes have cost this much (needs --prices). Default 0.05.
+- `--max-tokens=<n>` — Stop when the probes have used this many tokens (default 20000 when there are no prices).
+- `--mock` — Run the same checks on models that cost nothing.
+- `--prices=<file>` — Price table: lines of 'model = input / output' per million tokens.
+- `-y, --yes` — Do not ask before sending the probes.
+
+**Examples**
+
+```
+weave preflight main.loom                  list what it will send, ask, then probe each agent
+weave preflight main.loom --yes --max-cost 0.05 --prices prices.txt
+weave preflight main.loom --mock           the same checks on models that cost nothing
+weave preflight main.loom --format json    for a coding agent or CI
+```
+
+**Checks**
+
+C1 the key resolves. C2 the provider accepts the model. C3 one answer is whole (not cut, not empty). C4 the shared prompt reaches the model (a random canary placed in it, in memory only). C5 a grounded agent returns sources. C6 the price and the context window are known. C7 the run budget is larger than one answer.
+
+**Notes**
+
+It sends real prompts, so it asks first, stays under its own cap and stores no answer text. The result is written to .loom/preflight.json, which weave next reads.
+
+**Exit status**
+
+0 nothing failed. 1 a check failed. 2 refused or a bad option. 3 it stopped at its own cap.
+
+**See also**
+
+weave man next, weave man eval, weave man doctor
 

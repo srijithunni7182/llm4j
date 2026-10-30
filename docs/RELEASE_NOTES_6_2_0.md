@@ -68,3 +68,9 @@ Status: **in progress** (the field findings program, [docs/specs/FIELD_FINDINGS.
 - **`weave check` no longer calls a named shared prompt file "not used by any agent".** It was the same fault.
 - **`supervise` and `intervention` blocks are applied.** A script's own `supervise Agent { ... }` rules and `intervention { ... }` defaults were dropped when the script was loaded, so a supervised workflow ran
   unsupervised and `weave explain` did not list them. They now apply, including `supervise` blocks in imported files. An imported file's `shared_prompt` is not imposed on the file that imports it.
+
+## New: `weave preflight`, one real answer before you spend more
+
+- **`weave preflight script.loom`** asks each agent one real, capped question and checks what a run needs: the key works (C1), the model accepts the request (C2), the answer is whole, not cut or empty (C3), the shared prompt reaches the model (C4, with a random canary kept in memory only), grounded agents return sources (C5), the price and context window are known (C6) and the budget is sensible (C7). It asks before spending unless `--yes` or `--mock`, stops at `--max-tokens` / `--max-cost`, and exits `0` (pass or warnings), `1` (a failing check) or `3` (stopped by the cap). `--format json` is for scripts. It writes `.loom/preflight.json`.
+- **`weave next` knows the preflight** and offers it before the deploy step (and again when the script changed since or the last one failed). `weave next --format json` lists the steps and the preflight state.
+

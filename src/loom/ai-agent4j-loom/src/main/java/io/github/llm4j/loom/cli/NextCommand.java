@@ -37,6 +37,13 @@ final class NextCommand implements Callable<Integer> {
             description = "The project (default: here).")
     File where;
 
+    @picocli.CommandLine.Option(
+            names = "--format",
+            paramLabel = "text|json",
+            description = "The steps as text (default) or as JSON, for a coding agent or the editor.",
+            defaultValue = "text")
+    String format;
+
     @Override
     public Integer call() {
         return next(this, WeaveEnv.system());
@@ -55,6 +62,10 @@ final class NextCommand implements Callable<Integer> {
             env.err().println(why);
             return 2;
         }
+        if (!c.format.equals("text") && !c.format.equals("json")) {
+            env.err().println("Error: --format takes text or json, got " + c.format + ".");
+            return 2;
+        }
         String file = script.getFileName().toString();
         LoomScript loaded = null;
         try {
@@ -71,13 +82,15 @@ final class NextCommand implements Callable<Integer> {
                                     List.of(String.valueOf(e.getMessage())),
                                     List.of(),
                                     Set.of()),
-                            null));
+                            null),
+                    c.format,
+                    script);
         }
         WeaveEnv withKeys = new EnvFileOptions().apply(env, script);
         if (withKeys == null) return 2;
         ProjectAdvisor.CheckResult check = check(script, withKeys);
         AuditReport audit = SecurityAudit.audit(loaded, file);
-        return print(env, file, ProjectAdvisor.advise(script, loaded, check, audit));
+        return print(env, file, ProjectAdvisor.advise(script, loaded, check, audit), c.format, script);
     }
 
     /**
@@ -147,7 +160,36 @@ final class NextCommand implements Callable<Integer> {
         return new ProjectAdvisor.CheckResult(true, errors, warnings, keys);
     }
 
-    private static int print(WeaveEnv env, String file, List<ProjectAdvisor.Step> steps) {
+    private static int print(
+            WeaveEnv env,
+            String file,
+            List<ProjectAdvisor.Step> steps,
+            String format,
+            Path script) {
+        if (format.equals("json")) {
+            java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("script", file);
+            List<java.util.Map<String, Object>> rows = new ArrayList<>();
+            for (ProjectAdvisor.Step st : steps) {
+                java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
+                row.put("what", st.what());
+                row.put("why", st.why());
+                row.put("command", st.command());
+                rows.add(row);
+            }
+            m.put("steps", rows);
+            PreflightState pre = PreflightState.read(io.github.llm4j.loom.init.ProjectLayout.root(script), script);
+            java.util.Map<String, Object> p = new java.util.LinkedHashMap<>();
+            p.put("state", pre.state());
+            if (pre.at() != null) p.put("at", pre.at());
+            m.put("preflight", p);
+            try {
+                env.out().println(new com.fasterxml.jackson.databind.ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(m));
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                throw new IllegalStateException(e);
+            }
+            return 0;
+        }
         env.out().println("weave next: " + file);
         int n = 0;
         for (ProjectAdvisor.Step s : steps) {

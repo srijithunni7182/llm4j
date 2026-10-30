@@ -55,17 +55,20 @@ class NextCommandTest {
 
         assertThat(o.code()).isZero();
         List<String> steps = numbered(o.out());
-        assertThat(steps).hasSize(6);
-        // review, tests, the free wiring proof, keys, what deploying would take, then the real run
+        assertThat(steps).hasSize(7);
+        // review, tests, the free wiring proof, keys, the preflight (one real answer, suggested
+        // once), what deploying would take, then the real run
         assertThat(steps.get(0)).contains("Read the review");
         assertThat(steps.get(1)).contains("Run the tests");
         assertThat(steps.get(2)).contains("Run the whole dataset on mock models");
         assertThat(steps.get(3)).contains(".env").contains("GEMINI_API_KEY");
-        assertThat(steps.get(4)).contains("deploy it (writes nothing)");
-        assertThat(steps.get(5)).contains("Run it for real, capped");
+        assertThat(steps.get(4)).contains("Try one real answer").contains("preflight");
+        assertThat(steps.get(5)).contains("deploy it (writes nothing)");
+        assertThat(steps.get(6)).contains("Run it for real, capped");
         assertThat(o.out())
                 .contains("$ weave review main.loom")
                 .contains("$ weave test main.loom --coverage")
+                .contains("$ weave preflight main.loom")
                 .contains("$ weave deploy main.loom --dry-run")
                 .contains("$ weave eval main.loom --mock")
                 .contains("$ cp .env.example .env")

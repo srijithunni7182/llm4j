@@ -189,6 +189,28 @@ final class ProjectAdvisor {
                                 null));
             }
         }
+        PreflightState preflight = PreflightState.read(dir, script);
+        switch (preflight.state()) {
+            case PreflightState.NONE, PreflightState.MOCK_ONLY ->
+                    steps.add(
+                            new Step(
+                                    "Try one real answer before you spend more: run the preflight",
+                                    "It sends one small probe per agent through the real prompts and checks the key, the model, a whole answer, that the shared prompt arrives and that grounded agents find sources. Capped at a few cents; it asks first. (--mock shows the checks for free.)",
+                                    "weave preflight " + file));
+            case PreflightState.STALE ->
+                    steps.add(
+                            new Step(
+                                    "The script changed since the last preflight: run it again",
+                                    "A result for an older script says nothing about this one.",
+                                    "weave preflight " + file));
+            case PreflightState.FAILING ->
+                    steps.add(
+                            new Step(
+                                    "Fix what the preflight found: " + preflight.detail(),
+                                    "A real answer is cut, empty or missing something the script depends on; everything built on it inherits that.",
+                                    "weave preflight " + file));
+            default -> {}
+        }
         steps.add(
                 new Step(
                         "Look at what it would take to deploy it (writes nothing)",

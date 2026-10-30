@@ -85,4 +85,9 @@ The four skills (and their `conventions.md`); `docs/guide/` README and chapters 
 
 ## 7. Results
 
-*(empty until 20a)*
+### 20a: `weave preflight` and `weave next` (done)
+
+- Tests: `PreflightRunnerTest` (11), `PreflightCommandTest` (6), `NextKnowsThePreflightTest` (7), `NextCommandTest` (8, fresh starter now 7 steps).
+- Guard removed once by hand: C4 (`answer.stripLeading().startsWith(canary)` replaced by `true`) made `aModelThatIgnoresTheCanaryFailsTheSharedPromptCheck` fail; restored.
+- Not run: the live preflight against a real provider (manual check, needs the owner's key and cap); PIT.
+- Still open in Phase 20: the skill rules R3.x and the shared `conventions.md` with its drift test.
