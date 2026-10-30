@@ -10,6 +10,8 @@ flowchart LR
   D --> E["deploy + watch<br/>Fabric / --observe"]
   E -- "a bad run" --> F["capture it as a test"]
   F --> A
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  class A,B,C,D,E,F step
 ```
 
 ## Three safety nets, from the outside in

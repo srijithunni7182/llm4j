@@ -16,6 +16,8 @@ flowchart LR
   C --> D["weave eval --mock<br/>wiring, free"]
   D --> E["weave eval (capped)<br/>quality, real models"]
   E --> F["weave gate<br/>one verdict for CI"]
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  class A,B,C,D,E,F step
 ```
 
 ## `weave test`: the logic, for free
@@ -69,6 +71,8 @@ flowchart LR
   subgraph Test["weave test (scripted)"]
     W2["the same workflow"] --> A2["the same agent"] --> M2["your script of replies<br/>free, identical every time"]
   end
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  class Real,W1,A1,M1,Test,W2,A2,M2 step
 ```
 
 ### Scripting what a model says

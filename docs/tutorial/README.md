@@ -21,6 +21,10 @@ flowchart LR
   R --> J[("run journal<br/>every step recorded")]
   J --> O["weave observe / Fabric<br/>watch it live"]
   J -. "resume after a crash or a wait" .-> R
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  classDef store fill:#efe3fb,stroke:#7e3fbf,color:#3a1a5c
+  class S,C,T,A,R,O step
+  class J store
 ```
 
 You write one text file. A handful of commands check it, test it, review it, run it and watch it. The first four cost nothing. That order is deliberate: **spend money last.**
@@ -51,6 +55,7 @@ You write one text file. A handful of commands check it, test it, review it, run
 ## Conventions in this tutorial
 
 - Every code block marked `loom` is checked by the build with `weave check`, so the examples you copy are examples that load. A block marked `loom-error` is checked to *fail*, to show you a real error message. A block marked `loom-parse` is checked to parse but cannot be loaded on its own (it needs files beside it, such as prompts or documents).
+- In the diagrams, colour carries meaning: **teal** is a step, **amber** a decision or a fork, **indigo** a person, **green** the outside world, **violet** stored data, **red** a failure or a danger, and **grey** a start, an end or a state.
 - The models in the examples are `gemini-2.5-flash`. Use whichever provider you like: see [Agents](03-agents.md#models-and-providers).
 - Commands are for a terminal. The same things are available in the [VS Code extension](../../src/loom/vscode-loom/README.md), which draws your workflow as you type.
 - A path like `eval/golden` is relative to the folder that holds your `main.loom`.

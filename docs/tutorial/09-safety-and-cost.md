@@ -49,6 +49,8 @@ flowchart TD
       end
     end
   end
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  class Run,Agent,Step,C step
 ```
 
 | Where | Caps |
@@ -199,6 +201,10 @@ flowchart TD
   P --- X
   S --- X
   X --> F["an attacker's text can make the agent<br/>leak your data"]
+  classDef bad fill:#fde2e2,stroke:#c53030,color:#5b1111
+  class F,X bad
+  classDef decision fill:#fdecc8,stroke:#b7791f,color:#4a3300
+  class U,P,S decision
 ```
 
 The cure is to break the triangle: give the agent that reads the web no way to send, give the agent that sends no access to private data, or put a person's approval between them. This is why starter [07-approval](../../src/loom/starters/07-approval/) splits *drafting* from *sending*, and why the sender needs an approval.

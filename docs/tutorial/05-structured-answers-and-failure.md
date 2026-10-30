@@ -192,6 +192,10 @@ flowchart TD
   WF --> J
   DF --> J
   J --> R["Writer writes the report,<br/>told what is missing"]
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  classDef decision fill:#fdecc8,stroke:#b7791f,color:#4a3300
+  class W,D,WF,DF,R step
+  class P,J decision
 ```
 
 This is starter [05-parallel-research](../../src/loom/starters/05-parallel-research/). The run is then reported as **degraded**: it finished, but used a fallback, and the report names which agents took it. In a test you assert this with `degraded: true` and `fallbacks: [ WebResearcher ]`.

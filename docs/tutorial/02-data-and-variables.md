@@ -29,6 +29,10 @@ flowchart LR
   mood(["mood<br/>(set)"]) --> D
   D --> greeting(["greeting<br/>(result)"])
   greeting --> R["return"]
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  classDef edge fill:#e9edf5,stroke:#5a6078,color:#1f2540
+  class D,R step
+  class name,mood,greeting edge
 ```
 
 ## Using a variable in text: `{name}`

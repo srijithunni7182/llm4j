@@ -215,6 +215,8 @@ flowchart LR
   W -.-> S1
   R -.-> S2
   E -.-> S3
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  class Declared,W,R,E,Flow,S1,S2,S3 step
 ```
 
 ## Try it yourself

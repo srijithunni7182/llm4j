@@ -9,6 +9,16 @@ flowchart TD
   W -- "answer arrives:<br/>console, chat, weave answer" --> D{"yes?"}
   D -- yes --> S["send"]
   D -- no --> N["note: not sent"]
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  classDef decision fill:#fdecc8,stroke:#b7791f,color:#4a3300
+  classDef person fill:#e3e8ff,stroke:#4c5fd5,color:#1a2370
+  classDef world fill:#e1f3e3,stroke:#2f855a,color:#12361e
+  class A step
+  class D decision
+  class Q person
+  class S world
+  classDef edge fill:#e9edf5,stroke:#5a6078,color:#1f2540
+  class N,W edge
 ```
 
 ## `human_prompt`: ask a person

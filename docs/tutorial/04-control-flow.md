@@ -37,6 +37,12 @@ flowchart TD
   E -- no --> F{"reuse a workflow?"}
   F -- yes --> CL["call"]
   F -- no --> H["halt, human_prompt, sleep ..."]
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  classDef decision fill:#fdecc8,stroke:#b7791f,color:#4a3300
+  class Q,D,P,PF,BC,AL,LP,FE,CL step
+  class A,B,C,E,F decision
+  classDef edge fill:#e9edf5,stroke:#5a6078,color:#1f2540
+  class H edge
 ```
 
 ## `alt`: choose a branch
@@ -82,6 +88,10 @@ flowchart TD
   B --> R["return reply"]
   T --> R
   G --> R
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  classDef decision fill:#fdecc8,stroke:#b7791f,color:#4a3300
+  class C,B,T,G,R step
+  class Q,Q2 decision
 ```
 
 This is starter [04-router](../../src/loom/starters/04-router/).
@@ -127,6 +137,10 @@ flowchart TD
   A -- yes --> RW["Writer rewrites"] --> L
   A -- no --> L
   L -. "after max 3 rounds" .-> X["on_exhausted"] --> D
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  classDef decision fill:#fdecc8,stroke:#b7791f,color:#4a3300
+  class W,D,RV,RW step
+  class L,A,X decision
 ```
 
 Three things to remember:
@@ -224,6 +238,12 @@ flowchart LR
   A --> J{{"join: wait for both"}}
   B --> J
   J --> L["Lead combines"]
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  classDef decision fill:#fdecc8,stroke:#b7791f,color:#4a3300
+  classDef edge fill:#e9edf5,stroke:#5a6078,color:#1f2540
+  class A,B,L step
+  class F,J decision
+  class S edge
 ```
 
 The two reviews take as long as the slower one, not the sum. Two rules keep it safe:

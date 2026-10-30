@@ -44,6 +44,12 @@ flowchart TD
   Q -- "no" --> D["return draft"]
   Q -- "yes, and fewer than 2 rewinds so far" --> CP
   Q -- "yes, limit used" --> N["note: keeping the last report"] --> D
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  classDef decision fill:#fdecc8,stroke:#b7791f,color:#4a3300
+  classDef edge fill:#e9edf5,stroke:#5a6078,color:#1f2540
+  class C,W,R,D,N step
+  class Q decision
+  class CP edge
 ```
 
 Read it aloud: *go back to the checkpoint `collected` when the review score is below 7, at most 2 times, carrying the reviewer's notes into the next attempt, doing nothing about effects already done; if it still fails after that, say so.*
@@ -98,6 +104,10 @@ flowchart LR
     S -- "300 cases, 97%+,<br/>no dangerous mistakes,<br/>risk-owner approves" --> A["act<br/>the agent decides;<br/>a sample is checked"]
     A -. "2 dangerous mistakes,<br/>or agreement falls" .-> S
   end
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  classDef person fill:#e3e8ff,stroke:#4c5fd5,color:#1a2370
+  class L,A step
+  class W,S person
 ```
 
 ```loom

@@ -8,6 +8,12 @@ flowchart LR
   K[("knowledge<br/>your documents,<br/>searched by meaning")] -- "the relevant passages" --> A
   M[("memory<br/>this person's earlier<br/>conversation and facts")] -- "what you remember" --> A
   A --> R["answer"]
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  classDef store fill:#efe3fb,stroke:#7e3fbf,color:#3a1a5c
+  class Q,A step
+  class K,M store
+  classDef edge fill:#e9edf5,stroke:#5a6078,color:#1f2540
+  class R edge
 ```
 
 ## Knowledge: answers from your own documents

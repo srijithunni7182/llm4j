@@ -17,6 +17,8 @@ flowchart TB
   J --> A --> P
   J -- "embed" --> R
   R --> A
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  class You,J,Lib,P,Loom,S,R,A step
 ```
 
 | If you want... | Use |

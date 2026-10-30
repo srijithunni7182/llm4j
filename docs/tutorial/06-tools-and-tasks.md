@@ -12,6 +12,10 @@ flowchart LR
   end
   T --> World[("the outside world")]
   K --> World
+  classDef step fill:#d9efec,stroke:#0f766e,color:#0b3b37
+  classDef world fill:#e1f3e3,stroke:#2f855a,color:#12361e
+  class Model,A,Code,W,K step
+  class T,World world
 ```
 
 The rule of thumb: **the model reads, the code decides and acts.** A tool is for when the model needs to reach something. A task is for when a result must be exact, free, and immune to a prompt that says "ignore your rules".
