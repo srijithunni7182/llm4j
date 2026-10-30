@@ -6,6 +6,8 @@ This tutorial teaches all of it, from "what is an agent?" to "my workflow runs b
 
 You do not need to know Java to use Loom. You need Java 17 installed, and (for real runs) an API key from a model provider. Everything up to the point where you spend money runs free.
 
+Reading this without the repository? `weave guide tutorial` writes the whole tutorial, with its diagrams, as one web page (`loom-tutorial.html`) that you open in a browser. It is the same text as these files.
+
 ## How a Loom project fits together
 
 ```mermaid
