@@ -74,3 +74,22 @@ if [ -f "$hzip" ]; then
 else
   echo "(no harness-design package at $hzip: run scripts/package-skill.sh)"
 fi
+
+# ---------------------------------------------------------------------------------------------------------------------------------------
+# The evaluation-design skill, from its own zip, away from the repository: text only, so it must be complete and point at no repository path.
+ezip="${4:-$root/dist/llm4j-eval-design.zip}"
+if [ -f "$ezip" ]; then
+  ework="$(mktemp -d)"; trap 'rm -rf "$ework" "${hwork:-}" "${work:-}" "${dwork:-}"' EXIT
+  unzip -q "$ezip" -d "$ework"
+  evl="$ework/llm4j-eval-design"
+  for f in SKILL.md references/principles.md references/oracles.md references/dataset-and-labelling.md references/quality-dimensions.md references/security-testing.md references/trajectory-and-multi-turn.md references/judge-and-pipeline.md references/eval4j-loom-mapping.md references/failure-modes.md references/design-record.md references/conventions.md; do
+    [ -e "$evl/$f" ] || { echo "missing from the eval-design package: $f" >&2; exit 1; }
+  done
+  grep -q '^name: llm4j-eval-design' "$evl/SKILL.md" || { echo "the eval-design SKILL.md has no name" >&2; exit 1; }
+  if grep -rEn 'docs/(guide|deploy|specs)|\]\(\.\./' "$evl/SKILL.md" "$evl/references" | grep -v "https://" >/dev/null; then
+    echo "the eval-design skill points at a repository path" >&2; exit 1
+  fi
+  echo "ok: the eval-design package is complete and stands alone"
+else
+  echo "(no eval-design package at $ezip: run scripts/package-skill.sh)"
+fi

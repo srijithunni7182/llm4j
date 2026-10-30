@@ -149,11 +149,12 @@ Three [Claude skills](docs/PUBLISHING_SKILL.md) live in [`.claude/skills/`](.cla
 
 | Skill | Use it to |
 |---|---|
+| [`llm4j-eval-design`](.claude/skills/llm4j-eval-design/SKILL.md) | **Design** how the workflow will be evaluated before the dataset is built (what correct means, the oracles, what the dataset must hold, how to trust a judge, the run protocol and the gates) and write it down as an `EVAL_DESIGN.md`; **review** an existing evaluation against the known anti-patterns |
 | [`llm4j-harness-design`](.claude/skills/llm4j-harness-design/SKILL.md) | **Design** the harness around an autonomous workflow before building it (what agents may touch, how a run is bounded, fails, survives a crash and is stopped, who steps in) and write it down as a `HARNESS.md` |
 | [`llm4j-workflow-guide`](.claude/skills/llm4j-workflow-guide/SKILL.md) | **Build** it: agents, golden dataset, prompt and agent tests, the Loom workflow, `weave check` and `weave audit`, steering and stopping, going live under budgets ([the guide](docs/guide/README.md)) |
 | [`llm4j-loom-deployer`](.claude/skills/llm4j-loom-deployer/SKILL.md) | **Run** it watched: the security decisions, the rules file, a Fabric server, launching both, reading the pages |
 
-They hand over to each other in that order and each works alone. `weave guide --install-skill` installs all three into your project ([how the skills are published](docs/PUBLISHING_SKILL.md)).
+They hand over to each other in that order and each works alone. `weave guide --install-skill` installs all four into your project ([how the skills are published](docs/PUBLISHING_SKILL.md)).
 
 ## Secure by construction
 

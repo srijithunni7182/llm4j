@@ -64,6 +64,10 @@ Use `weave deploy`, not a hand-written Dockerfile. It reads the script and write
 5. `weave deploy flow.loom --verify deploy` after a change to the script says what is stale. A file they edited by hand is kept (`--force` replaces it).
 6. Read the generated README with them: what it needs, what happens on a restart, a lost node and a lost volume.
 
+## Evaluation, once it is live
+
+The weekly drift check (a fixed configuration, whatever changed), the growth of the golden dataset from incidents, and the production cases captured from real runs are part of the evaluation design in **`llm4j-eval-design`**'s `EVAL_DESIGN.md` (its run protocol and governance sections). When an incident teaches something, it becomes a case there; offer that skill when the person asks whether the evaluation is still any good.
+
 ## Rules you do not break
 
 - **A secret never goes on a command line, in a printed line or in the chat**: the admin password, a Fabric client key, a provider key, the master key. The scripts take them from the environment or standard input and store them; you never see them. If one reaches the chat, tell the user to rotate it and how.

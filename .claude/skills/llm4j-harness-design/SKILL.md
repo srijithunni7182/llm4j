@@ -134,6 +134,10 @@ record first, and say what changed and why.
 - A green mock run. It proves the wiring, not the behaviour.
 - A dashboard nobody has been shown, and incident rules nobody wrote.
 
+## Where evaluation meets the harness
+
+How the workflow will be **evaluated** is a design of its own: the **`llm4j-eval-design`** skill writes `EVAL_DESIGN.md`. The two records point at each other: the bounds that must fire and the loop-induction cases (stage 4 here) are tested from `EVAL_DESIGN.md`, and its trajectory and security stages name this record's boundary table and human gates. Offer it when the person asks how to test the workflow or whether it is any good.
+
 ## Review is advice, and the decision is the user's
 
 After you write or change a workflow, run `weave review <script>` (free, offline, no keys). Tell the user the open counts and the top findings in a sentence, say plainly when one is **high**, and offer to handle the rest: for a finding with **options** (`weave review --format json` lists them under `options`), put the choices to the user in your own words, let them pick and give the values (how many retries, what a failure note says), show the diff with `--dry-run`, and apply with `weave review <script> --fix-finding FINGERPRINT --option ID --set name=value` (add `--yes` only for an option marked as needing thought and only after the user said yes). `--fix` applies only the fixes with one obvious answer. Accepting a finding needs a reason that is the user's own (`--accept FINGERPRINT --reason "..."`): never write one for them. A fix proves only that the script loads and adds no high finding, so run `weave check` and the tests after it.

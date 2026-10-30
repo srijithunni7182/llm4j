@@ -1,6 +1,27 @@
 # Publishing the llm4j skills
 
-There are three skills. **`llm4j-harness-design`** comes first: it designs the harness around an autonomous workflow (what agents may touch, how a run is bounded, how it fails, survives a crash and is stopped, who steps in) and writes the decisions down as a `HARNESS.md` design record. **`llm4j-workflow-guide`** builds, tests, secures and ships the workflow (chapters 1 to 15 of the guide). **`llm4j-loom-deployer`** takes the finished workflow to a running, watched one: the security decisions, the rules file, a Fabric server, launching the application and the server with scripts, and reading the pages. They hand over to each other by name, in that order, and each can be used alone; a team can install only the deployer on a server. `weave guide --install-skill` installs all three into a project (`--skill harness`, `--skill workflow` or `--skill deployer` for one).
+There are four skills. **`llm4j-eval-design`** designs how the workflow will be evaluated (what correct means, the oracles, what the dataset must hold, how the judge is validated, the run protocol and the gates) and writes an `EVAL_DESIGN.md`, or reviews an existing evaluation into an `EVAL_REVIEW.md`; it sits after "decide the agents" and before "build the golden dataset". **`llm4j-harness-design`** comes next: it designs the harness around an autonomous workflow (what agents may touch, how a run is bounded, how it fails, survives a crash and is stopped, who steps in) and writes the decisions down as a `HARNESS.md` design record. **`llm4j-workflow-guide`** builds, tests, secures and ships the workflow (chapters 1 to 15 of the guide). **`llm4j-loom-deployer`** takes the finished workflow to a running, watched one: the security decisions, the rules file, a Fabric server, launching the application and the server with scripts, and reading the pages. They hand over to each other by name, in that order, and each can be used alone; a team can install only the deployer on a server. `weave guide --install-skill` installs all four into a project (`--skill eval`, `--skill harness`, `--skill workflow` or `--skill deployer` for one).
+
+## The evaluation-design skill
+
+`llm4j-eval-design` writes no Loom script and no dataset case, and needs no jar. It is a folder of text, so there is nothing to build:
+
+```
+llm4j-eval-design/
+  SKILL.md                              the skill: nine rules, an eleven-stage path (E0 to E10), what is the user's to decide, review mode, the hand-overs
+  references/principles.md              the four properties that change testing, the mindset shift, the do's and don'ts
+  references/oracles.md                 the four oracle types, the decision procedure, metamorphic relations
+  references/dataset-and-labelling.md   anatomy of a case, sources, coverage, the three missing classes, size, splits, labelling, governance
+  references/quality-dimensions.md      the nine dimensions: metrics, targets, how each misleads
+  references/security-testing.md        injection, agency, leakage, denial of wallet, red teaming, honest reading
+  references/trajectory-and-multi-turn.md   trajectory, turn versus session, multi-turn cases, multi-agent and context tests
+  references/judge-and-pipeline.md      the layers, the judge and how to validate it, run protocols, gates, reading results
+  references/eval4j-loom-mapping.md     each decision, the construct that carries it today, and the gaps with their register ids
+  references/failure-modes.md           the anti-patterns (the checklist of review mode) and the troubleshooting table
+  references/design-record.md           the EVAL_DESIGN.md template and a worked example
+```
+
+`make skill-package` builds `dist/llm4j-eval-design.zip` from the weave jar and checks it from an empty folder; `weave guide --install-skill --skill eval` writes the same files into a project. The method is distilled from the owner's guide *Quality Assurance for AI agentic systems*, credited on every page that uses it; the guide's numbers are starting points the domain expert sets. `EvalDesignSkillTest` checks that every `weave` command and option the pages name exists, that every gap names a register id, that the nine rules are present word for word, and that the dataset sample loads with the real loader. Keep `references/eval4j-loom-mapping.md` in step with the CLI: when a gap in the register closes, its row goes.
 
 ## The harness-design skill
 

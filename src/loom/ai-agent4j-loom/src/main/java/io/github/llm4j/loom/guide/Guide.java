@@ -149,6 +149,21 @@ public final class Guide {
                     "conventions.md",
                     "cost-and-models.md");
 
+    /** The references that travel with the evaluation-design skill. */
+    public static final List<String> EVAL_REFERENCES =
+            List.of(
+                    "principles.md",
+                    "oracles.md",
+                    "dataset-and-labelling.md",
+                    "quality-dimensions.md",
+                    "security-testing.md",
+                    "trajectory-and-multi-turn.md",
+                    "judge-and-pipeline.md",
+                    "eval4j-loom-mapping.md",
+                    "failure-modes.md",
+                    "design-record.md",
+                    "conventions.md");
+
     private Guide() {}
 
     public static List<Page> pages() {
@@ -292,6 +307,42 @@ public final class Guide {
             Files.writeString(
                     folder.resolve("references").resolve(ref),
                     read("skill-harness/references/" + ref)
+                            .orElseThrow(() -> new IllegalStateException("this jar has no " + ref)),
+                    StandardCharsets.UTF_8);
+            written.add("references/" + ref);
+        }
+        return written;
+    }
+
+    /** Where the evaluation-design skill goes inside a project. */
+    public static Path evalFolder(Path project) {
+        return project.resolve(".claude").resolve("skills").resolve("llm4j-eval-design");
+    }
+
+    /**
+     * Writes the evaluation-design skill into {@code project/.claude/skills/llm4j-eval-design}:
+     * {@code SKILL.md} and {@code references/}. It is text only: it needs no jar and no script.
+     * Without {@code force} nothing is written when the skill is already there.
+     *
+     * @return the files written, relative to the skill folder; empty when it was already there
+     */
+    public static List<String> installEvalSkill(Path project, boolean force) throws IOException {
+        Path folder = evalFolder(project);
+        if (Files.exists(folder.resolve("SKILL.md")) && !force) return List.of();
+        String skill =
+                read("skill-eval/SKILL.md")
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "this jar has no evaluation-design skill (a broken jar?)"));
+        List<String> written = new ArrayList<>();
+        Files.createDirectories(folder.resolve("references"));
+        Files.writeString(folder.resolve("SKILL.md"), skill, StandardCharsets.UTF_8);
+        written.add("SKILL.md");
+        for (String ref : EVAL_REFERENCES) {
+            Files.writeString(
+                    folder.resolve("references").resolve(ref),
+                    read("skill-eval/references/" + ref)
                             .orElseThrow(() -> new IllegalStateException("this jar has no " + ref)),
                     StandardCharsets.UTF_8);
             written.add("references/" + ref);

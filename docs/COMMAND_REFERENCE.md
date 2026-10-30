@@ -2054,8 +2054,8 @@ weave guide [OPTIONS] [<page>]
 
 - `--for=<forAgents>` — With --install-skill: which coding agents to set up, separated by commas: claude (the skills in .claude/skills; the default), agents (AGENTS.md, read by Codex, Copilot, Gemini, Cursor and others), copilot (.github/copilot-instructions.md), cursor (.cursor/rules/loom.mdc) or all. The instruction files keep what you wrote in them: Loom's text sits between two marker lines.
 - `--force` — With --install-skill: replace the skill if it is already there.
-- `--install-skill=<installTo>` — Write the skills and the guide into <dir>/.claude/skills (default: this folder): llm4j-harness-design (design the harness), llm4j-workflow-guide (build, test, secure, ship) and llm4j-loom-deployer (run it, watched).
-- `--skill=<which>` — With --install-skill: harness, workflow, deployer or all (default all).
+- `--install-skill=<installTo>` — Write the skills and the guide into <dir>/.claude/skills (default: this folder): llm4j-eval-design (design the evaluation), llm4j-harness-design (design the harness), llm4j-workflow-guide (build, test, secure, ship) and llm4j-loom-deployer (run it, watched).
+- `--skill=<which>` — With --install-skill: eval, harness, workflow, deployer or all (default all).
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave man`

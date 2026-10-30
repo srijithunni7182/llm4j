@@ -19,7 +19,11 @@ import org.junit.jupiter.api.io.TempDir;
 class SkillConventionsTest {
 
     private static final List<String> SKILLS =
-            List.of("llm4j-workflow-guide", "llm4j-loom-deployer", "llm4j-harness-design");
+            List.of(
+                    "llm4j-workflow-guide",
+                    "llm4j-loom-deployer",
+                    "llm4j-harness-design",
+                    "llm4j-eval-design");
     private static final Path SKILLS_DIR = Path.of("../../../.claude/skills");
     private static final String FILE = "references/conventions.md";
 
@@ -63,6 +67,7 @@ class SkillConventionsTest {
         io.github.llm4j.loom.guide.Guide.installSkill(project, true);
         io.github.llm4j.loom.guide.Guide.installDeployerSkill(project, true);
         io.github.llm4j.loom.guide.Guide.installHarnessSkill(project, true);
+        io.github.llm4j.loom.guide.Guide.installEvalSkill(project, true);
 
         for (String skill : SKILLS)
             assertThat(project.resolve(".claude/skills").resolve(skill).resolve(FILE))

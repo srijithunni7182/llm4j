@@ -4,6 +4,8 @@
 
 > **Start with `weave test`.** For the path, branches, loops, failures, who is asked, and what acting tools would have done, you need no Java: write `tests/*.test.yaml` and run `weave test script.loom --coverage` (see the "Testing the Logic" section of the Loom guide). It is free, deterministic and fast. The Java route below is for assertions on the trace itself (`WorkflowTrace`, spend) or when the case is built in code; `LoomTest` gives the same engine from Java.
 
+> **What a trajectory test must cover** (legal handoffs, no duplicate calls, every tool error visibly handled, bounds that fire, context that survives a handoff) is decided in the evaluation design: see the `llm4j-eval-design` skill.
+
 ## Why
 
 Agents can each pass their tests and the workflow can still be wrong: a branch never taken, a round skipped, a tool called by the wrong agent, a budget that does

@@ -55,16 +55,18 @@ class NextCommandTest {
 
         assertThat(o.code()).isZero();
         List<String> steps = numbered(o.out());
-        assertThat(steps).hasSize(7);
-        // review, tests, the free wiring proof, keys, the preflight (one real answer, suggested
-        // once), what deploying would take, then the real run
+        assertThat(steps).hasSize(8);
+        // review, tests, the free wiring proof, the evaluation design (or a review of the one
+        // there is), keys, the preflight (one real answer, suggested once), what deploying would
+        // take, then the real run
         assertThat(steps.get(0)).contains("Read the review");
         assertThat(steps.get(1)).contains("Run the tests");
         assertThat(steps.get(2)).contains("Run the whole dataset on mock models");
-        assertThat(steps.get(3)).contains(".env").contains("GEMINI_API_KEY");
-        assertThat(steps.get(4)).contains("Try one real answer").contains("preflight");
-        assertThat(steps.get(5)).contains("deploy it (writes nothing)");
-        assertThat(steps.get(6)).contains("Run it for real, capped");
+        assertThat(steps.get(3)).contains("Design the evaluation").contains("reviewed");
+        assertThat(steps.get(4)).contains(".env").contains("GEMINI_API_KEY");
+        assertThat(steps.get(5)).contains("Try one real answer").contains("preflight");
+        assertThat(steps.get(6)).contains("deploy it (writes nothing)");
+        assertThat(steps.get(7)).contains("Run it for real, capped");
         assertThat(o.out())
                 .contains("$ weave review main.loom")
                 .contains("$ weave test main.loom --coverage")
@@ -97,11 +99,15 @@ class NextCommandTest {
         deleteTree(project.resolve("eval"));
 
         List<String> asked = numbered(next(project.toString()).out());
-        assertThat(asked.get(0)).contains("Decide about tests");
+        assertThat(asked.get(0)).contains("Design the evaluation before building the dataset");
+        assertThat(asked.get(1)).contains("Decide about tests");
 
         Files.writeString(project.resolve("README.md"), "# x\n\nEvaluation: skipped\n");
         String after = next(project.toString()).out();
-        assertThat(after).doesNotContain("Decide about tests").doesNotContain("mock models");
+        assertThat(after)
+                .doesNotContain("Decide about tests")
+                .doesNotContain("mock models")
+                .doesNotContain("Design the evaluation");
         assertThat(after)
                 .contains("Run it once for real, capped")
                 .contains("$ weave run main.loom --max-tokens");

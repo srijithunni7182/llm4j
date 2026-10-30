@@ -199,6 +199,10 @@ Read `references/conventions.md` before you start. It sets nine rules the llm4j 
 
 Chapters 1 to 10 end at a tested workflow that can run. Running it where people can see it (the live page, a Fabric server for many processes, the rules that say what counts as trouble, who may sign in, TLS, retention, the incidents and what to do about them) is a separate job with its own skill, **`llm4j-loom-deployer`**; it is installed beside this one by `weave guide --install-skill`. Hand over when the user wants to run the workflow for real and have anyone but themselves look at it. Before you do, make sure these are in the project: the windows for its models, the trifecta decisions in `<script>.inspect`, the `retry` and `on_failure` decisions, and the spend limits of chapter 9. Say plainly what the deployer will do (start a server and the application, report the run to it) and that it will ask before anything that opens a port beyond this computer.
 
+## Design the evaluation first, when the person wants to know their agents are good
+
+The golden dataset is the one artefact that outlives every model and prompt, and it is the thing most often built by trial. Before stage 2 (the dataset), offer the **`llm4j-eval-design`** skill: it decides with the person and a domain expert what *correct* means, which oracle checks each property, what the dataset must hold (including the cases nobody builds), how the judge is validated, how often to run, and what the gates are, and writes it into `EVAL_DESIGN.md`. Then build from that record: this skill writes the dataset, the tests and the runs. If the person skips the design, record the skip (conventions, rule 9) and go on.
+
 ## Show the stages as a checklist
 
 At the start, and again after every stage, print a short checklist in the chat and tick what is done, so the user always sees where they are and what is left:

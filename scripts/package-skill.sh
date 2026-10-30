@@ -79,3 +79,13 @@ mv "$root/dist/.stage/.claude/skills/llm4j-harness-design" "$HAR"
 rm -rf "$root/dist/.stage"
 ( cd "$root/dist" && zip -qr llm4j-harness-design.zip llm4j-harness-design )
 echo "built $HAR and $HAR.zip ($(du -h "$HAR.zip" | cut -f1), $(ls "$HAR/references" | wc -l) reference files)"
+
+# ---------------------------------------------------------------------------------------------------------------------------------------
+# The evaluation-design skill: text only, the same way.
+EVL="$root/dist/llm4j-eval-design"
+rm -rf "$EVL" "$EVL.zip" "$root/dist/.stage"; mkdir -p "$root/dist/.stage"
+( cd "$root/dist/.stage" && java -jar "$jar" guide --install-skill --skill eval >/dev/null )
+mv "$root/dist/.stage/.claude/skills/llm4j-eval-design" "$EVL"
+rm -rf "$root/dist/.stage"
+( cd "$root/dist" && zip -qr llm4j-eval-design.zip llm4j-eval-design )
+echo "built $EVL and $EVL.zip ($(du -h "$EVL.zip" | cut -f1), $(ls "$EVL/references" | wc -l) reference files)"

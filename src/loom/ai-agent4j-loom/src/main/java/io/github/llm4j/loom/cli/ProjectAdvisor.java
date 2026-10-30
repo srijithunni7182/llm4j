@@ -74,6 +74,17 @@ final class ProjectAdvisor {
         EvalDataset dataset = Files.isDirectory(golden) ? EvalDataset.load(golden) : null;
         boolean hasDataset = dataset != null && !dataset.files().isEmpty();
 
+        boolean needsDesign =
+                !skipped
+                        && !loaded.getAgents().isEmpty()
+                        && !Files.exists(dir.resolve("EVAL_DESIGN.md"));
+        if (needsDesign && !hasDataset) {
+            steps.add(
+                    new Step(
+                            "Design the evaluation before building the dataset around it: what correct means for each property, who the domain expert is, what the dataset must hold, how the judge is validated, how often to run and where to gate",
+                            "An agentic system has no expected result to compare with, so the evaluation is designed, not discovered by trial. The llm4j-eval-design skill asks you and a domain expert and writes EVAL_DESIGN.md.",
+                            "weave guide --install-skill        (then ask your coding agent to use the llm4j-eval-design skill)"));
+        }
         if (!hasDataset && !skipped) {
             steps.add(
                     new Step(
@@ -161,6 +172,13 @@ final class ProjectAdvisor {
                             "Run the whole dataset on mock models to prove the wiring",
                             "Free: every step gets a fixed reply, and a code step that changes things is described, not run. It checks the connections, not the quality (content checks come out unjudged).",
                             "weave eval " + file + " --mock"));
+            if (needsDesign) {
+                steps.add(
+                        new Step(
+                                "Design the evaluation, or have the one you have reviewed: nobody has written down what correct means, who the domain expert is or how far the numbers can be trusted",
+                                "A dataset the assistant drafted and a judge nobody validated give numbers that look like quality. The llm4j-eval-design skill designs the evaluation (EVAL_DESIGN.md) or reviews an existing one against the known anti-patterns (EVAL_REVIEW.md).",
+                                "weave guide --install-skill        (then ask your coding agent to use the llm4j-eval-design skill)"));
+            }
         }
         if (!check.keysNotSet().isEmpty()) {
             String names = String.join(", ", check.keysNotSet());

@@ -216,6 +216,12 @@
                 <targetPath>skill-deployer</targetPath>
                 <includes><include>SKILL.md</include><include>scripts/*</include><include>references/conventions.md</include></includes>
             </resource>
+            <!-- the evaluation-design skill: text only (its SKILL.md and references) -->
+            <resource>
+                <directory>../../../.claude/skills/llm4j-eval-design</directory>
+                <targetPath>skill-eval</targetPath>
+                <includes><include>SKILL.md</include><include>references/*.md</include></includes>
+            </resource>
             <!-- the harness-design skill: text only (its SKILL.md and references) -->
             <resource>
                 <directory>../../../.claude/skills/llm4j-harness-design</directory>
