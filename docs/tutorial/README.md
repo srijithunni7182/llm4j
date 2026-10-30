@@ -1,5 +1,19 @@
 # The Loom tutorial
 
+## Why I built Loom
+
+Loom is a new language, but it is not meant to be an application programming language. I built it for one reason.
+
+A workflow is a language in itself. Much like code, it moves from state to state. It is the harness we build on top of the transformers, and its intelligence is symbolic. I grew tired of expressing everything I needed in a workflow through Python or Java. A workflow is above all of that. It is a pure thing, a beautiful orchestration of intents to achieve a goal. The plumbing that Java and Python demanded killed the joy of building it.
+
+And when I needed feedback on a workflow, it stayed difficult to give or to get. I could not see the workflow beneath all the cobwebs of the code.
+
+Loom was born from that desire: to see the workflow, to preserve its beauty, and to get feedback on the workflow and not on the plumbing.
+
+I hope you will see the beauty in Loom the way I do.
+
+---
+
 Loom is a small language for workflows that use several AI agents. You write what should happen, in what order, with what limits, and Loom runs it, records it, and can pick it up again after a crash or a few days of waiting.
 
 This tutorial teaches all of it, from "what is an agent?" to "my workflow runs by itself, under a budget, and a person approves the risky step". It is written to be read in order, but every chapter stands on its own, so you can jump to the one you need.
