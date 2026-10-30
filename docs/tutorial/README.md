@@ -12,6 +12,8 @@ Loom was born from that desire: to see the workflow, to preserve its beauty, and
 
 I hope you will see the beauty in Loom the way I do.
 
+*Srijith Unni*
+
 ---
 
 Loom is a small language for workflows that use several AI agents. You write what should happen, in what order, with what limits, and Loom runs it, records it, and can pick it up again after a crash or a few days of waiting.
