@@ -31,6 +31,7 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 
 - [`weave test`](#weave-test) — Runs test cases against a workflow with scripted models and no keys: routes, calls and results are checked, nothing is spent.
 - [`weave eval`](#weave-eval) — Runs a script's golden dataset (eval/golden/*.yaml) against it and reports passed, failed and unjudged.
+- [`weave judge`](#weave-judge) — Checks whether an LLM judge may gate: its scores against people's scores.
 - [`weave gate`](#weave-gate) — Runs the checks your team chose (check, review, test, regress, eval) and prints one verdict, for CI.
 - [`weave preflight`](#weave-preflight) — Sends one small probe per agent through its real prompts and checks: the key, the model, one whole answer, that the shared prompt reaches the model, sources for grounded agents, price and window.
 
@@ -1922,6 +1923,40 @@ Nine sections, always, in the terminal, in --report and in --json: Read this fir
 **See also**
 
 weave man test, weave man capture
+
+### `weave judge`
+
+Checks whether an LLM judge may gate: its scores against people's scores.
+
+```
+weave judge [OPTIONS] <command>
+```
+
+**Commands**
+
+- `validate` — Reads a reference file (JSON or YAML: a list of {id, human_1, human_2, human_3, judge}, scores on the same scale) of at least 40 outputs.
+
+**Options**
+
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
+
+#### `weave judge validate`
+
+Reads a reference file (JSON or YAML: a list of {id, human_1, human_2, human_3, judge}, scores on the same scale) of at least 40 outputs.
+
+Checks the people against each other first (quadratic-weighted Cohen's kappa; below 0.6 the rubric is under-specified and it stops), then the judge against their consensus (below 0.6 it may not gate). Exit 0 usable, 1 not usable, 2 a problem with the file. Calls no model.
+
+```
+weave judge validate [OPTIONS]
+```
+
+**Options**
+
+- `--min-outputs=<minOutputs>` — The fewest outputs a validation may rest on (default: 40).
+- `--model=<name>` — The judge model the scores came from (as in weave eval --judge). The record names it, and a report says validated only for this model.
+- `--project=<folder>` — The project: the result is recorded in <folder>/eval/judge-validation.json (default: this folder).
+- `--reference=<file>` — The scored reference set.
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave test`
 

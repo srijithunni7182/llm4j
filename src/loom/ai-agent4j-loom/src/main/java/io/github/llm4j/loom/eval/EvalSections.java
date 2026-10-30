@@ -202,8 +202,24 @@ public final class EvalSections {
     private static List<String> overall(EvalReport.Run run) {
         List<String> l = new ArrayList<>();
         l.addAll(EvalReport.summary(run).lines().toList());
+        int[] v = verdictCounts(run);
+        if (v[0] + v[1] + v[2] > 0)
+            l.add("answer verdicts: " + v[0] + " in the accepted set, " + v[1] + " rejected, " + v[2] + " unmatched.");
         l.addAll(run.baseline());
         return l;
+    }
+
+    /** How many verdict checks were in the accepted set, rejected or matched nothing. */
+    private static int[] verdictCounts(EvalReport.Run run) {
+        int[] counts = new int[3];
+        for (ScenarioResult r : run.results())
+            for (ScenarioResult.Check c : r.checks()) {
+                if (!c.kind().equals("answer verdict") || c.detail() == null) continue;
+                if (c.detail().startsWith("verdict: exact") || c.detail().startsWith("verdict: acceptable")) counts[0]++;
+                else if (c.detail().startsWith("verdict: rejected")) counts[1]++;
+                else if (c.detail().startsWith("verdict: unmatched")) counts[2]++;
+            }
+        return counts;
     }
 
     // ── 3. By agent ──────────────────────────────────────────────────────────────────────────
@@ -484,6 +500,7 @@ public final class EvalSections {
                                 ? "per passing case: none passed, so there is no cost per success"
                                 : "per passing case: "
                                         + money(total.divide(BigDecimal.valueOf(passing), 6, RoundingMode.HALF_UP)));
+        l.addAll(CostTail.of(run.results()).lines(EvalSections::money));
         return l;
     }
 
@@ -496,6 +513,12 @@ public final class EvalSections {
         long unjudged = run.count(Status.UNJUDGED);
         if (unjudged > 0)
             l.add(unjudged + " case" + (unjudged == 1 ? " is" : "s are") + " unjudged: nothing confirmed " + (unjudged == 1 ? "it" : "them") + ". Unjudged is not a pass.");
+        int[] verdicts = verdictCounts(run);
+        int judged = verdicts[0] + verdicts[1] + verdicts[2];
+        if (judged > 0 && verdicts[2] * 10 > judged)
+            l.add(
+                    Math.round(100.0 * verdicts[2] / judged)
+                            + "% of the verdicts matched nothing the cases list: above about 10% the ground truth is incomplete and every other number is suspect. Have a person read the unmatched answers and add the right ones to accepted_equivalents.");
         if (run.notRun() > 0) l.add(run.notRun() + " case(s) were not run because a limit stopped the evaluation.");
         if (run.stoppedBecause() != null) l.add("Stopped early: " + run.stoppedBecause());
         boolean heldOut = run.results().stream().anyMatch(r -> Splits.isHeldOut(r.tags()));

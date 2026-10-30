@@ -82,3 +82,5 @@ Before introducing a breaking change:
 - **`real:`**, a new key of a workflow test case. Test files without it behave as before.
 - **`weave check --substitution`, `--fix-substitution`, `--yes`**, new options.
 - **`weave fabric up | down | status`**, a new command. The deployer scripts keep working without it; with it, `fabric-up` generates a first-start admin password instead of refusing, and `run-observed` gains `--secrets-key-file`.
+- **eval4j `EvalScenario`** gains six components (`correctConclusion`, `acceptedEquivalents`, `rejected`, `acceptableActions`, `unacceptableActions`, `requiredCitations`); the sixteen-component constructor and every older one are kept, and datasets without them read as before.
+- **`weave judge validate`**, a new command; `eval/judge-validation.json`, a new file.

@@ -51,7 +51,95 @@ public record EvalScenario(
                                         .ACCEPT_SINGLE_VALUE_AS_ARRAY)
                 List<String> expectedOutputNotContains,
         @JsonAlias("expected_min_words") Integer expectedMinWords,
-        @JsonAlias("expected_max_words") Integer expectedMaxWords) {
+        @JsonAlias("expected_max_words") Integer expectedMaxWords,
+        @JsonAlias("correct_conclusion") String correctConclusion,
+        @JsonAlias("accepted_equivalents") @SingleOrMany List<String> acceptedEquivalents,
+        @SingleOrMany List<String> rejected,
+        @JsonAlias("acceptable_actions") @SingleOrMany List<String> acceptableActions,
+        @JsonAlias("unacceptable_actions") @SingleOrMany List<String> unacceptableActions,
+        @JsonAlias("required_citations") @SingleOrMany List<String> requiredCitations) {
+
+    /**
+     * The sixteen-field form, before the answer set ({@code correct_conclusion}, {@code
+     * accepted_equivalents}, {@code rejected}, {@code acceptable_actions}, {@code
+     * unacceptable_actions}, {@code required_citations}).
+     */
+    public EvalScenario(
+            String name,
+            String input,
+            String expectedOutputContains,
+            String expectedOutput,
+            List<String> expectedTools,
+            List<String> context,
+            List<String> retrievalContext,
+            String id,
+            List<String> dimensions,
+            List<String> tags,
+            List<String> rubric,
+            List<String> expect,
+            Map<String, String> inputs,
+            List<String> expectedOutputNotContains,
+            Integer expectedMinWords,
+            Integer expectedMaxWords) {
+        this(
+                name,
+                input,
+                expectedOutputContains,
+                expectedOutput,
+                expectedTools,
+                context,
+                retrievalContext,
+                id,
+                dimensions,
+                tags,
+                rubric,
+                expect,
+                inputs,
+                expectedOutputNotContains,
+                expectedMinWords,
+                expectedMaxWords,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+    }
+
+    /** The answer set, as it was written, never null: what a case treats as right or wrong. */
+    public boolean hasAnswerSet() {
+        return correctConclusion != null
+                || acceptedEquivalents != null
+                || rejected != null
+                || acceptableActions != null
+                || unacceptableActions != null
+                || requiredCitations != null;
+    }
+
+    /** The equivalents, never null. */
+    public List<String> equivalents() {
+        return acceptedEquivalents == null ? List.of() : acceptedEquivalents;
+    }
+
+    /** The rejected answers, never null. */
+    public List<String> rejectedAnswers() {
+        return rejected == null ? List.of() : rejected;
+    }
+
+    /** The actions that are fine, never null. */
+    public List<String> okActions() {
+        return acceptableActions == null ? List.of() : acceptableActions;
+    }
+
+    /** The actions that must never happen, never null. */
+    public List<String> forbiddenActions() {
+        return unacceptableActions == null ? List.of() : unacceptableActions;
+    }
+
+    /** The sources an answer must cite, never null. */
+    public List<String> citations() {
+        return requiredCitations == null ? List.of() : requiredCitations;
+    }
 
     /**
      * The fourteen-field form, before {@code expected_min_words} and {@code expected_max_words}.

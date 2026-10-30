@@ -267,6 +267,62 @@ public final class EvalRunner {
 
     // ── checks ───────────────────────────────────────────────────────────────────────────────
 
+    /**
+     * The checks of a case's answer set: the verdict (exact, acceptable, rejected, or matching
+     * nothing, which is unjudged and a person's to read), the sources the answer must cite, and the
+     * actions that must never happen (in the answer or among the tools used).
+     */
+    private static void answerSetChecks(
+            EvalScenario s, String answer, Set<String> tools, List<ScenarioResult.Check> checks) {
+        if (AnswerVerdict.applies(s)) {
+            AnswerVerdict v = AnswerVerdict.of(s, answer);
+            switch (v.kind()) {
+                case EXACT, ACCEPTABLE ->
+                        checks.add(
+                                new ScenarioResult.Check(
+                                        "answer verdict",
+                                        "in the accepted set",
+                                        Status.PASS,
+                                        "verdict: " + v.kind().word() + " (" + v.matched() + ")"));
+                case REJECTED ->
+                        checks.add(
+                                new ScenarioResult.Check(
+                                        "answer verdict",
+                                        "in the accepted set",
+                                        Status.FAIL,
+                                        "verdict: rejected (" + v.matched() + "); the answer was: " + cut(answer)));
+                case UNMATCHED ->
+                        checks.add(
+                                new ScenarioResult.Check(
+                                        "answer verdict",
+                                        "in the accepted set",
+                                        Status.UNJUDGED,
+                                        "verdict: unmatched: it matches nothing the case lists. A person should read it; if it is right, add it to accepted_equivalents. The answer was: "
+                                                + cut(answer)));
+            }
+        }
+        String normal = AnswerVerdict.normal(answer);
+        for (String cite : s.citations()) {
+            boolean ok = !AnswerVerdict.normal(cite).isEmpty() && normal.contains(AnswerVerdict.normal(cite));
+            checks.add(
+                    new ScenarioResult.Check(
+                            "answer cites", cite, ok ? Status.PASS : Status.FAIL, ok ? null : "the answer does not cite it"));
+        }
+        for (String action : s.forbiddenActions()) {
+            String a = AnswerVerdict.normal(action);
+            boolean taken =
+                    !a.isEmpty()
+                            && (normal.contains(a)
+                                    || tools.stream().anyMatch(t -> AnswerVerdict.normal(t).equals(a)));
+            checks.add(
+                    new ScenarioResult.Check(
+                            "answer never takes",
+                            action,
+                            taken ? Status.FAIL : Status.PASS,
+                            taken ? "the answer or the tools used take it" : null));
+        }
+    }
+
     private void answerChecks(
             EvalScenario s, String answer, Set<String> tools, List<ScenarioResult.Check> checks) {
         if (mock) {
@@ -306,6 +362,12 @@ public final class EvalRunner {
                                 String.join(", ", s.expectedTools()),
                                 Status.UNJUDGED,
                                 MOCK_NOTE));
+            if (AnswerVerdict.applies(s))
+                checks.add(new ScenarioResult.Check("answer verdict", "in the accepted set", Status.UNJUDGED, MOCK_NOTE));
+            for (String cite : s.citations())
+                checks.add(new ScenarioResult.Check("answer cites", cite, Status.UNJUDGED, MOCK_NOTE));
+            for (String action : s.forbiddenActions())
+                checks.add(new ScenarioResult.Check("answer never takes", action, Status.UNJUDGED, MOCK_NOTE));
             return;
         }
         if (s.expectedOutputContains() != null) {
@@ -358,6 +420,7 @@ public final class EvalRunner {
                             ok ? Status.PASS : Status.FAIL,
                             ok ? null : "the answer was: " + cut(answer)));
         }
+        answerSetChecks(s, answer, tools, checks);
         if (s.expectedTools() != null && !s.expectedTools().isEmpty()) {
             List<String> missing =
                     s.expectedTools().stream().filter(t -> !tools.contains(t)).toList();
@@ -509,7 +572,7 @@ public final class EvalRunner {
                             "nothing to check",
                             "",
                             Status.UNJUDGED,
-                            "the scenario has no expected_output_contains, expected_output, expected_tools, rubric or expect"));
+                            "the scenario has no expected_output_contains, expected_output, expected_tools, rubric, expect, correct_conclusion, accepted_equivalents, rejected, required_citations or unacceptable_actions"));
         }
         return new ScenarioResult(
                 target,

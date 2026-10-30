@@ -372,6 +372,7 @@ final class EvalCommand implements Callable<Integer> {
                                         + " of "
                                         + everyCase.size()
                                         + " cases were drafted by an assistant and no person has reviewed them. Read each, edit it if it is wrong, and add the tag reviewed_by:<your name>.");
+            io.github.llm4j.loom.eval.CaseMix.notes(everyCase).forEach(env.out()::println);
             boolean anyHeldOut =
                     plan.targets().stream()
                             .flatMap(t -> t.scenarios().stream())
@@ -646,7 +647,7 @@ final class EvalCommand implements Callable<Integer> {
                         notRun,
                         stopped,
                         plan.dataset().dimensions(),
-                        judgeFacts(meters, c),
+                        judgeFacts(meters, c, plan.dir().toAbsolutePath().getParent()),
                         settings,
                         reproduce(c),
                         List.of());
@@ -730,7 +731,7 @@ final class EvalCommand implements Callable<Integer> {
 
     /** What the judge used in this run, with its cost when prices are known; null when none ran. */
     private static EvalReport.JudgeFacts judgeFacts(
-            List<io.github.llm4j.loom.eval.JudgeMeter> meters, EvalCommand c) {
+            List<io.github.llm4j.loom.eval.JudgeMeter> meters, EvalCommand c, Path evalDir) {
         if (meters.isEmpty()) return null;
         io.github.llm4j.budget.PriceTable prices = null;
         try {
@@ -751,7 +752,10 @@ final class EvalCommand implements Callable<Integer> {
             if (f.cost() == null) priced = false;
             else cost = cost.add(f.cost());
         }
-        return new EvalReport.JudgeFacts(model, calls, in, out, priced ? cost : null, false);
+        boolean validated =
+                evalDir != null
+                        && io.github.llm4j.loom.eval.JudgeValidationRecord.validatedFor(evalDir, model);
+        return new EvalReport.JudgeFacts(model, calls, in, out, priced ? cost : null, validated);
     }
 
     /** The command that runs this evaluation again, from the options it was given. */

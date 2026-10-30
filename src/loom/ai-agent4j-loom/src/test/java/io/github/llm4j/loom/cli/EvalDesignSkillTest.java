@@ -315,6 +315,11 @@ class EvalDesignSkillTest {
                     missing.add(file.getFileName() + ": weave " + m.group(1));
                     continue;
                 }
+                // a subcommand (weave judge validate ...) owns the options after its name
+                for (String word : m.group(2).strip().split(" ")) {
+                    if (command.getSubcommands().containsKey(word)) command = command.getSubcommands().get(word);
+                    else break;
+                }
                 for (String word : m.group(2).split(" "))
                     if (word.startsWith("--") && !word.contains("<"))
                         if (!command.getCommandSpec().optionsMap().containsKey(word.replaceAll("[,.;:)]+$", "")))
