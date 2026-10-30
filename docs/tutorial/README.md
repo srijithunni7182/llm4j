@@ -55,6 +55,7 @@ You write one text file. A handful of commands check it, test it, review it, run
 
 ## Where to go next
 
+- The big picture, from a sentence to a deployed, watched workflow: [the Developer guide](../../DEVELOPER_GUIDE.md).
 - The complete language reference, with every option: [LOOM_GUIDE.md](../../src/loom/ai-agent4j-loom/LOOM_GUIDE.md).
 - Every command and flag: [the command reference](../COMMAND_REFERENCE.md), or `weave man <command>` in a terminal.
 - A process for building a workflow the right way, with evaluation: [the workflow guide](../guide/README.md).
