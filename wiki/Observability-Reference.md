@@ -39,7 +39,7 @@ On `run`, `resume`, `tick` and `daemon`.
 
 ## `fabric` commands
 
-`java -jar loom-fabric-6.1.0-all.jar <command>`
+`java -jar loom-fabric-6.2.0-all.jar <command>`
 
 | Command | Does |
 |---|---|

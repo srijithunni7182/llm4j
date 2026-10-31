@@ -44,7 +44,7 @@ You can use `ai-agent4j` standalone as a lightweight LLM client and ReAct agent 
 <dependency>
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j</artifactId>
-    <version>6.1.0</version>
+    <version>6.2.0</version>
 </dependency>
 ```
 
@@ -129,7 +129,7 @@ The addons module adds local embeddings and persistent vector stores:
 <dependency>
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j-addons</artifactId>
-    <version>6.1.0</version>
+    <version>6.2.0</version>
 </dependency>
 ```
 

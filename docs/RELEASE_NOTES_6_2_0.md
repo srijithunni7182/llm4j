@@ -1,6 +1,6 @@
 # Release notes: 6.2.0
 
-Status: **in progress** (the field findings program, [docs/specs/FIELD_FINDINGS.md](specs/FIELD_FINDINGS.md)). This page lists what is finished so far; each item says what changed for you.
+All eleven artifacts are at `6.2.0`, aligned ([VERSION_MATRIX.md](VERSION_MATRIX.md)). This release is the field findings program ([docs/specs/FIELD_FINDINGS.md](specs/FIELD_FINDINGS.md)), a Loom tutorial and a starter set. Each item says what changed for you.
 
 ## Fixed: answers are no longer cut short without a word
 

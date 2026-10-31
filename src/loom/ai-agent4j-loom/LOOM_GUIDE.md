@@ -1335,7 +1335,7 @@ workflow Brief(topic) {
 - `shared_prompt: prompt "id"` takes a prompt file or registry prompt like an agent's `prompt:` (the latest version, or `id@v2`), and `weave check` reports a missing file. A shared prompt file counts as used.
 - Editing the shared text is a different agent as far as earned autonomy is concerned, for every agent that has a decision. `weave explain` says that every agent is first told it.
 - One `shared_prompt` per script. There is no way to leave a single agent out.
-- **Before 6.2.0 no `weave` command applied it** (a fault in loading the script; 6.1.0 and earlier). If you upgrade from an older version, a workflow that relied on its shared prompt starts behaving as written. `supervise` and `intervention` blocks had the same fault. An imported file's `shared_prompt` is not imposed on the file that imports it.
+- **Before 6.2.0 no `weave` command applied it** (a fault in loading the script; 6.2.0 and earlier). If you upgrade from an older version, a workflow that relied on its shared prompt starts behaving as written. `supervise` and `intervention` blocks had the same fault. An imported file's `shared_prompt` is not imposed on the file that imports it.
 
 ### Personas, Skills and Knowledge Graphs
 

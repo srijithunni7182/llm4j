@@ -48,7 +48,7 @@ Models read and write; code decides and acts.
 
 ```bash
 mvn compile            # the tasks must be compiled first: weave finds them in target/classes
-W="java -cp target/classes:<path to ai-agent4j-loom-6.1.0-cli.jar> io.github.llm4j.loom.cli.WeaveCLI"
+W="java -cp target/classes:<path to ai-agent4j-loom-6.2.0-cli.jar> io.github.llm4j.loom.cli.WeaveCLI"
 $W check src/main/resources/main.loom --no-env
 $W explain src/main/resources/main.loom
 $W audit src/main/resources/main.loom

@@ -6,7 +6,7 @@
 
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>getviral</artifactId>
-    <version>6.1.0</version>
+    <version>6.2.0</version>
     <packaging>jar</packaging>
 
     <name>GetViral</name>
@@ -20,7 +20,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <llm4j.version>6.1.0</llm4j.version>
+        <llm4j.version>6.2.0</llm4j.version>
         <junit.version>6.1.0</junit.version>
         <spring-boot.version>3.3.4</spring-boot.version>
         <!-- eval4j is built against JUnit 6; keep Spring Boot's BOM from downgrading it. -->

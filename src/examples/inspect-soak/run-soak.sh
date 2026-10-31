@@ -12,7 +12,7 @@
 #   ./run-soak.sh --observe-fabric https://fabric.example.com:9090 --observe-name soak-1
 set -euo pipefail
 cd "$(dirname "$0")"
-: "${WEAVE_JAR:=../../loom/ai-agent4j-loom/target/ai-agent4j-loom-6.1.0-cli.jar}"
+: "${WEAVE_JAR:=../../loom/ai-agent4j-loom/target/ai-agent4j-loom-6.2.0-cli.jar}"
 : "${TOPIC:=cold plunges and recovery}"
 : "${ASK_HUMAN:=no}"
 exec java -cp "$WEAVE_JAR${INSPECT_JARS:+:$INSPECT_JARS}" io.github.llm4j.loom.cli.WeaveCLI run soak.loom \

@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.srijithunni7182</groupId>
         <artifactId>llm4j-parent</artifactId>
-        <version>6.2.0-SNAPSHOT</version>
+        <version>6.2.0</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -122,7 +122,7 @@
         <profile>
             <id>cli</id>
             <!-- mvn -P cli package: builds eval4j-report-<version>-cli.jar, a single runnable jar
-                 (java -jar eval4j-report-6.1.0-cli.jar render target/eval4j). eval4j and Loom are
+                 (java -jar eval4j-report-6.2.0-cli.jar render target/eval4j). eval4j and Loom are
                  left out on purpose: the CLI reads bundles from disk and needs neither. -->
             <build>
                 <plugins>

@@ -5,7 +5,7 @@ A researcher that may search the web, and a writer that gets its notes and its s
 ```
 export PERPLEXITY_API_KEY=... ANTHROPIC_API_KEY=...
 ./run.sh "What is the WHO guidance on daily sodium intake?"
-java -jar ../../loom/ai-agent4j-loom/target/ai-agent4j-loom-6.1.0-cli.jar audit research.loom      # LA20: the researcher reads the open web
+java -jar ../../loom/ai-agent4j-loom/target/ai-agent4j-loom-6.2.0-cli.jar audit research.loom      # LA20: the researcher reads the open web
 ```
 
 - `grounding: web { allow: [...] recency: year }` lets Perplexity search only those sites, for sources from the last year.
