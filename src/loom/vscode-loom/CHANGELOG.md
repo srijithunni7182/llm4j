@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+
+- **The Loom tutorial comes with the extension.** The engine it carries now includes the tutorial as a web page: run `weave guide tutorial` in a terminal to write `loom-tutorial.html` and open it in a browser. It covers the language from a first workflow to running in production, with diagrams and fifteen starter workflows.
+- The engine is now the 6.2.0 build.
+
 ## 1.2.0
 
 - **Clicking a finding in the Review panel no longer moves your editor.** A click (or Enter) selects the finding and its step; **Go to source**, or Ctrl+Enter / Cmd+Enter, opens the file. Set `loom.review.openSourceOnClick` to `true` to get the old behaviour back.
