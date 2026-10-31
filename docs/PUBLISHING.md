@@ -38,7 +38,7 @@ Every release runs the default tests; `-Prelease` never skips them. Slow tests (
 ## Releasing
 
 1. **Between releases `main` carries the next `-SNAPSHOT` version** (for example `6.2.0-SNAPSHOT`), so a jar built from the repository can never be mistaken for the published release of the same number. What must name a version someone can download (the JBang catalogue, generated projects, a deployment's Fabric image, the docs) reads the last published release from one place: the `llm4j.released` property of the parent `pom.xml`. To release, run
-   `scripts/release-version.sh release 6.2.0` (sets every pom, `llm4j.released` and `jbang-catalog.json`), commit it, and continue below. A released version can never be changed or deleted on Central. `ReleasedVersionSourceOfTruthTest` fails if the catalogue and `llm4j.released` differ.
+   `scripts/release-version.sh release 6.2.0` (sets every pom, the compatibility kit's core version, `llm4j.released` and `jbang-catalog.json`), commit it, and continue below. A released version can never be changed or deleted on Central. `ReleasedVersionSourceOfTruthTest` fails if the catalogue and `llm4j.released` differ.
    After the tag, `scripts/release-version.sh next 6.2.1-SNAPSHOT` moves `main` on (`llm4j.released` stays `6.2.0`); commit that as `chore: start 6.2.1-SNAPSHOT`.
    A jar says what it is: `weave --version` prints `release` or `development`, the commit and the build time, and the same facts are in every module jar's manifest (`Implementation-Version`, `Build-Kind`, `Build-Commit`, `Build-Dirty`, `Build-Time`). `-Prelease` marks the build a release.
 2. Check locally, without a key:
