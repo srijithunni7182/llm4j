@@ -152,6 +152,43 @@ class ServeRobustnessTest {
         assertThat(c.exitStatus()).isZero();
     }
 
+    /** An output that is slow to take each write, as a busy pipe or a slow runner is. */
+    static final class SlowOutput extends java.io.OutputStream {
+        final java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+
+        @Override
+        public void write(int b) throws java.io.IOException {
+            write(new byte[] {(byte) b}, 0, 1);
+        }
+
+        @Override
+        public void write(byte[] b, int off, int len) throws java.io.IOException {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                throw new java.io.IOException("interrupted before the write finished", e);
+            }
+            bytes.write(b, off, len);
+        }
+    }
+
+    @Test
+    void theShutdownReplyIsWrittenWholeEvenWhenTheOutputIsSlow() throws Exception {
+        java.io.ByteArrayOutputStream request = new java.io.ByteArrayOutputStream();
+        Framing.write(
+                request,
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"loom/shutdown\",\"params\":{}}");
+        SlowOutput out = new SlowOutput();
+
+        int status =
+                new Server(engine(Map.of()), 2000)
+                        .serve(new java.io.ByteArrayInputStream(request.toByteArray()), out);
+
+        assertThat(status).isZero();
+        String reply = Framing.read(new java.io.ByteArrayInputStream(out.bytes.toByteArray()));
+        assertThat(JSON.readTree(reply).has("result")).isTrue();
+    }
+
     @Test
     void aFrameSplitIntoPiecesIsReadWhole() throws Exception {
         try (ServeClient c = client(Map.of("x/echo", ECHO), 2000)) {

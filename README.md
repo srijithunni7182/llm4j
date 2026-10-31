@@ -111,7 +111,7 @@ assertThat(support.run(question)).usesTool("refund").completedSuccessfully();   
 <dependency>
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j</artifactId>
-    <version>6.1.0</version>
+    <version>6.2.0</version>
 </dependency>
 ```
 
@@ -139,7 +139,7 @@ see [API keys in the Quick Start](src/ai-agent4j/wiki/Getting-Started.md#set-up-
 | 🧩 [**Addons**](src/ai-agent4j-addons/) | How do I keep data private and costs at zero? | Local ONNX/DJL embeddings, pgvector and Pinecone |
 | 🔧 [**Tools**](src/ai-agent4j-tools/) | How do I let an agent act safely? | `webhook`, `email`, `http`, `file`, `shell`, read-only `sql`, with allow-lists and journals |
 | 🌱 [**Spring Boot starter**](src/spring/llm4j-spring-boot-starter/) | I already use Spring. How do I get llm4j as beans? | `LLMClient`s, budgets, agents, tools, RAG and the Loom runtime (`LoomHost`), wired from `application.yml`. Optional: nothing in llm4j depends on it. Running a workflow in your app: [guide](docs/SPRING_BOOT_LOOM_GUIDE.md) |
-| 🏷️ [**Classification**](src/ai-agent4j/wiki/Classification.md) | Which of these is it? | `Classifier`: typed questions (a choice, a yes/no, a score) answered in one call by a chat model or [Jev](docs/specs/07-classifier/STUDY_REPORT.md), `intentclassify` in Loom, classifier-backed judges in eval4j (6.1.0, in preparation) |
+| 🏷️ [**Classification**](src/ai-agent4j/wiki/Classification.md) | Which of these is it? | `Classifier`: typed questions (a choice, a yes/no, a score) answered in one call by a chat model or [Jev](docs/specs/07-classifier/STUDY_REPORT.md), `intentclassify` in Loom, classifier-backed judges in eval4j (6.2.0, in preparation) |
 | 🧪 [**eval4j**](src/eval4j/) | How do I know it works? | AssertJ assertions on agent behaviour, LLM judges, golden datasets, a [local dashboard](src/eval4j-report/docs/USER-GUIDE.md) ([why](src/ai-agent4j/wiki/WHY_EVAL4J.md)) |
 
 [Module details and diagram](docs/THE_STACK.md)

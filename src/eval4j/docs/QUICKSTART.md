@@ -14,11 +14,11 @@ first paid run is safe. Allow about 20 minutes; steps 1 to 4 cost nothing.
 ```xml
 <dependency>
   <groupId>io.github.srijithunni7182</groupId><artifactId>eval4j</artifactId>
-  <version>6.1.0</version><scope>test</scope>
+  <version>6.2.0</version><scope>test</scope>
 </dependency>
 <dependency>   <!-- the dashboard; optional but you will want it -->
   <groupId>io.github.srijithunni7182</groupId><artifactId>eval4j-report</artifactId>
-  <version>6.1.0</version><scope>test</scope>
+  <version>6.2.0</version><scope>test</scope>
 </dependency>
 ```
 

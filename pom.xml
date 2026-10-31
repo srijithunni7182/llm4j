@@ -6,7 +6,7 @@
 
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>llm4j-parent</artifactId>
-    <version>6.2.0-SNAPSHOT</version>
+    <version>6.2.0</version>
     <packaging>pom</packaging>
 
     <name>llm4j Parent</name>
@@ -64,7 +64,7 @@
         <llm4j.build.kind>development</llm4j.build.kind>
         <!-- The last published release: what the JBang catalogue, generated projects and the docs name
              while main carries the next -SNAPSHOT version. The release step changes it with the version. -->
-        <llm4j.released>6.1.0</llm4j.released>
+        <llm4j.released>6.2.0</llm4j.released>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>17</maven.compiler.release>
         <maven.compiler.source>17</maven.compiler.source>

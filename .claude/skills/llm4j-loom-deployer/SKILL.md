@@ -59,7 +59,7 @@ Use `weave deploy`, not a hand-written Dockerfile. It reads the script and write
 
 1. Run `weave deploy flow.loom --target compose --dry-run` first and read the file list with the user; then without `--dry-run`. `--target docker` is the image alone, `--target k8s` writes manifests.
 2. The review is shown as a warning and never stops the files. Say in one sentence what is open (the README records it) and carry on with what they asked; the decision about a trifecta stays stage 2's. `--require-clean` is for a team that wants a gate.
-3. Tell them the two things they supply: `deploy/weave.jar` (the weave CLI, same version) beside the Dockerfile, and a Fabric image (`--fabric-image`, default `loom-fabric:6.1.0`). Secrets are only ever names (`.env.example`, an empty Kubernetes Secret template): the values come from their secret store.
+3. Tell them the two things they supply: `deploy/weave.jar` (the weave CLI, same version) beside the Dockerfile, and a Fabric image (`--fabric-image`, default `loom-fabric:6.2.0`). Secrets are only ever names (`.env.example`, an empty Kubernetes Secret template): the values come from their secret store.
 4. Fabric is published on loopback only. If they ask for more, `weave deploy` refuses (`--fabric-publish`): explain TLS and a reverse proxy (stage 5) instead of working around it.
 5. `weave deploy flow.loom --verify deploy` after a change to the script says what is stale. A file they edited by hand is kept (`--force` replaces it).
 6. Read the generated README with them: what it needs, what happens on a restart, a lost node and a lost volume.

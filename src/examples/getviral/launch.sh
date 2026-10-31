@@ -19,7 +19,7 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
-JAR="$HERE/target/getviral-6.1.0.jar"
+JAR="$HERE/target/getviral-6.2.0.jar"
 CRED_DIR="$HOME/.getviral"
 CRED_FILE="$CRED_DIR/credentials"
 
