@@ -122,6 +122,10 @@ public final class Server {
     private final java.util.concurrent.BlockingQueue<String> outbox =
             new java.util.concurrent.LinkedBlockingQueue<>(1024);
 
+    /** Replies queued or being written; zero means everything has reached the output. */
+    private final java.util.concurrent.atomic.AtomicInteger unwritten =
+            new java.util.concurrent.atomic.AtomicInteger();
+
     private final Set<String> cancelled = ConcurrentHashMap.newKeySet();
 
     /** The request in flight or queued for each (method, file), so a newer one replaces it. */
@@ -196,17 +200,25 @@ public final class Server {
         try {
             while (!Thread.currentThread().isInterrupted()) {
                 String next = outbox.take();
-                Framing.write(out, next);
+                try {
+                    Framing.write(out, next);
+                } finally {
+                    unwritten.decrementAndGet();
+                }
             }
         } catch (InterruptedException | IOException e) {
             // ends with the server, or with a client that has gone
         }
     }
 
-    /** Gives the writer a moment to send what is queued (the last reply before an exit). */
+    /**
+     * Gives the writer a moment to send what is queued (the last reply before an exit). It waits for
+     * replies to be written, not just taken off the queue: the writer dequeues a reply before it
+     * writes it, and an exit in between cuts the reply in half.
+     */
     private void drain() {
         long until = System.nanoTime() + 2_000_000_000L;
-        while (!outbox.isEmpty() && System.nanoTime() < until) {
+        while (unwritten.get() > 0 && System.nanoTime() < until) {
             try {
                 Thread.sleep(5);
             } catch (InterruptedException e) {
@@ -451,6 +463,6 @@ public final class Server {
         // never block a worker or the reader on the client: if it has stopped reading, replies are
         // dropped and the client
         // will see its own timeouts and restart the engine
-        outbox.offer(msg.toString());
+        if (outbox.offer(msg.toString())) unwritten.incrementAndGet();
     }
 }
