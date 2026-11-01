@@ -73,7 +73,7 @@ use Search(query = "{topic} pricing") -> found
 
 - Runs a declared tool (`tool X { use: … }`, a built-in, an OpenAPI or MCP tool, or a Java tool on the class path) with named arguments, exactly as an agent's call to it would run: the same reach checks (`NetPolicy`, allowed hosts, the file root, the shell allow-list), the same secrets resolution per host, the same journal entries and effect protocol (`effect_pending` and `effect_done`, idempotency keys, no repeat after a crash), the same budgets for tools that spend, and the same trace event `tool_call` with `reach`.
 - Arguments are matched against the tool's declared parameters; an unknown or missing required argument is a `weave check` error naming the tool's parameters. Argument values are resolved like a `run` statement's.
-- `-> var` binds the tool's result (text, or the parsed object for a tool that returns JSON). `retry`, `backoff` and `timeout` follow the rules that already apply to tools (a non-idempotent tool that changes things is never retried after an unknown outcome; `weave check` refuses `retry` on it, as for tasks).
+- `-> var` binds the tool's result (text, or the parsed object for a tool that returns JSON). `retry`, `backoff` and `timeout` follow the rules that already apply to tools (a non-idempotent tool that changes things, such as a `webhook` or `http` tool without `idempotency: true`, is never retried after an unknown outcome; `weave check` refuses `retry` on it, as for tasks).
 - `use` is contextual: it is a statement only at statement level, followed by a tool name and `(`. `use partial` in a stop handler and `use:` inside a `tool` block are unchanged (`RepositoryScriptsTest`).
 - Under phase 26, a `use` of a tool whose effect is `changes` is a **sink**.
 - Under `weave test`, a `use` is scripted with `tools:` like a tool call by an agent; under `weave eval --mock` it answers `[mock tool result]` and a changing tool is described, not run.
@@ -85,10 +85,13 @@ use Search(query = "{topic} pricing") -> found
 use Notify(text = draft) approve -> receipt
 run IssueRefund(order = action.order, amount = action.amount) approve -> receipt
 use Notify(text = draft) approve "Post this to the team channel?" -> receipt
+    on_declined { return "Not sent. The draft is kept for editing:\n{draft}" }
 ```
 
 - Before the step runs, the person is asked **once**, through the same approval channel as an agent's `approve:` (console, Telegram, a host's `HumanInterface`, suspension and resume), and shown **the exact arguments that will be sent**, with secrets never shown (named by `secret:<name>`) and PII masked by the step's guard where the workflow has one. An optional text after `approve` is the question's heading.
-- A yes runs the step. A no fails it with `_error` "not approved by <who>"; `on_failure` runs. A timeout (when the workflow sets one for questions) is a no.
+- A yes runs the step.
+- A no is a person's decision, not a failure, so a script can handle it apart: `on_declined { … }` runs when the step has one, the step binds nothing, and the run goes on after the block (which usually ends with `return` or `halt`). Without `on_declined`, a no fails the step with `_error` "not approved by <who>" and `on_failure` runs. `on_declined` is allowed only on a step with `approve`, and is a contextual word.
+- A timeout (when the workflow sets one for questions) is a no.
 - The approval and the answer are journaled; a resumed run never asks again for an answered step and never runs a step whose answer was no.
 - On `run`, `approve` works for any task, alongside `requiresApproval(args)` in Java (if both apply, the person is asked once).
 - An approval on a step whose tool's effect is `none` or `reads`, or a task whose effect is `NONE` or `READS`, is allowed and is LH02 (R5).
@@ -125,18 +128,23 @@ Fix option **`to-boundary`** (D34; needs thought): when the agent's changing too
 - Starter `07-approval` is rewritten:
 
 ```loom
-agent Drafter { model: "gemini-2.5-flash"  system: "Draft a short, polite announcement from the facts you are given."  guard { pii: mask } }
-tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
+substitution: braces
+
+budget { tokens: 100000  calls: 20 }
+
+agent Drafter { model: "gemini-2.5-flash"  system: "Draft a short, polite announcement from the facts you are given."  temperature: 0.4  guard { pii: mask } }
+tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
 
 workflow Main(facts) {
     delegate "Draft an announcement from: {facts}" to Drafter -> draft
-    use Notify(text = draft) approve "Send this to the team channel?" -> receipt retry 1 timeout 30s
+    use Notify(text = draft) approve "Send this to the team channel?" -> receipt timeout 30s
+        on_declined { return "Not sent. The draft is kept for editing:\n{draft}" }
         on_failure { halt "The announcement may not have been sent: {_error}. Check the channel before trying again." }
     note "Sent. {receipt}"
 }
 ```
 
-  One question, at the edge, about the exact payload; no model carries out the send; no free-text comparison (LH04 no longer fires). Its tests, README and diagram are regenerated. Its README says why the old shape asked twice.
+  One question, at the edge, about the exact payload; no model carries out the send; no free-text comparison (LH04 no longer fires). A no ends the run with the draft kept, as the old `else` branch did, and a failed send says to check the channel. The send has **no `retry`**: a Slack webhook ignores an `Idempotency-Key`, so a retry after an unknown outcome could post twice, and R1 refuses it. The tool declares its effect (R0), as every tool example now does. Its tests, README and diagram are regenerated. Its README says why the old shape asked twice.
 - `LOOM_GUIDE.md` gains "Calling a tool from the script: `use`" and "Approval on a step"; the approvals section opens with **"Where to ask"**: the three shapes, in this table:
 
 | Need | Shape |
@@ -160,8 +168,8 @@ workflow Main(facts) {
 |---|---|
 | `ast.ToolDef` | `getEffect()` returning `Optional<TaskEffect>` for the declared effect, and `getOperationEffects()` (an unmodifiable map) |
 | `security.Capabilities` | `effect` computed from the declaration first, then R0's table; a new `effectSource` (`DECLARED`, `ASSUMED`) and reason |
-| `ast.UseStmt` (new, public, final) | tool name, named arguments, variable, retry, backoff, timeout, approve (boolean and optional heading), on_failure |
-| `ast.RunStmt` | `isApprove()`, `getApproveHeading()` |
+| `ast.UseStmt` (new, public, final) | tool name, named arguments, variable, retry, backoff, timeout, approve (boolean and optional heading), on_declined, on_failure |
+| `ast.RunStmt` | `isApprove()`, `getApproveHeading()`, `getOnDeclined()` |
 | `execution.UseRunner` (new, package-private) | runs a tool through the same `NamedTool` / `ApprovalTool` / `RecordingTool` path an agent's call takes |
 | `HumanInterface` | unchanged (an approval of a step is an approval of a tool call with the arguments shown) |
 
@@ -172,7 +180,7 @@ workflow Main(facts) {
 | Change | Existing users |
 |---|---|
 | `effect:` and `effects:` on tools | New. Undeclared tools keep today's assumed effect, so the audit, approvals and review behave as before; an OpenAPI or MCP tool that declares its read-only operations gets fewer findings. `reach:` keeps working. |
-| `use` as a statement, `approve` on a step | New and contextual; existing scripts parse (proved on every `.loom` in the repository). |
+| `use` as a statement, `approve` and `on_declined` on a step | New and contextual; existing scripts parse (proved on every `.loom` in the repository). |
 | Human oversight lens on | More findings by default (LH01 to LH05). Advisory. `lenses = -oversight` restores. Listed in the release notes. |
 | LH03 counting approvals | A script near the limit may get LH03; `oversight.max-questions` is unchanged. |
 | LA02, LH02 | Wording; LH02 also fires on approved read-only steps. |

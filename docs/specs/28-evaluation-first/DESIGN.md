@@ -53,7 +53,8 @@ Non-goals:
 
 - The case format for evaluators is phase 26's (R13). Extractor cases are exact field checks: no judge, cheap and deterministic in a real run.
 - `weave check` validates the cases' **structure** (ids unique, fields and rules exist, each expectation well formed); whether they are good cases is the reviewer's job (R5) and `weave eval`'s.
-- **There is no flag that skips the gate.** It applies wherever `weave check` applies (CLI, editor, `weave serve`, `LoomLoader` checks in a host build, `weave deploy`'s own check). The repository's documentation tests give their examples real cases (§9).
+- **There is no flag that skips the gate.** It applies wherever the project's dataset is: `weave check` in the CLI and the editor, `weave serve`, and `weave deploy`'s own check. The repository's documentation tests give their examples real cases (§9).
+- **Not at run time in a packaged host.** An application that loads a script with `LoomLoader` need not ship `eval/golden/`, so loading never reads it and is never refused by the gate; it logs once, at WARNING, that the gate is enforced at build time. A host project enforces it in its own build by running `weave check` over the project directory, as the CI template does (R8).
 - Interaction with the fixes that create an extractor (phase 24 LP09's `to-extractor`, phase 25 LP10's `split`): the fix converts any existing golden cases of the old agent whose expectations name JSON fields into extractor cases; when there are none, the fix's result says which file to write and gives the `--init` command. The fix is otherwise unchanged (it still needs a yes); the script then fails `weave check` only on this gate, which is the intent.
 - `weave eval X --init` scaffolds the file with commented examples and **no** cases, so a scaffold never satisfies the gate by itself.
 

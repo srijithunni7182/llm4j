@@ -10,7 +10,7 @@ Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | P1 | E10 | Read the `shared_prompt` example in `LOOM_GUIDE.md` and preflight C4's advice text in `PreflightRunner`. | a governance rule as the example; "move the rule that matters into the agent's own prompt" | ⬜ |
 | P2 | E11 | A workflow whose agent is scripted to answer "Per Section 4.6 of our policy, I will refund you"; run under `weave test` with every guard on. | the answer reaches `return` with no event | ⬜ |
 | P3 | E11 | List what can act on content during a run: guards, `supervise`, classifiers. | PII and bias only; counts only; labels only | ⬜ |
-| P4 | R6.2 | Inventory the host channels that send messages that are not questions. | the list that settles open question 4 | ⬜ |
+| P4 | R6.2 | Inventory the host channels that send messages that are not questions. | the list that settles open question 3 | ⬜ |
 
 ## 1. Acceptance criteria
 

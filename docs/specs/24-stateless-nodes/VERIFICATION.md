@@ -20,7 +20,7 @@ Evidence: E1 to E6 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 |---|---|---|
 | A1 | A script declares an `extractor` and runs it with `extract … from`, with no Java | `ExtractorParsesTest`, `ExtractStatementParsesTest`, CTK `extract_fields` |
 | A2 | The extractor's request holds only the preamble, its instructions, the schema and its marked inputs: no transcript, no shared prompt, no persona; its answer is not stored in the transcript | `ExtractorSeesOnlyItsInputsTest`, `ExtractorAnswerIsNotWrittenToTranscriptTest`, `ExtractorInputsAreMarkedAsDataTest`, P1 to P5 compared |
-| A3 | Optional fields read as `missing`; a required field is never invented, is corrected once, retried, then fails into `on_failure` naming the fields | the R4 tests |
+| A3 | Optional fields read as `missing`; a required field is never invented; answered `null` it fails at once into `on_failure`; a malformed answer is corrected once, retried, then fails; `_error` names the fields | the R4 tests |
 | A4 | An extract step is budgeted, journaled, scripted in tests, mocked in eval, traced with names only, drawn in the graph, and asserted in eval4j | the R5 tests |
 | A5 | `weave check` refuses every misuse in DESIGN R6 with a message that says what to write | `ExtractorCheckErrorsTest`, `ExtractorForbiddenSettingsTest` |
 | A6 | One contract test covers every internal node kind | `InternalNodeContractTest` |
@@ -41,7 +41,7 @@ Evidence: E1 to E6 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | R1 | `ExtractorParsesTest`, `ExtractorForbiddenSettingsTest`, `LoomScriptMergeKeepsExtractorsTest`, `ExtractorKeywordIsContextualTest` | ⬜ |
 | R2 | `ExtractStatementParsesTest`, `ExtractRequiresVariableTest` | ⬜ |
 | R3 | `ExtractorSeesOnlyItsInputsTest`, `ExtractorAnswerIsNotWrittenToTranscriptTest`, `ExtractorInputsAreMarkedAsDataTest` | ⬜ |
-| R4 | `MissingOptionalFieldReadsAsMissingTest`, `NullOptionalFieldReadsAsMissingTest`, `MissingRequiredFieldIsCorrectedOnceThenRetriedThenFailsTest`, `RequiredFieldIsNeverInventedTest`, `NativeJsonModeUsedWhenProviderHasItTest` | ⬜ |
+| R4 | `MissingOptionalFieldReadsAsMissingTest`, `NullOptionalFieldReadsAsMissingTest`, `NullRequiredFieldFailsAtOnceTest`, `MalformedAnswerIsCorrectedOnceThenRetriedThenFailsTest`, `RequiredFieldIsNeverInventedTest`, `NativeJsonModeUsedWhenProviderHasItTest` | ⬜ |
 | R5 | the A4 tests, `GraphRenderKindsInSyncTest` | ⬜ |
 | R6 | `ExtractorCheckErrorsTest` | ⬜ |
 | R7 | `InternalNodeContractTest` | ⬜ |

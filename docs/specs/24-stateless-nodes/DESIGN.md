@@ -77,7 +77,9 @@ No transcript, no agent memory, no `shared_prompt`, no persona, no skills, no kn
 
 **R4 What is checked.** The answer is parsed and checked like an `output_schema` answer today (first complete object, kinds, enums), with these differences:
 - A missing **optional** field, or one answered `null`, reads as the value `missing`, which conditions can test: `alt (invoice.total == missing)`. `missing` is a new reserved value word, usable only in conditions.
-- A **required** field that is absent or `null` is a failed attempt: the model is told which fields were missing and asked again. One correction is always allowed (as for schemas today); further attempts follow `retry N`; then the step fails into `on_failure` with `_error` naming the fields. A value is never invented by the runtime.
+- A **required** field answered `null` is the model saying the text does not state it, as the preamble (R3) tells it to. Asking again would only repeat that answer and spend the retries, so the step fails **at once** into `on_failure`, with `_error` naming the fields; no correction and no `retry` is spent on it.
+- A **malformed** answer (not JSON, a field of the wrong kind, an unknown enum value, or a required field left out instead of answered `null`) is a failed attempt: the model is told what was wrong and asked again. One correction is always allowed (as for schemas today); further attempts follow `retry N`; then the step fails into `on_failure` with `_error` naming the fields.
+- A value is never invented by the runtime.
 - Where the provider has a native JSON mode, it is used. An extractor has no tools, so Gemini's JSON mode, which cannot be combined with tool calling, can be used here.
 
 **R5 Plumbing.** An extract step is a model step like any other:

@@ -21,11 +21,11 @@ Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 |---|---|---|
 | A0 | Every tool has an effect: declared by the developer and authoritative, per operation for OpenAPI and MCP, MCP hints used, otherwise assumed and shown; one resolver for the audit, runtime and review | the R0 tests, P7 re-run |
 | A1 | `use Tool(...)` calls a tool with no model, through exactly the same controls, journal and effect protocol as an agent's call | `UseToolCallParityTest`, `UseNetPolicyRefusalsTest`, `UseEffectProtocolNoRepeatAfterCrashTest` |
-| A2 | `approve` on `use` and `run` asks once, shows the exact arguments with secrets named and PII masked, never runs on a no or a timeout, and never asks twice after a resume | R2 tests |
+| A2 | `approve` on `use` and `run` asks once, shows the exact arguments with secrets named and PII masked, never runs on a no or a timeout, takes `on_declined` on a no when the step has one, and never asks twice after a resume | R2 tests |
 | A3 | LA02 offers the boundary first; LH02 covers steps; LH03 counts every question and names its sources | R3 to R5 fixtures |
 | A4 | LH05 fires only for an approval mid-loop on an outward or changing tool in an unattended workflow | LH05 fixtures |
 | A5 | The Human oversight lens is on by default and can be turned off | `OversightLensOnByDefaultTest`, `LensesMinusOversightRestoresTest` |
-| A6 | Starter 07 asks once, at the edge, with no model carrying out the send; its tests and diagram pass | `StartersTest` |
+| A6 | Starter 07 asks once, at the edge, with no model carrying out the send; a no keeps the draft and a failed send says to check the channel; it passes `weave check` (no `retry` on the webhook); its tests and diagram pass | `StartersTest` |
 | A7 | The guide, skills and tutorial teach the three shapes and keep `approve:` for interactive assistants; earned autonomy is presented as optional | §5 ticked, `TutorialExamplesTest`, `GuideTutorialPageTest`, `verify-skill-package.sh` |
 | A8 | Every existing script parses and runs as before | `RepositoryScriptsTest`, existing tests unmodified |
 | A9 | Every guard is noticed when removed | PIT score not lower; by-hand removals in §7 |
