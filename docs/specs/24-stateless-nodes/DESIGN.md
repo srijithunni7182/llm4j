@@ -88,6 +88,7 @@ No transcript, no agent memory, no `shared_prompt`, no persona, no skills, no kn
 - `weave graph`, `weave explain` and the VS Code graph draw an `extract` node (new graph kind `Kinds.EXTRACT`, synced with `scripts/sync-graph-render.sh`), labelled with the extractor and its inputs.
 - eval4j: a trajectory node of kind `extract`, and `WorkflowAssertions.runsExtractTimes(name, n)` and `extracted(name, field, value)`.
 - The live run page and Fabric show it as a model call under its model, like a classification.
+- It is **metered and watched like an agent** (D38): its own line in the spend report and in Fabric's cost and model views, an optional `budget { … }` of its own, latency (p50, p95) on the live page, and its own row in `weave eval`'s "By agent and node" (phase 28). `weave review`'s cost and time estimate lists extract steps as their own line.
 
 **R6 Checks.** `weave check` rejects, each with a message that names the line and what to write:
 - an unknown extractor in `extract`;
@@ -120,6 +121,7 @@ agent Summariser {
 - `rewind` restores what each agent receives exactly as today.
 - `TranscriptAccumulationEngine.assembleContext` reads the agent's setting; the `MemoryEngine` interface is unchanged (it already receives the `AgentDef`). A host's own `MemoryEngine` keeps working and is told the setting through `AgentDef.getTranscriptMode()`; its Javadoc says a custom engine should honour it.
 - `handoff` honours the setting the same way as `delegate`.
+- **The default is shown** (D39). `weave graph`, `weave explain` and the editor (graph and hover) mark each agent that receives the full transcript (`transcript: all`, the default) with "sees everything said before it", so a reviewer notices without reading settings. The default itself does not change.
 
 **R9 LP08: the agent does not see the run's earlier exchanges** (Prompts lens, **low**, rule data in `prompts.yaml`). Fires for each `delegate` or `handoff` to an agent with `transcript: none` or `own` whose task text passes **no variable** (no `{…}` and, under `substitution: legacy`, no bare variable name). Message: "Agent `name` does not see the run's earlier exchanges, and this task passes it nothing from them: everything it needs must be in its task." What to do: pass what it needs with `{var}`, or give it `transcript: all`. It does not fire when the task passes at least one variable (D24: quiet when the author clearly passed what was needed).
 
@@ -143,6 +145,8 @@ agent Summariser {
 - `LOOM_GUIDE.md` "Tasks: deterministic steps": `agent Intake` becomes `extractor Intake`, with `extract Intake from msg -> request`.
 - Starter `08-extract-and-validate` is rewritten around `extractor Invoice` with `optional: [total]` and `alt (invoice.total == missing)` instead of "use 0 when the amount is missing". Its tests, README and diagram are regenerated.
 - `LOOM_GUIDE.md` gains "Extracting fields: `extractor` and `extract`" next to the classifier section, and "Internal nodes" stating R7's contract.
+
+**R13 The simple path stays simple** (D34). This phase builds `SimplePathStaysSimpleTest` (program page §4.5): starters 01 to 04 and every `weave init` template load and pass their tests using none of the program's constructs, and `weave review` gives them no finding they did not have before the program. Every later phase re-runs it. It also builds the **noise gate** of §4.6 as a reusable check (`ReviewNoiseGateTest` over the reference corpus) that each phase runs for its new rules.
 
 ## 4. Java API
 

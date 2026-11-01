@@ -1,6 +1,6 @@
 # Phase 26 verification plan: the policy boundary
 
-Status: **not started** (spec draft; needs phase 24 and phase 27's R0). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **26a** policy files and the evaluator (R1 to R3); **26b** `check … against` and its actions (R4, R5, R13, R14); **26c** provenance, sinks and enforcement (R6 to R8), including the automatic check of agents' changing tool calls (D25); **26d** the leak guard, LY07, `shared_prompt` and C4 (R9 to R11); **26e** the skills, starter 16 and the tutorial (R12 and the tutorial rows). Results in §7.
+Status: **not started** (spec draft; needs phase 24 and phase 27's R0). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **26a** policy files and the evaluator (R1 to R3); **26b** `check … against` and its actions (R4, R5, R13, R14); **26c** provenance, sinks and enforcement (R6 to R8, R15), including the automatic check of agents' changing tool calls (D25): first report-only across the corpus until `CanaryProvenanceOracleTest` and the corpus are clean, then enforced; **26d** the leak guard, LY07 and its fix, `shared_prompt` and C4 (R9 to R11), graceful failure (D37) and cost (R16); **26e** the skills, starter 16 and the tutorial (R12 and the tutorial rows). Results in §7.
 Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Reproduce first
@@ -30,6 +30,10 @@ Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | A12 | Starter 16 loads, its tests pass and its diagram matches; the tutorial teaches policies and its examples load | `StartersTest`, `TutorialExamplesTest`, `GuideTutorialPageTest` |
 | A13 | Every existing script parses and runs as before | `RepositoryScriptsTest`, existing tests unmodified |
 | A14 | Every guard is noticed when removed | PIT score not lower; by-hand removals in §7 |
+| A15 | Provenance is beside the values, required at every route, unknown means unchecked, and the canary oracle finds no leak across the corpus (and runs in CI) | the R15 tests |
+| A16 | A down evaluator falls back, then takes `on_unavailable`; unsure is counted apart; the four incidents fire | the D37 tests |
+| A17 | Checks are shown in the cost estimate, cheap by default, after free checks, reused within a run, reserved in the budget, timed, and metered like agents | the R16 tests |
+| A18 | LY07's severity follows exposure and its `add-policy` fix writes a working boundary | the R10 tests |
 
 ## 2. Traceability: requirement → tests
 
@@ -47,12 +51,16 @@ Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | R11 | `LoomGuideBlocksParseTest`, `PreflightC4AdviceTextTest` | ⬜ |
 | R12 | `SkillsMentionPolicyAndEvaluatorTest`, `verify-skill-package.sh` | ⬜ |
 | R13 | `ScriptedEvaluatorInWeaveTestTest`, `ExpectChecksAndActionsTest`, `ChecksPolicyAssertionTest`, `EvaluatorGoldenCaseFormatTest`, `MockEvaluatorSaysNotJudgedTest` | ⬜ |
-| R14 | `PolicyCheckTraceEventTest`, `SinkBlockedTraceEventTest`, `PolicyAuditEventsTest`, `CheckGraphNodeTest`, `GraphRenderKindsInSyncTest`, `ExplainSaysEachCheckTest` | ⬜ |
+| R14 | `PolicyIncidentRulesTest`, `PolicyCheckTraceEventTest`, `SinkBlockedTraceEventTest`, `PolicyAuditEventsTest`, `CheckGraphNodeTest`, `GraphRenderKindsInSyncTest`, `ExplainSaysEachCheckTest` | ⬜ |
+| R15 | the R15 tests of the strategy | ⬜ |
+| R16 | the R16 tests of the strategy | ⬜ |
 
 ## 3. Quality gates
 
 - [ ] `mvn verify` green on `ai-agent4j-loom`, `eval4j`, `loom-inspect*` and `loom-fabric` (after `mvn -pl src/loom/ai-agent4j-loom -DskipTests install`), coverage gates held, none lowered.
 - [ ] PIT: the Loom `mutation` profile with `Provenance`, `CheckRunner`, the evaluator's fail-closed mapping, the sink enforcement and the leak guard; score not lower.
+- [ ] LY07 measures ≥ 0.9 precision (Phase 9 R18) and passes the noise gate; `SimplePathStaysSimpleTest` green.
+- [ ] `CanaryProvenanceOracleTest` added to the CI job that runs on runtime changes.
 - [ ] `RepositoryScriptsTest` green; CTK scenarios `policy_check`, `policy_sinks` and `prompt_leak` added with their `*CtkTest`.
 - [ ] Loom syntax everywhere it belongs: `LOOM_GUIDE.md`, `LOOM_PROMPT.md`, `docs/guide/06`, the tutorial, starter 16, the workflow-guide skill, the VS Code grammar and snippets, the CTK.
 - [ ] `bash scripts/sync-graph-render.sh` and `bash scripts/check-graph-render-sync.sh` (`check` kind).
@@ -81,6 +89,7 @@ Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 ## 6. Exit checklist
 
 - [ ] §0 recorded with dates and build ids
+- [ ] The provenance and sink code reviewed by someone other than its author against DESIGN §6, and the review recorded in §7 (D36)
 - [ ] Every row in §2 ✅, or partial with a reason; every A-criterion has evidence
 - [ ] M1 to M6 done and recorded in §7
 - [ ] DESIGN §7 questions answered

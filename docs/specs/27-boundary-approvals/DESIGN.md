@@ -61,6 +61,7 @@ tool Invoices { use: class  class: "com.acme.tools.InvoiceTool"  effect: reads }
 
 - **MCP hints are used** (D28). They are the server author's declaration, read when Loom connects to list the server's tools (`weave check` with the server reachable, or a cached tool list from the last `weave mcp list`). When neither is available the tool is assumed to change, and the explanation says the hints could not be read.
 - **`reach:` on class tools** keeps working: `none` and `reads` map to their effect, `fetches` to `reads` (plus the untrusted leg), `writes` and `sends` to `changes` (plus the outward leg for `sends`). `effect:` and `reach:` on one tool is an error that says to keep `effect:`. The guide documents `effect:` and lists `reach:` as the older form.
+- **The editor offers to declare it** (D34). A tool whose effect is assumed has a quick fix in VS Code and a `weave review` option (`declare-effect`) that writes `effect: …` with the assumed value pre-filled for the developer to confirm or change.
 - **One place decides.** `Capabilities.effect` is computed from the declaration first, then the table, in the one method the audit, the runtime and review already share (`Capabilities.resolve`), so they cannot disagree. Every rule and runtime decision in phases 26 and 27 that says "a tool that changes something" means `effect: changes`: sinks, `approve`'s purpose, LA02, LH02, LH05, the retry rule for non-idempotent tools, and what mock and simulated runs only record.
 
 **R1 `use Tool(...)`: a tool step with no model** (D21).
@@ -114,6 +115,8 @@ The finding's message names where the questions come from ("up to 40 questions: 
 > **Why it matters:** the run stops in the middle of the agent's reasoning and holds its whole conversation until someone answers, possibly hours later, from a phone. The person sees one tool call without the job it belongs to.
 > **What to do:** let the agent propose, then approve once at the edge: `use Tool(...) approve`, `run Task(...) approve`, or a `decide`. In an interactive assistant, where a person is working with the agent, an approval inside the loop is fine, and this rule does not fire.
 
+Fix option **`to-boundary`** (D34; needs thought): when the agent's changing tool is called with arguments that can be named, removes the tool from the agent, adds `use Tool(...) approve` after the delegate with the arguments drawn from an `extractor` over the agent's answer (phase 24), and shows the diff; when the rewrite is not mechanical, the option is not offered and the finding says why.
+
 "Nobody watching" is read from the script and the project, never guessed from prompts: a `schedule` block, a trigger file naming the workflow, or the daemon configuration. A workflow started by hand with `weave run` or by a host application counts as interactive.
 
 **R7 Human oversight on by default** (D22). The Human oversight lens (LH01 to LH05) moves from the optional lenses to the default set. `lenses = -oversight` in `review.properties` restores the old default. LH01 fires only on `decide`, so it never pushes a ladder on a workflow that uses `approve` or `human_prompt`. The review summary card and `docs/review/rules/index.md` no longer mark the lens *(off)*.
@@ -144,6 +147,12 @@ workflow Main(facts) {
 
   and then `approve:` on an agent, for interactive assistants.
 - The skills: `llm4j-workflow-guide` (stage 6 and the human-in-the-loop guidance teach the three shapes; LH05 and the counting of approvals named in stage 7); `llm4j-harness-design` (principles: "ask at the boundary, about the payload"; who may step in, stage 7 of its checklist, gains the three shapes; earned autonomy described as optional, D20); `llm4j-loom-deployer` (approvals of `use` and `run` steps on the channel and in Fabric).
+
+**R9 Review stays readable** (D35). This phase switches the first lens on by default, so it also builds what keeps the larger review readable (program page §4.6):
+- **Grouped findings**: one line per rule per script with its locations listed, in the text report, the JSON (`groups`) and the editor's panel.
+- **New first**: the summary card shows findings that are new since the last review (by fingerprint, as the baseline already computes) before the rest.
+- **A baseline suggestion, once**: the first `weave review` of a project after the upgrade that brings new rules says, in one line, that `weave review --baseline write` records what exists today so only new problems are shown; serious findings are never hidden by a baseline, as today. The line is not repeated once a baseline exists or the user declines (`review.properties`: `baseline.suggested = done`).
+- LH01 to LH05 each measure ≥ 0.9 precision on the benchmark corpus and pass the noise gate before the lens is switched on.
 
 ## 4. Java API
 

@@ -89,7 +89,7 @@ Order matters: each phase builds on the one below and is shippable on its own.
 | 28 | [Evaluation first](28-evaluation-first/DESIGN.md) | Loom, eval4j, skills | Testability on by default, LT06 exact and medium, a notice when nothing is measured; `weave check` fails on untested extractors, evaluators and policy rules; `weave eval --requirements` and `--changed` | 24, 26, 19 |
 | 29 | [Architecture you can review](29-reviewable-architecture/DESIGN.md) | docs, probes | `docs/REVIEWABLE_ARCHITECTURE.md`: Loom distils multi-agent best practice into a language that can be reviewed; the five mistakes with real `weave` output; probes P9 to P14 against LangGraph, LangChain and Google ADK; the stack-level pages once | 24 to 28 |
 
-Phases 24 to 29 are the **engineering discipline** program: [the overview](DISCIPLINE.md) maps the owner's list of multi-agent architecture mistakes to what the code does today, records the decisions (D1 to D33), and plans the tutorial changes chapter by chapter.
+Phases 24 to 29 are the **engineering discipline** program: [the overview](DISCIPLINE.md) maps the owner's list of multi-agent architecture mistakes to what the code does today, records the decisions (D1 to D39), and plans the tutorial changes chapter by chapter.
 
 Phases 17 to 23 are the **field findings** program: [the overview](FIELD_FINDINGS.md) has the register of 65 findings from real sessions, the evidence for each, the order of work and the decisions the owner must make before building starts. Every phase's `VERIFICATION.md` starts with a step that **reproduces its findings first**.
 

@@ -1,6 +1,6 @@
 # Engineering discipline program (phases 24 to 29): make the right architecture the easy one
 
-Status: **decisions D1 to D33 recorded 2026-11-01; specs draft for review**. Nothing here is built. This page is the overview of six phases, [24](24-stateless-nodes/DESIGN.md) to [29](29-reviewable-architecture/DESIGN.md): five that build, and one that documents what they add up to. Each phase has the usual three documents (`DESIGN.md`, `TEST_STRATEGY.md`, `VERIFICATION.md`). This page holds what they share: the evidence, the decisions, the contracts that cross phases, the order, and the plan for the tutorial.
+Status: **decisions D1 to D39 recorded 2026-11-01; specs draft for review**. Nothing here is built. This page is the overview of six phases, [24](24-stateless-nodes/DESIGN.md) to [29](29-reviewable-architecture/DESIGN.md): five that build, and one that documents what they add up to. Each phase has the usual three documents (`DESIGN.md`, `TEST_STRATEGY.md`, `VERIFICATION.md`). This page holds what they share: the evidence, the decisions, the contracts that cross phases, the order, and the plan for the tutorial.
 
 ## 1. Why this program exists
 
@@ -85,6 +85,12 @@ What already serves the list well, and is kept: earned autonomy (`decide`, `watc
 | D31 | `WHY_LOOM.md` gets one "see also" line linking the page; its words are not changed. | 29 |
 | D32 | The probes use the Python Google ADK, pinned. | 29 |
 | D33 | A short article version goes in `docs/articles/` once the page is verified. | 29 |
+| D34 | **Complexity stays opt-in.** (A) A tested promise: starters 01 to 04 and the `weave init` templates need none of the new constructs and get no new findings. (B) Each construct is offered by a fix when it is needed (LP09, LP10, LY07, LH05, an undeclared effect). (E) Tutorial chapters 1 to 4 are unchanged; each new construct has a "you don't need this until …" box; new starters come last. | 24 to 28 |
+| D35 | **Review stays readable.** (A) Every new or newly-default rule meets the existing precision bar (≥ 0.9 on the benchmark corpus, Phase 9 R18) or ships as heuristic. (B) Severity follows exposure: LY07 is medium only when output reaches people outside (a channel, trigger, schedule, daemon, deployment or a changing `use`), else info; LT06 follows LT01 (medium when the script can write, send or ask a person, else low). (C) Findings are grouped per rule per script, and the summary shows what is new since the last review first. (D) After the upgrade, `weave review` suggests a baseline once. (E) A noise gate before each phase ships: a new rule accepted in more than 50% of the places it fires on the reference corpus is retuned or demoted. | 24 to 28 |
+| D36 | **Value tracking is built to be provably complete.** (A) Provenance lives beside the values, which stay plain Java objects. (B) Setting a variable requires stating its provenance, so the compiler finds every route. (C) Unknown provenance counts as unchecked model text. (D) Static types decide which fields are free text. (E) A canary oracle compares the tracking with real data flow, permanently in CI for changes to the runtime. (F) Report-only inside development before enforcement is switched on (never released that way). (G) An independent review and the strictest mutation threshold before release. | 26 |
+| D37 | **Failing closed degrades gracefully.** (A) Evaluators can name fallback models. (B) `on_unavailable { … }` gives a safe answer when the evaluator cannot answer (default `fail`). (C) "Unsure" is counted apart from violations everywhere. (D) Incidents for a failing evaluator, a high unsure rate, a high refusal rate and many overrides. (E) `weave eval` fails an evaluator that flags more than 10% of its clean and near-miss cases (adjustable per evaluator). | 26, 28 |
+| D38 | **The new model calls are costed, budgeted and watched like agents.** (A) `weave review` shows them as their own cost and time lines. (B) Generated extractors and evaluators default to the cheapest model of the provider; the skills recommend calibrated backends for evaluators. (C) Free deterministic checks run before any evaluator call. (D) A verdict is reused within a run for identical text, policy version and evaluator, never across runs. (E) A policy's checks get a budget reserve worked out automatically, shown in `weave review`, with an optional override. (F) Latency per evaluator and extractor in the trace and on the live page. And: extractors, evaluators and automatic tool-call checks are metered in the spend report under their own names, count against run and their own budgets, and appear in Fabric's model, cost and incident views and in `weave eval`'s "By agent and node". | 24, 26, 28 |
+| D39 | **The transcript default stays `all`, and is made visible**: `weave graph`, `weave explain` and the editor mark each agent that receives the full transcript. No new default setting and no planned flip. | 24 |
 
 Not taken, and why: a heuristic review rule that looks for governance wording ("never", "must not", "Section 4.6") in prompts was proposed and dropped with D11: it would claim to read meaning. That guidance lives in the skills.
 
@@ -101,7 +107,7 @@ Not taken, and why: a heuristic review rule that looks for governance wording ("
 | Data, not instructions | Inputs are passed between untrusted-data markers. |
 | One call | No tools, no rounds. |
 | Typed output | A label, fields or a verdict, checked by the runtime. |
-| Same plumbing | Budgets, journal and resume, mocks under `weave test` and `weave eval`, `pii:`, trace events with names and never values. |
+| Same plumbing | Budgets, journal and resume, mocks under `weave test` and `weave eval`, `pii:`, trace events with names and never values. Metered and watched like an agent (D38): in the spend report under its own name, against run and its own budgets, with tokens, cost and latency in the trace, in Fabric's model, cost and incident views, and in `weave eval`'s "By agent and node". |
 | Tested | Has golden cases of its own (D18, phase 28). |
 
 `InternalNodeContractTest` (phase 24, extended in 26) asserts each property for every internal node kind, so a fourth kind cannot be added without meeting it.
@@ -122,10 +128,18 @@ Every tool has an effect, `none`, `reads` or `changes`, the same words as a task
 | LP09 | 24 | Prompts | medium | An agent used as an extractor (output schema, no tools, no memory, short prompt) |
 | LA21 | 24 | Security | varies | An agent receives the transcript after an agent that reads untrusted content |
 | LP10 | 25 | Prompts | medium | An agent that reasons must answer in a large schema |
-| LY07 | 26 | Privacy and compliance | medium | Model-written text reaches a sink and the script declares no policy |
+| LY07 | 26 | Privacy and compliance | medium when the output reaches people outside, else info (D35) | Model-written text reaches a sink and the script declares no policy |
 | LH05 | 27 | Human oversight | medium | An approval inside an agent's loop, for an outward tool, in a workflow nobody is watching |
 
 Changed rules: LR05, LP02 (25); LA02, LH02, LH03 (27); LT06 (28). LA15 is unchanged and keeps reporting declared reach and effect. Lenses switched on by default: Human oversight (27), Testability (28).
+
+### 4.5 The simple path stays simple (D34)
+
+A newcomer's first hour of Loom must not get harder. `SimplePathStaysSimpleTest` (built in phase 24, re-run in every phase's verification) asserts that starters 01 to 04 and every `weave init` template load and pass their tests **using none of the program's constructs**, and that `weave review` gives them **no finding they did not have before the program**. A phase that breaks it is not done. New constructs are met through fixes when they are needed, not learned up front: LP09 and LP10 write the extractor (24, 25), LY07 scaffolds a policy, an evaluator and the `check` (26), LH05 rewrites to `use … approve` (27), and the editor offers to declare an undeclared tool effect (27).
+
+### 4.6 Review stays readable (D35)
+
+Every phase that adds a rule or switches one on by default meets two gates before it ships: the rule's measured precision on the benchmark corpus is at least 0.9 (Phase 9 R18), or it ships as heuristic; and on the reference corpus (the starters, the examples and the field-test project) the noise report shows no new rule accepted in more than 50% of the places it fires. Findings are grouped per rule per script, the summary shows what is new since the last review first, and after the upgrade `weave review` suggests writing a baseline once (phase 27 R9). Severity follows exposure where a rule would otherwise fire on most scripts (LY07, LT06).
 
 ## 5. Order of work
 
@@ -141,6 +155,8 @@ Build 24 first: 25, 26 and 28 depend on the extractor and the internal-node cont
 ## 6. Documentation, and the tutorial in particular
 
 [CLAUDE.md principle 7](../../CLAUDE.md) applies to every sub-phase: the documentation ships with the behaviour, never before and never later. Each phase's `DESIGN.md` has a **Documentation** section and a **Tutorial** section, and its `VERIFICATION.md` has acceptance criteria for both. The tutorial is the first thing a new Loom user reads, so this program treats it as a deliverable, not an afterthought:
+
+**Teaching order (D34).** Chapters 1 to 4 are not changed by this program. Every new construct is introduced with a short box, "You don't need this until …" (your workflow sends something, pulls fields out of text, or must follow written rules), and the new starters come after the existing ones.
 
 | Tutorial chapter | What changes | Phase |
 |---|---|---|
@@ -185,3 +201,17 @@ Every row is listed in the release notes and `docs/API_COMPATIBILITY.md` by the 
 | 27 | [Approval at the boundary](27-boundary-approvals/DESIGN.md) | M4 | Every tool has an effect (`none`, `reads`, `changes`), declared by the developer; `use Tool(...)`; `approve` on `use` and `run`; LA02 reworded; LH03 counting approvals; LH01 to LH04 on; LH05; starter 07 rewritten |
 | 28 | [Evaluation first](28-evaluation-first/DESIGN.md) | M3 | Testability lens on, LT06 medium, the notice; the `weave check` gate on untested internal nodes; `weave eval --requirements`; evaluating what changed |
 | 29 | [Architecture you can review](29-reviewable-architecture/DESIGN.md) | all | `docs/REVIEWABLE_ARCHITECTURE.md` (the differentiator, the five mistakes, real `weave` output, generated by a docs test); probes P9 to P14 on Loom, LangGraph, LangChain and Google ADK; `WHY_LLM4J.md`; the stack-level pages once |
+
+## 9. Cautions, and how the program answers them
+
+After the specs were written, six risks of the program itself were reviewed with the owner. Each is answered by a decision and lives in the phases named:
+
+| Caution | Decision | Where |
+|---|---|---|
+| The new constructs make Loom feel large | D34: a tested simple path; constructs offered by fixes; teaching order | §4.5; phases 24 to 28; §6 |
+| Review becomes noise and people stop reading it | D35: the precision bar, severity by exposure, grouping, a baseline after upgrade, a noise gate | §4.6; phases 24 to 28 |
+| Value tracking misses a route and text leaks unchecked | D36: provenance beside values, required at every route, unknown is unchecked, a canary oracle, report-only before enforcing, an independent review | phase 26 R15 |
+| A down or timid evaluator feels like an outage | D37: fallback models, `on_unavailable`, unsure counted apart, incidents, a false-alarm gate | phase 26 R2 to R5, R14; phase 28 R10 |
+| The new calls add cost and latency unseen | D38: cost lines, cheap defaults, free checks first, verdict reuse, a budget reserve, latency, metering in Fabric | phases 24, 26 R16, 28 |
+| Agents still get the whole transcript by default | D39: the default stays, and is shown in the graph, `weave explain` and the editor | phase 24 R8 |
+

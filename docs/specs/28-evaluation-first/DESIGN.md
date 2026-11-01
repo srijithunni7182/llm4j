@@ -30,7 +30,7 @@ Non-goals:
 
 **R1 The Testability lens is on by default, and LT06 is exact and medium.**
 - `Lens.TESTABILITY` moves to the default set, as the review design intended ([Phase 9](../09-review-engine/DESIGN.md) R33: off only "until the workflow-test phase ships `weave test`"). `lenses = -testability` restores the old default. The rule index and the summary card stop marking it *(off)*.
-- LT06 ("an agent has no golden dataset") stops being heuristic: it uses **the same dataset lookup `weave eval` uses** (one shared `GoldenDatasets.find(baseDir, name)`, any capitalisation, `.yaml` or `.yml`, the workflow file `workflow.yaml` or `<Workflow>.yaml`), so it can never disagree with `weave eval`. Its severity becomes **medium**. It fires per agent that has no cases of its own and is not covered by a workflow dataset that names it in an `expect` line.
+- LT06 ("an agent has no golden dataset") stops being heuristic: it uses **the same dataset lookup `weave eval` uses** (one shared `GoldenDatasets.find(baseDir, name)`, any capitalisation, `.yaml` or `.yml`, the workflow file `workflow.yaml` or `<Workflow>.yaml`), so it can never disagree with `weave eval`. Its severity follows LT01's rule (D35): **medium when the script can write, send or ask a person**, low otherwise. It is reported as **one grouped finding per script** naming every agent and internal node without cases of its own ("LT06: 4 agents have no golden cases: Researcher, Writer, …"), excluding agents covered by a workflow dataset that names them in an `expect` line. Before the lens is switched on, LT01 and LT06 each meet the precision bar and the noise gate (program page §4.6).
 - LT01 ("the script has no test file") is unchanged in condition and severity (medium when the script can write, send or ask a person).
 
 **R2 A notice when nothing measures the agents.** When the script has **no golden cases at all** (no agent, node or workflow file with at least one case):
@@ -89,6 +89,11 @@ Non-goals:
 
 **R9 Stack-level documentation: moved to phase 29.** The program's one update of the stack-level pages is made by [phase 29](../29-reviewable-architecture/DESIGN.md), which documents the program's differentiator, so those pages are touched once, with the claim and the page together.
 
+**R10 Evaluators are measured for over-caution** (D37). `weave eval` reports, for each evaluator, its **false-alarm rate**: the share of its clean and near-miss cases (phase 26 R13) it flagged as violated or unsure, per rule and overall, with a 95% interval. A run **fails** when an evaluator's rate is above its limit: `false_alarm_limit: 10%` by default, settable on the evaluator. A timid evaluator is caught on the bench, not by customers. `--requirements` shows the limit beside each policy rule.
+
+**R11 Internal nodes in the report** (D38). The report's **By agent** section becomes **"By agent and node"**: extractors and evaluators have their own rows with their pass rate on their own cases, calls, tokens, cost and latency, exactly as agents do.
+
+
 ## 4. Java API
 
 | Type | Change |
@@ -118,9 +123,8 @@ Non-goals:
 ## 7. Open questions
 
 1. Phase 26's open question 1: should a policy also act as a judge in workflow cases (`expect_policy: HouseRules`)? If yes, it is built here, reusing the evaluator, and `--requirements` lists it.
-2. R1: should LT06 be one finding per script when there is no dataset at all, rather than one per agent? Proposed: per agent (each agent's own cases matter), with the summary card saying "N agents have no golden cases" in one line.
-3. R4: is one case enough for an extractor, or should every required field be asserted in at least one case? Proposed: one case for the gate; review suggests more (a low finding, LT08, "fields never asserted"), not a check error.
-4. R8: which CI system does the template target? Proposed: GitHub Actions, the one the repository itself uses, with the commands written so another system can copy them.
+2. R4: is one case enough for an extractor, or should every required field be asserted in at least one case? Proposed: one case for the gate; review suggests more (a low finding, LT08, "fields never asserted"), not a check error.
+3. R8: which CI system does the template target? Proposed: GitHub Actions, the one the repository itself uses, with the commands written so another system can copy them.
 
 ## 8. Documentation affected
 

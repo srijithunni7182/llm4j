@@ -44,7 +44,11 @@ The boundary is a security control, so it is tested the way an attacker would te
 | **R11** | `LoomGuideBlocksParseTest`, `PreflightC4AdviceTextTest` |
 | **R12** | `SkillsMentionPolicyAndEvaluatorTest` (the skills' stage text holds the required sentences; the skills' existing checkable-rule tests from phase 20 extended), `verify-skill-package.sh` |
 | **R13** | `ScriptedEvaluatorInWeaveTestTest`, `ExpectChecksAndActionsTest`, eval4j `ChecksPolicyAssertionTest`, `EvaluatorGoldenCaseFormatTest` (parsing only; the gate is phase 28), `MockEvaluatorSaysNotJudgedTest` |
-| **R14** | `PolicyCheckTraceEventTest` (no text, no reason), `SinkBlockedTraceEventTest`, `PolicyAuditEventsTest`, `CheckGraphNodeTest`, `GraphRenderKindsInSyncTest`, `ExplainSaysEachCheckTest` |
+| **R2, R3, R4 (D37)** | `EvaluatorFallbackModelTest`, `FailsClosedOnlyWhenAllModelsFailTest`, `UnsureCountedApartEverywhereTest`, `OnUnavailableTakesItsActionTest`, `OnUnavailableDefaultIsFailTest`, `UnavailableEvaluatorRefusesAgentToolCallTest` |
+| **R10 (D34, D35)** | LY07 severity fixtures (medium for each exposure: channel, trigger, schedule, daemon, deploy, changing `use`; info otherwise); `AddPolicyFixDiffTest`, `AddPolicyFixNeedsYesTest`, `AddPolicyFixResultNamesMissingCasesTest` |
+| **R15 (D36)** | `CanaryProvenanceOracleTest` (every repository script, starter and CTK scenario; permanent in CI), `SetVariableRequiresProvenanceTest` (an architecture test: no execution class calls the provenance-free form), `UnknownProvenanceIsUncheckedTest`, `ProvenanceDetailFromStaticTypesTest`, `ReportOnlyModeEmitsSinkUncheckedTest` (development switch; `NoReleaseShipsReportOnlyTest` asserts it is off in packaged builds) |
+| **R16 (D38)** | `ReviewShowsCheckAndExtractCostLinesTest`, `FixesPickCheapestModelTest`, `FreeChecksRunBeforeEvaluatorTest`, `VerdictReusedWithinRunNeverAcrossTest`, `ReserveForChecksComputedAndShownTest`, `ReserveForChecksOverrideTest`, `AgentsCannotSpendTheReserveTest`, `EvaluatorLatencyOnLivePageTest`, `EvaluatorMeteredLikeAnAgentTest` |
+| **R14** | `PolicyCheckTraceEventTest` (no text, no reason), `SinkBlockedTraceEventTest`, `PolicyIncidentRulesTest` (failing, unsure, refusing, overriding; thresholds from the `.inspect` file), `PolicyAuditEventsTest`, `CheckGraphNodeTest`, `GraphRenderKindsInSyncTest`, `ExplainSaysEachCheckTest` |
 
 ## 5. Fault injection
 
@@ -52,7 +56,7 @@ The evaluator's provider returns HTTP 500, 429 with retry, a cut-off answer, an 
 
 ## 6. Mutation testing
 
-`Provenance`, `CheckRunner`'s action logic and re-check rule, the evaluator's fail-closed mapping, the sink enforcement and the leak guard's word-run matcher join the Loom `mutation` profile at the same threshold as the ladder engine. Guards removed once by hand and the failing tests recorded in `VERIFICATION.md` §7: the sink block (R8), the automatic check of an agent's changing tool call (D25), the re-check after a rewrite (R5), `unsure` counting as violated (R3), provenance through interpolation (R7), and the leak guard (R9).
+`Provenance`, `CheckRunner`'s action logic and re-check rule, the evaluator's fail-closed mapping, the sink enforcement and the leak guard's word-run matcher join the Loom `mutation` profile at the same threshold as the ladder engine (the strictest the module uses, D36). Guards removed once by hand and the failing tests recorded in `VERIFICATION.md` §7: the sink block (R8), the automatic check of an agent's changing tool call (D25), the re-check after a rewrite (R5), `unsure` counting as violated (R3), provenance through interpolation (R7), and the leak guard (R9).
 
 ## 7. Coverage
 

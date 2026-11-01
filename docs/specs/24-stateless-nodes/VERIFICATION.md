@@ -32,6 +32,7 @@ Evidence: E1 to E6 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | A12 | Every existing script parses and checks as before; every behaviour change is in the release notes and `API_COMPATIBILITY.md` | `RepositoryScriptsTest`, existing tests unmodified, DESIGN §5 |
 | A13 | Every guard is noticed when removed | PIT score not lower; by-hand removals in §7 |
 | A14 | The tutorial teaches extractors, the transcript modes and LA21, and its examples load | `TutorialExamplesTest`, `GuideTutorialPageTest`, the rows of DESIGN §9 ticked in §5 |
+| A15 | The simple path stays simple and new rules pass the precision bar and the noise gate; agents that receive the full transcript are marked; extract steps are metered like agents | `SimplePathStaysSimpleTest`, `ReviewNoiseGateTest`, `FullTranscriptMarkedInGraphExplainEditorTest`, `ExtractMeteredLikeAnAgentTest` |
 
 ## 2. Traceability: requirement → tests
 
@@ -49,6 +50,7 @@ Evidence: E1 to E6 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | R10 | LP09 fixtures, `ToExtractorFixDiffTest`, `ToExtractorNotOfferedWhenTaskCarriesMeaningTest`, `ToExtractorRefusesBracesInSystemTest`, `ToExtractorNeedsYesTest` | ⬜ |
 | R11 | the A10 tests, `SecurityDocTest` | ⬜ |
 | R12 | `StartersTest`, `LoomGuideBlocksParseTest`, `TutorialExamplesTest`, `GuideTutorialPageTest`, CTK `extract_fields`, `transcript_modes` | ⬜ |
+| R13 | `SimplePathStaysSimpleTest`, `ReviewNoiseGateTest` | ⬜ |
 
 ## 3. Quality gates
 

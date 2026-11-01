@@ -29,6 +29,7 @@ Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 | A7 | The guide, skills and tutorial teach the three shapes and keep `approve:` for interactive assistants; earned autonomy is presented as optional | §5 ticked, `TutorialExamplesTest`, `GuideTutorialPageTest`, `verify-skill-package.sh` |
 | A8 | Every existing script parses and runs as before | `RepositoryScriptsTest`, existing tests unmodified |
 | A9 | Every guard is noticed when removed | PIT score not lower; by-hand removals in §7 |
+| A10 | Findings are grouped, new ones shown first, a baseline suggested once after the upgrade; LH01 to LH05 meet the precision bar and the noise gate; LH05 and undeclared effects offer fixes; the simple path stays simple | the R9 and D34 tests, `SimplePathStaysSimpleTest` |
 
 ## 2. Traceability: requirement → tests
 
@@ -43,6 +44,7 @@ Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 | R6 | LH05 fixtures | ⬜ |
 | R7 | `OversightLensOnByDefaultTest`, `LensesMinusOversightRestoresTest` | ⬜ |
 | R8 | `StartersTest`, `LoomGuideBlocksParseTest`, `TutorialExamplesTest`, `GuideTutorialPageTest`, `verify-skill-package.sh`, CTK `use_tool`, `approve_step` | ⬜ |
+| R9 | the R9 tests of the strategy | ⬜ |
 
 ## 3. Quality gates
 

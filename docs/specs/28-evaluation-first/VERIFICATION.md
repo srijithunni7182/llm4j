@@ -24,7 +24,8 @@ Evidence: E12, E13 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | A6 | `weave eval --changed` runs only what changed (and its routes), says what changed, needs a cap, and fails closed when it cannot tell | R6 tests |
 | A7 | The CI template runs the three costs safely by default | `CiTemplateTest` |
 | A8 | The tutorial and guide teach "the dataset is the requirements", cases for extractors and evaluators, and the three costs; examples load | `TutorialExamplesTest`, `GuideTutorialPageTest`, §5 |
-| A10 | Every guard is noticed when removed | PIT score not lower; by-hand removals in §7 |
+| A9 | Every guard is noticed when removed | PIT score not lower; by-hand removals in §7 |
+| A10 | An evaluator that flags more than its limit of clean and near-miss cases fails `weave eval`; internal nodes have their own rows in the report; LT06 is grouped, its severity follows LT01, and LT01 and LT06 meet the precision bar and the noise gate | the R10, R11 and D35 tests |
 
 ## 2. Traceability: requirement → tests
 
@@ -38,6 +39,8 @@ Evidence: E12, E13 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | R6 | the R6 tests of the strategy | ⬜ |
 | R7 | `LoomGuideBlocksParseTest`, `TutorialExamplesTest`, `GuideTutorialPageTest`, `verify-skill-package.sh` | ⬜ |
 | R8 | `CiTemplateTest` | ⬜ |
+| R10 | the R10 tests of the strategy | ⬜ |
+| R11 | `ByAgentAndNodeSectionTest` | ⬜ |
 
 ## 3. Quality gates
 

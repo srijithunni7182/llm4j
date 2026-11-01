@@ -38,6 +38,7 @@ Evidence: E7 to E9 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 - [ ] `mvn verify` green on `ai-agent4j-loom`, `loom-inspect`, `loom-fabric` (after installing the Loom jar) and every example module built with `-Pextended` that was migrated (`make test-extended` for those).
 - [ ] PIT: the Loom `mutation` profile with the new facts; score not lower.
 - [ ] `weave rules test core` green; `weave rules docs core` regenerated.
+- [ ] LP10 measures ≥ 0.9 precision on the benchmark corpus (Phase 9 R18) and passes the noise gate (`ReviewNoiseGateTest`); `SimplePathStaysSimpleTest` green (program page §4.5, §4.6).
 - [ ] `RepositoryScriptsTest` green.
 - [ ] `bash scripts/make-tutorial-html.sh` run; `GuideTutorialPageTest` green.
 - [ ] `make format-check`, `make release-check` green.

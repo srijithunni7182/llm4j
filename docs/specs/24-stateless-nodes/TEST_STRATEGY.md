@@ -42,6 +42,9 @@ The phase is about **what a node is given**. A test that checks only the extract
 | **R9** | Rule fixtures for LP08: fires for a task with no variable to a `none` agent; does not fire with `{x}`; does not fire for an `all` agent; legacy bare-name substitution counts as a variable |
 | **R10** | Rule fixtures for LP09 (each non-firing variant in the fixture); `ToExtractorFixDiffTest` (golden diff); `ToExtractorNotOfferedWhenTaskCarriesMeaningTest`; `ToExtractorRefusesBracesInSystemTest`; `ToExtractorNeedsYesTest`; after applying, `weave check` passes and LP09 is gone |
 | **R11** | `TranscriptTaintCompletesTrifectaTest` (the TaintFixture: LA01 fires for Sender, naming Researcher and the transcript), `TranscriptNoneBreaksTaintTest`, `ExtractorBetweenBreaksTaintTest`, `TaintFollowsStatementOrderTest`, `TaintInLaterLoopIterationTest`, `TaintFollowsCallAndHandoffTest`, `InternalNodesNeverTaintedByTranscriptTest`, `SecurityDocTest` (LA21 listed) |
+| **R8 (D39)** | `FullTranscriptMarkedInGraphExplainEditorTest` |
+| **R5 (D38)** | `ExtractMeteredLikeAnAgentTest` (spend report line, own budget, latency on the live page, review cost line) |
+| **R13** | `SimplePathStaysSimpleTest`, `ReviewNoiseGateTest` (reusable; LP08, LP09, LA21 pass it) |
 | **R12** | `StartersTest` (starter 08 loads, its tests pass, its diagram matches), `LoomGuideBlocksParseTest` (the new sections), `TutorialExamplesTest`, `GuideTutorialPageTest`, a CTK scenario `extract_fields` and one `transcript_modes` with their `*CtkTest` |
 
 ## 5. Fault injection

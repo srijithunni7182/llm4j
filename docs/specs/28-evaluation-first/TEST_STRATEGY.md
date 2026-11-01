@@ -27,6 +27,9 @@ The phase adds several readers of the same facts: LT06, the gate, the notice and
 | **R4** | `GateRejectsUntestedExtractorTest`, `GateRejectsEvaluatorRuleWithoutViolatedCaseTest`, `GateRejectsEvaluatorRuleWithoutCleanCaseTest`, `GateAcceptsNearMissAsCleanTest`, `GateChecksStructureTest` (unknown field or rule, duplicate id, malformed expectation), `ScaffoldDoesNotSatisfyGateTest`, `GateHasNoSkipFlagTest` (every command that checks applies it: CLI, `weave serve`, `LoomLoader` host check, `weave deploy`), `FixConvertsAgentCasesToExtractorCasesTest` and `FixNamesMissingCasesTest` (with phases 24 and 25) |
 | **R5** | `RequirementsMarkdownGoldenTest`, `RequirementsHtmlGoldenTest`, `RequirementsListsWhatHasNoCasesTest`, `RequirementsShowsIdentityTest`, `RequirementsApproveRecordsIdentityTest`, `RequirementsChangedSinceApprovalTest`, `RequirementsMasksPiiTest`, `RequirementsNeedsNoKeyTest` |
 | **R6** | `FingerprintChangesForEachInputTest` (one row per fingerprint fixture pair), `FingerprintIgnoresIrrelevantChangesTest`, `ChangedRunsOnlyChangedNodesAndRoutesTest`, `ChangedWithNoReferenceRunsEverythingAndSaysSoTest`, `ChangedNeedsACapAndAsksTest`, `UnreadablePromptCountsAsChangedTest` (fail closed), `ReportWhatChangedSectionTest`, `OldRecordWithoutFingerprintsIsNoReferenceTest` |
+| **R10 (D37)** | `EvaluatorFalseAlarmRateReportedTest`, `FalseAlarmAboveLimitFailsRunTest`, `FalseAlarmLimitPerEvaluatorTest`, `RequirementsShowsFalseAlarmLimitTest` |
+| **R11 (D38)** | `ByAgentAndNodeSectionTest` |
+| **R1 (D35)** | `Lt06SeverityFollowsLt01Test`, `Lt06GroupedPerScriptTest`, precision on the benchmark corpus for LT01 and LT06, `ReviewNoiseGateTest` |
 | **R7** | `LoomGuideBlocksParseTest`, `TutorialExamplesTest`, `GuideTutorialPageTest`, `verify-skill-package.sh` |
 | **R8** | `CiTemplateTest` (the file parses; the steps are present; the scheduled job is commented out; a missing key skips with a notice) |
 

@@ -36,6 +36,8 @@ How each requirement of [DESIGN.md](DESIGN.md) is tested: hermetic, deterministi
 | **R4** | LH03 fixtures from `QuestionCountFixture` (worst case computed and the message names each source) |
 | **R5** | LH02 fixtures for steps (fires on read-only `use`, on `NONE`/`READS` tasks; not on changing ones) |
 | **R6** | LH05 fixtures from `UnattendedFixture` (fires for schedule, trigger, daemon; not for a hand-started run; not for a read-only tool; not for a `use … approve`) |
+| **R9 (D35)** | `GroupedFindingsTest` (text, JSON, panel), `NewSinceLastReviewFirstTest`, `BaselineSuggestedOnceAfterUpgradeTest`, `BaselineSuggestionNotRepeatedTest`, precision on the benchmark corpus for LH01 to LH05, `ReviewNoiseGateTest` |
+| **R6, R0 (D34)** | `ToBoundaryFixDiffTest`, `ToBoundaryNotOfferedWhenNotMechanicalTest`, `DeclareEffectQuickFixTest` (editor and review option) |
 | **R7** | `OversightLensOnByDefaultTest`, `LensesMinusOversightRestoresTest`, rule index regenerated without *(off)* |
 | **R8** | `StartersTest` (starter 07 loads, tests pass, diagram matches, LH04 no longer fires on it), `LoomGuideBlocksParseTest`, `TutorialExamplesTest`, `GuideTutorialPageTest`, `verify-skill-package.sh`, CTK scenarios `use_tool` and `approve_step` |
 
