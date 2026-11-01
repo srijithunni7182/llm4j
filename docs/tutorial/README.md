@@ -1,18 +1,20 @@
 # The Loom tutorial
 
-## Why I built Loom
-
-Loom is a new language, but it is not meant to be an application programming language. I built it for one reason.
-
-A workflow is a language in itself. Much like code, it moves from state to state. It is the harness we build on top of the transformers, and its intelligence is symbolic. I grew tired of expressing everything I needed in a workflow through Python or Java. A workflow is above all of that. It is a pure thing, a beautiful orchestration of intents to achieve a goal. The plumbing that Java and Python demanded killed the joy of building it.
-
-And when I needed feedback on a workflow, it stayed difficult to give or to get. I could not see the workflow beneath all the cobwebs of the code.
-
-Loom was born from that desire: to see the workflow, to preserve its beauty, and to get feedback on the workflow and not on the plumbing.
-
-I hope you will see the beauty in Loom the way I do.
-
-*Srijith Unni*
+> **Why I built Loom**
+>
+> *A workflow is a language in itself.*
+>
+> Loom is a new language, but it is not meant to be an application programming language. I built it for one reason.
+>
+> A workflow is a language in itself. Much like code, it moves from state to state. It is the harness we build on top of the transformers, and its intelligence is symbolic. I grew tired of expressing everything I needed in a workflow through Python or Java. A workflow is above all of that. It is a pure thing, a beautiful orchestration of intents to achieve a goal. The plumbing that Java and Python demanded killed the joy of building it.
+>
+> And when I needed feedback on a workflow, it stayed difficult to give or to get. I could not see the workflow beneath all the cobwebs of the code.
+>
+> Loom was born from that desire: to see the workflow, to preserve its beauty, and to get feedback on the workflow and not on the plumbing.
+>
+> I hope you will see the beauty in Loom the way I do.
+>
+> **Srijith Unni**
 
 ---
 

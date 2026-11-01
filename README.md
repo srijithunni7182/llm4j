@@ -144,6 +144,10 @@ see [API keys in the Quick Start](src/ai-agent4j/wiki/Getting-Started.md#set-up-
 
 [Module details and diagram](docs/THE_STACK.md)
 
+> *A workflow is a language in itself. It is the harness we build on top of the transformers, and its intelligence is symbolic. Loom was born from the desire to see the workflow, to preserve its beauty, and to get feedback on the workflow and not on the plumbing.*
+>
+> **Srijith Unni**, [why I built Loom](src/loom/ai-agent4j-loom/WHY_LOOM.md)
+
 ## Agent skills
 
 Three [Claude skills](docs/PUBLISHING_SKILL.md) live in [`.claude/skills/`](.claude/skills/), so a coding agent can walk you through the whole job, one gate at a time:
