@@ -2,7 +2,7 @@
 
 Status: **draft for review** (decisions D17 to D19 recorded 2026-11-01). Layer: the review engine (the Testability lens, LT06), `weave check` (a gate on internal nodes), `weave eval` (`--requirements`, `--changed`), `weave run`, `weave deploy` and the live run page (a notice), `weave guide`, the skills and the tutorial. Part of the [engineering discipline program](../DISCIPLINE.md).
 Documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md). Depends on [phase 24](../24-stateless-nodes/DESIGN.md) (extractors) and [phase 26](../26-policy-boundary/DESIGN.md) (evaluators, policies, the evaluator case format). Builds on [Phase 11](../11-workflow-tests/DESIGN.md) (`weave test`), [Phase 14](../14-production-loop/DESIGN.md) (baselines, `weave gate`) and [Phase 19](../19-evaluation-that-works/DESIGN.md) (datasets, fingerprints, judge validation).
-Evidence owned: **E12, E13**. Mistake: **M3, evaluation as an afterthought**. This phase also owns the program's end-of-program documentation step (§3 R9).
+Evidence owned: **E12, E13**. Mistake: **M3, evaluation as an afterthought**. The program's end-of-program documentation step is [phase 29](../29-reviewable-architecture/DESIGN.md)'s.
 
 ## 1. Problem
 
@@ -87,7 +87,7 @@ Non-goals:
 
 **R8 The CI template.** The project templates (`weave init` and the starters' shared CI file, where present) run `weave check`, `weave test` and `weave review --fail-on high` on every push, `weave eval --changed --max-cost <set by the user>` on pull requests when a key is configured (skipped with a notice otherwise, never failing for the missing key), and a scheduled full run that is commented out.
 
-**R9 Stack-level documentation, once.** As the [spec method](../README.md) requires, this phase updates the stack-level pages once for the whole program: the root `README.md`, `wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md` (the new constructs and the program in a sentence each), and marks the program done in [DISCIPLINE.md](../DISCIPLINE.md).
+**R9 Stack-level documentation: moved to phase 29.** The program's one update of the stack-level pages is made by [phase 29](../29-reviewable-architecture/DESIGN.md), which documents the program's differentiator, so those pages are touched once, with the claim and the page together.
 
 ## 4. Java API
 
@@ -124,7 +124,7 @@ Non-goals:
 
 ## 8. Documentation affected
 
-`LOOM_GUIDE.md` ("Evaluating a Workflow"), `LOOM_PROMPT.md`, `docs/guide/02-golden-dataset.md` (and `weave guide`'s stage title), `docs/guide/05-test-agents-with-caps.md` and `docs/guide/09-go-live.md` (the notice, the sign-off), the tutorial (§9), `docs/review/rules/` (LT06, the lens index), `docs/specs/09-review-engine/DESIGN.md` R33 (a note that the lens is now default, linking here), `docs/TESTING_STRATEGY.md` (the three costs), eval4j's README, the command reference pages for `weave eval`, `weave check`, `weave run`, `weave deploy`, the three skills in R7, the starters (each starter that uses an extractor or evaluator has its cases; the starters README says the dataset is the requirements), `docs/API_COMPATIBILITY.md`, `llms.txt`, the next release's notes, and the stack-level pages of R9.
+`LOOM_GUIDE.md` ("Evaluating a Workflow"), `LOOM_PROMPT.md`, `docs/guide/02-golden-dataset.md` (and `weave guide`'s stage title), `docs/guide/05-test-agents-with-caps.md` and `docs/guide/09-go-live.md` (the notice, the sign-off), the tutorial (§9), `docs/review/rules/` (LT06, the lens index), `docs/specs/09-review-engine/DESIGN.md` R33 (a note that the lens is now default, linking here), `docs/TESTING_STRATEGY.md` (the three costs), eval4j's README, the command reference pages for `weave eval`, `weave check`, `weave run`, `weave deploy`, the three skills in R7, the starters (each starter that uses an extractor or evaluator has its cases; the starters README says the dataset is the requirements), `docs/API_COMPATIBILITY.md`, `llms.txt`, the next release's notes. The stack-level pages are phase 29's.
 
 ## 9. Tutorial
 

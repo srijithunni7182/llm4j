@@ -29,7 +29,6 @@ The phase adds several readers of the same facts: LT06, the gate, the notice and
 | **R6** | `FingerprintChangesForEachInputTest` (one row per fingerprint fixture pair), `FingerprintIgnoresIrrelevantChangesTest`, `ChangedRunsOnlyChangedNodesAndRoutesTest`, `ChangedWithNoReferenceRunsEverythingAndSaysSoTest`, `ChangedNeedsACapAndAsksTest`, `UnreadablePromptCountsAsChangedTest` (fail closed), `ReportWhatChangedSectionTest`, `OldRecordWithoutFingerprintsIsNoReferenceTest` |
 | **R7** | `LoomGuideBlocksParseTest`, `TutorialExamplesTest`, `GuideTutorialPageTest`, `verify-skill-package.sh` |
 | **R8** | `CiTemplateTest` (the file parses; the steps are present; the scheduled job is commented out; a missing key skips with a notice) |
-| **R9** | the documentation checklist in `VERIFICATION.md` §5 |
 
 ## 4. Fault injection
 

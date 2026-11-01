@@ -1,6 +1,6 @@
-# Engineering discipline program (phases 24 to 28): make the right architecture the easy one
+# Engineering discipline program (phases 24 to 29): make the right architecture the easy one
 
-Status: **decisions D1 to D29 recorded 2026-11-01; specs draft for review**. Nothing here is built. This page is the overview of five phases, [24](24-stateless-nodes/DESIGN.md) to [28](28-evaluation-first/DESIGN.md). Each phase has the usual three documents (`DESIGN.md`, `TEST_STRATEGY.md`, `VERIFICATION.md`). This page holds what they share: the evidence, the decisions, the contracts that cross phases, the order, and the plan for the tutorial.
+Status: **decisions D1 to D30 recorded 2026-11-01; specs draft for review**. Nothing here is built. This page is the overview of six phases, [24](24-stateless-nodes/DESIGN.md) to [29](29-reviewable-architecture/DESIGN.md): five that build, and one that documents what they add up to. Each phase has the usual three documents (`DESIGN.md`, `TEST_STRATEGY.md`, `VERIFICATION.md`). This page holds what they share: the evidence, the decisions, the contracts that cross phases, the order, and the plan for the tutorial.
 
 ## 1. Why this program exists
 
@@ -81,6 +81,7 @@ What already serves the list well, and is kept: earned autonomy (`decide`, `watc
 | D27 | The effect is **the developer's decision**, marked on the tool; a declared effect is authoritative and Loom does not second-guess it from the HTTP method. When nothing is declared, Loom assumes (today's rules) and says so. | 27 |
 | D28 | Loom **uses MCP servers' tool annotations** (`readOnlyHint`, `destructiveHint`) as the server author's declaration. | 27 |
 | D29 | Tool effects are built **in phase 27, first** (27a); phase 26 depends on it. | 27, 26 |
+| D30 | After phase 28, the program's differentiator is documented as its own phase: **Loom distils multi-agent best practice into a language that can be reviewed, by people and by tools**. One page, the stack-level pages once, and every claim about another framework (LangChain, LangGraph, Google ADK) backed by a rerunnable probe, as `WHY_LLM4J.md` already requires. | 29 |
 
 Not taken, and why: a heuristic review rule that looks for governance wording ("never", "must not", "Section 4.6") in prompts was proposed and dropped with D11: it would claim to read meaning. That guidance lives in the skills.
 
@@ -128,11 +129,11 @@ Changed rules: LR05, LP02 (25); LA02, LH02, LH03 (27); LT06 (28). LA15 is unchan
 ```
 24 stateless nodes ──► 25 reason, then extract
         │
-        └──────────► 26 policy boundary ──► 28 evaluation first (its weave check gate needs 24 and 26)
+        └──────────► 26 policy boundary ──► 28 evaluation first (its weave check gate needs 24 and 26) ──► 29 architecture you can review
 27 boundary approvals: 27a tool effects first (26's sinks need it); its `use` is a sink as soon as 26 exists
 ```
 
-Build 24 first: 25, 26 and 28 depend on the extractor and the internal-node contract. 27 can be built beside 25 and 26 by other hands. Each phase is shippable on its own and is documented when it ships (§6).
+Build 24 first: 25, 26 and 28 depend on the extractor and the internal-node contract. 27 can be built beside 25 and 26 by other hands. Each phase is shippable on its own and is documented when it ships (§6). **29 comes last**: it documents what 24 to 28 built, with probes against other frameworks, and makes the program's one update of the stack-level pages.
 
 ## 6. Documentation, and the tutorial in particular
 
@@ -155,7 +156,7 @@ Every `loom` block added to the tutorial is checked by `TutorialExamplesTest`, a
 
 Other pages every phase touches, by [CLAUDE.md "things that change together"](../../CLAUDE.md): `LOOM_GUIDE.md` (parse-tested), `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md` (and the other guide chapters named per phase), the starters and their regenerated diagrams (`bash scripts/make-starter-diagrams.sh`, `StartersTest`), the `llm4j-workflow-guide`, `llm4j-harness-design` and `llm4j-eval-design` skills, the VS Code grammar, snippets and `CHANGELOG.md`, `bash scripts/sync-graph-render.sh` for new node kinds, a CTK scenario per construct, `docs/review/rules/` (regenerated with `weave rules docs core`), `docs/security/weave-audit.md` and `owasp-llm-top-10.md` for LA21 and the policy boundary, `docs/API_COMPATIBILITY.md`, `llms.txt`, and the next release's notes.
 
-Stack-level pages (root `README.md`, `wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md`) are updated **once, at the end of the program**, as the [spec method](README.md) requires; phase 28's `VERIFICATION.md` owns that step.
+Stack-level pages (root `README.md`, `wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md`) are updated **once, at the end of the program**, as the [spec method](README.md) requires; [phase 29](29-reviewable-architecture/DESIGN.md) owns that step, together with the new page "Architecture you can review".
 
 ## 7. Compatibility, across the program
 
@@ -180,3 +181,4 @@ Every row is listed in the release notes and `docs/API_COMPATIBILITY.md` by the 
 | 26 | [The policy boundary](26-policy-boundary/DESIGN.md) | M1 | `policy`, `evaluator`, `check … against …` with four actions; model-written values tracked to the sinks; the leak guard; LY07; `shared_prompt` repositioned |
 | 27 | [Approval at the boundary](27-boundary-approvals/DESIGN.md) | M4 | Every tool has an effect (`none`, `reads`, `changes`), declared by the developer; `use Tool(...)`; `approve` on `use` and `run`; LA02 reworded; LH03 counting approvals; LH01 to LH04 on; LH05; starter 07 rewritten |
 | 28 | [Evaluation first](28-evaluation-first/DESIGN.md) | M3 | Testability lens on, LT06 medium, the notice; the `weave check` gate on untested internal nodes; `weave eval --requirements`; evaluating what changed |
+| 29 | [Architecture you can review](29-reviewable-architecture/DESIGN.md) | all | `docs/REVIEWABLE_ARCHITECTURE.md` (the differentiator, the five mistakes, real `weave` output, generated by a docs test); probes P9 to P14 on Loom, LangGraph, LangChain and Google ADK; `WHY_LLM4J.md`; the stack-level pages once |

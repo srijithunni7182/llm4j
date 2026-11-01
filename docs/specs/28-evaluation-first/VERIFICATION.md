@@ -1,6 +1,6 @@
 # Phase 28 verification plan: evaluation first
 
-Status: **not started** (spec draft; needs phases 24 and 26 for R4). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **28a** louder (R1 to R3); **28b** the gate (R4); **28c** `--requirements` (R5); **28d** `--changed`, the CI template and the teaching (R6 to R8); **28e** the end-of-program documentation (R9). R1 to R3, R5 and R6 do not depend on phases 24 and 26 and may be built first. Results in §7.
+Status: **not started** (spec draft; needs phases 24 and 26 for R4). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **28a** louder (R1 to R3); **28b** the gate (R4); **28c** `--requirements` (R5); **28d** `--changed`, the CI template and the teaching (R6 to R8). The stack-level pages (R9) are phase 29's. R1 to R3, R5 and R6 do not depend on phases 24 and 26 and may be built first. Results in §7.
 Evidence: E12, E13 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Reproduce first
@@ -24,7 +24,6 @@ Evidence: E12, E13 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | A6 | `weave eval --changed` runs only what changed (and its routes), says what changed, needs a cap, and fails closed when it cannot tell | R6 tests |
 | A7 | The CI template runs the three costs safely by default | `CiTemplateTest` |
 | A8 | The tutorial and guide teach "the dataset is the requirements", cases for extractors and evaluators, and the three costs; examples load | `TutorialExamplesTest`, `GuideTutorialPageTest`, §5 |
-| A9 | The stack-level pages describe the program's constructs; the program is marked done | §5 R9 rows |
 | A10 | Every guard is noticed when removed | PIT score not lower; by-hand removals in §7 |
 
 ## 2. Traceability: requirement → tests
@@ -39,7 +38,6 @@ Evidence: E12, E13 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | R6 | the R6 tests of the strategy | ⬜ |
 | R7 | `LoomGuideBlocksParseTest`, `TutorialExamplesTest`, `GuideTutorialPageTest`, `verify-skill-package.sh` | ⬜ |
 | R8 | `CiTemplateTest` | ⬜ |
-| R9 | §5 | ⬜ |
 
 ## 3. Quality gates
 
@@ -62,7 +60,7 @@ Evidence: E12, E13 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 
 ## 5. Documentation owed
 
-`LOOM_GUIDE.md` ⬜ · `LOOM_PROMPT.md` ⬜ · `docs/guide/02` ⬜, `05-test-agents-with-caps` ⬜, `09-go-live` ⬜ · tutorial ch. 1 ⬜, 5 ⬜, 9 ⬜, 10 ⬜, 14 ⬜, README ⬜, HTML regenerated ⬜ · `docs/review/rules/` ⬜ · phase 9 DESIGN R33 note ⬜ · `docs/TESTING_STRATEGY.md` ⬜ · eval4j README ⬜ · command reference pages ⬜ · skills (workflow guide ⬜, eval design ⬜, harness design ⬜) · starters and starters README ⬜ · `API_COMPATIBILITY.md` ⬜ · `llms.txt` ⬜ · release notes ⬜ · **R9, once for the program:** root `README.md` ⬜, `wiki/Home.md` ⬜, `docs/README.md` ⬜, `docs/THE_STACK.md` ⬜, [DISCIPLINE.md](../DISCIPLINE.md) status ⬜.
+`LOOM_GUIDE.md` ⬜ · `LOOM_PROMPT.md` ⬜ · `docs/guide/02` ⬜, `05-test-agents-with-caps` ⬜, `09-go-live` ⬜ · tutorial ch. 1 ⬜, 5 ⬜, 9 ⬜, 10 ⬜, 14 ⬜, README ⬜, HTML regenerated ⬜ · `docs/review/rules/` ⬜ · phase 9 DESIGN R33 note ⬜ · `docs/TESTING_STRATEGY.md` ⬜ · eval4j README ⬜ · command reference pages ⬜ · skills (workflow guide ⬜, eval design ⬜, harness design ⬜) · starters and starters README ⬜ · `API_COMPATIBILITY.md` ⬜ · `llms.txt` ⬜ · release notes ⬜.
 
 ## 6. Exit checklist
 
@@ -70,7 +68,7 @@ Evidence: E12, E13 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 - [ ] Every row in §2 ✅, or partial with a reason; every A-criterion has evidence
 - [ ] M1 to M4 done and recorded in §7
 - [ ] DESIGN §7 questions answered
-- [ ] Docs in §5 updated, including the stack-level pages; roadmap status updated; the program marked done
+- [ ] Docs in §5 updated; roadmap status updated
 
 ## 7. Results
 
