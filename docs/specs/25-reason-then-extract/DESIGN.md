@@ -2,7 +2,7 @@
 
 Status: **draft for review** (decisions D5 to D8 recorded 2026-11-01). Layer: the review engine (a new rule, two reworded rules, a fix), the examples and their tests, the documentation and the tutorial. No new language construct: it uses the `extractor` of [phase 24](../24-stateless-nodes/DESIGN.md). Part of the [engineering discipline program](../DISCIPLINE.md).
 Documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md). Depends on phase 24 (the extractor, LP09's fix machinery, the short-prompt setting).
-Evidence owned: **E7 to E9, E22**. Mistakes: **M2, the JSON trap**, and **M8, stringly-typed state** (D42).
+Evidence owned: **E7 to E9, E22, E25**. Mistakes: **M2, the JSON trap**, **M8, stringly-typed state** (D42), and **M11, unbounded fan-out** (D44).
 
 ## 1. Problem
 
@@ -19,6 +19,7 @@ Goals:
 - A one-command fix splits a trapped agent into an agent and an extractor (R3).
 - The repository's examples are reference implementations of the pattern (R4).
 - The documentation and the tutorial teach "reason, then extract" (R5).
+- A fan-out over a list a model wrote is bounded, and an over-long list is treated as a sign of trouble upstream (R7, D44).
 - A long-running agent's progress is kept in the workflow, not in its conversation, taught as a recipe with a tested starter (R6, D42).
 
 Non-goals:
@@ -78,6 +79,24 @@ Progress is then typed, journaled (a resume restores it), bounded, visible in th
 - **Starter `16-step-by-step-agent`**: the recipe as a complete, tested reference (a worker with fake file and test tools, its `weave test` cases scripting the rounds, including one that stops at the bound and one resumed mid-way from the journal), with its README and diagram.
 - **Teaching**: the `llm4j-harness-design` skill gains the principle "keep progress where the harness can see it, not in the conversation" and the recipe in `references/loom-mapping.md` (and names it among the failure modes: "the agent loses track of where it is"); `LOOM_GUIDE.md` "Context and Compaction" points to it; `docs/guide/14-context-and-compaction.md` gains the recipe; the `llm4j-workflow-guide` skill offers it when a user describes a long autonomous agent.
 
+**R7 Bounded fan-out** (M11, D44).
+
+```loom
+parallel for each task in plan.tasks max 10 {
+    delegate "{task.description}" to {task.owner} -> results[task.name]
+} on_too_many {
+    human_prompt "Planner proposed {_count} tasks; the most this step takes is 10. Continue with a smaller plan? (yes/no)" -> answer
+}
+```
+
+- `for each … max N` and `parallel for each … max N`, the same bound `loop` already has. `on_too_many { … }` runs instead of the block when the list is longer than `N`, with `_count` (the list's length) and `_max` in scope; it may ask a person, `halt` with a message, ask the planner again, or (deliberately) narrow the list with `set` and a `call`.
+- **Without `on_too_many`, the workflow fails before any item starts** (D44): "`plan.tasks` has 412 items, written by agent **Planner** (line 20); this step takes at most 10 (line 22). A list this far over its bound usually means a problem upstream: what Planner was given, what it was asked, or text in its input trying to steer it." Nothing is half-done. The `on_failure` of an enclosing step, if any, runs.
+- **The error points upstream.** When the list was produced by an agent or an extractor, the message, the trace event `fanout_exceeded` (the count, the bound, the producing agent and line, never content) and the run's failure record name that agent.
+- **It is an incident.** loom-inspect gains a default rule, *plan far over its bound*, shown on the live page and in Fabric, because a planner regression and an injection attempt both look like this.
+- **It becomes a test.** `weave capture` turns such a run into a case; the skills say to add a golden case to the planner's dataset that asserts its list stays within the bound, so the next prompt or model change is checked against it.
+- **LR13: unbounded fan-out** (Reliability, **medium**): a `for each` over a list produced by an agent or an extractor, with no `max`. What to do: add `max N` (and tell the planner the limit in its instructions). `weave review`'s cost and time estimate shows "worst case unknown: the list has no bound" for such a step instead of an assumed size. LR13 meets the precision bar and the noise gate (D35).
+- **Teaching**: `LOOM_GUIDE.md` "for each" documents `max`, `on_too_many` and the upstream reading of the error; the skills (workflow guide stage 6, harness design's bounds) say the bound is the last line of defence and the planner's instructions and golden cases are the real fix. Starter 06 gains `max 4` (its planner is asked for 2 to 4 tasks); phase 27 adds its allow-list and map.
+
 ## 4. Java API
 
 No public API changes. New facts in the review fact model (`AgentFacts`, a new `SchemaFacts`), a new fix template in the core pack, rule-data changes to `prompts.yaml` and `reliability.yaml`. `docs/API_COMPATIBILITY.md` records the review-rule changes under "rule packs".
@@ -103,7 +122,7 @@ No public API changes. New facts in the review fact model (`AgentFacts`, a new `
 
 ## 8. Documentation affected
 
-`LOOM_GUIDE.md` ("When to use a schema, and when to extract"; a pointer from "Context and Compaction" to R6's recipe), starter 16 and the starters README, `docs/guide/14-context-and-compaction.md`, `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md`, the tutorial (§9), `docs/review/rules/` (LP10, LR05, LP02 regenerated), the three skills named in R5, each migrated example's README (which agents now answer in prose and which extractor follows), `src/loom/loom-inspect` simulator docs where they describe the sim's steps, release notes, `docs/API_COMPATIBILITY.md` (rule packs), `llms.txt` (the pattern in one line).
+`LOOM_GUIDE.md` ("When to use a schema, and when to extract"; "for each" with `max` and `on_too_many`; `docs/review/rules/` LR13; the loom-inspect rules page for the new incident; a pointer from "Context and Compaction" to R6's recipe), starter 16 and the starters README, `docs/guide/14-context-and-compaction.md`, `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md`, the tutorial (§9), `docs/review/rules/` (LP10, LR05, LP02 regenerated), the three skills named in R5, each migrated example's README (which agents now answer in prose and which extractor follows), `src/loom/loom-inspect` simulator docs where they describe the sim's steps, release notes, `docs/API_COMPATIBILITY.md` (rule packs), `llms.txt` (the pattern in one line).
 
 ## 9. Tutorial
 
@@ -111,6 +130,7 @@ No public API changes. New facts in the review fact model (`AgentFacts`, a new `
 |---|---|
 | [5. Structured answers and failure](../../tutorial/05-structured-answers-and-failure.md) | New section **"Reason first, then extract"** after the extractor section of phase 24: why "JSON only" hurts an agent that must think, the two-step shape, a side-by-side of the trapped and the fixed script, and a short list of when a small `output_schema` on an agent is still right. "Try it yourself" gains: run `weave review` on the trapped version, read LP10, apply the split with `--dry-run`. |
 | [14. Cookbook](../../tutorial/14-cookbook.md) | Recipe **"Let the reasoning agent think, then extract"**; "mistakes and their fixes" gains LP10 and the new wording of LR05 and LP02. |
+| [4. Control flow](../../tutorial/04-control-flow.md) | `for each` gains **`max N` and `on_too_many`**: the bound, what happens when a planner returns far more than it should, and why that points upstream (R7). |
 | [11. Advanced orchestration](../../tutorial/11-advanced-orchestration.md) | New section **"Keep progress in the workflow, not the conversation"** beside context and compaction: why a long agent loses track, the recipe, and starter 16 walked through. |
 | [README](../../tutorial/README.md) | Chapter 5's row mentions "reason, then extract"; chapter 11's row mentions keeping progress in the workflow; the starter table gains starter 16. |
 

@@ -2,7 +2,7 @@
 
 Status: **draft for review** (decisions D20 to D22 and D26 to D28 recorded 2026-11-01). Layer: the Loom language and runtime (every tool's effect, a tool step, approval on a step), the review engine (LA02, LH02, LH03, a new LH05, the Human oversight lens on), the starters, the skills and the tutorial. Part of the [engineering discipline program](../DISCIPLINE.md).
 Documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md). Independent of phases 24 to 26 to build. [Phase 26](../26-policy-boundary/DESIGN.md) depends on R0 (its sinks are tools whose effect is `changes`); once phase 26 exists, `use` is one of its sinks.
-Evidence owned: **E14 to E19, E21**. Mistakes: **M4, HITL in the middle of reasoning**, and **M7, error cascading** (D41).
+Evidence owned: **E14 to E19, E21, E24**. Mistakes: **M4, HITL in the middle of reasoning**, **M7, error cascading** (D41), and **M10, the model chooses the route** (D43).
 
 ## 1. Problem
 
@@ -23,6 +23,7 @@ Goals:
 - A script can **ask for approval on a step**, once, showing the exact payload, on `use` and on `run` (R2).
 - Review offers the boundary first, counts every question, and warns about approvals in the middle of a loop where nobody is watching (R3 to R6).
 - Starter 07 and the skills teach the boundary shapes (R7, R8).
+- A model's answer can route work and name results only within what the script allows, and the audit sees every agent a route can reach (R11, D43).
 - Review notices an agent's unvalidated prose driving a step that changes something, and the docs teach how to guard the hand-off (R10, D41).
 
 Non-goals:
@@ -175,6 +176,15 @@ workflow Main(facts) {
 - The facts are structural (value flow, tool effects, statement kinds), never prompt meaning. It meets the precision bar and the noise gate before it ships (D35).
 - **Teaching** (D41): `LOOM_GUIDE.md` gains "Never pipe an agent straight into an action" beside the boundary sections, with the three levels: shape (extract or schema), logic (`alt` or a task), judgement (`check`), plus `approve`, cheapest first, using only existing constructs. The `llm4j-harness-design` skill gains the principle "validate every hand-off into an action" and lists "an agent acts on another's hallucination" among its failure modes; the `llm4j-workflow-guide` skill checks for it in stage 6 and names LR11 in stage 7.
 
+**R11 Routing chosen by a model stays inside the script's limits** (M10, D43). Built after R0 (tool effects decide when an unbounded route is an error).
+
+- **An allow-list for a dynamic agent.** `delegate … to {task.owner} in [Researcher, Writer]`, or no inline list when `task.owner` is an `enum` field of an `output_schema`, `expecting` or extractor, whose values are then the list (already enforced when the answer arrives). At run time a name outside the list fails the step (`on_failure` runs) with "Planner chose `Editor` for `task.owner`; this step allows Researcher, Writer", and the trace event `route_refused` names the step and the value's producer, never content. Every name in the list must be a declared agent (`weave check`).
+- **An unbounded dynamic target** (no list, no enum) is a `weave check` **error when any declared agent holds a tool whose effect is `changes` or reaches private data**, since a hijacked route could reach it, and a **warning** otherwise. The message lists the agents it could reach and shows both ways to bound it.
+- **Dynamic result names cannot overwrite anything** (effective at once, compatible). A result name taken from a value (`-> {task.name}`) must be a plain identifier, may only create a variable that does not exist yet in that scope, and may not start with `_` or be a name the script binds anywhere else. A breach fails the step with a message naming the value's producer. The **map form** `-> results[task.name]` stores the answer under that key in one object variable, read as `{results.<key>}` or as a whole; it is the recommended form, and `LOOM_GUIDE.md`, the release notes and `docs/API_COMPATIBILITY.md` announce that it becomes **the only dynamic result form at the next major version**.
+- **The audit sees dynamic routes.** `SecurityAudit` stops skipping delegates with a dynamic target or variable (`SecurityAudit.java:774`): a dynamic target counts as every agent in its allow-list, or every agent in the script when there is none, for the trifecta, tool reach and every rule that follows delegates. **LA22: a model's answer chooses which agent runs** (Security), graded by the most dangerous agent reachable: high when the route is unbounded and reaches a changing tool or private data, low when it is bounded to agents that only read.
+- **The examples stop teaching the risky shape.** Starter 06 types its plan (`tasks: list<{ name: string  description: string  owner: enum["Researcher", "Writer"] }>`) and writes into `results[task.name]`; getviral, the inspect-soak example, the loom-inspect simulator and the README example in the docs test resources get allow-lists (or enums) and the map form. Their tests and diagrams are regenerated.
+- **Teaching**: `LOOM_GUIDE.md` "for each" (routing from an item) explains that a prompt is not a boundary for routing and shows both allow-list forms and the map; the harness-design skill (the boundary stage) and the workflow-guide skill (stage 6, and LA22 in stage 7) say the same.
+
 ## 4. Java API
 
 | Type | Change |
@@ -214,13 +224,14 @@ workflow Main(facts) {
 
 ## 8. Documentation affected
 
-`LOOM_GUIDE.md` ("Never pipe an agent straight into an action"; `effect:` and `effects:` on every tool kind, replacing `reach:` in the class-tool section with the old form noted; `use`, approval on a step, "Where to ask", LA02 wording referenced), `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md` `docs/guide/09-go-live.md` (approvals on the channel) and `docs/guide/13-earned-autonomy.md` (earned autonomy as the optional extra, D20), the tutorial (§9), starter 07 and the starters README, `docs/review/rules/` (LA02, LH02, LH03, LH05, LR11, the lens index), `docs/specs/09-review-engine/DESIGN.md` R33 (a note that the oversight lens is now default, linking here), `docs/security/secure-by-construction.md` (`use` goes through the same controls), the three skills in R8, the VS Code grammar, snippets and `CHANGELOG.md`, `graph-render` (`use` kind), eval4j's README, `docs/API_COMPATIBILITY.md`, `llms.txt`, the next release's notes.
+`LOOM_GUIDE.md` ("Never pipe an agent straight into an action"; `effect:` and `effects:` on every tool kind, replacing `reach:` in the class-tool section with the old form noted; `use`, approval on a step, "Where to ask", LA02 wording referenced), `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md` `docs/guide/09-go-live.md` (approvals on the channel) and `docs/guide/13-earned-autonomy.md` (earned autonomy as the optional extra, D20), the tutorial (§9), starter 07 and the starters README, `docs/review/rules/` (LA02, LA22, LH02, LH03, LH05, LR11, the lens index), `docs/security/weave-audit.md` and `owasp-llm-top-10.md` (LA22: excessive agency through routing), the release notes and `docs/API_COMPATIBILITY.md` (the map form, and free dynamic result names ending at the next major version), `docs/specs/09-review-engine/DESIGN.md` R33 (a note that the oversight lens is now default, linking here), `docs/security/secure-by-construction.md` (`use` goes through the same controls), the three skills in R8, the VS Code grammar, snippets and `CHANGELOG.md`, `graph-render` (`use` kind), eval4j's README, `docs/API_COMPATIBILITY.md`, `llms.txt`, the next release's notes.
 
 ## 9. Tutorial
 
 | Chapter | Change |
 |---|---|
 | [6. Tools and tasks](../../tutorial/06-tools-and-tasks.md) | New section **"Before a step acts: check what it was handed"** (M7: extract and test, `check`, or `approve`; LR11). New section **"Does this tool change anything? `effect:`"** near the start of "Tools": the three words (the same as a task's), that it is the developer's decision, the per-operation form for OpenAPI and MCP, what Loom assumes when nothing is declared and where to see it, and why it matters (approvals, retries, policies, what a test only records). Each tool example in the chapter declares its effect. New section **"Calling a tool yourself: `use`"** after "Declared tools": when a model is not needed to call a tool, the syntax, and that it goes through the same controls. "Approvals: a person says yes first" shows `approve` on `use` and `run` first, then `approve:` on an agent for interactive assistants. |
+| [4. Control flow](../../tutorial/04-control-flow.md) | Routing from an item: **only within an allow-list** (inline or an `enum`), results into a map, and why a prompt cannot limit a route (R11). |
 | [8. People in the loop](../../tutorial/08-people-in-the-loop.md) | "Approvals on tools" becomes **"Where to ask: at the edge, not in the middle"**: the three shapes in a table and a diagram, why asking mid-loop in an unattended workflow costs momentum and context (LH05), and the rewritten starter 07 walked through. |
 | [11. Advanced orchestration](../../tutorial/11-advanced-orchestration.md) | Earned autonomy introduced as the optional extra for a decision that should earn trust, beside the plain `approve` (D20). |
 | [9. Safety and cost](../../tutorial/09-safety-and-cost.md) | The safe-by-default checklist: "approve once, at the edge, on the step that acts". |

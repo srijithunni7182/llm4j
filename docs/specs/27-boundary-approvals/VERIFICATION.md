@@ -1,6 +1,6 @@
 # Phase 27 verification plan: approval at the boundary
 
-Status: **not started** (spec draft). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **27a** every tool has an effect (R0; phase 26 waits for it); **27b** `use` (R1) and `approve` on `use` and `run` (R2); **27c** the review changes and the lens default (R3 to R7, R9), and LR11 with its teaching (R10); **27d** starter 07, the guide, the skills and the tutorial (R8). Results in §7.
+Status: **not started** (spec draft). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **27a** every tool has an effect (R0; phase 26 waits for it); **27b** `use` (R1) and `approve` on `use` and `run` (R2); **27c** the review changes and the lens default (R3 to R7, R9), and LR11 with its teaching (R10); **27e** dynamic routing within limits (R11); **27d** starter 07, the guide, the skills and the tutorial (R8). Results in §7.
 Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Reproduce first
@@ -31,6 +31,7 @@ Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 | A9 | Every guard is noticed when removed | PIT score not lower; by-hand removals in §7 |
 | A10 | Findings are grouped, new ones shown first, a baseline suggested once after the upgrade; LH01 to LH05 meet the precision bar and the noise gate; LH05 and undeclared effects offer fixes; the simple path stays simple | the R9 and D34 tests, `SimplePathStaysSimpleTest` |
 | A11 | LR11 warns on an agent's unvalidated prose driving a step that changes something, stays quiet when any validating step stands between, offers its two fixes, and meets the precision bar and the noise gate; the guide, skills and tutorial teach guarding a hand-off | the R10 tests, §5 |
+| A12 | A model can route only to agents in an allow-list (inline or enum), cannot overwrite a variable with a dynamic name, and the audit counts every agent a route can reach (LA22); an unbounded route reaching a changing tool or private data fails `weave check`; starter 06 and the examples use allow-lists and the map form | the R11 tests |
 
 ## 2. Traceability: requirement → tests
 
@@ -47,6 +48,7 @@ Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 | R8 | `StartersTest`, `LoomGuideBlocksParseTest`, `TutorialExamplesTest`, `GuideTutorialPageTest`, `verify-skill-package.sh`, CTK `use_tool`, `approve_step` | ⬜ |
 | R9 | the R9 tests of the strategy | ⬜ |
 | R10 | the R10 tests of the strategy | ⬜ |
+| R11 | the R11 tests of the strategy | ⬜ |
 
 ## 3. Quality gates
 
@@ -73,7 +75,7 @@ Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 
 ## 5. Documentation owed
 
-`LOOM_GUIDE.md` ⬜ · `LOOM_PROMPT.md` ⬜ · `docs/guide/06` ⬜, `09-go-live` ⬜, `13-earned-autonomy` ⬜ · tutorial ch. 6 ⬜, 8 ⬜, 9 ⬜, 11 ⬜, 14 ⬜, README ⬜, HTML regenerated ⬜ · starter 07 and starters README ⬜ · `docs/review/rules/` ⬜ · phase 9 DESIGN R33 note ⬜ · `secure-by-construction.md` ⬜ · skills (workflow guide ⬜, harness design ⬜, deployer ⬜) · VS Code grammar, snippets, CHANGELOG ⬜ · graph-render ⬜ · eval4j README ⬜ · `API_COMPATIBILITY.md` ⬜ · `llms.txt` ⬜ · release notes ⬜.
+`LOOM_GUIDE.md` ⬜ · `LOOM_PROMPT.md` ⬜ · `docs/guide/06` ⬜, `09-go-live` ⬜, `13-earned-autonomy` ⬜ · tutorial ch. 4 ⬜, 6 ⬜, 8 ⬜, 9 ⬜, 11 ⬜, 14 ⬜, README ⬜, HTML regenerated ⬜ · starter 07 and starters README ⬜ · `docs/review/rules/` ⬜ · phase 9 DESIGN R33 note ⬜ · `secure-by-construction.md` ⬜ · skills (workflow guide ⬜, harness design ⬜, deployer ⬜) · VS Code grammar, snippets, CHANGELOG ⬜ · graph-render ⬜ · eval4j README ⬜ · `API_COMPATIBILITY.md` ⬜ · `llms.txt` ⬜ · release notes ⬜.
 
 ## 6. Exit checklist
 

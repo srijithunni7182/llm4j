@@ -22,7 +22,7 @@ Non-goals:
 
 - Marketing copy without evidence, or claims about a framework that no probe checked.
 - Rewriting the owner's personal note ([WHY_LOOM.md](../../../src/loom/ai-agent4j-loom/WHY_LOOM.md)); it gains one "see also" line and nothing else (D31).
-- A general comparison of frameworks beyond the nine mistakes and the existing probes.
+- A general comparison of frameworks beyond the thirteen mistakes and the existing probes.
 
 ## 3. Requirements
 
@@ -30,7 +30,7 @@ Non-goals:
 
 1. **The claim**, first, in the owner's words: *Loom distils multi-agent best practice into a language that can be reviewed, by people and by tools. In code-first frameworks the architecture is a convention; in Loom it is checked.*
 2. **Why a language makes it possible**: three short paragraphs on what a tool can know about a Loom script that it cannot know about general-purpose code (declared agents, tools and their effects, the flow of values, the exits), with one picture: the same small workflow as a Loom script beside its `weave graph`.
-3. **The nine mistakes**, one table row and one short section each (from [DISCIPLINE.md](../DISCIPLINE.md) §1; M6 and M9 were already addressed before the program, and the page says so):
+3. **The thirteen mistakes**, one table row and one short section each (from [DISCIPLINE.md](../DISCIPLINE.md) §1; M6 and M9 were already addressed before the program, M13 is taught rather than checked, and the page says so):
 
 | Mistake | What Loom does | What you see |
 |---|---|---|
@@ -43,6 +43,10 @@ Non-goals:
 | Error cascading | Extract, `check` or `approve` before a step acts | LR11 |
 | Stringly-typed state | The script is the state machine; a long agent's progress lives in a journaled variable (starter 16) | the recipe; the graph |
 | Unbounded action loops | `max_iterations` by default, bounded loops and retries, budgets, `supervise` | LR03, LB01, LO04; the looping incident |
+| The model chooses the route | Routing only within an allow-list; results only where the script says | `weave check`'s unbounded-route error; LA22 |
+| Unbounded fan-out | `for each … max N`; an over-long list fails and points upstream | LR13; the incident |
+| The doer grades itself | A different default judge; a reviewer, a task or a `check` decides "done" | LR12 |
+| Self-reported confidence | Calibrated classifiers; calibration measured before a threshold is trusted | taught in the skills |
 
    Each section shows the mistake written in Loom, the exact `weave` output that names it, and the fixed script. Each links to the tutorial chapter and the `LOOM_GUIDE.md` section that teach it, and to its probe (R3).
 4. **What is not enforced, said plainly**: whether an agent's words reach people, and what a prompt means, are judgements the language cannot make; the skills teach them (D11). A Java task is trusted code. A declared effect is the developer's word.
@@ -62,14 +66,15 @@ Non-goals:
 | P14 | A tool that posts: is "it changes something" stated once on the tool and honoured by approvals, retries and tests? |
 | P15 | One agent's invented amount handed to an agent that pays: does anything notice, before the run, that nothing checks the hand-off? |
 | P16 | A long agent loop that runs past its context window: is its progress kept somewhere compaction cannot remove, and does a resume continue from it? |
+| P17 | A planner whose input tells it to route a task to a privileged agent: can the route go outside the intended agents, and does anything notice before the run? |
 
 - Each probe records exactly what was found, including where another framework does well (a guardrail hook, an interrupt, a schema helper), and reports "found no …" only after searching the installed packages and their documentation, with the versions named, as P6 already does.
 - The page states nothing about another framework that is not in a probe result. Where a probe's answer is "yes, with code you write", the page says so.
 - Versions are pinned in each probe's `requirements.txt` and named at the top of the probes README; a probe is rerun before each release that changes the page.
 
-**R4 `WHY_LLM4J.md` points to it.** The comparison table gains rows for the nine mistakes, each one line with its probe link, and a line at the top that links the new page as "the idea behind these guarantees". The existing rows are unchanged.
+**R4 `WHY_LLM4J.md` points to it.** The comparison table gains rows for the thirteen mistakes, each one line with its probe link, and a line at the top that links the new page as "the idea behind these guarantees". The existing rows are unchanged.
 
-**R5 The stack-level pages, once for the program** (moved from phase 28 R9). The new constructs and the claim, a sentence each, in: the root `README.md` (the claim near the top, under the title, linking the page), `wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md`, `DEVELOPER_GUIDE.md` (the "why" section), the [tutorial README](../../tutorial/README.md) ("Where to go next"), `llms.txt` (the claim and the nine mistakes in machine-readable form, for models that read the project), the VS Code extension's `README.md` (its marketplace text), and the `llm4j-workflow-guide` skill ("Explain as you go" points to the page when a user asks why Loom works this way). [WHY_LOOM.md](../../../src/loom/ai-agent4j-loom/WHY_LOOM.md) gains a single "see also" line at the end linking the page; its words are not changed (D31). The program is marked done in [DISCIPLINE.md](../DISCIPLINE.md) and the roadmap.
+**R5 The stack-level pages, once for the program** (moved from phase 28 R9). The new constructs and the claim, a sentence each, in: the root `README.md` (the claim near the top, under the title, linking the page), `wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md`, `DEVELOPER_GUIDE.md` (the "why" section), the [tutorial README](../../tutorial/README.md) ("Where to go next"), `llms.txt` (the claim and the thirteen mistakes in machine-readable form, for models that read the project), the VS Code extension's `README.md` (its marketplace text), and the `llm4j-workflow-guide` skill ("Explain as you go" points to the page when a user asks why Loom works this way). [WHY_LOOM.md](../../../src/loom/ai-agent4j-loom/WHY_LOOM.md) gains a single "see also" line at the end linking the page; its words are not changed (D31). The program is marked done in [DISCIPLINE.md](../DISCIPLINE.md) and the roadmap.
 
 **R6 The page cannot drift.** `ReviewableArchitectureDocsTest`:
 - every ` ```loom ` block on the page loads (or fails with the error the page shows, for a `loom-error` block);
@@ -77,7 +82,7 @@ Non-goals:
 - every rule id the page names exists in the rule catalogue and every probe link resolves to a section of the probes README;
 - every framework name on the page appears only in sentences that link a probe.
 
-**R7 An article version** (D33). Once the page is verified, a short article is written from it in `docs/articles/` (named like the articles already there), for posting elsewhere: the claim, the nine mistakes in brief, and the same probe links. It says nothing the page does not, and it links the page as the source. It is listed in `docs/README.md`'s index of articles.
+**R7 An article version** (D33). Once the page is verified, a short article is written from it in `docs/articles/` (named like the articles already there), for posting elsewhere: the claim, the thirteen mistakes in brief, and the same probe links. It says nothing the page does not, and it links the page as the source. It is listed in `docs/README.md`'s index of articles.
 
 ## 4. Compatibility
 

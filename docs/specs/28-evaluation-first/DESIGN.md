@@ -2,7 +2,7 @@
 
 Status: **draft for review** (decisions D17 to D19 recorded 2026-11-01). Layer: the review engine (the Testability lens, LT06), `weave check` (a gate on internal nodes), `weave eval` (`--requirements`, `--changed`), `weave run`, `weave deploy` and the live run page (a notice), `weave guide`, the skills and the tutorial. Part of the [engineering discipline program](../DISCIPLINE.md).
 Documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md). Depends on [phase 24](../24-stateless-nodes/DESIGN.md) (extractors) and [phase 26](../26-policy-boundary/DESIGN.md) (evaluators, policies, the evaluator case format). Builds on [Phase 11](../11-workflow-tests/DESIGN.md) (`weave test`), [Phase 14](../14-production-loop/DESIGN.md) (baselines, `weave gate`) and [Phase 19](../19-evaluation-that-works/DESIGN.md) (datasets, fingerprints, judge validation).
-Evidence owned: **E12, E13**. Mistake: **M3, evaluation as an afterthought**. The program's end-of-program documentation step is [phase 29](../29-reviewable-architecture/DESIGN.md)'s.
+Evidence owned: **E12, E13, E26, E27**. Mistakes: **M3, evaluation as an afterthought**, **M12, the doer grades itself** (D45), and **M13, gating on self-reported confidence** (D46). The program's end-of-program documentation step is [phase 29](../29-reviewable-architecture/DESIGN.md)'s.
 
 ## 1. Problem
 
@@ -17,6 +17,7 @@ Goals:
 - A non-technical reviewer can **read and sign off** the requirements as written in the dataset (R5, D19).
 - Real evaluation runs **continuously and cheaply**, on what changed (R6, D19).
 - The skills, the guide and the tutorial present the dataset as the requirements (R7).
+- Nothing grades its own work by default: a different judge model, and a warning when an agent decides its own loop is done (R12, R13, D45); self-reported confidence is taught for what it is (R14, D46).
 
 Non-goals:
 
@@ -95,6 +96,19 @@ Non-goals:
 **R11 Internal nodes in the report** (D38). The report's **By agent** section becomes **"By agent and node"**: extractors and evaluators have their own rows with their pass rate on their own cases, calls, tokens, cost and latency, exactly as agents do.
 
 
+**R12 The default judge is a different model** (M12, D45).
+- `weave eval` chooses the judge in this order: `--judge <model>`; `judge:` in `dataset.yaml`; `eval.judge` in the project's settings; otherwise **the cheapest model the project can reach that is not the model being judged**, preferring another provider when one is configured. The choice and why appear under "Read this first" in the report.
+- `--judge same` judges a model with itself, deliberately; the report's *Cautions* section says so ("self-judging: scores may be biased toward the judged model's own style").
+- When the project can reach only one model, `weave eval` judges with it and records the same caution: it never refuses for want of a second key.
+- A workflow's `expect` lines follow the same rule. eval4j's Java API keeps its explicit judge parameter; its default judge factory follows the same order.
+
+**R13 LR12: the agent decides its own work is done** (M12, D45; Reliability).
+- **Medium**: a `loop until` (or a loop's `when` rewind condition) reads a field of a variable bound, inside the loop body, by a delegate to an agent that also produces the loop's work (the same agent binds another variable the loop iterates on, or the condition reads the very answer that carries the work). What to do: let a different agent review it (starter 03's shape), check the criteria in code with a task (best when they can be checked, such as tests passing), or `check` it.
+- **Low**: an `evaluator` (phase 26) whose model is the same as the model of the agent whose output it checks.
+- Structural facts only; precision bar and noise gate (D35); fix option `add-reviewer` adds a reviewer agent on the cheapest model and rewires the condition to its verdict, shown as a diff.
+
+**R14 Self-reported confidence is taught, not ruled** (M13, D46). The `llm4j-eval-design` skill (quality dimensions: calibration) and the `llm4j-workflow-guide` skill (stage 6) say plainly that a confidence number a chat model writes about itself is not a calibrated probability; gating on it (`alt (answer.confidence > 0.8)`) needs either a calibrated source (an `intentclassifier` on a calibrated backend, phase 7) or calibration measured on the golden dataset before the threshold is trusted. `LOOM_GUIDE.md` "Output Schema Enforcement" gains the same note in two sentences. No review rule: detection would rest on field names.
+
 ## 4. Java API
 
 | Type | Change |
@@ -129,13 +143,13 @@ Non-goals:
 
 ## 8. Documentation affected
 
-`LOOM_GUIDE.md` ("Evaluating a Workflow"), `LOOM_PROMPT.md`, `docs/guide/02-golden-dataset.md` (and `weave guide`'s stage title), `docs/guide/05-test-agents-with-caps.md` and `docs/guide/09-go-live.md` (the notice, the sign-off), the tutorial (§9), `docs/review/rules/` (LT06, the lens index), `docs/specs/09-review-engine/DESIGN.md` R33 (a note that the lens is now default, linking here), `docs/TESTING_STRATEGY.md` (the three costs), eval4j's README, the command reference pages for `weave eval`, `weave check`, `weave run`, `weave deploy`, the three skills in R7, the starters (each starter that uses an extractor or evaluator has its cases; the starters README says the dataset is the requirements), `docs/API_COMPATIBILITY.md`, `llms.txt`, the next release's notes. The stack-level pages are phase 29's.
+`LOOM_GUIDE.md` ("Evaluating a Workflow", with the judge order and `--judge same`; "Output Schema Enforcement" with the confidence note), `docs/review/rules/` (LR12), `LOOM_PROMPT.md`, `docs/guide/02-golden-dataset.md` (and `weave guide`'s stage title), `docs/guide/05-test-agents-with-caps.md` and `docs/guide/09-go-live.md` (the notice, the sign-off), the tutorial (§9), `docs/review/rules/` (LT06, the lens index), `docs/specs/09-review-engine/DESIGN.md` R33 (a note that the lens is now default, linking here), `docs/TESTING_STRATEGY.md` (the three costs), eval4j's README, the command reference pages for `weave eval`, `weave check`, `weave run`, `weave deploy`, the three skills in R7, the starters (each starter that uses an extractor or evaluator has its cases; the starters README says the dataset is the requirements), `docs/API_COMPATIBILITY.md`, `llms.txt`, the next release's notes. The stack-level pages are phase 29's.
 
 ## 9. Tutorial
 
 | Chapter | Change |
 |---|---|
-| [10. Testing](../../tutorial/10-testing.md) | "`weave eval`: the quality, with a golden dataset" opens with **"The dataset is the requirements"** and shows `weave eval --requirements` and a sign-off. New sections **"Cases for an extractor"** (exact field checks) and **"Cases for an evaluator"** (per rule: breaks it, nearly breaks it, clean) with the `weave check` error a reader will meet first. "The order that saves money" becomes the three costs of R6 with `weave eval --changed`. "From CI" uses the new template. |
+| [10. Testing](../../tutorial/10-testing.md) | **Who judges**: the default judge is a different model, `--judge same`, and what the report says (R12). "`weave eval`: the quality, with a golden dataset" opens with **"The dataset is the requirements"** and shows `weave eval --requirements` and a sign-off. New sections **"Cases for an extractor"** (exact field checks) and **"Cases for an evaluator"** (per rule: breaks it, nearly breaks it, clean) with the `weave check` error a reader will meet first. "The order that saves money" becomes the three costs of R6 with `weave eval --changed`. "From CI" uses the new template. |
 | [1. Your first workflow](../../tutorial/01-first-workflow.md) | The check, test, run loop mentions the notice the reader will see on their first `weave run`, in one sentence, and where to start a dataset. |
 | [5. Structured answers and failure](../../tutorial/05-structured-answers-and-failure.md) and [9. Safety and cost](../../tutorial/09-safety-and-cost.md) | The extractor and policy examples point to their cases in chapter 10. |
 | [14. Cookbook](../../tutorial/14-cookbook.md) | "Mistakes and their fixes" gains the gate's two errors, LT06 and the notice; the cheat sheet gains `--requirements` and `--changed`. |

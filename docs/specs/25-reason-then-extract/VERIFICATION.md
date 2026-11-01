@@ -1,6 +1,6 @@
 # Phase 25 verification plan: reason, then extract
 
-Status: **not started** (spec draft; needs phase 24's extractor). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **25a** LP10, the facts and the rewording of LR05 and LP02 (R1, R2); **25b** the split fix (R3); **25c** the examples, the docs and the tutorial (R4, R5); **25d** progress kept in the workflow: the recipe, starter 16 and the teaching (R6). Results in §7.
+Status: **not started** (spec draft; needs phase 24's extractor). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **25a** LP10, the facts and the rewording of LR05 and LP02 (R1, R2); **25b** the split fix (R3); **25c** the examples, the docs and the tutorial (R4, R5); **25d** progress kept in the workflow: the recipe, starter 16 and the teaching (R6); **25e** bounded fan-out (R7). Results in §7.
 Evidence: E7 to E9 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Reproduce first
@@ -23,6 +23,7 @@ Evidence: E7 to E9 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | A6 | The guide, skills and tutorial teach "reason, then extract" and when a small schema is still right | §5 ticked, `LoomGuideBlocksParseTest`, `TutorialExamplesTest`, `GuideTutorialPageTest` |
 | A7 | Nothing else changes: existing tests unmodified except the examples' own cases for migrated agents (listed in §7) | test diff review |
 | A8 | Starter 16 shows a long agent's progress kept in a journaled variable, bounded and resumable, with tests; the harness-design skill, the guide and tutorial chapter 11 teach it | the R6 tests, §5 |
+| A9 | `for each … max N` fails the workflow before any item when a list is too long (unless `on_too_many` says otherwise), names the agent that produced the list, raises an incident, and can be captured as a test; LR13 warns about unbounded fan-out and the cost estimate says so | the R7 tests |
 
 ## 2. Traceability: requirement → tests
 
@@ -34,6 +35,7 @@ Evidence: E7 to E9 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | R4 | `ExamplesAreCleanOfLp10Test`, example suites, `InspectSimExpectedTracesTest` | ⬜ |
 | R5 | `LoomGuideBlocksParseTest`, `TutorialExamplesTest`, `GuideTutorialPageTest` | ⬜ |
 | R6 | the R6 tests of the strategy | ⬜ |
+| R7 | the R7 tests of the strategy | ⬜ |
 
 ## 3. Quality gates
 
@@ -41,7 +43,7 @@ Evidence: E7 to E9 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 - [ ] PIT: the Loom `mutation` profile with the new facts; score not lower.
 - [ ] `weave rules test core` green; `weave rules docs core` regenerated.
 - [ ] LP10 measures ≥ 0.9 precision on the benchmark corpus (Phase 9 R18) and passes the noise gate (`ReviewNoiseGateTest`); `SimplePathStaysSimpleTest` green (program page §4.5, §4.6).
-- [ ] `RepositoryScriptsTest` green.
+- [ ] `RepositoryScriptsTest` green; CTK scenario `for_each_max` added; the Loom syntax change (`max`, `on_too_many` on `for each`) is in `LOOM_GUIDE.md`, `LOOM_PROMPT.md`, `docs/guide/06`, the tutorial, the starters, the workflow-guide skill and the VS Code grammar and snippets.
 - [ ] `bash scripts/make-tutorial-html.sh` run; `GuideTutorialPageTest` green.
 - [ ] `make format-check`, `make release-check` green.
 - [ ] No new dependency.
@@ -56,7 +58,7 @@ Evidence: E7 to E9 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 
 ## 5. Documentation owed
 
-`LOOM_GUIDE.md` ⬜ · `LOOM_PROMPT.md` ⬜ · `docs/guide/06` ⬜ · tutorial ch. 5 ⬜, 11 ⬜, 14 ⬜, README ⬜ · starter 16 and starters README ⬜ · `docs/guide/14` ⬜, HTML regenerated ⬜ · `docs/review/rules/` ⬜ · skills (workflow guide ⬜, harness design ⬜, eval design ⬜) · each migrated example's README ⬜ · loom-inspect sim docs ⬜ · release notes ⬜ · `API_COMPATIBILITY.md` (rule packs) ⬜ · `llms.txt` ⬜.
+`LOOM_GUIDE.md` ⬜ · `LOOM_PROMPT.md` ⬜ · `docs/guide/06` ⬜ · tutorial ch. 4 ⬜, 5 ⬜, 11 ⬜, 14 ⬜, README ⬜ · starter 16 and starters README ⬜ · `docs/guide/14` ⬜, HTML regenerated ⬜ · `docs/review/rules/` ⬜ · skills (workflow guide ⬜, harness design ⬜, eval design ⬜) · each migrated example's README ⬜ · loom-inspect sim docs ⬜ · release notes ⬜ · `API_COMPATIBILITY.md` (rule packs) ⬜ · `llms.txt` ⬜.
 
 ## 6. Exit checklist
 

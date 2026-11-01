@@ -1,6 +1,6 @@
 # Phase 28 verification plan: evaluation first
 
-Status: **not started** (spec draft; needs phases 24 and 26 for R4). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **28a** louder (R1 to R3); **28b** the gate (R4); **28c** `--requirements` (R5); **28d** `--changed`, the CI template and the teaching (R6 to R8). The stack-level pages (R9) are phase 29's. R1 to R3, R5 and R6 do not depend on phases 24 and 26 and may be built first. Results in §7.
+Status: **not started** (spec draft; needs phases 24 and 26 for R4). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **28a** louder (R1 to R3); **28b** the gate (R4); **28c** `--requirements` (R5); **28d** `--changed`, the CI template and the teaching (R6 to R8); **28e** the judge, LR12 and the confidence teaching (R12 to R14). The stack-level pages (R9) are phase 29's. R1 to R3, R5 and R6 do not depend on phases 24 and 26 and may be built first. Results in §7.
 Evidence: E12, E13 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Reproduce first
@@ -26,6 +26,7 @@ Evidence: E12, E13 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | A8 | The tutorial and guide teach "the dataset is the requirements", cases for extractors and evaluators, and the three costs; examples load | `TutorialExamplesTest`, `GuideTutorialPageTest`, §5 |
 | A9 | Every guard is noticed when removed | PIT score not lower; by-hand removals in §7 |
 | A10 | An evaluator that flags more than its limit of clean and near-miss cases fails `weave eval`; internal nodes have their own rows in the report; LT06 is grouped, its severity follows LT01, and LT01 and LT06 meet the precision bar and the noise gate | the R10, R11 and D35 tests |
+| A11 | `weave eval` judges with a different model by default, says which and why, makes self-judging explicit and cautioned, and never refuses for want of a second model; LR12 warns when an agent decides its own loop is done (and at low for an evaluator on the checked agent's model); the skills teach that self-reported confidence is not calibration | the R12 to R14 tests |
 
 ## 2. Traceability: requirement → tests
 
@@ -41,6 +42,9 @@ Evidence: E12, E13 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | R8 | `CiTemplateTest` | ⬜ |
 | R10 | the R10 tests of the strategy | ⬜ |
 | R11 | `ByAgentAndNodeSectionTest` | ⬜ |
+| R12 | the R12 tests of the strategy | ⬜ |
+| R13 | the R13 tests of the strategy | ⬜ |
+| R14 | skill text checks | ⬜ |
 
 ## 3. Quality gates
 

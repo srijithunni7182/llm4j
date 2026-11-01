@@ -22,16 +22,19 @@ The phase adds several readers of the same facts: LT06, the gate, the notice and
 | Requirement | Tests (written first) |
 |---|---|
 | **R1** | `TestabilityLensOnByDefaultTest`, `LensesMinusTestabilityRestoresTest`, `Lt06UsesEvalLookupTest` (reader agreement), `Lt06IsMediumAndNotHeuristicTest`, `Lt06CoveredByWorkflowExpectTest` |
+| **R1 (D35)** | `Lt06SeverityFollowsLt01Test`, `Lt06GroupedPerScriptTest`, precision on the benchmark corpus for LT01 and LT06, `ReviewNoiseGateTest` |
 | **R2** | `RunPrintsNoEvaluationNoticeTest`, `QuietHidesNoticeTest`, `NoNoticeWhenAnyCaseExistsTest`, `DeployPrintsNoticeAndReadmeCarriesItTest`, `RunStartEventCarriesEvaluatedFlagTest`, `ObservePageShowsBannerTest` (loom-inspect page test), `NextListsDatasetTest`, `SkippedOnPurposeNoticeTest` |
 | **R3** | `GuideStageTwoTitleTest`, skill text test (phase 20's checkable rules extended) |
 | **R4** | `GateRejectsUntestedExtractorTest`, `GateRejectsEvaluatorRuleWithoutViolatedCaseTest`, `GateRejectsEvaluatorRuleWithoutCleanCaseTest`, `GateAcceptsNearMissAsCleanTest`, `GateChecksStructureTest` (unknown field or rule, duplicate id, malformed expectation), `ScaffoldDoesNotSatisfyGateTest`, `GateHasNoSkipFlagTest` (every build-time command applies it: CLI, `weave serve`, `weave deploy`), `HostLoadDoesNotReadGoldenAndWarnsOnceTest` (a packaged host with no `eval/golden/` loads the script), `FixConvertsAgentCasesToExtractorCasesTest` and `FixNamesMissingCasesTest` (with phases 24 and 25) |
 | **R5** | `RequirementsMarkdownGoldenTest`, `RequirementsHtmlGoldenTest`, `RequirementsListsWhatHasNoCasesTest`, `RequirementsShowsIdentityTest`, `RequirementsApproveRecordsIdentityTest`, `RequirementsChangedSinceApprovalTest`, `RequirementsMasksPiiTest`, `RequirementsNeedsNoKeyTest` |
 | **R6** | `FingerprintChangesForEachInputTest` (one row per fingerprint fixture pair), `FingerprintIgnoresIrrelevantChangesTest`, `ChangedRunsOnlyChangedNodesAndRoutesTest`, `ChangedWithNoReferenceRunsEverythingAndSaysSoTest`, `ChangedNeedsACapAndAsksTest`, `UnreadablePromptCountsAsChangedTest` (fail closed), `ReportWhatChangedSectionTest`, `OldRecordWithoutFingerprintsIsNoReferenceTest` |
-| **R10 (D37)** | `EvaluatorFalseAlarmRateReportedTest`, `FalseAlarmAboveLimitFailsRunTest`, `FalseAlarmLimitPerEvaluatorTest`, `RequirementsShowsFalseAlarmLimitTest` |
-| **R11 (D38)** | `ByAgentAndNodeSectionTest` |
-| **R1 (D35)** | `Lt06SeverityFollowsLt01Test`, `Lt06GroupedPerScriptTest`, precision on the benchmark corpus for LT01 and LT06, `ReviewNoiseGateTest` |
 | **R7** | `LoomGuideBlocksParseTest`, `TutorialExamplesTest`, `GuideTutorialPageTest`, `verify-skill-package.sh` |
 | **R8** | `CiTemplateTest` (the file parses; the steps are present; the scheduled job is commented out; a missing key skips with a notice) |
+| **R10 (D37)** | `EvaluatorFalseAlarmRateReportedTest`, `FalseAlarmAboveLimitFailsRunTest`, `FalseAlarmLimitPerEvaluatorTest`, `RequirementsShowsFalseAlarmLimitTest` |
+| **R11 (D38)** | `ByAgentAndNodeSectionTest` |
+| **R12 (D45)** | `JudgeOrderTest` (flag, dataset, project, then the cheapest different model, preferring another provider), `JudgeChoiceInReadThisFirstTest`, `JudgeSameIsExplicitAndCautionedTest`, `OnlyOneModelJudgesWithItAndCautionsTest`, `ExpectLinesFollowJudgeOrderTest`, eval4j `DefaultJudgeFactoryOrderTest` |
+| **R13 (D45)** | LR12 fixtures (medium: the same agent works and decides; quiet: starter 03's separate reviewer, a task-checked condition, a `check`; low: an evaluator on the checked agent's model), `AddReviewerFixDiffTest`, precision and `ReviewNoiseGateTest` |
+| **R14 (D46)** | skill text checks (phase 20's checkable rules extended), `LoomGuideBlocksParseTest` |
 
 ## 4. Fault injection
 
