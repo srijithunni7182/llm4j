@@ -82,6 +82,13 @@ Order matters: each phase builds on the one below and is shippable on its own.
 | 21 | [Editor polish](21-editor-polish/DESIGN.md) | VS Code, graph renderer, Loom | An Outline that is never blank and shows progress; a Review panel that does not jump; `set` grouped; parallel drawn as lanes; one click to a capped real run | 10, 20 |
 | 22 | [CLI and language ergonomics](22-cli-and-language-ergonomics/DESIGN.md) | Loom | `weave test --classes`; quiet output; known mistakes that say their fix; `\"` in strings; variable replacement by braces; real tasks in tests; `weave fabric`; honest cost estimates | 11, 17 |
 | 23 | [The evaluation design skill](23-eval-design-skill/DESIGN.md) | skills | `llm4j-eval-design`: design-first evaluation, from the owner's QA guide, writing `EVAL_DESIGN.md` and reviewing existing evaluations | 17, 18, 19 |
+| 24 | [Stateless nodes and least-privilege context](24-stateless-nodes/DESIGN.md) | Loom, eval4j, VS Code | `extractor` / `extract`, a stateless field extractor in the script; one contract for internal nodes; `transcript: none \| own \| all` and `shared_prompt: none` on agents; LP08, LP09; untrusted text through the transcript in the audit (LA21) | 3, 7, 9 |
+| 25 | [Reason, then extract](25-reason-then-extract/DESIGN.md) | Loom review, examples | LP10 (an agent that reasons must answer in a large schema); LR05 and LP02 reworded; a fix that splits an agent into agent and extractor; the examples migrated | 24 |
+| 26 | [The policy boundary](26-policy-boundary/DESIGN.md) | Loom, eval4j, skills, VS Code | `policy` files, the `evaluator` node, `check … against … using …` with four actions; model-written values guarded at every exit once a policy exists; the leak guard; LY07; `shared_prompt` for tone, not rules | 24 |
+| 27 | [Approval at the boundary](27-boundary-approvals/DESIGN.md) | Loom, review, skills | `use Tool(...)` with no model; `approve` on `use` and `run`; LA02 offers the boundary first; LH03 counts every question; Human oversight on by default; LH05 | none (26 for sinks) |
+| 28 | [Evaluation first](28-evaluation-first/DESIGN.md) | Loom, eval4j, skills | Testability on by default, LT06 exact and medium, a notice when nothing is measured; `weave check` fails on untested extractors, evaluators and policy rules; `weave eval --requirements` and `--changed` | 24, 26, 19 |
+
+Phases 24 to 28 are the **engineering discipline** program: [the overview](DISCIPLINE.md) maps the owner's list of multi-agent architecture mistakes to what the code does today, records the decisions (D1 to D24, with D25 open), and plans the tutorial changes chapter by chapter.
 
 Phases 17 to 23 are the **field findings** program: [the overview](FIELD_FINDINGS.md) has the register of 65 findings from real sessions, the evidence for each, the order of work and the decisions the owner must make before building starts. Every phase's `VERIFICATION.md` starts with a step that **reproduces its findings first**.
 
@@ -117,3 +124,8 @@ done, so that what we learn building a lower layer shapes the spec above it.
 | 21 | draft for review | not started | not started | not started |
 | 22 | draft for review | not started | not started | not started |
 | 23 | draft for review | not started | not started | not started |
+| 24 | draft for review (decisions recorded) | not started | not started | not started |
+| 25 | draft for review (decisions recorded) | not started | not started | not started |
+| 26 | draft for review (decisions recorded; D25 open) | not started | not started | not started |
+| 27 | draft for review (decisions recorded) | not started | not started | not started |
+| 28 | draft for review (decisions recorded) | not started | not started | not started |
