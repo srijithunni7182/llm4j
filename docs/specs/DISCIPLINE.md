@@ -1,6 +1,6 @@
 # Engineering discipline program (phases 24 to 29): make the right architecture the easy one
 
-Status: **decisions D1 to D30 recorded 2026-11-01; specs draft for review**. Nothing here is built. This page is the overview of six phases, [24](24-stateless-nodes/DESIGN.md) to [29](29-reviewable-architecture/DESIGN.md): five that build, and one that documents what they add up to. Each phase has the usual three documents (`DESIGN.md`, `TEST_STRATEGY.md`, `VERIFICATION.md`). This page holds what they share: the evidence, the decisions, the contracts that cross phases, the order, and the plan for the tutorial.
+Status: **decisions D1 to D33 recorded 2026-11-01; specs draft for review**. Nothing here is built. This page is the overview of six phases, [24](24-stateless-nodes/DESIGN.md) to [29](29-reviewable-architecture/DESIGN.md): five that build, and one that documents what they add up to. Each phase has the usual three documents (`DESIGN.md`, `TEST_STRATEGY.md`, `VERIFICATION.md`). This page holds what they share: the evidence, the decisions, the contracts that cross phases, the order, and the plan for the tutorial.
 
 ## 1. Why this program exists
 
@@ -82,6 +82,9 @@ What already serves the list well, and is kept: earned autonomy (`decide`, `watc
 | D28 | Loom **uses MCP servers' tool annotations** (`readOnlyHint`, `destructiveHint`) as the server author's declaration. | 27 |
 | D29 | Tool effects are built **in phase 27, first** (27a); phase 26 depends on it. | 27, 26 |
 | D30 | After phase 28, the program's differentiator is documented as its own phase: **Loom distils multi-agent best practice into a language that can be reviewed, by people and by tools**. One page, the stack-level pages once, and every claim about another framework (LangChain, LangGraph, Google ADK) backed by a rerunnable probe, as `WHY_LLM4J.md` already requires. | 29 |
+| D31 | `WHY_LOOM.md` gets one "see also" line linking the page; its words are not changed. | 29 |
+| D32 | The probes use the Python Google ADK, pinned. | 29 |
+| D33 | A short article version goes in `docs/articles/` once the page is verified. | 29 |
 
 Not taken, and why: a heuristic review rule that looks for governance wording ("never", "must not", "Section 4.6") in prompts was proposed and dropped with D11: it would claim to read meaning. That guidance lives in the skills.
 

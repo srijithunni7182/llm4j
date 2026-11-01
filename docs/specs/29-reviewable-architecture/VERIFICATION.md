@@ -1,6 +1,6 @@
 # Phase 29 verification plan: architecture you can review
 
-Status: **not started** (spec draft; needs phases 24 to 28 built and verified). Proposed sub-phases: **29a** the probes P9 to P14 (R3), because the page may only say what they found; **29b** the page and its documentation test (R1, R2, R6); **29c** `WHY_LLM4J.md` and the stack-level pages (R4, R5). Results in §7.
+Status: **not started** (spec draft; needs phases 24 to 28 built and verified). Proposed sub-phases: **29a** the probes P9 to P14 (R3), because the page may only say what they found; **29b** the page and its documentation test (R1, R2, R6); **29c** `WHY_LLM4J.md` and the stack-level pages (R4, R5); **29d** the article (R7), after the page is verified. Results in §7.
 Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Before writing
@@ -8,7 +8,7 @@ Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 | # | Check | Result |
 |---|---|---|
 | P1 | Phases 24 to 28 are marked verified in [the roadmap](../README.md); every rule and construct the page will name exists in the built jar | ⬜ |
-| P2 | Pin and record the versions of LangGraph, LangChain and Google ADK (Python) used by the probes | ⬜ |
+| P2 | Pin and record the versions of LangGraph, LangChain and the Python Google ADK used by the probes (D32) | ⬜ |
 | P3 | Read the current README, `WHY_LLM4J.md` and stack pages, and list every sentence the claim changes | ⬜ |
 
 ## 1. Acceptance criteria
@@ -22,6 +22,7 @@ Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 | A5 | The page says plainly what the language does not enforce | the page §4; M1 |
 | A6 | `WHY_LLM4J.md` links the page and the new probes | `WhyLlm4jLinksProbesTest` |
 | A7 | The stack-level pages, the tutorial README, `llms.txt`, the extension README and the workflow-guide skill carry the claim and link the page; the program is marked done | §5; link check; `verify-skill-package.sh` |
+| A8 | The article in `docs/articles/` says nothing the page does not, links the page and the same probes, and is in the articles index | read against the page; link check |
 
 ## 2. Traceability: requirement → tests
 
@@ -32,6 +33,7 @@ Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 | R4 | `WhyLlm4jLinksProbesTest` | ⬜ |
 | R5 | link check, `verify-skill-package.sh` | ⬜ |
 | R6 | `ReviewableArchitectureDocsTest` | ⬜ |
+| R7 | A8 check, link check | ⬜ |
 
 ## 3. Quality gates
 
@@ -51,14 +53,13 @@ Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 5. Documentation owed
 
-`docs/REVIEWABLE_ARCHITECTURE.md` ⬜ · `probes/README.md` and six probe folders ⬜ · `docs/WHY_LLM4J.md` ⬜ · root `README.md` ⬜ · `wiki/Home.md` ⬜ · `docs/README.md` ⬜ · `docs/THE_STACK.md` ⬜ · `DEVELOPER_GUIDE.md` ⬜ · tutorial README ⬜ (and the HTML regenerated) · `llms.txt` ⬜ · VS Code extension README ⬜ · `llm4j-workflow-guide` skill ⬜ · `WHY_LOOM.md` "see also" (only with the owner's approval) ⬜ · release notes ⬜ · [DISCIPLINE.md](../DISCIPLINE.md) and the roadmap marked done ⬜.
+`docs/REVIEWABLE_ARCHITECTURE.md` ⬜ · `probes/README.md` and six probe folders ⬜ · `docs/WHY_LLM4J.md` ⬜ · root `README.md` ⬜ · `wiki/Home.md` ⬜ · `docs/README.md` ⬜ · `docs/THE_STACK.md` ⬜ · `DEVELOPER_GUIDE.md` ⬜ · tutorial README ⬜ (and the HTML regenerated) · `llms.txt` ⬜ · VS Code extension README ⬜ · `llm4j-workflow-guide` skill ⬜ · `WHY_LOOM.md` "see also" line (D31) ⬜ · the article in `docs/articles/` and the articles index ⬜ · release notes ⬜ · [DISCIPLINE.md](../DISCIPLINE.md) and the roadmap marked done ⬜.
 
 ## 6. Exit checklist
 
 - [ ] §0 recorded
 - [ ] Every row in §2 ✅; every A-criterion has evidence
 - [ ] M1 to M4 done and recorded in §7
-- [ ] DESIGN §7 questions answered
 - [ ] Docs in §5 updated; the program marked done
 
 ## 7. Results

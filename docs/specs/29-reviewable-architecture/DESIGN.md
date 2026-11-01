@@ -1,6 +1,6 @@
 # Phase 29 design: architecture you can review
 
-Status: **draft for review** (decision D30 recorded 2026-11-01). Layer: documentation, probes and the documentation tests. No change to the language or the runtime. Part of the [engineering discipline program](../DISCIPLINE.md); it comes **after** [phase 28](../28-evaluation-first/DESIGN.md), because it describes what phases 24 to 28 built, and it owns the program's one update of the stack-level pages (moved here from phase 28 R9).
+Status: **draft for review** (decisions D30 to D33 recorded 2026-11-01). Layer: documentation, probes and the documentation tests. No change to the language or the runtime. Part of the [engineering discipline program](../DISCIPLINE.md); it comes **after** [phase 28](../28-evaluation-first/DESIGN.md), because it describes what phases 24 to 28 built, and it owns the program's one update of the stack-level pages (moved here from phase 28 R9).
 Documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md). Depends on phases 24 to 28 being built and verified. Follows the evidence rule of [Why teams choose llm4j and Loom](../../WHY_LLM4J.md) and its [probes](../../../probes/README.md).
 
 ## 1. Problem
@@ -21,7 +21,7 @@ Goals:
 Non-goals:
 
 - Marketing copy without evidence, or claims about a framework that no probe checked.
-- Rewriting the owner's personal note ([WHY_LOOM.md](../../../src/loom/ai-agent4j-loom/WHY_LOOM.md)); it gains at most a "see also" link, with the owner's approval.
+- Rewriting the owner's personal note ([WHY_LOOM.md](../../../src/loom/ai-agent4j-loom/WHY_LOOM.md)); it gains one "see also" line and nothing else (D31).
 - A general comparison of frameworks beyond the five mistakes and the existing probes.
 
 ## 3. Requirements
@@ -46,7 +46,7 @@ Non-goals:
 
 **R2 Show the review, not just the rule.** For each mistake the page shows a side-by-side: on the left, the Loom script as a reviewer reads it (short, with the architecture visible: `extract … from`, `check … against`, `use … approve`, `effect: changes`); on the right, what `weave check` or `weave review` prints for the broken version. The point made in one sentence per section: *a reviewer can see this in ten lines, and so can the tool.*
 
-**R3 Probes for the claims about other frameworks** (D30). One new probe per mistake, in the existing [probes](../../../probes/README.md) format (fake models and tools, no API money, versions pinned, a `run.sh` per side, results in the probes README), run on **Loom, LangGraph, LangChain and Google ADK** (the frameworks the owner has used):
+**R3 Probes for the claims about other frameworks** (D30). One new probe per mistake, in the existing [probes](../../../probes/README.md) format (fake models and tools, no API money, versions pinned, a `run.sh` per side, results in the probes README), run on **Loom, LangGraph, LangChain and Google ADK** (the frameworks the owner has used; for ADK, the **Python** ADK, pinned, and the page says so: D32):
 
 | Probe | The question it answers, the same way for each framework |
 |---|---|
@@ -63,13 +63,15 @@ Non-goals:
 
 **R4 `WHY_LLM4J.md` points to it.** The comparison table gains rows for the five mistakes, each one line with its probe link, and a line at the top that links the new page as "the idea behind these guarantees". The existing rows are unchanged.
 
-**R5 The stack-level pages, once for the program** (moved from phase 28 R9). The new constructs and the claim, a sentence each, in: the root `README.md` (the claim near the top, under the title, linking the page), `wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md`, `DEVELOPER_GUIDE.md` (the "why" section), the [tutorial README](../../tutorial/README.md) ("Where to go next"), `llms.txt` (the claim and the five mistakes in machine-readable form, for models that read the project), the VS Code extension's `README.md` (its marketplace text), and the `llm4j-workflow-guide` skill ("Explain as you go" points to the page when a user asks why Loom works this way). [WHY_LOOM.md](../../../src/loom/ai-agent4j-loom/WHY_LOOM.md) gains a "see also" line only if the owner agrees (§7). The program is marked done in [DISCIPLINE.md](../DISCIPLINE.md) and the roadmap.
+**R5 The stack-level pages, once for the program** (moved from phase 28 R9). The new constructs and the claim, a sentence each, in: the root `README.md` (the claim near the top, under the title, linking the page), `wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md`, `DEVELOPER_GUIDE.md` (the "why" section), the [tutorial README](../../tutorial/README.md) ("Where to go next"), `llms.txt` (the claim and the five mistakes in machine-readable form, for models that read the project), the VS Code extension's `README.md` (its marketplace text), and the `llm4j-workflow-guide` skill ("Explain as you go" points to the page when a user asks why Loom works this way). [WHY_LOOM.md](../../../src/loom/ai-agent4j-loom/WHY_LOOM.md) gains a single "see also" line at the end linking the page; its words are not changed (D31). The program is marked done in [DISCIPLINE.md](../DISCIPLINE.md) and the roadmap.
 
 **R6 The page cannot drift.** `ReviewableArchitectureDocsTest`:
 - every ` ```loom ` block on the page loads (or fails with the error the page shows, for a `loom-error` block);
 - every `weave` output shown is **generated by the test** from the block beside it and compared with the page, so a change to a message or a rule shows up as a failing test, not a stale page;
 - every rule id the page names exists in the rule catalogue and every probe link resolves to a section of the probes README;
 - every framework name on the page appears only in sentences that link a probe.
+
+**R7 An article version** (D33). Once the page is verified, a short article is written from it in `docs/articles/` (named like the articles already there), for posting elsewhere: the claim, the five mistakes in brief, and the same probe links. It says nothing the page does not, and it links the page as the source. It is listed in `docs/README.md`'s index of articles.
 
 ## 4. Compatibility
 
@@ -85,13 +87,14 @@ Documentation only. No behaviour changes.
 | # | Decision |
 |---|---|
 | D30 | The differentiator is documented after phase 28 as its own phase: one page, the stack-level pages once, and **every claim about another framework backed by a rerunnable probe**, following `WHY_LLM4J.md`'s rule. |
+| D31 | `WHY_LOOM.md`, the owner's personal note, gets one "see also" line at the end linking the page; its words are not changed. |
+| D32 | The probes use the **Python** Google ADK, the one the owner used, pinned; the page and the probes README say which. |
+| D33 | A short article version goes in `docs/articles/`, written from the page after it is verified, with the same probe links. |
 
 ## 7. Open questions
 
-1. Should `WHY_LOOM.md` (the owner's personal note) link the new page? Proposed: a single "see also" line at the end, only with the owner's approval; the note's words are not changed.
-2. Google ADK has Python and Java versions. Proposed: probe the Python ADK (the one the owner used), pinned, and say so on the page.
-3. Should a short article version go in `docs/articles/` for posting elsewhere? Proposed: yes, written from the page after it is verified, with the same probe links.
+None. The three raised in review were answered by the owner on 2026-11-01 and are recorded as D31 to D33 in §6.
 
 ## 8. Documentation affected
 
-The new `docs/REVIEWABLE_ARCHITECTURE.md`; `probes/README.md` and six new probe folders; `docs/WHY_LLM4J.md`; the stack-level pages, skill and extension README in R5; `docs/README.md`'s index; the release notes (a line pointing to the page).
+The new `docs/REVIEWABLE_ARCHITECTURE.md`; the article in `docs/articles/` (R7); `probes/README.md` and six new probe folders; `docs/WHY_LLM4J.md`; the stack-level pages, skill and extension README in R5; `docs/README.md`'s index; the release notes (a line pointing to the page).
