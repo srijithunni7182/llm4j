@@ -1,7 +1,7 @@
 # Phase 27 verification plan: approval at the boundary
 
-Status: **not started** (spec draft). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **27a** `use` (R1); **27b** `approve` on `use` and `run` (R2); **27c** the review changes and the lens default (R3 to R7); **27d** starter 07, the guide, the skills and the tutorial (R8). Results in §7.
-Evidence: E14 to E18 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
+Status: **not started** (spec draft). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **27a** every tool has an effect (R0; phase 26 waits for it); **27b** `use` (R1) and `approve` on `use` and `run` (R2); **27c** the review changes and the lens default (R3 to R7); **27d** starter 07, the guide, the skills and the tutorial (R8). Results in §7.
+Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Reproduce first
 
@@ -12,12 +12,14 @@ Evidence: E14 to E18 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 | P3 | E16 | `weave review` with no lens option on any script with a `human_prompt` compared to `"yes"`. | no LH04 (the lens is off) | ⬜ |
 | P4 | E17 | Try `use Notify(text = "x")` and `call Notify(...)` in a script. | neither calls a tool; starter 07 asks twice | ⬜ |
 | P5 | E18 | Search the language for a script-level approval on `run`. | only `requiresApproval` in Java | ⬜ |
+| P7 | E19 | `weave audit --format json` on a script with an `http` GET tool, an `http` POST tool used for search, an `openapi` tool whose operations are all GETs, an MCP tool and a `class` tool. | effect decided out of sight; the POST search counts as changing with no way to say otherwise; the OpenAPI tool and the MCP tool count as changing everything | ⬜ |
 | P6 | R6 | Inventory how a project marks a workflow as scheduled, triggered or run by the daemon. | the sources that settle open question 2 | ⬜ |
 
 ## 1. Acceptance criteria
 
 | # | Criterion | Evidence |
 |---|---|---|
+| A0 | Every tool has an effect: declared by the developer and authoritative, per operation for OpenAPI and MCP, MCP hints used, otherwise assumed and shown; one resolver for the audit, runtime and review | the R0 tests, P7 re-run |
 | A1 | `use Tool(...)` calls a tool with no model, through exactly the same controls, journal and effect protocol as an agent's call | `UseToolCallParityTest`, `UseNetPolicyRefusalsTest`, `UseEffectProtocolNoRepeatAfterCrashTest` |
 | A2 | `approve` on `use` and `run` asks once, shows the exact arguments with secrets named and PII masked, never runs on a no or a timeout, and never asks twice after a resume | R2 tests |
 | A3 | LA02 offers the boundary first; LH02 covers steps; LH03 counts every question and names its sources | R3 to R5 fixtures |
@@ -32,6 +34,7 @@ Evidence: E14 to E18 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 
 | Req | Tests | Status |
 |---|---|---|
+| R0 | the R0 tests of the strategy | ⬜ |
 | R1 | `UseParsesTest`, `UseKeywordIsContextualTest`, `UseArgumentsCheckedAgainstToolParametersTest`, `UseToolCallParityTest`, `UseNetPolicyRefusalsTest`, `UseEffectProtocolNoRepeatAfterCrashTest`, `UseRetryRefusedOnNonIdempotentChangingToolTest`, `UseScriptedInWeaveTestTest`, `UseMockedInEvalMockTest`, `UseGraphNodeTest`, `GraphRenderKindsInSyncTest`, `UsesToolAssertionTest`, `UseIsASinkTest` (with phase 26) | ⬜ |
 | R2 | the R2 tests of the strategy | ⬜ |
 | R3 | LA02 rule-page golden text and fixture | ⬜ |

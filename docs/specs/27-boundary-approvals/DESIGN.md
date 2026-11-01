@@ -1,8 +1,8 @@
 # Phase 27 design: approval at the boundary
 
-Status: **draft for review** (decisions D20 to D22 recorded 2026-11-01). Layer: the Loom language and runtime (a tool step, approval on a step), the review engine (LA02, LH02, LH03, a new LH05, the Human oversight lens on), the starters, the skills and the tutorial. Part of the [engineering discipline program](../DISCIPLINE.md).
-Documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md). Independent of phases 24 to 26 to build; once [phase 26](../26-policy-boundary/DESIGN.md) exists, `use` is one of its sinks.
-Evidence owned: **E14 to E18**. Mistake: **M4, HITL in the middle of reasoning**.
+Status: **draft for review** (decisions D20 to D22 and D26 to D28 recorded 2026-11-01). Layer: the Loom language and runtime (every tool's effect, a tool step, approval on a step), the review engine (LA02, LH02, LH03, a new LH05, the Human oversight lens on), the starters, the skills and the tutorial. Part of the [engineering discipline program](../DISCIPLINE.md).
+Documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md). Independent of phases 24 to 26 to build. [Phase 26](../26-policy-boundary/DESIGN.md) depends on R0 (its sinks are tools whose effect is `changes`); once phase 26 exists, `use` is one of its sinks.
+Evidence owned: **E14 to E19**. Mistake: **M4, HITL in the middle of reasoning**.
 
 ## 1. Problem
 
@@ -12,11 +12,13 @@ The owner's rule: a person is asked at the boundary, about a risky or irreversib
 - LH03 does not count those approvals (E15), and the whole Human oversight lens is off (E16).
 - A script cannot call a tool itself (E17): an approved action must be handed back to a model to carry out, which is why starter 07 uses an LLM agent to post a webhook and asks the person twice.
 - A task can ask for approval, but only from Java (E18).
+- Whether a tool changes anything is decided out of sight in the audit, from its kind and options; only Java tools can state it (`reach:`), in words that mix two questions; an OpenAPI tool is always assumed to change, and an MCP tool is assumed to do everything (E19). Tasks, by contrast, already declare `NONE`, `READS` or `CHANGES`.
 
 ## 2. Goals and non-goals
 
 Goals:
 
+- **Every tool states whether it changes anything**, as tasks do, and the developer's word decides (R0).
 - A script can **call a tool directly**, with no model (R1).
 - A script can **ask for approval on a step**, once, showing the exact payload, on `use` and on `run` (R2).
 - Review offers the boundary first, counts every question, and warns about approvals in the middle of a loop where nobody is watching (R3 to R6).
@@ -30,6 +32,37 @@ Non-goals:
 
 ## 3. Requirements
 
+**R0 Every tool has an effect** (D26 to D28). Built first (sub-phase 27a): phase 26's sinks and the rest of this phase depend on it.
+
+Whether a tool changes anything is a property **of the tool**, stated by the developer, in the same three words a task already uses (`TaskEffect`):
+
+```loom
+tool Orders   { use: http  base_url: "https://api.acme.com"  methods: "GET,POST"  effect: reads }     // POST /search: the developer says it only reads
+tool Refunds  { use: http  base_url: "https://pay.acme.com"  methods: "POST"  effect: changes }
+tool Shop     { use: openapi  spec: "specs/shop.yaml"  effects: { listOrders: reads, getOrder: reads, createRefund: changes } }
+tool Invoices { use: class  class: "com.acme.tools.InvoiceTool"  effect: reads }
+```
+
+- **`effect: none | reads | changes`** (D26). `none`: touches nothing outside the run (a calculator). `reads`: looks something up and changes nothing. `changes`: writes, sends, posts, pays, runs a program: anything that is different afterwards. Where the data comes from (untrusted, private) and whether it leaves the system (outward) stay the trifecta legs of the audit; they answer a different question and are unchanged.
+- **The developer's declaration decides** (D27). A declared `effect:` is authoritative for the runtime, `weave check`, the audit and review. Loom does not second-guess it from an HTTP method or anything else, and it adds no finding for it beyond what LA15 already says about declared reach.
+- **Kinds that hold several tools** declare per operation: `effects: { operation: reads, … }` for an `openapi` tool (by `operationId`) and for an `mcp` server (by tool name). An operation not listed falls back to the default below.
+- **When nothing is declared, Loom assumes, and says so.** The assumption is shown by `weave explain`, `weave graph`, the editor's hover and `weave review --format json` (`effect`, `effectSource: declared | assumed`, and the reason), always with a pointer to `effect:`:
+
+| Kind | Assumed effect when undeclared |
+|---|---|
+| calculator, datetime, translate and the other harmless built-ins | `none` |
+| search, `sql`, `knowledge_graph` with `read_only: true`, `skill_registry` | `reads` |
+| `webhook`, `email`, `shell`, `knowledge_graph` otherwise | `changes` |
+| `file` | by `mode`: `read` reads, anything else changes |
+| `http` | today's rule, kept so existing scripts do not change: `GET` only reads, any other method changes |
+| `openapi` operation | `changes` (today every operation is assumed to change) |
+| `mcp` tool | from the server's annotations (D28): `readOnlyHint: true` reads; `destructiveHint` or no `readOnlyHint` changes; no annotations changes |
+| `class`, a host-registered tool, an unknown kind | `changes` |
+
+- **MCP hints are used** (D28). They are the server author's declaration, read when Loom connects to list the server's tools (`weave check` with the server reachable, or a cached tool list from the last `weave mcp list`). When neither is available the tool is assumed to change, and the explanation says the hints could not be read.
+- **`reach:` on class tools** keeps working: `none` and `reads` map to their effect, `fetches` to `reads` (plus the untrusted leg), `writes` and `sends` to `changes` (plus the outward leg for `sends`). `effect:` and `reach:` on one tool is an error that says to keep `effect:`. The guide documents `effect:` and lists `reach:` as the older form.
+- **One place decides.** `Capabilities.effect` is computed from the declaration first, then the table, in the one method the audit, the runtime and review already share (`Capabilities.resolve`), so they cannot disagree. Every rule and runtime decision in phases 26 and 27 that says "a tool that changes something" means `effect: changes`: sinks, `approve`'s purpose, LA02, LH02, LH05, the retry rule for non-idempotent tools, and what mock and simulated runs only record.
+
 **R1 `use Tool(...)`: a tool step with no model** (D21).
 
 ```loom
@@ -41,7 +74,7 @@ use Search(query = "{topic} pricing") -> found
 - Arguments are matched against the tool's declared parameters; an unknown or missing required argument is a `weave check` error naming the tool's parameters. Argument values are resolved like a `run` statement's.
 - `-> var` binds the tool's result (text, or the parsed object for a tool that returns JSON). `retry`, `backoff` and `timeout` follow the rules that already apply to tools (a non-idempotent tool that changes things is never retried after an unknown outcome; `weave check` refuses `retry` on it, as for tasks).
 - `use` is contextual: it is a statement only at statement level, followed by a tool name and `(`. `use partial` in a stop handler and `use:` inside a `tool` block are unchanged (`RepositoryScriptsTest`).
-- Under phase 26, a `use` of a tool whose reach is outward or that changes something is a **sink**.
+- Under phase 26, a `use` of a tool whose effect is `changes` is a **sink**.
 - Under `weave test`, a `use` is scripted with `tools:` like a tool call by an agent; under `weave eval --mock` it answers `[mock tool result]` and a changing tool is described, not run.
 - `weave graph` draws a `use` node (new kind `Kinds.USE`, synced with `scripts/sync-graph-render.sh`); eval4j gains a trajectory node kind `use` and `WorkflowAssertions.usesTool(name, times)`.
 
@@ -57,7 +90,7 @@ use Notify(text = draft) approve "Post this to the team channel?" -> receipt
 - A yes runs the step. A no fails it with `_error` "not approved by <who>"; `on_failure` runs. A timeout (when the workflow sets one for questions) is a no.
 - The approval and the answer are journaled; a resumed run never asks again for an answered step and never runs a step whose answer was no.
 - On `run`, `approve` works for any task, alongside `requiresApproval(args)` in Java (if both apply, the person is asked once).
-- An approval on a step whose tool reach is none or reads only, or a task whose effect is `NONE` or `READS`, is allowed and is LH02 (R5).
+- An approval on a step whose tool's effect is `none` or `reads`, or a task whose effect is `NONE` or `READS`, is allowed and is LH02 (R5).
 - No ladder (D20). A step that should earn autonomy uses `decide`.
 
 **R3 LA02 offers the boundary first.** LA02's "What to do" becomes, in this order:
@@ -72,12 +105,12 @@ The rule's condition is unchanged: it still fires on an effect with no approval 
 - for `check … ask person` (phase 26): one per execution.
 The finding's message names where the questions come from ("up to 40 questions: 20 tool approvals by Sender at line 12, twice in the loop at line 9").
 
-**R5 LH02 covers steps.** LH02 ("asks a person to approve a tool that only reads") also fires for `use … approve` on a tool whose reach is none or reads, and for `run … approve` on a task whose effect is `NONE` or `READS`.
+**R5 LH02 covers steps.** LH02 ("asks a person to approve a tool that only reads") also fires for `use … approve` on a tool whose effect is `none` or `reads`, and for `run … approve` on a task whose effect is `NONE` or `READS`.
 
 **R6 LH05: an approval in the middle of an agent's work, in a workflow nobody is watching** (Human oversight lens, **medium**, D22).
 
 > **LH05: Agent `name` asks a person part-way through its work, in a workflow nobody is watching.**
-> **Fires when** an agent's `approve:` covers a tool whose reach is outward or that changes something, **and** the workflow runs without a person present: it has a `schedule`, is started by a trigger, or is run by `weave daemon` according to the project's settings.
+> **Fires when** an agent's `approve:` covers a tool whose effect is `changes`, **and** the workflow runs without a person present: it has a `schedule`, is started by a trigger, or is run by `weave daemon` according to the project's settings.
 > **Why it matters:** the run stops in the middle of the agent's reasoning and holds its whole conversation until someone answers, possibly hours later, from a phone. The person sees one tool call without the job it belongs to.
 > **What to do:** let the agent propose, then approve once at the edge: `use Tool(...) approve`, `run Task(...) approve`, or a `decide`. In an interactive assistant, where a person is working with the agent, an approval inside the loop is fine, and this rule does not fire.
 
@@ -116,6 +149,8 @@ workflow Main(facts) {
 
 | Type | Change |
 |---|---|
+| `ast.ToolDef` | `getEffect()` returning `Optional<TaskEffect>` for the declared effect, and `getOperationEffects()` (an unmodifiable map) |
+| `security.Capabilities` | `effect` computed from the declaration first, then R0's table; a new `effectSource` (`DECLARED`, `ASSUMED`) and reason |
 | `ast.UseStmt` (new, public, final) | tool name, named arguments, variable, retry, backoff, timeout, approve (boolean and optional heading), on_failure |
 | `ast.RunStmt` | `isApprove()`, `getApproveHeading()` |
 | `execution.UseRunner` (new, package-private) | runs a tool through the same `NamedTool` / `ApprovalTool` / `RecordingTool` path an agent's call takes |
@@ -127,6 +162,7 @@ workflow Main(facts) {
 
 | Change | Existing users |
 |---|---|
+| `effect:` and `effects:` on tools | New. Undeclared tools keep today's assumed effect, so the audit, approvals and review behave as before; an OpenAPI or MCP tool that declares its read-only operations gets fewer findings. `reach:` keeps working. |
 | `use` as a statement, `approve` on a step | New and contextual; existing scripts parse (proved on every `.loom` in the repository). |
 | Human oversight lens on | More findings by default (LH01 to LH05). Advisory. `lenses = -oversight` restores. Listed in the release notes. |
 | LH03 counting approvals | A script near the limit may get LH03; `oversight.max-questions` is unchanged. |
@@ -148,17 +184,17 @@ workflow Main(facts) {
 
 ## 8. Documentation affected
 
-`LOOM_GUIDE.md` (`use`, approval on a step, "Where to ask", LA02 wording referenced), `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md` `docs/guide/09-go-live.md` (approvals on the channel) and `docs/guide/13-earned-autonomy.md` (earned autonomy as the optional extra, D20), the tutorial (§9), starter 07 and the starters README, `docs/review/rules/` (LA02, LH02, LH03, LH05, the lens index), `docs/specs/09-review-engine/DESIGN.md` R33 (a note that the oversight lens is now default, linking here), `docs/security/secure-by-construction.md` (`use` goes through the same controls), the three skills in R8, the VS Code grammar, snippets and `CHANGELOG.md`, `graph-render` (`use` kind), eval4j's README, `docs/API_COMPATIBILITY.md`, `llms.txt`, the next release's notes.
+`LOOM_GUIDE.md` (`effect:` and `effects:` on every tool kind, replacing `reach:` in the class-tool section with the old form noted; `use`, approval on a step, "Where to ask", LA02 wording referenced), `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md` `docs/guide/09-go-live.md` (approvals on the channel) and `docs/guide/13-earned-autonomy.md` (earned autonomy as the optional extra, D20), the tutorial (§9), starter 07 and the starters README, `docs/review/rules/` (LA02, LH02, LH03, LH05, the lens index), `docs/specs/09-review-engine/DESIGN.md` R33 (a note that the oversight lens is now default, linking here), `docs/security/secure-by-construction.md` (`use` goes through the same controls), the three skills in R8, the VS Code grammar, snippets and `CHANGELOG.md`, `graph-render` (`use` kind), eval4j's README, `docs/API_COMPATIBILITY.md`, `llms.txt`, the next release's notes.
 
 ## 9. Tutorial
 
 | Chapter | Change |
 |---|---|
-| [6. Tools and tasks](../../tutorial/06-tools-and-tasks.md) | New section **"Calling a tool yourself: `use`"** after "Declared tools": when a model is not needed to call a tool, the syntax, and that it goes through the same controls. "Approvals: a person says yes first" shows `approve` on `use` and `run` first, then `approve:` on an agent for interactive assistants. |
+| [6. Tools and tasks](../../tutorial/06-tools-and-tasks.md) | New section **"Does this tool change anything? `effect:`"** near the start of "Tools": the three words (the same as a task's), that it is the developer's decision, the per-operation form for OpenAPI and MCP, what Loom assumes when nothing is declared and where to see it, and why it matters (approvals, retries, policies, what a test only records). Each tool example in the chapter declares its effect. New section **"Calling a tool yourself: `use`"** after "Declared tools": when a model is not needed to call a tool, the syntax, and that it goes through the same controls. "Approvals: a person says yes first" shows `approve` on `use` and `run` first, then `approve:` on an agent for interactive assistants. |
 | [8. People in the loop](../../tutorial/08-people-in-the-loop.md) | "Approvals on tools" becomes **"Where to ask: at the edge, not in the middle"**: the three shapes in a table and a diagram, why asking mid-loop in an unattended workflow costs momentum and context (LH05), and the rewritten starter 07 walked through. |
 | [11. Advanced orchestration](../../tutorial/11-advanced-orchestration.md) | Earned autonomy introduced as the optional extra for a decision that should earn trust, beside the plain `approve` (D20). |
 | [9. Safety and cost](../../tutorial/09-safety-and-cost.md) | The safe-by-default checklist: "approve once, at the edge, on the step that acts". |
-| [14. Cookbook](../../tutorial/14-cookbook.md) | Recipe **"Approve once, at the edge"**; the cheat sheet gains `use` and `approve` on a step; "mistakes and their fixes" gains LH05 and the LH03 counting. |
+| [14. Cookbook](../../tutorial/14-cookbook.md) | Recipe **"Approve once, at the edge"**; the cheat sheet gains `effect:`, `effects:`, `use` and `approve` on a step; "mistakes and their fixes" gains LH05 and the LH03 counting. |
 | [README](../../tutorial/README.md) | Chapter 6's row names `use`; chapter 8's row says "where to ask". |
 
 Every new `loom` block is checked by `TutorialExamplesTest`; the page is regenerated with `bash scripts/make-tutorial-html.sh`.

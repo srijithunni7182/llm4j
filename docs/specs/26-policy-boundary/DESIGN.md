@@ -1,7 +1,7 @@
 # Phase 26 design: the policy boundary
 
 Status: **draft for review** (decisions D9 to D16 recorded 2026-11-01; **one new decision, D25, is needed before building starts**: see §7). Layer: the Loom language, validator and runtime (value provenance, a new internal node, a new statement, a guard); the review engine and audit; eval4j; the VS Code extension and graph renderer; the skills. Part of the [engineering discipline program](../DISCIPLINE.md); read its §3 and §4 first.
-Documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md). Depends on [phase 24](../24-stateless-nodes/DESIGN.md) (the internal-node contract, the extractor's typed fields). Used by [phase 27](../27-boundary-approvals/DESIGN.md) (`use` is a sink) and [phase 28](../28-evaluation-first/DESIGN.md) (the gate on untested evaluators and policy rules).
+Documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md). Depends on [phase 24](../24-stateless-nodes/DESIGN.md) (the internal-node contract, the extractor's typed fields). Depends on [phase 27](../27-boundary-approvals/DESIGN.md)'s R0 (every tool's effect, which defines the tool sinks). Used by phase 27 (`use` is a sink) and [phase 28](../28-evaluation-first/DESIGN.md) (the gate on untested evaluators and policy rules).
 Evidence owned: **E10, E11**. Mistake: **M1, the god prompt**.
 
 ## 1. Problem
@@ -112,7 +112,7 @@ check draft against HouseRules using Compliance                       // no on_v
 **R6 Sinks.** A sink is where a value leaves the workflow for people or the outside world:
 1. the `return` of a workflow run as an entry point (by `weave run`, a trigger, a schedule, a daemon or a host's `LoomRun`);
 2. a message the runtime sends on a channel to users that is not a question (a `notify` from a host channel, where present);
-3. the arguments of a tool whose reach is `outward` or that changes something outside, called by `use` ([phase 27](../27-boundary-approvals/DESIGN.md)) or by an agent (R8);
+3. the arguments of a tool whose effect is `changes` ([phase 27 R0](../27-boundary-approvals/DESIGN.md): declared by the developer, or assumed), called by `use` ([phase 27](../27-boundary-approvals/DESIGN.md)) or by an agent (R8);
 4. the arguments of a task whose effect is `CHANGES`, called by `run`.
 
 Not sinks (D13): the text of an approval, a `human_prompt`, an `ask person` question, a `note`, a trace or the journal. Those reach an operator, who is meant to see the workflow's own working.

@@ -19,6 +19,7 @@ How each requirement of [DESIGN.md](DESIGN.md) is tested: hermetic, deterministi
 
 ## 3. Fixtures
 
+- **`EffectsFixture`**: one tool of every kind undeclared, and the same tools with each declared effect; an OpenAPI spec with GET and POST operations and an `effects:` map covering some; a fake MCP server listing tools with each annotation combination.
 - **`UseFixture`**: `use` of a built-in tool, a declared `webhook`, an `http` tool with each `NetPolicy` case, a `file` tool with a `..` path, a `shell` tool with a program not allowed, an OpenAPI operation, a Java tool, and a non-idempotent changing tool with `retry`.
 - **`ApproveStepFixture`**: `use … approve`, `run … approve`, with a heading, inside `parallel` and `for each`, with a secret in the arguments, with PII in the arguments and a guard.
 - **`UnattendedFixture`**: the same agent with `approve: [Send]` in a workflow with a `schedule`, one named by a trigger, one run by the daemon, and one started by hand.
@@ -28,6 +29,7 @@ How each requirement of [DESIGN.md](DESIGN.md) is tested: hermetic, deterministi
 
 | Requirement | Tests (written first) |
 |---|---|
+| **R0** | `ToolEffectParsesTest` (`effect:` on every kind; `effects:` for openapi and mcp), `DeclaredEffectWinsTest` (a POST tool declared `reads` is treated as reading by the runtime, `weave check`, the audit and review), `AssumedEffectTableTest` (one row per kind in DESIGN R0, pinning today's behaviour for undeclared tools), `OpenApiOperationEffectsTest`, `McpHintsTest` (`readOnlyHint`, `destructiveHint`, none, server unreachable with and without a cached list), `ReachMapsToEffectTest`, `EffectAndReachTogetherIsAnErrorTest`, `EffectSourceShownTest` (explain, graph, review JSON), `OneResolverTest` (the audit, the runtime and review ask `Capabilities.resolve` and agree on every fixture tool), `ChangesMeansChangesEverywhereTest` (sinks, LA02, LH02, LH05, retry refusal and mock recording all follow a declared effect) |
 | **R1** | `UseParsesTest`, `UseKeywordIsContextualTest` (`use partial` and `use:` unchanged), `UseArgumentsCheckedAgainstToolParametersTest`, `UseToolCallParityTest` (the parity harness over every control), `UseNetPolicyRefusalsTest`, `UseEffectProtocolNoRepeatAfterCrashTest`, `UseRetryRefusedOnNonIdempotentChangingToolTest`, `UseScriptedInWeaveTestTest`, `UseMockedInEvalMockTest`, `UseGraphNodeTest`, `GraphRenderKindsInSyncTest`, eval4j `UsesToolAssertionTest`; with phase 26: `UseIsASinkTest` |
 | **R2** | `ApproveOnUseAsksOnceWithExactArgumentsTest`, `ApproveOnRunAsksOnceTest`, `ApproveAndRequiresApprovalAskOnceTest`, `ApproveNoFailsStepWithWhoTest`, `ApproveTimeoutIsNoTest`, `ApproveJournaledNeverAskedTwiceAfterResumeTest`, `ApproveNoNeverRunsAfterResumeTest`, `ApproveShowsSecretsByNameOnlyTest`, `ApproveMasksPiiUnderGuardTest`, `ApproveHeadingTest`, `ApproveInParallelTest` |
 | **R3** | LA02 rule-page golden text; LA02 fixture: condition unchanged |

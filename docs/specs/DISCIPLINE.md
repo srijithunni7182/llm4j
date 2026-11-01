@@ -1,6 +1,6 @@
 # Engineering discipline program (phases 24 to 28): make the right architecture the easy one
 
-Status: **decisions D1 to D24 recorded 2026-11-01; D25 open (§3); specs draft for review**. Nothing here is built. This page is the overview of five phases, [24](24-stateless-nodes/DESIGN.md) to [28](28-evaluation-first/DESIGN.md). Each phase has the usual three documents (`DESIGN.md`, `TEST_STRATEGY.md`, `VERIFICATION.md`). This page holds what they share: the evidence, the decisions, the contracts that cross phases, the order, and the plan for the tutorial.
+Status: **decisions D1 to D24 and D26 to D28 recorded 2026-11-01; D25 open (§3); specs draft for review**. Nothing here is built. This page is the overview of five phases, [24](24-stateless-nodes/DESIGN.md) to [28](28-evaluation-first/DESIGN.md). Each phase has the usual three documents (`DESIGN.md`, `TEST_STRATEGY.md`, `VERIFICATION.md`). This page holds what they share: the evidence, the decisions, the contracts that cross phases, the order, and the plan for the tutorial.
 
 ## 1. Why this program exists
 
@@ -44,6 +44,7 @@ Read on 2026-11-01 at `d3b2b87a` (6.2.0). Every claim here is reproduced in the 
 | E16 | The Human oversight lens (LH01 to LH04) is off by default. | `docs/review/rules/index.md` | M4 | 27 |
 | E17 | A script cannot call a tool without a model: `call` is for sub-workflows. Starter `07-approval` therefore hands a webhook to an LLM agent (`Sender`) and asks the person twice (a `human_prompt`, then `approve: [Notify]`); its `answer == "yes"` would trip LH04. | `starters/07-approval/main.loom` | M4 | 27 |
 | E18 | A task can ask for approval (`requiresApproval(args)`), but only from Java. | `LOOM_GUIDE.md` "Writing a task" | M4 | 27 |
+| E19 | Whether a tool changes anything is decided out of sight in the audit (`Capabilities.effect`) from its kind and options. Only `class` tools can state it, with `reach:` words that mix two questions (`reads`/`fetches` and `writes`/`sends`). An `openapi` tool is always assumed to change; an MCP tool is assumed to do everything. Tasks already declare `NONE`, `READS` or `CHANGES`. | `security/Capabilities.java`, `LOOM_GUIDE.md` "`reach:`" | M4, M1 | 27 |
 
 What already serves the list well, and is kept: earned autonomy (`decide`, `watch`/`suggest`/`act`, blind measurement, demotion, replay) for M4; the workflow-guide skill's "tests first" default, its step 2b ("a requirement that is only in a prompt is a wish"), `weave init`'s golden folder and `llm4j-eval-design` for M3; the harness-design principle "separate the doer from the checker" for M1; `intentclassify` ("a classification problem is not a generation problem") for M2.
 
@@ -76,6 +77,11 @@ What already serves the list well, and is kept: earned autonomy (`decide`, `watc
 | D23 | The audit counts **"receives the transcript after an agent that reads untrusted content"** as reading untrusted content (structural, like the existing trifecta). | 24 |
 | D24 | An ordinary agent may opt out: `memory { transcript: none \| own \| all }` and `shared_prompt: none`. **LP08 (low)** fires only when a delegate to such an agent passes no variables. | 24 |
 
+| D26 | Every tool has an **effect** in the three words tasks use: `none`, `reads`, `changes`. Where data comes from and whether it leaves stay the audit's trifecta legs. | 27 |
+| D27 | The effect is **the developer's decision**, marked on the tool; a declared effect is authoritative and Loom does not second-guess it from the HTTP method. When nothing is declared, Loom assumes (today's rules) and says so. | 27 |
+| D28 | Loom **uses MCP servers' tool annotations** (`readOnlyHint`, `destructiveHint`) as the server author's declaration. | 27 |
+| D29 | Tool effects are built **in phase 27, first** (27a); phase 26 depends on it. | 27, 26 |
+
 **Pending, needed before phase 26 is built:**
 
 | # | Question | Proposed | Phase |
@@ -104,9 +110,13 @@ Not taken, and why: a heuristic review rule that looks for governance wording ("
 
 ### 4.2 Sinks and model-written values (phase 26, used by 27)
 
-A **sink** is where a value leaves the workflow for people or the outside: the `return` of a workflow run as an entry point, a message on a channel, the arguments of a tool or task that sends or changes something outside (including `use`, phase 27). The runtime tracks, for every value it builds, whether it is **model-written** under D14. Phase 26 owns this; phase 27's `use` statement is a sink from its first build.
+A **sink** is where a value leaves the workflow for people or the outside: the `return` of a workflow run as an entry point, a message on a channel, the arguments of a tool whose effect is `changes` (§4.3) or of a `CHANGES` task (including `use`, phase 27). The runtime tracks, for every value it builds, whether it is **model-written** under D14. Phase 26 owns this; phase 27's `use` statement is a sink from its first build.
 
-### 4.3 New review rule ids
+### 4.3 Tool effects (phase 27 R0, used by 26)
+
+Every tool has an effect, `none`, `reads` or `changes`, the same words as a task's. The developer declares it on the tool (`effect:`, or `effects:` per operation for OpenAPI and MCP), and the declaration decides. Undeclared tools get an assumed effect (today's rules; MCP from the server's annotations; unknown kinds `changes`), always shown with where it came from. Every rule in this program that says "a tool that changes something" means `effect: changes`, resolved in one place (`Capabilities.resolve`).
+
+### 4.4 New review rule ids
 
 | Id | Phase | Lens | Severity | What it looks for |
 |---|---|---|---|---|
@@ -117,7 +127,7 @@ A **sink** is where a value leaves the workflow for people or the outside: the `
 | LY07 | 26 | Privacy and compliance | medium | Model-written text reaches a sink and the script declares no policy |
 | LH05 | 27 | Human oversight | medium | An approval inside an agent's loop, for an outward tool, in a workflow nobody is watching |
 
-Changed rules: LR05, LP02 (25); LA02, LH02, LH03 (27); LT06 (28). Lenses switched on by default: Human oversight (27), Testability (28).
+Changed rules: LR05, LP02 (25); LA02, LH02, LH03 (27); LT06 (28). LA15 is unchanged and keeps reporting declared reach and effect. Lenses switched on by default: Human oversight (27), Testability (28).
 
 ## 5. Order of work
 
@@ -125,7 +135,7 @@ Changed rules: LR05, LP02 (25); LA02, LH02, LH03 (27); LT06 (28). Lenses switche
 24 stateless nodes ──► 25 reason, then extract
         │
         └──────────► 26 policy boundary ──► 28 evaluation first (its weave check gate needs 24 and 26)
-27 boundary approvals (independent; its `use` is a sink as soon as 26 exists)
+27 boundary approvals: 27a tool effects first (26's sinks need it); its `use` is a sink as soon as 26 exists
 ```
 
 Build 24 first: 25, 26 and 28 depend on the extractor and the internal-node contract. 27 can be built beside 25 and 26 by other hands. Each phase is shippable on its own and is documented when it ships (§6).
@@ -139,7 +149,7 @@ Build 24 first: 25, 26 and 28 depend on the extractor and the internal-node cont
 | [README](../tutorial/README.md) | The chapter table names the new constructs and the new starter; "How a Loom project fits together" shows the policy check | 24 to 28 |
 | [3. Agents](../tutorial/03-agents.md) | New section "Agents that talk to people, and nodes that work for the workflow" (the internal/external idea, in the words of D11); "A prompt every agent starts with" says it is for tone and shared facts, not rules, and shows `shared_prompt: none` and `transcript:` | 24, 26 |
 | [5. Structured answers and failure](../tutorial/05-structured-answers-and-failure.md) | New section "Extractors: fields from text, with nothing else"; "Putting it together: extract, then validate" rewritten around `extractor`; new section "Reason first, then extract" with when a small `output_schema` on an agent is still right | 24, 25 |
-| [6. Tools and tasks](../tutorial/06-tools-and-tasks.md) | New section "Calling a tool yourself: `use`"; "Approvals" shows `approve` on `use` and `run` beside `approve:` on an agent | 27 |
+| [6. Tools and tasks](../tutorial/06-tools-and-tasks.md) | New section "Does this tool change anything? `effect:`" (the developer's decision, per operation for OpenAPI and MCP, what is assumed otherwise); every tool example declares its effect; new section "Calling a tool yourself: `use`"; "Approvals" shows `approve` on `use` and `run` beside `approve:` on an agent | 27 |
 | [7. Knowledge and memory](../tutorial/07-knowledge-and-memory.md) | What the shared transcript is, who sees it, and `transcript: none \| own \| all` | 24 |
 | [8. People in the loop](../tutorial/08-people-in-the-loop.md) | "Approvals on tools" becomes "Where to ask: at the edge, not in the middle", with the three shapes (approve on a step, `human_prompt`, `decide`) | 27 |
 | [9. Safety and cost](../tutorial/09-safety-and-cost.md) | New section "Policies: rules checked at the edge" (`policy`, `evaluator`, `check … against`, actions, sinks, the type rule); the leak guard under "Guards"; LA21 under "The lethal trifecta"; the safe-by-default checklist gains the policy and the boundary approval | 24, 26, 27 |
@@ -174,5 +184,5 @@ Every row is listed in the release notes and `docs/API_COMPATIBILITY.md` by the 
 | 24 | [Stateless nodes and least-privilege context](24-stateless-nodes/DESIGN.md) | M5 | `extractor` / `extract`; the internal-node contract; `transcript: none \| own \| all` and `shared_prompt: none` on agents; LP08, LP09; transcript taint in the audit (LA21) |
 | 25 | [Reason, then extract](25-reason-then-extract/DESIGN.md) | M2 | LP10; LR05 and LP02 reworded; a `--fix-finding` that splits an agent into agent and extractor; the 17 examples migrated |
 | 26 | [The policy boundary](26-policy-boundary/DESIGN.md) | M1 | `policy`, `evaluator`, `check … against …` with four actions; model-written values tracked to the sinks; the leak guard; LY07; `shared_prompt` repositioned |
-| 27 | [Approval at the boundary](27-boundary-approvals/DESIGN.md) | M4 | `use Tool(...)`; `approve` on `use` and `run`; LA02 reworded; LH03 counting approvals; LH01 to LH04 on; LH05; starter 07 rewritten |
+| 27 | [Approval at the boundary](27-boundary-approvals/DESIGN.md) | M4 | Every tool has an effect (`none`, `reads`, `changes`), declared by the developer; `use Tool(...)`; `approve` on `use` and `run`; LA02 reworded; LH03 counting approvals; LH01 to LH04 on; LH05; starter 07 rewritten |
 | 28 | [Evaluation first](28-evaluation-first/DESIGN.md) | M3 | Testability lens on, LT06 medium, the notice; the `weave check` gate on untested internal nodes; `weave eval --requirements`; evaluating what changed |
