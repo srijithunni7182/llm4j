@@ -26,7 +26,7 @@ The boundary is a security control, so it is tested the way an attacker would te
 - **`SupportFixture`**: Assistant → `check reply against HouseRules using Compliance` with each action, and a sink after it (entry `return`, `use`, a `CHANGES` task).
 - **`TwoPoliciesFixture`**: two policies sharing a rule id.
 - **`LeakFixture`**: answers that repeat 11 and 12 words of the system prompt, of the shared prompt, of a policy rule, with punctuation and case changed; answers that match and nearly match `internal_refs`; a catastrophic pattern against a long input.
-- **`AgentToolFixture`**: an agent with an outward tool, with and without `approve:`, under a policy (for D25's proposed rule).
+- **`AgentToolFixture`**: an agent with a tool whose effect is `changes` and one whose effect is `reads`, with and without `approve:`, under a policy with and without `checked by`; scripted evaluator verdicts per call (pass, violation, unsure, error) and an agent scripted to retry after a refusal.
 
 ## 4. Per requirement
 
@@ -38,7 +38,7 @@ The boundary is a security control, so it is tested the way an attacker would te
 | **R4** | `CheckStatementParsesTest` (every form), `CheckKeywordIsContextualTest` (inside `trust` still works), `VerdictFieldsTest`, `SharedRuleIdsArePrefixedTest`, `CheckRetryTimeoutOnFailureTest` |
 | **R5** | `RewriteIsStatelessTest` (the rewriter's request has no transcript or shared prompt, whatever its settings), `RewriteIsCheckedAgainOnceThenFailsClosedTest`, `AskPersonThreeAnswersTest` (send as is → checked and audited; send this instead → person-typed, not model-written; stop → failed), `AskPersonSuspendsAndResumesTest`, `ReplaceWithTest`, `ReplaceWithModelValueRefusedByCheckTest`, `NoOnViolationMeansFailTest`, `FailErrorNamesRulesNeverTextTest` |
 | **R6, R7** | The laundering matrix (every route × every sink: blocked when unchecked, allowed when checked), `RouteCoverageTest`, `NonModelWrittenTypesPassTest` (labels, enums, numbers, booleans, inputs, constants, plain task results), `EditingACheckedValueUnchecksItTest`, `ProvenanceSurvivesRewindAndResumeTest`, `ProvenanceNeverAppearsAsTextTest` |
-| **R8** | `RuntimeBlocksUncheckedValueAtEachSinkTest`, `BlockedStepRunsOnFailureTest`, `MustPassEveryDeclaredPolicyTest`, `NoPolicyMeansNoEnforcementTest` (pins today's behaviour), `StaticSinkPathErrorsTest` (line of sink and of agent), `ExplainSinksListsUnfollowedPathsTest`; for D25 once decided: `AgentOutwardToolUnderPolicyTest` |
+| **R8** | `RuntimeBlocksUncheckedValueAtEachSinkTest`, `BlockedStepRunsOnFailureTest`, `MustPassEveryDeclaredPolicyTest`, `NoPolicyMeansNoEnforcementTest` (pins today's behaviour), `StaticSinkPathErrorsTest` (line of sink and of agent), `ExplainSinksListsUnfollowedPathsTest`; for D25: `AgentChangingToolCallIsCheckedBeforeItRunsTest`, `RefusedCallNeverRunsTheToolTest`, `RefusalTellsRuleIdsAndReasonsNeverRuleTextTest`, `RefusalsAreBoundedThenStepFailsClosedTest`, `EvaluatorRunsBeforeApprovalAndRefusedCallsAreNeverAskedTest`, `PersonSeesVerdictWithArgumentsTest`, `ReadsToolIsNotCheckedTest`, `NonStringArgumentsAreNotSentToEvaluatorTest`, `UseStatementNeedsWrittenCheckNotAutomaticTest`, `PolicyWithoutCheckedByIsAnErrorWhenAnAgentHoldsAChangingToolTest`, `ToolCheckShownInGraphExplainAndCostTest`, `ToolRefusedByPolicyTraceEventHasNoArgumentsTest` |
 | **R9** | `LeakGuardRepeatedWordsTest` (11 passes, 12 warns; folding of case and punctuation; each source text), `LeakGuardInternalRefsTest`, `InternalRefsPatternLimitsTest`, `InternalRefsTimeoutFailsClosedTest`, `LeakGuardDefaultWarnUnderPolicyTest`, `LeakGuardBlockFailsStepTest`, `LeakGuardOffIsAFindingTest`, `LeakGuardEventHasNoTextTest` |
 | **R10** | LY07 fixtures (fires once per script listing every path; quiet with a policy; quiet when no model text reaches a sink) |
 | **R11** | `LoomGuideBlocksParseTest`, `PreflightC4AdviceTextTest` |
@@ -52,7 +52,7 @@ The evaluator's provider returns HTTP 500, 429 with retry, a cut-off answer, an 
 
 ## 6. Mutation testing
 
-`Provenance`, `CheckRunner`'s action logic and re-check rule, the evaluator's fail-closed mapping, the sink enforcement and the leak guard's word-run matcher join the Loom `mutation` profile at the same threshold as the ladder engine. Guards removed once by hand and the failing tests recorded in `VERIFICATION.md` §7: the sink block (R8), the re-check after a rewrite (R5), `unsure` counting as violated (R3), provenance through interpolation (R7), and the leak guard (R9).
+`Provenance`, `CheckRunner`'s action logic and re-check rule, the evaluator's fail-closed mapping, the sink enforcement and the leak guard's word-run matcher join the Loom `mutation` profile at the same threshold as the ladder engine. Guards removed once by hand and the failing tests recorded in `VERIFICATION.md` §7: the sink block (R8), the automatic check of an agent's changing tool call (D25), the re-check after a rewrite (R5), `unsure` counting as violated (R3), provenance through interpolation (R7), and the leak guard (R9).
 
 ## 7. Coverage
 

@@ -1,6 +1,6 @@
 # Phase 26 verification plan: the policy boundary
 
-Status: **not started** (spec draft; decision D25 open; needs phase 24). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **26a** policy files and the evaluator (R1 to R3); **26b** `check … against` and its actions (R4, R5, R13, R14); **26c** provenance, sinks and enforcement (R6 to R8, with D25); **26d** the leak guard, LY07, `shared_prompt` and C4 (R9 to R11); **26e** the skills, starter 16 and the tutorial (R12 and the tutorial rows). Results in §7.
+Status: **not started** (spec draft; needs phase 24 and phase 27's R0). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **26a** policy files and the evaluator (R1 to R3); **26b** `check … against` and its actions (R4, R5, R13, R14); **26c** provenance, sinks and enforcement (R6 to R8), including the automatic check of agents' changing tool calls (D25); **26d** the leak guard, LY07, `shared_prompt` and C4 (R9 to R11); **26e** the skills, starter 16 and the tutorial (R12 and the tutorial rows). Results in §7.
 Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Reproduce first
@@ -21,7 +21,7 @@ Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | A3 | `check … against … using …` runs at the boundary with the four actions; a rewrite is stateless and re-checked once, then fails closed; a person can override, and the override is audited | R4, R5 tests |
 | A4 | With a policy declared, no model-written value reaches any sink unchecked, by any route; values that are not model-written pass; without a policy nothing changes | the laundering matrix, `RouteCoverageTest`, R8 tests, `NoPolicyMeansNoEnforcementTest` |
 | A5 | `weave check` reports the sink paths it can follow, with both lines | `StaticSinkPathErrorsTest` |
-| A6 | D25 is decided and its rule is built and tested | the D25 row of §2, DISCIPLINE.md updated |
+| A6 | Under a policy, every changing tool call an agent makes is checked before it runs; a refused call never runs and is never put to a person; the agent learns rule ids and reasons, never rule text; refusals are bounded and then fail closed; `approve:` is optional and comes after the check | the D25 tests in §2 |
 | A7 | The leak guard catches repeated instructions and internal references deterministically, is `warn` by default under a policy, and never records text | R9 tests |
 | A8 | LY07 is one finding per script that lists every path | LY07 fixtures |
 | A9 | `shared_prompt` is documented for tone and facts; C4 advises a policy | R11 tests, §5 |
@@ -41,7 +41,7 @@ Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | R4 | `CheckStatementParsesTest`, `CheckKeywordIsContextualTest`, `VerdictFieldsTest`, `SharedRuleIdsArePrefixedTest`, `CheckRetryTimeoutOnFailureTest` | ⬜ |
 | R5 | `RewriteIsStatelessTest`, `RewriteIsCheckedAgainOnceThenFailsClosedTest`, `AskPersonThreeAnswersTest`, `AskPersonSuspendsAndResumesTest`, `ReplaceWithTest`, `ReplaceWithModelValueRefusedByCheckTest`, `NoOnViolationMeansFailTest`, `FailErrorNamesRulesNeverTextTest` | ⬜ |
 | R6, R7 | laundering matrix, `RouteCoverageTest`, `NonModelWrittenTypesPassTest`, `EditingACheckedValueUnchecksItTest`, `ProvenanceSurvivesRewindAndResumeTest`, `ProvenanceNeverAppearsAsTextTest` | ⬜ |
-| R8 | `RuntimeBlocksUncheckedValueAtEachSinkTest`, `BlockedStepRunsOnFailureTest`, `MustPassEveryDeclaredPolicyTest`, `NoPolicyMeansNoEnforcementTest`, `StaticSinkPathErrorsTest`, `ExplainSinksListsUnfollowedPathsTest`, `AgentOutwardToolUnderPolicyTest` (after D25) | ⬜ |
+| R8 | `RuntimeBlocksUncheckedValueAtEachSinkTest`, `BlockedStepRunsOnFailureTest`, `MustPassEveryDeclaredPolicyTest`, `NoPolicyMeansNoEnforcementTest`, `StaticSinkPathErrorsTest`, `ExplainSinksListsUnfollowedPathsTest`, the D25 tests of the strategy (`AgentChangingToolCallIsCheckedBeforeItRunsTest` and its siblings) | ⬜ |
 | R9 | the R9 tests | ⬜ |
 | R10 | LY07 fixtures | ⬜ |
 | R11 | `LoomGuideBlocksParseTest`, `PreflightC4AdviceTextTest` | ⬜ |
@@ -69,6 +69,7 @@ Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 |---|---|---|
 | M1 | Starter 16 with a real cheap evaluator under a cap: five replies the owner writes by hand (two that break a rule, two that nearly do, one clean); record each verdict and confidence | ⬜ |
 | M2 | Have someone who is not a developer read `policies/house-rules.md` in starter 16 and say whether they could own it | ⬜ |
+| M6 | Give starter 16's assistant a changing tool (a fake email tool), script it to write a reply that breaks a rule, and watch the call be refused, the agent rewrite it, and the second call pass; then add `approve:` and confirm the person sees only the passing call with its verdict | ⬜ |
 | M3 | Try by hand to get an unchecked reply out of starter 16 by editing the script (a `set`, a `call`, a `replace with "{reply}"`); each attempt is refused, at check time or at run time | ⬜ |
 | M4 | `ask person` answered from Telegram (or the console channel) with each of the three answers; the audit shows the override | ⬜ |
 | M5 | Read tutorial chapter 9's new section as a newcomer | ⬜ |
@@ -80,9 +81,8 @@ Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 ## 6. Exit checklist
 
 - [ ] §0 recorded with dates and build ids
-- [ ] D25 decided and recorded in [the program page](../DISCIPLINE.md)
 - [ ] Every row in §2 ✅, or partial with a reason; every A-criterion has evidence
-- [ ] M1 to M5 done and recorded in §7
+- [ ] M1 to M6 done and recorded in §7
 - [ ] DESIGN §7 questions answered
 - [ ] Docs in §5 updated; roadmap status updated
 

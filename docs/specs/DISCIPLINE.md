@@ -1,6 +1,6 @@
 # Engineering discipline program (phases 24 to 28): make the right architecture the easy one
 
-Status: **decisions D1 to D24 and D26 to D28 recorded 2026-11-01; D25 open (§3); specs draft for review**. Nothing here is built. This page is the overview of five phases, [24](24-stateless-nodes/DESIGN.md) to [28](28-evaluation-first/DESIGN.md). Each phase has the usual three documents (`DESIGN.md`, `TEST_STRATEGY.md`, `VERIFICATION.md`). This page holds what they share: the evidence, the decisions, the contracts that cross phases, the order, and the plan for the tutorial.
+Status: **decisions D1 to D29 recorded 2026-11-01; specs draft for review**. Nothing here is built. This page is the overview of five phases, [24](24-stateless-nodes/DESIGN.md) to [28](28-evaluation-first/DESIGN.md). Each phase has the usual three documents (`DESIGN.md`, `TEST_STRATEGY.md`, `VERIFICATION.md`). This page holds what they share: the evidence, the decisions, the contracts that cross phases, the order, and the plan for the tutorial.
 
 ## 1. Why this program exists
 
@@ -76,17 +76,11 @@ What already serves the list well, and is kept: earned autonomy (`decide`, `watc
 | D22 | **LH01 to LH04 on by default**, and a new **LH05**. | 27 |
 | D23 | The audit counts **"receives the transcript after an agent that reads untrusted content"** as reading untrusted content (structural, like the existing trifecta). | 24 |
 | D24 | An ordinary agent may opt out: `memory { transcript: none \| own \| all }` and `shared_prompt: none`. **LP08 (low)** fires only when a delegate to such an agent passes no variables. | 24 |
-
+| D25 | Under a declared policy, **every changing tool call an agent makes is checked automatically before it runs**, by the evaluator the policy names (`checked by`). A refused call never runs; the agent is told the rule ids and one-line reasons (never the rule text) and may try again, a bounded number of times. **`approve:` is optional and comes on top**: the person sees only calls that passed, with the verdict. A written `use` step still needs a written `check`. | 26 |
 | D26 | Every tool has an **effect** in the three words tasks use: `none`, `reads`, `changes`. Where data comes from and whether it leaves stay the audit's trifecta legs. | 27 |
 | D27 | The effect is **the developer's decision**, marked on the tool; a declared effect is authoritative and Loom does not second-guess it from the HTTP method. When nothing is declared, Loom assumes (today's rules) and says so. | 27 |
 | D28 | Loom **uses MCP servers' tool annotations** (`readOnlyHint`, `destructiveHint`) as the server author's declaration. | 27 |
 | D29 | Tool effects are built **in phase 27, first** (27a); phase 26 depends on it. | 27, 26 |
-
-**Pending, needed before phase 26 is built:**
-
-| # | Question | Proposed | Phase |
-|---|---|---|---|
-| D25 | Under a declared policy, how is an **agent's own outward tool call** checked? Its arguments are written by the model inside its loop, so no `check` statement can stand in front of them. | Allowed only when the tool is in the agent's `approve:` list (a person sees the exact arguments, which counts as a person's check); otherwise `weave check` reports an error whose fix is: the agent proposes, `check` runs, `use Tool(...)` sends. Alternatives in [phase 26 §7](26-policy-boundary/DESIGN.md#7-open-questions). | 26 |
 
 Not taken, and why: a heuristic review rule that looks for governance wording ("never", "must not", "Section 4.6") in prompts was proposed and dropped with D11: it would claim to read meaning. That guidance lives in the skills.
 
@@ -152,7 +146,7 @@ Build 24 first: 25, 26 and 28 depend on the extractor and the internal-node cont
 | [6. Tools and tasks](../tutorial/06-tools-and-tasks.md) | New section "Does this tool change anything? `effect:`" (the developer's decision, per operation for OpenAPI and MCP, what is assumed otherwise); every tool example declares its effect; new section "Calling a tool yourself: `use`"; "Approvals" shows `approve` on `use` and `run` beside `approve:` on an agent | 27 |
 | [7. Knowledge and memory](../tutorial/07-knowledge-and-memory.md) | What the shared transcript is, who sees it, and `transcript: none \| own \| all` | 24 |
 | [8. People in the loop](../tutorial/08-people-in-the-loop.md) | "Approvals on tools" becomes "Where to ask: at the edge, not in the middle", with the three shapes (approve on a step, `human_prompt`, `decide`) | 27 |
-| [9. Safety and cost](../tutorial/09-safety-and-cost.md) | New section "Policies: rules checked at the edge" (`policy`, `evaluator`, `check … against`, actions, sinks, the type rule); the leak guard under "Guards"; LA21 under "The lethal trifecta"; the safe-by-default checklist gains the policy and the boundary approval | 24, 26, 27 |
+| [9. Safety and cost](../tutorial/09-safety-and-cost.md) | New section "Policies: rules checked at the edge" (`policy`, `evaluator`, `check … against`, actions, sinks, the type rule, and how an agent's own changing tool calls are checked automatically with `approve:` as an optional extra); the leak guard under "Guards"; LA21 under "The lethal trifecta"; the safe-by-default checklist gains the policy and the boundary approval | 24, 26, 27 |
 | [10. Testing](../tutorial/10-testing.md) | Golden cases for an extractor and an evaluator; "the dataset is the requirements" and `weave eval --requirements`; evaluating what changed; the notice when there is no dataset | 28 |
 | [11. Advanced orchestration](../tutorial/11-advanced-orchestration.md) | Earned autonomy is introduced as the optional extra beside `approve` (D20) | 27 |
 | [14. Cookbook and cheat sheet](../tutorial/14-cookbook.md) | Recipes "pull fields out of text", "let the reasoning agent think, then extract", "check every reply against house rules", "approve once, at the edge"; the cheat sheet gains every new keyword; "mistakes and their fixes" gains each new rule | 24 to 28 |

@@ -1,6 +1,6 @@
 # Phase 26 design: the policy boundary
 
-Status: **draft for review** (decisions D9 to D16 recorded 2026-11-01; **one new decision, D25, is needed before building starts**: see §7). Layer: the Loom language, validator and runtime (value provenance, a new internal node, a new statement, a guard); the review engine and audit; eval4j; the VS Code extension and graph renderer; the skills. Part of the [engineering discipline program](../DISCIPLINE.md); read its §3 and §4 first.
+Status: **draft for review** (decisions D9 to D16 and D25 recorded 2026-11-01). Layer: the Loom language, validator and runtime (value provenance, a new internal node, a new statement, a guard); the review engine and audit; eval4j; the VS Code extension and graph renderer; the skills. Part of the [engineering discipline program](../DISCIPLINE.md); read its §3 and §4 first.
 Documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md). Depends on [phase 24](../24-stateless-nodes/DESIGN.md) (the internal-node contract, the extractor's typed fields). Depends on [phase 27](../27-boundary-approvals/DESIGN.md)'s R0 (every tool's effect, which defines the tool sinks). Used by phase 27 (`use` is a sink) and [phase 28](../28-evaluation-first/DESIGN.md) (the gate on untested evaluators and policy rules).
 Evidence owned: **E10, E11**. Mistake: **M1, the god prompt**.
 
@@ -34,7 +34,7 @@ Non-goals:
 **R1 Policy files.** A policy is declared by name and resolved from the `policies/` folder beside the script, exactly as a prompt is resolved from `prompts/` (the latest version, or `@v2`):
 
 ```loom
-policy HouseRules: "house-rules"          // policies/house-rules.md, or the latest policies/house-rules/vN.md
+policy HouseRules: "house-rules" checked by Compliance    // policies/house-rules.md, or the latest policies/house-rules/vN.md
 policy Legal: "legal@v2"
 ```
 
@@ -57,6 +57,7 @@ The reply tells the customer what the law requires of them or of us.
 - `weave check` rejects a missing file, a file with no rule, a duplicate or malformed id, an empty rule, and a rule longer than `policy.max-rule-chars` (default 1,000, so a rule stays a rule and not a manual).
 - The resolved file's version and a hash of its rules are recorded in the journal and the trace for every check, so a run says which wording it was checked against.
 - A policy file is never part of any agent's prompt: the runtime has no path that puts it there.
+- `checked by <Evaluator>` names the evaluator that checks agents' own changing tool calls against this policy (R8, D25). It is required when any agent holds a tool whose effect is `changes`, and optional otherwise; a `check` statement always names its evaluator with `using`.
 
 ### Who checks them: `evaluator` (D10)
 
@@ -134,7 +135,13 @@ Not sinks (D13): the text of an approval, a `human_prompt`, an `ask person` ques
 **R8 Enforcement.** Once the script declares at least one `policy`:
 - **At run time**, a model-written value that has not passed a check against **every declared policy** fails the step that tries to send it to a sink, with: "`reply` was written by a model and has not been checked against HouseRules. Add `check reply against HouseRules using …` before this step." The step's `on_failure` runs if it has one. Always on, fail closed; no setting turns it off while a policy is declared.
 - **Statically**, `weave check` follows each model-written value from where it is bound to each sink it can reach and reports an **error** for any path with no `check` against every declared policy, naming the line of the sink and the line of the agent. Paths it cannot follow (a dynamic `call`, a host's own channel) are left to the runtime and listed by `weave check --explain-sinks`.
-- **An agent's own outward tool calls** (arguments written by the model inside its loop, where no `check` statement can stand): **decision D25 needed** (§7, question 1). Proposed: under a declared policy, an agent may call an outward or changing tool only if that tool is in its `approve:` list (a person sees the exact arguments, which counts as a person's check, recorded in the audit); otherwise `weave check` reports an error whose fix is to move the call to the boundary: the agent proposes, `check` runs, `use Tool(...)` sends (phase 27).
+- **An agent's own changing tool calls** (D25). An agent that holds a tool whose effect is `changes` writes the call's arguments inside its own loop, where no `check` statement can stand. Under a declared policy:
+  - **The runtime checks every such call automatically, before it runs**: the call's model-written text arguments (strings; numbers, enums and true/false are not model-written prose under D14) go to the evaluator named by each policy (`checked by`, R1) against that policy's rules, exactly as a `check` statement would send them (no transcript, the arguments marked as data).
+  - **A pass** lets the call go on. **A violation or `unsure`** refuses the call: the tool does not run, and the agent receives a tool error that names the rule ids broken and the evaluator's one-line reasons, **never the rule text**, so it can write the call again within its own loop. After `policy.max-refusals` refusals in one step (default 2) the step fails closed into `on_failure`, with `_error` naming the rules.
+  - **`approve:` is optional and comes on top** (D25: approval is a person's extra, not the way through). For a tool in the agent's `approve:` list the evaluator runs first; a refused call is never put to the person; a passing call is shown to the person with the arguments and the verdict. The person's no refuses the call as today.
+  - The automatic check applies to **agents' own calls only**. A `use` statement is a written step, and its arguments need a written `check` before it (the sink rule above), so every check outside an agent's loop stays visible in the script.
+  - `weave check` requires every policy to name its evaluator with `checked by` when any agent holds a changing tool, and says so: "Agent `Assistant` can call `SendEmail`, which changes things; name the evaluator that checks its calls: `policy HouseRules: "house-rules" checked by Compliance`."
+  - The check is not hidden from the developer: `weave graph` and the VS Code graph mark each changing tool of an agent with the policy that guards it; `weave explain` says it in words; `weave review`'s cost estimate counts one evaluator call per changing tool call in the worst case; the trace's `policy_check` event carries `at: tool` and the tool's name.
 - A script with no policy behaves exactly as today (R10 is advice only).
 
 ### The leak guard (D16)
@@ -175,6 +182,7 @@ Not sinks (D13): the text of an approval, a `human_prompt`, an `ask person` ques
 **R14 Trace, audit, graph.**
 - Trace event `policy_check`: policy names, versions and hashes, evaluator, model, calibrated or not, rules violated (ids), unsure count, action, attempts, duration and tokens. Never the subject text, never a reason (reasons are model-written text; they are available in the `verdict` variable and in the run's own journal only).
 - Trace event `sink_blocked` when R8 stops a step: the sink kind, the variable name, the policies missing.
+- Trace event `tool_refused_by_policy` when R8's automatic check refuses an agent's tool call: the agent, the tool, the rule ids, the refusal count. Never the arguments.
 - Audit events `policy_violation`, `policy_override` (with who answered), `prompt_leak`.
 - `weave graph` and the VS Code graph draw a `check` node (new kind `Kinds.CHECK`, synced with `scripts/sync-graph-render.sh`) with labelled edges for its action. `weave explain` says each check in words.
 - The live run page and Fabric count checks, violations by rule id, overrides and blocked sinks.
@@ -183,7 +191,7 @@ Not sinks (D13): the text of an approval, a `human_prompt`, an `ask person` ques
 
 | Type | Change |
 |---|---|
-| `ast.PolicyDef`, `ast.EvaluatorDef`, `ast.CheckStmt` (new, public, final) | as in R1, R2, R4; `CheckStmt.Action` is a sealed interface with records `Rewrite(String agent)`, `AskPerson()`, `Replace(String text)`, `Fail()` |
+| `ast.PolicyDef`, `ast.EvaluatorDef`, `ast.CheckStmt` (new, public, final) | as in R1 (with `getCheckedBy()`), R2, R4; `CheckStmt.Action` is a sealed interface with records `Rewrite(String agent)`, `AskPerson()`, `Replace(String text)`, `Fail()` |
 | `ast.LoomScript` | `getPolicies()`, `getEvaluators()`; `merge` keeps them (tested) |
 | `ast.AgentDef` guard | `promptLeak` (`OFF`, `WARN`, `BLOCK`, or unset meaning the default), `internalRefs` |
 | `policy.PolicyFile` (new, public) | parses a policy markdown file into rule ids and texts; a public parser so tools and the editor show the same rules |
@@ -207,6 +215,7 @@ All new public types have Javadoc. `docs/API_COMPATIBILITY.md` records the new t
 ## 6. Security notes
 
 - The evaluator fails closed on every failure path (R3), and an unanswered rule is a violation.
+- Under a policy, no agent can make a changing tool call that has not passed the evaluator (D25), whether or not a person also approves it. A refused agent learns only rule ids and one-line reasons, never the policy text, and the leak guard counts the policy text as something an answer must not repeat.
 - Policy text is never put into an agent's prompt by the runtime, and the leak guard counts policy text as something an answer must not repeat.
 - The evaluator and the rewriter see only the subject and the rules: no transcript, so an earlier injected instruction cannot reach them (the contract of phase 24).
 - Provenance (R7) is internal and cannot be set by a script, a tool, a task or a value. A value cannot claim to be checked.
@@ -216,10 +225,9 @@ All new public types have Javadoc. `docs/API_COMPATIBILITY.md` records the new t
 
 ## 7. Open questions
 
-1. **D25 (decision needed before building): an agent's own outward tool calls under a policy.** The arguments are written by the model inside its loop, so there is no place for a `check` statement. Options: (a) **proposed**: allowed only with `approve:` on that tool (a person's check), otherwise a `weave check` error whose fix is propose, `check`, then `use Tool(...)`; (b) the runtime checks the tool's text arguments against every policy automatically, using an evaluator the policy names (`policy HouseRules: "house-rules" checked by Compliance`), before the call; (c) both: (b) by default, (a) as the way to skip the automatic check with a person instead. (a) keeps every check visible in the script and matches phase 27; (b) is more convenient but adds a hidden model call to every tool call.
-2. Should a policy also serve as a judge in `weave eval` (`expect_policy: HouseRules` in a workflow case), so the runtime and the tests check against the same rules? Proposed: yes, in phase 28, reusing the evaluator.
-3. R7 and the trusted-task note in §6: should review flag a `run` whose arguments are unchecked model-written values and whose result reaches a sink (a possible laundering path)? Proposed: yes, as a low finding in the same lens as LY07.
-4. R6.2: which host channels send non-question messages today? The inventory in §0 of the verification settles whether this sink exists yet or is only reserved.
+1. Should a policy also serve as a judge in `weave eval` (`expect_policy: HouseRules` in a workflow case), so the runtime and the tests check against the same rules? Proposed: yes, in phase 28, reusing the evaluator.
+2. R7 and the trusted-task note in §6: should review flag a `run` whose arguments are unchecked model-written values and whose result reaches a sink (a possible laundering path)? Proposed: yes, as a low finding in the same lens as LY07.
+3. R6.2: which host channels send non-question messages today? The inventory in §0 of the verification settles whether this sink exists yet or is only reserved.
 
 ## 8. Documentation affected
 
@@ -230,7 +238,7 @@ All new public types have Javadoc. `docs/API_COMPATIBILITY.md` records the new t
 | Chapter | Change |
 |---|---|
 | [3. Agents](../../tutorial/03-agents.md) | "A prompt every agent starts with" rewritten per R11 (tone and shared facts; rules go in a policy). The internal/external section from phase 24 gains the evaluator and the sentence "an agent whose words reach a person gets tone and task, never the rules". |
-| [9. Safety and cost](../../tutorial/09-safety-and-cost.md) | New section **"Policies: rules checked at the edge"**, after "Guards": a policy file a non-technical owner can read, the evaluator, `check … against`, the four actions with a diagram of the boundary, what a sink is, the type rule in a short table, what fails closed, and what LY07 means. "Guards" gains the leak guard. "Everything in one place: the safe-by-default checklist" gains "declare a policy and check every exit". |
+| [9. Safety and cost](../../tutorial/09-safety-and-cost.md) | New section **"Policies: rules checked at the edge"**, after "Guards": a policy file a non-technical owner can read, the evaluator, `check … against`, the four actions with a diagram of the boundary, what a sink is, the type rule in a short table, how an agent's own changing tool calls are checked automatically (a refused call, the agent trying again, and `approve:` as an optional person on top), what fails closed, and what LY07 means. "Guards" gains the leak guard. "Everything in one place: the safe-by-default checklist" gains "declare a policy and check every exit". |
 | [10. Testing](../../tutorial/10-testing.md) | Scripting an evaluator in `weave test`; asserting checks and actions. (Golden cases for evaluators come with phase 28.) |
 | [14. Cookbook](../../tutorial/14-cookbook.md) | Recipe **"Check every reply against house rules"** (built on starter 16); the cheat sheet gains `policy`, `evaluator`, `check … against`, `on_violation` and the actions, `prompt_leak`, `internal_refs`; "mistakes and their fixes" gains the `weave check` sink error and LY07. |
 | [README](../../tutorial/README.md) | Chapter 9's row names policies; the starter table gains starter 16; "How a Loom project fits together" shows the policy file beside `main.loom`. |

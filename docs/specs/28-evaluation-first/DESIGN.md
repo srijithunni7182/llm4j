@@ -22,7 +22,7 @@ Non-goals:
 
 - Making evaluation compulsory for ordinary agents or for going live (D17: skippable).
 - New judge machinery: judges, validation and fingerprints are [phase 19](../19-evaluation-that-works/DESIGN.md)'s.
-- Using a policy as a judge in workflow cases: an open question of phase 26, built here only if the owner says yes (§7).
+- Using a policy as a judge in workflow cases: an open question of phase 26 (§7, question 1), built here only if the owner says yes (§7).
 
 ## 3. Requirements
 
@@ -117,7 +117,7 @@ Non-goals:
 
 ## 7. Open questions
 
-1. Phase 26's open question 2: should a policy also act as a judge in workflow cases (`expect_policy: HouseRules`)? If yes, it is built here, reusing the evaluator, and `--requirements` lists it.
+1. Phase 26's open question 1: should a policy also act as a judge in workflow cases (`expect_policy: HouseRules`)? If yes, it is built here, reusing the evaluator, and `--requirements` lists it.
 2. R1: should LT06 be one finding per script when there is no dataset at all, rather than one per agent? Proposed: per agent (each agent's own cases matter), with the summary card saying "N agents have no golden cases" in one line.
 3. R4: is one case enough for an extractor, or should every required field be asserted in at least one case? Proposed: one case for the gate; review suggests more (a low finding, LT08, "fields never asserted"), not a check error.
 4. R8: which CI system does the template target? Proposed: GitHub Actions, the one the repository itself uses, with the commands written so another system can copy them.

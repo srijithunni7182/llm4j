@@ -88,7 +88,7 @@ Order matters: each phase builds on the one below and is shippable on its own.
 | 27 | [Approval at the boundary](27-boundary-approvals/DESIGN.md) | Loom, review, skills | every tool's effect (`none`, `reads`, `changes`), declared by the developer; `use Tool(...)` with no model; `approve` on `use` and `run`; LA02 offers the boundary first; LH03 counts every question; Human oversight on by default; LH05 | none (26 for sinks) |
 | 28 | [Evaluation first](28-evaluation-first/DESIGN.md) | Loom, eval4j, skills | Testability on by default, LT06 exact and medium, a notice when nothing is measured; `weave check` fails on untested extractors, evaluators and policy rules; `weave eval --requirements` and `--changed` | 24, 26, 19 |
 
-Phases 24 to 28 are the **engineering discipline** program: [the overview](DISCIPLINE.md) maps the owner's list of multi-agent architecture mistakes to what the code does today, records the decisions (D1 to D24, with D25 open), and plans the tutorial changes chapter by chapter.
+Phases 24 to 28 are the **engineering discipline** program: [the overview](DISCIPLINE.md) maps the owner's list of multi-agent architecture mistakes to what the code does today, records the decisions (D1 to D29), and plans the tutorial changes chapter by chapter.
 
 Phases 17 to 23 are the **field findings** program: [the overview](FIELD_FINDINGS.md) has the register of 65 findings from real sessions, the evidence for each, the order of work and the decisions the owner must make before building starts. Every phase's `VERIFICATION.md` starts with a step that **reproduces its findings first**.
 
@@ -126,6 +126,6 @@ done, so that what we learn building a lower layer shapes the spec above it.
 | 23 | draft for review | not started | not started | not started |
 | 24 | draft for review (decisions recorded) | not started | not started | not started |
 | 25 | draft for review (decisions recorded) | not started | not started | not started |
-| 26 | draft for review (decisions recorded; D25 open) | not started | not started | not started |
+| 26 | draft for review (decisions recorded) | not started | not started | not started |
 | 27 | draft for review (decisions recorded) | not started | not started | not started |
 | 28 | draft for review (decisions recorded) | not started | not started | not started |
