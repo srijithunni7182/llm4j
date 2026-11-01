@@ -1,6 +1,6 @@
 # Engineering discipline program (phases 24 to 29): make the right architecture the easy one
 
-Status: **decisions D1 to D39 recorded 2026-11-01; specs draft for review**. Nothing here is built. This page is the overview of six phases, [24](24-stateless-nodes/DESIGN.md) to [29](29-reviewable-architecture/DESIGN.md): five that build, and one that documents what they add up to. Each phase has the usual three documents (`DESIGN.md`, `TEST_STRATEGY.md`, `VERIFICATION.md`). This page holds what they share: the evidence, the decisions, the contracts that cross phases, the order, and the plan for the tutorial.
+Status: **decisions D1 to D42 recorded 2026-11-01; specs draft for review**. Nothing here is built. This page is the overview of six phases, [24](24-stateless-nodes/DESIGN.md) to [29](29-reviewable-architecture/DESIGN.md): five that build, and one that documents what they add up to. Each phase has the usual three documents (`DESIGN.md`, `TEST_STRATEGY.md`, `VERIFICATION.md`). This page holds what they share: the evidence, the decisions, the contracts that cross phases, the order, and the plan for the tutorial.
 
 ## 1. Why this program exists
 
@@ -13,6 +13,12 @@ The owner keeps a list of the architectural mistakes that teams make when they b
 | M3 | **Evaluation as an afterthought.** Testing after the build means guessing what good looks like. | Evaluation-driven development. The golden dataset is the requirements document, written first, run continuously like unit tests. |
 | M4 | **HITL in the middle of reasoning.** Pausing a workflow mid-thought for approval destroys momentum and bloats state. | Approval at the boundary, for risky and irreversible actions only. Earn autonomy with confidence scores and shadow mode. |
 | M5 | **Global state leakage.** Utility nodes get the whole system prompt and conversation, adopt personas and break their parsers. | Contextual least privilege. Utility nodes are pure, stateless functions hydrated with only the text and schema they need. |
+| M6 | **Premature agentification.** Agents used where deterministic code or one prompt would do: latency, cost, a tangled design. | Complexity budgeting. Never use an agent where code works; start with one prompt; split only when one context cannot hold the reasoning. |
+| M7 | **Error cascading ("pass the trash").** A downstream agent acts on an upstream agent's hallucination. | Inter-node contracts. Validate an agent's output (schema, logic or a fast LLM check) before it drives the next step. |
+| M8 | **Stringly-typed state.** Progress through a long process is tracked in the transcript, so steps are skipped. | An external state object the harness owns, updated deliberately, separating "what we know" from "what was said". |
+| M9 | **Unbounded action loops.** An agent retries the same failing call over and over. | Circuit breakers and max steps enforced by the harness; repeated failure ends the loop or goes to a person. |
+
+The owner added M6 to M9 after the first five were specified. M6 and M9 were found already addressed (§2, E20, E23; D40), so they need no new work; M7 and M8 add a review rule, teaching and a starter (D41, D42).
 
 The program has one aim:
 
@@ -45,6 +51,11 @@ Read on 2026-11-01 at `d3b2b87a` (6.2.0). Every claim here is reproduced in the 
 | E17 | A script cannot call a tool without a model: `call` is for sub-workflows. Starter `07-approval` therefore hands a webhook to an LLM agent (`Sender`) and asks the person twice (a `human_prompt`, then `approve: [Notify]`); its `answer == "yes"` would trip LH04. | `starters/07-approval/main.loom` | M4 | 27 |
 | E18 | A task can ask for approval (`requiresApproval(args)`), but only from Java. | `LOOM_GUIDE.md` "Writing a task" | M4 | 27 |
 | E19 | Whether a tool changes anything is decided out of sight in the audit (`Capabilities.effect`) from its kind and options. Only `class` tools can state it, with `reach:` words that mix two questions (`reads`/`fetches` and `writes`/`sends`). An `openapi` tool is always assumed to change; an MCP tool is assumed to do everything. Tasks already declare `NONE`, `READS` or `CHANGES`. | `security/Capabilities.java`, `LOOM_GUIDE.md` "`reach:`" | M4, M1 | 27 |
+
+| E20 | M6 is already served: a `run` task is "exact, free, testable and immune to prompt injection"; `docs/guide/01-decide-your-agents.md` says a step that must be exact is a task and one that picks a label is a classifier; LC07 ("asks a model for something a program could do"), LC01 and LM04 notice the common cases. | `LOOM_GUIDE.md` "Tasks", guide ch. 1, rules LC07, LC01, LM04 | M6 | none (D40) |
+| E21 | M7: the building blocks exist (schemas checked by the runtime, tasks for logic, `decide`; and, once built, extractors and `check`), but nothing notices when an agent's free prose drives a step that changes something with nothing validating it on the way. | review rule index | M7 | 27 |
+| E22 | M8: between steps the script is the state machine (statements run in order, typed variables, a journal, checkpoints). Inside one long agent loop, progress lives only in the conversation, which compaction may remove; the harness-design skill says nothing about it. | `LOOM_GUIDE.md` "Context and Compaction", the harness-design skill | M8 | 25 |
+| E23 | M9 is already served: agents default to `max_iterations` 10; `loop … max N` and LR03; bounded `retry`; run, step and loop budgets; `supervise` with `looping(N)` and `tool_failing(Tool, N)` and `wrap_up` or `cancel` (to a person); Fabric's looping incident; LO04 and LB01. | `ReActAgent.java:2374`, `LOOM_GUIDE.md` "Rules that watch an agent" | M9 | none (D40) |
 
 What already serves the list well, and is kept: earned autonomy (`decide`, `watch`/`suggest`/`act`, blind measurement, demotion, replay) for M4; the workflow-guide skill's "tests first" default, its step 2b ("a requirement that is only in a prompt is a wish"), `weave init`'s golden folder and `llm4j-eval-design` for M3; the harness-design principle "separate the doer from the checker" for M1; `intentclassify` ("a classification problem is not a generation problem") for M2.
 
@@ -91,6 +102,9 @@ What already serves the list well, and is kept: earned autonomy (`decide`, `watc
 | D37 | **Failing closed degrades gracefully.** (A) Evaluators can name fallback models. (B) `on_unavailable { … }` gives a safe answer when the evaluator cannot answer (default `fail`). (C) "Unsure" is counted apart from violations everywhere. (D) Incidents for a failing evaluator, a high unsure rate, a high refusal rate and many overrides. (E) `weave eval` fails an evaluator that flags more than 10% of its clean and near-miss cases (adjustable per evaluator). | 26, 28 |
 | D38 | **The new model calls are costed, budgeted and watched like agents.** (A) `weave review` shows them as their own cost and time lines. (B) Generated extractors and evaluators default to the cheapest model of the provider; the skills recommend calibrated backends for evaluators. (C) Free deterministic checks run before any evaluator call. (D) A verdict is reused within a run for identical text, policy version and evaluator, never across runs. (E) A policy's checks get a budget reserve worked out automatically, shown in `weave review`, with an optional override. (F) Latency per evaluator and extractor in the trace and on the live page. And: extractors, evaluators and automatic tool-call checks are metered in the spend report under their own names, count against run and their own budgets, and appear in Fabric's model, cost and incident views and in `weave eval`'s "By agent and node". | 24, 26, 28 |
 | D39 | **The transcript default stays `all`, and is made visible**: `weave graph`, `weave explain` and the editor mark each agent that receives the full transcript. No new default setting and no planned flip. | 24 |
+| D40 | **M6 and M9 need no new work**: Loom already addresses them (E20, E23). | none |
+| D41 | **M7, error cascading: notice it and teach it, with no new syntax.** A review rule, LR11, warns when an agent's free prose reaches a step that changes something with nothing validating it on the way; like every finding it can be accepted or turned off. The skills, guide and tutorial teach "never pipe an agent straight into an action" with the existing constructs: extract (shape), `alt` or a task (logic), `check` (judgement), `approve`. Proposed `ensure` and `check … given` were dropped: composition already covers them. | 27 |
+| D42 | **M8, state inside a long agent: lift it into the workflow.** Taught as a principle and a recipe (a bounded `loop`, a worker with `transcript: none`, an `extractor` that records progress in a journaled variable), with a tested starter, `16-step-by-step-agent`. No `state { … }` construct for now. The compliance starter of phase 26 becomes `17-compliance-boundary`. | 25 |
 
 Not taken, and why: a heuristic review rule that looks for governance wording ("never", "must not", "Section 4.6") in prompts was proposed and dropped with D11: it would claim to read meaning. That guidance lives in the skills.
 
@@ -130,6 +144,7 @@ Every tool has an effect, `none`, `reads` or `changes`, the same words as a task
 | LP10 | 25 | Prompts | medium | An agent that reasons must answer in a large schema |
 | LY07 | 26 | Privacy and compliance | medium when the output reaches people outside, else info (D35) | Model-written text reaches a sink and the script declares no policy |
 | LH05 | 27 | Human oversight | medium | An approval inside an agent's loop, for an outward tool, in a workflow nobody is watching |
+| LR11 | 27 | Reliability | medium | An agent's free prose reaches a step that changes something with nothing validating it on the way |
 
 Changed rules: LR05, LP02 (25); LA02, LH02, LH03 (27); LT06 (28). LA15 is unchanged and keeps reporting declared reach and effect. Lenses switched on by default: Human oversight (27), Testability (28).
 
@@ -168,7 +183,7 @@ Build 24 first: 25, 26 and 28 depend on the extractor and the internal-node cont
 | [8. People in the loop](../tutorial/08-people-in-the-loop.md) | "Approvals on tools" becomes "Where to ask: at the edge, not in the middle", with the three shapes (approve on a step, `human_prompt`, `decide`) | 27 |
 | [9. Safety and cost](../tutorial/09-safety-and-cost.md) | New section "Policies: rules checked at the edge" (`policy`, `evaluator`, `check … against`, actions, sinks, the type rule, and how an agent's own changing tool calls are checked automatically with `approve:` as an optional extra); the leak guard under "Guards"; LA21 under "The lethal trifecta"; the safe-by-default checklist gains the policy and the boundary approval | 24, 26, 27 |
 | [10. Testing](../tutorial/10-testing.md) | Golden cases for an extractor and an evaluator; "the dataset is the requirements" and `weave eval --requirements`; evaluating what changed; the notice when there is no dataset | 28 |
-| [11. Advanced orchestration](../tutorial/11-advanced-orchestration.md) | Earned autonomy is introduced as the optional extra beside `approve` (D20) | 27 |
+| [11. Advanced orchestration](../tutorial/11-advanced-orchestration.md) | Earned autonomy is introduced as the optional extra beside `approve` (D20); a section "Keep progress in the workflow, not the conversation" with starter 16 (D42) | 25, 27 |
 | [14. Cookbook and cheat sheet](../tutorial/14-cookbook.md) | Recipes "pull fields out of text", "let the reasoning agent think, then extract", "check every reply against house rules", "approve once, at the edge"; the cheat sheet gains every new keyword; "mistakes and their fixes" gains each new rule | 24 to 28 |
 
 Every `loom` block added to the tutorial is checked by `TutorialExamplesTest`, and the web page is regenerated with `bash scripts/make-tutorial-html.sh` in the same sub-phase (`GuideTutorialPageTest` fails on a stale page). A block can only be added in the sub-phase that makes it load.
@@ -196,11 +211,11 @@ Every row is listed in the release notes and `docs/API_COMPATIBILITY.md` by the 
 | # | Phase | Mistake | What it delivers |
 |---|---|---|---|
 | 24 | [Stateless nodes and least-privilege context](24-stateless-nodes/DESIGN.md) | M5 | `extractor` / `extract`; the internal-node contract; `transcript: none \| own \| all` and `shared_prompt: none` on agents; LP08, LP09; transcript taint in the audit (LA21) |
-| 25 | [Reason, then extract](25-reason-then-extract/DESIGN.md) | M2 | LP10; LR05 and LP02 reworded; a `--fix-finding` that splits an agent into agent and extractor; the 17 examples migrated |
+| 25 | [Reason, then extract](25-reason-then-extract/DESIGN.md) | M2, M8 | LP10; LR05 and LP02 reworded; a `--fix-finding` that splits an agent into agent and extractor; the 17 examples migrated; progress kept in the workflow (recipe and starter 16) |
 | 26 | [The policy boundary](26-policy-boundary/DESIGN.md) | M1 | `policy`, `evaluator`, `check … against …` with four actions; model-written values tracked to the sinks; the leak guard; LY07; `shared_prompt` repositioned |
-| 27 | [Approval at the boundary](27-boundary-approvals/DESIGN.md) | M4 | Every tool has an effect (`none`, `reads`, `changes`), declared by the developer; `use Tool(...)`; `approve` on `use` and `run`; LA02 reworded; LH03 counting approvals; LH01 to LH04 on; LH05; starter 07 rewritten |
+| 27 | [Approval at the boundary](27-boundary-approvals/DESIGN.md) | M4, M7 | Every tool has an effect (`none`, `reads`, `changes`), declared by the developer; `use Tool(...)`; `approve` on `use` and `run`; LA02 reworded; LH03 counting approvals; LH01 to LH04 on; LH05; starter 07 rewritten; LR11 and "never pipe an agent into an action" |
 | 28 | [Evaluation first](28-evaluation-first/DESIGN.md) | M3 | Testability lens on, LT06 medium, the notice; the `weave check` gate on untested internal nodes; `weave eval --requirements`; evaluating what changed |
-| 29 | [Architecture you can review](29-reviewable-architecture/DESIGN.md) | all | `docs/REVIEWABLE_ARCHITECTURE.md` (the differentiator, the five mistakes, real `weave` output, generated by a docs test); probes P9 to P14 on Loom, LangGraph, LangChain and Google ADK; `WHY_LLM4J.md`; the stack-level pages once |
+| 29 | [Architecture you can review](29-reviewable-architecture/DESIGN.md) | all | `docs/REVIEWABLE_ARCHITECTURE.md` (the differentiator, the nine mistakes, real `weave` output, generated by a docs test); probes P9 to P16 on Loom, LangGraph, LangChain and Google ADK; `WHY_LLM4J.md`; the stack-level pages once |
 
 ## 9. Cautions, and how the program answers them
 

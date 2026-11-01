@@ -1,6 +1,6 @@
 # Phase 27 verification plan: approval at the boundary
 
-Status: **not started** (spec draft). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **27a** every tool has an effect (R0; phase 26 waits for it); **27b** `use` (R1) and `approve` on `use` and `run` (R2); **27c** the review changes and the lens default (R3 to R7); **27d** starter 07, the guide, the skills and the tutorial (R8). Results in §7.
+Status: **not started** (spec draft). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **27a** every tool has an effect (R0; phase 26 waits for it); **27b** `use` (R1) and `approve` on `use` and `run` (R2); **27c** the review changes and the lens default (R3 to R7, R9), and LR11 with its teaching (R10); **27d** starter 07, the guide, the skills and the tutorial (R8). Results in §7.
 Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Reproduce first
@@ -30,6 +30,7 @@ Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 | A8 | Every existing script parses and runs as before | `RepositoryScriptsTest`, existing tests unmodified |
 | A9 | Every guard is noticed when removed | PIT score not lower; by-hand removals in §7 |
 | A10 | Findings are grouped, new ones shown first, a baseline suggested once after the upgrade; LH01 to LH05 meet the precision bar and the noise gate; LH05 and undeclared effects offer fixes; the simple path stays simple | the R9 and D34 tests, `SimplePathStaysSimpleTest` |
+| A11 | LR11 warns on an agent's unvalidated prose driving a step that changes something, stays quiet when any validating step stands between, offers its two fixes, and meets the precision bar and the noise gate; the guide, skills and tutorial teach guarding a hand-off | the R10 tests, §5 |
 
 ## 2. Traceability: requirement → tests
 
@@ -45,6 +46,7 @@ Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 | R7 | `OversightLensOnByDefaultTest`, `LensesMinusOversightRestoresTest` | ⬜ |
 | R8 | `StartersTest`, `LoomGuideBlocksParseTest`, `TutorialExamplesTest`, `GuideTutorialPageTest`, `verify-skill-package.sh`, CTK `use_tool`, `approve_step` | ⬜ |
 | R9 | the R9 tests of the strategy | ⬜ |
+| R10 | the R10 tests of the strategy | ⬜ |
 
 ## 3. Quality gates
 

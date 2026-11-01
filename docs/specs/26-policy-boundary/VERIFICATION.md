@@ -1,6 +1,6 @@
 # Phase 26 verification plan: the policy boundary
 
-Status: **not started** (spec draft; needs phase 24 and phase 27's R0). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **26a** policy files and the evaluator (R1 to R3); **26b** `check … against` and its actions (R4, R5, R13, R14); **26c** provenance, sinks and enforcement (R6 to R8, R15), including the automatic check of agents' changing tool calls (D25): first report-only across the corpus until `CanaryProvenanceOracleTest` and the corpus are clean, then enforced; **26d** the leak guard, LY07 and its fix, `shared_prompt` and C4 (R9 to R11), graceful failure (D37) and cost (R16); **26e** the skills, starter 16 and the tutorial (R12 and the tutorial rows). Results in §7.
+Status: **not started** (spec draft; needs phase 24 and phase 27's R0). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **26a** policy files and the evaluator (R1 to R3); **26b** `check … against` and its actions (R4, R5, R13, R14); **26c** provenance, sinks and enforcement (R6 to R8, R15), including the automatic check of agents' changing tool calls (D25): first report-only across the corpus until `CanaryProvenanceOracleTest` and the corpus are clean, then enforced; **26d** the leak guard, LY07 and its fix, `shared_prompt` and C4 (R9 to R11), graceful failure (D37) and cost (R16); **26e** the skills, starter 17 and the tutorial (R12 and the tutorial rows). Results in §7.
 Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Reproduce first
@@ -27,7 +27,7 @@ Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | A9 | `shared_prompt` is documented for tone and facts; C4 advises a policy | R11 tests, §5 |
 | A10 | The skills teach internal and external agents by audience, policies at the edge and evaluator validation; the packages verify | R12 tests, `verify-skill-package.sh` |
 | A11 | Checks are scripted in `weave test`, asserted in eval4j, traced and drawn, with no text in telemetry | R13, R14 tests |
-| A12 | Starter 16 loads, its tests pass and its diagram matches; the tutorial teaches policies and its examples load | `StartersTest`, `TutorialExamplesTest`, `GuideTutorialPageTest` |
+| A12 | Starter 17 loads, its tests pass and its diagram matches; the tutorial teaches policies and its examples load | `StartersTest`, `TutorialExamplesTest`, `GuideTutorialPageTest` |
 | A13 | Every existing script parses and runs as before | `RepositoryScriptsTest`, existing tests unmodified |
 | A14 | Every guard is noticed when removed | PIT score not lower; by-hand removals in §7 |
 | A15 | Provenance is beside the values, required at every route, unknown means unchecked, and the canary oracle finds no leak across the corpus (and runs in CI) | the R15 tests |
@@ -62,9 +62,9 @@ Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 - [ ] LY07 measures ≥ 0.9 precision (Phase 9 R18) and passes the noise gate; `SimplePathStaysSimpleTest` green.
 - [ ] `CanaryProvenanceOracleTest` added to the CI job that runs on runtime changes.
 - [ ] `RepositoryScriptsTest` green; CTK scenarios `policy_check`, `policy_sinks` and `prompt_leak` added with their `*CtkTest`.
-- [ ] Loom syntax everywhere it belongs: `LOOM_GUIDE.md`, `LOOM_PROMPT.md`, `docs/guide/06`, the tutorial, starter 16, the workflow-guide skill, the VS Code grammar and snippets, the CTK.
+- [ ] Loom syntax everywhere it belongs: `LOOM_GUIDE.md`, `LOOM_PROMPT.md`, `docs/guide/06`, the tutorial, starter 17, the workflow-guide skill, the VS Code grammar and snippets, the CTK.
 - [ ] `bash scripts/sync-graph-render.sh` and `bash scripts/check-graph-render-sync.sh` (`check` kind).
-- [ ] `bash scripts/make-starter-diagrams.sh`; `StartersTest` green (starter 16).
+- [ ] `bash scripts/make-starter-diagrams.sh`; `StartersTest` green (starter 17).
 - [ ] `bash scripts/make-tutorial-html.sh`; `GuideTutorialPageTest` green.
 - [ ] `weave rules docs core`; `weave rules test core` green.
 - [ ] `SecurityDocTest` green; `secure-by-construction.md`, `owasp-llm-top-10.md` and `SECURITY.md` updated.
@@ -75,16 +75,16 @@ Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 
 | # | Check | Pass |
 |---|---|---|
-| M1 | Starter 16 with a real cheap evaluator under a cap: five replies the owner writes by hand (two that break a rule, two that nearly do, one clean); record each verdict and confidence | ⬜ |
-| M2 | Have someone who is not a developer read `policies/house-rules.md` in starter 16 and say whether they could own it | ⬜ |
-| M6 | Give starter 16's assistant a changing tool (a fake email tool), script it to write a reply that breaks a rule, and watch the call be refused, the agent rewrite it, and the second call pass; then add `approve:` and confirm the person sees only the passing call with its verdict | ⬜ |
-| M3 | Try by hand to get an unchecked reply out of starter 16 by editing the script (a `set`, a `call`, a `replace with "{reply}"`); each attempt is refused, at check time or at run time | ⬜ |
+| M1 | Starter 17 with a real cheap evaluator under a cap: five replies the owner writes by hand (two that break a rule, two that nearly do, one clean); record each verdict and confidence | ⬜ |
+| M2 | Have someone who is not a developer read `policies/house-rules.md` in starter 17 and say whether they could own it | ⬜ |
+| M6 | Give starter 17's assistant a changing tool (a fake email tool), script it to write a reply that breaks a rule, and watch the call be refused, the agent rewrite it, and the second call pass; then add `approve:` and confirm the person sees only the passing call with its verdict | ⬜ |
+| M3 | Try by hand to get an unchecked reply out of starter 17 by editing the script (a `set`, a `call`, a `replace with "{reply}"`); each attempt is refused, at check time or at run time | ⬜ |
 | M4 | `ask person` answered from Telegram (or the console channel) with each of the three answers; the audit shows the override | ⬜ |
 | M5 | Read tutorial chapter 9's new section as a newcomer | ⬜ |
 
 ## 5. Documentation owed
 
-`LOOM_GUIDE.md` ⬜ · `LOOM_PROMPT.md` ⬜ · `docs/guide/06` ⬜, `07` ⬜ · tutorial ch. 3 ⬜, 9 ⬜, 10 ⬜, 14 ⬜, README ⬜, HTML regenerated ⬜ · starter 16 and starters README ⬜ · `docs/review/rules/` ⬜ · `docs/security/*` ⬜ · `SECURITY.md` ⬜ · skills (workflow guide ⬜, harness design ⬜, eval design ⬜, deployer ⬜) · VS Code grammar, snippets, CHANGELOG ⬜ · graph-render ⬜ · eval4j README ⬜ · observability wiki pages ⬜ · `API_COMPATIBILITY.md` ⬜ · `llms.txt` ⬜ · release notes ⬜.
+`LOOM_GUIDE.md` ⬜ · `LOOM_PROMPT.md` ⬜ · `docs/guide/06` ⬜, `07` ⬜ · tutorial ch. 3 ⬜, 9 ⬜, 10 ⬜, 14 ⬜, README ⬜, HTML regenerated ⬜ · starter 17 and starters README ⬜ · `docs/review/rules/` ⬜ · `docs/security/*` ⬜ · `SECURITY.md` ⬜ · skills (workflow guide ⬜, harness design ⬜, eval design ⬜, deployer ⬜) · VS Code grammar, snippets, CHANGELOG ⬜ · graph-render ⬜ · eval4j README ⬜ · observability wiki pages ⬜ · `API_COMPATIBILITY.md` ⬜ · `llms.txt` ⬜ · release notes ⬜.
 
 ## 6. Exit checklist
 

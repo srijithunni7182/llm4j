@@ -56,8 +56,8 @@ Evidence: E12, E13 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 
 | # | Check | Pass |
 |---|---|---|
-| M1 | Run `weave eval --requirements` on starter 16 and give the page to someone who is not a developer: can they say what the workflow must and must never do? | ⬜ |
-| M2 | Change one word of starter 16's policy, then of one agent's prompt; `weave eval --changed --max-tokens 30000 --mock` lists exactly the nodes expected; then a capped real run of the changed nodes only | ⬜ |
+| M1 | Run `weave eval --requirements` on starter 17 and give the page to someone who is not a developer: can they say what the workflow must and must never do? | ⬜ |
+| M2 | Change one word of starter 17's policy, then of one agent's prompt; `weave eval --changed --max-tokens 30000 --mock` lists exactly the nodes expected; then a capped real run of the changed nodes only | ⬜ |
 | M3 | Follow the workflow-guide skill from a blank folder to a workflow with an extractor and an evaluator: the gate is explained before it fires, and the cases are written with the user | ⬜ |
 | M4 | Read tutorial chapter 10 as a newcomer | ⬜ |
 

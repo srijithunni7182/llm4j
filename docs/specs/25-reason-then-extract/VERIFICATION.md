@@ -1,6 +1,6 @@
 # Phase 25 verification plan: reason, then extract
 
-Status: **not started** (spec draft; needs phase 24's extractor). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **25a** LP10, the facts and the rewording of LR05 and LP02 (R1, R2); **25b** the split fix (R3); **25c** the examples, the docs and the tutorial (R4, R5). Results in §7.
+Status: **not started** (spec draft; needs phase 24's extractor). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **25a** LP10, the facts and the rewording of LR05 and LP02 (R1, R2); **25b** the split fix (R3); **25c** the examples, the docs and the tutorial (R4, R5); **25d** progress kept in the workflow: the recipe, starter 16 and the teaching (R6). Results in §7.
 Evidence: E7 to E9 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Reproduce first
@@ -22,6 +22,7 @@ Evidence: E7 to E9 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | A5 | No shipped example trips LP10, except the recorded LC01 fixture; every migrated example's tests pass | `ExamplesAreCleanOfLp10Test`, example suites |
 | A6 | The guide, skills and tutorial teach "reason, then extract" and when a small schema is still right | §5 ticked, `LoomGuideBlocksParseTest`, `TutorialExamplesTest`, `GuideTutorialPageTest` |
 | A7 | Nothing else changes: existing tests unmodified except the examples' own cases for migrated agents (listed in §7) | test diff review |
+| A8 | Starter 16 shows a long agent's progress kept in a journaled variable, bounded and resumable, with tests; the harness-design skill, the guide and tutorial chapter 11 teach it | the R6 tests, §5 |
 
 ## 2. Traceability: requirement → tests
 
@@ -32,6 +33,7 @@ Evidence: E7 to E9 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | R3 | `SplitFixDiffTest`, `SplitKeepsLaterUsesOfTheVariableTest`, `SplitNotOfferedForProseAndFieldsTest`, `SplitNotOfferedForBroadcastTest`, `SplitListsTestCasesToUpdateTest`, `SplitNeedsYesTest`, `SplitAddsNoHighFindingTest`, `SplitPicksCheapestModelOfSameProviderTest` | ⬜ |
 | R4 | `ExamplesAreCleanOfLp10Test`, example suites, `InspectSimExpectedTracesTest` | ⬜ |
 | R5 | `LoomGuideBlocksParseTest`, `TutorialExamplesTest`, `GuideTutorialPageTest` | ⬜ |
+| R6 | the R6 tests of the strategy | ⬜ |
 
 ## 3. Quality gates
 
@@ -54,7 +56,7 @@ Evidence: E7 to E9 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 
 ## 5. Documentation owed
 
-`LOOM_GUIDE.md` ⬜ · `LOOM_PROMPT.md` ⬜ · `docs/guide/06` ⬜ · tutorial ch. 5 ⬜, 14 ⬜, README ⬜, HTML regenerated ⬜ · `docs/review/rules/` ⬜ · skills (workflow guide ⬜, harness design ⬜, eval design ⬜) · each migrated example's README ⬜ · loom-inspect sim docs ⬜ · release notes ⬜ · `API_COMPATIBILITY.md` (rule packs) ⬜ · `llms.txt` ⬜.
+`LOOM_GUIDE.md` ⬜ · `LOOM_PROMPT.md` ⬜ · `docs/guide/06` ⬜ · tutorial ch. 5 ⬜, 11 ⬜, 14 ⬜, README ⬜ · starter 16 and starters README ⬜ · `docs/guide/14` ⬜, HTML regenerated ⬜ · `docs/review/rules/` ⬜ · skills (workflow guide ⬜, harness design ⬜, eval design ⬜) · each migrated example's README ⬜ · loom-inspect sim docs ⬜ · release notes ⬜ · `API_COMPATIBILITY.md` (rule packs) ⬜ · `llms.txt` ⬜.
 
 ## 6. Exit checklist
 

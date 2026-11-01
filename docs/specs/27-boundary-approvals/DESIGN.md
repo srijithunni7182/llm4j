@@ -2,7 +2,7 @@
 
 Status: **draft for review** (decisions D20 to D22 and D26 to D28 recorded 2026-11-01). Layer: the Loom language and runtime (every tool's effect, a tool step, approval on a step), the review engine (LA02, LH02, LH03, a new LH05, the Human oversight lens on), the starters, the skills and the tutorial. Part of the [engineering discipline program](../DISCIPLINE.md).
 Documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md). Independent of phases 24 to 26 to build. [Phase 26](../26-policy-boundary/DESIGN.md) depends on R0 (its sinks are tools whose effect is `changes`); once phase 26 exists, `use` is one of its sinks.
-Evidence owned: **E14 to E19**. Mistake: **M4, HITL in the middle of reasoning**.
+Evidence owned: **E14 to E19, E21**. Mistakes: **M4, HITL in the middle of reasoning**, and **M7, error cascading** (D41).
 
 ## 1. Problem
 
@@ -23,6 +23,7 @@ Goals:
 - A script can **ask for approval on a step**, once, showing the exact payload, on `use` and on `run` (R2).
 - Review offers the boundary first, counts every question, and warns about approvals in the middle of a loop where nobody is watching (R3 to R6).
 - Starter 07 and the skills teach the boundary shapes (R7, R8).
+- Review notices an agent's unvalidated prose driving a step that changes something, and the docs teach how to guard the hand-off (R10, D41).
 
 Non-goals:
 
@@ -162,6 +163,18 @@ workflow Main(facts) {
 - **A baseline suggestion, once**: the first `weave review` of a project after the upgrade that brings new rules says, in one line, that `weave review --baseline write` records what exists today so only new problems are shown; serious findings are never hidden by a baseline, as today. The line is not repeated once a baseline exists or the user declines (`review.properties`: `baseline.suggested = done`).
 - LH01 to LH05 each measure ≥ 0.9 precision on the benchmark corpus and pass the noise gate before the lens is switched on.
 
+**R10 LR11: an unchecked hand-off into an action** (M7, D41; Reliability lens, **medium**; built after R0, which defines "changes something").
+
+> **LR11: `label` acts on what agent `name` wrote, and nothing checks it on the way.**
+> **Fires when** a value bound by an agent's free prose (no `output_schema`, no `expecting`) reaches, directly or through `set` and interpolation, a step that changes something: a `delegate` to an agent holding a tool whose effect is `changes`, a `use` of such a tool, or a `run` of a `CHANGES` task; **and** no validating step stands between them on that path: an `extract` of it (typed fields), a `run` of a task that reads it (code), an `intentclassify` on it, a `check` of it (phase 26), a `decide`, or `approve` on the acting step.
+> **Why it matters:** if the first agent invents a fact (an amount, an order id), the second acts on it with confidence. The mistake travels downstream and becomes an action.
+> **What to do:** check the hand-off with the cheapest thing that works: extract the fields and test them (`alt`, or a task for anything more involved); `check` it against a policy whose rules describe what must be true; or `approve` the acting step. Or accept with a reason.
+
+- It is a warning like every finding: accepted with a reason or turned off in `review.properties`, never blocking a run.
+- Fix options: **`insert-extract`** (needs thought: adds an `extractor` over the value with the fields the acting step uses, and rewires the acting step to read them) and **`approve-step`** (adds `approve` to the acting `use` or `run`). Both show a diff first.
+- The facts are structural (value flow, tool effects, statement kinds), never prompt meaning. It meets the precision bar and the noise gate before it ships (D35).
+- **Teaching** (D41): `LOOM_GUIDE.md` gains "Never pipe an agent straight into an action" beside the boundary sections, with the three levels: shape (extract or schema), logic (`alt` or a task), judgement (`check`), plus `approve`, cheapest first, using only existing constructs. The `llm4j-harness-design` skill gains the principle "validate every hand-off into an action" and lists "an agent acts on another's hallucination" among its failure modes; the `llm4j-workflow-guide` skill checks for it in stage 6 and names LR11 in stage 7.
+
 ## 4. Java API
 
 | Type | Change |
@@ -201,17 +214,17 @@ workflow Main(facts) {
 
 ## 8. Documentation affected
 
-`LOOM_GUIDE.md` (`effect:` and `effects:` on every tool kind, replacing `reach:` in the class-tool section with the old form noted; `use`, approval on a step, "Where to ask", LA02 wording referenced), `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md` `docs/guide/09-go-live.md` (approvals on the channel) and `docs/guide/13-earned-autonomy.md` (earned autonomy as the optional extra, D20), the tutorial (§9), starter 07 and the starters README, `docs/review/rules/` (LA02, LH02, LH03, LH05, the lens index), `docs/specs/09-review-engine/DESIGN.md` R33 (a note that the oversight lens is now default, linking here), `docs/security/secure-by-construction.md` (`use` goes through the same controls), the three skills in R8, the VS Code grammar, snippets and `CHANGELOG.md`, `graph-render` (`use` kind), eval4j's README, `docs/API_COMPATIBILITY.md`, `llms.txt`, the next release's notes.
+`LOOM_GUIDE.md` ("Never pipe an agent straight into an action"; `effect:` and `effects:` on every tool kind, replacing `reach:` in the class-tool section with the old form noted; `use`, approval on a step, "Where to ask", LA02 wording referenced), `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md` `docs/guide/09-go-live.md` (approvals on the channel) and `docs/guide/13-earned-autonomy.md` (earned autonomy as the optional extra, D20), the tutorial (§9), starter 07 and the starters README, `docs/review/rules/` (LA02, LH02, LH03, LH05, LR11, the lens index), `docs/specs/09-review-engine/DESIGN.md` R33 (a note that the oversight lens is now default, linking here), `docs/security/secure-by-construction.md` (`use` goes through the same controls), the three skills in R8, the VS Code grammar, snippets and `CHANGELOG.md`, `graph-render` (`use` kind), eval4j's README, `docs/API_COMPATIBILITY.md`, `llms.txt`, the next release's notes.
 
 ## 9. Tutorial
 
 | Chapter | Change |
 |---|---|
-| [6. Tools and tasks](../../tutorial/06-tools-and-tasks.md) | New section **"Does this tool change anything? `effect:`"** near the start of "Tools": the three words (the same as a task's), that it is the developer's decision, the per-operation form for OpenAPI and MCP, what Loom assumes when nothing is declared and where to see it, and why it matters (approvals, retries, policies, what a test only records). Each tool example in the chapter declares its effect. New section **"Calling a tool yourself: `use`"** after "Declared tools": when a model is not needed to call a tool, the syntax, and that it goes through the same controls. "Approvals: a person says yes first" shows `approve` on `use` and `run` first, then `approve:` on an agent for interactive assistants. |
+| [6. Tools and tasks](../../tutorial/06-tools-and-tasks.md) | New section **"Before a step acts: check what it was handed"** (M7: extract and test, `check`, or `approve`; LR11). New section **"Does this tool change anything? `effect:`"** near the start of "Tools": the three words (the same as a task's), that it is the developer's decision, the per-operation form for OpenAPI and MCP, what Loom assumes when nothing is declared and where to see it, and why it matters (approvals, retries, policies, what a test only records). Each tool example in the chapter declares its effect. New section **"Calling a tool yourself: `use`"** after "Declared tools": when a model is not needed to call a tool, the syntax, and that it goes through the same controls. "Approvals: a person says yes first" shows `approve` on `use` and `run` first, then `approve:` on an agent for interactive assistants. |
 | [8. People in the loop](../../tutorial/08-people-in-the-loop.md) | "Approvals on tools" becomes **"Where to ask: at the edge, not in the middle"**: the three shapes in a table and a diagram, why asking mid-loop in an unattended workflow costs momentum and context (LH05), and the rewritten starter 07 walked through. |
 | [11. Advanced orchestration](../../tutorial/11-advanced-orchestration.md) | Earned autonomy introduced as the optional extra for a decision that should earn trust, beside the plain `approve` (D20). |
 | [9. Safety and cost](../../tutorial/09-safety-and-cost.md) | The safe-by-default checklist: "approve once, at the edge, on the step that acts". |
-| [14. Cookbook](../../tutorial/14-cookbook.md) | Recipe **"Approve once, at the edge"**; the cheat sheet gains `effect:`, `effects:`, `use` and `approve` on a step; "mistakes and their fixes" gains LH05 and the LH03 counting. |
+| [14. Cookbook](../../tutorial/14-cookbook.md) | Recipes **"Approve once, at the edge"** and **"Check a hand-off before it acts"**; the cheat sheet gains `effect:`, `effects:`, `use` and `approve` on a step; "mistakes and their fixes" gains LH05, LR11 and the LH03 counting. |
 | [README](../../tutorial/README.md) | Chapter 6's row names `use`; chapter 8's row says "where to ask". |
 
 Every new `loom` block is checked by `TutorialExamplesTest`; the page is regenerated with `bash scripts/make-tutorial-html.sh`.

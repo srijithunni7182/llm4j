@@ -31,6 +31,7 @@ LP10 is only useful if it is quiet on the right cases: a small verdict schema on
 | **R3** | `SplitFixDiffTest` (golden), `SplitKeepsLaterUsesOfTheVariableTest` (every `v.field` still resolves, checked by `weave check`), `SplitNotOfferedForProseAndFieldsTest`, `SplitNotOfferedForBroadcastTest`, `SplitListsTestCasesToUpdateTest`, `SplitNeedsYesTest`, `SplitAddsNoHighFindingTest`, `SplitPicksCheapestModelOfSameProviderTest` |
 | **R4** | `ExamplesAreCleanOfLp10Test` (whole repository, with the recorded acceptance for the LC01 fixture as the only exception and the test listing it by name); each example's own tests green; `InspectSimExpectedTracesTest` updated for the extra step |
 | **R5** | `LoomGuideBlocksParseTest` (new section), `TutorialExamplesTest`, `GuideTutorialPageTest` |
+| **R6** | `StartersTest` (starter 16 loads, its tests pass, its diagram matches), starter 16's `weave test` cases (progress carried round to round; the loop stops at its bound; a run resumed mid-way from the journal continues from the recorded progress; the worker's requests hold no transcript), `TutorialExamplesTest`, `verify-skill-package.sh` (harness design, workflow guide) |
 
 ## 5. Fault injection
 
