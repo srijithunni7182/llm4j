@@ -93,7 +93,7 @@ const LOOM_KEYWORDS: Record<string, string> = {
     loop:
         '**loop** `until <condition> [max N] { ... } [on_exhausted { ... }]`\n\nRepeats the body until the condition evaluates to true. With `max N`, stops after N rounds and runs `on_exhausted`. `{_loopRound}` is the current round.',
     for:
-        '**for each** `<item> in <list> { ... }`\n\nRuns the block once per list item; `{item.field}` and `{_index}` are visible inside. Prefix with `parallel` to run all items at once.',
+        '**for each** `<item> in <list> [max N] { ... } [on_too_many { ... }]`\n\nRuns the block once per list item; `{item.field}` and `{_index}` are visible inside. Prefix with `parallel` to run all items at once. `max N` bounds a list a model wrote: a longer list fails the run before any item starts (or runs `on_too_many`, with `_count` and `_max` in scope).',
     each:
         '**for each** `<item> in <list> { ... }`\n\nRuns the block once per list item; `{item.field}` and `{_index}` are visible inside.',
     max:

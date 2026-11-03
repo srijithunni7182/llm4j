@@ -2168,10 +2168,12 @@ for each fix in review.fixes {
     delegate "Fix this: {fix.problem}" to {fix.owner} -> {fix.output}
 }
 
-parallel for each shot in plan.shots {
+parallel for each shot in plan.shots max 6 {
     delegate "Shoot {shot.description}" to Photographer -> {shot.name}
 }
 ```
+
+**Bound a list a model wrote.** `for each x in list.path max N { ... }` (and `parallel for each`) fails the workflow **before any item starts** when the list has more than `N` items, and the error names the agent or extractor that wrote the list and both lines: such a list usually points upstream (what the planner was given or asked, or text in its input trying to steer it). `on_too_many { ... }` runs instead, with `_count` and `_max` in scope, and may ask a person, `halt`, or narrow the list. The trace event `fanout_exceeded` carries the counts and the producer, never an item; the live page and Fabric raise a *plan over its bound* incident; `weave capture` turns the failed run into a test case. `weave review` rule LR13 (medium) warns about a `for each` over a model-written list with no `max`, and the cost estimate shows its worst case as unknown until it has one. The bound is the last line of defence: also tell the planner the limit and add a golden case that its list stays within it.
 
 ### Retry Backoff and Timeouts
 A step can wait between retries (the wait doubles each attempt) and give up on an attempt that hangs:

@@ -169,7 +169,7 @@ agent Writer     { model: "gemini-2.5-flash"  system: "Do the writing task and r
 workflow Main(goal) {
     delegate "Plan this goal: {goal}" to Planner -> plan
 
-    for each task in plan.tasks {
+    for each task in plan.tasks max 4 {
         delegate "{task.description}" to {task.owner} -> {task.name}
     }
     return plan
@@ -198,7 +198,7 @@ agent Writer     { model: "gemini-2.5-flash"  system: "Do the writing task and r
 workflow Main(goal) {
     delegate "Plan this goal: {goal}" to Planner -> plan
 
-    parallel for each task in plan.tasks {
+    parallel for each task in plan.tasks max 4 {
         delegate "{task.description}" to {task.owner} -> {task.name}
             retry 1 timeout 90s
             on_failure { note "Task {task.name} failed: {_error}" }
@@ -208,6 +208,45 @@ workflow Main(goal) {
 ```
 
 This is starter [06-plan-and-fan-out](../../src/loom/starters/06-plan-and-fan-out/): a plan becomes parallel work. Each item gets its own failure handling, so one bad task does not stop the others.
+
+### Bound a list a model wrote: `max` and `on_too_many`
+
+> **You don't need this until** a `for each` walks over a list an agent produced.
+
+The length of that list is chosen by a model, or by text that steered it. A planner that returns 400 tasks instead of 4 would start 400 steps; a budget would stop the run, but part-way, with some tasks done and others not. Put a bound on the loop:
+
+```loom
+substitution: braces
+
+agent Planner {
+    model: "gemini-2.5-flash"
+    system: "Split the goal into 2 to 4 small tasks."
+    output_schema: { tasks: list<string> }
+}
+agent Worker { model: "gemini-2.5-flash"  system: "Do the task and report briefly." }
+
+workflow Main(goal) {
+    delegate "Plan this goal: {goal}" to Planner -> plan
+
+    for each task in plan.tasks max 4 {
+        delegate "{task}" to Worker -> done
+        note "{done}"
+    } on_too_many {
+        human_prompt "The plan has {_count} tasks and this step takes {_max}. Continue with a shorter plan? (yes/no)" -> answer
+        alt (answer == "yes") {
+            note "continuing with a shorter plan"
+        } else {
+            halt "the plan was too long"
+        }
+    }
+    return plan
+}
+```
+
+- A list longer than `max` **fails the workflow before any item starts**, unless `on_too_many { ... }` says what to do instead. `_count` and `_max` are in scope inside it. Nothing is half done.
+- The failure names the agent that wrote the list and both lines: *plan.tasks has 412 items, written by agent Planner (line 9); this step takes at most 4 (line 11)*. A list this far over its bound usually means a problem **upstream**: what the planner was given, what it was asked, or text in its input trying to steer it. Fix that, and add a golden case to the planner's dataset that asserts its list stays within the bound (`weave capture` turns the failed run into a test).
+- `weave review` rule **LR13** warns about a `for each` over a model-written list with no `max`, and `weave review`'s cost estimate calls the worst case *unknown* until there is one.
+- The bound is the last line of defence. Tell the planner the limit in its instructions too.
 
 ## `parallel`: do several things at once
 

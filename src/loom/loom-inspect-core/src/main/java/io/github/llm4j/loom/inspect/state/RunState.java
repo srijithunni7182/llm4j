@@ -375,6 +375,13 @@ public final class RunState {
             case Semconv.EV_COMPACTION -> compactionSeen(r);
             case Semconv.EV_FAILURE -> failureSeen(r);
             case Semconv.EV_GUARD -> security.onGuard(r.text("loom.data.event"));
+            case Semconv.EV_FANOUT_EXCEEDED -> detectors.onFanoutExceeded(
+                    r.text(Semconv.LOOM_STEP),
+                    r.text("loom.data.list"),
+                    r.text("loom.data.producer"),
+                    r.text("loom.data.count"),
+                    r.text("loom.data.max"),
+                    r.timeNanos());
             case Semconv.EV_BUDGET -> detectors.onBudget(
                     String.valueOf(r.text("loom.data.budget")),
                     r.text("loom.data.kind"),

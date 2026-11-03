@@ -90,6 +90,11 @@ public final class FactModel {
                         "payloadHitsVariable",
                         "A workflow variable whose name appears inside the literal text of the prompt, empty when none")
                 .bool(
+                        "fansOutModelList",
+                        "A for each over a list that an agent or extractor wrote")
+                .number("fanoutBound", "A for each's declared max, 0 when none")
+                .string("fanoutList", "The path of the list a for each walks over")
+                .bool(
                         "payloadMentionsPersonal",
                         "The prompt fills in a value named or declared as personal data")
                 .bool(

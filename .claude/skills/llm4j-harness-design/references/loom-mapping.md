@@ -26,6 +26,7 @@ this table names constructs, it does not define them.
 
 | Decision | In Loom | Built in |
 |---|---|---|
+| A bound on a fan-out over a list a model wrote | `for each x in plan.tasks max N { ... } on_too_many { ... }`; without `on_too_many` the run fails before any item starts and names the planner (`fanout_exceeded`, a live-page incident); LR13 warns when `max` is missing | `weave guide loom` ("for each") |
 | A maximum on every loop, and an outcome when reached | `loop until (cond) max N { ... } on_exhausted { ... }` | `weave guide loom` ("Bounded Loops") |
 | Agent iteration and spend bounds | `max_iterations` and an agent `budget { ... }` | `weave guide loom` ("Cost Budgets") |
 | Run budget, warning, refilling windows | `budget { tokens ... calls ... warn_at ... }`, `per day` windows, `when_exhausted: stop / suspend / ask`; `--max-tokens`, `--max-calls`, `--max-cost` | `weave guide 9`, `weave guide loom` ("Where a budget bites") |

@@ -25,7 +25,8 @@ public final class StatementWalker {
                     a.getIfBranch() == null ? List.of() : a.getIfBranch(),
                     a.getElseBranch() == null ? List.of() : a.getElseBranch());
         if (s instanceof LoopStmt l) return List.of(l.getBody(), l.getOnExhausted());
-        if (s instanceof ForEachStmt f) return List.of(f.getBody(), f.getOnExhausted());
+        if (s instanceof ForEachStmt f)
+            return List.of(f.getBody(), f.getOnExhausted(), f.getOnTooMany());
         if (s instanceof ParallelStmt p) return List.of(p.getBody());
         if (s instanceof DelegateStmt d) return List.of(d.getOnFailure(), d.getOnStopped());
         if (s instanceof RunStmt r) return List.of(r.getOnFailure());

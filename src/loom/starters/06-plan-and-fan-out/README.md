@@ -4,7 +4,7 @@ A planner returns a list of tasks; the script runs one step per task at the same
 
 ## What it shows
 
-- `parallel for each`
+- `parallel for each ... max 4`: a bound on a list a model wrote; a longer list fails the run before any task starts
 - `delegate ... to {task.owner} -> {task.name}`: runtime routing
 - a list in an `output_schema`
 
@@ -33,7 +33,8 @@ agent Editor     { model: "gemini-2.5-flash"  system: "Combine the pieces into o
 workflow Main(goal) {
     delegate "Plan this goal: {goal}" to Planner -> plan
 
-    parallel for each task in plan.tasks {
+    // the planner is asked for 2 to 4 tasks; a longer list fails the run before any task starts (usually a problem upstream)
+    parallel for each task in plan.tasks max 4 {
         delegate "{task.description}" to {task.owner} -> {task.name}
             retry 1 timeout 90s
             on_failure { note "Task {task.name} failed: {_error}" }

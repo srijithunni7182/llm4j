@@ -169,6 +169,7 @@ public final class TraceMapper {
             case TraceEvent.BUDGET -> logs.add(
                     log(now, LogRec.WARN, Semconv.EV_BUDGET, e.text(), e, data));
             case TraceEvent.CLASSIFY -> classify(e, data, now, spans);
+            case TraceEvent.EXTRACT_END -> extract(e, data, now, spans);
             case TraceEvent.TASK_START -> taskStart(e, data, now, logs);
             case TraceEvent.TASK_END -> taskEnd(e, data, now, spans);
             case TraceEvent.FAILURE -> failure(e, data, now, logs);
@@ -726,6 +727,49 @@ public final class TraceMapper {
                 new Pending(
                         Ids.spanId(runId, e.step() + "#classify:" + name + ":" + n),
                         "classify " + model,
+                        Semconv.KIND_MODEL,
+                        name,
+                        null,
+                        e.step(),
+                        Math.max(0, now - duration * 1_000_000L),
+                        a);
+        spans.add(span(p, now, SpanRec.STATUS_OK, null, Map.of()));
+    }
+
+    /**
+     * An extract step is one model call under the extractor's name: tokens, time and attempts, never
+     * the inputs or the values (the trace event carries the names of the fields found and missing for
+     * the run's own trace; a span is a measurement).
+     */
+    private void extract(TraceEvent e, Map<String, Object> data, long now, List<SpanRec> spans) {
+        String name = text(data.get("extractor"), "extractor");
+        String model = text(data.get("model"), "model");
+        long duration =
+                data.get("duration_ms") == null ? 0 : Math.max(0, number(data.get("duration_ms")));
+        int n = modelCounts.merge(name + "@" + e.step(), 1, Integer::sum);
+        Map<String, Object> a = new LinkedHashMap<>();
+        a.put(Semconv.GEN_AI_OPERATION_NAME, "extract");
+        a.put(Semconv.GEN_AI_AGENT_NAME, name);
+        a.put(Semconv.GEN_AI_REQUEST_MODEL, model);
+        a.put(Semconv.GEN_AI_RESPONSE_MODEL, model);
+        a.put(
+                Semconv.GEN_AI_USAGE_INPUT_TOKENS,
+                data.get("input_tokens") == null ? 0L : number(data.get("input_tokens")));
+        a.put(
+                Semconv.GEN_AI_USAGE_OUTPUT_TOKENS,
+                data.get("output_tokens") == null ? 0L : number(data.get("output_tokens")));
+        a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_MODEL);
+        a.put(Semconv.LOOM_STEP, e.step());
+        a.put(
+                Semconv.LOOM_MODEL_ATTEMPTS,
+                data.get("attempts") == null ? 1L : number(data.get("attempts")));
+        a.put(Semconv.LOOM_MODEL_WAITED_MS, 0L);
+        a.put(Semconv.LOOM_MODEL_DURATION_MS, duration);
+        a.put(Semconv.LOOM_MODEL_TRUNCATED, false);
+        Pending p =
+                new Pending(
+                        Ids.spanId(runId, e.step() + "#extract:" + name + ":" + n),
+                        "extract " + model,
                         Semconv.KIND_MODEL,
                         name,
                         null,

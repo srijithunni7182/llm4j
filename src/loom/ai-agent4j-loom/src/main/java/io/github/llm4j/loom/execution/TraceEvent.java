@@ -149,6 +149,13 @@ public record TraceEvent(
     /** A resumed run reused the recorded answer of an {@code extract} step. */
     public static final String EXTRACT_REPLAYED = "extract_replayed";
 
+    /**
+     * A {@code for each … max N} found more items than its bound, before any item started: {@code
+     * count}, {@code max}, {@code list} (the path), {@code producer} (the agent or extractor that
+     * wrote the list, when one did) and {@code producerLine}. Never an item.
+     */
+    public static final String FANOUT_EXCEEDED = "fanout_exceeded";
+
     public static final String TASK_START = "task_start";
     public static final String TASK_END = "task_end";
     public static final String TASK_REPLAYED = "task_replayed";

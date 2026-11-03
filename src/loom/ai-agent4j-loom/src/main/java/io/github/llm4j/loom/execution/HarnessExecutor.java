@@ -3167,6 +3167,66 @@ public class HarnessExecutor implements LoomEngine {
         return done;
     }
 
+    /**
+     * A list longer than its bound. The workflow fails before any item starts, unless {@code
+     * on_too_many} says what to do. A list this far over its bound usually points upstream (what the
+     * planner was given or asked, or text trying to steer it), so the failure names who wrote it.
+     */
+    private void tooMany(ForEachStmt each, int count) {
+        io.github.llm4j.loom.ast.ListProducers.Producer producer = producerOf(each);
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("count", count);
+        data.put("max", each.getMax());
+        data.put("list", each.getCollectionPath());
+        if (producer != null) {
+            data.put("producer", producer.name());
+            data.put("producerLine", producer.line());
+        }
+        trace(
+                TraceEvent.FANOUT_EXCEEDED,
+                producer == null ? null : producer.name(),
+                each.getCollectionPath() + " has " + count + " items; the bound is " + each.getMax(),
+                data);
+        if (!each.getOnTooMany().isEmpty()) {
+            Map<String, Object> outer = locals.get();
+            Map<String, Object> names = new HashMap<>(outer);
+            names.put("_count", count);
+            names.put("_max", each.getMax());
+            locals.set(names);
+            try {
+                runBlock(each.getOnTooMany(), "t");
+            } finally {
+                locals.set(outer);
+            }
+            return;
+        }
+        throw new IllegalStateException(
+                each.getCollectionPath()
+                        + " has "
+                        + count
+                        + " items"
+                        + (producer == null
+                                ? ""
+                                : ", written by "
+                                        + producer.kind()
+                                        + " "
+                                        + producer.name()
+                                        + " (line "
+                                        + producer.line()
+                                        + ")")
+                        + "; this step takes at most "
+                        + each.getMax()
+                        + " (line "
+                        + each.getLine()
+                        + "). A list this far over its bound usually means a problem upstream: what "
+                        + (producer == null ? "wrote it" : producer.name())
+                        + " was given, what it was asked, or text in its input trying to steer it. No item was started.");
+    }
+
+    private io.github.llm4j.loom.ast.ListProducers.Producer producerOf(ForEachStmt each) {
+        return io.github.llm4j.loom.ast.ListProducers.of(script, each).orElse(null);
+    }
+
     private void executeForEach(ForEachStmt each) {
         Object collection = ConditionEvaluator.resolvePath(each.getCollectionPath(), view());
         List<?> items = collection instanceof List<?> l ? l : List.of();
@@ -3185,6 +3245,10 @@ public class HarnessExecutor implements LoomEngine {
                         + " item(s)"
                         + (each.isParallel() ? " in parallel" : ""));
         decisions.forEach(each, items.size(), view(), step.get());
+        if (each.getMax() > 0 && items.size() > each.getMax()) {
+            tooMany(each, items.size());
+            return;
+        }
         String parent = step.get();
         Map<String, Object> outer = locals.get();
         io.github.llm4j.budget.Budget eachBudget =

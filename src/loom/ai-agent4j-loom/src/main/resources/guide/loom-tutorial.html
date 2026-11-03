@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: cede0564a79d8e09acfdea87cd6436591693d425c9687aef30227fb1279bd7a6 -->
+<!-- source-sha256: 408b594c7bc11e5e0aa76241e962716f95723c7aeed0cb04d2b4b5bb4d109c8f -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -909,7 +909,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <span class="tk-k">workflow</span> Main(goal) {
     <span class="tk-k">delegate</span> <span class="tk-s">"Plan this goal: <span class="tk-v">{goal}</span>"</span> <span class="tk-k">to</span> Planner -&gt; plan
 
-    <span class="tk-k">for</span> <span class="tk-k">each</span> task <span class="tk-k">in</span> plan.tasks {
+    <span class="tk-k">for</span> <span class="tk-k">each</span> task <span class="tk-k">in</span> plan.tasks <span class="tk-k">max</span> <span class="tk-n">4</span> {
         <span class="tk-k">delegate</span> <span class="tk-s">"<span class="tk-v">{task.description}</span>"</span> <span class="tk-k">to</span> {task.owner} -&gt; {task.name}
     }
     <span class="tk-k">return</span> plan
@@ -931,7 +931,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <span class="tk-k">workflow</span> Main(goal) {
     <span class="tk-k">delegate</span> <span class="tk-s">"Plan this goal: <span class="tk-v">{goal}</span>"</span> <span class="tk-k">to</span> Planner -&gt; plan
 
-    <span class="tk-k">parallel</span> <span class="tk-k">for</span> <span class="tk-k">each</span> task <span class="tk-k">in</span> plan.tasks {
+    <span class="tk-k">parallel</span> <span class="tk-k">for</span> <span class="tk-k">each</span> task <span class="tk-k">in</span> plan.tasks <span class="tk-k">max</span> <span class="tk-n">4</span> {
         <span class="tk-k">delegate</span> <span class="tk-s">"<span class="tk-v">{task.description}</span>"</span> <span class="tk-k">to</span> {task.owner} -&gt; {task.name}
             <span class="tk-k">retry</span> <span class="tk-n">1</span> <span class="tk-k">timeout</span> <span class="tk-n">90s</span>
             <span class="tk-k">on_failure</span> { <span class="tk-k">note</span> <span class="tk-s">"Task <span class="tk-v">{task.name}</span> failed: <span class="tk-v">{_error}</span>"</span> }
@@ -939,6 +939,42 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
     <span class="tk-k">return</span> plan
 }</code></pre></figure>
 <p>This is starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/06-plan-and-fan-out" target="_blank" rel="noopener">06-plan-and-fan-out</a>: a plan becomes parallel work. Each item gets its own failure handling, so one bad task does not stop the others.</p>
+<h3 id="c04-bound-a-list-a-model-wrote-max-and-on_too_many">Bound a list a model wrote: <code>max</code> and <code>on_too_many</code></h3>
+<blockquote>
+<p><strong>You don&#39;t need this until</strong> a <code>for each</code> walks over a list an agent produced.</p>
+</blockquote>
+<p>The length of that list is chosen by a model, or by text that steered it. A planner that returns 400 tasks instead of 4 would start 400 steps; a budget would stop the run, but part-way, with some tasks done and others not. Put a bound on the loop:</p>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
+
+<span class="tk-k">agent</span> Planner {
+    model: <span class="tk-s">"gemini-2.5-flash"</span>
+    system: <span class="tk-s">"Split the goal into 2 to 4 small tasks."</span>
+    output_schema: { tasks: list&lt;string&gt; }
+}
+<span class="tk-k">agent</span> Worker { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Do the task and report briefly."</span> }
+
+<span class="tk-k">workflow</span> Main(goal) {
+    <span class="tk-k">delegate</span> <span class="tk-s">"Plan this goal: <span class="tk-v">{goal}</span>"</span> <span class="tk-k">to</span> Planner -&gt; plan
+
+    <span class="tk-k">for</span> <span class="tk-k">each</span> task <span class="tk-k">in</span> plan.tasks <span class="tk-k">max</span> <span class="tk-n">4</span> {
+        <span class="tk-k">delegate</span> <span class="tk-s">"<span class="tk-v">{task}</span>"</span> <span class="tk-k">to</span> Worker -&gt; done
+        <span class="tk-k">note</span> <span class="tk-s">"<span class="tk-v">{done}</span>"</span>
+    } on_too_many {
+        <span class="tk-k">human_prompt</span> <span class="tk-s">"The plan has <span class="tk-v">{_count}</span> tasks and this step takes <span class="tk-v">{_max}</span>. Continue with a shorter plan? (yes/no)"</span> -&gt; answer
+        <span class="tk-k">alt</span> (answer == <span class="tk-s">"yes"</span>) {
+            <span class="tk-k">note</span> <span class="tk-s">"continuing with a shorter plan"</span>
+        } <span class="tk-k">else</span> {
+            <span class="tk-k">halt</span> <span class="tk-s">"the plan was too long"</span>
+        }
+    }
+    <span class="tk-k">return</span> plan
+}</code></pre></figure>
+<ul>
+<li>A list longer than <code>max</code> <strong>fails the workflow before any item starts</strong>, unless <code>on_too_many { ... }</code> says what to do instead. <code>_count</code> and <code>_max</code> are in scope inside it. Nothing is half done.</li>
+<li>The failure names the agent that wrote the list and both lines: <em>plan.tasks has 412 items, written by agent Planner (line 9); this step takes at most 4 (line 11)</em>. A list this far over its bound usually means a problem <strong>upstream</strong>: what the planner was given, what it was asked, or text in its input trying to steer it. Fix that, and add a golden case to the planner&#39;s dataset that asserts its list stays within the bound (<code>weave capture</code> turns the failed run into a test).</li>
+<li><code>weave review</code> rule <strong>LR13</strong> warns about a <code>for each</code> over a model-written list with no <code>max</code>, and <code>weave review</code>&#39;s cost estimate calls the worst case <em>unknown</em> until there is one.</li>
+<li>The bound is the last line of defence. Tell the planner the limit in its instructions too.</li>
+</ul>
 <h2 id="c04-parallel-do-several-things-at-once"><code>parallel</code>: do several things at once</h2>
 <p><code>parallel { ... }</code> runs every statement inside it at the same time and waits for all of them before moving on:</p>
 <figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
@@ -3830,6 +3866,11 @@ extractor ResearchFields {
 <td><code>env.NAME</code> or <code>secret.NAME</code></td>
 </tr>
 <tr>
+<td>A <code>for each</code> over a list an agent wrote, with no <code>max</code> (LR13)</td>
+<td>The list may be any length; a budget stops it part-way</td>
+<td><code>max N</code>, and tell the planner the limit</td>
+</tr>
+<tr>
 <td>An agent that reasons (tools, web, rounds, a long prompt) must answer in a large schema (LP10)</td>
 <td>&quot;JSON only&quot; leaves it no room to think</td>
 <td>Let it write prose and add an <code>extractor</code> (<code>weave review --fix-finding LP10 --option split</code>)</td>
@@ -3899,7 +3940,7 @@ workflow Name(p1, p2) {
     broadcast "task" to [A, B] -&gt; result
     handoff "task" to Agent
     parallel { ... }
-    for each x in list.items { ... }          parallel for each x in list.items { ... }
+    for each x in list.items max N { ... } on_too_many { ... }          parallel for each x in list.items max N { ... }
     alt (a == "b") { ... } else { ... }
     loop until (a == "b") max 5 { ... } on_exhausted { ... }
     call Other(arg = value) -&gt; result

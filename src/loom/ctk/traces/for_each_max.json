@@ -1,0 +1,15 @@
+{
+  "scriptName": "for_each_max.loom",
+  "workflowName": "main",
+  "cases": {
+    "within": {
+      "outcome": "completed",
+      "workerCalls": 2
+    },
+    "over": {
+      "outcome": "failed",
+      "workerCalls": 0,
+      "failureEvent": { "type": "fanout_exceeded", "count": 3, "max": 2, "producer": "Planner" }
+    }
+  }
+}

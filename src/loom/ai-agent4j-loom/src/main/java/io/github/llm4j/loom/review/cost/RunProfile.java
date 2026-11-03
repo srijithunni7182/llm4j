@@ -360,6 +360,7 @@ public final class RunProfile {
 
         Part forEach(ForEachStmt f) {
             long n = assume.get(worst ? "assume.foreach.max" : "assume.foreach.items");
+            if (f.getMax() > 0) n = worst ? f.getMax() : Math.min(n, f.getMax());
             Part body = block(f.getBody());
             // parallel: the items overlap in time, but every one still causes its effects
             Part all = body.times(n);

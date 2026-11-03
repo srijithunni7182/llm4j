@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Bounded fan-out.** `for each … max N` and `on_too_many` are highlighted and explained on hover; the graph shows a `for each` bound. Needs the engine's bounded fan-out (phase 25).
 - **Extractors.** The `extractor` and `extract` words are highlighted and have hover help, and two snippets: `extractor` (a stateless step that pulls typed fields out of text) and `extract`. The graph draws an `extract` step like a classification. Needs the engine's extractor support (phase 24).
 - **Who sees what was said before.** The agent details card shows what each agent sees ("everything said before it", "its own earlier exchanges", "nothing said before it") and whether it is left out of the shared prompt; `transcript` has hover help.
 

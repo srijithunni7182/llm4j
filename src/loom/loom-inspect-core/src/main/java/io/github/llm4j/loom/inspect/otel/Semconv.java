@@ -184,6 +184,13 @@ public final class Semconv {
     public static final String LOOM_INSPECT_LOOP = "loom.inspect.loop";
     public static final String LOOM_INSPECT_HASH = "loom.inspect.hash";
     public static final String EV_NOTE = "loom.note";
+
+    /**
+     * A {@code for each … max N} found more items than its bound before any item started. Carries
+     * {@code loom.data.count}, {@code max}, {@code list}, {@code producer} and {@code
+     * producerLine}; never an item.
+     */
+    public static final String EV_FANOUT_EXCEEDED = "loom.fanout_exceeded";
     public static final String EV_CONTEXT = "loom.context";
     public static final String EV_COMPACTION = "loom.compaction";
 

@@ -101,15 +101,18 @@ final class NodeDescriber {
             return d;
         }
         if (st instanceof ForEachStmt f) {
-            return new Described(
-                            Kinds.FOREACH,
-                            "for each " + f.getItemName() + " in " + f.getCollectionPath())
-                    .attrs(
-                            Attrs.create()
-                                    .text("item", f.getItemName())
-                                    .text("collection", f.getCollectionPath())
-                                    .flag("parallel", f.isParallel())
-                                    .budget(f.getBudget()));
+            Described d =
+                    new Described(
+                                    Kinds.FOREACH,
+                                    "for each " + f.getItemName() + " in " + f.getCollectionPath())
+                            .attrs(
+                                    Attrs.create()
+                                            .text("item", f.getItemName())
+                                            .text("collection", f.getCollectionPath())
+                                            .flag("parallel", f.isParallel())
+                                            .budget(f.getBudget()));
+            d.bound = f.getMax() > 0 ? f.getMax() : null;
+            return d;
         }
         if (st instanceof HumanPromptStmt h) {
             return new Described(Kinds.HUMAN_PROMPT, "ask a person")

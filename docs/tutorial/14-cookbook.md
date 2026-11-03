@@ -214,6 +214,7 @@ line 1: agent Helper: unknown model "totally-unknown-model": use gemini-…, cla
 | One shared variable written by two `parallel` branches | A race: you get one of the answers | One variable per branch |
 | Both answers to a `human_prompt` lead to the same steps | The question changes nothing | Give each answer its own branch |
 | A key written in the script | A load error, on purpose | `env.NAME` or `secret.NAME` |
+| A `for each` over a list an agent wrote, with no `max` (LR13) | The list may be any length; a budget stops it part-way | `max N`, and tell the planner the limit |
 | An agent that reasons (tools, web, rounds, a long prompt) must answer in a large schema (LP10) | "JSON only" leaves it no room to think | Let it write prose and add an `extractor` (`weave review --fix-finding LP10 --option split`) |
 | A branch on a field of an agent that has no schema (LR05, LP02) | The field may be missing or spelt differently | An `intentclassifier` for a label, an `extractor` for fields an agent worked out, or a small `output_schema` |
 | An agent with an `output_schema` that only pulls fields out of text (LP09) | It is briefed with the whole run and the shared prompt, so it can answer differently depending on what ran before | An `extractor` (`weave review --fix-finding LP09 --option to-extractor`) |
@@ -262,7 +263,7 @@ workflow Name(p1, p2) {
     broadcast "task" to [A, B] -> result
     handoff "task" to Agent
     parallel { ... }
-    for each x in list.items { ... }          parallel for each x in list.items { ... }
+    for each x in list.items max N { ... } on_too_many { ... }          parallel for each x in list.items max N { ... }
     alt (a == "b") { ... } else { ... }
     loop until (a == "b") max 5 { ... } on_exhausted { ... }
     call Other(arg = value) -> result

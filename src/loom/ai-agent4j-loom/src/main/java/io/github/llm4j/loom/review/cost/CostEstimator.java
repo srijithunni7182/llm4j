@@ -412,7 +412,20 @@ public final class CostEstimator {
         }
 
         void forEach(ForEachStmt f) {
-            long n = c.assume.get(worst ? "assume.foreach.max" : "assume.foreach.items");
+            long assumed = c.assume.get(worst ? "assume.foreach.max" : "assume.foreach.items");
+            // a declared bound is a fact; without one, a list a model wrote has no known worst case
+            long n = f.getMax() > 0 ? Math.min(assumed, f.getMax()) : assumed;
+            if (worst && f.getMax() > 0) n = f.getMax();
+            if (f.getMax() == 0
+                    && io.github.llm4j.loom.ast.ListProducers.of(c.script, f).isPresent()) {
+                if (worst) unbounded = true;
+                note(
+                        "for each "
+                                + f.getCollectionPath()
+                                + " (line "
+                                + f.getLine()
+                                + "): worst case unknown, the list has no bound (add max N)");
+            }
             repeat(n, () -> block(f.getBody()));
             if (worst) block(f.getOnExhausted());
         }

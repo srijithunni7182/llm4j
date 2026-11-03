@@ -1872,6 +1872,15 @@ public class LoomParser {
         if (!"in".equals(in.getValue())) throw error(in, "Expect 'for each <item> in <list>'.");
         Token list =
                 consume(TokenType.IDENTIFIER, "Expect the list to iterate, e.g. review.fixes.");
+        int max = 0;
+        if (check(TokenType.IDENTIFIER) && "max".equals(peek().getValue())) {
+            Token keyword = advance();
+            Token n = consume(TokenType.NUMBER_LITERAL, "Expect the most items, as in max 10.");
+            double v = Double.parseDouble(n.getValue());
+            if (v < 1 || v != Math.floor(v))
+                throw error(keyword, "for each max must be at least 1 and a whole number, got " + n.getValue());
+            max = (int) v;
+        }
         io.github.llm4j.loom.ast.BudgetDef budget = null;
         while (isBudgetModifier()) budget = parseBudgetModifier(budget);
         consume(TokenType.LBRACE, "Expect '{' before for each body.");
@@ -1882,6 +1891,19 @@ public class LoomParser {
         consume(TokenType.RBRACE, "Expect '}' after for each body.");
         ForEachStmt loop = new ForEachStmt(item.getValue(), list.getValue(), body, parallel);
         loop.setBudget(budget);
+        loop.setMax(max);
+        if (check(TokenType.IDENTIFIER) && "on_too_many".equals(peek().getValue())) {
+            Token keyword = advance();
+            if (max == 0)
+                throw error(
+                        keyword,
+                        "on_too_many needs a bound: add max N after the list, as in for each t in plan.tasks max 10 { … } on_too_many { … }");
+            consume(TokenType.LBRACE, "Expect '{' before on_too_many body.");
+            while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                loop.getOnTooMany().add(parseStatement());
+            }
+            consume(TokenType.RBRACE, "Expect '}' after on_too_many body.");
+        }
         if (check(TokenType.IDENTIFIER) && "on_exhausted".equals(peek().getValue())) {
             Token keyword = advance();
             if (budget == null)
