@@ -1,0 +1,12 @@
+{
+  "scriptName": "extract_fields.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "extract",
+      "extractor": "Invoice",
+      "present": "vendor",
+      "missing": "total"
+    }
+  ]
+}

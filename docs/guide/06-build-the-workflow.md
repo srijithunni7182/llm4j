@@ -100,6 +100,28 @@ workflow Refund(msg) {
 - A task spends no tokens and does not count against the run budget; a task that changes things is **never repeated by a crash or a `retry`** unless it is idempotent.
 - Reference: `weave guide loom`, the section "Tasks".
 
+## Extracting: pull fields out of text with an extractor, not an agent
+
+When a step only has to pull fields out of text (an invoice, an email, a form), do not ask an agent to do it. An agent sees the whole run so far and the shared prompt, so what it extracts depends on what ran before it, and a test of the agent on its own does not predict what it does inside the workflow. Declare an `extractor` and use `extract`: it is handed only the text you name and the fields you want.
+
+```loom
+extractor Invoice {
+    model: "gemini-2.5-flash"
+    instructions: "Read the invoice. Use the vendor's legal name."
+    fields { vendor: string  total: number }
+    optional: [total]
+}
+
+workflow Main(text) {
+    extract Invoice from text -> invoice retry 1 on_failure { halt "Unreadable: {_error}" }
+    alt (invoice.total == missing) { note "no total on the invoice" } else { note "total {invoice.total}" }
+}
+```
+
+- The text is **data**: it goes to the model between markers that say it is untrusted, and the extractor never sees the transcript, so an earlier agent's words cannot steer it.
+- A field the text does not state is `missing` (optional) or fails the step (required). The runtime never invents a value.
+- Test an extractor on its own with `weave test` (script its answer in `models:`), and with golden cases once `weave eval` has them.
+
 ## Classifying: route and judge with a classifier, not an agent
 
 When a step only has to choose (which team gets this message? did the reply meet the criterion? how angry is the customer?), do not ask an agent to write an answer and then parse it. Declare an `intentclassifier` and use `intentclassify`: one call, a label out, no prose to misread, a confidence you can act on.

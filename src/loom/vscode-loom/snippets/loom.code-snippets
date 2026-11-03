@@ -155,6 +155,28 @@
     ],
     "description": "Classify a text with a declared classifier; the answers are intent.kind and so on. Branch on unsure and send it to a person."
   },
+  "extractor": {
+    "prefix": "extractor",
+    "body": [
+      "extractor ${1:Invoice} {",
+      "\tmodel: \"${2:gemini-2.5-flash}\"",
+      "\tinstructions: \"${3:Read the text. Use only what it states.}\"",
+      "\tfields {",
+      "\t\t${4:vendor}: string",
+      "\t\t${5:total}: number",
+      "\t}",
+      "\toptional: [${5:total}]",
+      "}"
+    ],
+    "description": "Declare an extractor: a stateless model step that pulls typed fields out of the text it is handed and nothing else (no transcript, no shared prompt). List the fields it may leave out in optional."
+  },
+  "extract": {
+    "prefix": "extract",
+    "body": [
+      "extract ${1:Invoice} from ${2:topic_text} -> ${3:fields} retry 1 timeout 30s"
+    ],
+    "description": "Run an extractor on a text; the fields are fields.vendor and so on. An optional field the text does not state reads as missing."
+  },
   "halt": {
     "prefix": "halt",
     "body": [

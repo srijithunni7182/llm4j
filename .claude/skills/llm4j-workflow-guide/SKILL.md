@@ -42,6 +42,7 @@ Read `references/conventions.md` before you start. It sets nine rules the llm4j 
 
 ## How to guide
 
+0a. **An extraction problem is not a conversation.** A step that only pulls fields out of text is an `extractor` (`extract Name from text -> var`), not an agent with an `output_schema`: the extractor is stateless, so it never sees the run's transcript or the shared prompt, and a test of it on its own predicts what it does inside the workflow. Declare the fields, list the ones the text may leave out in `optional:`, and branch on `== missing`. It is the sibling of "a classification problem is not a generation problem".
 0. **Start from a template, not from an example.** For a new project run `weave init pipeline|approval|classifier|empty` (`empty` has nothing from a sample to delete; otherwise delete the sample's leftover agents, prompts and examples as soon as you rename the project, and tell the user which you removed and why) (pick the one nearest what the
    user described) and change it. Whatever you copy is a **reference to be modified, never a finished product**: say so to the user, and change its agents, prompts, tools, dataset and limits to fit their workflow. A large example app is a case study, not a starting point: copy a small template that already passes
    `weave check --no-env` and `weave eval --mock`.

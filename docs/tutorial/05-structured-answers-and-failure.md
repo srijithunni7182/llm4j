@@ -108,6 +108,45 @@ workflow Main(text) {
 
 `expecting { ... }` overrides the agent's own schema for that step only. On a `delegate`, `expecting` comes **before** `retry`: `delegate "..." to A -> x expecting { ok: boolean } retry 1`.
 
+## Extractors: fields from text, with nothing else
+
+> **You don't need this until** a step only has to pull fields out of text (an invoice, an email, a form). Until then, skip to [When a step fails](#when-a-step-fails).
+
+An agent with an `output_schema` can pull fields out of text, but it is an *agent*: it is given the whole run so far and the shared prompt, it can pick up the house voice, and what it extracts can depend on what ran before it. For a step that only reads, that is more than it needs. An **extractor** is a step that is handed only the text you name and the fields you want, and remembers nothing.
+
+```loom
+substitution: braces
+
+extractor Invoice {
+    model: "gemini-2.5-flash"
+    instructions: "Read the invoice. Use the vendor's legal name."
+    fields {
+        vendor: string
+        total: number
+    }
+    optional: [total]
+}
+
+workflow Main(text) {
+    extract Invoice from text -> invoice retry 1 on_failure {
+        halt "Could not read an invoice: {_error}"
+    }
+    alt (invoice.total == missing) {
+        note "no total on the invoice from {invoice.vendor}"
+    } else {
+        note "{invoice.vendor}: {invoice.total}"
+    }
+}
+```
+
+- `extractor Name { ... }` declares it once; `extract Name from text -> invoice` runs it. Pass several inputs with `from (email = msg, order = record)`.
+- **It sees only its instructions, the fields and the inputs you name.** Not the transcript, not the shared prompt. The text is handed over as *data*: if it says "ignore your instructions", that is just text to read.
+- **The instructions are fixed text** with no `{...}`. To give it a value, pass it as an input.
+- **A field the text does not state.** List it in `optional: [...]` and the field is absent when the text does not state it; test for it with `== missing`. A field not listed is required: if the text does not state it, the step fails at once (asking again would give the same answer) and `on_failure` decides what happens. Loom never fills in a value the model did not give.
+- An answer in the wrong shape is a failed attempt, as for an agent: it is told what was wrong and asked once more, then `retry` applies.
+
+In a test, script the extractor's answer like an agent's: `models: { Invoice: { vendor: Acme } }`.
+
 ## When a step fails
 
 Things go wrong. The model provider returns an error, a tool times out, an answer never matches its schema. Three tools let you say what to do about it.

@@ -256,6 +256,10 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**shared_prompt** `: "text"` or `: prompt "id"`\n\nTop level: text put in front of every agent\'s own system prompt, the same bytes for every agent. `prompt "id"` takes a prompt file like an agent\'s `prompt:`. Keep it stable (no dates or run ids) so a provider that reuses the start of a prompt can reuse it across agents.',
     intentclassifier:
         '**intentclassifier** `Name { model: "Jev/jev-latest"  choose kind: a | b  ask urgent: "…"  rate tone: low | high  samples: 3  pii: mask  confidence at least 0.8 else escalate }`\n\nDeclares typed questions answered in one call by Jev or a chat model. The text to classify is data, never instructions. `unsure` is produced only by the confidence rule.',
+    extractor:
+        '**extractor** `Name { model: "…"  instructions: "…"  fields { a: string  b: number }  optional: [b]  pii: mask }`\n\nDeclares a stateless model step that pulls typed fields out of the text it is handed. It sees only its fixed instructions, the schema and the named inputs: never the run transcript, the shared prompt, a persona or tools. A required field the text does not state fails the step; an optional one reads as `missing`.',
+    extract:
+        '**extract** `Extractor from <text> -> <result> [retry N] [timeout 30s] [on_failure { ... }]`\n\nRuns the extractor on the text (`from (email = msg, order = rec)` for several inputs) and binds the fields it found: `result.vendor`. Test an optional field with `alt (result.total == missing)`.',
     intentclassify:
         '**intentclassify** `Classifier on <text> -> <result> [retry N] [timeout 30s] [on_failure { ... }]`\n\nPuts the classifier\'s questions to the text and binds one label per question: `result.kind`, `result.urgent` (`yes`/`no`), with `result.kind_confidence`, `result.confidence`, `result.calibrated`. Branch on `unsure`; do not let a label alone approve a payment.',
     choose:

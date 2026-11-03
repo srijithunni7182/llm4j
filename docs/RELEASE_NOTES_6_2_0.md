@@ -2,6 +2,10 @@
 
 All eleven artifacts are at `6.2.0`, aligned ([VERSION_MATRIX.md](VERSION_MATRIX.md)). This release is the field findings program ([docs/specs/FIELD_FINDINGS.md](specs/FIELD_FINDINGS.md)), a Loom tutorial and a starter set. Each item says what changed for you.
 
+## The engineering discipline program (phases 24 to 29, in progress)
+
+- **Extractors (phase 24a).** A new internal node, `extractor` / `extract X from text -> var`, pulls typed fields out of text with no transcript, no shared prompt and no tools. An optional field the text does not state is `missing`; a required one is never invented and fails the step at once. It is journaled, budgeted, traced by field names only, drawn in the graph, scriptable in `weave test`, mocked in `weave eval --mock`, asserted in eval4j (`runsExtractTimes`, `extractedField`, `leftMissing`) and listed as its own cost line. Existing scripts are unaffected.
+
 ## Fixed: answers are no longer cut short without a word
 
 - **No more silent 1,024-token limit.** With a token or cost budget and no `per_call`, every model call was capped at 1,024 output tokens (`BudgetSet.DEFAULT_OUTPUT`), so long answers ended mid-sentence while the run

@@ -21,7 +21,7 @@ function expand(body: string[]): string {
 }
 
 // Statement-level snippets go inside a workflow; the rest are whole top-level definitions.
-const TOP = new Set(['intentclassifier', 'agent', 'agent-private', 'agent-steerable', 'agent-grounded', 'intervention', 'supervise', 'workflow', 'budget', 'tool', 'tool-class', 'import']);
+const TOP = new Set(['extractor', 'intentclassifier', 'agent', 'agent-private', 'agent-steerable', 'agent-grounded', 'intervention', 'supervise', 'workflow', 'budget', 'tool', 'tool-class', 'import']);
 // Not checkable on their own: a task is Java (graph only), an import needs a file.
 // halt and return end the path (the frame's own statements after them would never run), and `is ok` needs a real run result.
 const PARSE_ONLY = new Set(['agent-grounded', 'run', 'halt', 'return', 'isok']);
@@ -42,6 +42,11 @@ function frame(name: string, text: string): string {
     }
     if (name === 'agent' || name === 'agent-private' || name === 'agent-steerable' || name === 'agent-grounded') {
         return text + '\nworkflow Main(topic_text) {\n    delegate "x" to ' + /agent (\w+)/.exec(text)![1] + ' -> out_text\n    note "{out_text}"\n}\n';
+    }
+    if (name === 'extract') {
+        // a statement that needs an extractor declared above it
+        return PRELUDE + 'extractor Invoice { model: "ollama/llama3" fields { vendor: string, total: number } optional: [total] }\nworkflow Main(topic_text) {\n' +
+            text.split('\n').map((l) => '    ' + l).join('\n') + '\n    note "{fields.vendor}"\n}\n';
     }
     if (name === 'intentclassify') {
         // a statement that needs a classifier declared above it

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Extractors.** The `extractor` and `extract` words are highlighted and have hover help, and two snippets: `extractor` (a stateless step that pulls typed fields out of text) and `extract`. The graph draws an `extract` step like a classification. Needs the engine's extractor support (phase 24).
+
 ## 1.2.1
 
 - **The Loom tutorial comes with the extension.** The engine it carries now includes the tutorial as a web page: run `weave guide tutorial` in a terminal to write `loom-tutorial.html` and open it in a browser. It covers the language from a first workflow to running in production, with diagrams and fifteen starter workflows.

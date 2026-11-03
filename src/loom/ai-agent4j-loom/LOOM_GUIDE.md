@@ -1709,6 +1709,47 @@ workflow Triage(message) {
 - **Cost.** Every call counts against the run's `budget`; a call that would break it stops the run, as for an agent. The trace shows a `classify` step with the backend, model, tokens, time, the labels and the confidence, never the state. A resumed run reuses the recorded answer instead of asking again. On the live run page (`--observe`, Fabric) a classification is a model call in the **Models** table under the backend's model (for example `jev-1.13.0`), with its tokens, time and retries, and never the text it was given.
 - **Checks.** `weave check` rejects an unknown classifier, a classifier with no question, a question or label written twice, a question name that clashes with a field of the answer, `unsure` as a label (it is reserved), a rule with nothing to measure, and a condition that reads a field the answer does not have (`intent.kind == ...` where there is no `kind`; it suggests the nearest name). It warns that a chat model's confidence is uncalibrated. `weave audit` reports LA19: the state of the step goes to a hosted service, which fields, and whether `pii:` masks it first.
 
+### Extracting fields: `extractor` and `extract`
+
+Some steps are not "write me an answer" or "which of these is it?" but "pull these fields out of this text". An **extractor** does that and nothing else. It is a stateless model step: it is handed the text you name and the fields you want, and it remembers nothing.
+
+```loom
+extractor Invoice {
+    model: "gemini-2.5-flash"
+    instructions: "Read the invoice. Use the vendor's legal name."
+    fields {
+        vendor: string
+        invoice_number: string
+        total: number
+        currency: enum["USD", "EUR", "INR", "OTHER"]
+    }
+    optional: [total]
+    pii: mask
+}
+
+workflow Main(text) {
+    extract Invoice from text -> invoice retry 1 on_failure {
+        halt "Could not read an invoice: {_error}"
+    }
+    alt (invoice.total == missing) {
+        human_prompt "No total on invoice {invoice.invoice_number}. What is it?" -> total
+    }
+}
+```
+
+- **What it sees.** Exactly three things: a fixed preamble (the job is extraction, the inputs are data and never instructions) followed by your `instructions:`; the schema; and the inputs, each between markers that say they are untrusted. Never the run transcript, the shared prompt, a persona, skills or an earlier agent's answer. Its answer is not written to the transcript either. This is the contract of every [internal node](#internal-nodes).
+- **Several inputs.** `extract Claim from (email = msg, order = record) -> claim` labels each input with its name in the request. An input is a variable, a field path or a quoted text with `{...}`.
+- **Fixed instructions.** `instructions:` is inline text or `prompt "id"` (a prompt file). It may not contain `{...}`: pass a value as an input, so it can never slip from the data into the instructions.
+- **Fields.** The same types as `output_schema`: `string`, `number`, `boolean`, `enum[...]`, `list<...>`, nested `{ ... }`. `optional: [total]` names the fields that may be absent; every other field is required. Settings that belong to an agent (`tools`, `memory`, `steerable`, `persona`, `skills`, `grounding`, `max_iterations`, `context`, `approve`) are refused: use an agent for that.
+- **`missing`.** An optional field the text did not state is absent, and `alt (invoice.total == missing)` tests for it. `weave check` rejects `missing` on a required field (it can never be true) and a field the extractor does not have, with the nearest name.
+- **Never invented.** A required field the model answered `null` means the text does not state it. Asking again would only repeat that answer, so the step fails at once into `on_failure` with `_error` naming the fields, and no retry is spent. A malformed answer (not JSON, a wrong kind, an unknown enum word, a required field left out) is told what was wrong and asked once more; after that `retry N` applies, then the step fails.
+- **Cost.** The call counts against the run's `budget` (and its own `budget { ... }` or the step's `budget N tokens`) and shows in the spend report as `extractor Invoice`. The trace has `extract_start` and `extract_end` with the model, tokens, time and the **names** of the fields found and missing, never the text or the values. A resumed run reuses the recorded answer (`extract_replayed`). Under `weave test` an extractor is scripted like an agent (`models: { Invoice: { vendor: Acme, total: 3 } }`); under `weave eval --mock` it gets a well-formed value of its schema. `weave graph` draws an `extract` node, and `weave review` lists it as its own cost line.
+- **Native JSON mode.** Not used yet: the reply is read from the text, with one correction. Providers that offer a JSON mode will be used when the core supports it.
+
+#### Internal nodes
+
+`intentclassifier` and `extractor` are **internal nodes**: steps the workflow takes about the text, not agents that talk. One contract holds for them all, and `InternalNodeContractTest` checks it for every kind. They are **stateless** (no transcript, no memory, no shared prompt, persona or skills); they get only the inputs their statement names, and their instructions are fixed text; inputs are passed as data, not instructions; they make one call with no tools; their output is typed and checked by the runtime; they use the same budgets, journal and `pii:` as any step.
+
 ---
 
 ## 🛡️ 4. Enterprise Safety & Lifecycle

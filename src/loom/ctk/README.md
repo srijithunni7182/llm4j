@@ -32,6 +32,14 @@ no model text. `scripts/classify_basic.loom` and `scripts/classify_unsure.loom` 
 text the workflow is started with to what the backend answers (`label` and `probability` for a choice, `yes` for a yes/no, `position` for a score), so a runtime needs no network
 or key. The Java runtime runs them in `ClassifyCtkConformanceTest` (module `ai-agent4j-loom`).
 
+## Extraction steps (`extract`)
+
+An `extract Extractor from text -> result` statement is a stateless model step: it is handed only the text named in the statement and binds the fields it found.
+Its trace step has `"kind": "extract"`, the `extractor` name, and `present` and `missing`: the **names** of the fields found and of the optional fields the text did not state,
+joined by commas in declaration order. The step carries no input and no value. `scripts/extract_fields.loom` is the canonical scenario; `mocks/extract_fields.json` maps the
+extractor's name and the text the workflow is started with to the JSON the model answers, so a runtime needs no network or key. The Java runtime runs it in `ExtractCtkConformanceTest`
+(module `ai-agent4j-loom`).
+
 ## Provider declarations
 
 `scripts/provider_declarations.loom` declares one provider of every kind the language accepts: `openai` (with `api: responses`), `xai`, `kimi`, `qwen`, `perplexity`,

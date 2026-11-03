@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: cc6be7d40f13c940ba631de48420a011e327b0b1efcb7a93f6ea6cac031bdb91 -->
+<!-- source-sha256: eeba27764a7408f964da5d227401b062c8aa9e97e90a205d596631fa6df8a8fa -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -212,7 +212,7 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
 <tr>
 <td>5</td>
 <td><a href="#c05">Structured answers and failure</a></td>
-<td><code>output_schema</code>, <code>expecting</code>, <code>retry</code>, <code>backoff</code>, <code>timeout</code>, <code>on_failure</code>, degraded runs</td>
+<td><code>output_schema</code>, <code>expecting</code>, <code>extractor</code> and <code>extract</code>, <code>retry</code>, <code>backoff</code>, <code>timeout</code>, <code>on_failure</code>, degraded runs</td>
 <td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/03-review-loop" target="_blank" rel="noopener">03</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/05-parallel-research" target="_blank" rel="noopener">05</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/08-extract-and-validate" target="_blank" rel="noopener">08</a></td>
 </tr>
 <tr>
@@ -1158,6 +1158,41 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
     }
 }</code></pre></figure>
 <p><code>expecting { ... }</code> overrides the agent&#39;s own schema for that step only. On a <code>delegate</code>, <code>expecting</code> comes <strong>before</strong> <code>retry</code>: <code>delegate &quot;...&quot; to A -&gt; x expecting { ok: boolean } retry 1</code>.</p>
+<h2 id="c05-extractors-fields-from-text-with-nothing-else">Extractors: fields from text, with nothing else</h2>
+<blockquote>
+<p><strong>You don&#39;t need this until</strong> a step only has to pull fields out of text (an invoice, an email, a form). Until then, skip to <a href="#c05-when-a-step-fails">When a step fails</a>.</p>
+</blockquote>
+<p>An agent with an <code>output_schema</code> can pull fields out of text, but it is an <em>agent</em>: it is given the whole run so far and the shared prompt, it can pick up the house voice, and what it extracts can depend on what ran before it. For a step that only reads, that is more than it needs. An <strong>extractor</strong> is a step that is handed only the text you name and the fields you want, and remembers nothing.</p>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
+
+extractor Invoice {
+    model: <span class="tk-s">"gemini-2.5-flash"</span>
+    instructions: <span class="tk-s">"Read the invoice. Use the vendor's legal name."</span>
+    fields {
+        vendor: string
+        total: number
+    }
+    optional: [total]
+}
+
+<span class="tk-k">workflow</span> Main(text) {
+    extract Invoice from text -&gt; invoice <span class="tk-k">retry</span> <span class="tk-n">1</span> <span class="tk-k">on_failure</span> {
+        <span class="tk-k">halt</span> <span class="tk-s">"Could not read an invoice: <span class="tk-v">{_error}</span>"</span>
+    }
+    <span class="tk-k">alt</span> (invoice.total == missing) {
+        <span class="tk-k">note</span> <span class="tk-s">"no total on the invoice from <span class="tk-v">{invoice.vendor}</span>"</span>
+    } <span class="tk-k">else</span> {
+        <span class="tk-k">note</span> <span class="tk-s">"<span class="tk-v">{invoice.vendor}</span>: <span class="tk-v">{invoice.total}</span>"</span>
+    }
+}</code></pre></figure>
+<ul>
+<li><code>extractor Name { ... }</code> declares it once; <code>extract Name from text -&gt; invoice</code> runs it. Pass several inputs with <code>from (email = msg, order = record)</code>.</li>
+<li><strong>It sees only its instructions, the fields and the inputs you name.</strong> Not the transcript, not the shared prompt. The text is handed over as <em>data</em>: if it says &quot;ignore your instructions&quot;, that is just text to read.</li>
+<li><strong>The instructions are fixed text</strong> with no <code>{...}</code>. To give it a value, pass it as an input.</li>
+<li><strong>A field the text does not state.</strong> List it in <code>optional: [...]</code> and the field is absent when the text does not state it; test for it with <code>== missing</code>. A field not listed is required: if the text does not state it, the step fails at once (asking again would give the same answer) and <code>on_failure</code> decides what happens. Loom never fills in a value the model did not give.</li>
+<li>An answer in the wrong shape is a failed attempt, as for an agent: it is told what was wrong and asked once more, then <code>retry</code> applies.</li>
+</ul>
+<p>In a test, script the extractor&#39;s answer like an agent&#39;s: <code>models: { Invoice: { vendor: Acme } }</code>.</p>
 <h2 id="c05-when-a-step-fails">When a step fails</h2>
 <p>Things go wrong. The model provider returns an error, a tool times out, an answer never matches its schema. Three tools let you say what to do about it.</p>
 <h3 id="c05-retry-backoff-timeout"><code>retry</code>, <code>backoff</code>, <code>timeout</code></h3>
