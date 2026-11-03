@@ -255,20 +255,25 @@ This is starter [08-extract-and-validate](../../src/loom/starters/08-extract-and
 ```loom
 substitution: braces
 
-agent Extractor {
+extractor Invoice {
     model: "gemini-2.5-flash"
-    system: "Extract the invoice fields from the text. Use 0 when the amount is missing."
-    temperature: 0.0
-    output_schema: { vendor: string, invoice_number: string, total: number, currency: enum["USD", "EUR", "INR", "OTHER"] }
+    instructions: "Read the invoice. Use the vendor's legal name."
+    fields {
+        vendor: string
+        invoice_number: string
+        total: number
+        currency: enum["USD", "EUR", "INR", "OTHER"]
+    }
+    optional: [total]
 }
 
 workflow Main(text) {
-    delegate "Extract the invoice from:\n{text}" to Extractor -> invoice retry 1 on_failure {
+    extract Invoice from text -> invoice retry 1 on_failure {
         halt "Could not read an invoice from the text: {_error}"
     }
 
-    alt (invoice.total <= 0) {
-        human_prompt "No total could be read for invoice {invoice.invoice_number} from {invoice.vendor}. What is the total?" -> typed_total
+    alt (invoice.total == missing) {
+        human_prompt "No total was stated for invoice {invoice.invoice_number} from {invoice.vendor}. What is the total?" -> typed_total
         set invoice_total = "{typed_total}"
     } else {
         set invoice_total = "{invoice.total}"
@@ -278,12 +283,13 @@ workflow Main(text) {
 }
 ```
 
-The model *reads*; the script *decides*. A missing total is asked of a person, never guessed.
+The model *reads*; the script *decides*. A total the text does not state is asked of a person, never guessed.
 
 ## Try it yourself
 
 1. In [05-parallel-research](../../src/loom/starters/05-parallel-research/), make both researchers fail in a new test case. What does the run report?
 2. Add `currency` handling to starter 08: if the currency is `OTHER`, ask a person.
-3. Remove the `retry` from a step and run its tests. Nothing changes, because tests script the failures. Add a `fail:` entry to prove the failure path is reached ([Chapter 10](10-testing.md#scripting-failures)).
+3. Take an agent with an `output_schema` that only pulls fields out of text and run `weave review --fix-finding LP09 --option to-extractor --dry-run` on it. Read the diff, apply it with `--yes`, and watch LP09 go away.
+4. Remove the `retry` from a step and run its tests. Nothing changes, because tests script the failures. Add a `fail:` entry to prove the failure path is reached ([Chapter 10](10-testing.md#scripting-failures)).
 
 Next: [Tools and tasks](06-tools-and-tasks.md).

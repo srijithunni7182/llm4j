@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: 4b0af5a4807d8f89b37833686449a89374d4f6315fbc289c923cb55796abd431 -->
+<!-- source-sha256: d8e9dc2c3f8655e90539e9f9779571112122436a48408bac140f4bbd74d182b3 -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -1321,20 +1321,25 @@ extractor Invoice {
 <p>This is starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/08-extract-and-validate" target="_blank" rel="noopener">08-extract-and-validate</a>: free text becomes checked fields, the script applies its own rule, and the run stops on purpose when the text cannot be read.</p>
 <figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 
-<span class="tk-k">agent</span> Extractor {
+extractor Invoice {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
-    system: <span class="tk-s">"Extract the invoice fields from the text. Use 0 when the amount is missing."</span>
-    temperature: <span class="tk-n">0.0</span>
-    output_schema: { vendor: string, invoice_number: string, total: number, currency: enum[<span class="tk-s">"USD"</span>, <span class="tk-s">"EUR"</span>, <span class="tk-s">"INR"</span>, <span class="tk-s">"OTHER"</span>] }
+    instructions: <span class="tk-s">"Read the invoice. Use the vendor's legal name."</span>
+    fields {
+        vendor: string
+        invoice_number: string
+        total: number
+        currency: enum[<span class="tk-s">"USD"</span>, <span class="tk-s">"EUR"</span>, <span class="tk-s">"INR"</span>, <span class="tk-s">"OTHER"</span>]
+    }
+    optional: [total]
 }
 
 <span class="tk-k">workflow</span> Main(text) {
-    <span class="tk-k">delegate</span> <span class="tk-s">"Extract the invoice from:\n<span class="tk-v">{text}</span>"</span> <span class="tk-k">to</span> Extractor -&gt; invoice <span class="tk-k">retry</span> <span class="tk-n">1</span> <span class="tk-k">on_failure</span> {
+    extract Invoice from text -&gt; invoice <span class="tk-k">retry</span> <span class="tk-n">1</span> <span class="tk-k">on_failure</span> {
         <span class="tk-k">halt</span> <span class="tk-s">"Could not read an invoice from the text: <span class="tk-v">{_error}</span>"</span>
     }
 
-    <span class="tk-k">alt</span> (invoice.total &lt;= <span class="tk-n">0</span>) {
-        <span class="tk-k">human_prompt</span> <span class="tk-s">"No total could be read for invoice <span class="tk-v">{invoice.invoice_number}</span> from <span class="tk-v">{invoice.vendor}</span>. What is the total?"</span> -&gt; typed_total
+    <span class="tk-k">alt</span> (invoice.total == missing) {
+        <span class="tk-k">human_prompt</span> <span class="tk-s">"No total was stated for invoice <span class="tk-v">{invoice.invoice_number}</span> from <span class="tk-v">{invoice.vendor}</span>. What is the total?"</span> -&gt; typed_total
         <span class="tk-k">set</span> invoice_total = <span class="tk-s">"<span class="tk-v">{typed_total}</span>"</span>
     } <span class="tk-k">else</span> {
         <span class="tk-k">set</span> invoice_total = <span class="tk-s">"<span class="tk-v">{invoice.total}</span>"</span>
@@ -1342,11 +1347,12 @@ extractor Invoice {
 
     <span class="tk-k">return</span> { vendor: <span class="tk-s">"<span class="tk-v">{invoice.vendor}</span>"</span>, number: <span class="tk-s">"<span class="tk-v">{invoice.invoice_number}</span>"</span>, total: <span class="tk-s">"<span class="tk-v">{invoice_total}</span>"</span>, currency: <span class="tk-s">"<span class="tk-v">{invoice.currency}</span>"</span> }
 }</code></pre></figure>
-<p>The model <em>reads</em>; the script <em>decides</em>. A missing total is asked of a person, never guessed.</p>
+<p>The model <em>reads</em>; the script <em>decides</em>. A total the text does not state is asked of a person, never guessed.</p>
 <h2 id="c05-try-it-yourself">Try it yourself</h2>
 <ol>
 <li>In <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/05-parallel-research" target="_blank" rel="noopener">05-parallel-research</a>, make both researchers fail in a new test case. What does the run report?</li>
 <li>Add <code>currency</code> handling to starter 08: if the currency is <code>OTHER</code>, ask a person.</li>
+<li>Take an agent with an <code>output_schema</code> that only pulls fields out of text and run <code>weave review --fix-finding LP09 --option to-extractor --dry-run</code> on it. Read the diff, apply it with <code>--yes</code>, and watch LP09 go away.</li>
 <li>Remove the <code>retry</code> from a step and run its tests. Nothing changes, because tests script the failures. Add a <code>fail:</code> entry to prove the failure path is reached (<a href="#c10-scripting-failures">Chapter 10</a>).</li>
 </ol>
 <p>Next: <a href="#c06">Tools and tasks</a>.</p>
@@ -3512,12 +3518,7 @@ public final class ReviewLoopCheck {
 </tr>
 <tr>
 <td>Turn text into checked fields</td>
-<td><code>output_schema</code>, <code>halt</code> on unreadable, ask a person for a missing value</td>
-<td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/08-extract-and-validate" target="_blank" rel="noopener">08</a></td>
-</tr>
-<tr>
-<td>Pull fields out of text, and nothing else</td>
-<td>An <code>extractor</code> and <code>extract ... from text -&gt; var</code>, <code>optional:</code> and <code>== missing</code></td>
+<td>An <code>extractor</code>, <code>halt</code> on unreadable, ask a person when an optional value is <code>missing</code></td>
 <td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/08-extract-and-validate" target="_blank" rel="noopener">08</a></td>
 </tr>
 <tr>

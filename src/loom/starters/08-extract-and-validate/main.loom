@@ -1,24 +1,30 @@
-// 08-extract-and-validate: turn free text into checked fields. The agent must answer in a fixed shape (a wrong shape
-// is retried once, then the step fails), and the script then applies its own rules to the fields.
+// 08-extract-and-validate: turn free text into checked fields. The extractor sees only the text it is handed and the
+// fields it must fill (never the run so far), a field the text does not state is `missing` (or fails the step if it is
+// required), and the script then applies its own rules to the fields.
 
 substitution: braces
 
 budget { tokens: 80000  calls: 15 }
 
-agent Extractor {
+extractor Invoice {
     model: "gemini-2.5-flash"
-    system: "Extract the invoice fields from the text. Use 0 when the amount is missing."
-    temperature: 0.0
-    output_schema: { vendor: string, invoice_number: string, total: number, currency: enum["USD", "EUR", "INR", "OTHER"] }
+    instructions: "Read the invoice. Use the vendor's legal name."
+    fields {
+        vendor: string
+        invoice_number: string
+        total: number
+        currency: enum["USD", "EUR", "INR", "OTHER"]
+    }
+    optional: [total]
 }
 
 workflow Main(text) {
-    delegate "Extract the invoice from:\n{text}" to Extractor -> invoice retry 1 on_failure {
+    extract Invoice from text -> invoice retry 1 on_failure {
         halt "Could not read an invoice from the text: {_error}"
     }
 
-    alt (invoice.total <= 0) {
-        human_prompt "No total could be read for invoice {invoice.invoice_number} from {invoice.vendor}. What is the total?" -> typed_total
+    alt (invoice.total == missing) {
+        human_prompt "No total was stated for invoice {invoice.invoice_number} from {invoice.vendor}. What is the total?" -> typed_total
         set invoice_total = "{typed_total}"
     } else {
         set invoice_total = "{invoice.total}"

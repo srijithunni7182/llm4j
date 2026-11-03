@@ -1503,14 +1503,14 @@ a unit of plain Java that a workflow runs as a first-class step, with no model b
 The usual shape is **the model reads, the code decides and acts**:
 
 ```loom
-agent Intake {
+extractor Intake {
     model: "gemini/gemini-2.5-flash"
-    system: "You are Intake. Extract the order id and the refund amount from the customer's message."
-    output_schema: { order_id: string, amount: number }
+    instructions: "Extract the order id and the refund amount from the customer's message."
+    fields { order_id: string, amount: number }
 }
 
 workflow Refund(msg) {
-    delegate "Extract the order id and amount from: {msg}" to Intake -> request
+    extract Intake from msg -> request
 
     run RefundPolicy(order = request.order_id, amount = request.amount) -> verdict
 

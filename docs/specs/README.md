@@ -125,7 +125,7 @@ done, so that what we learn building a lower layer shapes the spec above it.
 | 21 | draft for review | not started | not started | not started |
 | 22 | draft for review | not started | not started | not started |
 | 23 | draft for review | not started | not started | not started |
-| 24 | draft for review (decisions recorded) | 24a and 24b written first and green (extractor, transcript modes, LP08, simple-path and noise gates) | 24a to 24c done; 24d (examples, starter 08, remaining tutorial rows) not started | not verified (native JSON mode deferred; manual checks M1 to M4 owed) |
+| 24 | draft for review (decisions recorded; LP09 narrowed, see VERIFICATION §7) | 24a to 24d written first and green | 24a to 24d built (see VERIFICATION §7) | not verified (native JSON mode deferred; manual checks M1 to M4 owed) |
 | 25 | draft for review (decisions recorded) | not started | not started | not started |
 | 26 | draft for review (decisions recorded) | not started | not started | not started |
 | 27 | draft for review (decisions recorded) | not started | not started | not started |

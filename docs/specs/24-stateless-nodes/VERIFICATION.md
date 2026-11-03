@@ -142,3 +142,11 @@ Tests first: `TranscriptTaintTest` (11), `ToExtractorFixTest` (8), LP09 rule fix
 
 **Still open:** mutation profile entries for `TranscriptTaint` and the mode switch; the Fabric/live-page views of `extract` (the new trace events and the graph kind are in, but the live page was not extended); `Decisions`/`Capture`/`ScriptDrift`/`Narrator` for `extract`.
 
+### 24d: examples, starter 08 and the tutorial rows (2026-11-03)
+
+**Done:** starter `08-extract-and-validate` rewritten around `extractor Invoice` with `optional: [total]` and `alt (invoice.total == missing)` (its tests, README script and diagram regenerated with `bash scripts/make-starter-diagrams.sh`; `StartersTest` compares both); the guide's "Tasks: deterministic steps" example uses `extractor Intake` and `extract Intake from msg -> request`; tutorial chapter 5 "Putting it together" is rewritten around the new starter and "Try it yourself" gains the LP09 exercise; tutorial README and starters README rows; `docs/guide/05-test-agents-with-caps.md` gains "Testing an extractor"; web page regenerated (`bash scripts/make-tutorial-html.sh`). Tutorial rows by chapter: 3 ✅ (24b), 5 ✅ (24a, 24d), 7 ✅ (24b), 9 ✅ (24c), 14 ✅ (24c, 24d), README ✅.
+
+**Gates:** `mvn verify` `eval4j` 571 and `ai-agent4j-loom` 4177 (3 skipped) green with coverage met; `StartersTest`, `TutorialExamplesTest`, `GuideTutorialPageTest`, `RepositoryScriptsTest` green. `make format-check` covers core and addons only (not touched by this phase).
+
+**Owed to the owner (cannot be done here):** M1 (a capped real run of starter 08 with a cheap model: needs a key and your go-ahead), M2 (read the extractor's real request in debug output; needs M1), M3 (read the `to-extractor` diff on one of your own projects), M4 (read the new tutorial sections as a newcomer). An independent review is not required for this phase.
+

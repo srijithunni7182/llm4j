@@ -15,8 +15,7 @@ Each recipe names the starter that implements it. Open the starter, run `weave t
 | Ask several sources at once and survive one failing | `parallel`, one flag per branch, `retry` + `on_failure` | [05](../../src/loom/starters/05-parallel-research/) |
 | Turn a plan into parallel work | `parallel for each` with `{item.owner}` routing | [06](../../src/loom/starters/06-plan-and-fan-out/) |
 | Never send without a person's yes | `human_prompt` + `alt`, and `approve:` on the sender | [07](../../src/loom/starters/07-approval/) |
-| Turn text into checked fields | `output_schema`, `halt` on unreadable, ask a person for a missing value | [08](../../src/loom/starters/08-extract-and-validate/) |
-| Pull fields out of text, and nothing else | An `extractor` and `extract ... from text -> var`, `optional:` and `== missing` | [08](../../src/loom/starters/08-extract-and-validate/) |
+| Turn text into checked fields | An `extractor`, `halt` on unreadable, ask a person when an optional value is `missing` | [08](../../src/loom/starters/08-extract-and-validate/) |
 | Answer from my documents | `knowledge` + "say when the documents do not answer" | [09](../../src/loom/starters/09-handbook-qa/) |
 | Remember each user | `memory { session: "{user_id}" }` + `guard { pii: mask }` | [10](../../src/loom/starters/10-memory-assistant/) |
 | Run every weekday morning | `schedule` + `weave schedule sync` + `weave daemon` | [11](../../src/loom/starters/11-daily-digest/) |

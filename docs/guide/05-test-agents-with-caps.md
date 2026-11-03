@@ -31,6 +31,10 @@ AgentResult result = AgentReplay.at(Path.of("target/eval/replay"))
 
 A classifier is tested on labelled cases: `ClassifierComparison` for accuracy, calibration, cost and latency per backend (a few cents on a live run, opt-in), and `ScriptedClassifier` for tests that must not call a model. Check the confidence rule on the cases it should send to a person (`unsure`), not only on the accuracy.
 
+## Testing an extractor
+
+An `extractor` is stateless: it sees only the text it is handed and the fields it must fill, never the run so far. So it is tested on its own, and what it does alone is what it does inside the workflow. Give it cases that are a text and the fields that text should give, including a text that does **not** state an optional field (it should come back `missing`) and one that does not state a required field (the step should fail, not guess). Script it in `weave test` (`models: { Invoice: { vendor: Acme } }`) to test the logic around it, and run it for real, capped, to measure the extraction itself.
+
 ## What to assert per case
 
 ```java

@@ -27,7 +27,7 @@ The models are named `gemini-2.5-flash` in all of them. Change the `model:` line
 | 05 | [parallel-research](05-parallel-research/) | Two researchers at once; one may fail | `parallel`, `retry`, `timeout`, `on_failure` |
 | 06 | [plan-and-fan-out](06-plan-and-fan-out/) | A plan becomes parallel work | `parallel for each`, runtime routing |
 | 07 | [approval](07-approval/) | A person approves before anything is sent | `human_prompt`, `approve:`, `webhook` tool, PII `guard` |
-| 08 | [extract-and-validate](08-extract-and-validate/) | Free text to checked fields | `output_schema`, `halt`, `return { }` |
+| 08 | [extract-and-validate](08-extract-and-validate/) | Free text to checked fields | `extractor`, `extract`, `optional:`, `== missing`, `halt`, `return { }` |
 | 09 | [handbook-qa](09-handbook-qa/) | Answers from your own documents | `knowledge` (checked, not run: needs an embedding key) |
 | 10 | [memory-assistant](10-memory-assistant/) | Remembers each person | `memory`, `persona`, `session` |
 | 11 | [daily-digest](11-daily-digest/) | Runs itself on weekday mornings | `schedule`, `cron`, `weave daemon` |
