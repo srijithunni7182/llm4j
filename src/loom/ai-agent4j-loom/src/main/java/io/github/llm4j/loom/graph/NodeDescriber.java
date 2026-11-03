@@ -66,6 +66,9 @@ final class NodeDescriber {
         if (st instanceof io.github.llm4j.loom.ast.IntentClassifyStmt c) {
             return classify(c);
         }
+        if (st instanceof io.github.llm4j.loom.ast.ExtractStmt x) {
+            return extract(x);
+        }
         if (st instanceof HandoffStmt h) {
             return new Described(Kinds.HANDOFF, "handoff " + h.getTargetAgent())
                     .agent(h.getTargetAgent())
@@ -217,6 +220,20 @@ final class NodeDescriber {
                                 .positive("retry", r.getRetryCount())
                                 .positive("backoffMs", r.getBackoffMillis())
                                 .positive("timeoutMs", r.getTimeoutMillis()));
+    }
+
+    private Described extract(io.github.llm4j.loom.ast.ExtractStmt x) {
+        List<String> inputs = new ArrayList<>();
+        for (RunStmt.Arg in : x.getInputs()) inputs.add(in.name().isEmpty() ? in.text() : in.name());
+        return new Described(Kinds.EXTRACT, "extract " + x.getExtractor())
+                .attrs(
+                        Attrs.create()
+                                .text("extractor", x.getExtractor())
+                                .text("variable", x.getVariableName())
+                                .list("inputs", inputs)
+                                .positive("retry", x.getRetryCount())
+                                .positive("backoffMs", x.getBackoffMillis())
+                                .positive("timeoutMs", x.getTimeoutMillis()));
     }
 
     private Described classify(io.github.llm4j.loom.ast.IntentClassifyStmt c) {

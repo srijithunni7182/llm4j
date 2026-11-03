@@ -78,6 +78,7 @@ public final class TestChecker {
     private final GraphResult graph;
     private final Set<String> agents = new LinkedHashSet<>();
     private final Set<String> classifiers = new LinkedHashSet<>();
+    private final Set<String> extractors = new LinkedHashSet<>();
     private final Set<String> tools = new LinkedHashSet<>();
     private final Set<String> tasks = new LinkedHashSet<>();
     private final Set<String> steps;
@@ -87,6 +88,7 @@ public final class TestChecker {
         this.graph = graph;
         script.getAgents().forEach(a -> agents.add(a.getName()));
         script.getIntentClassifiers().forEach(c -> classifiers.add(c.getName()));
+        script.getExtractors().forEach(x -> extractors.add(x.getName()));
         script.getTools().forEach(t -> tools.add(t.getName()));
         for (AgentDef a : script.getAgents()) tools.addAll(a.getTools());
         for (WorkflowDef w : script.getWorkflows())
@@ -174,13 +176,16 @@ public final class TestChecker {
                 for (Iterator<String> it = models.fieldNames(); it.hasNext(); ) {
                     String name = it.next();
                     if (classifiers.contains(name)) classifier(c, name, models.get(name), problems);
-                    else if (!agents.contains(name))
+                    else if (!agents.contains(name) && !extractors.contains(name))
                         problems.add(
                                 where(c)
                                         + "models: '"
                                         + name
-                                        + "' is not an agent or classifier of the script"
-                                        + Suggest.hint(name, union(agents, classifiers)));
+                                        + (extractors.isEmpty()
+                                                ? "' is not an agent or classifier of the script"
+                                                : "' is not an agent, classifier or extractor of the script")
+                                        + Suggest.hint(
+                                                name, union(agents, union(classifiers, extractors))));
                 }
         }
         scripts(c, "tools", tools, problems);
@@ -346,7 +351,7 @@ public final class TestChecker {
                     where(c) + "fail: a map of agent, classifier, tool or task names to failures");
             return;
         }
-        Set<String> targets = new LinkedHashSet<>(union(agents, classifiers));
+        Set<String> targets = new LinkedHashSet<>(union(agents, union(classifiers, extractors)));
         targets.addAll(tools);
         targets.addAll(tasks);
         for (Iterator<String> it = fail.fieldNames(); it.hasNext(); ) {
@@ -493,7 +498,7 @@ public final class TestChecker {
             }
         for (String key : List.of("calls", "attempts")) {
             if (!expect.has(key)) continue;
-            Set<String> names = new LinkedHashSet<>(union(agents, classifiers));
+            Set<String> names = new LinkedHashSet<>(union(agents, union(classifiers, extractors)));
             names.addAll(tools);
             names.addAll(tasks);
             if (!expect.get(key).isObject())

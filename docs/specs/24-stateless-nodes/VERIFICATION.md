@@ -41,7 +41,7 @@ Evidence: E1 to E6 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 | R1 | `ExtractorParsesTest`, `ExtractorForbiddenSettingsTest`, `LoomScriptMergeKeepsExtractorsTest`, `ExtractorKeywordIsContextualTest` | ⬜ |
 | R2 | `ExtractStatementParsesTest`, `ExtractRequiresVariableTest` | ⬜ |
 | R3 | `ExtractorSeesOnlyItsInputsTest`, `ExtractorAnswerIsNotWrittenToTranscriptTest`, `ExtractorInputsAreMarkedAsDataTest` | ⬜ |
-| R4 | `MissingOptionalFieldReadsAsMissingTest`, `NullOptionalFieldReadsAsMissingTest`, `NullRequiredFieldFailsAtOnceTest`, `MalformedAnswerIsCorrectedOnceThenRetriedThenFailsTest`, `RequiredFieldIsNeverInventedTest`, `NativeJsonModeUsedWhenProviderHasItTest` | ⬜ |
+| R4 | `MissingOptionalFieldReadsAsMissingTest`, `NullOptionalFieldReadsAsMissingTest`, `NullRequiredFieldFailsAtOnceTest`, `MalformedAnswerIsCorrectedOnceThenRetriedThenFailsTest`, `RequiredFieldIsNeverInventedTest` | ◐ native JSON mode deferred by the owner (2026-11-03): no provider has one; the single entry point is `ExtractRunner.request()` |
 | R5 | the A4 tests, `GraphRenderKindsInSyncTest` | ⬜ |
 | R6 | `ExtractorCheckErrorsTest` | ⬜ |
 | R7 | `InternalNodeContractTest` | ⬜ |
@@ -96,5 +96,10 @@ Built, tests first (red for the right reason, then green): `ExtractorParsingTest
 
 **Done:** R1 (AST, parser, forbidden settings, duplicate field, optional names), R2 (statement), R3 (preamble, instructions, schema, marked inputs; no transcript, no shared prompt; answer not stored), R4 (missing/null optional, required null fails at once, malformed corrected once then retried), R5 in part (budget scopes, metering under `extractor <Name>`, journal and replay, trace `extract_start`/`extract_end`/`extract_replayed` with names only), R6 (validator checks), `missing` in conditions, `PiiGuard`/`NodeInputs` shared with the classifier.
 
-**Not done yet in 24a:** native JSON mode (no provider in the core implements one; needs a provider-module change, to be decided with the owner), graph kind `extract` and `sync-graph-render`, `weave test` scripting and `--mock` for extractors, eval4j assertions, `weave explain`/narrator, cost estimate line, `InternalNodeContractTest`, the SecurityAudit/Capture/ScriptDrift/Decisions (whatif) wiring, PIT additions, coverage gates (`mvn verify`), hand-removed guards, and every document row of §5.
+**Added since (2026-11-03):** graph kind `extract` (`ExtractGraphTest`, `sync-graph-render.sh` run, `check-graph-render-sync.sh` in sync); `weave test` scripting of extractors (`ExtractScriptedTest`; a misspelt name in `models:` is refused with a hint); `--mock` answers an extractor with a well-formed value (`ExtractMockedTest`, via `ExtractorPrompt`); eval4j `runsExtractTimes`, `extractedField`, `leftMissing` (`WorkflowExtractAssertTest`; the trace holds field names, so `extracted(name, field, value)` of the DESIGN became "was the field found", a deliberate deviation since values never enter a trace); cost and time estimates list `extract Name` as its own line (`ExtractCostTest`); `InternalNodeContractTest` over the classifier and the extractor.
 
+**Guards removed by hand, then restored:** a required field answered `null` accepted → `aRequiredFieldAnsweredNullFailsAtOnceWithoutAskingAgain` failed; a required field left out accepted → `aRequiredFieldIsNeverInventedByTheRuntime` and `aWrongKindAnUnknownEnumAndALeftOutRequiredFieldAreEachMalformed` failed.
+
+**Gates run (2026-11-03):** `mvn verify` on `eval4j` (571 tests) and `ai-agent4j-loom` (4131 tests, 4 skipped as before): green, "All coverage checks have been met", no limit lowered, nothing excluded. After `mvn -pl src/loom/ai-agent4j-loom -DskipTests install`: `eval4j-report`, `loom-inspect-core`, `loom-fabric`, `loom-inspect` `verify` green. `make format-check` covers core and addons only, which this phase has not touched.
+
+**Still open in 24a:** native JSON mode (deferred by the owner), the whatif/`Decisions`, `Capture`, `ScriptDrift`, `Narrator` and `weave explain` wiring for `extract`, PIT additions, the CTK scenario, and every document row of §5.

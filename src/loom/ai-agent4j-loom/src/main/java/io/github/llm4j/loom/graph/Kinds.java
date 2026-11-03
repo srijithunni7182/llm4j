@@ -18,6 +18,12 @@ public final class Kinds {
      */
     public static final String CLASSIFY = "classify";
 
+    /**
+     * An {@code extract} statement: a stateless model step that pulls typed fields out of the text
+     * it is handed and nothing else.
+     */
+    public static final String EXTRACT = "extract";
+
     public static final String HANDOFF = "handoff";
     public static final String BROADCAST = "broadcast";
     public static final String PARALLEL = "parallel";
@@ -60,6 +66,7 @@ public final class Kinds {
                     DELEGATE,
                     TASK,
                     CLASSIFY,
+                    EXTRACT,
                     HANDOFF,
                     BROADCAST,
                     PARALLEL,

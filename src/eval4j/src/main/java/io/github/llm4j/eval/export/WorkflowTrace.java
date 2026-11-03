@@ -135,6 +135,47 @@ public record WorkflowTrace(
                 .count();
     }
 
+    /** How many times {@code extractor} ran (a replay from a journal does not count). */
+    public long extractRuns(String extractor) {
+        return events.stream()
+                .filter(e -> "extract_end".equals(e.type()) && extractor.equals(extractorOf(e)))
+                .count();
+    }
+
+    /** The extractors in the order each finished, repeats included. */
+    public List<String> extractorsInOrder() {
+        List<String> out = new java.util.ArrayList<>();
+        for (Event e : events) if ("extract_end".equals(e.type())) out.add(extractorOf(e));
+        return List.copyOf(out);
+    }
+
+    /** The names of the fields the last run of {@code extractor} found. */
+    public List<String> fieldsFound(String extractor) {
+        return lastExtract(extractor, "present");
+    }
+
+    /** The names of the optional fields the last run of {@code extractor} left missing. */
+    public List<String> fieldsMissing(String extractor) {
+        return lastExtract(extractor, "missing");
+    }
+
+    private List<String> lastExtract(String extractor, String key) {
+        List<String> out = List.of();
+        for (Event e : events) {
+            if (!"extract_end".equals(e.type()) || !extractor.equals(extractorOf(e))) continue;
+            Object names = e.data().get(key);
+            out =
+                    names instanceof List<?> list
+                            ? list.stream().map(String::valueOf).toList()
+                            : List.of();
+        }
+        return out;
+    }
+
+    private static String extractorOf(Event e) {
+        return e.data() == null ? "" : String.valueOf(e.data().get("extractor"));
+    }
+
     /** The task names in the order each ran, repeats included. */
     public List<String> taskSequence() {
         List<String> out = new java.util.ArrayList<>();

@@ -79,6 +79,8 @@ final class CaseRunner {
                 }
                 for (IntentClassifierDef k : fresh.getIntentClassifiers())
                     k.setModel(ScriptedClassifiers.PREFIX + k.getName(), k.getModelLine());
+                for (io.github.llm4j.loom.ast.ExtractorDef x : fresh.getExtractors())
+                    x.setModel(ScriptedModels.PREFIX + x.getName());
                 ToolRegistry tools = toolsFor(fresh, c, failures, repeatLast, recorder);
                 TaskRegistry tasks = tasksFor(fresh, c, failures, repeatLast, recorder);
                 executor =
@@ -93,7 +95,8 @@ final class CaseRunner {
                                         failures,
                                         c.get("usage"),
                                         interventions,
-                                        streaming(fresh)));
+                                        streaming(fresh),
+                                        extractorNames(fresh)));
                 interventions.attach(executor);
                 executor.setClassifierFactory(new ScriptedClassifiers(models, recorder, failures));
                 executor.setTaskRegistry(tasks);
@@ -156,6 +159,13 @@ final class CaseRunner {
     }
 
     /** The agents that stream their replies. */
+    private static Set<String> extractorNames(LoomScript script) {
+        Set<String> names = new LinkedHashSet<>();
+        for (io.github.llm4j.loom.ast.ExtractorDef x : script.getExtractors())
+            names.add(x.getName());
+        return names;
+    }
+
     private static Set<String> streaming(LoomScript script) {
         Set<String> names = new LinkedHashSet<>();
         for (AgentDef a : script.getAgents()) if (a.isStreaming()) names.add(a.getName());

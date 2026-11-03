@@ -38,6 +38,7 @@
     call: { k: 'call', g: 'call', shape: 'dbl' },
     guardrail: { k: 'task', g: 'shield', shape: 'rect' },
     classify: { k: 'task', g: 'tag', shape: 'rect' },
+    extract: { k: 'task', g: 'tag', shape: 'rect' },
     decide: { k: 'call', g: 'scale', shape: 'rect' },
     observe: { k: 'misc', g: 'eye', shape: 'rect' },
     note: { k: 'misc', g: 'note', shape: 'rect', dashed: true },
@@ -79,7 +80,7 @@
   };
 
   var LEGEND = [
-    ['agent', 'Agent step (delegate, handoff, broadcast)'], ['task', 'Task, guardrail or classify'], ['par', 'Parallel round'],
+    ['agent', 'Agent step (delegate, handoff, broadcast)'], ['task', 'Task, guardrail, classify or extract'], ['par', 'Parallel round'],
     ['alt', 'Branch (alt)'], ['loop', 'Loop or for each'], ['call', 'Call or decision'], ['human', 'Ask a person'],
     ['misc', 'Checkpoint, note, other']
   ];
@@ -118,6 +119,7 @@
     delegate: ['prompt', 'timeout', 'retry', 'budget', 'expecting', 'variable'],
     task: ['timeout', 'retry', 'variable'],
     classify: ['backend', 'samples', 'timeout', 'retry', 'variable'],
+    extract: ['timeout', 'retry', 'variable'],
     broadcast: ['budget', 'variable'],
     parallel: ['branches'],
     loop: ['max', 'budget'],
@@ -196,6 +198,7 @@
       case 'sleep': return a.duration || null;
       case 'rewind': return a.condition ? cut(a.condition, 40) : null;
       case 'task': return a.args ? plural(a.args, 'arg') : null;
+      case 'extract': return a.inputs && a.inputs.length ? 'from ' + cut(a.inputs.join(', '), 38) : (a.extractor || null);
       case 'classify': return a.labels && a.labels.length ? cut(a.labels.join('; '), 44) : (a.classifier || null);
       case 'call':
         if (node.unresolved) { return 'not found'; }

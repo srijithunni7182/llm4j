@@ -42,6 +42,9 @@ final class ScriptedModels implements LLMClientFactory {
     private final Interventions interventions;
     private final Set<String> streaming;
 
+    /** Extractors answer with the bare JSON of their fields, not an agent's reply envelope. */
+    private final Set<String> extractors;
+
     ScriptedModels(
             Map<String, JsonNode> scripts,
             boolean lenient,
@@ -50,8 +53,10 @@ final class ScriptedModels implements LLMClientFactory {
             Failures failures,
             JsonNode usage,
             Interventions interventions,
-            Set<String> streaming) {
+            Set<String> streaming,
+            Set<String> extractors) {
         this.streaming = streaming;
+        this.extractors = extractors;
         this.scripts = scripts;
         this.lenient = lenient;
         this.repeatLast = repeatLast;
@@ -91,7 +96,8 @@ final class ScriptedModels implements LLMClientFactory {
                     throw Failures.model(fail.get(), agent, n);
                 }
                 JsonNode chosen = choose(agent, n, task);
-                String reply = natively ? plain(chosen) : envelope(chosen);
+                String reply =
+                        natively || extractors.contains(agent) ? plain(chosen) : envelope(chosen);
                 int in = tokens(request);
                 int out = (int) CharsPerTokenEstimator.INSTANCE.completion(reply);
                 JsonNode u = usage == null ? null : usage.get(agent);

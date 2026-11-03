@@ -35,6 +35,8 @@ public class WorkflowTraceAssert extends AbstractObjectAssert<WorkflowTraceAsser
                     "No unexpected tool calls",
                     "trajectory",
                     "orchestration");
+    private static final MetricRef M_EXTRACT =
+            m("extractors-run", "Extractors run", "trajectory", "orchestration");
     private static final MetricRef M_TASKS =
             m("required-tasks-run", "Required tasks run", "trajectory", "orchestration");
     private static final MetricRef M_PATH =
@@ -193,6 +195,57 @@ public class WorkflowTraceAssert extends AbstractObjectAssert<WorkflowTraceAsser
                         failWithMessage(
                                 "Expected task %s to end with outcome \"%s\" but its outcomes were: %s",
                                 task, outcome, outcomes);
+                    }
+                });
+        return this;
+    }
+
+    /** Passes if {@code extractor} ran exactly {@code times} times (a replay does not count). */
+    public WorkflowTraceAssert runsExtractTimes(String extractor, int times) {
+        EvalChecks.check(
+                M_EXTRACT,
+                () -> {
+                    isNotNull();
+                    long n = actual.extractRuns(extractor);
+                    if (n != times) {
+                        failWithMessage(
+                                "Expected extractor %s to run %s time(s) but it ran %s time(s); it ran: %s",
+                                extractor, times, n, actual.extractorsInOrder());
+                    }
+                });
+        return this;
+    }
+
+    /**
+     * Passes if the last run of {@code extractor} found {@code field}. The trace holds field names,
+     * never values, so this checks that a field was found, not what it held.
+     */
+    public WorkflowTraceAssert extractedField(String extractor, String field) {
+        EvalChecks.check(
+                M_EXTRACT,
+                () -> {
+                    isNotNull();
+                    List<String> found = actual.fieldsFound(extractor);
+                    if (!found.contains(field)) {
+                        failWithMessage(
+                                "Expected extractor %s to find field %s but it found: %s",
+                                extractor, field, found);
+                    }
+                });
+        return this;
+    }
+
+    /** Passes if the last run of {@code extractor} left the optional {@code field} missing. */
+    public WorkflowTraceAssert leftMissing(String extractor, String field) {
+        EvalChecks.check(
+                M_EXTRACT,
+                () -> {
+                    isNotNull();
+                    List<String> missing = actual.fieldsMissing(extractor);
+                    if (!missing.contains(field)) {
+                        failWithMessage(
+                                "Expected extractor %s to leave field %s missing but the missing fields were: %s",
+                                extractor, field, missing);
                     }
                 });
         return this;

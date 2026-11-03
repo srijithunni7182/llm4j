@@ -52,6 +52,7 @@ public final class RunProfile {
     private final Assumptions assume;
     private final Map<String, AgentDef> agents;
     private final Map<String, IntentClassifierDef> classifiers;
+    private final Map<String, io.github.llm4j.loom.ast.ExtractorDef> extractors;
     private final Map<String, WorkflowDef> workflows;
     private final Map<String, ToolDef> tools = new LinkedHashMap<>();
 
@@ -67,6 +68,13 @@ public final class RunProfile {
                         .collect(
                                 Collectors.toMap(
                                         IntentClassifierDef::getName, c -> c, (a, b) -> a));
+        extractors =
+                script.getExtractors().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        io.github.llm4j.loom.ast.ExtractorDef::getName,
+                                        x -> x,
+                                        (a, b) -> a));
         workflows =
                 script.getWorkflows().stream()
                         .collect(Collectors.toMap(WorkflowDef::getName, w -> w, (a, b) -> a));
@@ -291,6 +299,7 @@ public final class RunProfile {
                 return all;
             }
             if (s instanceof IntentClassifyStmt k) return classify(k);
+            if (s instanceof io.github.llm4j.loom.ast.ExtractStmt x) return extract(x);
             if (s instanceof RunStmt r) return task(r);
             if (s instanceof AltStmt a) return alt(a);
             if (s instanceof LoopStmt l) return loop(l);
@@ -375,6 +384,19 @@ public final class RunProfile {
             if (r.getTimeoutMillis() > 0) one = Math.min(one, r.getTimeoutMillis());
             p.ms = one * attempts + (worst ? r.getRetryCount() * (double) r.getBackoffMillis() : 0);
             p.path = List.of("line " + r.getLine() + " run " + r.getTaskName());
+            return p;
+        }
+
+        Part extract(io.github.llm4j.loom.ast.ExtractStmt x) {
+            io.github.llm4j.loom.ast.ExtractorDef def = extractors.get(x.getExtractor());
+            if (def == null || def.getModel() == null) return Part.NONE;
+            long attempts = worst ? x.getRetryCount() + 2L : 1; // retries, plus one correction
+            long one = callMillis(def.getModel());
+            long limit = x.getTimeoutMillis() > 0 ? x.getTimeoutMillis() : def.getTimeoutMillis();
+            if (limit > 0) one = Math.min(one, limit);
+            Part p = new Part();
+            p.ms = one * attempts + (worst ? x.getRetryCount() * (double) x.getBackoffMillis() : 0);
+            p.path = List.of("line " + x.getLine() + " extract " + x.getExtractor());
             return p;
         }
 

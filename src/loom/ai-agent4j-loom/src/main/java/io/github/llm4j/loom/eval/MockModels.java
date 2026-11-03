@@ -22,7 +22,7 @@ public final class MockModels implements LLMClientFactory {
     /** What a mock answers when no schema is asked for. */
     public static final String ANSWER = "[mock answer]";
 
-    private static final String MARKER = "following this schema: ";
+    private static final String MARKER = io.github.llm4j.loom.execution.ExtractorPrompt.SCHEMA_MARKER;
 
     @Override
     public LLMClient createClient(String model) {
@@ -35,6 +35,15 @@ public final class MockModels implements LLMClientFactory {
                         at < 0
                                 ? ANSWER
                                 : sample(new Parser(text.substring(at + MARKER.length())).value());
+                if (text.contains(io.github.llm4j.loom.execution.ExtractorPrompt.ROLE)
+                        && at >= 0) {
+                    // an extractor answers with the bare JSON of its fields, not an agent's envelope
+                    return LLMResponse.builder()
+                            .content(answer)
+                            .model(model)
+                            .tokenUsage(10, 5, 15)
+                            .build();
+                }
                 String reply =
                         "```json\n{\"thought\": \"mock\", \"final_answer\": "
                                 + quote(answer)
