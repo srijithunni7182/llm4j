@@ -18,6 +18,8 @@ public class LoomScript implements Node {
     private final List<MeasureDef> measures = new ArrayList<>();
     private final List<IntentClassifierDef> intentClassifiers = new ArrayList<>();
     private final List<ExtractorDef> extractors = new ArrayList<>();
+    private final List<PolicyDef> policies = new ArrayList<>();
+    private final List<EvaluatorDef> evaluators = new ArrayList<>();
     private final List<String> imports = new ArrayList<>();
     private final List<Integer> importLines = new ArrayList<>();
     private String substitution = "legacy";
@@ -65,6 +67,34 @@ public class LoomScript implements Node {
                 .filter(c -> c.getName().equals(name))
                 .findFirst()
                 .orElse(null);
+    }
+
+    /** The {@code policy} declarations. */
+    public List<PolicyDef> getPolicies() {
+        return policies;
+    }
+
+    public void addPolicy(PolicyDef def) {
+        policies.add(def);
+    }
+
+    /** The {@code evaluator} declarations. */
+    public List<EvaluatorDef> getEvaluators() {
+        return evaluators;
+    }
+
+    public void addEvaluator(EvaluatorDef def) {
+        evaluators.add(def);
+    }
+
+    /** The evaluator called {@code name}, or null. */
+    public EvaluatorDef findEvaluator(String name) {
+        return evaluators.stream().filter(e -> e.getName().equals(name)).findFirst().orElse(null);
+    }
+
+    /** The policy called {@code name}, or null. */
+    public PolicyDef findPolicy(String name) {
+        return policies.stream().filter(p -> p.getName().equals(name)).findFirst().orElse(null);
     }
 
     /** The {@code extractor} declarations. */
@@ -337,6 +367,8 @@ public class LoomScript implements Node {
         this.measures.addAll(other.measures);
         this.intentClassifiers.addAll(other.intentClassifiers);
         this.extractors.addAll(other.extractors);
+        this.policies.addAll(other.policies);
+        this.evaluators.addAll(other.evaluators);
         // Supervision travels with the agents it watches. The script merged last (the importing
         // file) wins the intervention defaults.
         this.supervisions.addAll(other.supervisions);

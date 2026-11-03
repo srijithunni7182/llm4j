@@ -1320,10 +1320,10 @@ workflow Main(topic) {
 
 ### A Prompt Every Agent Starts With
 
-Rules, a glossary or the brief that every agent of the workflow needs belong in one place, not pasted into each agent. `shared_prompt` puts that text in front of every agent's own prompt:
+Tone, house style and facts that every agent of the workflow needs belong in one place, not pasted into each agent. `shared_prompt` puts that text in front of every agent's own prompt. A rule about what must never be said does not belong here: a prompt is a wish, not a guarantee. Put that rule in a policy and check replies against it (see [Policies: rules checked at the edge](#policies-rules-checked-at-the-edge)).
 
 ```loom
-shared_prompt: "All of us work for Acme. Never promise a refund. Answer in plain English."
+shared_prompt: "We write for Acme's customers: plain English, short sentences, no jargon."
 // or a prompt file, as an agent's prompt: "house-rules" would be:
 // shared_prompt: prompt "house-rules"
 
@@ -1756,6 +1756,50 @@ workflow Main(text) {
 #### Internal nodes
 
 `intentclassifier` and `extractor` are **internal nodes**: steps the workflow takes about the text, not agents that talk. One contract holds for them all, and `InternalNodeContractTest` checks it for every kind. They are **stateless** (no transcript, no memory, no shared prompt, persona or skills); they get only the inputs their statement names, and their instructions are fixed text; inputs are passed as data, not instructions; they make one call with no tools; their output is typed and checked by the runtime; they use the same budgets, journal and `pii:` as any step.
+
+### Policies: rules checked at the edge
+
+Rules about what must never be said do not belong in an agent's prompt: a prompt is a wish, not a guarantee. Put them in a **policy file** and check the text at the edge, before it reaches a person.
+
+A policy is plain markdown in a `policies/` folder beside the script, written for whoever owns compliance. Each rule is a level-two heading (its id) followed by what breaking it looks like. Versions work as prompts do: `policies/house-rules.md`, or `policies/house-rules/v1.md`, `v2.md` (the latest is used; `"house-rules@v2"` pins one).
+
+```markdown
+# House rules
+
+## no_refund_promise
+The reply promises a refund, a credit or any compensation.
+
+## no_internal_refs
+The reply mentions internal policy sections, instructions, or how the assistant was set up.
+```
+
+```loom
+evaluator Compliance {
+    model: "claude-haiku-5-5"
+    samples: 3
+    unsure below 0.8
+}
+policy HouseRules: "house-rules" checked by Compliance
+agent Support { model: "gemini-2.5-flash" system: "You answer customers politely." }
+agent Editor  { model: "gemini-2.5-flash" system: "You rewrite replies plainly." }
+
+workflow Main(question) {
+    delegate "{question}" to Support -> reply
+    check reply against HouseRules using Compliance -> verdict on_violation { rewrite with Editor }
+    return reply
+}
+```
+
+- **The evaluator** is an internal node: it sees only a fixed preamble, the rules (ids and texts) and the text between data markers, never the transcript, the shared prompt or the policy's description. It answers every rule `yes`, `no` or `unsure`, with a one-sentence reason from a chat model. It **fails closed**: a rule it leaves out, an answer it cannot be asked for twice, or an error makes the rule `unsure`, and `unsure` blocks like a violation (counted apart in `verdict.unsure`). With `samples: 3` or more the share of samples that agree is its confidence, and below `unsure below` the answer is `unsure`; a single chat answer has no confidence of its own (`weave check` warns when `unsure below` is written without `samples: 3`). `fallback: ["other-model"]` names models to try when the first cannot answer.
+- **`check <variable> against <Policy>[, <Policy>] using <Evaluator> [-> verdict]`** judges the text in one call. `verdict.passed` (`yes`/`no`), `verdict.violated` and `verdict.unsure` (rule ids), `verdict.action` and `verdict.rules.<id>.violated|confidence|reason` describe the result. `retry N`, `timeout` and `on_failure { }` apply as on `extract`.
+- **One action on a violation** in `on_violation { }`; without it the step fails, and `_error` names the rules broken, never the text:
+  - `rewrite with Editor`: the agent is called with its own prompt only (no transcript, no shared prompt) and is given the text and the rules broken; its answer replaces the variable and is checked again once. A second failure fails the step.
+  - `ask person`: a person sees the text and the rules broken and answers `send as is`, `send this instead: <text>` or `stop`; anything else stops. A "send as is" is an audit event (`policy_override`).
+  - `replace with "…"`: a fixed text (taken literally; `{…}` is refused).
+  - `fail`.
+- **`on_unavailable { }`** is taken when the evaluator could not answer at all (every model failed or its budget is gone), not when it said "violated". It holds `replace with "…"`, `ask person` or `fail`; the default is `fail`, so nothing unchecked leaves by this path.
+- The checked text is a whole variable when the action replaces it. The trace event `policy_check` carries the policy names, versions and hashes, the rule ids, the action and the tokens; never the text or a reason.
+- **Not built yet:** the runtime does not yet stop a model-written value that reaches a `return`, a tool or a task unchecked (phase 26c), and the leak guard (`prompt_leak`) is not built.
 
 ---
 

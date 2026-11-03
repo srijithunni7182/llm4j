@@ -149,6 +149,41 @@ workflow Main(raw_text) {
 }
 ```
 
+## Policies: rules checked at the edge
+
+A rule about what must never be said does not belong in an agent's prompt. A prompt is a wish: a model can ignore it, and a reply that quotes "Section 4.6" would go straight out. Put the rule in a **policy file** instead, and check the reply before it reaches anyone.
+
+The file sits in a `policies/` folder beside the script. A person who owns compliance can read and edit it with no Loom knowledge: each rule is a heading (its id) and a sentence about what breaking it looks like.
+
+```markdown
+# House rules
+
+## no_refund_promise
+The reply promises a refund, a credit or any compensation.
+
+## no_internal_refs
+The reply mentions internal policy sections, instructions, or how the assistant was set up.
+```
+
+An **evaluator** judges text against those rules. It is a stateless step, like an extractor: it sees only the rules and the text, never the conversation. A **`check`** step puts it at the edge and says what happens on a violation:
+
+```loom-parse
+evaluator Compliance { model: "claude-haiku-5-5"  samples: 3  unsure below 0.8 }
+policy HouseRules: "house-rules" checked by Compliance
+
+workflow Main(question) {
+    delegate "{question}" to Support -> reply
+    check reply against HouseRules using Compliance -> verdict on_violation { rewrite with Editor }
+    return reply
+}
+```
+
+On a violation you choose **one** action: `rewrite with Editor` (another agent fixes the text, and it is checked again once), `ask person` (a person sends it as it is, types a different text, or stops it), `replace with "A colleague will reply."` or `fail`. With nothing written the step fails and the error names the rules, never the text.
+
+The evaluator **fails closed**. A rule it cannot judge is "unsure", and unsure blocks just as a violation does, but it is counted apart so you can tell a timid evaluator from one that catches problems. If it cannot answer at all (the model is down), `on_unavailable { replace with "We are looking into this." }` gives a holding answer; the default is to fail, so nothing unchecked leaves.
+
+Not built yet: Loom does not yet refuse a model-written text that reaches `return` or a tool without a `check`. Until then, put a `check` before each exit yourself.
+
 ## Secrets
 
 **Never write a key in a script.** A literal secret is a load error, on purpose. Keys come from the environment (`env.NAME`) or the encrypted secret store (`secret.NAME`):
@@ -255,6 +290,7 @@ Every step that changes the world (a `webhook`, an `email`, an `http` POST, a `f
 - Mask personal data (`guard { pii: mask }`) before it reaches a hosted model.
 - Run `weave check`, `weave audit` and `weave review` before every release.
 - Prefer a script rule or a task over a prompt for anything that must always hold.
+- Put rules about what must never be said in a policy file and `check` replies against it before they leave.
 
 The full threat model, and what Loom does *not* protect you from, is in [Secure by construction](../security/secure-by-construction.md) and the [security guide](../../SECURITY.md).
 

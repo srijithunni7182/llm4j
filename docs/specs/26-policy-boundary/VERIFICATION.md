@@ -1,16 +1,16 @@
 # Phase 26 verification plan: the policy boundary
 
-Status: **not started** (spec draft; needs phase 24 and phase 27's R0). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **26a** policy files and the evaluator (R1 to R3); **26b** `check … against` and its actions (R4, R5, R13, R14); **26c** provenance, sinks and enforcement (R6 to R8, R15), including the automatic check of agents' changing tool calls (D25): first report-only across the corpus until `CanaryProvenanceOracleTest` and the corpus are clean, then enforced; **26d** the leak guard, LY07 and its fix, `shared_prompt` and C4 (R9 to R11), graceful failure (D37) and cost (R16); **26e** the skills, starter 17 and the tutorial (R12 and the tutorial rows). Results in §7.
+Status: **26a and 26b built; 26c to 26e not started** (spec draft; needs phase 24 and phase 27's R0). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **26a** policy files and the evaluator (R1 to R3); **26b** `check … against` and its actions (R4, R5, R13, R14); **26c** provenance, sinks and enforcement (R6 to R8, R15), including the automatic check of agents' changing tool calls (D25): first report-only across the corpus until `CanaryProvenanceOracleTest` and the corpus are clean, then enforced; **26d** the leak guard, LY07 and its fix, `shared_prompt` and C4 (R9 to R11), graceful failure (D37) and cost (R16); **26e** the skills, starter 17 and the tutorial (R12 and the tutorial rows). Results in §7.
 Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Reproduce first
 
 | # | Evidence | Procedure | If it is real, you see | Result |
 |---|---|---|---|---|
-| P1 | E10 | Read the `shared_prompt` example in `LOOM_GUIDE.md` and preflight C4's advice text in `PreflightRunner`. | a governance rule as the example; "move the rule that matters into the agent's own prompt" | ⬜ |
-| P2 | E11 | A workflow whose agent is scripted to answer "Per Section 4.6 of our policy, I will refund you"; run under `weave test` with every guard on. | the answer reaches `return` with no event | ⬜ |
-| P3 | E11 | List what can act on content during a run: guards, `supervise`, classifiers. | PII and bias only; counts only; labels only | ⬜ |
-| P4 | R6.2 | Inventory the host channels that send messages that are not questions. | the list that settles open question 3 | ⬜ |
+| P1 | E10 | Read the `shared_prompt` example in `LOOM_GUIDE.md` and preflight C4's advice text in `PreflightRunner`. | a governance rule as the example; "move the rule that matters into the agent's own prompt" | ✅ 2026-11-03, build 6.2.0 before 26: the guide example was "Never promise a refund"; C4 advised the agent's own prompt |
+| P2 | E11 | A workflow whose agent is scripted to answer "Per Section 4.6 of our policy, I will refund you"; run under `weave test` with every guard on. | the answer reaches `return` with no event | ✅ by construction: no statement or setting inspected a model's text before 26b (no `check`, no evaluator) |
+| P3 | E11 | List what can act on content during a run: guards, `supervise`, classifiers. | PII and bias only; counts only; labels only | ✅ read from `AgentGuard`, `Supervise` and the classifier engine |
+| P4 | R6.2 | Inventory the host channels that send messages that are not questions. | the list that settles open question 3 | ✅ the only host channel (`channel.Channel`, `TelegramChannel`) carries questions with reply codes (`Outgoing`); there is no non-question message, so R6.2 is reserved and not built |
 
 ## 1. Acceptance criteria
 
@@ -39,16 +39,16 @@ Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 
 | Req | Tests | Status |
 |---|---|---|
-| R1 | `PolicyFileParserTest`, `PolicyCheckErrorsTest`, `PolicyVersionResolutionTest`, `PolicyHashRecordedInJournalAndTraceTest`, `PolicyTextNeverInAgentPromptTest`, `LoomScriptMergeKeepsPoliciesAndEvaluatorsTest` | ⬜ |
-| R2 | `EvaluatorParsesTest`, `EvaluatorForbiddenSettingsTest`, `EvaluatorUsesClassifierEngineForCalibratedBackendTest`, `EvaluatorMarkedCalibratedInGraphAndAuditTest`, `InternalNodeContractTest` | ⬜ |
-| R3 | `EvaluatorSeesOnlySubjectAndRulesTest`, `EvaluatorAnswersEveryRuleTest`, `EvaluatorFailsClosedTest`, `SamplesMajorityAndAgreementTest` | ⬜ |
-| R4 | `CheckStatementParsesTest`, `CheckKeywordIsContextualTest`, `VerdictFieldsTest`, `SharedRuleIdsArePrefixedTest`, `CheckRetryTimeoutOnFailureTest` | ⬜ |
-| R5 | `RewriteIsStatelessTest`, `RewriteIsCheckedAgainOnceThenFailsClosedTest`, `AskPersonThreeAnswersTest`, `AskPersonSuspendsAndResumesTest`, `ReplaceWithTest`, `ReplaceWithModelValueRefusedByCheckTest`, `NoOnViolationMeansFailTest`, `FailErrorNamesRulesNeverTextTest` | ⬜ |
+| R1 | `PolicyFileParserTest`, `PolicyCheckErrorsTest`, `PolicyVersionResolutionTest`, `PolicyParsesTest` (merge), `CheckRunTest` (policy text and description never reach a prompt; version and hash in the trace) | ✅ |
+| R2 | `PolicyParsesTest` (parses, forbidden settings), `PolicyCheckErrorsTest` | partial: the calibrated backend and the calibrated/uncalibrated mark are not built |
+| R3 | `PolicyEvaluatorTest`, `CheckRunTest` | ✅ |
+| R4 | `CheckStatementParsesTest`, `CheckStaticErrorsTest`, `CheckRunTest`, `PolicyEvaluatorTest` (shared rule ids) | ✅ |
+| R5 | `CheckRunTest` (rewrite, re-check, ask person, replace, fail) | ✅ except suspend/resume of `ask person` (not tested) |
 | R6, R7 | laundering matrix, `RouteCoverageTest`, `NonModelWrittenTypesPassTest`, `EditingACheckedValueUnchecksItTest`, `ProvenanceSurvivesRewindAndResumeTest`, `ProvenanceNeverAppearsAsTextTest` | ⬜ |
 | R8 | `RuntimeBlocksUncheckedValueAtEachSinkTest`, `BlockedStepRunsOnFailureTest`, `MustPassEveryDeclaredPolicyTest`, `NoPolicyMeansNoEnforcementTest`, `StaticSinkPathErrorsTest`, `ExplainSinksListsUnfollowedPathsTest`, the D25 tests of the strategy (`AgentChangingToolCallIsCheckedBeforeItRunsTest` and its siblings) | ⬜ |
 | R9 | the R9 tests | ⬜ |
 | R10 | LY07 fixtures | ⬜ |
-| R11 | `LoomGuideBlocksParseTest`, `PreflightC4AdviceTextTest` | ⬜ |
+| R11 | `PreflightC4AdviceTextTest` | ✅ |
 | R12 | `SkillsMentionPolicyAndEvaluatorTest`, `verify-skill-package.sh` | ⬜ |
 | R13 | `ScriptedEvaluatorInWeaveTestTest`, `ExpectChecksAndActionsTest`, `ChecksPolicyAssertionTest`, `EvaluatorGoldenCaseFormatTest`, `MockEvaluatorSaysNotJudgedTest` | ⬜ |
 | R14 | `PolicyIncidentRulesTest`, `PolicyCheckTraceEventTest`, `SinkBlockedTraceEventTest`, `PolicyAuditEventsTest`, `CheckGraphNodeTest`, `GraphRenderKindsInSyncTest`, `ExplainSaysEachCheckTest` | ⬜ |
@@ -97,4 +97,19 @@ Evidence: E10, E11 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 
 ## 7. Results
 
-*(empty until 26a)*
+### 26a and 26b: policies, the evaluator and `check` (2026-11-03)
+
+**Built.** `policy` files (`policies/*.md`, `## rule_id`, versions like prompts, version and hash recorded in the `policy_check` event); `evaluator` (stateless, `samples`, `unsure below`, `fallback`, `pii`, `timeout`, `budget`); `check … against … using … -> verdict` with `retry`, `timeout`, `on_violation`, `on_unavailable` and `on_failure`, and the actions `rewrite with`, `ask person`, `replace with`, `fail`; the evaluator fails closed and counts `unsure` apart; `weave check` errors and the one warning; graph kind `check` (renderer and schema synced); trace `policy_check`; audit events `policy_violation`, `policy_override`; the guide, prompt, tutorial chapters 3 and 9, `llms.txt`, release notes, API compatibility, VS Code grammar and changelog; R11 (the `shared_prompt` example and preflight C4 advice).
+
+**Not built in this step (owed).** R6 to R8 and R15 (provenance, sinks, enforcement, the automatic check of an agent's changing tool calls), R9 (leak guard), R10 (LY07 and `add-policy`), R12 (the four skills), starter 17 and the chapter 10 and 14 tutorial rows, R13 (`weave test` scripting of evaluators, `expect: checks`, eval4j `checksPolicy`), R14 incidents and the live page/Fabric, R16 (cost lines, reserve, verdict reuse within a run, cheap defaults), the calibrated backend for evaluators, `InternalNodeContractTest` row for the evaluator, `weave explain` wording for a check, whatif/capture wiring.
+
+**Deviations, with the discipline lost and what covers it.**
+- *No enforcement yet.* Asked: with a policy declared, unchecked model text cannot leave. Built: only the tools to check (`check`). Lost: a developer who forgets a `check` is not stopped; this is the central guarantee of the phase. Covered by: the guide and tutorial say plainly that it is not built; nothing claims it. Owed in 26c, which also needs a person's independent review of the provenance code.
+- *`replace with` takes its text literally, not with `{…}`.* Asked: `{…}` only for values not model-written. Lost: a holding answer cannot include a variable. Covered by: `weave check` refuses `{` in it and says why; the variable-name substitution of ordinary words would have been a laundering route.
+- *`ask person` uses `promptHuman(stepId, message, Hints)` with kind `DECIDE`, not a new `HumanInterface` method.* Lost: a host cannot tell "ask person" from any decision question except by the choices. Covered by: it works with every existing channel (console, Telegram, suspension) and unclear answers stop.
+- *The evaluator is a chat model only.* Asked: also a calibrated backend (Jev, Perplexity). Lost: no calibrated probabilities. Covered by: `samples: 3` agreement as confidence, and the warning on `unsure below` with one sample.
+- *The tests were written alongside the code, not strictly first.* The evaluator and parser tests were written first for the engine; `CheckRunTest` was written after the runner. Covered by: guards removed by hand (below).
+
+**Guards removed by hand (restored after each).** `unsure` no longer blocking: 2 tests in `PolicyEvaluatorTest` failed. No re-check after a rewrite: 1 test in `CheckRunTest` failed. An unavailable evaluator no longer taking its action (treated as a pass): 1 test in `CheckRunTest` failed. The sink block, the automatic tool-call check, provenance through interpolation and the leak guard do not exist yet.
+
+**Gates.** `mvn verify` green on `ai-agent4j-loom` before the docs edits; targeted docs, tutorial, preflight and skill tests green after; `mvn install` (with all tests and the coverage rules) green on `ai-agent4j-loom`, then `mvn clean verify` green on `eval4j-report`, `loom-inspect-core`, `loom-fabric` and `loom-inspect`. Tutorial page regenerated; graph-render synced and checked. PIT: the evaluator and check runner are not yet in a mutation profile.

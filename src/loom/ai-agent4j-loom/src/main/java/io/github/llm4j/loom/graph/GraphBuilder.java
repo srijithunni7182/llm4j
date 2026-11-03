@@ -279,6 +279,9 @@ public final class GraphBuilder {
             } else if (statement instanceof io.github.llm4j.loom.ast.ExtractStmt extract) {
                 exits.add(new Exit(id, null));
                 defer(exits, id, "failure", "failure", extract.getOnFailure());
+            } else if (statement instanceof io.github.llm4j.loom.ast.CheckStmt check) {
+                exits.add(new Exit(id, null));
+                defer(exits, id, "failure", "failure", check.getOnFailure());
             } else if (statement instanceof io.github.llm4j.loom.ast.IntentClassifyStmt classify) {
                 exits.add(new Exit(id, null));
                 defer(exits, id, "failure", "failure", classify.getOnFailure());

@@ -91,7 +91,7 @@ Rules that belong to the whole team (house style, what never to do) can go in on
 
 ```loom
 substitution: braces
-shared_prompt: "Rules for every agent: answer in plain English, never invent a source, and say 'I do not know' when you do not."
+shared_prompt: "We write for Acme's customers: plain English, short sentences, and say 'I do not know' when you do not."
 
 agent Writer   { model: "gemini-2.5-flash"  system: "You write short articles." }
 agent Reviewer { model: "gemini-2.5-flash"  system: "You review articles." }
@@ -105,7 +105,7 @@ workflow Main(topic) {
 
 It is put first in every agent's system prompt, byte for byte the same, which also lets providers that reuse the start of a prompt reuse it across agents. Keep it free of dates and ids.
 
-Use it for **tone and shared facts**, not for rules that must hold: a prompt is a request, and a rule that must hold belongs in something that checks. An agent that should not get it writes `shared_prompt: none` inside its block (a node such as an extractor never gets it).
+Use it for **tone and shared facts**, not for rules that must hold: a prompt is a request, and a rule that must hold belongs in something that checks: a [policy checked at the edge](09-safety-and-cost.md#policies-rules-checked-at-the-edge). An agent that should not get it writes `shared_prompt: none` inside its block (a node such as an extractor never gets it).
 
 ## Agents that talk to people, and nodes that work for the workflow
 
@@ -116,7 +116,7 @@ Not every step in a workflow is a conversation. Some agents *talk*: they reason,
 Loom gives you both:
 
 - An **agent** is told what was said before it (the transcript) and the shared prompt, so it can carry on a piece of work.
-- An **internal node** (a classifier, and an extractor, [Chapter 5](05-structured-answers-and-failure.md#extractors-fields-from-text-with-nothing-else)) is handed only what its step names. It never sees the transcript or the shared prompt, and its answer is not added to the transcript.
+- An **internal node** (a classifier, an extractor and the evaluator that checks a policy, [Chapter 5](05-structured-answers-and-failure.md#extractors-fields-from-text-with-nothing-else)) is handed only what its step names. It never sees the transcript or the shared prompt, and its answer is not added to the transcript.
 
 Loom does not decide for you which of your agents are "internal". That depends on what your prompts mean. It does make the choice easy to see: `weave explain` and the graph say, for every agent, what it sees ("sees everything said before it"). An agent that should see less says so, as [Chapter 7](07-knowledge-and-memory.md#who-sees-what-was-said-before) shows.
 

@@ -686,6 +686,7 @@ public class HarnessExecutor implements LoomEngine {
     private final TaskRunner taskRunner = new TaskRunner(this);
     private final ClassifyRunner classifyRunner = new ClassifyRunner(this);
     private final ExtractRunner extractRunner = new ExtractRunner(this);
+    private final CheckRunner checkRunner = new CheckRunner(this);
 
     /**
      * The tasks {@code run} statements can use. Default: every task the class path declares as a
@@ -2867,6 +2868,8 @@ public class HarnessExecutor implements LoomEngine {
             classifyRunner.run(classify);
         } else if (stmt instanceof io.github.llm4j.loom.ast.ExtractStmt extract) {
             extractRunner.run(extract);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.CheckStmt check) {
+            checkRunner.run(check);
         } else if (stmt instanceof DelegateStmt del) {
             delegates.execute(del);
         } else if (stmt instanceof CallStmt call) {
@@ -3549,6 +3552,27 @@ public class HarnessExecutor implements LoomEngine {
     io.github.llm4j.LLMClient clientForExtractor(io.github.llm4j.loom.ast.ExtractorDef def) {
         return budgets.metered(
                 clientFor(def.getModel()), "extractor " + def.getName(), null, def.getModel());
+    }
+
+    /**
+     * The client an evaluator calls through for {@code model}: a bare client (no transcript, no
+     * shared prompt) metered under the evaluator's name, so the spend report and the budgets see
+     * it.
+     */
+    io.github.llm4j.LLMClient clientForEvaluator(
+            io.github.llm4j.loom.ast.EvaluatorDef def, String model) {
+        return budgets.metered(clientFor(model), "evaluator " + def.getName(), null, model);
+    }
+
+    /** The agent's own prompt without the shared prompt, for a rewrite. */
+    String ownPromptOf(io.github.llm4j.loom.ast.AgentDef agent) {
+        return prompts.resolveOwnPrompt(agent);
+    }
+
+    /** A bare client for an agent's model, metered under {@code name}. */
+    io.github.llm4j.LLMClient clientForRewrite(io.github.llm4j.loom.ast.AgentDef agent) {
+        return budgets.metered(
+                clientFor(agent.getModel()), "rewrite " + agent.getName(), null, agent.getModel());
     }
 
     /**

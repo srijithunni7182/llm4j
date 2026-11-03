@@ -518,6 +518,7 @@ public class ScriptValidator {
         DecisionChecks.run(c);
         ClassifierChecks.run(c);
         ExtractorChecks.run(c);
+        PolicyChecks.run(c);
         io.github.llm4j.loom.ladder.LadderChecks.run(c);
     }
 

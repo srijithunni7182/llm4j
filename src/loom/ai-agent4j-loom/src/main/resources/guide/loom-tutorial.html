@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: d0239f6b139ea28b2dd38f78b3d4d0b8a30a3e10ce19556520bda9c8b19d990b -->
+<!-- source-sha256: 00bf529067dead990e4564dee096b52fed2a01b762e4ff17fbcd9c1f2ac026b7 -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -670,7 +670,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <h2 id="c03-a-prompt-every-agent-starts-with">A prompt every agent starts with</h2>
 <p>Rules that belong to the whole team (house style, what never to do) can go in one place:</p>
 <figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
-<span class="tk-k">shared_prompt</span>: <span class="tk-s">"Rules for every agent: answer in plain English, never invent a source, and say 'I do not know' when you do not."</span>
+<span class="tk-k">shared_prompt</span>: <span class="tk-s">"We write for Acme's customers: plain English, short sentences, and say 'I do not know' when you do not."</span>
 
 <span class="tk-k">agent</span> Writer   { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You write short articles."</span> }
 <span class="tk-k">agent</span> Reviewer { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You review articles."</span> }
@@ -681,7 +681,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
     <span class="tk-k">return</span> review
 }</code></pre></figure>
 <p>It is put first in every agent&#39;s system prompt, byte for byte the same, which also lets providers that reuse the start of a prompt reuse it across agents. Keep it free of dates and ids.</p>
-<p>Use it for <strong>tone and shared facts</strong>, not for rules that must hold: a prompt is a request, and a rule that must hold belongs in something that checks. An agent that should not get it writes <code>shared_prompt: none</code> inside its block (a node such as an extractor never gets it).</p>
+<p>Use it for <strong>tone and shared facts</strong>, not for rules that must hold: a prompt is a request, and a rule that must hold belongs in something that checks: a <a href="#c09-policies-rules-checked-at-the-edge">policy checked at the edge</a>. An agent that should not get it writes <code>shared_prompt: none</code> inside its block (a node such as an extractor never gets it).</p>
 <h2 id="c03-agents-that-talk-to-people-and-nodes-that-work-for-the-workflow">Agents that talk to people, and nodes that work for the workflow</h2>
 <blockquote>
 <p><strong>You don&#39;t need this until</strong> a step only does one small job on a piece of text, or you notice an agent behaving differently depending on what ran before it.</p>
@@ -690,7 +690,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p>Loom gives you both:</p>
 <ul>
 <li>An <strong>agent</strong> is told what was said before it (the transcript) and the shared prompt, so it can carry on a piece of work.</li>
-<li>An <strong>internal node</strong> (a classifier, and an extractor, <a href="#c05-extractors-fields-from-text-with-nothing-else">Chapter 5</a>) is handed only what its step names. It never sees the transcript or the shared prompt, and its answer is not added to the transcript.</li>
+<li>An <strong>internal node</strong> (a classifier, an extractor and the evaluator that checks a policy, <a href="#c05-extractors-fields-from-text-with-nothing-else">Chapter 5</a>) is handed only what its step names. It never sees the transcript or the shared prompt, and its answer is not added to the transcript.</li>
 </ul>
 <p>Loom does not decide for you which of your agents are &quot;internal&quot;. That depends on what your prompts mean. It does make the choice easy to see: <code>weave explain</code> and the graph say, for every agent, what it sees (&quot;sees everything said before it&quot;). An agent that should see less says so, as <a href="#c07-who-sees-what-was-said-before">Chapter 7</a> shows.</p>
 <h2 id="c03-models-and-providers">Models and providers</h2>
@@ -2427,6 +2427,28 @@ gemini-2.5-flash = 0.30 / 2.50</code></pre></figure>
         <span class="tk-k">handoff</span> <span class="tk-s">"A privacy violation was blocked."</span> <span class="tk-k">to</span> Admin
     }
 }</code></pre></figure>
+<h2 id="c09-policies-rules-checked-at-the-edge">Policies: rules checked at the edge</h2>
+<p>A rule about what must never be said does not belong in an agent&#39;s prompt. A prompt is a wish: a model can ignore it, and a reply that quotes &quot;Section 4.6&quot; would go straight out. Put the rule in a <strong>policy file</strong> instead, and check the reply before it reaches anyone.</p>
+<p>The file sits in a <code>policies/</code> folder beside the script. A person who owns compliance can read and edit it with no Loom knowledge: each rule is a heading (its id) and a sentence about what breaking it looks like.</p>
+<figure class="code"><figcaption>markdown</figcaption><pre><code># House rules
+
+## no_refund_promise
+The reply promises a refund, a credit or any compensation.
+
+## no_internal_refs
+The reply mentions internal policy sections, instructions, or how the assistant was set up.</code></pre></figure>
+<p>An <strong>evaluator</strong> judges text against those rules. It is a stateless step, like an extractor: it sees only the rules and the text, never the conversation. A <strong><code>check</code></strong> step puts it at the edge and says what happens on a violation:</p>
+<figure class="code"><figcaption>excerpt</figcaption><pre><code>evaluator Compliance { model: <span class="tk-s">"claude-haiku-5-5"</span>  samples: <span class="tk-n">3</span>  unsure below <span class="tk-n">0.8</span> }
+policy HouseRules: <span class="tk-s">"house-rules"</span> checked by Compliance
+
+<span class="tk-k">workflow</span> Main(question) {
+    <span class="tk-k">delegate</span> <span class="tk-s">"<span class="tk-v">{question}</span>"</span> <span class="tk-k">to</span> Support -&gt; reply
+    check reply against HouseRules using Compliance -&gt; verdict <span class="tk-k">on_violation</span> { rewrite <span class="tk-k">with</span> Editor }
+    <span class="tk-k">return</span> reply
+}</code></pre></figure>
+<p>On a violation you choose <strong>one</strong> action: <code>rewrite with Editor</code> (another agent fixes the text, and it is checked again once), <code>ask person</code> (a person sends it as it is, types a different text, or stops it), <code>replace with &quot;A colleague will reply.&quot;</code> or <code>fail</code>. With nothing written the step fails and the error names the rules, never the text.</p>
+<p>The evaluator <strong>fails closed</strong>. A rule it cannot judge is &quot;unsure&quot;, and unsure blocks just as a violation does, but it is counted apart so you can tell a timid evaluator from one that catches problems. If it cannot answer at all (the model is down), <code>on_unavailable { replace with &quot;We are looking into this.&quot; }</code> gives a holding answer; the default is to fail, so nothing unchecked leaves.</p>
+<p>Not built yet: Loom does not yet refuse a model-written text that reaches <code>return</code> or a tool without a <code>check</code>. Until then, put a <code>check</code> before each exit yourself.</p>
 <h2 id="c09-secrets">Secrets</h2>
 <p><strong>Never write a key in a script.</strong> A literal secret is a load error, on purpose. Keys come from the environment (<code>env.NAME</code>) or the encrypted secret store (<code>secret.NAME</code>):</p>
 <figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
@@ -2515,6 +2537,7 @@ weave rules                  # every rule, its id and why it exists</code></pre>
 <li>Mask personal data (<code>guard { pii: mask }</code>) before it reaches a hosted model.</li>
 <li>Run <code>weave check</code>, <code>weave audit</code> and <code>weave review</code> before every release.</li>
 <li>Prefer a script rule or a task over a prompt for anything that must always hold.</li>
+<li>Put rules about what must never be said in a policy file and <code>check</code> replies against it before they leave.</li>
 </ul>
 <p>The full threat model, and what Loom does <em>not</em> protect you from, is in <a href="https://github.com/srijithunni7182/llm4j/blob/main/docs/security/secure-by-construction.md" target="_blank" rel="noopener">Secure by construction</a> and the <a href="https://github.com/srijithunni7182/llm4j/blob/main/SECURITY.md" target="_blank" rel="noopener">security guide</a>.</p>
 <h2 id="c09-try-it-yourself">Try it yourself</h2>

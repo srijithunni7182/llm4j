@@ -155,7 +155,7 @@
       "properties": {
         "id": { "type": "string" },
         "kind": {
-          "enum": ["start", "end", "delegate", "task", "classify", "extract", "handoff", "broadcast", "parallel", "alt", "loop", "foreach",
+          "enum": ["start", "end", "delegate", "task", "classify", "extract", "check", "handoff", "broadcast", "parallel", "alt", "loop", "foreach",
                    "human_prompt", "checkpoint", "rewind", "call", "guardrail", "decide", "observe", "note", "halt", "set", "return", "sleep", "outcome", "unknown"]
         },
         "label": { "type": "string" },

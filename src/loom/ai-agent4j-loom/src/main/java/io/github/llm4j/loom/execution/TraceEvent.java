@@ -156,6 +156,15 @@ public record TraceEvent(
      */
     public static final String FANOUT_EXCEEDED = "fanout_exceeded";
 
+    /**
+     * A {@code check … against} step finished (docs/specs/26-policy-boundary, R14): {@code step},
+     * {@code evaluator}, {@code model}, {@code policies} (name, version and hash of each), {@code
+     * violated} (rule ids), {@code unsure} (rule ids), {@code action} ({@code none}, {@code
+     * rewritten}, {@code replaced}, {@code asked}, {@code failed}), {@code attempts}, {@code
+     * duration_ms} and the tokens. Never the checked text and never a reason.
+     */
+    public static final String POLICY_CHECK = "policy_check";
+
     public static final String TASK_START = "task_start";
     public static final String TASK_END = "task_end";
     public static final String TASK_REPLAYED = "task_replayed";

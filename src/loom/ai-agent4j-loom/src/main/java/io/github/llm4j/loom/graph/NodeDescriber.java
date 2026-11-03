@@ -69,6 +69,9 @@ final class NodeDescriber {
         if (st instanceof io.github.llm4j.loom.ast.ExtractStmt x) {
             return extract(x);
         }
+        if (st instanceof io.github.llm4j.loom.ast.CheckStmt k) {
+            return check(k);
+        }
         if (st instanceof HandoffStmt h) {
             return new Described(Kinds.HANDOFF, "handoff " + h.getTargetAgent())
                     .agent(h.getTargetAgent())
@@ -223,6 +226,28 @@ final class NodeDescriber {
                                 .positive("retry", r.getRetryCount())
                                 .positive("backoffMs", r.getBackoffMillis())
                                 .positive("timeoutMs", r.getTimeoutMillis()));
+    }
+
+    private Described check(io.github.llm4j.loom.ast.CheckStmt k) {
+        return new Described(Kinds.CHECK, "check " + k.getSubject())
+                .attrs(
+                        Attrs.create()
+                                .text("subject", k.getSubject())
+                                .list("policies", k.getPolicies())
+                                .text("evaluator", k.getEvaluator())
+                                .text("onViolation", actionWord(k.getOnViolation()))
+                                .text("onUnavailable", actionWord(k.getOnUnavailable()))
+                                .text("variable", k.getVerdictVariable())
+                                .positive("retry", k.getRetryCount())
+                                .positive("timeoutMs", k.getTimeoutMillis()));
+    }
+
+    private static String actionWord(io.github.llm4j.loom.ast.CheckStmt.Action action) {
+        if (action instanceof io.github.llm4j.loom.ast.CheckStmt.Rewrite r)
+            return "rewrite with " + r.agent();
+        if (action instanceof io.github.llm4j.loom.ast.CheckStmt.Replace) return "replace";
+        if (action instanceof io.github.llm4j.loom.ast.CheckStmt.AskPerson) return "ask person";
+        return "fail";
     }
 
     private Described extract(io.github.llm4j.loom.ast.ExtractStmt x) {

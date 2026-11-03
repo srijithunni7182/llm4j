@@ -51,6 +51,17 @@ final class AgentPrompts {
     }
 
     /**
+     * The agent's own prompt (base, persona and skills) without the shared prompt, whatever the
+     * agent's settings: what a rewriter or other stateless caller is given of it.
+     */
+    String resolveOwnPrompt(AgentDef agentDef) {
+        String base = basePrompt(agentDef);
+        return agentDef.getSkills().isEmpty()
+                ? base
+                : base + "\n\n" + resolveSkills(agentDef.getSkills());
+    }
+
+    /**
      * The text put in front of every agent's prompt, or null; resolved once so every agent gets the
      * same bytes.
      */

@@ -24,6 +24,12 @@ public final class Kinds {
      */
     public static final String EXTRACT = "extract";
 
+    /**
+     * A {@code check … against} statement: a stateless evaluator judges a text against a policy's
+     * rules before it can leave the workflow.
+     */
+    public static final String CHECK = "check";
+
     public static final String HANDOFF = "handoff";
     public static final String BROADCAST = "broadcast";
     public static final String PARALLEL = "parallel";
@@ -67,6 +73,7 @@ public final class Kinds {
                     TASK,
                     CLASSIFY,
                     EXTRACT,
+                    CHECK,
                     HANDOFF,
                     BROADCAST,
                     PARALLEL,
