@@ -38,6 +38,7 @@ this table names constructs, it does not define them.
 | A context plan for agents that loop on tools | a `context { compact: chain(trim_tool_results, drop_oldest) ... }` block; `summarize` only with a `summarizer` model | `weave guide 14` |
 | Each model's window | a `<script>.windows` file or the shipped catalogue; never in the script | `weave guide 14` |
 | A bound on the shared transcript every agent receives by default | `memory { max_tokens: N  compact: drop_oldest }` on the agent; an agent with a `context` block and a known window bounds it to a quarter of its window | `weave guide loom` ("Bounding Loom's shared transcript") |
+| Progress through a long job, kept where the harness can see it, not in the conversation | a bounded `loop`, a worker with `memory { transcript: none }`, and an `extractor` that writes `done / next / finished` into a variable (starter 16) | `weave guide 14` |
 | Harness-owned memory across steps | Engram: `executor.setMemoryEngine(engram)` from a Java host | `weave guide loom` ("Memory, Voice and Languages") |
 
 ## Concurrency and composition (stage 4, principles §15)

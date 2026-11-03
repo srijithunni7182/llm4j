@@ -61,14 +61,14 @@ You write one text file. A handful of commands check it, test it, review it, run
 | 8 | [People in the loop](08-people-in-the-loop.md) | `human_prompt`, approvals, durable runs, `sleep`, steering and stopping, `supervise` | [07](../../src/loom/starters/07-approval/), [12](../../src/loom/starters/12-wait-for-a-person/), [14](../../src/loom/starters/14-supervised-agent/) |
 | 9 | [Safety and cost](09-safety-and-cost.md) | Budgets, guards, PII, secrets, the audit and review, the lethal trifecta | [07](../../src/loom/starters/07-approval/), [15](../../src/loom/starters/15-earned-autonomy/) |
 | 10 | [Testing](10-testing.md) | `weave test` in full, scripted failures, coverage, golden datasets and `weave eval` | every starter has tests |
-| 11 | [Advanced orchestration](11-advanced-orchestration.md) | Checkpoints and rewind, earned autonomy and ladders, schedules, context and compaction | [11](../../src/loom/starters/11-daily-digest/), [13](../../src/loom/starters/13-rewind-and-retry/), [15](../../src/loom/starters/15-earned-autonomy/) |
+| 11 | [Advanced orchestration](11-advanced-orchestration.md) | Checkpoints and rewind, earned autonomy and ladders, schedules, context and compaction, keeping progress in the workflow | [11](../../src/loom/starters/11-daily-digest/), [13](../../src/loom/starters/13-rewind-and-retry/), [15](../../src/loom/starters/15-earned-autonomy/), [16](../../src/loom/starters/16-step-by-step-agent/) |
 | 12 | [Running it for real](12-running-for-real.md) | `weave run`, journals, packaging, deploying, watching, Fabric | [11](../../src/loom/starters/11-daily-digest/), [12](../../src/loom/starters/12-wait-for-a-person/) |
 | 13 | [Plain Java](13-java.md) | Use the agent library directly, embed Loom, write your own tasks and tools, test from JUnit | |
 | 14 | [Cookbook and cheat sheet](14-cookbook.md) | Recipes, mistakes and their fixes, one page of syntax | |
 
 ## The starter set
 
-[`src/loom/starters`](../../src/loom/starters/README.md) holds fifteen small, complete workflows. Each loads, has tests that need no key, and shows its own picture. Read a chapter, then open the starter that uses it, change something, and run its tests.
+[`src/loom/starters`](../../src/loom/starters/README.md) holds sixteen small, complete workflows. Each loads, has tests that need no key, and shows its own picture. Read a chapter, then open the starter that uses it, change something, and run its tests.
 
 ## Conventions in this tutorial
 

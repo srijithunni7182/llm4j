@@ -22,6 +22,7 @@ Each recipe names the starter that implements it. Open the starter, run `weave t
 | Wait days for a person, then follow up | `human_prompt`, `sleep`, `--journal` | [12](../../src/loom/starters/12-wait-for-a-person/) |
 | Go back when a late check fails | `checkpoint` + `rewind ... carrying` | [13](../../src/loom/starters/13-rewind-and-retry/) |
 | Stop an agent that loops or runs long | `supervise` rules | [14](../../src/loom/starters/14-supervised-agent/) |
+| Keep a long agent's progress where the workflow can see it | A bounded `loop`, a worker with `transcript: none`, an `extractor` that records progress | [16](../../src/loom/starters/16-step-by-step-agent/) |
 | Let an agent earn the right to act | `decision` + `trust` + `decide` | [15](../../src/loom/starters/15-earned-autonomy/) |
 
 ### Recipe: pull fields out of text

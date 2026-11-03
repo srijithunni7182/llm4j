@@ -35,6 +35,7 @@ The models are named `gemini-2.5-flash` in all of them. Change the `model:` line
 | 13 | [rewind-and-retry](13-rewind-and-retry/) | Goes back to a checkpoint with feedback | `checkpoint`, `rewind` |
 | 14 | [supervised-agent](14-supervised-agent/) | Rules that watch an agent | `supervise` |
 | 15 | [earned-autonomy](15-earned-autonomy/) | An agent earns the right to act alone | `decision`, `trust`, `decide` |
+| 16 | [step-by-step-agent](16-step-by-step-agent/) | A long job whose progress the script owns | bounded `loop`, `memory { transcript: none }`, an `extractor` that records progress |
 
 ## What keeps these honest
 

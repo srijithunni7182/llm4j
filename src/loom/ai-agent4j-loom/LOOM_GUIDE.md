@@ -1757,6 +1757,8 @@ workflow Main(text) {
 
 ### Context and Compaction
 
+> A long agent that tracks "what is done and what is next" inside its own conversation can lose it when the conversation is compacted. Keep that progress in the workflow instead: a bounded `loop`, a worker with `memory { transcript: none }` and an `extractor` that records progress in a variable. Starter `16-step-by-step-agent` is the tested reference; `weave guide 14` has the recipe.
+
 > **Status: complete.** The `context` block, the windows files, `.loct` strategies, the trace events and run statistics, the transcript bound and `weave audit` are all in.
 > Design: [`docs/specs/03-loom-integration`](../../../docs/specs/03-loom-integration/DESIGN.md). A runnable example is in [`src/examples/loom-context`](../../examples/loom-context/README.md).
 

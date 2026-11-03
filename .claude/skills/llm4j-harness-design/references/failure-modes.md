@@ -17,6 +17,12 @@ happen.
 | A rate limit fails the run at 3 a.m. | limits are treated as errors | suspend and resume on the reset time, with a maximum wait | 4, 14 |
 | The run sits silent for hours | waiting on a person nobody can reach, or a stalled step | a reachable channel and a timeout decision; detect stalls as trouble | 8, 14 |
 
+## The agent loses track of where it is
+
+| Symptom | Usual cause | Fix | § |
+|---|---|---|---|
+| A long agent repeats a step, skips one, or says it is finished too early | its progress lives only in its conversation, which grows, is compacted, and is attended to less in the middle | keep the progress in the workflow: a typed variable written by an extractor after each step, a worker with no transcript, a bounded loop (starter 16) | 8 |
+
 ## Runs that do the wrong thing
 
 | Symptom | Usual cause | Fix | § |

@@ -296,6 +296,62 @@ workflow Main(question) {
 
 The size of the window belongs to the *model*, so it is configured once, outside the script, in a windows file (`model = window / reserve for the answer`). `weave audit` lists each agent's strategy and the window it found. Whatever is removed, the model is told that something was removed, so it does not rest a conclusion on material that is gone. To check that for your own strategy, run `weave probe eviction`.
 
+## Keep progress in the workflow, not the conversation
+
+> **You don't need this until** one agent has to work through many steps and you notice it losing track of what is done and what is next.
+
+A long agent keeps its progress in its conversation: "I have done A and B, next is C". That conversation grows, may be compacted (older parts removed), and a model attends less to the middle of a long one. So the agent repeats a step, skips one, or declares itself finished too early. Compaction cannot be trusted with the progress, and a person cannot see it.
+
+Lift the progress into the script, which is already Loom's state machine:
+
+```mermaid
+flowchart LR
+  P["progress<br/>(a typed value the script owns)"] --> W["worker<br/>one step, no transcript"]
+  W -- "a report in prose" --> X["extractor Progress"]
+  P --> X
+  X -- "the new progress" --> P
+```
+
+- a bounded `loop until (progress.finished == "true") max N`;
+- a **worker** agent with `memory { transcript: none }`, told the goal, what is done and the one step to do now, so each round starts clean;
+- an `extractor Progress` that reads the goal, the previous progress and the worker's report, and writes the new progress into a variable.
+
+```loom
+substitution: braces
+
+tool Files { use: file  root: "work"  mode: write }
+
+agent Worker {
+    model: "gemini-2.5-flash"
+    system: "You do ONE step of a larger job. Do the step you are told with your tools, then report in plain prose what you did."
+    tools: [Files]
+    memory { transcript: none }
+}
+
+extractor Progress {
+    model: "gemini-2.5-flash"
+    instructions: "Read the goal, the previous progress and the worker's report. List every step now done, say the one step to do next, and say whether the whole goal is finished."
+    fields {
+        done: list<string>
+        next: string
+        finished: boolean
+    }
+}
+
+workflow Main(goal) {
+    set progress = { done: "nothing yet", next: "plan the first step", finished: "false" }
+    loop until (progress.finished == "true") max 6 {
+        delegate "GOAL: {goal}\nDONE SO FAR: {progress.done}\nDO THIS ONE STEP NOW: {progress.next}" to Worker -> report retry 1
+        extract Progress from (goal = goal, previous = progress, report = report) -> progress retry 1
+    } on_exhausted {
+        note "Stopped without finishing. Done so far: {progress.done}"
+    }
+    return progress.done
+}
+```
+
+The progress is now typed, **journaled** (a resumed run continues from it, as starter [16-step-by-step-agent](../../src/loom/starters/16-step-by-step-agent/) proves), **bounded** by `max`, drawn in the graph, and testable, and compaction cannot remove it. No new construct was needed.
+
 ## Putting a workflow under control from outside
 
 A running workflow can be reached by other programs and people:

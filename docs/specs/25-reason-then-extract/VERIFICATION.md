@@ -105,3 +105,11 @@ Tests first: `SplitFixTest` (19 cases). **Built:** `SplitFix` (a `JavaFixOption`
 
 **Teaching:** guide section, tutorial chapter 5 ("Reason first, then extract", with the trapped and fixed scripts and an exercise), chapter 14 (recipe, mistakes), README row, `docs/guide/06`, the three skills, release notes, rule pages. **Gates:** `mvn verify` `eval4j` 571 and `ai-agent4j-loom` 4247 (3 skipped), coverage met; tutorial, guide and starters tests green.
 
+### 25d: progress kept in the workflow, starter 16 (2026-11-03)
+
+Tests first: starter 16's own cases (`tests/main.test.yaml`: progress carried round to round, the loop stops at its bound, a worker failure halts), `StepByStepStarterTest` (the worker's requests hold no transcript; round N+1 is told round N's recorded next step; a run whose journal holds only rounds 1 and 2 continues at round 3 without asking again), `StartersTest` (now sixteen starters; picture and README script compared with the real ones). **Built:** starter `16-step-by-step-agent` (a bounded `loop`, `Worker` with `memory { transcript: none }`, `extractor Progress` writing `done / next / finished` into a variable); no new construct. **Teaching:** tutorial chapter 11 ("Keep progress in the workflow, not the conversation", with a diagram and the script), chapter 14 recipe row, the tutorial and starters READMEs, `LOOM_GUIDE.md` pointer under "Context and Compaction", `docs/guide/14-context-and-compaction.md`, the harness-design skill (principle 8, the loom-mapping row, a new "the agent loses track of where it is" table in failure-modes), the workflow-guide skill, release notes.
+
+**Honest limit of the resume test:** a real crash cannot be thrown inside a unit test (the runtime records any exception from a step as a failure and a resume replays that failure), so the test copies the journal at the moment round 3 starts, which is what a file journal holds when the process dies there.
+
+**Not green here:** `scripts/verify-skill-package.sh` stops at "run-observed failed from the package" (the deployer skill's check that brings up a real Fabric). The packages were built from the working tree after a run in which the `loom-inspect` modules were stamped at different commits, the same cause as the earlier identity failure, but I did not confirm it against the base.
+
