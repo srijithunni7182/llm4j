@@ -331,6 +331,7 @@ final class ClassifierChecks {
             else if (s instanceof SetStmt set) name = set.getName();
             else if (s instanceof RunStmt r) name = r.getVariableName();
             else if (s instanceof IntentClassifyStmt i) name = i.getVariableName();
+            else if (s instanceof io.github.llm4j.loom.ast.ExtractStmt x) name = x.getVariableName();
             else if (s instanceof ForEachStmt f) name = f.getItemName();
             if (name != null && !name.isBlank() && !name.startsWith("{")) names.add(name);
         }

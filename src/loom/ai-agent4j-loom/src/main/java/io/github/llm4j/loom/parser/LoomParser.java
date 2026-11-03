@@ -47,6 +47,9 @@ public class LoomParser {
             } else if (isNamedBlock("intentclassifier")) {
                 advance();
                 script.addIntentClassifier(parseIntentClassifier());
+            } else if (isNamedBlock("extractor")) {
+                advance();
+                script.addExtractor(parseExtractor());
             } else if (isBudgetKeyword()) {
                 // Contextual keyword: `budget` stays usable as a variable name everywhere else.
                 Token keyword = advance();
@@ -120,7 +123,7 @@ public class LoomParser {
             } else {
                 throw error(
                         peek(),
-                        "Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: "
+                        "Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'extractor', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: "
                                 + peek().getType());
             }
         }
@@ -485,6 +488,10 @@ public class LoomParser {
             return parseDecide();
         } else if (isWord("intentclassify") && peekAt(1).getType() == TokenType.IDENTIFIER) {
             return parseIntentClassify();
+        } else if (isWord("extract")
+                && peekAt(1).getType() == TokenType.IDENTIFIER
+                && "from".equals(peekAt(2).getValue())) {
+            return parseExtract();
         } else if (isWord("halt")) {
             return parseHalt();
         } else if (isWord("set")) {
@@ -2723,6 +2730,253 @@ public class LoomParser {
                 long millis = durationMillis();
                 if (option.equals("backoff")) stmt.setBackoffMillis(millis);
                 else stmt.setTimeoutMillis(millis);
+            } else {
+                break;
+            }
+        }
+        if (match(TokenType.ON_FAILURE)) {
+            consume(TokenType.LBRACE, "Expect '{' before on_failure body.");
+            while (!check(TokenType.RBRACE) && !isAtEnd())
+                stmt.getOnFailure().add(parseStatement());
+            consume(TokenType.RBRACE, "Expect '}' after on_failure body.");
+        }
+        return stmt;
+    }
+
+
+    private static final java.util.List<String> EXTRACTOR_SETTINGS =
+            java.util.List.of(
+                    "model", "instructions", "fields", "optional", "pii", "temperature", "timeout",
+                    "budget");
+
+    /** Agent settings an extractor is stateless without (docs/specs/24, R1). */
+    private static final java.util.Set<String> EXTRACTOR_FORBIDDEN =
+            java.util.Set.of(
+                    "tools",
+                    "memory",
+                    "steerable",
+                    "persona",
+                    "skills",
+                    "grounding",
+                    "max_iterations",
+                    "context",
+                    "approve");
+
+    /**
+     * {@code extractor Name { model: "…" instructions: "…" fields { a: string } optional: [a] pii:
+     * mask }}, after the word {@code extractor}. The words inside are contextual.
+     */
+    private io.github.llm4j.loom.ast.ExtractorDef parseExtractor() {
+        Token name =
+                consume(
+                        TokenType.IDENTIFIER,
+                        "Expect an extractor name, e.g. extractor Invoice { model: \"…\"  fields { total: number } }");
+        io.github.llm4j.loom.ast.ExtractorDef def =
+                new io.github.llm4j.loom.ast.ExtractorDef(name.getValue());
+        def.setLine(name.getLine());
+        consume(TokenType.LBRACE, "Expect '{' after extractor " + name.getValue() + ".");
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        Token optionalAt = null;
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token key =
+                    word(
+                            "Expect an extractor setting: "
+                                    + String.join(", ", EXTRACTOR_SETTINGS)
+                                    + ".");
+            String setting = key.getValue();
+            if (EXTRACTOR_FORBIDDEN.contains(setting))
+                throw error(
+                        key,
+                        "an extractor is stateless; use an agent for this. "
+                                + setting
+                                + " is not something an extractor can have.");
+            if (!EXTRACTOR_SETTINGS.contains(setting)) {
+                java.util.List<String> near =
+                        io.github.llm4j.loom.prompt.PromptCatalog.nearest(
+                                setting, EXTRACTOR_SETTINGS);
+                throw error(
+                        key,
+                        "\""
+                                + setting
+                                + "\" is not something an extractor can have. An extractor can have: "
+                                + String.join(", ", EXTRACTOR_SETTINGS)
+                                + "."
+                                + (near.isEmpty()
+                                        ? ""
+                                        : " Did you mean " + String.join(" or ", near) + "?"));
+            }
+            if (!seen.add(setting))
+                throw error(
+                        key, setting + " is given twice in extractor " + name.getValue() + ".");
+            switch (setting) {
+                case "model" -> {
+                    consume(TokenType.COLON, "Expect ':' after model.");
+                    def.setModel(
+                            consume(
+                                            TokenType.STRING_LITERAL,
+                                            "Expect a quoted model, as in model: \"gemini-2.5-flash\".")
+                                    .getValue());
+                }
+                case "instructions" -> {
+                    consume(TokenType.COLON, "Expect ':' after instructions.");
+                    if (isWord("prompt") && peekAt(1).getType() == TokenType.STRING_LITERAL) {
+                        advance();
+                        def.setPromptRef(advance().getValue());
+                    } else {
+                        def.setInstructions(
+                                consume(
+                                                TokenType.STRING_LITERAL,
+                                                "Write instructions: \"fixed text\" or instructions: prompt \"id\" (a prompt file).")
+                                        .getValue());
+                    }
+                }
+                case "fields" -> def.setFields(parseExtractorFields(name));
+                case "optional" -> {
+                    optionalAt = key;
+                    consume(TokenType.COLON, "Expect ':' after optional.");
+                    consume(TokenType.LBRACKET, "Expect [field, …] after optional:.");
+                    if (!check(TokenType.RBRACKET)) {
+                        do {
+                            def.getOptional()
+                                    .add(word("Expect a field name in optional: [ … ].").getValue());
+                        } while (match(TokenType.COMMA));
+                    }
+                    consume(TokenType.RBRACKET, "Expect ']' after the optional fields.");
+                }
+                case "pii" -> {
+                    consume(TokenType.COLON, "Expect ':' after pii.");
+                    def.setPii(word("Expect mask, block or warn after pii:.").getValue());
+                }
+                case "temperature" -> {
+                    consume(TokenType.COLON, "Expect ':' after temperature.");
+                    def.setTemperature(
+                            Double.parseDouble(
+                                    consume(
+                                                    TokenType.NUMBER_LITERAL,
+                                                    "Expect a number, as in temperature: 0.")
+                                            .getValue()));
+                }
+                case "timeout" -> {
+                    consume(TokenType.COLON, "Expect ':' after timeout.");
+                    def.setTimeoutMillis(durationMillis());
+                }
+                default -> def.setBudget(parseBudgetBlock(false)); // budget { … }
+            }
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after extractor " + name.getValue() + ".");
+        if (def.getModel() == null)
+            throw error(
+                    name,
+                    "extractor "
+                            + name.getValue()
+                            + " needs a model, as in model: \"gemini-2.5-flash\".");
+        if (def.getFields() == null)
+            throw error(
+                    name,
+                    "extractor "
+                            + name.getValue()
+                            + " needs fields, as in fields { vendor: string  total: number }.");
+        for (String optional : def.getOptional()) {
+            if (!def.getFields().getFields().containsKey(optional))
+                throw error(
+                        optionalAt,
+                        "optional: "
+                                + optional
+                                + " is not a field of extractor "
+                                + name.getValue()
+                                + "; its fields are "
+                                + String.join(", ", def.getFields().getFields().keySet())
+                                + ".");
+        }
+        return def;
+    }
+
+    /** {@code fields { a: string  b: number }}, after the word {@code fields}. */
+    private SchemaDef parseExtractorFields(Token extractorName) {
+        consume(TokenType.LBRACE, "Expect '{' after fields.");
+        SchemaDef schema = new SchemaDef(SchemaDef.Type.OBJECT);
+        java.util.Map<String, SchemaDef> fields = new java.util.LinkedHashMap<>();
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token field = advance();
+            if (field.getValue() == null || !field.getValue().matches("[A-Za-z_][A-Za-z0-9_]*"))
+                throw error(field, "Expect a field name, as in fields { total: number }.");
+            consume(TokenType.COLON, "Expect ':' after " + field.getValue() + ".");
+            if (fields.containsKey(field.getValue()))
+                throw error(
+                        field,
+                        field.getValue()
+                                + " is written twice in the fields of extractor "
+                                + extractorName.getValue()
+                                + ".");
+            fields.put(field.getValue(), parseSchema());
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after the fields.");
+        if (fields.isEmpty())
+            throw error(
+                    previous(),
+                    "extractor "
+                            + extractorName.getValue()
+                            + " needs at least one field, as in fields { total: number }.");
+        schema.setFields(fields);
+        return schema;
+    }
+
+    /**
+     * {@code extract Invoice from text -> invoice [retry 1] [backoff 2s] [timeout 30s] [budget N
+     * tokens] [on_failure { … }]} or {@code extract Claim from (email = msg, order = record) -> claim}.
+     */
+    private io.github.llm4j.loom.ast.ExtractStmt parseExtract() {
+        Token keyword = advance();
+        Token extractor = consume(TokenType.IDENTIFIER, "Expect the name of an extractor.");
+        advance(); // from
+        java.util.List<RunStmt.Arg> inputs = new java.util.ArrayList<>();
+        if (match(TokenType.LPAREN)) {
+            while (!check(TokenType.RPAREN) && !isAtEnd()) {
+                Token field = word("Expect an input name, as in from (email = msg, order = record).");
+                consume(TokenType.ASSIGN, "Expect '=' after " + field.getValue() + ".");
+                inputs.add(classifierInput(field.getValue()));
+                match(TokenType.COMMA);
+            }
+            consume(TokenType.RPAREN, "Expect ')' after the inputs.");
+            if (inputs.isEmpty())
+                throw error(previous(), "Name at least one input, as in from (email = msg).");
+        } else {
+            inputs.add(classifierInput(""));
+        }
+        consume(
+                TokenType.ARROW,
+                "Expect '->' and a variable to hold the fields, as in extract "
+                        + extractor.getValue()
+                        + " from "
+                        + (inputs.size() == 1 && inputs.get(0).name().isEmpty()
+                                ? inputs.get(0).text()
+                                : "(…)")
+                        + " -> result.");
+        String variable = nameOrReference("Expect a variable name for the fields.");
+        io.github.llm4j.loom.ast.ExtractStmt stmt =
+                new io.github.llm4j.loom.ast.ExtractStmt(extractor.getValue(), variable);
+        stmt.setLine(keyword.getLine());
+        stmt.getInputs().addAll(inputs);
+        while (true) {
+            if (match(TokenType.RETRY)) {
+                stmt.setRetryCount(
+                        (int)
+                                Double.parseDouble(
+                                        consume(
+                                                        TokenType.NUMBER_LITERAL,
+                                                        "Expect number of retries.")
+                                                .getValue()));
+            } else if (check(TokenType.IDENTIFIER)
+                    && ("backoff".equals(peek().getValue())
+                            || "timeout".equals(peek().getValue()))) {
+                String option = advance().getValue();
+                long millis = durationMillis();
+                if (option.equals("backoff")) stmt.setBackoffMillis(millis);
+                else stmt.setTimeoutMillis(millis);
+            } else if (isBudgetModifier()) {
+                stmt.setBudget(parseBudgetModifier(stmt.getBudget()));
             } else {
                 break;
             }

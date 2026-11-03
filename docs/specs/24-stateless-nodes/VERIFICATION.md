@@ -7,12 +7,12 @@ Evidence: E1 to E6 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 
 | # | Evidence | Procedure | If it is real, you see | Result |
 |---|---|---|---|---|
-| P1 | E1 | Run a two-agent workflow under `weave test` with a capturing client; the first agent answers a canary. | the second agent's request contains `Conversation History` and the canary | ⬜ |
-| P2 | E2 | Give the second agent `memory { max_tokens: 1 }`. | the canary is still sent (the latest two exchanges are kept); `max_tokens: 0` is refused | ⬜ |
-| P3 | E3 | A canary `shared_prompt` and two agents. | both agents' system prompts start with the canary; no setting removes it from one | ⬜ |
-| P4 | E4 | A `Task.withModel` run after the canary agent. | its request has no transcript and no shared prompt (the stateless path exists, in Java only) | ⬜ |
-| P5 | E5 | Read the guide's Intake example and starter 08; run starter 08 after a canary agent added in front. | the extractor agent receives the canary | ⬜ |
-| P6 | E6 | `weave audit` on the TaintFixture (Researcher with a web tool, Sender with private data and an outward tool, both default transcript). | no LA01 for Sender; nothing mentions the transcript | ⬜ |
+| P1 | E1 | Run a two-agent workflow under `weave test` with a capturing client; the first agent answers a canary. | the second agent's request contains `Conversation History` and the canary | ✅ 2026-11-01 at `28c74ca9`: `Phase24ReproductionTest.p1…` passes: second agent's request holds `Conversation History` and the canary. |
+| P2 | E2 | Give the second agent `memory { max_tokens: 1 }`. | the canary is still sent (the latest two exchanges are kept); `max_tokens: 0` is refused | ◐ confirmed by reading `TranscriptAccumulationEngine.Limit` (rejects `maxTokens < 1`; latest two exchanges kept), not run. |
+| P3 | E3 | A canary `shared_prompt` and two agents. | both agents' system prompts start with the canary; no setting removes it from one | ✅ 2026-11-01: `p3…` passes: both agents' requests carry the shared-prompt canary. |
+| P4 | E4 | A `Task.withModel` run after the canary agent. | its request has no transcript and no shared prompt (the stateless path exists, in Java only) | ◐ confirmed by reading `TaskRunner.java:206` / `HarnessExecutor.clientForTask` (bare metered client), not run. |
+| P5 | E5 | Read the guide's Intake example and starter 08; run starter 08 after a canary agent added in front. | the extractor agent receives the canary | ◐ confirmed by reading starter 08 (`agent Extractor` with `output_schema`, receives the transcript as any delegate does), not run with a canary agent. |
+| P6 | E6 | `weave audit` on the TaintFixture (Researcher with a web tool, Sender with private data and an outward tool, both default transcript). | no LA01 for Sender; nothing mentions the transcript | ✅ 2026-11-01: `p6…` passes: no LA01 and no mention of the transcript for Researcher → Sender. |
 
 ## 1. Acceptance criteria
 
@@ -90,4 +90,11 @@ The pages in DESIGN §8 and the tutorial rows in DESIGN §9, each ticked when up
 
 ## 7. Results
 
-*(empty until 24a)*
+### 24a, in progress (2026-11-03)
+
+Built, tests first (red for the right reason, then green): `ExtractorParsingTest` (19), `ExtractRunnerTest` (15), `ExtractorCheckErrorsTest`. Whole `ai-agent4j-loom` module: 4113 tests, 0 failures, 4 skipped (as before), `-Djacoco.skip=true`. `Phase24ReproductionTest` stays as the pin of the default (`transcript: all`, shared prompt to every agent).
+
+**Done:** R1 (AST, parser, forbidden settings, duplicate field, optional names), R2 (statement), R3 (preamble, instructions, schema, marked inputs; no transcript, no shared prompt; answer not stored), R4 (missing/null optional, required null fails at once, malformed corrected once then retried), R5 in part (budget scopes, metering under `extractor <Name>`, journal and replay, trace `extract_start`/`extract_end`/`extract_replayed` with names only), R6 (validator checks), `missing` in conditions, `PiiGuard`/`NodeInputs` shared with the classifier.
+
+**Not done yet in 24a:** native JSON mode (no provider in the core implements one; needs a provider-module change, to be decided with the owner), graph kind `extract` and `sync-graph-render`, `weave test` scripting and `--mock` for extractors, eval4j assertions, `weave explain`/narrator, cost estimate line, `InternalNodeContractTest`, the SecurityAudit/Capture/ScriptDrift/Decisions (whatif) wiring, PIT additions, coverage gates (`mvn verify`), hand-removed guards, and every document row of §5.
+

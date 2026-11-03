@@ -44,6 +44,7 @@ public final class SubstitutedText {
                     "ReturnStmt.getValue",
                     "RunStmt.getArgs",
                     "IntentClassifyStmt.getInputs",
+                    "ExtractStmt.getInputs",
                     "ObserveStmt.getLabel",
                     "ObserveStmt.getExpression",
                     "CallStmt.getArguments",
@@ -80,6 +81,8 @@ public final class SubstitutedText {
                     "HumanPromptStmt.getVariableName",
                     "IntentClassifyStmt.getClassifier",
                     "IntentClassifyStmt.getVariableName",
+                    "ExtractStmt.getExtractor",
+                    "ExtractStmt.getVariableName",
                     "RunStmt.getTaskName",
                     "RunStmt.getVariableName",
                     "RunStmt.getModel",
@@ -113,6 +116,9 @@ public final class SubstitutedText {
         } else if (s instanceof IntentClassifyStmt c) {
             for (RunStmt.Arg a : c.getInputs())
                 if (a.kind() == RunStmt.Kind.STRING) add(out, "classifier input", a.text());
+        } else if (s instanceof io.github.llm4j.loom.ast.ExtractStmt x) {
+            for (RunStmt.Arg a : x.getInputs())
+                if (a.kind() == RunStmt.Kind.STRING) add(out, "extractor input", a.text());
         } else if (s instanceof ObserveStmt o) {
             add(out, "observe label", o.getLabel());
             add(out, "observe expression", o.getExpression());

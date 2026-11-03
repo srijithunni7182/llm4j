@@ -17,6 +17,7 @@ public class LoomScript implements Node {
     private final List<LadderDef> ladders = new ArrayList<>();
     private final List<MeasureDef> measures = new ArrayList<>();
     private final List<IntentClassifierDef> intentClassifiers = new ArrayList<>();
+    private final List<ExtractorDef> extractors = new ArrayList<>();
     private final List<String> imports = new ArrayList<>();
     private final List<Integer> importLines = new ArrayList<>();
     private String substitution = "legacy";
@@ -64,6 +65,20 @@ public class LoomScript implements Node {
                 .filter(c -> c.getName().equals(name))
                 .findFirst()
                 .orElse(null);
+    }
+
+    /** The {@code extractor} declarations. */
+    public List<ExtractorDef> getExtractors() {
+        return extractors;
+    }
+
+    public void addExtractor(ExtractorDef def) {
+        extractors.add(def);
+    }
+
+    /** The extractor called {@code name}, or null. */
+    public ExtractorDef findExtractor(String name) {
+        return extractors.stream().filter(e -> e.getName().equals(name)).findFirst().orElse(null);
     }
 
     public void addAgent(AgentDef agent) {
@@ -321,6 +336,7 @@ public class LoomScript implements Node {
         this.ladders.addAll(other.ladders);
         this.measures.addAll(other.measures);
         this.intentClassifiers.addAll(other.intentClassifiers);
+        this.extractors.addAll(other.extractors);
         // Supervision travels with the agents it watches. The script merged last (the importing
         // file) wins the intervention defaults.
         this.supervisions.addAll(other.supervisions);

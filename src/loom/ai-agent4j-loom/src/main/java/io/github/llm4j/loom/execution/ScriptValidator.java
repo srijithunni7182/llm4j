@@ -517,6 +517,7 @@ public class ScriptValidator {
         RewindChecks.run(c);
         DecisionChecks.run(c);
         ClassifierChecks.run(c);
+        ExtractorChecks.run(c);
         io.github.llm4j.loom.ladder.LadderChecks.run(c);
     }
 
@@ -539,6 +540,8 @@ public class ScriptValidator {
                 walk(r.getOnFailure(), c);
             } else if (st instanceof io.github.llm4j.loom.ast.IntentClassifyStmt ic) {
                 walk(ic.getOnFailure(), c);
+            } else if (st instanceof io.github.llm4j.loom.ast.ExtractStmt ex) {
+                walk(ex.getOnFailure(), c);
             } else if (st instanceof LoopStmt l) {
                 walk(l.getBody(), c);
                 walk(l.getOnExhausted(), c);

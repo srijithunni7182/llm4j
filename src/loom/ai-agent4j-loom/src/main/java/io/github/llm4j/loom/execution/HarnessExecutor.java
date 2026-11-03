@@ -685,6 +685,7 @@ public class HarnessExecutor implements LoomEngine {
     private io.github.llm4j.agent.task.TaskRegistry taskRegistry;
     private final TaskRunner taskRunner = new TaskRunner(this);
     private final ClassifyRunner classifyRunner = new ClassifyRunner(this);
+    private final ExtractRunner extractRunner = new ExtractRunner(this);
 
     /**
      * The tasks {@code run} statements can use. Default: every task the class path declares as a
@@ -2864,6 +2865,8 @@ public class HarnessExecutor implements LoomEngine {
             taskRunner.run(run);
         } else if (stmt instanceof io.github.llm4j.loom.ast.IntentClassifyStmt classify) {
             classifyRunner.run(classify);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.ExtractStmt extract) {
+            extractRunner.run(extract);
         } else if (stmt instanceof DelegateStmt del) {
             delegates.execute(del);
         } else if (stmt instanceof CallStmt call) {
@@ -3473,6 +3476,70 @@ public class HarnessExecutor implements LoomEngine {
                             config.build()));
         return io.github.llm4j.classify.Classifier.using(
                 new io.github.llm4j.provider.typesafe.JevProvider(config.build()));
+    }
+
+    /**
+     * The client an extractor calls through: a bare client for its model (no transcript, no shared
+     * prompt) metered under its own name, so the spend report and the budgets see it.
+     */
+    io.github.llm4j.LLMClient clientForExtractor(io.github.llm4j.loom.ast.ExtractorDef def) {
+        return budgets.metered(
+                clientFor(def.getModel()), "extractor " + def.getName(), null, def.getModel());
+    }
+
+    /**
+     * The fixed instructions of an extractor: written inline, or read from its prompt file.
+     *
+     * @throws StepFailure when the prompt file does not resolve
+     */
+    String instructionsOf(io.github.llm4j.loom.ast.ExtractorDef def) {
+        if (def.getPromptRef() == null) return def.getInstructions();
+        if (promptCatalog == null)
+            throw new StepFailure(
+                    "extractor "
+                            + def.getName()
+                            + " takes its instructions from prompt \""
+                            + def.getPromptRef()
+                            + "\", but no prompts folder is set; add prompts: \"./prompts\"",
+                    null);
+        return promptCatalog
+                .resolve(def.getPromptRef())
+                .map(io.github.llm4j.loom.prompt.PromptCatalog.Resolved::text)
+                .orElseThrow(
+                        () ->
+                                new StepFailure(
+                                        "extractor "
+                                                + def.getName()
+                                                + " takes its instructions from prompt \""
+                                                + def.getPromptRef()
+                                                + "\", which was not found",
+                                        null));
+    }
+
+    /**
+     * Runs {@code work} with the extractor's own budget and the step's budget added to the scopes
+     * that every model call inside it is charged against (when the script uses budgets at all).
+     */
+    <T> T withBudgetScopes(
+            String stepId,
+            io.github.llm4j.loom.ast.BudgetDef stepBudget,
+            io.github.llm4j.loom.ast.BudgetDef nodeBudget,
+            java.util.concurrent.Callable<T> work)
+            throws Exception {
+        List<io.github.llm4j.budget.Budget> outer = scopes.get();
+        List<io.github.llm4j.budget.Budget> inner = outer;
+        if (budgets.budgeting()) {
+            if (stepBudget != null)
+                inner = BudgetCoordinator.plus(inner, budgets.newBudget("step " + stepId, stepBudget));
+            if (nodeBudget != null)
+                inner = BudgetCoordinator.plus(inner, budgets.newBudget("extractor " + stepId, nodeBudget));
+        }
+        scopes.set(inner);
+        try {
+            return work.call();
+        } finally {
+            scopes.set(outer);
+        }
     }
 
     io.github.llm4j.LLMClient clientForTask(String taskName, String model) {

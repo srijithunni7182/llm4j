@@ -133,6 +133,22 @@ public record TraceEvent(
      */
     public static final String CLASSIFY = "classify";
 
+    /**
+     * An {@code extract} step begins: {@code extractor}, {@code step}, {@code model}. Never an input.
+     */
+    public static final String EXTRACT_START = "extract_start";
+
+    /**
+     * An {@code extract} step finished: {@code extractor}, {@code step}, {@code model}, {@code
+     * attempts}, {@code duration_ms}, {@code input_tokens}, {@code output_tokens}, {@code present}
+     * and {@code missing} (the <em>names</em> of the fields found and the optional ones absent).
+     * Never an input or a value.
+     */
+    public static final String EXTRACT_END = "extract_end";
+
+    /** A resumed run reused the recorded answer of an {@code extract} step. */
+    public static final String EXTRACT_REPLAYED = "extract_replayed";
+
     public static final String TASK_START = "task_start";
     public static final String TASK_END = "task_end";
     public static final String TASK_REPLAYED = "task_replayed";

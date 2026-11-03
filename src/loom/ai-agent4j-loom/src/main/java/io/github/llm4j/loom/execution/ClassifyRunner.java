@@ -172,32 +172,11 @@ final class ClassifyRunner {
         ClassifyRequest.Builder b = ClassifyRequest.builder();
         for (RunStmt.Arg in : stmt.getInputs()) {
             String text =
-                    switch (in.kind()) {
-                        case STRING -> executor.resolve(in.text());
-                        default -> {
-                            // A variable that was never set reads as "" elsewhere in Loom;
-                            // classifying "" would fail open, so the step fails instead.
-                            String head =
-                                    in.text().contains(".")
-                                            ? in.text().substring(0, in.text().indexOf('.'))
-                                            : in.text();
-                            Object value =
-                                    executor.view().getAll().containsKey(head)
-                                            ? ConditionEvaluator.resolvePath(
-                                                    in.text(), executor.view())
-                                            : null;
-                            if (value == null) {
-                                throw new StepFailure(
-                                        "what to classify refers to "
-                                                + in.text()
-                                                + ", which has no value, so "
-                                                + def.getName()
-                                                + " was not asked",
-                                        null);
-                            }
-                            yield text(value);
-                        }
-                    };
+                    NodeInputs.text(
+                            executor,
+                            in,
+                            "what to classify refers to ",
+                            def.getName() + " was not asked");
             text = guardPii(def, text);
             if (in.name().isEmpty()) b.state(text);
             else b.state(in.name(), text);
@@ -218,71 +197,16 @@ final class ClassifyRunner {
         }
     }
 
-    private static final io.github.llm4j.privacy.PIIDetector DETECTOR =
-            new io.github.llm4j.privacy.RegexPIIDetector();
-
-    /**
-     * The classifier's {@code pii:} setting, applied with the masker an agent's {@code guard} uses:
-     * {@code mask} replaces personal data before the state leaves, {@code block} refuses a state
-     * that carries any, {@code warn} sends it and records the finding. Findings name types and
-     * counts, never values.
-     */
     private String guardPii(IntentClassifierDef def, String text) {
-        String mode = def.getPii();
-        if (mode == null) return text;
-        java.util.Map<io.github.llm4j.privacy.PIIType, Integer> found =
-                new java.util.EnumMap<>(io.github.llm4j.privacy.PIIType.class);
-        for (io.github.llm4j.privacy.PIIEntity e : DETECTOR.detect(text).getEntities()) {
-            if (io.github.llm4j.privacy.MaskingLLMClient.PERSONAL.contains(e.getType()))
-                found.merge(e.getType(), 1, Integer::sum);
-        }
-        if (found.isEmpty()) return text;
-        String types =
-                String.join(
-                        ", ",
-                        new java.util.TreeSet<>(found.keySet().stream().map(Enum::name).toList()));
-        String event =
-                switch (mode) {
-                    case "mask" -> "pii_masked";
-                    case "block" -> "pii_blocked";
-                    default -> "pii_detected";
-                };
-        Map<String, Object> data = new LinkedHashMap<>();
-        data.put("classifier", def.getName());
-        data.put("step", executor.currentStep());
-        data.put(
-                "types",
-                new java.util.TreeMap<>(
-                                found.entrySet().stream()
-                                        .collect(
-                                                java.util.stream.Collectors.toMap(
-                                                        e -> e.getKey().name(),
-                                                        Map.Entry::getValue)))
-                        .toString());
-        data.put("event", event);
-        executor.audit(event, data);
-        executor.trace(
-                TraceEvent.GUARD,
-                null,
-                event.replace('_', ' ')
-                        + " in the state of "
-                        + def.getName()
-                        + ": "
-                        + data.get("types"),
-                data);
-        if (mode.equals("block")) {
-            throw new StepFailure(
-                    "guard: the state for "
-                            + def.getName()
-                            + " contains personal data ("
-                            + types
-                            + "); pii: block keeps it from the backend",
-                    null);
-        }
-        return mode.equals("mask")
-                ? io.github.llm4j.privacy.MaskingLLMClient.mask(
-                        text, DETECTOR, io.github.llm4j.privacy.MaskingLLMClient.PERSONAL, null)
-                : text;
+        return PiiGuard.apply(
+                executor,
+                "classifier",
+                def.getName(),
+                def.getPii(),
+                "the state of " + def.getName(),
+                "the state for " + def.getName(),
+                "the backend",
+                text);
     }
 
     private static String text(Object value) {

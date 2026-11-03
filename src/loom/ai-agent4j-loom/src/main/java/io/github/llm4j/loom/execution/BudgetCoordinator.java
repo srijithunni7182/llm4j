@@ -202,6 +202,9 @@ final class BudgetCoordinator {
                     && hasStatementBudget(r.getOnFailure())) return true;
             if (st instanceof io.github.llm4j.loom.ast.IntentClassifyStmt ic
                     && hasStatementBudget(ic.getOnFailure())) return true;
+            if (st instanceof io.github.llm4j.loom.ast.ExtractStmt ex
+                    && (ex.getBudget() != null || hasStatementBudget(ex.getOnFailure())))
+                return true;
             if (st instanceof BroadcastStmt b && b.getBudget() != null) return true;
             if (st instanceof LoopStmt l
                     && (l.getBudget() != null
