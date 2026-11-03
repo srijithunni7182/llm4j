@@ -152,3 +152,13 @@ Tests first: `TranscriptTaintTest` (11), `ToExtractorFixTest` (8), LP09 rule fix
 
 
 **`make release-check` (2026-11-03, after 24d):** exit 0 (clean verify of the whole repository with sources and javadoc jars, then `CheckJars`). `make format-check` still fails on `ai-agent4j`'s `NoSilentClipTest`, a file this phase did not touch.
+
+### What each phase 24 deviation costs the discipline, and what covers it (added 2026-11-03)
+
+| Deviation | Discipline given up | What covers it |
+|---|---|---|
+| LP09 only fires for an agent with its own `output_schema` that is not one enum field | An agent used only to pull fields out of text through a per-step `expecting` is not flagged; a label-only agent is not flagged by LP09 | LP10 still flags such an agent when it has to reason; the tutorial, the guide and the workflow-guide skill teach "an extraction problem is not a conversation"; label-only agents belong to the classifier advice (LR05, LP02). **Still open:** no rule flags a non-reasoning `expecting`-only extractor; revisit after field use |
+| `weave generate`'s review gate ignores LP09 | Generated projects are not nudged to extractors by that gate | LP10 does fail the gate and its repair recipe now says "prose, then an extractor" (`ReviewGate.RECIPES`, tested). **Still open:** the generator's own plan/prompt does not yet prefer extractors; a follow-up in the generate phase |
+| An extractor between two agents does not break LA21 | None lost: the audit is now honest about it | The finding and the tutorial name what works (`transcript: none`, or an extractor feeding an agent that has `transcript: none`) |
+| `to-extractor` drops the lead-in text | A rewrite is offered for fewer shapes of task | Not offered means the finding says why, so the developer is told, not silently left |
+

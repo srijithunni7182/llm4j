@@ -7,9 +7,9 @@ Evidence: E7 to E9 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 
 | # | Evidence | Procedure | If it is real, you see | Result |
 |---|---|---|---|---|
-| P1 | E7 | An agent with tools and a nested `output_schema` under `weave test` with a capturing client. | its task ends with "CRITICAL: You MUST respond in valid JSON format only…" | ⬜ |
-| P2 | E8 | `weave review` on a script that branches on `r.score` from an agent with no schema; `--explain LR05`. | the only advice is to give the agent an `output_schema` | ⬜ |
-| P3 | E9 | List every agent in the repository's `.loom` files with an `output_schema` and tools or grounding. | 17 agents in the five files of DESIGN R4 | ⬜ |
+| P1 | E7 | An agent with tools and a nested `output_schema` under `weave test` with a capturing client. | its task ends with "CRITICAL: You MUST respond in valid JSON format only…" | ◐ 2026-11-03 at `12969701`: confirmed by reading `DelegateRunner.java:359` (the sentence is appended whenever a schema exists), not run with a capturing client |
+| P2 | E8 | `weave review` on a script that branches on `r.score` from an agent with no schema; `--explain LR05`. | the only advice is to give the agent an `output_schema` | ✅ 2026-11-03 at `12969701`: the rule page's "What to do" was exactly that |
+| P3 | E9 | List every agent in the repository's `.loom` files with an `output_schema` and tools or grounding. | 17 agents in the five files of DESIGN R4 | ✅ 2026-11-03: a scan of every `.loom` found 17 (getviral 8, inspect-soak 3, loom-inspect sim 3, crew 2, the LC01 fixture 1); three more are this program's own LP09 fixtures |
 
 ## 1. Acceptance criteria
 
@@ -71,4 +71,15 @@ Evidence: E7 to E9 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 
 ## 7. Results
 
-*(empty until 25a)*
+
+
+### 25a: LP10 and the rewording of LR05 and LP02 (2026-11-03)
+
+Tests first: `Lp10Test` (the 16-cell table plus a bare list, message, settings, `expecting`, rounds, unknown prompt size), `Lr05AndLp02RecommendationsPassLp10Test`, `ReviewGateTest` additions, two corpus scripts; red for the right reason, then green.
+
+**Built:** new facts `reasons`, `reasonsBecause`, `largeSchema`, `largeSchemaBecause` (`ReasoningFacts`, after the prompt facts); settings `prompts.large-schema-fields` (5) beside `prompts.short-prompt-tokens` (300); rule LP10 (medium, Prompts lens) with four example scripts; LR05 and LP02 advice now says classifier, then extractor, then a small schema (LP02 adds "or one of the allowed words"); rule pages regenerated; guide section "When to use a schema, and when to extract"; `LOOM_PROMPT.md`; release notes; API compatibility.
+
+**Gates:** `mvn verify` `eval4j` 571 and `ai-agent4j-loom` 4227 (3 skipped), coverage met. `ReviewCorpusTest` LP10 precision and recall 1.00; `SimplePathStaysSimpleTest`, `ReviewNoiseGateTest` (LP10 added to both lists) and `GenerateBenchmarkTest` green. **Guards removed by hand, then restored:** the field-count threshold always true → 12 table cells failed; the prompt-size threshold always true → 9 failed.
+
+**Goal check:** LP10 is also in the generator's review gate (Prompts lens, medium) on purpose, so a generated project with a trapped agent is repaired toward "prose, then extract"; none of the 28 recorded transcripts trips it.
+

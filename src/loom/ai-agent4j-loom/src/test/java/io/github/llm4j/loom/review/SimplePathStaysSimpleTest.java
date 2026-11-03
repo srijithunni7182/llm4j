@@ -25,7 +25,7 @@ import org.junit.jupiter.api.io.TempDir;
 class SimplePathStaysSimpleTest {
 
     /** The rules the program has added so far; none may fire on the simple path. */
-    private static final Set<String> RULES_ADDED_BY_THE_PROGRAM = Set.of("LP08", "LP09", "LA21");
+    private static final Set<String> RULES_ADDED_BY_THE_PROGRAM = Set.of("LP08", "LP09", "LP10", "LA21");
 
     /** The constructs the program has added so far, as they appear in a script. */
     private static final Pattern PROGRAM_CONSTRUCTS =

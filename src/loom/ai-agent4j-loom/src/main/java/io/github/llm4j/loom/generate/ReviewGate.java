@@ -46,6 +46,8 @@ public final class ReviewGate implements Gate {
             java.util.Map.of(
                     "LA01",
                     "Recipe: give the agent that reads outside text no tools and have it answer only typed fields (delegate ... expecting { field: string }); give the tool to a second agent whose task text holds only those typed fields, never the raw text; put approve: [Tool] on the second agent if the tool changes something.",
+                    "LP10",
+                    "Recipe: leave the output_schema off the agent that reasons and let it answer in prose (end its system prompt with: Answer in plain prose; explain your reasoning, then state your conclusions); declare an extractor with the same fields (extractor NameFields { model: \"...\" instructions: \"Pull these fields out of the analysis.\" fields { ... } }) and add extract NameFields from the_analysis -> the_original_variable right after the delegate, so every later use of the variable is unchanged.",
                     "LP07",
                     "Recipe: rename the workflow parameter or variable to a long name that is not a word of any prompt or delegate text (for example ticket_body), everywhere it is used.");
 

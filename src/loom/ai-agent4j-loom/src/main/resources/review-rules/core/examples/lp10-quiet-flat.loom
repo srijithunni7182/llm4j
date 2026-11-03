@@ -1,0 +1,11 @@
+tool Files { use: file  root: "data"  mode: read }
+agent Analyst {
+  model: "m"
+  system: "You analyse the request."
+  tools: [Files]
+  output_schema: { verdict: string, score: number }
+}
+workflow Main(q) {
+  delegate "Look at {q}" to Analyst -> report
+  note "{report.verdict}"
+}

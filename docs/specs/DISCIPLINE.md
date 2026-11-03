@@ -246,3 +246,7 @@ After the specs were written, six risks of the program itself were reviewed with
 | The new calls add cost and latency unseen | D38: cost lines, cheap defaults, free checks first, verdict reuse, a budget reserve, latency, metering in Fabric | phases 24, 26 R16, 28 |
 | Agents still get the whole transcript by default | D39: the default stays, and is shown in the graph, `weave explain` and the editor | phase 24 R8 |
 
+## 10. When the plan bends
+
+The aim of the program is the discipline of workflows built with Loom (§1), not the letter of a spec. When building shows a requirement cannot be met as written, the phase may deviate, but every deviation is recorded in that phase's `VERIFICATION.md` §7 with three things: what the spec asked, what was built instead, and **what discipline a Loom user loses by it and what covers that instead** (a different rule, the skills, the tutorial, a follow-up). A deviation with nothing covering the loss is not accepted until the owner decides. Deviations made so far: phase 24's four (see its §7), each with its cover.
+

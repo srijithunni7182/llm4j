@@ -1,0 +1,11 @@
+agent Editor {
+  model: "m"
+  system: "You improve the text."
+  output_schema: { text: string, notes: { tone: string, length: number } }
+}
+workflow Main(q) {
+  delegate "Start on {q}" to Editor -> draft
+  loop until (draft.text == "done") max 3 {
+    delegate "Improve this: {draft.text}" to Editor -> draft
+  }
+}

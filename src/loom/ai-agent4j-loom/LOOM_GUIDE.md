@@ -2007,6 +2007,34 @@ workflow ProcessFeedback(rawText) {
 
 Loom now supports advanced features that bridge the gap between stochastic neural generation and deterministic symbolic logic.
 
+### When to use a schema, and when to extract
+
+An `output_schema` makes the runtime tell the agent to "respond in valid JSON format only". That is right for a **small, flat answer from an agent that does not need to think** (a verdict and a score). It is a trap for an agent that has to **reason**: with JSON as the only thing it may write, it has no room to work its answer out, so it jumps to conclusions or breaks the format. Thinking and formatting are two jobs. Give them to two steps:
+
+```loom
+agent Analyst {
+    model: "claude-sonnet-5-5"
+    system: "Analyse the request. Explain your reasoning, then state your conclusions."
+    tools: [web_search]
+}
+
+extractor AnalystFields {
+    model: "gemini-2.5-flash"
+    instructions: "Pull these fields out of the analysis."
+    fields {
+        summary: string
+        risks: list<{ name: string, level: number }>
+    }
+}
+
+workflow Main(request) {
+    delegate "Look into {request}" to Analyst -> report_analysis
+    extract AnalystFields from report_analysis -> report
+}
+```
+
+`weave review` rule **LP10** (medium) spots the trap: an agent that *reasons* (it has tools, searches the web, works over rounds by being asked again with its own earlier answer, or has a prompt over `prompts.short-prompt-tokens`, default 300) and must answer in a *large* schema (a nested object, a list of objects, or more than `prompts.large-schema-fields` fields, default 5; the `expecting` of any delegate to the agent counts). The way out, in order: let the agent answer in prose and add an `extractor` after it; make the schema small and flat; or accept the finding with a reason. When the choice is only a label, use an `intentclassifier`. (LR05 and LP02 give the same advice.)
+
 ### Output Schema Enforcement
 Agents can now define a strict contract for their responses. Loom automatically instructs the LLM to respond in JSON and parses it into a structured object, enabling path-based symbolic checks.
 

@@ -1,0 +1,7 @@
+tool Files { use: file  root: "data"  mode: read }
+agent Analyst { model: "m"  system: "You analyse the request."  tools: [Files]  output_schema: { summary: string, risks: list<{ name: string, level: number }> } } // <- LP10
+workflow Main(q) {
+  delegate "Look at {q}" to Analyst -> report retry 1 timeout 30s
+  note "{report.summary}"
+}
+// ignore: LP02 LP05 LO01 LC02 LA02 LR01 LP09

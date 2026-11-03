@@ -140,6 +140,10 @@ public final class FactModel {
                 .bool(
                         "choosesOneLabel",
                         "Its output_schema is a single enum field: it picks a label")
+                .bool("reasons", "It has to think before it answers: tools, grounding, rounds or a long prompt")
+                .string("reasonsBecause", "Why it reasons, in words, empty when it does not")
+                .bool("largeSchema", "Its output_schema (or the expecting of a delegate to it) is large")
+                .string("largeSchemaBecause", "Why the schema is large, in words, empty when it is not")
                 .bool("grounded", "It has a grounding block (it searches the web)")
                 .bool(
                         "delegatesPassVariables",
