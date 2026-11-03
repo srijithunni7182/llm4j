@@ -51,6 +51,13 @@ public final class ReviewGate implements Gate {
 
     static final Set<Lens> SOFT_LENSES = Set.of(Lens.VALIDITY, Lens.RELIABILITY, Lens.PROMPTS);
 
+    /**
+     * Advice that never fails the gate: "this agent could be an extractor" (LP09) is a design
+     * suggestion for the person who owns the script, not a defect that stops a generated project,
+     * and the generator's own recipes tell it to give an agent a typed answer.
+     */
+    static final Set<String> ADVICE_ONLY = Set.of("LP09");
+
     private final Reviewer reviewer;
     private final Severity soft;
 
@@ -74,7 +81,10 @@ public final class ReviewGate implements Gate {
             List<GateResult.Problem> out = new ArrayList<>();
             for (Item i : r.open()) {
                 boolean hard = i.severity() == Severity.HIGH;
-                boolean tidy = SOFT_LENSES.contains(i.lens()) && i.severity().atLeast(soft);
+                boolean tidy =
+                        SOFT_LENSES.contains(i.lens())
+                                && i.severity().atLeast(soft)
+                                && !ADVICE_ONLY.contains(i.rule());
                 if (hard || tidy)
                     out.add(
                             new GateResult.Problem(

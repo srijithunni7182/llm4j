@@ -86,7 +86,7 @@ class Phase24ReproductionTest {
     }
 
     @Test
-    void p6TheAuditSaysNothingAboutTextTravellingThroughTheTranscript() {
+    void p6BeforePhase24TheAuditSaidNothingAboutTheTranscriptNowItReportsLa21() {
         String source =
                 "tool Files { use: file  root: \"data\"  mode: read }\n"
                         + "tool Mail  { use: email  host: \"smtp.example.com\"  from: \"a@example.com\"  to: \"me@example.com\" }\n"
@@ -98,7 +98,9 @@ class Phase24ReproductionTest {
                         + "}\n";
         LoomScript script = new LoomParser(new Lexer(source).tokenize()).parseScript();
         AuditReport report = SecurityAudit.audit(script, "taint.loom");
-        assertThat(report.findings()).noneMatch(f -> f.rule().equals("LA01"));
-        assertThat(report.findings()).noneMatch(f -> f.rule().equals("LA21"));
+        // reproduced on 28c74ca9: no LA01 and no LA21. Phase 24c (R11) adds both, so the same
+        // script now has the trifecta through the transcript (see TranscriptTaintTest).
+        assertThat(report.findings()).anyMatch(f -> f.rule().equals("LA01") && f.where().equals("Sender"));
+        assertThat(report.findings()).anyMatch(f -> f.rule().equals("LA21") && f.where().equals("Sender"));
     }
 }

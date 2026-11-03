@@ -1,0 +1,5 @@
+agent Reader { model: "m"  system: "Extract the invoice fields from the text." }
+workflow Main(text) {
+  delegate "Extract the invoice from: {text}" to Reader -> invoice
+  note "{invoice}"
+}

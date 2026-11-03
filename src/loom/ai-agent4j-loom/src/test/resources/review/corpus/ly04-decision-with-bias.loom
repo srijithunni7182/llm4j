@@ -8,4 +8,4 @@ workflow Main(topic) {
   delegate "Rate {topic}" to Screener -> rating
   note "{rating}"
 }
-// ignore: LP02 LP05 LO01
+// ignore: LP02 LP05 LO01 LP09

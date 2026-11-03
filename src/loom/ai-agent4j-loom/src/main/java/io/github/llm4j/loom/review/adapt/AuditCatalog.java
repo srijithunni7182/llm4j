@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * What each security audit rule ({@code LA01} to {@code LA20}) looks for, in the words of the audit
+ * What each security audit rule ({@code LA01} to {@code LA21}) looks for, in the words of the audit
  * chapter of the guide. The audit's rules stay in {@link
  * io.github.llm4j.loom.security.SecurityAudit}; this only lets a review explain them.
  */
@@ -114,6 +114,11 @@ public final class AuditCatalog {
             "LA20",
             "A grounded agent reads the open web",
             "An agent with grounding: web counts as reading untrusted content for the trifecta, whatever allow: says."
+        },
+        {
+            "LA21",
+            "The transcript carries untrusted text to a later agent",
+            "An agent that receives the whole transcript after an agent that reads untrusted content has run is exposed to what it read. Give it transcript: none or own, or split the work."
         },
     };
 

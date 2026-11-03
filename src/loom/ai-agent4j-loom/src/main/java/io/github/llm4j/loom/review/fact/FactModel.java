@@ -137,6 +137,13 @@ public final class FactModel {
                 .string("transcript", "How much of the run's transcript it receives: all, own or none")
                 .bool("sharedPromptExcluded", "It is left out of the script's shared prompt")
                 .bool("hasSchema", "It has an output_schema")
+                .bool(
+                        "choosesOneLabel",
+                        "Its output_schema is a single enum field: it picks a label")
+                .bool("grounded", "It has a grounding block (it searches the web)")
+                .bool(
+                        "delegatesPassVariables",
+                        "It is delegated to at least once and every delegate passes at least one variable in its task")
                 .bool("hasContext", "It has a context block")
                 .bool("hasMemory", "It has memory")
                 .bool("feedsDecision", "A decision or ladder in the script names this agent")

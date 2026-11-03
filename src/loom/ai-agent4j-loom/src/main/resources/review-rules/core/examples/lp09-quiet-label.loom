@@ -1,0 +1,9 @@
+agent Picker {
+  model: "m"
+  system: "Pick the kind of request."
+  output_schema: { kind: enum["BILLING", "OTHER"] }
+}
+workflow Main(text) {
+  delegate "Classify: {text}" to Picker -> label
+  note "{label.kind}"
+}

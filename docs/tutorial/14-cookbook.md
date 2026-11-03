@@ -16,6 +16,7 @@ Each recipe names the starter that implements it. Open the starter, run `weave t
 | Turn a plan into parallel work | `parallel for each` with `{item.owner}` routing | [06](../../src/loom/starters/06-plan-and-fan-out/) |
 | Never send without a person's yes | `human_prompt` + `alt`, and `approve:` on the sender | [07](../../src/loom/starters/07-approval/) |
 | Turn text into checked fields | `output_schema`, `halt` on unreadable, ask a person for a missing value | [08](../../src/loom/starters/08-extract-and-validate/) |
+| Pull fields out of text, and nothing else | An `extractor` and `extract ... from text -> var`, `optional:` and `== missing` | [08](../../src/loom/starters/08-extract-and-validate/) |
 | Answer from my documents | `knowledge` + "say when the documents do not answer" | [09](../../src/loom/starters/09-handbook-qa/) |
 | Remember each user | `memory { session: "{user_id}" }` + `guard { pii: mask }` | [10](../../src/loom/starters/10-memory-assistant/) |
 | Run every weekday morning | `schedule` + `weave schedule sync` + `weave daemon` | [11](../../src/loom/starters/11-daily-digest/) |
@@ -23,6 +24,35 @@ Each recipe names the starter that implements it. Open the starter, run `weave t
 | Go back when a late check fails | `checkpoint` + `rewind ... carrying` | [13](../../src/loom/starters/13-rewind-and-retry/) |
 | Stop an agent that loops or runs long | `supervise` rules | [14](../../src/loom/starters/14-supervised-agent/) |
 | Let an agent earn the right to act | `decision` + `trust` + `decide` | [15](../../src/loom/starters/15-earned-autonomy/) |
+
+### Recipe: pull fields out of text
+
+```loom
+substitution: braces
+
+extractor Contact {
+    model: "gemini-2.5-flash"
+    instructions: "Find the person's name and, if stated, their phone number."
+    fields {
+        name: string
+        phone: string
+    }
+    optional: [phone]
+}
+
+workflow Main(email) {
+    extract Contact from email -> contact on_failure {
+        halt "No contact found: {_error}"
+    }
+    alt (contact.phone == missing) {
+        note "{contact.name} gave no phone number"
+    } else {
+        note "{contact.name}: {contact.phone}"
+    }
+}
+```
+
+The extractor sees only the email, never the run so far or the shared prompt. A required field the text does not state fails the step; an optional one is `missing`.
 
 ### Recipe: a cheaper model when money runs low
 
@@ -158,6 +188,9 @@ line 1: agent Helper: unknown model "totally-unknown-model": use gemini-…, cla
 | One shared variable written by two `parallel` branches | A race: you get one of the answers | One variable per branch |
 | Both answers to a `human_prompt` lead to the same steps | The question changes nothing | Give each answer its own branch |
 | A key written in the script | A load error, on purpose | `env.NAME` or `secret.NAME` |
+| An agent with an `output_schema` that only pulls fields out of text (LP09) | It is briefed with the whole run and the shared prompt, so it can answer differently depending on what ran before | An `extractor` (`weave review --fix-finding LP09 --option to-extractor`) |
+| A task to an agent with `transcript: none` that passes no variable (LP08) | The agent sees nothing else, so it has nothing to work from | Write a variable into the task, or give the agent `transcript: all` |
+| An agent that sends or acts runs after one that reads the web (LA21) | The reader's words reach it through the shared transcript | `transcript: none` on the sender, typed values from an extractor, or split the work |
 | `rewind` over steps that send something | The replayed attempt might send again | `side effects:` says what you mean; put the check before the effects |
 
 ## Syntax cheat sheet
@@ -178,6 +211,7 @@ routing Name { strategy: fallback  primary: "m1"  fallback: ["m2", "m3"] }
 knowledge Name { source: "docs/"  embedding: "gemini/text-embedding-004"  top_k: 4  store: "idx.json" }
 tool Name { use: webhook|email|http|file|shell|sql|openapi|class|...  ...options... }
 mcp Name { transport: "stdio"  cmd: "..." }
+extractor Name { model: "..."  instructions: "..."  fields { f: string  n: number }  optional: [n]  pii: mask }
 intentclassifier Name { model: "..."  choose k: a | b  ask q: "..."  rate r: lo | hi  confidence at least 0.8 else escalate }
 
 agent Name {
@@ -188,6 +222,7 @@ agent Name {
     budget { tokens: N  per_call: N }   memory { ... }   guard { pii: mask|block|warn  bias: warn|block }
     context { compact: chain(trim_tool_results, summarize, drop_oldest) }
     streaming: true   steerable: true   grounding: web { ... }
+    memory { transcript: none|own|all }   shared_prompt: none
 }
 
 supervise Agent { when looping(3) { steer "..." once }  when steps > 15 { cancel use partial } }
@@ -205,6 +240,7 @@ workflow Name(p1, p2) {
     call Other(arg = value) -> result
     run Task(arg = value) -> result [model "..."] [retry N] [timeout 30s]
     intentclassify Name on text -> result
+    extract Name from text -> result          extract Name from (a = x, b = y) -> result
     decide Decision -> verdict
     human_prompt "question {x}" -> answer
     sleep 5m                                 set x = "text {y}" | 3 | true | { k: v }

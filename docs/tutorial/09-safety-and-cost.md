@@ -209,6 +209,24 @@ flowchart TD
 
 The cure is to break the triangle: give the agent that reads the web no way to send, give the agent that sends no access to private data, or put a person's approval between them. This is why starter [07-approval](../../src/loom/starters/07-approval/) splits *drafting* from *sending*, and why the sender needs an approval.
 
+#### The same triangle through the transcript (LA21)
+
+By default every agent is briefed with everything said before it (the shared transcript, [Chapter 7](07-knowledge-and-memory.md#who-sees-what-was-said-before)). So an agent that reads the web is not only a risk by itself: what it read, and anything an attacker hid in it, is carried to every agent that runs after it.
+
+```mermaid
+flowchart LR
+  R["Researcher<br/>reads the web"] -- "its answer goes into<br/>the shared transcript" --> T[("transcript")]
+  T -- "briefs" --> S["Sender<br/>private data + can send"]
+  classDef bad fill:#fde2e2,stroke:#c53030,color:#5b1111
+  class S bad
+```
+
+If that later agent also reaches private data and can send or act, the triangle is complete even though no single agent has all three tools. `weave audit` counts this path and reports it as **LA21** (and as the lethal trifecta, LA01, when it completes one), naming the agents. Three fixes:
+
+- give the receiving agent `memory { transcript: none }` (or `own`), so it is not briefed with the reader's words;
+- hand it only typed values: pull the fields it needs out of the reader's answer with an [extractor](05-structured-answers-and-failure.md#extractors-fields-from-text-with-nothing-else), and give the sender `transcript: none` so those fields are all it gets (an extractor on its own does not remove the reader's answer from the transcript);
+- split the work so no agent that acts runs after one that reads the outside world.
+
 ### What else it catches
 
 Typical findings, each with the reason and a fix:

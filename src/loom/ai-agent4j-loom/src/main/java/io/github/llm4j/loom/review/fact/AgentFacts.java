@@ -29,6 +29,16 @@ final class AgentFacts implements FactProvider {
             out.set(e, "transcript", a.getTranscriptMode().name().toLowerCase(java.util.Locale.ROOT));
             out.set(e, "sharedPromptExcluded", a.isSharedPromptExcluded());
             out.set(e, "hasSchema", a.getOutputSchema() != null);
+            out.set(e, "grounded", a.getGrounding() != null);
+            var schema = a.getOutputSchema();
+            out.set(
+                    e,
+                    "choosesOneLabel",
+                    schema != null
+                            && schema.getType() == io.github.llm4j.loom.ast.SchemaDef.Type.OBJECT
+                            && schema.getFields().size() == 1
+                            && schema.getFields().values().iterator().next().getType()
+                                    == io.github.llm4j.loom.ast.SchemaDef.Type.ENUM);
             out.set(e, "hasContext", a.getContext() != null);
             out.set(e, "hasMemory", a.getMemory() != null);
             out.set(
