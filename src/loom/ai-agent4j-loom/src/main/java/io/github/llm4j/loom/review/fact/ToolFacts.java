@@ -56,6 +56,9 @@ final class ToolFacts implements FactProvider {
             out.set(e, "kind", kind);
             out.set(e, "reach", reach(c));
             out.set(e, "reachKnown", c.known());
+            out.set(e, "effect", c.level().name().toLowerCase(Locale.ROOT));
+            out.set(e, "effectSource", c.effectSource().name().toLowerCase(Locale.ROOT));
+            out.set(e, "effectReason", c.effectReason());
             out.set(e, "journaled", JOURNALED.contains(kind));
             out.set(e, "idempotentDeclared", false);
             tools.put(name, e);

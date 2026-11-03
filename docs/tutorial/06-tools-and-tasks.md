@@ -62,7 +62,7 @@ A tool that needs configuration is declared once at the top, then named in `tool
 | `serpapi` | Web search through SerpAPI | `api_key` |
 | `google_search` | Google Programmable Search | `api_key`, `cx` |
 | `openapi` | Any API with an OpenAPI spec: each operation becomes a tool | `spec` (a path or URL) |
-| `class` | Your own Java tool | `class`, and `reach:` for the audit |
+| `class` | Your own Java tool | `class`, and `effect:` so Loom knows what it does |
 | `knowledge_graph`, `skill_registry` | A graph store; discovery of skills | `store` or `url` |
 
 ```loom
@@ -82,6 +82,26 @@ workflow Main(q) {
     return answer
 }
 ```
+
+### Does this tool change anything? `effect:`
+
+Every tool has an **effect**, in the same three words a task uses:
+
+- `effect: none` touches nothing outside the run (a calculator).
+- `effect: reads` looks something up and changes nothing.
+- `effect: changes` writes, sends, posts, pays or runs a program: anything that is different afterwards.
+
+It is **your decision**, and Loom believes it. A search that happens to use `POST` only reads, so you say so:
+
+```loom-parse
+tool Orders  { use: http  base_url: "https://api.acme.com"  methods: "GET,POST"  effect: reads }
+tool Refunds { use: http  base_url: "https://pay.acme.com"  methods: "POST"  effect: changes }
+tool Shop    { use: openapi  spec: "specs/shop.yaml"  effects: { listOrders: reads, getOrder: reads, createRefund: changes } }
+```
+
+An `openapi` tool or an `mcp` server holds several tools, so you declare each one: `effects: { name: reads, … }`. Whatever you leave out falls back to the tool's own effect.
+
+If you declare nothing, Loom **assumes** one from the kind of tool (a webhook, an email, a shell and a Java tool you wrote change things; a search and a read-only database read) and says so in `weave explain` and `weave review --format json`, always with a pointer back to `effect:`. An MCP server's own `readOnlyHint` is used when it has been read. Why it matters: the effect decides which calls should have a person approve them and which a retry must not repeat. It does not replace the audit's questions about where data comes from and where it goes.
 
 ### The six generic tools
 
@@ -267,11 +287,13 @@ From Java the same thing is `McpClient` with `StdioMcpTransport` ([MCP integrati
 
 ### Your own tool, from Java
 
-For something the generic tools do not cover, write a `Tool` in Java and expose it either with `use: class` or in a `.loot` file. `weave audit` never loads your code, so tell it what the tool does to the world with `reach:`:
+For something the generic tools do not cover, write a `Tool` in Java and expose it either with `use: class` or in a `.loot` file. `weave audit` never loads your code, so tell it what the tool does to the world with `effect:` (see [Does this tool change anything?](#does-this-tool-change-anything-effect)):
 
 ```loom-parse
-tool Invoices { use: class  class: "com.acme.tools.InvoiceTool"  reach: reads }     // none | reads | fetches | writes | sends
+tool Invoices { use: class  class: "com.acme.tools.InvoiceTool"  effect: reads }     // none | reads | changes
 ```
+
+The older `reach:` (`none | reads | fetches | writes | sends`) still works on a `class` tool. Use one or the other, not both.
 
 [Chapter 13](13-java.md) shows how to write one.
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: 408b594c7bc11e5e0aa76241e962716f95723c7aeed0cb04d2b4b5bb4d109c8f -->
+<!-- source-sha256: d0239f6b139ea28b2dd38f78b3d4d0b8a30a3e10ce19556520bda9c8b19d990b -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -1519,7 +1519,7 @@ extractor Invoice {
 <tr>
 <td><code>class</code></td>
 <td>Your own Java tool</td>
-<td><code>class</code>, and <code>reach:</code> for the audit</td>
+<td><code>class</code>, and <code>effect:</code> so Loom knows what it does</td>
 </tr>
 <tr>
 <td><code>knowledge_graph</code>, <code>skill_registry</code></td>
@@ -1542,6 +1542,19 @@ extractor Invoice {
     <span class="tk-k">delegate</span> <span class="tk-s">"<span class="tk-v">{q}</span>"</span> <span class="tk-k">to</span> Researcher -&gt; answer
     <span class="tk-k">return</span> answer
 }</code></pre></figure>
+<h3 id="c06-does-this-tool-change-anything-effect">Does this tool change anything? <code>effect:</code></h3>
+<p>Every tool has an <strong>effect</strong>, in the same three words a task uses:</p>
+<ul>
+<li><code>effect: none</code> touches nothing outside the run (a calculator).</li>
+<li><code>effect: reads</code> looks something up and changes nothing.</li>
+<li><code>effect: changes</code> writes, sends, posts, pays or runs a program: anything that is different afterwards.</li>
+</ul>
+<p>It is <strong>your decision</strong>, and Loom believes it. A search that happens to use <code>POST</code> only reads, so you say so:</p>
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">tool</span> Orders  { use: http  base_url: <span class="tk-s">"https://api.acme.com"</span>  methods: <span class="tk-s">"GET,POST"</span>  effect: reads }
+<span class="tk-k">tool</span> Refunds { use: http  base_url: <span class="tk-s">"https://pay.acme.com"</span>  methods: <span class="tk-s">"POST"</span>  effect: changes }
+<span class="tk-k">tool</span> Shop    { use: openapi  spec: <span class="tk-s">"specs/shop.yaml"</span>  <span class="tk-k">effects</span>: { listOrders: reads, getOrder: reads, createRefund: changes } }</code></pre></figure>
+<p>An <code>openapi</code> tool or an <code>mcp</code> server holds several tools, so you declare each one: <code>effects: { name: reads, … }</code>. Whatever you leave out falls back to the tool&#39;s own effect.</p>
+<p>If you declare nothing, Loom <strong>assumes</strong> one from the kind of tool (a webhook, an email, a shell and a Java tool you wrote change things; a search and a read-only database read) and says so in <code>weave explain</code> and <code>weave review --format json</code>, always with a pointer back to <code>effect:</code>. An MCP server&#39;s own <code>readOnlyHint</code> is used when it has been read. Why it matters: the effect decides which calls should have a person approve them and which a retry must not repeat. It does not replace the audit&#39;s questions about where data comes from and where it goes.</p>
 <h3 id="c06-the-six-generic-tools">The six generic tools</h3>
 <p>Six tool kinds cover what most real workflows need, with <strong>no Java</strong>. All of them follow the same safety rules: secrets from the environment only, hosts and paths limited to what you allow, and every action that changes something is recorded in the run journal so a resume never repeats it.</p>
 <h4 id="c06-webhook-post-a-message"><code>webhook</code>: post a message</h4>
@@ -1681,8 +1694,9 @@ extractor Invoice {
 }</code></pre></figure>
 <p>From Java the same thing is <code>McpClient</code> with <code>StdioMcpTransport</code> (<a href="https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/MCP-Integration.md" target="_blank" rel="noopener">MCP integration</a>). <code>weave audit</code> includes what MCP tools can reach, but it cannot see inside a server, so treat an MCP server like any other code you run.</p>
 <h3 id="c06-your-own-tool-from-java">Your own tool, from Java</h3>
-<p>For something the generic tools do not cover, write a <code>Tool</code> in Java and expose it either with <code>use: class</code> or in a <code>.loot</code> file. <code>weave audit</code> never loads your code, so tell it what the tool does to the world with <code>reach:</code>:</p>
-<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">tool</span> Invoices { use: class  class: <span class="tk-s">"com.acme.tools.InvoiceTool"</span>  reach: reads }     <span class="tk-c">// none | reads | fetches | writes | sends</span></code></pre></figure>
+<p>For something the generic tools do not cover, write a <code>Tool</code> in Java and expose it either with <code>use: class</code> or in a <code>.loot</code> file. <code>weave audit</code> never loads your code, so tell it what the tool does to the world with <code>effect:</code> (see <a href="#c06-does-this-tool-change-anything-effect">Does this tool change anything?</a>):</p>
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">tool</span> Invoices { use: class  class: <span class="tk-s">"com.acme.tools.InvoiceTool"</span>  effect: reads }     <span class="tk-c">// none | reads | changes</span></code></pre></figure>
+<p>The older <code>reach:</code> (<code>none | reads | fetches | writes | sends</code>) still works on a <code>class</code> tool. Use one or the other, not both.</p>
 <p><a href="#c13">Chapter 13</a> shows how to write one.</p>
 <h2 id="c06-approvals-a-person-says-yes-first">Approvals: a person says yes first</h2>
 <p><code>approve: [Tool]</code> on an agent makes calls to that tool wait for a person:</p>

@@ -388,10 +388,16 @@ models aren't available yet: ai-agent4j has no provider for them.
 tool Search   { use: serpapi  api_key: env.SERPAPI_KEY }
 tool Web      { use: duckduckgo }
 tool Petstore { use: openapi  spec: "specs/petstore.json"  auth_header: "X-API-Key"  auth_value: env.PETSTORE_KEY }
-tool Invoices { use: class  class: "com.acme.tools.InvoiceTool"  reach: reads }     // any no-arg Tool on the classpath
+tool Invoices { use: class  class: "com.acme.tools.InvoiceTool"  effect: reads }     // any no-arg Tool on the classpath
 ```
 
-For your own (`class`) tools, `reach:` says what the tool does to the outside world for `weave audit`, which never loads your code: `none`, `reads`, `fetches`, `writes` or `sends`. Without it the audit assumes the worst. A tool mapped in a `.loot` file takes the same word as a line `Name.reach = reads`, read by `weave audit --loot tools.loot`.
+**Every tool has an effect**, in the three words a task uses: `effect: none` (touches nothing outside the run), `effect: reads` (looks something up and changes nothing) or `effect: changes` (writes, sends, posts, pays or runs a program). You decide, and your word is final for the runtime, `weave check`, `weave audit` and `weave review`. Where the data comes from and whether it leaves the system stay the audit's separate trifecta legs.
+
+A tool that holds several operations declares each one: `effects: { listOrders: reads, createRefund: changes }` on an `openapi` tool (by `operationId`) and on an `mcp` server (by tool name). An operation not listed falls back to the tool's own effect.
+
+When you declare nothing, Loom assumes an effect from the kind of tool and says so (`weave explain`, `weave review --format json`: `effect`, `effectSource: declared | assumed`, `effectReason`): calculator, datetime and the other harmless built-ins `none`; search, `sql`, `skill_registry`, `knowledge_graph` with `read_only: true`, and a `file` tool in `read` mode `reads`; `webhook`, `email`, `shell`, any other `file` mode and any other `knowledge_graph` `changes`; an `http` tool `reads` when it allows only `GET` and `changes` otherwise; an `openapi` operation, a `class` tool, a tool the host registered and an unknown kind `changes`. For an MCP tool the server's own annotations are used when they have been read (`readOnlyHint: true` reads; `destructiveHint` or no `readOnlyHint` changes); otherwise it changes.
+
+`reach:` on a `class` tool (`none`, `reads`, `fetches`, `writes`, `sends`) is the older form and keeps working: `none` and `reads` give that effect, `fetches` gives `reads` plus the untrusted leg, `writes` and `sends` give `changes` (and `sends` the outward leg). Giving `effect:` and `reach:` on one tool is an error; keep `effect:`. A tool mapped in a `.loot` file takes `Name.reach = reads`, read by `weave audit --loot tools.loot`.
 
 | `use:` | Options |
 |---|---|

@@ -128,6 +128,6 @@ done, so that what we learn building a lower layer shapes the spec above it.
 | 24 | draft for review (decisions recorded; LP09 narrowed, see VERIFICATION §7) | 24a to 24d written first and green | 24a to 24d built (see VERIFICATION §7) | not verified (native JSON mode deferred; manual checks M1 to M4 owed) |
 | 25 | draft for review (decisions recorded; examples partly migrated, see VERIFICATION §7) | 25a to 25e written first and green | 25a to 25e built (LP10, the split fix, examples partly migrated, starter 16, bounded fan-out with LR13 and the incident) | not verified (manual checks M1 to M3 owed; PIT entries for the new facts not added) |
 | 26 | draft for review (decisions recorded) | not started | not started | not started |
-| 27 | draft for review (decisions recorded) | not started | not started | not started |
+| 27 | draft for review (decisions recorded) | 27a (tool effects) built and green, gaps in docs/specs/27-boundary-approvals/VERIFICATION.md §7; 27b to 27e not started | 27a verified; the rest not started | not started |
 | 28 | draft for review (decisions recorded) | not started | not started | not started |
 | 29 | draft for review (decisions recorded) | not started | not started | not started |

@@ -35,6 +35,18 @@ public class McpServerDef implements Node {
     /** Optional extra environment variables passed to the server process. */
     private final Map<String, String> env = new LinkedHashMap<>();
 
+    private final Map<String, io.github.llm4j.agent.task.TaskEffect> toolEffects =
+            new LinkedHashMap<>();
+
+    /** The effect the developer declared for each of this server's tools, by tool name. */
+    public Map<String, io.github.llm4j.agent.task.TaskEffect> getToolEffects() {
+        return Collections.unmodifiableMap(toolEffects);
+    }
+
+    public void putToolEffect(String tool, io.github.llm4j.agent.task.TaskEffect effect) {
+        toolEffects.put(tool, effect);
+    }
+
     public McpServerDef(String name) {
         this.name = name;
     }

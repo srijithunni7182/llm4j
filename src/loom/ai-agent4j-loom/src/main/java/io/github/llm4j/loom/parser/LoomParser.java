@@ -1878,7 +1878,9 @@ public class LoomParser {
             Token n = consume(TokenType.NUMBER_LITERAL, "Expect the most items, as in max 10.");
             double v = Double.parseDouble(n.getValue());
             if (v < 1 || v != Math.floor(v))
-                throw error(keyword, "for each max must be at least 1 and a whole number, got " + n.getValue());
+                throw error(
+                        keyword,
+                        "for each max must be at least 1 and a whole number, got " + n.getValue());
             max = (int) v;
         }
         io.github.llm4j.loom.ast.BudgetDef budget = null;
@@ -2137,6 +2139,10 @@ public class LoomParser {
                 consume(TokenType.COLON, "Expect ':' after cmd.");
                 Token val = consume(TokenType.STRING_LITERAL, "Expect string literal for cmd.");
                 mcp.setCmd(val.getValue());
+            } else if (check(TokenType.IDENTIFIER) && peek().getValue().equals("effects")) {
+                advance();
+                consume(TokenType.COLON, "Expect ':' after effects.");
+                parseEffectMap(mcp.getName(), mcp::putToolEffect);
             } else {
                 throw error(peek(), "Unexpected token in mcp body: " + peek().getType());
             }
@@ -2775,10 +2781,15 @@ public class LoomParser {
         return stmt;
     }
 
-
     private static final java.util.List<String> EXTRACTOR_SETTINGS =
             java.util.List.of(
-                    "model", "instructions", "fields", "optional", "pii", "temperature", "timeout",
+                    "model",
+                    "instructions",
+                    "fields",
+                    "optional",
+                    "pii",
+                    "temperature",
+                    "timeout",
                     "budget");
 
     /** Agent settings an extractor is stateless without (docs/specs/24, R1). */
@@ -2838,8 +2849,7 @@ public class LoomParser {
                                         : " Did you mean " + String.join(" or ", near) + "?"));
             }
             if (!seen.add(setting))
-                throw error(
-                        key, setting + " is given twice in extractor " + name.getValue() + ".");
+                throw error(key, setting + " is given twice in extractor " + name.getValue() + ".");
             switch (setting) {
                 case "model" -> {
                     consume(TokenType.COLON, "Expect ':' after model.");
@@ -2870,7 +2880,9 @@ public class LoomParser {
                     if (!check(TokenType.RBRACKET)) {
                         do {
                             def.getOptional()
-                                    .add(word("Expect a field name in optional: [ … ].").getValue());
+                                    .add(
+                                            word("Expect a field name in optional: [ … ].")
+                                                    .getValue());
                         } while (match(TokenType.COMMA));
                     }
                     consume(TokenType.RBRACKET, "Expect ']' after the optional fields.");
@@ -2924,7 +2936,7 @@ public class LoomParser {
         return def;
     }
 
-    /** {@code fields { a: string  b: number }}, after the word {@code fields}. */
+    /** {@code fields { a: string b: number }}, after the word {@code fields}. */
     private SchemaDef parseExtractorFields(Token extractorName) {
         consume(TokenType.LBRACE, "Expect '{' after fields.");
         SchemaDef schema = new SchemaDef(SchemaDef.Type.OBJECT);
@@ -2957,7 +2969,8 @@ public class LoomParser {
 
     /**
      * {@code extract Invoice from text -> invoice [retry 1] [backoff 2s] [timeout 30s] [budget N
-     * tokens] [on_failure { … }]} or {@code extract Claim from (email = msg, order = record) -> claim}.
+     * tokens] [on_failure { … }]} or {@code extract Claim from (email = msg, order = record) ->
+     * claim}.
      */
     private io.github.llm4j.loom.ast.ExtractStmt parseExtract() {
         Token keyword = advance();
@@ -2966,7 +2979,8 @@ public class LoomParser {
         java.util.List<RunStmt.Arg> inputs = new java.util.ArrayList<>();
         if (match(TokenType.LPAREN)) {
             while (!check(TokenType.RPAREN) && !isAtEnd()) {
-                Token field = word("Expect an input name, as in from (email = msg, order = record).");
+                Token field =
+                        word("Expect an input name, as in from (email = msg, order = record).");
                 consume(TokenType.ASSIGN, "Expect '=' after " + field.getValue() + ".");
                 inputs.add(classifierInput(field.getValue()));
                 match(TokenType.COMMA);
@@ -3337,6 +3351,11 @@ public class LoomParser {
             if (key.getValue().equals("use")) {
                 tool.setKind(
                         word("Expect a tool kind after use:, e.g. use: duckduckgo").getValue());
+            } else if (key.getValue().equals("effect")) {
+                if (tool.getEffect().isPresent()) throw error(key, "option effect is given twice");
+                tool.setEffect(effectWord());
+            } else if (key.getValue().equals("effects")) {
+                parseEffectMap(tool.getName(), tool::putOperationEffect);
             } else {
                 if (tool.getOptions().containsKey(key.getValue()))
                     throw error(key, "option " + key.getValue() + " is given twice");
@@ -3347,7 +3366,50 @@ public class LoomParser {
         consume(TokenType.RBRACE, "Expect '}' after tool " + name.getValue() + ".");
         if (tool.getKind() == null)
             throw error(name, "tool " + name.getValue() + " needs use: <kind>");
+        if (tool.getEffect().isPresent() && tool.getOptions().containsKey("reach"))
+            throw error(
+                    name,
+                    "tool "
+                            + name.getValue()
+                            + " has both effect: and reach:. Keep effect: (none, reads or changes);"
+                            + " reach: is the older form and says less.");
         return tool;
+    }
+
+    /** {@code none}, {@code reads} or {@code changes}, after {@code effect:}. */
+    private io.github.llm4j.agent.task.TaskEffect effectWord() {
+        Token w = word("Expect none, reads or changes after effect:");
+        return switch (w.getValue()) {
+            case "none" -> io.github.llm4j.agent.task.TaskEffect.NONE;
+            case "reads" -> io.github.llm4j.agent.task.TaskEffect.READS;
+            case "changes" -> io.github.llm4j.agent.task.TaskEffect.CHANGES;
+            default -> throw error(
+                    w,
+                    "effect must be none, reads or changes, not "
+                            + w.getValue()
+                            + " (none: touches nothing outside the run; reads: looks something up;"
+                            + " changes: writes, sends, pays or runs a program)");
+        };
+    }
+
+    /** {@code { operation: reads, other: changes }}, after {@code effects:}. */
+    private void parseEffectMap(
+            String owner,
+            java.util.function.BiConsumer<String, io.github.llm4j.agent.task.TaskEffect> into) {
+        consume(TokenType.LBRACE, "Expect '{' after effects: in " + owner + ".");
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token op =
+                    check(TokenType.STRING_LITERAL)
+                            ? advance()
+                            : word("Expect an operation name, e.g. effects: { listOrders: reads }");
+            consume(TokenType.COLON, "Expect ':' after " + op.getValue() + ".");
+            if (!seen.add(op.getValue()))
+                throw error(op, "operation " + op.getValue() + " is given twice in effects:");
+            into.accept(op.getValue(), effectWord());
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after effects: in " + owner + ".");
     }
 
     /** A bare word: an identifier or a keyword (option names like path, type, class). */

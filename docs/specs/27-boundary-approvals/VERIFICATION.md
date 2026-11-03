@@ -1,6 +1,6 @@
 # Phase 27 verification plan: approval at the boundary
 
-Status: **not started** (spec draft). Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **27a** every tool has an effect (R0; phase 26 waits for it); **27b** `use` (R1) and `approve` on `use` and `run` (R2); **27c** the review changes and the lens default (R3 to R7, R9), and LR11 with its teaching (R10); **27e** dynamic routing within limits (R11); **27d** starter 07, the guide, the skills and the tutorial (R8). Results in §7.
+Status: **27a done (2026-11-03); 27b to 27e not started**. Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **27a** every tool has an effect (R0; phase 26 waits for it); **27b** `use` (R1) and `approve` on `use` and `run` (R2); **27c** the review changes and the lens default (R3 to R7, R9), and LR11 with its teaching (R10); **27e** dynamic routing within limits (R11); **27d** starter 07, the guide, the skills and the tutorial (R8). Results in §7.
 Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Reproduce first
@@ -37,7 +37,7 @@ Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 
 | Req | Tests | Status |
 |---|---|---|
-| R0 | the R0 tests of the strategy | ⬜ |
+| R0 | the R0 tests of the strategy | ✅ (hints at connect time and the editor fix: see §7) |
 | R1 | `UseParsesTest`, `UseKeywordIsContextualTest`, `UseArgumentsCheckedAgainstToolParametersTest`, `UseToolCallParityTest`, `UseNetPolicyRefusalsTest`, `UseEffectProtocolNoRepeatAfterCrashTest`, `UseRetryRefusedOnNonIdempotentChangingToolTest`, `UseScriptedInWeaveTestTest`, `UseMockedInEvalMockTest`, `UseGraphNodeTest`, `GraphRenderKindsInSyncTest`, `UsesToolAssertionTest`, `UseIsASinkTest` (with phase 26) | ⬜ |
 | R2 | the R2 tests of the strategy | ⬜ |
 | R3 | LA02 rule-page golden text and fixture | ⬜ |
@@ -87,4 +87,20 @@ Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 
 ## 7. Results
 
-*(empty until 27a)*
+### 27a: every tool has an effect (2026-11-03)
+
+**Built.** `effect: none | reads | changes` on any tool; `effects: { op: … }` on an `openapi` tool and inside an `mcp` block; `ToolDef.getEffect()` and `getOperationEffects()`; `Capabilities.resolve` now carries the effect in the task's three words with who decided it (`DECLARED` or `ASSUMED`) and a reason that points at `effect:`; the developer's word wins; `reach:` on a class tool and in a `.loot` file map to an effect and count as declared; `effect:` with `reach:` is a load error; `weave explain` prints each tool's effect and source; the review fact model carries `effect`, `effectSource`, `effectReason` (so `weave review --format json` shows them); `McpEffects` decides an MCP tool's effect from the developer's `effects:` first, then the server's annotations.
+
+**Re-run of P7** after the change, on the same script with the declarations added: unapproved effects shrink from Search, Shop, Mine to Shop only (Shop keeps it because operations not listed are assumed to change, as designed).
+
+**Tests** (`effects/*Test`, `ToolEffectFactsTest`): written after the parser and resolver, not before; I wrote the code first this time and the tests second, so the red step was done by removing each guard by hand instead. By hand: ignoring a declared effect fails `DeclaredEffectWinsTest` (3 of 3); dropping the `effect:`+`reach:` check fails `EffectAndReachTogetherIsAnErrorTest`. Both restored.
+
+**Gates.** `mvn verify` green on `ai-agent4j-loom` (4,342 tests, JaCoCo rules met) and, after installing the Loom jar, on `loom-inspect-core`, `loom-fabric` and `loom-inspect`. Tutorial page regenerated (`make-tutorial-html.sh`). Not run: PIT (no mutation profile covers this code yet), VS Code `npm test`, `make format-check` (Loom is outside Spotless).
+
+**Deviations, what discipline is lost, what covers it.**
+- *MCP annotations are not read when the audit or `weave check` runs.* Asked: hints read at connect time or from a cached `weave mcp list`. Built: the resolver (`McpEffects`) and the `effects:` declaration, but nothing connects to a server or caches a list. Lost: a read-only MCP tool is still counted as changing until the developer declares it under `effects:`. Covered by: the safe default (it is treated as changing, never as harmless), the declaration, and the explanation naming `effects:`. Owed: connect-time/cached hints.
+- *An `openapi` tool with some operations declared is still treated as changing as a whole.* Asked: per-operation effect. Built: `Capabilities.operationEffect` answers per operation, but the audit and approval lists work per tool, and the spec file is not read. Lost: declaring `listOrders: reads` does not yet remove the tool from the unapproved list. Covered by: unlisted operations fall back to changing (never weaker); a tool-wide `effect:` is honoured. Owed: per-operation approval, with 27b.
+- *`declare-effect` review option and the editor quick fix (D34) are not built.* No review rule exists yet to hang the option on; LA02/LH02/LH05 arrive in 27c. Lost: no one-click declaration. Covered by: the explanation and review JSON name the assumed value and `effect:`. Built with 27c.
+- *The graph and the editor hover do not show the effect.* Lost: the effect is visible in `explain` and review JSON only. Covered by: those two. Owed to 27d with the graph `use` kind.
+- Spotless was run on the Loom module by mistake; unrelated reformatting was reverted, only wrapping changes inside files I had touched remain.
+

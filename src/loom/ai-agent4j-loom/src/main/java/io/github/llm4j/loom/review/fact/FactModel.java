@@ -89,9 +89,7 @@ public final class FactModel {
                 .string(
                         "payloadHitsVariable",
                         "A workflow variable whose name appears inside the literal text of the prompt, empty when none")
-                .bool(
-                        "fansOutModelList",
-                        "A for each over a list that an agent or extractor wrote")
+                .bool("fansOutModelList", "A for each over a list that an agent or extractor wrote")
                 .number("fanoutBound", "A for each's declared max, 0 when none")
                 .string("fanoutList", "The path of the list a for each walks over")
                 .bool(
@@ -139,16 +137,24 @@ public final class FactModel {
                 .bool("hasTools", "It has at least one tool")
                 .list("approve", "The tools a person must approve")
                 .bool("approveAll", "A person must approve every tool call")
-                .string("transcript", "How much of the run's transcript it receives: all, own or none")
+                .string(
+                        "transcript",
+                        "How much of the run's transcript it receives: all, own or none")
                 .bool("sharedPromptExcluded", "It is left out of the script's shared prompt")
                 .bool("hasSchema", "It has an output_schema")
                 .bool(
                         "choosesOneLabel",
                         "Its output_schema is a single enum field: it picks a label")
-                .bool("reasons", "It has to think before it answers: tools, grounding, rounds or a long prompt")
+                .bool(
+                        "reasons",
+                        "It has to think before it answers: tools, grounding, rounds or a long prompt")
                 .string("reasonsBecause", "Why it reasons, in words, empty when it does not")
-                .bool("largeSchema", "Its output_schema (or the expecting of a delegate to it) is large")
-                .string("largeSchemaBecause", "Why the schema is large, in words, empty when it is not")
+                .bool(
+                        "largeSchema",
+                        "Its output_schema (or the expecting of a delegate to it) is large")
+                .string(
+                        "largeSchemaBecause",
+                        "Why the schema is large, in words, empty when it is not")
                 .bool("grounded", "It has a grounding block (it searches the web)")
                 .bool(
                         "delegatesPassVariables",
@@ -228,6 +234,17 @@ public final class FactModel {
                         List.of("none", "reads", "fetches", "writes", "sends"),
                         "What it can do to the outside world")
                 .bool("reachKnown", "Its reach is declared or built in, not assumed")
+                .enumeration(
+                        "effect",
+                        List.of("none", "reads", "changes"),
+                        "What it does to the world: nothing, only looks something up, or changes it")
+                .enumeration(
+                        "effectSource",
+                        List.of("declared", "assumed"),
+                        "Whether the developer wrote the effect or Loom assumed it from the kind")
+                .string(
+                        "effectReason",
+                        "Why the effect is what it is, pointing at effect: when assumed")
                 .bool(
                         "journaled",
                         "Its effects are journaled, so a resumed run does not repeat them")
