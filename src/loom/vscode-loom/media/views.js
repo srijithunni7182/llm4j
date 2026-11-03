@@ -181,6 +181,8 @@
     if (agent.temperature != null) { rows.push(['Temp', String(agent.temperature)]); }
     if (agent.prompt) { rows.push(['Prompt', agent.prompt.ref + (agent.prompt.version ? '@' + agent.prompt.version : '') + (agent.prompt.file ? '.md' : ' (not found)')]); }
     if (agent.persona) { rows.push(['Persona', agent.persona]); }
+    rows.push(['Sees', agent.transcript === 'none' ? 'nothing said before it' : agent.transcript === 'own' ? 'its own earlier exchanges' : 'everything said before it']);
+    if (agent.sharedPromptExcluded) { rows.push(['Shared prompt', 'left out']); }
     var extra = [];
     if (agent.maxIterations) { extra.push('max ' + agent.maxIterations + ' iterations'); }
     if (agent.approveAll) { extra.push('approval for every tool'); } else if ((agent.approve || []).length) { extra.push('approval: ' + agent.approve.join(', ')); }

@@ -176,7 +176,8 @@ public class LoomParser {
                     "streaming",
                     "reasoning",
                     "steerable",
-                    "grounding");
+                    "grounding",
+                    "shared_prompt");
 
     /**
      * What to say when something that is not a setting turns up inside an agent: the word itself,
@@ -283,6 +284,15 @@ public class LoomParser {
                     } while (match(TokenType.COMMA));
                 }
                 consume(TokenType.RBRACKET, "Expect ']' after skills list.");
+            } else if (isNamedAttribute("shared_prompt")) {
+                Token keyword = advance();
+                advance(); // the colon
+                Token value = advance();
+                if (!"none".equals(value.getValue()))
+                    throw error(
+                            keyword,
+                            "an agent's shared_prompt can only be none (shared_prompt: none leaves it out of the script's shared prompt); an agent's own words go in system:");
+                agent.setSharedPromptExcluded(true);
             } else if (match(TokenType.MEMORY)) {
                 int memoryLine = previous().getLine();
                 match(TokenType.COLON);

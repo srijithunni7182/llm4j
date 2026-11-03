@@ -177,6 +177,19 @@ class PreflightRunnerTest {
     }
 
     @Test
+    void anAgentLeftOutOfTheSharedPromptSkipsTheCanaryAndSaysWhy() {
+        String source =
+                "shared_prompt: \"Be brief.\"\nagent Writer { model: \"gemini-x\" system: \"You write.\" shared_prompt: none }\nagent Editor { model: \"gemini-x\" system: \"You edit.\" }\nworkflow Main(t) { delegate \"{t}\" to Writer -> r }\n";
+
+        PreflightRunner.Report r = run(source, new Fake(Behaviour.ECHO_CANARY), 50_000L);
+
+        PreflightRunner.Check writer = check(r, "C4", "Writer");
+        assertThat(writer.result()).isEqualTo(PreflightRunner.Result.SKIPPED);
+        assertThat(writer.detail()).contains("shared_prompt: none");
+        assertThat(check(r, "C4", "Editor").result()).isEqualTo(PreflightRunner.Result.PASS);
+    }
+
+    @Test
     void theCanaryIsDifferentEveryRunAndNeverInTheRecord() {
         Fake first = new Fake(Behaviour.ECHO_CANARY);
         Fake second = new Fake(Behaviour.ECHO_CANARY);

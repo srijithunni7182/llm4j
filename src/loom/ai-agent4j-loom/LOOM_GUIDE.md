@@ -1334,7 +1334,7 @@ workflow Brief(topic) {
 - That sameness is deliberate: a model provider that charges less for the start of a prompt it has just seen can reuse the shared part across the agents. Loom only lays the prompt out that way; it does not ask any provider for caching. The saving is real only when the shared text is long (a thousand tokens or more), the agents use the same model, and nothing in it changes between calls, so keep dates and run ids out of it.
 - `shared_prompt: prompt "id"` takes a prompt file or registry prompt like an agent's `prompt:` (the latest version, or `id@v2`), and `weave check` reports a missing file. A shared prompt file counts as used.
 - Editing the shared text is a different agent as far as earned autonomy is concerned, for every agent that has a decision. `weave explain` says that every agent is first told it.
-- One `shared_prompt` per script. There is no way to leave a single agent out.
+- One `shared_prompt` per script. An agent can leave it out with `shared_prompt: none` inside the agent (it takes no other value: an agent's own words go in `system:`); `weave explain` says so and preflight check C4 skips that agent. Use the shared prompt for tone and facts every agent shares, not for rules that must hold: a rule that must hold belongs in code that checks.
 - **Before 6.2.0 no `weave` command applied it** (a fault in loading the script; 6.2.0 and earlier). If you upgrade from an older version, a workflow that relied on its shared prompt starts behaving as written. `supervise` and `intervention` blocks had the same fault. An imported file's `shared_prompt` is not imposed on the file that imports it.
 
 ### Personas, Skills and Knowledge Graphs
@@ -1841,6 +1841,25 @@ agent Writer {
 - An agent that has a `context` block and a known window, and no `max_tokens`, bounds the transcript to **a quarter of its usable window** with its own strategy.
 - `rewind` still restores the transcript to what it was at the checkpoint. A strategy that fails or does not make the transcript smaller leaves it as it was.
 - `memory { max_tokens: … }` is enough on its own; it does not need `conversation` or `facts`.
+
+##### Who sees what was said before: `transcript: none | own | all`
+
+The default is `all`: every agent is briefed with everything said before it, and `weave graph`, `weave explain` and the editor mark each such agent ("sees everything said before it"). An agent that should not get it can say so:
+
+```loom
+agent Summariser {
+    model: "claude-haiku-5-5"
+    memory { transcript: none }     // none | own | all (the default)
+    shared_prompt: none
+}
+```
+
+- `all` is today's behaviour. `own` gives the agent only its own earlier exchanges in this run. `none` gives it no transcript: its task is its whole briefing.
+- Opting out of **receiving** is not opting out of being **seen**: the agent's exchanges are still stored, so other agents with `all` see them.
+- `transcript:` works with `max_tokens` and `compact` for the agents that receive a transcript; `transcript: none` with `max_tokens` is a `weave check` warning ("has no effect").
+- A `delegate` or `handoff` to an agent with `none` or `own` that passes **no variable** gets review rule LP08 (low): everything the agent needs must be in its task, so write a variable into it (`{notes}`) or give the agent `transcript: all`.
+- `rewind` restores what each agent receives exactly as before. `handoff` honours the setting the same way as `delegate`.
+- A host's own `MemoryEngine` is told the setting through `AgentDef.getTranscriptMode()`; an engine that ignores it keeps today's behaviour.
 
 #### What you can see: trace events and statistics
 

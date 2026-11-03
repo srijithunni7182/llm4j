@@ -81,6 +81,12 @@ final class ConditionFacts implements FactProvider {
             Statement s = statement(byKey, step);
             out.set(step, "readsFreeText", s != null && readsFreeText(s, typed));
             out.set(step, "payloadHitsVariable", s == null ? "" : payloadHit(s, step, varsOf));
+            out.set(
+                    step,
+                    "passesNoVariable",
+                    (s instanceof DelegateStmt || s instanceof io.github.llm4j.loom.ast.HandoffStmt)
+                            && !payloadOf(s).matches("(?s).*\\{[^}]*}.*")
+                            && payloadHit(s, step, varsOf).isEmpty());
             String payload = s == null ? null : payloadOf(s);
             out.set(
                     step,

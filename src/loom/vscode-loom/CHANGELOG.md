@@ -3,6 +3,7 @@
 ## Unreleased
 
 - **Extractors.** The `extractor` and `extract` words are highlighted and have hover help, and two snippets: `extractor` (a stateless step that pulls typed fields out of text) and `extract`. The graph draws an `extract` step like a classification. Needs the engine's extractor support (phase 24).
+- **Who sees what was said before.** The agent details card shows what each agent sees ("everything said before it", "its own earlier exchanges", "nothing said before it") and whether it is left out of the shared prompt; `transcript` has hover help.
 
 ## 1.2.1
 

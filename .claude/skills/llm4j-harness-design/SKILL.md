@@ -43,7 +43,10 @@ this skill's `references/` folder and in the tools:
 7. **A run survives the process.** Steps are journaled, effects are idempotent, and a resumed run never pays twice. State lives in the
    harness, not in a prompt.
 8. **The harness owns the context.** It decides what each step sees, plans for the model's window, and keeps stable instructions
-   stable.
+   stable. **Pass data, not instructions, and treat the transcript as a channel:** by default Loom briefs every agent with everything said
+   before it, so one agent's words (including text it read from the web) reach all the others. A step that only reads, picks a label
+   or pulls out fields should be an internal node (`extractor`, `intentclassifier`) that sees only what its statement names; an agent
+   that should not see the rest says `memory { transcript: none }`.
 9. **A person stands in front of every irreversible way out**, until the agent has earned the right on evidence, under a ceiling a
    person set.
 10. **Test the harness, not just the agents.** Kill it mid-run, fail its tools, exhaust its budget, feed it hostile input, and check

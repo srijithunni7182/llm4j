@@ -666,6 +666,7 @@
     {
       "name": "Researcher",
       "model": "gpt-4",
+      "transcript": "all",
       "source": {
         "file": "<root>/src/test/resources/graph/all_statements.loom",
         "line": 2
@@ -674,6 +675,7 @@
     {
       "name": "Critic",
       "model": "gpt-4",
+      "transcript": "all",
       "source": {
         "file": "<root>/src/test/resources/graph/all_statements.loom",
         "line": 4
@@ -682,6 +684,7 @@
     {
       "name": "Copywriter",
       "model": "gpt-4",
+      "transcript": "all",
       "source": {
         "file": "<root>/src/test/resources/graph/all_statements.loom",
         "line": 3

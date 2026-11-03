@@ -256,6 +256,8 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**shared_prompt** `: "text"` or `: prompt "id"`\n\nTop level: text put in front of every agent\'s own system prompt, the same bytes for every agent. `prompt "id"` takes a prompt file like an agent\'s `prompt:`. Keep it stable (no dates or run ids) so a provider that reuses the start of a prompt can reuse it across agents.',
     intentclassifier:
         '**intentclassifier** `Name { model: "Jev/jev-latest"  choose kind: a | b  ask urgent: "…"  rate tone: low | high  samples: 3  pii: mask  confidence at least 0.8 else escalate }`\n\nDeclares typed questions answered in one call by Jev or a chat model. The text to classify is data, never instructions. `unsure` is produced only by the confidence rule.',
+    transcript:
+        '**transcript** `: none | own | all`\n\nInside an agent\'s `memory { … }`: how much of the run\'s transcript the agent is briefed with. `all` (the default) is everything said before it, `own` only its own earlier exchanges, `none` nothing. The agent\'s exchanges are still stored, so other agents with `all` see them.',
     extractor:
         '**extractor** `Name { model: "…"  instructions: "…"  fields { a: string  b: number }  optional: [b]  pii: mask }`\n\nDeclares a stateless model step that pulls typed fields out of the text it is handed. It sees only its fixed instructions, the schema and the named inputs: never the run transcript, the shared prompt, a persona or tools. A required field the text does not state fails the step; an optional one reads as `missing`.',
     extract:

@@ -5,6 +5,7 @@ All eleven artifacts are at `6.2.0`, aligned ([VERSION_MATRIX.md](VERSION_MATRIX
 ## The engineering discipline program (phases 24 to 29, in progress)
 
 - **Extractors (phase 24a).** A new internal node, `extractor` / `extract X from text -> var`, pulls typed fields out of text with no transcript, no shared prompt and no tools. An optional field the text does not state is `missing`; a required one is never invented and fails the step at once. It is journaled, budgeted, traced by field names only, drawn in the graph, scriptable in `weave test`, mocked in `weave eval --mock`, asserted in eval4j (`runsExtractTimes`, `extractedField`, `leftMissing`) and listed as its own cost line. Existing scripts are unaffected.
+- **Who sees what was said before (phase 24b).** An agent can leave the run's transcript with `memory { transcript: none | own | all }` and the shared prompt with `shared_prompt: none`. The default stays `all`; `weave explain` and the graph now say, for every agent, what it sees ("sees everything said before it"), so the default is visible. New low review rule LP08 (an agent that sees no transcript is given a task that passes no variable). **Visible change:** `weave explain` lines for agents end with the new "sees …" phrase, and the graph JSON agents carry `transcript`.
 
 ## Fixed: answers are no longer cut short without a word
 

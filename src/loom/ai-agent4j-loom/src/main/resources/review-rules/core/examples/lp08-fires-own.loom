@@ -1,0 +1,5 @@
+agent Summariser { model: "m"  system: "You summarise." memory { transcript: own } }
+workflow Main(q) {
+  delegate "Summarise the meeting notes" to Summariser -> r
+  note "{r}"
+}

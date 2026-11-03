@@ -249,6 +249,8 @@
         "streaming": { "const": true },
         "reasoning": { "const": true },
         "steerable": { "const": true },
+        "transcript": { "enum": ["all", "own", "none"] },
+        "sharedPromptExcluded": { "const": true },
         "grounding": {
           "type": "object",
           "additionalProperties": false,

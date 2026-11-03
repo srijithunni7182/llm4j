@@ -135,3 +135,24 @@
   examples:
     fires: [ examples/lp05-fires.loom ]
     quiet: [ examples/lp05-quiet.loom ]
+
+- id: LP08
+  lens: prompts
+  severity: low
+  about: step
+  when:
+    all:
+      - { field: passesNoVariable, is: true }
+      - { field: agent.transcript, isNot: "all" }
+  title: "Agent {agent.name} does not see the run's earlier exchanges, and this task passes it nothing from them"
+  why: "The agent has been told to leave the transcript (transcript: none or own), so everything it needs must be in its task. A task with no variable in it carries nothing from the run."
+  fixHint: "Write a variable into the task (a name in curly braces) so it carries what the agent needs, or give the agent transcript: all."
+  since: "6.2.0"
+  explain: >
+    memory with transcript: none gives an agent no transcript and transcript: own only its own
+    earlier exchanges, so its task is its whole briefing. This rule is quiet when the task passes at
+    least one variable, because the author clearly passed what was needed; under substitution:
+    legacy a bare variable name counts too.
+  examples:
+    fires: [ examples/lp08-fires.loom, examples/lp08-fires-own.loom ]
+    quiet: [ examples/lp08-quiet-variable.loom, examples/lp08-quiet-all.loom ]

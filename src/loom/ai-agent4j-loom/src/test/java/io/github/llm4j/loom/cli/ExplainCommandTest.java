@@ -60,7 +60,7 @@ class ExplainCommandTest {
                 .contains("Workflows: Main(topic)   Agents: 3")
                 .contains("Budget: A run may use 200,000 tokens and 30 model calls.")
                 .contains(
-                        "Researcher: gemini-2.5-flash; temperature 0.3; prompt file \"researcher\"; no tools.")
+                        "Researcher: gemini-2.5-flash; temperature 0.3; prompt file \"researcher\"; no tools; sees everything said before it.")
                 .contains(
                         "1. Researcher is asked: \"Background and recent news on: {topic}\". The answer is kept as research_notes.")
                 .contains("3. Repeat, at most 2 times, until review.verdict is OK:")

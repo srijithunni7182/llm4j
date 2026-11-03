@@ -138,6 +138,33 @@ public class AgentDef implements Node {
         return memory;
     }
 
+    private TranscriptMode transcriptMode;
+    private boolean sharedPromptExcluded;
+
+    /**
+     * How much of the run's transcript this agent is briefed with: what {@code memory { transcript:
+     * … }} says, else {@link TranscriptMode#ALL}. A host's own {@code MemoryEngine} should honour it
+     * (an engine that ignores it keeps today's behaviour).
+     */
+    public TranscriptMode getTranscriptMode() {
+        if (transcriptMode != null) return transcriptMode;
+        TranscriptMode written = memory == null ? null : TranscriptMode.of(memory.get("transcript"));
+        return written == null ? TranscriptMode.ALL : written;
+    }
+
+    public void setTranscriptMode(TranscriptMode mode) {
+        this.transcriptMode = mode;
+    }
+
+    /** True for {@code shared_prompt: none}: the script's shared prompt is not put in front of it. */
+    public boolean isSharedPromptExcluded() {
+        return sharedPromptExcluded;
+    }
+
+    public void setSharedPromptExcluded(boolean excluded) {
+        this.sharedPromptExcluded = excluded;
+    }
+
     public void setMemory(MemoryConfig memory) {
         this.memory = memory;
     }

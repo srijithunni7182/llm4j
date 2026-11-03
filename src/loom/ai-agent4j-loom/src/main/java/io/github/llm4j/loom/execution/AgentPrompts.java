@@ -46,7 +46,7 @@ final class AgentPrompts {
                         : base + "\n\n" + resolveSkills(agentDef.getSkills());
         // The workflow's shared prompt comes first, byte for byte the same for every agent, so a
         // provider that reuses the start of a prompt can reuse it.
-        String shared = sharedPrompt();
+        String shared = agentDef.isSharedPromptExcluded() ? null : sharedPrompt();
         return shared == null ? own : own.isBlank() ? shared : shared + "\n\n" + own;
     }
 

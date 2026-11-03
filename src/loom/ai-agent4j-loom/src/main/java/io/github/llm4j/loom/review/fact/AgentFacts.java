@@ -26,6 +26,8 @@ final class AgentFacts implements FactProvider {
             out.set(e, "model", ModelFacts.of(out, file, a.getModel(), a.getLine()));
             out.set(e, "approve", List.copyOf(a.getApprove()));
             out.set(e, "approveAll", a.isApproveAll());
+            out.set(e, "transcript", a.getTranscriptMode().name().toLowerCase(java.util.Locale.ROOT));
+            out.set(e, "sharedPromptExcluded", a.isSharedPromptExcluded());
             out.set(e, "hasSchema", a.getOutputSchema() != null);
             out.set(e, "hasContext", a.getContext() != null);
             out.set(e, "hasMemory", a.getMemory() != null);

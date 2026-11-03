@@ -3,6 +3,7 @@ package io.github.llm4j.loom.execution;
 import io.github.llm4j.loom.ast.AgentDef;
 import io.github.llm4j.loom.ast.KnowledgeDef;
 import io.github.llm4j.loom.ast.LoomScript;
+import io.github.llm4j.loom.ast.TranscriptMode;
 import io.github.llm4j.loom.ast.RoutingPolicyDef;
 import java.nio.file.Path;
 import java.util.List;
@@ -398,7 +399,8 @@ final class ExecutorValidation {
                     "recall",
                     "min_similarity",
                     "max_tokens",
-                    "compact");
+                    "compact",
+                    "transcript");
     private static final java.util.Set<String> VOICE_KEYS =
             java.util.Set.of("listen", "speak", "language", "voice", "out");
     private static final java.util.Set<String> GUARD_KEYS =
@@ -582,11 +584,30 @@ final class ExecutorValidation {
 
     void checkMemory(ScriptValidator.Checker c, String who, AgentDef.MemoryConfig m) {
         checkKeys(c, who, "memory", m, MEMORY_KEYS);
-        if (!m.has("conversation") && !m.has("facts") && !m.has("max_tokens")) {
+        if (m.has("transcript")) {
+            TranscriptMode mode = TranscriptMode.of(m.get("transcript"));
+            if (mode == null)
+                c.error(
+                        m.lineOf("transcript"),
+                        who,
+                        "memory transcript: use "
+                                + TranscriptMode.WORDS
+                                + "; got "
+                                + m.get("transcript"));
+            else if (mode == TranscriptMode.NONE && m.has("max_tokens"))
+                c.warn(
+                        m.lineOf("max_tokens"),
+                        who,
+                        "memory max_tokens: has no effect with transcript: none (the agent receives no transcript)");
+        }
+        if (!m.has("conversation")
+                && !m.has("facts")
+                && !m.has("max_tokens")
+                && !m.has("transcript")) {
             c.error(
                     m.getLine(),
                     who,
-                    "memory needs conversation: \"<directory>\" | memory, or facts: \"<file>\" | memory (or both), or max_tokens: <n> to bound the shared transcript");
+                    "memory needs conversation: \"<directory>\" | memory, or facts: \"<file>\" | memory (or both), or max_tokens: <n> to bound the shared transcript, or transcript: none | own | all");
         }
         wholeNumber(c, who, m, "max_tokens");
         if (m.has("compact")) {

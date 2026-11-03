@@ -106,6 +106,35 @@ A few honest cautions:
 - **A rewind does not undo memory.** Going back to a checkpoint never forgets a fact an agent already saved. `weave check` warns about agents with fact memory for this reason.
 - **A resumed run does not duplicate it.** A replayed step neither recalls nor records.
 
+## Who sees what was said before
+
+> **You don't need this until** an agent should work only from what you hand it, or you want to keep one agent's words from reaching another.
+
+Inside one run, Loom keeps a **transcript** of every task and answer. By default each agent is briefed with all of it (`weave explain` says "sees everything said before it"). That is what lets a later agent build on an earlier one, and it is also how an earlier agent's words, including text it read from the web, reach every later agent.
+
+An agent can take less:
+
+```loom
+substitution: braces
+
+agent Researcher { model: "gemini-2.5-flash"  system: "You find the facts." }
+agent Summariser {
+    model: "gemini-2.5-flash"
+    system: "You summarise the text you are given."
+    memory { transcript: none }
+}
+
+workflow Main(topic) {
+    delegate "Find the facts about {topic}" to Researcher -> facts
+    delegate "Summarise this in two sentences:\n{facts}" to Summariser -> summary
+    return summary
+}
+```
+
+- `transcript: all` is the default. `own` gives the agent only its own earlier exchanges. `none` gives it nothing: its task is its whole briefing.
+- The Summariser is still *seen* by agents that receive the transcript. Not receiving is not hiding.
+- An agent with `none` or `own` has to be handed what it needs in its task, as `{facts}` is above. If you forget, `weave review` says so (LP08).
+
 ## Language and voice
 
 For Indian languages and speech, a set of tools (Sarvam; `SARVAM_API_KEY`) work by name, like the other built-ins:

@@ -81,6 +81,9 @@ public final class FactModel {
                 .ref("agent", "agent", "The agent a step uses, when it uses one")
                 .string("bindsVariable", "The variable its result is bound to")
                 .bool(
+                        "passesNoVariable",
+                        "A delegate or handoff whose task text passes no variable (no {…}, and under legacy substitution no bare variable name)")
+                .bool(
                         "readsFreeText",
                         "A branch or loop condition reads a field of an answer whose agent has no output_schema")
                 .string(
@@ -131,6 +134,8 @@ public final class FactModel {
                 .bool("hasTools", "It has at least one tool")
                 .list("approve", "The tools a person must approve")
                 .bool("approveAll", "A person must approve every tool call")
+                .string("transcript", "How much of the run's transcript it receives: all, own or none")
+                .bool("sharedPromptExcluded", "It is left out of the script's shared prompt")
                 .bool("hasSchema", "It has an output_schema")
                 .bool("hasContext", "It has a context block")
                 .bool("hasMemory", "It has memory")

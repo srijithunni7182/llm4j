@@ -232,6 +232,13 @@ public final class ScriptExplainer {
                                     : ", at most "
                                             + a.getGrounding().getMaxSearches()
                                             + " searches a call"));
+        parts.add(
+                switch (a.getTranscriptMode()) {
+                    case ALL -> "sees everything said before it";
+                    case OWN -> "sees only its own earlier exchanges";
+                    case NONE -> "sees nothing said before it";
+                });
+        if (a.isSharedPromptExcluded()) parts.add("is left out of the shared prompt");
         if (a.isSteerable())
             parts.add(
                     "a person may steer it while it works"

@@ -37,6 +37,8 @@ The method comes from the project owner's guide *Quality Assurance for AI agenti
 8. Read a real answer under a cap before building a dataset around the workflow.
 9. Never describe a report that has not been read.
 
+An `extractor` (a stateless step that pulls fields out of text) is tested on its own: it sees nothing but its inputs, so its golden cases are texts and the fields they should give, and what it does inside the workflow is what it does alone. Script it in `weave test` (`models: { Name: { field: value } }`) for the logic around it, and give it cases of its own for the quality of the extraction.
+
 ## Ask; do not invent
 
 You never write the answer key for domain facts. Ask the developer and the domain expert, show each proposed case, and tag anything you drafted `author:assistant` until a named person has reviewed it (`reviewed_by:<name>`). Do not create scenarios the person did not choose. Where the three classes the guide says nobody builds are absent (the unanswerable, the obvious answer that is wrong, the case where the cautious action is right), **ask for examples**; do not fill them in. Synthetic cases come only after expert-written seeds exist, are tagged `source:synthetic`, and name the model that generated them: a dataset made by a model inherits that model's blind spots.

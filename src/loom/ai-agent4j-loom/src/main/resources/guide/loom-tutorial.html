@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: eeba27764a7408f964da5d227401b062c8aa9e97e90a205d596631fa6df8a8fa -->
+<!-- source-sha256: cde8151aaf1c1b35b2f6e7a0d4bff670f79a6235c11576a9a3bfcf3054148520 -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -200,7 +200,7 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
 <tr>
 <td>3</td>
 <td><a href="#c03">Agents</a></td>
-<td><code>model</code>, <code>system</code>, prompt files, personas, temperature, providers, routing and fallbacks, a shared prompt</td>
+<td><code>model</code>, <code>system</code>, prompt files, personas, temperature, providers, routing and fallbacks, a shared prompt (and leaving it out), agents versus internal nodes</td>
 <td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/02-chain" target="_blank" rel="noopener">02</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/10-memory-assistant" target="_blank" rel="noopener">10</a></td>
 </tr>
 <tr>
@@ -224,8 +224,8 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
 <tr>
 <td>7</td>
 <td><a href="#c07">Knowledge and memory</a></td>
-<td><code>knowledge</code> (answers from your documents), agent <code>memory</code>, voice and languages</td>
-<td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/09-handbook-qa" target="_blank" rel="noopener">09</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/10-memory-assistant" target="_blank" rel="noopener">10</a></td>
+<td><code>knowledge</code> (answers from your documents), agent <code>memory</code>, who sees the shared transcript (`transcript: none</td>
+<td>own</td>
 </tr>
 <tr>
 <td>8</td>
@@ -681,6 +681,18 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
     <span class="tk-k">return</span> review
 }</code></pre></figure>
 <p>It is put first in every agent&#39;s system prompt, byte for byte the same, which also lets providers that reuse the start of a prompt reuse it across agents. Keep it free of dates and ids.</p>
+<p>Use it for <strong>tone and shared facts</strong>, not for rules that must hold: a prompt is a request, and a rule that must hold belongs in something that checks. An agent that should not get it writes <code>shared_prompt: none</code> inside its block (a node such as an extractor never gets it).</p>
+<h2 id="c03-agents-that-talk-to-people-and-nodes-that-work-for-the-workflow">Agents that talk to people, and nodes that work for the workflow</h2>
+<blockquote>
+<p><strong>You don&#39;t need this until</strong> a step only does one small job on a piece of text, or you notice an agent behaving differently depending on what ran before it.</p>
+</blockquote>
+<p>Not every step in a workflow is a conversation. Some agents <em>talk</em>: they reason, use tools, and write words a person will read. Other steps just do one job on what they are handed: pick a label, pull fields out of a text. Those should behave like a function: the same text in, the same answer out, and no memory of anything else.</p>
+<p>Loom gives you both:</p>
+<ul>
+<li>An <strong>agent</strong> is told what was said before it (the transcript) and the shared prompt, so it can carry on a piece of work.</li>
+<li>An <strong>internal node</strong> (a classifier, and an extractor, <a href="#c05-extractors-fields-from-text-with-nothing-else">Chapter 5</a>) is handed only what its step names. It never sees the transcript or the shared prompt, and its answer is not added to the transcript.</li>
+</ul>
+<p>Loom does not decide for you which of your agents are &quot;internal&quot;. That depends on what your prompts mean. It does make the choice easy to see: <code>weave explain</code> and the graph say, for every agent, what it sees (&quot;sees everything said before it&quot;). An agent that should see less says so, as <a href="#c07-who-sees-what-was-said-before">Chapter 7</a> shows.</p>
 <h2 id="c03-models-and-providers">Models and providers</h2>
 <p><code>model:</code> understands these names:</p>
 <table>
@@ -1826,6 +1838,31 @@ extractor Invoice {
 <li><strong>Memory holds personal data.</strong> The <code>guard { pii: mask }</code> above keeps it from the model, but the folder itself is yours to protect and to delete when asked.</li>
 <li><strong>A rewind does not undo memory.</strong> Going back to a checkpoint never forgets a fact an agent already saved. <code>weave check</code> warns about agents with fact memory for this reason.</li>
 <li><strong>A resumed run does not duplicate it.</strong> A replayed step neither recalls nor records.</li>
+</ul>
+<h2 id="c07-who-sees-what-was-said-before">Who sees what was said before</h2>
+<blockquote>
+<p><strong>You don&#39;t need this until</strong> an agent should work only from what you hand it, or you want to keep one agent&#39;s words from reaching another.</p>
+</blockquote>
+<p>Inside one run, Loom keeps a <strong>transcript</strong> of every task and answer. By default each agent is briefed with all of it (<code>weave explain</code> says &quot;sees everything said before it&quot;). That is what lets a later agent build on an earlier one, and it is also how an earlier agent&#39;s words, including text it read from the web, reach every later agent.</p>
+<p>An agent can take less:</p>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
+
+<span class="tk-k">agent</span> Researcher { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"You find the facts."</span> }
+<span class="tk-k">agent</span> Summariser {
+    model: <span class="tk-s">"gemini-2.5-flash"</span>
+    system: <span class="tk-s">"You summarise the text you are given."</span>
+    memory { transcript: none }
+}
+
+<span class="tk-k">workflow</span> Main(topic) {
+    <span class="tk-k">delegate</span> <span class="tk-s">"Find the facts about <span class="tk-v">{topic}</span>"</span> <span class="tk-k">to</span> Researcher -&gt; facts
+    <span class="tk-k">delegate</span> <span class="tk-s">"Summarise this in two sentences:\n<span class="tk-v">{facts}</span>"</span> <span class="tk-k">to</span> Summariser -&gt; summary
+    <span class="tk-k">return</span> summary
+}</code></pre></figure>
+<ul>
+<li><code>transcript: all</code> is the default. <code>own</code> gives the agent only its own earlier exchanges. <code>none</code> gives it nothing: its task is its whole briefing.</li>
+<li>The Summariser is still <em>seen</em> by agents that receive the transcript. Not receiving is not hiding.</li>
+<li>An agent with <code>none</code> or <code>own</code> has to be handed what it needs in its task, as <code>{facts}</code> is above. If you forget, <code>weave review</code> says so (LP08).</li>
 </ul>
 <h2 id="c07-language-and-voice">Language and voice</h2>
 <p>For Indian languages and speech, a set of tools (Sarvam; <code>SARVAM_API_KEY</code>) work by name, like the other built-ins:</p>
