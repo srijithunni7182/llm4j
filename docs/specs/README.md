@@ -125,7 +125,7 @@ done, so that what we learn building a lower layer shapes the spec above it.
 | 21 | draft for review | not started | not started | not started |
 | 22 | draft for review | not started | not started | not started |
 | 23 | draft for review | not started | not started | not started |
-| 24 | draft for review (decisions recorded) | not started | not started | not started |
+| 24 | draft for review (decisions recorded) | 24a: parser, runner and check tests written first and green; the rest not started | 24a in progress: `extractor`/`extract` parse, check and run (see VERIFICATION §7); graph, `weave test`, eval4j, 24b to 24d not started | not verified |
 | 25 | draft for review (decisions recorded) | not started | not started | not started |
 | 26 | draft for review (decisions recorded) | not started | not started | not started |
 | 27 | draft for review (decisions recorded) | not started | not started | not started |
