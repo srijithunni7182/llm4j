@@ -150,3 +150,5 @@ Tests first: `TranscriptTaintTest` (11), `ToExtractorFixTest` (8), LP09 rule fix
 
 **Owed to the owner (cannot be done here):** M1 (a capped real run of starter 08 with a cheap model: needs a key and your go-ahead), M2 (read the extractor's real request in debug output; needs M1), M3 (read the `to-extractor` diff on one of your own projects), M4 (read the new tutorial sections as a newcomer). An independent review is not required for this phase.
 
+
+**`make release-check` (2026-11-03, after 24d):** exit 0 (clean verify of the whole repository with sources and javadoc jars, then `CheckJars`). `make format-check` still fails on `ai-agent4j`'s `NoSilentClipTest`, a file this phase did not touch.
