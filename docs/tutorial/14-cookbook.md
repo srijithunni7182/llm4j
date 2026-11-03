@@ -53,6 +53,32 @@ workflow Main(email) {
 
 The extractor sees only the email, never the run so far or the shared prompt. A required field the text does not state fails the step; an optional one is `missing`.
 
+### Recipe: let the reasoning agent think, then extract
+
+```loom
+substitution: braces
+
+agent Researcher {
+    model: "gemini-2.5-pro"
+    system: "Research the topic. Answer in plain prose; explain your reasoning, then state your conclusions."
+    grounding: web
+}
+
+extractor ResearchFields {
+    model: "gemini-2.5-flash"
+    instructions: "Pull these fields out of the research."
+    fields { summary: string, sources: list<{ title: string, url: string }> }
+}
+
+workflow Main(topic) {
+    delegate "Research {topic}" to Researcher -> notes_text
+    extract ResearchFields from notes_text -> notes
+    return notes.summary
+}
+```
+
+The agent that has to think is not forced into JSON; the cheap extractor does the formatting. Use it whenever LP10 fires.
+
 ### Recipe: a cheaper model when money runs low
 
 ```loom
@@ -187,6 +213,8 @@ line 1: agent Helper: unknown model "totally-unknown-model": use gemini-…, cla
 | One shared variable written by two `parallel` branches | A race: you get one of the answers | One variable per branch |
 | Both answers to a `human_prompt` lead to the same steps | The question changes nothing | Give each answer its own branch |
 | A key written in the script | A load error, on purpose | `env.NAME` or `secret.NAME` |
+| An agent that reasons (tools, web, rounds, a long prompt) must answer in a large schema (LP10) | "JSON only" leaves it no room to think | Let it write prose and add an `extractor` (`weave review --fix-finding LP10 --option split`) |
+| A branch on a field of an agent that has no schema (LR05, LP02) | The field may be missing or spelt differently | An `intentclassifier` for a label, an `extractor` for fields an agent worked out, or a small `output_schema` |
 | An agent with an `output_schema` that only pulls fields out of text (LP09) | It is briefed with the whole run and the shared prompt, so it can answer differently depending on what ran before | An `extractor` (`weave review --fix-finding LP09 --option to-extractor`) |
 | A task to an agent with `transcript: none` that passes no variable (LP08) | The agent sees nothing else, so it has nothing to work from | Write a variable into the task, or give the agent `transcript: all` |
 | An agent that sends or acts runs after one that reads the web (LA21) | The reader's words reach it through the shared transcript | `transcript: none` on the sender, typed values from an extractor, or split the work |

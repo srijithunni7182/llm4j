@@ -41,7 +41,12 @@ public final class ToExtractorFix implements JavaFixOption {
     }
 
     @Override
-    public Offer offer(Entity entity, LoomScript script, SourceText source, String file) {
+    public Offer offer(
+            Entity entity,
+            LoomScript script,
+            SourceText source,
+            String file,
+            java.nio.file.Path baseDir) {
         String name = String.valueOf(entity.get("name"));
         AgentDef agent =
                 script.getAgents().stream()
@@ -49,6 +54,13 @@ public final class ToExtractorFix implements JavaFixOption {
                         .findFirst()
                         .orElse(null);
         if (agent == null) return Offer.refused("the agent is not in this file");
+        int declared = agent.getLine();
+        if (declared < 1
+                || declared > source.lineCount()
+                || !Pattern.compile("^\\s*agent\\s+" + Pattern.quote(name) + "\\b")
+                        .matcher(SourceText.code(source.line(declared)))
+                        .find())
+            return Offer.refused("the agent is declared in another file (an import), and a rewrite edits one file at a time: apply it there by hand");
         String lost = lostSetting(agent);
         if (lost != null)
             return Offer.refused(
@@ -205,7 +217,7 @@ public final class ToExtractorFix implements JavaFixOption {
         return out.stream().map(l -> indent + l).collect(Collectors.joining(eol));
     }
 
-    private static String type(SchemaDef s) {
+    static String type(SchemaDef s) {
         return switch (s.getType()) {
             case STRING -> "string";
             case NUMBER -> "number";
@@ -218,7 +230,7 @@ public final class ToExtractorFix implements JavaFixOption {
         };
     }
 
-    private static String quote(String text) {
+    static String quote(String text) {
         return "\""
                 + text.replace("\\", "\\\\").replace("\"", "\\\"").replace("\r", "").replace("\n", "\\n")
                 + "\"";

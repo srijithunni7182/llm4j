@@ -83,3 +83,25 @@ Tests first: `Lp10Test` (the 16-cell table plus a bare list, message, settings, 
 
 **Goal check:** LP10 is also in the generator's review gate (Prompts lens, medium) on purpose, so a generated project with a trapped agent is repaired toward "prose, then extract"; none of the 28 recorded transcripts trips it.
 
+### 25b: the split fix (2026-11-03)
+
+Tests first: `SplitFixTest` (19 cases). **Built:** `SplitFix` (a `JavaFixOption`, option id `split`, needs `--yes`, `--dry-run` shows the diff): the agent loses its `output_schema` (or the steps lose their `expecting`) and gains the fixed sentence "Answer in plain prose; explain your reasoning, then state your conclusions."; a new `extractor <Agent>Fields` carries the old fields (fields a condition reads stay required, the rest optional; a cheaper model of the same provider for Claude and Gemini names, else the agent's own, said in the explanation); every `delegate` writes `<v>_analysis` and is followed by `extract … -> v`, so later uses are unchanged; the option lists the test files that script the agent and never edits them. It copes with an agent on one line or several, a task text over several lines, an `on_failure` on the header line or the next line, a step inside `parallel`.
+
+**Found by using it on the repository's own examples, and fixed:** (1) a step inside `parallel` is its own branch, so the extract goes after the block; (2) a handled failure leaves the extract with nothing to read, so the `on_failure` is repeated on the extract; (3) the block end must be measured from the arrow, not the line start, for multi-line task texts; (4) an agent declared in an imported file has lines that belong to another file, so it is refused ("apply it there by hand"); the same guard now protects LP09's `to-extractor`; (5) a step that chooses its agent at run time may reach the agent, so the rewrite is refused.
+
+**Deviations, with what covers the loss (see DISCIPLINE section 10):**
+
+| Deviation | Discipline given up | What covers it |
+|---|---|---|
+| The DESIGN refuses the split when the answer is "used both as prose and as fields"; I removed that check | None: a later prompt that writes the whole `{report}` keeps working, because the extract writes the same variable with the same fields. The check blocked the fix on every real example | The test `aLaterPromptThatWritesTheWholeAnswerStillWorksAfterTheSplit` pins it |
+| The extractor's model is a small table (Claude, Gemini names), not "the cheapest model in the catalogue" | An unknown provider keeps the agent's own (more expensive) model | The diff shows the model and the explanation says "change it to a cheaper one"; a real catalogue lookup is a follow-up |
+| The new extract is not given a retry | A malformed extraction fails the step once | Same as any extract (one correction is always allowed); the explanation tells the developer to add `on_failure` where needed |
+
+### 25c: the examples and the teaching (2026-11-03)
+
+**Migrated (by the split fix itself):** `getviral` Researcher and Strategist (tests: 77 run, the same single failure as before the change, `showrunnerWritesPromptsAtRuntimeAndRewritesThemAfterFeedback`, which also fails on the untouched base). `inspect-soak` and the `loom-inspect` simulator were never flagged (their schemas are small).
+
+**Not migrated, each named in `ExamplesAreCleanOfLp10Test` with its reason, and in the example's README:** getviral Showrunner, ReelDirector, YouTubeProducer (the Java host reads their structured answers and the quality gate re-delegates to two of them by name at run time); nirmaan-yantra Rishi (the host formats the live page from the spec and the tests count model calls exactly), Vihaan and Drishti (their answer is a bundle of source files: an extractor would re-copy every file). The LC01 fixture `lc01-quiet-tools.loom` is accepted as a rule fixture (DESIGN open question 1). **Goal check:** six reference agents still show the pattern LP10 warns about. What covers it: the READMEs say why and what to do in a new workflow; the rule page now says to accept the finding when the answer is itself the artifact. **Still open (follow-up, needs the owner):** a hook for extract steps in the host API (`onExtractEnd`) so `getviral` and `nirmaan-yantra` can be fully migrated.
+
+**Teaching:** guide section, tutorial chapter 5 ("Reason first, then extract", with the trapped and fixed scripts and an exercise), chapter 14 (recipe, mistakes), README row, `docs/guide/06`, the three skills, release notes, rule pages. **Gates:** `mvn verify` `eval4j` 571 and `ai-agent4j-loom` 4247 (3 skipped), coverage met; tutorial, guide and starters tests green.
+

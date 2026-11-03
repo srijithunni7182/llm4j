@@ -126,7 +126,7 @@ done, so that what we learn building a lower layer shapes the spec above it.
 | 22 | draft for review | not started | not started | not started |
 | 23 | draft for review | not started | not started | not started |
 | 24 | draft for review (decisions recorded; LP09 narrowed, see VERIFICATION §7) | 24a to 24d written first and green | 24a to 24d built (see VERIFICATION §7) | not verified (native JSON mode deferred; manual checks M1 to M4 owed) |
-| 25 | draft for review (decisions recorded) | 25a written first and green | 25a done (LP10, LR05 and LP02 wording); 25b to 25e not started | not verified |
+| 25 | draft for review (decisions recorded) | 25a to 25c written first and green | 25a to 25c done (LP10, the split fix, examples partly migrated, teaching); 25d, 25e not started | not verified |
 | 26 | draft for review (decisions recorded) | not started | not started | not started |
 | 27 | draft for review (decisions recorded) | not started | not started | not started |
 | 28 | draft for review (decisions recorded) | not started | not started | not started |

@@ -46,7 +46,8 @@ this skill's `references/` folder and in the tools:
    stable. **Pass data, not instructions, and treat the transcript as a channel:** by default Loom briefs every agent with everything said
    before it, so one agent's words (including text it read from the web) reach all the others. A step that only reads, picks a label
    or pulls out fields should be an internal node (`extractor`, `intentclassifier`) that sees only what its statement names; an agent
-   that should not see the rest says `memory { transcript: none }`.
+   that should not see the rest says `memory { transcript: none }`. **Decouple thinking from formatting:** an agent that has to
+   reason answers in prose, and a separate extractor (a cheap model that sees only that prose) turns it into fields.
 9. **A person stands in front of every irreversible way out**, until the agent has earned the right on evidence, under a ceiling a
    person set.
 10. **Test the harness, not just the agents.** Kill it mid-run, fail its tools, exhaust its budget, feed it hostile input, and check

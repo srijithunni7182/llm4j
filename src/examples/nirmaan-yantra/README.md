@@ -8,6 +8,10 @@ It is built on top of [llm4j](../README.md), demonstrating the power of the **ai
 
 ---
 
+## Agents that still answer in a schema
+
+Rishi (the spec), Vihaan (code) and Drishti (end-to-end tests) answer in a large schema although they reason, and `weave review` says so (rule LP10). Vihaan's and Drishti's answers are bundles of source files: an extractor would have to copy every file again, doubling the tokens and risking changes to the code. Rishi's structured spec is read by the Java host to write the live page, and the tests count model calls exactly (`nirmaan-yantra-server/COST.md`). Moving Rishi to "prose, then extract" needs a hook for extract steps in the host API. In a new workflow, let a reasoning agent write prose and extract the fields; keep a schema for outputs that are artifacts, not analyses.
+
 ## 🤖 The Crew
 
 Meet the team responsible for building your software. Each agent has a distinct role and personality.

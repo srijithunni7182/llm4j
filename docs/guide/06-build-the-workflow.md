@@ -100,6 +100,10 @@ workflow Refund(msg) {
 - A task spends no tokens and does not count against the run budget; a task that changes things is **never repeated by a crash or a `retry`** unless it is idempotent.
 - Reference: `weave guide loom`, the section "Tasks".
 
+## Thinking and formatting are two jobs
+
+An agent that has to reason (it uses tools, searches the web, or works through a long brief) should not also be made to answer in a big JSON schema: it has no room to think. Let it write prose and add an `extractor` after it; `weave review` rule LP10 spots the trap and `weave review --fix-finding <id> --option split` writes the rewrite. See the tutorial, chapter 5.
+
 ## Extracting: pull fields out of text with an extractor, not an agent
 
 When a step only has to pull fields out of text (an invoice, an email, a form), do not ask an agent to do it. An agent sees the whole run so far and the shared prompt, so what it extracts depends on what ran before it, and a test of the agent on its own does not predict what it does inside the workflow. Declare an `extractor` and use `extract`: it is handed only the text you name and the fields you want.

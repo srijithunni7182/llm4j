@@ -30,6 +30,12 @@ public interface JavaFixOption {
      * @param script the parsed script
      * @param source the script's text
      * @param file the script's file name, for the edits
+     * @param baseDir the folder the script is in, where its tests may be found
      */
-    Offer offer(Entity entity, LoomScript script, SourceText source, String file);
+    Offer offer(
+            Entity entity,
+            LoomScript script,
+            SourceText source,
+            String file,
+            java.nio.file.Path baseDir);
 }

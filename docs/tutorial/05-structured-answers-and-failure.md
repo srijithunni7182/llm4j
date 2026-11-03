@@ -147,6 +147,61 @@ workflow Main(text) {
 
 In a test, script the extractor's answer like an agent's: `models: { Invoice: { vendor: Acme } }`.
 
+## Reason first, then extract
+
+> **You don't need this until** an agent has to think (it uses tools, searches the web, or works through a long brief) and you want its answer as fields.
+
+It is tempting to give such an agent a big `output_schema`. Loom then tells it to answer in JSON *only*, so the agent has no room to work its answer out: it jumps to conclusions or breaks the format. Thinking and formatting are two jobs, so give them to two steps. First, the agent writes its analysis as prose. Then an extractor, which sees only that prose, pulls the fields out.
+
+Trapped:
+
+```loom
+tool Files { use: file  root: "data"  mode: read }
+
+agent Analyst {
+    model: "claude-sonnet-5-5"
+    system: "You analyse the request."
+    tools: [Files]
+    output_schema: { summary: string, score: number, risks: list<{ name: string, level: number }> }
+}
+```
+
+Fixed:
+
+```loom
+substitution: braces
+
+tool Files { use: file  root: "data"  mode: read }
+
+agent Analyst {
+    model: "claude-sonnet-5-5"
+    system: "You analyse the request. Answer in plain prose; explain your reasoning, then state your conclusions."
+    tools: [Files]
+}
+
+extractor AnalystFields {
+    model: "claude-haiku-5-5"
+    instructions: "Pull these fields out of the analysis."
+    fields {
+        summary: string
+        score: number
+        risks: list<{ name: string, level: number }>
+    }
+}
+
+workflow Main(request) {
+    delegate "Look at {request}" to Analyst -> report_analysis
+    extract AnalystFields from report_analysis -> report
+    note "{report.summary}: {report.score}"
+}
+```
+
+Everything after the delegate reads `report` exactly as before. The extractor can be a cheaper model, because reading fields out of text is easy.
+
+`weave review` spots the trap with rule **LP10**: an agent that reasons (tools, web search, rounds, or a long prompt) and must answer in a large schema (a nested object, a list of objects, or more than five fields). It offers the rewrite: `weave review --fix-finding <id> --option split --dry-run` shows the diff, `--yes` applies it. It never edits your test files; it lists the ones that script the agent and need updating.
+
+A small `output_schema` is still the right tool for a small, flat answer from an agent that does not need to think (a verdict and a score). And when the answer is itself a large artifact, such as a set of source files, an extractor would have to copy it all again; accept the finding with a reason.
+
 ## When a step fails
 
 Things go wrong. The model provider returns an error, a tool times out, an answer never matches its schema. Three tools let you say what to do about it.
@@ -290,6 +345,7 @@ The model *reads*; the script *decides*. A total the text does not state is aske
 1. In [05-parallel-research](../../src/loom/starters/05-parallel-research/), make both researchers fail in a new test case. What does the run report?
 2. Add `currency` handling to starter 08: if the currency is `OTHER`, ask a person.
 3. Take an agent with an `output_schema` that only pulls fields out of text and run `weave review --fix-finding LP09 --option to-extractor --dry-run` on it. Read the diff, apply it with `--yes`, and watch LP09 go away.
-4. Remove the `retry` from a step and run its tests. Nothing changes, because tests script the failures. Add a `fail:` entry to prove the failure path is reached ([Chapter 10](10-testing.md#scripting-failures)).
+4. Give an agent that uses a tool a big `output_schema` (a nested object), run `weave review`, and read LP10. Apply the split with `--dry-run` first, then for real, and run `weave test`.
+5. Remove the `retry` from a step and run its tests. Nothing changes, because tests script the failures. Add a `fail:` entry to prove the failure path is reached ([Chapter 10](10-testing.md#scripting-failures)).
 
 Next: [Tools and tasks](06-tools-and-tasks.md).

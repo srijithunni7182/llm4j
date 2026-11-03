@@ -123,7 +123,8 @@ public final class DataRuleSource implements FindingSource {
         for (JavaFixOption java : JavaFixOptions.forRule(rule.id())) {
             SourceText text2 = source.get();
             if (text2 == null) continue;
-            JavaFixOption.Offer offer = java.offer(e, input.script(), text2, file);
+            JavaFixOption.Offer offer =
+                    java.offer(e, input.script(), text2, file, input.baseDir());
             if (offer.option() != null) options.add(offer.option());
             else fixHint += " No automatic rewrite: " + offer.reason() + ".";
         }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: d8e9dc2c3f8655e90539e9f9779571112122436a48408bac140f4bbd74d182b3 -->
+<!-- source-sha256: e56eadd1180eda654ba2bc2f105cfd74c6da51fddd2814597790731183c249c7 -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -212,7 +212,7 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
 <tr>
 <td>5</td>
 <td><a href="#c05">Structured answers and failure</a></td>
-<td><code>output_schema</code>, <code>expecting</code>, <code>extractor</code> and <code>extract</code>, <code>retry</code>, <code>backoff</code>, <code>timeout</code>, <code>on_failure</code>, degraded runs</td>
+<td><code>output_schema</code>, <code>expecting</code>, <code>extractor</code> and <code>extract</code>, reason first then extract, <code>retry</code>, <code>backoff</code>, <code>timeout</code>, <code>on_failure</code>, degraded runs</td>
 <td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/03-review-loop" target="_blank" rel="noopener">03</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/05-parallel-research" target="_blank" rel="noopener">05</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/08-extract-and-validate" target="_blank" rel="noopener">08</a></td>
 </tr>
 <tr>
@@ -1205,6 +1205,49 @@ extractor Invoice {
 <li>An answer in the wrong shape is a failed attempt, as for an agent: it is told what was wrong and asked once more, then <code>retry</code> applies.</li>
 </ul>
 <p>In a test, script the extractor&#39;s answer like an agent&#39;s: <code>models: { Invoice: { vendor: Acme } }</code>.</p>
+<h2 id="c05-reason-first-then-extract">Reason first, then extract</h2>
+<blockquote>
+<p><strong>You don&#39;t need this until</strong> an agent has to think (it uses tools, searches the web, or works through a long brief) and you want its answer as fields.</p>
+</blockquote>
+<p>It is tempting to give such an agent a big <code>output_schema</code>. Loom then tells it to answer in JSON <em>only</em>, so the agent has no room to work its answer out: it jumps to conclusions or breaks the format. Thinking and formatting are two jobs, so give them to two steps. First, the agent writes its analysis as prose. Then an extractor, which sees only that prose, pulls the fields out.</p>
+<p>Trapped:</p>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">tool</span> Files { use: file  root: <span class="tk-s">"data"</span>  mode: read }
+
+<span class="tk-k">agent</span> Analyst {
+    model: <span class="tk-s">"claude-sonnet-5-5"</span>
+    system: <span class="tk-s">"You analyse the request."</span>
+    tools: [Files]
+    output_schema: { summary: string, score: number, risks: list&lt;{ name: string, level: number }&gt; }
+}</code></pre></figure>
+<p>Fixed:</p>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
+
+<span class="tk-k">tool</span> Files { use: file  root: <span class="tk-s">"data"</span>  mode: read }
+
+<span class="tk-k">agent</span> Analyst {
+    model: <span class="tk-s">"claude-sonnet-5-5"</span>
+    system: <span class="tk-s">"You analyse the request. Answer in plain prose; explain your reasoning, then state your conclusions."</span>
+    tools: [Files]
+}
+
+extractor AnalystFields {
+    model: <span class="tk-s">"claude-haiku-5-5"</span>
+    instructions: <span class="tk-s">"Pull these fields out of the analysis."</span>
+    fields {
+        summary: string
+        score: number
+        risks: list&lt;{ name: string, level: number }&gt;
+    }
+}
+
+<span class="tk-k">workflow</span> Main(request) {
+    <span class="tk-k">delegate</span> <span class="tk-s">"Look at <span class="tk-v">{request}</span>"</span> <span class="tk-k">to</span> Analyst -&gt; report_analysis
+    extract AnalystFields from report_analysis -&gt; report
+    <span class="tk-k">note</span> <span class="tk-s">"<span class="tk-v">{report.summary}</span>: <span class="tk-v">{report.score}</span>"</span>
+}</code></pre></figure>
+<p>Everything after the delegate reads <code>report</code> exactly as before. The extractor can be a cheaper model, because reading fields out of text is easy.</p>
+<p><code>weave review</code> spots the trap with rule <strong>LP10</strong>: an agent that reasons (tools, web search, rounds, or a long prompt) and must answer in a large schema (a nested object, a list of objects, or more than five fields). It offers the rewrite: <code>weave review --fix-finding &lt;id&gt; --option split --dry-run</code> shows the diff, <code>--yes</code> applies it. It never edits your test files; it lists the ones that script the agent and need updating.</p>
+<p>A small <code>output_schema</code> is still the right tool for a small, flat answer from an agent that does not need to think (a verdict and a score). And when the answer is itself a large artifact, such as a set of source files, an extractor would have to copy it all again; accept the finding with a reason.</p>
 <h2 id="c05-when-a-step-fails">When a step fails</h2>
 <p>Things go wrong. The model provider returns an error, a tool times out, an answer never matches its schema. Three tools let you say what to do about it.</p>
 <h3 id="c05-retry-backoff-timeout"><code>retry</code>, <code>backoff</code>, <code>timeout</code></h3>
@@ -1353,6 +1396,7 @@ extractor Invoice {
 <li>In <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/05-parallel-research" target="_blank" rel="noopener">05-parallel-research</a>, make both researchers fail in a new test case. What does the run report?</li>
 <li>Add <code>currency</code> handling to starter 08: if the currency is <code>OTHER</code>, ask a person.</li>
 <li>Take an agent with an <code>output_schema</code> that only pulls fields out of text and run <code>weave review --fix-finding LP09 --option to-extractor --dry-run</code> on it. Read the diff, apply it with <code>--yes</code>, and watch LP09 go away.</li>
+<li>Give an agent that uses a tool a big <code>output_schema</code> (a nested object), run <code>weave review</code>, and read LP10. Apply the split with <code>--dry-run</code> first, then for real, and run <code>weave test</code>.</li>
 <li>Remove the <code>retry</code> from a step and run its tests. Nothing changes, because tests script the failures. Add a <code>fail:</code> entry to prove the failure path is reached (<a href="#c10-scripting-failures">Chapter 10</a>).</li>
 </ol>
 <p>Next: <a href="#c06">Tools and tasks</a>.</p>
@@ -3581,6 +3625,27 @@ extractor Contact {
     }
 }</code></pre></figure>
 <p>The extractor sees only the email, never the run so far or the shared prompt. A required field the text does not state fails the step; an optional one is <code>missing</code>.</p>
+<h3 id="c14-recipe-let-the-reasoning-agent-think-then-extract">Recipe: let the reasoning agent think, then extract</h3>
+<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
+
+<span class="tk-k">agent</span> Researcher {
+    model: <span class="tk-s">"gemini-2.5-pro"</span>
+    system: <span class="tk-s">"Research the topic. Answer in plain prose; explain your reasoning, then state your conclusions."</span>
+    grounding: web
+}
+
+extractor ResearchFields {
+    model: <span class="tk-s">"gemini-2.5-flash"</span>
+    instructions: <span class="tk-s">"Pull these fields out of the research."</span>
+    fields { summary: string, sources: list&lt;{ title: string, url: string }&gt; }
+}
+
+<span class="tk-k">workflow</span> Main(topic) {
+    <span class="tk-k">delegate</span> <span class="tk-s">"Research <span class="tk-v">{topic}</span>"</span> <span class="tk-k">to</span> Researcher -&gt; notes_text
+    extract ResearchFields from notes_text -&gt; notes
+    <span class="tk-k">return</span> notes.summary
+}</code></pre></figure>
+<p>The agent that has to think is not forced into JSON; the cheap extractor does the formatting. Use it whenever LP10 fires.</p>
 <h3 id="c14-recipe-a-cheaper-model-when-money-runs-low">Recipe: a cheaper model when money runs low</h3>
 <figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 
@@ -3713,6 +3778,16 @@ extractor Contact {
 <td>A key written in the script</td>
 <td>A load error, on purpose</td>
 <td><code>env.NAME</code> or <code>secret.NAME</code></td>
+</tr>
+<tr>
+<td>An agent that reasons (tools, web, rounds, a long prompt) must answer in a large schema (LP10)</td>
+<td>&quot;JSON only&quot; leaves it no room to think</td>
+<td>Let it write prose and add an <code>extractor</code> (<code>weave review --fix-finding LP10 --option split</code>)</td>
+</tr>
+<tr>
+<td>A branch on a field of an agent that has no schema (LR05, LP02)</td>
+<td>The field may be missing or spelt differently</td>
+<td>An <code>intentclassifier</code> for a label, an <code>extractor</code> for fields an agent worked out, or a small <code>output_schema</code></td>
 </tr>
 <tr>
 <td>An agent with an <code>output_schema</code> that only pulls fields out of text (LP09)</td>

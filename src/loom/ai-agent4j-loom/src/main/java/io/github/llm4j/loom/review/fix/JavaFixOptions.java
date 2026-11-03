@@ -7,7 +7,7 @@ import java.util.Map;
 public final class JavaFixOptions {
 
     private static final Map<String, List<JavaFixOption>> BY_RULE =
-            Map.of("LP09", List.of(new ToExtractorFix()));
+            Map.of("LP09", List.of(new ToExtractorFix()), "LP10", List.of(new SplitFix()));
 
     private JavaFixOptions() {}
 

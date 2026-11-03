@@ -37,7 +37,7 @@ The method comes from the project owner's guide *Quality Assurance for AI agenti
 8. Read a real answer under a cap before building a dataset around the workflow.
 9. Never describe a report that has not been read.
 
-An `extractor` (a stateless step that pulls fields out of text) is tested on its own: it sees nothing but its inputs, so its golden cases are texts and the fields they should give, and what it does inside the workflow is what it does alone. Script it in `weave test` (`models: { Name: { field: value } }`) for the logic around it, and give it cases of its own for the quality of the extraction.
+An `extractor` (a stateless step that pulls fields out of text) is tested on its own: it sees nothing but its inputs, so its golden cases are texts and the fields they should give, and what it does inside the workflow is what it does alone. When an agent reasons in prose and an extractor follows it, evaluate them separately: the agent by a rubric on its prose, the extractor by exact field checks on cases of its own. Script it in `weave test` (`models: { Name: { field: value } }`) for the logic around it, and give it cases of its own for the quality of the extraction.
 
 ## Ask; do not invent
 
