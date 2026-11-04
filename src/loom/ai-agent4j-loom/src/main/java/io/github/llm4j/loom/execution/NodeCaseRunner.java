@@ -58,7 +58,11 @@ public final class NodeCaseRunner {
                         + '\n'
                         + ExtractRunner.CLOSE
                         + '\n';
-        LLMRequest request = ExtractRunner.build(def, instructions, inputs).build();
+        LLMRequest.Builder built = ExtractRunner.build(def, instructions, inputs);
+        // the same choice a workflow makes, so a golden case exercises the same call
+        if (ExtractRunner.modeFor(def, client, false).nativeJson())
+            built.responseFormat(ExtractorSchema.of(def));
+        LLMRequest request = built.build();
         LLMResponse response = client.chat(request);
         long in = response.getTokenUsage() == null ? 0 : response.getTokenUsage().getPromptTokens();
         long out = response.getTokenUsage() == null ? 0 : response.getTokenUsage().getCompletionTokens();

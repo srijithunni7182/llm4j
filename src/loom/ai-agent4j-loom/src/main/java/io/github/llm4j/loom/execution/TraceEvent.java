@@ -139,6 +139,12 @@ public record TraceEvent(
     public static final String EXTRACT_START = "extract_start";
 
     /**
+     * An extractor's provider refused the response schema, so the call was made again without it.
+     * Its data names the extractor and the model, never the schema's contents.
+     */
+    public static final String STRUCTURED_FALLBACK = "structured_fallback";
+
+    /**
      * An {@code extract} step finished: {@code extractor}, {@code step}, {@code model}, {@code
      * attempts}, {@code duration_ms}, {@code input_tokens}, {@code output_tokens}, {@code present}
      * and {@code missing} (the <em>names</em> of the fields found and the optional ones absent).
