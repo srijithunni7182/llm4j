@@ -1,6 +1,6 @@
 # Phase 30 verification plan: native JSON output for extractors
 
-Status: **30a built (2026-11-04) with the owner's go-ahead to use the recommendations for N1 to N9; 30b to 30g not started** (the Gemini question O1 is still open). Proposed sub-phases: **30a** the request field, the capability, the schema builder and the extractor wiring with a fake provider (R1, R2, R3, R5 to R8, R10); **30b** OpenAI-style providers: OpenAI and xAI chat and Responses, Perplexity Agent API (R4, R9); **30c** Anthropic; **30d** Google (blocked on O1); **30e** Ollama; **30f** Kimi and Qwen (after their fixtures); **30g** documentation and the skills.
+Status: **30a, 30b, 30c and 30e built (2026-11-04) with the owner's go-ahead to use the recommendations for N1 to N9; live fixtures recorded for OpenAI (chat and Responses), xAI (chat and Responses), Anthropic and Perplexity; 30d (Google) and 30f (Kimi and Qwen) not switched on, for want of keys** (the Gemini question O1 is still open). Proposed sub-phases: **30a** the request field, the capability, the schema builder and the extractor wiring with a fake provider (R1, R2, R3, R5 to R8, R10); **30b** OpenAI-style providers: OpenAI and xAI chat and Responses, Perplexity Agent API (R4, R9); **30c** Anthropic; **30d** Google (blocked on O1); **30e** Ollama; **30f** Kimi and Qwen (after their fixtures); **30g** documentation and the skills.
 Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Before writing
@@ -74,3 +74,23 @@ Verified: `mvn verify` on `ai-agent4j` (3461 tests, 2 skipped), `mvn test` on `e
 **Not started:** 30b (OpenAI and xAI Responses, Perplexity Agent API), 30c Anthropic, 30d Google (blocked on O1), 30e Ollama, 30f Kimi and Qwen, 30g the wiki and skills pages beyond those updated here.
 
 **Docs updated with 30a:** `LOOM_GUIDE.md` (extractor section), `LOOM_PROMPT.md`, `docs/API_COMPATIBILITY.md`, `docs/RELEASE_NOTES_6_2_0.md`, `src/ai-agent4j/wiki/OpenAI-Family-Providers.md`.
+
+## 8. The other providers (2026-11-04)
+
+| Sub-phase | What | Tests |
+|---|---|---|
+| 30b | OpenAI and xAI Responses API (`text.format`, flat) and Perplexity's Agent API (`response_format` with a nested `json_schema`), by model pattern in `ResponsesDialect` | `StructuredOutputResponsesWireTest` (5) |
+| 30c | Anthropic: `output_config.format` of type `json_schema`, merged with `effort`; the model list is the documentation's (`AnthropicModels.supportsStructuredOutput`) | `StructuredOutputBodyTest` in the Anthropic package (26) |
+| 30e | Ollama: the schema in `format`; a local server is capable for any model, Ollama Cloud (`ollama.com` and its subdomains) is not | `StructuredOutputBodyTest` in the Ollama package (5) |
+
+Live: [LIVE_FIXTURES.md](LIVE_FIXTURES.md) (twelve more calls, all native on the first attempt).
+
+**Not built, and what is lost:**
+
+1. **30d Google.** The schema field for `generateContent` is still unconfirmed (O1) and there is no Gemini key here. Switching it on unverified would cost an extra failed call per run on Gemini 2.5, the commonest model. It stays on the prompt route.
+2. **30f Kimi and Qwen.** Preview vendors with no keys here, so no fixtures (N6). Their documented shapes (Kimi `json_schema` on `kimi-k3`, `kimi-k3.1-pro` and `kimi-k2.7-code`; Qwen `json_schema` on the Qwen3.7 and Qwen3.8 series, non-thinking only) are recorded in DESIGN §3 and are the starting point.
+3. **Ollama has no live fixture.** The request shape is verbatim from its OpenAPI reference and the mock-server test pins the body, but no real reply was recorded. A server that rejects it costs one extra call, then the run remembers it. Also, "an unknown model is never assumed" (N3) does not hold for Ollama: its constrained decoding is the server's, not a per-model feature, so any local model is treated as capable.
+4. **R9, Perplexity's first-call timeout** is not implemented: it was not needed in the one live run (see LIVE_FIXTURES.md), but a slow first call could still time out and be retried.
+5. **Anthropic specifics from R9** (no citations, no prefill) hold because the extractor sends neither; nothing enforces it.
+
+Docs updated: `LOOM_GUIDE.md`, `LOOM_PROMPT.md`, `docs/API_COMPATIBILITY.md`, `docs/RELEASE_NOTES_6_2_0.md`, `src/ai-agent4j/wiki/OpenAI-Family-Providers.md`.

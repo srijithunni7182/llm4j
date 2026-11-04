@@ -503,6 +503,16 @@ public class AnthropicProvider implements DescribableProvider {
                         "effort must be one of " + EFFORTS + ", got " + level);
             root.putObject("output_config").put("effort", level);
         }
+        io.github.llm4j.model.ResponseFormat format = request.getResponseFormat();
+        if (format != null && AnthropicModels.supportsStructuredOutput(model)) {
+            // output_config also carries effort, so add to it rather than replace it
+            ObjectNode config =
+                    root.has("output_config")
+                            ? (ObjectNode) root.get("output_config")
+                            : root.putObject("output_config");
+            ObjectNode spec = config.putObject("format").put("type", "json_schema");
+            spec.set("schema", JSON.valueToTree(format.schema()));
+        }
         if (stream && request.isReasoning()) {
             if (AnthropicModels.supportsAdaptiveThinking(model)) {
                 // "summarized" is what makes the thinking blocks carry text; the default leaves
@@ -566,6 +576,14 @@ public class AnthropicProvider implements DescribableProvider {
     @Override
     public Set<GroundingOption> groundingOptions() {
         return GROUNDING_OPTIONS;
+    }
+
+    @Override
+    public io.github.llm4j.model.StructuredOutput structuredOutput(String model) {
+        return AnthropicModels.supportsStructuredOutput(
+                        model != null ? model : config.getDefaultModel())
+                ? io.github.llm4j.model.StructuredOutput.JSON_SCHEMA
+                : io.github.llm4j.model.StructuredOutput.NONE;
     }
 
     @Override

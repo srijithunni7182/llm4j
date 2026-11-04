@@ -282,6 +282,11 @@ public class OpenAiResponsesProvider implements DescribableProvider {
     }
 
     @Override
+    public io.github.llm4j.model.StructuredOutput structuredOutput(String model) {
+        return dialect.structuredOutput(model != null ? model : config.getDefaultModel());
+    }
+
+    @Override
     public boolean supportsToolCalling() {
         return true;
     }
