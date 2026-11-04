@@ -125,7 +125,7 @@ final class EvalCommand implements Callable<Integer> {
             names = "--judge",
             paramLabel = "<model>",
             description =
-                    "The model that judges rubric and expect lines (default: the agent's own model).")
+                    "The model that judges rubric and expect lines. Default: judge: in dataset.yaml, else judge in eval.properties, else the cheapest other model the project can reach (another provider if there is one). 'same' judges a model with itself, on purpose; the report says so.")
     String judge;
 
     @Option(
@@ -659,7 +659,8 @@ final class EvalCommand implements Callable<Integer> {
                                     + " judge call"
                                     + (judgedLines * c.repetitions * c.judgeSamples == 1 ? "" : "s")
                                     + ". Use --mock to check the wiring for free.");
-            if (judgedLines > 0) env.out().println(judgeLine(script, targets, c.judge, env));
+            if (judgedLines > 0)
+                env.out().println(judgeLine(script, targets, judged -> judgeChoice(c, script, plan.dir(), env, judged), env));
             if (!c.yes
                     && !env.human()
                             .promptHuman("Run it? (yes/no)")
@@ -707,11 +708,14 @@ final class EvalCommand implements Callable<Integer> {
                     return e;
                 };
         Map<String, RubricJudge> judges = new HashMap<>();
+        Map<String, io.github.llm4j.loom.eval.JudgeChoice> choices = new java.util.LinkedHashMap<>();
         List<io.github.llm4j.loom.eval.JudgeMeter> meters = new ArrayList<>();
         java.util.function.Function<String, RubricJudge> judgeFor =
                 model -> {
                     if (c.mock) return null;
-                    String name = c.judge != null ? c.judge : model;
+                    var choice = judgeChoice(c, script, plan.dir(), env, model);
+                    choices.put(String.valueOf(model), choice);
+                    String name = choice.model();
                     return name == null
                             ? null
                             : judges.computeIfAbsent(
@@ -819,6 +823,17 @@ final class EvalCommand implements Callable<Integer> {
             for (var node : whatChanged.entrySet())
                 what.append(node.getKey()).append(" (").append(String.join(", ", node.getValue())).append("); ");
             settings.put("what changed", what.toString().strip());
+        }
+        if (!choices.isEmpty()) {
+            StringBuilder who = new StringBuilder();
+            StringBuilder caution = new StringBuilder();
+            choices.forEach(
+                    (judged, ch) -> {
+                        who.append(ch.describe(judged)).append("; ");
+                        if (ch.caution() != null) caution.append(ch.caution()).append("; ");
+                    });
+            settings.put("judge choice", who.toString().strip());
+            if (caution.length() > 0) settings.put("judge caution", caution.toString().strip());
         }
         if (c.protocol != null) settings.put("protocol", c.protocol);
         if (!c.routeDanger.isEmpty()) settings.put("route-danger", String.join(",", c.routeDanger));
@@ -1260,24 +1275,30 @@ final class EvalCommand implements Callable<Integer> {
      * the same model (and key) marks its own work, or that a second provider's key is needed.
      */
     static String judgeLine(
-            LoomScript script, List<DatasetFolder.Target> targets, String judge, WeaveEnv env) {
-        java.util.Set<String> models = new java.util.TreeSet<>();
+            LoomScript script,
+            List<DatasetFolder.Target> targets,
+            java.util.function.Function<String, io.github.llm4j.loom.eval.JudgeChoice> choose,
+            WeaveEnv env) {
+        java.util.Set<String> judgedModels = new java.util.TreeSet<>();
         for (DatasetFolder.Target t : targets) {
             boolean judged =
                     t.scenarios().stream()
                             .anyMatch(
                                     s -> !s.rubricLines().isEmpty() || !s.expectLines().isEmpty());
             if (!judged) continue;
-            if (judge != null) models.add(judge);
-            else if (t.isAgent())
+            if (t.isAgent())
                 script.getAgents().stream()
                         .filter(a -> a.getName().equals(t.name()))
                         .findFirst()
-                        .ifPresent(a -> models.add(a.getModel()));
-            else script.getAgents().forEach(a -> models.add(a.getModel()));
+                        .ifPresent(a -> judgedModels.add(a.getModel()));
+            else script.getAgents().forEach(a -> judgedModels.add(a.getModel()));
         }
         List<String> parts = new java.util.ArrayList<>();
-        for (String m : models) {
+        boolean self = false;
+        for (String judged : judgedModels) {
+            var choice = choose.apply(judged);
+            self |= choice.selfJudging();
+            String m = choice.model();
             String problem = m == null ? null : env.models().problem(m);
             java.util.regex.Matcher key =
                     problem == null
@@ -1286,7 +1307,7 @@ final class EvalCommand implements Callable<Integer> {
                                     .matcher(problem);
             String keyName = key != null && key.find() ? key.group(1) : keyFor(m);
             parts.add(
-                    m
+                    choice.describe(judged)
                             + (keyName == null
                                     ? ""
                                     : " using "
@@ -1297,9 +1318,26 @@ final class EvalCommand implements Callable<Integer> {
         }
         return "Judge: "
                 + String.join("; ", parts)
-                + (judge == null
-                        ? ". The agent's own model grades its own answers, with the same key, and those calls count toward the cost; --judge <model> names another (safer)."
-                        : ".");
+                + (self
+                        ? ". A model grades its own answers here, so scores may be biased toward its own style (--judge <model> names another)."
+                        : ". Its calls count toward the cost.");
+    }
+
+    /** The judge for answers written by {@code judged}: the order of docs/specs/28, R12. */
+    private static io.github.llm4j.loom.eval.JudgeChoice judgeChoice(
+            EvalCommand c, LoomScript script, Path goldenDir, WeaveEnv env, String judged) {
+        List<String> candidates = new ArrayList<>();
+        script.getAgents().forEach(a -> candidates.add(a.getModel()));
+        script.getExtractors().forEach(x -> candidates.add(x.getModel()));
+        script.getEvaluators().forEach(e -> candidates.add(e.getModel()));
+        Path root = goldenDir.toAbsolutePath().getParent() == null ? null : goldenDir.toAbsolutePath().getParent().getParent();
+        return io.github.llm4j.loom.eval.JudgeChoice.choose(
+                c.judge,
+                io.github.llm4j.loom.eval.JudgeChoice.datasetJudge(goldenDir),
+                root == null ? null : io.github.llm4j.loom.eval.JudgeChoice.projectJudge(root),
+                judged,
+                candidates,
+                m -> env.models().problem(m) == null);
     }
 
     private static String keyFor(String model) {

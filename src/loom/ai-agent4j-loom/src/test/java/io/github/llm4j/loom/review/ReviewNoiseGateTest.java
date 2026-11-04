@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 class ReviewNoiseGateTest {
 
     /** The rules the program has added so far. */
-    private static final Set<String> NEW_RULES = Set.of("LP08", "LP09", "LP10", "LA21", "LT01", "LT06");
+    private static final Set<String> NEW_RULES = Set.of("LP08", "LP09", "LP10", "LA21", "LT01", "LT06", "LR12", "LR14");
 
     /** The most scripts of the corpus a new rule may fire on, as a share. */
     private static final double MOST_SCRIPTS_FIRING = 0.5;

@@ -1,0 +1,9 @@
+agent Writer { model: "m"  system: "Write, then say whether it is finished."  output_schema: { done: boolean } }
+workflow Main(topic) {
+  loop until (verdict.done == true) max 4 { // <- LR12
+    delegate "Write about {topic}" to Writer -> draft retry 1 timeout 30s
+    delegate "Is {draft} finished?" to Writer -> verdict retry 1 timeout 30s
+  }
+  return draft
+}
+// ignore: LP02 LP05 LO01 LR04 LD01 LR08 LA02 LY07 LB01 LR02 LH05 LC01 LR03 LC02 LP09

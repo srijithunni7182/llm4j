@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: b03172aae7269c3c4e8feb093fd6e54ca3c08ec69a6b56d4fff94cf986f7e672 -->
+<!-- source-sha256: 9368c5bb662886b6eb10044c088cb5974602e28c0dcacbafbd63836f06da3412 -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -2902,7 +2902,7 @@ weave eval main.loom --agent Editor --json results.json --report report.html</co
 <li><strong>Mock runs check wiring, not quality.</strong> A step gets a fixed, well-formed reply. A line nothing judged is <em>never</em> counted as met.</li>
 <li><strong>Passed, failed and unjudged are three counts.</strong> The exit code is 0 when nothing failed, 1 when something did, 2 for a dataset or option problem.</li>
 <li><strong>A real run needs a limit, and asks first.</strong> It tells you how many cases and judge calls it expects.</li>
-<li><strong>Use a different model as the judge</strong> (<code>--judge &lt;model&gt;</code>) than the one being judged.</li>
+<li><strong>A different model judges by default.</strong> The judge is <code>--judge &lt;model&gt;</code>, else <code>judge:</code> in <code>dataset.yaml</code>, else <code>judge = &lt;model&gt;</code> in <code>eval.properties</code>, else the cheapest other model the project can reach (from another provider if there is one). The report says which, and why. <code>--judge same</code> judges a model with itself on purpose and the report cautions that scores may be biased toward its own style; if only one model can be reached it does the same and never refuses.</li>
 <li><strong>An evaluator is measured for being too timid.</strong> <code>weave eval</code> runs its cases and reports its <strong>false-alarm rate</strong>: the share of the clean and near-miss answers it flagged as violated or unsure, with a 95% interval. Above its limit (10% unless the evaluator says <code>false_alarm_limit: 5%</code>) the run fails: a timid evaluator is caught on the bench, not by your customers. The report&#39;s <em>By agent and node</em> section has a row for every agent, extractor and evaluator. A mock run asks no model, so its node cases are unjudged and it claims no rate.</li>
 </ul>
 <h3 id="c10-the-report">The report</h3>

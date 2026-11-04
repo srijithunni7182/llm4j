@@ -1,0 +1,9 @@
+evaluator Compliance { model: "m" }
+policy HouseRules: "house-rules" checked by Compliance
+agent Support { model: "m"  system: "Answer."  }
+workflow Main(q) {
+  delegate "{q}" to Support -> reply retry 1 timeout 30s
+  check reply against HouseRules using Compliance -> v on_violation { fail } // <- LR14
+  return reply
+}
+// ignore: LP02 LP05 LO01 LR04 LD01 LR08 LA02 LY07 LB01 LR02 LH05 LC01 LR03 LT01 LT06 LC02 LP09

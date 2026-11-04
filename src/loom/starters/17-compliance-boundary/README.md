@@ -37,7 +37,7 @@ substitution: braces
 
 budget { tokens: 120000  calls: 20 }
 
-evaluator Compliance { model: "gemini-2.5-flash" }
+evaluator Compliance { model: "gemini-2.5-pro" }
 policy HouseRules: "house-rules" checked by Compliance
 
 agent Support { model: "gemini-2.5-flash"  system: "You answer customers politely, in plain English and short sentences." }

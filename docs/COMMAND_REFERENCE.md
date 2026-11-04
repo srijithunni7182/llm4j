@@ -1878,7 +1878,7 @@ weave eval [OPTIONS] <script>
 - `--init` — Create eval/golden with one starter scenario per agent and one for the workflow. Never overwrites a file.
 - `--json=<file>` — Also write the results as JSON.
 - `--judge-samples=<n>` — Judge each rubric line this many times and use the median (default 1, at most 9). Samples that disagree widely leave the line unjudged. Each sample is a paid call.
-- `--judge=<model>` — The model that judges rubric and expect lines (default: the agent's own model).
+- `--judge=<model>` — The model that judges rubric and expect lines. Default: judge: in dataset.yaml, else judge in eval.properties, else the cheapest other model the project can reach (another provider if there is one). 'same' judges a model with itself, on purpose; the report says so.
 - `-l, --loot <lootFile>` — The .loot tool mapping file, for a script that uses your own tools (a real run calls them; --mock does not).
 - `--loct=<file>` — A .loct file mapping a name to a class of your own compaction strategy ('keep_decisions = com.acme.KeepDecisions'), for use as 'compact: keep_decisions' in a script. Repeatable. (repeatable)
 - `--max-calls=<maxCalls>` — Cap the model calls of a real run.
@@ -1915,6 +1915,7 @@ weave eval main.loom --check         validate the dataset; calls no model
 weave eval main.loom --mock          run it with mock models; costs nothing
 weave eval main.loom --max-cost 0.50 --prices prices.txt     against real models, capped
 weave eval main.loom --changed --max-tokens 200000     only the cases of what changed since the last baseline or real run, capped
+weave eval main.loom --judge same                 judge a model with itself, on purpose (the report cautions)
 weave eval main.loom --requirements               the dataset as a plain page a reviewer can read; no model, no key
 weave eval main.loom --requirements --format html a page to share
 weave eval main.loom --requirements --approve --approver ana --why "read with legal"     sign off exactly what was read

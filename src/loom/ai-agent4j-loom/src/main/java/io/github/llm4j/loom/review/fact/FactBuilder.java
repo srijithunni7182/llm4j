@@ -29,6 +29,7 @@ public final class FactBuilder {
         b.providers.add(new PromptFacts());
         b.providers.add(new ReasoningFacts());
         b.providers.add(new HandoffFacts());
+        b.providers.add(new SelfGradingFacts());
         b.providers.add(new ConditionFacts());
         b.providers.add(new OptionalLensFacts());
         return b;

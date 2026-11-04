@@ -268,7 +268,7 @@ weave eval main.loom --agent Editor --json results.json --report report.html
 - **Mock runs check wiring, not quality.** A step gets a fixed, well-formed reply. A line nothing judged is *never* counted as met.
 - **Passed, failed and unjudged are three counts.** The exit code is 0 when nothing failed, 1 when something did, 2 for a dataset or option problem.
 - **A real run needs a limit, and asks first.** It tells you how many cases and judge calls it expects.
-- **Use a different model as the judge** (`--judge <model>`) than the one being judged.
+- **A different model judges by default.** The judge is `--judge <model>`, else `judge:` in `dataset.yaml`, else `judge = <model>` in `eval.properties`, else the cheapest other model the project can reach (from another provider if there is one). The report says which, and why. `--judge same` judges a model with itself on purpose and the report cautions that scores may be biased toward its own style; if only one model can be reached it does the same and never refuses.
 - **An evaluator is measured for being too timid.** `weave eval` runs its cases and reports its **false-alarm rate**: the share of the clean and near-miss answers it flagged as violated or unsure, with a 95% interval. Above its limit (10% unless the evaluator says `false_alarm_limit: 5%`) the run fails: a timid evaluator is caught on the bench, not by your customers. The report's *By agent and node* section has a row for every agent, extractor and evaluator. A mock run asks no model, so its node cases are unjudged and it claims no rate.
 
 ### The report

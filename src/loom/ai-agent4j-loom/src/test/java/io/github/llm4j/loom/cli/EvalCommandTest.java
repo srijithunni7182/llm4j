@@ -263,16 +263,25 @@ class EvalCommandTest {
         answerToTheQuestion = "no";
 
         run();
+        // R12 of docs/specs/28: by default a different model judges, and the line says which and why
         assertThat(out.toString())
-                .contains("Judge: m-help")
+                .contains("Judge: m-check judging m-help")
+                .contains("the cheapest other model this project can reach")
+                .doesNotContain("grades its own answers");
+
+        out.reset();
+        answerToTheQuestion = "no";
+        run("--judge", "same");
+        assertThat(out.toString())
+                .contains("Judge: m-help judging m-help (--judge same, on purpose)")
                 .contains("grades its own answers")
-                .contains("--judge <model> names another");
+                .contains("biased");
 
         out.reset();
         answerToTheQuestion = "no";
         run("--judge", "claude-haiku-4-5-20251001");
         assertThat(out.toString())
-                .contains("Judge: claude-haiku-4-5-20251001 using ANTHROPIC_API_KEY")
+                .contains("Judge: claude-haiku-4-5-20251001 judging m-help (--judge) using ANTHROPIC_API_KEY")
                 .doesNotContain("grades its own answers");
     }
 

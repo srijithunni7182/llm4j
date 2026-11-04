@@ -125,6 +125,14 @@ public final class FactModel {
                 .string("proseVariable", "The variable that holds that text")
                 .string("proseAgent", "The agent that wrote it")
                 .bool(
+                        "decidesItsOwnLoop",
+                        "A loop whose condition reads the answer of an agent that also produces the work the loop iterates on")
+                .string("loopDecider", "The agent that produces the work and also decides the loop is done")
+                .bool(
+                        "checkedByOwnModel",
+                        "A check whose evaluator runs on the same model as the agent that wrote the text it checks")
+                .string("checkedAgent", "The agent that wrote the text a check judges")
+                .bool(
                         "approvesLowEffectTool",
                         "A use step with approve whose tool only reads or does nothing")
                 .bool(

@@ -86,6 +86,7 @@ Before introducing a breaking change:
 
 ## Additions in 6.2.0 (Loom language and test files)
 
+- **`JudgeChoice`, `eval.properties` (`judge`), `judge:` in `dataset.yaml`, `--judge same`; review rules LR12 and LR14** (phase 28e). **Behaviour that changes:** the default judge of `weave eval` is a different model than the one judged (it was the same model). `EvalCommand.judgeLine` changed shape (package-private).
 - **`weave eval --changed`, `--since`; `NodeFingerprints`, `NodeCaseRunner`; `EvaluatorDef.getFalseAlarmLimit`; the `false_alarm_limit` evaluator setting; `eval/last-run-fingerprints.json`, `eval/baseline-fingerprints.json`; the CI file `weave init` writes** (phase 28d). `EvalSections` titles its section "By agent and node" (it was "By agent"); JSON consumers read the section by its id, `by-agent`, which is unchanged. `ScenarioResult.kind` may now be `extractor` or `evaluator`. Older runs without fingerprints are read as "no reference".
 - **`weave eval --requirements`, `--format`, `--approve`; `RequirementsPage`, `RequirementsApprovals`; `eval/requirements-approvals.yaml`** (phase 28c). New options and a new file; nothing existing changes.
 - **`NodeCasesGate`, `GoldenDatasets.nodeFiles`, `EvalDataset.load(dir, skip)` and `LoomLoader.setGateNoticeWanted`** (phase 28b). `weave check` reports `NodeCasesGate.problems` as errors. `EvalDataset.load(Path)` is unchanged; the new overload leaves out files that hold another kind of case. Loading never reads `eval/golden`.

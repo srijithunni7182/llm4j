@@ -1,0 +1,10 @@
+agent Coder { model: "gemini-2.5-flash"  system: "Improve the text." }
+
+workflow Main(text) {
+    set current = "{text}"
+    loop until (answer == "yes") max 4 {
+        delegate "Improve {current}" to Coder -> current
+        human_prompt "Is this good enough? yes or no" -> answer
+    }
+    return current
+}

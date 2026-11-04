@@ -1,0 +1,9 @@
+agent Writer { model: "gemini-2.5-flash"  system: "Write the report, then say whether it is finished." output_schema: { done: boolean } }
+
+workflow Main(topic) {
+    loop until (verdict.done == true) max 4 {
+        delegate "Write a report on {topic}" to Writer -> draft
+        delegate "Is {draft} finished?" to Writer -> verdict
+    }
+    return draft
+}

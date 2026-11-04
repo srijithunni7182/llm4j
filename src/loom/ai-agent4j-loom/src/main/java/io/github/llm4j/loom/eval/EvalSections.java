@@ -108,7 +108,10 @@ public final class EvalSections {
                                 + (j.calls() == 1 ? "" : "s")
                                 + (j.validated()
                                         ? ", validated against human scores."
-                                        : ", not validated against human scores."));
+                                        : ", not validated against human scores.")
+                                + (run.settings().containsKey("judge choice")
+                                        ? " Chosen: " + run.settings().get("judge choice")
+                                        : ""));
         BigDecimal total = totalCost(run);
         l.add("Cost: " + (total == null ? "unknown (no prices given: add --prices)" : money(total)) + ".");
         run.settings().forEach((k, v) -> l.add("Fingerprint: " + k + " = " + v));
@@ -517,6 +520,8 @@ public final class EvalSections {
         List<String> l = new ArrayList<>();
         if (run.mock())
             l.add("This was a mock run: nothing was judged and nothing was spent.");
+        if (run.settings().containsKey("judge caution"))
+            l.add("Judge: " + run.settings().get("judge caution"));
         long unjudged = run.count(Status.UNJUDGED);
         if (unjudged > 0)
             l.add(unjudged + " case" + (unjudged == 1 ? " is" : "s are") + " unjudged: nothing confirmed " + (unjudged == 1 ? "it" : "them") + ". Unjudged is not a pass.");

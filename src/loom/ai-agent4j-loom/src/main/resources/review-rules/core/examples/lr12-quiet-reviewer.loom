@@ -1,0 +1,11 @@
+agent Writer { model: "gemini-2.5-flash"  system: "Write the report." }
+agent Reviewer { model: "gemini-2.5-pro"  system: "Review the report."  output_schema: { verdict: enum["OK", "REVISE"] } }
+
+workflow Main(topic) {
+    delegate "Write a report on {topic}" to Writer -> draft
+    loop until (review.verdict == "OK") max 3 {
+        delegate "Review {draft}" to Reviewer -> review
+        delegate "Revise {draft} using {review}" to Writer -> draft
+    }
+    return draft
+}
