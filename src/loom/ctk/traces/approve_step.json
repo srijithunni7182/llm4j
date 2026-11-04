@@ -1,0 +1,19 @@
+{
+  "scriptName": "approve_step.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "approval",
+      "tool": "Notify",
+      "answer": "no"
+    },
+    {
+      "kind": "note",
+      "text": "declined"
+    },
+    {
+      "kind": "note",
+      "text": "after"
+    }
+  ]
+}

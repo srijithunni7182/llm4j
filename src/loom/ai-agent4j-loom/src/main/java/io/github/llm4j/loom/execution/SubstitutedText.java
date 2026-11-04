@@ -43,6 +43,7 @@ public final class SubstitutedText {
                     "SetStmt.getValue",
                     "ReturnStmt.getValue",
                     "RunStmt.getArgs",
+                    "UseStmt.getArgs",
                     "IntentClassifyStmt.getInputs",
                     "ExtractStmt.getInputs",
                     "ObserveStmt.getLabel",
@@ -83,6 +84,10 @@ public final class SubstitutedText {
                     "IntentClassifyStmt.getVariableName",
                     "ExtractStmt.getExtractor",
                     "ExtractStmt.getVariableName",
+                    "RunStmt.getApproveHeading",
+                    "UseStmt.getTool",
+                    "UseStmt.getVariableName",
+                    "UseStmt.getApproveHeading",
                     "CheckStmt.getSubject",
                     "CheckStmt.getPolicies",
                     "CheckStmt.getEvaluator",
@@ -117,6 +122,9 @@ public final class SubstitutedText {
         else if (s instanceof RunStmt r) {
             for (RunStmt.Arg a : r.getArgs())
                 if (a.kind() == RunStmt.Kind.STRING) add(out, "run argument", a.text());
+        } else if (s instanceof io.github.llm4j.loom.ast.UseStmt u) {
+            for (RunStmt.Arg a : u.getArgs())
+                if (a.kind() == RunStmt.Kind.STRING) add(out, "use argument", a.text());
         } else if (s instanceof IntentClassifyStmt c) {
             for (RunStmt.Arg a : c.getInputs())
                 if (a.kind() == RunStmt.Kind.STRING) add(out, "classifier input", a.text());

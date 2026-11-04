@@ -72,6 +72,9 @@ final class NodeDescriber {
         if (st instanceof io.github.llm4j.loom.ast.CheckStmt k) {
             return check(k);
         }
+        if (st instanceof io.github.llm4j.loom.ast.UseStmt u) {
+            return use(u);
+        }
         if (st instanceof HandoffStmt h) {
             return new Described(Kinds.HANDOFF, "handoff " + h.getTargetAgent())
                     .agent(h.getTargetAgent())
@@ -226,6 +229,21 @@ final class NodeDescriber {
                                 .positive("retry", r.getRetryCount())
                                 .positive("backoffMs", r.getBackoffMillis())
                                 .positive("timeoutMs", r.getTimeoutMillis()));
+    }
+
+    private Described use(io.github.llm4j.loom.ast.UseStmt u) {
+        List<String> args = new ArrayList<>();
+        for (RunStmt.Arg a : u.getArgs()) args.add(a.name());
+        return new Described(Kinds.USE, "use " + u.getTool())
+                .attrs(
+                        Attrs.create()
+                                .text("tool", u.getTool())
+                                .text("variable", u.getVariableName())
+                                .list("args", args)
+                                .flag("approve", u.isApprove())
+                                .positive("retry", u.getRetryCount())
+                                .positive("backoffMs", u.getBackoffMillis())
+                                .positive("timeoutMs", u.getTimeoutMillis()));
     }
 
     private Described check(io.github.llm4j.loom.ast.CheckStmt k) {

@@ -30,6 +30,7 @@ public final class StatementText {
         if (s instanceof IntentClassifyStmt c) return "intentclassify " + c.getClassifier();
         if (s instanceof io.github.llm4j.loom.ast.ExtractStmt x) return "extract " + x.getExtractor();
         if (s instanceof io.github.llm4j.loom.ast.CheckStmt k) return "check " + k.getSubject();
+        if (s instanceof io.github.llm4j.loom.ast.UseStmt u) return "use " + u.getTool();
         if (s instanceof DecideStmt d) return "decide " + d.getDecision();
         if (s instanceof CallStmt c) return "call " + c.getWorkflowName();
         if (s instanceof CheckpointStmt c) return "checkpoint " + c.getName();

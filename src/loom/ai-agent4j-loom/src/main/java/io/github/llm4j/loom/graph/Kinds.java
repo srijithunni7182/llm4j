@@ -30,6 +30,12 @@ public final class Kinds {
      */
     public static final String CHECK = "check";
 
+    /**
+     * A {@code use Tool(...)} statement: a declared tool called with named arguments and no model
+     * in between.
+     */
+    public static final String USE = "use";
+
     public static final String HANDOFF = "handoff";
     public static final String BROADCAST = "broadcast";
     public static final String PARALLEL = "parallel";
@@ -74,6 +80,7 @@ public final class Kinds {
                     CLASSIFY,
                     EXTRACT,
                     CHECK,
+                    USE,
                     HANDOFF,
                     BROADCAST,
                     PARALLEL,

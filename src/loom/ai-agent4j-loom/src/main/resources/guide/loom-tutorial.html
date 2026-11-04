@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: fcd669f9d918badbd9f09a57225a5091effdeb1c0de73bb4339d0c9df798c3f8 -->
+<!-- source-sha256: 400312758aaeaf7572e4b6ed3a39beec7343823163bcf3b7e3ee58b4c696343f -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -1698,7 +1698,22 @@ extractor Invoice {
 <figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">tool</span> Invoices { use: class  class: <span class="tk-s">"com.acme.tools.InvoiceTool"</span>  effect: reads }     <span class="tk-c">// none | reads | changes</span></code></pre></figure>
 <p>The older <code>reach:</code> (<code>none | reads | fetches | writes | sends</code>) still works on a <code>class</code> tool. Use one or the other, not both.</p>
 <p><a href="#c13">Chapter 13</a> shows how to write one.</p>
+<h2 id="c06-calling-a-tool-yourself-use">Calling a tool yourself: <code>use</code></h2>
+<p>When the arguments are already in variables, no model is needed to call a tool. <code>use</code> calls it from the script:</p>
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">workflow</span> Main(draft, topic) {
+    use Notify(text = draft) -&gt; receipt <span class="tk-k">retry</span> <span class="tk-n">1</span> <span class="tk-k">timeout</span> <span class="tk-n">30s</span> <span class="tk-k">on_failure</span> { <span class="tk-k">halt</span> <span class="tk-s">"The announcement may not have been sent: <span class="tk-v">{_error}</span>."</span> }
+    use Search(query = <span class="tk-s">"<span class="tk-v">{topic}</span> pricing"</span>) -&gt; found
+}</code></pre></figure>
+<p>It is the same tool an agent would be given, so the same limits apply (allowed hosts, the file root, the secrets), and a resumed run does not call it twice. Name each argument; a name the tool does not take, or a required one you left out, stops the step and tells you what the tool takes. A tool that returns JSON gives you an object to read (<code>{receipt.id}</code>).</p>
 <h2 id="c06-approvals-a-person-says-yes-first">Approvals: a person says yes first</h2>
+<p>The simplest approval is on the step itself. Let the agent write the announcement, then ask once, at the edge, and send with code:</p>
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">workflow</span> Main(draft, action) {
+    use Notify(text = draft) approve <span class="tk-s">"Post this to the team channel?"</span> -&gt; receipt
+        on_declined { <span class="tk-k">return</span> <span class="tk-s">"Not sent. The draft is kept for editing:\n<span class="tk-v">{draft}</span>"</span> }
+    <span class="tk-k">run</span> IssueRefund(order = action.order, amount = action.amount) approve -&gt; receipt
+}</code></pre></figure>
+<p>The person sees the exact arguments (personal data masked) and answers yes or no. A no is not a failure: <code>on_declined</code> runs, nothing is sent, and the run goes on after the block. Anything but a clear yes is a no, and a resumed run never asks twice.</p>
+<p>When a person works <em>with</em> an agent as it goes (an assistant that asks &quot;may I run this?&quot;), name the tool in the agent&#39;s <code>approve:</code> list:</p>
 <p><code>approve: [Tool]</code> on an agent makes calls to that tool wait for a person:</p>
 <figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 

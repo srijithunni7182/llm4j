@@ -265,6 +265,7 @@ public final class WorkflowLint {
         else if (s instanceof DecideStmt d) name = d.getVariable();
         else if (s instanceof io.github.llm4j.loom.ast.ExtractStmt x) name = x.getVariableName();
         else if (s instanceof io.github.llm4j.loom.ast.CheckStmt k) name = k.getVerdictVariable();
+        else if (s instanceof io.github.llm4j.loom.ast.UseStmt u) name = u.getVariableName();
         else if (s instanceof io.github.llm4j.loom.ast.IntentClassifyStmt i)
             name = i.getVariableName();
         else if (s instanceof io.github.llm4j.loom.ast.SetStmt set) name = set.getName();

@@ -1,0 +1,14 @@
+{
+  "scriptName": "use_tool.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "use",
+      "tool": "Notify"
+    },
+    {
+      "kind": "note",
+      "text": "sent"
+    }
+  ]
+}

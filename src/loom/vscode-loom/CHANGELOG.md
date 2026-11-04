@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Call a tool yourself.** `use Tool(...)`, `approve` and `on_declined` on a step are highlighted, and the graph draws a `use` step. Needs the engine's `use` statement (phase 27b).
 - **Leak guard.** `prompt_leak` and `internal_refs` in an agent's `guard { }` are highlighted. Needs the engine's leak guard (phase 26).
 - **Policies and checks.** `policy`, `evaluator` and `check … against … using` are highlighted, and the graph draws a `check` step. Needs the engine's policy support (phase 26).
 - **Tool effects.** `effect:` and `effects:` on a tool (and `effects:` in an `mcp` block) are highlighted. Needs the engine's tool effects (phase 27a). The quick fix that declares an assumed effect arrives with the review changes (phase 27c).

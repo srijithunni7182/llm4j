@@ -1491,6 +1491,28 @@ To move an existing script over:
 - `weave check --substitution braces script.loom` lists every text that would change, with the variable and the position, and changes nothing.
 - `weave check --fix-substitution script.loom` shows the rewrite of each bare word that was meant as a variable (to `{name}`) as a diff and writes the file only after you answer yes (`--yes` answers for you in a script). A word that may be a variable or may be plain text is listed and left alone.
 
+### Calling a tool yourself (`use`), and asking first (`approve`)
+
+When a model is not needed to call a tool (the arguments are already in variables), call it from the script:
+
+```loom
+substitution: braces
+
+tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
+
+workflow Announce(draft) {
+    use Notify(text = draft) approve "Post this to the team channel?" -> receipt
+        on_declined { return "Not sent. The draft is kept for editing:\n{draft}" }
+        on_failure { halt "The announcement may not have been sent: {_error}." }
+    return "Sent."
+}
+```
+
+- `use Tool(name = value, …) -> var` runs a declared tool, a built-in, an OpenAPI or MCP tool, or a tool your host registers, with named arguments resolved like a `run`'s (a variable keeps its type; a quoted text has its `{…}` filled). It is the same tool object an agent would be given, so the same reach checks, secrets and effect protocol apply, and a resumed run does not call it twice. `-> var` is optional and binds the result (the parsed object for a tool that returns JSON). `retry`, `backoff`, `timeout` and `on_failure` work as on `run`; `weave check` refuses `retry` on a tool that changes things and is not marked safe to repeat. An unknown or missing argument fails the step and names the parameters the tool takes. `use` is a statement only where a tool name and `(` follow, so `use partial` and `use:` are unchanged.
+- **`approve`** (also on `run`) asks a person once before the step runs, through the same channel as an agent's `approve:`, and shows the exact arguments (personal data masked). `approve "Post this?"` sets the question's heading. A yes runs the step. A no is a decision, not a failure: `on_declined { … }` runs, the step binds nothing, and the run goes on after the block; without `on_declined` a no fails the step and `on_failure` runs. Anything but a clear yes is a no. The answer is journaled: a resumed run never asks again, and never runs a step whose answer was no. On `run`, `approve` works for any task and asks once even if the task also asks in Java.
+- Prefer this to `approve:` on an agent when the agent only decides *what* to send: let it propose, approve once at the edge, and send with code. Keep `approve:` for an assistant that asks "may I run this?" as it works.
+- Under a declared policy, a `use` of a tool whose effect is `changes` is an exit: its text arguments must have been checked.
+
 ### Tasks: deterministic steps (`run`)
 
 Some parts of a workflow are too important to leave to a model: checking a refund against policy, calling a payments API,

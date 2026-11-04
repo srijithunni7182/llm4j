@@ -73,4 +73,14 @@ class ChecksPolicyAssertionTest {
         assertThatThrownBy(() -> WorkflowAssertions.assertThat(t).violated("x")).isInstanceOf(AssertionError.class);
         assertThatThrownBy(() -> WorkflowAssertions.assertThat(t).actionTaken("replaced")).isInstanceOf(AssertionError.class);
     }
+
+    @Test
+    void usesToolCountsOnlyCallsMadeByAUseStep() {
+        Event byUse = new Event(1.0, "tool_call", null, "Main/s0", null, "", Map.of("tool", "Notify", "by", "use"));
+        Event byAgent = new Event(2.0, "tool_call", "A", "Main/s1", null, "", Map.of("tool", "Notify"));
+        WorkflowTrace t = trace(byUse, byAgent);
+        assertThat(t.usesOf("Notify")).isEqualTo(1);
+        WorkflowAssertions.assertThat(t).usesTool("Notify", 1).usesTool("Other", 0);
+        assertThatThrownBy(() -> WorkflowAssertions.assertThat(t).usesTool("Notify", 2)).isInstanceOf(AssertionError.class);
+    }
 }

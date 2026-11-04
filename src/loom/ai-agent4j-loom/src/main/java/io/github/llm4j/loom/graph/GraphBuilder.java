@@ -276,9 +276,14 @@ public final class GraphBuilder {
             } else if (statement instanceof RunStmt run) {
                 exits.add(new Exit(id, null));
                 defer(exits, id, "failure", "failure", run.getOnFailure());
+                defer(exits, id, "declined", "declined", run.getOnDeclined());
             } else if (statement instanceof io.github.llm4j.loom.ast.ExtractStmt extract) {
                 exits.add(new Exit(id, null));
                 defer(exits, id, "failure", "failure", extract.getOnFailure());
+            } else if (statement instanceof io.github.llm4j.loom.ast.UseStmt use) {
+                exits.add(new Exit(id, null));
+                defer(exits, id, "failure", "failure", use.getOnFailure());
+                defer(exits, id, "declined", "declined", use.getOnDeclined());
             } else if (statement instanceof io.github.llm4j.loom.ast.CheckStmt check) {
                 exits.add(new Exit(id, null));
                 defer(exits, id, "failure", "failure", check.getOnFailure());

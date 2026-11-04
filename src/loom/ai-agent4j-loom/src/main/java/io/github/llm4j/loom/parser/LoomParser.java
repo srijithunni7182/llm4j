@@ -521,6 +521,10 @@ public class LoomParser {
             return parseReturn();
         } else if (isRunStart()) {
             return parseRun();
+        } else if (isWord("use")
+                && isNameToken(peekAt(1))
+                && peekAt(2).getType() == TokenType.LPAREN) {
+            return parseUse();
         } else if (isWord("sleep") && isDurationStart(peekAt(1))) {
             return parseSleep();
         }
@@ -591,6 +595,150 @@ public class LoomParser {
         consume(
                 TokenType.LPAREN,
                 "Expect '(' after the task name, as in run " + task.getValue() + "(name = value).");
+        List<RunStmt.Arg> args = parseCallArgs("run", task);
+        String model =
+                null; // model "name" may come before the arrow, as it reads best, or with the other
+        // options after the variable
+        if (match(TokenType.MODEL)) {
+            match(TokenType.COLON);
+            model =
+                    consume(
+                                    TokenType.STRING_LITERAL,
+                                    "Expect a quoted model name, as in model \"gemini-2.5-flash\".")
+                            .getValue();
+        }
+        boolean approve = false;
+        String heading = null;
+        if (isWord("approve")) {
+            advance();
+            approve = true;
+            if (check(TokenType.STRING_LITERAL)) heading = advance().getValue();
+        }
+        consume(
+                TokenType.ARROW,
+                "Expect '->' and a variable to hold the result, as in run "
+                        + task.getValue()
+                        + "(...) -> result.");
+        String variable =
+                nameOrReference("Expect a variable name for the result (or {item.field}).");
+
+        RunStmt stmt = new RunStmt(task.getValue(), variable);
+        stmt.setLine(keyword.getLine());
+        stmt.setModel(model);
+        stmt.setApprove(approve);
+        stmt.setApproveHeading(heading);
+        stmt.getArgs().addAll(args);
+        // Optional, in any order: model "name" · retry 3 · backoff 2s · timeout 30s
+        while (true) {
+            if (match(TokenType.MODEL)) {
+                match(TokenType.COLON); // model: "x" reads as it does in an agent
+                if (stmt.getModel() != null)
+                    throw error(previous(), "model is given twice in run " + task.getValue() + ".");
+                stmt.setModel(
+                        consume(
+                                        TokenType.STRING_LITERAL,
+                                        "Expect a quoted model name, as in model \"gemini-2.5-flash\".")
+                                .getValue());
+            } else if (match(TokenType.RETRY)) {
+                Token count = consume(TokenType.NUMBER_LITERAL, "Expect number of retries.");
+                stmt.setRetryCount((int) Double.parseDouble(count.getValue()));
+            } else if (check(TokenType.IDENTIFIER)
+                    && ("backoff".equals(peek().getValue())
+                            || "timeout".equals(peek().getValue()))) {
+                String option = advance().getValue();
+                long millis = durationMillis();
+                if (option.equals("backoff")) stmt.setBackoffMillis(millis);
+                else stmt.setTimeoutMillis(millis);
+            } else if (isBudgetModifier()) {
+                throw error(
+                        peek(),
+                        "A task has no budget of its own: remove 'budget' from run "
+                                + task.getValue()
+                                + ". Its model calls count against the enclosing run, loop or step budgets.");
+            } else {
+                break;
+            }
+        }
+        parseDeclined(stmt.getOnDeclined(), stmt.isApprove(), "run " + task.getValue());
+        if (match(TokenType.ON_FAILURE)) {
+            consume(TokenType.LBRACE, "Expect '{' before on_failure body.");
+            while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                stmt.getOnFailure().add(parseStatement());
+            }
+            consume(TokenType.RBRACE, "Expect '}' after on_failure body.");
+        }
+        return stmt;
+    }
+
+    /** {@code on_declined { … }}: only on a step with {@code approve}. */
+    private void parseDeclined(List<Statement> into, boolean approve, String what) {
+        if (!isWord("on_declined")) return;
+        Token at = advance();
+        if (!approve)
+            throw error(
+                    at,
+                    "on_declined is for a step a person approves: write approve in "
+                            + what
+                            + " first.");
+        consume(TokenType.LBRACE, "Expect '{' before on_declined body.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) into.add(parseStatement());
+        consume(TokenType.RBRACE, "Expect '}' after on_declined body.");
+    }
+
+    /**
+     * {@code use Tool(name = value) [approve ["heading"]] [-> var] [retry N] [backoff T] [timeout T]
+     * [on_declined { … }] [on_failure { … }]}: a tool called with no model in between.
+     */
+    private UseStmt parseUse() {
+        Token keyword = advance();
+        Token tool = advance();
+        consume(
+                TokenType.LPAREN,
+                "Expect '(' after the tool name, as in use " + tool.getValue() + "(name = value).");
+        List<RunStmt.Arg> args = parseCallArgs("use", tool);
+        boolean approve = false;
+        String heading = null;
+        if (isWord("approve")) {
+            advance();
+            approve = true;
+            if (check(TokenType.STRING_LITERAL)) heading = advance().getValue();
+        }
+        String variable = null;
+        if (match(TokenType.ARROW))
+            variable = nameOrReference("Expect a variable name for the result.");
+        UseStmt stmt = new UseStmt(tool.getValue(), variable);
+        stmt.setLine(keyword.getLine());
+        stmt.setApprove(approve);
+        stmt.setApproveHeading(heading);
+        stmt.getArgs().addAll(args);
+        while (true) {
+            if (match(TokenType.RETRY)) {
+                stmt.setRetryCount(
+                        (int)
+                                Double.parseDouble(
+                                        consume(TokenType.NUMBER_LITERAL, "Expect number of retries.")
+                                                .getValue()));
+            } else if (check(TokenType.IDENTIFIER)
+                    && ("backoff".equals(peek().getValue()) || "timeout".equals(peek().getValue()))) {
+                String option = advance().getValue();
+                long millis = durationMillis();
+                if (option.equals("backoff")) stmt.setBackoffMillis(millis);
+                else stmt.setTimeoutMillis(millis);
+            } else {
+                break;
+            }
+        }
+        parseDeclined(stmt.getOnDeclined(), approve, "use " + tool.getValue());
+        if (match(TokenType.ON_FAILURE)) {
+            consume(TokenType.LBRACE, "Expect '{' before on_failure body.");
+            while (!check(TokenType.RBRACE) && !isAtEnd()) stmt.getOnFailure().add(parseStatement());
+            consume(TokenType.RBRACE, "Expect '}' after on_failure body.");
+        }
+        return stmt;
+    }
+
+    /** The {@code name = value, …} arguments of a {@code run} or {@code use}, up to the ')'. */
+    private List<RunStmt.Arg> parseCallArgs(String verb, Token task) {
         List<RunStmt.Arg> args = new java.util.ArrayList<>();
         if (!check(TokenType.RPAREN)) {
             do {
@@ -598,7 +746,7 @@ public class LoomParser {
                 if (!isNameToken(key))
                     throw error(
                             key,
-                            "Expect an argument name, as in run "
+                            "Expect an argument name, as in " + verb + " "
                                     + task.getValue()
                                     + "(name = value).");
                 consume(
@@ -640,68 +788,7 @@ public class LoomParser {
             } while (match(TokenType.COMMA));
         }
         consume(TokenType.RPAREN, "Expect ')' after the arguments of " + task.getValue() + ".");
-        String model =
-                null; // model "name" may come before the arrow, as it reads best, or with the other
-        // options after the variable
-        if (match(TokenType.MODEL)) {
-            match(TokenType.COLON);
-            model =
-                    consume(
-                                    TokenType.STRING_LITERAL,
-                                    "Expect a quoted model name, as in model \"gemini-2.5-flash\".")
-                            .getValue();
-        }
-        consume(
-                TokenType.ARROW,
-                "Expect '->' and a variable to hold the result, as in run "
-                        + task.getValue()
-                        + "(...) -> result.");
-        String variable =
-                nameOrReference("Expect a variable name for the result (or {item.field}).");
-
-        RunStmt stmt = new RunStmt(task.getValue(), variable);
-        stmt.setLine(keyword.getLine());
-        stmt.setModel(model);
-        stmt.getArgs().addAll(args);
-        // Optional, in any order: model "name" · retry 3 · backoff 2s · timeout 30s
-        while (true) {
-            if (match(TokenType.MODEL)) {
-                match(TokenType.COLON); // model: "x" reads as it does in an agent
-                if (stmt.getModel() != null)
-                    throw error(previous(), "model is given twice in run " + task.getValue() + ".");
-                stmt.setModel(
-                        consume(
-                                        TokenType.STRING_LITERAL,
-                                        "Expect a quoted model name, as in model \"gemini-2.5-flash\".")
-                                .getValue());
-            } else if (match(TokenType.RETRY)) {
-                Token count = consume(TokenType.NUMBER_LITERAL, "Expect number of retries.");
-                stmt.setRetryCount((int) Double.parseDouble(count.getValue()));
-            } else if (check(TokenType.IDENTIFIER)
-                    && ("backoff".equals(peek().getValue())
-                            || "timeout".equals(peek().getValue()))) {
-                String option = advance().getValue();
-                long millis = durationMillis();
-                if (option.equals("backoff")) stmt.setBackoffMillis(millis);
-                else stmt.setTimeoutMillis(millis);
-            } else if (isBudgetModifier()) {
-                throw error(
-                        peek(),
-                        "A task has no budget of its own: remove 'budget' from run "
-                                + task.getValue()
-                                + ". Its model calls count against the enclosing run, loop or step budgets.");
-            } else {
-                break;
-            }
-        }
-        if (match(TokenType.ON_FAILURE)) {
-            consume(TokenType.LBRACE, "Expect '{' before on_failure body.");
-            while (!check(TokenType.RBRACE) && !isAtEnd()) {
-                stmt.getOnFailure().add(parseStatement());
-            }
-            consume(TokenType.RBRACE, "Expect '}' after on_failure body.");
-        }
-        return stmt;
+        return args;
     }
 
     /** {@code checkpoint Name [starting with name = "value", name = "value"]} */

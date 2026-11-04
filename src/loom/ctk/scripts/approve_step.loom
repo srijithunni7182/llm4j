@@ -1,0 +1,10 @@
+// Canonical CTK test: approve_step
+// Tests a person's approval on a step (approve, on_declined): the person is asked once about the exact call, a no is not a failure, the tool
+// does not run and the script's on_declined block does. mocks/approve_step.json defines the tool's answer and the person's.
+
+workflow main(text) {
+    use Notify(text = text) approve -> receipt on_declined {
+        note "declined"
+    }
+    note "after"
+}

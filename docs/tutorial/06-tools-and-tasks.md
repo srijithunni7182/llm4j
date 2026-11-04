@@ -297,7 +297,34 @@ The older `reach:` (`none | reads | fetches | writes | sends`) still works on a 
 
 [Chapter 13](13-java.md) shows how to write one.
 
+## Calling a tool yourself: `use`
+
+When the arguments are already in variables, no model is needed to call a tool. `use` calls it from the script:
+
+```loom-parse
+workflow Main(draft, topic) {
+    use Notify(text = draft) -> receipt retry 1 timeout 30s on_failure { halt "The announcement may not have been sent: {_error}." }
+    use Search(query = "{topic} pricing") -> found
+}
+```
+
+It is the same tool an agent would be given, so the same limits apply (allowed hosts, the file root, the secrets), and a resumed run does not call it twice. Name each argument; a name the tool does not take, or a required one you left out, stops the step and tells you what the tool takes. A tool that returns JSON gives you an object to read (`{receipt.id}`).
+
 ## Approvals: a person says yes first
+
+The simplest approval is on the step itself. Let the agent write the announcement, then ask once, at the edge, and send with code:
+
+```loom-parse
+workflow Main(draft, action) {
+    use Notify(text = draft) approve "Post this to the team channel?" -> receipt
+        on_declined { return "Not sent. The draft is kept for editing:\n{draft}" }
+    run IssueRefund(order = action.order, amount = action.amount) approve -> receipt
+}
+```
+
+The person sees the exact arguments (personal data masked) and answers yes or no. A no is not a failure: `on_declined` runs, nothing is sent, and the run goes on after the block. Anything but a clear yes is a no, and a resumed run never asks twice.
+
+When a person works *with* an agent as it goes (an assistant that asks "may I run this?"), name the tool in the agent's `approve:` list:
 
 `approve: [Tool]` on an agent makes calls to that tool wait for a person:
 

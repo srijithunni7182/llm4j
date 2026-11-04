@@ -101,6 +101,7 @@ public final class TestChecker {
                     w.getStatements(),
                     s -> {
                         if (s instanceof RunStmt r) tasks.add(r.getTaskName());
+                        if (s instanceof io.github.llm4j.loom.ast.UseStmt u) tools.add(u.getTool());
                     });
         steps = Labels.known(graph);
     }

@@ -1,6 +1,6 @@
 # Phase 27 verification plan: approval at the boundary
 
-Status: **27a done (2026-11-03); 27b to 27e not started**. Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **27a** every tool has an effect (R0; phase 26 waits for it); **27b** `use` (R1) and `approve` on `use` and `run` (R2); **27c** the review changes and the lens default (R3 to R7, R9), and LR11 with its teaching (R10); **27e** dynamic routing within limits (R11); **27d** starter 07, the guide, the skills and the tutorial (R8). Results in §7.
+Status: **27a and 27b done (2026-11-03, 2026-11-04); 27c to 27e not started**. Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **27a** every tool has an effect (R0; phase 26 waits for it); **27b** `use` (R1) and `approve` on `use` and `run` (R2); **27c** the review changes and the lens default (R3 to R7, R9), and LR11 with its teaching (R10); **27e** dynamic routing within limits (R11); **27d** starter 07, the guide, the skills and the tutorial (R8). Results in §7.
 Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Reproduce first
@@ -10,8 +10,8 @@ Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 | P1 | E14 | `weave review --explain LA02`. | the only advice is the agent's `approve:` list | ⬜ |
 | P2 | E15 | An agent with `approve: [Send]`, `max_iterations: 20`, in a loop of 2; `weave review --lens +oversight`. | no LH03, although up to 40 approvals are possible | ⬜ |
 | P3 | E16 | `weave review` with no lens option on any script with a `human_prompt` compared to `"yes"`. | no LH04 (the lens is off) | ⬜ |
-| P4 | E17 | Try `use Notify(text = "x")` and `call Notify(...)` in a script. | neither calls a tool; starter 07 asks twice | ⬜ |
-| P5 | E18 | Search the language for a script-level approval on `run`. | only `requiresApproval` in Java | ⬜ |
+| P4 | E17 | Try `use Notify(text = "x")` and `call Notify(...)` in a script. | neither calls a tool; starter 07 asks twice | ✅ 2026-11-04, build 6.2.0 before 27b: `use Notify(...)` was a parse error ("Expected statement"); starter 07 asks through `human_prompt` and again through `approve:` |
+| P5 | E18 | Search the language for a script-level approval on `run`. | only `requiresApproval` in Java | ✅ read from `TaskRunner` before 27b: the only approval of a `run` was `task.requiresApproval(args)` |
 | P7 | E19 | `weave audit --format json` on a script with an `http` GET tool, an `http` POST tool used for search, an `openapi` tool whose operations are all GETs, an MCP tool and a `class` tool. | effect decided out of sight; the POST search counts as changing with no way to say otherwise; the OpenAPI tool and the MCP tool count as changing everything | ⬜ |
 | P6 | R6 | Inventory how a project marks a workflow as scheduled, triggered or run by the daemon. | the sources that settle open question 2 | ⬜ |
 
@@ -104,3 +104,15 @@ Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 - *The graph and the editor hover do not show the effect.* Lost: the effect is visible in `explain` and review JSON only. Covered by: those two. Owed to 27d with the graph `use` kind.
 - Spotless was run on the Loom module by mistake; unrelated reformatting was reverted, only wrapping changes inside files I had touched remain.
 
+### 27b: `use` and `approve` on a step (2026-11-04)
+
+**Built.** `use Tool(name = value) [approve ["heading"]] [-> var] [retry N] [backoff T] [timeout T] [on_declined { }] [on_failure { }]`; `approve`/`on_declined` on `run` too; arguments resolved like a `run`'s and matched to the tool's declared parameters at the time the step runs; the same tool object as an agent's call (`toolNamed`); the result journaled (a resumed run does not call twice); one question to a person through the existing approval gate, answered once per step and arguments, with personal data masked; a no (or anything but a yes) runs `on_declined` or fails the step, and is journaled so a resume takes the same road; `weave check` errors for an unknown tool and for `retry` on a changing tool not marked idempotent; `use` is an exit under a policy (26); graph kind `use` (renderer and schema synced); trace field `by: use`; eval4j `usesTool`; `weave test` scripts a `use` tool like any tool; CTK scenarios `use_tool` and `approve_step` with a conformance test; guide, prompt, tutorial chapter 6, `llms.txt`, release notes, API compatibility, VS Code changelog and grammar. Tests: `UseStatementTest` (16), `UseCtkConformanceTest`, `ChecksPolicyAssertionTest.usesToolCountsOnlyCallsMadeByAUseStep`.
+
+**Not built (owed), with what is lost and what covers it.**
+- *Argument names are checked when the step runs, not by `weave check`.* Asked: a `weave check` error. Lost: a typo in an argument name is found at the run, not the check. Covered by: the run fails that step before anything is sent, naming the parameters the tool takes. The tool's parameters are only known once the tool object exists, which needs its credentials.
+- *`weave eval --mock` answers a `use` of a real tool as that tool would, not `[mock tool result]`.* Lost: a free mock run may call a real tool. Covered by: a changing tool in a mock run is described, not run, as for an agent's call (the tool is wrapped the same way); not separately tested here.
+- *"A timeout (when the workflow sets one for questions) is a no"* is the existing human interface's behaviour; not tested for a step.
+- *Snippets for `use` in the VS Code extension* (the README lists every snippet prefix and a test types them): not added.
+- *The review changes (R3 to R7, R9), LR11, routing (R11), starter 07 and the skills (R8) are 27c to 27e.*
+
+**Gates.** See the commit for the full-module run.

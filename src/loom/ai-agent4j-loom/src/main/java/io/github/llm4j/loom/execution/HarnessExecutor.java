@@ -702,6 +702,7 @@ public class HarnessExecutor implements LoomEngine {
     private final ClassifyRunner classifyRunner = new ClassifyRunner(this);
     private final ExtractRunner extractRunner = new ExtractRunner(this);
     private final CheckRunner checkRunner = new CheckRunner(this);
+    private final UseRunner useRunner = new UseRunner(this);
 
     /**
      * The tasks {@code run} statements can use. Default: every task the class path declares as a
@@ -985,6 +986,14 @@ public class HarnessExecutor implements LoomEngine {
     void observeExit(String sink, Object value, Tracked<?> origin) {
         SinkOracle oracle = sinkOracle;
         if (oracle != null) oracle.exit(sink, value, Provenance.modelWritten(origin.tag(), value));
+    }
+
+    /** What a tool does to the world, by the one resolver the audit and review share. */
+    io.github.llm4j.agent.task.TaskEffect toolEffect(String name) {
+        java.util.Map<String, io.github.llm4j.loom.ast.ToolDef> declared = new java.util.HashMap<>();
+        script.getTools().forEach(t -> declared.put(t.getName(), t));
+        return io.github.llm4j.loom.security.Capabilities.resolve(name, declared, java.util.Map.of())
+                .level();
     }
 
     /** True when the script declares a tool called {@code name}. */
@@ -3090,6 +3099,8 @@ public class HarnessExecutor implements LoomEngine {
             extractRunner.run(extract);
         } else if (stmt instanceof io.github.llm4j.loom.ast.CheckStmt check) {
             checkRunner.run(check);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.UseStmt use) {
+            useRunner.run(use);
         } else if (stmt instanceof DelegateStmt del) {
             delegates.execute(del);
         } else if (stmt instanceof CallStmt call) {

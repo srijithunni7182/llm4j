@@ -72,6 +72,8 @@ final class TaskRunner {
             RunJournal.Entry entry = recorded.get();
             if ("failed".equals(entry.kind())) {
                 fail(stmt, stepId, String.valueOf(entry.value()), null, false, 0, null);
+            } else if ("declined".equals(entry.kind())) {
+                executor.runFailureHandler(stmt.getOnDeclined(), "not approved");
             } else {
                 executor.bind(variable, entry.value(), resultOrigin(task));
                 markOk(task, variable, entry.value());
@@ -128,7 +130,16 @@ final class TaskRunner {
             return;
         }
 
-        if (task.requiresApproval(args) && !executor.approvals().approveTask(name, args)) {
+        if ((stmt.isApprove() || task.requiresApproval(args))
+                && !executor.approvals()
+                        .approveStep("Task", name, args, stmt.getApproveHeading())) {
+            if (!stmt.getOnDeclined().isEmpty()) {
+                // A no is a person's decision, not a failure: the step binds nothing and the
+                // script handles it. Recorded, so a resumed run takes the same road.
+                executor.journal().put(stepId, new RunJournal.Entry("declined", name));
+                executor.runFailureHandler(stmt.getOnDeclined(), "not approved");
+                return;
+            }
             fail(
                     stmt,
                     stepId,

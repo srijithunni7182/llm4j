@@ -1,0 +1,8 @@
+// Canonical CTK test: use_tool
+// Tests a tool called by a written step, with no model in between (use): the named arguments are resolved, the tool runs once and its result
+// is bound. mocks/use_tool.json defines what the tool answers.
+
+workflow main(text) {
+    use Notify(text = text) -> receipt
+    note "sent"
+}

@@ -40,6 +40,7 @@
     classify: { k: 'task', g: 'tag', shape: 'rect' },
     extract: { k: 'task', g: 'tag', shape: 'rect' },
     check: { k: 'task', g: 'tag', shape: 'rect' },
+    use: { k: 'task', g: 'tag', shape: 'rect' },
     decide: { k: 'call', g: 'scale', shape: 'rect' },
     observe: { k: 'misc', g: 'eye', shape: 'rect' },
     note: { k: 'misc', g: 'note', shape: 'rect', dashed: true },
@@ -81,7 +82,7 @@
   };
 
   var LEGEND = [
-    ['agent', 'Agent step (delegate, handoff, broadcast)'], ['task', 'Task, guardrail, classify, extract or check'], ['par', 'Parallel round'],
+    ['agent', 'Agent step (delegate, handoff, broadcast)'], ['task', 'Task, guardrail, classify, extract, check or use'], ['par', 'Parallel round'],
     ['alt', 'Branch (alt)'], ['loop', 'Loop or for each'], ['call', 'Call or decision'], ['human', 'Ask a person'],
     ['misc', 'Checkpoint, note, other']
   ];
@@ -122,6 +123,7 @@
     classify: ['backend', 'samples', 'timeout', 'retry', 'variable'],
     extract: ['timeout', 'retry', 'variable'],
     check: ['timeout', 'retry', 'variable'],
+    use: ['timeout', 'retry', 'variable'],
     broadcast: ['budget', 'variable'],
     parallel: ['branches'],
     loop: ['max', 'budget'],
@@ -200,6 +202,7 @@
       case 'sleep': return a.duration || null;
       case 'rewind': return a.condition ? cut(a.condition, 40) : null;
       case 'task': return a.args ? plural(a.args, 'arg') : null;
+      case 'use': return a.tool ? (a.approve ? 'asks a person, then calls ' : 'calls ') + cut(a.tool, 30) : null;
       case 'check': return a.policies && a.policies.length ? 'against ' + cut(a.policies.join(', '), 34) : (a.subject || null);
       case 'extract': return a.inputs && a.inputs.length ? 'from ' + cut(a.inputs.join(', '), 38) : (a.extractor || null);
       case 'classify': return a.labels && a.labels.length ? cut(a.labels.join('; '), 44) : (a.classifier || null);

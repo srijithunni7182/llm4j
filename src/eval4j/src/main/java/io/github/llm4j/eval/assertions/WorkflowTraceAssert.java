@@ -200,6 +200,21 @@ public class WorkflowTraceAssert extends AbstractObjectAssert<WorkflowTraceAsser
         return this;
     }
 
+    /** Passes if a {@code use} step called {@code tool} exactly {@code times} times. */
+    public WorkflowTraceAssert usesTool(String tool, int times) {
+        EvalChecks.check(
+                M_EXTRACT,
+                () -> {
+                    isNotNull();
+                    long n = actual.usesOf(tool);
+                    if (n != times)
+                        failWithMessage(
+                                "Expected a use step to call %s %s time(s) but it called it %s time(s)",
+                                tool, times, n);
+                });
+        return this;
+    }
+
     /** Passes if at least one check judged against {@code policy}. */
     public WorkflowTraceAssert checksPolicy(String policy) {
         EvalChecks.check(

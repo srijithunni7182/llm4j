@@ -202,6 +202,18 @@ public record WorkflowTrace(
         return false;
     }
 
+    /** How many times a {@code use} step called {@code tool} (an agent's own calls do not count). */
+    public long usesOf(String tool) {
+        return events.stream()
+                .filter(
+                        e ->
+                                "tool_call".equals(e.type())
+                                        && e.data() != null
+                                        && "use".equals(e.data().get("by"))
+                                        && tool.equals(String.valueOf(e.data().get("tool"))))
+                .count();
+    }
+
     private static String extractorOf(Event e) {
         return e.data() == null ? "" : String.valueOf(e.data().get("extractor"));
     }

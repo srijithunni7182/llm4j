@@ -190,6 +190,12 @@ final class CaseRunner {
         for (ToolDef t : script.getTools()) declared.put(t.getName(), t);
         Set<String> names = new LinkedHashSet<>(declared.keySet());
         for (AgentDef a : script.getAgents()) names.addAll(a.getTools());
+        for (WorkflowDef w : script.getWorkflows())
+            StatementWalker.walk(
+                    w.getStatements(),
+                    s -> {
+                        if (s instanceof io.github.llm4j.loom.ast.UseStmt u) names.add(u.getTool());
+                    });
         Map<String, JsonNode> scripts = fields(c.get("tools"));
         ToolRegistry registry = new ToolRegistry();
         for (String name : names)
