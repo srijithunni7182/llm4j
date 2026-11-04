@@ -85,7 +85,7 @@ final class ClassifyRunner {
             if ("failed".equals(entry.kind())) {
                 fail(stmt, def, stepId, String.valueOf(entry.value()), null, false, 0);
             } else {
-                executor.setVariable(variable, entry.value());
+                executor.bind(variable, entry.value(), origin(entry.value()));
                 if (entry.value() instanceof Map<?, ?> answered) {
                     Map<String, Object> copy = new LinkedHashMap<>();
                     answered.forEach((k, v) -> copy.put(String.valueOf(k), v));
@@ -118,7 +118,7 @@ final class ClassifyRunner {
                 Map<String, Object> copy = new LinkedHashMap<>();
                 given.forEach((k, v) -> copy.put(String.valueOf(k), v));
                 journal.put(stepId, new RunJournal.Entry("classify", copy));
-                executor.setVariable(variable, copy);
+                executor.bind(variable, copy, origin(copy));
                 executor.decisions().classified(stmt, stepId, copy);
                 replayed(def, copy);
                 return;
@@ -317,7 +317,7 @@ final class ClassifyRunner {
         }
 
         executor.journal().put(stepId, new RunJournal.Entry("classify", bound));
-        executor.setVariable(variable, bound);
+        executor.bind(variable, bound, origin(bound));
         executor.decisions().classified(stmt, stepId, bound);
 
         Map<String, Object> data = new LinkedHashMap<>();
@@ -485,5 +485,18 @@ final class ClassifyRunner {
         }
         if (record) executor.journal().put(stepId, new RunJournal.Entry("failed", message));
         executor.runFailureHandler(stmt.getOnFailure(), message);
+    }
+
+    /**
+     * A label, a confidence and the like are not model text; only a free-text reason is
+     * (docs/specs/26, R7).
+     */
+    private static Provenance.Tag origin(Object answer) {
+        java.util.Set<String> text = new java.util.LinkedHashSet<>();
+        if (answer instanceof Map<?, ?> m)
+            for (Object key : m.keySet())
+                if (String.valueOf(key).toLowerCase(java.util.Locale.ROOT).contains("reason"))
+                    text.add(String.valueOf(key));
+        return Provenance.model(text);
     }
 }

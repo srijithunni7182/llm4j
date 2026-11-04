@@ -83,11 +83,13 @@ final class CheckRunner {
 
         String action;
         String finalText = text;
+        boolean notModel = false; // the text now in place was not written by a model
         if (verdict.unavailable()) {
             Outcome o = take(stmt.getOnUnavailable(), stmt, def, stepId, policies, text, verdict, false);
             if (o == null) return; // failed and handled
             action = o.action;
             finalText = o.text;
+            notModel = o.notModel;
         } else if (verdict.passed()) {
             action = "none";
         } else {
@@ -96,17 +98,23 @@ final class CheckRunner {
             if (o == null) return;
             action = o.action;
             finalText = o.text;
+            notModel = o.notModel;
             if (o.verdict != null) verdict = o.verdict;
         }
 
-        if (!finalText.equals(text)) setSubject(stmt, finalText);
+        Provenance.Tag before = executor.tagOf(stmt.getSubject());
+        Provenance.Tag after = afterCheck(stmt, before, notModel);
+        applySubject(stmt, finalText, !finalText.equals(text), after);
         Map<String, Object> verdictValue = verdictValue(verdict, action);
         if (stmt.getVerdictVariable() != null)
-            executor.setVariable(
-                    executor.resolveVariableName(stmt.getVerdictVariable()), verdictValue);
+            executor.bind(
+                    executor.resolveVariableName(stmt.getVerdictVariable()),
+                    verdictValue,
+                    VERDICT_ORIGIN);
         Map<String, Object> entry = new LinkedHashMap<>();
         entry.put("text", finalText);
         entry.put("verdict", verdictValue);
+        entry.put("origin", after.level() == Provenance.Level.CHECKED ? "checked" : "not_model");
         journal.put(stepId, new RunJournal.Entry("check", entry));
         traced(def, stepId, policies, verdict, action, attempts, started);
     }
@@ -206,7 +214,38 @@ final class CheckRunner {
 
     // ---- the actions
 
-    private record Outcome(String action, String text, PolicyEvaluator.Verdict verdict) {}
+    private record Outcome(
+            String action, String text, PolicyEvaluator.Verdict verdict, boolean notModel) {
+        Outcome(String action, String text, PolicyEvaluator.Verdict verdict) {
+            this(action, text, verdict, false);
+        }
+    }
+
+    /** The reasons in a verdict are model-written; the passed flag, the rule ids and the action are not. */
+    static final Provenance.Tag VERDICT_ORIGIN = Provenance.model(java.util.Set.of("rules"));
+
+    /**
+     * What the subject is after the check: a text a model wrote that passed is checked against the
+     * policies named here (and any it had already passed); a fixed or person-typed text is not
+     * model-written at all; a text that was never model-written stays so.
+     */
+    private Provenance.Tag afterCheck(CheckStmt stmt, Provenance.Tag before, boolean notModel) {
+        if (notModel || before.level() == Provenance.Level.NOT_MODEL) return Provenance.NOT_MODEL;
+        java.util.Set<String> passed = new java.util.LinkedHashSet<>(stmt.getPolicies());
+        if (before.level() == Provenance.Level.CHECKED) passed.addAll(before.checkedAgainst());
+        return Provenance.checked(passed);
+    }
+
+    private void applySubject(CheckStmt stmt, String text, boolean changed, Provenance.Tag after) {
+        String subject = stmt.getSubject();
+        if (changed) {
+            // Static checks refuse an action that replaces a field, so this is a whole variable.
+            executor.bind(executor.resolveVariableName(subject), text, after);
+        } else {
+            // The text is as it was; only what is known about it changes.
+            executor.markPath(subject, after);
+        }
+    }
 
     /** Takes the one action; returns null when the step failed and its handler has run. */
     private Outcome take(
@@ -221,7 +260,7 @@ final class CheckRunner {
         if (action instanceof CheckStmt.Replace replace) {
             // Taken literally: a word of the text that happens to name a variable must not be filled
             // in, which could carry model-written text into a fixed answer.
-            return new Outcome("replaced", replace.text(), null);
+            return new Outcome("replaced", replace.text(), null, true);
         }
         if (action instanceof CheckStmt.Rewrite rewrite) {
             return rewrite(rewrite, stmt, def, stepId, policies, text, verdict);
@@ -365,7 +404,7 @@ final class CheckRunner {
             String instead = answer.substring(answer.indexOf(':') + 1).strip();
             if (!instead.isEmpty()) {
                 executor.audit("policy_override", audit);
-                return new Outcome("asked", instead, null);
+                return new Outcome("asked", instead, null, true);
             }
         }
         // "stop", or anything else: a person who does not clearly say yes has not said yes.
@@ -375,10 +414,7 @@ final class CheckRunner {
 
     // ---- outcomes
 
-    private void setSubject(CheckStmt stmt, String text) {
-        // Static checks refuse an action that replaces a field path, so this is a whole variable.
-        executor.setVariable(executor.resolveVariableName(stmt.getSubject()), text);
-    }
+    // ---- outcomes
 
     private static List<String> brokenIds(PolicyEvaluator.Verdict verdict) {
         List<String> ids = new ArrayList<>(verdict.violated());
@@ -471,10 +507,17 @@ final class CheckRunner {
         }
         if (entry.value() instanceof Map<?, ?> m) {
             Object text = m.get("text");
-            if (text instanceof String t) setSubject(stmt, t);
+            Provenance.Tag after =
+                    "checked".equals(m.get("origin"))
+                            ? Provenance.checked(stmt.getPolicies())
+                            : Provenance.NOT_MODEL;
+            if (text instanceof String t)
+                applySubject(stmt, t, true, after);
             if (stmt.getVerdictVariable() != null && m.get("verdict") != null)
-                executor.setVariable(
-                        executor.resolveVariableName(stmt.getVerdictVariable()), m.get("verdict"));
+                executor.bind(
+                        executor.resolveVariableName(stmt.getVerdictVariable()),
+                        m.get("verdict"),
+                        VERDICT_ORIGIN);
         }
     }
 

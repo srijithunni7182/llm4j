@@ -31,6 +31,7 @@ final class PolicyChecks {
             evaluator(c, def);
         }
         checks(c);
+        toolCalls(c);
         PolicyCatalog catalog = PolicyCatalog.beside(c.context().baseDir);
         Set<String> policies = new HashSet<>();
         for (PolicyDef def : c.script().getPolicies()) {
@@ -47,6 +48,40 @@ final class PolicyChecks {
                                 + ", which is not an evaluator; declare it: evaluator "
                                 + def.getCheckedBy()
                                 + " { model: \"…\" }");
+        }
+    }
+
+    /**
+     * Under a policy, an agent's own calls to a tool that changes things are checked before they
+     * run, by the evaluator each policy names (docs/specs/26, D25). So every policy must name one.
+     */
+    private static void toolCalls(ScriptValidator.Checker c) {
+        if (c.script().getPolicies().isEmpty()) return;
+        java.util.Map<String, io.github.llm4j.loom.ast.ToolDef> declared = new java.util.HashMap<>();
+        c.script().getTools().forEach(t -> declared.put(t.getName(), t));
+        for (io.github.llm4j.loom.ast.AgentDef agent : c.script().getAgents()) {
+            for (String tool : agent.getTools()) {
+                var caps =
+                        io.github.llm4j.loom.security.Capabilities.resolve(
+                                tool, declared, java.util.Map.of());
+                if (caps.level() != io.github.llm4j.agent.task.TaskEffect.CHANGES) continue;
+                for (PolicyDef policy : c.script().getPolicies()) {
+                    if (policy.getCheckedBy() != null) continue;
+                    c.error(
+                            policy.getLine(),
+                            "policy " + policy.getName(),
+                            "Agent "
+                                    + agent.getName()
+                                    + " can call "
+                                    + tool
+                                    + ", which changes things; name the evaluator that checks its"
+                                    + " calls: policy "
+                                    + policy.getName()
+                                    + ": \""
+                                    + policy.getReference()
+                                    + "\" checked by <Evaluator>");
+                }
+            }
         }
     }
 

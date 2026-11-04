@@ -59,7 +59,7 @@ final class ExtractRunner {
             if ("failed".equals(entry.kind())) {
                 fail(stmt, def, stepId, String.valueOf(entry.value()), null, false, 0);
             } else {
-                executor.setVariable(variable, entry.value());
+                executor.bind(variable, entry.value(), origin(def));
                 replayed(def);
             }
             return;
@@ -152,6 +152,11 @@ final class ExtractRunner {
         fail(stmt, def, stepId, message, last, true, tried);
     }
 
+    /** The fields that hold text are model-written; numbers, true/false and enum words are not. */
+    private static Provenance.Tag origin(ExtractorDef def) {
+        return Provenance.model(Provenance.textFieldsOf(def.getFields()));
+    }
+
     // ---- what reaches the model
 
     private LLMRequest.Builder request(ExtractStmt stmt, ExtractorDef def) {
@@ -215,7 +220,7 @@ final class ExtractRunner {
             int attempts,
             long started) {
         executor.journal().put(stepId, new RunJournal.Entry("extract", fields.values()));
-        executor.setVariable(variable, fields.values());
+        executor.bind(variable, fields.values(), origin(def));
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("extractor", def.getName());
         data.put("step", stepId);

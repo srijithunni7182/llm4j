@@ -235,9 +235,12 @@ final class LadderDecider {
     }
 
     private void bind(DecideStmt stmt, Map<String, Object> result) {
-        run.setVariable(stmt.getVariable(), Decider.text(result.get("verdict")));
-        run.setVariable(stmt.getVariable() + "_proposal", Decider.text(result.get("proposal")));
-        run.setVariable(stmt.getVariable() + "_level", Decider.text(result.get("level")));
+        run.bind(stmt.getVariable(), Decider.text(result.get("verdict")), Provenance.NOT_MODEL);
+        run.bind(
+                stmt.getVariable() + "_proposal",
+                Decider.text(result.get("proposal")),
+                Provenance.UNCHECKED);
+        run.bind(stmt.getVariable() + "_level", Decider.text(result.get("level")), Provenance.NOT_MODEL);
     }
 
     // ---- the plan

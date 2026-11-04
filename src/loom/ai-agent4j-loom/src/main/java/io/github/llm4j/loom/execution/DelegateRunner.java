@@ -72,6 +72,9 @@ final class DelegateRunner {
 
         VariableContext context();
 
+        /** Sets a variable and records where its value came from (docs/specs/26, R15). */
+        void bind(String name, Object value, Provenance.Tag origin);
+
         /** Variables as the current block sees them. */
         VariableContext view();
 
@@ -215,22 +218,23 @@ final class DelegateRunner {
                         "discarded earlier: " + entry.value(),
                         null);
             } else {
-                host.context().setVariable(variableName, entry.value());
+                host.bind(variableName, entry.value(), answerOrigin(del, agentDef));
                 host.journal()
                         .get(stepId + "#audio")
                         .ifPresent(
                                 audio ->
-                                        host.context()
-                                                .setVariable(
-                                                        variableName + "_audio", audio.value()));
+                                        host.bind(
+                                                variableName + "_audio",
+                                                audio.value(),
+                                                Provenance.NOT_MODEL));
                 host.journal()
                         .get(stepId + "#citations")
                         .ifPresent(
                                 sources ->
-                                        host.context()
-                                                .setVariable(
-                                                        variableName + "_citations",
-                                                        sources.value()));
+                                        host.bind(
+                                                variableName + "_citations",
+                                                sources.value(),
+                                                Provenance.NOT_MODEL));
                 host.onDelegateReplayed(del, agentDef, entry.value());
                 host.trace(
                         TraceEvent.DELEGATE_REPLAYED,
@@ -284,7 +288,7 @@ final class DelegateRunner {
                                     false);
             if (known != null) {
                 host.journal().put(stepId, new RunJournal.Entry("delegate", known));
-                host.context().setVariable(variableName, known);
+                host.bind(variableName, known, answerOrigin(del, agentDef));
                 host.onDelegateReplayed(del, agentDef, known);
                 host.trace(
                         TraceEvent.DELEGATE_REPLAYED,
@@ -563,12 +567,14 @@ final class DelegateRunner {
                     final String remembered = answer;
                     HarnessExecutor.DelegateSuccessHandler successHandler =
                             (agentResult, value) -> {
-                                host.context().setVariable(variableName, value);
+                                host.bind(variableName, value, answerOrigin(del, agentDef));
                                 host.journal().put(stepId, new RunJournal.Entry("delegate", value));
                                 if (!agentResult.getCitations().isEmpty()) {
                                     List<Map<String, Object>> sources = citationsOf(agentResult);
-                                    host.context()
-                                            .setVariable(variableName + "_citations", sources);
+                                    host.bind(
+                                            variableName + "_citations",
+                                            sources,
+                                            Provenance.NOT_MODEL);
                                     host.journal()
                                             .put(
                                                     stepId + "#citations",
@@ -579,7 +585,8 @@ final class DelegateRunner {
                                     host.groundedWithoutSources(agentName);
                                 }
                                 if (audio != null) {
-                                    host.context().setVariable(variableName + "_audio", audio);
+                                    host.bind(
+                                            variableName + "_audio", audio, Provenance.NOT_MODEL);
                                     host.journal()
                                             .put(
                                                     stepId + "#audio",
@@ -980,5 +987,18 @@ final class DelegateRunner {
             if (e.getCause() instanceof RuntimeException re) throw re;
             throw e;
         }
+    }
+
+    /**
+     * An agent's answer is model-written. With a schema, only the text fields are; a number, a
+     * true/false or an enum word in it is not (docs/specs/26, R7).
+     */
+    private static Provenance.Tag answerOrigin(DelegateStmt del, AgentDef agentDef) {
+        io.github.llm4j.loom.ast.SchemaDef schema =
+                del.getExpecting() != null ? del.getExpecting() : agentDef.getOutputSchema();
+        if (schema == null
+                || schema.getType() != io.github.llm4j.loom.ast.SchemaDef.Type.OBJECT)
+            return Provenance.UNCHECKED;
+        return Provenance.model(Provenance.textFieldsOf(schema));
     }
 }

@@ -176,6 +176,9 @@ public class HarnessExecutor implements LoomEngine {
                             return baseDir;
                         }
                     });
+    /** The variables a text being filled in has taken values from (docs/specs/26, R7). */
+    private final ThreadLocal<java.util.Set<String>> touches = new ThreadLocal<>();
+
     private final PayloadText payloads =
             new PayloadText(
                     new PayloadText.Host() {
@@ -192,6 +195,12 @@ public class HarnessExecutor implements LoomEngine {
                         @Override
                         public boolean bareNamesReplaced() {
                             return !"braces".equals(script.getSubstitution());
+                        }
+
+                        @Override
+                        public void touched(String path) {
+                            java.util.Set<String> into = touches.get();
+                            if (into != null) into.add(path);
                         }
                     });
 
@@ -358,6 +367,12 @@ public class HarnessExecutor implements LoomEngine {
                     interventions,
                     new DelegateRunner.Host() {
                         @Override
+                        public void bind(
+                                String name, Object value, Provenance.Tag origin) {
+                            HarnessExecutor.this.bind(name, value, origin);
+                        }
+
+                        @Override
                         public io.github.llm4j.loom.ast.InterventionDef intervention() {
                             return script.getIntervention();
                         }
@@ -518,7 +533,7 @@ public class HarnessExecutor implements LoomEngine {
                                 RewindStmt rewind, io.github.llm4j.agent.StopReport stop) {
                             // _stop is readable by the rewind's condition and by what it carries
                             // ("{_stop.note}") while it decides
-                            context.setVariable("_stop", StopHandlers.fieldsOf(stop));
+                            bind("_stop", StopHandlers.fieldsOf(stop), Provenance.model(null));
                             try {
                                 rewinder.rewind(rewind, frames.get());
                             } finally {
@@ -822,7 +837,7 @@ public class HarnessExecutor implements LoomEngine {
      * and records that as where the value came from.
      */
     public void bindFromOutside(String name, Object value, String step, String by) {
-        context.setVariable(name, value);
+        bind(name, value, Provenance.NOT_MODEL); // a person set it
         decisions.rebind(name, step, by);
     }
 
@@ -862,8 +877,175 @@ public class HarnessExecutor implements LoomEngine {
         return clock.instant();
     }
 
-    void setVariable(String name, Object value) {
+    /**
+     * Sets a variable and records where its value came from. This is the only way execution code
+     * sets one (docs/specs/26-policy-boundary, R15): a route that does not say where its value came
+     * from does not compile, and {@code ProvenanceRoutesTest} reads the sources to keep it so.
+     */
+    void bind(String name, Object value, Provenance.Tag origin) {
         context.setVariable(name, value);
+        context.setOrigin(name, origin);
+    }
+
+    /** Where each variable came from now, for a checkpoint to keep with the values. */
+    Map<String, Object> origins() {
+        Map<String, Object> out = new java.util.HashMap<>();
+        for (String name : context.getAll().keySet()) {
+            Object o = context.originOf(name);
+            if (o != null) out.put(name, o);
+        }
+        return out;
+    }
+
+    /** Records where a field of a variable came from, leaving the variable's own record alone. */
+    void markPath(String path, Provenance.Tag origin) {
+        context.setOrigin(path, origin);
+    }
+
+    /** A variable the runtime itself sets (a counter, a budget view): no model wrote it. */
+    void bindSystem(String name, Object value) {
+        bind(name, value, Provenance.NOT_MODEL);
+    }
+
+    /** What a value is, with the variables it was built from. */
+    record Tracked<T>(T value, Provenance.Tag tag, java.util.Set<String> from) {}
+
+    /**
+     * Runs {@code work}, which fills text from variables or copies one, and returns its value with
+     * the origin worked out from every variable it took from: the worst level among them.
+     */
+    <T> Tracked<T> tracked(java.util.function.Supplier<T> work) {
+        java.util.Set<String> previous = touches.get();
+        java.util.Set<String> mine = new java.util.LinkedHashSet<>();
+        touches.set(mine);
+        T value;
+        try {
+            value = work.get();
+        } finally {
+            if (previous == null) touches.remove();
+            else touches.set(previous);
+        }
+        if (previous != null) previous.addAll(mine);
+        Provenance.Tag tag = Provenance.NOT_MODEL;
+        for (String path : mine) tag = Provenance.join(tag, tagOf(path));
+        return new Tracked<>(value, tag, mine);
+    }
+
+    /** Notes that the value being built takes from {@code path} (a direct copy, not a filled text). */
+    void touch(String path) {
+        java.util.Set<String> into = touches.get();
+        if (into != null) into.add(path);
+    }
+
+    /**
+     * Where the value at {@code path} came from. A path inside a record is judged by the record's
+     * tag, narrowed by which of its fields hold model text; nothing recorded means unchecked.
+     */
+    Provenance.Tag tagOf(String path) {
+        VariableContext scope = view();
+        Object exact = scope.originOf(path);
+        int dot = path.indexOf('.');
+        if (dot > 0) {
+            Object head = scope.originOf(path.substring(0, dot));
+            if (exact != head && exact instanceof Provenance.Tag t) return t; // recorded for this path
+            if (head instanceof Provenance.Tag t) {
+                String field = path.substring(dot + 1);
+                int next = field.indexOf('.');
+                if (next > 0) field = field.substring(0, next);
+                if (t.textFields() != null && !t.textFields().contains(field))
+                    return Provenance.NOT_MODEL;
+                return t.textFields() == null ? t : new Provenance.Tag(t.level(), t.checkedAgainst(), null);
+            }
+            return Provenance.UNCHECKED;
+        }
+        return exact instanceof Provenance.Tag t ? t : Provenance.UNCHECKED;
+    }
+
+    /**
+     * A test seam: told at every place a value leaves the workflow whether the runtime believes a
+     * model wrote it. {@code CanaryProvenanceOracleTest} compares that belief with what really
+     * happened to a canary every scripted model answer carries (docs/specs/26, R15).
+     */
+    public interface SinkOracle {
+        /**
+         * @param sink where the value was going
+         * @param value the value
+         * @param modelWritten whether the runtime's origin record says a model wrote some of it
+         */
+        void exit(String sink, Object value, boolean modelWritten);
+    }
+
+    private volatile SinkOracle sinkOracle;
+
+    /** Installs the oracle; null removes it. Not for production use. */
+    public void setSinkOracle(SinkOracle oracle) {
+        this.sinkOracle = oracle;
+    }
+
+    void observeExit(String sink, Object value, Tracked<?> origin) {
+        SinkOracle oracle = sinkOracle;
+        if (oracle != null) oracle.exit(sink, value, Provenance.modelWritten(origin.tag(), value));
+    }
+
+    /** True when the script declares a tool called {@code name}. */
+    boolean isDeclaredTool(String name) {
+        return script.getTools().stream().anyMatch(t -> t.getName().equals(name));
+    }
+
+    /** The names of the policies the script declares; empty means nothing is enforced. */
+    java.util.List<String> declaredPolicies() {
+        return script.getPolicies().stream().map(io.github.llm4j.loom.ast.PolicyDef::getName).toList();
+    }
+
+    /**
+     * Refuses to let a model-written value that has not been checked against every declared policy
+     * out of the workflow (docs/specs/26, R8). Always on and failing closed when the script declares
+     * a policy; nothing happens in a script that declares none.
+     *
+     * @param sink where it was about to go: {@code return}, {@code run <task>}, …
+     * @param value the value about to leave
+     * @param origin what it was built from
+     */
+    void guardSink(String sink, Object value, Tracked<?> origin) {
+        observeExit(sink, value, origin);
+        java.util.List<String> declared = declaredPolicies();
+        if (declared.isEmpty()) return;
+        if (Provenance.mayLeave(origin.tag(), value, declared)) return;
+        String culprit = null;
+        for (String path : origin.from()) {
+            Provenance.Tag t = tagOf(path);
+            if (!Provenance.mayLeave(t, valueAt(path), declared)) {
+                culprit = path;
+                break;
+            }
+        }
+        if (culprit == null) culprit = origin.from().stream().findFirst().orElse("the value");
+        java.util.List<String> missing = Provenance.missing(origin.tag(), declared);
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("sink", sink);
+        data.put("variable", culprit);
+        data.put("policies", missing);
+        data.put("step", currentStep());
+        trace(TraceEvent.SINK_BLOCKED, null, sink + ": " + culprit + " is unchecked", data);
+        audit("sink_blocked", data);
+        String first = missing.get(0);
+        throw new StepFailure(
+                "`"
+                        + culprit
+                        + "` was written by a model and has not been checked against "
+                        + String.join(", ", missing)
+                        + ". Add `check "
+                        + culprit
+                        + " against "
+                        + first
+                        + " using …` before this step ("
+                        + sink
+                        + ").",
+                null);
+    }
+
+    private Object valueAt(String path) {
+        return io.github.llm4j.loom.runtime.ConditionEvaluator.resolvePath(path, view());
     }
 
     void removeVariable(String name) {
@@ -1653,6 +1835,16 @@ public class HarnessExecutor implements LoomEngine {
      * The load-time checks for this script, as {@code initialize()} runs them (see {@link
      * ScriptValidator}).
      */
+    private boolean staticSinkChecks = true;
+
+    /**
+     * Turns off only the load-time follow-the-value check of the policy boundary, never the
+     * runtime guard. For tests of the runtime guard on scripts the static check would refuse.
+     */
+    public void setStaticSinkChecks(boolean on) {
+        this.staticSinkChecks = on;
+    }
+
     public ScriptValidator.Context validationContext() {
         java.util.Set<String> tools = new java.util.HashSet<>(toolRegistry.names());
         script.getTools().forEach(t -> tools.add(t.getName()));
@@ -1663,6 +1855,7 @@ public class HarnessExecutor implements LoomEngine {
                 .env(envLookup)
                 .lenient(lenient)
                 .humanInterface(humanInterface != null)
+                .staticSinkChecks(staticSinkChecks)
                 .baseDir(baseDir)
                 .prompts(promptCatalog)
                 .check(validation::checkAgentSettings)
@@ -2171,6 +2364,7 @@ public class HarnessExecutor implements LoomEngine {
                         root,
                         root ? new java.util.HashMap<>(context.getAll()) : null,
                         root ? memoryEngine.mark() : null);
+        if (root) frame.origins.put("start", origins());
         java.util.ArrayDeque<Rewinder.Frame> stack = frames.get();
         stack.push(frame);
         try {
@@ -2182,7 +2376,7 @@ public class HarnessExecutor implements LoomEngine {
                 if (rewindsUsed) {
                     rewinder.begin(block, i);
                     if (generation > 1)
-                        context.setVariable("_generation", String.valueOf(generation));
+                        bindSystem("_generation", String.valueOf(generation));
                 }
                 try {
                     control.checkpoint(
@@ -2458,6 +2652,22 @@ public class HarnessExecutor implements LoomEngine {
                 }
                 agentBuilder.addTool(tool);
             }
+            if (!script.getPolicies().isEmpty()) {
+                java.util.Map<String, io.github.llm4j.loom.ast.ToolDef> declared =
+                        new java.util.LinkedHashMap<>();
+                script.getTools().forEach(t -> declared.put(t.getName(), t));
+                java.util.Set<String> changing = new java.util.LinkedHashSet<>();
+                for (String toolName : agentDef.getTools()) {
+                    if (io.github.llm4j.loom.security.Capabilities.resolve(
+                                            toolName, declared, java.util.Map.of())
+                                    .level()
+                            == io.github.llm4j.agent.task.TaskEffect.CHANGES) changing.add(toolName);
+                }
+                if (!changing.isEmpty() || !agentDef.getMcpServers().isEmpty())
+                    agentBuilder.addToolHook(
+                            new PolicyToolHook(
+                                    this, agentDef, changing, !agentDef.getMcpServers().isEmpty()));
+            }
             if (agentDef.isApproveAll() || !agentDef.getApprove().isEmpty()) {
                 String agentName = agentDef.getName();
                 agentBuilder.approvalCallback(
@@ -2660,7 +2870,7 @@ public class HarnessExecutor implements LoomEngine {
     private void runWorkflow(String workflowName, Map<String, String> initialContext) {
         // Hydrate initial variables
         if (initialContext != null) {
-            initialContext.forEach(context::setVariable);
+            initialContext.forEach((k, v) -> bind(k, v, Provenance.NOT_MODEL));
         }
 
         WorkflowDef targetWorkflow =
@@ -2675,7 +2885,7 @@ public class HarnessExecutor implements LoomEngine {
         log.info("Starting workflow: " + workflowName);
         if (budgets.budgeting()) {
             budgets.restoreSpend();
-            context.setVariable("_budget", budgets.view());
+            bindSystem("_budget", budgets.view());
         }
 
         String parent = step.get();
@@ -2814,6 +3024,7 @@ public class HarnessExecutor implements LoomEngine {
         if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Bool b) return b.value();
         if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Ref r) {
             Object found = ConditionEvaluator.resolvePath(r.path(), view());
+            touch(r.path());
             // a name nothing has set reads as empty text elsewhere; copying it would hand on a
             // silent empty value, so it is an error here
             boolean unset =
@@ -2856,9 +3067,16 @@ public class HarnessExecutor implements LoomEngine {
         } else if (stmt instanceof io.github.llm4j.loom.ast.HaltStmt halt) {
             executeHalt(halt);
         } else if (stmt instanceof io.github.llm4j.loom.ast.SetStmt set) {
-            setVariable(set.getName(), valueOf(set.getValue(), "set " + set.getName()));
+            Tracked<Object> value =
+                    tracked(() -> valueOf(set.getValue(), "set " + set.getName()));
+            bind(set.getName(), value.value(), value.tag());
         } else if (stmt instanceof io.github.llm4j.loom.ast.ReturnStmt ret) {
-            setVariable("result", valueOf(ret.getValue(), "return"));
+            Tracked<Object> value = tracked(() -> valueOf(ret.getValue(), "return"));
+            // Only the workflow a run starts with leaves for people; a called one hands its
+            // value to its caller, where the same rule applies at the caller's exit.
+            if (context.popFrame() == null) guardSink("return", value.value(), value);
+            else observeExit("return", value.value(), value);
+            bind("result", value.value(), value.tag());
             throw new ReturnSignal();
         } else if (stmt instanceof io.github.llm4j.loom.ast.SleepStmt sleep) {
             executeSleep(sleep);
@@ -2995,7 +3213,7 @@ public class HarnessExecutor implements LoomEngine {
             }
 
             // Store as a JSON-like array string
-            context.setVariable(broadcast.getVariableName(), results);
+            bind(broadcast.getVariableName(), results, Provenance.UNCHECKED);
 
             auditLogger.logConversationEvent(
                     sessionId,
@@ -3030,7 +3248,7 @@ public class HarnessExecutor implements LoomEngine {
                         break;
                     }
                     rounds++;
-                    context.setVariable("_loopRound", String.valueOf(rounds));
+                    bindSystem("_loopRound", String.valueOf(rounds));
                     try {
                         runBlock(loop.getBody(), "r" + rounds + ".");
                     } catch (io.github.llm4j.budget.BudgetExceeded e) {
@@ -3053,8 +3271,8 @@ public class HarnessExecutor implements LoomEngine {
                                 + rounds
                                 + " round(s) without: "
                                 + loop.getCondition());
-                context.setVariable("_loopRounds", String.valueOf(rounds));
-                context.setVariable("_loopExhaustedBy", exhaustedBy);
+                bindSystem("_loopRounds", String.valueOf(rounds));
+                bindSystem("_loopExhaustedBy", exhaustedBy);
                 if (!loop.getOnExhausted().isEmpty()) {
                     runBlock(loop.getOnExhausted(), "x");
                 } else if (refusal != null) {
@@ -3068,14 +3286,14 @@ public class HarnessExecutor implements LoomEngine {
             String stepId = step.get();
             String recordedAnswer = rewinder.recordedAnswer(resolvedMessage);
             if (recordedAnswer != null) {
-                context.setVariable(hp.getVariableName(), recordedAnswer);
+                bind(hp.getVariableName(), recordedAnswer, Provenance.NOT_MODEL);
             } else if (humanInterface != null) {
                 // May return now, or throw RunSuspended to wait without holding this thread.
                 String result =
                         humanInterface.promptHuman(
                                 stepId, resolvedMessage, HumanInterface.Hints.none());
                 rewinder.recordAnswer(resolvedMessage, result);
-                context.setVariable(hp.getVariableName(), result);
+                bind(hp.getVariableName(), result, Provenance.NOT_MODEL);
             } else {
                 log.severe(
                         "HumanInterface not configured – human_prompt cannot be served. "
@@ -3273,7 +3491,7 @@ public class HarnessExecutor implements LoomEngine {
         stopped = refusal != null || (eachBudget != null && eachBudget.refused());
         if (stopped) {
             log.warning("for each " + each.getItemName() + " stopped: its budget ran out");
-            context.setVariable("_loopExhaustedBy", "budget");
+            bindSystem("_loopExhaustedBy", "budget");
             if (!each.getOnExhausted().isEmpty()) {
                 runBlock(each.getOnExhausted(), "x");
             } else if (refusal != null) {
@@ -3297,6 +3515,14 @@ public class HarnessExecutor implements LoomEngine {
             if (!each.isParallel() && budgets.anyRefused(eachBudget)) break;
             Map<String, Object> names = new HashMap<>(outer);
             names.put(each.getItemName(), items.get(i));
+            // An item is as safe as the list it came from; nothing about which of its parts are text.
+            Provenance.Tag listTag = tagOf(each.getCollectionPath());
+            io.github.llm4j.loom.runtime.ScopedContext.putLocalOrigin(
+                    names,
+                    each.getItemName(),
+                    listTag.level() == Provenance.Level.NOT_MODEL
+                            ? Provenance.NOT_MODEL
+                            : new Provenance.Tag(listTag.level(), listTag.checkedAgainst(), null));
             names.put("_index", String.valueOf(i));
             String itemStep = parent + "/e" + i;
             Runnable body = () -> runBlock(each.getBody(), "b");
@@ -3703,7 +3929,7 @@ public class HarnessExecutor implements LoomEngine {
             Map<String, Object> run = new java.util.LinkedHashMap<>();
             run.put("resumes", resumes);
             run.put("lastSuspension", last);
-            context.setVariable("_run", run);
+            bindSystem("_run", run);
         }
     }
 
@@ -3773,14 +3999,20 @@ public class HarnessExecutor implements LoomEngine {
         try {
             VariableContext subContext = original.pushFrame();
             for (Map.Entry<String, String> arg : call.getArguments().entrySet()) {
-                subContext.setVariable(arg.getKey(), resolvePayload(arg.getValue()));
+                Tracked<String> value = tracked(() -> resolvePayload(arg.getValue()));
+                subContext.setVariable(arg.getKey(), value.value());
+                subContext.setOrigin(arg.getKey(), value.tag());
             }
 
             this.setInternalContext(subContext);
             executeWorkflow(call.getWorkflowName(), null);
 
             Object resultValue = subContext.getVariable("result");
+            Object resultOrigin = subContext.originOf("result");
             original.setVariable(call.getResultVariable(), resultValue);
+            original.setOrigin(
+                    call.getResultVariable(),
+                    resultOrigin instanceof Provenance.Tag t ? t : Provenance.UNCHECKED);
         } finally {
             this.setInternalContext(original);
         }

@@ -165,6 +165,20 @@ public record TraceEvent(
      */
     public static final String POLICY_CHECK = "policy_check";
 
+    /**
+     * The runtime refused to let a model-written value that no policy had checked leave the
+     * workflow (docs/specs/26-policy-boundary, R8): {@code sink}, {@code variable} (the name, never
+     * the value), {@code policies} (the ones it has not passed) and {@code step}.
+     */
+    public static final String SINK_BLOCKED = "sink_blocked";
+
+    /**
+     * The automatic check refused an agent's call to a tool that changes things (docs/specs/26,
+     * R8): {@code agent}, {@code tool}, {@code rules} (ids) and {@code refusals} (so far in this
+     * step). Never the arguments.
+     */
+    public static final String TOOL_REFUSED_BY_POLICY = "tool_refused_by_policy";
+
     public static final String TASK_START = "task_start";
     public static final String TASK_END = "task_end";
     public static final String TASK_REPLAYED = "task_replayed";

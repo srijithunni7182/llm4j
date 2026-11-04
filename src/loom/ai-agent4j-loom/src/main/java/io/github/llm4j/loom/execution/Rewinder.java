@@ -34,6 +34,8 @@ final class Rewinder {
         final Map<String, Integer> checkpoints = new HashMap<>();
         final Map<String, Map<String, Object>> snapshots = new HashMap<>();
         final Map<String, Object> memoryMarks = new HashMap<>();
+        // where each variable came from at each checkpoint, restored with the values
+        final Map<String, Map<String, Object>> origins = new HashMap<>();
 
         Frame(String block, boolean root, Map<String, Object> atStart, Object memoryMark) {
             this.block = block;
@@ -80,9 +82,13 @@ final class Rewinder {
 
     void checkpoint(CheckpointStmt c, Frame frame, int index) {
         for (Map.Entry<String, String> e : c.getStartingWith().entrySet())
-            run.setVariable(e.getKey(), run.resolve(e.getValue()));
+            {
+                HarnessExecutor.Tracked<String> value = run.tracked(() -> run.resolve(e.getValue()));
+                run.bind(e.getKey(), value.value(), value.tag());
+            }
         frame.checkpoints.put(c.getName(), index);
         frame.snapshots.put(c.getName(), new HashMap<>(run.variables()));
+        frame.origins.put(c.getName(), run.origins());
         frame.memoryMarks.put(c.getName(), run.memory().mark());
         RunJournal journal = run.journal();
         String key = run.currentStep() + "#checkpoint";
@@ -330,7 +336,16 @@ final class Rewinder {
         if (snapshot == null) return;
         for (String name : new ArrayList<>(run.variables().keySet()))
             if (!snapshot.containsKey(name)) run.removeVariable(name);
-        snapshot.forEach(run::setVariable);
+        Map<String, Object> origins = frame.origins.getOrDefault(checkpoint, Map.of());
+        snapshot.forEach(
+                (name, value) -> {
+                    run.bind(
+                            name,
+                            value,
+                            origins.get(name) instanceof Provenance.Tag t
+                                    ? t
+                                    : Provenance.UNCHECKED);
+                });
         run.memory().restore(frame.memoryMarks.get(checkpoint));
     }
 
@@ -341,13 +356,15 @@ final class Rewinder {
     void begin(String block, int index) {
         Generations.Boundary b = run.generations().startingAt(block, index);
         if (b == null) return;
-        b.carried().forEach(run::setVariable);
-        run.setVariable(
+        // What a rewind carries in was filled in before the rewind, where its origin was not
+        // kept: it is treated as unchecked model text, which over-blocks and never leaks.
+        b.carried().forEach((name, value) -> run.bind(name, value, Provenance.UNCHECKED));
+        run.bindSystem(
                 "_rewind",
                 String.valueOf(
                         run.generations().rewindsBy(b.statement() == null ? "" : b.statement())));
-        run.setVariable("_rewindReason", b.reason() == null ? "" : b.reason());
-        run.setVariable("_rewindTo", b.name() == null ? "" : b.name());
+        run.bindSystem("_rewindReason", b.reason() == null ? "" : b.reason());
+        run.bindSystem("_rewindTo", b.name() == null ? "" : b.name());
     }
 
     // ---- people
