@@ -50,6 +50,14 @@ public record EvalDataset(
 
     /** Reads the folder. A missing folder is one fatal problem and nothing else. */
     public static EvalDataset load(Path dir) {
+        return load(dir, stem -> false);
+    }
+
+    /**
+     * Reads the folder, leaving out the files whose name (without the extension) {@code skip}
+     * accepts: files that hold another kind of case, such as an extractor's or an evaluator's.
+     */
+    public static EvalDataset load(Path dir, java.util.function.Predicate<String> skip) {
         List<Problem> problems = new ArrayList<>();
         Map<String, List<EvalScenario>> files = new TreeMap<>();
         Map<String, String> dimensions = new LinkedHashMap<>();
@@ -73,7 +81,9 @@ public record EvalDataset(
         for (Path file : yaml) {
             String name = file.getFileName().toString();
             String stem = name.substring(0, name.lastIndexOf('.'));
-            if (name.equals(DIMENSIONS_FILE)) {
+            if (skip.test(stem)) {
+                continue;
+            } else if (name.equals(DIMENSIONS_FILE)) {
                 readDimensions(file, dimensions, problems);
             } else if (name.equals(FIXTURES_FILE)) {
                 continue;

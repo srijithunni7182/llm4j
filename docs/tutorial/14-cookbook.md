@@ -28,7 +28,7 @@ Each recipe names the starter that implements it. Open the starter, run `weave t
 
 ### Recipe: pull fields out of text
 
-```loom
+```loom-parse
 substitution: braces
 
 extractor Contact {
@@ -57,7 +57,7 @@ The extractor sees only the email, never the run so far or the shared prompt. A 
 
 ### Recipe: let the reasoning agent think, then extract
 
-```loom
+```loom-parse
 substitution: braces
 
 agent Researcher {

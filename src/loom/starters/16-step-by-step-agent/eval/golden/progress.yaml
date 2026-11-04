@@ -1,0 +1,10 @@
+# Cases for the extractor Progress: exact field checks, no judge. The progress is a value the script owns, so what
+# it reads out of a worker's report must be what the report says.
+- id: progress-001
+  name: One step done, one to go
+  input: "Goal: plan a trip. Previous progress: nothing yet. Worker's report: picked the dates; next is to book the train."
+  expected_fields: { next: "book the train", finished: false }
+- id: progress-002
+  name: The goal is reached
+  input: "Goal: plan a trip. Previous progress: dates picked, train booked. Worker's report: the hotel is booked and nothing is left to do."
+  expected_fields: { finished: true }

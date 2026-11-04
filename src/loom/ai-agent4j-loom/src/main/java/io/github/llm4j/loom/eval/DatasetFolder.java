@@ -55,7 +55,7 @@ public final class DatasetFolder {
      * says which workflow {@code workflow.yaml} is for.
      */
     public static Plan plan(LoomScript script, Path dir, String workflowChoice) {
-        EvalDataset dataset = EvalDataset.load(dir);
+        EvalDataset dataset = EvalDataset.load(dir, GoldenDatasets.nodeFiles(script));
         List<String> problems = new ArrayList<>();
         dataset.problems().forEach(p -> problems.add(p.toString()));
         List<Target> targets = new ArrayList<>();

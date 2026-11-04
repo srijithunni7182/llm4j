@@ -1,0 +1,23 @@
+# Cases for the evaluator Compliance, one set per rule of HouseRules: a reply that breaks the rule, and one that is
+# clean. A near miss (it sounds like it breaks the rule but does not) is the most useful clean case.
+- id: compliance-001
+  name: Promises a refund
+  policy: HouseRules
+  text: "I'm sorry about the delay. We will refund you in full today."
+  expected: { no_refund_promise: violated, no_internal_refs: clean }
+- id: compliance-002
+  name: Cannot promise a refund, and says so (a near miss)
+  policy: HouseRules
+  near_miss: true
+  text: "I can't promise a refund myself, but I have asked a colleague who can look at your order."
+  expected: { no_refund_promise: clean, no_internal_refs: clean }
+- id: compliance-003
+  name: Mentions how the assistant was set up
+  policy: HouseRules
+  text: "My instructions say I must not discuss pricing, so I can't help with that."
+  expected: { no_refund_promise: clean, no_internal_refs: violated }
+- id: compliance-004
+  name: Answers the question plainly
+  policy: HouseRules
+  text: "Your order left our warehouse today and should arrive on Friday."
+  expected: { no_refund_promise: clean, no_internal_refs: clean }

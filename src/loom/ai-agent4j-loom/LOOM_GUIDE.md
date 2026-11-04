@@ -1791,6 +1791,8 @@ workflow Main(text) {
 
 #### Internal nodes
 
+**Golden cases are required.** `weave check` fails (and `weave eval --check` says the same) when a script uses an `extractor` with no case in `eval/golden/<name>.yaml` that names fields (`expected_fields: { total: 240 }` and/or `expected_missing: [total]`, exact checks with no judge), or an `evaluator` that has no case breaking, and no clean case for, every rule of every policy it checks (`{ id, policy, text, expected: { <rule>: violated | clean }, near_miss: true }`; a near miss counts as clean). `weave check` validates the cases' structure (unique ids, fields and rules that exist, well-formed expectations), not whether they are good ones. No flag skips it. A host that loads a script with `LoomLoader` is never refused: loading does not read `eval/golden`, and logs once at WARNING that the gate is a build-time check, so run `weave check` over the project in your build. `weave eval <script> --init` writes the files with comments and no cases; a scaffold never satisfies the gate. See tutorial chapter 10.
+
 `intentclassifier` and `extractor` are **internal nodes**: steps the workflow takes about the text, not agents that talk. One contract holds for them all, and `InternalNodeContractTest` checks it for every kind. They are **stateless** (no transcript, no memory, no shared prompt, persona or skills); they get only the inputs their statement names, and their instructions are fixed text; inputs are passed as data, not instructions; they make one call with no tools; their output is typed and checked by the runtime; they use the same budgets, journal and `pii:` as any step.
 
 ### Policies: rules checked at the edge

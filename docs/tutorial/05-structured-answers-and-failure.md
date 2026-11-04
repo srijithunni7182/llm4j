@@ -114,7 +114,7 @@ workflow Main(text) {
 
 An agent with an `output_schema` can pull fields out of text, but it is an *agent*: it is given the whole run so far and the shared prompt, it can pick up the house voice, and what it extracts can depend on what ran before it. For a step that only reads, that is more than it needs. An **extractor** is a step that is handed only the text you name and the fields you want, and remembers nothing.
 
-```loom
+```loom-parse
 substitution: braces
 
 extractor Invoice {
@@ -168,7 +168,7 @@ agent Analyst {
 
 Fixed:
 
-```loom
+```loom-parse
 substitution: braces
 
 tool Files { use: file  root: "data"  mode: read }
@@ -307,7 +307,7 @@ This is starter [05-parallel-research](../../src/loom/starters/05-parallel-resea
 
 This is starter [08-extract-and-validate](../../src/loom/starters/08-extract-and-validate/): free text becomes checked fields, the script applies its own rule, and the run stops on purpose when the text cannot be read.
 
-```loom
+```loom-parse
 substitution: braces
 
 extractor Invoice {

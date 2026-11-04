@@ -65,7 +65,12 @@ public final class GoldenDatasets {
         Set<String> covered = new LinkedHashSet<>();
         boolean any = false;
         if (dir != null && Files.isDirectory(dir)) {
-            EvalDataset dataset = EvalDataset.load(dir);
+            EvalDataset dataset = EvalDataset.load(dir, nodeFiles(script));
+            for (String node : nodeNames(script))
+                if (NodeCasesGate.caseCount(dir, node) > 0) {
+                    covered.add(node);
+                    any = true;
+                }
             List<String> workflows = script.getWorkflows().stream().map(WorkflowDef::getName).toList();
             for (Map.Entry<String, List<EvalScenario>> file : dataset.files().entrySet()) {
                 List<EvalScenario> cases = file.getValue();
@@ -80,6 +85,23 @@ public final class GoldenDatasets {
             }
         }
         return new Coverage(covered, any);
+    }
+
+    /**
+     * The files of {@code eval/golden} that belong to extractors and evaluators (their cases have
+     * their own format), as a test on the file name without its extension.
+     */
+    public static java.util.function.Predicate<String> nodeFiles(LoomScript script) {
+        Set<String> stems = new LinkedHashSet<>();
+        nodeNames(script).forEach(n -> stems.add(n.toLowerCase(Locale.ROOT)));
+        return stem -> stems.contains(stem.toLowerCase(Locale.ROOT));
+    }
+
+    private static List<String> nodeNames(LoomScript script) {
+        List<String> names = new java.util.ArrayList<>();
+        script.getExtractors().forEach(x -> names.add(x.getName()));
+        script.getEvaluators().forEach(e -> names.add(e.getName()));
+        return names;
     }
 
     /** Every agent, extractor and evaluator of the script, in the order they are declared. */

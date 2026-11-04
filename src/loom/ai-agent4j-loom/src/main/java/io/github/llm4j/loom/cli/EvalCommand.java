@@ -371,6 +371,9 @@ final class EvalCommand implements Callable<Integer> {
 
         DatasetFolder.Plan plan = DatasetFolder.plan(script, dir, c.workflow);
         List<String> problems = new ArrayList<>(plan.problems());
+        // the cases of extractors and evaluators have their own format and gate (docs/specs/28, R4)
+        io.github.llm4j.loom.eval.NodeCasesGate.problems(script, scriptFile)
+                .forEach(p -> problems.add(p.message()));
         for (DatasetFolder.Target t : plan.targets()) {
             for (EvalScenario s : t.scenarios()) {
                 String label =
@@ -961,6 +964,44 @@ final class EvalCommand implements Callable<Integer> {
                           input: "Replace this with a realistic request for %1$s."
                           rubric:
                             - "Replace this with something a good answer must do."
+                        """
+                                .formatted(name, name.toLowerCase()),
+                        made,
+                        kept);
+            }
+            for (var extractor : script.getExtractors()) {
+                String name = extractor.getName();
+                write(
+                        dir.resolve(name.toLowerCase() + ".yaml"),
+                        """
+                        # Cases for the extractor %1$s: exact field checks, no judge. Add at least one case, for example:
+                        # - id: %2$s-001
+                        #   input: "A realistic piece of text to read."
+                        #   expected_fields: { some_field: "the value the text states" }
+                        #   expected_missing: [an_optional_field_the_text_does_not_state]
+                        # A scaffold with no cases does not satisfy `weave check`.
+                        """
+                                .formatted(name, name.toLowerCase()),
+                        made,
+                        kept);
+            }
+            for (var evaluator : script.getEvaluators()) {
+                String name = evaluator.getName();
+                write(
+                        dir.resolve(name.toLowerCase() + ".yaml"),
+                        """
+                        # Cases for the evaluator %1$s. For every rule of every policy it checks write one case that breaks
+                        # the rule and one that is clean (a near miss is the most useful clean case), for example:
+                        # - id: %2$s-001
+                        #   policy: YourPolicy
+                        #   text: "A reply that breaks the rule."
+                        #   expected: { a_rule: violated, another_rule: clean }
+                        # - id: %2$s-002
+                        #   policy: YourPolicy
+                        #   near_miss: true
+                        #   text: "A reply that sounds like it breaks the rule but does not."
+                        #   expected: { a_rule: clean, another_rule: clean }
+                        # A scaffold with no cases does not satisfy `weave check`.
                         """
                                 .formatted(name, name.toLowerCase()),
                         made,

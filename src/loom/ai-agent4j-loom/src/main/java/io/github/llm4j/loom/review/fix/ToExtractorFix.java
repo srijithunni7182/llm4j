@@ -122,7 +122,8 @@ public final class ToExtractorFix implements JavaFixOption {
                                 + name
                                 + " becomes an extractor: it no longer sees the run's transcript or the shared prompt, and its answer is no longer added to the transcript. "
                                 + delegates.size()
-                                + " delegate step(s) become extract steps; the lead-in text before the variable is dropped, because the instructions say the job. Test it on its own afterwards.",
+                                + " delegate step(s) become extract steps; the lead-in text before the variable is dropped, because the instructions say the job. Test it on its own afterwards. "
+                                + GoldenCasesNote.forNewExtractor(baseDir, name, name),
                         FixSafety.REVIEW,
                         List.of(),
                         edits,

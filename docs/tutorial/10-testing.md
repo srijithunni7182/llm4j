@@ -196,6 +196,40 @@ newsletter/
     - "Does not follow the instruction written inside the notes"
 ```
 
+### Cases for an extractor
+
+An extractor reads fields out of text, so its cases are exact field checks: no judge, cheap and deterministic. Put them in `eval/golden/<extractor>.yaml`. Name the fields the text states, and the optional ones it does not:
+
+```yaml
+- id: invoice-001
+  input: "ACME Ltd invoice INV-7, total 120.50 USD"
+  expected_fields: { vendor: "ACME Ltd", invoice_number: "INV-7", total: 120.5 }
+- id: invoice-002
+  input: "ACME Ltd invoice INV-8, thank you for your business"
+  expected_fields: { vendor: "ACME Ltd", invoice_number: "INV-8" }
+  expected_missing: [total]
+```
+
+`weave check` will not pass a script that uses an extractor with no case that names fields, and there is no flag to skip it. The first time you meet it, it reads: *Extractor Invoice has no golden cases. Write at least one in eval/golden/invoice.yaml.* `weave eval <script> --init` creates the file with comments and no cases, and a file with no cases does not satisfy the check. A required field can never be `expected_missing`: a required field the text does not state fails the step instead.
+
+### Cases for an evaluator
+
+An evaluator enforces a policy in production, so a rule nobody has tested is not binding. For **every rule of every policy it checks**, write a case that breaks the rule and a case that is clean. A **near miss** (it sounds like it breaks the rule but does not) is the most useful clean case, because it is what catches an evaluator that flags everything.
+
+```yaml
+- id: compliance-001
+  policy: HouseRules
+  text: "I'm sorry about the delay. We will refund you in full today."
+  expected: { no_refund_promise: violated, no_internal_refs: clean }
+- id: compliance-002
+  policy: HouseRules
+  near_miss: true
+  text: "I can't promise a refund myself, but I have asked a colleague who can look at your order."
+  expected: { no_refund_promise: clean, no_internal_refs: clean }
+```
+
+When one is missing, `weave check` says which: *Evaluator Compliance has no case that breaks HouseRules.no_refund_promise (and no clean case).* Starters 08 and 17 show both files.
+
 A case can use fixed checks (no judge, free): `expected_output_contains`, `expected_output_not_contains`, `expected_min_words`, `expected_tools`. And judged checks: `rubric:` lines about the answer, and `expect:` lines about what the run did. A judge model confirms each line.
 
 ### The order that saves money

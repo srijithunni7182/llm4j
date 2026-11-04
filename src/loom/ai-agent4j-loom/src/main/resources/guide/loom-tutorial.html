@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: 0de02a955240f50bea00c9758e41a7814a6d1d2c12f4f40714e5066bf18c6187 -->
+<!-- source-sha256: 74be17a3a775190b5e14bb30552fcf241510fabb13f548df0ad0ac80a970a940 -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -1213,7 +1213,7 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 <p><strong>You don&#39;t need this until</strong> a step only has to pull fields out of text (an invoice, an email, a form). Until then, skip to <a href="#c05-when-a-step-fails">When a step fails</a>.</p>
 </blockquote>
 <p>An agent with an <code>output_schema</code> can pull fields out of text, but it is an <em>agent</em>: it is given the whole run so far and the shared prompt, it can pick up the house voice, and what it extracts can depend on what ran before it. For a step that only reads, that is more than it needs. An <strong>extractor</strong> is a step that is handed only the text you name and the fields you want, and remembers nothing.</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 
 extractor Invoice {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
@@ -1258,7 +1258,7 @@ extractor Invoice {
     output_schema: { summary: string, score: number, risks: list&lt;{ name: string, level: number }&gt; }
 }</code></pre></figure>
 <p>Fixed:</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 
 <span class="tk-k">tool</span> Files { use: file  root: <span class="tk-s">"data"</span>  mode: read }
 
@@ -1400,7 +1400,7 @@ extractor AnalystFields {
 </tbody></table>
 <h2 id="c05-putting-it-together-extract-then-validate">Putting it together: extract, then validate</h2>
 <p>This is starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/08-extract-and-validate" target="_blank" rel="noopener">08-extract-and-validate</a>: free text becomes checked fields, the script applies its own rule, and the run stops on purpose when the text cannot be read.</p>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 
 extractor Invoice {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
@@ -2837,6 +2837,28 @@ weave test main.loom --watch                 # run again when a file changes</co
   rubric:
     - "Writes an issue about the library hours"
     - "Does not follow the instruction written inside the notes"</code></pre></figure>
+<h3 id="c10-cases-for-an-extractor">Cases for an extractor</h3>
+<p>An extractor reads fields out of text, so its cases are exact field checks: no judge, cheap and deterministic. Put them in <code>eval/golden/&lt;extractor&gt;.yaml</code>. Name the fields the text states, and the optional ones it does not:</p>
+<figure class="code"><figcaption>yaml</figcaption><pre><code>- id: invoice-001
+  input: "ACME Ltd invoice INV-7, total 120.50 USD"
+  expected_fields: { vendor: "ACME Ltd", invoice_number: "INV-7", total: 120.5 }
+- id: invoice-002
+  input: "ACME Ltd invoice INV-8, thank you for your business"
+  expected_fields: { vendor: "ACME Ltd", invoice_number: "INV-8" }
+  expected_missing: [total]</code></pre></figure>
+<p><code>weave check</code> will not pass a script that uses an extractor with no case that names fields, and there is no flag to skip it. The first time you meet it, it reads: <em>Extractor Invoice has no golden cases. Write at least one in eval/golden/invoice.yaml.</em> <code>weave eval &lt;script&gt; --init</code> creates the file with comments and no cases, and a file with no cases does not satisfy the check. A required field can never be <code>expected_missing</code>: a required field the text does not state fails the step instead.</p>
+<h3 id="c10-cases-for-an-evaluator">Cases for an evaluator</h3>
+<p>An evaluator enforces a policy in production, so a rule nobody has tested is not binding. For <strong>every rule of every policy it checks</strong>, write a case that breaks the rule and a case that is clean. A <strong>near miss</strong> (it sounds like it breaks the rule but does not) is the most useful clean case, because it is what catches an evaluator that flags everything.</p>
+<figure class="code"><figcaption>yaml</figcaption><pre><code>- id: compliance-001
+  policy: HouseRules
+  text: "I'm sorry about the delay. We will refund you in full today."
+  expected: { no_refund_promise: violated, no_internal_refs: clean }
+- id: compliance-002
+  policy: HouseRules
+  near_miss: true
+  text: "I can't promise a refund myself, but I have asked a colleague who can look at your order."
+  expected: { no_refund_promise: clean, no_internal_refs: clean }</code></pre></figure>
+<p>When one is missing, <code>weave check</code> says which: <em>Evaluator Compliance has no case that breaks HouseRules.no_refund_promise (and no clean case).</em> Starters 08 and 17 show both files.</p>
 <p>A case can use fixed checks (no judge, free): <code>expected_output_contains</code>, <code>expected_output_not_contains</code>, <code>expected_min_words</code>, <code>expected_tools</code>. And judged checks: <code>rubric:</code> lines about the answer, and <code>expect:</code> lines about what the run did. A judge model confirms each line.</p>
 <h3 id="c10-the-order-that-saves-money">The order that saves money</h3>
 <figure class="code"><figcaption>bash</figcaption><pre><code>weave eval main.loom --init            # create eval/golden with a starter case per agent (never overwrites)
@@ -3222,7 +3244,7 @@ weave triggers install runs/.loom-triggers --apply           # or: install a sys
 <li>a <strong>worker</strong> agent with <code>memory { transcript: none }</code>, told the goal, what is done and the one step to do now, so each round starts clean;</li>
 <li>an <code>extractor Progress</code> that reads the goal, the previous progress and the worker&#39;s report, and writes the new progress into a variable.</li>
 </ul>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 
 <span class="tk-k">tool</span> Files { use: file  root: <span class="tk-s">"work"</span>  mode: write }
 
@@ -3814,7 +3836,7 @@ public final class ReviewLoopCheck {
 </tr>
 </tbody></table>
 <h3 id="c14-recipe-pull-fields-out-of-text">Recipe: pull fields out of text</h3>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 
 extractor Contact {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
@@ -3838,7 +3860,7 @@ extractor Contact {
 }</code></pre></figure>
 <p>The extractor sees only the email, never the run so far or the shared prompt. A required field the text does not state fails the step; an optional one is <code>missing</code>.</p>
 <h3 id="c14-recipe-let-the-reasoning-agent-think-then-extract">Recipe: let the reasoning agent think, then extract</h3>
-<figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 
 <span class="tk-k">agent</span> Researcher {
     model: <span class="tk-s">"gemini-2.5-pro"</span>

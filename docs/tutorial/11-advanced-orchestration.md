@@ -316,7 +316,7 @@ flowchart LR
 - a **worker** agent with `memory { transcript: none }`, told the goal, what is done and the one step to do now, so each round starts clean;
 - an `extractor Progress` that reads the goal, the previous progress and the worker's report, and writes the new progress into a variable.
 
-```loom
+```loom-parse
 substitution: braces
 
 tool Files { use: file  root: "work"  mode: write }

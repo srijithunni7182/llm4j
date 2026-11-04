@@ -213,6 +213,7 @@ public final class SplitFix implements JavaFixOption {
                                         + " and need updating (the fix never edits tests): "
                                         + String.join(", ", tests)
                                         + ". ");
+        explain = explain + GoldenCasesNote.forNewExtractor(baseDir, extractorName, name);
         return Offer.of(
                 new FixOption(ID, "Let " + name + " answer in prose and extract its fields", explain.strip(), FixSafety.REVIEW, List.of(), edits, false));
     }
