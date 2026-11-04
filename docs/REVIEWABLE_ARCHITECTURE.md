@@ -538,6 +538,80 @@ workflow Main(ticket) {
 
 Loom does not check this one: detecting it would rest on field names. It is taught in the Loom guide ("Output Schema Enforcement"), the workflow-guide skill and the evaluation-design skill. An `intentclassify` step with `confidence at least` is the structured form, and calibration is measured as one of the quality dimensions.
 
+## What a coding agent sees
+
+A coding agent, or a developer who has never heard of these practices, does not need to know them. It writes a first draft, runs `weave check`, and reads what comes back. Here is a plausible first draft of a support workflow that sends the reply to a channel:
+
+```loom
+substitution: braces
+
+tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
+evaluator Compliance { model: "gemini-2.5-pro" }
+policy HouseRules: "house-rules" checked by Compliance
+agent Support { model: "gemini-2.5-flash"  system: "Answer customers." }
+
+workflow Main(question) {
+    delegate "{question}" to Support -> reply
+    use Notify(text = reply) -> receipt retry 2
+    return reply
+}
+```
+
+```text check
+⚠ line 10: workflow Main: receipt is set here and never used (warning)
+✗ line 10: use Notify: Notify changes things and is not marked safe to repeat, so a retry after an unknown outcome could do it twice; remove retry, or declare the tool idempotent
+✗ line 11: return in Main: a value written by a model (Support, line 9) reaches this return without a check against HouseRules. Add: check <variable> against HouseRules using <Evaluator> before the return.
+2 problems in main.loom
+```
+
+Each line names the step and says what to do. The exit code is 2, and `weave check --format json` gives the same problems as data, so a loop can read them, fix them and run the check again. The draft has two errors and a warning: a retry on a step that changes something could post twice, the reply reaches the caller with no check against the policy, and the receipt is never used. The agent fixes the errors, puts the check before the send, and asks a person once about the exact text. The second run has only the warning left, which it can fix or leave:
+
+```loom
+substitution: braces
+
+tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
+evaluator Compliance { model: "gemini-2.5-pro" }
+policy HouseRules: "house-rules" checked by Compliance
+agent Support { model: "gemini-2.5-flash"  system: "Answer customers." }
+agent Editor { model: "gemini-2.5-flash"  system: "Rewrite the reply so it follows the rules." }
+
+workflow Main(question) {
+    delegate "{question}" to Support -> reply
+    check reply against HouseRules using Compliance -> verdict on_violation { rewrite with Editor }
+    use Notify(text = reply) approve "Post this reply?" -> receipt
+        on_declined { return "Not posted." }
+    return reply
+}
+```
+
+```text check
+⚠ line 12: workflow Main: receipt is set here and never used (warning)
+✓ main.loom: ready to run (1 warning)
+  next: weave next says what to do now; weave guide recipes has tested changes to copy
+```
+
+```loom clean LR11,LA02,LH05
+substitution: braces
+
+tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
+evaluator Compliance { model: "gemini-2.5-pro" }
+policy HouseRules: "house-rules" checked by Compliance
+agent Support { model: "gemini-2.5-flash"  system: "Answer customers." }
+agent Editor { model: "gemini-2.5-flash"  system: "Rewrite the reply so it follows the rules." }
+
+workflow Main(question) {
+    delegate "{question}" to Support -> reply
+    check reply against HouseRules using Compliance -> verdict on_violation { rewrite with Editor }
+    use Notify(text = reply) approve "Post this reply?" -> receipt
+        on_declined { return "Not posted." }
+    return reply
+}
+```
+
+The same workflow is now clean of the hand-off, unapproved-effect and mid-loop-question findings that `weave review` would raise. In the probes the other frameworks gave no such feedback: builds raised zero warnings, and no installed package analysed a workflow for a missing check ([probe P11](../probes/README.md#p11-a-reply-that-breaks-a-written-rule-can-it-leave-without-a-check)).
+
+Two honest limits. Only `weave check` errors stop a run of the loop; `weave review` findings are advice with exit code 0 until a team sets `--fail-on` (the CI file `weave init` writes uses `high`, and several of the rules above are medium). And the checks read structure: they make the cheap path the right one and the wrong path visible, but they cannot tell whether a policy's rules or a golden case are good ones. `weave eval --requirements` puts those in front of a person.
+
 ## What is not enforced
 
 Said plainly, because a reviewer should know where the tool stops:
