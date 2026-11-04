@@ -11,7 +11,7 @@ weave check switch.loom             # lists any model whose key is missing
 
 - `gpt-5-mini`, `xai/grok-3`, `kimi/kimi-k3`, `qwen/qwen3-max` and `perplexity/openai/gpt-5.6-terra` are resolved by name; the key comes from the environment
   (`OPENAI_API_KEY`, `XAI_API_KEY`, `MOONSHOT_API_KEY`, `DASHSCOPE_API_KEY`, `PERPLEXITY_API_KEY`) or a secret store, bound to the vendor's host
-  (`weave secret set OPENAI_API_KEY` binds it to `api.openai.com`).
+  (`weave secrets set OPENAI_API_KEY` binds it to `api.openai.com`).
 - `routing Vendors` tries the primary and falls back, in order, when a vendor is unavailable or rate limited.
 - `provider Local { use: openai_compatible … }` reaches a local vLLM or LM Studio server; it needs no key.
 

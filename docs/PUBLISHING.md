@@ -1,6 +1,6 @@
 # Publishing to Maven Central
 
-One command from the repository root builds, tests, signs and uploads **ten libraries and the parent pom** as a single bundle to the
+One command from the repository root builds, tests, signs and uploads **eleven libraries and the parent pom** as a single bundle to the
 [Sonatype Central Portal](https://central.sonatype.com/):
 
 | Artifact (`io.github.srijithunni7182`) | What it is |
@@ -13,6 +13,7 @@ One command from the repository root builds, tests, signs and uploads **ten libr
 | `ai-agent4j-loom` | Loom: the thin library jar, plus the runnable `weave` jar as the `cli` classifier |
 | `loom-inspect-core`, `loom-inspect`, `loom-fabric` | live observability for Loom runs, and the Fabric server (`-all` jar) |
 | `llm4j-spring-boot-starter` | Spring Boot auto-configuration (Loom, tools, addons and spring-jdbc are optional) |
+| `loom-maven-plugin` | generates typed Java bindings for Loom scripts and fails the build when checked-in bindings drift |
 
 Not published: `engram` and the example applications (they are built only with `-Pextended`).
 
@@ -43,10 +44,10 @@ Every release runs the default tests; `-Prelease` never skips them. Slow tests (
    A jar says what it is: `weave --version` prints `release` or `development`, the commit and the build time, and the same facts are in every module jar's manifest (`Implementation-Version`, `Build-Kind`, `Build-Commit`, `Build-Dirty`, `Build-Time`). `-Prelease` marks the build a release.
 2. Check locally, without a key:
    `make release-check` (= `mvn -Prelease -Dgpg.skip=true clean verify`, then `java scripts/CheckJars.java src`). It builds the sources and javadoc jars and the `cli` jar, and refuses any jar that does not say what it is or holds a half-compiled class from an editor's language server (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
-3. Tag and push: `git tag v5.1 && git push origin v5.1`. The workflow `Build, Validate, and Deploy` runs the tests on JDK 17 and 21,
+3. Tag and push: `git tag v6.2.0 && git push origin v6.2.0`. The workflow `Build, Validate, and Deploy` runs the tests on JDK 17 and 21,
    then `mvn -B -Prelease deploy` (tests again, sign, upload). You can also start it by hand with *Run workflow → deploy*.
 4. **Review in the Portal.** By default the upload is *not* published (`central.autoPublish=false`): open
-   *Deployments* in the Central Portal, check the six artifacts and their signatures validated, then press **Publish**.
+   *Deployments* in the Central Portal, check the twelve artifacts (eleven libraries and the parent pom) and their signatures validated, then press **Publish**.
    Publishing is permanent. Once you trust the flow, tick `auto_publish` when starting the workflow by hand, or pass
    `-Dcentral.autoPublish=true`.
 5. Central syncs in 10–30 minutes; then the artifacts appear at `search.maven.org` and are resolvable from any build.

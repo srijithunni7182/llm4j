@@ -70,7 +70,7 @@ agent Offline  { model: "Local/llama-3.3-70b" }
 
 Name a vendor with its prefix (`openai/`, `xai/`, `kimi/`, `qwen/`, `perplexity/`), or write a bare name only one vendor could own (`gpt-…`, `grok-…`, `kimi-…`);
 a bare `qwen3` is not guessed because it usually means a local Ollama model. `weave check` reports a missing key by its variable name before anything runs.
-Keep keys in the secret store: `weave secret set OPENAI_API_KEY` binds the key to `api.openai.com`, so a script cannot send it anywhere else.
+Keep keys in the secret store: `weave secrets set OPENAI_API_KEY` binds the key to `api.openai.com`, so a script cannot send it anywhere else.
 
 ## Current information: `grounding: web`
 
