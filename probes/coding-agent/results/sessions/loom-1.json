@@ -1,0 +1,355 @@
+{
+ "arm": "loom",
+ "trial": 1,
+ "tokens_in": 136245,
+ "tokens_out": 3802,
+ "dollars": 0.0227,
+ "run": {
+  "turns": 14,
+  "finished": false,
+  "error": null,
+  "events": [
+   {
+    "turn": 1,
+    "tool": null,
+    "note": "```loom\n// main.loom\naudit { logger: \"file\", path: \"logs/audit.json\" }\n\nrouting CustomerSupportLogic {\n    strategy: fallback\n    primary: \"gpt-4o\" // Placeholder for the primary model\n    fallback: ["
+   },
+   {
+    "turn": 2,
+    "tool": "run_command",
+    "command": "weave check main.loom",
+    "exit": 2
+   },
+   {
+    "turn": 2,
+    "tool": "run_command",
+    "command": "weave review main.loom",
+    "exit": 2
+   },
+   {
+    "turn": 2,
+    "tool": "run_command",
+    "command": "weave check policies/no_refunds.md",
+    "exit": 2
+   },
+   {
+    "turn": 3,
+    "tool": "write_file",
+    "path": "main.loom"
+   },
+   {
+    "turn": 3,
+    "tool": "write_file",
+    "path": "policies/no_refunds.md"
+   },
+   {
+    "turn": 4,
+    "tool": "run_command",
+    "command": "weave check main.loom",
+    "exit": 2
+   },
+   {
+    "turn": 4,
+    "tool": "run_command",
+    "command": "weave review main.loom",
+    "exit": 2
+   },
+   {
+    "turn": 4,
+    "tool": "run_command",
+    "command": "weave check policies/no_refunds.md",
+    "exit": 2
+   },
+   {
+    "turn": 5,
+    "tool": "write_file",
+    "path": "main.loom"
+   },
+   {
+    "turn": 5,
+    "tool": "write_file",
+    "path": "policies/no_refunds.md"
+   },
+   {
+    "turn": 6,
+    "tool": "run_command",
+    "command": "weave check main.loom",
+    "exit": 2
+   },
+   {
+    "turn": 6,
+    "tool": "run_command",
+    "command": "weave review main.loom",
+    "exit": 2
+   },
+   {
+    "turn": 6,
+    "tool": "run_command",
+    "command": "weave check policies/no_refunds.md",
+    "exit": 2
+   },
+   {
+    "turn": 7,
+    "tool": "write_file",
+    "path": "main.loom"
+   },
+   {
+    "turn": 7,
+    "tool": "write_file",
+    "path": "policies/no_refunds.md"
+   },
+   {
+    "turn": 8,
+    "tool": "run_command",
+    "command": "weave check main.loom",
+    "exit": 2
+   },
+   {
+    "turn": 8,
+    "tool": "run_command",
+    "command": "weave review main.loom",
+    "exit": 2
+   },
+   {
+    "turn": 8,
+    "tool": "run_command",
+    "command": "weave check policies/no_refunds.md",
+    "exit": 2
+   },
+   {
+    "turn": 9,
+    "tool": "write_file",
+    "path": "main.loom"
+   },
+   {
+    "turn": 9,
+    "tool": "write_file",
+    "path": "policies/no_refunds.md"
+   },
+   {
+    "turn": 10,
+    "tool": "run_command",
+    "command": "weave check main.loom",
+    "exit": 2
+   },
+   {
+    "turn": 10,
+    "tool": "run_command",
+    "command": "weave review main.loom",
+    "exit": 2
+   },
+   {
+    "turn": 10,
+    "tool": "run_command",
+    "command": "weave check policies/no_refunds.md",
+    "exit": 2
+   },
+   {
+    "turn": 11,
+    "tool": "write_file",
+    "path": "main.loom"
+   },
+   {
+    "turn": 11,
+    "tool": "write_file",
+    "path": "policies/no_refunds.md"
+   },
+   {
+    "turn": 12,
+    "tool": "run_command",
+    "command": "weave check main.loom",
+    "exit": 2
+   },
+   {
+    "turn": 12,
+    "tool": "run_command",
+    "command": "weave review main.loom",
+    "exit": 2
+   },
+   {
+    "turn": 12,
+    "tool": "run_command",
+    "command": "weave check policies/no_refunds.md",
+    "exit": 2
+   },
+   {
+    "turn": 13,
+    "tool": "write_file",
+    "path": "main.loom"
+   },
+   {
+    "turn": 13,
+    "tool": "write_file",
+    "path": "policies/no_refunds.md"
+   },
+   {
+    "turn": 14,
+    "tool": "run_command",
+    "command": "weave check main.loom",
+    "exit": 2
+   },
+   {
+    "turn": 14,
+    "tool": "run_command",
+    "command": "weave review main.loom",
+    "exit": 2
+   },
+   {
+    "turn": 14,
+    "tool": "run_command",
+    "command": "weave check policies/no_refunds.md",
+    "exit": 2
+   }
+  ],
+  "verifications": [
+   {
+    "turn": 2,
+    "command": "weave check main.loom",
+    "exit": 2,
+    "output": "\u2717 main.loom: there is no file at /tmp/probe-coding-agent/loom-1/work/main.loom. Check the path (weave next, run in the project folder, says where the script is)"
+   },
+   {
+    "turn": 2,
+    "command": "weave review main.loom",
+    "exit": 2,
+    "output": "Error: main.loom could not be read: /tmp/probe-coding-agent/loom-1/work/main.loom"
+   },
+   {
+    "turn": 2,
+    "command": "weave check policies/no_refunds.md",
+    "exit": 2,
+    "output": "\u2717 no_refunds.md: there is no file at /tmp/probe-coding-agent/loom-1/work/policies/no_refunds.md. Check the path (weave next, run in the project folder, says where the script is)"
+   },
+   {
+    "turn": 4,
+    "command": "weave check main.loom",
+    "exit": 2,
+    "output": "\u2717 main.loom: Parse error at line 2 col 23 (COMMA): Unexpected token in audit body: COMMA"
+   },
+   {
+    "turn": 4,
+    "command": "weave review main.loom",
+    "exit": 2,
+    "output": "Error: main.loom could not be read: Parse error at line 2 col 23 (COMMA): Unexpected token in audit body: COMMA"
+   },
+   {
+    "turn": 4,
+    "command": "weave check policies/no_refunds.md",
+    "exit": 2,
+    "output": "\u2717 no_refunds.md: Unexpected character '#' at line 1"
+   },
+   {
+    "turn": 6,
+    "command": "weave check main.loom",
+    "exit": 2,
+    "output": "\u2717 main.loom: Parse error at line 29 col 1 (IDENTIFIER): Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'extractor', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: IDENTIFIER"
+   },
+   {
+    "turn": 6,
+    "command": "weave review main.loom",
+    "exit": 2,
+    "output": "Error: main.loom could not be read: Parse error at line 29 col 1 (IDENTIFIER): Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'extractor', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: IDENTIFIER"
+   },
+   {
+    "turn": 6,
+    "command": "weave check policies/no_refunds.md",
+    "exit": 2,
+    "output": "\u2717 no_refunds.md: Unexpected character '#' at line 1"
+   },
+   {
+    "turn": 8,
+    "command": "weave check main.loom",
+    "exit": 2,
+    "output": "\u2717 main.loom: Parse error at line 29 col 1 (IDENTIFIER): Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'extractor', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: IDENTIFIER"
+   },
+   {
+    "turn": 8,
+    "command": "weave review main.loom",
+    "exit": 2,
+    "output": "Error: main.loom could not be read: Parse error at line 29 col 1 (IDENTIFIER): Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'extractor', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: IDENTIFIER"
+   },
+   {
+    "turn": 8,
+    "command": "weave check policies/no_refunds.md",
+    "exit": 2,
+    "output": "\u2717 no_refunds.md: Unexpected character '#' at line 1"
+   },
+   {
+    "turn": 10,
+    "command": "weave check main.loom",
+    "exit": 2,
+    "output": "\u2717 main.loom: Parse error at line 29 col 1 (IDENTIFIER): Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'extractor', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: IDENTIFIER"
+   },
+   {
+    "turn": 10,
+    "command": "weave review main.loom",
+    "exit": 2,
+    "output": "Error: main.loom could not be read: Parse error at line 29 col 1 (IDENTIFIER): Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'extractor', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: IDENTIFIER"
+   },
+   {
+    "turn": 10,
+    "command": "weave check policies/no_refunds.md",
+    "exit": 2,
+    "output": "\u2717 no_refunds.md: Unexpected character '#' at line 1"
+   },
+   {
+    "turn": 12,
+    "command": "weave check main.loom",
+    "exit": 2,
+    "output": "\u2717 main.loom: Parse error at line 37 col 9 (IDENTIFIER): on_violation takes exactly one action: rewrite with <Agent>, ask person, replace with \"\u2026\" or fail."
+   },
+   {
+    "turn": 12,
+    "command": "weave review main.loom",
+    "exit": 2,
+    "output": "Error: main.loom could not be read: Parse error at line 37 col 9 (IDENTIFIER): on_violation takes exactly one action: rewrite with <Agent>, ask person, replace with \"\u2026\" or fail."
+   },
+   {
+    "turn": 12,
+    "command": "weave check policies/no_refunds.md",
+    "exit": 2,
+    "output": "\u2717 no_refunds.md: Unexpected character '#' at line 1"
+   },
+   {
+    "turn": 14,
+    "command": "weave check main.loom",
+    "exit": 2,
+    "output": "\u2717 main.loom: Parse error at line 29 col 1 (IDENTIFIER): Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'extractor', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: IDENTIFIER"
+   },
+   {
+    "turn": 14,
+    "command": "weave review main.loom",
+    "exit": 2,
+    "output": "Error: main.loom could not be read: Parse error at line 29 col 1 (IDENTIFIER): Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'extractor', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: IDENTIFIER"
+   },
+   {
+    "turn": 14,
+    "command": "weave check policies/no_refunds.md",
+    "exit": 2,
+    "output": "\u2717 no_refunds.md: Unexpected character '#' at line 1"
+   }
+  ]
+ },
+ "scores": {
+  "S0": {
+   "sends": [],
+   "outcome": "error: RuntimeException: Parse error at line 29 col 1 (IDENTIFIER): Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'extractor'"
+  },
+  "S1": {
+   "sends": [],
+   "outcome": "error: RuntimeException: Parse error at line 29 col 1 (IDENTIFIER): Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'extractor'"
+  },
+  "S2": {
+   "sends": [],
+   "outcome": "error: RuntimeException: Parse error at line 29 col 1 (IDENTIFIER): Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'extractor'"
+  },
+  "S3": {
+   "sends": [],
+   "outcome": "error: RuntimeException: Parse error at line 29 col 1 (IDENTIFIER): Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'intentclassifier', 'extractor'"
+  }
+ },
+ "files": [
+  "main.loom",
+  "policies/no_refunds.md"
+ ]
+}

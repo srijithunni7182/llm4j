@@ -1,0 +1,157 @@
+{
+ "arm": "langgraph_informed",
+ "trial": 1,
+ "tokens_in": 25499,
+ "tokens_out": 1954,
+ "dollars": 0.005,
+ "run": {
+  "turns": 14,
+  "finished": false,
+  "error": null,
+  "events": [
+   {
+    "turn": 1,
+    "tool": "write_file",
+    "path": "app.py"
+   },
+   {
+    "turn": 2,
+    "tool": "run_command",
+    "command": "python app.py",
+    "exit": 1
+   },
+   {
+    "turn": 3,
+    "tool": "write_file",
+    "path": "app.py"
+   },
+   {
+    "turn": 4,
+    "tool": "run_command",
+    "command": "python app.py",
+    "exit": 1
+   },
+   {
+    "turn": 5,
+    "tool": "write_file",
+    "path": "app.py"
+   },
+   {
+    "turn": 6,
+    "tool": "run_command",
+    "command": "python app.py",
+    "exit": 1
+   },
+   {
+    "turn": 7,
+    "tool": "write_file",
+    "path": "app.py"
+   },
+   {
+    "turn": 8,
+    "tool": "run_command",
+    "command": "python app.py",
+    "exit": 1
+   },
+   {
+    "turn": 9,
+    "tool": "write_file",
+    "path": "app.py"
+   },
+   {
+    "turn": 10,
+    "tool": "run_command",
+    "command": "python app.py",
+    "exit": 1
+   },
+   {
+    "turn": 11,
+    "tool": "write_file",
+    "path": "app.py"
+   },
+   {
+    "turn": 12,
+    "tool": "run_command",
+    "command": "python app.py",
+    "exit": 1
+   },
+   {
+    "turn": 13,
+    "tool": "write_file",
+    "path": "app.py"
+   },
+   {
+    "turn": 14,
+    "tool": "run_command",
+    "command": "python app.py",
+    "exit": 1
+   }
+  ],
+  "verifications": [
+   {
+    "turn": 2,
+    "command": "python app.py",
+    "exit": 1,
+    "output": "Traceback (most recent call last):\n  File \"/tmp/probe-coding-agent/langgraph_informed-1/work/app.py\", line 1, in <module>\n    from langchain_core import BaseChatModel\nImportError: cannot import name 'BaseChatModel' from 'langchain_core' (/tmp/claude-0/pvenv/lib/python3.13/site-packages/langchain_core/__init__.py)"
+   },
+   {
+    "turn": 4,
+    "command": "python app.py",
+    "exit": 1,
+    "output": "Traceback (most recent call last):\n  File \"/tmp/probe-coding-agent/langgraph_informed-1/work/app.py\", line 1, in <module>\n    from langchain import LLMChain\nImportError: cannot import name 'LLMChain' from 'langchain' (/tmp/claude-0/pvenv/lib/python3.13/site-packages/langchain/__init__.py)"
+   },
+   {
+    "turn": 6,
+    "command": "python app.py",
+    "exit": 1,
+    "output": "Traceback (most recent call last):\n  File \"/tmp/probe-coding-agent/langgraph_informed-1/work/app.py\", line 1, in <module>\n    from langchain_core import ChatOpenAI\nImportError: cannot import name 'ChatOpenAI' from 'langchain_core' (/tmp/claude-0/pvenv/lib/python3.13/site-packages/langchain_core/__init__.py)"
+   },
+   {
+    "turn": 8,
+    "command": "python app.py",
+    "exit": 1,
+    "output": "Traceback (most recent call last):\n  File \"/tmp/probe-coding-agent/langgraph_informed-1/work/app.py\", line 1, in <module>\n    from langchain import ChatOpenAI\nImportError: cannot import name 'ChatOpenAI' from 'langchain' (/tmp/claude-0/pvenv/lib/python3.13/site-packages/langchain/__init__.py)"
+   },
+   {
+    "turn": 10,
+    "command": "python app.py",
+    "exit": 1,
+    "output": "Traceback (most recent call last):\n  File \"/tmp/probe-coding-agent/langgraph_informed-1/work/app.py\", line 1, in <module>\n    from langchain.chat_models import ChatOpenAI\nImportError: cannot import name 'ChatOpenAI' from 'langchain.chat_models' (/tmp/claude-0/pvenv/lib/python3.13/site-packages/langchain/chat_models/__init__.py)"
+   },
+   {
+    "turn": 12,
+    "command": "python app.py",
+    "exit": 1,
+    "output": "Traceback (most recent call last):\n  File \"/tmp/probe-coding-agent/langgraph_informed-1/work/app.py\", line 1, in <module>\n    from langchain.llms import OpenAI\nModuleNotFoundError: No module named 'langchain.llms'"
+   },
+   {
+    "turn": 14,
+    "command": "python app.py",
+    "exit": 1,
+    "output": "Traceback (most recent call last):\n  File \"/tmp/probe-coding-agent/langgraph_informed-1/work/app.py\", line 1, in <module>\n    from langchain import OpenAI\nImportError: cannot import name 'OpenAI' from 'langchain' (/tmp/claude-0/pvenv/lib/python3.13/site-packages/langchain/__init__.py)"
+   }
+  ]
+ },
+ "scores": {
+  "S0": {
+   "sends": [],
+   "outcome": "error: ImportError: cannot import name 'OpenAI' from 'langchain' (/tmp/claude-0/pvenv/lib/python3.13/site-packages/langchain/__init__.py)"
+  },
+  "S1": {
+   "sends": [],
+   "outcome": "error: ImportError: cannot import name 'OpenAI' from 'langchain' (/tmp/claude-0/pvenv/lib/python3.13/site-packages/langchain/__init__.py)"
+  },
+  "S2": {
+   "sends": [],
+   "outcome": "error: ImportError: cannot import name 'OpenAI' from 'langchain' (/tmp/claude-0/pvenv/lib/python3.13/site-packages/langchain/__init__.py)"
+  },
+  "S3": {
+   "sends": [],
+   "outcome": "error: ImportError: cannot import name 'OpenAI' from 'langchain' (/tmp/claude-0/pvenv/lib/python3.13/site-packages/langchain/__init__.py)"
+  }
+ },
+ "files": [
+  "__pycache__/app.cpython-313.pyc",
+  "app.py"
+ ]
+}
