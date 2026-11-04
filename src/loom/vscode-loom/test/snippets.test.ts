@@ -21,7 +21,7 @@ function expand(body: string[]): string {
 }
 
 // Statement-level snippets go inside a workflow; the rest are whole top-level definitions.
-const TOP = new Set(['extractor', 'intentclassifier', 'agent', 'agent-private', 'agent-steerable', 'agent-grounded', 'intervention', 'supervise', 'workflow', 'budget', 'tool', 'tool-class', 'import']);
+const TOP = new Set(['extractor', 'evaluator', 'intentclassifier', 'agent', 'agent-private', 'agent-steerable', 'agent-grounded', 'intervention', 'supervise', 'workflow', 'budget', 'tool', 'tool-class', 'import']);
 // Not checkable on their own: a task is Java (graph only), an import needs a file.
 // halt and return end the path (the frame's own statements after them would never run), and `is ok` needs a real run result.
 const PARSE_ONLY = new Set(['agent-grounded', 'run', 'halt', 'return', 'isok']);
@@ -42,6 +42,20 @@ function frame(name: string, text: string): string {
     }
     if (name === 'agent' || name === 'agent-private' || name === 'agent-steerable' || name === 'agent-grounded') {
         return text + '\nworkflow Main(topic_text) {\n    delegate "x" to ' + /agent (\w+)/.exec(text)![1] + ' -> out_text\n    note "{out_text}"\n}\n';
+    }
+    if (name === 'check') {
+        // needs a policy and an evaluator declared above it, and a model-written text to check
+        return PRELUDE + 'evaluator Compliance { model: "ollama/llama3" }\npolicy HouseRules: "house-rules" checked by Compliance\n' +
+            'workflow Main(topic_text) {\n    delegate "Write about {topic_text}" to Writer -> reply\n' + text.split('\n').map((l) => '    ' + l).join('\n') +
+            '\n    return reply\n}\n';
+    }
+    if (name === 'use-tool') {
+        return PRELUDE + 'tool Notify { use: class  class: "shop.Notify" effect: changes }\nworkflow Main(topic_text) {\n    delegate "Write about {topic_text}" to Writer -> publish_text\n' +
+            text.split('\n').map((l) => '    ' + l).join('\n') + '\n    note "{receipt}"\n}\n';
+    }
+    if (name === 'for-each-max') {
+        return PRELUDE + 'extractor Plan {\n    model: "ollama/llama3"\n    fields {\n        items: list<{ name: string }>\n    }\n}\nworkflow Main(topic_text) {\n    extract Plan from topic_text -> plan\n' +
+            text.split('\n').map((l) => '    ' + l).join('\n') + '\n}\n';
     }
     if (name === 'extract') {
         // a statement that needs an extractor declared above it
@@ -105,6 +119,16 @@ for (const [name, s] of Object.entries(snippets)) {
     test(`the "${s.prefix}" snippet, as typed, is a script that weave accepts`, { skip }, () => {
         const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'loom-snippet-'));
         fs.mkdirSync(path.join(dir, 'prompts'));
+        // what a checked project has beside its script: the rules of a policy, and golden cases for each extractor and evaluator
+        fs.mkdirSync(path.join(dir, 'policies'));
+        fs.writeFileSync(path.join(dir, 'policies', 'house-rules.md'), '# House rules\n\n## no_refund_promise\nThe reply promises a refund.\n');
+        fs.mkdirSync(path.join(dir, 'eval', 'golden'), { recursive: true });
+        const fieldCase = '- id: a-001\n  name: one\n  input: "ACME total 5"\n  expected_fields: { %s: x }\n';
+        fs.writeFileSync(path.join(dir, 'eval', 'golden', 'invoice.yaml'), fieldCase.replace('%s', 'vendor'));
+        fs.writeFileSync(path.join(dir, 'eval', 'golden', 'plan.yaml'), fieldCase.replace('%s', 'items'));
+        fs.writeFileSync(path.join(dir, 'eval', 'golden', 'compliance.yaml'),
+            '- id: c-001\n  name: breaks it\n  policy: HouseRules\n  text: "We will refund you."\n  expected: { no_refund_promise: violated }\n' +
+            '- id: c-002\n  name: near miss\n  policy: HouseRules\n  near_miss: true\n  text: "I cannot promise a refund."\n  expected: { no_refund_promise: clean }\n');
         fs.writeFileSync(path.join(dir, 'prompts', 'writer.md'), 'You write.\n');
         const file = path.join(dir, 'main.loom');
         fs.writeFileSync(file, frame(name, expand(s.body)));
