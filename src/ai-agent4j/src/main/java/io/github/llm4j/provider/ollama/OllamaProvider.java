@@ -219,7 +219,26 @@ public class OllamaProvider implements DescribableProvider {
             request.getStopSequences().forEach(stopArray::add);
         }
 
+        io.github.llm4j.model.ResponseFormat format = request.getResponseFormat();
+        if (format != null
+                && structuredOutput(model) == io.github.llm4j.model.StructuredOutput.JSON_SCHEMA)
+            root.set("format", objectMapper.valueToTree(format.schema()));
+
         return objectMapper.writeValueAsString(root);
+    }
+
+    /**
+     * A local server holds any model it runs to a schema (it constrains decoding itself); Ollama
+     * Cloud documents that it does not support structured outputs, so a host that is {@code
+     * ollama.com} or a subdomain of it is left on the prompt route.
+     */
+    @Override
+    public io.github.llm4j.model.StructuredOutput structuredOutput(String model) {
+        String host = java.net.URI.create(baseUrl).getHost();
+        boolean cloud = host != null && (host.equals("ollama.com") || host.endsWith(".ollama.com"));
+        return cloud
+                ? io.github.llm4j.model.StructuredOutput.NONE
+                : io.github.llm4j.model.StructuredOutput.JSON_SCHEMA;
     }
 
     private Headers buildHeaders() {

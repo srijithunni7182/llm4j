@@ -22,6 +22,7 @@ public final class LLMRequest {
     private final ToolChoice toolChoice;
     private final boolean reasoning;
     private final io.github.llm4j.grounding.Grounding grounding;
+    private final ResponseFormat responseFormat;
 
     /** Whether the model may call the tools it is offered. */
     public enum ToolChoice {
@@ -51,6 +52,7 @@ public final class LLMRequest {
         this.toolChoice = builder.toolChoice == null ? ToolChoice.AUTO : builder.toolChoice;
         this.reasoning = builder.reasoning;
         this.grounding = builder.grounding;
+        this.responseFormat = builder.responseFormat;
 
         validate();
     }
@@ -128,6 +130,15 @@ public final class LLMRequest {
         return grounding;
     }
 
+    /**
+     * The schema the reply must follow, or null (the default) for an unconstrained reply. A client
+     * that cannot constrain replies for the model leaves it out; see {@link
+     * io.github.llm4j.LLMClient#structuredOutput(String)}.
+     */
+    public ResponseFormat getResponseFormat() {
+        return responseFormat;
+    }
+
     /** A builder holding everything of this request, so a copy never drops a field. */
     public Builder toBuilder() {
         Builder b =
@@ -142,7 +153,8 @@ public final class LLMRequest {
                         .tools(tools)
                         .toolChoice(toolChoice)
                         .reasoning(reasoning)
-                        .grounding(grounding);
+                        .grounding(grounding)
+                        .responseFormat(responseFormat);
         if (!additionalParameters.isEmpty()) b.additionalParameters(additionalParameters);
         return b;
     }
@@ -167,7 +179,8 @@ public final class LLMRequest {
                 && Objects.equals(tools, that.tools)
                 && toolChoice == that.toolChoice
                 && reasoning == that.reasoning
-                && Objects.equals(grounding, that.grounding);
+                && Objects.equals(grounding, that.grounding)
+                && Objects.equals(responseFormat, that.responseFormat);
     }
 
     @Override
@@ -184,7 +197,8 @@ public final class LLMRequest {
                 tools,
                 toolChoice,
                 reasoning,
-                grounding);
+                grounding,
+                responseFormat);
     }
 
     @Override
@@ -223,8 +237,15 @@ public final class LLMRequest {
         private ToolChoice toolChoice;
         private boolean reasoning;
         private io.github.llm4j.grounding.Grounding grounding;
+        private ResponseFormat responseFormat;
 
         private Builder() {}
+
+        /** Asks for a reply that follows a JSON Schema; null (the default) leaves it free. */
+        public Builder responseFormat(ResponseFormat responseFormat) {
+            this.responseFormat = responseFormat;
+            return this;
+        }
 
         /**
          * Asks the model to show its reasoning on a streamed call ({@code chatStream}); it arrives

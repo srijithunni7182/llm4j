@@ -234,6 +234,13 @@ public class OpenAiCompatibleProvider implements DescribableProvider {
     }
 
     @Override
+    public io.github.llm4j.model.StructuredOutput structuredOutput(String model) {
+        String name = model != null ? model : config.getDefaultModel();
+        if (name == null || name.isBlank()) name = dialect.fallbackModel();
+        return dialect.structuredOutput(name);
+    }
+
+    @Override
     public boolean supportsToolCalling() {
         return dialect.toolCalling();
     }

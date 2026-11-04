@@ -106,7 +106,7 @@ Built, tests first (red for the right reason, then green): `ExtractorParsingTest
 
 **Docs and tooling run for 24a:** `LOOM_GUIDE.md` (section "Extracting fields" and "Internal nodes"; its blocks are parse-tested), `LOOM_PROMPT.md`, `docs/guide/06`, tutorial chapter 5 (new section with a "you don't need this until" box) and the tutorial README row, `bash scripts/make-tutorial-html.sh`, the `llm4j-workflow-guide` skill, the CTK scenario `extract_fields` with `ExtractCtkConformanceTest`, the VS Code grammar, snippets (`extractor`, `extract`), hover text, README and CHANGELOG (`npm test` 773 of 773), `graph-render` (`npm test` 91 of 91), `API_COMPATIBILITY.md`, `llms.txt`, release notes 6.2.0. `TutorialExamplesTest`, `GuideTutorialPageTest`, `StartersTest`, `RepositoryScriptsTest` green.
 
-**Still open in 24a:** native JSON mode (deferred by the owner), the whatif/`Decisions`, `Capture`, `ScriptDrift`, `Narrator` and `weave explain` wiring for `extract`, the harness-design and eval-design skills, `docs/guide/05`, and the wiki/stack-level pages (the latter once, in phase 29).
+**Still open in 24a:** native JSON mode (deferred by the owner; now [phase 30](../30-native-json-output/DESIGN.md), 30a built), the whatif/`Decisions`, `Capture`, `ScriptDrift`, `Narrator` and `weave explain` wiring for `extract`, the harness-design and eval-design skills, `docs/guide/05`, and the wiki/stack-level pages (the latter once, in phase 29).
 
 ### 24b: transcript and shared-prompt opt-out, LP08 (2026-11-03)
 

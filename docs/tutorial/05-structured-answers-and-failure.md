@@ -143,7 +143,8 @@ workflow Main(text) {
 - **It sees only its instructions, the fields and the inputs you name.** Not the transcript, not the shared prompt. The text is handed over as *data*: if it says "ignore your instructions", that is just text to read.
 - **The instructions are fixed text** with no `{...}`. To give it a value, pass it as an input.
 - **A field the text does not state.** List it in `optional: [...]` and the field is absent when the text does not state it; test for it with `== missing`. A field not listed is required: if the text does not state it, the step fails at once (asking again would give the same answer) and `on_failure` decides what happens. Loom never fills in a value the model did not give.
-- An answer in the wrong shape is a failed attempt, as for an agent: it is told what was wrong and asked once more, then `retry` applies.
+- **Where the provider can, it holds the reply to the schema.** You write nothing for this: the extractor builds a JSON Schema from its fields and asks for it in the request (OpenAI, xAI, Claude, Gemini, Perplexity's Agent API and local Ollama), so the reply is JSON with your fields instead of whatever the model felt like writing. Anywhere else it asks in the prompt. That is why an extractor is the most reliable step in a workflow; the [guide](../../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#native-json-how-an-extractor-gets-structured-output) says how to see which route ran.
+- An answer in the wrong shape is a failed attempt, as for an agent: it is told what was wrong and asked once more, then `retry` applies. (With native JSON this is rare, not impossible: a reply can still be cut at the token limit.)
 
 In a test, script the extractor's answer like an agent's: `models: { Invoice: { vendor: Acme } }`.
 

@@ -62,6 +62,15 @@ public interface LLMProvider {
     void validate();
 
     /**
+     * Whether this provider can constrain a reply for {@code model} to a JSON Schema; {@link
+     * io.github.llm4j.model.StructuredOutput#NONE} unless it is recorded that it can. A null model
+     * means the one the provider is configured with.
+     */
+    default io.github.llm4j.model.StructuredOutput structuredOutput(String model) {
+        return io.github.llm4j.model.StructuredOutput.NONE;
+    }
+
+    /**
      * Whether {@link #chat} honours {@link LLMRequest#getTools()} and returns {@link
      * LLMResponse#getToolCalls()}.
      */

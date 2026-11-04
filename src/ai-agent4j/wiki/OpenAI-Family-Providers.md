@@ -52,6 +52,10 @@ safe defaults for its vendor and never fails because a catalog does not list it.
 > (`HTTP 400: Function tools with reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions`). Either pass
 > `.addParameter("reasoning_effort", "none")` on a request that offers tools, or use [OpenAI's Responses API](Responses-Schema-and-Perplexity.md#openais-own-responses-api).
 
+### Structured output
+
+A request can carry a `ResponseFormat` (a name and a JSON Schema whose root is an object). For OpenAI (gpt-4o and later, o1, o3 and o4) and xAI (the Grok 4 family) it is sent as `response_format: {type: "json_schema", json_schema: {name, strict, schema}}`, and the reply is held to the schema. The Responses API takes the same format flat under `text.format` (OpenAI, xAI), and Perplexity's Agent API as `response_format` with a nested `json_schema`. Anthropic and Ollama take it too, as described in [Providers and the uniform contract](Providers-and-the-Uniform-Contract.md). For any other model the field is left out, because support is recorded per model and an unknown model is never assumed to have it; ask `client.structuredOutput(model)` first. A strict schema needs every field in `required` and `additionalProperties: false`. The reply is still model output: a refusal or a reply cut at the token limit may not match, so check it. Kimi and Qwen are not switched on yet (preview vendors, no recorded fixtures), and the generic kind stays off unless its dialect says otherwise.
+
 ## xAI, Kimi and Qwen
 
 ```java

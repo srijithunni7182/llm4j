@@ -3890,6 +3890,18 @@ public class HarnessExecutor implements LoomEngine {
      * The client an extractor calls through: a bare client for its model (no transcript, no shared
      * prompt) metered under its own name, so the spend report and the budgets see it.
      */
+    private final java.util.Set<String> nativeJsonRefused = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** Whether a provider has already refused this extractor's response schema in this run. */
+    boolean nativeJsonRefused(io.github.llm4j.loom.ast.ExtractorDef def) {
+        return nativeJsonRefused.contains(def.getModel());
+    }
+
+    /** Remembers that the provider of this extractor's model refused a response schema. */
+    void refuseNativeJson(io.github.llm4j.loom.ast.ExtractorDef def) {
+        nativeJsonRefused.add(def.getModel());
+    }
+
     io.github.llm4j.LLMClient clientForExtractor(io.github.llm4j.loom.ast.ExtractorDef def) {
         return budgets.metered(
                 clientFor(def.getModel()), "extractor " + def.getName(), null, def.getModel());

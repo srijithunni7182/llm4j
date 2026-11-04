@@ -74,6 +74,18 @@ final class ChatRequestWriter {
                 root.put("tool_choice", "none");
             }
         }
+        // a schema-constrained reply, only where the dialect records that this model accepts it
+        io.github.llm4j.model.ResponseFormat format = request.getResponseFormat();
+        if (format != null
+                && dialect.structuredOutput(model)
+                        == io.github.llm4j.model.StructuredOutput.JSON_SCHEMA) {
+            ObjectNode spec =
+                    root.putObject("response_format")
+                            .put("type", "json_schema")
+                            .putObject("json_schema");
+            spec.put("name", format.name()).put("strict", format.strict());
+            spec.set("schema", JSON.valueToTree(format.schema()));
+        }
         // thinking is switched explicitly where the model has a switch: on when a streamed call
         // asks to see it, off otherwise
         Map<String, Object> thinking =

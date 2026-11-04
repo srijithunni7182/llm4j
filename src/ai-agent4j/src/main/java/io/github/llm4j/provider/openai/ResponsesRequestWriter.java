@@ -79,6 +79,12 @@ final class ResponsesRequestWriter {
             if (request.getToolChoice() == LLMRequest.ToolChoice.NONE)
                 root.put("tool_choice", "none");
         }
+        io.github.llm4j.model.ResponseFormat format = request.getResponseFormat();
+        if (format != null
+                && dialect.structuredOutput(model)
+                        == io.github.llm4j.model.StructuredOutput.JSON_SCHEMA) {
+            responseFormat(dialect, format, root);
+        }
         if (request.getGrounding() != null) grounding(dialect, request.getGrounding(), root);
         if (stream && request.isReasoning() && dialect.reasoningSummary()) {
             ((ObjectNode) root.with("reasoning")).put("summary", "auto");
@@ -95,6 +101,25 @@ final class ResponsesRequestWriter {
                             else root.set(k, value);
                         });
         return JSON.writeValueAsString(root);
+    }
+
+    /** The vendor's own place for a JSON-Schema response format. */
+    private static void responseFormat(
+            ResponsesDialect dialect,
+            io.github.llm4j.model.ResponseFormat format,
+            ObjectNode root) {
+        if (dialect.structuredStyle() == ResponsesDialect.StructuredStyle.TEXT_FORMAT) {
+            ObjectNode spec = root.putObject("text").putObject("format").put("type", "json_schema");
+            spec.put("name", format.name()).put("strict", format.strict());
+            spec.set("schema", JSON.valueToTree(format.schema()));
+        } else {
+            ObjectNode spec =
+                    root.putObject("response_format")
+                            .put("type", "json_schema")
+                            .putObject("json_schema");
+            spec.put("name", format.name());
+            spec.set("schema", JSON.valueToTree(format.schema()));
+        }
     }
 
     /**

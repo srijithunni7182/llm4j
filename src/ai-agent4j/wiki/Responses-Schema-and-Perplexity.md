@@ -14,6 +14,8 @@ typed server-sent events when streaming. `OpenAiResponsesProvider` speaks it, wi
 | OpenAI Responses API | `OpenAiResponsesProvider.openai(cfg)` | `POST https://api.openai.com/v1/responses` | `OPENAI_API_KEY` |
 | xAI Responses API | `OpenAiResponsesProvider.xai(cfg)` | `POST https://api.x.ai/v1/responses` | `XAI_API_KEY` |
 
+A JSON-Schema response format goes under `text.format` for OpenAI and xAI, and as `response_format` with a nested `json_schema` for Perplexity's Agent API; see [Providers and the uniform contract](Providers-and-the-Uniform-Contract.md).
+
 ## Perplexity
 
 ```java

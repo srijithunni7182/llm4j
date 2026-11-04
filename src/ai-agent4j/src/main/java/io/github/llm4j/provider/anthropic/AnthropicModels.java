@@ -45,4 +45,22 @@ public final class AnthropicModels {
     public static boolean acceptsSampling(String model) {
         return model != null && ACCEPTS_SAMPLING.matcher(model.toLowerCase(Locale.ROOT)).matches();
     }
+
+    /**
+     * Models the structured-outputs documentation lists as accepting a JSON-Schema format (read
+     * 2026-11-04). An allowlist, so a model released after this was written stays on the prompt
+     * route until it is added here.
+     */
+    private static final Pattern STRUCTURED_OUTPUT =
+            Pattern.compile(
+                    "claude-(?:(?:fable|mythos|opus|sonnet|haiku)-5(?:-\\d+)?"
+                            + "|mythos-preview"
+                            + "|haiku-4-5(?:-\\d{8})?"
+                            + "|opus-4-[5-8](?:-\\d{8})?"
+                            + "|sonnet-4-[56](?:-\\d{8})?)");
+
+    /** Whether {@code model} accepts {@code output_config.format} with a JSON Schema. */
+    public static boolean supportsStructuredOutput(String model) {
+        return model != null && STRUCTURED_OUTPUT.matcher(model.toLowerCase(Locale.ROOT)).matches();
+    }
 }

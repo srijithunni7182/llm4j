@@ -137,3 +137,21 @@ US$0.50.
 | OpenAI (chat completions and Responses), xAI, Perplexity (Agent API) | ✅ the shared `ChatCompletionsContract` / `ResponsesContract` suites | ✅ Responses recorded from the real APIs on 2026-10-22 (plain, stream, tool call and answer, streamed tool call, reasoning) and replayed by `RecordedFixturesTest`; spend about US$0.003 |
 | Kimi, Qwen, Perplexity Orchestrator, generic OpenAI-style servers | ✅ the same suites | **Preview**: fixtures are documentation-derived (no key or no access), or no third-party server was recorded |
 | Jev (TypeSafe AI) | ✅ the `ClassifierContract` suite, against a local server replaying recorded wire fixtures | ✅ Fixtures recorded from the real API and a head-to-head study with real keys (2026-10-21). Jev does not chat: it is a [`ClassificationProvider`](Classification.md#5-use-jev), not an `LLMProvider` |
+
+## Structured output
+
+The full page is [Structured output](Structured-Output.md); this is the summary.
+
+`LLMRequest.responseFormat(ResponseFormat)` asks for a reply that follows a JSON Schema (a name and an object schema), and `client.structuredOutput(model)` says whether the client can hold that model to it (`NONE` unless it is recorded that it can; `null` means the model the client is configured with). Each provider puts the schema where its API takes it and leaves it out when it cannot:
+
+| Provider | Where | For |
+|---|---|---|
+| OpenAI, xAI (chat completions) | `response_format.json_schema` | the models their docs name |
+| OpenAI, xAI (Responses) | `text.format` | the same models |
+| Perplexity (Agent API) | `response_format.json_schema` | any named model, not a preset |
+| Anthropic | `output_config.format` (shared with `effort`) | the models the structured-outputs page lists |
+| Ollama | `format` | any model on a local server; not Ollama Cloud |
+| Google Gemini | `generationConfig.responseMimeType` and `responseJsonSchema` | Gemini 2.5 and later |
+| Kimi, Qwen, other OpenAI-style servers | not sent | no recorded support yet |
+
+A reply held to a schema is still model output: it can be a refusal or be cut at the token limit, so check it. Loom's `extractor` does this for you ([LOOM_GUIDE](../../loom/ai-agent4j-loom/LOOM_GUIDE.md), "Extracting fields").

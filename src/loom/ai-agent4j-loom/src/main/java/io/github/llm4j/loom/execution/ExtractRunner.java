@@ -80,6 +80,10 @@ final class ExtractRunner {
         executor.trace(TraceEvent.EXTRACT_START, null, "extract " + def.getName(), startData);
 
         io.github.llm4j.LLMClient client = executor.clientForExtractor(def);
+        Mode mode = modeFor(def, client, executor.nativeJsonRefused(def));
+        boolean askingForSchema = mode.nativeJson();
+        if (askingForSchema) request.responseFormat(ExtractorSchema.of(def));
+        String structuredReason = mode.reason();
         int maxAttempts = stmt.getRetryCount() + 1;
         boolean corrected = false;
         String correction = "";
@@ -89,6 +93,7 @@ final class ExtractRunner {
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
             tried++;
             long started = executor.clock().millis();
+            LLMResponse response = null;
             try {
                 if (attempt > 0 && stmt.getBackoffMillis() > 0) {
                     executor.sleeper()
@@ -97,7 +102,7 @@ final class ExtractRunner {
                                             stmt.getBackoffMillis() << Math.min(attempt - 1, 10)));
                 }
                 LLMRequest built = withCorrection(request, correction);
-                LLMResponse response =
+                response =
                         executor.withBudgetScopes(
                                 stepId,
                                 stmt.getBudget(),
@@ -110,7 +115,15 @@ final class ExtractRunner {
                                                         "extract " + def.getName())
                                                 : client.chat(built));
                 ExtractAnswer.Fields fields = ExtractAnswer.read(response.getContent(), def);
-                answered(def, stepId, variable, fields, response, tried, started);
+                answered(
+                        def,
+                        stepId,
+                        variable,
+                        fields,
+                        response,
+                        tried,
+                        started,
+                        structuredReason);
                 return;
             } catch (BudgetExceeded breach) {
                 throw breach; // a breach halts the run, as it does for any model call
@@ -125,7 +138,33 @@ final class ExtractRunner {
                 // repeat that answer and spend the retries.
                 fail(stmt, def, stepId, notStated.getMessage(), notStated, true, tried);
                 return;
+            } catch (io.github.llm4j.exception.InvalidRequestException refused) {
+                if (!askingForSchema) {
+                    last = refused; // nothing to take away: an ordinary failed attempt
+                    continue;
+                }
+                askingForSchema = false;
+                // The provider refused the schema (or the request with it): ask again in the
+                // prompt, once, and remember it for this extractor so later calls do not repeat it.
+                executor.refuseNativeJson(def);
+                request.responseFormat(null);
+                structuredReason = "provider_refused";
+                Map<String, Object> fallback = new LinkedHashMap<>();
+                fallback.put("extractor", def.getName());
+                fallback.put("model", def.getModel());
+                executor.trace(
+                        TraceEvent.STRUCTURED_FALLBACK,
+                        def.getName(),
+                        def.getName() + ": the provider refused the response schema; asking again without it",
+                        fallback);
+                last = refused;
+                attempt--;
+                tried--;
+                continue;
             } catch (StructuredAnswer.SchemaViolation violation) {
+                boolean cut =
+                        response != null
+                                && response.getFinishReason() == LLMResponse.FinishReason.LENGTH;
                 Map<String, Object> violationData = new LinkedHashMap<>();
                 violationData.put("extractor", def.getName());
                 violationData.put("attempt", tried);
@@ -135,7 +174,14 @@ final class ExtractRunner {
                         def.getName(),
                         violation.getMessage(),
                         violationData);
-                last = violation;
+                last =
+                        cut
+                                ? new IllegalStateException(
+                                        "the reply was cut at the token limit, so the JSON is incomplete"
+                                                + " (raise max tokens or shorten the inputs): "
+                                                + violation.getMessage(),
+                                        violation)
+                                : violation;
                 correction = violation.correction();
                 // One correction is always allowed, whatever `retry` says: telling a model what
                 // was wrong is the cheapest way to get it right.
@@ -150,6 +196,23 @@ final class ExtractRunner {
         String message =
                 last == null || last.getMessage() == null ? "unknown error" : last.getMessage();
         fail(stmt, def, stepId, message, last, true, tried);
+    }
+
+    /**
+     * How an extractor's call is made: asking the provider for schema-constrained JSON, or in the
+     * prompt only. {@code reason} is {@code native} or why not ({@code provider}: the client does
+     * not know the model supports it or the provider refused it earlier; {@code schema_limits}:
+     * the extractor is wider than the strictest provider accepts).
+     */
+    record Mode(boolean nativeJson, String reason) {}
+
+    /** The one place the choice is made, shared with {@link NodeCaseRunner}. */
+    static Mode modeFor(ExtractorDef def, io.github.llm4j.LLMClient client, boolean refusedBefore) {
+        if (refusedBefore
+                || client.structuredOutput(null) != io.github.llm4j.model.StructuredOutput.JSON_SCHEMA)
+            return new Mode(false, "provider");
+        if (ExtractorSchema.tooBigBecause(def).isPresent()) return new Mode(false, "schema_limits");
+        return new Mode(true, "native");
     }
 
     /** The fields that hold text are model-written; numbers, true/false and enum words are not. */
@@ -224,7 +287,8 @@ final class ExtractRunner {
             ExtractAnswer.Fields fields,
             LLMResponse response,
             int attempts,
-            long started) {
+            long started,
+            String structuredReason) {
         executor.journal().put(stepId, new RunJournal.Entry("extract", fields.values()));
         executor.bind(variable, fields.values(), origin(def));
         Map<String, Object> data = new LinkedHashMap<>();
@@ -237,6 +301,8 @@ final class ExtractRunner {
             data.put("input_tokens", response.getTokenUsage().getPromptTokens());
             data.put("output_tokens", response.getTokenUsage().getCompletionTokens());
         }
+        data.put("structured", "native".equals(structuredReason) ? "native" : "prompt");
+        if (!"native".equals(structuredReason)) data.put("structured_reason", structuredReason);
         data.put("present", List.copyOf(fields.values().keySet()));
         data.put("missing", fields.missing());
         executor.trace(

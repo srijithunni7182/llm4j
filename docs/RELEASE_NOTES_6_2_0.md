@@ -150,6 +150,8 @@ All eleven artifacts are at `6.2.0`, aligned ([VERSION_MATRIX.md](VERSION_MATRIX
 - **`eval-protocol.yaml` and `weave eval --protocol <name>`** write the run protocol down (a commit run, nightly, a release gate, a weekly drift check) as named sets of `weave eval` options; the command line wins over the file, the report names the protocol, and a wrong file is refused by name.
 - **`weave metamorphic`** derives, with no model, the cases that test a relation between two runs (an irrelevant addition, a reordering) and writes them beside the originals in a new folder; the report names a case that passes alone and fails perturbed.
 
+- **Extractors ask for schema-constrained JSON where the provider can.** On OpenAI (gpt-4o and later, o1/o3/o4) and xAI (Grok 4 family), on chat completions and the Responses API, on Claude, on Gemini 2.5 and later, on Perplexity's Agent API and on a local Ollama server, an `extract` now sends its fields as a strict JSON Schema, so the reply is JSON by construction; elsewhere nothing changes. The answer is still checked, a refusal by the provider is retried once without the schema, and the trace says which route was used. See [phase 30](specs/30-native-json-output/DESIGN.md).
+
 ## New: injection testing, routing matrix, handoff probe, `--emit-test`, judge biases
 
 - **`weave security generate`** turns a corpus of injection payloads into a dataset (your own realistic artefacts with the payload embedded, a canary, the actions that must never happen). The report separates the model's obedience (a percentage, a mitigation) from the controls (a forbidden action fails the run).

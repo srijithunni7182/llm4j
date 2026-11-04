@@ -113,6 +113,11 @@ public class DefaultLLMClient implements LLMClient {
     }
 
     @Override
+    public io.github.llm4j.model.StructuredOutput structuredOutput(String model) {
+        return provider.structuredOutput(model);
+    }
+
+    @Override
     public boolean supportsToolCalling() {
         return provider.supportsToolCalling();
     }

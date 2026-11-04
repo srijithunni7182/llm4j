@@ -37,6 +37,18 @@ public final class ResponsesDialect {
     private final boolean reasoningSummary;
     private final Map<String, Object> extraRequest;
     private final ResponsesGrounding grounding;
+    private final java.util.regex.Pattern structuredOutputModels;
+    private final StructuredStyle structuredStyle;
+
+    /** Where a vendor takes a JSON-Schema response format on the Responses schema. */
+    public enum StructuredStyle {
+        /** {@code text.format: {type: "json_schema", name, schema, strict}} (OpenAI, xAI). */
+        TEXT_FORMAT,
+        /**
+         * {@code response_format: {type: "json_schema", json_schema: {name, schema}}} (Perplexity).
+         */
+        RESPONSE_FORMAT
+    }
 
     private ResponsesDialect(Builder b) {
         this.name = Objects.requireNonNull(b.name, "name cannot be null");
@@ -55,6 +67,25 @@ public final class ResponsesDialect {
         this.reasoningSummary = b.reasoningSummary;
         this.extraRequest = Map.copyOf(b.extraRequest);
         this.grounding = b.grounding;
+        this.structuredOutputModels = b.structuredOutputModels;
+        this.structuredStyle = b.structuredStyle;
+    }
+
+    /**
+     * Whether {@code model} accepts a JSON-Schema response format, from the patterns recorded for
+     * this vendor; {@link io.github.llm4j.model.StructuredOutput#NONE} for a model nobody recorded.
+     */
+    public io.github.llm4j.model.StructuredOutput structuredOutput(String model) {
+        return model != null
+                        && structuredOutputModels != null
+                        && structuredOutputModels.matcher(model).matches()
+                ? io.github.llm4j.model.StructuredOutput.JSON_SCHEMA
+                : io.github.llm4j.model.StructuredOutput.NONE;
+    }
+
+    /** Where this vendor takes the response format. */
+    public StructuredStyle structuredStyle() {
+        return structuredStyle;
     }
 
     /**
@@ -188,6 +219,10 @@ public final class ResponsesDialect {
                     .baseUrlEnv("OPENAI_BASE_URL")
                     .hosts(List.of("api.openai.com"))
                     .traits(ModelTraits::openai)
+                    .structuredOutput(
+                            java.util.regex.Pattern.compile(
+                                    "^(?:gpt-(?:4o|4\\.1|[5-9])|o[134])(?:[-.].*)?$"),
+                            StructuredStyle.TEXT_FORMAT)
                     .replayTypes(Set.of("message", "reasoning", "function_call", "web_search_call"))
                     .reasoningSummary(true)
                     .grounding(
@@ -214,6 +249,9 @@ public final class ResponsesDialect {
                     .baseUrlEnv("XAI_BASE_URL")
                     .hosts(List.of("api.x.ai"))
                     .traits(ModelTraits::xai)
+                    .structuredOutput(
+                            java.util.regex.Pattern.compile("^grok-4(?:[-.].*)?$"),
+                            StructuredStyle.TEXT_FORMAT)
                     .grounding(
                             ResponsesGrounding.builder("web_search")
                                     .allowDomains("filters.allowed_domains", 5)
@@ -237,6 +275,10 @@ public final class ResponsesDialect {
                     .baseUrlEnv("PERPLEXITY_BASE_URL")
                     .hosts(List.of("api.perplexity.ai"))
                     .traits(ModelTraits::perplexity)
+                    // any named model; a preset is not a model and is left on the prompt route
+                    .structuredOutput(
+                            java.util.regex.Pattern.compile("^(?!preset:).+$"),
+                            StructuredStyle.RESPONSE_FORMAT)
                     .requiredMaxTokens(m -> m.startsWith("anthropic/") ? 8_000 : null)
                     .modelFieldByPrefix(Map.of("preset:", "preset"))
                     .replayTypes(Set.of("message", "function_call"))
@@ -280,6 +322,8 @@ public final class ResponsesDialect {
         private boolean reasoningSummary;
         private Map<String, Object> extraRequest = Map.of();
         private ResponsesGrounding grounding;
+        private java.util.regex.Pattern structuredOutputModels;
+        private StructuredStyle structuredStyle = StructuredStyle.TEXT_FORMAT;
 
         private Builder(String name) {
             this.name = name;
@@ -357,6 +401,17 @@ public final class ResponsesDialect {
         }
 
         /** How the vendor does web-search grounding; leave unset for a vendor that has none. */
+        /**
+         * The models that accept a JSON-Schema response format, by pattern over the whole model
+         * name, and where the vendor takes it. None (the default) for a vendor whose support is not
+         * recorded.
+         */
+        public Builder structuredOutput(java.util.regex.Pattern models, StructuredStyle style) {
+            this.structuredOutputModels = models;
+            this.structuredStyle = style;
+            return this;
+        }
+
         public Builder grounding(ResponsesGrounding grounding) {
             this.grounding = grounding;
             return this;
