@@ -531,10 +531,15 @@
                             <targetClasses>
                                 <param>io.github.llm4j.loom.autonomy.expr.*</param>
                                 <param>io.github.llm4j.loom.ladder.*</param>
+                                <param>io.github.llm4j.loom.eval.NodeCasesGate</param>
+                                <param>io.github.llm4j.loom.eval.NodeFingerprints</param>
                             </targetClasses>
                             <targetTests>
                                 <param>io.github.llm4j.loom.autonomy.expr.*Test</param>
                                 <param>io.github.llm4j.loom.ladder.*Test</param>
+                                <param>io.github.llm4j.loom.eval.NodeCasesGateTest</param>
+                                <param>io.github.llm4j.loom.eval.NodeFingerprintsTest</param>
+                                <param>io.github.llm4j.loom.cli.ChangedEvalTest</param>
                                 <param>io.github.llm4j.loom.parser.Ladder*Test</param>
                                 <param>io.github.llm4j.loom.autonomy.LadderRunTest</param>
                                 <param>io.github.llm4j.loom.autonomy.LadderStoresTest</param>

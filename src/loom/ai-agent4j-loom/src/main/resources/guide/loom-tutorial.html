@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: 0758de826ae79d8da2f2b313acd46c39c3115ea8cb4bb15df4a5823644c42e26 -->
+<!-- source-sha256: b03172aae7269c3c4e8feb093fd6e54ca3c08ec69a6b56d4fff94cf986f7e672 -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -2865,10 +2865,37 @@ weave test main.loom --watch                 # run again when a file changes</co
   expected: { no_refund_promise: clean, no_internal_refs: clean }</code></pre></figure>
 <p>When one is missing, <code>weave check</code> says which: <em>Evaluator Compliance has no case that breaks HouseRules.no_refund_promise (and no clean case).</em> Starters 08 and 17 show both files.</p>
 <p>A case can use fixed checks (no judge, free): <code>expected_output_contains</code>, <code>expected_output_not_contains</code>, <code>expected_min_words</code>, <code>expected_tools</code>. And judged checks: <code>rubric:</code> lines about the answer, and <code>expect:</code> lines about what the run did. A judge model confirms each line.</p>
-<h3 id="c10-the-order-that-saves-money">The order that saves money</h3>
+<h3 id="c10-the-order-that-saves-money-three-costs">The order that saves money: three costs</h3>
+<p>Run the cheap things all the time and the expensive thing rarely.</p>
+<table>
+<thead>
+<tr>
+<th>How often</th>
+<th>Command</th>
+<th>Costs</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>On every change</td>
+<td><code>weave check</code>, <code>weave test</code>, <code>weave eval --check</code>, <code>weave eval --mock</code></td>
+<td>nothing: scripted and mock models</td>
+</tr>
+<tr>
+<td>Before a merge</td>
+<td><code>weave eval main.loom --changed --max-tokens 200000</code></td>
+<td>only the cases of what changed</td>
+</tr>
+<tr>
+<td>On a schedule</td>
+<td><code>weave eval main.loom --max-tokens 2000000</code></td>
+<td>everything, so it is written down but off until you turn it on</td>
+</tr>
+</tbody></table>
+<p><code>--changed</code> compares a fingerprint of each agent and node with the last baseline, else the last complete real run: its prompt (with the shared prompt it receives), model, temperature, schema or fields, tools, the version and hash of its policies, and its own cases. It runs the cases of the nodes that differ, plus every workflow that reaches one, and prints <em>what changed</em> first. With no reference everything counts as changed, and it says so; a prompt file it cannot read counts as changed too. It needs a cap (<code>--max-tokens</code>, <code>--max-calls</code> or <code>--max-cost</code>) and, like any real run, asks first.</p>
 <figure class="code"><figcaption>bash</figcaption><pre><code>weave eval main.loom --init            # create eval/golden with a starter case per agent (never overwrites)
 weave eval main.loom --check           # validate the dataset: no model is called
 weave eval main.loom --mock            # run the wiring on a model that costs nothing
+weave eval main.loom --changed --max-tokens 200000 --yes    # only what changed, capped
 weave eval main.loom --max-tokens 200000 --yes    # a real run, capped
 weave eval main.loom --agent Editor --json results.json --report report.html</code></pre></figure>
 <ul>
@@ -2876,9 +2903,10 @@ weave eval main.loom --agent Editor --json results.json --report report.html</co
 <li><strong>Passed, failed and unjudged are three counts.</strong> The exit code is 0 when nothing failed, 1 when something did, 2 for a dataset or option problem.</li>
 <li><strong>A real run needs a limit, and asks first.</strong> It tells you how many cases and judge calls it expects.</li>
 <li><strong>Use a different model as the judge</strong> (<code>--judge &lt;model&gt;</code>) than the one being judged.</li>
+<li><strong>An evaluator is measured for being too timid.</strong> <code>weave eval</code> runs its cases and reports its <strong>false-alarm rate</strong>: the share of the clean and near-miss answers it flagged as violated or unsure, with a 95% interval. Above its limit (10% unless the evaluator says <code>false_alarm_limit: 5%</code>) the run fails: a timid evaluator is caught on the bench, not by your customers. The report&#39;s <em>By agent and node</em> section has a row for every agent, extractor and evaluator. A mock run asks no model, so its node cases are unjudged and it claims no rate.</li>
 </ul>
 <h3 id="c10-the-report">The report</h3>
-<p>Every report has the same sections, in the terminal, in <code>--report</code> (a self-contained HTML page) and in <code>--json</code>: <em>Read this first</em>, <em>Overall</em>, <strong>By agent</strong>, <em>By dimension</em>, <em>By slice</em>, the cost section (including the median and p95 cost of a case), and the cautions. The <strong>By agent</strong> view is the one to read first when the workflow&#39;s result is poor: it shows which agent let you down.</p>
+<p>Every report has the same sections, in the terminal, in <code>--report</code> (a self-contained HTML page) and in <code>--json</code>: <em>Read this first</em>, <em>Overall</em>, <strong>By agent and node</strong>, <em>By dimension</em>, <em>By slice</em>, the cost section (including the median and p95 cost of a case), and the cautions. The <strong>By agent and node</strong> view is the one to read first when the workflow&#39;s result is poor: it shows which agent, extractor or evaluator let you down.</p>
 <h3 id="c10-trusting-the-numbers">Trusting the numbers</h3>
 <p>An evaluation can lie to you in quiet ways. Loom gives you tools against the common ones:</p>
 <table>
@@ -2915,6 +2943,7 @@ weave eval main.loom --agent Editor --json results.json --report report.html</co
 </tbody></table>
 <p>The deeper guide, with the reasoning behind each, is the <a href="https://github.com/srijithunni7182/llm4j/blob/main/.claude/skills/llm4j-eval-design/SKILL.md" target="_blank" rel="noopener">evaluation design skill</a> (<code>weave guide --install-skill</code> installs it into your project) and <a href="https://github.com/srijithunni7182/llm4j/blob/main/docs/guide/02-golden-dataset.md" target="_blank" rel="noopener">the workflow guide&#39;s chapter 2</a>.</p>
 <h2 id="c10-from-ci">From CI</h2>
+<p><code>weave init</code> writes <code>.github/workflows/weave.yml</code> for you. It runs <code>weave check</code>, <code>weave test</code> and <code>weave review --fail-on high</code> on every push; <code>weave eval --changed</code> with a token cap on pull requests when the key is configured (it prints a notice and skips when it is not, and never fails for that); and a full scheduled run that is written but commented out, because it spends money. The commands, if you use another system:</p>
 <figure class="code"><figcaption>bash</figcaption><pre><code>weave check  main.loom
 weave test   main.loom --min-coverage 80 --format junit
 weave audit  main.loom                       # exit 1 on a high finding

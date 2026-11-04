@@ -85,6 +85,19 @@ final class EvalCommand implements Callable<Integer> {
     boolean check;
 
     @Option(
+            names = "--changed",
+            description =
+                    "Run, for real, only the cases of the agents and nodes whose prompt, model, schema, tools, policies or cases changed since the reference, plus every workflow that reaches one. Needs a cap (--max-tokens, --max-calls or --max-cost). Without a reference everything counts as changed, and it says so.")
+    boolean changed;
+
+    @Option(
+            names = "--since",
+            paramLabel = "<baseline|last|file>",
+            description =
+                    "With --changed: what to compare with. baseline is the fingerprints saved with the last baseline, last is the last complete real run (the default after baseline), or a fingerprints file.")
+    String since;
+
+    @Option(
             names = "--requirements",
             description =
                     "Write the golden dataset as a plain page a reviewer can read and sign off: what each agent and node must do and must never do, the identity of what was read, and what has no requirement yet. Needs no model and no key.")
@@ -438,7 +451,7 @@ final class EvalCommand implements Callable<Integer> {
                                     + " --init");
             return 2;
         }
-        if (plan.targets().isEmpty() && problems.isEmpty())
+        if (plan.targets().isEmpty() && problems.isEmpty() && !anyNodeCases(script, dir))
             problems.add(
                     dir
                             + " has no dataset files (a file per agent or workflow, such as "
@@ -538,8 +551,41 @@ final class EvalCommand implements Callable<Integer> {
             if (!chosen.isEmpty())
                 targets.add(new DatasetFolder.Target(t.kind(), t.name(), t.file(), chosen));
         }
+        java.util.Map<String, java.util.List<String>> whatChanged = java.util.Map.of();
+        String changedAgainst = null;
+        if (c.changed) {
+            if (!c.mock && c.maxTokens == null && c.maxCalls == null && c.maxCost == null) {
+                env.err()
+                        .println(
+                                "Error: --changed spends money, so it needs a cap: --max-tokens, --max-calls or --max-cost (or --mock to check the wiring for free).");
+                return 2;
+            }
+            io.github.llm4j.loom.eval.NodeFingerprints.Fingerprints current =
+                    io.github.llm4j.loom.eval.NodeFingerprints.of(script, scriptFile);
+            var reference = referenceFingerprints(c.since, scriptFile);
+            changedAgainst = reference.describe;
+            whatChanged =
+                    io.github.llm4j.loom.eval.NodeFingerprints.changed(
+                            current, reference.fingerprints);
+            java.util.Set<String> workflows =
+                    io.github.llm4j.loom.eval.NodeFingerprints.workflowsReaching(
+                            script, whatChanged.keySet());
+            env.out().println("What changed (compared with " + changedAgainst + "):");
+            if (whatChanged.isEmpty()) env.out().println("  nothing: no case needs to run.");
+            for (var node : whatChanged.entrySet())
+                env.out().println("  " + node.getKey() + ": " + String.join(", ", node.getValue()));
+            if (reference.fingerprints.isEmpty())
+                env.out().println("  (there is no reference, so everything counts as changed)");
+            java.util.Set<String> changedNodes = whatChanged.keySet();
+            targets.removeIf(
+                    t -> t.isAgent() ? !changedNodes.contains(t.name()) : !workflows.contains(t.name()));
+            if (targets.isEmpty() && !changedNodeCases(script, plan.dir(), changedNodes)) {
+                env.out().println("Nothing to run.");
+                return 0;
+            }
+        }
         final int heldOutLeftOutCount = heldOutLeftOut;
-        if (targets.isEmpty()) {
+        if (targets.isEmpty() && !anyNodeCases(script, plan.dir())) {
             env.err()
                     .println(
                             "Error: no scenarios match"
@@ -734,6 +780,23 @@ final class EvalCommand implements Callable<Integer> {
                 }
             }
         }
+        if (c.agent == null && c.workflow == null && c.split == null) {
+            NodeCasesEval.Outcome nodes =
+                    NodeCasesEval.run(
+                            script,
+                            scriptFile,
+                            plan.dir(),
+                            models,
+                            c.mock,
+                            c.changed ? whatChanged.keySet() : null,
+                            spend::exhausted,
+                            spend::addExternal,
+                            stopped);
+            results.addAll(nodes.results());
+            notRun += nodes.notRun();
+            if (stopped == null && nodes.stopped() != null)
+                stopped = "a limit was reached (" + spend.describe() + ")";
+        }
         String runId = bundleRunId();
         Path bundleRoot = bundleRoot(scriptFile);
         Map<String, String> settings = new java.util.LinkedHashMap<>();
@@ -751,6 +814,12 @@ final class EvalCommand implements Callable<Integer> {
             settings.put("version change allowed", c.allowVersionChange);
         if (c.split != null) settings.put("split", c.split);
         if (heldOutLeftOutCount > 0) settings.put("held-out not run", String.valueOf(heldOutLeftOutCount));
+        if (c.changed) {
+            StringBuilder what = new StringBuilder("since " + changedAgainst + ": ");
+            for (var node : whatChanged.entrySet())
+                what.append(node.getKey()).append(" (").append(String.join(", ", node.getValue())).append("); ");
+            settings.put("what changed", what.toString().strip());
+        }
         if (c.protocol != null) settings.put("protocol", c.protocol);
         if (!c.routeDanger.isEmpty()) settings.put("route-danger", String.join(",", c.routeDanger));
         settings.put("bundle", bundleRoot.resolve("runs").resolve(runId).toString());
@@ -786,6 +855,15 @@ final class EvalCommand implements Callable<Integer> {
         } catch (RuntimeException e) {
             env.err().println("Warning: could not write the dashboard bundle: " + e.getMessage());
         }
+        if (stopped == null && notRun == 0 && !c.mock && c.agent == null && c.workflow == null && c.split == null) {
+            try {
+                io.github.llm4j.loom.eval.NodeFingerprints.write(
+                        io.github.llm4j.loom.eval.NodeFingerprints.lastRunFile(scriptFile),
+                        io.github.llm4j.loom.eval.NodeFingerprints.of(script, scriptFile));
+            } catch (java.io.IOException | RuntimeException e) {
+                env.err().println("Warning: could not record the fingerprints for --changed: " + e.getMessage());
+            }
+        }
         if (stopped == null && notRun == 0) {
             try {
                 EvalRecord.write(
@@ -808,6 +886,13 @@ final class EvalCommand implements Callable<Integer> {
                             io.github.llm4j.loom.eval.Baselines.save(
                                     project, identity, run, c.approver, c.why, java.time.Instant.now());
                     env.out().println("Baseline saved: " + file + " (approved by " + c.approver + ").");
+                    try {
+                        io.github.llm4j.loom.eval.NodeFingerprints.write(
+                                baselineFingerprints(scriptFile),
+                                io.github.llm4j.loom.eval.NodeFingerprints.of(script, scriptFile));
+                    } catch (java.io.IOException | RuntimeException e) {
+                        env.err().println("Warning: could not record the fingerprints of this baseline: " + e.getMessage());
+                    }
                 } catch (RuntimeException e) {
                     env.err().println("The baseline was not saved: " + e.getMessage());
                 }
@@ -927,12 +1012,22 @@ final class EvalCommand implements Callable<Integer> {
             made.add(e);
         }
 
+        private long externalTokens;
+        private long externalCalls;
+
+        /** Counts the model calls an extractor or evaluator case made outside any executor. */
+        long addExternal(long tokensUsed, long callsMade) {
+            externalTokens += tokensUsed;
+            externalCalls += callsMade;
+            return externalTokens;
+        }
+
         private long usedTokens() {
-            return made.stream().mapToLong(e -> e.spend().total().tokens()).sum();
+            return externalTokens + made.stream().mapToLong(e -> e.spend().total().tokens()).sum();
         }
 
         private long usedCalls() {
-            return made.stream().mapToLong(e -> e.spend().total().calls()).sum();
+            return externalCalls + made.stream().mapToLong(e -> e.spend().total().calls()).sum();
         }
 
         private BigDecimal usedCost() {
@@ -967,6 +1062,48 @@ final class EvalCommand implements Callable<Integer> {
             if (cost != null) parts.add("$" + usedCost() + " of $" + cost);
             return String.join(", ", parts);
         }
+    }
+
+    private static boolean anyNodeCases(LoomScript script, Path dir) {
+        return changedNodeCases(script, dir, null);
+    }
+
+    /** Whether any extractor or evaluator named in {@code only} (all, when null) has golden cases. */
+    private static boolean changedNodeCases(LoomScript script, Path dir, java.util.Set<String> only) {
+        List<String> nodes = new ArrayList<>();
+        script.getExtractors().forEach(x -> nodes.add(x.getName()));
+        script.getEvaluators().forEach(e -> nodes.add(e.getName()));
+        return nodes.stream()
+                .filter(n -> only == null || only.contains(n))
+                .anyMatch(n -> io.github.llm4j.loom.eval.NodeCasesGate.caseCount(dir, n) > 0);
+    }
+
+    // ── --changed ────────────────────────────────────────────────────────────────────────────
+
+    private record Reference(
+            java.util.Optional<io.github.llm4j.loom.eval.NodeFingerprints.Fingerprints> fingerprints,
+            String describe) {}
+
+    private static Path baselineFingerprints(Path scriptFile) {
+        return io.github.llm4j.loom.eval.NodeFingerprints.lastRunFile(scriptFile)
+                .resolveSibling("baseline-fingerprints.json");
+    }
+
+    /** The default is the current baseline, else the last complete real run. */
+    private static Reference referenceFingerprints(String since, Path scriptFile) {
+        var last = io.github.llm4j.loom.eval.NodeFingerprints.lastRunFile(scriptFile);
+        var baseline = baselineFingerprints(scriptFile);
+        if (since == null || since.equals("baseline")) {
+            var b = io.github.llm4j.loom.eval.NodeFingerprints.read(baseline);
+            if (b.isPresent()) return new Reference(b, "the last baseline");
+            if (since != null) return new Reference(b, "the last baseline (none has fingerprints)");
+        }
+        if (since == null || since.equals("last"))
+            return new Reference(
+                    io.github.llm4j.loom.eval.NodeFingerprints.read(last), "the last real run");
+        Path file = Path.of(since);
+        return new Reference(
+                io.github.llm4j.loom.eval.NodeFingerprints.read(file), "the file " + file);
     }
 
     // ── --requirements ───────────────────────────────────────────────────────────────────────

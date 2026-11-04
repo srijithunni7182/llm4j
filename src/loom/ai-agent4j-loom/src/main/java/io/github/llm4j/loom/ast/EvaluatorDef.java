@@ -53,6 +53,20 @@ public final class EvaluatorDef implements Node {
         this.model = model;
     }
 
+    /** The share of clean and near-miss golden cases an evaluator may flag before {@code weave eval} fails. */
+    public static final double DEFAULT_FALSE_ALARM_LIMIT = 0.10;
+
+    private double falseAlarmLimit = DEFAULT_FALSE_ALARM_LIMIT;
+
+    /** The most clean and near-miss cases the evaluator may flag, as a share from 0 to 1. */
+    public double getFalseAlarmLimit() {
+        return falseAlarmLimit;
+    }
+
+    public void setFalseAlarmLimit(double falseAlarmLimit) {
+        this.falseAlarmLimit = falseAlarmLimit;
+    }
+
     /** The confidence below which a rule's answer is "unsure". */
     public double getUnsureBelow() {
         return unsureBelow;

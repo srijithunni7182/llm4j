@@ -2976,7 +2976,8 @@ public class LoomParser {
 
     /** Settings an evaluator can have; everything an agent has beyond these it cannot. */
     private static final java.util.List<String> EVALUATOR_SETTINGS =
-            java.util.List.of("model", "unsure", "samples", "pii", "fallback", "timeout", "budget");
+            java.util.List.of(
+                    "model", "unsure", "samples", "pii", "fallback", "timeout", "budget", "false_alarm_limit");
 
     /**
      * {@code evaluator Name { model: "…" unsure below 0.8 samples: 3 pii: mask fallback: ["…"] }},
@@ -3056,6 +3057,19 @@ public class LoomParser {
                     if (n < 1)
                         throw error(previous(), "samples: needs 1 or more.");
                     def.setSamples(n);
+                }
+                case "false_alarm_limit" -> {
+                    consume(TokenType.COLON, "Expect ':' after false_alarm_limit.");
+                    double limit =
+                            Double.parseDouble(
+                                    consume(
+                                                    TokenType.NUMBER_LITERAL,
+                                                    "Expect a share such as 10%, as in false_alarm_limit: 10%.")
+                                            .getValue());
+                    if (match(TokenType.PERCENT) || limit > 1) limit = limit / 100.0;
+                    if (limit < 0 || limit > 1)
+                        throw error(previous(), "false_alarm_limit needs a share from 0% to 100%.");
+                    def.setFalseAlarmLimit(limit);
                 }
                 case "pii" -> {
                     consume(TokenType.COLON, "Expect ':' after pii.");

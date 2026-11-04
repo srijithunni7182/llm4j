@@ -243,6 +243,11 @@ public final class NodeCasesGate {
         }
     }
 
+    /** The cases in the node's file (none when there is no file or it cannot be read). */
+    public static List<JsonNode> cases(Path dir, String node) {
+        return load(dir, node).cases();
+    }
+
     /** How many cases the node's file holds; zero when there is no file or it cannot be read. */
     public static int caseCount(Path dir, String node) {
         return load(dir, node).cases.size();

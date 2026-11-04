@@ -180,6 +180,18 @@ public final class RequirementsPage {
                             "Policy "
                                     + p.getName()
                                     + (evaluator == null ? "" : " (checked by " + evaluator + ")")));
+            if (evaluator != null) {
+                var def = script.getEvaluators().stream().filter(e -> e.getName().equals(evaluator)).findFirst();
+                def.ifPresent(
+                        e ->
+                                out.add(
+                                        new Para(
+                                                "False-alarm limit: "
+                                                        + evaluator
+                                                        + " may flag at most "
+                                                        + Math.round(e.getFalseAlarmLimit() * 1000) / 10.0
+                                                        + "% of the clean and near-miss examples below, or `weave eval` fails.")));
+            }
             for (var rule : resolved.get().rules()) {
                 out.add(new Heading(3, rule.id()));
                 out.add(new Para(rule.text()));

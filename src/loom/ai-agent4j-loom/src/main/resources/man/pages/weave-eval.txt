@@ -3,6 +3,7 @@ weave eval main.loom --init          create eval/golden/ with a starter dataset
 weave eval main.loom --check         validate the dataset; calls no model
 weave eval main.loom --mock          run it with mock models; costs nothing
 weave eval main.loom --max-cost 0.50 --prices prices.txt     against real models, capped
+weave eval main.loom --changed --max-tokens 200000     only the cases of what changed since the last baseline or real run, capped
 weave eval main.loom --requirements               the dataset as a plain page a reviewer can read; no model, no key
 weave eval main.loom --requirements --format html a page to share
 weave eval main.loom --requirements --approve --approver ana --why "read with legal"     sign off exactly what was read
@@ -13,7 +14,7 @@ weave eval main.loom --release-gate               also run the held-out cases (s
 weave eval main.loom --save-baseline --approver ana --why "release 6.2"
 weave eval main.loom --baseline                   compare with the current and the previous baseline
 ## THE REPORT
-Nine sections, always, in the terminal, in --report and in --json: Read this first, Overall, By agent, By dimension, By slice, Cases, Cost, Cautions, How to reproduce. By agent has a row for every agent that took part, with no tag. Cases shows each input and output. A dashboard bundle is written too (target/eval4j/runs/<id>/ or eval-runs/runs/<id>/).
+Nine sections, always, in the terminal, in --report and in --json: Read this first, Overall, By agent and node, By dimension, By slice, Cases, Cost, Cautions, How to reproduce. By agent and node has a row for every agent that took part, and for every extractor and evaluator with golden cases, with no tag. Cases shows each input and output. A dashboard bundle is written too (target/eval4j/runs/<id>/ or eval-runs/runs/<id>/).
 ## EXIT STATUS
 0 nothing failed. 1 something failed (an empty output is an error case). 2 a dataset or option problem.
 ## SEE ALSO

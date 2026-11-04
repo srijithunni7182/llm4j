@@ -36,7 +36,7 @@ public final class EvalSections {
         List<Section> out = new ArrayList<>();
         out.add(new Section("read-first", "Read this first", readFirst(run)));
         out.add(new Section("overall", "Overall", overall(run)));
-        out.add(new Section("by-agent", "By agent", byAgent(run)));
+        out.add(new Section("by-agent", "By agent and node", byAgent(run)));
         out.add(new Section("by-dimension", "By dimension", byDimension(run)));
         out.add(new Section("by-slice", "By slice", bySlice(run)));
         out.add(new Section("cases", "Cases", cases(run)));
@@ -230,10 +230,15 @@ public final class EvalSections {
     static List<String> agentNames(EvalReport.Run run) {
         java.util.Set<String> names = new java.util.TreeSet<>();
         for (ScenarioResult r : run.results()) {
-            if (r.kind().equals("agent")) names.add(r.target());
+            if (isNodeKind(r.kind())) names.add(r.target());
             r.agents().forEach(a -> names.add(a.agent()));
         }
         return new ArrayList<>(names);
+    }
+
+    /** Agents, extractors and evaluators all have a row; a workflow does not. */
+    private static boolean isNodeKind(String kind) {
+        return kind.equals("agent") || kind.equals("extractor") || kind.equals("evaluator");
     }
 
     private static List<String> byAgent(EvalReport.Run run) {
@@ -249,7 +254,7 @@ public final class EvalSections {
         for (String name : names) {
             List<ScenarioResult> aimed =
                     run.results().stream()
-                            .filter(r -> r.kind().equals("agent") && r.target().equals(name))
+                            .filter(r -> isNodeKind(r.kind()) && r.target().equals(name))
                             .toList();
             long pass = aimed.stream().filter(r -> r.status() == Status.PASS).count();
             long fail = aimed.stream().filter(r -> r.status() == Status.FAIL).count();

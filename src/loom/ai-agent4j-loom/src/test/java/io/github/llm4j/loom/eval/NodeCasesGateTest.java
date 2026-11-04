@@ -259,4 +259,53 @@ class NodeCasesGateTest {
         golden("INVOICE.yaml", "- id: i1\n  input: \"t\"\n  expected_fields: { vendor: A }\n");
         assertThat(problems(EXTRACTOR_SCRIPT)).isEmpty();
     }
+
+    @Test
+    void emptyExpectationsAreNotExpectations() throws Exception {
+        golden("invoice.yaml", "- id: i1\n  input: \"t\"\n  expected_fields: {}\n  expected_missing: []\n");
+        assertThat(problems(EXTRACTOR_SCRIPT)).anySatisfy(m -> assertThat(m).contains("i1").contains("expects nothing"));
+    }
+
+    @Test
+    void aFieldsListOfMissingNamesAloneIsAnExpectation() throws Exception {
+        golden("invoice.yaml", "- id: i1\n  input: \"t\"\n  expected_missing: [total]\n");
+        assertThat(problems(EXTRACTOR_SCRIPT)).isEmpty();
+    }
+
+    @Test
+    void aFileThatIsAMapAndNotAListIsReportedByName() throws Exception {
+        golden("invoice.yaml", "id: i1\ninput: t\n");
+        assertThat(problems(EXTRACTOR_SCRIPT)).singleElement().asString().contains("invoice.yaml").contains("list of cases");
+    }
+
+    @Test
+    void anUnknownFieldSuggestsTheNearestOrListsWhatTheExtractorHas() throws Exception {
+        golden("invoice.yaml", "- id: i1\n  input: \"t\"\n  expected_fields: { vendr: A }\n");
+        assertThat(problems(EXTRACTOR_SCRIPT)).anySatisfy(m -> assertThat(m).contains("did you mean vendor"));
+        golden("invoice.yaml", "- id: i1\n  input: \"t\"\n  expected_fields: { qqqqqqqq: A }\n");
+        assertThat(problems(EXTRACTOR_SCRIPT)).anySatisfy(m -> assertThat(m).contains("it has ").doesNotContain("did you mean"));
+    }
+
+    @Test
+    void aPolicyNotCheckedByAnEvaluatorAddsNoRequirement() throws Exception {
+        assertThat(
+                        problems(
+                                """
+                                evaluator Compliance { model: "gemini-2.5-flash" }
+                                policy HouseRules: "house-rules"
+                                agent Support { model: "gemini-2.5-flash"  system: "s" }
+                                workflow Main(q) { delegate "{q}" to Support -> r  return r }
+                                """))
+                .isEmpty();
+    }
+
+    @Test
+    void aCheckInsideABlockStillCountsAsUse() throws Exception {
+        golden("compliance.yaml", BOTH_RULES_BOTH_WAYS);
+        String nested = EVALUATOR_SCRIPT.replace("check reply against", "alt (reply != \"\") {\n check reply against").replace("on_violation { fail }", "on_violation { fail }\n }");
+        assertThat(problems(nested)).isEmpty();
+        // and without cases the nested use is still gated
+        Files.delete(dir.resolve("eval/golden/compliance.yaml"));
+        assertThat(problems(nested)).isNotEmpty();
+    }
 }

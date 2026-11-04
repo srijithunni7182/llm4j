@@ -124,6 +124,11 @@ class RequirementsPageTest {
     }
 
     @Test
+    void theFalseAlarmLimitIsShownBesideThePolicyRules() throws Exception {
+        assertThat(page("md")).contains("False-alarm limit: Compliance may flag at most 10.0%");
+    }
+
+    @Test
     void itShowsTheDatasetIdentityAndThePoliciesVersionAndHash() throws Exception {
         DatasetIdentity id = DatasetIdentity.of(dir.resolve("eval/golden"));
         assertThat(page("md")).contains("version 3").contains(id.hash()).contains("HouseRules");

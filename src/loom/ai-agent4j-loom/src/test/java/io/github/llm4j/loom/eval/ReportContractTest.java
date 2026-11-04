@@ -20,7 +20,7 @@ class ReportContractTest {
             List.of(
                     "Read this first",
                     "Overall",
-                    "By agent",
+                    "By agent and node",
                     "By dimension",
                     "By slice",
                     "Cases",
@@ -137,14 +137,14 @@ class ReportContractTest {
     void theByAgentViewHasARowPerAgentWithoutAnyTagOrFlag() {
         // the workflow-only agent has no agent: tag anywhere
         String text = EvalSections.terminal(run());
-        String byAgent = section(text, "By agent", "By dimension");
+        String byAgent = section(text, "By agent and node", "By dimension");
 
         assertThat(byAgent).contains("Writer").contains("Editor").contains("Checker");
     }
 
     @Test
     void eachAgentRowShowsItsPassRateItsCostItsCutAnswersAndItsFallbacks() {
-        String byAgent = section(EvalSections.terminal(run()), "By agent", "By dimension");
+        String byAgent = section(EvalSections.terminal(run()), "By agent and node", "By dimension");
 
         String writer = row(byAgent, "Writer");
         assertThat(writer).contains("1 of 1").contains("interval").contains("$0.0030").contains("0 cut");
@@ -156,14 +156,14 @@ class ReportContractTest {
 
     @Test
     void anAgentSeenOnlyInsideAWorkflowSaysItsQualityIsNotMeasuredOnItsOwn() {
-        String checker = row(section(EvalSections.terminal(run()), "By agent", "By dimension"), "Checker");
+        String checker = row(section(EvalSections.terminal(run()), "By agent and node", "By dimension"), "Checker");
 
         assertThat(checker).contains("only inside workflow runs");
     }
 
     @Test
     void theWorstOutputsOfAnAgentAreShownWithTheReason() {
-        String byAgent = section(EvalSections.terminal(run()), "By agent", "By dimension");
+        String byAgent = section(EvalSections.terminal(run()), "By agent and node", "By dimension");
 
         assertThat(byAgent).contains("bad padding text").contains("padding");
     }

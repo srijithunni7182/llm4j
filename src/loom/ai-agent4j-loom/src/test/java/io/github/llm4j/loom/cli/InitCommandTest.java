@@ -130,7 +130,10 @@ class InitCommandTest {
         assertThat(Files.readString(b.resolve("README.md"))).startsWith("# Refund Desk");
         for (Path root : List.of(a, b)) {
             for (String f : files(root))
-                assertThat(Files.readString(root.resolve(f))).as(f).doesNotContain("{{");
+                // a template placeholder is {{word}}; a GitHub expression such as ${{ secrets.KEY }} is not one
+                assertThat(Files.readString(root.resolve(f)))
+                        .as(f)
+                        .doesNotContainPattern("\\{\\{[A-Za-z_]+\\}\\}");
         }
     }
 

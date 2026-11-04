@@ -182,8 +182,15 @@ final class ExtractRunner {
             if (!in.name().isEmpty()) inputs.append(' ').append(in.name());
             inputs.append(">>>\n").append(sanitize(text)).append('\n').append(CLOSE).append('\n');
         }
+        return build(def, executor.instructionsOf(def), inputs.toString());
+    }
+
+    /**
+     * The request for an extractor: the one place it is written, shared with {@link
+     * NodeCaseRunner} so that a golden case is run with exactly the prompt a workflow sends.
+     */
+    static LLMRequest.Builder build(ExtractorDef def, String instructions, String inputs) {
         StringBuilder system = new StringBuilder(PREAMBLE);
-        String instructions = executor.instructionsOf(def);
         if (instructions != null && !instructions.isBlank())
             system.append("\n\n").append(instructions);
         system.append("\n\nAnswer with one JSON object ")
@@ -193,7 +200,7 @@ final class ExtractRunner {
             system.append("\nOptional fields: ").append(String.join(", ", def.getOptional()));
         return LLMRequest.builder()
                 .addSystemMessage(system.toString())
-                .addUserMessage(inputs.toString())
+                .addUserMessage(inputs)
                 .temperature(def.getTemperature());
     }
 

@@ -23,6 +23,10 @@ The default build excludes all three. Untagged is the default for a new test: wr
 
 To see what is tagged: `grep -rl '@Tag("fragile")' --include=*Test.java .`
 
+## Evaluating a workflow: three costs
+
+For the workflows you build with Loom (not this repository's own tests), evaluation is run at three prices: `weave test` and `weave eval --mock` on every change (scripted, free); `weave eval --changed --max-tokens N` before a merge (real, only the cases of what changed, capped); and a full `weave eval` on a schedule (real, everything, off until someone turns it on). `weave init` writes the CI file. See the Loom guide, "Evaluating a Workflow".
+
 ## Deciding where a new test goes
 
 1. Does it call a real API? `live`.
