@@ -1,0 +1,5 @@
+tool Lookup { use: duckduckgo  effect: reads }
+
+workflow Main(order) {
+    use Lookup(query = "select 1") approve -> found
+}

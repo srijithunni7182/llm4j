@@ -1,0 +1,7 @@
+tool Pay { use: webhook  url: env.PAY_HOOK  effect: changes }
+agent Planner { model: "gemini-2.5-flash"  system: "Work out what refund the customer is owed." }
+
+workflow Main(complaint) {
+    delegate "{complaint}" to Planner -> plan
+    use Pay(text = plan) approve "Pay this refund?" -> done
+}

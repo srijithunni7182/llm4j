@@ -64,11 +64,12 @@ class FindingModelTest {
     }
 
     @Test
-    void eightLensesAreOnByDefaultAndFiveAreOptional() {
-        // R33 says nine and four; testability is optional until `weave test` exists (OPEN_ITEMS
-        // O14)
+    void nineLensesAreOnByDefaultAndFourAreOptional() {
+        // Human oversight joined the default lenses in 6.2.0 (docs/specs/27, R7); testability is
+        // still optional (OPEN_ITEMS O14)
         long optional = java.util.Arrays.stream(Lens.values()).filter(Lens::optional).count();
-        assertThat(optional).isEqualTo(5);
+        assertThat(optional).isEqualTo(4);
+        assertThat(Lens.OVERSIGHT.optional()).isFalse();
         assertThat(Lens.TESTABILITY.optional()).isTrue();
         assertThat(Lens.values()).hasSize(13);
         assertThat(Lens.parse("Blast_Radius")).contains(Lens.BLAST_RADIUS);

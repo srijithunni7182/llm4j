@@ -120,6 +120,14 @@ public final class FactModel {
                         "A decide whose decision has neither a ladder nor a trust block")
                 .bool("followedByEffect", "A decide with a delegate to an acting agent after it")
                 .bool(
+                        "actsOnUnvalidatedProse",
+                        "A step that changes something acts on text an agent wrote freely, with nothing checking it on the way")
+                .string("proseVariable", "The variable that holds that text")
+                .string("proseAgent", "The agent that wrote it")
+                .bool(
+                        "approvesLowEffectTool",
+                        "A use step with approve whose tool only reads or does nothing")
+                .bool(
                         "answerCompared",
                         "A human_prompt whose answer is compared in a later condition")
                 .bool(
@@ -215,6 +223,9 @@ public final class FactModel {
                 .string(
                         "identicalTo",
                         "The name of an earlier agent with the same model, prompt, tools and approvals, empty when none")
+                .bool(
+                        "asksMidWorkUnattended",
+                        "Its approve: covers a tool that changes things, and the workflow runs on a schedule with no one watching")
                 .bool(
                         "approvesLowReachTool",
                         "It asks a person to approve a tool that only reads or does nothing")

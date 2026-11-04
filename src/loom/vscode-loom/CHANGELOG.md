@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Review.** The Human oversight lens is on by default and the panel shows the new rules LH05, LH06 and LR11. Needs the engine's review changes (phase 27c).
 - **Call a tool yourself.** `use Tool(...)`, `approve` and `on_declined` on a step are highlighted, and the graph draws a `use` step. Needs the engine's `use` statement (phase 27b).
 - **Leak guard.** `prompt_leak` and `internal_refs` in an agent's `guard { }` are highlighted. Needs the engine's leak guard (phase 26).
 - **Policies and checks.** `policy`, `evaluator` and `check … against … using` are highlighted, and the graph draws a `check` step. Needs the engine's policy support (phase 26).

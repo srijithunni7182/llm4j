@@ -5,7 +5,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * The aspect of a workflow a finding is about. Eight lenses are on by default and five are optional
+ * The aspect of a workflow a finding is about. Nine lenses are on by default (human oversight joined them in 6.2.0; lenses = -oversight turns it off) and four are optional
  * (testability waits for the workflow-test phase; see OPEN_ITEMS.md) (off until asked). The
  * declaration order is the ranking order of lenses: when two findings are equally severe, the one
  * in the earlier lens is listed first.
@@ -22,7 +22,7 @@ public enum Lens {
     TESTABILITY("testability", "Testability", true),
     GOVERNANCE("governance", "Model governance", true),
     MAINTAINABILITY("maintainability", "Maintainability", true),
-    OVERSIGHT("oversight", "Human oversight", true),
+    OVERSIGHT("oversight", "Human oversight", false),
     BLAST_RADIUS("blast-radius", "Blast radius", true);
 
     private final String id;

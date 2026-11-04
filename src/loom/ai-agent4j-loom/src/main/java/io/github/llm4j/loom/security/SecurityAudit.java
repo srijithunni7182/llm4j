@@ -171,13 +171,21 @@ public final class SecurityAudit {
                                         + (unattendedShell
                                                 ? ", on this machine, unattended."
                                                 : "."),
-                                "Add approve: ["
-                                        + toolName
-                                        + "] to "
-                                        + a.getName()
-                                        + (c.outward()
-                                                ? ", or narrow the tool so it cannot change anything."
-                                                : ", or accept it: the tool is confined to its directory.")));
+                                (c.outward()
+                                                ? "Let "
+                                                        + a.getName()
+                                                        + " propose what to do, approve once at the edge and act with code: use "
+                                                        + toolName
+                                                        + "(...) approve (or run Task(...) approve) after the agent. Where a person works with the agent as it goes, add approve: ["
+                                                        + toolName
+                                                        + "] to "
+                                                        + a.getName()
+                                                        + ". Or narrow the tool so it cannot change anything."
+                                                : "Add approve: ["
+                                                        + toolName
+                                                        + "] to "
+                                                        + a.getName()
+                                                        + ", or accept it: the tool is confined to its directory.")));
             }
         }
         for (String kbName : a.getKnowledgeBases()) {

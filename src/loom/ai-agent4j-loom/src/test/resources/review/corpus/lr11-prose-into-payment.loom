@@ -1,0 +1,8 @@
+tool Pay { use: webhook  url: env.PAY_HOOK  effect: changes }
+agent Planner { model: "m"  system: "Work out what refund is owed." }
+agent Payer { model: "m"  system: "Make the payment."  tools: [Pay]  approve: [] }
+workflow Main(complaint) {
+  delegate "{complaint}" to Planner -> plan retry 1 timeout 30s
+  delegate "Do this: {plan}" to Payer -> done retry 1 timeout 30s // <- LR11
+}
+// ignore: LP02 LP05 LO01 LR04 LD01 LR08 LA02 LY07 LB01 LR02 LH05 LC01

@@ -257,3 +257,26 @@
     fires: [ examples/lr13-fires.loom, examples/lr13-fires-parallel.loom ]
     quiet: [ examples/lr13-quiet-max.loom, examples/lr13-quiet-parameter.loom ]
 
+- id: LR11
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: actsOnUnvalidatedProse, is: true }
+  title: "{label} acts on what agent {proseAgent} wrote ({proseVariable}), and nothing checks it on the way"
+  why: "If the first agent invents a fact (an amount, an order id), the second acts on it with confidence. The mistake travels downstream and becomes an action."
+  fixHint: "Check the hand-off with the cheapest thing that works: extract the fields and test them (alt, or a task), check the text against a policy, or add approve to the acting step."
+  since: "6.2.0"
+  explain: >
+    Fires when text an agent wrote freely (no output_schema, no expecting) reaches, directly or
+    through set and interpolation, a step that changes something: a delegate to an agent that holds
+    a tool whose effect is changes and is not under approve:, or a use of such a tool without
+    approve. It stays quiet when a step that checks the text stands between: an extract, an
+    intentclassify, a run of a task that reads it, a check against a policy, a decide, or approve
+    on the acting step. Only structure is read (value flow, tool effects, statement kinds), never what
+    a prompt means.
+  examples:
+    fires: [ examples/lr11-fires.loom ]
+    quiet: [ examples/lr11-quiet-extract.loom, examples/lr11-quiet-approve.loom ]
+

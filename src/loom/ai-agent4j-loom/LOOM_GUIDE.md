@@ -1491,6 +1491,20 @@ To move an existing script over:
 - `weave check --substitution braces script.loom` lists every text that would change, with the variable and the position, and changes nothing.
 - `weave check --fix-substitution script.loom` shows the rewrite of each bare word that was meant as a variable (to `{name}`) as a diff and writes the file only after you answer yes (`--yes` answers for you in a script). A word that may be a variable or may be plain text is listed and left alone.
 
+### Where to ask a person
+
+| Need | Shape |
+|---|---|
+| A plain yes or no before acting | `use Tool(...) approve`, `run Task(...) approve` |
+| The person shapes the answer | `human_prompt`, then `alt`, then act |
+| Trust earned over time | `decide` with a ladder (optional) |
+
+And `approve: [Tool]` on an agent, for an assistant a person works with as it goes. In a workflow nobody is watching (it has a `schedule`), an agent that stops part-way to ask holds its whole conversation until someone answers, possibly hours later, and the person sees one call without the job it belongs to: `weave review` rule LH05 says so, and the fix is to let the agent propose and approve once at the edge. Rule LH06 notes an `approve` on a `use` step whose tool only reads.
+
+### Never pipe an agent straight into an action
+
+If one agent invents a fact (an amount, an order id) and the next acts on it, the mistake becomes an action. Check the hand-off with the cheapest thing that works, cheapest first: **shape** (an `extractor`, or an `output_schema`, so the fields are typed), **logic** (an `alt` on the fields, or a task that reads them), **judgement** (`check` against a policy whose rules say what must be true), or **a person** (`approve` on the acting step). `weave review` rule LR11 fires when text an agent wrote freely reaches a step that changes something with none of these between.
+
 ### Calling a tool yourself (`use`), and asking first (`approve`)
 
 When a model is not needed to call a tool (the arguments are already in variables), call it from the script:

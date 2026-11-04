@@ -43,7 +43,7 @@ the runtime always enforces.
 | Rule | Finds | Severity | OWASP |
 |---|---|---|---|
 | LA01 | One agent that reads untrusted content, reaches private data and can send or act | high (medium if every way out is approved) | LLM01, LLM02, LLM06 |
-| LA02 | An effect with no approval: a shell tool running unattended, an outward tool, a local write; a writing `http` tool with no `allow_paths` | high / medium / low | LLM06 |
+| LA02 | An effect with no approval: a shell tool running unattended, an outward tool, a local write; a writing `http` tool with no `allow_paths`. For a tool that changes something outside, its advice offers the boundary first: let the agent propose, then `use Tool(...) approve` or `run Task(...) approve` after it; `approve:` on the agent is for an assistant a person works with as it goes | high / medium / low | LLM06 |
 | LA03 | No run budget | medium | LLM10 |
 | LA04 | An agent that reaches private data with no PII guard | low | LLM02 |
 | LA05 | `allow_private` (internal and cloud-metadata addresses), `allow_http` | high / medium | LLM06, LLM02 |

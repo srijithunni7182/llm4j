@@ -1,6 +1,6 @@
 # Phase 27 verification plan: approval at the boundary
 
-Status: **27a and 27b done (2026-11-03, 2026-11-04); 27c to 27e not started**. Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **27a** every tool has an effect (R0; phase 26 waits for it); **27b** `use` (R1) and `approve` on `use` and `run` (R2); **27c** the review changes and the lens default (R3 to R7, R9), and LR11 with its teaching (R10); **27e** dynamic routing within limits (R11); **27d** starter 07, the guide, the skills and the tutorial (R8). Results in §7.
+Status: **27a to 27c done (2026-11-03, 2026-11-04); 27d and 27e not started**. Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **27a** every tool has an effect (R0; phase 26 waits for it); **27b** `use` (R1) and `approve` on `use` and `run` (R2); **27c** the review changes and the lens default (R3 to R7, R9), and LR11 with its teaching (R10); **27e** dynamic routing within limits (R11); **27d** starter 07, the guide, the skills and the tutorial (R8). Results in §7.
 Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Reproduce first
@@ -116,3 +116,18 @@ Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 - *The review changes (R3 to R7, R9), LR11, routing (R11), starter 07 and the skills (R8) are 27c to 27e.*
 
 **Gates.** See the commit for the full-module run.
+
+### 27c: the review changes (2026-11-04)
+
+**Built.** The Human oversight lens is a default lens (R7; `lenses = -oversight` restores the old default; `Lens.OVERSIGHT` is no longer optional); **LH05** (R6) for an agent whose `approve:` covers a changing tool in a script with a `schedule`; **LH06**, the step form of LH02 (`use ... approve` on a tool whose effect is none or reads); **LR11** (R10) from `HandoffFacts`, a structural value-flow check of free prose into an acting `delegate` or `use`; LA02's advice offers the boundary first (R3); rule pages regenerated; corpus cases for LH05, LH06, LR11 and the examples for each; guide sections "Where to ask a person" and "Never pipe an agent straight into an action". Tests: `ReviewCorpusTest` (precision and recall at 0.9 on the labelled corpus), the rule examples, `FactBuilderTest`, `OptionalLensesTest` (now: on by default, off with `-oversight`), `ReviewSettingsTest`, `ReviewEngineTest`.
+
+**Deviations, with what is lost and what covers it.**
+- *LH02 for steps is a separate rule, LH06.* Asked: LH02 also fires for steps. The rule engine allows one entity kind per rule id. Lost: the id differs from the spec. Covered by: identical advice, the same lens, and both pages cross-refer.
+- *LH02/LH06 for `run ... approve`* is not built: a task's effect is known only to the host's registry, not to the static review. Covered by: nothing statically; the runtime asks once as designed.
+- *LH03 does not count steps' approvals* (R4). Lost: the question count in the review ignores `use` and `run` approvals. Covered by: they are one question per execution; `human_prompt` and `decide` are still counted.
+- *R9 grouped findings, new-first summary and the baseline suggestion are not built.* Lost: with the lens on, the review is longer and not grouped. Covered by: `--baseline write` exists today; the release note says to use it.
+- *LH05 reads "nobody watching" from a `schedule` only* (not a trigger file or the daemon configuration).
+- *No `to-boundary`, `insert-extract` or `approve-step` fix options, and no `declare-effect` option or editor quick fix (D34).* Covered by: each finding's message names the fix in words.
+- *LR11 follows `delegate` and `use`, not `run` of a `CHANGES` task* (its effect is not known statically).
+- *The precision bar and noise gate (D35) for LH01 to LH05 were measured only on the labelled corpus and the existing example set; no separate benchmark was run.*
+

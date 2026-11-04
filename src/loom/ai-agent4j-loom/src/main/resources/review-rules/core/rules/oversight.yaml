@@ -54,3 +54,42 @@
   examples:
     fires: [ examples/lh04-fires.loom ]
     quiet: [ examples/lh04-quiet.loom ]
+
+- id: LH06
+  lens: oversight
+  severity: low
+  about: step
+  when:
+    all:
+      - { field: approvesLowEffectTool, is: true }
+  title: "{label} asks a person to approve a tool that only reads"
+  why: "When people are asked to approve things that cannot do harm, they learn to click yes without reading, and the approvals that matter get the same click."
+  fixHint: "Remove approve from this step, or declare the tool's effect as changes (effect: changes) if it does change something."
+  since: "6.2.0"
+  explain: >
+    The step form of LH02. A use step with approve on a tool whose effect is none or reads asks a
+    person to confirm something that cannot do harm. Approval is for steps that send or change
+    something.
+  examples:
+    fires: [ examples/lh06-fires.loom ]
+    quiet: [ examples/lh06-quiet.loom ]
+
+- id: LH05
+  lens: oversight
+  severity: medium
+  about: agent
+  when:
+    all:
+      - { field: asksMidWorkUnattended, is: true }
+  title: "Agent {name} asks a person part-way through its work, in a workflow nobody is watching"
+  why: "The run stops in the middle of the agent's reasoning and holds its whole conversation until someone answers, possibly hours later, from a phone. The person sees one tool call without the job it belongs to."
+  fixHint: "Let the agent propose, then approve once at the edge: use Tool(...) approve, run Task(...) approve, or a decide. In an interactive assistant, an approval inside the loop is fine."
+  since: "6.2.0"
+  explain: >
+    Fires when an agent's approve: covers a tool whose effect is changes and the script has a
+    schedule, so no person is working with the agent. A workflow started by hand with weave run, or
+    by a host application, counts as interactive and is not flagged. "Nobody watching" is read from
+    the script, never guessed from prompts.
+  examples:
+    fires: [ examples/lh05-fires.loom ]
+    quiet: [ examples/lh05-quiet-interactive.loom, examples/lh05-quiet-reads.loom ]

@@ -1,0 +1,5 @@
+tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
+
+workflow Main(draft) {
+    use Notify(text = draft) approve -> receipt
+}
