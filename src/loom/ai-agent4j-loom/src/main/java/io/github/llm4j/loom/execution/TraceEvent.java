@@ -179,6 +179,12 @@ public record TraceEvent(
      */
     public static final String TOOL_REFUSED_BY_POLICY = "tool_refused_by_policy";
 
+    /**
+     * A model chose a delegate target outside the step's allow-list (docs/specs/27, R11): {@code
+     * step}, {@code target} (the expression, never the value chosen) and {@code allowed}.
+     */
+    public static final String ROUTE_REFUSED = "route_refused";
+
     public static final String TASK_START = "task_start";
     public static final String TASK_END = "task_end";
     public static final String TASK_REPLAYED = "task_replayed";

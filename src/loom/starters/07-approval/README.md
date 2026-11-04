@@ -1,53 +1,39 @@
-# 07 · A person approves before anything is sent
+# 07 · A person approves once, at the edge
 
-The model drafts; a person says yes or no; only then does the sending agent act. Both the script and the agent are guarded.
+The model drafts. A person is asked **once**, about the exact text that will be posted, and the script sends it. No model carries out the send, so no wording in a message can talk it past the approval.
+
+This starter used to ask twice: a `human_prompt` and an `alt` in the script, and then `approve:` on a sending agent, which asked again about the tool call. One question at the edge is enough, and it is the one about the payload.
 
 ## What it shows
 
-- `human_prompt`
-- `approve: [Tool]` on an agent
-- a `webhook` tool and why its URL comes from `env`
-- `guard { pii: mask }`
+- `use Tool(...) approve "…" -> var`: a tool called by the script, after one question to a person
+- `on_declined { … }`: a no is a decision, not a failure, so the script handles it apart
+- `on_failure { halt … }`: a failed send says to check the channel, because it may have gone out
+- no `retry` on the send: a Slack webhook ignores an idempotency key, so a retry after an unknown outcome could post twice, and `weave check` refuses it
+- `effect: changes` on the tool, the developer's word about what it does
+- `guard { pii: mask }` on the drafter
 
 Read more: [08-people-in-the-loop.md](../../../../docs/tutorial/08-people-in-the-loop.md), [09-safety-and-cost.md](../../../../docs/tutorial/09-safety-and-cost.md), [06-tools-and-tasks.md](../../../../docs/tutorial/06-tools-and-tasks.md).
 
 ## The workflow
 
 ```loom
-// 07-approval: the model drafts, a person approves, and only then does anything leave the building.
-// The approval is plain script logic and an `approve:` on the agent that holds the sending tool, so no wording in
-// a message can talk the model past it.
+// 07-approval: the model drafts, a person approves once, at the edge, and the script sends. No model carries out the
+// send, so no wording in a message can talk it past the approval; the person sees the exact text that will be posted.
 
 substitution: braces
 
 budget { tokens: 100000  calls: 20 }
 
-tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
-
-agent Drafter {
-    model: "gemini-2.5-flash"
-    system: "Draft a short, polite announcement from the facts you are given."
-    temperature: 0.4
-    guard { pii: mask }
-}
-agent Sender {
-    model: "gemini-2.5-flash"
-    system: "Send the announcement you are given with the Notify tool. Do nothing else."
-    tools: [Notify]
-    approve: [Notify]
-}
+agent Drafter { model: "gemini-2.5-flash"  system: "Draft a short, polite announcement from the facts you are given."  temperature: 0.4  guard { pii: mask } }
+tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
 
 workflow Main(facts) {
     delegate "Draft an announcement from: {facts}" to Drafter -> draft
-
-    human_prompt "Here is the draft:\n\n{draft}\n\nSend it to the team channel? (yes/no)" -> answer
-    alt (answer == "yes") {
-        delegate "Send this announcement:\n{draft}" to Sender -> receipt retry 1 timeout 30s
-            on_failure { halt "The announcement may not have been sent: {_error}. Check the channel before trying again." }
-        note "Sent. {receipt}"
-    } else {
-        note "Not sent. The draft is kept for editing:\n{draft}"
-    }
+    use Notify(text = draft) approve "Send this to the team channel?" -> receipt timeout 30s
+        on_declined { return "Not sent. The draft is kept for editing:\n{draft}" }
+        on_failure { halt "The announcement may not have been sent: {_error}. Check the channel before trying again." }
+    note "Sent. {receipt}"
 }
 ```
 
@@ -60,23 +46,19 @@ This picture is drawn by `weave graph` from the file above, not by hand.
 flowchart TD
   start(["Start"])
   n1["delegate Drafter"]
-  n2[/"ask a person"/]
-  n3{{"answer==yes?"}}
-  n4["delegate Sender"]
-  n5["note"]
-  n6["note"]
-  n7["halt"]
+  n2["use Notify"]
+  n3["note"]
+  n4["halt"]
+  n5["return"]
   end_(["End"])
   start --> n1
   n1 --> n2
   n2 --> n3
-  n3 -->|then| n4
-  n4 --> n5
-  n3 -->|else| n6
-  n4 -->|failure| n7
-  n7 --> end_
+  n2 -->|failure| n4
+  n4 --> end_
+  n2 -->|declined| n5
   n5 --> end_
-  n6 --> end_
+  n3 --> end_
 ```
 <!-- graph:end -->
 

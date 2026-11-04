@@ -276,7 +276,9 @@ public final class WorkflowLint {
                 || name.startsWith("{")
                 || name.startsWith("_")
                 || name.equals("result")) return null;
-        return name;
+        // `results[key]` fills one variable, `results`: that is the name that has to be read
+        int open = name.indexOf('[');
+        return open > 0 ? name.substring(0, open) : name;
     }
 
     /** Every piece of text a statement carries, except the name it assigns, joined. */

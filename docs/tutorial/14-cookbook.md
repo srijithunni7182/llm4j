@@ -14,7 +14,7 @@ Each recipe names the starter that implements it. Open the starter, run `weave t
 | Send each request to the right specialist | A classifier with an `enum` schema, then `alt` in the script | [04](../../src/loom/starters/04-router/) |
 | Ask several sources at once and survive one failing | `parallel`, one flag per branch, `retry` + `on_failure` | [05](../../src/loom/starters/05-parallel-research/) |
 | Turn a plan into parallel work | `parallel for each` with `{item.owner}` routing | [06](../../src/loom/starters/06-plan-and-fan-out/) |
-| Never send without a person's yes | `human_prompt` + `alt`, and `approve:` on the sender | [07](../../src/loom/starters/07-approval/) |
+| Never send without a person's yes | `use Tool(...) approve "…"` after the draft, with `on_declined` | [07](../../src/loom/starters/07-approval/) |
 | Turn text into checked fields | An `extractor`, `halt` on unreadable, ask a person when an optional value is `missing` | [08](../../src/loom/starters/08-extract-and-validate/) |
 | Answer from my documents | `knowledge` + "say when the documents do not answer" | [09](../../src/loom/starters/09-handbook-qa/) |
 | Remember each user | `memory { session: "{user_id}" }` + `guard { pii: mask }` | [10](../../src/loom/starters/10-memory-assistant/) |
@@ -211,7 +211,7 @@ line 1: agent Helper: unknown model "totally-unknown-model": use gemini-…, cla
 | A variable set and never read | Usually a typo, or a branch that does nothing | Use it or delete it |
 | A variable that is also a plain word in a prompt | In the older mode the word is replaced by the value | `substitution: braces` |
 | A tool step with no `retry`/`timeout`/`on_failure` | One slow call stalls or ends the run | Add all three |
-| An agent that can send, with no `approve:` | Nobody decides before it acts | `approve: [Tool]`, or a `human_prompt` first |
+| An agent that can send, with no approval | Nobody decides before it acts | Let it propose and `use Tool(...) approve` after it; `approve: [Tool]` for an assistant a person works with |
 | One shared variable written by two `parallel` branches | A race: you get one of the answers | One variable per branch |
 | Both answers to a `human_prompt` lead to the same steps | The question changes nothing | Give each answer its own branch |
 | A key written in the script | A load error, on purpose | `env.NAME` or `secret.NAME` |
@@ -239,7 +239,7 @@ persona Name { role: "..."  tone: "..."  constraints: ["..."] }
 provider Name { use: ollama  base_url: "..."  api_key: env.NAME }
 routing Name { strategy: fallback  primary: "m1"  fallback: ["m2", "m3"] }
 knowledge Name { source: "docs/"  embedding: "gemini/text-embedding-004"  top_k: 4  store: "idx.json" }
-tool Name { use: webhook|email|http|file|shell|sql|openapi|class|...  ...options... }
+tool Name { use: webhook|email|http|file|shell|sql|openapi|class|...  ...options...  effect: none|reads|changes }
 mcp Name { transport: "stdio"  cmd: "..." }
 extractor Name { model: "..."  instructions: "..."  fields { f: string  n: number }  optional: [n]  pii: mask }
 evaluator Name { model: "..."  samples: 3  unsure below 0.8  fallback: ["..."] }
@@ -270,7 +270,8 @@ workflow Name(p1, p2) {
     alt (a == "b") { ... } else { ... }
     loop until (a == "b") max 5 { ... } on_exhausted { ... }
     call Other(arg = value) -> result
-    run Task(arg = value) -> result [model "..."] [retry N] [timeout 30s]
+    run Task(arg = value) [approve ["heading"]] -> result [model "..."] [retry N] [timeout 30s] [on_declined {...}]
+    use Tool(arg = value) [approve ["heading"]] -> result [retry N] [backoff 2s] [timeout 30s] [on_declined {...}] [on_failure {...}]
     intentclassify Name on text -> result
     extract Name from text -> result          extract Name from (a = x, b = y) -> result
     check reply against P, Q using Evaluator -> verdict  on_violation { rewrite with Agent | ask person | replace with "..." | fail }  on_unavailable { ... }

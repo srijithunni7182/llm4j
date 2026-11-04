@@ -59,13 +59,23 @@ public class DelegateStmt extends LocatedStatement {
         this.timeoutMillis = timeoutMillis;
     }
 
+    private final java.util.List<String> allowedTargets = new java.util.ArrayList<>();
+
+    /**
+     * The agents a run-time target may be, from {@code delegate … to {task.owner} in [A, B]}; empty
+     * when the script wrote none. A name outside the list fails the step (docs/specs/27, R11).
+     */
+    public java.util.List<String> getAllowedTargets() {
+        return allowedTargets;
+    }
+
     /** A target written as {@code {item.owner}} is chosen at run time. */
     public boolean hasDynamicTarget() {
         return targetAgent.startsWith("{");
     }
 
     public boolean hasDynamicVariable() {
-        return variableName.startsWith("{");
+        return variableName.startsWith("{") || variableName.endsWith("]");
     }
 
     public SchemaDef getExpecting() {

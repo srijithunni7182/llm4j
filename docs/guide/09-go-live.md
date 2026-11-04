@@ -348,7 +348,7 @@ Run the development entry until it behaves, then `weave check prod.loom --no-env
    (a systemd `EnvironmentFile`, a container secret, a platform secret injected as variables), from the encrypted secret store (`--secrets`), or from a vault through a Java host (above).
    Scheduled runs started by the operating system (`weave triggers install`) do not see your shell: give them an environment file outside the project, `chmod 600`, with `--env-file`.
    Never the project's `.env`.
-2. **Approvals need somebody to answer.** An agent with `approve: [...]` on a deployed workflow has no console: choose how a person is asked (`--ask-via telegram`, or a host that supplies
+2. **Approvals need somebody to answer.** A step with `approve` (`use Tool(...) approve`, `run Task(...) approve`) or an agent with `approve: [...]` on a deployed workflow has no console: choose how a person is asked (`--ask-via telegram`, or a host that supplies
    a `HumanInterface`; see "Answering from a phone" in the Loom reference). A `shell` tool must be under `approve:` or say `unattended: true`, or the script does not load.
 3. **Use a durable journal** (`--journal <folder>`). Tools that change something (`webhook`, `email`, `shell`, `file` writes, `http` other than GET) are recorded, so a restart does not
    send the message twice; with the in-memory journal that holds only within one process.

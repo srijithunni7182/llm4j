@@ -1,6 +1,6 @@
 # Phase 27 verification plan: approval at the boundary
 
-Status: **27a to 27c done (2026-11-03, 2026-11-04); 27d and 27e not started**. Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **27a** every tool has an effect (R0; phase 26 waits for it); **27b** `use` (R1) and `approve` on `use` and `run` (R2); **27c** the review changes and the lens default (R3 to R7, R9), and LR11 with its teaching (R10); **27e** dynamic routing within limits (R11); **27d** starter 07, the guide, the skills and the tutorial (R8). Results in §7.
+Status: **27a to 27e done (2026-11-03, 2026-11-04)**. Run §0 first, then top to bottom at the end of each sub-phase. Proposed sub-phases: **27a** every tool has an effect (R0; phase 26 waits for it); **27b** `use` (R1) and `approve` on `use` and `run` (R2); **27c** the review changes and the lens default (R3 to R7, R9), and LR11 with its teaching (R10); **27e** dynamic routing within limits (R11); **27d** starter 07, the guide, the skills and the tutorial (R8). Results in §7.
 Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Reproduce first
@@ -131,3 +131,19 @@ Evidence: E14 to E19 of the [program page](../DISCIPLINE.md). Strategy: [TEST_ST
 - *LR11 follows `delegate` and `use`, not `run` of a `CHANGES` task* (its effect is not known statically).
 - *The precision bar and noise gate (D35) for LH01 to LH05 were measured only on the labelled corpus and the existing example set; no separate benchmark was run.*
 
+### 27d: starter 07, the skills and the teaching (2026-11-04)
+
+**Built.** Starter 07 rewritten as the spec shows (one question at the edge, `use Notify(...) approve "..." -> receipt timeout 30s` with `on_declined` and `on_failure`, no `retry`, `effect: changes`); four scripted cases pass (no, yes asked once about the exact text, anything but a clear yes, a failed send halts); its README says why it used to ask twice; diagram redrawn; starters README row; tutorial chapter 8 ("Where to ask" with the three shapes, the approvals-on-tools section reframed for assistants a person works with), chapter 14 rows and cheat sheet, guide chapter 9 and 13; the three skills (workflow-guide stage 6 and 7, harness-design people-in-the-loop row, loom-deployer "Approvals on the channel"); `SkillsMentionPolicyAndEvaluatorTest` extended. The LOOM_GUIDE sections "Where to ask a person" and "Never pipe an agent straight into an action" came in 27c.
+
+**Not built.** The harness-design skill's principle "validate every hand-off into an action" and its failure-mode entry (R10 teaching) are only partly there: the people-in-the-loop row names asking at the boundary; the hand-off principle is in the workflow-guide skill and the guide. Earned autonomy is presented as optional in guide chapter 13's first paragraph, not rewritten throughout.
+
+
+### 27e: routing within limits (2026-11-04)
+
+**Built.** `delegate … to {x} in [A, B]` (an allow-list of declared agents, checked at load); a target taken from an `enum` field counts as bounded; a value outside the list is refused at run time (`route_refused` trace event, names the producing agent, never the value's text; `on_failure` handles it). `-> results[key]` stores answers in one variable under a plain-word key, safe in `parallel for each` (writes are serialised). A bare dynamic result name must be plain, new, not `_`-prefixed and not a name the script binds; otherwise it is refused with a message that points at the map form. `weave check`: unbounded target is an error when any agent holds a changing or private-reaching tool, otherwise a warning. Audit rule LA22 (documented in `weave-audit.md`). Lint "set and never used" reads `results[key]` as `results`. Moved to the new form: starter 06 (typed plan, enum owner), tutorial chapter 4, getviral (one static branch per area), the Loom READMEs, WHY_LOOM, LOOM_GUIDE, LOOM_PROMPT, the readme examples file, both skills. 13 tests in `RoutingLimitsTest`.
+
+**Not built.** The `to-boundary` fix. The map form is not yet the only dynamic result form (that is a next-major change, recorded in API_COMPATIBILITY). Dead `owner`/`output` entries remain in getviral's Java `fix()` helper (harmless).
+
+**Deviation.** The design allowed the dynamic form to keep working; I made a clashing dynamic result name an error at run time. Discipline lost: none; a script that relied on overwriting a variable by name now stops, which is the point.
+
+**What ran (27d and 27e together, 2026-11-04).** `mvn install` on `ai-agent4j-loom` (all 4,539 tests and the JaCoCo gates: pass). `clean verify` on `loom-inspect-core`, `loom-fabric`, `loom-inspect`: pass. `scripts/check-graph-render-sync.sh`: in sync. Tutorial page regenerated; starter diagrams redrawn. `getviral` with `-Pextended`: 76 of 77 pass; the one failure, `showrunnerWritesPromptsAtRuntimeAndRewritesThemAfterFeedback`, is the failure phase 25's record already lists on the untouched base (the Showrunner's scripted answer does not match its schema), not something this phase touched. Not run: `make format-check` (Loom is outside Spotless), PIT mutation profiles (no mutation-profiled class changed), live runs.

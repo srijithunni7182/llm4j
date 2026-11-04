@@ -86,6 +86,8 @@ Before introducing a breaking change:
 
 ## Additions in 6.2.0 (Loom language and test files)
 
+- **`delegate … to {x} in [..]`, `-> results[key]`, and the `route_refused` trace event** (phase 27e). **Behaviour that is stricter:** a delegate whose target comes from data and is not bounded by an allow-list or an `enum` warns, or is an error when any agent holds a tool that changes things or reaches private data; a bare dynamic result name must be plain, new, and not a name the script uses elsewhere. `DelegateStmt` gains `getAllowedTargets()` (old constructors kept). The old unbounded form keeps working for scripts whose agents hold no changing tool; the map form is the one that remains at the next major version.
+
 - **`substitution: legacy|braces`**, a new top-level script setting. Absent means `legacy`, today's behaviour; `braces` becomes the default only in the next major version.
 - **`real:`**, a new key of a workflow test case. Test files without it behave as before.
 - **`weave check --substitution`, `--fix-substitution`, `--yes`**, new options.

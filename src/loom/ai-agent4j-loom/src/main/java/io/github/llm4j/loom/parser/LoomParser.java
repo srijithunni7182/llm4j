@@ -1670,11 +1670,23 @@ public class LoomParser {
 
         consume(TokenType.TO, "Expect 'to' after delegate payload.");
         String target = nameOrReference("Expect target agent identifier (or {item.field}).");
+        java.util.List<String> allowed = new java.util.ArrayList<>();
+        if (isWord("in") && target.startsWith("{")) {
+            advance();
+            consume(TokenType.LBRACKET, "Write the agents the model may choose in brackets: in [Researcher, Writer].");
+            do {
+                allowed.add(consume(TokenType.IDENTIFIER, "Expect an agent name in the list.").getValue());
+            } while (match(TokenType.COMMA));
+            consume(TokenType.RBRACKET, "Expect ']' after the agents.");
+        } else if (isWord("in")) {
+            throw error(peek(), "in [..] is for a target chosen at run time ({task.owner}); " + target + " is already one agent.");
+        }
 
         consume(TokenType.ARROW, "Expect '->' to assign delegate result.");
         String varName = nameOrReference("Expect variable name for result (or {item.field}).");
 
         DelegateStmt stmt = new DelegateStmt(payload, target, varName);
+        stmt.getAllowedTargets().addAll(allowed);
 
         // Optional per-step schema: the same agent can return different structures in different
         // steps.
@@ -1941,7 +1953,15 @@ public class LoomParser {
             consume(TokenType.RBRACE, "Expect '}' after reference.");
             return "{" + ref.getValue() + "}";
         }
-        return consume(TokenType.IDENTIFIER, error).getValue();
+        String name = consume(TokenType.IDENTIFIER, error).getValue();
+        if (check(TokenType.LBRACKET) && peekAt(1).getType() == TokenType.IDENTIFIER) {
+            // the map form: results[task.name] stores under that key in one object variable
+            advance();
+            Token key = consume(TokenType.IDENTIFIER, "Expect the name of the value that gives the key.");
+            consume(TokenType.RBRACKET, "Expect ']' after the key.");
+            return name + "[" + key.getValue() + "]";
+        }
+        return name;
     }
 
     /** A duration such as {@code 2s}, {@code 500ms}, {@code 3m} (a bare number means seconds). */

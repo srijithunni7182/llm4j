@@ -65,6 +65,7 @@ public class RunStmt implements Statement {
     }
 
     public boolean hasDynamicVariable() {
+        if (variableName != null && variableName.endsWith("]")) return true;
         return variableName.startsWith("{");
     }
 

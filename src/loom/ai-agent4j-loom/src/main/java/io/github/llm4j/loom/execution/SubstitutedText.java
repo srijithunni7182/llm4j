@@ -67,6 +67,7 @@ public final class SubstitutedText {
                     "RewindStmt.getCondition",
                     "RewindStmt.getTarget",
                     "BroadcastStmt.getTargetAgents",
+                    "DelegateStmt.getAllowedTargets",
                     "BroadcastStmt.getVariableName",
                     "CallStmt.getWorkflowName",
                     "CallStmt.getResultVariable",

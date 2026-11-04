@@ -530,6 +530,7 @@ public class ScriptValidator {
         ExtractorChecks.run(c);
         PolicyChecks.run(c);
         UseChecks.run(c);
+        RoutingChecks.run(c);
         StaticSinkChecks.run(c);
         io.github.llm4j.loom.ladder.LadderChecks.run(c);
     }

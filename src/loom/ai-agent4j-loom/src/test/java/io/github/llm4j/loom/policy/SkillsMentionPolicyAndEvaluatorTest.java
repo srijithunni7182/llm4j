@@ -41,4 +41,12 @@ class SkillsMentionPolicyAndEvaluatorTest {
     void theDeployerSkillNamesTheOverrideAuditEvent() throws Exception {
         assertThat(skill("llm4j-loom-deployer")).contains("policy_override");
     }
+
+    @Test
+    void theSkillsTeachTheThreeApprovalShapesAndTheHandOffCheck() throws Exception {
+        String guide = skill("llm4j-workflow-guide");
+        assertThat(guide).contains("use Tool(...) approve").contains("human_prompt").contains("LR11").contains("LH05");
+        assertThat(skill("llm4j-harness-design")).contains("ask at the boundary, about the payload");
+        assertThat(skill("llm4j-loom-deployer")).contains("on_declined");
+    }
 }

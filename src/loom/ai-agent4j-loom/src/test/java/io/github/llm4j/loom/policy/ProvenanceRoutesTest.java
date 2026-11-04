@@ -33,6 +33,7 @@ class ProvenanceRoutesTest {
                             name.equals("StopHandlers.java")
                                     || (name.equals("HarnessExecutor.java")
                                             && (line.contains("context.setVariable(name, value);")
+                                                    || line.contains("context.setVariable(base, map);")
                                                     || line.contains("subContext.setVariable(arg.getKey()")
                                                     || line.contains("original.setVariable(call.getResultVariable()")));
                     if (!allowed) offenders.add(name + ":" + (i + 1) + "  " + line.trim());
@@ -47,5 +48,7 @@ class ProvenanceRoutesTest {
         String src = Files.readString(Path.of("src/main/java/io/github/llm4j/loom/execution/HarnessExecutor.java"));
         assertThat(src).contains("subContext.setOrigin(arg.getKey(), value.tag());");
         assertThat(src).contains("original.setOrigin(");
+        // the map form (results[key]) joins the origin of every answer it holds
+        assertThat(src).contains("context.setOrigin(base, joined);");
     }
 }

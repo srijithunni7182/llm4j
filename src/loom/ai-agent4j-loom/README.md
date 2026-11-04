@@ -247,14 +247,18 @@ journal.answer(stepId, "yes");  executor.executeWorkflow("Main", inputs);       
 ```
 
 **`for each`, with routing decided by data.** Iterate over any list an agent returned, sequentially or
-with `parallel for each`. The target agent and the output variable can come from the item, so one line
-replaces a chain of `alt` branches:
+with `parallel for each`. The target agent can come from the item, so one line replaces a chain of `alt`
+branches. Say which agents it may be, and keep each answer under the item's name in one variable:
 
 ```text
 for each fix in review.fixes {
-    delegate "Fix this: {fix.problem}" to {fix.owner} -> {fix.output}
+    delegate "Fix this: {fix.problem}" to {fix.owner} in [Writer, Designer] -> results[fix.name]
 }
 ```
+
+A target the model chose is limited by the list after `in`, or by an `enum` in the schema that produced it. A
+value outside the list is refused (`route_refused` in the trace) and nothing runs. `weave audit` reports a
+routing choice that nothing bounds as LA22.
 
 **Loops that can't run away.** `loop until … max N { } on_exhausted { }` bounds the rounds, so a model
 that never satisfies the condition can't spin (and bill) forever.
@@ -262,7 +266,7 @@ that never satisfies the condition can't spin (and bill) forever.
 ```text
 loop until (review.verdict == "COMPLETE") max 5 {
     delegate "Review round {_loopRound}" to Lead -> review
-    for each fix in review.fixes { delegate "{fix.task}" to {fix.owner} -> {fix.output} }
+    for each fix in review.fixes { delegate "{fix.task}" to {fix.owner} in [Writer, Designer] -> results[fix.name] }
 } on_exhausted {
     note "Shipping with open issues after {_loopRounds} rounds"
 }

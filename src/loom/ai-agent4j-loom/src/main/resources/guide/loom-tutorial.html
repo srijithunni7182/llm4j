@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: 400312758aaeaf7572e4b6ed3a39beec7343823163bcf3b7e3ee58b4c696343f -->
+<!-- source-sha256: 8a6afbed894976818d78c6679a756d5bba26507139c64b796df3c76605381ebf -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -900,8 +900,8 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
 
 <span class="tk-k">agent</span> Planner {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
-    system: <span class="tk-s">"Split the goal into 2 to 4 small tasks. Give each a name, a description and an owner: Researcher or Writer."</span>
-    output_schema: { tasks: list }
+    system: <span class="tk-s">"Split the goal into 2 to 4 small tasks. Give each a short one-word name, a description and an owner."</span>
+    output_schema: { tasks: list&lt;{ name: string, description: string, owner: enum[<span class="tk-s">"Researcher"</span>, <span class="tk-s">"Writer"</span>] }&gt; }
 }
 <span class="tk-k">agent</span> Researcher { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Do the research task and report briefly."</span> }
 <span class="tk-k">agent</span> Writer     { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Do the writing task and report briefly."</span> }
@@ -910,20 +910,21 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
     <span class="tk-k">delegate</span> <span class="tk-s">"Plan this goal: <span class="tk-v">{goal}</span>"</span> <span class="tk-k">to</span> Planner -&gt; plan
 
     <span class="tk-k">for</span> <span class="tk-k">each</span> task <span class="tk-k">in</span> plan.tasks <span class="tk-k">max</span> <span class="tk-n">4</span> {
-        <span class="tk-k">delegate</span> <span class="tk-s">"<span class="tk-v">{task.description}</span>"</span> <span class="tk-k">to</span> {task.owner} -&gt; {task.name}
+        <span class="tk-k">delegate</span> <span class="tk-s">"<span class="tk-v">{task.description}</span>"</span> <span class="tk-k">to</span> {task.owner} -&gt; results[task.name]
     }
-    <span class="tk-k">return</span> plan
+    <span class="tk-k">return</span> results
 }</code></pre></figure>
-<p>Look at the <code>delegate</code>: both the agent (<code>{task.owner}</code>) and the result variable (<code>{task.name}</code>) come from the item. One line routes each task to whoever should do it. <code>{_index}</code> is the item&#39;s position, from 0.</p>
-<p>Because the owner comes from data, Loom cannot check it when the script loads. If the plan names an agent that is not declared, the run fails with <code>Agent not found: Nobody</code>, and an <code>on_failure</code> on that step does not catch it. So tell the planner exactly which owners exist (as the <code>system:</code> prompt above does), and keep the list of owners short.</p>
+<p>Look at the <code>delegate</code>: the agent (<code>{task.owner}</code>) comes from the item, and the answer is stored under the task&#39;s name in one variable, <code>results[task.name]</code>. One line routes each task to whoever should do it. <code>{_index}</code> is the item&#39;s position, from 0.</p>
+<p>Because the owner comes from data, Loom cannot know which agent it will be when the script loads, so it limits the choice. The plan is typed: <code>owner: enum[&quot;Researcher&quot;, &quot;Writer&quot;]</code> means a model can only name one of those two. If the value ever falls outside the allowed set, the step is refused (a <code>route_refused</code> event in the trace) and nothing runs. You can also write the allowed set on the step itself: <code>to {task.owner} in [Researcher, Writer]</code>. A routing choice the script does not bound is reported by <code>weave audit</code> as LA22. Do not rely on the planner&#39;s prompt to keep the owner right: the prompt is advice, the enum is the boundary.</p>
+<p>Writing the answer to <code>results[task.name]</code> keeps a task name a model chose from overwriting any other variable of the script. Read it back as <code>{results}</code> or <code>{results.facts}</code>.</p>
 <h3 id="c04-parallel-for-each"><code>parallel for each</code></h3>
 <p>If the items are independent, do them all at once:</p>
 <figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 
 <span class="tk-k">agent</span> Planner {
     model: <span class="tk-s">"gemini-2.5-flash"</span>
-    system: <span class="tk-s">"Split the goal into 2 to 4 small tasks. Give each a name, a description and an owner: Researcher or Writer."</span>
-    output_schema: { tasks: list }
+    system: <span class="tk-s">"Split the goal into 2 to 4 small tasks. Give each a short one-word name, a description and an owner."</span>
+    output_schema: { tasks: list&lt;{ name: string, description: string, owner: enum[<span class="tk-s">"Researcher"</span>, <span class="tk-s">"Writer"</span>] }&gt; }
 }
 <span class="tk-k">agent</span> Researcher { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Do the research task and report briefly."</span> }
 <span class="tk-k">agent</span> Writer     { model: <span class="tk-s">"gemini-2.5-flash"</span>  system: <span class="tk-s">"Do the writing task and report briefly."</span> }
@@ -932,11 +933,11 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
     <span class="tk-k">delegate</span> <span class="tk-s">"Plan this goal: <span class="tk-v">{goal}</span>"</span> <span class="tk-k">to</span> Planner -&gt; plan
 
     <span class="tk-k">parallel</span> <span class="tk-k">for</span> <span class="tk-k">each</span> task <span class="tk-k">in</span> plan.tasks <span class="tk-k">max</span> <span class="tk-n">4</span> {
-        <span class="tk-k">delegate</span> <span class="tk-s">"<span class="tk-v">{task.description}</span>"</span> <span class="tk-k">to</span> {task.owner} -&gt; {task.name}
+        <span class="tk-k">delegate</span> <span class="tk-s">"<span class="tk-v">{task.description}</span>"</span> <span class="tk-k">to</span> {task.owner} -&gt; results[task.name]
             <span class="tk-k">retry</span> <span class="tk-n">1</span> <span class="tk-k">timeout</span> <span class="tk-n">90s</span>
             <span class="tk-k">on_failure</span> { <span class="tk-k">note</span> <span class="tk-s">"Task <span class="tk-v">{task.name}</span> failed: <span class="tk-v">{_error}</span>"</span> }
     }
-    <span class="tk-k">return</span> plan
+    <span class="tk-k">return</span> results
 }</code></pre></figure>
 <p>This is starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/06-plan-and-fan-out" target="_blank" rel="noopener">06-plan-and-fan-out</a>: a plan becomes parallel work. Each item gets its own failure handling, so one bad task does not stop the others.</p>
 <h3 id="c04-bound-a-list-a-model-wrote-max-and-on_too_many">Bound a list a model wrote: <code>max</code> and <code>on_too_many</code></h3>
@@ -2095,8 +2096,37 @@ extractor Invoice {
 <p>Always <em>use</em> the answer. <code>weave check</code> warns when the answer is stored and never read, or when both answers lead to the same steps, because then the question changes nothing. A good question has a branch for each answer, and a safe default for &quot;no&quot; and for no answer at all.</p>
 <h3 id="c08-make-the-safe-choice-the-default">Make the safe choice the default</h3>
 <p>An <code>alt (answer == &quot;yes&quot;)</code> sends only on an exact yes. Anything else, including an empty answer from a question that expired, takes the <code>else</code> branch. Write approvals so that doing nothing is what happens when nobody answers.</p>
+<h2 id="c08-where-to-ask">Where to ask</h2>
+<p>There are three shapes. Pick the one that matches what you need:</p>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Shape</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A plain yes or no before acting</td>
+<td><code>use Tool(...) approve</code>, <code>run Task(...) approve</code></td>
+</tr>
+<tr>
+<td>The person shapes the answer</td>
+<td><code>human_prompt</code>, then <code>alt</code>, then act</td>
+</tr>
+<tr>
+<td>Trust earned over time</td>
+<td><code>decide</code> with a ladder (optional, <a href="https://github.com/srijithunni7182/llm4j/blob/main/docs/guide/13-earned-autonomy.md" target="_blank" rel="noopener">chapter 13 of the guide</a>)</td>
+</tr>
+</tbody></table>
+<p>The first is the one to reach for. Let the agent propose, ask once, at the edge, about the exact payload, and send with code (starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/07-approval" target="_blank" rel="noopener">07</a>):</p>
+<figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">workflow</span> Main(facts) {
+    <span class="tk-k">delegate</span> <span class="tk-s">"Draft an announcement from: <span class="tk-v">{facts}</span>"</span> <span class="tk-k">to</span> Drafter -&gt; draft
+    use Notify(text = draft) approve <span class="tk-s">"Send this to the team channel?"</span> -&gt; receipt
+        on_declined { <span class="tk-k">return</span> <span class="tk-s">"Not sent. The draft is kept for editing:\n<span class="tk-v">{draft}</span>"</span> }
+}</code></pre></figure>
+<p>No model carries out the send, so no wording in a message can talk it past the question. A no is a decision, not a failure: <code>on_declined</code> handles it.</p>
 <h2 id="c08-approvals-on-tools">Approvals on tools</h2>
-<p>The script can ask before a step, as above. An agent&#39;s tool can also ask before <em>each call</em>:</p>
+<p>When a person works <em>with</em> an agent as it goes (an assistant that asks &quot;may I run this?&quot;), an agent&#39;s tool can ask before <em>each call</em>. In a workflow nobody is watching, this is the wrong shape: the run stops in the middle of the agent&#39;s reasoning and holds its conversation until someone answers (<code>weave review</code> says so, LH05).</p>
 <figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 
 <span class="tk-k">tool</span> Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
@@ -2300,7 +2330,7 @@ weave run main.loom -w Main -i facts="Office closed Friday" --journal runs/today
 <p>Every signal is a count, never a model&#39;s opinion, so a rule cannot be talked out of firing. This is starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/14-supervised-agent" target="_blank" rel="noopener">14-supervised-agent</a>.</p>
 <h2 id="c08-try-it-yourself">Try it yourself</h2>
 <ol>
-<li>In starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/07-approval" target="_blank" rel="noopener">07-approval</a>, change the question so a &quot;no&quot; asks what to change and loops (bounded) until the person says yes.</li>
+<li>In starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/07-approval" target="_blank" rel="noopener">07-approval</a>, make a &quot;no&quot; ask what to change, redraft, and ask again (a bounded <code>loop</code>), until the person says yes or the loop ends.</li>
 <li>Run starter <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/12-wait-for-a-person" target="_blank" rel="noopener">12-wait-for-a-person</a> with <code>--journal</code> and stop it at the question. Resume it after answering with <code>weave answer</code>.</li>
 <li>Add a <code>supervise</code> rule for a second tool.</li>
 </ol>
@@ -3728,7 +3758,7 @@ public final class ReviewLoopCheck {
 </tr>
 <tr>
 <td>Never send without a person&#39;s yes</td>
-<td><code>human_prompt</code> + <code>alt</code>, and <code>approve:</code> on the sender</td>
+<td><code>use Tool(...) approve &quot;…&quot;</code> after the draft, with <code>on_declined</code></td>
 <td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/07-approval" target="_blank" rel="noopener">07</a></td>
 </tr>
 <tr>
@@ -3941,9 +3971,9 @@ extractor ResearchFields {
 <td>Add all three</td>
 </tr>
 <tr>
-<td>An agent that can send, with no <code>approve:</code></td>
+<td>An agent that can send, with no approval</td>
 <td>Nobody decides before it acts</td>
-<td><code>approve: [Tool]</code>, or a <code>human_prompt</code> first</td>
+<td>Let it propose and <code>use Tool(...) approve</code> after it; <code>approve: [Tool]</code> for an assistant a person works with</td>
 </tr>
 <tr>
 <td>One shared variable written by two <code>parallel</code> branches</td>
@@ -4010,7 +4040,7 @@ persona Name { role: "..."  tone: "..."  constraints: ["..."] }
 provider Name { use: ollama  base_url: "..."  api_key: env.NAME }
 routing Name { strategy: fallback  primary: "m1"  fallback: ["m2", "m3"] }
 knowledge Name { source: "docs/"  embedding: "gemini/text-embedding-004"  top_k: 4  store: "idx.json" }
-tool Name { use: webhook|email|http|file|shell|sql|openapi|class|...  ...options... }
+tool Name { use: webhook|email|http|file|shell|sql|openapi|class|...  ...options...  effect: none|reads|changes }
 mcp Name { transport: "stdio"  cmd: "..." }
 extractor Name { model: "..."  instructions: "..."  fields { f: string  n: number }  optional: [n]  pii: mask }
 evaluator Name { model: "..."  samples: 3  unsure below 0.8  fallback: ["..."] }
@@ -4041,7 +4071,8 @@ workflow Name(p1, p2) {
     alt (a == "b") { ... } else { ... }
     loop until (a == "b") max 5 { ... } on_exhausted { ... }
     call Other(arg = value) -&gt; result
-    run Task(arg = value) -&gt; result [model "..."] [retry N] [timeout 30s]
+    run Task(arg = value) [approve ["heading"]] -&gt; result [model "..."] [retry N] [timeout 30s] [on_declined {...}]
+    use Tool(arg = value) [approve ["heading"]] -&gt; result [retry N] [backoff 2s] [timeout 30s] [on_declined {...}] [on_failure {...}]
     intentclassify Name on text -&gt; result
     extract Name from text -&gt; result          extract Name from (a = x, b = y) -&gt; result
     check reply against P, Q using Evaluator -&gt; verdict  on_violation { rewrite with Agent | ask person | replace with "..." | fail }  on_unavailable { ... }

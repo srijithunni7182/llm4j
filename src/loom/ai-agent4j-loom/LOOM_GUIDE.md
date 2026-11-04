@@ -2264,18 +2264,23 @@ newExecutor.executeWorkflow("Main", inputs);              // replays, then conti
 
 ### for each
 Run a block once per item of a list, one after another, or all at once with `parallel for each`. The item
-is visible to the block as `{item.field}` (and its position as `{_index}`). The agent and the result
-variable can come from the item, so one line routes work to whoever should do it:
+is visible to the block as `{item.field}` (and its position as `{_index}`). The agent can come from the
+item, so one line routes work to whoever should do it, and the answers can be kept under the item's name
+in one variable:
 
 ```loom
 for each fix in review.fixes {
-    delegate "Fix this: {fix.problem}" to {fix.owner} -> {fix.output}
+    delegate "Fix this: {fix.problem}" to {fix.owner} in [Writer, Designer] -> results[fix.name]
 }
 
 parallel for each shot in plan.shots max 6 {
-    delegate "Shoot {shot.description}" to Photographer -> {shot.name}
+    delegate "Shoot {shot.description}" to Photographer -> results[shot.name]
 }
 ```
+
+**Routing within limits.** A model chose the value in `{fix.owner}`, so the script must say which agents it may name. Either write the allow-list on the step (`to {fix.owner} in [Writer, Designer]`; every name must be a declared agent, checked when the script loads), or take the value from a field typed `enum[...]` in the agent's `output_schema` or an extractor. A value outside the list is **refused**: the step does not run, the trace records `route_refused` (it names the agent that wrote the value and never prints the value's text), and `on_failure` handles it like any failed step. The prompt is not a boundary: asking the planner to "use only Writer or Designer" is advice, the list is the rule. A routing choice that nothing bounds is an error in `weave check` when any agent holds a tool that changes something or reaches private data, and a warning otherwise; `weave audit` reports it too (see `docs/security/weave-audit.md`).
+
+**Where the answer goes.** `-> results[fix.name]` stores each answer under a key in one variable (`results`), and the key must be a plain word (letters, digits and `_`, starting with a letter). Read it as `{results}` or `{results.docs}`. A bare dynamic name (`-> {fix.name}`) still works for a name that is new, plain, does not start with `_` and is not a name the script uses elsewhere; anything else is refused with a message that points at the map form. A name chosen by a model could otherwise overwrite a variable the script depends on, so prefer the map form.
 
 **Bound a list a model wrote.** `for each x in list.path max N { ... }` (and `parallel for each`) fails the workflow **before any item starts** when the list has more than `N` items, and the error names the agent or extractor that wrote the list and both lines: such a list usually points upstream (what the planner was given or asked, or text in its input trying to steer it). `on_too_many { ... }` runs instead, with `_count` and `_max` in scope, and may ask a person, `halt`, or narrow the list. The trace event `fanout_exceeded` carries the counts and the producer, never an item; the live page and Fabric raise a *plan over its bound* incident; `weave capture` turns the failed run into a test case. `weave review` rule LR13 (medium) warns about a `for each` over a model-written list with no `max`, and the cost estimate shows its worst case as unknown until it has one. The bound is the last line of defence: also tell the planner the limit and add a golden case that its list stays within it.
 

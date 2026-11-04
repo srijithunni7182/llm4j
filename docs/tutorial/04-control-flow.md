@@ -160,8 +160,8 @@ substitution: braces
 
 agent Planner {
     model: "gemini-2.5-flash"
-    system: "Split the goal into 2 to 4 small tasks. Give each a name, a description and an owner: Researcher or Writer."
-    output_schema: { tasks: list }
+    system: "Split the goal into 2 to 4 small tasks. Give each a short one-word name, a description and an owner."
+    output_schema: { tasks: list<{ name: string, description: string, owner: enum["Researcher", "Writer"] }> }
 }
 agent Researcher { model: "gemini-2.5-flash"  system: "Do the research task and report briefly." }
 agent Writer     { model: "gemini-2.5-flash"  system: "Do the writing task and report briefly." }
@@ -170,15 +170,17 @@ workflow Main(goal) {
     delegate "Plan this goal: {goal}" to Planner -> plan
 
     for each task in plan.tasks max 4 {
-        delegate "{task.description}" to {task.owner} -> {task.name}
+        delegate "{task.description}" to {task.owner} -> results[task.name]
     }
-    return plan
+    return results
 }
 ```
 
-Look at the `delegate`: both the agent (`{task.owner}`) and the result variable (`{task.name}`) come from the item. One line routes each task to whoever should do it. `{_index}` is the item's position, from 0.
+Look at the `delegate`: the agent (`{task.owner}`) comes from the item, and the answer is stored under the task's name in one variable, `results[task.name]`. One line routes each task to whoever should do it. `{_index}` is the item's position, from 0.
 
-Because the owner comes from data, Loom cannot check it when the script loads. If the plan names an agent that is not declared, the run fails with `Agent not found: Nobody`, and an `on_failure` on that step does not catch it. So tell the planner exactly which owners exist (as the `system:` prompt above does), and keep the list of owners short.
+Because the owner comes from data, Loom cannot know which agent it will be when the script loads, so it limits the choice. The plan is typed: `owner: enum["Researcher", "Writer"]` means a model can only name one of those two. If the value ever falls outside the allowed set, the step is refused (a `route_refused` event in the trace) and nothing runs. You can also write the allowed set on the step itself: `to {task.owner} in [Researcher, Writer]`. A routing choice the script does not bound is reported by `weave audit` as LA22. Do not rely on the planner's prompt to keep the owner right: the prompt is advice, the enum is the boundary.
+
+Writing the answer to `results[task.name]` keeps a task name a model chose from overwriting any other variable of the script. Read it back as `{results}` or `{results.facts}`.
 
 ### `parallel for each`
 
@@ -189,8 +191,8 @@ substitution: braces
 
 agent Planner {
     model: "gemini-2.5-flash"
-    system: "Split the goal into 2 to 4 small tasks. Give each a name, a description and an owner: Researcher or Writer."
-    output_schema: { tasks: list }
+    system: "Split the goal into 2 to 4 small tasks. Give each a short one-word name, a description and an owner."
+    output_schema: { tasks: list<{ name: string, description: string, owner: enum["Researcher", "Writer"] }> }
 }
 agent Researcher { model: "gemini-2.5-flash"  system: "Do the research task and report briefly." }
 agent Writer     { model: "gemini-2.5-flash"  system: "Do the writing task and report briefly." }
@@ -199,11 +201,11 @@ workflow Main(goal) {
     delegate "Plan this goal: {goal}" to Planner -> plan
 
     parallel for each task in plan.tasks max 4 {
-        delegate "{task.description}" to {task.owner} -> {task.name}
+        delegate "{task.description}" to {task.owner} -> results[task.name]
             retry 1 timeout 90s
             on_failure { note "Task {task.name} failed: {_error}" }
     }
-    return plan
+    return results
 }
 ```
 

@@ -396,6 +396,11 @@ public class HarnessExecutor implements LoomEngine {
                         }
 
                         @Override
+                        public String resolveResultName(String name) {
+                            return HarnessExecutor.this.resolveResultName(name);
+                        }
+
+                        @Override
                         public AgentDef agentDef(String name) {
                             return script.getAgents().stream()
                                     .filter(a -> a.getName().equals(name))
@@ -884,6 +889,25 @@ public class HarnessExecutor implements LoomEngine {
      * from does not compile, and {@code ProvenanceRoutesTest} reads the sources to keep it so.
      */
     void bind(String name, Object value, Provenance.Tag origin) {
+        int open = name.indexOf('[');
+        if (open > 0 && name.endsWith("]")) {
+            // results[key]: one object variable, the answer stored under the key
+            String base = name.substring(0, open);
+            String key = name.substring(open + 1, name.length() - 1);
+            // parallel branches write the same map: one at a time, so no answer is lost
+            synchronized (mapLock) {
+                Object existing = context.getVariable(base);
+                Map<String, Object> map = new java.util.LinkedHashMap<>();
+                if (existing instanceof Map<?, ?> m) m.forEach((k, v) -> map.put(String.valueOf(k), v));
+                map.put(key, value);
+                Provenance.Tag joined = origin;
+                Object before = context.originOf(base);
+                if (before instanceof Provenance.Tag t) joined = Provenance.join(t, origin);
+                context.setVariable(base, map);
+                context.setOrigin(base, joined);
+            }
+            return;
+        }
         context.setVariable(name, value);
         context.setOrigin(name, origin);
     }
@@ -3561,6 +3585,21 @@ public class HarnessExecutor implements LoomEngine {
 
     /** A name written {@code {item.field}} is resolved now; a plain name is used as written. */
     private String resolveName(String name) {
+        if (name.endsWith("]") && name.indexOf('[') > 0) {
+            // results[task.name]: the key is a value, and must be a plain word
+            String base = name.substring(0, name.indexOf('['));
+            String expr = name.substring(name.indexOf('[') + 1, name.length() - 1);
+            Object key = ConditionEvaluator.resolvePath(expr, view());
+            String text = key == null ? "" : String.valueOf(key);
+            if (!SAFE_KEY.matcher(text).matches())
+                throw new IllegalStateException(
+                        "the key "
+                                + expr
+                                + " of "
+                                + base
+                                + "[…] is not a plain word (letters, digits and _, starting with a letter), so nothing was stored");
+            return base + "[" + text + "]";
+        }
         if (!name.startsWith("{")) return name;
         Object value = ConditionEvaluator.resolvePath(name.substring(1, name.length() - 1), view());
         if (value == null || String.valueOf(value).isBlank()) {
@@ -3584,6 +3623,56 @@ public class HarnessExecutor implements LoomEngine {
 
     String resolveVariableName(String name) {
         return resolveName(name);
+    }
+
+    private final Object mapLock = new Object();
+
+    private static final java.util.regex.Pattern SAFE_KEY =
+            java.util.regex.Pattern.compile("[A-Za-z][A-Za-z0-9_]*");
+
+    /**
+     * The variable a delegate's answer is stored in. A name taken from a value ({@code ->
+     * {task.name}}) must be a plain word, may only create a variable that does not exist yet, may
+     * not start with {@code _}, and may not be a name the script binds anywhere else, so a model's
+     * words cannot overwrite what the script depends on (docs/specs/27, R11). The map form
+     * ({@code -> results[task.name]}) is the recommended one.
+     */
+    String resolveResultName(String name) {
+        String resolved = resolveName(name);
+        if (!name.startsWith("{")) return resolved;
+        String why = null;
+        if (!SAFE_KEY.matcher(resolved).matches()) why = "is not a plain word";
+        else if (resolved.startsWith("_")) why = "starts with _, which is the runtime's";
+        else if (view().getAll().containsKey(resolved)) why = "is already a variable";
+        else if (scriptBoundNames().contains(resolved)) why = "is a name the script binds itself";
+        if (why != null)
+            throw new IllegalStateException(
+                    "the result name "
+                            + name
+                            + " resolved to a name that "
+                            + why
+                            + "; nothing was stored. Use the map form instead: -> results["
+                            + name.substring(1, name.length() - 1)
+                            + "]");
+        return resolved;
+    }
+
+    private java.util.Set<String> boundNames;
+
+    private java.util.Set<String> scriptBoundNames() {
+        if (boundNames != null) return boundNames;
+        java.util.Set<String> out = new java.util.HashSet<>();
+        for (io.github.llm4j.loom.ast.WorkflowDef w : script.getWorkflows()) {
+            out.addAll(w.getParameters());
+            io.github.llm4j.loom.ast.StatementWalker.walk(
+                    w.getStatements(),
+                    s -> {
+                        String n = WorkflowLint.assignedName(s);
+                        if (n != null && !n.startsWith("{") && !n.endsWith("]")) out.add(n);
+                    });
+        }
+        boundNames = out;
+        return out;
     }
 
     /**

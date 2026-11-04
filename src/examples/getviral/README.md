@@ -169,7 +169,7 @@ flowchart LR
 
    ![The build tracker while the VideoEditor cuts the Reel](docs/tracker.png) In the
    `.loom` that is a `loop until (qualityReport.verdict == "COMPLETE") max 5` around one review and one
-   line of routing: `for each fix in qualityReport.fixes { delegate … to {fix.owner} -> {fix.output} }`.
+   routing step: `for each fix in qualityReport.fixes`, one `alt (fix.area == "x") { delegate … to XWriter -> xPack }` branch per area, so the script, not the model, names who does each fix.
    The review uses a per-step schema (`expecting { ... }`) because the Showrunner's normal output is a
    casting sheet.
 

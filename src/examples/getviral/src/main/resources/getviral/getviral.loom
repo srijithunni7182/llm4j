@@ -375,14 +375,20 @@ VISUAL STYLE: {castingSheet.visual_style}" to Showrunner -> qualityReport expect
             }
 
             // Each failing area goes to the specialist who owns it (video last: it's cut from the others).
+            // The owner is named in the script, one branch per area, so a model's words cannot pick the agent.
             for each fix in qualityReport.fixes {
-                delegate "{fix.task}
+                set fix_prompt = "{fix.task}
 FIX: {fix.problem}
 IDEA: {creatorIdea}
 TONE: {creatorTone}
 HOOK: {hookChoice}
 VISUAL STYLE: {castingSheet.visual_style}
-CURRENT: {fix.current}" to {fix.owner} -> {fix.output} retry 1
+CURRENT: {fix.current}"
+                alt (fix.area == "x") { delegate "{fix_prompt}" to XWriter -> xPack retry 1 }
+                alt (fix.area == "reel") { delegate "{fix_prompt}" to ReelDirector -> reelPack retry 1 }
+                alt (fix.area == "youtube") { delegate "{fix_prompt}" to YouTubeProducer -> youtubePack retry 1 }
+                alt (fix.area == "visuals") { delegate "{fix_prompt}" to ArtDirector -> visualPack retry 1 }
+                alt (fix.area == "video") { delegate "{fix_prompt}" to VideoEditor -> videoPack retry 1 }
             }
         } on_exhausted {
             note "Quality loop reached its limit after {_loopRounds} rounds — some artifacts still fail the gate."

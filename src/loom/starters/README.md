@@ -26,7 +26,7 @@ The models are named `gemini-2.5-flash` in all of them. Change the `model:` line
 | 04 | [router](04-router/) | A classifier picks the specialist | `output_schema`, `alt`, routing in the script |
 | 05 | [parallel-research](05-parallel-research/) | Two researchers at once; one may fail | `parallel`, `retry`, `timeout`, `on_failure` |
 | 06 | [plan-and-fan-out](06-plan-and-fan-out/) | A plan becomes parallel work | `parallel for each`, runtime routing |
-| 07 | [approval](07-approval/) | A person approves before anything is sent | `human_prompt`, `approve:`, `webhook` tool, PII `guard` |
+| 07 | [approval](07-approval/) | A person approves once, at the edge, before anything is sent | `use ... approve`, `on_declined`, `effect:`, `webhook` tool, PII `guard` |
 | 08 | [extract-and-validate](08-extract-and-validate/) | Free text to checked fields | `extractor`, `extract`, `optional:`, `== missing`, `halt`, `return { }` |
 | 09 | [handbook-qa](09-handbook-qa/) | Answers from your own documents | `knowledge` (checked, not run: needs an embedding key) |
 | 10 | [memory-assistant](10-memory-assistant/) | Remembers each person | `memory`, `persona`, `session` |
