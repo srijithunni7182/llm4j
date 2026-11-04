@@ -85,6 +85,24 @@ final class EvalCommand implements Callable<Integer> {
     boolean check;
 
     @Option(
+            names = "--requirements",
+            description =
+                    "Write the golden dataset as a plain page a reviewer can read and sign off: what each agent and node must do and must never do, the identity of what was read, and what has no requirement yet. Needs no model and no key.")
+    boolean requirements;
+
+    @Option(
+            names = "--format",
+            paramLabel = "<md|html>",
+            description = "With --requirements: markdown (default) or html, a page to share.")
+    String format = "md";
+
+    @Option(
+            names = "--approve",
+            description =
+                    "With --requirements: record that the requirements as they stand were read and accepted. Needs --why; --approver defaults to git user.email. A later change to any case or policy makes the page say so.")
+    boolean approve;
+
+    @Option(
             names = "--init",
             description =
                     "Create eval/golden with one starter scenario per agent and one for the workflow. Never overwrites a file.")
@@ -114,10 +132,10 @@ final class EvalCommand implements Callable<Integer> {
                     "After a finished real run, save its results as a new baseline. Needs --approver and --why; a baseline is never replaced.")
     boolean saveBaseline;
 
-    @Option(names = "--approver", paramLabel = "<name>", description = "With --save-baseline: who approves this baseline.")
+    @Option(names = "--approver", paramLabel = "<name>", description = "With --save-baseline or --approve: who approves.")
     String approver;
 
-    @Option(names = "--why", paramLabel = "<text>", description = "With --save-baseline: why this run is the new baseline.")
+    @Option(names = "--why", paramLabel = "<text>", description = "With --save-baseline or --approve: why.")
     String why;
 
     @Option(
@@ -368,6 +386,11 @@ final class EvalCommand implements Callable<Integer> {
         }
         Path dir = DatasetFolder.locate(scriptFile, c.dataset == null ? null : c.dataset.toPath());
         if (c.init) return init(script, dir, env);
+        if (c.requirements) return requirements(c, script, scriptFile, env);
+        if (c.approve || !"md".equals(c.format)) {
+            env.err().println("Error: --approve and --format belong to --requirements.");
+            return 2;
+        }
 
         DatasetFolder.Plan plan = DatasetFolder.plan(script, dir, c.workflow);
         List<String> problems = new ArrayList<>(plan.problems());
@@ -943,6 +966,40 @@ final class EvalCommand implements Callable<Integer> {
             if (calls != null) parts.add(usedCalls() + " of " + calls + " calls");
             if (cost != null) parts.add("$" + usedCost() + " of $" + cost);
             return String.join(", ", parts);
+        }
+    }
+
+    // ── --requirements ───────────────────────────────────────────────────────────────────────
+
+    private static int requirements(
+            EvalCommand c, LoomScript script, Path scriptFile, WeaveEnv env) {
+        try {
+            if (c.approve) {
+                String who = Identity.of(c.approver, scriptFile.toAbsolutePath().getParent());
+                var approval =
+                        io.github.llm4j.loom.eval.RequirementsApprovals.approve(
+                                script, scriptFile, who, c.why, env.clock());
+                env.out()
+                        .println(
+                                "Approved by "
+                                        + approval.approver()
+                                        + " on "
+                                        + approval.date()
+                                        + ". A later change to any case or policy will make the page say so.");
+                return 0;
+            }
+            env.out()
+                    .print(
+                            io.github.llm4j.loom.eval.RequirementsPage.render(
+                                    script,
+                                    scriptFile,
+                                    c.format,
+                                    env.clock(),
+                                    new io.github.llm4j.loom.loop.Masker()::mask));
+            return 0;
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            env.err().println("Error: " + e.getMessage());
+            return 2;
         }
     }
 

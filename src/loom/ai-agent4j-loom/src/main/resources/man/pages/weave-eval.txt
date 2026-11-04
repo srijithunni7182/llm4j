@@ -3,6 +3,9 @@ weave eval main.loom --init          create eval/golden/ with a starter dataset
 weave eval main.loom --check         validate the dataset; calls no model
 weave eval main.loom --mock          run it with mock models; costs nothing
 weave eval main.loom --max-cost 0.50 --prices prices.txt     against real models, capped
+weave eval main.loom --requirements               the dataset as a plain page a reviewer can read; no model, no key
+weave eval main.loom --requirements --format html a page to share
+weave eval main.loom --requirements --approve --approver ana --why "read with legal"     sign off exactly what was read
 ## MORE OPTIONS
 weave eval main.loom --repetitions 5              run every case 5 times: pass@1, pass^N, consistency, unstable cases
 weave eval main.loom --judge-samples 3            judge each rubric line 3 times; wide disagreement leaves it unjudged

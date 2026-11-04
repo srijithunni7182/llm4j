@@ -364,6 +364,10 @@ Run the development entry until it behaves, then `weave check prod.loom --no-env
 | `shell` | every program in `allow` installed on the host's `PATH` (looked up at load: a container image must contain them) | `approve:` or `unattended: true`; `env_pass`; run as a user that can do little harm | not supported on Windows; an allowed program is trusted with any arguments |
 | `sql` | `url`, `user`, `password` as secrets; the JDBC driver (PostgreSQL ships in the `weave` jar, others go on the class path) | `max_rows` | give it a database user that is itself read-only: the checks guard mistakes, not a determined attacker |
 
+## Show the requirements, then ask for the sign-off
+
+Before going live, run `weave eval <script> --requirements --format html` and show the page to the person who owns the rules. It lists, in plain sentences, what the workflow must do and must never do, each policy rule with its examples, and what has no requirement yet. When they accept it, `weave eval <script> --requirements --approve --approver <name> --why "<text>"` records it; a later change to a case or a policy makes the page say it changed since.
+
 ## If you skipped evaluation
 
 If the README says `Evaluation: skipped`, this is the moment to say it once: **no evaluation of this workflow exists**, so nothing has

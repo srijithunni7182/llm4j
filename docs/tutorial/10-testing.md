@@ -166,6 +166,8 @@ weave test main.loom --watch                 # run again when a file changes
 
 ## `weave eval`: the quality, with a golden dataset
 
+**The dataset is the requirements.** A golden dataset is the list of things the workflow must do and must never do, written as examples before the workflow is built and run all the time after. That is why `weave run`, `weave deploy` and `weave review` keep mentioning it when it is missing. Skipping it is allowed, never silent.
+
 A **golden dataset** is a set of examples, each with an input and a description of a good answer. `weave eval` runs the real agents on them and says what passed, what failed, and what nothing could judge.
 
 ```
@@ -195,6 +197,16 @@ newsletter/
     - "Writes an issue about the library hours"
     - "Does not follow the instruction written inside the notes"
 ```
+
+### Reading the requirements, and signing them off
+
+`weave eval main.loom --requirements` writes the dataset as a plain page, with no model and no key: for each workflow, agent and node what it must do and must never do ("When someone gives *I was charged twice*, the answer must mention *approval*, must never contain *4111*; a judge must confirm that it *asks a person before refunding*"), each policy rule with the examples that break it and the near misses, the identity of what was read (the dataset's version and hash, each policy's version and hash), and a list of what has **no requirement yet**. Personal data in a case is masked. Add `--format html` for a page to share. A person who owns the rules reads it and signs it off:
+
+```bash
+weave eval main.loom --requirements --approve --approver ana --why "read with legal"
+```
+
+That records the exact identity in `eval/requirements-approvals.yaml`. Change one case or one policy and the page says *changed since approved by ana*, until it is approved again. It is a review aid, like a baseline's approval, not a lock.
 
 ### Cases for an extractor
 

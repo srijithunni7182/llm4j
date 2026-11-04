@@ -250,9 +250,9 @@ public final class NodeCasesGate {
 
     // ── reading ──────────────────────────────────────────────────────────────────────────────
 
-    private record Loaded(String file, List<JsonNode> cases, List<String> problems, boolean unreadable) {}
+    record Loaded(String file, List<JsonNode> cases, List<String> problems, boolean unreadable) {}
 
-    private static Loaded load(Path dir, String node) {
+    static Loaded load(Path dir, String node) {
         var found = GoldenDatasets.find(dir, node);
         if (found.isEmpty()) return new Loaded(node + ".yaml", List.of(), List.of(), false);
         Path path = found.get();

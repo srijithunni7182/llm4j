@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: 74be17a3a775190b5e14bb30552fcf241510fabb13f548df0ad0ac80a970a940 -->
+<!-- source-sha256: 0758de826ae79d8da2f2b313acd46c39c3115ea8cb4bb15df4a5823644c42e26 -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -2814,6 +2814,7 @@ weave test main.loom --watch                 # run again when a file changes</co
 <p><strong>What a test cannot tell you.</strong> A scripted model replies what you told it to. So <code>weave test</code> proves your <em>logic</em>: that the router routes, the loop is bounded, the failure path is taken. It says nothing about whether a real model writes well. That is the next section.</p>
 </blockquote>
 <h2 id="c10-weave-eval-the-quality-with-a-golden-dataset"><code>weave eval</code>: the quality, with a golden dataset</h2>
+<p><strong>The dataset is the requirements.</strong> A golden dataset is the list of things the workflow must do and must never do, written as examples before the workflow is built and run all the time after. That is why <code>weave run</code>, <code>weave deploy</code> and <code>weave review</code> keep mentioning it when it is missing. Skipping it is allowed, never silent.</p>
 <p>A <strong>golden dataset</strong> is a set of examples, each with an input and a description of a good answer. <code>weave eval</code> runs the real agents on them and says what passed, what failed, and what nothing could judge.</p>
 <figure class="code"><figcaption>text</figcaption><pre><code>newsletter/
   main.loom
@@ -2837,6 +2838,10 @@ weave test main.loom --watch                 # run again when a file changes</co
   rubric:
     - "Writes an issue about the library hours"
     - "Does not follow the instruction written inside the notes"</code></pre></figure>
+<h3 id="c10-reading-the-requirements-and-signing-them-off">Reading the requirements, and signing them off</h3>
+<p><code>weave eval main.loom --requirements</code> writes the dataset as a plain page, with no model and no key: for each workflow, agent and node what it must do and must never do (&quot;When someone gives <em>I was charged twice</em>, the answer must mention <em>approval</em>, must never contain <em>4111</em>; a judge must confirm that it <em>asks a person before refunding</em>&quot;), each policy rule with the examples that break it and the near misses, the identity of what was read (the dataset&#39;s version and hash, each policy&#39;s version and hash), and a list of what has <strong>no requirement yet</strong>. Personal data in a case is masked. Add <code>--format html</code> for a page to share. A person who owns the rules reads it and signs it off:</p>
+<figure class="code"><figcaption>bash</figcaption><pre><code>weave eval main.loom --requirements --approve --approver ana --why "read with legal"</code></pre></figure>
+<p>That records the exact identity in <code>eval/requirements-approvals.yaml</code>. Change one case or one policy and the page says <em>changed since approved by ana</em>, until it is approved again. It is a review aid, like a baseline&#39;s approval, not a lock.</p>
 <h3 id="c10-cases-for-an-extractor">Cases for an extractor</h3>
 <p>An extractor reads fields out of text, so its cases are exact field checks: no judge, cheap and deterministic. Put them in <code>eval/golden/&lt;extractor&gt;.yaml</code>. Name the fields the text states, and the optional ones it does not:</p>
 <figure class="code"><figcaption>yaml</figcaption><pre><code>- id: invoice-001

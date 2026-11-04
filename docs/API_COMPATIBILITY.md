@@ -86,6 +86,7 @@ Before introducing a breaking change:
 
 ## Additions in 6.2.0 (Loom language and test files)
 
+- **`weave eval --requirements`, `--format`, `--approve`; `RequirementsPage`, `RequirementsApprovals`; `eval/requirements-approvals.yaml`** (phase 28c). New options and a new file; nothing existing changes.
 - **`NodeCasesGate`, `GoldenDatasets.nodeFiles`, `EvalDataset.load(dir, skip)` and `LoomLoader.setGateNoticeWanted`** (phase 28b). `weave check` reports `NodeCasesGate.problems` as errors. `EvalDataset.load(Path)` is unchanged; the new overload leaves out files that hold another kind of case. Loading never reads `eval/golden`.
 - **Testability lens on by default; LT06 exact** (phase 28a). `Lens.TESTABILITY.optional()` is now `false`. LT06 no longer needs heuristics, is one finding per script, and its severity follows LT01. `DeployOptions` gains a component, `evaluationNotice` (the ten-argument constructor is kept). `HarnessExecutor.setEvaluated(boolean)` and the `evaluated` attribute of the run start event (`loom.run.evaluated`, present only when false) are new. `GoldenDatasets` (in `io.github.llm4j.loom.eval`) is the shared lookup of which agents and nodes have golden cases.
 
