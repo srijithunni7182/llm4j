@@ -8,7 +8,7 @@
 
 Loom is a small, readable language for workflows of AI agents. A script (a `.loom` file) says which agents exist, what each may use, and the steps in order: who works on what, which branch is taken, when a person must approve, and how much the run may spend. A separate `.loot` file maps the tools an agent may call to the Java code behind them.
 
-The idea is to let each side do what it is good at. **The model reads, writes and judges. The script holds the rules.** In this workflow a model reads a customer's email, but plain script logic, not the model, decides whether a refund needs a person, so no wording in an email can talk the workflow past the limit:
+Because the workflow is a language, its architecture can be reviewed by people and checked by tools: Loom distils multi-agent best practice into a language that can be reviewed, and in code-first frameworks the architecture is a convention where in Loom it is checked ([thirteen mistakes and what you see for each](https://github.com/srijithunni7182/llm4j/blob/main/docs/REVIEWABLE_ARCHITECTURE.md)). The idea is to let each side do what it is good at. **The model reads, writes and judges. The script holds the rules.** In this workflow a model reads a customer's email, but plain script logic, not the model, decides whether a refund needs a person, so no wording in an email can talk the workflow past the limit:
 
 ```loom
 budget { tokens: 100000  calls: 20 }

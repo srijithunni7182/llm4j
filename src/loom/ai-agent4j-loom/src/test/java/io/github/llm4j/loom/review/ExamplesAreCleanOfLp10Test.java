@@ -31,6 +31,7 @@ class ExamplesAreCleanOfLp10Test {
                     "review-rules/core/examples/", // fixtures that make one rule fire
                     "src/test/resources/", // test inputs
                     "vscode-loom/test/fixtures/", // editor fixtures, flawed on purpose
+                    "probes/large-schema-with-tools/loom/", // probe P10 shows LP10 firing on purpose
                     "lc01-quiet-tools.loom" // fixture for LC01, accepted with a reason (DESIGN R4)
                     );
 

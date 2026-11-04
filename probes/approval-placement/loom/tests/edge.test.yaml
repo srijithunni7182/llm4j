@@ -1,0 +1,19 @@
+script: ../edge.loom
+workflow: Main
+cases:
+  - name: the person is asked once, about the exact text, and a yes sends it
+    input: { facts: "Office closed Friday" }
+    models:
+      Drafter: "The office is closed on Friday."
+    humans: [ "yes" ]
+    tools:
+      Notify: "sent"
+    expect:
+      calls: { Drafter: 1 }
+  - name: a no sends nothing
+    input: { facts: "Office closed Friday" }
+    models:
+      Drafter: "The office is closed on Friday."
+    humans: [ "no" ]
+    expect:
+      result: { contains: "Not sent" }

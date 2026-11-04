@@ -286,3 +286,5 @@ The workflow is one `.loom` file.
 ([durable execution](https://docs.langchain.com/oss/python/langgraph/durable-execution),
 [checkpointers](https://docs.langchain.com/oss/python/langgraph/checkpointers),
 [interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts)). Corrections are welcome.*
+
+See also: [Architecture you can review](../../../docs/REVIEWABLE_ARCHITECTURE.md).

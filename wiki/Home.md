@@ -67,6 +67,7 @@ Each module answers the question the previous one raises.
 
 ### Why llm4j
 
+- [Architecture you can review](../docs/REVIEWABLE_ARCHITECTURE.md): Loom is a language, so the architecture of a multi-agent workflow can be checked by tools; thirteen mistakes, what Loom does about each and what you see, with probes against other frameworks
 - [Why AI Agent4J?](../src/ai-agent4j/wiki/WHY_AI_AGENT4J.md): the comparison with LangChain4j and Spring AI
 - [Why Loom?](../src/loom/ai-agent4j-loom/WHY_LOOM.md): long-running, autonomous workflows, and how it goes further than LangGraph
 - [Why eval4j?](../src/ai-agent4j/wiki/WHY_EVAL4J.md): the comparison with deepeval

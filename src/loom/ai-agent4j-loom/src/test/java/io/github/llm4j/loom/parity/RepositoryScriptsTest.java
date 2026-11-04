@@ -56,7 +56,13 @@ class RepositoryScriptsTest {
                                                     // review has findings to show
                                                     && !p.toString()
                                                             .contains(
-                                                                    "vscode-loom/test/fixtures/review/scripts/"))
+                                                                    "vscode-loom/test/fixtures/review/scripts/")
+                                                    // probe demonstrations of what weave check
+                                                    // refuses (P11, P14, P17); the probes' own
+                                                    // test proves each really fails
+                                                    && !p.toString().endsWith("probes/exit-check/loom/unchecked.loom")
+                                                    && !p.toString().endsWith("probes/tool-effects/loom/retries.loom")
+                                                    && !p.toString().endsWith("probes/route-allowlist/loom/unbounded.loom"))
                             .sorted()
                             .toList();
         }

@@ -1,0 +1,15 @@
+// P9, Loom side: the same job written as an agent. It sees everything said before it and the shared prompt.
+substitution: braces
+
+agent Chat { model: "gemini-2.5-flash"  system: "Chat with the customer." }
+agent Reader {
+    model: "gemini-2.5-flash"
+    system: "Read the invoice."
+    output_schema: { vendor: string, total: number }
+}
+
+workflow Main(text) {
+    delegate "{text}" to Chat -> reply
+    delegate "{text}" to Reader -> invoice
+    return invoice
+}

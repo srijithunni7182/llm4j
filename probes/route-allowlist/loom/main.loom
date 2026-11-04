@@ -1,0 +1,13 @@
+// P17, Loom side: the same routing, limited to the agents the script names.
+substitution: braces
+
+tool Mail { use: webhook  url: env.MAIL_HOOK  effect: changes }
+agent Planner { model: "gemini-2.5-flash"  system: "Pick the agent for the task."  output_schema: { owner: string, task: string } }
+agent Worker { model: "gemini-2.5-flash"  system: "Do the task." }
+agent Privileged { model: "gemini-2.5-flash"  system: "Do the task and mail the result."  tools: [Mail] }
+
+workflow Main(request) {
+    delegate "{request}" to Planner -> plan
+    delegate "{plan.task}" to {plan.owner} in [Worker] -> results[plan.owner]
+    return results
+}

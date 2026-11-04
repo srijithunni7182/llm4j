@@ -1,0 +1,7 @@
+== weave check untested/main.loom: the evaluator has no cases ==
+✗ line 4: evaluator Compliance: Evaluator `Compliance` has no case that breaks `HouseRules.no_refund_promise` (and no clean case). A policy rule nobody has tested is not binding: write one of each in `eval/golden/compliance.yaml`.
+1 problem in main.loom
+
+== weave check tested/main.loom: a case that breaks the rule and a clean one ==
+✓ main.loom: ready to run
+  next: weave next says what to do now; weave guide recipes has tested changes to copy

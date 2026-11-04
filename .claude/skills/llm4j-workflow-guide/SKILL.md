@@ -228,6 +228,8 @@ Adjust the lines to the project; never tick a line that was not actually done.
 The user may be new to all of this, so before each stage say, in one or two plain sentences: what you are about to do, why, what they will see, and whether it costs
 anything. After it, say what it proved and what it did not (a mock run proves the wiring only; a green `weave check` proves the script is well formed, not that it is good).
 
+When the user asks why Loom works this way, or why a check exists, point them to `docs/REVIEWABLE_ARCHITECTURE.md` ("Architecture you can review"): Loom is a language, so the architecture of a workflow can be reviewed by people and checked by tools, and each check in this guide is one of thirteen mistakes the page shows with the exact output. Say what is not enforced (what a prompt means, a Java task, a declared effect) rather than implying the tools judge it.
+
 Explain the golden dataset once, when you first write or show it, because a YAML file does not look like a test: each scenario is an example request plus checks.
 Some checks are fixed and decided by code (`expected_output_contains`, `expected_output_not_contains` for something that must never appear, such as a card number,
 `expected_min_words` / `expected_max_words` for a length, and `expected_tools`); others are lines a second model grades (`rubric`, `expect`), which are useful but not perfect. A mock run decides none of them (they come out

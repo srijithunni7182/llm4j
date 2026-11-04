@@ -1,0 +1,19 @@
+// P9, Loom side: a chatty agent, then an extractor that is handed only the text it is told to read.
+substitution: braces
+
+agent Chat { model: "gemini-2.5-flash"  system: "Chat with the customer." }
+extractor Invoice {
+    model: "gemini-2.5-flash"
+    instructions: "Read the invoice."
+    fields {
+        vendor: string
+        total: number
+    }
+    optional: [total]
+}
+
+workflow Main(text) {
+    delegate "{text}" to Chat -> reply
+    extract Invoice from text -> invoice
+    return invoice
+}

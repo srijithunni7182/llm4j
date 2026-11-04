@@ -1,0 +1,9 @@
+// P15, Loom side: an agent writes an amount in free prose and the next agent, which holds a paying tool, acts on it.
+tool Pay { use: webhook  url: env.PAY_HOOK  effect: changes }
+agent Planner { model: "gemini-2.5-flash"  system: "Work out what refund the customer is owed." }
+agent Payer { model: "gemini-2.5-flash"  system: "Make the payment you are told to make."  tools: [Pay] }
+
+workflow Main(complaint) {
+    delegate "{complaint}" to Planner -> plan
+    delegate "Do this: {plan}" to Payer -> done
+}

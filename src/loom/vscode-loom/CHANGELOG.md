@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The idea behind it.** The marketplace text now says what the extension is for: a workflow written as a language can be reviewed by people and checked by tools, with a link to the thirteen mistakes and what you see for each.
 - **Review.** The Human oversight lens is on by default and the panel shows the new rules LH05, LH06 and LR11. Needs the engine's review changes (phase 27c).
 - **Call a tool yourself.** `use Tool(...)`, `approve` and `on_declined` on a step are highlighted, and the graph draws a `use` step. Needs the engine's `use` statement (phase 27b).
 - **Leak guard.** `prompt_leak` and `internal_refs` in an agent's `guard { }` are highlighted. Needs the engine's leak guard (phase 26).

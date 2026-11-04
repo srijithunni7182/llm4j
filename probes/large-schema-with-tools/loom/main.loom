@@ -1,0 +1,21 @@
+// P10, Loom side: a step with a tool that must answer in a nested schema (a list of objects, an object inside an object).
+substitution: braces
+
+tool Files { use: file  root: "data"  mode: read }
+agent Analyst {
+    model: "gemini-2.5-flash"
+    system: "Read the order files and report on the request."
+    tools: [Files]
+    output_schema: {
+        customer: string,
+        shipping: { street: string, city: string, country: string },
+        billing: { street: string, city: string, country: string },
+        lines: list<{ sku: string, qty: number, price: number }>,
+        priority: number
+    }
+}
+
+workflow Main(request) {
+    delegate "Look at {request}" to Analyst -> order
+    return order
+}

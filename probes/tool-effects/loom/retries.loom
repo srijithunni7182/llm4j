@@ -1,0 +1,9 @@
+// P14, Loom side: the tool says once that it changes something. A retry on a step that uses it is refused unless it is safe to repeat.
+substitution: braces
+
+tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
+
+workflow Main(text) {
+    use Notify(text = text) -> receipt retry 2
+    return receipt
+}

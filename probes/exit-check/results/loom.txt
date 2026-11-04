@@ -1,0 +1,11 @@
+== weave check unchecked.loom (a policy, and an exit with no check before it) ==
+✗ line 10: return in Main: a value written by a model (Support, line 9) reaches this return without a check against HouseRules. Add: check <variable> against HouseRules using <Evaluator> before the return.
+1 problem in unchecked.loom
+
+== weave check checked.loom ==
+✓ checked.loom: ready to run
+  next: weave next says what to do now; weave guide recipes has tested changes to copy
+
+== weave check sending-agent.loom: the agent's own calls to Mail ==
+✓ sending-agent.loom: ready to run
+  next: weave next says what to do now; weave guide recipes has tested changes to copy

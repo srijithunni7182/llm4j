@@ -1,6 +1,6 @@
 # Engineering discipline program (phases 24 to 29): make the right architecture the easy one
 
-Status: **decisions D1 to D46 recorded 2026-11-01; specs draft for review**. Nothing here is built. This page is the overview of six phases, [24](24-stateless-nodes/DESIGN.md) to [29](29-reviewable-architecture/DESIGN.md): five that build, and one that documents what they add up to. Each phase has the usual three documents (`DESIGN.md`, `TEST_STRATEGY.md`, `VERIFICATION.md`). This page holds what they share: the evidence, the decisions, the contracts that cross phases, the order, and the plan for the tutorial.
+Status: **decisions D1 to D46 recorded 2026-11-01; phases 24 to 29 built by 2026-11-04**. What is still owed is not code: the manual checks and reviews each phase's `VERIFICATION.md` §4 lists (phase 26's independent review of the provenance code, a non-developer reading the requirements page, the capped live runs) and the owner's review of the specs' open deviations; each phase's §7 says what was built and what was not. This page is the overview of six phases, [24](24-stateless-nodes/DESIGN.md) to [29](29-reviewable-architecture/DESIGN.md): five that build, and one that documents what they add up to. Each phase has the usual three documents (`DESIGN.md`, `TEST_STRATEGY.md`, `VERIFICATION.md`). This page holds what they share: the evidence, the decisions, the contracts that cross phases, the order, and the plan for the tutorial.
 
 ## 1. Why this program exists
 

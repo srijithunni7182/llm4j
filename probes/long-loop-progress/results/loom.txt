@@ -1,0 +1,9 @@
+== weave test main.loom: the progress is carried from round to round with scripted models ==
+ok    the progress is carried from round to round until the goal is finished  (212 ms)
+ok    the loop stops at its bound when the goal is never finished  (218 ms)
+ok    a worker that fails stops the run on purpose  (149 ms)
+3 passed, 0 failed in 223 ms · nodes covered 7/8 (1 uncovered: see --coverage)
+Nodes covered 7/8 (87 %)
+Blocks never run: Main/n4 failure
+  Main n7    line 38   halt
+      # to reach this: fail the step "extract Progress" (fail: { Progress: { always: true, category: server_error } })

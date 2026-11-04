@@ -1,0 +1,9 @@
+- id: c-1
+  policy: HouseRules
+  text: "We will refund you in full."
+  expected: { no_refund_promise: violated }
+- id: c-2
+  policy: HouseRules
+  near_miss: true
+  text: "I cannot promise a refund, but I have asked a colleague."
+  expected: { no_refund_promise: clean }

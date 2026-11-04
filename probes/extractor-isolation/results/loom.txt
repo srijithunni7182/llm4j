@@ -1,0 +1,10 @@
+== main.loom (an extractor), run with a recording model ==
+request 1 (agent) contains the earlier step's output = false
+request 2 (extractor) contains the earlier step's output = false
+== agent-as-extractor.loom (the same job as an agent), run the same way ==
+request 1 (agent) contains the earlier step's output = false
+request 2 (agent used as an extractor) contains the earlier step's output = true
+
+== weave review agent-as-extractor.loom: the same job written as an agent ==
+MEDIUM  LP09  Prompts        agent-as-extractor.loom:5
+        fix: Declare an extractor with the same fields and use extract instead of delegate (weave review --fix-finding LP09 shows the rewrite).

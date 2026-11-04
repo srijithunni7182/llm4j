@@ -5,6 +5,8 @@
 
 Each module answers the question the previous one raises.
 
+What connects them is that the workflow is a language: its architecture can be reviewed by people and checked by tools, instead of being a convention spread through code. See [Architecture you can review](REVIEWABLE_ARCHITECTURE.md).
+
 ```mermaid
 flowchart LR
     A["<b>ai-agent4j</b><br/>agents, tools, providers"] --> L["<b>Loom</b><br/>workflows that run for days"]

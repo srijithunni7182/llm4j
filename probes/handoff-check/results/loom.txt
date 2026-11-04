@@ -1,0 +1,6 @@
+== weave review main.loom, before anything runs ==
+MEDIUM  LR11  Reliability    main.loom:8
+        delegate Payer acts on what agent Planner wrote (plan), and nothing checks it on the way
+
+== weave review fixed.loom ==
+LR11 findings: 0

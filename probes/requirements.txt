@@ -1,0 +1,4 @@
+# The Python frameworks probes P9 to P17 compare against, pinned (see the versions at the top of probes/README.md).
+langgraph==1.2.18
+langchain==1.4.7
+google-adk==2.13.0
