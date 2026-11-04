@@ -149,6 +149,7 @@ US$0.50.
 | Perplexity (Agent API) | `response_format.json_schema` | any named model, not a preset |
 | Anthropic | `output_config.format` (shared with `effort`) | the models the structured-outputs page lists |
 | Ollama | `format` | any model on a local server; not Ollama Cloud |
-| Gemini, Kimi, Qwen, other OpenAI-style servers | not sent | no recorded support yet |
+| Google Gemini | `generationConfig.responseMimeType` and `responseJsonSchema` | Gemini 2.5 and later |
+| Kimi, Qwen, other OpenAI-style servers | not sent | no recorded support yet |
 
 A reply held to a schema is still model output: it can be a refusal or be cut at the token limit, so check it. Loom's `extractor` does this for you ([LOOM_GUIDE](../../loom/ai-agent4j-loom/LOOM_GUIDE.md), "Extracting fields").

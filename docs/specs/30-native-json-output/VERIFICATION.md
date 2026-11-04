@@ -1,6 +1,6 @@
 # Phase 30 verification plan: native JSON output for extractors
 
-Status: **30a, 30b, 30c and 30e built (2026-11-04) with the owner's go-ahead to use the recommendations for N1 to N9; live fixtures recorded for OpenAI (chat and Responses), xAI (chat and Responses), Anthropic and Perplexity; 30d (Google) and 30f (Kimi and Qwen) not switched on, for want of keys** (the Gemini question O1 is still open). Proposed sub-phases: **30a** the request field, the capability, the schema builder and the extractor wiring with a fake provider (R1, R2, R3, R5 to R8, R10); **30b** OpenAI-style providers: OpenAI and xAI chat and Responses, Perplexity Agent API (R4, R9); **30c** Anthropic; **30d** Google (blocked on O1); **30e** Ollama; **30f** Kimi and Qwen (after their fixtures); **30g** documentation and the skills.
+Status: **30a, 30b, 30c and 30e built (2026-11-04) with the owner's go-ahead to use the recommendations for N1 to N9; live fixtures recorded for OpenAI (chat and Responses), xAI (chat and Responses), Anthropic, Perplexity and Google; 30d (Google) was added after a live probe settled O1; 30f (Kimi and Qwen) not switched on, for want of keys.** Proposed sub-phases: **30a** the request field, the capability, the schema builder and the extractor wiring with a fake provider (R1, R2, R3, R5 to R8, R10); **30b** OpenAI-style providers: OpenAI and xAI chat and Responses, Perplexity Agent API (R4, R9); **30c** Anthropic; **30d** Google (blocked on O1); **30e** Ollama; **30f** Kimi and Qwen (after their fixtures); **30g** documentation and the skills.
 Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md).
 
 ## 0. Before writing
@@ -81,13 +81,14 @@ Verified: `mvn verify` on `ai-agent4j` (3461 tests, 2 skipped), `mvn test` on `e
 |---|---|---|
 | 30b | OpenAI and xAI Responses API (`text.format`, flat) and Perplexity's Agent API (`response_format` with a nested `json_schema`), by model pattern in `ResponsesDialect` | `StructuredOutputResponsesWireTest` (5) |
 | 30c | Anthropic: `output_config.format` of type `json_schema`, merged with `effort`; the model list is the documentation's (`AnthropicModels.supportsStructuredOutput`) | `StructuredOutputBodyTest` in the Anthropic package (26) |
+| 30d | Google: `generationConfig.responseMimeType` and `responseJsonSchema`, for Gemini 2.5 and later | `StructuredOutputBodyTest` in the Google package (13) |
 | 30e | Ollama: the schema in `format`; a local server is capable for any model, Ollama Cloud (`ollama.com` and its subdomains) is not | `StructuredOutputBodyTest` in the Ollama package (5) |
 
 Live: [LIVE_FIXTURES.md](LIVE_FIXTURES.md) (twelve more calls, all native on the first attempt).
 
 **Not built, and what is lost:**
 
-1. **30d Google.** The schema field for `generateContent` is still unconfirmed (O1) and there is no Gemini key here. Switching it on unverified would cost an extra failed call per run on Gemini 2.5, the commonest model. It stays on the prompt route.
+1. **30d Google, done afterwards.** It was held back because the schema field was unconfirmed (O1) and there was no key. The owner then supplied a key; one raw call settled O1 (`responseMimeType` with `responseJsonSchema`), the writer and the capability (Gemini 2.5 and later) were added test-first (`StructuredOutputBodyTest` in the Google package, 13 tests), and three extractor calls on gemini-2.5-flash were all native (LIVE_FIXTURES.md, third run). Only gemini-2.5-flash was run live.
 2. **30f Kimi and Qwen.** Preview vendors with no keys here, so no fixtures (N6). Their documented shapes (Kimi `json_schema` on `kimi-k3`, `kimi-k3.1-pro` and `kimi-k2.7-code`; Qwen `json_schema` on the Qwen3.7 and Qwen3.8 series, non-thinking only) are recorded in DESIGN §3 and are the starting point.
 3. **Ollama has no live fixture.** The request shape is verbatim from its OpenAPI reference and the mock-server test pins the body, but no real reply was recorded. A server that rejects it costs one extra call, then the run remembers it. Also, "an unknown model is never assumed" (N3) does not hold for Ollama: its constrained decoding is the server's, not a per-model feature, so any local model is treated as capable.
 4. **R9, Perplexity's first-call timeout** is not implemented: it was not needed in the one live run (see LIVE_FIXTURES.md), but a slow first call could still time out and be retried.

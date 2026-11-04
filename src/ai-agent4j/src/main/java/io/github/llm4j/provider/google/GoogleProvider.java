@@ -26,6 +26,9 @@ import org.slf4j.LoggerFactory;
 
 public class GoogleProvider implements DescribableProvider {
 
+    private static final java.util.regex.Pattern STRUCTURED_OUTPUT_MODELS =
+            java.util.regex.Pattern.compile("^gemini-(?:2\\.5|[3-9](?:\\.\\d+)?)(?:-.*)?$");
+
     private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
             new com.fasterxml.jackson.databind.ObjectMapper();
 
@@ -425,6 +428,17 @@ public class GoogleProvider implements DescribableProvider {
             ArrayNode stopArray = generationConfig.putArray("stopSequences");
             request.getStopSequences().forEach(stopArray::add);
         }
+        io.github.llm4j.model.ResponseFormat format = request.getResponseFormat();
+        String formatModel =
+                request.getModel() != null ? request.getModel() : config.getDefaultModel();
+        if (format != null
+                && structuredOutput(formatModel)
+                        == io.github.llm4j.model.StructuredOutput.JSON_SCHEMA) {
+            // responseJsonSchema takes full JSON Schema (a nullable field as a type list);
+            // responseSchema is the older OpenAPI subset and would refuse it
+            generationConfig.put("responseMimeType", "application/json");
+            generationConfig.set("responseJsonSchema", objectMapper.valueToTree(format.schema()));
+        }
         // thoughts come back as parts flagged "thought"; without this they are not sent at all
         if (stream && request.isReasoning())
             generationConfig.putObject("thinkingConfig").put("includeThoughts", true);
@@ -518,6 +532,17 @@ public class GoogleProvider implements DescribableProvider {
     @Override
     public Set<GroundingOption> groundingOptions() {
         return GROUNDING_OPTIONS;
+    }
+
+    /**
+     * Gemini 2.5 and later hold a reply to a JSON Schema (Google's structured-output announcement).
+     */
+    @Override
+    public io.github.llm4j.model.StructuredOutput structuredOutput(String model) {
+        String name = model != null ? model : config.getDefaultModel();
+        return name != null && STRUCTURED_OUTPUT_MODELS.matcher(name).matches()
+                ? io.github.llm4j.model.StructuredOutput.JSON_SCHEMA
+                : io.github.llm4j.model.StructuredOutput.NONE;
     }
 
     @Override

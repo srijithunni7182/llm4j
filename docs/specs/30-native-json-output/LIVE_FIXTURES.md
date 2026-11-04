@@ -28,4 +28,17 @@ Run with `NativeJsonLiveTest` again, three inputs per route, with the keys read 
 
 About 8,000 input and 3,000 output tokens in all (most of the output is grok-4-fast's reasoning), a cent or two. The text telling the model to say HELLO changed nothing on any route. Perplexity's first-schema delay (10 to 30 seconds in its docs) was not observed: the whole nine-call run of the other routes plus Perplexity took 18 seconds, so the call did not time out. That is one observation, not a guarantee, and no longer timeout was set for it.
 
-**Not run live, and why:** Ollama (no server in this environment; documented request shape only), Google Gemini (no key and not switched on), Kimi and Qwen (no keys; preview vendors, not switched on).
+**Not run live, and why:** Ollama (no server in this environment; documented request shape only), Kimi and Qwen (no keys; preview vendors, not switched on). Google was run afterwards, below.
+
+## Third run: Google Gemini (2026-11-04)
+
+One raw `generateContent` call first, to settle open question O1, then the same three inputs through the extractor. The key was supplied by the owner in the chat, held in a private file outside the repository, read into the test process as an environment variable, and shredded afterwards; it appears in no file of the repository.
+
+- **The raw call:** `generationConfig.responseMimeType: "application/json"` with `generationConfig.responseJsonSchema` (full JSON Schema, a nullable number written as `["number", "null"]`) returned HTTP 200, `finishReason: STOP`, and `{"vendor":"ACME GmbH","total":null,"currency":"EUR"}` for an invoice that states no total. So `generateContent` takes `responseJsonSchema`, and the Interactions API is not needed.
+- **Through the extractor:**
+
+| Model | Result on all three inputs | Tokens in / out (per call) |
+|---|---|---|
+| gemini-2.5-flash | native, 1 attempt, 0 fallbacks; the absent total read as missing; the HELLO injection changed nothing | 196 to 203 / 88 to 147 |
+
+What this does not show: other Gemini models (the pattern is Gemini 2.5 and later, from Google's announcement, and only 2.5-flash was run), combining the schema with function calling (an extractor has no tools), or a truncated or blocked reply.
