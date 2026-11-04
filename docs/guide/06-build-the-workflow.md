@@ -183,7 +183,11 @@ workflow Main(topic) {
 
 Put `substitution: braces` at the top of a new script so that only `{name}` is replaced; with the default (`legacy`) a bare word that is also a variable name (an `out` inside "length out of range") is replaced too. `weave check --substitution braces` shows what an existing script would change and `--fix-substitution` rewrites it after you see the diff. When a `parallel` branch may fail while the others still count, give each branch its own flag set in its `on_failure` (see `LOOM_GUIDE.md`, "Parallel branches that fall back").
 
-Put what every agent must know (house rules, a glossary, the brief) in one `shared_prompt: "…"` or `shared_prompt: prompt "house-rules"` at the top of the script instead of pasting it into each agent. It comes first in every agent's system prompt, the same bytes each time; keep dates and run ids out of it. See `LOOM_GUIDE.md`, "A Prompt Every Agent Starts With".
+Put what every agent must know (tone, house style, shared facts, a glossary, the brief) in one `shared_prompt: "…"` or `shared_prompt: prompt "house-rules"` at the top of the script instead of pasting it into each agent. It comes first in every agent's system prompt, the same bytes each time; keep dates and run ids out of it. See `LOOM_GUIDE.md`, "A Prompt Every Agent Starts With".
+
+### Rules about what must never be said: a policy, not a prompt
+
+A rule that must hold does not belong in `shared_prompt` or in an agent's prompt: a prompt is a wish, and a model can ignore it. Write it in a policy file (`policies/house-rules.md`: a `## rule_id` heading, then what breaking it looks like) with the person who owns compliance, declare an `evaluator` and a `policy`, and put `check reply against HouseRules using Compliance -> verdict on_violation { rewrite with Editor }` before every exit. For each agent ask: do its words reach a person? Those agents get tone and task only. With a policy declared, Loom refuses unchecked model text at the return of the run and in what an agent sends, and `weave check` names the path. See `LOOM_GUIDE.md` ("Policies: rules checked at the edge") and starter 17.
 
 ### A step a person may stop
 

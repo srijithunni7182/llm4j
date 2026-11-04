@@ -200,6 +200,44 @@ public class WorkflowTraceAssert extends AbstractObjectAssert<WorkflowTraceAsser
         return this;
     }
 
+    /** Passes if at least one check judged against {@code policy}. */
+    public WorkflowTraceAssert checksPolicy(String policy) {
+        EvalChecks.check(
+                M_EXTRACT,
+                () -> {
+                    isNotNull();
+                    if (actual.checks(policy) == 0)
+                        failWithMessage("Expected a check against policy %s but there was none", policy);
+                });
+        return this;
+    }
+
+    /** Passes if some check found rule {@code ruleId} broken. */
+    public WorkflowTraceAssert violated(String ruleId) {
+        EvalChecks.check(
+                M_EXTRACT,
+                () -> {
+                    isNotNull();
+                    if (!actual.ruleViolated(ruleId))
+                        failWithMessage("Expected rule %s to be found broken but no check did", ruleId);
+                });
+        return this;
+    }
+
+    /** Passes if some check ended in {@code action} ({@code rewritten}, {@code replaced}, ...). */
+    public WorkflowTraceAssert actionTaken(String action) {
+        EvalChecks.check(
+                M_EXTRACT,
+                () -> {
+                    isNotNull();
+                    if (!actual.checkActions().contains(action))
+                        failWithMessage(
+                                "Expected a check to end in %s but the checks ended in: %s",
+                                action, actual.checkActions());
+                });
+        return this;
+    }
+
     /** Passes if {@code extractor} ran exactly {@code times} times (a replay does not count). */
     public WorkflowTraceAssert runsExtractTimes(String extractor, int times) {
         EvalChecks.check(

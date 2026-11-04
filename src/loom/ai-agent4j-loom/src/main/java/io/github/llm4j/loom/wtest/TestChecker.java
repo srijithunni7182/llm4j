@@ -34,6 +34,7 @@ public final class TestChecker {
                     "input",
                     "workflow",
                     "models",
+                    "evaluators",
                     "expect",
                     "lenient",
                     "repeat",
@@ -69,7 +70,9 @@ public final class TestChecker {
                     "tokens",
                     "degraded",
                     "fallbacks",
-                    "branches");
+                    "branches",
+                    "checks",
+                    "actions");
 
     static final List<String> FINALS =
             List.of("completed", "failed", "suspended", "stopped", "budget", "halted");
@@ -79,6 +82,7 @@ public final class TestChecker {
     private final Set<String> agents = new LinkedHashSet<>();
     private final Set<String> classifiers = new LinkedHashSet<>();
     private final Set<String> extractors = new LinkedHashSet<>();
+    private final Set<String> evaluators = new LinkedHashSet<>();
     private final Set<String> tools = new LinkedHashSet<>();
     private final Set<String> tasks = new LinkedHashSet<>();
     private final Set<String> steps;
@@ -89,6 +93,7 @@ public final class TestChecker {
         script.getAgents().forEach(a -> agents.add(a.getName()));
         script.getIntentClassifiers().forEach(c -> classifiers.add(c.getName()));
         script.getExtractors().forEach(x -> extractors.add(x.getName()));
+        script.getEvaluators().forEach(x -> evaluators.add(x.getName()));
         script.getTools().forEach(t -> tools.add(t.getName()));
         for (AgentDef a : script.getAgents()) tools.addAll(a.getTools());
         for (WorkflowDef w : script.getWorkflows())
@@ -167,6 +172,22 @@ public final class TestChecker {
                                     + " has "
                                     + params
                                     + ")");
+        }
+        JsonNode scriptedEvaluators = c.get("evaluators");
+        if (scriptedEvaluators != null) {
+            if (!scriptedEvaluators.isObject())
+                problems.add(where(c) + "evaluators: a map of evaluator names to the answer for each rule");
+            else
+                for (Iterator<String> it = scriptedEvaluators.fieldNames(); it.hasNext(); ) {
+                    String name = it.next();
+                    if (!evaluators.contains(name))
+                        problems.add(
+                                where(c)
+                                        + "evaluators: '"
+                                        + name
+                                        + "' is not an evaluator of the script"
+                                        + Suggest.hint(name, evaluators));
+                }
         }
         JsonNode models = c.get("models");
         if (models != null) {
@@ -352,6 +373,7 @@ public final class TestChecker {
             return;
         }
         Set<String> targets = new LinkedHashSet<>(union(agents, union(classifiers, extractors)));
+        targets.addAll(evaluators);
         targets.addAll(tools);
         targets.addAll(tasks);
         for (Iterator<String> it = fail.fieldNames(); it.hasNext(); ) {
@@ -499,6 +521,7 @@ public final class TestChecker {
         for (String key : List.of("calls", "attempts")) {
             if (!expect.has(key)) continue;
             Set<String> names = new LinkedHashSet<>(union(agents, union(classifiers, extractors)));
+            names.addAll(evaluators);
             names.addAll(tools);
             names.addAll(tasks);
             if (!expect.get(key).isObject())

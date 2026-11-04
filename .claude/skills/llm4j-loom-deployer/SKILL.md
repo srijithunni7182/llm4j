@@ -64,6 +64,10 @@ Use `weave deploy`, not a hand-written Dockerfile. It reads the script and write
 5. `weave deploy flow.loom --verify deploy` after a change to the script says what is stale. A file they edited by hand is kept (`--force` replaces it).
 6. Read the generated README with them: what it needs, what happens on a restart, a lost node and a lost volume.
 
+## Policy checks, once it is live
+
+A policy override (`ask person` answered "send as is") is an audit event, `policy_override`, to watch: a rule people keep overriding is a sign the rule or the evaluator is wrong. The trace carries `policy_check` (rule ids, versions, hashes, the action; never the text), `sink_blocked` and `tool_refused_by_policy`. The incident rules for checks (an evaluator failing, unsure, refusing, overridden) are not built yet, so read these events in the audit log and the trace.
+
 ## Evaluation, once it is live
 
 The weekly drift check (a fixed configuration, whatever changed), the growth of the golden dataset from incidents, and the production cases captured from real runs are part of the evaluation design in **`llm4j-eval-design`**'s `EVAL_DESIGN.md` (its run protocol and governance sections). When an incident teaches something, it becomes a case there; offer that skill when the person asks whether the evaluation is still any good.

@@ -69,6 +69,10 @@ third.
 - **Let autonomy be earned.** Start decisions at `watch`, keep a ceiling, and raise it on evidence.
 - **Check it.** `weave check` and `weave audit` in CI; review `.loom` files like code; test refusals with eval4j.
 
+## Policies at the exits
+
+Rules about what must never be said live in policy files, not prompts. With a policy declared, the runtime refuses text a model wrote at the exits of a run (its return, a task or tool that changes things) until an evaluator has checked it, and `weave check` names the path. See [Secure by construction](docs/security/secure-by-construction.md#policies-are-enforced-at-the-exits-not-in-prompts).
+
 ## What llm4j does not do
 
 Being clear about the limits is part of the security model:

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: 00bf529067dead990e4564dee096b52fed2a01b762e4ff17fbcd9c1f2ac026b7 -->
+<!-- source-sha256: fcd669f9d918badbd9f09a57225a5091effdeb1c0de73bb4339d0c9df798c3f8 -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -236,8 +236,8 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
 <tr>
 <td>9</td>
 <td><a href="#c09">Safety and cost</a></td>
-<td>Budgets, guards, PII, secrets, the audit and review, the lethal trifecta</td>
-<td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/07-approval" target="_blank" rel="noopener">07</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/15-earned-autonomy" target="_blank" rel="noopener">15</a></td>
+<td>Budgets, guards, PII, the leak guard, policies checked at the edge, secrets, the audit and review, the lethal trifecta</td>
+<td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/07-approval" target="_blank" rel="noopener">07</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/15-earned-autonomy" target="_blank" rel="noopener">15</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/17-compliance-boundary" target="_blank" rel="noopener">17</a></td>
 </tr>
 <tr>
 <td>10</td>
@@ -2448,7 +2448,36 @@ policy HouseRules: <span class="tk-s">"house-rules"</span> checked by Compliance
 }</code></pre></figure>
 <p>On a violation you choose <strong>one</strong> action: <code>rewrite with Editor</code> (another agent fixes the text, and it is checked again once), <code>ask person</code> (a person sends it as it is, types a different text, or stops it), <code>replace with &quot;A colleague will reply.&quot;</code> or <code>fail</code>. With nothing written the step fails and the error names the rules, never the text.</p>
 <p>The evaluator <strong>fails closed</strong>. A rule it cannot judge is &quot;unsure&quot;, and unsure blocks just as a violation does, but it is counted apart so you can tell a timid evaluator from one that catches problems. If it cannot answer at all (the model is down), <code>on_unavailable { replace with &quot;We are looking into this.&quot; }</code> gives a holding answer; the default is to fail, so nothing unchecked leaves.</p>
-<p>Not built yet: Loom does not yet refuse a model-written text that reaches <code>return</code> or a tool without a <code>check</code>. Until then, put a <code>check</code> before each exit yourself.</p>
+<h3 id="c09-the-runtime-guards-the-exits">The runtime guards the exits</h3>
+<p>Declare a policy and Loom stops trusting your memory. It remembers, for every value, whether a model wrote it, and <strong>refuses to let model-written text leave unchecked</strong>. The exits are the <code>return</code> of the run, the arguments of a task that changes something, and an agent&#39;s own calls to a tool that changes something. A number, a true/false, an enum word, a label, a person&#39;s answer and the result of a task with no model are not model text and pass freely.</p>
+<table>
+<thead>
+<tr>
+<th>The value is</th>
+<th>At an exit</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>a constant, an input, a number, a label, a person&#39;s answer</td>
+<td>passes</td>
+</tr>
+<tr>
+<td>an agent&#39;s reply, a text field of an extractor</td>
+<td>refused until a <code>check</code> passed it</td>
+</tr>
+<tr>
+<td>a reply that passed <code>check ... against HouseRules</code></td>
+<td>passes (if every declared policy was checked)</td>
+</tr>
+<tr>
+<td>the checked reply with new model words added</td>
+<td>refused again</td>
+</tr>
+</tbody></table>
+<p>The refusal tells you what to do: &quot;<code>reply</code> was written by a model and has not been checked against HouseRules. Add <code>check reply against HouseRules using ...</code> before this step.&quot; <code>weave check</code> finds the same path before you run anything and names the line of the return and the line of the agent.</p>
+<p>An agent that can <strong>send an email or call an API</strong> writes its call inside its own loop, where you cannot put a <code>check</code>. So the runtime checks each such call for you, before it runs and before a person is asked (<code>policy HouseRules: &quot;house-rules&quot; checked by Compliance</code> names the judge). A call that breaks a rule does not run; the agent is told which rule ids it broke and why, never the rule text, and tries again. After two refusals in a step it is told to stop. A policy judges what a call <em>says</em>, not how much it moves: a limit on an amount belongs in the code that acts.</p>
+<p><code>weave review</code> raises <strong>LY07</strong> when the output can reach people (the workflow is scheduled, or an agent holds a tool that changes things) and no policy is declared. Accept it with a reason when no customer sees the output.</p>
+<p>The <strong>leak guard</strong> is a guard that needs no model. <code>guard { prompt_leak: block  internal_refs: [&quot;POL-[0-9]+&quot;] }</code> stops an answer that repeats 12 words of the agent&#39;s own instructions, of the shared prompt or of a policy rule, or that names an internal reference. <code>warn</code> records it and carries on; with a policy declared every agent warns by default.</p>
 <h2 id="c09-secrets">Secrets</h2>
 <p><strong>Never write a key in a script.</strong> A literal secret is a load error, on purpose. Keys come from the environment (<code>env.NAME</code>) or the encrypted secret store (<code>secret.NAME</code>):</p>
 <figure class="code"><figcaption>excerpt</figcaption><pre><code><span class="tk-k">substitution</span>: braces
@@ -2641,6 +2670,7 @@ weave test main.loom --coverage         # and list the steps no case reached</co
 </tbody></table>
 <p>A classifier&#39;s entry is a map of labels (<code>Intent: { kind: order_status, urgent: &quot;no&quot; }</code>).</p>
 <p><strong>Strict by default.</strong> A model call nobody scripted fails the case and names the agent, the call number and the task. A test must not pass by quietly getting a default reply. (<code>--lenient</code> allows a neutral reply and reports it.)</p>
+<p>An <strong>evaluator</strong> is scripted per rule: <code>evaluators: { Compliance: { no_refund_promise: violated, no_internal_refs: clean } }</code>. A rule left out is answered clean, and a list gives one such map per call (the first check, then the check of a rewrite). The real evaluator code runs; only the model&#39;s answer is scripted. A free mock run (<code>weave eval --mock</code>) answers every rule &quot;no&quot;, and says it did not judge.</p>
 <h3 id="c10-what-you-can-assert-expect">What you can assert: <code>expect</code></h3>
 <table>
 <thead>
@@ -2684,6 +2714,14 @@ weave test main.loom --coverage         # and list the steps no case reached</co
 <tr>
 <td><code>elapsed_virtual: 2d</code></td>
 <td>How long the run waited, in virtual time</td>
+</tr>
+<tr>
+<td><code>checks: { HouseRules: 1 }</code></td>
+<td>How many <code>check</code> steps judged against a policy</td>
+</tr>
+<tr>
+<td><code>actions: { rewritten: 1 }</code></td>
+<td>How many checks ended in each action (<code>none</code>, <code>rewritten</code>, <code>replaced</code>, <code>asked</code>)</td>
 </tr>
 </tbody></table>
 <h3 id="c10-scripting-failures">Scripting failures</h3>
@@ -3723,6 +3761,11 @@ public final class ReviewLoopCheck {
 <td><code>decision</code> + <code>trust</code> + <code>decide</code></td>
 <td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/15-earned-autonomy" target="_blank" rel="noopener">15</a></td>
 </tr>
+<tr>
+<td>Check every reply against house rules</td>
+<td>A <code>policy</code> file, an <code>evaluator</code>, <code>check ... against ... on_violation { rewrite with ... }</code></td>
+<td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/17-compliance-boundary" target="_blank" rel="noopener">17</a></td>
+</tr>
 </tbody></table>
 <h3 id="c14-recipe-pull-fields-out-of-text">Recipe: pull fields out of text</h3>
 <figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
@@ -3955,6 +3998,8 @@ knowledge Name { source: "docs/"  embedding: "gemini/text-embedding-004"  top_k:
 tool Name { use: webhook|email|http|file|shell|sql|openapi|class|...  ...options... }
 mcp Name { transport: "stdio"  cmd: "..." }
 extractor Name { model: "..."  instructions: "..."  fields { f: string  n: number }  optional: [n]  pii: mask }
+evaluator Name { model: "..."  samples: 3  unsure below 0.8  fallback: ["..."] }
+policy P: "house-rules" checked by Evaluator          // rules in policies/house-rules.md
 intentclassifier Name { model: "..."  choose k: a | b  ask q: "..."  rate r: lo | hi  confidence at least 0.8 else escalate }
 
 agent Name {
@@ -3962,7 +4007,7 @@ agent Name {
     persona: P   temperature: 0.2   max_iterations: 8
     tools: [A, B]   approve: [A] | all   knowledge: [K]   skills: ["fs://x.md"]
     output_schema: { f: string, n: number, b: boolean, e: enum["A","B"], l: list&lt;string&gt; }
-    budget { tokens: N  per_call: N }   memory { ... }   guard { pii: mask|block|warn  bias: warn|block }
+    budget { tokens: N  per_call: N }   memory { ... }   guard { pii: mask|block|warn  bias: warn|block  prompt_leak: warn|block|off  internal_refs: ["POL-[0-9]+"] }
     context { compact: chain(trim_tool_results, summarize, drop_oldest) }
     streaming: true   steerable: true   grounding: web { ... }
     memory { transcript: none|own|all }   shared_prompt: none
@@ -3984,6 +4029,7 @@ workflow Name(p1, p2) {
     run Task(arg = value) -&gt; result [model "..."] [retry N] [timeout 30s]
     intentclassify Name on text -&gt; result
     extract Name from text -&gt; result          extract Name from (a = x, b = y) -&gt; result
+    check reply against P, Q using Evaluator -&gt; verdict  on_violation { rewrite with Agent | ask person | replace with "..." | fail }  on_unavailable { ... }
     decide Decision -&gt; verdict
     human_prompt "question {x}" -&gt; answer
     sleep 5m                                 set x = "text {y}" | 3 | true | { k: v }

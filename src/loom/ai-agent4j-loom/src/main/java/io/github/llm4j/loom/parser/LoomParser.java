@@ -314,7 +314,7 @@ public class LoomParser {
             } else if (isSettingsBlock("guard")) {
                 int line = advance().getLine();
                 match(TokenType.COLON);
-                agent.setGuard(parseSettings(new AgentDef.GuardConfig(), "guard", line));
+                agent.setGuard(parseGuard(line));
             } else if (match(TokenType.ROUTING)) {
                 consume(TokenType.COLON, "Expect ':' after routing.");
                 Token policyToken = consume(TokenType.IDENTIFIER, "Expect routing policy name.");
@@ -2316,6 +2316,39 @@ public class LoomParser {
     }
 
     /** {@code { key: value … }} into a settings block; keys and values are checked at load time. */
+    /** {@code guard { pii: mask  bias: warn  prompt_leak: block  internal_refs: ["POL-\\d+"] }}. */
+    private AgentDef.GuardConfig parseGuard(int line) {
+        AgentDef.GuardConfig guard = new AgentDef.GuardConfig();
+        guard.setLine(line);
+        consume(TokenType.LBRACE, "Expect '{' after guard.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token key = word("Expect a guard setting, e.g. pii: mask");
+            consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
+            if (guard.has(key.getValue()))
+                throw error(key, key.getValue() + " is given twice in guard");
+            if (key.getValue().equals("internal_refs")) {
+                consume(TokenType.LBRACKET, "Write internal_refs as a list: [\"Section \\\\d+\"].");
+                if (!check(TokenType.RBRACKET)) {
+                    do {
+                        guard.getInternalRefs()
+                                .add(
+                                        consume(
+                                                        TokenType.STRING_LITERAL,
+                                                        "Expect a pattern in quotes in internal_refs.")
+                                                .getValue());
+                    } while (match(TokenType.COMMA));
+                }
+                consume(TokenType.RBRACKET, "Expect ']' after internal_refs.");
+                guard.put(key.getValue(), ToolDef.OptionValue.literal("list"), key.getLine());
+            } else {
+                guard.put(key.getValue(), optionValue(), key.getLine());
+            }
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after guard settings.");
+        return guard;
+    }
+
     private <T extends Settings> T parseSettings(T settings, String what, int line) {
         settings.setLine(line);
         consume(TokenType.LBRACE, "Expect '{' after " + what + ".");

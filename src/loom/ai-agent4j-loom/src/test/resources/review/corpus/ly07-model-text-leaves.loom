@@ -1,0 +1,8 @@
+// expect-script: LY07
+schedule Morning { cron: "0 7 * * *"  run: Main(topic = "news") }
+agent Writer { model: "m"  system: "You write the note." }
+workflow Main(topic) {
+  delegate "Write a note about {topic}" to Writer -> note_text retry 1 timeout 30s
+  return note_text
+}
+// ignore: LP02 LP05 LO01 LR04 LD01 LR08

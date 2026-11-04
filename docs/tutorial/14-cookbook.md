@@ -24,6 +24,7 @@ Each recipe names the starter that implements it. Open the starter, run `weave t
 | Stop an agent that loops or runs long | `supervise` rules | [14](../../src/loom/starters/14-supervised-agent/) |
 | Keep a long agent's progress where the workflow can see it | A bounded `loop`, a worker with `transcript: none`, an `extractor` that records progress | [16](../../src/loom/starters/16-step-by-step-agent/) |
 | Let an agent earn the right to act | `decision` + `trust` + `decide` | [15](../../src/loom/starters/15-earned-autonomy/) |
+| Check every reply against house rules | A `policy` file, an `evaluator`, `check ... against ... on_violation { rewrite with ... }` | [17](../../src/loom/starters/17-compliance-boundary/) |
 
 ### Recipe: pull fields out of text
 
@@ -241,6 +242,8 @@ knowledge Name { source: "docs/"  embedding: "gemini/text-embedding-004"  top_k:
 tool Name { use: webhook|email|http|file|shell|sql|openapi|class|...  ...options... }
 mcp Name { transport: "stdio"  cmd: "..." }
 extractor Name { model: "..."  instructions: "..."  fields { f: string  n: number }  optional: [n]  pii: mask }
+evaluator Name { model: "..."  samples: 3  unsure below 0.8  fallback: ["..."] }
+policy P: "house-rules" checked by Evaluator          // rules in policies/house-rules.md
 intentclassifier Name { model: "..."  choose k: a | b  ask q: "..."  rate r: lo | hi  confidence at least 0.8 else escalate }
 
 agent Name {
@@ -248,7 +251,7 @@ agent Name {
     persona: P   temperature: 0.2   max_iterations: 8
     tools: [A, B]   approve: [A] | all   knowledge: [K]   skills: ["fs://x.md"]
     output_schema: { f: string, n: number, b: boolean, e: enum["A","B"], l: list<string> }
-    budget { tokens: N  per_call: N }   memory { ... }   guard { pii: mask|block|warn  bias: warn|block }
+    budget { tokens: N  per_call: N }   memory { ... }   guard { pii: mask|block|warn  bias: warn|block  prompt_leak: warn|block|off  internal_refs: ["POL-[0-9]+"] }
     context { compact: chain(trim_tool_results, summarize, drop_oldest) }
     streaming: true   steerable: true   grounding: web { ... }
     memory { transcript: none|own|all }   shared_prompt: none
@@ -270,6 +273,7 @@ workflow Name(p1, p2) {
     run Task(arg = value) -> result [model "..."] [retry N] [timeout 30s]
     intentclassify Name on text -> result
     extract Name from text -> result          extract Name from (a = x, b = y) -> result
+    check reply against P, Q using Evaluator -> verdict  on_violation { rewrite with Agent | ask person | replace with "..." | fail }  on_unavailable { ... }
     decide Decision -> verdict
     human_prompt "question {x}" -> answer
     sleep 5m                                 set x = "text {y}" | 3 | true | { k: v }

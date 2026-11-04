@@ -398,6 +398,28 @@ public class AgentDef implements Node {
         public String getBiasModel() {
             return get("bias_model");
         }
+
+        /** {@code off}, {@code warn} or {@code block}, or null when not written. */
+        public String getPromptLeak() {
+            return get("prompt_leak");
+        }
+
+        /** The shortest run of shared words that counts as repeating instructions, or 0. */
+        public int getPromptLeakWords() {
+            String n = get("prompt_leak_words");
+            try {
+                return n == null ? 0 : Integer.parseInt(n);
+            } catch (NumberFormatException bad) {
+                return -1;
+            }
+        }
+
+        private final java.util.List<String> internalRefs = new java.util.ArrayList<>();
+
+        /** The patterns an answer must not match ({@code internal_refs: [..]}). */
+        public java.util.List<String> getInternalRefs() {
+            return internalRefs;
+        }
     }
 
     /**

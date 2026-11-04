@@ -404,7 +404,8 @@ final class ExecutorValidation {
     private static final java.util.Set<String> VOICE_KEYS =
             java.util.Set.of("listen", "speak", "language", "voice", "out");
     private static final java.util.Set<String> GUARD_KEYS =
-            java.util.Set.of("pii", "bias", "bias_model");
+            java.util.Set.of(
+                    "pii", "bias", "bias_model", "prompt_leak", "prompt_leak_words", "internal_refs");
 
     private static final java.util.Set<String> GROUNDING_KEYS =
             java.util.Set.of("allow", "block", "recency", "country", "max_searches");
@@ -764,11 +765,40 @@ final class ExecutorValidation {
 
     void checkGuard(ScriptValidator.Checker c, String who, AgentDef.GuardConfig g) {
         checkKeys(c, who, "guard", g, GUARD_KEYS);
-        if (!g.has("pii") && !g.has("bias"))
+        if (!g.has("pii") && !g.has("bias") && !g.has("prompt_leak") && !g.has("internal_refs"))
             c.error(
                     g.getLine(),
                     who,
-                    "guard needs pii: mask | block | warn, or bias: warn | block");
+                    "guard needs pii: mask | block | warn, bias: warn | block, or prompt_leak: warn | block | off");
+        if (g.getPromptLeak() != null && !AgentGuard.LEAK_VALUES.contains(g.getPromptLeak()))
+            c.error(
+                    g.lineOf("prompt_leak"),
+                    who,
+                    "guard prompt_leak: " + g.getPromptLeak() + " is not one of warn, block, off");
+        if (g.has("prompt_leak_words") && g.getPromptLeakWords() < 1)
+            c.error(
+                    g.lineOf("prompt_leak_words"),
+                    who,
+                    "guard prompt_leak_words needs a whole number of 1 or more");
+        for (String pattern : g.getInternalRefs()) {
+            if (pattern.length() > LeakCheck.MAX_PATTERN_CHARS) {
+                c.error(
+                        g.lineOf("internal_refs"),
+                        who,
+                        "an internal_refs pattern is longer than "
+                                + LeakCheck.MAX_PATTERN_CHARS
+                                + " characters; keep it to the shape of a reference");
+                continue;
+            }
+            try {
+                java.util.regex.Pattern.compile(pattern);
+            } catch (java.util.regex.PatternSyntaxException bad) {
+                c.error(
+                        g.lineOf("internal_refs"),
+                        who,
+                        "internal_refs pattern \"" + pattern + "\" is not a valid pattern: " + bad.getDescription());
+            }
+        }
         if (g.getPii() != null && !AgentGuard.PII_VALUES.contains(g.getPii())) {
             c.error(
                     g.lineOf("pii"),

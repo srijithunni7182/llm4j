@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import io.github.llm4j.loom.ast.LoomScript;
 
 /**
  * The static side of the boundary (docs/specs/26-policy-boundary, R8): follows each model-written
@@ -22,37 +23,56 @@ import java.util.regex.Pattern;
  * dynamic {@code call}, a value a task produces) is left to the runtime. A branch that may run
  * counts as running; a loop body is followed twice.
  */
-final class StaticSinkChecks {
+public final class StaticSinkChecks {
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)*)}");
 
     /** What is known of a variable: its tag and where a model wrote it. */
     private record Known(Provenance.Tag tag, int line, String agent) {}
 
-    private final ScriptValidator.Checker c;
+    /** Where a path that leaves unchecked is reported: the line of the return, the place, the words. */
+    interface Report {
+        void path(int line, String where, String message);
+    }
+
+    private final LoomScript script;
+    private final Report report;
     private final List<String> declared;
     private final Set<String> reported = new HashSet<>();
     private final Set<String> inProgress = new HashSet<>();
 
-    private StaticSinkChecks(ScriptValidator.Checker c) {
-        this.c = c;
-        this.declared = c.script().getPolicies().stream().map(PolicyDef::getName).toList();
+    private StaticSinkChecks(LoomScript script, List<String> declared, Report report) {
+        this.script = script;
+        this.declared = declared;
+        this.report = report;
     }
 
     static void run(ScriptValidator.Checker c) {
         if (c.script().getPolicies().isEmpty() || !c.context().staticSinkChecks) return;
-        new StaticSinkChecks(c).all();
+        List<String> declared = c.script().getPolicies().stream().map(PolicyDef::getName).toList();
+        new StaticSinkChecks(c.script(), declared, (line, where, message) -> c.error(line, where, message)).all();
+    }
+
+    /**
+     * Every place text a model wrote reaches the return of a workflow that nobody {@code call}s,
+     * as short descriptions ({@code "Writer (line 5) → return in Main (line 9)"}), for a script
+     * that declares no policy. Used by review rule LY07.
+     */
+    public static List<String> modelTextExits(LoomScript script) {
+        List<String> out = new ArrayList<>();
+        new StaticSinkChecks(script, List.of("a policy"), (line, where, message) -> out.add(message)).all();
+        return out;
     }
 
     private void all() {
         Set<String> called = new HashSet<>();
-        for (WorkflowDef w : c.script().getWorkflows())
+        for (WorkflowDef w : script.getWorkflows())
             StatementWalker.walk(
                     w.getStatements(),
                     s -> {
                         if (s instanceof CallStmt call) called.add(call.getWorkflowName());
                     });
-        for (WorkflowDef w : c.script().getWorkflows()) {
+        for (WorkflowDef w : script.getWorkflows()) {
             if (called.contains(w.getName())) continue; // its return is its caller's to judge
             Map<String, Known> env = new HashMap<>();
             for (String p : w.getParameters()) env.put(p, new Known(Provenance.NOT_MODEL, 0, null));
@@ -83,7 +103,7 @@ final class StaticSinkChecks {
         } else if (s instanceof BroadcastStmt b) {
             env.put(b.getVariableName(), new Known(Provenance.UNCHECKED, b.getLine(), String.join(", ", b.getTargetAgents())));
         } else if (s instanceof ExtractStmt x) {
-            ExtractorDef def = c.script().findExtractor(x.getExtractor());
+            ExtractorDef def = script.findExtractor(x.getExtractor());
             env.put(x.getVariableName(), new Known(Provenance.model(def == null ? null : Provenance.textFieldsOf(def.getFields())), x.getLine(), x.getExtractor()));
         } else if (s instanceof IntentClassifyStmt i) {
             env.put(i.getVariableName(), new Known(Provenance.NOT_MODEL, 0, null));
@@ -156,7 +176,7 @@ final class StaticSinkChecks {
         Known out = new Known(Provenance.NOT_MODEL, 0, null);
         Matcher m = PLACEHOLDER.matcher(text);
         while (m.find()) out = worse(out, lookup(m.group(1), env));
-        if (!"braces".equals(c.script().getSubstitution())) {
+        if (!"braces".equals(script.getSubstitution())) {
             for (String name : env.keySet())
                 if (Pattern.compile("\\b" + Pattern.quote(name) + "\\b").matcher(text).find())
                     out = worse(out, env.get(name));
@@ -197,7 +217,7 @@ final class StaticSinkChecks {
 
     private Known callResult(CallStmt call, Map<String, Known> env) {
         WorkflowDef callee =
-                c.script().getWorkflows().stream()
+                script.getWorkflows().stream()
                         .filter(w -> w.getName().equals(call.getWorkflowName()))
                         .findFirst()
                         .orElse(null);
@@ -219,7 +239,7 @@ final class StaticSinkChecks {
         String key = w.getName() + ":" + ret.getLine();
         if (!reported.add(key)) return;
         List<String> missing = Provenance.missing(value.tag(), declared);
-        c.error(
+        report.path(
                 ret.getLine(),
                 "return in " + w.getName(),
                 "a value written by a model"
@@ -232,6 +252,6 @@ final class StaticSinkChecks {
     }
 
     private AgentDef agent(String name) {
-        return c.script().getAgents().stream().filter(a -> a.getName().equals(name)).findFirst().orElse(null);
+        return script.getAgents().stream().filter(a -> a.getName().equals(name)).findFirst().orElse(null);
     }
 }

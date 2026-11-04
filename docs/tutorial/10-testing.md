@@ -90,6 +90,8 @@ A classifier's entry is a map of labels (`Intent: { kind: order_status, urgent: 
 
 **Strict by default.** A model call nobody scripted fails the case and names the agent, the call number and the task. A test must not pass by quietly getting a default reply. (`--lenient` allows a neutral reply and reports it.)
 
+An **evaluator** is scripted per rule: `evaluators: { Compliance: { no_refund_promise: violated, no_internal_refs: clean } }`. A rule left out is answered clean, and a list gives one such map per call (the first check, then the check of a rewrite). The real evaluator code runs; only the model's answer is scripted. A free mock run (`weave eval --mock`) answers every rule "no", and says it did not judge.
+
 ### What you can assert: `expect`
 
 | Key | Asserts |
@@ -103,6 +105,8 @@ A classifier's entry is a map of labels (`Intent: { kind: order_status, urgent: 
 | `degraded: true`, `fallbacks: [ Writer ]` | That the run used an `on_failure` fallback, and exactly which agents did |
 | `effects: none` (or a count, or a list) | What tools that act *would have done* (they only record in a test) |
 | `elapsed_virtual: 2d` | How long the run waited, in virtual time |
+| `checks: { HouseRules: 1 }` | How many `check` steps judged against a policy |
+| `actions: { rewritten: 1 }` | How many checks ended in each action (`none`, `rewritten`, `replaced`, `asked`) |
 
 ### Scripting failures
 

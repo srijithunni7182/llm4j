@@ -29,7 +29,7 @@ this skill's `references/` folder and in the tools:
 
 1. **Use the least autonomy that works.** A fixed sequence beats a router, a router beats a planner, a planner beats an open loop.
    Move up only when the task needs it, and say why.
-2. **Let models read and propose; let code decide and act.** A step that must happen every time, must be exact, or moves money is a
+2. **Let models read and propose; let code decide and act.** (External and internal agents, by audience: an agent whose words reach a person gets tone and task, never the rules; policies are checked at the edge by an evaluator that fails closed, not written into prompts. In Loom: `policy`, `evaluator`, `check ... against`, and the runtime refuses unchecked model text at the exits.) A step that must happen every time, must be exact, or moves money is a
    deterministic step the model cannot call, skip or talk its way past. An agent may hold a tool that sends, writes or deletes only
    behind an approval a person gives (or a code check), and only with the least reach that does the job.
 3. **Done is checked, not declared.** Every exit has a criterion. Where it can be counted or compared, code checks it. The agent that

@@ -1,0 +1,46 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: a reply that follows the rules goes out as written
+    input: { question: "Where is my order?" }
+    models:
+      Support: "Your order left our warehouse today."
+    evaluators:
+      Compliance: { no_refund_promise: clean, no_internal_refs: clean }
+    expect:
+      result: { contains: "warehouse" }
+      checks: { HouseRules: 1 }
+      actions: { none: 1 }
+      calls: { Editor: 0 }
+  - name: a reply that promises money is rewritten and checked again
+    input: { question: "My order is late." }
+    models:
+      Support: "We will refund you in full."
+      Editor: "A colleague will look into your order and confirm what we can do."
+    evaluators:
+      Compliance:
+        - { no_refund_promise: violated, no_internal_refs: clean }
+        - { no_refund_promise: clean, no_internal_refs: clean }
+    expect:
+      result: { contains: "colleague" }
+      actions: { rewritten: 1 }
+      calls: { Editor: 1, Compliance: 2 }
+  - name: a rewrite that still breaks the rules stops the run
+    input: { question: "My order is late." }
+    models:
+      Support: "We will refund you in full."
+      Editor: "We will credit your account."
+    evaluators:
+      Compliance: { no_refund_promise: violated, no_internal_refs: clean }
+    expect:
+      final: failed
+  - name: an evaluator that cannot answer lets nothing through
+    input: { question: "Where is my order?" }
+    models:
+      Support: "Your order left our warehouse today."
+    evaluators:
+      Compliance: { no_refund_promise: clean, no_internal_refs: clean }
+    fail:
+      Compliance: { always: true, category: server_error }
+    expect:
+      final: failed

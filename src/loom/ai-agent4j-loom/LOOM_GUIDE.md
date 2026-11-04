@@ -1799,7 +1799,9 @@ workflow Main(question) {
   - `fail`.
 - **`on_unavailable { }`** is taken when the evaluator could not answer at all (every model failed or its budget is gone), not when it said "violated". It holds `replace with "…"`, `ask person` or `fail`; the default is `fail`, so nothing unchecked leaves by this path.
 - The checked text is a whole variable when the action replaces it. The trace event `policy_check` carries the policy names, versions and hashes, the rule ids, the action and the tokens; never the text or a reason.
-- **Not built yet:** the runtime does not yet stop a model-written value that reaches a `return`, a tool or a task unchecked (phase 26c), and the leak guard (`prompt_leak`) is not built.
+- **The runtime guards the exits.** Once the script declares a policy, a value a model wrote cannot leave the workflow until it has passed a `check` against **every** declared policy. The exits are the `return` of the workflow a run starts with, the arguments of a `run` of a task whose effect is `CHANGES`, and an agent's own calls to a tool whose effect is `changes`. The runtime tags every value with where it came from, beside the value: an input, a constant, a label, a number, a person's answer and a model-free task's result are not model-written; an agent's answer, a text field of an extractor and a task that uses a model are. The tag follows `set`, `{...}` filling, field paths, lists, objects, `call`, `for each` and a resumed run, and a value with no recorded origin counts as unchecked. A `check` that passes (or a rewrite, or a person sending it as it is) marks the text checked; building new text from it and a model's new words makes it unchecked again. A breach fails the step: "`reply` was written by a model and has not been checked against HouseRules. Add `check reply against HouseRules using …` before this step." and `weave check` reports the same path early, naming the line of the return and of the agent that wrote the text. A number, a true/false or an enum word is never model text.
+- **An agent's own changing tool calls are checked before they run.** Each policy must say which evaluator checks them: `policy HouseRules: "house-rules" checked by Compliance` (`weave check` requires it when an agent holds a tool whose effect is `changes`). The call's text arguments go to the evaluator, as a `check` would send them; a pass lets the call go on (to `approve:` where listed), a violation or an unsure rule refuses it: the tool does not run and the agent is told the rule ids and one-line reasons, never the rule text, so it can write the call again. After two refusals in a step every further call is refused and the agent is told to stop. Numbers and flags are not sent: a policy judges what a call says, never how much it moves, so a limit on an amount belongs in the code that acts.
+- **Not built yet:** a notification channel that sends non-question messages (none exists), the cost estimate lines and budget reserve for checks, and the live-page incidents for checks.
 
 ---
 
@@ -1959,6 +1961,22 @@ agent Support {
   steps aren't checked again.
 
 URLs are not treated as personal data.
+
+**The leak guard** is a second kind of guard, with no model:
+
+```loom
+agent Support {
+    model: "gemini-2.5-flash"
+    guard {
+        prompt_leak: warn                      // warn | block | off
+        prompt_leak_words: 12                  // optional: how many shared words count
+        internal_refs: ["Section [0-9]+", "POL-[0-9]+"]
+    }
+}
+```
+
+- It looks for an answer that repeats its instructions: a run of `prompt_leak_words` (default 12) words shared with the agent's own prompt, the shared prompt, its persona or skills, or the text of a declared policy rule, compared without case, punctuation or spacing. It also looks for a match of one of the agent's `internal_refs` patterns (at most 200 characters, must compile; each match has a time limit and a pattern that runs out of time counts as a match).
+- `warn` records an audit and trace event with the kind and the numbers, never the text, and carries on. `block` fails the step. The default is `warn` for every agent once the script declares a policy, and off otherwise (unless the agent writes `internal_refs`); `prompt_leak: off` is allowed.
 
 ### Running as the person who runs the workflow
 

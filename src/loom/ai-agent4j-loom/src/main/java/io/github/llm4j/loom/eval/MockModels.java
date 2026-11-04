@@ -30,6 +30,14 @@ public final class MockModels implements LLMClientFactory {
             @Override
             public LLMResponse chat(LLMRequest request) {
                 String text = lastUserText(request);
+                if (text.contains("You are a policy evaluator.")) {
+                    // A free run does not judge: every rule is answered "no", and the report says so.
+                    return LLMResponse.builder()
+                            .content(notJudged(text))
+                            .model(model)
+                            .tokenUsage(10, 5, 15)
+                            .build();
+                }
                 int at = text.lastIndexOf(MARKER);
                 String answer =
                         at < 0
@@ -72,6 +80,21 @@ public final class MockModels implements LLMClientFactory {
         StringBuilder all = new StringBuilder();
         for (var m : messages) if (m.getContent() != null) all.append(m.getContent()).append('\n');
         return all.toString();
+    }
+
+    /** The JSON an evaluator would send if it found nothing wrong, for each rule id in the request. */
+    private static String notJudged(String request) {
+        StringBuilder out = new StringBuilder("{");
+        int at = request.indexOf("Rules:");
+        if (at >= 0) {
+            for (String line : request.substring(at).split("\n")) {
+                if (!line.startsWith("- ") || !line.contains(":")) continue;
+                String id = line.substring(2, line.indexOf(':')).strip();
+                if (out.length() > 1) out.append(',');
+                out.append(quote(id)).append(":{\"violated\":\"no\",\"reason\":\"not judged (mock run)\"}");
+            }
+        }
+        return out.append('}').toString();
     }
 
     private static String quote(String s) {

@@ -50,6 +50,12 @@ public final class FactModel {
                 .bool(
                         "usesPausing",
                         "It can pause for a person or a timer: human_prompt, sleep, approve or decide")
+                .bool("declaresPolicy", "A policy is declared, so model-written text is checked at the exits")
+                .number("modelTextExitCount", "How many returns hand out text a model wrote")
+                .string("modelTextExitList", "Those exits, as short descriptions")
+                .bool(
+                        "reachesPeople",
+                        "Its output can reach people outside: it is scheduled, or an agent holds a tool that changes things")
                 .done();
         m.entity("workflow", "One workflow")
                 .string("name", "The workflow's name")

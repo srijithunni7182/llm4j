@@ -80,6 +80,10 @@ The reason is required (a rule without one is an error), the incident drops from
 
 Two more security signals only a run can give: a tool result that reads like injected instructions (a heuristic: the page keeps the pattern group names, never the text), and refused access (a tool answering 403, an unknown tool, a refused approval). They are leads, not verdicts; the page says what it cannot tell you.
 
+## Text a model wrote that leaves unchecked
+
+`weave check` follows text an agent wrote to the return of a workflow and, when the script declares a policy, reports each path with no `check` against every policy (it names the line of the return and of the agent). `weave review` rule LY07 says the same when a scheduled or acting workflow hands out model-written text and no policy is declared. The leak guard (`guard { prompt_leak: warn }`) catches an answer that repeats its prompt or an internal reference. Accept LY07 with a reason when no one outside sees the output.
+
 ## Fix what it finds, with these building blocks
 
 ```loom

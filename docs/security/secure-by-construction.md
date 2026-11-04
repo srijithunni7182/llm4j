@@ -43,3 +43,6 @@ It exits non-zero on a high finding, so it can gate your CI.
 - a risk-by-risk mapping to the OWASP Top 10 for LLM Applications, **with the gaps named**;
 - the patterns to avoid, and an honest account of what llm4j does *not* protect you from.
 
+## Policies are enforced at the exits, not in prompts
+
+A prompt is a request a model can ignore, so a rule about what must never be said is written in a policy file and checked by a separate, stateless evaluator at the edge. The runtime keeps where every value came from beside the value; once a script declares a policy, model-written text that has not been checked against every declared policy is refused at the return of the run, in the arguments of a task that changes things and in an agent's own calls to a tool that changes things. A value with no recorded origin counts as unchecked. The evaluator fails closed: a rule it cannot judge counts as broken, and an evaluator that cannot answer takes `on_unavailable` (default `fail`). An evaluator and a rewriter see only the text and the rules, never the transcript, so an earlier injected instruction cannot reach them. `CanaryProvenanceOracleTest` compares the runtime's record with where a canary in every scripted model answer really went, over every script in the repository.

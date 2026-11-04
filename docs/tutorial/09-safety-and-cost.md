@@ -182,7 +182,24 @@ On a violation you choose **one** action: `rewrite with Editor` (another agent f
 
 The evaluator **fails closed**. A rule it cannot judge is "unsure", and unsure blocks just as a violation does, but it is counted apart so you can tell a timid evaluator from one that catches problems. If it cannot answer at all (the model is down), `on_unavailable { replace with "We are looking into this." }` gives a holding answer; the default is to fail, so nothing unchecked leaves.
 
-Not built yet: Loom does not yet refuse a model-written text that reaches `return` or a tool without a `check`. Until then, put a `check` before each exit yourself.
+### The runtime guards the exits
+
+Declare a policy and Loom stops trusting your memory. It remembers, for every value, whether a model wrote it, and **refuses to let model-written text leave unchecked**. The exits are the `return` of the run, the arguments of a task that changes something, and an agent's own calls to a tool that changes something. A number, a true/false, an enum word, a label, a person's answer and the result of a task with no model are not model text and pass freely.
+
+| The value is | At an exit |
+|---|---|
+| a constant, an input, a number, a label, a person's answer | passes |
+| an agent's reply, a text field of an extractor | refused until a `check` passed it |
+| a reply that passed `check ... against HouseRules` | passes (if every declared policy was checked) |
+| the checked reply with new model words added | refused again |
+
+The refusal tells you what to do: "`reply` was written by a model and has not been checked against HouseRules. Add `check reply against HouseRules using ...` before this step." `weave check` finds the same path before you run anything and names the line of the return and the line of the agent.
+
+An agent that can **send an email or call an API** writes its call inside its own loop, where you cannot put a `check`. So the runtime checks each such call for you, before it runs and before a person is asked (`policy HouseRules: "house-rules" checked by Compliance` names the judge). A call that breaks a rule does not run; the agent is told which rule ids it broke and why, never the rule text, and tries again. After two refusals in a step it is told to stop. A policy judges what a call *says*, not how much it moves: a limit on an amount belongs in the code that acts.
+
+`weave review` raises **LY07** when the output can reach people (the workflow is scheduled, or an agent holds a tool that changes things) and no policy is declared. Accept it with a reason when no customer sees the output.
+
+The **leak guard** is a guard that needs no model. `guard { prompt_leak: block  internal_refs: ["POL-[0-9]+"] }` stops an answer that repeats 12 words of the agent's own instructions, of the shared prompt or of a policy rule, or that names an internal reference. `warn` records it and carries on; with a policy declared every agent warns by default.
 
 ## Secrets
 

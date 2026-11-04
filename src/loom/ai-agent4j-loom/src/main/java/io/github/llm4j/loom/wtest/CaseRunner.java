@@ -61,6 +61,7 @@ final class CaseRunner {
         Map<String, Long> fallbacks = Map.of();
         try {
             Map<String, JsonNode> models = fields(c.get("models"));
+            models.putAll(Evaluators.scripted(c.get("evaluators")));
             Failures failures = new Failures(c.get("fail"));
             boolean repeatLast = c.has("repeat") && "last".equals(c.get("repeat").asText());
             boolean lenient = c.has("lenient") && c.get("lenient").asBoolean();
@@ -80,6 +81,8 @@ final class CaseRunner {
                 for (IntentClassifierDef k : fresh.getIntentClassifiers())
                     k.setModel(ScriptedClassifiers.PREFIX + k.getName(), k.getModelLine());
                 for (io.github.llm4j.loom.ast.ExtractorDef x : fresh.getExtractors())
+                    x.setModel(ScriptedModels.PREFIX + x.getName());
+                for (io.github.llm4j.loom.ast.EvaluatorDef x : fresh.getEvaluators())
                     x.setModel(ScriptedModels.PREFIX + x.getName());
                 ToolRegistry tools = toolsFor(fresh, c, failures, repeatLast, recorder);
                 TaskRegistry tasks = tasksFor(fresh, c, failures, repeatLast, recorder);
@@ -163,6 +166,8 @@ final class CaseRunner {
         Set<String> names = new LinkedHashSet<>();
         for (io.github.llm4j.loom.ast.ExtractorDef x : script.getExtractors())
             names.add(x.getName());
+        for (io.github.llm4j.loom.ast.EvaluatorDef x : script.getEvaluators())
+            names.add(x.getName()); // answers with bare JSON, like an extractor
         return names;
     }
 

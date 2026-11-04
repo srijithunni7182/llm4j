@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Leak guard.** `prompt_leak` and `internal_refs` in an agent's `guard { }` are highlighted. Needs the engine's leak guard (phase 26).
 - **Policies and checks.** `policy`, `evaluator` and `check … against … using` are highlighted, and the graph draws a `check` step. Needs the engine's policy support (phase 26).
 - **Tool effects.** `effect:` and `effects:` on a tool (and `effects:` in an `mcp` block) are highlighted. Needs the engine's tool effects (phase 27a). The quick fix that declares an assumed effect arrives with the review changes (phase 27c).
 - **Bounded fan-out.** `for each … max N` and `on_too_many` are highlighted and explained on hover; the graph shows a `for each` bound. Needs the engine's bounded fan-out (phase 25).

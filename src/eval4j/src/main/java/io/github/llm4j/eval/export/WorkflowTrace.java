@@ -172,6 +172,36 @@ public record WorkflowTrace(
         return out;
     }
 
+    /**
+     * How many {@code check} steps judged against {@code policy} (every {@code policy_check} event
+     * that names it; the automatic check of an agent's tool call counts too).
+     */
+    public long checks(String policy) {
+        return events.stream().filter(e -> "policy_check".equals(e.type()) && namesPolicy(e, policy)).count();
+    }
+
+    /** True when some check found {@code ruleId} broken (the trace holds ids, never the text). */
+    public boolean ruleViolated(String ruleId) {
+        return events.stream()
+                .filter(e -> "policy_check".equals(e.type()) && e.data() != null)
+                .anyMatch(e -> e.data().get("violated") instanceof List<?> l && l.contains(ruleId));
+    }
+
+    /** The actions the checks ended in, in order ({@code none}, {@code rewritten}, {@code replaced}, {@code asked}). */
+    public List<String> checkActions() {
+        List<String> out = new java.util.ArrayList<>();
+        for (Event e : events)
+            if ("policy_check".equals(e.type()) && e.data() != null && e.data().get("action") != null)
+                out.add(String.valueOf(e.data().get("action")));
+        return List.copyOf(out);
+    }
+
+    private static boolean namesPolicy(Event e, String policy) {
+        if (e.data() == null || !(e.data().get("policies") instanceof List<?> l)) return false;
+        for (Object o : l) if (o instanceof Map<?, ?> m && policy.equals(String.valueOf(m.get("name")))) return true;
+        return false;
+    }
+
     private static String extractorOf(Event e) {
         return e.data() == null ? "" : String.valueOf(e.data().get("extractor"));
     }

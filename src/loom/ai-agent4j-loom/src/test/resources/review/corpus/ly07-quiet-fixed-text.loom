@@ -1,0 +1,6 @@
+schedule Morning { cron: "0 7 * * *"  run: Main(topic = "news") }
+workflow Main(topic) {
+  set fixed = "The digest for {topic} is ready."
+  return fixed
+}
+// ignore: LP02 LP05 LO01 LR04 LD01 LR08

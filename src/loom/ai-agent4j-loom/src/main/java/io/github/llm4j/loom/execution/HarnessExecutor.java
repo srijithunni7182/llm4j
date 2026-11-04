@@ -2579,15 +2579,17 @@ public class HarnessExecutor implements LoomEngine {
                         new ServedModelRecorder(
                                 llmClient, served -> servedModels.put(agentName, served));
             }
-            if (agentDef.getGuard() != null) {
-                String judge = agentDef.getGuard().getBiasModel();
+            if (agentDef.getGuard() != null || !script.getPolicies().isEmpty()) {
+                AgentDef.GuardConfig guardConfig =
+                        agentDef.getGuard() != null ? agentDef.getGuard() : new AgentDef.GuardConfig();
+                String judge = guardConfig.getBiasModel();
                 io.github.llm4j.fairness.BiasMonitor monitor =
                         judge == null
                                 ? new io.github.llm4j.fairness.RuleBasedBiasMonitor()
                                 : new io.github.llm4j.fairness.LLMBiasMonitor(
                                         budgets.metered(clientFor(judge), agentDef, judge));
                 AgentGuard guard =
-                        new AgentGuard(agentDef.getName(), agentDef.getGuard(), monitor, this);
+                        new AgentGuard(agentDef.getName(), guardConfig, monitor, this);
                 guards.put(agentDef.getName(), guard);
                 llmClient = guard.wrap(llmClient);
             }
@@ -3788,6 +3790,32 @@ public class HarnessExecutor implements LoomEngine {
     io.github.llm4j.LLMClient clientForEvaluator(
             io.github.llm4j.loom.ast.EvaluatorDef def, String model) {
         return budgets.metered(clientFor(model), "evaluator " + def.getName(), null, model);
+    }
+
+    /**
+     * The texts an answer by {@code agent} must not repeat: its own prompt, the shared prompt, and
+     * the rules of every declared policy (docs/specs/26, R9).
+     */
+    java.util.List<String> leakSources(String agent) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        script.getAgents().stream()
+                .filter(a -> a.getName().equals(agent))
+                .findFirst()
+                .ifPresent(
+                        a -> {
+                            try {
+                                out.add(prompts.resolveOwnPrompt(a));
+                            } catch (RuntimeException unresolved) {
+                                // a prompt that does not resolve is reported by weave check
+                            }
+                        });
+        String shared = prompts.sharedPrompt();
+        if (shared != null) out.add(shared);
+        io.github.llm4j.loom.policy.PolicyCatalog catalog =
+                io.github.llm4j.loom.policy.PolicyCatalog.beside(baseDir);
+        for (io.github.llm4j.loom.ast.PolicyDef def : script.getPolicies())
+            catalog.resolve(def).ifPresent(p -> p.rules().forEach(r -> out.add(r.text())));
+        return out;
     }
 
     /** The agent's own prompt without the shared prompt, for a rewrite. */
