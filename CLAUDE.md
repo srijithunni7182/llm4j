@@ -163,7 +163,7 @@ Documentation is part of the change. A behaviour, API, setting, command or file 
   | `src/**/README.md` | One per module and example (about 45) |
   | `src/ai-agent4j/wiki/*.md` | The core library's wiki |
   | `wiki/*.md` | The Loom, observability and deployer wiki |
-  | `docs/` | Guides, specs, security, `docs/guide/01–10` (the workflow guide), `TESTING_STRATEGY.md`, `API_COMPATIBILITY.md`, `VERSION_MATRIX.md`, release notes and migration guides |
+  | `docs/` | Guides, specs, security, `docs/guide/01–16` (the workflow guide), `TESTING_STRATEGY.md`, `API_COMPATIBILITY.md`, `VERSION_MATRIX.md`, release notes and migration guides |
   | `src/loom/ai-agent4j-loom/LOOM_GUIDE.md`, `LOOM_PROMPT.md` | The language reference and the version written for models |
   | `llms.txt` | The machine-readable summary of the project for models |
   | `.claude/skills/*` | The skills and their references, which ship to users as packages (`make skill-package`) |

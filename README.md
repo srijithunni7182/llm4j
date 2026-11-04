@@ -79,7 +79,7 @@ weave generate "Turn meeting notes into action items and post them to a team web
 | 🏢 **Enterprise ready** | Approvals, budgets, audit trail, PII masking, secrets, an OWASP audit, crash-safe runs that last days. |
 | 🤝 **Bring your coding agent** | **Loom: Set Up My Coding Agent** teaches Claude Code, Copilot, Cursor or any `AGENTS.md` agent to build with Loom, and to look commands up instead of guessing. |
 
-**[🚀 Take the tour: the Developer guide →](DEVELOPER_GUIDE.md)** · [🎓 Learn Loom: the tutorial](docs/tutorial/README.md) · [🧵 15 starter workflows](src/loom/starters/README.md) · [📖 Command reference](docs/COMMAND_REFERENCE.md) · [🧩 VS Code extension](src/loom/vscode-loom/README.md) · [⬇️ Install from the Marketplace](https://marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-llm4j-loom)
+**[🚀 Take the tour: the Developer guide →](DEVELOPER_GUIDE.md)** · [🎓 Learn Loom: the tutorial](docs/tutorial/README.md) · [🧵 17 starter workflows](src/loom/starters/README.md) · [📖 Command reference](docs/COMMAND_REFERENCE.md) · [🧩 VS Code extension](src/loom/vscode-loom/README.md) · [⬇️ Install from the Marketplace](https://marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-llm4j-loom)
 
 ---
 
@@ -149,7 +149,7 @@ see [API keys in the Quick Start](src/ai-agent4j/wiki/Getting-Started.md#set-up-
 | 🧩 [**Addons**](src/ai-agent4j-addons/) | How do I keep data private and costs at zero? | Local ONNX/DJL embeddings, pgvector and Pinecone |
 | 🔧 [**Tools**](src/ai-agent4j-tools/) | How do I let an agent act safely? | `webhook`, `email`, `http`, `file`, `shell`, read-only `sql`, with allow-lists and journals |
 | 🌱 [**Spring Boot starter**](src/spring/llm4j-spring-boot-starter/) | I already use Spring. How do I get llm4j as beans? | `LLMClient`s, budgets, agents, tools, RAG and the Loom runtime (`LoomHost`), wired from `application.yml`. Optional: nothing in llm4j depends on it. Running a workflow in your app: [guide](docs/SPRING_BOOT_LOOM_GUIDE.md) |
-| 🏷️ [**Classification**](src/ai-agent4j/wiki/Classification.md) | Which of these is it? | `Classifier`: typed questions (a choice, a yes/no, a score) answered in one call by a chat model or [Jev](docs/specs/07-classifier/STUDY_REPORT.md), `intentclassify` in Loom, classifier-backed judges in eval4j (6.2.0, in preparation) |
+| 🏷️ [**Classification**](src/ai-agent4j/wiki/Classification.md) | Which of these is it? | `Classifier`: typed questions (a choice, a yes/no, a score) answered in one call by a chat model or [Jev](docs/specs/07-classifier/STUDY_REPORT.md), `intentclassify` in Loom, classifier-backed judges in eval4j |
 | 🧪 [**eval4j**](src/eval4j/) | How do I know it works? | AssertJ assertions on agent behaviour, LLM judges, golden datasets, a [local dashboard](src/eval4j-report/docs/USER-GUIDE.md) ([why](src/ai-agent4j/wiki/WHY_EVAL4J.md)) |
 
 [Module details and diagram](docs/THE_STACK.md)
@@ -160,7 +160,7 @@ see [API keys in the Quick Start](src/ai-agent4j/wiki/Getting-Started.md#set-up-
 
 ## Agent skills
 
-Three [Claude skills](docs/PUBLISHING_SKILL.md) live in [`.claude/skills/`](.claude/skills/), so a coding agent can walk you through the whole job, one gate at a time:
+Four [Claude skills](docs/PUBLISHING_SKILL.md) live in [`.claude/skills/`](.claude/skills/), so a coding agent can walk you through the whole job, one gate at a time:
 
 | Skill | Use it to |
 |---|---|

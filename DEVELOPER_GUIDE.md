@@ -86,7 +86,7 @@ Then make one of your own. 👇
 | 🏷️ | **[Classification](src/ai-agent4j/wiki/Classification.md)** | Typed questions (a choice, a yes/no, a score) answered in one call; `intentclassify` in Loom. |
 | 🌱 | **[Spring Boot starter](src/spring/llm4j-spring-boot-starter/)** | Clients, budgets, agents, tools, RAG and the Loom runtime as beans, wired from `application.yml`. |
 | 🧩 | **[VS Code extension](src/loom/vscode-loom/README.md)** | The live graph, the review panel, generate and change, a step debugger, the guide, and one-click set-up for your coding agent. |
-| 🤝 | **[Agent skills](docs/PUBLISHING_SKILL.md)** | Three skills that walk a coding agent through designing, building and deploying, one gate at a time. |
+| 🤝 | **[Agent skills](docs/PUBLISHING_SKILL.md)** | Four skills that walk a coding agent through designing, building and deploying, one gate at a time. |
 
 ---
 

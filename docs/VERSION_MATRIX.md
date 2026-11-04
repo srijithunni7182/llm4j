@@ -17,6 +17,7 @@ This repository uses the following canonical Maven coordinates for broad adoptio
 | llm4j-spring-boot-starter | `io.github.srijithunni7182:llm4j-spring-boot-starter:6.2.0` (Spring Boot 3.2 and later; Loom, tools, addons and spring-jdbc are optional) |
 | eval4j | `io.github.srijithunni7182:eval4j:6.2.0` |
 | eval4j-report | `io.github.srijithunni7182:eval4j-report:6.2.0` (reads eval4j run bundles; depends on eval4j only for the optional test-JVM listener) |
+| loom-maven-plugin | `io.github.srijithunni7182:loom-maven-plugin:6.2.0` (typed Java bindings for Loom scripts at generate-sources) |
 
 ## Applications (internal modules in this repository)
 
