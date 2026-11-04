@@ -140,6 +140,8 @@ US$0.50.
 
 ## Structured output
 
+The full page is [Structured output](Structured-Output.md); this is the summary.
+
 `LLMRequest.responseFormat(ResponseFormat)` asks for a reply that follows a JSON Schema (a name and an object schema), and `client.structuredOutput(model)` says whether the client can hold that model to it (`NONE` unless it is recorded that it can; `null` means the model the client is configured with). Each provider puts the schema where its API takes it and leaves it out when it cannot:
 
 | Provider | Where | For |

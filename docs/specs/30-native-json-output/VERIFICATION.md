@@ -94,4 +94,4 @@ Live: [LIVE_FIXTURES.md](LIVE_FIXTURES.md) (twelve more calls, all native on the
 4. **R9, Perplexity's first-call timeout** is not implemented: it was not needed in the one live run (see LIVE_FIXTURES.md), but a slow first call could still time out and be retried.
 5. **Anthropic specifics from R9** (no citations, no prefill) hold because the extractor sends neither; nothing enforces it.
 
-Docs updated: `LOOM_GUIDE.md`, `LOOM_PROMPT.md`, `docs/API_COMPATIBILITY.md`, `docs/RELEASE_NOTES_6_2_0.md`, `src/ai-agent4j/wiki/OpenAI-Family-Providers.md`.
+Docs updated: `LOOM_GUIDE.md` (a section, "Native JSON: how an extractor gets structured output"), `LOOM_PROMPT.md`, `docs/tutorial/05` (and the tutorial page regenerated), `docs/API_COMPATIBILITY.md`, `docs/RELEASE_NOTES_6_2_0.md`, `llms.txt`, and in the wiki a new page `Structured-Output.md` (its two Java samples are compiled and run by `StructuredOutputDocsExamplesTest`, which fails if the page shows something else), linked from `Home.md`, `Providers-and-the-Uniform-Contract.md` and `OpenAI-Family-Providers.md`.

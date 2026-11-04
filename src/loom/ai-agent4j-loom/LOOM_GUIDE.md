@@ -1793,7 +1793,43 @@ workflow Main(text) {
 - **Never invented.** A required field the model answered `null` means the text does not state it. Asking again would only repeat that answer, so the step fails at once into `on_failure` with `_error` naming the fields, and no retry is spent. A malformed answer (not JSON, a wrong kind, an unknown enum word, a required field left out) is told what was wrong and asked once more; after that `retry N` applies, then the step fails.
 - **Cost.** The call counts against the run's `budget` (and its own `budget { ... }` or the step's `budget N tokens`) and shows in the spend report as `extractor Invoice`. The trace has `extract_start` and `extract_end` with the model, tokens, time and the **names** of the fields found and missing, never the text or the values. A resumed run reuses the recorded answer (`extract_replayed`). Under `weave test` an extractor is scripted like an agent (`models: { Invoice: { vendor: Acme, total: 3 } }`); under `weave eval --mock` it gets a well-formed value of its schema. `weave graph` draws an `extract` node, and `weave review` lists it as its own cost line.
 - **Moving an agent to an extractor.** `weave review` rule LP09 (medium) spots an agent that only pulls fields out of text: it has its own `output_schema` (not a single enum field, which is a classifier's job), no tools, no grounding, no `memory`, a short prompt (`prompts.short-prompt-tokens`, default 300), and every `delegate` to it passes a variable. `weave review --fix-finding <id> --option to-extractor --dry-run` shows the rewrite (the agent becomes an `extractor`, each `delegate` an `extract` naming its variables as inputs) and `--yes` applies it. It is offered only when nothing is lost: an agent with tools, memory, a budget and the like, a system prompt that writes `{...}`, or a task with words around the variable that carry meaning is refused, and the finding says why.
-- **Native JSON mode.** Where the provider can hold a reply to a JSON Schema, the extractor asks for that as part of the request, so the reply is JSON by construction: today OpenAI (gpt-4o and later, o1/o3/o4) and xAI (Grok 4 family) on chat completions and the Responses API, Claude (the models Anthropic lists), Gemini 2.5 and later, Perplexity's Agent API, and a local Ollama server. Anywhere else, or for a model nobody recorded, it asks in the prompt as before. The prompt is the same either way. The schema is built from the extractor's own fields and nothing else: every field required, an optional field allowed to be `null`, no extra fields. An extractor with more than 16 optional fields, or nested deeper than 10 levels, is too wide for the strictest provider and uses the prompt. If a provider refuses the schema, the call is made again without it, once, and the rest of the run does not try it for that model. The trace of each `extract` says which route was used (`structured: native` or `prompt`, and why). The answer is checked exactly as before in both cases: a native reply can still be a refusal or be cut at the token limit, which is reported as such. There is no switch in the script.
+- **Native JSON mode.** Where the provider can hold a reply to a JSON Schema, the extractor asks for that in the request, so the reply is structured by construction. There is nothing to write; [Native JSON: how an extractor gets structured output](#native-json-how-an-extractor-gets-structured-output) says when it applies, how to see it, and what it does not change.
+
+#### Native JSON: how an extractor gets structured output
+
+An extractor is the step where a model's words become data a script can branch on, so if it fails, every step after it is guessing. It therefore uses the strongest guarantee the provider offers. Asking for JSON in the prompt is a request that the model usually honours; asking in the *request* makes the provider decode within a JSON Schema, so the reply has the fields you declared, with the types you declared, as plain JSON: no code fence, no sentence before it, no field left out. This is what makes the extractor the reliable primitive of the language, and you get it without writing anything.
+
+**What happens on each `extract`:**
+
+1. Loom builds one JSON Schema from the extractor's own `fields` and nothing else: every field required, an optional one allowed to be `null` (which the extractor already reads as `missing`), no extra fields. Text in the inputs or in `instructions:` can never change the schema.
+2. If the client says the model can be held to a schema, the schema goes in the request. If not, the extractor asks in the prompt exactly as before. The prompt is the same in both cases.
+3. The answer is checked the same way in both cases (below).
+
+**Which providers.** The extractor uses it on OpenAI (gpt-4o and later, o1/o3/o4) and xAI (the Grok 4 family), on chat completions and on the Responses API (`api: responses`); on Claude (the models Anthropic's structured-outputs page lists); on Gemini 2.5 and later; on Perplexity's Agent API; and on a local Ollama server (not Ollama Cloud, which documents that it does not support it). Kimi and Qwen are not switched on yet (preview), and neither is a model nobody has recorded: an unknown model uses the prompt, never a guess. The same list, with where each vendor takes the schema, is on the [Structured output](../../ai-agent4j/wiki/Structured-Output.md) page.
+
+**How much more reliable.** The evidence is in the repository, and it is worth reading with its limits:
+
+- 24 real `extract` calls on 8 provider routes (each of the above, with both OpenAI and xAI on both of their APIs) returned the declared fields on the first attempt, with no correction and no fallback, including an input that told the model to ignore its instructions and say "HELLO" ([the record](../../../docs/specs/30-native-json-output/LIVE_FIXTURES.md)).
+- On a tiny local model, the same prompt and schema answered in a code fence, in the wrong shape, running to the length limit without `format`, and with exactly the three fields with it.
+- Not measured: how often prompt-only JSON fails on the larger models. They mostly comply, so there the gain is fewer paid correction calls and one less thing that can go wrong at the start of a workflow; for small and local models the gain is the difference between a working extractor and a broken one.
+
+**What it does not change.** The answer is still model output, and the extractor checks it the same way: a required field must be present and of its type, an enum value must be one of its words, null for an optional field reads as `missing`, and a required field answered `null` fails at once. Two things a provider can still do are reported for what they are: a reply cut at the token limit fails with "the reply was cut at the token limit, so the JSON is incomplete", and a provider's refusal is a failed attempt. A schema cannot make the *values* right: a small model told "ACME invoice, no total" can still invent a total, which is why the golden cases of an extractor (`eval/golden/<extractor>.yaml`) still matter, and `weave eval` runs them down the same route.
+
+**Seeing which route ran.** The `extract_end` event of every `extract` (`weave run main.loom --trace`) carries, among other keys:
+
+```json
+{"extractor": "Invoice", "model": "gemini-2.5-flash", "attempts": 1, "structured": "native", "present": ["vendor", "total", "currency"], "missing": []}
+```
+
+`structured` is `native` or `prompt`. On the prompt route `structured_reason` says why: `provider` (the client does not know this model to support it), `schema_limits` (see below) or `provider_refused`.
+
+**When it falls back.**
+
+- *The extractor is too wide.* More than 16 optional fields, or nesting deeper than 10 levels, is more than the strictest provider accepts, so that extractor uses the prompt (`schema_limits`). The usual cure is the right one anyway: split it into two narrow extractors.
+- *The provider refuses the schema.* The call is made again once without it (the trace has a `structured_fallback` event), and the rest of the run does not try the schema for that model.
+- *A mock or a scripted test.* `weave test` and `--mock` answer from the script, so there is no provider and no schema; the fields come out the same.
+
+**Good to know.** Perplexity prepares a new schema the first time it sees it, which its documentation puts at 10 to 30 seconds; that was not seen in our run, and a first call that times out is retried like any other. Agents' `output_schema` and classifiers do not use this yet: only the extractor does.
 
 #### Internal nodes
 
