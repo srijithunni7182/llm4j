@@ -359,7 +359,7 @@ class CheckRunTest {
                 new io.github.llm4j.LLMClient() {
                     @Override
                     public LLMResponse chat(LLMRequest request) {
-                        String m = request.getModel();
+                        String m = who(request);
                         if ("judge".equals(m)) judged[0]++;
                         return LLMResponse.builder().content("judge".equals(m) ? CLEAN : GOOD).model("t").build();
                     }

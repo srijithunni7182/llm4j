@@ -194,8 +194,7 @@ final class ExtractRunner {
         return LLMRequest.builder()
                 .addSystemMessage(system.toString())
                 .addUserMessage(inputs.toString())
-                .temperature(def.getTemperature())
-                .model(def.getModel());
+                .temperature(def.getTemperature());
     }
 
     private static LLMRequest withCorrection(LLMRequest.Builder request, String correction) {

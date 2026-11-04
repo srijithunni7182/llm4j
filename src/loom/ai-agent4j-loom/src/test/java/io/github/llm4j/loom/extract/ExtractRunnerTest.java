@@ -106,6 +106,13 @@ class ExtractRunnerTest {
     static final String GOOD = "{\"vendor\": \"Acme GmbH\", \"total\": 12.5, \"currency\": \"EUR\"}";
     static final Map<String, String> TEXT = Map.of("text", "Invoice from Acme, total 12.50 EUR");
 
+    @Test
+    void theExtractionRequestNamesNoModelSoAVendorPrefixNeverReachesTheProvider() {
+        Outcome o = run("Main", TEXT, GOOD);
+        assertThat(o.extractorRequests()).isNotEmpty();
+        assertThat(o.extractorRequests().get(0).getModel()).isNull();
+    }
+
     // ---- R3: what reaches the model
 
     @Test

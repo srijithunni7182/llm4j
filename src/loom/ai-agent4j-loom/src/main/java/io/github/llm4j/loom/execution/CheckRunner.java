@@ -342,7 +342,6 @@ final class CheckRunner {
                                 LLMRequest.builder()
                                         .addSystemMessage(system.toString())
                                         .addUserMessage(user.toString())
-                                        .model(agent.getModel())
                                         .build());
         String out = response.getContent();
         if (out == null || out.isBlank())
@@ -430,6 +429,7 @@ final class CheckRunner {
 
     private static Map<String, Object> verdictValue(PolicyEvaluator.Verdict verdict, String action) {
         Map<String, Object> out = new LinkedHashMap<>();
+        // "yes" when the text that now stands passes: it passed, or was rewritten, replaced or sent by a person.
         out.put("passed", verdict.passed() || action.equals("rewritten") || action.equals("asked") || action.equals("replaced") ? "yes" : "no");
         out.put("violated", verdict.violated());
         out.put("unsure", verdict.unsure());

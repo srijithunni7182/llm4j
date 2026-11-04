@@ -168,8 +168,9 @@ final class PolicyEvaluator {
         return LLMRequest.builder()
                 .addSystemMessage(system.toString())
                 .addUserMessage(user)
+                // No model on the request: the client was made for it, and a vendor prefix such as
+                // openai/ must not reach the provider (found by the first live run).
                 .temperature(0.0)
-                .model(model)
                 .build();
     }
 

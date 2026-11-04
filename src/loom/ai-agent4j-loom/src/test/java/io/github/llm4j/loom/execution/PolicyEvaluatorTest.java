@@ -66,6 +66,16 @@ class PolicyEvaluatorTest {
         assertThat(user.split(java.util.regex.Pattern.quote(PolicyEvaluator.CLOSE), -1)).hasSize(2);
     }
 
+    @Test
+    void theRequestNamesNoModelSoAVendorPrefixNeverReachesTheProvider() {
+        // The first live run failed with "invalid model ID" because openai/gpt-4o-mini was sent as is.
+        EvaluatorDef def = evaluator(1);
+        def.setModel("openai/gpt-4o-mini");
+        ScriptedEvaluatorClient client = new ScriptedEvaluatorClient(CLEAN);
+        run(def, client, "text");
+        assertThat(client.requests().get(0).getModel()).isNull();
+    }
+
     // ---- what it answers
 
     @Test
