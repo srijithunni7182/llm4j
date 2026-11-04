@@ -93,6 +93,22 @@ public class RoutingLLMClient implements LLMClient {
         return simple.isEmpty() ? client.getClass().getName() : simple;
     }
 
+    /** Structured output only when every client says so for the model, since any may serve it. */
+    @Override
+    public io.github.llm4j.model.StructuredOutput structuredOutput(String model) {
+        boolean any = false;
+        for (List<LLMClient> clients : clientsByTier.values()) {
+            for (LLMClient c : clients) {
+                if (c.structuredOutput(model) != io.github.llm4j.model.StructuredOutput.JSON_SCHEMA)
+                    return io.github.llm4j.model.StructuredOutput.NONE;
+                any = true;
+            }
+        }
+        return any
+                ? io.github.llm4j.model.StructuredOutput.JSON_SCHEMA
+                : io.github.llm4j.model.StructuredOutput.NONE;
+    }
+
     /** True only when every client supports it, since any of them may end up serving a request. */
     @Override
     public boolean supportsToolCalling() {

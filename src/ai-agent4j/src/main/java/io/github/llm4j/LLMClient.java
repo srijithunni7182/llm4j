@@ -40,6 +40,19 @@ public interface LLMClient {
     }
 
     /**
+     * Whether this client can make the model {@code model} answer with JSON that follows a schema
+     * ({@link io.github.llm4j.model.LLMRequest#getResponseFormat()}). {@link
+     * io.github.llm4j.model.StructuredOutput#NONE} unless the client knows the model supports it:
+     * an unknown model is never assumed to.
+     *
+     * @param model the model name the request will use, or null for the model this client is
+     *     configured with
+     */
+    default io.github.llm4j.model.StructuredOutput structuredOutput(String model) {
+        return io.github.llm4j.model.StructuredOutput.NONE;
+    }
+
+    /**
      * Whether this client can ground a request (search the web and return its sources); {@link
      * io.github.llm4j.grounding.GroundingSupport#NONE} unless it says so.
      */

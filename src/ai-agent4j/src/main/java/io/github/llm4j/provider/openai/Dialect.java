@@ -41,6 +41,7 @@ public final class Dialect {
     private final List<String> hosts;
     private final Function<String, ModelTraits> traits;
     private final String fallbackModel;
+    private final java.util.regex.Pattern structuredOutputModels;
 
     private Dialect(Builder b) {
         this.name = Objects.requireNonNull(b.name, "name cannot be null");
@@ -62,6 +63,7 @@ public final class Dialect {
         this.hosts = List.copyOf(b.hosts);
         this.traits = b.traits;
         this.fallbackModel = b.fallbackModel;
+        this.structuredOutputModels = b.structuredOutputModels;
     }
 
     /**
@@ -192,6 +194,18 @@ public final class Dialect {
     }
 
     /**
+     * Whether {@code model} accepts a JSON-Schema response format, from the patterns recorded for
+     * this vendor; {@link io.github.llm4j.model.StructuredOutput#NONE} for a model nobody recorded.
+     */
+    public io.github.llm4j.model.StructuredOutput structuredOutput(String model) {
+        return model != null
+                        && structuredOutputModels != null
+                        && structuredOutputModels.matcher(model).matches()
+                ? io.github.llm4j.model.StructuredOutput.JSON_SCHEMA
+                : io.github.llm4j.model.StructuredOutput.NONE;
+    }
+
+    /**
      * The model used when neither the request nor the configuration names one; null when there is
      * no sensible default.
      */
@@ -221,7 +235,8 @@ public final class Dialect {
                 .baseUrlEnv(baseUrlEnv)
                 .hosts(hosts)
                 .traits(traits)
-                .fallbackModel(fallbackModel);
+                .fallbackModel(fallbackModel)
+                .structuredOutputModels(structuredOutputModels);
     }
 
     /**
@@ -259,6 +274,11 @@ public final class Dialect {
                     .baseUrlEnv("OPENAI_BASE_URL")
                     .hosts(List.of("api.openai.com"))
                     .traits(ModelTraits::openai)
+                    // gpt-4o and later, o1/o3/o4 (docs: structured outputs); not gpt-4-turbo,
+                    // gpt-3.5 or gpt-oss
+                    .structuredOutputModels(
+                            java.util.regex.Pattern.compile(
+                                    "^(?:gpt-(?:4o|4\\.1|[5-9])|o[134])(?:[-.].*)?$"))
                     .build();
 
     /** xAI (Grok) chat completions. */
@@ -270,6 +290,8 @@ public final class Dialect {
                     .baseUrlEnv("XAI_BASE_URL")
                     .hosts(List.of("api.x.ai"))
                     .traits(ModelTraits::xai)
+                    // the Grok 4 family (docs: structured outputs with tools is Grok 4 only)
+                    .structuredOutputModels(java.util.regex.Pattern.compile("^grok-4(?:[-.].*)?$"))
                     .build();
 
     /** Moonshot's Kimi chat completions (preview: documentation-derived fixtures only). */
@@ -346,6 +368,7 @@ public final class Dialect {
         private List<String> hosts = new ArrayList<>();
         private Function<String, ModelTraits> traits = m -> ModelTraits.DEFAULT;
         private String fallbackModel;
+        private java.util.regex.Pattern structuredOutputModels;
 
         private Builder(String name) {
             this.name = name;
@@ -434,6 +457,16 @@ public final class Dialect {
 
         public Builder traits(Function<String, ModelTraits> traits) {
             this.traits = traits == null ? m -> ModelTraits.DEFAULT : traits;
+            return this;
+        }
+
+        /**
+         * The models that accept a JSON-Schema response format, by pattern over the whole model
+         * name; none (the default) for a vendor whose support is not recorded. Unknown models are
+         * never assumed to support it.
+         */
+        public Builder structuredOutputModels(java.util.regex.Pattern models) {
+            this.structuredOutputModels = models;
             return this;
         }
 
