@@ -43,6 +43,11 @@ public final class LlmCallCounter implements LLMClient {
     }
 
     @Override
+    public io.github.llm4j.model.StructuredOutput structuredOutput(String model) {
+        return delegate.structuredOutput(model);
+    }
+
+    @Override
     public boolean supportsToolCalling() {
         return delegate.supportsToolCalling();
     }
