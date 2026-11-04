@@ -1,0 +1,9 @@
+# The requirements of this starter, as one end-to-end case: what the run must have done, and what the answer must be.
+- id: workflow-001
+  name: A normal request
+  input: "heat pumps"
+  expect:
+    - "WebResearcher and DocsResearcher both ran"
+    - "Writer combined what they found"
+  rubric:
+    - "The summary says what is missing if one researcher failed"

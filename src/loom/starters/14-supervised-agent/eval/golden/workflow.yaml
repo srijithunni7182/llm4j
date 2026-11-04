@@ -1,0 +1,9 @@
+# The requirements of this starter, as one end-to-end case: what the run must have done, and what the answer must be.
+- id: workflow-001
+  name: A normal request
+  input: "What is the capital of France?"
+  expect:
+    - "Researcher worked within its step and repeat limits"
+  rubric:
+    - "The answer is brief and correct"
+    - "A looping agent is steered or stopped, not left running"

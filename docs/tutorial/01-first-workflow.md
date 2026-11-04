@@ -135,6 +135,8 @@ weave run main.loom --input question="What is a workflow?" --max-tokens 20000 --
 
 `--max-tokens` and `--max-calls` cap the run. If it would go over, it stops cleanly instead of billing you. You will meet budgets properly in [Chapter 9](09-safety-and-cost.md).
 
+After the answer you may see one more line: `No evaluation: nothing has measured whether these agents are right.` It means the script has no golden cases yet. The golden dataset is the requirements, written as examples; `weave eval --init` starts one, and [Chapter 10](10-testing.md) shows how. `--quiet` hides the line.
+
 > **Never write a key in a script.** Loom refuses a literal secret on purpose. Keys come from the environment or the encrypted secret store.
 
 ## Starting from a project instead

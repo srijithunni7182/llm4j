@@ -21,12 +21,40 @@ import org.junit.jupiter.api.Test;
 class ReviewNoiseGateTest {
 
     /** The rules the program has added so far. */
-    private static final Set<String> NEW_RULES = Set.of("LP08", "LP09", "LP10", "LA21");
+    private static final Set<String> NEW_RULES = Set.of("LP08", "LP09", "LP10", "LA21", "LT01", "LT06");
 
     /** The most scripts of the corpus a new rule may fire on, as a share. */
     private static final double MOST_SCRIPTS_FIRING = 0.5;
 
     private static final Path STARTERS = Path.of("../starters").toAbsolutePath().normalize();
+
+    private static Set<String> testabilityRules(Path script) throws Exception {
+        io.github.llm4j.loom.ast.LoomScript loaded =
+                new io.github.llm4j.loom.execution.LoomLoader().load(script.toString());
+        var input =
+                new io.github.llm4j.loom.review.engine.ReviewInput(
+                        script.getFileName().toString(),
+                        script.toAbsolutePath().getParent(),
+                        loaded,
+                        Map.of(),
+                        java.util.List.of(),
+                        new io.github.llm4j.loom.graph.GraphService().graph(script));
+        Set<String> found = new HashSet<>();
+        new io.github.llm4j.loom.review.testing.TestabilityRules()
+                .collect(
+                        input,
+                        ReviewSettings.defaults(),
+                        new io.github.llm4j.loom.review.engine.FindingSource.Sink() {
+                            @Override
+                            public void finding(io.github.llm4j.loom.review.model.Finding f) {
+                                found.add(f.rule());
+                            }
+
+                            @Override
+                            public void note(io.github.llm4j.loom.review.model.Note n) {}
+                        });
+        return found;
+    }
 
     @Test
     void noNewRuleFiresOnMoreThanHalfOfTheStarters() throws Exception {
@@ -40,6 +68,8 @@ class ReviewNoiseGateTest {
                 Set<String> rules = new HashSet<>();
                 ReviewCorpusTest.review(script, ReviewSettings.defaults())
                         .forEach(m -> rules.add(m.rule()));
+                // the Java rules (LT01, LT06) are not in the YAML pack: run them as well
+                rules.addAll(testabilityRules(script));
                 for (String rule : rules)
                     if (NEW_RULES.contains(rule)) firing.merge(rule, 1, Integer::sum);
             }

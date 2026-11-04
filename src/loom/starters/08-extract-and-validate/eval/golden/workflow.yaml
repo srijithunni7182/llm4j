@@ -1,0 +1,10 @@
+# The requirements of this starter, as one end-to-end case: what the run must have done, and what the answer must be.
+- id: workflow-001
+  name: A normal request
+  input: "Invoice 42 from Acme: 3 chairs at 40 each, total 120."
+  expect:
+    - "Invoice read the fields from the text"
+    - "A total the text does not state goes to a person"
+  rubric:
+    - "The total is never invented"
+    - "The fields match what the text says"

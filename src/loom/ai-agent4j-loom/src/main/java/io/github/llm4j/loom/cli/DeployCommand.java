@@ -154,6 +154,9 @@ final class DeployCommand implements Callable<Integer> {
             DeployPlan plan = DeployPlan.derive(loaded, c.script.getName());
             String name = c.name != null ? c.name : Deploy.safeName(stem(c.script));
             boolean fabric = c.withFabric && !c.target.equals("docker");
+            String evaluationNotice =
+                    io.github.llm4j.loom.eval.GoldenDatasets.notice(loaded, c.script.toPath());
+            if (evaluationNotice != null && !c.dryRun) env.err().println(evaluationNotice);
             DeployOptions o =
                     new DeployOptions(
                             c.target,
@@ -165,7 +168,8 @@ final class DeployCommand implements Callable<Integer> {
                             c.expose,
                             c.schedule.equals("keep"),
                             c.fabricPublish,
-                            review.summary);
+                            review.summary,
+                            evaluationNotice);
             Map<String, String> files =
                     Deploy.render(plan, o, ScriptHash.of(c.script.toPath()).substring(0, 16));
             Path out = c.out.toPath();

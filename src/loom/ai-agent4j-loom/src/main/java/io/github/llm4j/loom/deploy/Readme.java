@@ -50,6 +50,8 @@ final class Readme {
         if (p.localModels())
             b.append(
                     "\nA model runs on a local server (ollama): set `OLLAMA_HOST` and allow that address.\n");
+        if (o.evaluationNotice() != null)
+            b.append("\n## Before you rely on this\n\n").append(o.evaluationNotice()).append("\n");
         b.append("\n## What review said when this was generated\n\n")
                 .append(o.reviewSummary() == null ? "Not run.\n" : o.reviewSummary() + "\n");
         b.append(

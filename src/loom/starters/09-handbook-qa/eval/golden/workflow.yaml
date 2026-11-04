@@ -1,0 +1,9 @@
+# The requirements of this starter, as one end-to-end case: what the run must have done, and what the answer must be.
+- id: workflow-001
+  name: A normal request
+  input: "How many days of leave do I get?"
+  expect:
+    - "Answerer used the handbook passages"
+  rubric:
+    - "The answer comes from the handbook"
+    - "It says so when the handbook does not answer"

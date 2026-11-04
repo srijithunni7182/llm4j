@@ -1,0 +1,9 @@
+# The requirements of this starter, as one end-to-end case: what the run must have done, and what the answer must be.
+- id: workflow-001
+  name: A normal request
+  input: "Solar roofs convert sunlight into power, but costs and local rules decide whether they pay back."
+  expect:
+    - "Summarizer ran first, then Critic, then Rewriter"
+  rubric:
+    - "The rewrite keeps the meaning of the original"
+    - "It is shorter than the original text"

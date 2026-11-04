@@ -7,10 +7,10 @@ Evidence: E12, E13 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 
 | # | Evidence | Procedure | If it is real, you see | Result |
 |---|---|---|---|---|
-| P1 | E12 | `weave review` on a starter with its tests folder removed. | no LT01 (the lens is off); `Lens.java` marks testability optional; Phase 9 R33 says why | ⬜ |
-| P2 | E13 | `weave guide`. | stage 2 is "Build a golden dataset (optional)" | ⬜ |
-| P3 | R1 | `weave review --lens +testability` with `heuristics = off` on a script with no dataset. | no LT06 (it is heuristic) | ⬜ |
-| P4 | R2 | `weave run` and `weave deploy` on a script with no dataset. | nothing says that nothing measured the agents | ⬜ |
+| P1 | E12 | `weave review` on a starter with its tests folder removed. | no LT01 (the lens is off); `Lens.java` marks testability optional; Phase 9 R33 says why | ✅ 2026-11-04: no LT finding by default; `--lens +testability` showed LT01 |
+| P2 | E13 | `weave guide`. | stage 2 is "Build a golden dataset (optional)" | ✅ 2026-11-04: stage 2 read "Build a golden dataset (optional)" |
+| P3 | R1 | `weave review --lens +testability` with `heuristics = off` on a script with no dataset. | no LT06 (it is heuristic) | ✅ 2026-11-04: LT01 only, no LT06 |
+| P4 | R2 | `weave run` and `weave deploy` on a script with no dataset. | nothing says that nothing measured the agents | ✅ 2026-11-04: `weave run` printed only the run lines; no notice anywhere (checked by reading the code paths: nothing looked for a dataset) |
 
 ## 1. Acceptance criteria
 
@@ -79,4 +79,13 @@ Evidence: E12, E13 of the [program page](../DISCIPLINE.md). Strategy: [TEST_STRA
 
 ## 7. Results
 
-*(empty until 28a)*
+### 28a: louder (2026-11-04)
+
+**Built.** The Testability lens is on by default (`Lens.TESTABILITY` no longer optional; docs and tests that counted nine lenses now count ten). New `eval.GoldenDatasets` is the one lookup of which agents and nodes have golden cases (file name matched without regard to case, `.yaml` or `.yml`, empty files do not count, a workflow case that names an agent in an `expect` line covers it); LT06 uses it, is no longer heuristic, is one finding per script naming every agent, extractor and evaluator without cases, and takes LT01's severity (medium when the script can write, send or ask a person, else low). The "No evaluation" line is printed after `weave run` (error stream; `--quiet` hides it) and by `weave deploy`, which also writes it into the generated README under "Before you rely on this"; when the README says `Evaluation: skipped` the line says so instead. The run start event carries `evaluated: false` (set by the host that ran the check, never read from the dataset by the page), `RunState` exposes it and the live page shows a dismissible banner. `weave next`'s stage is titled "Requirements (golden dataset)". `weave guide` stage 2 and the guide chapter, the README table, the workflow-guide skill row and its "ask once" text say the dataset is the requirements and that skipping is loud and recorded. Every one of the 17 starters now carries `eval/golden/workflow.yaml`.
+
+**Tests (written first, red then green).** `TestabilityLensTest` (lens default and `-testability`, LT06 exact, grouped, severity, agreement with `weave eval` on file naming, empty file, expect-line cover), `NoEvaluationNoticeTest` (run, `--quiet`, any case, scaffold with no cases, nothing to measure, skipped on purpose, deploy output and README), `RunStartEvaluatedFlagTest`, `RunStateTest` and `TraceMapperTest` for the flag, `StartersTest` (every starter has accepted golden cases), `ReviewNoiseGateTest` now runs the Java testability source too and counts LT01 and LT06.
+
+**Deviation (noise gate, D35).** The gate caught LT06 firing on 17 of 17 starters, so the starters were given golden cases instead of demoting the rule. The cases are one end-to-end case each, written from each starter's README; they are teaching examples, not a measured dataset. Discipline lost: none; the starters now show the practice. What covers a weak case: `weave eval --check` validates them and the starters README says they are a start.
+
+**Not done in 28a.** LT01 and LT06 precision was measured only on the 17 starters and the existing review corpus (which has no LT cases); no labelled LT corpus was built. `weave eval --check` reading of extractor and evaluator case files is 28b.
+

@@ -32,7 +32,7 @@ public final class Guide {
                             "Decide your agents (and: a script, or Java)",
                             "guide/01-decide-your-agents.md"),
                     new Page(
-                            "2", "Build a golden dataset (optional)", "guide/02-golden-dataset.md"),
+                            "2", "Write the requirements as a golden dataset", "guide/02-golden-dataset.md"),
                     new Page("3", "Test the prompts", "guide/03-prompt-tests.md"),
                     new Page("4", "Optimize the prompts", "guide/04-prompt-optimization.md"),
                     new Page(

@@ -31,7 +31,7 @@ class EvalDocTest {
                 .contains("--report")
                 .contains("fixtures.yaml")
                 .contains("dataset.yaml")
-                .contains("evaluation is optional")
+                .contains("The golden dataset is the requirements")
                 .contains("Passed, failed and unjudged are three counts")
                 .contains("500,000 tokens")
                 .contains("examples/newsletter");
@@ -42,7 +42,7 @@ class EvalDocTest {
         assertThat(read("../../../llms.txt"))
                 .contains("**Evaluation:**")
                 .contains("weave eval script.loom")
-                .contains("Evaluation is optional");
+                .contains("evaluation is skippable");
     }
 
     @Test
@@ -61,7 +61,7 @@ class EvalDocTest {
                 .contains("If you skipped evaluation")
                 .contains("no evaluation of this workflow exists");
         assertThat(read("../../../docs/guide/02-golden-dataset.md"))
-                .contains("Optional, and where it lives")
+                .contains("Skippable, and where it lives")
                 .contains("weave eval <script> --init");
     }
 

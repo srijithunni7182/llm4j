@@ -87,14 +87,14 @@ class TestabilityLensTest {
     }
 
     @Test
-    void theLensIsOptionalUntilTheWorkflowTestPhaseExists() throws Exception {
-        assertThat(rules(review())).noneMatch(r -> r.startsWith("LT"));
-        assertThat(rules(review("--lens", "+testability"))).contains("LT01");
+    void theLensIsOnByDefaultAndMinusTestabilityTurnsItOff() throws Exception {
+        assertThat(rules(review())).contains("LT01");
+        assertThat(rules(review("--lens", "-testability"))).noneMatch(r -> r.startsWith("LT"));
     }
 
     @Test
     void lt01IsMediumWhenTheScriptCanSendOrAskAndNamesTheFileToWrite() throws Exception {
-        JsonNode f = one(review("--lens", "+testability"), "LT01");
+        JsonNode f = one(review(), "LT01");
         assertThat(f.get("severity").asText()).isEqualTo("medium");
         assertThat(f.get("fixHint").asText()).contains("tests/main.test.yaml");
     }
@@ -118,7 +118,7 @@ class TestabilityLensTest {
                   - name: a
                     models: { Intent: "x" }
                 """);
-        JsonNode r = review("--lens", "+testability");
+        JsonNode r = review();
         List<String> ids = rules(r);
         assertThat(ids).doesNotContain("LT01");
         assertThat(one(r, "LT02").get("title").asText()).contains("Replier");
@@ -138,7 +138,7 @@ class TestabilityLensTest {
                     fail: { Replier: { times: 1, category: timeout } }
                     humans: [ "yes" ]
                 """);
-        assertThat(rules(review("--lens", "+testability")))
+        assertThat(rules(review()))
                 .doesNotContain("LT01", "LT02", "LT04", "LT05", "LT07");
     }
 
@@ -154,7 +154,7 @@ class TestabilityLensTest {
                   - name: a
                     fail: { Replier: { times: 1, category: timeout } }
                 """);
-        assertThat(rules(review("--lens", "+testability"))).doesNotContain("LT02", "LT04", "LT05");
+        assertThat(rules(review())).doesNotContain("LT02", "LT04", "LT05");
     }
 
     @Test
@@ -168,7 +168,7 @@ class TestabilityLensTest {
                     tools: { Mailer: [ { returns: ok } ] }
                     expect: { calls: { Replier: 1 } }
                 """);
-        JsonNode r = review("--lens", "+testability");
+        JsonNode r = review();
         List<String> titles = new ArrayList<>();
         for (JsonNode f : r.get("findings"))
             if (f.get("rule").asText().equals("LT07"))
@@ -189,30 +189,62 @@ class TestabilityLensTest {
                   - name: a
                     models: { Intent: "x", Replier: "y" }
                 """);
-        assertThat(rules(review("--lens", "+testability"))).contains("LT01");
+        assertThat(rules(review())).contains("LT01");
     }
 
     @Test
     void anUnreadableTestFileIsANoteNotACrash() throws Exception {
         tests("broken.test.yaml", "cases: [ : :\n");
-        JsonNode r = review("--lens", "+testability");
+        JsonNode r = review();
         assertThat(r.toString()).contains("could not be read");
         assertThat(rules(r)).contains("LT01");
     }
 
-    @Test
-    void lt06GoesByTheGoldenFileNameSoItNeedsHeuristics() throws Exception {
-        assertThat(rules(review("--lens", "+testability"))).doesNotContain("LT06");
-        Files.writeString(dir.resolve("review.properties"), "heuristics = on\n");
-        List<String> ids = rules(review("--lens", "+testability"));
-        assertThat(ids.stream().filter(x -> x.equals("LT06")).count()).isEqualTo(2);
+    void golden(String file, String yaml) throws Exception {
         Files.createDirectories(dir.resolve("eval").resolve("golden"));
-        Files.writeString(
-                dir.resolve("eval").resolve("golden").resolve("Intent.yaml"), "scenarios: []\n");
-        assertThat(
-                        rules(review("--lens", "+testability")).stream()
-                                .filter(x -> x.equals("LT06"))
-                                .count())
-                .isEqualTo(1);
+        Files.writeString(dir.resolve("eval").resolve("golden").resolve(file), yaml);
+    }
+
+    static final String CASE = "- id: c-1\n  name: first\n  input: \"hello\"\n  rubric: [\"a\"]\n";
+
+    @Test
+    void lt06IsExactNeedsNoHeuristicsAndIsOneFindingNamingEveryAgentWithoutCases() throws Exception {
+        JsonNode r = review();
+        long count = 0;
+        for (JsonNode f : r.get("findings")) if (f.get("rule").asText().equals("LT06")) count++;
+        assertThat(count).isEqualTo(1);
+        assertThat(one(r, "LT06").get("title").asText()).contains("Intent").contains("Replier");
+    }
+
+    @Test
+    void lt06SeverityFollowsLt01() throws Exception {
+        assertThat(one(review(), "LT06").get("severity").asText()).isEqualTo("medium");
+        JsonNode quiet =
+                reviewOf(
+                        "agent A { model: \"m\"  system: \"s\" }\nworkflow Main(q) { delegate \"{q}\" to A -> r  note \"{r}\" }\n");
+        assertThat(one(quiet, "LT06").get("severity").asText()).isEqualTo("low");
+    }
+
+    @Test
+    void lt06AgreesWithWeaveEvalOnWhichFileIsWhose() throws Exception {
+        golden("INTENT.yml", CASE);
+        JsonNode r = review();
+        assertThat(one(r, "LT06").get("title").asText()).contains("Replier").doesNotContain("Intent");
+        golden("replier.yaml", CASE);
+        assertThat(rules(review())).doesNotContain("LT06");
+    }
+
+    @Test
+    void anEmptyFileIsNotACase() throws Exception {
+        golden("intent.yaml", "[]\n");
+        assertThat(one(review(), "LT06").get("title").asText()).contains("Intent");
+    }
+
+    @Test
+    void aWorkflowCaseThatNamesAnAgentInAnExpectLineCoversIt() throws Exception {
+        golden(
+                "workflow.yaml",
+                "- id: w-1\n  name: end to end\n  input: \"hi\"\n  expect:\n    - \"Intent sorted it and Replier answered\"\n");
+        assertThat(rules(review())).doesNotContain("LT06");
     }
 }

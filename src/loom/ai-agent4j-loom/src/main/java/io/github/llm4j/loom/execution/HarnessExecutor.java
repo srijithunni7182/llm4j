@@ -1003,6 +1003,17 @@ public class HarnessExecutor implements LoomEngine {
     private volatile SinkOracle sinkOracle;
 
     /** Installs the oracle; null removes it. Not for production use. */
+    /**
+     * Says whether anything measures this script's agents (it has golden cases). A run of a script
+     * that nothing measures carries {@code evaluated: false} on its start event, so the live page
+     * can say so (docs/specs/28-evaluation-first, R2). Not set means nothing is said.
+     */
+    public void setEvaluated(boolean evaluated) {
+        this.evaluated = evaluated;
+    }
+
+    private Boolean evaluated;
+
     public void setSinkOracle(SinkOracle oracle) {
         this.sinkOracle = oracle;
     }
@@ -2943,6 +2954,8 @@ public class HarnessExecutor implements LoomEngine {
             startData.put("workflow", workflowName);
             if (runId != null) startData.put("run", runId);
             startData.put("resumed", String.valueOf(resumedFromPause));
+            // the page never reads the dataset itself: the host that ran the check says so here
+            if (evaluated != null && !evaluated) startData.put("evaluated", "false");
             trace(TraceEvent.RUN_START, null, "workflow " + workflowName, startData);
         }
         try {

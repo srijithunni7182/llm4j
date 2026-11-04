@@ -1,0 +1,10 @@
+# The requirements of this starter, as one end-to-end case: what the run must have done, and what the answer must be.
+- id: workflow-001
+  name: A normal request
+  input: "a reusable water bottle"
+  expect:
+    - "Writer wrote, and Reviewer judged each draft"
+    - "The loop ran at most three rounds"
+  rubric:
+    - "The final text is a short product description"
+    - "It makes no claim the product facts do not support"

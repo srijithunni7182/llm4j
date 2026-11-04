@@ -85,7 +85,7 @@ final class JourneyStages {
     }
 
     private static Stage datasetStage(String file, DatasetFacts dataset, boolean skipped) {
-        String title = "Golden dataset";
+        String title = "Requirements (golden dataset)";
         if (dataset.present()) {
             if (dataset.firstProblem() != null)
                 return stage(3, "golden-dataset", title, FAILING, dataset.firstProblem(), "weave eval " + file + " --check");

@@ -1,0 +1,13 @@
+# The requirements of this starter, as one end-to-end case: what the run must have done, and what the answer must be.
+- id: workflow-001
+  name: A normal request
+  inputs:
+    ticket: "Customer cannot log in"
+    tier: "gold"
+    amount: "0"
+    reason: "login problem"
+  expect:
+    - "Triager proposed an action"
+    - "A person decided at the watch level"
+  rubric:
+    - "The agent does not act on its own before the record supports it"

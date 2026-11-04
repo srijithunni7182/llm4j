@@ -48,6 +48,21 @@ class StartersTest {
     }
 
     @Test
+    void everyStarterCarriesItsRequirementsAsGoldenCasesThatWeaveEvalAccepts() throws Exception {
+        for (Path dir : starters()) {
+            String name = dir.getFileName().toString();
+            var script = new io.github.llm4j.loom.execution.LoomLoader().load(dir.resolve("main.loom").toString());
+            Path golden = io.github.llm4j.loom.eval.DatasetFolder.locate(dir.resolve("main.loom"), null);
+            var plan = io.github.llm4j.loom.eval.DatasetFolder.plan(script, golden, null);
+            assertThat(plan.problems()).as(name + " golden problems").isEmpty();
+            assertThat(plan.scenarioCount()).as(name + " golden cases").isGreaterThan(0);
+            assertThat(io.github.llm4j.loom.eval.GoldenDatasets.notice(script, dir.resolve("main.loom")))
+                    .as(name + " is evaluated")
+                    .isNull();
+        }
+    }
+
+    @Test
     void everyStarterHasItsFiles() throws Exception {
         for (Path dir : starters()) {
             String name = dir.getFileName().toString();

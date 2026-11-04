@@ -1,0 +1,11 @@
+# The requirements of this starter, as one end-to-end case: what the run must have done, and what the answer must be.
+- id: workflow-001
+  name: A normal request
+  input: "Explain solar roofs"
+  expect:
+    - "Planner made the plan before any task ran"
+    - "Researcher and Writer each did the tasks they were given"
+    - "Editor combined the results"
+  rubric:
+    - "The document covers every task in the plan"
+    - "No task is sent to an agent the plan was not allowed to name"

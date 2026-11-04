@@ -22,7 +22,34 @@ public record DeployOptions(
         String expose,
         boolean schedule,
         String fabricPublish,
-        String reviewSummary) {
+        String reviewSummary,
+        String evaluationNotice) {
+
+    /** The form from before the evaluation notice: no notice. */
+    public DeployOptions(
+            String target,
+            String name,
+            String baseImage,
+            boolean withFabric,
+            String fabricImage,
+            String journal,
+            String expose,
+            boolean schedule,
+            String fabricPublish,
+            String reviewSummary) {
+        this(
+                target,
+                name,
+                baseImage,
+                withFabric,
+                fabricImage,
+                journal,
+                expose,
+                schedule,
+                fabricPublish,
+                reviewSummary,
+                null);
+    }
 
     public static final String DEFAULT_BASE = "eclipse-temurin:17-jre";
     public static final String DEFAULT_FABRIC =

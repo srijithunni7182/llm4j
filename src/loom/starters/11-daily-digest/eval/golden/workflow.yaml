@@ -1,0 +1,10 @@
+# The requirements of this starter, as one end-to-end case: what the run must have done, and what the answer must be.
+- id: workflow-001
+  name: A normal request
+  input: "energy"
+  expect:
+    - "Reader wrote the digest"
+    - "Poster sent it"
+  rubric:
+    - "The digest is short and sourced"
+    - "A missed run happens once, not once per missed day"

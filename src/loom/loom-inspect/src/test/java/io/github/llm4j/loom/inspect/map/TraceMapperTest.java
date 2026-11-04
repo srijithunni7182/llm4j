@@ -44,6 +44,25 @@ class TraceMapperTest {
         return last;
     }
 
+    @Test
+    void aStartEventThatSaysNothingMeasuresTheScriptCarriesTheFlagAndOthersDoNot() {
+        TraceMapper m = new TraceMapper(null, Detail.FULL);
+        List<LogRec> flagged = new java.util.ArrayList<>();
+        feed(
+                m,
+                flagged,
+                new java.util.ArrayList<>(),
+                ev(0, TraceEvent.RUN_START, null, "", "workflow Main", "workflow", "Main", "run", RUN, "evaluated", "false"));
+        assertThat(flagged.get(0).attr(Semconv.LOOM_EVALUATED)).isEqualTo(false);
+        List<LogRec> plain = new java.util.ArrayList<>();
+        feed(
+                new TraceMapper(null, Detail.FULL),
+                plain,
+                new java.util.ArrayList<>(),
+                ev(0, TraceEvent.RUN_START, null, "", "workflow Main", "workflow", "Main", "run", RUN));
+        assertThat(plain.get(0).attr(Semconv.LOOM_EVALUATED)).isNull();
+    }
+
     private static List<TraceEvent> firstProcess() {
         return List.of(
                 ev(

@@ -92,7 +92,8 @@ class ReviewCommandTest {
     void failOnMakesItAGateAndNoneTurnsItBackIntoAdvice() throws Exception {
         assertThat(run(RISKY, "--fail-on", "high")).isEqualTo(1);
         assertThat(run(RISKY, "--fail-on", "none")).isZero();
-        assertThat(run(CALM, "--fail-on", "info")).isZero();
+        // the Testability lens is on by default and a calm script has no tests, so leave it out here
+        assertThat(run(CALM, "--fail-on", "info", "--lens", "-testability")).isZero();
     }
 
     @Test

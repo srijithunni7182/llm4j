@@ -12,6 +12,8 @@ import io.github.llm4j.loom.ast.Statement;
 import io.github.llm4j.loom.ast.StatementWalker;
 import io.github.llm4j.loom.ast.WorkflowDef;
 import io.github.llm4j.loom.autonomy.expr.Suggest;
+import io.github.llm4j.loom.eval.DatasetFolder;
+import io.github.llm4j.loom.eval.GoldenDatasets;
 import io.github.llm4j.loom.review.cost.RunProfile;
 import io.github.llm4j.loom.review.engine.FindingSource;
 import io.github.llm4j.loom.review.engine.ReviewInput;
@@ -70,9 +72,9 @@ public final class TestabilityRules implements FindingSource {
                         "A script that asks a person (human_prompt, decide, an approval) needs a test that supplies answers (humans:), or the branches after the question are untested. What to do: add a case with humans:."),
                 info(
                         "LT06",
-                        Severity.LOW,
-                        "An agent has no golden dataset (heuristic)",
-                        "weave eval compares an agent's answers with a golden dataset in eval/golden/<agent>.yaml. This rule goes by that file name, so it runs only with heuristics on or when named. What to do: weave eval --init."),
+                        null,
+                        "Agents have no golden cases",
+                        "The golden dataset is the requirements: examples of what each agent and internal node must do and must never do, in eval/golden/<name>.yaml. It uses the same lookup as weave eval, and is one finding per script naming every agent, extractor and evaluator without a case (a workflow case that names an agent in an expect line covers it). Medium when the script can write, send or ask a person, else low. What to do: weave eval --init."),
                 info(
                         "LT07",
                         Severity.MEDIUM,
@@ -156,7 +158,7 @@ public final class TestabilityRules implements FindingSource {
                                 "Add a case with humans: [ \"yes\" ]."));
             staleNames(input, suite, sink);
         }
-        goldenDatasets(input, settings, sink);
+        goldenDatasets(input, acts || asks, sink);
     }
 
     private static void staleNames(ReviewInput input, TestSuite suite, Sink sink) {
@@ -200,28 +202,32 @@ public final class TestabilityRules implements FindingSource {
                                         + ", or delete the case."));
     }
 
-    private static void goldenDatasets(ReviewInput input, ReviewSettings settings, Sink sink) {
-        Boolean enabled = settings.rule("LT06").enabled();
-        if (!settings.heuristics() && !Boolean.TRUE.equals(enabled)) return;
-        Path golden = input.baseDir().resolve("eval").resolve("golden");
-        for (AgentDef a : input.script().getAgents()) {
-            Optional<Path> found =
-                    List.of(
-                                    golden.resolve(a.getName() + ".yaml"),
-                                    golden.resolve(a.getName() + ".yml"))
-                            .stream()
-                            .filter(Files::isRegularFile)
-                            .findFirst();
-            if (found.isEmpty())
-                sink.finding(
-                        finding(
-                                "LT06",
-                                Severity.LOW,
-                                Location.at(input.file(), a.getLine()),
-                                "Agent " + a.getName() + " has no golden dataset",
-                                "Without examples of good answers, a prompt change to this agent cannot be compared with before.",
-                                "weave eval --init creates eval/golden/" + a.getName() + ".yaml."));
-        }
+    private static void goldenDatasets(ReviewInput input, boolean canAct, Sink sink) {
+        Path scriptFile = input.baseDir().resolve(Path.of(input.file()).getFileName());
+        var coverage =
+                GoldenDatasets.coverage(input.script(), DatasetFolder.locate(scriptFile, null));
+        List<String> missing =
+                GoldenDatasets.testableNames(input.script()).stream()
+                        .filter(n -> !coverage.covers(n))
+                        .toList();
+        if (missing.isEmpty()) return;
+        String names = String.join(", ", missing);
+        sink.finding(
+                finding(
+                        "LT06",
+                        canAct ? Severity.MEDIUM : Severity.LOW,
+                        Location.at(input.file(), 0),
+                        (missing.size() == 1
+                                        ? "1 agent has no golden cases: "
+                                        : missing.size() + " agents have no golden cases: ")
+                                + names,
+                        "The golden dataset is the requirements. Without examples of what "
+                                + names
+                                + (missing.size() == 1 ? " must" : " must each")
+                                + " do and never do, a change to a prompt cannot be compared with before"
+                                + (canAct ? ", and this script can write, send or ask a person" : "")
+                                + ".",
+                        "weave eval --init creates eval/golden/<name>.yaml for each."));
     }
 
     private record Facts(int failurePath, boolean asksPeople, int firstQuestion) {}

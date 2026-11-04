@@ -119,6 +119,34 @@ class RunStateTest {
     }
 
     @Test
+    void aRunStartedWithEvaluatedFalseSaysSoAndOthersSayNothing() {
+        RunRegistry unevaluated =
+                registry(
+                        log(
+                                0,
+                                Semconv.EV_RUN_START,
+                                "workflow Main",
+                                Semconv.LOOM_RUN_ID,
+                                RUN,
+                                Semconv.LOOM_WORKFLOW,
+                                "Main",
+                                Semconv.LOOM_EVALUATED,
+                                false));
+        assertThat(run(unevaluated).view()).containsEntry("evaluated", false);
+        RunRegistry normal =
+                registry(
+                        log(
+                                0,
+                                Semconv.EV_RUN_START,
+                                "workflow Main",
+                                Semconv.LOOM_RUN_ID,
+                                RUN,
+                                Semconv.LOOM_WORKFLOW,
+                                "Main"));
+        assertThat(run(normal).view()).doesNotContainKey("evaluated");
+    }
+
+    @Test
     void aRunStartsRunningAndShowsItsWorkflowAndWhoIsActive() {
         RunRegistry reg =
                 registry(

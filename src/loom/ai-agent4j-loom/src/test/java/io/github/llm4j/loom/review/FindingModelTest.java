@@ -64,13 +64,13 @@ class FindingModelTest {
     }
 
     @Test
-    void nineLensesAreOnByDefaultAndFourAreOptional() {
-        // Human oversight joined the default lenses in 6.2.0 (docs/specs/27, R7); testability is
-        // still optional (OPEN_ITEMS O14)
+    void tenLensesAreOnByDefaultAndThreeAreOptional() {
+        // Human oversight (docs/specs/27, R7) and testability (docs/specs/28, R1) joined the default
+        // lenses in 6.2.0
         long optional = java.util.Arrays.stream(Lens.values()).filter(Lens::optional).count();
-        assertThat(optional).isEqualTo(4);
+        assertThat(optional).isEqualTo(3);
         assertThat(Lens.OVERSIGHT.optional()).isFalse();
-        assertThat(Lens.TESTABILITY.optional()).isTrue();
+        assertThat(Lens.TESTABILITY.optional()).isFalse();
         assertThat(Lens.values()).hasSize(13);
         assertThat(Lens.parse("Blast_Radius")).contains(Lens.BLAST_RADIUS);
         assertThat(Lens.parse("nonsense")).isEmpty();

@@ -1,0 +1,10 @@
+# The requirements of this starter, as one end-to-end case: what the run must have done, and what the answer must be.
+- id: workflow-001
+  name: A normal request
+  input: "battery recycling"
+  expect:
+    - "Collector gathered the facts"
+    - "Writer wrote the report"
+    - "Reviewer sent a bad draft back at most twice"
+  rubric:
+    - "The report uses only what Collector found"

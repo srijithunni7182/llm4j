@@ -246,6 +246,7 @@ public final class TraceMapper {
         a.put(Semconv.LOOM_RUN_ID, runId);
         a.put(Semconv.LOOM_WORKFLOW, workflow);
         a.put(Semconv.LOOM_RESUMED, "true".equals(String.valueOf(data.get("resumed"))));
+        if ("false".equals(String.valueOf(data.get("evaluated")))) a.put(Semconv.LOOM_EVALUATED, false);
         logs.add(record(now, LogRec.INFO, Semconv.EV_RUN_START, "workflow " + workflow, a, null));
     }
 

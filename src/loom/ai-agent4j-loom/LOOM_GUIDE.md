@@ -150,7 +150,7 @@ The VS Code extension (`src/loom/vscode-loom`) puts the same engine in the edito
 
 ### 4. Evaluating a Workflow (`eval`)
 
-`weave eval` runs a script's **golden dataset** against it and says what passed, what failed and what nothing judged. It needs no Java and no test project: the dataset is YAML files in a folder, and evaluation is optional. A script with no dataset runs, checks and audits exactly as before.
+**The golden dataset is the requirements**: what the workflow must do and must never do, as examples. `weave eval` runs it against the script and says what passed, what failed and what nothing judged. It needs no Java and no test project: the dataset is YAML files in a folder. Evaluation stays skippable, but skipping is loud: a script with no golden cases still runs, checks and audits as before, and `weave run` and `weave deploy` print `No evaluation: nothing has measured whether these agents are right`, the live run page shows a dismissible banner, `weave next` lists the dataset as the next step, and `weave review` reports **LT06** (one finding per script naming every agent, extractor and evaluator without a case; medium when the script can write, send or ask a person, else low). The Testability lens is on by default; `lenses = -testability` in `review.properties` turns it off. When the README records `Evaluation: skipped`, the notice says it was skipped on purpose instead.
 
 ```
 newsletter/

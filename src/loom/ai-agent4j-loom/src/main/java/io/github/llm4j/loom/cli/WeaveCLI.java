@@ -516,10 +516,28 @@ public class WeaveCLI implements Callable<Integer> {
         if (result.exit() == 4 && wait && runDir != null && result.resumeAt() != null) {
             return waitForRun(runDir, storeDir, env);
         }
-        if (result.exit() == 0 && !quiet) Runs.printResult(result.output(), env);
+        if (result.exit() == 0 && !quiet) {
+            Runs.printResult(result.output(), env);
+            printEvaluationNotice(scriptFile, env);
+        }
         return result.exit() == 0 && result.degraded() && exitDegraded
                 ? EXIT_DEGRADED
                 : result.exit();
+    }
+
+    /**
+     * One line after the result when nothing measures the agents (docs/specs/28, R2). It goes to
+     * the error stream so a program reading the result is not disturbed.
+     */
+    private static void printEvaluationNotice(File scriptFile, WeaveEnv env) {
+        try {
+            var script = new LoomLoader().load(scriptFile.getPath());
+            String notice =
+                    io.github.llm4j.loom.eval.GoldenDatasets.notice(script, scriptFile.toPath());
+            if (notice != null) env.err().println(notice);
+        } catch (java.io.IOException | RuntimeException e) {
+            // the run itself succeeded; a script that cannot be read again has nothing to advise on
+        }
     }
 
     /**

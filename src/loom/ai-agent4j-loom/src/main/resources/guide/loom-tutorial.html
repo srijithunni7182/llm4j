@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: 8a6afbed894976818d78c6679a756d5bba26507139c64b796df3c76605381ebf -->
+<!-- source-sha256: 0de02a955240f50bea00c9758e41a7814a6d1d2c12f4f40714e5066bf18c6187 -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -382,6 +382,7 @@ weave review main.loom                      # security, cost and reliability fin
 <p>Put your key in the environment (or a <code>.env</code> file beside the script, which you keep out of git). For Gemini that is <code>GEMINI_API_KEY</code>. Then:</p>
 <figure class="code"><figcaption>bash</figcaption><pre><code>weave run main.loom --input question="What is a workflow?" --max-tokens 20000 --max-calls 5</code></pre></figure>
 <p><code>--max-tokens</code> and <code>--max-calls</code> cap the run. If it would go over, it stops cleanly instead of billing you. You will meet budgets properly in <a href="#c09">Chapter 9</a>.</p>
+<p>After the answer you may see one more line: <code>No evaluation: nothing has measured whether these agents are right.</code> It means the script has no golden cases yet. The golden dataset is the requirements, written as examples; <code>weave eval --init</code> starts one, and <a href="#c10">Chapter 10</a> shows how. <code>--quiet</code> hides the line.</p>
 <blockquote>
 <p><strong>Never write a key in a script.</strong> Loom refuses a literal secret on purpose. Keys come from the environment or the encrypted secret store.</p>
 </blockquote>
