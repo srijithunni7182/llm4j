@@ -63,6 +63,7 @@ class NativeJsonLiveTest {
             {"XAI_API_KEY", XAI_RESPONSES, "Grok/grok-4-fast"},
             {"ANTHROPIC_API_KEY", "", System.getenv().getOrDefault("ANTHROPIC_TEST_MODEL", "claude-haiku-4-5-20251001")},
             {"GEMINI_API_KEY", "", System.getenv().getOrDefault("GEMINI_TEST_MODEL", "gemini-2.5-flash")},
+            {"OLLAMA_BASE_URL", "", "ollama/" + System.getenv().getOrDefault("OLLAMA_TEST_MODEL", "smollm2:135m")},
             {"PERPLEXITY_API_KEY", "", "perplexity/" + perplexity}
         };
         java.util.List<org.junit.jupiter.params.provider.Arguments> out = new ArrayList<>();
