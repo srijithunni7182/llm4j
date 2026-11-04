@@ -15,6 +15,11 @@
 </p>
 
 <p align="center">
+  A coding agent, or a developer who has never heard of these practices, does not need to know them: <code>weave check</code> names the mistake, the line and the fix, and exits non-zero. In the <a href="probes/README.md#p11-a-reply-that-breaks-a-written-rule-can-it-leave-without-a-check">probes</a> the other frameworks built the same mistakes with zero warnings.<br>
+  <a href="docs/REVIEWABLE_ARCHITECTURE.md#what-a-coding-agent-sees">What a coding agent sees</a>
+</p>
+
+<p align="center">
   <a href="https://central.sonatype.com/artifact/io.github.srijithunni7182/ai-agent4j"><img alt="Maven Central" src="https://img.shields.io/maven-central/v/io.github.srijithunni7182/ai-agent4j.svg?label=Maven%20Central"></a>
   <a href="https://www.oracle.com/java/technologies/downloads/#java17"><img alt="Java 17+" src="https://img.shields.io/badge/Java-17%2B-orange"></a>
   <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg"></a>
