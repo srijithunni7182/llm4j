@@ -99,6 +99,13 @@ final class StructuredAnswer {
         return out;
     }
 
+    /** As {@link #problems(Object, SchemaDef)}, naming the value {@code path} in each message. */
+    static List<String> problems(Object value, SchemaDef schema, String path) {
+        List<String> out = new ArrayList<>();
+        check(value, schema, path, out);
+        return out;
+    }
+
     private static void check(Object value, SchemaDef schema, String path, List<String> out) {
         if (schema == null) return;
         if (value == null) {

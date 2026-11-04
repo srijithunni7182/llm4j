@@ -28,7 +28,7 @@ weave review main.loom --lens all      # also the optional lenses
 | Observability | Could you see what it did? (`LO`) | yes |
 | Durability | Can it stop and resume without doing things twice? (`LD`) | yes |
 | Privacy and compliance | What does it do with personal data? (`LY`) | yes |
-| Testability | Is it tested? (`LT`) | no, until `weave test` exists |
+| Testability | Is it tested, and do the agents have golden cases? (`LT`) | yes (`lenses = -testability` turns it off) |
 | Model governance, Maintainability, Human oversight, Blast radius | `LG`, `LM`, `LH`, `LB` | no |
 
 `--lens all` turns everything on; `--lens +oversight` adds one; `--lens security,cost` runs exactly those; `lenses = +governance,-prompts` in `review.properties` makes it a project choice. The summary card says how many lenses are off.

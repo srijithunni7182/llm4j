@@ -14,7 +14,7 @@ this table names constructs, it does not define them.
 | A step that only chooses a label (route, judge, rate) | an `intentclassifier` and `intentclassify`; `confidence at least N else escalate` turns a doubtful answer into `unsure`, which goes to a person; the text is data, the label never approves an effect alone | `weave guide loom` ("Classifying") |
 | Dynamic work as a plan from a declared menu | a planner agent with `expecting { ... }`, then `for each` / `delegate ... to {task.kind}`; an undeclared agent name stops the run | `weave guide loom` ("for each"), `weave guide 6` |
 | Schemas at every hand-off | `expecting { ... }` per step; `output_schema` per agent | `weave guide loom` ("Per-Step Schemas", "Output Schema Enforcement") |
-| Least reach per tool | built-in tool options (`allow_paths`, `methods`, allowed programs, a read-only `sql` user); `reach: reads` in the script or `X.reach = reads` in the `.loot` file | `weave guide 7`, `weave guide 9` ("Built-in tools when deployed") |
+| Least reach per tool | built-in tool options (`allow_paths`, `methods`, allowed programs, a read-only `sql` user); `effect: none | reads | changes` on the tool (and `effects:` per operation for OpenAPI and MCP); `reach: reads` on a class tool or `X.reach = reads` in the `.loot` file still works | `weave guide 7`, `weave guide 9` ("Built-in tools when deployed") |
 | The lethal trifecta split, or accepted in writing | split agents joined by `expecting`; or `trifecta: accepted "<who looked, when, why>"` in `<script>.inspect`; found by `weave audit` | `weave guide 7`; deployer `weave guide d2` |
 | Approval before an action | `requiresApproval` on the tool and `approve: [Name]` in the script; or `human_prompt "..." -> answer` then `alt (answer == "...")` before a `run` step | `weave guide 6`, `weave guide 9` |
 | An approval that shows it was read (irreversible actions) | `human_prompt` that asks for the amount or id and an `alt` that compares it; approvals over `--ask-via telegram` need the code in the reply | `weave guide loom` ("Human-in-the-Loop", "Answering from Your Phone") |
@@ -26,6 +26,7 @@ this table names constructs, it does not define them.
 
 | Decision | In Loom | Built in |
 |---|---|---|
+| A bound on a fan-out over a list a model wrote | `for each x in plan.tasks max N { ... } on_too_many { ... }`; without `on_too_many` the run fails before any item starts and names the planner (`fanout_exceeded`, a live-page incident); LR13 warns when `max` is missing | `weave guide loom` ("for each") |
 | A maximum on every loop, and an outcome when reached | `loop until (cond) max N { ... } on_exhausted { ... }` | `weave guide loom` ("Bounded Loops") |
 | Agent iteration and spend bounds | `max_iterations` and an agent `budget { ... }` | `weave guide loom` ("Cost Budgets") |
 | Run budget, warning, refilling windows | `budget { tokens ... calls ... warn_at ... }`, `per day` windows, `when_exhausted: stop / suspend / ask`; `--max-tokens`, `--max-calls`, `--max-cost` | `weave guide 9`, `weave guide loom` ("Where a budget bites") |
@@ -38,6 +39,7 @@ this table names constructs, it does not define them.
 | A context plan for agents that loop on tools | a `context { compact: chain(trim_tool_results, drop_oldest) ... }` block; `summarize` only with a `summarizer` model | `weave guide 14` |
 | Each model's window | a `<script>.windows` file or the shipped catalogue; never in the script | `weave guide 14` |
 | A bound on the shared transcript every agent receives by default | `memory { max_tokens: N  compact: drop_oldest }` on the agent; an agent with a `context` block and a known window bounds it to a quarter of its window | `weave guide loom` ("Bounding Loom's shared transcript") |
+| Progress through a long job, kept where the harness can see it, not in the conversation | a bounded `loop`, a worker with `memory { transcript: none }`, and an `extractor` that writes `done / next / finished` into a variable (starter 16) | `weave guide 14` |
 | Harness-owned memory across steps | Engram: `executor.setMemoryEngine(engram)` from a Java host | `weave guide loom` ("Memory, Voice and Languages") |
 
 ## Concurrency and composition (stage 4, principles §15)

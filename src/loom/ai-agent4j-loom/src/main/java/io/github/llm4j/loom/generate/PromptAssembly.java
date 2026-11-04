@@ -28,6 +28,8 @@ public final class PromptAssembly {
             - a budget { tokens: N  calls: N } block that matches the plan;
             - retry, backoff and timeout on every step that uses a tool, and on_failure where the plan says what happens when it fails;
             - max N on every loop, with on_exhausted;
+            - max N on every for each over a list an agent wrote (for each item in plan.tasks max 10 { ... }), because the length of that list is not under your control;
+            - an agent that has to think (it has tools, searches the web, or works over rounds) answers in plain prose, and an extractor with the fields pulls them out of that prose; do not give such an agent a large output_schema (a nested object, a list of objects, or more than 5 fields);
             - an agent's answer that a branch reads is typed (expecting { ... } or an intentclassifier), never matched as free text;
             - approve: [Tool] on every tool the plan says needs approval, and no tool the plan does not list;
             - guard { pii: mask } on agents that see personal data when the plan says there is some;

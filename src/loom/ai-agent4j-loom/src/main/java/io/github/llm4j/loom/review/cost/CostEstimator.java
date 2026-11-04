@@ -107,6 +107,7 @@ public final class CostEstimator {
         final PromptCatalog prompts;
         final Map<String, AgentDef> agents;
         final Map<String, IntentClassifierDef> classifiers;
+        final Map<String, io.github.llm4j.loom.ast.ExtractorDef> extractors;
         final Map<String, WorkflowDef> workflows;
         final long capMin; // smallest transcript bound an agent declares, or -1
         final long capMax; // largest, or -1
@@ -131,6 +132,13 @@ public final class CostEstimator {
                             .collect(
                                     Collectors.toMap(
                                             IntentClassifierDef::getName, c -> c, (a, b) -> a));
+            this.extractors =
+                    script.getExtractors().stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            io.github.llm4j.loom.ast.ExtractorDef::getName,
+                                            x -> x,
+                                            (a, b) -> a));
             this.workflows =
                     script.getWorkflows().stream()
                             .collect(Collectors.toMap(WorkflowDef::getName, w -> w, (a, b) -> a));
@@ -264,6 +272,7 @@ public final class CostEstimator {
                         h.getPayload(),
                         0);
             else if (s instanceof IntentClassifyStmt k) classify(k);
+            else if (s instanceof io.github.llm4j.loom.ast.ExtractStmt x) extract(x);
             else if (s instanceof AltStmt a) alt(a);
             else if (s instanceof LoopStmt l) loop(l);
             else if (s instanceof ForEachStmt f) forEach(f);
@@ -304,6 +313,12 @@ public final class CostEstimator {
             if (worst) block(d.getOnFailure());
         }
 
+        /** The fixed preamble and the framing of the inputs, in tokens. */
+        private static final long EXTRACT_FRAME_TOKENS = 120;
+
+        /** What one field costs in the schema and in the answer, in tokens. */
+        private static final long EXTRACT_TOKENS_PER_FIELD = 12;
+
         void classify(IntentClassifyStmt k) {
             IntentClassifierDef def = c.classifiers.get(k.getClassifier());
             if (def == null || def.getModel() == null) {
@@ -326,6 +341,31 @@ public final class CostEstimator {
                     def.getModel(),
                     each.times(attempts),
                     k.getRetryCount());
+        }
+
+        /** One model call per attempt; the worst case adds the one correction that is always allowed. */
+        void extract(io.github.llm4j.loom.ast.ExtractStmt x) {
+            io.github.llm4j.loom.ast.ExtractorDef def = c.extractors.get(x.getExtractor());
+            if (def == null || def.getModel() == null) {
+                note("extractor " + x.getExtractor() + " has no model to price");
+                return;
+            }
+            long in =
+                    x.getInputs().size()
+                                    * c.assume.get(
+                                            worst
+                                                    ? "assume.variable.max"
+                                                    : "assume.variable.tokens")
+                            + EXTRACT_FRAME_TOKENS
+                            + EXTRACT_TOKENS_PER_FIELD * def.getFields().getFields().size();
+            long out = EXTRACT_TOKENS_PER_FIELD * def.getFields().getFields().size();
+            long attempts = worst ? x.getRetryCount() + 2L : 1; // retries, plus one correction
+            record(
+                    x.getLine(),
+                    "extract " + x.getExtractor(),
+                    def.getModel(),
+                    Usage.calls(def.getModel(), 1, in, out).times(attempts),
+                    x.getRetryCount());
         }
 
         void alt(AltStmt a) {
@@ -372,7 +412,20 @@ public final class CostEstimator {
         }
 
         void forEach(ForEachStmt f) {
-            long n = c.assume.get(worst ? "assume.foreach.max" : "assume.foreach.items");
+            long assumed = c.assume.get(worst ? "assume.foreach.max" : "assume.foreach.items");
+            // a declared bound is a fact; without one, a list a model wrote has no known worst case
+            long n = f.getMax() > 0 ? Math.min(assumed, f.getMax()) : assumed;
+            if (worst && f.getMax() > 0) n = f.getMax();
+            if (f.getMax() == 0
+                    && io.github.llm4j.loom.ast.ListProducers.of(c.script, f).isPresent()) {
+                if (worst) unbounded = true;
+                note(
+                        "for each "
+                                + f.getCollectionPath()
+                                + " (line "
+                                + f.getLine()
+                                + "): worst case unknown, the list has no bound (add max N)");
+            }
             repeat(n, () -> block(f.getBody()));
             if (worst) block(f.getOnExhausted());
         }

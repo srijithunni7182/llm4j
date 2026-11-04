@@ -138,8 +138,8 @@ Every `delegate`, `broadcast`, `human_prompt` and approved tool call is recorded
 
 ### 7. Data decides the routing
 
-`for each fix in review.fixes { delegate "{fix.task}" to {fix.owner} -> {fix.output} }`: an agent's
-structured answer decides which agent handles each item. `parallel for each` runs them all at once.
+`for each fix in review.fixes { delegate "{fix.task}" to {fix.owner} in [Writer, Designer] -> results[fix.name] }`: an agent's
+structured answer decides which agent handles each item, from a list the script names. `parallel for each` runs them all at once.
 
 ### 7b. Code where it must be code
 
@@ -286,3 +286,5 @@ The workflow is one `.loom` file.
 ([durable execution](https://docs.langchain.com/oss/python/langgraph/durable-execution),
 [checkpointers](https://docs.langchain.com/oss/python/langgraph/checkpointers),
 [interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts)). Corrections are welcome.*
+
+See also: [Architecture you can review](../../../docs/REVIEWABLE_ARCHITECTURE.md).

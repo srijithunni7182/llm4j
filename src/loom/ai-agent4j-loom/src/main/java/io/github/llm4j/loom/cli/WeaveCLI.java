@@ -516,10 +516,28 @@ public class WeaveCLI implements Callable<Integer> {
         if (result.exit() == 4 && wait && runDir != null && result.resumeAt() != null) {
             return waitForRun(runDir, storeDir, env);
         }
-        if (result.exit() == 0 && !quiet) Runs.printResult(result.output(), env);
+        if (result.exit() == 0 && !quiet) {
+            Runs.printResult(result.output(), env);
+            printEvaluationNotice(scriptFile, env);
+        }
         return result.exit() == 0 && result.degraded() && exitDegraded
                 ? EXIT_DEGRADED
                 : result.exit();
+    }
+
+    /**
+     * One line after the result when nothing measures the agents (docs/specs/28, R2). It goes to
+     * the error stream so a program reading the result is not disturbed.
+     */
+    private static void printEvaluationNotice(File scriptFile, WeaveEnv env) {
+        try {
+            var script = new LoomLoader().load(scriptFile.getPath());
+            String notice =
+                    io.github.llm4j.loom.eval.GoldenDatasets.notice(script, scriptFile.toPath());
+            if (notice != null) env.err().println(notice);
+        } catch (java.io.IOException | RuntimeException e) {
+            // the run itself succeeded; a script that cannot be read again has nothing to advise on
+        }
     }
 
     /**
@@ -715,7 +733,10 @@ public class WeaveCLI implements Callable<Integer> {
         java.util.List<String> reachProblems = validation.reachProblems();
         java.util.Set<String> notSetYet = validation.notSetYet();
         List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems =
-                validation.problems();
+                new ArrayList<>(validation.problems());
+        // the evaluation gate (docs/specs/28, R4): no flag skips it, it runs wherever check runs
+        problems.addAll(
+                io.github.llm4j.loom.eval.NodeCasesGate.problems(script, scriptFile.toPath()));
         var error = io.github.llm4j.loom.execution.ScriptValidator.Severity.ERROR;
         long errors =
                 problems.stream().filter(p -> p.severity() == error || settings.strict()).count()
@@ -1689,6 +1710,8 @@ public class WeaveCLI implements Callable<Integer> {
 
     /** The command line as {@code weave} runs it: every command registered. */
     static CommandLine commandLine() {
+        // `weave check` enforces the evaluation gate itself, so loading need not remind anyone
+        io.github.llm4j.loom.execution.LoomLoader.setGateNoticeWanted(false);
         CommandLine cli = build();
         helpEverywhere(cli);
         cli.setExecutionStrategy(WeaveCLI::executeQuietly);

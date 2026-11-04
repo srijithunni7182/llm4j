@@ -1,0 +1,14 @@
+tool Pay { use: webhook  url: env.PAY_HOOK  effect: changes }
+agent Planner { model: "gemini-2.5-flash"  system: "Work out what refund the customer is owed." }
+extractor Refund { model: "gemini-2.5-flash"  fields { amount: number  order: string } }
+agent Payer { model: "gemini-2.5-flash"  system: "Make the payment you are told to make."  tools: [Pay] }
+
+workflow Main(complaint) {
+    delegate "{complaint}" to Planner -> plan
+    extract Refund from plan -> refund
+    alt (refund.amount > 100) {
+        halt "Too large for automatic payment."
+    } else {
+        delegate "Pay {refund.amount} for order {refund.order}" to Payer -> done
+    }
+}

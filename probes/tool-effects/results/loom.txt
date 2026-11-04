@@ -1,0 +1,7 @@
+== weave check retries.loom: retry on a step that changes something ==
+✗ line 7: use Notify: Notify changes things and is not marked safe to repeat, so a retry after an unknown outcome could do it twice; remove retry, or declare the tool idempotent
+1 problem in retries.loom
+
+== weave check approved.loom ==
+✓ approved.loom: ready to run
+  next: weave next says what to do now; weave guide recipes has tested changes to copy

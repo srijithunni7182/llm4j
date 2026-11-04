@@ -136,6 +136,8 @@ public final class GraphJson {
         if (agent.reasoning()) out.put("reasoning", true);
         if (agent.steerable()) out.put("steerable", true);
         if (!agent.grounding().isEmpty()) out.put("grounding", agent.grounding());
+        out.put("transcript", agent.transcript());
+        if (agent.sharedPromptExcluded()) out.put("sharedPromptExcluded", true);
         if (agent.prompt() != null) {
             Map<String, Object> prompt = new LinkedHashMap<>();
             prompt.put("ref", agent.prompt().ref());

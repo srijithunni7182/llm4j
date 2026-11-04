@@ -1,0 +1,21 @@
+// P12, Loom side: a run that can put twelve questions to a person (the limit is 10). weave review counts them before anything runs.
+substitution: braces
+
+agent Helper { model: "gemini-2.5-flash"  system: "Help." }
+
+workflow Main(q) {
+    delegate "{q}" to Helper -> a
+    human_prompt "Question 1?" -> answer1
+    human_prompt "Question 2?" -> answer2
+    human_prompt "Question 3?" -> answer3
+    human_prompt "Question 4?" -> answer4
+    human_prompt "Question 5?" -> answer5
+    human_prompt "Question 6?" -> answer6
+    human_prompt "Question 7?" -> answer7
+    human_prompt "Question 8?" -> answer8
+    human_prompt "Question 9?" -> answer9
+    human_prompt "Question 10?" -> answer10
+    human_prompt "Question 11?" -> answer11
+    human_prompt "Question 12?" -> answer12
+    return a
+}

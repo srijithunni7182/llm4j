@@ -1864,18 +1864,21 @@ weave eval [OPTIONS] <script>
 
 - `--agent=<agent>` — Only this agent's scenarios.
 - `--allow-version-change=<why>` — With --baseline: compare with a baseline taken on a different dataset anyway; the reason is recorded in the report.
-- `--approver=<name>` — With --save-baseline: who approves this baseline.
+- `--approve` — With --requirements: record that the requirements as they stand were read and accepted. Needs --why; --approver defaults to git user.email. A later change to any case or policy makes the page say so.
+- `--approver=<name>` — With --save-baseline or --approve: who approves.
 - `--baseline` — Compare this run with the saved baselines (the current one and the one before it) and list the cases that regressed. Refused when the dataset differs, unless --allow-version-change is given.
+- `--changed` — Run, for real, only the cases of the agents and nodes whose prompt, model, schema, tools, policies or cases changed since the reference, plus every workflow that reaches one. Needs a cap (--max-tokens, --max-calls or --max-cost). Without a reference everything counts as changed, and it says so.
 - `--check` — Only validate the dataset: names, fields, dimensions, fixtures. No model is called.
 - `--classes=<dir|jar>` — Folder or jar with the classes of your own tasks and tools, repeatable (weave only sees what is on its class path). Default: target/classes of the project, when it has been built (mvn compile).
 - `--context-windows=<file>` — A windows file: 'model = window / reserve' per line (the size of each model's context window). Repeatable; a later file wins. Layered over <script>.windows, ~/.llm4j/context-windows and the built-in catalogue. (repeatable)
 - `--dataset=<dir>` — The folder of dataset files (default: eval/golden beside the script).
 - `--emit-test=<file>` — Write the opt-in JUnit class for this project (for a project that wants the Java API): a hermetic test that runs the wiring on a mock model, and a real evaluation that runs only with -Deval.real=true, under a cap (-Deval.maxCost with -Deval.prices, else a token cap). The package is taken from the folder under src/test/java. An existing file is never overwritten. Runs nothing else.
 - `--env-file=<file>` — Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.
+- `--format=<md|html>` — With --requirements: markdown (default) or html, a page to share.
 - `--init` — Create eval/golden with one starter scenario per agent and one for the workflow. Never overwrites a file.
 - `--json=<file>` — Also write the results as JSON.
 - `--judge-samples=<n>` — Judge each rubric line this many times and use the median (default 1, at most 9). Samples that disagree widely leave the line unjudged. Each sample is a paid call.
-- `--judge=<model>` — The model that judges rubric and expect lines (default: the agent's own model).
+- `--judge=<model>` — The model that judges rubric and expect lines. Default: judge: in dataset.yaml, else judge in eval.properties, else the cheapest other model the project can reach (another provider if there is one). 'same' judges a model with itself, on purpose; the report says so.
 - `-l, --loot <lootFile>` — The .loot tool mapping file, for a script that uses your own tools (a real run calls them; --mock does not).
 - `--loct=<file>` — A .loct file mapping a name to a class of your own compaction strategy ('keep_decisions = com.acme.KeepDecisions'), for use as 'compact: keep_decisions' in a script. Repeatable. (repeatable)
 - `--max-calls=<maxCalls>` — Cap the model calls of a real run.
@@ -1891,14 +1894,16 @@ weave eval [OPTIONS] <script>
 - `--release-gate` — This run is the release gate: held-out cases (split:heldout) run too, and the report records that it was a gate run. Without it held-out cases never run.
 - `--repetitions=<n>` — Run each case this many times (default 1, at most 10): the report then gives pass@1, pass^N, consistency and the unstable cases. Every repetition is a paid run.
 - `--report=<file>` — Also write the results as a single HTML page.
+- `--requirements` — Write the golden dataset as a plain page a reviewer can read and sign off: what each agent and node must do and must never do, the identity of what was read, and what has no requirement yet. Needs no model and no key.
 - `--route-danger=<Expected>Actual>` — A routing mistake that must never happen, written Expected>Actual (for example Gatherer>Actor, for cases tagged route:Gatherer). The run fails when any case lands in that cell, whatever the average says. Repeatable. (repeatable)
 - `--save-baseline` — After a finished real run, save its results as a new baseline. Needs --approver and --why; a baseline is never replaced.
 - `--secrets-key-env=<VARIABLE>` — The environment variable that holds the store's master key (you choose its name).
 - `--secrets-key-file=<file>` — A file whose first line is the store's master key (protect it with an ACL).
 - `--secrets=<file>` — An encrypted secret store (see 'weave secrets'). Its location and master key are yours to choose and protect.
+- `--since=<baseline|last|file>` — With --changed: what to compare with. baseline is the fingerprints saved with the last baseline, last is the last complete real run (the default after baseline), or a fingerprints file.
 - `--split=<development|validation|heldout>` — Run only the cases tagged split:<name> (a case with no split tag is development). heldout needs --release-gate.
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
-- `--why=<text>` — With --save-baseline: why this run is the new baseline.
+- `--why=<text>` — With --save-baseline or --approve: why.
 - `--workflow=<workflow>` — Only this workflow's scenarios (and which workflow workflow.yaml is for).
 - `-y, --yes` — Do not ask before a real run.
 
@@ -1909,6 +1914,11 @@ weave eval main.loom --init          create eval/golden/ with a starter dataset
 weave eval main.loom --check         validate the dataset; calls no model
 weave eval main.loom --mock          run it with mock models; costs nothing
 weave eval main.loom --max-cost 0.50 --prices prices.txt     against real models, capped
+weave eval main.loom --changed --max-tokens 200000     only the cases of what changed since the last baseline or real run, capped
+weave eval main.loom --judge same                 judge a model with itself, on purpose (the report cautions)
+weave eval main.loom --requirements               the dataset as a plain page a reviewer can read; no model, no key
+weave eval main.loom --requirements --format html a page to share
+weave eval main.loom --requirements --approve --approver ana --why "read with legal"     sign off exactly what was read
 ```
 
 **More options**
@@ -1921,7 +1931,7 @@ weave eval main.loom --baseline                   compare with the current and t
 
 **The report**
 
-Nine sections, always, in the terminal, in --report and in --json: Read this first, Overall, By agent, By dimension, By slice, Cases, Cost, Cautions, How to reproduce. By agent has a row for every agent that took part, with no tag. Cases shows each input and output. A dashboard bundle is written too (target/eval4j/runs/<id>/ or eval-runs/runs/<id>/).
+Nine sections, always, in the terminal, in --report and in --json: Read this first, Overall, By agent and node, By dimension, By slice, Cases, Cost, Cautions, How to reproduce. By agent and node has a row for every agent that took part, and for every extractor and evaluator with golden cases, with no tag. Cases shows each input and output. A dashboard bundle is written too (target/eval4j/runs/<id>/ or eval-runs/runs/<id>/).
 
 **Exit status**
 

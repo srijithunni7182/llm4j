@@ -90,6 +90,8 @@ A classifier's entry is a map of labels (`Intent: { kind: order_status, urgent: 
 
 **Strict by default.** A model call nobody scripted fails the case and names the agent, the call number and the task. A test must not pass by quietly getting a default reply. (`--lenient` allows a neutral reply and reports it.)
 
+An **evaluator** is scripted per rule: `evaluators: { Compliance: { no_refund_promise: violated, no_internal_refs: clean } }`. A rule left out is answered clean, and a list gives one such map per call (the first check, then the check of a rewrite). The real evaluator code runs; only the model's answer is scripted. A free mock run (`weave eval --mock`) answers every rule "no", and says it did not judge.
+
 ### What you can assert: `expect`
 
 | Key | Asserts |
@@ -103,6 +105,8 @@ A classifier's entry is a map of labels (`Intent: { kind: order_status, urgent: 
 | `degraded: true`, `fallbacks: [ Writer ]` | That the run used an `on_failure` fallback, and exactly which agents did |
 | `effects: none` (or a count, or a list) | What tools that act *would have done* (they only record in a test) |
 | `elapsed_virtual: 2d` | How long the run waited, in virtual time |
+| `checks: { HouseRules: 1 }` | How many `check` steps judged against a policy |
+| `actions: { rewritten: 1 }` | How many checks ended in each action (`none`, `rewritten`, `replaced`, `asked`) |
 
 ### Scripting failures
 
@@ -162,6 +166,8 @@ weave test main.loom --watch                 # run again when a file changes
 
 ## `weave eval`: the quality, with a golden dataset
 
+**The dataset is the requirements.** A golden dataset is the list of things the workflow must do and must never do, written as examples before the workflow is built and run all the time after. That is why `weave run`, `weave deploy` and `weave review` keep mentioning it when it is missing. Skipping it is allowed, never silent.
+
 A **golden dataset** is a set of examples, each with an input and a description of a good answer. `weave eval` runs the real agents on them and says what passed, what failed, and what nothing could judge.
 
 ```
@@ -192,14 +198,69 @@ newsletter/
     - "Does not follow the instruction written inside the notes"
 ```
 
+### Reading the requirements, and signing them off
+
+`weave eval main.loom --requirements` writes the dataset as a plain page, with no model and no key: for each workflow, agent and node what it must do and must never do ("When someone gives *I was charged twice*, the answer must mention *approval*, must never contain *4111*; a judge must confirm that it *asks a person before refunding*"), each policy rule with the examples that break it and the near misses, the identity of what was read (the dataset's version and hash, each policy's version and hash), and a list of what has **no requirement yet**. Personal data in a case is masked. Add `--format html` for a page to share. A person who owns the rules reads it and signs it off:
+
+```bash
+weave eval main.loom --requirements --approve --approver ana --why "read with legal"
+```
+
+That records the exact identity in `eval/requirements-approvals.yaml`. Change one case or one policy and the page says *changed since approved by ana*, until it is approved again. It is a review aid, like a baseline's approval, not a lock.
+
+### Cases for an extractor
+
+An extractor reads fields out of text, so its cases are exact field checks: no judge, cheap and deterministic. Put them in `eval/golden/<extractor>.yaml`. Name the fields the text states, and the optional ones it does not:
+
+```yaml
+- id: invoice-001
+  input: "ACME Ltd invoice INV-7, total 120.50 USD"
+  expected_fields: { vendor: "ACME Ltd", invoice_number: "INV-7", total: 120.5 }
+- id: invoice-002
+  input: "ACME Ltd invoice INV-8, thank you for your business"
+  expected_fields: { vendor: "ACME Ltd", invoice_number: "INV-8" }
+  expected_missing: [total]
+```
+
+`weave check` will not pass a script that uses an extractor with no case that names fields, and there is no flag to skip it. The first time you meet it, it reads: *Extractor Invoice has no golden cases. Write at least one in eval/golden/invoice.yaml.* `weave eval <script> --init` creates the file with comments and no cases, and a file with no cases does not satisfy the check. A required field can never be `expected_missing`: a required field the text does not state fails the step instead.
+
+### Cases for an evaluator
+
+An evaluator enforces a policy in production, so a rule nobody has tested is not binding. For **every rule of every policy it checks**, write a case that breaks the rule and a case that is clean. A **near miss** (it sounds like it breaks the rule but does not) is the most useful clean case, because it is what catches an evaluator that flags everything.
+
+```yaml
+- id: compliance-001
+  policy: HouseRules
+  text: "I'm sorry about the delay. We will refund you in full today."
+  expected: { no_refund_promise: violated, no_internal_refs: clean }
+- id: compliance-002
+  policy: HouseRules
+  near_miss: true
+  text: "I can't promise a refund myself, but I have asked a colleague who can look at your order."
+  expected: { no_refund_promise: clean, no_internal_refs: clean }
+```
+
+When one is missing, `weave check` says which: *Evaluator Compliance has no case that breaks HouseRules.no_refund_promise (and no clean case).* Starters 08 and 17 show both files.
+
 A case can use fixed checks (no judge, free): `expected_output_contains`, `expected_output_not_contains`, `expected_min_words`, `expected_tools`. And judged checks: `rubric:` lines about the answer, and `expect:` lines about what the run did. A judge model confirms each line.
 
-### The order that saves money
+### The order that saves money: three costs
+
+Run the cheap things all the time and the expensive thing rarely.
+
+| How often | Command | Costs |
+|---|---|---|
+| On every change | `weave check`, `weave test`, `weave eval --check`, `weave eval --mock` | nothing: scripted and mock models |
+| Before a merge | `weave eval main.loom --changed --max-tokens 200000` | only the cases of what changed |
+| On a schedule | `weave eval main.loom --max-tokens 2000000` | everything, so it is written down but off until you turn it on |
+
+`--changed` compares a fingerprint of each agent and node with the last baseline, else the last complete real run: its prompt (with the shared prompt it receives), model, temperature, schema or fields, tools, the version and hash of its policies, and its own cases. It runs the cases of the nodes that differ, plus every workflow that reaches one, and prints *what changed* first. With no reference everything counts as changed, and it says so; a prompt file it cannot read counts as changed too. It needs a cap (`--max-tokens`, `--max-calls` or `--max-cost`) and, like any real run, asks first.
 
 ```bash
 weave eval main.loom --init            # create eval/golden with a starter case per agent (never overwrites)
 weave eval main.loom --check           # validate the dataset: no model is called
 weave eval main.loom --mock            # run the wiring on a model that costs nothing
+weave eval main.loom --changed --max-tokens 200000 --yes    # only what changed, capped
 weave eval main.loom --max-tokens 200000 --yes    # a real run, capped
 weave eval main.loom --agent Editor --json results.json --report report.html
 ```
@@ -207,11 +268,12 @@ weave eval main.loom --agent Editor --json results.json --report report.html
 - **Mock runs check wiring, not quality.** A step gets a fixed, well-formed reply. A line nothing judged is *never* counted as met.
 - **Passed, failed and unjudged are three counts.** The exit code is 0 when nothing failed, 1 when something did, 2 for a dataset or option problem.
 - **A real run needs a limit, and asks first.** It tells you how many cases and judge calls it expects.
-- **Use a different model as the judge** (`--judge <model>`) than the one being judged.
+- **A different model judges by default.** The judge is `--judge <model>`, else `judge:` in `dataset.yaml`, else `judge = <model>` in `eval.properties`, else the cheapest other model the project can reach (from another provider if there is one). The report says which, and why. `--judge same` judges a model with itself on purpose and the report cautions that scores may be biased toward its own style; if only one model can be reached it does the same and never refuses.
+- **An evaluator is measured for being too timid.** `weave eval` runs its cases and reports its **false-alarm rate**: the share of the clean and near-miss answers it flagged as violated or unsure, with a 95% interval. Above its limit (10% unless the evaluator says `false_alarm_limit: 5%`) the run fails: a timid evaluator is caught on the bench, not by your customers. The report's *By agent and node* section has a row for every agent, extractor and evaluator. A mock run asks no model, so its node cases are unjudged and it claims no rate.
 
 ### The report
 
-Every report has the same sections, in the terminal, in `--report` (a self-contained HTML page) and in `--json`: *Read this first*, *Overall*, **By agent**, *By dimension*, *By slice*, the cost section (including the median and p95 cost of a case), and the cautions. The **By agent** view is the one to read first when the workflow's result is poor: it shows which agent let you down.
+Every report has the same sections, in the terminal, in `--report` (a self-contained HTML page) and in `--json`: *Read this first*, *Overall*, **By agent and node**, *By dimension*, *By slice*, the cost section (including the median and p95 cost of a case), and the cautions. The **By agent and node** view is the one to read first when the workflow's result is poor: it shows which agent, extractor or evaluator let you down.
 
 ### Trusting the numbers
 
@@ -229,6 +291,8 @@ An evaluation can lie to you in quiet ways. Loom gives you tools against the com
 The deeper guide, with the reasoning behind each, is the [evaluation design skill](../../.claude/skills/llm4j-eval-design/SKILL.md) (`weave guide --install-skill` installs it into your project) and [the workflow guide's chapter 2](../guide/02-golden-dataset.md).
 
 ## From CI
+
+`weave init` writes `.github/workflows/weave.yml` for you. It runs `weave check`, `weave test` and `weave review --fail-on high` on every push; `weave eval --changed` with a token cap on pull requests when the key is configured (it prints a notice and skips when it is not, and never fails for that); and a full scheduled run that is written but commented out, because it spends money. The commands, if you use another system:
 
 ```bash
 weave check  main.loom

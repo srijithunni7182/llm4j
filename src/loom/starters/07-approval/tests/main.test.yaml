@@ -7,23 +7,31 @@ cases:
       Drafter: "The office is closed on Friday."
     humans: [ "no" ]
     expect:
-      calls: { Sender: 0 }
+      result: { contains: "Not sent" }
       effects: none
-  - name: a yes sends the announcement once
+  - name: a yes sends the announcement once, and the person was asked once about the exact text
     input: { facts: "Office closed on Friday." }
     models:
       Drafter: "The office is closed on Friday."
-      Sender: "Sent to slack."
+    tools:
+      Notify: "posted"
     humans: [ "yes" ]
     expect:
-      calls: { Drafter: 1, Sender: 1 }
+      calls: { Drafter: 1, Notify: 1 }
+      asked: [ "Send this to the team channel?" ]
+  - name: anything but a clear yes is a no
+    input: { facts: "Office closed on Friday." }
+    models:
+      Drafter: "The office is closed on Friday."
+    humans: [ "sure why not" ]
+    expect:
+      calls: { Notify: 0 }
   - name: when sending fails the run stops and says the announcement may not have gone out
     input: { facts: "Office closed on Friday." }
     models:
       Drafter: "The office is closed on Friday."
-      Sender: "x"
     humans: [ "yes" ]
     fail:
-      Sender: { always: true, category: server_error }
+      Notify: { always: true, category: server_error }
     expect:
       final: halted

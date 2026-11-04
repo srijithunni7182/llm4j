@@ -53,22 +53,22 @@ You write one text file. A handful of commands check it, test it, review it, run
 |---|---|---|---|
 | 1 | [Your first workflow](01-first-workflow.md) | Install, `agent`, `workflow`, `delegate`, `return`, and the check, test, run loop | [01](../../src/loom/starters/01-hello/) |
 | 2 | [Data and variables](02-data-and-variables.md) | Where results live, `{name}`, `set`, objects, `substitution: braces`, `return`, `note`, `observe` | [02](../../src/loom/starters/02-chain/), [08](../../src/loom/starters/08-extract-and-validate/) |
-| 3 | [Agents](03-agents.md) | `model`, `system`, prompt files, personas, temperature, providers, routing and fallbacks, a shared prompt | [02](../../src/loom/starters/02-chain/), [10](../../src/loom/starters/10-memory-assistant/) |
+| 3 | [Agents](03-agents.md) | `model`, `system`, prompt files, personas, temperature, providers, routing and fallbacks, a shared prompt (and leaving it out), agents versus internal nodes | [02](../../src/loom/starters/02-chain/), [10](../../src/loom/starters/10-memory-assistant/) |
 | 4 | [Control flow](04-control-flow.md) | `alt`, `loop until`, `for each`, `parallel`, `broadcast`, `call`, `import`, `halt` | [03](../../src/loom/starters/03-review-loop/), [04](../../src/loom/starters/04-router/), [05](../../src/loom/starters/05-parallel-research/), [06](../../src/loom/starters/06-plan-and-fan-out/) |
-| 5 | [Structured answers and failure](05-structured-answers-and-failure.md) | `output_schema`, `expecting`, `retry`, `backoff`, `timeout`, `on_failure`, degraded runs | [03](../../src/loom/starters/03-review-loop/), [05](../../src/loom/starters/05-parallel-research/), [08](../../src/loom/starters/08-extract-and-validate/) |
+| 5 | [Structured answers and failure](05-structured-answers-and-failure.md) | `output_schema`, `expecting`, `extractor` and `extract`, reason first then extract, `retry`, `backoff`, `timeout`, `on_failure`, degraded runs | [03](../../src/loom/starters/03-review-loop/), [05](../../src/loom/starters/05-parallel-research/), [08](../../src/loom/starters/08-extract-and-validate/) |
 | 6 | [Tools and tasks](06-tools-and-tasks.md) | Built-in and declared tools, the six generic tools, OpenAPI, MCP, approvals, `run` tasks, classifiers | [07](../../src/loom/starters/07-approval/), [11](../../src/loom/starters/11-daily-digest/) |
-| 7 | [Knowledge and memory](07-knowledge-and-memory.md) | `knowledge` (answers from your documents), agent `memory`, voice and languages | [09](../../src/loom/starters/09-handbook-qa/), [10](../../src/loom/starters/10-memory-assistant/) |
+| 7 | [Knowledge and memory](07-knowledge-and-memory.md) | `knowledge` (answers from your documents), agent `memory`, who sees the shared transcript (`transcript: none | own | all`), voice and languages | [09](../../src/loom/starters/09-handbook-qa/), [10](../../src/loom/starters/10-memory-assistant/) |
 | 8 | [People in the loop](08-people-in-the-loop.md) | `human_prompt`, approvals, durable runs, `sleep`, steering and stopping, `supervise` | [07](../../src/loom/starters/07-approval/), [12](../../src/loom/starters/12-wait-for-a-person/), [14](../../src/loom/starters/14-supervised-agent/) |
-| 9 | [Safety and cost](09-safety-and-cost.md) | Budgets, guards, PII, secrets, the audit and review, the lethal trifecta | [07](../../src/loom/starters/07-approval/), [15](../../src/loom/starters/15-earned-autonomy/) |
+| 9 | [Safety and cost](09-safety-and-cost.md) | Budgets, guards, PII, the leak guard, policies checked at the edge, secrets, the audit and review, the lethal trifecta | [07](../../src/loom/starters/07-approval/), [15](../../src/loom/starters/15-earned-autonomy/), [17](../../src/loom/starters/17-compliance-boundary/) |
 | 10 | [Testing](10-testing.md) | `weave test` in full, scripted failures, coverage, golden datasets and `weave eval` | every starter has tests |
-| 11 | [Advanced orchestration](11-advanced-orchestration.md) | Checkpoints and rewind, earned autonomy and ladders, schedules, context and compaction | [11](../../src/loom/starters/11-daily-digest/), [13](../../src/loom/starters/13-rewind-and-retry/), [15](../../src/loom/starters/15-earned-autonomy/) |
+| 11 | [Advanced orchestration](11-advanced-orchestration.md) | Checkpoints and rewind, earned autonomy and ladders, schedules, context and compaction, keeping progress in the workflow | [11](../../src/loom/starters/11-daily-digest/), [13](../../src/loom/starters/13-rewind-and-retry/), [15](../../src/loom/starters/15-earned-autonomy/), [16](../../src/loom/starters/16-step-by-step-agent/) |
 | 12 | [Running it for real](12-running-for-real.md) | `weave run`, journals, packaging, deploying, watching, Fabric | [11](../../src/loom/starters/11-daily-digest/), [12](../../src/loom/starters/12-wait-for-a-person/) |
 | 13 | [Plain Java](13-java.md) | Use the agent library directly, embed Loom, write your own tasks and tools, test from JUnit | |
 | 14 | [Cookbook and cheat sheet](14-cookbook.md) | Recipes, mistakes and their fixes, one page of syntax | |
 
 ## The starter set
 
-[`src/loom/starters`](../../src/loom/starters/README.md) holds fifteen small, complete workflows. Each loads, has tests that need no key, and shows its own picture. Read a chapter, then open the starter that uses it, change something, and run its tests.
+[`src/loom/starters`](../../src/loom/starters/README.md) holds sixteen small, complete workflows. Each loads, has tests that need no key, and shows its own picture. Read a chapter, then open the starter that uses it, change something, and run its tests.
 
 ## Conventions in this tutorial
 
@@ -80,6 +80,7 @@ You write one text file. A handful of commands check it, test it, review it, run
 
 ## Where to go next
 
+- Why a language: [Architecture you can review](../REVIEWABLE_ARCHITECTURE.md), thirteen mistakes that the checks in these chapters catch, with the exact output.
 - The big picture, from a sentence to a deployed, watched workflow: [the Developer guide](../../DEVELOPER_GUIDE.md).
 - The complete language reference, with every option: [LOOM_GUIDE.md](../../src/loom/ai-agent4j-loom/LOOM_GUIDE.md).
 - Every command and flag: [the command reference](../COMMAND_REFERENCE.md), or `weave man <command>` in a terminal.

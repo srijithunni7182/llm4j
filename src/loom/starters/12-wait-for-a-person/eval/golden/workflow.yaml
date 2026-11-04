@@ -1,0 +1,13 @@
+# The requirements of this starter, as one end-to-end case: what the run must have done, and what the answer must be.
+- id: workflow-001
+  name: A normal request
+  inputs:
+    customer: "Acme"
+    topic: "renewal"
+  expect:
+    - "Drafter wrote the message"
+    - "Checker looked at it before a person was asked"
+    - "A person answered before anything was sent"
+  rubric:
+    - "Nothing is sent without the person's yes"
+    - "The follow-up goes out after the wait"

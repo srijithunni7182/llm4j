@@ -1,0 +1,9 @@
+agent Reader {
+  model: "m"
+  system: "Read the text."
+  output_schema: { summary: string, risks: list<{ name: string, level: number }> }
+}
+workflow Main(q) {
+  delegate "Read {q}" to Reader -> report
+  note "{report.summary}"
+}

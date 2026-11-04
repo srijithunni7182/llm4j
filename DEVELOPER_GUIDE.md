@@ -55,6 +55,8 @@ Then make one of your own. 👇
 
 ## 🎯 Why teams reach for it
 
+> **Loom distils multi-agent best practice into a language that can be reviewed, by people and by tools.** In code-first frameworks the architecture is a convention; in Loom it is checked. [Thirteen mistakes, and what you see for each](docs/REVIEWABLE_ARCHITECTURE.md).
+
 | | | In VS Code |
 |---|---|---|
 | ⚡ **Rapid** | A **sentence** becomes a tested, reviewed project in minutes, for a few cents. | **Generate Workflow...** |

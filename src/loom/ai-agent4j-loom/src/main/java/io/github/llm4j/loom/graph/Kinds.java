@@ -18,6 +18,24 @@ public final class Kinds {
      */
     public static final String CLASSIFY = "classify";
 
+    /**
+     * An {@code extract} statement: a stateless model step that pulls typed fields out of the text
+     * it is handed and nothing else.
+     */
+    public static final String EXTRACT = "extract";
+
+    /**
+     * A {@code check … against} statement: a stateless evaluator judges a text against a policy's
+     * rules before it can leave the workflow.
+     */
+    public static final String CHECK = "check";
+
+    /**
+     * A {@code use Tool(...)} statement: a declared tool called with named arguments and no model
+     * in between.
+     */
+    public static final String USE = "use";
+
     public static final String HANDOFF = "handoff";
     public static final String BROADCAST = "broadcast";
     public static final String PARALLEL = "parallel";
@@ -60,6 +78,9 @@ public final class Kinds {
                     DELEGATE,
                     TASK,
                     CLASSIFY,
+                    EXTRACT,
+                    CHECK,
+                    USE,
                     HANDOFF,
                     BROADCAST,
                     PARALLEL,

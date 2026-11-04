@@ -46,6 +46,8 @@ final class Assertions {
         if (expect.has("result")) result(expect, o, failures);
         if (expect.has("route") || expect.has("never")) route(expect, o, failures);
         if (expect.has("calls")) calls(expect.get("calls"), o, failures);
+        if (expect.has("checks")) checks(expect.get("checks"), o, failures);
+        if (expect.has("actions")) actions(expect.get("actions"), o, failures);
         if (expect.has("context")) context(expect.get("context"), o, failures);
         if (expect.has("told")) told(expect.get("told"), o, failures);
         if (expect.has("models_used")) modelsUsed(expect.get("models_used"), o, failures);
@@ -147,6 +149,37 @@ final class Assertions {
             out.add(chosen);
         }
         return out;
+    }
+
+    /** {@code checks: { HouseRules: 1 }}: how many {@code check} steps judged against each policy. */
+    private static void checks(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        Map<String, Integer> actual = new LinkedHashMap<>();
+        for (var e : o.recorder().events()) {
+            if (!e.type().equals(io.github.llm4j.loom.execution.TraceEvent.POLICY_CHECK) || e.data() == null) continue;
+            if (!(e.data().get("policies") instanceof List<?> ps)) continue;
+            for (Object p : ps) if (p instanceof Map<?, ?> m) actual.merge(String.valueOf(m.get("name")), 1, Integer::sum);
+        }
+        compare("checks", want, actual, failures);
+    }
+
+    /** {@code actions: { rewritten: 1 }}: how many checks ended in each action. */
+    private static void actions(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {
+        Map<String, Integer> actual = new LinkedHashMap<>();
+        for (var e : o.recorder().events()) {
+            if (!e.type().equals(io.github.llm4j.loom.execution.TraceEvent.POLICY_CHECK) || e.data() == null) continue;
+            Object action = e.data().get("action");
+            if (action != null && e.data().get("at") == null) actual.merge(String.valueOf(action), 1, Integer::sum);
+        }
+        compare("actions", want, actual, failures);
+    }
+
+    private static void compare(String key, JsonNode want, Map<String, Integer> actual, List<Failure> failures) {
+        for (Iterator<Map.Entry<String, JsonNode>> it = want.fields(); it.hasNext(); ) {
+            var e = it.next();
+            String problem = Matchers.mismatch(e.getValue(), actual.getOrDefault(e.getKey(), 0));
+            if (problem != null)
+                failures.add(new Failure(key, key + "." + e.getKey() + ": " + problem.replaceFirst("^: ", "")));
+        }
     }
 
     private static void calls(JsonNode want, CaseRunner.Outcome o, List<Failure> failures) {

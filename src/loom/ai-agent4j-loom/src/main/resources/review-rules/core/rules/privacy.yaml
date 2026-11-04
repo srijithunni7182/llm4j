@@ -99,3 +99,30 @@
   examples:
     fires: [ examples/ly06-fires.loom ]
     quiet: [ examples/ly06-quiet.loom ]
+
+- id: LY07
+  lens: privacy
+  severity: medium
+  about: script
+  when:
+    all:
+      - { field: declaresPolicy, is: false }
+      - { field: modelTextExitCount, gte: 1 }
+      - { field: reachesPeople, is: true }
+  title: "Text a model wrote leaves the workflow and the script declares no policy"
+  why: "Nothing judges what a model wrote before it reaches people: {modelTextExitList}. A reply that quotes an internal section or promises something it should not goes straight out."
+  fixHint: "Put the rules in a policy file, declare an evaluator and check the text before each exit: check reply against HouseRules using Compliance. If no customer sees this output, accept the finding with a reason."
+  since: "6.2.0"
+  references: [LLM02, LLM05, LLM07]
+  explain: >
+    A prompt is a wish, not a guarantee, so rules about what must never be said belong in a policy
+    file (policies/house-rules.md, written for whoever owns compliance) and are checked at the edge
+    by an evaluator that sees only the rules and the text. Declaring a policy also makes the
+    runtime refuse any model-written text that has not been checked, at the return of the run and in
+    what an agent sends. The rule fires once per script and lists the exits it found. It fires only
+    when the output can reach people outside: the workflow is scheduled, or an agent holds a tool
+    that changes things. A script with no such reach is not nudged. Review and accept it with a
+    reason when no customer sees the output.
+  examples:
+    fires: [ examples/ly07-fires.loom ]
+    quiet: [ examples/ly07-quiet-policy.loom, examples/ly07-quiet-internal.loom, examples/ly07-quiet-no-model-text.loom ]

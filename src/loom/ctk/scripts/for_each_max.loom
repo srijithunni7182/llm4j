@@ -1,0 +1,21 @@
+// Canonical CTK test: for_each_max
+// Tests a bounded fan-out (for each ... max N): a list within the bound runs every item; a list over the bound fails the
+// workflow before any item starts and names the agent that wrote the list. mocks/for_each_max.json defines the plan.
+
+agent Planner {
+    model: "m"
+    system: "You plan."
+    output_schema: { tasks: list<string> }
+}
+
+agent Worker {
+    model: "m"
+    system: "You work."
+}
+
+workflow main(goal) {
+    delegate "Plan {goal}" to Planner -> plan
+    for each t in plan.tasks max 2 {
+        delegate "{t}" to Worker -> done
+    }
+}

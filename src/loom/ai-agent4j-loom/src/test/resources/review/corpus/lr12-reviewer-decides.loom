@@ -1,0 +1,11 @@
+agent Writer { model: "m"  system: "Write." }
+agent Reviewer { model: "m2"  system: "Review."  output_schema: { verdict: enum["OK", "REVISE"] } }
+workflow Main(topic) {
+  delegate "Write about {topic}" to Writer -> draft retry 1 timeout 30s
+  loop until (review.verdict == "OK") max 3 {
+    delegate "Review {draft}" to Reviewer -> review retry 1 timeout 30s
+    delegate "Revise {draft} using {review}" to Writer -> draft retry 1 timeout 30s
+  }
+  return draft
+}
+// ignore: LP02 LP05 LO01 LR04 LD01 LR08 LA02 LY07 LB01 LR02 LH05 LC01 LR03 LC02 LP09

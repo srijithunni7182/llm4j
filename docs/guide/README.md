@@ -35,7 +35,7 @@ Skipping is not hidden: chapter 9 reminds you once that no evaluation exists, an
 | # | Stage | You | Tools | Cost | Gate to move on |
 |---|---|---|---|---|---|
 | 1 | [Decide your agents](01-decide-your-agents.md) | one job per agent; tools, persona, prompt files; script path or Java path | `AgentPersona`, `PromptRegistry` | $0 | each agent has a one-sentence job and a tool list |
-| 2 | [Build a golden dataset](02-golden-dataset.md) | scenarios with rubrics and dimensions (optional: see above) | `weave eval --init/--check`, `EvalScenarios`, `DatasetSynthesizer` | $0 (synthesis: small) | dataset test passes; every dimension has cases |
+| 2 | [Write the requirements as a golden dataset](02-golden-dataset.md) | scenarios with rubrics and dimensions: what the workflow must do and must never do (a prototype may skip it: see above) | `weave eval --init/--check`, `EvalScenarios`, `DatasetSynthesizer` | $0 (synthesis: small) | dataset test passes; every dimension has cases |
 | 3 | [Test the prompts](03-prompt-tests.md) | rubric checks, A/B against a candidate | `llmJudged`, `PromptComparison` | cents | each prompt meets its rule |
 | 4 | [Optimize the prompts](04-prompt-optimization.md) | only where tests fail | `PromptOptimizer` | capped | held-out test agrees (`generalized()`) |
 | 5 | [Test each agent, with spend caps](05-test-agents-with-caps.md) | free on mocks, then real under a cap | `ScriptedClient`, `FakeJudge`, `SpendGuard`, `AgentReplay` | dollars, capped | agents meet their goals; judge noise known |

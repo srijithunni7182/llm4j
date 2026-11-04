@@ -25,9 +25,12 @@ public record AgentInfo(
         boolean streaming,
         boolean reasoning,
         boolean steerable,
-        Map<String, Object> grounding) {
+        Map<String, Object> grounding,
+        String transcript,
+        boolean sharedPromptExcluded) {
 
     public AgentInfo {
+        transcript = transcript == null ? "all" : transcript;
         tools = List.copyOf(tools);
         mcp = List.copyOf(mcp);
         skills = List.copyOf(skills);
@@ -43,6 +46,32 @@ public record AgentInfo(
                         ? Map.of()
                         : java.util.Collections.unmodifiableMap(
                                 new java.util.LinkedHashMap<>(grounding));
+    }
+
+    /** As the 18-component form, for an agent that sees the whole transcript and the shared prompt. */
+    public AgentInfo(
+            String name,
+            String model,
+            Double temperature,
+            String persona,
+            List<String> tools,
+            List<String> mcp,
+            List<String> skills,
+            List<String> knowledge,
+            List<String> approve,
+            boolean approveAll,
+            Map<String, Object> budget,
+            Integer maxIterations,
+            SourceRef source,
+            PromptInfo prompt,
+            boolean streaming,
+            boolean reasoning,
+            boolean steerable,
+            Map<String, Object> grounding) {
+        this(
+                name, model, temperature, persona, tools, mcp, skills, knowledge, approve,
+                approveAll, budget, maxIterations, source, prompt, streaming, reasoning, steerable,
+                grounding, "all", false);
     }
 
     /** As the 17-component form, for an agent that is not grounded. */

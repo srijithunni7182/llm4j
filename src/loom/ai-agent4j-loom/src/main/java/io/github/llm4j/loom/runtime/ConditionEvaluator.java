@@ -85,6 +85,9 @@ public class ConditionEvaluator {
         return out;
     }
 
+    /** The reserved word that tests for an absent optional field. */
+    private static final String MISSING = "missing";
+
     private static final String[] OPERATORS = {"==", "!=", ">=", "<=", ">", "<"};
 
     /**
@@ -132,6 +135,12 @@ public class ConditionEvaluator {
         String expectedRaw = parts[1].trim().replace("\"", ""); // strip surrounding quotes
 
         Object actualValueObj = resolvePath(path, context);
+        // `missing` is the value of an optional extractor field the text did not state: the field is
+        // simply absent from the record (docs/specs/24, R4).
+        if (actualValueObj == null && MISSING.equals(expectedRaw)) {
+            if (operator.equals("==")) return true;
+            if (operator.equals("!=")) return false;
+        }
         String actualValue = actualValueObj != null ? actualValueObj.toString() : "";
 
         // Attempt numeric comparison when both sides look like numbers.

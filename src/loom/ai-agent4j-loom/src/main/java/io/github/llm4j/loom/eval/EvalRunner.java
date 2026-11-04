@@ -644,7 +644,16 @@ public final class EvalRunner {
                     || TraceEvent.REWIND.equals(type)
                     || TraceEvent.CHECKPOINT.equals(type)
                     || TraceEvent.DECISION.equals(type)
-                    || TraceEvent.TASK_START.equals(type))) {
+                    || TraceEvent.TASK_START.equals(type)
+                    // the steps added since: an expect line such as "Compliance checked it" can
+                    // only be confirmed if the account names them
+                    || TraceEvent.EXTRACT_START.equals(type)
+                    || TraceEvent.POLICY_CHECK.equals(type)
+                    || TraceEvent.SINK_BLOCKED.equals(type)
+                    || TraceEvent.TOOL_REFUSED_BY_POLICY.equals(type)
+                    || TraceEvent.ROUTE_REFUSED.equals(type)
+                    || TraceEvent.FANOUT_EXCEEDED.equals(type)
+                    || TraceEvent.CLASSIFY.equals(type))) {
                 continue;
             }
             if (++n > ACCOUNT_STEPS) {

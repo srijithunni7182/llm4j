@@ -8,7 +8,7 @@
 
 Loom is a small, readable language for workflows of AI agents. A script (a `.loom` file) says which agents exist, what each may use, and the steps in order: who works on what, which branch is taken, when a person must approve, and how much the run may spend. A separate `.loot` file maps the tools an agent may call to the Java code behind them.
 
-The idea is to let each side do what it is good at. **The model reads, writes and judges. The script holds the rules.** In this workflow a model reads a customer's email, but plain script logic, not the model, decides whether a refund needs a person, so no wording in an email can talk the workflow past the limit:
+Because the workflow is a language, its architecture can be reviewed by people and checked by tools: Loom distils multi-agent best practice into a language that can be reviewed, and in code-first frameworks the architecture is a convention where in Loom it is checked ([thirteen mistakes and what you see for each](https://github.com/srijithunni7182/llm4j/blob/main/docs/REVIEWABLE_ARCHITECTURE.md)). The idea is to let each side do what it is good at. **The model reads, writes and judges. The script holds the rules.** In this workflow a model reads a customer's email, but plain script logic, not the model, decides whether a refund needs a person, so no wording in an email can talk the workflow past the limit:
 
 ```loom
 budget { tokens: 100000  calls: 20 }
@@ -173,7 +173,7 @@ When an agent's prompt is a markdown file (`prompt: "researcher"` or `prompt: "r
 
 ## Snippets
 
-Type a keyword in a `.loom` file and press Tab to get the whole statement with its blanks: `agent`, `agent-guard`, `delegate`, `delegate-expecting`, `loop`, `alt`, `alt-else`, `human-prompt`, `approval`, `run`, `call`, `workflow`, `budget`, `tool`, `tool-class`, `note`, `halt`, `set`, `return`, `isok`, `parallel`, `on-failure`, `import`, `agent-steerable`, `agent-grounded`, `on-stopped`, `intervention`, `supervise`, `intentclassifier`, `intentclassify`. Each one's description says the habit it encodes (a loop always has a `max`, variable names that are not ordinary words, prompts as files). A test types each snippet with its default values and checks the result with `weave`.
+Type a keyword in a `.loom` file and press Tab to get the whole statement with its blanks: `agent`, `agent-guard`, `delegate`, `delegate-expecting`, `loop`, `alt`, `alt-else`, `human-prompt`, `approval`, `run`, `call`, `workflow`, `budget`, `tool`, `tool-class`, `note`, `halt`, `set`, `return`, `isok`, `parallel`, `on-failure`, `import`, `agent-steerable`, `agent-grounded`, `on-stopped`, `intervention`, `supervise`, `intentclassifier`, `intentclassify`, `extractor`, `extract`, `evaluator`, `check`, `use`, `for-each-max`. Each one's description says the habit it encodes (a loop always has a `max`, variable names that are not ordinary words, prompts as files). A test types each snippet with its default values and checks the result with `weave`.
 
 ## The guide and the agent skill
 

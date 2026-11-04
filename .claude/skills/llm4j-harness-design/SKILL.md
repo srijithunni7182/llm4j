@@ -29,7 +29,7 @@ this skill's `references/` folder and in the tools:
 
 1. **Use the least autonomy that works.** A fixed sequence beats a router, a router beats a planner, a planner beats an open loop.
    Move up only when the task needs it, and say why.
-2. **Let models read and propose; let code decide and act.** A step that must happen every time, must be exact, or moves money is a
+2. **Let models read and propose; let code decide and act.** (External and internal agents, by audience: an agent whose words reach a person gets tone and task, never the rules; policies are checked at the edge by an evaluator that fails closed, not written into prompts. In Loom: `policy`, `evaluator`, `check ... against`, and the runtime refuses unchecked model text at the exits.) A step that must happen every time, must be exact, or moves money is a
    deterministic step the model cannot call, skip or talk its way past. An agent may hold a tool that sends, writes or deletes only
    behind an approval a person gives (or a code check), and only with the least reach that does the job.
 3. **Done is checked, not declared.** Every exit has a criterion. Where it can be counted or compared, code checks it. The agent that
@@ -42,8 +42,12 @@ this skill's `references/` folder and in the tools:
    is checked, never retried blindly.
 7. **A run survives the process.** Steps are journaled, effects are idempotent, and a resumed run never pays twice. State lives in the
    harness, not in a prompt.
-8. **The harness owns the context.** It decides what each step sees, plans for the model's window, and keeps stable instructions
-   stable.
+8. **The harness owns the context, and the progress.** Keep what is done and what is next in a value the harness owns (a typed, journaled variable), not in an agent's conversation, which may be compacted. It decides what each step sees, plans for the model's window, and keeps stable instructions
+   stable. **Pass data, not instructions, and treat the transcript as a channel:** by default Loom briefs every agent with everything said
+   before it, so one agent's words (including text it read from the web) reach all the others. A step that only reads, picks a label
+   or pulls out fields should be an internal node (`extractor`, `intentclassifier`) that sees only what its statement names; an agent
+   that should not see the rest says `memory { transcript: none }`. **Decouple thinking from formatting:** an agent that has to
+   reason answers in prose, and a separate extractor (a cheap model that sees only that prose) turns it into fields.
 9. **A person stands in front of every irreversible way out**, until the agent has earned the right on evidence, under a ceiling a
    person set.
 10. **Test the harness, not just the agents.** Kill it mid-run, fail its tools, exhaust its budget, feed it hostile input, and check
@@ -59,13 +63,13 @@ Read `references/conventions.md` before you start. It sets nine rules the llm4j 
 |---|---|---|---|
 | 1 | Frame the job | principles §1 | one paragraph: what goes in, what comes out, how long it runs, who watches, what cannot be undone; an autonomy shape chosen with a reason |
 | 2 | Define done and who checks it | principles §2 | every exit (success, gave up, stopped, halted) has a criterion; each criterion is marked **code**, **model** or **person**; no agent grades only itself |
-| 3 | Draw the boundary | principles §3, §9 | the surface table is filled (locked, editable, read, write, send) for each agent and tool; each tool has the least reach that works; each agent that reads untrusted content (including one with `grounding: web`, whatever its `allow:` list says), reaches private data and can send something out is split, or the user accepted it in writing with a reason |
+| 3 | Draw the boundary | principles §3, §9 | the surface table is filled (locked, editable, read, write, send) for each agent and tool; each tool has the least reach that works; a step whose target agent a model chooses names the agents it may pick (`in [..]` or an `enum`), because the prompt is advice and the list is the rule (LA22); each agent that reads untrusted content (including one with `grounding: web`, whatever its `allow:` list says), reaches private data and can send something out is split, or the user accepted it in writing with a reason |
 | 4 | Shape the control loop | principles §4, §15 | every loop and rewind has a maximum and an outcome when it is reached; budgets at three levels (run, agent, provider); a rule for an agent that loops or stalls; every parallel fan-out says what happens when one branch fails or is stopped, and keeps its rewinds outside the fan-out |
 | 5 | State, memory and context | principles §5, §6 | a crash at any step is described: what is replayed, what is re-run, what is never repeated; every step that changes the world has an idempotency story; every agent that loops on tools has a context plan and a known window |
 | 6 | Failure and recovery | principles §7, failure-modes | the failure table is complete: for each step, its failure kinds and the decision for each (retry, other path, person, rewind, halt, let it fail) |
-| 7 | People in the loop | principles §8 | each irreversible action has an approver or a written decision not to; who may steer, stop and approve is named, and how they reach a running process; earned autonomy only where the user asked for it |
+| 7 | People in the loop | principles §8 | ask at the boundary, about the payload: the agent proposes and code acts after one question (`use`/`run ... approve`), `human_prompt` when the person shapes the answer, `decide` with a ladder only when trust should be earned (optional), and `approve:` on an agent only for an assistant a person works with; each irreversible action has an approver or a written decision not to; who may steer, stop and approve is named, and how they reach a running process; earned autonomy only where the user asked for it |
 | 8 | Watching and cost | principles §10 | a cost model with real numbers from the user or the provider; the events that count as trouble; where the trace, journal and audit log are kept |
-| 9 | Test plan for the harness | principles §12 | one fault test per decision in stages 4 to 7, each with the behaviour the design expects |
+| 9 | Test plan for the harness | principles §12 | one fault test per decision in stages 4 to 7, each with the behaviour the design expects; an `evaluator` or `extractor` the harness relies on has golden cases of its own (a breaking and a clean case for every policy rule; exact field checks), and `weave check` will not pass without them |
 | 10 | Write the record and hand over | design-record | `HARNESS.md` is complete, the user read it back and agreed; open questions are listed, not hidden |
 
 Stages 1 to 3 are always done. For a short, read-only workflow with no tools and no effects, stages 5, 7 and 8 can be one line each:

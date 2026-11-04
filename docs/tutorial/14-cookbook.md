@@ -14,15 +14,72 @@ Each recipe names the starter that implements it. Open the starter, run `weave t
 | Send each request to the right specialist | A classifier with an `enum` schema, then `alt` in the script | [04](../../src/loom/starters/04-router/) |
 | Ask several sources at once and survive one failing | `parallel`, one flag per branch, `retry` + `on_failure` | [05](../../src/loom/starters/05-parallel-research/) |
 | Turn a plan into parallel work | `parallel for each` with `{item.owner}` routing | [06](../../src/loom/starters/06-plan-and-fan-out/) |
-| Never send without a person's yes | `human_prompt` + `alt`, and `approve:` on the sender | [07](../../src/loom/starters/07-approval/) |
-| Turn text into checked fields | `output_schema`, `halt` on unreadable, ask a person for a missing value | [08](../../src/loom/starters/08-extract-and-validate/) |
+| Never send without a person's yes | `use Tool(...) approve "…"` after the draft, with `on_declined` | [07](../../src/loom/starters/07-approval/) |
+| Turn text into checked fields | An `extractor`, `halt` on unreadable, ask a person when an optional value is `missing` | [08](../../src/loom/starters/08-extract-and-validate/) |
 | Answer from my documents | `knowledge` + "say when the documents do not answer" | [09](../../src/loom/starters/09-handbook-qa/) |
 | Remember each user | `memory { session: "{user_id}" }` + `guard { pii: mask }` | [10](../../src/loom/starters/10-memory-assistant/) |
 | Run every weekday morning | `schedule` + `weave schedule sync` + `weave daemon` | [11](../../src/loom/starters/11-daily-digest/) |
 | Wait days for a person, then follow up | `human_prompt`, `sleep`, `--journal` | [12](../../src/loom/starters/12-wait-for-a-person/) |
 | Go back when a late check fails | `checkpoint` + `rewind ... carrying` | [13](../../src/loom/starters/13-rewind-and-retry/) |
 | Stop an agent that loops or runs long | `supervise` rules | [14](../../src/loom/starters/14-supervised-agent/) |
+| Keep a long agent's progress where the workflow can see it | A bounded `loop`, a worker with `transcript: none`, an `extractor` that records progress | [16](../../src/loom/starters/16-step-by-step-agent/) |
 | Let an agent earn the right to act | `decision` + `trust` + `decide` | [15](../../src/loom/starters/15-earned-autonomy/) |
+| Check every reply against house rules | A `policy` file, an `evaluator`, `check ... against ... on_violation { rewrite with ... }` | [17](../../src/loom/starters/17-compliance-boundary/) |
+
+### Recipe: pull fields out of text
+
+```loom-parse
+substitution: braces
+
+extractor Contact {
+    model: "gemini-2.5-flash"
+    instructions: "Find the person's name and, if stated, their phone number."
+    fields {
+        name: string
+        phone: string
+    }
+    optional: [phone]
+}
+
+workflow Main(email) {
+    extract Contact from email -> contact on_failure {
+        halt "No contact found: {_error}"
+    }
+    alt (contact.phone == missing) {
+        note "{contact.name} gave no phone number"
+    } else {
+        note "{contact.name}: {contact.phone}"
+    }
+}
+```
+
+The extractor sees only the email, never the run so far or the shared prompt. A required field the text does not state fails the step; an optional one is `missing`.
+
+### Recipe: let the reasoning agent think, then extract
+
+```loom-parse
+substitution: braces
+
+agent Researcher {
+    model: "gemini-2.5-pro"
+    system: "Research the topic. Answer in plain prose; explain your reasoning, then state your conclusions."
+    grounding: web
+}
+
+extractor ResearchFields {
+    model: "gemini-2.5-flash"
+    instructions: "Pull these fields out of the research."
+    fields { summary: string, sources: list<{ title: string, url: string }> }
+}
+
+workflow Main(topic) {
+    delegate "Research {topic}" to Researcher -> notes_text
+    extract ResearchFields from notes_text -> notes
+    return notes.summary
+}
+```
+
+The agent that has to think is not forced into JSON; the cheap extractor does the formatting. Use it whenever LP10 fires.
 
 ### Recipe: a cheaper model when money runs low
 
@@ -154,10 +211,16 @@ line 1: agent Helper: unknown model "totally-unknown-model": use gemini-…, cla
 | A variable set and never read | Usually a typo, or a branch that does nothing | Use it or delete it |
 | A variable that is also a plain word in a prompt | In the older mode the word is replaced by the value | `substitution: braces` |
 | A tool step with no `retry`/`timeout`/`on_failure` | One slow call stalls or ends the run | Add all three |
-| An agent that can send, with no `approve:` | Nobody decides before it acts | `approve: [Tool]`, or a `human_prompt` first |
+| An agent that can send, with no approval | Nobody decides before it acts | Let it propose and `use Tool(...) approve` after it; `approve: [Tool]` for an assistant a person works with |
 | One shared variable written by two `parallel` branches | A race: you get one of the answers | One variable per branch |
 | Both answers to a `human_prompt` lead to the same steps | The question changes nothing | Give each answer its own branch |
 | A key written in the script | A load error, on purpose | `env.NAME` or `secret.NAME` |
+| A `for each` over a list an agent wrote, with no `max` (LR13) | The list may be any length; a budget stops it part-way | `max N`, and tell the planner the limit |
+| An agent that reasons (tools, web, rounds, a long prompt) must answer in a large schema (LP10) | "JSON only" leaves it no room to think | Let it write prose and add an `extractor` (`weave review --fix-finding LP10 --option split`) |
+| A branch on a field of an agent that has no schema (LR05, LP02) | The field may be missing or spelt differently | An `intentclassifier` for a label, an `extractor` for fields an agent worked out, or a small `output_schema` |
+| An agent with an `output_schema` that only pulls fields out of text (LP09) | It is briefed with the whole run and the shared prompt, so it can answer differently depending on what ran before | An `extractor` (`weave review --fix-finding LP09 --option to-extractor`) |
+| A task to an agent with `transcript: none` that passes no variable (LP08) | The agent sees nothing else, so it has nothing to work from | Write a variable into the task, or give the agent `transcript: all` |
+| An agent that sends or acts runs after one that reads the web (LA21) | The reader's words reach it through the shared transcript | `transcript: none` on the sender, typed values from an extractor, or split the work |
 | `rewind` over steps that send something | The replayed attempt might send again | `side effects:` says what you mean; put the check before the effects |
 
 ## Syntax cheat sheet
@@ -176,8 +239,11 @@ persona Name { role: "..."  tone: "..."  constraints: ["..."] }
 provider Name { use: ollama  base_url: "..."  api_key: env.NAME }
 routing Name { strategy: fallback  primary: "m1"  fallback: ["m2", "m3"] }
 knowledge Name { source: "docs/"  embedding: "gemini/text-embedding-004"  top_k: 4  store: "idx.json" }
-tool Name { use: webhook|email|http|file|shell|sql|openapi|class|...  ...options... }
+tool Name { use: webhook|email|http|file|shell|sql|openapi|class|...  ...options...  effect: none|reads|changes }
 mcp Name { transport: "stdio"  cmd: "..." }
+extractor Name { model: "..."  instructions: "..."  fields { f: string  n: number }  optional: [n]  pii: mask }
+evaluator Name { model: "..."  samples: 3  unsure below 0.8  fallback: ["..."] }
+policy P: "house-rules" checked by Evaluator          // rules in policies/house-rules.md
 intentclassifier Name { model: "..."  choose k: a | b  ask q: "..."  rate r: lo | hi  confidence at least 0.8 else escalate }
 
 agent Name {
@@ -185,9 +251,10 @@ agent Name {
     persona: P   temperature: 0.2   max_iterations: 8
     tools: [A, B]   approve: [A] | all   knowledge: [K]   skills: ["fs://x.md"]
     output_schema: { f: string, n: number, b: boolean, e: enum["A","B"], l: list<string> }
-    budget { tokens: N  per_call: N }   memory { ... }   guard { pii: mask|block|warn  bias: warn|block }
+    budget { tokens: N  per_call: N }   memory { ... }   guard { pii: mask|block|warn  bias: warn|block  prompt_leak: warn|block|off  internal_refs: ["POL-[0-9]+"] }
     context { compact: chain(trim_tool_results, summarize, drop_oldest) }
     streaming: true   steerable: true   grounding: web { ... }
+    memory { transcript: none|own|all }   shared_prompt: none
 }
 
 supervise Agent { when looping(3) { steer "..." once }  when steps > 15 { cancel use partial } }
@@ -199,12 +266,15 @@ workflow Name(p1, p2) {
     broadcast "task" to [A, B] -> result
     handoff "task" to Agent
     parallel { ... }
-    for each x in list.items { ... }          parallel for each x in list.items { ... }
+    for each x in list.items max N { ... } on_too_many { ... }          parallel for each x in list.items max N { ... }
     alt (a == "b") { ... } else { ... }
     loop until (a == "b") max 5 { ... } on_exhausted { ... }
     call Other(arg = value) -> result
-    run Task(arg = value) -> result [model "..."] [retry N] [timeout 30s]
+    run Task(arg = value) [approve ["heading"]] -> result [model "..."] [retry N] [timeout 30s] [on_declined {...}]
+    use Tool(arg = value) [approve ["heading"]] -> result [retry N] [backoff 2s] [timeout 30s] [on_declined {...}] [on_failure {...}]
     intentclassify Name on text -> result
+    extract Name from text -> result          extract Name from (a = x, b = y) -> result
+    check reply against P, Q using Evaluator -> verdict  on_violation { rewrite with Agent | ask person | replace with "..." | fail }  on_unavailable { ... }
     decide Decision -> verdict
     human_prompt "question {x}" -> answer
     sleep 5m                                 set x = "text {y}" | 3 | true | { k: v }

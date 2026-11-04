@@ -1,0 +1,20 @@
+// 17-compliance-boundary: a support reply is checked against house rules before it reaches anyone. The rules live in
+// policies/house-rules.md, written for whoever owns compliance, and never in a prompt. A separate evaluator, which
+// sees only the rules and the reply, judges it at the edge; if the reply breaks a rule an editor rewrites it, and the
+// rewrite is checked again.
+
+substitution: braces
+
+budget { tokens: 120000  calls: 20 }
+
+evaluator Compliance { model: "gemini-2.5-pro" }
+policy HouseRules: "house-rules" checked by Compliance
+
+agent Support { model: "gemini-2.5-flash"  system: "You answer customers politely, in plain English and short sentences." }
+agent Editor  { model: "gemini-2.5-flash"  system: "You rewrite a reply so it keeps the help and drops whatever the broken rules do not allow." }
+
+workflow Main(question) {
+    delegate "{question}" to Support -> reply
+    check reply against HouseRules using Compliance -> verdict on_violation { rewrite with Editor }
+    return reply
+}

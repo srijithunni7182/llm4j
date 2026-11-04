@@ -258,6 +258,7 @@
     {
       "name": "A",
       "model": "m",
+      "transcript": "all",
       "source": {
         "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
         "line": 1
@@ -266,6 +267,7 @@
     {
       "name": "B",
       "model": "m",
+      "transcript": "all",
       "source": {
         "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
         "line": 2
@@ -274,6 +276,7 @@
     {
       "name": "C",
       "model": "m",
+      "transcript": "all",
       "source": {
         "file": "<root>/src/test/resources/graph/parallel_lanes.loom",
         "line": 3

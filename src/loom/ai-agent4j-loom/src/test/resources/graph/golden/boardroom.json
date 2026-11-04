@@ -191,6 +191,7 @@
       "name": "CFO",
       "model": "gemini-3.5-flash",
       "persona": "FinancialAnalyst",
+      "transcript": "all",
       "source": {
         "file": "<root>/samples/boardroom/members.loom",
         "line": 23
@@ -200,6 +201,7 @@
       "name": "CTO",
       "model": "llama3",
       "persona": "TechnicalArchitect",
+      "transcript": "all",
       "source": {
         "file": "<root>/samples/boardroom/members.loom",
         "line": 29
@@ -209,6 +211,7 @@
       "name": "CEO",
       "model": "gemini-1.5-pro",
       "persona": "ExecutiveLeader",
+      "transcript": "all",
       "source": {
         "file": "<root>/samples/boardroom/members.loom",
         "line": 35

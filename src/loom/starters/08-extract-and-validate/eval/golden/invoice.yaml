@@ -1,0 +1,11 @@
+# Cases for the extractor Invoice: exact field checks, no judge. What the text states must come out as written;
+# what it does not state must come out missing, never invented.
+- id: invoice-001
+  name: A complete invoice
+  input: "ACME Ltd invoice INV-7, total 120.50 USD"
+  expected_fields: { vendor: "ACME Ltd", invoice_number: "INV-7", total: 120.5, currency: USD }
+- id: invoice-002
+  name: A total that the text does not state is missing, not guessed
+  input: "ACME Ltd invoice INV-8, thank you for your business"
+  expected_fields: { vendor: "ACME Ltd", invoice_number: "INV-8" }
+  expected_missing: [total]

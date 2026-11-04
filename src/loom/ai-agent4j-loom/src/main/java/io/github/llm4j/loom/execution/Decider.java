@@ -373,9 +373,11 @@ final class Decider {
     }
 
     private void bind(DecideStmt stmt, Map<String, Object> result) {
-        run.setVariable(stmt.getVariable(), text(result.get("verdict")));
-        run.setVariable(stmt.getVariable() + "_proposal", text(result.get("proposal")));
-        run.setVariable(stmt.getVariable() + "_level", text(result.get("level")));
+        // The verdict is one of the declared choices and the level a word of the ladder; the
+        // proposal is what the agent wrote.
+        run.bind(stmt.getVariable(), text(result.get("verdict")), Provenance.NOT_MODEL);
+        run.bind(stmt.getVariable() + "_proposal", text(result.get("proposal")), Provenance.UNCHECKED);
+        run.bind(stmt.getVariable() + "_level", text(result.get("level")), Provenance.NOT_MODEL);
     }
 
     @SuppressWarnings("unchecked")
@@ -559,7 +561,7 @@ final class Decider {
             Object raw;
             proposing.set(p);
             try {
-                run.setVariable("_decide_task", task + reminder);
+                run.bindSystem("_decide_task", task + reminder);
                 DelegateStmt del =
                         new DelegateStmt("{_decide_task}", agent.getName(), "_decide_proposal");
                 del.setLenientSchema(

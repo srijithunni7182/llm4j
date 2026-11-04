@@ -155,6 +155,28 @@
     ],
     "description": "Classify a text with a declared classifier; the answers are intent.kind and so on. Branch on unsure and send it to a person."
   },
+  "extractor": {
+    "prefix": "extractor",
+    "body": [
+      "extractor ${1:Invoice} {",
+      "\tmodel: \"${2:gemini-2.5-flash}\"",
+      "\tinstructions: \"${3:Read the text. Use only what it states.}\"",
+      "\tfields {",
+      "\t\t${4:vendor}: string",
+      "\t\t${5:total}: number",
+      "\t}",
+      "\toptional: [${5:total}]",
+      "}"
+    ],
+    "description": "Declare an extractor: a stateless model step that pulls typed fields out of the text it is handed and nothing else (no transcript, no shared prompt). List the fields it may leave out in optional."
+  },
+  "extract": {
+    "prefix": "extract",
+    "body": [
+      "extract ${1:Invoice} from ${2:topic_text} -> ${3:fields} retry 1 timeout 30s"
+    ],
+    "description": "Run an extractor on a text; the fields are fields.vendor and so on. An optional field the text does not state reads as missing."
+  },
   "halt": {
     "prefix": "halt",
     "body": [
@@ -270,5 +292,43 @@
       "}"
     ],
     "description": "Rules that watch an agent and act without a person: steer it when it repeats itself, wrap it up when it takes too many steps. Signals are counts of what it did."
+  },
+  "evaluator": {
+    "prefix": "evaluator",
+    "body": [
+      "evaluator ${1:Compliance} {",
+      "\tmodel: \"${2:claude-haiku-5-5}\"",
+      "\tsamples: ${3:3}",
+      "\tunsure below ${4:0.8}",
+      "\tfalse_alarm_limit: ${5:10%}",
+      "}",
+      "policy ${6:HouseRules}: \"${7:house-rules}\" checked by ${1:Compliance}"
+    ],
+    "description": "Declare an evaluator that judges text against a policy's rules, and the policy it checks. false_alarm_limit is the share of clean cases it may wrongly flag before weave eval fails (default 10%). The rules go in policies/<name>.md."
+  },
+  "check": {
+    "prefix": "check",
+    "body": [
+      "check ${1:reply} against ${2:HouseRules} using ${3:Compliance} -> ${4:verdict} on_violation { rewrite with ${5:Editor} }"
+    ],
+    "description": "Check a model-written text against a policy before it leaves the workflow; on a violation, rewrite it, ask a person, replace it or fail."
+  },
+  "use-tool": {
+    "prefix": "use",
+    "body": [
+      "use ${1:Notify}(${2:text} = ${3:publish_text}) approve \"${4:Send this?}\" -> ${5:receipt}"
+    ],
+    "description": "Call a declared tool yourself, with no model in between, after a person approves. Drop approve for a tool that only reads."
+  },
+  "for-each-max": {
+    "prefix": "for-each-max",
+    "body": [
+      "for each item in ${1:plan.items} max ${2:6} {",
+      "\tnote \"{item.name}\"$0",
+      "} on_too_many {",
+      "\thalt \"${3:The list was longer than expected.}\"",
+      "}"
+    ],
+    "description": "Run a block for each item of a list a model wrote, failing before any item starts when the list is longer than the bound."
   }
 }

@@ -1,0 +1,8 @@
+agent Planner { model: "m"  system: "You plan."  output_schema: { tasks: list<string> } }
+agent Worker { model: "m"  system: "You work." }
+workflow Main() {
+  delegate "plan" to Planner -> plan
+  for each t in plan.tasks max 5 {
+    delegate "{t}" to Worker -> r retry 1 timeout 30s
+  }
+}

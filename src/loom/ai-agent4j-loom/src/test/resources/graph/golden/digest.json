@@ -121,6 +121,7 @@
         "Hn"
       ],
       "maxIterations": 14,
+      "transcript": "all",
       "source": {
         "file": "<root>/samples/digest/core.loom",
         "line": 12
@@ -133,6 +134,7 @@
         "Notes"
       ],
       "maxIterations": 8,
+      "transcript": "all",
       "source": {
         "file": "<root>/samples/digest/core.loom",
         "line": 20
@@ -145,6 +147,7 @@
         "Outbox"
       ],
       "maxIterations": 4,
+      "transcript": "all",
       "source": {
         "file": "<root>/samples/digest/core.loom",
         "line": 27

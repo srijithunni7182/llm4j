@@ -48,9 +48,31 @@ Always *use* the answer. `weave check` warns when the answer is stored and never
 
 An `alt (answer == "yes")` sends only on an exact yes. Anything else, including an empty answer from a question that expired, takes the `else` branch. Write approvals so that doing nothing is what happens when nobody answers.
 
+## Where to ask
+
+There are three shapes. Pick the one that matches what you need:
+
+| Need | Shape |
+|---|---|
+| A plain yes or no before acting | `use Tool(...) approve`, `run Task(...) approve` |
+| The person shapes the answer | `human_prompt`, then `alt`, then act |
+| Trust earned over time | `decide` with a ladder (optional, [chapter 13 of the guide](../guide/13-earned-autonomy.md)) |
+
+The first is the one to reach for. Let the agent propose, ask once, at the edge, about the exact payload, and send with code (starter [07](../../src/loom/starters/07-approval/)):
+
+```loom-parse
+workflow Main(facts) {
+    delegate "Draft an announcement from: {facts}" to Drafter -> draft
+    use Notify(text = draft) approve "Send this to the team channel?" -> receipt
+        on_declined { return "Not sent. The draft is kept for editing:\n{draft}" }
+}
+```
+
+No model carries out the send, so no wording in a message can talk it past the question. A no is a decision, not a failure: `on_declined` handles it.
+
 ## Approvals on tools
 
-The script can ask before a step, as above. An agent's tool can also ask before *each call*:
+When a person works *with* an agent as it goes (an assistant that asks "may I run this?"), an agent's tool can ask before *each call*. In a workflow nobody is watching, this is the wrong shape: the run stops in the middle of the agent's reasoning and holds its conversation until someone answers (`weave review` says so, LH05).
 
 ```loom
 substitution: braces
@@ -279,7 +301,7 @@ Every signal is a count, never a model's opinion, so a rule cannot be talked out
 
 ## Try it yourself
 
-1. In starter [07-approval](../../src/loom/starters/07-approval/), change the question so a "no" asks what to change and loops (bounded) until the person says yes.
+1. In starter [07-approval](../../src/loom/starters/07-approval/), make a "no" ask what to change, redraft, and ask again (a bounded `loop`), until the person says yes or the loop ends.
 2. Run starter [12-wait-for-a-person](../../src/loom/starters/12-wait-for-a-person/) with `--journal` and stop it at the question. Resume it after answering with `weave answer`.
 3. Add a `supervise` rule for a second tool.
 

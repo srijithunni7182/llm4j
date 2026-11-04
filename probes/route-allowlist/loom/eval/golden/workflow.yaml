@@ -1,0 +1,6 @@
+- id: route-1
+  name: A normal request goes to the worker
+  input: "summarise this"
+  expect:
+    - "Planner picked Worker and Worker did the task"
+    - "Privileged did not run"

@@ -4,9 +4,9 @@ A planner returns a list of tasks; the script runs one step per task at the same
 
 ## What it shows
 
-- `parallel for each`
-- `delegate ... to {task.owner} -> {task.name}`: runtime routing
-- a list in an `output_schema`
+- `parallel for each ... max 4`: a bound on a list a model wrote; a longer list fails the run before any task starts
+- `delegate ... to {task.owner} -> results[task.name]`: runtime routing, bounded by an `enum` in the plan's schema, with each answer stored under its task's name in one variable
+- a typed list in an `output_schema`: `owner` can only be `Researcher` or `Writer`, so a model cannot send work to any other agent
 
 Read more: [04-control-flow.md](../../../../docs/tutorial/04-control-flow.md).
 
@@ -14,7 +14,9 @@ Read more: [04-control-flow.md](../../../../docs/tutorial/04-control-flow.md).
 
 ```loom
 // 06-plan-and-fan-out: one agent makes a plan (a list), and the script runs one step per item, all at once.
-// The agent for each item comes from the plan itself, so one line routes work to whoever should do it.
+// The agent for each item comes from the plan itself, so one line routes work to whoever should do it. The plan is
+// typed: `owner` can only be one of the two agents, so a model cannot send work anywhere else, and each answer is stored
+// under its task's name in one variable, `results`, so a task name cannot overwrite anything.
 
 substitution: braces
 
@@ -22,9 +24,9 @@ budget { tokens: 300000  calls: 40 }
 
 agent Planner {
     model: "gemini-2.5-flash"
-    system: "Split the goal into 2 to 4 small tasks. Give each task a name, a description and an owner: Researcher or Writer."
+    system: "Split the goal into 2 to 4 small tasks. Give each task a short one-word name, a description and an owner."
     temperature: 0.2
-    output_schema: { tasks: list }
+    output_schema: { tasks: list<{ name: string, description: string, owner: enum["Researcher", "Writer"] }> }
 }
 agent Researcher { model: "gemini-2.5-flash"  system: "Do the research task and report briefly." }
 agent Writer     { model: "gemini-2.5-flash"  system: "Do the writing task and report briefly." }
@@ -33,13 +35,14 @@ agent Editor     { model: "gemini-2.5-flash"  system: "Combine the pieces into o
 workflow Main(goal) {
     delegate "Plan this goal: {goal}" to Planner -> plan
 
-    parallel for each task in plan.tasks {
-        delegate "{task.description}" to {task.owner} -> {task.name}
+    // the planner is asked for 2 to 4 tasks; a longer list fails the run before any task starts (usually a problem upstream)
+    parallel for each task in plan.tasks max 4 {
+        delegate "{task.description}" to {task.owner} -> results[task.name]
             retry 1 timeout 90s
             on_failure { note "Task {task.name} failed: {_error}" }
     }
 
-    delegate "Goal: {goal}\nHere is what the team produced:\n{plan.tasks}" to Editor -> document
+    delegate "Goal: {goal}\nHere is what the team produced:\n{results}" to Editor -> document
     return document
 }
 ```

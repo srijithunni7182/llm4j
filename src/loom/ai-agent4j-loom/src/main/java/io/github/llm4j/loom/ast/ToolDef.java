@@ -107,6 +107,9 @@ public class ToolDef implements Node {
     private String kind;
     private final Map<String, OptionValue> options = new LinkedHashMap<>();
     private int line;
+    private io.github.llm4j.agent.task.TaskEffect effect;
+    private final Map<String, io.github.llm4j.agent.task.TaskEffect> operationEffects =
+            new LinkedHashMap<>();
 
     public ToolDef(String name) {
         this.name = name;
@@ -135,5 +138,30 @@ public class ToolDef implements Node {
 
     public void setLine(int line) {
         this.line = line;
+    }
+
+    /**
+     * What the developer says this tool does to the world ({@code effect: none | reads | changes}),
+     * or empty when nothing was declared. A declaration is authoritative: nothing second-guesses it
+     * from a method or a kind.
+     */
+    public java.util.Optional<io.github.llm4j.agent.task.TaskEffect> getEffect() {
+        return java.util.Optional.ofNullable(effect);
+    }
+
+    public void setEffect(io.github.llm4j.agent.task.TaskEffect effect) {
+        this.effect = effect;
+    }
+
+    /**
+     * The effect of each operation of a tool that holds several ({@code effects: { listOrders:
+     * reads }}), by operation name. An operation not listed has no declaration.
+     */
+    public Map<String, io.github.llm4j.agent.task.TaskEffect> getOperationEffects() {
+        return java.util.Collections.unmodifiableMap(operationEffects);
+    }
+
+    public void putOperationEffect(String operation, io.github.llm4j.agent.task.TaskEffect effect) {
+        operationEffects.put(operation, effect);
     }
 }

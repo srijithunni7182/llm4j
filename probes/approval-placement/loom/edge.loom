@@ -1,0 +1,12 @@
+// P12, Loom side: the agent drafts; a person is asked once, about the exact text that will be sent; the script sends.
+substitution: braces
+
+tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
+agent Drafter { model: "gemini-2.5-flash"  system: "Draft a short announcement." }
+
+workflow Main(facts) {
+    delegate "Draft an announcement from: {facts}" to Drafter -> draft
+    use Notify(text = draft) approve "Send this to the team channel?" -> receipt
+        on_declined { return "Not sent." }
+    return receipt
+}

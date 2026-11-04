@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- **Evaluator over-caution limit.** `false_alarm_limit` on an `evaluator` is highlighted and has hover help. The `in [A, B]` routing allow-list and `results[key]` use words that were already highlighted. Four snippets: `evaluator` (an evaluator with `false_alarm_limit` and the policy it checks), `check`, `use` (a tool call after a person approves) and `for-each-max` (a bounded fan-out with `on_too_many`). Needs the engine's false-alarm limit (phase 28).
+- **The idea behind it.** The marketplace text now says what the extension is for: a workflow written as a language can be reviewed by people and checked by tools, with a link to the thirteen mistakes and what you see for each.
+- **Review.** The Human oversight lens is on by default and the panel shows the new rules LH05, LH06 and LR11. Needs the engine's review changes (phase 27c).
+- **Call a tool yourself.** `use Tool(...)`, `approve` and `on_declined` on a step are highlighted, and the graph draws a `use` step. Needs the engine's `use` statement (phase 27b).
+- **Leak guard.** `prompt_leak` and `internal_refs` in an agent's `guard { }` are highlighted. Needs the engine's leak guard (phase 26).
+- **Policies and checks.** `policy`, `evaluator` and `check … against … using` are highlighted, and the graph draws a `check` step. Needs the engine's policy support (phase 26).
+- **Tool effects.** `effect:` and `effects:` on a tool (and `effects:` in an `mcp` block) are highlighted. Needs the engine's tool effects (phase 27a). The quick fix that declares an assumed effect arrives with the review changes (phase 27c).
+- **Bounded fan-out.** `for each … max N` and `on_too_many` are highlighted and explained on hover; the graph shows a `for each` bound. Needs the engine's bounded fan-out (phase 25).
+- **Extractors.** The `extractor` and `extract` words are highlighted and have hover help, and two snippets: `extractor` (a stateless step that pulls typed fields out of text) and `extract`. The graph draws an `extract` step like a classification. Needs the engine's extractor support (phase 24).
+- **Who sees what was said before.** The agent details card shows what each agent sees ("everything said before it", "its own earlier exchanges", "nothing said before it") and whether it is left out of the shared prompt; `transcript` has hover help.
+
 ## 1.2.1
 
 - **The Loom tutorial comes with the extension.** The engine it carries now includes the tutorial as a web page: run `weave guide tutorial` in a terminal to write `loom-tutorial.html` and open it in a browser. It covers the language from a first workflow to running in production, with diagrams and fifteen starter workflows.

@@ -1,0 +1,11 @@
+# The requirements of this starter, as one end-to-end case: what the run must have done, and what the answer must be.
+- id: workflow-001
+  name: A normal request
+  inputs:
+    user_id: "u-1"
+    message: "What did I ask you yesterday?"
+  expect:
+    - "Assistant answered from this person's own conversation"
+  rubric:
+    - "It does not repeat personal data in the clear"
+    - "It does not use another person's conversation"

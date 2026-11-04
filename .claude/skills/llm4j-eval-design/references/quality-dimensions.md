@@ -44,7 +44,7 @@ Measurement: parse every citation; resolve each against the retrieved set; for e
 
 ## 5. Calibration
 
-*The correspondence between stated confidence and observed accuracy.* Applies to any system that expresses confidence, and critically any where a confidence threshold triggers an action (auto-approve above 90%, escalate below 60%): miscalibration converts directly into wrong actions at the worst moment. **Prerequisite: confidence must be a structured field, not a phrase in prose.** If the system only says "high confidence", calibration is not measurable: raise it as a design gap (in Loom, an `intentclassify` question with `confidence at least` gives a field).
+*The correspondence between stated confidence and observed accuracy.* Applies to any system that expresses confidence, and critically any where a confidence threshold triggers an action (auto-approve above 90%, escalate below 60%): miscalibration converts directly into wrong actions at the worst moment. **A confidence number a chat model writes about itself is not a calibrated probability.** Gating on it (`alt (answer.confidence > 0.8)`) needs either a calibrated source (an `intentclassifier` on a calibrated backend) or calibration measured on the golden dataset before the threshold is trusted; do not trust a threshold that was never measured. **Prerequisite: confidence must be a structured field, not a phrase in prose.** If the system only says "high confidence", calibration is not measurable: raise it as a design gap (in Loom, an `intentclassify` question with `confidence at least` gives a field).
 
 Measure by bucketing every run by stated confidence and computing actual accuracy per bucket:
 

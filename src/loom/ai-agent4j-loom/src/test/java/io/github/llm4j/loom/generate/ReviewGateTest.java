@@ -53,6 +53,30 @@ class ReviewGateTest {
     }
 
     @Test
+    void adviceThatOnlySuggestsAnExtractorNeverFailsTheGate() throws Exception {
+        GateResult r =
+                run(
+                        Severity.MEDIUM,
+                        new ReviewGate.Item("LP09", Lens.PROMPTS, Severity.MEDIUM, 7, "t", "h"));
+
+        assertThat(r.passed()).isTrue();
+    }
+
+    @Test
+    void aReasoningAgentWithABigSchemaFailsTheGateAndTheRepairIsToldToSplitIt() throws Exception {
+        GateResult r =
+                run(
+                        Severity.MEDIUM,
+                        new ReviewGate.Item("LP10", Lens.PROMPTS, Severity.MEDIUM, 7, "an agent", "do this"));
+
+        assertThat(r.passed()).isFalse();
+        assertThat(r.problems().get(0).text())
+                .contains("Recipe:")
+                .contains("prose")
+                .contains("extractor");
+    }
+
+    @Test
     void theGateLevelMovesTheLine() throws Exception {
         assertThat(run(Severity.HIGH, item(Lens.RELIABILITY, Severity.MEDIUM)).passed()).isTrue();
         assertThat(run(Severity.LOW, item(Lens.RELIABILITY, Severity.LOW)).passed()).isFalse();

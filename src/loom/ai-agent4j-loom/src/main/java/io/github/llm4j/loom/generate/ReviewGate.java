@@ -46,10 +46,19 @@ public final class ReviewGate implements Gate {
             java.util.Map.of(
                     "LA01",
                     "Recipe: give the agent that reads outside text no tools and have it answer only typed fields (delegate ... expecting { field: string }); give the tool to a second agent whose task text holds only those typed fields, never the raw text; put approve: [Tool] on the second agent if the tool changes something.",
+                    "LP10",
+                    "Recipe: leave the output_schema off the agent that reasons and let it answer in prose (end its system prompt with: Answer in plain prose; explain your reasoning, then state your conclusions); declare an extractor with the same fields (extractor NameFields { model: \"...\" instructions: \"Pull these fields out of the analysis.\" fields { ... } }) and add extract NameFields from the_analysis -> the_original_variable right after the delegate, so every later use of the variable is unchanged.",
                     "LP07",
                     "Recipe: rename the workflow parameter or variable to a long name that is not a word of any prompt or delegate text (for example ticket_body), everywhere it is used.");
 
     static final Set<Lens> SOFT_LENSES = Set.of(Lens.VALIDITY, Lens.RELIABILITY, Lens.PROMPTS);
+
+    /**
+     * Advice that never fails the gate: "this agent could be an extractor" (LP09) is a design
+     * suggestion for the person who owns the script, not a defect that stops a generated project,
+     * and the generator's own recipes tell it to give an agent a typed answer.
+     */
+    static final Set<String> ADVICE_ONLY = Set.of("LP09");
 
     private final Reviewer reviewer;
     private final Severity soft;
@@ -74,7 +83,10 @@ public final class ReviewGate implements Gate {
             List<GateResult.Problem> out = new ArrayList<>();
             for (Item i : r.open()) {
                 boolean hard = i.severity() == Severity.HIGH;
-                boolean tidy = SOFT_LENSES.contains(i.lens()) && i.severity().atLeast(soft);
+                boolean tidy =
+                        SOFT_LENSES.contains(i.lens())
+                                && i.severity().atLeast(soft)
+                                && !ADVICE_ONLY.contains(i.rule());
                 if (hard || tidy)
                     out.add(
                             new GateResult.Problem(

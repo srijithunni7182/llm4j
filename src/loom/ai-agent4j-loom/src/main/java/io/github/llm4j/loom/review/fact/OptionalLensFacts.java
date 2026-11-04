@@ -101,6 +101,8 @@ final class OptionalLensFacts implements FactProvider {
                         VERSION_FILE.matcher(r.get().file().getFileName().toString()).matches());
         }
         boolean anyVersioned = versioned.containsValue(true);
+        // "Nobody watching" is read from the script: a schedule block (never guessed from prompts).
+        boolean unattended = !script.getSchedules().isEmpty();
         Map<String, String> firstWithKey = new HashMap<>();
         for (AgentDef a : script.getAgents()) {
             Entity e = out.find("agent:" + a.getName()).orElse(null);
@@ -122,7 +124,18 @@ final class OptionalLensFacts implements FactProvider {
                 noisy |= "none".equals(reach) || "reads".equals(reach);
             }
             out.set(e, "approvesLowReachTool", noisy);
+            out.set(e, "asksMidWorkUnattended", unattended && approvesChangingTool(a, script));
         }
+    }
+
+    private static boolean approvesChangingTool(AgentDef a, LoomScript script) {
+        java.util.Map<String, io.github.llm4j.loom.ast.ToolDef> declared = new HashMap<>();
+        script.getTools().forEach(t -> declared.put(t.getName(), t));
+        java.util.List<String> covered = a.isApproveAll() ? a.getTools() : a.getApprove();
+        for (String t : covered)
+            if (io.github.llm4j.loom.security.Capabilities.resolve(t, declared, Map.of()).level()
+                    == io.github.llm4j.agent.task.TaskEffect.CHANGES) return true;
+        return false;
     }
 
     /** What makes two agents the same agent under another name; null for one with no prompt. */
@@ -203,6 +216,7 @@ final class OptionalLensFacts implements FactProvider {
                         step,
                         "followedByEffect",
                         s instanceof DecideStmt && effectAfter(all, (int) line, out));
+                out.set(step, "approvesLowEffectTool", s instanceof io.github.llm4j.loom.ast.UseStmt u && u.isApprove() && lowEffect(u.getTool(), script));
                 out.set(
                         step,
                         "answerCompared",
@@ -245,10 +259,20 @@ final class OptionalLensFacts implements FactProvider {
                             ? "delegate"
                             : s instanceof DecideStmt
                                     ? "decide"
-                                    : s instanceof HumanPromptStmt ? "human_prompt" : null;
+                                    : s instanceof HumanPromptStmt
+                                            ? "human_prompt"
+                                            : s instanceof io.github.llm4j.loom.ast.UseStmt ? "use" : null;
             if (k != null && k.equals(kind)) return s;
         }
         return null;
+    }
+
+    private static boolean lowEffect(String tool, LoomScript script) {
+        java.util.Map<String, io.github.llm4j.loom.ast.ToolDef> declared = new HashMap<>();
+        script.getTools().forEach(t -> declared.put(t.getName(), t));
+        var c = io.github.llm4j.loom.security.Capabilities.resolve(tool, declared, Map.of());
+        // only a tool the script (or the audit) knows counts: an assumed effect is a guess
+        return c.known() && c.level() != io.github.llm4j.agent.task.TaskEffect.CHANGES;
     }
 
     private static boolean lacksLadder(DecideStmt d, Map<String, DecisionDef> decisions) {

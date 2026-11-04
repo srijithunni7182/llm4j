@@ -152,6 +152,9 @@ final class Runs {
             }
             executor = new HarnessExecutor(script, registry, env.models());
             executor.setHumanInterface(env.human());
+            executor.setEvaluated(
+                    io.github.llm4j.loom.eval.GoldenDatasets.notice(script, scriptFile.toPath())
+                            == null);
             executor.setLenient(spec.lenient());
             executor.setBaseDir(scriptFile.getAbsoluteFile().getParentFile().toPath());
             executor.setEnvLookup(env.env());

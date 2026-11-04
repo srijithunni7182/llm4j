@@ -424,6 +424,32 @@ class EvalRunnerTest {
         assertThat(EvalRunner.account(List.of())).isEqualTo("(no steps ran)");
     }
 
+    @Test
+    void theAccountNamesTheNewerStepsSoAnExpectLineAboutThemCanBeConfirmed() {
+        List<io.github.llm4j.loom.execution.TraceEvent> events = new java.util.ArrayList<>();
+        for (String type :
+                List.of(
+                        io.github.llm4j.loom.execution.TraceEvent.EXTRACT_START,
+                        io.github.llm4j.loom.execution.TraceEvent.POLICY_CHECK,
+                        io.github.llm4j.loom.execution.TraceEvent.SINK_BLOCKED,
+                        io.github.llm4j.loom.execution.TraceEvent.TOOL_REFUSED_BY_POLICY,
+                        io.github.llm4j.loom.execution.TraceEvent.ROUTE_REFUSED,
+                        io.github.llm4j.loom.execution.TraceEvent.FANOUT_EXCEEDED,
+                        io.github.llm4j.loom.execution.TraceEvent.CLASSIFY))
+            events.add(new io.github.llm4j.loom.execution.TraceEvent(type, null, "s", "step text", Map.of(), java.time.Instant.EPOCH));
+
+        String account = EvalRunner.account(events);
+
+        assertThat(account)
+                .contains("extract start")
+                .contains("policy check")
+                .contains("sink blocked")
+                .contains("tool refused by policy")
+                .contains("route refused")
+                .contains("fanout exceeded")
+                .contains("classify");
+    }
+
     // ── a mock run ───────────────────────────────────────────────────────────
 
     private EvalRunner mockRunner() {

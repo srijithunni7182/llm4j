@@ -62,6 +62,9 @@ export interface AgentInfo {
     approveAll?: boolean;
     budget?: Record<string, unknown>;
     maxIterations?: number;
+    /** What the agent sees of what was said before it. */
+    transcript?: 'all' | 'own' | 'none';
+    sharedPromptExcluded?: boolean;
     source?: SourceRef;
     /** The prompt file the agent runs, when it names one. */
     prompt?: { ref: string; version?: string; file?: string };

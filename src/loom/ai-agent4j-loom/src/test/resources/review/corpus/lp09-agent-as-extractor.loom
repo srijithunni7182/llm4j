@@ -1,0 +1,6 @@
+agent Reader { model: "m"  system: "Extract the invoice fields from the text."  output_schema: { vendor: string, total: number } } // <- LP09
+workflow Main(text) {
+  delegate "Extract the invoice from: {text}" to Reader -> invoice
+  note "{invoice.vendor}"
+}
+// ignore: LP02 LP05 LO01

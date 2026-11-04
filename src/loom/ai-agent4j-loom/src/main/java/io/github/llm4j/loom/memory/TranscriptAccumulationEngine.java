@@ -49,7 +49,11 @@ public class TranscriptAccumulationEngine implements MemoryEngine {
     }
 
     /** One exchange, or a note standing for exchanges a strategy removed. */
-    private record Entry(String text) {}
+    private record Entry(String agent, String text) {
+        Entry(String text) {
+            this(null, text);
+        }
+    }
 
     private List<Entry> entries = new ArrayList<>();
     private Function<AgentDef, Limit> limits;
@@ -70,11 +74,21 @@ public class TranscriptAccumulationEngine implements MemoryEngine {
     @Override
     public synchronized String assembleContext(
             AgentDef agentDef, String taskIntent, VariableContext context) {
-        if (entries.isEmpty()) {
+        List<Entry> visible = visibleTo(agentDef);
+        if (visible.isEmpty()) {
             return taskIntent;
         }
 
-        return "Conversation History:\n" + render(entries) + "\n\nCurrent Task:\n" + taskIntent;
+        return "Conversation History:\n" + render(visible) + "\n\nCurrent Task:\n" + taskIntent;
+    }
+
+    /** What the agent is briefed with: all of it, only its own exchanges, or none. */
+    private List<Entry> visibleTo(AgentDef agentDef) {
+        return switch (agentDef.getTranscriptMode()) {
+            case ALL -> entries;
+            case OWN -> entries.stream().filter(e -> agentDef.getName().equals(e.agent())).toList();
+            case NONE -> List.of();
+        };
     }
 
     @Override
@@ -82,6 +96,7 @@ public class TranscriptAccumulationEngine implements MemoryEngine {
             AgentDef agentDef, String taskIntent, AgentResult result, VariableContext context) {
         entries.add(
                 new Entry(
+                        agentDef.getName(),
                         "Agent ["
                                 + agentDef.getName()
                                 + "] Task: "

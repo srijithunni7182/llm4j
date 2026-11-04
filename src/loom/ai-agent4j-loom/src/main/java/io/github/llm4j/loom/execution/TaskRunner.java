@@ -61,7 +61,7 @@ final class TaskRunner {
                                         stepId,
                                         "task",
                                         name,
-                                        String.valueOf(new java.util.TreeMap<>(arguments(stmt))),
+                                        String.valueOf(new java.util.TreeMap<>(arguments(stmt).value())),
                                         ""),
                                 true);
             } catch (StepFailure ignored) {
@@ -72,8 +72,10 @@ final class TaskRunner {
             RunJournal.Entry entry = recorded.get();
             if ("failed".equals(entry.kind())) {
                 fail(stmt, stepId, String.valueOf(entry.value()), null, false, 0, null);
+            } else if ("declined".equals(entry.kind())) {
+                executor.runFailureHandler(stmt.getOnDeclined(), "not approved");
             } else {
-                executor.setVariable(variable, entry.value());
+                executor.bind(variable, entry.value(), resultOrigin(task));
                 markOk(task, variable, entry.value());
                 replayed(name, entry.value());
             }
@@ -81,8 +83,10 @@ final class TaskRunner {
         }
 
         Map<String, Object> args;
+        HarnessExecutor.Tracked<Map<String, Object>> argsOrigin;
         try {
-            args = arguments(stmt);
+            argsOrigin = arguments(stmt);
+            args = argsOrigin.value();
         } catch (StepFailure bad) {
             fail(stmt, stepId, bad.getMessage(), bad, true, 0, null);
             return;
@@ -101,7 +105,7 @@ final class TaskRunner {
                                     false);
             if (known != null) {
                 journal.put(stepId, new RunJournal.Entry("task", known));
-                executor.setVariable(variable, known);
+                executor.bind(variable, known, resultOrigin(task));
                 markOk(task, variable, known);
                 replayed(name, known);
                 return;
@@ -110,21 +114,32 @@ final class TaskRunner {
 
         TaskEffect effect = task.effect();
         boolean changes = effect == TaskEffect.CHANGES;
+        // What a task that changes things is handed leaves the workflow with it (R6.4).
+        if (changes) executor.guardSink("run " + name, args, argsOrigin);
         if (executor.simulatingTasks() && changes) {
             // described, not performed: nobody is asked to approve it, and nothing is recorded as
             // done
             // nothing ran that could have failed, so a simulated step is ok: that is what lets a
             // free mock run reach the end of the workflow
             Map<String, Object> simulated = Map.of("outcome", "simulated");
-            executor.setVariable(variable, simulated);
-            executor.setVariable(OK_PREFIX + variable, true);
+            executor.bind(variable, simulated, Provenance.NOT_MODEL);
+            executor.bindSystem(OK_PREFIX + variable, true);
             Map<String, Object> data = data(name, effect, "simulated", 0);
             data.put("simulated", true);
             executor.trace(TraceEvent.TASK_END, null, name + " → simulated (not run)", data);
             return;
         }
 
-        if (task.requiresApproval(args) && !executor.approvals().approveTask(name, args)) {
+        if ((stmt.isApprove() || task.requiresApproval(args))
+                && !executor.approvals()
+                        .approveStep("Task", name, args, stmt.getApproveHeading())) {
+            if (!stmt.getOnDeclined().isEmpty()) {
+                // A no is a person's decision, not a failure: the step binds nothing and the
+                // script handles it. Recorded, so a resumed run takes the same road.
+                executor.journal().put(stepId, new RunJournal.Entry("declined", name));
+                executor.runFailureHandler(stmt.getOnDeclined(), "not approved");
+                return;
+            }
             fail(
                     stmt,
                     stepId,
@@ -190,7 +205,7 @@ final class TaskRunner {
             }
             if (reuse) {
                 journal.put(stepId, new RunJournal.Entry("task", reused));
-                executor.setVariable(variable, reused);
+                executor.bind(variable, reused, resultOrigin(task));
                 markOk(task, variable, reused);
                 replayed(name, reused);
                 return;
@@ -245,7 +260,7 @@ final class TaskRunner {
                 Map<String, Object> value = result.toMap();
                 if (changes) journal.put(effectKey, new RunJournal.Entry(DONE, value));
                 journal.put(stepId, new RunJournal.Entry("task", value));
-                executor.setVariable(variable, value);
+                executor.bind(variable, value, resultOrigin(task));
                 markOk(task, variable, value);
                 Map<String, Object> end =
                         data(name, effect, result.outcome(), executor.clock().millis() - started);
@@ -336,7 +351,7 @@ final class TaskRunner {
      */
     private void markOk(Task task, String variable, Object value) {
         String outcome = value instanceof Map<?, ?> map ? String.valueOf(map.get("outcome")) : "";
-        executor.setVariable(OK_PREFIX + variable, task.okOutcomes().contains(outcome));
+        executor.bindSystem(OK_PREFIX + variable, task.okOutcomes().contains(outcome));
     }
 
     private void replayed(String name, Object value) {
@@ -361,7 +376,19 @@ final class TaskRunner {
      * The arguments, resolved: a variable keeps its type; an argument that names a variable with no
      * value fails the step (closed, not empty).
      */
-    private Map<String, Object> arguments(RunStmt stmt) {
+    /**
+     * A task that uses no model is trusted code: its result is not model-written. One that does is
+     * a model's answer like any other (docs/specs/26, R7).
+     */
+    private static Provenance.Tag resultOrigin(Task task) {
+        return task.usesModel() ? Provenance.UNCHECKED : Provenance.NOT_MODEL;
+    }
+
+    private HarnessExecutor.Tracked<Map<String, Object>> arguments(RunStmt stmt) {
+        return executor.tracked(() -> argumentValues(stmt));
+    }
+
+    private Map<String, Object> argumentValues(RunStmt stmt) {
         Map<String, Object> out = new LinkedHashMap<>();
         for (RunStmt.Arg a : stmt.getArgs()) {
             switch (a.kind()) {
@@ -390,6 +417,7 @@ final class TaskRunner {
                                         + " was not run",
                                 null);
                     }
+                    executor.touch(a.text());
                     out.put(a.name(), value);
                 }
             }

@@ -42,6 +42,9 @@ public class RunStmt implements Statement {
     private String model;
 
     private final List<Statement> onFailure = new ArrayList<>();
+    private boolean approve;
+    private String approveHeading;
+    private final List<Statement> onDeclined = new ArrayList<>();
     private int line;
 
     public RunStmt(String taskName, String variableName) {
@@ -62,6 +65,7 @@ public class RunStmt implements Statement {
     }
 
     public boolean hasDynamicVariable() {
+        if (variableName != null && variableName.endsWith("]")) return true;
         return variableName.startsWith("{");
     }
 
@@ -99,6 +103,29 @@ public class RunStmt implements Statement {
 
     public List<Statement> getOnFailure() {
         return onFailure;
+    }
+
+    /** True when a person is asked before the task runs ({@code run T(...) approve}). */
+    public boolean isApprove() {
+        return approve;
+    }
+
+    public void setApprove(boolean approve) {
+        this.approve = approve;
+    }
+
+    /** The heading of the question put to the person, or null. */
+    public String getApproveHeading() {
+        return approveHeading;
+    }
+
+    public void setApproveHeading(String approveHeading) {
+        this.approveHeading = approveHeading;
+    }
+
+    /** What runs when the person says no. Allowed only with {@link #isApprove()}. */
+    public List<Statement> getOnDeclined() {
+        return onDeclined;
     }
 
     public int getLine() {

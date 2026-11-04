@@ -1,0 +1,45 @@
+// P16, Loom side: starter 16. The progress is a typed value the script owns; the worker has no transcript and an extractor records the progress.
+// 16-step-by-step-agent: a long job done one small step at a time. What is done and what is next is a typed value the script owns
+// (`progress`), not something an agent has to remember in a long conversation that may be compacted. The worker is fresh every
+// round and sees no transcript; an extractor reads its report and writes the new progress; the loop is bounded.
+
+substitution: braces
+
+budget { tokens: 150000  calls: 40 }
+
+tool Files { use: file  root: "work"  mode: write }
+
+agent Worker {
+    model: "gemini-2.5-flash"
+    system: "You do ONE step of a larger job. You are told the goal, what is already done and the single step to do now. Do that step with your tools, then report in plain prose what you did and anything the next step needs to know."
+    tools: [Files]
+    memory { transcript: none }
+    max_iterations: 8
+}
+
+extractor Progress {
+    model: "gemini-2.5-flash"
+    instructions: "Read the goal, the previous progress and the worker's report. List every step now done, say the one step to do next, and say whether the whole goal is finished."
+    fields {
+        done: list<string>
+        next: string
+        finished: boolean
+    }
+}
+
+workflow Main(goal) {
+    set progress = { done: "nothing yet", next: "plan the first step", finished: "false" }
+
+    loop until (progress.finished == "true") max 6 {
+        delegate "GOAL: {goal}\nDONE SO FAR: {progress.done}\nDO THIS ONE STEP NOW: {progress.next}" to Worker -> report retry 1 timeout 120s on_failure {
+            halt "The worker failed: {_error}"
+        }
+        extract Progress from (goal = goal, previous = progress, report = report) -> progress retry 1 on_failure {
+            halt "Could not record the progress: {_error}"
+        }
+    } on_exhausted {
+        note "Stopped after {_loopRound} steps without finishing. Done so far: {progress.done}"
+    }
+
+    return progress.done
+}

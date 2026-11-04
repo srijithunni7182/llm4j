@@ -1,0 +1,12 @@
+== weave test edge.loom: scripted models, the question and the send ==
+ok    the person is asked once, about the exact text, and a yes sends it  (143 ms)
+ok    a no sends nothing  (143 ms)
+2 passed, 0 failed in 147 ms · nodes covered 3/4 (1 uncovered: see --coverage)
+
+== weave review mid-loop.loom: the question inside the agent's loop ==
+MEDIUM  LA03  Security       mid-loop.loom
+MEDIUM  LH05  Human oversight mid-loop.loom:5
+
+== weave review many-questions.loom: how many questions one run can put to a person ==
+MEDIUM  LA03  Security       many-questions.loom
+MEDIUM  LH03  Human oversight many-questions.loom:6

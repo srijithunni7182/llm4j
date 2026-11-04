@@ -595,6 +595,33 @@ final class Detectors {
                 List.of(Incidents.evidence("budget", kind, null, text)));
     }
 
+    /**
+     * A {@code for each … max N} found a list far over its bound, and the workflow failed before any
+     * item started. A planner that regressed and text trying to steer it look the same, so the
+     * incident points upstream. Counts and names only; never an item.
+     */
+    void onFanoutExceeded(
+            String step, String list, String producer, String count, String max, long now) {
+        String where = StepPaths.normalize(step);
+        String who = producer == null || producer.isBlank() ? list : producer;
+        incidents.raise(
+                "fanout:" + where,
+                Incidents.Kind.FANOUT,
+                "high",
+                producer == null || producer.isBlank() ? null : producer,
+                where,
+                now,
+                "Plan far over its bound: " + who + " produced " + count + " items for " + list + "; the step takes " + max,
+                List.of(
+                        Incidents.evidence(
+                                "fan-out",
+                                count,
+                                max,
+                                "No item was started. A list this far over its bound usually means a problem upstream: what "
+                                        + who
+                                        + " was given, what it was asked, or text in its input trying to steer it.")));
+    }
+
     // ------------------------------------------------------------------------------ the end
 
     /**

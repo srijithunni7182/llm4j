@@ -224,10 +224,11 @@ public final class PreflightRunner {
         else if (cut > 0)
             checks.add(new Check("C3", name, Result.FAIL, "the answer was cut at the output limit (about " + limit + " tokens)", "raise per_call, or shorten what the agent is asked for"));
         else checks.add(new Check("C3", name, Result.PASS, "one answer ended by itself (the output limit is about " + limit + " tokens)", ""));
-        if (canary == null) checks.add(new Check("C4", name, Result.SKIPPED, "the script has no shared_prompt", ""));
+        if (agent.isSharedPromptExcluded()) checks.add(new Check("C4", name, Result.SKIPPED, "the agent is left out of the shared prompt (shared_prompt: none), so there is nothing to carry", ""));
+        else if (canary == null) checks.add(new Check("C4", name, Result.SKIPPED, "the script has no shared_prompt", ""));
         else if (answer.stripLeading().startsWith(canary)) checks.add(new Check("C4", name, Result.PASS, "the shared prompt reached the model: it began its answer as told", ""));
-        else if (answer.contains(canary)) checks.add(new Check("C4", name, Result.WARN, "the canary appeared, but not at the start of the answer", "the model follows the shared prompt loosely: put the rule that matters in the agent's own prompt as well"));
-        else checks.add(new Check("C4", name, Result.FAIL, "the answer does not begin with the canary, so the shared prompt did not take effect (Loom's offline tests prove it is sent; if they pass, the model ignored it)", "move the rule that matters into the agent's own prompt, or use a model that follows system instructions"));
+        else if (answer.contains(canary)) checks.add(new Check("C4", name, Result.WARN, "the canary appeared, but not at the start of the answer", "the model follows the shared prompt loosely. If it holds a rule that matters, put the rule in a policy and check replies against it (check … against); a prompt is a wish, not a guarantee"));
+        else checks.add(new Check("C4", name, Result.FAIL, "the answer does not begin with the canary, so the shared prompt did not take effect (Loom's offline tests prove it is sent; if they pass, the model ignored it)", "the model ignored the shared prompt. If it holds a rule that matters, put the rule in a policy and check replies against it (check … against); a prompt is a wish, not a guarantee. Or use a model that follows system instructions"));
         if (agent.getGrounding() == null) checks.add(new Check("C5", name, Result.SKIPPED, "the agent is not grounded", ""));
         else {
             int sources = result.getCitations().size();

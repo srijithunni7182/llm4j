@@ -145,6 +145,7 @@ public final class ScriptExplainer {
             out.append("  - Agents with tools: ")
                     .append(String.join(", ", withTools))
                     .append(". Run weave audit to see what they can reach.\n");
+        toolEffects(script, out);
         List<String> steerable =
                 script.getAgents().stream()
                         .filter(AgentDef::isSteerable)
@@ -232,6 +233,13 @@ public final class ScriptExplainer {
                                     : ", at most "
                                             + a.getGrounding().getMaxSearches()
                                             + " searches a call"));
+        parts.add(
+                switch (a.getTranscriptMode()) {
+                    case ALL -> "sees everything said before it";
+                    case OWN -> "sees only its own earlier exchanges";
+                    case NONE -> "sees nothing said before it";
+                });
+        if (a.isSharedPromptExcluded()) parts.add("is left out of the shared prompt");
         if (a.isSteerable())
             parts.add(
                     "a person may steer it while it works"
@@ -243,8 +251,37 @@ public final class ScriptExplainer {
 
     /**
      * With a token or cost budget on the run, each agent's answers are sent with a limit; say what
-     * it is and where it comes from, because a limit nobody chose once cut answers short in silence.
+     * it is and where it comes from, because a limit nobody chose once cut answers short in
+     * silence.
      */
+    /**
+     * One line per declared tool: what it does to the world and whether the developer said so or
+     * Loom assumed it, so an assumption can be seen and replaced with {@code effect:}.
+     */
+    private static void toolEffects(LoomScript script, StringBuilder out) {
+        java.util.Map<String, io.github.llm4j.loom.ast.ToolDef> declared =
+                new java.util.LinkedHashMap<>();
+        script.getTools().forEach(t -> declared.put(t.getName(), t));
+        for (io.github.llm4j.loom.ast.ToolDef t : script.getTools()) {
+            io.github.llm4j.loom.security.Capabilities c =
+                    io.github.llm4j.loom.security.Capabilities.resolve(
+                            t.getName(), declared, java.util.Map.of());
+            out.append("  - Tool ")
+                    .append(t.getName())
+                    .append(": ")
+                    .append(c.level().name().toLowerCase(java.util.Locale.ROOT))
+                    .append(" (")
+                    .append(c.effectSource().name().toLowerCase(java.util.Locale.ROOT))
+                    .append(
+                            c.effectSource()
+                                            == io.github.llm4j.loom.security.Capabilities
+                                                    .EffectSource.ASSUMED
+                                    ? "; say what it does with effect: none | reads | changes"
+                                    : "")
+                    .append(").\n");
+        }
+    }
+
     private static void outputLimits(LoomScript script, StringBuilder out) {
         BudgetDef run = script.getBudget();
         boolean runLimitsOutput = run != null && (run.getTokens() != null || run.getCost() != null);

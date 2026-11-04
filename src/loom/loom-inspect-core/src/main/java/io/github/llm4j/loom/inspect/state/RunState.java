@@ -154,6 +154,7 @@ public final class RunState {
     private Map<String, Object> graph;
     private java.util.function.Supplier<List<Map<String, Object>>> ladders;
     private String suspendReason;
+    private boolean evaluated = true;
     private String resumeAt;
     private String sleepWakeAt;
     private long gaps;
@@ -375,6 +376,13 @@ public final class RunState {
             case Semconv.EV_COMPACTION -> compactionSeen(r);
             case Semconv.EV_FAILURE -> failureSeen(r);
             case Semconv.EV_GUARD -> security.onGuard(r.text("loom.data.event"));
+            case Semconv.EV_FANOUT_EXCEEDED -> detectors.onFanoutExceeded(
+                    r.text(Semconv.LOOM_STEP),
+                    r.text("loom.data.list"),
+                    r.text("loom.data.producer"),
+                    r.text("loom.data.count"),
+                    r.text("loom.data.max"),
+                    r.timeNanos());
             case Semconv.EV_BUDGET -> detectors.onBudget(
                     String.valueOf(r.text("loom.data.budget")),
                     r.text("loom.data.kind"),
@@ -442,6 +450,7 @@ public final class RunState {
         if (r.text(Semconv.LOOM_RUN_ID) != null) runId = r.text(Semconv.LOOM_RUN_ID);
         if (r.text(Semconv.LOOM_WORKFLOW) != null) workflow = r.text(Semconv.LOOM_WORKFLOW);
         if (startedNanos == 0) startedNanos = r.timeNanos();
+        if ("false".equals(r.text(Semconv.LOOM_EVALUATED))) evaluated = false;
         endedNanos = 0;
         status = Status.RUNNING;
         suspendReason = null;
@@ -1069,6 +1078,7 @@ public final class RunState {
         v.put("traceId", traceId);
         v.put("runId", runId);
         v.put("workflow", workflow);
+        if (!evaluated) v.put("evaluated", false);
         v.put("status", status.name().toLowerCase(java.util.Locale.ROOT));
         v.put("live", true);
         if (!fed.isEmpty()) v.put("history", historyInfo());

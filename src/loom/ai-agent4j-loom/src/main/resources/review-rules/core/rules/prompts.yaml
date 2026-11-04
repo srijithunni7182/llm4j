@@ -106,7 +106,7 @@
       - { field: promptStatesFormat, is: false }
   title: "Agent {name} decides a branch but its prompt does not say what shape the answer must have"
   why: "A condition compares the agent's answer with a word. If the prompt does not say which words are allowed, \"Yes.\" and \"yes\" and \"I think so\" all appear."
-  fixHint: "Tell the agent to answer with exactly one of the allowed words, or give it an output_schema."
+  fixHint: "If the branch is on a label, ask an intentclassifier. If it is on fields of what an agent worked out, add an extractor after the agent. For a small, flat answer, give the agent an output_schema. Or tell the agent to answer with exactly one of the allowed words."
   since: "1.5.0"
   explain: >
     This rule guesses from the wording of the prompt, so it runs only with heuristics on. It looks
@@ -135,3 +135,87 @@
   examples:
     fires: [ examples/lp05-fires.loom ]
     quiet: [ examples/lp05-quiet.loom ]
+
+- id: LP08
+  lens: prompts
+  severity: low
+  about: step
+  when:
+    all:
+      - { field: passesNoVariable, is: true }
+      - { field: agent.transcript, isNot: "all" }
+  title: "Agent {agent.name} does not see the run's earlier exchanges, and this task passes it nothing from them"
+  why: "The agent has been told to leave the transcript (transcript: none or own), so everything it needs must be in its task. A task with no variable in it carries nothing from the run."
+  fixHint: "Write a variable into the task (a name in curly braces) so it carries what the agent needs, or give the agent transcript: all."
+  since: "6.2.0"
+  explain: >
+    memory with transcript: none gives an agent no transcript and transcript: own only its own
+    earlier exchanges, so its task is its whole briefing. This rule is quiet when the task passes at
+    least one variable, because the author clearly passed what was needed; under substitution:
+    legacy a bare variable name counts too.
+  examples:
+    fires: [ examples/lp08-fires.loom, examples/lp08-fires-own.loom ]
+    quiet: [ examples/lp08-quiet-variable.loom, examples/lp08-quiet-all.loom ]
+
+- id: LP09
+  lens: prompts
+  severity: medium
+  about: agent
+  when:
+    all:
+      - { field: hasSchema, is: true }
+      - { field: choosesOneLabel, is: false }
+      - { field: hasTools, is: false }
+      - { field: grounded, is: false }
+      - { field: hasMemory, is: false }
+      - { field: promptTokens, lte: { setting: prompts.short-prompt-tokens } }
+      - { field: delegatesPassVariables, is: true }
+  title: "Agent {name} pulls fields out of text"
+  why: "An agent is briefed with the whole run so far and the shared prompt, so what it extracts can depend on what ran before it. An extractor does the same job without seeing either."
+  fixHint: "Declare an extractor with the same fields and use extract instead of delegate (weave review --fix-finding LP09 shows the rewrite)."
+  since: "6.2.0"
+  explain: >
+    The rule looks at the structure of the script: an agent with an output_schema, has no tools,
+    no grounding and no memory block, a short prompt (prompts.short-prompt-tokens in
+    review.properties, default 300), and every delegate to it passes at least one variable. It does
+    not read what the prompt means. Only an agent with its own output_schema counts: an agent whose
+    answer shape is given per step with expecting is used in several ways, and is not an extractor
+    by structure. Neither is an agent whose whole schema is one enum field: that picks a label,
+    which is a classifier's job, not an extractor's. If the agent really needs the conversation, give it a tool or a
+    memory block, or accept the finding with a reason.
+  examples:
+    fires: [ examples/lp09-fires.loom ]
+    quiet:
+      - examples/lp09-quiet-tools.loom
+      - examples/lp09-quiet-grounded.loom
+      - examples/lp09-quiet-memory.loom
+      - examples/lp09-quiet-no-schema.loom
+      - examples/lp09-quiet-no-variable.loom
+      - examples/lp09-quiet-long.loom
+      - examples/lp09-quiet-label.loom
+
+- id: LP10
+  lens: prompts
+  severity: medium
+  about: agent
+  when:
+    all:
+      - { field: reasons, is: true }
+      - { field: largeSchema, is: true }
+  title: "Agent {name} reasons ({reasonsBecause}) and must answer in a schema with {largeSchemaBecause}"
+  why: "An agent told to answer in JSON only has no room to think in its answer, so it makes logical leaps or breaks the format. The thinking and the formatting are two jobs."
+  fixHint: "Let the agent answer in prose, and pull the fields out with an extractor; or make the schema small and flat; or accept the finding with a reason."
+  since: "6.2.0"
+  explain: >
+    The runtime asks an agent with an output_schema to reply in JSON only. That is fine for a small,
+    flat verdict from an agent that does not need to think. It is a trap for an agent that reasons
+    (it has tools, searches the web, works over rounds, or has a long prompt) and must fill a large
+    schema (a nested object, a list of objects, or more than prompts.large-schema-fields fields,
+    default 5). Let the agent write its analysis as prose, then use an extractor to pull the fields
+    out of that prose. The rule reads the structure of the script; a prompt whose size cannot be
+    read is not judged on size. Accept the finding with a reason when the answer is itself the
+    artifact (a bundle of source files, a document): an extractor would have to copy all of it
+    again.
+  examples:
+    fires: [ examples/lp10-fires.loom, examples/lp10-fires-rounds.loom ]
+    quiet: [ examples/lp10-quiet-flat.loom, examples/lp10-quiet-no-reason.loom ]

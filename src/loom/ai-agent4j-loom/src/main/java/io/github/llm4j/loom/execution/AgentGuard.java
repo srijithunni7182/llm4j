@@ -38,8 +38,11 @@ final class AgentGuard {
 
     static final Set<String> PII_VALUES = Set.of("mask", "block", "warn");
     static final Set<String> BIAS_VALUES = Set.of("warn", "block");
+    static final Set<String> LEAK_VALUES = Set.of("warn", "block", "off");
 
     private final String agent;
+    private final String leakMode; // warn, block or off
+    private final LeakCheck leak;
     private final Pii pii;
     private final Bias bias;
     private final BiasMonitor monitor;
@@ -62,6 +65,23 @@ final class AgentGuard {
                         : Bias.valueOf(config.getBias().toUpperCase(Locale.ROOT));
         this.monitor = monitor;
         this.executor = executor;
+        // Under a declared policy every agent warns about repeated instructions unless it says
+        // otherwise; without one the guard is off unless the agent asks for it.
+        String written = config.getPromptLeak();
+        this.leakMode =
+                written != null
+                        ? written
+                        : (!executor.script().getPolicies().isEmpty() || !config.getInternalRefs().isEmpty())
+                                ? "warn"
+                                : "off";
+        if (leakMode.equals("off")) {
+            this.leak = null;
+        } else {
+            List<java.util.regex.Pattern> refs = new java.util.ArrayList<>();
+            for (String p : config.getInternalRefs()) refs.add(java.util.regex.Pattern.compile(p));
+            int words = config.getPromptLeakWords() > 0 ? config.getPromptLeakWords() : LeakCheck.DEFAULT_WORDS;
+            this.leak = new LeakCheck(executor.leakSources(agent), refs, words, System::nanoTime);
+        }
     }
 
     /** With {@code pii: mask}, everything the agent sends its model is masked first. */
@@ -121,6 +141,27 @@ final class AgentGuard {
                     }
                     case WARN -> report("pii_detected", "answer", found);
                 }
+            }
+        }
+        if (leak != null) {
+            LeakCheck.Finding found = leak.find(out);
+            if (found != null) {
+                Map<String, Object> data = new LinkedHashMap<>();
+                data.put("agent", agent);
+                data.put("step", executor.currentStep());
+                data.put("kind", found.kind());
+                data.put("detail", found.detail());
+                data.put("blocked", leakMode.equals("block"));
+                executor.audit("prompt_leak", data);
+                executor.trace(
+                        TraceEvent.GUARD,
+                        agent,
+                        "prompt leak (" + found.kind() + ")" + (leakMode.equals("block") ? ", blocked" : ""),
+                        data);
+                if (leakMode.equals("block"))
+                    throw new StepFailure(
+                            "guard: " + agent + "'s answer was blocked: it repeats its instructions or names an internal reference (" + found.kind() + ")",
+                            null);
             }
         }
         if (bias != null) {

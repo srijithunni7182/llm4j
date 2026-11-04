@@ -25,6 +25,12 @@ final class PayloadText {
         default boolean bareNamesReplaced() {
             return true;
         }
+
+        /**
+         * A variable or {@code var.field} path whose value was put into the text. The runtime
+         * uses it to work out where the finished text came from (docs/specs/26, R7).
+         */
+        default void touched(String path) {}
     }
 
     private static final java.util.regex.Pattern PAYLOAD_PATH =
@@ -57,8 +63,10 @@ final class PayloadText {
                 // nothing).
                 Object value =
                         io.github.llm4j.loom.runtime.ConditionEvaluator.resolvePath(name, scope);
+                if (value != null) host.touched(name);
                 out.append(value != null ? String.valueOf(value) : "");
             } else if (vars.containsKey(name)) {
+                host.touched(name);
                 out.append(String.valueOf(vars.get(name)));
             } else {
                 out.append(m.group()); // not a variable: left as written
@@ -89,9 +97,11 @@ final class PayloadText {
         return java.util.regex.Pattern.compile(alternatives)
                 .matcher(text)
                 .replaceAll(
-                        r ->
-                                java.util.regex.Matcher.quoteReplacement(
-                                        String.valueOf(vars.get(r.group()))));
+                        r -> {
+                            host.touched(r.group());
+                            return java.util.regex.Matcher.quoteReplacement(
+                                    String.valueOf(vars.get(r.group())));
+                        });
     }
 
     static String stringify(SchemaDef schema) {

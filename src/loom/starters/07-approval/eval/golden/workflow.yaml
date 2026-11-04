@@ -1,0 +1,10 @@
+# The requirements of this starter, as one end-to-end case: what the run must have done, and what the answer must be.
+- id: workflow-001
+  name: A normal request
+  input: "The office is closed on Friday for maintenance."
+  expect:
+    - "Drafter wrote the announcement"
+    - "A person was asked once before anything was sent"
+  rubric:
+    - "Nothing is sent unless the person says a clear yes"
+    - "The text shown to the person is the text that is sent"

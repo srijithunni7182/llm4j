@@ -85,6 +85,37 @@ final class EvalCommand implements Callable<Integer> {
     boolean check;
 
     @Option(
+            names = "--changed",
+            description =
+                    "Run, for real, only the cases of the agents and nodes whose prompt, model, schema, tools, policies or cases changed since the reference, plus every workflow that reaches one. Needs a cap (--max-tokens, --max-calls or --max-cost). Without a reference everything counts as changed, and it says so.")
+    boolean changed;
+
+    @Option(
+            names = "--since",
+            paramLabel = "<baseline|last|file>",
+            description =
+                    "With --changed: what to compare with. baseline is the fingerprints saved with the last baseline, last is the last complete real run (the default after baseline), or a fingerprints file.")
+    String since;
+
+    @Option(
+            names = "--requirements",
+            description =
+                    "Write the golden dataset as a plain page a reviewer can read and sign off: what each agent and node must do and must never do, the identity of what was read, and what has no requirement yet. Needs no model and no key.")
+    boolean requirements;
+
+    @Option(
+            names = "--format",
+            paramLabel = "<md|html>",
+            description = "With --requirements: markdown (default) or html, a page to share.")
+    String format = "md";
+
+    @Option(
+            names = "--approve",
+            description =
+                    "With --requirements: record that the requirements as they stand were read and accepted. Needs --why; --approver defaults to git user.email. A later change to any case or policy makes the page say so.")
+    boolean approve;
+
+    @Option(
             names = "--init",
             description =
                     "Create eval/golden with one starter scenario per agent and one for the workflow. Never overwrites a file.")
@@ -94,7 +125,7 @@ final class EvalCommand implements Callable<Integer> {
             names = "--judge",
             paramLabel = "<model>",
             description =
-                    "The model that judges rubric and expect lines (default: the agent's own model).")
+                    "The model that judges rubric and expect lines. Default: judge: in dataset.yaml, else judge in eval.properties, else the cheapest other model the project can reach (another provider if there is one). 'same' judges a model with itself, on purpose; the report says so.")
     String judge;
 
     @Option(
@@ -114,10 +145,10 @@ final class EvalCommand implements Callable<Integer> {
                     "After a finished real run, save its results as a new baseline. Needs --approver and --why; a baseline is never replaced.")
     boolean saveBaseline;
 
-    @Option(names = "--approver", paramLabel = "<name>", description = "With --save-baseline: who approves this baseline.")
+    @Option(names = "--approver", paramLabel = "<name>", description = "With --save-baseline or --approve: who approves.")
     String approver;
 
-    @Option(names = "--why", paramLabel = "<text>", description = "With --save-baseline: why this run is the new baseline.")
+    @Option(names = "--why", paramLabel = "<text>", description = "With --save-baseline or --approve: why.")
     String why;
 
     @Option(
@@ -368,9 +399,17 @@ final class EvalCommand implements Callable<Integer> {
         }
         Path dir = DatasetFolder.locate(scriptFile, c.dataset == null ? null : c.dataset.toPath());
         if (c.init) return init(script, dir, env);
+        if (c.requirements) return requirements(c, script, scriptFile, env);
+        if (c.approve || !"md".equals(c.format)) {
+            env.err().println("Error: --approve and --format belong to --requirements.");
+            return 2;
+        }
 
         DatasetFolder.Plan plan = DatasetFolder.plan(script, dir, c.workflow);
         List<String> problems = new ArrayList<>(plan.problems());
+        // the cases of extractors and evaluators have their own format and gate (docs/specs/28, R4)
+        io.github.llm4j.loom.eval.NodeCasesGate.problems(script, scriptFile)
+                .forEach(p -> problems.add(p.message()));
         for (DatasetFolder.Target t : plan.targets()) {
             for (EvalScenario s : t.scenarios()) {
                 String label =
@@ -412,7 +451,7 @@ final class EvalCommand implements Callable<Integer> {
                                     + " --init");
             return 2;
         }
-        if (plan.targets().isEmpty() && problems.isEmpty())
+        if (plan.targets().isEmpty() && problems.isEmpty() && !anyNodeCases(script, dir))
             problems.add(
                     dir
                             + " has no dataset files (a file per agent or workflow, such as "
@@ -512,8 +551,41 @@ final class EvalCommand implements Callable<Integer> {
             if (!chosen.isEmpty())
                 targets.add(new DatasetFolder.Target(t.kind(), t.name(), t.file(), chosen));
         }
+        java.util.Map<String, java.util.List<String>> whatChanged = java.util.Map.of();
+        String changedAgainst = null;
+        if (c.changed) {
+            if (!c.mock && c.maxTokens == null && c.maxCalls == null && c.maxCost == null) {
+                env.err()
+                        .println(
+                                "Error: --changed spends money, so it needs a cap: --max-tokens, --max-calls or --max-cost (or --mock to check the wiring for free).");
+                return 2;
+            }
+            io.github.llm4j.loom.eval.NodeFingerprints.Fingerprints current =
+                    io.github.llm4j.loom.eval.NodeFingerprints.of(script, scriptFile);
+            var reference = referenceFingerprints(c.since, scriptFile);
+            changedAgainst = reference.describe;
+            whatChanged =
+                    io.github.llm4j.loom.eval.NodeFingerprints.changed(
+                            current, reference.fingerprints);
+            java.util.Set<String> workflows =
+                    io.github.llm4j.loom.eval.NodeFingerprints.workflowsReaching(
+                            script, whatChanged.keySet());
+            env.out().println("What changed (compared with " + changedAgainst + "):");
+            if (whatChanged.isEmpty()) env.out().println("  nothing: no case needs to run.");
+            for (var node : whatChanged.entrySet())
+                env.out().println("  " + node.getKey() + ": " + String.join(", ", node.getValue()));
+            if (reference.fingerprints.isEmpty())
+                env.out().println("  (there is no reference, so everything counts as changed)");
+            java.util.Set<String> changedNodes = whatChanged.keySet();
+            targets.removeIf(
+                    t -> t.isAgent() ? !changedNodes.contains(t.name()) : !workflows.contains(t.name()));
+            if (targets.isEmpty() && !changedNodeCases(script, plan.dir(), changedNodes)) {
+                env.out().println("Nothing to run.");
+                return 0;
+            }
+        }
         final int heldOutLeftOutCount = heldOutLeftOut;
-        if (targets.isEmpty()) {
+        if (targets.isEmpty() && !anyNodeCases(script, plan.dir())) {
             env.err()
                     .println(
                             "Error: no scenarios match"
@@ -587,7 +659,8 @@ final class EvalCommand implements Callable<Integer> {
                                     + " judge call"
                                     + (judgedLines * c.repetitions * c.judgeSamples == 1 ? "" : "s")
                                     + ". Use --mock to check the wiring for free.");
-            if (judgedLines > 0) env.out().println(judgeLine(script, targets, c.judge, env));
+            if (judgedLines > 0)
+                env.out().println(judgeLine(script, targets, judged -> judgeChoice(c, script, plan.dir(), env, judged), env));
             if (!c.yes
                     && !env.human()
                             .promptHuman("Run it? (yes/no)")
@@ -635,11 +708,14 @@ final class EvalCommand implements Callable<Integer> {
                     return e;
                 };
         Map<String, RubricJudge> judges = new HashMap<>();
+        Map<String, io.github.llm4j.loom.eval.JudgeChoice> choices = new java.util.LinkedHashMap<>();
         List<io.github.llm4j.loom.eval.JudgeMeter> meters = new ArrayList<>();
         java.util.function.Function<String, RubricJudge> judgeFor =
                 model -> {
                     if (c.mock) return null;
-                    String name = c.judge != null ? c.judge : model;
+                    var choice = judgeChoice(c, script, plan.dir(), env, model);
+                    choices.put(String.valueOf(model), choice);
+                    String name = choice.model();
                     return name == null
                             ? null
                             : judges.computeIfAbsent(
@@ -708,6 +784,23 @@ final class EvalCommand implements Callable<Integer> {
                 }
             }
         }
+        if (c.agent == null && c.workflow == null && c.split == null) {
+            NodeCasesEval.Outcome nodes =
+                    NodeCasesEval.run(
+                            script,
+                            scriptFile,
+                            plan.dir(),
+                            models,
+                            c.mock,
+                            c.changed ? whatChanged.keySet() : null,
+                            spend::exhausted,
+                            spend::addExternal,
+                            stopped);
+            results.addAll(nodes.results());
+            notRun += nodes.notRun();
+            if (stopped == null && nodes.stopped() != null)
+                stopped = "a limit was reached (" + spend.describe() + ")";
+        }
         String runId = bundleRunId();
         Path bundleRoot = bundleRoot(scriptFile);
         Map<String, String> settings = new java.util.LinkedHashMap<>();
@@ -725,6 +818,23 @@ final class EvalCommand implements Callable<Integer> {
             settings.put("version change allowed", c.allowVersionChange);
         if (c.split != null) settings.put("split", c.split);
         if (heldOutLeftOutCount > 0) settings.put("held-out not run", String.valueOf(heldOutLeftOutCount));
+        if (c.changed) {
+            StringBuilder what = new StringBuilder("since " + changedAgainst + ": ");
+            for (var node : whatChanged.entrySet())
+                what.append(node.getKey()).append(" (").append(String.join(", ", node.getValue())).append("); ");
+            settings.put("what changed", what.toString().strip());
+        }
+        if (!choices.isEmpty()) {
+            StringBuilder who = new StringBuilder();
+            StringBuilder caution = new StringBuilder();
+            choices.forEach(
+                    (judged, ch) -> {
+                        who.append(ch.describe(judged)).append("; ");
+                        if (ch.caution() != null) caution.append(ch.caution()).append("; ");
+                    });
+            settings.put("judge choice", who.toString().strip());
+            if (caution.length() > 0) settings.put("judge caution", caution.toString().strip());
+        }
         if (c.protocol != null) settings.put("protocol", c.protocol);
         if (!c.routeDanger.isEmpty()) settings.put("route-danger", String.join(",", c.routeDanger));
         settings.put("bundle", bundleRoot.resolve("runs").resolve(runId).toString());
@@ -760,6 +870,15 @@ final class EvalCommand implements Callable<Integer> {
         } catch (RuntimeException e) {
             env.err().println("Warning: could not write the dashboard bundle: " + e.getMessage());
         }
+        if (stopped == null && notRun == 0 && !c.mock && c.agent == null && c.workflow == null && c.split == null) {
+            try {
+                io.github.llm4j.loom.eval.NodeFingerprints.write(
+                        io.github.llm4j.loom.eval.NodeFingerprints.lastRunFile(scriptFile),
+                        io.github.llm4j.loom.eval.NodeFingerprints.of(script, scriptFile));
+            } catch (java.io.IOException | RuntimeException e) {
+                env.err().println("Warning: could not record the fingerprints for --changed: " + e.getMessage());
+            }
+        }
         if (stopped == null && notRun == 0) {
             try {
                 EvalRecord.write(
@@ -782,6 +901,13 @@ final class EvalCommand implements Callable<Integer> {
                             io.github.llm4j.loom.eval.Baselines.save(
                                     project, identity, run, c.approver, c.why, java.time.Instant.now());
                     env.out().println("Baseline saved: " + file + " (approved by " + c.approver + ").");
+                    try {
+                        io.github.llm4j.loom.eval.NodeFingerprints.write(
+                                baselineFingerprints(scriptFile),
+                                io.github.llm4j.loom.eval.NodeFingerprints.of(script, scriptFile));
+                    } catch (java.io.IOException | RuntimeException e) {
+                        env.err().println("Warning: could not record the fingerprints of this baseline: " + e.getMessage());
+                    }
                 } catch (RuntimeException e) {
                     env.err().println("The baseline was not saved: " + e.getMessage());
                 }
@@ -901,12 +1027,22 @@ final class EvalCommand implements Callable<Integer> {
             made.add(e);
         }
 
+        private long externalTokens;
+        private long externalCalls;
+
+        /** Counts the model calls an extractor or evaluator case made outside any executor. */
+        long addExternal(long tokensUsed, long callsMade) {
+            externalTokens += tokensUsed;
+            externalCalls += callsMade;
+            return externalTokens;
+        }
+
         private long usedTokens() {
-            return made.stream().mapToLong(e -> e.spend().total().tokens()).sum();
+            return externalTokens + made.stream().mapToLong(e -> e.spend().total().tokens()).sum();
         }
 
         private long usedCalls() {
-            return made.stream().mapToLong(e -> e.spend().total().calls()).sum();
+            return externalCalls + made.stream().mapToLong(e -> e.spend().total().calls()).sum();
         }
 
         private BigDecimal usedCost() {
@@ -943,6 +1079,82 @@ final class EvalCommand implements Callable<Integer> {
         }
     }
 
+    private static boolean anyNodeCases(LoomScript script, Path dir) {
+        return changedNodeCases(script, dir, null);
+    }
+
+    /** Whether any extractor or evaluator named in {@code only} (all, when null) has golden cases. */
+    private static boolean changedNodeCases(LoomScript script, Path dir, java.util.Set<String> only) {
+        List<String> nodes = new ArrayList<>();
+        script.getExtractors().forEach(x -> nodes.add(x.getName()));
+        script.getEvaluators().forEach(e -> nodes.add(e.getName()));
+        return nodes.stream()
+                .filter(n -> only == null || only.contains(n))
+                .anyMatch(n -> io.github.llm4j.loom.eval.NodeCasesGate.caseCount(dir, n) > 0);
+    }
+
+    // ── --changed ────────────────────────────────────────────────────────────────────────────
+
+    private record Reference(
+            java.util.Optional<io.github.llm4j.loom.eval.NodeFingerprints.Fingerprints> fingerprints,
+            String describe) {}
+
+    private static Path baselineFingerprints(Path scriptFile) {
+        return io.github.llm4j.loom.eval.NodeFingerprints.lastRunFile(scriptFile)
+                .resolveSibling("baseline-fingerprints.json");
+    }
+
+    /** The default is the current baseline, else the last complete real run. */
+    private static Reference referenceFingerprints(String since, Path scriptFile) {
+        var last = io.github.llm4j.loom.eval.NodeFingerprints.lastRunFile(scriptFile);
+        var baseline = baselineFingerprints(scriptFile);
+        if (since == null || since.equals("baseline")) {
+            var b = io.github.llm4j.loom.eval.NodeFingerprints.read(baseline);
+            if (b.isPresent()) return new Reference(b, "the last baseline");
+            if (since != null) return new Reference(b, "the last baseline (none has fingerprints)");
+        }
+        if (since == null || since.equals("last"))
+            return new Reference(
+                    io.github.llm4j.loom.eval.NodeFingerprints.read(last), "the last real run");
+        Path file = Path.of(since);
+        return new Reference(
+                io.github.llm4j.loom.eval.NodeFingerprints.read(file), "the file " + file);
+    }
+
+    // ── --requirements ───────────────────────────────────────────────────────────────────────
+
+    private static int requirements(
+            EvalCommand c, LoomScript script, Path scriptFile, WeaveEnv env) {
+        try {
+            if (c.approve) {
+                String who = Identity.of(c.approver, scriptFile.toAbsolutePath().getParent());
+                var approval =
+                        io.github.llm4j.loom.eval.RequirementsApprovals.approve(
+                                script, scriptFile, who, c.why, env.clock());
+                env.out()
+                        .println(
+                                "Approved by "
+                                        + approval.approver()
+                                        + " on "
+                                        + approval.date()
+                                        + ". A later change to any case or policy will make the page say so.");
+                return 0;
+            }
+            env.out()
+                    .print(
+                            io.github.llm4j.loom.eval.RequirementsPage.render(
+                                    script,
+                                    scriptFile,
+                                    c.format,
+                                    env.clock(),
+                                    new io.github.llm4j.loom.loop.Masker()::mask));
+            return 0;
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            env.err().println("Error: " + e.getMessage());
+            return 2;
+        }
+    }
+
     // ── --init ───────────────────────────────────────────────────────────────────────────────
 
     private static int init(LoomScript script, Path dir, WeaveEnv env) {
@@ -961,6 +1173,44 @@ final class EvalCommand implements Callable<Integer> {
                           input: "Replace this with a realistic request for %1$s."
                           rubric:
                             - "Replace this with something a good answer must do."
+                        """
+                                .formatted(name, name.toLowerCase()),
+                        made,
+                        kept);
+            }
+            for (var extractor : script.getExtractors()) {
+                String name = extractor.getName();
+                write(
+                        dir.resolve(name.toLowerCase() + ".yaml"),
+                        """
+                        # Cases for the extractor %1$s: exact field checks, no judge. Add at least one case, for example:
+                        # - id: %2$s-001
+                        #   input: "A realistic piece of text to read."
+                        #   expected_fields: { some_field: "the value the text states" }
+                        #   expected_missing: [an_optional_field_the_text_does_not_state]
+                        # A scaffold with no cases does not satisfy `weave check`.
+                        """
+                                .formatted(name, name.toLowerCase()),
+                        made,
+                        kept);
+            }
+            for (var evaluator : script.getEvaluators()) {
+                String name = evaluator.getName();
+                write(
+                        dir.resolve(name.toLowerCase() + ".yaml"),
+                        """
+                        # Cases for the evaluator %1$s. For every rule of every policy it checks write one case that breaks
+                        # the rule and one that is clean (a near miss is the most useful clean case), for example:
+                        # - id: %2$s-001
+                        #   policy: YourPolicy
+                        #   text: "A reply that breaks the rule."
+                        #   expected: { a_rule: violated, another_rule: clean }
+                        # - id: %2$s-002
+                        #   policy: YourPolicy
+                        #   near_miss: true
+                        #   text: "A reply that sounds like it breaks the rule but does not."
+                        #   expected: { a_rule: clean, another_rule: clean }
+                        # A scaffold with no cases does not satisfy `weave check`.
                         """
                                 .formatted(name, name.toLowerCase()),
                         made,
@@ -1025,24 +1275,30 @@ final class EvalCommand implements Callable<Integer> {
      * the same model (and key) marks its own work, or that a second provider's key is needed.
      */
     static String judgeLine(
-            LoomScript script, List<DatasetFolder.Target> targets, String judge, WeaveEnv env) {
-        java.util.Set<String> models = new java.util.TreeSet<>();
+            LoomScript script,
+            List<DatasetFolder.Target> targets,
+            java.util.function.Function<String, io.github.llm4j.loom.eval.JudgeChoice> choose,
+            WeaveEnv env) {
+        java.util.Set<String> judgedModels = new java.util.TreeSet<>();
         for (DatasetFolder.Target t : targets) {
             boolean judged =
                     t.scenarios().stream()
                             .anyMatch(
                                     s -> !s.rubricLines().isEmpty() || !s.expectLines().isEmpty());
             if (!judged) continue;
-            if (judge != null) models.add(judge);
-            else if (t.isAgent())
+            if (t.isAgent())
                 script.getAgents().stream()
                         .filter(a -> a.getName().equals(t.name()))
                         .findFirst()
-                        .ifPresent(a -> models.add(a.getModel()));
-            else script.getAgents().forEach(a -> models.add(a.getModel()));
+                        .ifPresent(a -> judgedModels.add(a.getModel()));
+            else script.getAgents().forEach(a -> judgedModels.add(a.getModel()));
         }
         List<String> parts = new java.util.ArrayList<>();
-        for (String m : models) {
+        boolean self = false;
+        for (String judged : judgedModels) {
+            var choice = choose.apply(judged);
+            self |= choice.selfJudging();
+            String m = choice.model();
             String problem = m == null ? null : env.models().problem(m);
             java.util.regex.Matcher key =
                     problem == null
@@ -1051,7 +1307,7 @@ final class EvalCommand implements Callable<Integer> {
                                     .matcher(problem);
             String keyName = key != null && key.find() ? key.group(1) : keyFor(m);
             parts.add(
-                    m
+                    choice.describe(judged)
                             + (keyName == null
                                     ? ""
                                     : " using "
@@ -1062,9 +1318,26 @@ final class EvalCommand implements Callable<Integer> {
         }
         return "Judge: "
                 + String.join("; ", parts)
-                + (judge == null
-                        ? ". The agent's own model grades its own answers, with the same key, and those calls count toward the cost; --judge <model> names another (safer)."
-                        : ".");
+                + (self
+                        ? ". A model grades its own answers here, so scores may be biased toward its own style (--judge <model> names another)."
+                        : ". Its calls count toward the cost.");
+    }
+
+    /** The judge for answers written by {@code judged}: the order of docs/specs/28, R12. */
+    private static io.github.llm4j.loom.eval.JudgeChoice judgeChoice(
+            EvalCommand c, LoomScript script, Path goldenDir, WeaveEnv env, String judged) {
+        List<String> candidates = new ArrayList<>();
+        script.getAgents().forEach(a -> candidates.add(a.getModel()));
+        script.getExtractors().forEach(x -> candidates.add(x.getModel()));
+        script.getEvaluators().forEach(e -> candidates.add(e.getModel()));
+        Path root = goldenDir.toAbsolutePath().getParent() == null ? null : goldenDir.toAbsolutePath().getParent().getParent();
+        return io.github.llm4j.loom.eval.JudgeChoice.choose(
+                c.judge,
+                io.github.llm4j.loom.eval.JudgeChoice.datasetJudge(goldenDir),
+                root == null ? null : io.github.llm4j.loom.eval.JudgeChoice.projectJudge(root),
+                judged,
+                candidates,
+                m -> env.models().problem(m) == null);
     }
 
     private static String keyFor(String model) {

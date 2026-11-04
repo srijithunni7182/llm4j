@@ -49,6 +49,8 @@ public final class TemplateWriter {
     public static String targetName(String file) {
         int slash = file.lastIndexOf('/');
         String name = file.substring(slash + 1);
+        // a real .github folder in the jar would act on this repository: keep it under one flat name
+        if (name.equals("dot-github-workflow.yml")) return ".github/workflows/weave.yml";
         return name.startsWith("dot-")
                 ? file.substring(0, slash + 1) + "." + name.substring(4)
                 : file;

@@ -1,0 +1,37 @@
+script: ../main.loom
+workflow: Main
+cases:
+  - name: the progress is carried from round to round until the goal is finished
+    input: { goal: "write the report" }
+    models:
+      Worker:
+        - "I wrote the outline into outline.md."
+        - "I wrote the body into body.md."
+        - "I wrote the summary into summary.md."
+      Progress:
+        - { done: ["outline"], next: "write the body", finished: false }
+        - { done: ["outline", "body"], next: "write the summary", finished: false }
+        - { done: ["outline", "body", "summary"], next: "nothing", finished: true }
+    expect:
+      result: { contains: "summary" }
+      calls: { Worker: 3, Progress: 3 }
+      told:
+        Worker:
+          - "write the body"
+          - "write the summary"
+  - name: the loop stops at its bound when the goal is never finished
+    input: { goal: "write the report" }
+    models:
+      Worker: "I did a little more."
+      Progress: { done: ["a little"], next: "more", finished: false }
+    repeat: last
+    expect:
+      calls: { Worker: 6, Progress: 6 }
+  - name: a worker that fails stops the run on purpose
+    input: { goal: "write the report" }
+    models:
+      Worker: "x"
+    fail:
+      Worker: { always: true, category: server_error }
+    expect:
+      final: halted

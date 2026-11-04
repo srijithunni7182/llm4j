@@ -19,6 +19,8 @@ class PromptAndSummaryTest {
                         "Safe defaults you always apply",
                         "budget { tokens",
                         "max N on every loop",
+                        "max N on every for each over a list an agent wrote",
+                        "an extractor with the fields pulls them out of that prose",
                         "approve: [Tool]",
                         "env.NAME",
                         "THE LANGUAGE");

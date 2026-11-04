@@ -50,6 +50,12 @@ public final class FactModel {
                 .bool(
                         "usesPausing",
                         "It can pause for a person or a timer: human_prompt, sleep, approve or decide")
+                .bool("declaresPolicy", "A policy is declared, so model-written text is checked at the exits")
+                .number("modelTextExitCount", "How many returns hand out text a model wrote")
+                .string("modelTextExitList", "Those exits, as short descriptions")
+                .bool(
+                        "reachesPeople",
+                        "Its output can reach people outside: it is scheduled, or an agent holds a tool that changes things")
                 .done();
         m.entity("workflow", "One workflow")
                 .string("name", "The workflow's name")
@@ -81,11 +87,17 @@ public final class FactModel {
                 .ref("agent", "agent", "The agent a step uses, when it uses one")
                 .string("bindsVariable", "The variable its result is bound to")
                 .bool(
+                        "passesNoVariable",
+                        "A delegate or handoff whose task text passes no variable (no {…}, and under legacy substitution no bare variable name)")
+                .bool(
                         "readsFreeText",
                         "A branch or loop condition reads a field of an answer whose agent has no output_schema")
                 .string(
                         "payloadHitsVariable",
                         "A workflow variable whose name appears inside the literal text of the prompt, empty when none")
+                .bool("fansOutModelList", "A for each over a list that an agent or extractor wrote")
+                .number("fanoutBound", "A for each's declared max, 0 when none")
+                .string("fanoutList", "The path of the list a for each walks over")
                 .bool(
                         "payloadMentionsPersonal",
                         "The prompt fills in a value named or declared as personal data")
@@ -107,6 +119,22 @@ public final class FactModel {
                         "decideLacksLadder",
                         "A decide whose decision has neither a ladder nor a trust block")
                 .bool("followedByEffect", "A decide with a delegate to an acting agent after it")
+                .bool(
+                        "actsOnUnvalidatedProse",
+                        "A step that changes something acts on text an agent wrote freely, with nothing checking it on the way")
+                .string("proseVariable", "The variable that holds that text")
+                .string("proseAgent", "The agent that wrote it")
+                .bool(
+                        "decidesItsOwnLoop",
+                        "A loop whose condition reads the answer of an agent that also produces the work the loop iterates on")
+                .string("loopDecider", "The agent that produces the work and also decides the loop is done")
+                .bool(
+                        "checkedByOwnModel",
+                        "A check whose evaluator runs on the same model as the agent that wrote the text it checks")
+                .string("checkedAgent", "The agent that wrote the text a check judges")
+                .bool(
+                        "approvesLowEffectTool",
+                        "A use step with approve whose tool only reads or does nothing")
                 .bool(
                         "answerCompared",
                         "A human_prompt whose answer is compared in a later condition")
@@ -131,7 +159,28 @@ public final class FactModel {
                 .bool("hasTools", "It has at least one tool")
                 .list("approve", "The tools a person must approve")
                 .bool("approveAll", "A person must approve every tool call")
+                .string(
+                        "transcript",
+                        "How much of the run's transcript it receives: all, own or none")
+                .bool("sharedPromptExcluded", "It is left out of the script's shared prompt")
                 .bool("hasSchema", "It has an output_schema")
+                .bool(
+                        "choosesOneLabel",
+                        "Its output_schema is a single enum field: it picks a label")
+                .bool(
+                        "reasons",
+                        "It has to think before it answers: tools, grounding, rounds or a long prompt")
+                .string("reasonsBecause", "Why it reasons, in words, empty when it does not")
+                .bool(
+                        "largeSchema",
+                        "Its output_schema (or the expecting of a delegate to it) is large")
+                .string(
+                        "largeSchemaBecause",
+                        "Why the schema is large, in words, empty when it is not")
+                .bool("grounded", "It has a grounding block (it searches the web)")
+                .bool(
+                        "delegatesPassVariables",
+                        "It is delegated to at least once and every delegate passes at least one variable in its task")
                 .bool("hasContext", "It has a context block")
                 .bool("hasMemory", "It has memory")
                 .bool("feedsDecision", "A decision or ladder in the script names this agent")
@@ -183,6 +232,9 @@ public final class FactModel {
                         "identicalTo",
                         "The name of an earlier agent with the same model, prompt, tools and approvals, empty when none")
                 .bool(
+                        "asksMidWorkUnattended",
+                        "Its approve: covers a tool that changes things, and the workflow runs on a schedule with no one watching")
+                .bool(
                         "approvesLowReachTool",
                         "It asks a person to approve a tool that only reads or does nothing")
                 .enumeration(
@@ -207,6 +259,17 @@ public final class FactModel {
                         List.of("none", "reads", "fetches", "writes", "sends"),
                         "What it can do to the outside world")
                 .bool("reachKnown", "Its reach is declared or built in, not assumed")
+                .enumeration(
+                        "effect",
+                        List.of("none", "reads", "changes"),
+                        "What it does to the world: nothing, only looks something up, or changes it")
+                .enumeration(
+                        "effectSource",
+                        List.of("declared", "assumed"),
+                        "Whether the developer wrote the effect or Loom assumed it from the kind")
+                .string(
+                        "effectReason",
+                        "Why the effect is what it is, pointing at effect: when assumed")
                 .bool(
                         "journaled",
                         "Its effects are journaled, so a resumed run does not repeat them")

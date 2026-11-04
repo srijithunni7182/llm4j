@@ -25,6 +25,12 @@ It is the showcase for the whole llm4j stack: every module does real work in it.
 
 ---
 
+## Which agents answer in prose, and which in a schema
+
+Two agents, **Researcher** and **Strategist**, think first and answer in prose; an `extractor` after each (`ResearcherFields`, `StrategistFields`) pulls the fields out, so the workflow still reads `researchDossier.findings` and `gamePlan.hooks`. That is the "reason, then extract" pattern (`weave review` rule LP10).
+
+**Showrunner, ReelDirector and YouTubeProducer still answer in a large schema on purpose.** The Java host reads their structured answers (the originality check on the YouTube package, the casting sheet), and the quality gate re-delegates to ReelDirector and YouTubeProducer *by name at run time*, which the automatic rewrite (`weave review --fix-finding … --option split`) refuses to guess. Moving them needs a hook for extract steps in the host API. In a new workflow, do not copy this: let the agent write prose and extract.
+
 ## The problem today, and how GetViral answers it
 
 Creators aren't short of AI tools. OpusClip clips long videos, InVideo and Revid turn a prompt into a
@@ -163,7 +169,7 @@ flowchart LR
 
    ![The build tracker while the VideoEditor cuts the Reel](docs/tracker.png) In the
    `.loom` that is a `loop until (qualityReport.verdict == "COMPLETE") max 5` around one review and one
-   line of routing: `for each fix in qualityReport.fixes { delegate … to {fix.owner} -> {fix.output} }`.
+   routing step: `for each fix in qualityReport.fixes`, one `alt (fix.area == "x") { delegate … to XWriter -> xPack }` branch per area, so the script, not the model, names who does each fix.
    The review uses a per-step schema (`expecting { ... }`) because the Showrunner's normal output is a
    casting sheet.
 

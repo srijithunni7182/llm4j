@@ -11,6 +11,12 @@ public final class ScopedContext implements VariableContext {
     private final Map<String, Object> locals;
     private final VariableContext base;
 
+    /**
+     * Where a block-local name's origin is kept inside the locals map, so it travels with the
+     * locals into parallel branches. These entries are never shown as variables.
+     */
+    public static final String ORIGIN_PREFIX = "\u0001origin:";
+
     public ScopedContext(Map<String, Object> locals, VariableContext base) {
         this.locals = locals;
         this.base = base;
@@ -27,9 +33,34 @@ public final class ScopedContext implements VariableContext {
     }
 
     @Override
+    public Object originOf(String name) {
+        String head = name.indexOf('.') > 0 ? name.substring(0, name.indexOf('.')) : name;
+        if (locals.containsKey(head)) return locals.get(ORIGIN_PREFIX + head);
+        return base.originOf(name);
+    }
+
+    /** Records, in a locals map, where a block-local name (a for each item) came from. */
+    public static void putLocalOrigin(Map<String, Object> locals, String name, Object origin) {
+        locals.put(ORIGIN_PREFIX + name, origin);
+    }
+
+    @Override
+    public void setOrigin(String name, Object origin) {
+        base.setOrigin(name, origin);
+    }
+
+    @Override
+    public void clearOrigin(String name) {
+        base.clearOrigin(name);
+    }
+
+    @Override
     public Map<String, Object> getAll() {
         Map<String, Object> all = base.getAll();
-        all.putAll(locals);
+        locals.forEach(
+                (k, v) -> {
+                    if (!k.startsWith(ORIGIN_PREFIX)) all.put(k, v);
+                });
         return all;
     }
 

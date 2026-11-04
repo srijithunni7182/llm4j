@@ -46,9 +46,19 @@ public class ScriptValidator {
         Function<String, String> env = System::getenv;
         boolean lenient;
         boolean humanInterface;
+        boolean staticSinkChecks = true;
         java.nio.file.Path baseDir = java.nio.file.Path.of("").toAbsolutePath();
         io.github.llm4j.loom.prompt.PromptCatalog prompts;
         final List<Consumer<Checker>> extraChecks = new ArrayList<>();
+
+        /**
+         * Whether {@code weave check} follows model-written values to the exits (default true). It
+         * exists so the runtime guard can be tested on a script the static check would refuse.
+         */
+        public Context staticSinkChecks(boolean on) {
+            this.staticSinkChecks = on;
+            return this;
+        }
 
         public Context registeredTools(Set<String> names) {
             this.registeredTools = Set.copyOf(names);
@@ -517,6 +527,11 @@ public class ScriptValidator {
         RewindChecks.run(c);
         DecisionChecks.run(c);
         ClassifierChecks.run(c);
+        ExtractorChecks.run(c);
+        PolicyChecks.run(c);
+        UseChecks.run(c);
+        RoutingChecks.run(c);
+        StaticSinkChecks.run(c);
         io.github.llm4j.loom.ladder.LadderChecks.run(c);
     }
 
@@ -539,6 +554,8 @@ public class ScriptValidator {
                 walk(r.getOnFailure(), c);
             } else if (st instanceof io.github.llm4j.loom.ast.IntentClassifyStmt ic) {
                 walk(ic.getOnFailure(), c);
+            } else if (st instanceof io.github.llm4j.loom.ast.ExtractStmt ex) {
+                walk(ex.getOnFailure(), c);
             } else if (st instanceof LoopStmt l) {
                 walk(l.getBody(), c);
                 walk(l.getOnExhausted(), c);

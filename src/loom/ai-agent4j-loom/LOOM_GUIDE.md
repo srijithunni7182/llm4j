@@ -150,7 +150,13 @@ The VS Code extension (`src/loom/vscode-loom`) puts the same engine in the edito
 
 ### 4. Evaluating a Workflow (`eval`)
 
-`weave eval` runs a script's **golden dataset** against it and says what passed, what failed and what nothing judged. It needs no Java and no test project: the dataset is YAML files in a folder, and evaluation is optional. A script with no dataset runs, checks and audits exactly as before.
+**The golden dataset is the requirements**: what the workflow must do and must never do, as examples. `weave eval` runs it against the script and says what passed, what failed and what nothing judged. It needs no Java and no test project: the dataset is YAML files in a folder. Evaluation stays skippable, but skipping is loud: a script with no golden cases still runs, checks and audits as before, and `weave run` and `weave deploy` print `No evaluation: nothing has measured whether these agents are right`, the live run page shows a dismissible banner, `weave next` lists the dataset as the next step, and `weave review` reports **LT06** (one finding per script naming every agent, extractor and evaluator without a case; medium when the script can write, send or ask a person, else low). The Testability lens is on by default; `lenses = -testability` in `review.properties` turns it off. When the README records `Evaluation: skipped`, the notice says it was skipped on purpose instead.
+
+**Who judges.** The judge of the plain-sentence checks is, in order: `--judge <model>`; `judge:` in `dataset.yaml`; `judge = <model>` in the project's `eval.properties`; otherwise the cheapest other model the project can reach (one it names and has a key for), preferring another provider. The choice and why are in the report's *Read this first*. `--judge same` judges a model with itself on purpose, and the *Cautions* section says scores may be biased toward its own style. If only one model can be reached it judges itself with the same caution; a run never refuses for want of a second key. The ranking by price is a rule of thumb from the model name (flash, haiku, mini and the like are cheap), so name the judge when it matters. `weave review` rule **LR12** (medium) reports a loop that ends when the agent that wrote the work says it is done, and **LR14** (low) a `check` whose evaluator runs on the same model as the agent that wrote the text.
+
+**Requirements a person can sign off.** `weave eval <script> --requirements` (no model, no key) renders the dataset as a plain page, Markdown by default and `--format html` for a page to share: per workflow, agent and node what it must do and must never do, per policy rule its text with the examples that break it and the near misses, the identity read (the dataset's `version:` and hash, each policy's version and hash) and what has no requirement yet. Personal data in a case is masked. `--requirements --approve --approver <name> --why "<text>"` records the exact identity in `eval/requirements-approvals.yaml`; a later change to any case or policy makes the page say "changed since approved by <name> on <date>" until it is approved again. It is a review aid, not a security control.
+
+**Continuous, and cheap.** Run the free things on every change (`weave check`, `weave test`, `weave eval --mock`), `weave eval --changed --max-tokens N` before a merge, and a full `weave eval` on a schedule. Every complete real run records a fingerprint per agent and node (the resolved prompt including the shared prompt, model, temperature, schema or fields, tools and their declared effect, an evaluator's policies by version and hash, and the node's own cases); `--changed [--since baseline|last|<file>]` runs the cases of the nodes that differ plus every workflow that reaches one, and prints *what changed* first. Without a reference everything counts as changed and it says so; an unreadable prompt counts as changed. It needs a cap. An evaluator's cases are run too, and its **false-alarm rate** (the share of its clean and near-miss answers flagged violated or unsure, with a 95% interval) fails the run above `false_alarm_limit` (10% unless the evaluator says otherwise: `evaluator Compliance { model: "…" false_alarm_limit: 5% }`). The report's *By agent and node* section has a row for each. `weave init` writes a GitHub Actions file with the three costs, the full run commented out.
 
 ```
 newsletter/
@@ -197,7 +203,7 @@ weave eval newsletter/main.loom --prompt researcher@v1      # a fair A/B: the sa
 - **A real run needs a limit, and asks first.** It says how many scenarios and judge calls it expects and waits for a yes (`--yes` skips that). With no `--max-tokens`, `--max-calls` or `--max-cost` (the last needs `--prices`) it is capped at 500,000 tokens and says so. When the limit is reached the rest is reported as *not run*.
 - **Rubric and expect lines are judged by the agent's own model** unless `--judge <model>` names another (a different model from the one being judged is safer). A line scores as met at 0.7 on the judge's scale.
 - **A workflow's output** is what it `return`s; if it returns nothing, the answer of the last agent step that ended; if neither, its last `note`. A workflow with none of these is an `error` case (`the workflow produced no output`), and **no judge is asked about nothing**: a judge handed an empty text only invents a verdict. `expect` lines are judged against an account of the run, the steps in order.
-- **The report always has the same nine sections**, in the terminal, in `--report` and in `--json` (`sections`): *Read this first* (the run, the judge and whether it was validated, the cost, a fingerprint), *Overall*, **By agent**, *By dimension*, *By slice*, *Cases*, *Cost*, *Cautions* and *How to reproduce*. A section with nothing to show stays and says why. **By agent** is there for every run, with no tag and no setting: a row for each agent that took part, taken from the run itself, with its pass rate (and 95% interval) on the cases aimed at it, its calls, tokens and cost, how many of its answers were cut at the output limit and how many steps used a fallback, and its worst outputs with the judge's reason. An agent that only ran inside a workflow says its quality is not measured on its own. *Cases* shows every case's input, the output that was judged and each line's verdict with its reason. The output of a case that fails an `expected_output_not_contains` check is **withheld** (it would repeat what the case guards against).
+- **The report always has the same nine sections**, in the terminal, in `--report` and in `--json` (`sections`): *Read this first* (the run, the judge and whether it was validated, the cost, a fingerprint), *Overall*, **By agent and node**, *By dimension*, *By slice*, *Cases*, *Cost*, *Cautions* and *How to reproduce*. A section with nothing to show stays and says why. **By agent and node** is there for every run, with no tag and no setting: a row for each agent that took part, and for each extractor and evaluator that has golden cases, taken from the run itself, with its pass rate (and 95% interval) on the cases aimed at it, its calls, tokens and cost, how many of its answers were cut at the output limit and how many steps used a fallback, and its worst outputs with the judge's reason. An agent that only ran inside a workflow says its quality is not measured on its own. *Cases* shows every case's input, the output that was judged and each line's verdict with its reason. The output of a case that fails an `expected_output_not_contains` check is **withheld** (it would repeat what the case guards against).
 - **Rubric lines can name their dimension.** A line in `rubric:` is a plain string, or `{ text: "Uses plain English", dimension: tone }`. A line with its own dimension counts under that dimension only; a plain line counts under every dimension of its case, and the *Cautions* section says how many lines are still counted that way, because one verdict is then counted more than once.
 - **Repetitions and what they show.** `--repetitions N` (1 to 10) runs every case N times. The report then gives pass@1 (the first run passed), pass^N (every run passed) and consistency (every run gave the same result) side by side, names a case that passes about half the time as *unstable* (usually under-specified: send it to the dataset's owner), and always states its resolution: with C cases a pass rate is known to within about ±P points, so a smaller change between two runs is below what the run can tell. Every repetition is a paid run, and the confirmation question counts them.
 - **Judge samples.** `--judge-samples N` (1 to 9) judges each rubric line N times and uses the median. Samples that differ by 0.4 or more (two points on a five-point scale) leave the line *unjudged* with the samples shown, instead of deciding it on a coin toss.
@@ -388,10 +394,16 @@ models aren't available yet: ai-agent4j has no provider for them.
 tool Search   { use: serpapi  api_key: env.SERPAPI_KEY }
 tool Web      { use: duckduckgo }
 tool Petstore { use: openapi  spec: "specs/petstore.json"  auth_header: "X-API-Key"  auth_value: env.PETSTORE_KEY }
-tool Invoices { use: class  class: "com.acme.tools.InvoiceTool"  reach: reads }     // any no-arg Tool on the classpath
+tool Invoices { use: class  class: "com.acme.tools.InvoiceTool"  effect: reads }     // any no-arg Tool on the classpath
 ```
 
-For your own (`class`) tools, `reach:` says what the tool does to the outside world for `weave audit`, which never loads your code: `none`, `reads`, `fetches`, `writes` or `sends`. Without it the audit assumes the worst. A tool mapped in a `.loot` file takes the same word as a line `Name.reach = reads`, read by `weave audit --loot tools.loot`.
+**Every tool has an effect**, in the three words a task uses: `effect: none` (touches nothing outside the run), `effect: reads` (looks something up and changes nothing) or `effect: changes` (writes, sends, posts, pays or runs a program). You decide, and your word is final for the runtime, `weave check`, `weave audit` and `weave review`. Where the data comes from and whether it leaves the system stay the audit's separate trifecta legs.
+
+A tool that holds several operations declares each one: `effects: { listOrders: reads, createRefund: changes }` on an `openapi` tool (by `operationId`) and on an `mcp` server (by tool name). An operation not listed falls back to the tool's own effect.
+
+When you declare nothing, Loom assumes an effect from the kind of tool and says so (`weave explain`, `weave review --format json`: `effect`, `effectSource: declared | assumed`, `effectReason`): calculator, datetime and the other harmless built-ins `none`; search, `sql`, `skill_registry`, `knowledge_graph` with `read_only: true`, and a `file` tool in `read` mode `reads`; `webhook`, `email`, `shell`, any other `file` mode and any other `knowledge_graph` `changes`; an `http` tool `reads` when it allows only `GET` and `changes` otherwise; an `openapi` operation, a `class` tool, a tool the host registered and an unknown kind `changes`. For an MCP tool the server's own annotations are used when they have been read (`readOnlyHint: true` reads; `destructiveHint` or no `readOnlyHint` changes); otherwise it changes.
+
+`reach:` on a `class` tool (`none`, `reads`, `fetches`, `writes`, `sends`) is the older form and keeps working: `none` and `reads` give that effect, `fetches` gives `reads` plus the untrusted leg, `writes` and `sends` give `changes` (and `sends` the outward leg). Giving `effect:` and `reach:` on one tool is an error; keep `effect:`. A tool mapped in a `.loot` file takes `Name.reach = reads`, read by `weave audit --loot tools.loot`.
 
 | `use:` | Options |
 |---|---|
@@ -1314,10 +1326,10 @@ workflow Main(topic) {
 
 ### A Prompt Every Agent Starts With
 
-Rules, a glossary or the brief that every agent of the workflow needs belong in one place, not pasted into each agent. `shared_prompt` puts that text in front of every agent's own prompt:
+Tone, house style and facts that every agent of the workflow needs belong in one place, not pasted into each agent. `shared_prompt` puts that text in front of every agent's own prompt. A rule about what must never be said does not belong here: a prompt is a wish, not a guarantee. Put that rule in a policy and check replies against it (see [Policies: rules checked at the edge](#policies-rules-checked-at-the-edge)).
 
 ```loom
-shared_prompt: "All of us work for Acme. Never promise a refund. Answer in plain English."
+shared_prompt: "We write for Acme's customers: plain English, short sentences, no jargon."
 // or a prompt file, as an agent's prompt: "house-rules" would be:
 // shared_prompt: prompt "house-rules"
 
@@ -1334,7 +1346,7 @@ workflow Brief(topic) {
 - That sameness is deliberate: a model provider that charges less for the start of a prompt it has just seen can reuse the shared part across the agents. Loom only lays the prompt out that way; it does not ask any provider for caching. The saving is real only when the shared text is long (a thousand tokens or more), the agents use the same model, and nothing in it changes between calls, so keep dates and run ids out of it.
 - `shared_prompt: prompt "id"` takes a prompt file or registry prompt like an agent's `prompt:` (the latest version, or `id@v2`), and `weave check` reports a missing file. A shared prompt file counts as used.
 - Editing the shared text is a different agent as far as earned autonomy is concerned, for every agent that has a decision. `weave explain` says that every agent is first told it.
-- One `shared_prompt` per script. There is no way to leave a single agent out.
+- One `shared_prompt` per script. An agent can leave it out with `shared_prompt: none` inside the agent (it takes no other value: an agent's own words go in `system:`); `weave explain` says so and preflight check C4 skips that agent. Use the shared prompt for tone and facts every agent shares, not for rules that must hold: a rule that must hold belongs in code that checks.
 - **Before 6.2.0 no `weave` command applied it** (a fault in loading the script; 6.2.0 and earlier). If you upgrade from an older version, a workflow that relied on its shared prompt starts behaving as written. `supervise` and `intervention` blocks had the same fault. An imported file's `shared_prompt` is not imposed on the file that imports it.
 
 ### Personas, Skills and Knowledge Graphs
@@ -1485,6 +1497,42 @@ To move an existing script over:
 - `weave check --substitution braces script.loom` lists every text that would change, with the variable and the position, and changes nothing.
 - `weave check --fix-substitution script.loom` shows the rewrite of each bare word that was meant as a variable (to `{name}`) as a diff and writes the file only after you answer yes (`--yes` answers for you in a script). A word that may be a variable or may be plain text is listed and left alone.
 
+### Where to ask a person
+
+| Need | Shape |
+|---|---|
+| A plain yes or no before acting | `use Tool(...) approve`, `run Task(...) approve` |
+| The person shapes the answer | `human_prompt`, then `alt`, then act |
+| Trust earned over time | `decide` with a ladder (optional) |
+
+And `approve: [Tool]` on an agent, for an assistant a person works with as it goes. In a workflow nobody is watching (it has a `schedule`), an agent that stops part-way to ask holds its whole conversation until someone answers, possibly hours later, and the person sees one call without the job it belongs to: `weave review` rule LH05 says so, and the fix is to let the agent propose and approve once at the edge. Rule LH06 notes an `approve` on a `use` step whose tool only reads.
+
+### Never pipe an agent straight into an action
+
+If one agent invents a fact (an amount, an order id) and the next acts on it, the mistake becomes an action. Check the hand-off with the cheapest thing that works, cheapest first: **shape** (an `extractor`, or an `output_schema`, so the fields are typed), **logic** (an `alt` on the fields, or a task that reads them), **judgement** (`check` against a policy whose rules say what must be true), or **a person** (`approve` on the acting step). `weave review` rule LR11 fires when text an agent wrote freely reaches a step that changes something with none of these between.
+
+### Calling a tool yourself (`use`), and asking first (`approve`)
+
+When a model is not needed to call a tool (the arguments are already in variables), call it from the script:
+
+```loom
+substitution: braces
+
+tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
+
+workflow Announce(draft) {
+    use Notify(text = draft) approve "Post this to the team channel?" -> receipt
+        on_declined { return "Not sent. The draft is kept for editing:\n{draft}" }
+        on_failure { halt "The announcement may not have been sent: {_error}." }
+    return "Sent."
+}
+```
+
+- `use Tool(name = value, …) -> var` runs a declared tool, a built-in, an OpenAPI or MCP tool, or a tool your host registers, with named arguments resolved like a `run`'s (a variable keeps its type; a quoted text has its `{…}` filled). It is the same tool object an agent would be given, so the same reach checks, secrets and effect protocol apply, and a resumed run does not call it twice. `-> var` is optional and binds the result (the parsed object for a tool that returns JSON). `retry`, `backoff`, `timeout` and `on_failure` work as on `run`; `weave check` refuses `retry` on a tool that changes things and is not marked safe to repeat. An unknown or missing argument fails the step and names the parameters the tool takes. `use` is a statement only where a tool name and `(` follow, so `use partial` and `use:` are unchanged.
+- **`approve`** (also on `run`) asks a person once before the step runs, through the same channel as an agent's `approve:`, and shows the exact arguments (personal data masked). `approve "Post this?"` sets the question's heading. A yes runs the step. A no is a decision, not a failure: `on_declined { … }` runs, the step binds nothing, and the run goes on after the block; without `on_declined` a no fails the step and `on_failure` runs. Anything but a clear yes is a no. The answer is journaled: a resumed run never asks again, and never runs a step whose answer was no. On `run`, `approve` works for any task and asks once even if the task also asks in Java.
+- Prefer this to `approve:` on an agent when the agent only decides *what* to send: let it propose, approve once at the edge, and send with code. Keep `approve:` for an assistant that asks "may I run this?" as it works.
+- Under a declared policy, a `use` of a tool whose effect is `changes` is an exit: its text arguments must have been checked.
+
 ### Tasks: deterministic steps (`run`)
 
 Some parts of a workflow are too important to leave to a model: checking a refund against policy, calling a payments API,
@@ -1503,14 +1551,14 @@ a unit of plain Java that a workflow runs as a first-class step, with no model b
 The usual shape is **the model reads, the code decides and acts**:
 
 ```loom
-agent Intake {
+extractor Intake {
     model: "gemini/gemini-2.5-flash"
-    system: "You are Intake. Extract the order id and the refund amount from the customer's message."
-    output_schema: { order_id: string, amount: number }
+    instructions: "Extract the order id and the refund amount from the customer's message."
+    fields { order_id: string, amount: number }
 }
 
 workflow Refund(msg) {
-    delegate "Extract the order id and amount from: {msg}" to Intake -> request
+    extract Intake from msg -> request
 
     run RefundPolicy(order = request.order_id, amount = request.amount) -> verdict
 
@@ -1709,11 +1757,103 @@ workflow Triage(message) {
 - **Cost.** Every call counts against the run's `budget`; a call that would break it stops the run, as for an agent. The trace shows a `classify` step with the backend, model, tokens, time, the labels and the confidence, never the state. A resumed run reuses the recorded answer instead of asking again. On the live run page (`--observe`, Fabric) a classification is a model call in the **Models** table under the backend's model (for example `jev-1.13.0`), with its tokens, time and retries, and never the text it was given.
 - **Checks.** `weave check` rejects an unknown classifier, a classifier with no question, a question or label written twice, a question name that clashes with a field of the answer, `unsure` as a label (it is reserved), a rule with nothing to measure, and a condition that reads a field the answer does not have (`intent.kind == ...` where there is no `kind`; it suggests the nearest name). It warns that a chat model's confidence is uncalibrated. `weave audit` reports LA19: the state of the step goes to a hosted service, which fields, and whether `pii:` masks it first.
 
+### Extracting fields: `extractor` and `extract`
+
+Some steps are not "write me an answer" or "which of these is it?" but "pull these fields out of this text". An **extractor** does that and nothing else. It is a stateless model step: it is handed the text you name and the fields you want, and it remembers nothing.
+
+```loom
+extractor Invoice {
+    model: "gemini-2.5-flash"
+    instructions: "Read the invoice. Use the vendor's legal name."
+    fields {
+        vendor: string
+        invoice_number: string
+        total: number
+        currency: enum["USD", "EUR", "INR", "OTHER"]
+    }
+    optional: [total]
+    pii: mask
+}
+
+workflow Main(text) {
+    extract Invoice from text -> invoice retry 1 on_failure {
+        halt "Could not read an invoice: {_error}"
+    }
+    alt (invoice.total == missing) {
+        human_prompt "No total on invoice {invoice.invoice_number}. What is it?" -> total
+    }
+}
+```
+
+- **What it sees.** Exactly three things: a fixed preamble (the job is extraction, the inputs are data and never instructions) followed by your `instructions:`; the schema; and the inputs, each between markers that say they are untrusted. Never the run transcript, the shared prompt, a persona, skills or an earlier agent's answer. Its answer is not written to the transcript either. This is the contract of every [internal node](#internal-nodes).
+- **Several inputs.** `extract Claim from (email = msg, order = record) -> claim` labels each input with its name in the request. An input is a variable, a field path or a quoted text with `{...}`.
+- **Fixed instructions.** `instructions:` is inline text or `prompt "id"` (a prompt file). It may not contain `{...}`: pass a value as an input, so it can never slip from the data into the instructions.
+- **Fields.** The same types as `output_schema`: `string`, `number`, `boolean`, `enum[...]`, `list<...>`, nested `{ ... }`. `optional: [total]` names the fields that may be absent; every other field is required. Settings that belong to an agent (`tools`, `memory`, `steerable`, `persona`, `skills`, `grounding`, `max_iterations`, `context`, `approve`) are refused: use an agent for that.
+- **`missing`.** An optional field the text did not state is absent, and `alt (invoice.total == missing)` tests for it. `weave check` rejects `missing` on a required field (it can never be true) and a field the extractor does not have, with the nearest name.
+- **Never invented.** A required field the model answered `null` means the text does not state it. Asking again would only repeat that answer, so the step fails at once into `on_failure` with `_error` naming the fields, and no retry is spent. A malformed answer (not JSON, a wrong kind, an unknown enum word, a required field left out) is told what was wrong and asked once more; after that `retry N` applies, then the step fails.
+- **Cost.** The call counts against the run's `budget` (and its own `budget { ... }` or the step's `budget N tokens`) and shows in the spend report as `extractor Invoice`. The trace has `extract_start` and `extract_end` with the model, tokens, time and the **names** of the fields found and missing, never the text or the values. A resumed run reuses the recorded answer (`extract_replayed`). Under `weave test` an extractor is scripted like an agent (`models: { Invoice: { vendor: Acme, total: 3 } }`); under `weave eval --mock` it gets a well-formed value of its schema. `weave graph` draws an `extract` node, and `weave review` lists it as its own cost line.
+- **Moving an agent to an extractor.** `weave review` rule LP09 (medium) spots an agent that only pulls fields out of text: it has its own `output_schema` (not a single enum field, which is a classifier's job), no tools, no grounding, no `memory`, a short prompt (`prompts.short-prompt-tokens`, default 300), and every `delegate` to it passes a variable. `weave review --fix-finding <id> --option to-extractor --dry-run` shows the rewrite (the agent becomes an `extractor`, each `delegate` an `extract` naming its variables as inputs) and `--yes` applies it. It is offered only when nothing is lost: an agent with tools, memory, a budget and the like, a system prompt that writes `{...}`, or a task with words around the variable that carry meaning is refused, and the finding says why.
+- **Native JSON mode.** Not used yet: the reply is read from the text, with one correction. Providers that offer a JSON mode will be used when the core supports it.
+
+#### Internal nodes
+
+**Golden cases are required.** `weave check` fails (and `weave eval --check` says the same) when a script uses an `extractor` with no case in `eval/golden/<name>.yaml` that names fields (`expected_fields: { total: 240 }` and/or `expected_missing: [total]`, exact checks with no judge), or an `evaluator` that has no case breaking, and no clean case for, every rule of every policy it checks (`{ id, policy, text, expected: { <rule>: violated | clean }, near_miss: true }`; a near miss counts as clean). `weave check` validates the cases' structure (unique ids, fields and rules that exist, well-formed expectations), not whether they are good ones. No flag skips it. A host that loads a script with `LoomLoader` is never refused: loading does not read `eval/golden`, and logs once at WARNING that the gate is a build-time check, so run `weave check` over the project in your build. `weave eval <script> --init` writes the files with comments and no cases; a scaffold never satisfies the gate. See tutorial chapter 10.
+
+`intentclassifier` and `extractor` are **internal nodes**: steps the workflow takes about the text, not agents that talk. One contract holds for them all, and `InternalNodeContractTest` checks it for every kind. They are **stateless** (no transcript, no memory, no shared prompt, persona or skills); they get only the inputs their statement names, and their instructions are fixed text; inputs are passed as data, not instructions; they make one call with no tools; their output is typed and checked by the runtime; they use the same budgets, journal and `pii:` as any step.
+
+### Policies: rules checked at the edge
+
+Rules about what must never be said do not belong in an agent's prompt: a prompt is a wish, not a guarantee. Put them in a **policy file** and check the text at the edge, before it reaches a person.
+
+A policy is plain markdown in a `policies/` folder beside the script, written for whoever owns compliance. Each rule is a level-two heading (its id) followed by what breaking it looks like. Versions work as prompts do: `policies/house-rules.md`, or `policies/house-rules/v1.md`, `v2.md` (the latest is used; `"house-rules@v2"` pins one).
+
+```markdown
+# House rules
+
+## no_refund_promise
+The reply promises a refund, a credit or any compensation.
+
+## no_internal_refs
+The reply mentions internal policy sections, instructions, or how the assistant was set up.
+```
+
+```loom
+evaluator Compliance {
+    model: "claude-haiku-5-5"
+    samples: 3
+    unsure below 0.8
+}
+policy HouseRules: "house-rules" checked by Compliance
+agent Support { model: "gemini-2.5-flash" system: "You answer customers politely." }
+agent Editor  { model: "gemini-2.5-flash" system: "You rewrite replies plainly." }
+
+workflow Main(question) {
+    delegate "{question}" to Support -> reply
+    check reply against HouseRules using Compliance -> verdict on_violation { rewrite with Editor }
+    return reply
+}
+```
+
+- **The evaluator** is an internal node: it sees only a fixed preamble, the rules (ids and texts) and the text between data markers, never the transcript, the shared prompt or the policy's description. It answers every rule `yes`, `no` or `unsure`, with a one-sentence reason from a chat model. It **fails closed**: a rule it leaves out, an answer it cannot be asked for twice, or an error makes the rule `unsure`, and `unsure` blocks like a violation (counted apart in `verdict.unsure`). With `samples: 3` or more the share of samples that agree is its confidence, and below `unsure below` the answer is `unsure`; a single chat answer has no confidence of its own (`weave check` warns when `unsure below` is written without `samples: 3`). `fallback: ["other-model"]` names models to try when the first cannot answer.
+- **`check <variable> against <Policy>[, <Policy>] using <Evaluator> [-> verdict]`** judges the text in one call. `verdict.passed` (`yes` when the text that now stands passes: it passed, or was rewritten, replaced or sent by a person; `no` otherwise), `verdict.violated` and `verdict.unsure` (rule ids), `verdict.action` and `verdict.rules.<id>.violated|confidence|reason` describe the result. `retry N`, `timeout` and `on_failure { }` apply as on `extract`.
+- **One action on a violation** in `on_violation { }`; without it the step fails, and `_error` names the rules broken, never the text:
+  - `rewrite with Editor`: the agent is called with its own prompt only (no transcript, no shared prompt) and is given the text and the rules broken; its answer replaces the variable and is checked again once. A second failure fails the step.
+  - `ask person`: a person sees the text and the rules broken and answers `send as is`, `send this instead: <text>` or `stop`; anything else stops. A "send as is" is an audit event (`policy_override`).
+  - `replace with "…"`: a fixed text (taken literally; `{…}` is refused).
+  - `fail`.
+- **`on_unavailable { }`** is taken when the evaluator could not answer at all (every model failed or its budget is gone), not when it said "violated". It holds `replace with "…"`, `ask person` or `fail`; the default is `fail`, so nothing unchecked leaves by this path.
+- The checked text is a whole variable when the action replaces it. The trace event `policy_check` carries the policy names, versions and hashes, the rule ids, the action and the tokens; never the text or a reason.
+- **The runtime guards the exits.** Once the script declares a policy, a value a model wrote cannot leave the workflow until it has passed a `check` against **every** declared policy. The exits are the `return` of the workflow a run starts with, the arguments of a `run` of a task whose effect is `CHANGES`, and an agent's own calls to a tool whose effect is `changes`. The runtime tags every value with where it came from, beside the value: an input, a constant, a label, a number, a person's answer and a model-free task's result are not model-written; an agent's answer, a text field of an extractor and a task that uses a model are. The tag follows `set`, `{...}` filling, field paths, lists, objects, `call`, `for each` and a resumed run, and a value with no recorded origin counts as unchecked. A `check` that passes (or a rewrite, or a person sending it as it is) marks the text checked; building new text from it and a model's new words makes it unchecked again. A breach fails the step: "`reply` was written by a model and has not been checked against HouseRules. Add `check reply against HouseRules using …` before this step." and `weave check` reports the same path early, naming the line of the return and of the agent that wrote the text. A number, a true/false or an enum word is never model text.
+- **An agent's own changing tool calls are checked before they run.** Each policy must say which evaluator checks them: `policy HouseRules: "house-rules" checked by Compliance` (`weave check` requires it when an agent holds a tool whose effect is `changes`). The call's text arguments go to the evaluator, as a `check` would send them; a pass lets the call go on (to `approve:` where listed), a violation or an unsure rule refuses it: the tool does not run and the agent is told the rule ids and one-line reasons, never the rule text, so it can write the call again. After two refusals in a step every further call is refused and the agent is told to stop. Numbers and flags are not sent: a policy judges what a call says, never how much it moves, so a limit on an amount belongs in the code that acts.
+- **Not built yet:** a notification channel that sends non-question messages (none exists), the cost estimate lines and budget reserve for checks, and the live-page incidents for checks.
+
 ---
 
 ## 🛡️ 4. Enterprise Safety & Lifecycle
 
 ### Context and Compaction
+
+> A long agent that tracks "what is done and what is next" inside its own conversation can lose it when the conversation is compacted. Keep that progress in the workflow instead: a bounded `loop`, a worker with `memory { transcript: none }` and an `extractor` that records progress in a variable. Starter `16-step-by-step-agent` is the tested reference; `weave guide 14` has the recipe.
 
 > **Status: complete.** The `context` block, the windows files, `.loct` strategies, the trace events and run statistics, the transcript bound and `weave audit` are all in.
 > Design: [`docs/specs/03-loom-integration`](../../../docs/specs/03-loom-integration/DESIGN.md). A runnable example is in [`src/examples/loom-context`](../../examples/loom-context/README.md).
@@ -1801,6 +1941,25 @@ agent Writer {
 - `rewind` still restores the transcript to what it was at the checkpoint. A strategy that fails or does not make the transcript smaller leaves it as it was.
 - `memory { max_tokens: … }` is enough on its own; it does not need `conversation` or `facts`.
 
+##### Who sees what was said before: `transcript: none | own | all`
+
+The default is `all`: every agent is briefed with everything said before it, and `weave graph`, `weave explain` and the editor mark each such agent ("sees everything said before it"). An agent that should not get it can say so:
+
+```loom
+agent Summariser {
+    model: "claude-haiku-5-5"
+    memory { transcript: none }     // none | own | all (the default)
+    shared_prompt: none
+}
+```
+
+- `all` is today's behaviour. `own` gives the agent only its own earlier exchanges in this run. `none` gives it no transcript: its task is its whole briefing.
+- Opting out of **receiving** is not opting out of being **seen**: the agent's exchanges are still stored, so other agents with `all` see them.
+- `transcript:` works with `max_tokens` and `compact` for the agents that receive a transcript; `transcript: none` with `max_tokens` is a `weave check` warning ("has no effect").
+- A `delegate` or `handoff` to an agent with `none` or `own` that passes **no variable** gets review rule LP08 (low): everything the agent needs must be in its task, so write a variable into it (`{notes}`) or give the agent `transcript: all`.
+- `rewind` restores what each agent receives exactly as before. `handoff` honours the setting the same way as `delegate`.
+- A host's own `MemoryEngine` is told the setting through `AgentDef.getTranscriptMode()`; an engine that ignores it keeps today's behaviour.
+
 #### What you can see: trace events and statistics
 
 With `weave run --trace` (or any trace listener) the run shows, for every agent, numbers and names only; never a prompt, an answer, an argument or a result:
@@ -1846,6 +2005,22 @@ agent Support {
   steps aren't checked again.
 
 URLs are not treated as personal data.
+
+**The leak guard** is a second kind of guard, with no model:
+
+```loom
+agent Support {
+    model: "gemini-2.5-flash"
+    guard {
+        prompt_leak: warn                      // warn | block | off
+        prompt_leak_words: 12                  // optional: how many shared words count
+        internal_refs: ["Section [0-9]+", "POL-[0-9]+"]
+    }
+}
+```
+
+- It looks for an answer that repeats its instructions: a run of `prompt_leak_words` (default 12) words shared with the agent's own prompt, the shared prompt, its persona or skills, or the text of a declared policy rule, compared without case, punctuation or spacing. It also looks for a match of one of the agent's `internal_refs` patterns (at most 200 characters, must compile; each match has a time limit and a pattern that runs out of time counts as a match).
+- `warn` records an audit and trace event with the kind and the numbers, never the text, and carries on. `block` fails the step. The default is `warn` for every agent once the script declares a policy, and off otherwise (unless the agent writes `internal_refs`); `prompt_leak: off` is allowed.
 
 ### Running as the person who runs the workflow
 
@@ -1946,7 +2121,37 @@ workflow ProcessFeedback(rawText) {
 
 Loom now supports advanced features that bridge the gap between stochastic neural generation and deterministic symbolic logic.
 
+### When to use a schema, and when to extract
+
+An `output_schema` makes the runtime tell the agent to "respond in valid JSON format only". That is right for a **small, flat answer from an agent that does not need to think** (a verdict and a score). It is a trap for an agent that has to **reason**: with JSON as the only thing it may write, it has no room to work its answer out, so it jumps to conclusions or breaks the format. Thinking and formatting are two jobs. Give them to two steps:
+
+```loom
+agent Analyst {
+    model: "claude-sonnet-5-5"
+    system: "Analyse the request. Explain your reasoning, then state your conclusions."
+    tools: [web_search]
+}
+
+extractor AnalystFields {
+    model: "gemini-2.5-flash"
+    instructions: "Pull these fields out of the analysis."
+    fields {
+        summary: string
+        risks: list<{ name: string, level: number }>
+    }
+}
+
+workflow Main(request) {
+    delegate "Look into {request}" to Analyst -> report_analysis
+    extract AnalystFields from report_analysis -> report
+}
+```
+
+`weave review` rule **LP10** (medium) spots the trap: an agent that *reasons* (it has tools, searches the web, works over rounds by being asked again with its own earlier answer, or has a prompt over `prompts.short-prompt-tokens`, default 300) and must answer in a *large* schema (a nested object, a list of objects, or more than `prompts.large-schema-fields` fields, default 5; the `expecting` of any delegate to the agent counts). The way out, in order: let the agent answer in prose and add an `extractor` after it; make the schema small and flat; or accept the finding with a reason. When the choice is only a label, use an `intentclassifier`. (LR05 and LP02 give the same advice.) `weave review --fix-finding <id> --option split --dry-run` shows the rewrite and `--yes` applies it: the agent keeps its prompt, tools and settings, loses its schema and is asked to answer in prose; a new `extractor <Agent>Fields` (a cheaper model of the same provider where known) carries the old fields, those a condition reads staying required and the rest optional; every `delegate` gains an `extract` that writes the same variable, so later uses are unchanged. A step inside `parallel` gets its extract after the block, and an `on_failure` is repeated on the extract. It is not offered for a broadcast, for steps that disagree about the schema, when any step chooses its agent at run time, or when the agent is declared in an imported file, and the finding says why. It never edits tests; it lists the test files that script the agent. When the answer is itself a large artifact (a bundle of source files), accept the finding with a reason instead.
+
 ### Output Schema Enforcement
+
+*A confidence field is not a calibration.* A number a chat model writes about its own answer (`confidence: number`) is not a calibrated probability, so `alt (answer.confidence > 0.8)` needs either a calibrated source (an `intentclassifier` on a calibrated backend) or calibration measured on the golden dataset before the threshold is trusted.
 Agents can now define a strict contract for their responses. Loom automatically instructs the LLM to respond in JSON and parses it into a structured object, enabling path-based symbolic checks.
 
 ```loom
@@ -2069,18 +2274,25 @@ newExecutor.executeWorkflow("Main", inputs);              // replays, then conti
 
 ### for each
 Run a block once per item of a list, one after another, or all at once with `parallel for each`. The item
-is visible to the block as `{item.field}` (and its position as `{_index}`). The agent and the result
-variable can come from the item, so one line routes work to whoever should do it:
+is visible to the block as `{item.field}` (and its position as `{_index}`). The agent can come from the
+item, so one line routes work to whoever should do it, and the answers can be kept under the item's name
+in one variable:
 
 ```loom
 for each fix in review.fixes {
-    delegate "Fix this: {fix.problem}" to {fix.owner} -> {fix.output}
+    delegate "Fix this: {fix.problem}" to {fix.owner} in [Writer, Designer] -> results[fix.name]
 }
 
-parallel for each shot in plan.shots {
-    delegate "Shoot {shot.description}" to Photographer -> {shot.name}
+parallel for each shot in plan.shots max 6 {
+    delegate "Shoot {shot.description}" to Photographer -> results[shot.name]
 }
 ```
+
+**Routing within limits.** A model chose the value in `{fix.owner}`, so the script must say which agents it may name. Either write the allow-list on the step (`to {fix.owner} in [Writer, Designer]`; every name must be a declared agent, checked when the script loads), or take the value from a field typed `enum[...]` in the agent's `output_schema` or an extractor. A value outside the list is **refused**: the step does not run, the trace records `route_refused` (it names the agent that wrote the value and never prints the value's text), and `on_failure` handles it like any failed step. The prompt is not a boundary: asking the planner to "use only Writer or Designer" is advice, the list is the rule. A routing choice that nothing bounds is an error in `weave check` when any agent holds a tool that changes something or reaches private data, and a warning otherwise; `weave audit` reports it too (see `docs/security/weave-audit.md`).
+
+**Where the answer goes.** `-> results[fix.name]` stores each answer under a key in one variable (`results`), and the key must be a plain word (letters, digits and `_`, starting with a letter). Read it as `{results}` or `{results.docs}`. A bare dynamic name (`-> {fix.name}`) still works for a name that is new, plain, does not start with `_` and is not a name the script uses elsewhere; anything else is refused with a message that points at the map form. A name chosen by a model could otherwise overwrite a variable the script depends on, so prefer the map form.
+
+**Bound a list a model wrote.** `for each x in list.path max N { ... }` (and `parallel for each`) fails the workflow **before any item starts** when the list has more than `N` items, and the error names the agent or extractor that wrote the list and both lines: such a list usually points upstream (what the planner was given or asked, or text in its input trying to steer it). `on_too_many { ... }` runs instead, with `_count` and `_max` in scope, and may ask a person, `halt`, or narrow the list. The trace event `fanout_exceeded` carries the counts and the producer, never an item; the live page and Fabric raise a *plan over its bound* incident; `weave capture` turns the failed run into a test case. `weave review` rule LR13 (medium) warns about a `for each` over a model-written list with no `max`, and the cost estimate shows its worst case as unknown until it has one. The bound is the last line of defence: also tell the planner the limit and add a golden case that its list stays within it.
 
 ### Retry Backoff and Timeouts
 A step can wait between retries (the wait doubles each attempt) and give up on an attempt that hangs:

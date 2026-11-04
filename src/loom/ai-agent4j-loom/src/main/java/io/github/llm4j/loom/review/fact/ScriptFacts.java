@@ -28,6 +28,25 @@ final class ScriptFacts implements FactProvider {
         out.set(e, "hasRateLimits", script.getRateLimits() != null);
         out.set(e, "hasInspectRules", hasInspectRules(input.review()));
         out.set(e, "usesPausing", usesPausing(script));
+        out.set(e, "declaresPolicy", !script.getPolicies().isEmpty());
+        java.util.List<String> exits =
+                script.getPolicies().isEmpty()
+                        ? io.github.llm4j.loom.execution.StaticSinkChecks.modelTextExits(script)
+                        : java.util.List.of();
+        out.set(e, "modelTextExitCount", (long) exits.size());
+        out.set(e, "modelTextExitList", String.join("; ", exits));
+        out.set(e, "reachesPeople", reachesPeople(script));
+    }
+
+    private static boolean reachesPeople(LoomScript script) {
+        if (!script.getSchedules().isEmpty()) return true;
+        java.util.Map<String, io.github.llm4j.loom.ast.ToolDef> declared = new java.util.HashMap<>();
+        script.getTools().forEach(t -> declared.put(t.getName(), t));
+        for (AgentDef a : script.getAgents())
+            for (String tool : a.getTools())
+                if (io.github.llm4j.loom.security.Capabilities.resolve(tool, declared, java.util.Map.of()).level()
+                        == io.github.llm4j.agent.task.TaskEffect.CHANGES) return true;
+        return false;
     }
 
     /**

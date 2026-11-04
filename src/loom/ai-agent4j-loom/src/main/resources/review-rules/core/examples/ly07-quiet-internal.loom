@@ -1,0 +1,6 @@
+agent Writer { model: "gemini-2.5-flash" system: "You write the daily note." }
+
+workflow Main(topic) {
+    delegate "Write a note about {topic}" to Writer -> note_text
+    return note_text
+}

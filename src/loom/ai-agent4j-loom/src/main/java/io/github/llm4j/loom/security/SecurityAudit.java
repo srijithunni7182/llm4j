@@ -68,6 +68,8 @@ public final class SecurityAudit {
         supplyChain(script, findings);
         providerEndpoints(script, findings);
         classifiers(script, findings);
+        transcriptTaint(script, profiles, findings);
+        routing(script, profiles, findings);
         if (script.getBudget() == null) {
             findings.add(
                     new Finding(
@@ -170,13 +172,21 @@ public final class SecurityAudit {
                                         + (unattendedShell
                                                 ? ", on this machine, unattended."
                                                 : "."),
-                                "Add approve: ["
-                                        + toolName
-                                        + "] to "
-                                        + a.getName()
-                                        + (c.outward()
-                                                ? ", or narrow the tool so it cannot change anything."
-                                                : ", or accept it: the tool is confined to its directory.")));
+                                (c.outward()
+                                                ? "Let "
+                                                        + a.getName()
+                                                        + " propose what to do, approve once at the edge and act with code: use "
+                                                        + toolName
+                                                        + "(...) approve (or run Task(...) approve) after the agent. Where a person works with the agent as it goes, add approve: ["
+                                                        + toolName
+                                                        + "] to "
+                                                        + a.getName()
+                                                        + ". Or narrow the tool so it cannot change anything."
+                                                : "Add approve: ["
+                                                        + toolName
+                                                        + "] to "
+                                                        + a.getName()
+                                                        + ", or accept it: the tool is confined to its directory.")));
             }
         }
         for (String kbName : a.getKnowledgeBases()) {
@@ -320,6 +330,159 @@ public final class SecurityAudit {
                             "Keep long-term memory on agents that don't read the outside world, or review what it stores."));
         }
         return profile;
+    }
+
+    /**
+     * LA21: an agent that receives the whole transcript after an untrusted-content reader has run
+     * is exposed to what the reader read. Where that completes the trifecta, LA01 fires for it too,
+     * naming the path.
+     */
+    private static void transcriptTaint(
+            LoomScript script, List<AgentProfile> profiles, List<Finding> findings) {
+        Map<String, AgentProfile> byName = new LinkedHashMap<>();
+        profiles.forEach(p -> byName.put(p.agent(), p));
+        for (TranscriptTaint.Taint t :
+                TranscriptTaint.compute(
+                        script, a -> byName.get(a) != null && !byName.get(a).untrusted().isEmpty())) {
+            AgentProfile receiver = byName.get(t.receiver());
+            AgentProfile reader = byName.get(t.reader());
+            boolean completes = !receiver.privateData().isEmpty() && !receiver.outward().isEmpty();
+            boolean open =
+                    receiver.outward().stream().anyMatch(o -> !approved(script, t.receiver(), o));
+            String path =
+                    t.reader()
+                            + " reads "
+                            + String.join(", ", reader.untrusted())
+                            + "; its answers reach "
+                            + t.receiver()
+                            + " through the shared transcript.";
+            String fix =
+                    "Give "
+                            + t.receiver()
+                            + " transcript: none (or own) so it is not briefed with "
+                            + t.reader()
+                            + "'s words, pass it only the typed values it needs (an extractor turns what "
+                            + t.reader()
+                            + " found into fields), or split the work.";
+            Severity severity = completes ? (open ? Severity.HIGH : Severity.MEDIUM) : Severity.INFO;
+            if (completes) {
+                findings.add(
+                        new Finding(
+                                "LA01",
+                                severity,
+                                List.of(Owasp.LLM01, Owasp.LLM02, Owasp.LLM06),
+                                t.receiver(),
+                                t.line(),
+                                open
+                                        ? "An agent holds the lethal trifecta through the transcript, with an open way out"
+                                        : "An agent holds the lethal trifecta through the transcript (every way out is approved)",
+                                path
+                                        + " "
+                                        + t.receiver()
+                                        + " also reaches private data ("
+                                        + String.join(", ", receiver.privateData())
+                                        + ") and can send or act ("
+                                        + String.join(", ", receiver.outward())
+                                        + "), so text "
+                                        + t.reader()
+                                        + " read can tell it to send your data out.",
+                                fix));
+            }
+            findings.add(
+                    new Finding(
+                            "LA21",
+                            severity,
+                            List.of(Owasp.LLM01),
+                            t.receiver(),
+                            t.line(),
+                            "The transcript carries untrusted text to " + t.receiver(),
+                            path
+                                    + (completes
+                                            ? ""
+                                            : " It cannot send or act on its own, but a later agent that receives the transcript can."),
+                            fix));
+        }
+    }
+
+    private static boolean approved(LoomScript script, String agentName, String tool) {
+        AgentDef a = script.getAgents().stream().filter(x -> x.getName().equals(agentName)).findFirst().orElse(null);
+        return a != null && (a.isApproveAll() || a.getApprove().contains(tool));
+    }
+
+    /**
+     * LA22: a model's answer chooses which agent runs (docs/specs/27-boundary-approvals, R11). A
+     * delegate whose target is a value counts as every agent in its allow-list, or every agent in
+     * the script when it has none and no enum behind it, and is graded by the most dangerous agent
+     * it could reach: high when the route is unbounded and reaches a tool that changes things or
+     * private data, low when it can only reach agents that read.
+     */
+    private static void routing(LoomScript script, List<AgentProfile> profiles, List<Finding> findings) {
+        Map<String, AgentProfile> byName = new LinkedHashMap<>();
+        profiles.forEach(p -> byName.put(p.agent(), p));
+        Set<String> enumFields = new LinkedHashSet<>();
+        script.getAgents().forEach(a -> enumOf(a.getOutputSchema(), enumFields));
+        script.getExtractors().forEach(x -> enumOf(x.getFields(), enumFields));
+        for (io.github.llm4j.loom.ast.WorkflowDef w : script.getWorkflows()) {
+            io.github.llm4j.loom.ast.StatementWalker.walk(
+                    w.getStatements(),
+                    st -> {
+                        if (!(st instanceof io.github.llm4j.loom.ast.DelegateStmt d)
+                                || !d.hasDynamicTarget()) return;
+                        String path = d.getTargetAgent().substring(1, d.getTargetAgent().length() - 1);
+                        String field = path.contains(".") ? path.substring(path.lastIndexOf('.') + 1) : path;
+                        boolean listed = !d.getAllowedTargets().isEmpty();
+                        boolean bounded = listed || enumFields.contains(field);
+                        List<String> reachable =
+                                listed ? d.getAllowedTargets() : new ArrayList<>(byName.keySet());
+                        List<String> dangerous = new ArrayList<>();
+                        for (String agent : reachable) {
+                            AgentProfile p = byName.get(agent);
+                            if (p != null && (!p.outward().isEmpty() || !p.privateData().isEmpty() || !p.unapprovedEffects().isEmpty()))
+                                dangerous.add(agent);
+                        }
+                        Severity severity =
+                                dangerous.isEmpty()
+                                        ? Severity.LOW
+                                        : bounded ? Severity.MEDIUM : Severity.HIGH;
+                        findings.add(
+                                new Finding(
+                                        "LA22",
+                                        severity,
+                                        List.of(Owasp.LLM06),
+                                        "delegate " + d.getTargetAgent(),
+                                        d.getLine(),
+                                        "A model's answer chooses which agent runs",
+                                        d.getTargetAgent()
+                                                + " is a value, so the agent that runs is chosen by what a model wrote ("
+                                                + (listed
+                                                        ? "it may be " + String.join(", ", reachable)
+                                                        : bounded
+                                                                ? "its values are the enum of the schema that writes it"
+                                                                : "any agent in the script")
+                                                + ")"
+                                                + (dangerous.isEmpty()
+                                                        ? "; none of them changes anything or reaches private data."
+                                                        : "; reachable and able to change things or reach private data: "
+                                                                + String.join(", ", dangerous)
+                                                                + "."),
+                                        bounded
+                                                ? "Keep the list to the agents the step needs."
+                                                : "Write the agents it may choose: delegate ... to "
+                                                        + d.getTargetAgent()
+                                                        + " in [A, B], or make the field an enum in the schema that writes it."));
+                    });
+        }
+    }
+
+    private static void enumOf(io.github.llm4j.loom.ast.SchemaDef schema, Set<String> into) {
+        if (schema == null) return;
+        if (schema.getFields() != null)
+            schema.getFields().forEach(
+                    (n, f) -> {
+                        if (f.getType() == io.github.llm4j.loom.ast.SchemaDef.Type.ENUM) into.add(n);
+                        enumOf(f, into);
+                    });
+        enumOf(schema.getElementType(), into);
     }
 
     private static void toolSettings(LoomScript script, List<Finding> findings) {

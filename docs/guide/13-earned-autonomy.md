@@ -2,7 +2,7 @@
 
 **Skip this chapter unless** an agent will make a decision that a person makes today (approve a refund, grant access, post a reply)
 and you want it to take over that decision *gradually, on evidence*, instead of being trusted or distrusted on the day it launches.
-If every step of your workflow is fine to run unattended, or a person already approves every step (`approve:`), you do not need it
+If every step of your workflow is fine to run unattended, or a person already approves the steps that matter (`use ... approve`, `run ... approve`, or `approve:` on an agent), you do not need it
 and nothing else in this guide depends on it.
 
 The idea: the agent **proposes**, a person **decides**, and a ledger records both. The agent starts on a rung where people decide

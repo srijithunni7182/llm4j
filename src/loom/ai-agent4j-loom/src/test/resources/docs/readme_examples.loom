@@ -13,7 +13,7 @@ agent Showrunner { model: "m" }
 workflow Main(doc) {
     loop until (review.verdict == "COMPLETE") max 5 {
         delegate "Review round {_loopRound}" to Lead -> review
-        for each fix in review.fixes { delegate "{fix.task}" to {fix.owner} -> {fix.output} }
+        for each fix in review.fixes { delegate "{fix.task}" to {fix.owner} in [Lead, Writer] -> results[fix.name] }
     } on_exhausted {
         note "Shipping with open issues after {_loopRounds} rounds"
     }

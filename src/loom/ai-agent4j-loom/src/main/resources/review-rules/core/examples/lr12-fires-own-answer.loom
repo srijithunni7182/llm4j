@@ -1,0 +1,9 @@
+agent Worker { model: "gemini-2.5-flash"  system: "Improve the text, and say if it is good enough."  output_schema: { text: string, good: boolean } }
+
+workflow Main(text) {
+    set current = "{text}"
+    loop until (round.good == true) max 5 {
+        delegate "Improve {round}" to Worker -> round
+    }
+    return round
+}

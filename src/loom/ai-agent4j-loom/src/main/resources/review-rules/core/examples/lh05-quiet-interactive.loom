@@ -1,0 +1,6 @@
+tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
+agent Publisher { model: "gemini-2.5-flash"  system: "Publish the announcement."  tools: [Notify]  approve: [Notify] }
+
+workflow Main(topic) {
+    delegate "Announce {topic}" to Publisher -> done
+}

@@ -36,3 +36,16 @@ cases:
     expect:
       degraded: true
       calls: { Writer: 1, Editor: 1 }
+  - name: a plan far over its bound fails the run before any task starts
+    input: { goal: "Explain solar roofs" }
+    models:
+      Planner:
+        tasks:
+          - { name: a, description: "One.", owner: Researcher }
+          - { name: b, description: "Two.", owner: Writer }
+          - { name: c, description: "Three.", owner: Researcher }
+          - { name: d, description: "Four.", owner: Writer }
+          - { name: e, description: "Five.", owner: Researcher }
+    expect:
+      final: failed
+      calls: { Researcher: 0, Writer: 0, Editor: 0 }

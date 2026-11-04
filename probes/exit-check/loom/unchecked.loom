@@ -1,0 +1,11 @@
+// P11, Loom side: a policy is declared, and the reply is returned with no check before it.
+substitution: braces
+
+evaluator Compliance { model: "gemini-2.5-pro" }
+policy HouseRules: "house-rules" checked by Compliance
+agent Support { model: "gemini-2.5-flash"  system: "Answer customers." }
+
+workflow Main(question) {
+    delegate "{question}" to Support -> reply
+    return reply
+}

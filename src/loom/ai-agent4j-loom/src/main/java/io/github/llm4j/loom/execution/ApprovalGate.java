@@ -61,13 +61,32 @@ final class ApprovalGate {
      * like a tool call's approval.
      */
     boolean approveTask(String task, Map<String, Object> args) {
-        String key = key(executor.identityStep(), task, args);
+        return approveStep("Task", task, args, null);
+    }
+
+    /**
+     * Asks before a step runs ({@code run T(...) approve}, {@code use Tool(...) approve}): once,
+     * showing the exact arguments with personal data masked. The answer is journaled under the step
+     * and a hash of the arguments, so a resumed run never asks again.
+     *
+     * @param kind {@code Task} or {@code Tool}, for the words of the question
+     * @param heading the question's own words from {@code approve "…"}, or null
+     */
+    boolean approveStep(String kind, String name, Map<String, Object> args, String heading) {
+        String key = key(executor.identityStep(), name, args);
         RunJournal journal = executor.getJournal();
         String masked = executor.maskPii(String.valueOf(args));
-        audit("approval_requested", null, task, masked);
+        audit("approval_requested", null, name, masked);
         String answer = journal.get(key).map(e -> String.valueOf(e.value())).orElse(null);
         if (answer == null) {
-            String question = "Task " + task + " wants to run with " + args + ". Approve? yes/no";
+            String question =
+                    (heading == null || heading.isBlank() ? "" : heading.strip() + "\n")
+                            + kind
+                            + " "
+                            + name
+                            + " is about to run with "
+                            + masked
+                            + ". Approve? yes/no";
             answer =
                     executor.humanInterface()
                             .promptHuman(
@@ -81,7 +100,7 @@ final class ApprovalGate {
             journal.put(key, new RunJournal.Entry("human", answer));
         }
         boolean yes = yes(answer);
-        audit(yes ? "approval_granted" : "approval_rejected", null, task, masked);
+        audit(yes ? "approval_granted" : "approval_rejected", null, name, masked);
         return yes;
     }
 

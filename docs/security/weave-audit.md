@@ -43,7 +43,8 @@ the runtime always enforces.
 | Rule | Finds | Severity | OWASP |
 |---|---|---|---|
 | LA01 | One agent that reads untrusted content, reaches private data and can send or act | high (medium if every way out is approved) | LLM01, LLM02, LLM06 |
-| LA02 | An effect with no approval: a shell tool running unattended, an outward tool, a local write; a writing `http` tool with no `allow_paths` | high / medium / low | LLM06 |
+| LA22 | A model's answer chooses which agent runs (`delegate … to {task.owner}`): graded by the most dangerous agent it could reach; high when unbounded and some agent changes things or reaches private data, low when it can only reach agents that read | high / medium / low | LLM06 |
+| LA02 | An effect with no approval: a shell tool running unattended, an outward tool, a local write; a writing `http` tool with no `allow_paths`. For a tool that changes something outside, its advice offers the boundary first: let the agent propose, then `use Tool(...) approve` or `run Task(...) approve` after it; `approve:` on the agent is for an assistant a person works with as it goes | high / medium / low | LLM06 |
 | LA03 | No run budget | medium | LLM10 |
 | LA04 | An agent that reaches private data with no PII guard | low | LLM02 |
 | LA05 | `allow_private` (internal and cloud-metadata addresses), `allow_http` | high / medium | LLM06, LLM02 |
@@ -61,6 +62,7 @@ the runtime always enforces.
 | LA18 | An agent is `steerable: true`: a person's text reaches it while it works (an input channel). Medium when that agent also reaches private data and can act | info / medium | LLM01 |
 | LA19 | An `intentclassifier` on a hosted backend (Jev, or a hosted chat model): the state of its `intentclassify` steps leaves this machine. Lists where it goes and the fields sent; marks a chat model that gates on its own confidence as uncalibrated; notes whether `pii:` masks personal data first | info | LLM02 |
 | LA20 | An agent has `grounding: web`: it searches the web inside its model calls. Any page it finds can carry instructions, and the search service sees the queries the model writes. Counts as reading untrusted content for the trifecta whatever its `allow:` list says (an allow list narrows where it reads, it does not make the pages trusted). Low without an allow list, info with one | low / info | LLM01, LLM02 |
+| LA21 | An agent receives the whole run transcript (`transcript: all`, the default) at a point where an agent that reads untrusted content has already run in the same workflow: in statement order, through `call` and `handoff`, and in a later round of a loop. Text the reader put in the transcript reaches it whatever its prompt says, so it counts as reading untrusted content. Where it also reaches private data and can act, LA01 fires for it too, naming the path. The severity is LA01's when the trifecta completes, info otherwise. `transcript: none` or `own` on the receiver breaks the path; an extractor between the two does not by itself, because the reader's answer is stored in the transcript either way | high / medium / info | LLM01 |
 
 The audit reads the script only. It cannot see what Java, host-registered and MCP tools do, operating-system and
 database permissions, what is inside indexed documents or memory, or what agents actually produce. Use it with

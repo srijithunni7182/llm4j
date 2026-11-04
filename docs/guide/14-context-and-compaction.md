@@ -20,6 +20,10 @@ Ask the user these, and write the answers in the project's README:
 3. What may be lost? Old tool results are usually safe to shorten; the user's request and the latest steps are not. Is there anything that must never be dropped?
 4. May a cheaper model write notes about the old steps (more faithful, but a model call that costs money), or is "forget the oldest" enough?
 
+## Or do not let the conversation hold the progress
+
+Compaction keeps a long agent inside its window, but it cannot make the agent remember what it has done. When one agent works through many steps and tracks "done" and "next" in its chat, lift that into the script: a bounded `loop`, a **worker** with `memory { transcript: none }` that does one step per round, and an `extractor` (`Progress`, with `done`, `next` and `finished`) that reads the goal, the previous progress and the worker's report and writes the new progress into a variable. The progress is then typed, journaled (a resume restores it), bounded, visible in the graph and testable. Starter `16-step-by-step-agent` is the complete, tested reference.
+
 ## Declare it: the `context` block
 
 Put the block in the agent. Only `compact` is required; `context { compact: drop_oldest }` is a complete, useful declaration, and `compact: none` switches it off.

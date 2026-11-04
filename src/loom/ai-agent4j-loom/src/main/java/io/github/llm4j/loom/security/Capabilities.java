@@ -1,7 +1,9 @@
 package io.github.llm4j.loom.security;
 
+import io.github.llm4j.agent.task.TaskEffect;
 import io.github.llm4j.loom.ast.ToolDef;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -16,6 +18,11 @@ import java.util.Set;
  *     program)
  * @param effect the call changes something, so it should be approved (outward, or a local write)
  * @param known the audit knows this kind of tool
+ * @param level the same fact in the three words a task uses: none, reads or changes
+ * @param effectSource whether the developer declared the effect ({@code effect:}, or {@code reach:}
+ *     on a class tool) or Loom assumed it from the kind of tool
+ * @param effectReason why the effect is what it is, always pointing at {@code effect:} when it was
+ *     assumed
  */
 public record Capabilities(
         boolean untrusted,
@@ -23,7 +30,60 @@ public record Capabilities(
         boolean outward,
         boolean effect,
         boolean known,
-        String note) {
+        String note,
+        TaskEffect level,
+        EffectSource effectSource,
+        String effectReason) {
+
+    /** Who decided a tool's effect. */
+    public enum EffectSource {
+        /** The developer wrote it ({@code effect:}, or {@code reach:} on a class tool). */
+        DECLARED,
+        /** Loom assumed it from the kind of tool, or the cautious default. */
+        ASSUMED
+    }
+
+    /** A tool whose effect is assumed from its flags: the form every built-in kind uses. */
+    public Capabilities(
+            boolean untrusted,
+            boolean privateData,
+            boolean outward,
+            boolean effect,
+            boolean known,
+            String note) {
+        this(
+                untrusted,
+                privateData,
+                outward,
+                effect,
+                known,
+                note,
+                effect
+                        ? TaskEffect.CHANGES
+                        : untrusted || privateData ? TaskEffect.READS : TaskEffect.NONE,
+                EffectSource.ASSUMED,
+                note);
+    }
+
+    /** The same capabilities with the effect the developer declared; the legs are unchanged. */
+    Capabilities declaring(TaskEffect declared, String reason) {
+        return new Capabilities(
+                untrusted,
+                privateData,
+                outward,
+                declared == TaskEffect.CHANGES,
+                known,
+                note,
+                declared,
+                EffectSource.DECLARED,
+                reason);
+    }
+
+    /** The effect of {@code operation} of a tool that holds several, else the tool's own. */
+    public static TaskEffect operationEffect(ToolDef def, String operation, Capabilities whole) {
+        TaskEffect declared = def.getOperationEffects().get(operation);
+        return declared != null ? declared : whole.level();
+    }
 
     static final Set<String> SEARCH =
             Set.of("duckduckgo", "serpapi", "google_search", "web_search");
@@ -56,10 +116,55 @@ public record Capabilities(
             java.util.Map<String, ToolDef> scriptTools,
             java.util.Map<String, String> lootReach) {
         ToolDef def = scriptTools.get(toolName);
-        if (def != null) return of(def);
-        if (lootReach.containsKey(toolName))
-            return fromReach(lootReach.get(toolName), "Tool " + toolName + " from the .loot file");
+        if (def != null) return withDeclaration(def, of(def));
+        if (lootReach.containsKey(toolName)) {
+            Capabilities c =
+                    fromReach(lootReach.get(toolName), "Tool " + toolName + " from the .loot file");
+            return c.known()
+                    ? c.declaring(
+                            c.level(),
+                            "reach: " + lootReach.get(toolName) + " declared in the .loot file")
+                    : c;
+        }
         return ofName(toolName);
+    }
+
+    /**
+     * The developer's {@code effect:} wins over anything assumed (and over {@code reach:}, which
+     * the parser refuses to see beside it). {@code reach:} on a class tool is itself a declaration,
+     * so its effect counts as declared.
+     */
+    private static Capabilities withDeclaration(ToolDef def, Capabilities assumed) {
+        Optional<TaskEffect> declared = def.getEffect();
+        if (declared.isPresent())
+            return assumed.declaring(
+                    declared.get(),
+                    "effect: "
+                            + declared.get().name().toLowerCase(Locale.ROOT)
+                            + " declared on tool "
+                            + def.getName());
+        if ("class".equalsIgnoreCase(def.getKind()) && opt(def, "reach") != null && assumed.known())
+            return assumed.declaring(
+                    assumed.level(),
+                    "reach: "
+                            + opt(def, "reach")
+                            + " declared on tool "
+                            + def.getName()
+                            + " (the older form; effect: says it directly)");
+        return assumed.withReason(reasonFor(def, assumed));
+    }
+
+    private Capabilities withReason(String reason) {
+        return new Capabilities(
+                untrusted, privateData, outward, effect, known, note, level, effectSource, reason);
+    }
+
+    private static String reasonFor(ToolDef def, Capabilities c) {
+        return "assumed "
+                + c.level().name().toLowerCase(Locale.ROOT)
+                + " for a "
+                + def.getKind()
+                + " tool; say what it does with effect: none | reads | changes";
     }
 
     /** A built-in tool used by name, or one the host registered (null declaration). */

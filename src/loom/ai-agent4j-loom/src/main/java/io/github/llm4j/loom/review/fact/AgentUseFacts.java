@@ -21,6 +21,7 @@ import java.util.regex.Pattern;
  */
 final class AgentUseFacts implements FactProvider {
 
+    private static final Pattern VARIABLE = Pattern.compile("\\{[^}]+}");
     private static final Pattern WORD = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
 
     @Override
@@ -58,12 +59,26 @@ final class AgentUseFacts implements FactProvider {
                                     .computeIfAbsent(b.getVariableName(), k -> new HashSet<>())
                                     .addAll(b.getTargetAgents());
                     });
+        Map<String, int[]> delegates = new HashMap<>(); // calls, with a variable
+        for (WorkflowDef w : input.review().script().getWorkflows())
+            StatementWalker.walk(
+                    w.getStatements(),
+                    s -> {
+                        if (s instanceof DelegateStmt d && d.getTargetAgent() != null) {
+                            int[] n = delegates.computeIfAbsent(d.getTargetAgent(), k -> new int[2]);
+                            n[0]++;
+                            if (d.getPayload() != null
+                                    && VARIABLE.matcher(d.getPayload()).find()) n[1]++;
+                        }
+                    });
         Set<String> feedsBranch = new HashSet<>();
         for (String v : branchVars) feedsBranch.addAll(agentsOfVar.getOrDefault(v, Set.of()));
         for (Entity agent : out.entitiesOf("agent")) {
             String name = (String) agent.get("name");
             out.set(agent, "feedsDecision", decided.contains(name));
             out.set(agent, "feedsBranch", feedsBranch.contains(name));
+            int[] n = delegates.getOrDefault(name, new int[2]);
+            out.set(agent, "delegatesPassVariables", n[0] > 0 && n[1] == n[0]);
         }
     }
 }

@@ -1,6 +1,6 @@
-# 2. Build a golden dataset
+# 2. Write the requirements as a golden dataset
 
-**Goal:** a set of scenarios that says what "good" means for each agent, before you test anything.
+**Goal:** a set of scenarios that says what "good" means for each agent, before you test anything. **The golden dataset is the requirements: what the workflow must do and must never do, as examples.**
 
 > **Design the evaluation first.** What counts as correct, who the domain expert is, which cases the dataset must hold (including the ones nobody builds) and how a judge is validated are decisions of their own: the `llm4j-eval-design` skill makes them with you and writes `EVAL_DESIGN.md`, and then this chapter builds from it.
 
@@ -11,9 +11,9 @@ test your prompts (chapter 3), agents (5) and workflow (8), and fill the dashboa
 
 > Writing the dataset with the user, in plain words, is its own chapter: [11](11-build-the-dataset-with-the-user.md).
 
-## Optional, and where it lives
+## Skippable, and where it lives
 
-This chapter is optional: if you chose to skip evaluation (see the README), go to chapter 6. For a script run with `weave`, the
+A prototype may skip this chapter (record it in the README as `Evaluation: skipped`, and go to chapter 6). The cost is that nothing then measures whether the agents are right: `weave run` and `weave deploy` say so every time, `weave review` reports LT06 (medium when the script can write, send or ask a person), and `weave next` keeps listing the dataset as the next step. For a script run with `weave`, the
 dataset is a folder of YAML files beside the script, with no Java:
 
 ```

@@ -36,7 +36,7 @@ public final class EvalSections {
         List<Section> out = new ArrayList<>();
         out.add(new Section("read-first", "Read this first", readFirst(run)));
         out.add(new Section("overall", "Overall", overall(run)));
-        out.add(new Section("by-agent", "By agent", byAgent(run)));
+        out.add(new Section("by-agent", "By agent and node", byAgent(run)));
         out.add(new Section("by-dimension", "By dimension", byDimension(run)));
         out.add(new Section("by-slice", "By slice", bySlice(run)));
         out.add(new Section("cases", "Cases", cases(run)));
@@ -108,7 +108,10 @@ public final class EvalSections {
                                 + (j.calls() == 1 ? "" : "s")
                                 + (j.validated()
                                         ? ", validated against human scores."
-                                        : ", not validated against human scores."));
+                                        : ", not validated against human scores.")
+                                + (run.settings().containsKey("judge choice")
+                                        ? " Chosen: " + run.settings().get("judge choice")
+                                        : ""));
         BigDecimal total = totalCost(run);
         l.add("Cost: " + (total == null ? "unknown (no prices given: add --prices)" : money(total)) + ".");
         run.settings().forEach((k, v) -> l.add("Fingerprint: " + k + " = " + v));
@@ -230,10 +233,15 @@ public final class EvalSections {
     static List<String> agentNames(EvalReport.Run run) {
         java.util.Set<String> names = new java.util.TreeSet<>();
         for (ScenarioResult r : run.results()) {
-            if (r.kind().equals("agent")) names.add(r.target());
+            if (isNodeKind(r.kind())) names.add(r.target());
             r.agents().forEach(a -> names.add(a.agent()));
         }
         return new ArrayList<>(names);
+    }
+
+    /** Agents, extractors and evaluators all have a row; a workflow does not. */
+    private static boolean isNodeKind(String kind) {
+        return kind.equals("agent") || kind.equals("extractor") || kind.equals("evaluator");
     }
 
     private static List<String> byAgent(EvalReport.Run run) {
@@ -249,7 +257,7 @@ public final class EvalSections {
         for (String name : names) {
             List<ScenarioResult> aimed =
                     run.results().stream()
-                            .filter(r -> r.kind().equals("agent") && r.target().equals(name))
+                            .filter(r -> isNodeKind(r.kind()) && r.target().equals(name))
                             .toList();
             long pass = aimed.stream().filter(r -> r.status() == Status.PASS).count();
             long fail = aimed.stream().filter(r -> r.status() == Status.FAIL).count();
@@ -512,6 +520,8 @@ public final class EvalSections {
         List<String> l = new ArrayList<>();
         if (run.mock())
             l.add("This was a mock run: nothing was judged and nothing was spent.");
+        if (run.settings().containsKey("judge caution"))
+            l.add("Judge: " + run.settings().get("judge caution"));
         long unjudged = run.count(Status.UNJUDGED);
         if (unjudged > 0)
             l.add(unjudged + " case" + (unjudged == 1 ? " is" : "s are") + " unjudged: nothing confirmed " + (unjudged == 1 ? "it" : "them") + ". Unjudged is not a pass.");

@@ -80,7 +80,23 @@ final class ConditionFacts implements FactProvider {
         for (Entity step : steps) {
             Statement s = statement(byKey, step);
             out.set(step, "readsFreeText", s != null && readsFreeText(s, typed));
+            io.github.llm4j.loom.ast.ForEachStmt fan =
+                    s instanceof io.github.llm4j.loom.ast.ForEachStmt f ? f : null;
+            out.set(step, "fanoutBound", fan == null ? 0L : (long) fan.getMax());
+            out.set(step, "fanoutList", fan == null ? "" : fan.getCollectionPath());
+            out.set(
+                    step,
+                    "fansOutModelList",
+                    fan != null
+                            && io.github.llm4j.loom.ast.ListProducers.of(input.review().script(), fan)
+                                    .isPresent());
             out.set(step, "payloadHitsVariable", s == null ? "" : payloadHit(s, step, varsOf));
+            out.set(
+                    step,
+                    "passesNoVariable",
+                    (s instanceof DelegateStmt || s instanceof io.github.llm4j.loom.ast.HandoffStmt)
+                            && !payloadOf(s).matches("(?s).*\\{[^}]*}.*")
+                            && payloadHit(s, step, varsOf).isEmpty());
             String payload = s == null ? null : payloadOf(s);
             out.set(
                     step,
@@ -237,6 +253,7 @@ final class ConditionFacts implements FactProvider {
                     case "delegate" -> "DelegateStmt";
                     case "broadcast" -> "BroadcastStmt";
                     case "handoff" -> "HandoffStmt";
+                    case "foreach" -> "ForEachStmt";
                     default -> null;
                 };
         if (cls == null) return null;

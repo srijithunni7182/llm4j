@@ -160,8 +160,8 @@ substitution: braces
 
 agent Planner {
     model: "gemini-2.5-flash"
-    system: "Split the goal into 2 to 4 small tasks. Give each a name, a description and an owner: Researcher or Writer."
-    output_schema: { tasks: list }
+    system: "Split the goal into 2 to 4 small tasks. Give each a short one-word name, a description and an owner."
+    output_schema: { tasks: list<{ name: string, description: string, owner: enum["Researcher", "Writer"] }> }
 }
 agent Researcher { model: "gemini-2.5-flash"  system: "Do the research task and report briefly." }
 agent Writer     { model: "gemini-2.5-flash"  system: "Do the writing task and report briefly." }
@@ -169,16 +169,18 @@ agent Writer     { model: "gemini-2.5-flash"  system: "Do the writing task and r
 workflow Main(goal) {
     delegate "Plan this goal: {goal}" to Planner -> plan
 
-    for each task in plan.tasks {
-        delegate "{task.description}" to {task.owner} -> {task.name}
+    for each task in plan.tasks max 4 {
+        delegate "{task.description}" to {task.owner} -> results[task.name]
     }
-    return plan
+    return results
 }
 ```
 
-Look at the `delegate`: both the agent (`{task.owner}`) and the result variable (`{task.name}`) come from the item. One line routes each task to whoever should do it. `{_index}` is the item's position, from 0.
+Look at the `delegate`: the agent (`{task.owner}`) comes from the item, and the answer is stored under the task's name in one variable, `results[task.name]`. One line routes each task to whoever should do it. `{_index}` is the item's position, from 0.
 
-Because the owner comes from data, Loom cannot check it when the script loads. If the plan names an agent that is not declared, the run fails with `Agent not found: Nobody`, and an `on_failure` on that step does not catch it. So tell the planner exactly which owners exist (as the `system:` prompt above does), and keep the list of owners short.
+Because the owner comes from data, Loom cannot know which agent it will be when the script loads, so it limits the choice. The plan is typed: `owner: enum["Researcher", "Writer"]` means a model can only name one of those two. If the value ever falls outside the allowed set, the step is refused (a `route_refused` event in the trace) and nothing runs. You can also write the allowed set on the step itself: `to {task.owner} in [Researcher, Writer]`. A routing choice the script does not bound is reported by `weave audit` as LA22. Do not rely on the planner's prompt to keep the owner right: the prompt is advice, the enum is the boundary.
+
+Writing the answer to `results[task.name]` keeps a task name a model chose from overwriting any other variable of the script. Read it back as `{results}` or `{results.facts}`.
 
 ### `parallel for each`
 
@@ -189,8 +191,8 @@ substitution: braces
 
 agent Planner {
     model: "gemini-2.5-flash"
-    system: "Split the goal into 2 to 4 small tasks. Give each a name, a description and an owner: Researcher or Writer."
-    output_schema: { tasks: list }
+    system: "Split the goal into 2 to 4 small tasks. Give each a short one-word name, a description and an owner."
+    output_schema: { tasks: list<{ name: string, description: string, owner: enum["Researcher", "Writer"] }> }
 }
 agent Researcher { model: "gemini-2.5-flash"  system: "Do the research task and report briefly." }
 agent Writer     { model: "gemini-2.5-flash"  system: "Do the writing task and report briefly." }
@@ -198,16 +200,55 @@ agent Writer     { model: "gemini-2.5-flash"  system: "Do the writing task and r
 workflow Main(goal) {
     delegate "Plan this goal: {goal}" to Planner -> plan
 
-    parallel for each task in plan.tasks {
-        delegate "{task.description}" to {task.owner} -> {task.name}
+    parallel for each task in plan.tasks max 4 {
+        delegate "{task.description}" to {task.owner} -> results[task.name]
             retry 1 timeout 90s
             on_failure { note "Task {task.name} failed: {_error}" }
+    }
+    return results
+}
+```
+
+This is starter [06-plan-and-fan-out](../../src/loom/starters/06-plan-and-fan-out/): a plan becomes parallel work. Each item gets its own failure handling, so one bad task does not stop the others.
+
+### Bound a list a model wrote: `max` and `on_too_many`
+
+> **You don't need this until** a `for each` walks over a list an agent produced.
+
+The length of that list is chosen by a model, or by text that steered it. A planner that returns 400 tasks instead of 4 would start 400 steps; a budget would stop the run, but part-way, with some tasks done and others not. Put a bound on the loop:
+
+```loom
+substitution: braces
+
+agent Planner {
+    model: "gemini-2.5-flash"
+    system: "Split the goal into 2 to 4 small tasks."
+    output_schema: { tasks: list<string> }
+}
+agent Worker { model: "gemini-2.5-flash"  system: "Do the task and report briefly." }
+
+workflow Main(goal) {
+    delegate "Plan this goal: {goal}" to Planner -> plan
+
+    for each task in plan.tasks max 4 {
+        delegate "{task}" to Worker -> done
+        note "{done}"
+    } on_too_many {
+        human_prompt "The plan has {_count} tasks and this step takes {_max}. Continue with a shorter plan? (yes/no)" -> answer
+        alt (answer == "yes") {
+            note "continuing with a shorter plan"
+        } else {
+            halt "the plan was too long"
+        }
     }
     return plan
 }
 ```
 
-This is starter [06-plan-and-fan-out](../../src/loom/starters/06-plan-and-fan-out/): a plan becomes parallel work. Each item gets its own failure handling, so one bad task does not stop the others.
+- A list longer than `max` **fails the workflow before any item starts**, unless `on_too_many { ... }` says what to do instead. `_count` and `_max` are in scope inside it. Nothing is half done.
+- The failure names the agent that wrote the list and both lines: *plan.tasks has 412 items, written by agent Planner (line 9); this step takes at most 4 (line 11)*. A list this far over its bound usually means a problem **upstream**: what the planner was given, what it was asked, or text in its input trying to steer it. Fix that, and add a golden case to the planner's dataset that asserts its list stays within the bound (`weave capture` turns the failed run into a test).
+- `weave review` rule **LR13** warns about a `for each` over a model-written list with no `max`, and `weave review`'s cost estimate calls the worst case *unknown* until there is one.
+- The bound is the last line of defence. Tell the planner the limit in its instructions too.
 
 ## `parallel`: do several things at once
 

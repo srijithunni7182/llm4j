@@ -61,6 +61,7 @@ final class CaseRunner {
         Map<String, Long> fallbacks = Map.of();
         try {
             Map<String, JsonNode> models = fields(c.get("models"));
+            models.putAll(Evaluators.scripted(c.get("evaluators")));
             Failures failures = new Failures(c.get("fail"));
             boolean repeatLast = c.has("repeat") && "last".equals(c.get("repeat").asText());
             boolean lenient = c.has("lenient") && c.get("lenient").asBoolean();
@@ -79,6 +80,10 @@ final class CaseRunner {
                 }
                 for (IntentClassifierDef k : fresh.getIntentClassifiers())
                     k.setModel(ScriptedClassifiers.PREFIX + k.getName(), k.getModelLine());
+                for (io.github.llm4j.loom.ast.ExtractorDef x : fresh.getExtractors())
+                    x.setModel(ScriptedModels.PREFIX + x.getName());
+                for (io.github.llm4j.loom.ast.EvaluatorDef x : fresh.getEvaluators())
+                    x.setModel(ScriptedModels.PREFIX + x.getName());
                 ToolRegistry tools = toolsFor(fresh, c, failures, repeatLast, recorder);
                 TaskRegistry tasks = tasksFor(fresh, c, failures, repeatLast, recorder);
                 executor =
@@ -93,7 +98,8 @@ final class CaseRunner {
                                         failures,
                                         c.get("usage"),
                                         interventions,
-                                        streaming(fresh)));
+                                        streaming(fresh),
+                                        extractorNames(fresh)));
                 interventions.attach(executor);
                 executor.setClassifierFactory(new ScriptedClassifiers(models, recorder, failures));
                 executor.setTaskRegistry(tasks);
@@ -156,6 +162,15 @@ final class CaseRunner {
     }
 
     /** The agents that stream their replies. */
+    private static Set<String> extractorNames(LoomScript script) {
+        Set<String> names = new LinkedHashSet<>();
+        for (io.github.llm4j.loom.ast.ExtractorDef x : script.getExtractors())
+            names.add(x.getName());
+        for (io.github.llm4j.loom.ast.EvaluatorDef x : script.getEvaluators())
+            names.add(x.getName()); // answers with bare JSON, like an extractor
+        return names;
+    }
+
     private static Set<String> streaming(LoomScript script) {
         Set<String> names = new LinkedHashSet<>();
         for (AgentDef a : script.getAgents()) if (a.isStreaming()) names.add(a.getName());
@@ -175,6 +190,12 @@ final class CaseRunner {
         for (ToolDef t : script.getTools()) declared.put(t.getName(), t);
         Set<String> names = new LinkedHashSet<>(declared.keySet());
         for (AgentDef a : script.getAgents()) names.addAll(a.getTools());
+        for (WorkflowDef w : script.getWorkflows())
+            StatementWalker.walk(
+                    w.getStatements(),
+                    s -> {
+                        if (s instanceof io.github.llm4j.loom.ast.UseStmt u) names.add(u.getTool());
+                    });
         Map<String, JsonNode> scripts = fields(c.get("tools"));
         ToolRegistry registry = new ToolRegistry();
         for (String name : names)

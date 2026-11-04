@@ -133,6 +133,58 @@ public record TraceEvent(
      */
     public static final String CLASSIFY = "classify";
 
+    /**
+     * An {@code extract} step begins: {@code extractor}, {@code step}, {@code model}. Never an input.
+     */
+    public static final String EXTRACT_START = "extract_start";
+
+    /**
+     * An {@code extract} step finished: {@code extractor}, {@code step}, {@code model}, {@code
+     * attempts}, {@code duration_ms}, {@code input_tokens}, {@code output_tokens}, {@code present}
+     * and {@code missing} (the <em>names</em> of the fields found and the optional ones absent).
+     * Never an input or a value.
+     */
+    public static final String EXTRACT_END = "extract_end";
+
+    /** A resumed run reused the recorded answer of an {@code extract} step. */
+    public static final String EXTRACT_REPLAYED = "extract_replayed";
+
+    /**
+     * A {@code for each … max N} found more items than its bound, before any item started: {@code
+     * count}, {@code max}, {@code list} (the path), {@code producer} (the agent or extractor that
+     * wrote the list, when one did) and {@code producerLine}. Never an item.
+     */
+    public static final String FANOUT_EXCEEDED = "fanout_exceeded";
+
+    /**
+     * A {@code check … against} step finished (docs/specs/26-policy-boundary, R14): {@code step},
+     * {@code evaluator}, {@code model}, {@code policies} (name, version and hash of each), {@code
+     * violated} (rule ids), {@code unsure} (rule ids), {@code action} ({@code none}, {@code
+     * rewritten}, {@code replaced}, {@code asked}, {@code failed}), {@code attempts}, {@code
+     * duration_ms} and the tokens. Never the checked text and never a reason.
+     */
+    public static final String POLICY_CHECK = "policy_check";
+
+    /**
+     * The runtime refused to let a model-written value that no policy had checked leave the
+     * workflow (docs/specs/26-policy-boundary, R8): {@code sink}, {@code variable} (the name, never
+     * the value), {@code policies} (the ones it has not passed) and {@code step}.
+     */
+    public static final String SINK_BLOCKED = "sink_blocked";
+
+    /**
+     * The automatic check refused an agent's call to a tool that changes things (docs/specs/26,
+     * R8): {@code agent}, {@code tool}, {@code rules} (ids) and {@code refusals} (so far in this
+     * step). Never the arguments.
+     */
+    public static final String TOOL_REFUSED_BY_POLICY = "tool_refused_by_policy";
+
+    /**
+     * A model chose a delegate target outside the step's allow-list (docs/specs/27, R11): {@code
+     * step}, {@code target} (the expression, never the value chosen) and {@code allowed}.
+     */
+    public static final String ROUTE_REFUSED = "route_refused";
+
     public static final String TASK_START = "task_start";
     public static final String TASK_END = "task_end";
     public static final String TASK_REPLAYED = "task_replayed";

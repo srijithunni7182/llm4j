@@ -1,0 +1,12 @@
+== weave check unbounded.loom: before anything runs ==
+✗ line 11: delegate {plan.owner}: a model chooses which agent runs here, and any agent could be chosen, including Privileged, which can change things or reach private data. Bound it: write the agents after it, delegate ... to {plan.owner} in [Researcher, Writer], or make the field an enum in the schema of the agent or extractor that writes it.
+1 problem in unbounded.loom
+
+== weave check main.loom ==
+✓ main.loom: ready to run
+  next: weave next says what to do now; weave guide recipes has tested changes to copy
+
+== weave test main.loom: a route outside the allow-list at run time ==
+ok    a route inside the allow-list runs  (143 ms)
+ok    a route the planner was talked into, outside the allow-list, is refused  (143 ms)
+2 passed, 0 failed in 148 ms · nodes covered 3/3

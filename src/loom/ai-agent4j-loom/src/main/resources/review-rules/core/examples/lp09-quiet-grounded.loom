@@ -1,0 +1,10 @@
+agent Reader {
+  model: "m"
+  system: "Find the invoice fields."
+  grounding: web
+  output_schema: { vendor: string, total: number }
+}
+workflow Main(text) {
+  delegate "Find the invoice from: {text}" to Reader -> invoice
+  note "{invoice.vendor}"
+}

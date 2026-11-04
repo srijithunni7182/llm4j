@@ -37,6 +37,10 @@ The method comes from the project owner's guide *Quality Assurance for AI agenti
 8. Read a real answer under a cap before building a dataset around the workflow.
 9. Never describe a report that has not been read.
 
+An `evaluator` that checks a policy (phase 26) is a judge running in production. Design its validation like a judge's: cases per rule that break it, nearly break it (the near-misses are mandatory) and are clean; its agreement with a person; its unsure rate.
+
+An `extractor` (a stateless step that pulls fields out of text) is tested on its own: it sees nothing but its inputs, so its golden cases are texts and the fields they should give, and what it does inside the workflow is what it does alone. When an agent reasons in prose and an extractor follows it, evaluate them separately: the agent by a rubric on its prose, the extractor by exact field checks on cases of its own. Script it in `weave test` (`models: { Name: { field: value } }`) for the logic around it, and give it cases of its own for the quality of the extraction.
+
 ## Ask; do not invent
 
 You never write the answer key for domain facts. Ask the developer and the domain expert, show each proposed case, and tag anything you drafted `author:assistant` until a named person has reviewed it (`reviewed_by:<name>`). Do not create scenarios the person did not choose. Where the three classes the guide says nobody builds are absent (the unanswerable, the obvious answer that is wrong, the case where the cautious action is right), **ask for examples**; do not fill them in. Synthetic cases come only after expert-written seeds exist, are tagged `source:synthetic`, and name the model that generated them: a dataset made by a model inherits that model's blind spots.
@@ -53,9 +57,9 @@ Read `references/conventions.md` before you start. It sets nine rules the llm4j 
 | E1 | Layer map | principles | which parts are deterministic (tasks, `alt` routing, code) and which probabilistic (each agent); what `weave test` covers and what needs a model |
 | E2 | Dimensions | quality-dimensions | of the nine, which apply, and a **reason for every one excluded** |
 | E3 | Oracles | oracles | per property: assertion, equivalence class, rubric or human; find the judgement calls that are assertions in disguise; add metamorphic relations where no ground truth exists |
-| E4 | Dataset | dataset-and-labelling | sources and who the **domain expert** is; coverage dimensions; the three missing classes; size by stage; at least 10 cases per reported slice; the split; the labelling guide and an agreement check; governance |
+| E4 | Dataset | dataset-and-labelling | one section per internal node in `EVAL_DESIGN.md`: an extractor's exact field checks (`expected_fields`, `expected_missing`), an evaluator's per-rule cases (a breaking case, a clean case and a near miss for every rule of every policy), its agreement with a person, its unsure rate and its false-alarm limit; sources and who the **domain expert** is; coverage dimensions; the three missing classes; size by stage; at least 10 cases per reported slice; the split; the labelling guide and an agreement check; governance |
 | E5 | Harness | judge-and-pipeline, trajectory-and-multi-turn | trace capture; the configuration fingerprint; fixtures and when they are refreshed; the simulator and the faults to inject |
-| E6 | Run protocol | judge-and-pipeline | per change, nightly, release gate, weekly drift check; repetitions; a low budget circuit breaker the first time |
+| E6 | Run protocol | judge-and-pipeline | the three costs by default: `weave test` and `weave eval --mock` on every change (free), `weave eval --changed` with a cap before a merge, a full `weave eval` on a schedule (off until turned on); then nightly, release gate, weekly drift check; repetitions; a low budget circuit breaker the first time |
 | E7 | Security | security-testing | the injection surfaces (every content source is an input channel); the corpus and where it lives; the **controls that must hold at 100% when the model is fooled**; a red-team plan |
 | E8 | Regression and baselines | judge-and-pipeline | what triggers a run besides a commit; the baseline policy (a named approver and a written reason) |
 | E9 | Gates | judge-and-pipeline | per dimension and stage an **absolute floor and a regression band**; zero-tolerance checks apart from rates; which dimensions have a validated judge (**an unvalidated judge does not gate**) |

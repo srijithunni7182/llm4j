@@ -35,6 +35,8 @@ public class WorkflowTraceAssert extends AbstractObjectAssert<WorkflowTraceAsser
                     "No unexpected tool calls",
                     "trajectory",
                     "orchestration");
+    private static final MetricRef M_EXTRACT =
+            m("extractors-run", "Extractors run", "trajectory", "orchestration");
     private static final MetricRef M_TASKS =
             m("required-tasks-run", "Required tasks run", "trajectory", "orchestration");
     private static final MetricRef M_PATH =
@@ -193,6 +195,110 @@ public class WorkflowTraceAssert extends AbstractObjectAssert<WorkflowTraceAsser
                         failWithMessage(
                                 "Expected task %s to end with outcome \"%s\" but its outcomes were: %s",
                                 task, outcome, outcomes);
+                    }
+                });
+        return this;
+    }
+
+    /** Passes if a {@code use} step called {@code tool} exactly {@code times} times. */
+    public WorkflowTraceAssert usesTool(String tool, int times) {
+        EvalChecks.check(
+                M_EXTRACT,
+                () -> {
+                    isNotNull();
+                    long n = actual.usesOf(tool);
+                    if (n != times)
+                        failWithMessage(
+                                "Expected a use step to call %s %s time(s) but it called it %s time(s)",
+                                tool, times, n);
+                });
+        return this;
+    }
+
+    /** Passes if at least one check judged against {@code policy}. */
+    public WorkflowTraceAssert checksPolicy(String policy) {
+        EvalChecks.check(
+                M_EXTRACT,
+                () -> {
+                    isNotNull();
+                    if (actual.checks(policy) == 0)
+                        failWithMessage("Expected a check against policy %s but there was none", policy);
+                });
+        return this;
+    }
+
+    /** Passes if some check found rule {@code ruleId} broken. */
+    public WorkflowTraceAssert violated(String ruleId) {
+        EvalChecks.check(
+                M_EXTRACT,
+                () -> {
+                    isNotNull();
+                    if (!actual.ruleViolated(ruleId))
+                        failWithMessage("Expected rule %s to be found broken but no check did", ruleId);
+                });
+        return this;
+    }
+
+    /** Passes if some check ended in {@code action} ({@code rewritten}, {@code replaced}, ...). */
+    public WorkflowTraceAssert actionTaken(String action) {
+        EvalChecks.check(
+                M_EXTRACT,
+                () -> {
+                    isNotNull();
+                    if (!actual.checkActions().contains(action))
+                        failWithMessage(
+                                "Expected a check to end in %s but the checks ended in: %s",
+                                action, actual.checkActions());
+                });
+        return this;
+    }
+
+    /** Passes if {@code extractor} ran exactly {@code times} times (a replay does not count). */
+    public WorkflowTraceAssert runsExtractTimes(String extractor, int times) {
+        EvalChecks.check(
+                M_EXTRACT,
+                () -> {
+                    isNotNull();
+                    long n = actual.extractRuns(extractor);
+                    if (n != times) {
+                        failWithMessage(
+                                "Expected extractor %s to run %s time(s) but it ran %s time(s); it ran: %s",
+                                extractor, times, n, actual.extractorsInOrder());
+                    }
+                });
+        return this;
+    }
+
+    /**
+     * Passes if the last run of {@code extractor} found {@code field}. The trace holds field names,
+     * never values, so this checks that a field was found, not what it held.
+     */
+    public WorkflowTraceAssert extractedField(String extractor, String field) {
+        EvalChecks.check(
+                M_EXTRACT,
+                () -> {
+                    isNotNull();
+                    List<String> found = actual.fieldsFound(extractor);
+                    if (!found.contains(field)) {
+                        failWithMessage(
+                                "Expected extractor %s to find field %s but it found: %s",
+                                extractor, field, found);
+                    }
+                });
+        return this;
+    }
+
+    /** Passes if the last run of {@code extractor} left the optional {@code field} missing. */
+    public WorkflowTraceAssert leftMissing(String extractor, String field) {
+        EvalChecks.check(
+                M_EXTRACT,
+                () -> {
+                    isNotNull();
+                    List<String> missing = actual.fieldsMissing(extractor);
+                    if (!missing.contains(field)) {
+                        failWithMessage(
+                                "Expected extractor %s to leave field %s missing but the missing fields were: %s",
+                                extractor, field, missing);
                     }
                 });
         return this;

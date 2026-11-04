@@ -1,0 +1,6 @@
+agent Worker { model: "m"  system: "You work." }
+workflow Main(tasks) {
+  for each t in tasks {
+    delegate "{t}" to Worker -> r retry 1 timeout 30s
+  }
+}

@@ -1,0 +1,5 @@
+tool Lookup { use: duckduckgo  effect: reads }
+workflow Main(order) {
+  use Lookup(query = "select 1") approve -> found retry 1 timeout 30s // <- LH06
+}
+// ignore: LP02 LP05 LO01 LR04 LD01 LR08

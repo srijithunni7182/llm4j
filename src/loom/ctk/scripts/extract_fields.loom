@@ -1,0 +1,22 @@
+// Canonical CTK test: extract_fields
+// Tests a stateless field extraction (extract): the extractor sees only the text it is handed, binds the fields it found,
+// and an optional field the text does not state reads as missing. mocks/extract_fields.json defines what the extractor answers.
+
+extractor Invoice {
+    model: "m"
+    instructions: "Read the invoice."
+    fields {
+        vendor: string
+        total: number
+    }
+    optional: [total]
+}
+
+workflow main(text) {
+    extract Invoice from text -> invoice
+    alt (invoice.total == missing) {
+        note "no total"
+    } else {
+        note "total"
+    }
+}

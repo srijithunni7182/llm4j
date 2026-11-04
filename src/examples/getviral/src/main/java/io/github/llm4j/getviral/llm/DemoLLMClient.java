@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import io.github.llm4j.loom.execution.ExtractorPrompt;
 import java.util.stream.Stream;
 
 /**
@@ -47,7 +48,10 @@ public class DemoLLMClient implements LLMClient {
         pace();
         String system = firstOf(request, Message.Role.SYSTEM);
         String user = firstOf(request, Message.Role.USER);
-        String content = system.contains("impartial evaluator") ? judge(user) : agentTurn(system, user);
+        String content =
+                system.contains("impartial evaluator")
+                        ? judge(user)
+                        : system.contains(ExtractorPrompt.ROLE) ? extraction(user) : agentTurn(system, user);
         int in = (system.length() + user.length()) / 4;
         int out = content.length() / 4;
         return LLMResponse.builder().content(content).model("demo").tokenUsage(in, out, in + out).build();
@@ -56,6 +60,28 @@ public class DemoLLMClient implements LLMClient {
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
         return Stream.of(chat(request));
+    }
+
+    // ── Extractor turn ────────────────────────────────────────────────────────────────────────
+
+    /**
+     * An extractor step reads the analysis an agent wrote and returns its fields. The demo agents
+     * write their analysis as the JSON of the fields (that is what they always produced), so the
+     * extractor finds that object in its input, as a real model reading the prose would.
+     */
+    private static String extraction(String user) {
+        int start = user.indexOf('{');
+        if (start < 0) return "{}";
+        int depth = 0;
+        boolean quoted = false;
+        for (int i = start; i < user.length(); i++) {
+            char c = user.charAt(i);
+            if (c == '\\' && quoted) i++;
+            else if (c == '"') quoted = !quoted;
+            else if (!quoted && c == '{') depth++;
+            else if (!quoted && c == '}' && --depth == 0) return user.substring(start, i + 1);
+        }
+        return "{}";
     }
 
     // ── ReAct turn ─────────────────────────────────────────────────────────────────────────────

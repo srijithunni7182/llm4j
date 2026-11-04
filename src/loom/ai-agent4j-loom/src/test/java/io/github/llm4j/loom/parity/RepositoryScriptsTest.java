@@ -56,7 +56,13 @@ class RepositoryScriptsTest {
                                                     // review has findings to show
                                                     && !p.toString()
                                                             .contains(
-                                                                    "vscode-loom/test/fixtures/review/scripts/"))
+                                                                    "vscode-loom/test/fixtures/review/scripts/")
+                                                    // probe demonstrations of what weave check
+                                                    // refuses (P11, P14, P17); the probes' own
+                                                    // test proves each really fails
+                                                    && !p.toString().endsWith("probes/exit-check/loom/unchecked.loom")
+                                                    && !p.toString().endsWith("probes/tool-effects/loom/retries.loom")
+                                                    && !p.toString().endsWith("probes/route-allowlist/loom/unbounded.loom"))
                             .sorted()
                             .toList();
         }
@@ -89,6 +95,15 @@ class RepositoryScriptsTest {
                                 t ->
                                         hostTools.register(
                                                 t, new io.github.llm4j.agent.tools.EchoTool()));
+            // A tool a `use` step names is the host's too, like one an agent holds.
+            for (var w : parsed.getWorkflows())
+                io.github.llm4j.loom.ast.StatementWalker.walk(
+                        w.getStatements(),
+                        st -> {
+                            if (st instanceof io.github.llm4j.loom.ast.UseStmt u)
+                                hostTools.register(
+                                        u.getTool(), new io.github.llm4j.agent.tools.EchoTool());
+                        });
             // Hosts resolve their own model names (GetViral's "studio", test mocks): a host factory
             // is trusted.
             HarnessExecutor e =

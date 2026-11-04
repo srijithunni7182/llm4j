@@ -1,0 +1,4 @@
+== weave review main.loom, before anything runs ==
+MEDIUM  LP10  Prompts        main.loom:5
+        Agent Analyst reasons (it has tools) and must answer in a schema with a nested object
+        why: An agent told to answer in JSON only has no room to think in its answer, so it makes logical leaps or breaks the format. The thinking and the formatting are two jobs.

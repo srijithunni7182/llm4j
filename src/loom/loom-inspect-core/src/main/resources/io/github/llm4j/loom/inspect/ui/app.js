@@ -209,7 +209,22 @@
       banner.className = 'banner diverted';
       lead = plural(diverted.length, 'step') + ' went through on_failure'; rest = ': a task or delegate failed and its on_failure block took over, so the workflow went on.';
     }
+    if (!lead && v.evaluated === false && !evalNoticeDismissed()) {
+      banner.className = 'banner notice';
+      banner.appendChild(el('b', '', 'No evaluation'));
+      banner.appendChild(document.createTextNode(': nothing has measured whether these agents are right. `weave eval --init` starts one. '));
+      var close = el('button', 'btn', 'Dismiss');
+      close.type = 'button';
+      close.addEventListener('click', function () { try { sessionStorage.setItem('loom.evalNotice', '1'); } catch (e) { /* the page still works without storage */ } banner.hidden = true; });
+      banner.appendChild(close);
+      banner.hidden = false;
+      return;
+    }
     if (lead) { banner.appendChild(el('b', '', lead)); banner.appendChild(document.createTextNode(rest)); banner.hidden = false; }
+  }
+
+  function evalNoticeDismissed() {
+    try { return sessionStorage.getItem('loom.evalNotice') === '1'; } catch (e) { return false; }
   }
 
   function renderFollow(v) {
@@ -400,7 +415,7 @@
   var lastScroll = null;
 
   var KINDS = { PAUSED: 'Paused', LOOPING: 'Looping', SUSPECT_OUTPUT: 'Suspect output', FAILED: 'Failing', BUDGET: 'Budget', CONTEXT: 'Context', TRUNCATED: 'Truncated answer',
-    THRASH: 'Compaction thrash', TOOL_RATE: 'Tool success rate', SPIKE: 'Latency spike', BROKEN: 'Broken', DIVERTED: 'Diverted', TRIFECTA: 'Lethal trifecta', INJECTION: 'Injection', ACCESS: 'Access' };
+    THRASH: 'Compaction thrash', TOOL_RATE: 'Tool success rate', SPIKE: 'Latency spike', BROKEN: 'Broken', DIVERTED: 'Diverted', FANOUT: 'Plan over its bound', TRIFECTA: 'Lethal trifecta', INJECTION: 'Injection', ACCESS: 'Access' };
   var SECURITY_KINDS = { TRIFECTA: true, INJECTION: true, ACCESS: true };
   var SEV = { high: 'High', warn: 'Warning', info: 'Info' };
 

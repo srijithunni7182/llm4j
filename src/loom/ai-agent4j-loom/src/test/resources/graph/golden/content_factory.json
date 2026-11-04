@@ -215,6 +215,7 @@
     {
       "name": "Researcher",
       "model": "gemini-3.5-flash",
+      "transcript": "all",
       "source": {
         "file": "<root>/samples/content_factory/primitives.loom",
         "line": 3
@@ -223,6 +224,7 @@
     {
       "name": "Copywriter",
       "model": "llama3",
+      "transcript": "all",
       "source": {
         "file": "<root>/samples/content_factory/primitives.loom",
         "line": 8

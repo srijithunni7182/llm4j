@@ -1,0 +1,19 @@
+// P12, Loom side: the question is put to the person from inside the agent's own tool loop (approve: on the agent).
+
+
+tool Notify { use: webhook  url: env.SLACK_WEBHOOK  format: slack  effect: changes }
+agent Drafter {
+    model: "gemini-2.5-flash"
+    system: "Draft an announcement and send it."
+    tools: [Notify]
+    approve: [Notify]
+}
+schedule Weekly {
+    cron: "0 9 * * 1"
+    run: Main(facts="weekly news")
+}
+
+workflow Main(facts) {
+    delegate "Draft and send from: {facts}" to Drafter -> done
+    return done
+}

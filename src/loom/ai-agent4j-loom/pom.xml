@@ -531,10 +531,15 @@
                             <targetClasses>
                                 <param>io.github.llm4j.loom.autonomy.expr.*</param>
                                 <param>io.github.llm4j.loom.ladder.*</param>
+                                <param>io.github.llm4j.loom.eval.NodeCasesGate</param>
+                                <param>io.github.llm4j.loom.eval.NodeFingerprints</param>
                             </targetClasses>
                             <targetTests>
                                 <param>io.github.llm4j.loom.autonomy.expr.*Test</param>
                                 <param>io.github.llm4j.loom.ladder.*Test</param>
+                                <param>io.github.llm4j.loom.eval.NodeCasesGateTest</param>
+                                <param>io.github.llm4j.loom.eval.NodeFingerprintsTest</param>
+                                <param>io.github.llm4j.loom.cli.ChangedEvalTest</param>
                                 <param>io.github.llm4j.loom.parser.Ladder*Test</param>
                                 <param>io.github.llm4j.loom.autonomy.LadderRunTest</param>
                                 <param>io.github.llm4j.loom.autonomy.LadderStoresTest</param>
@@ -578,6 +583,42 @@
                                 <param>io.github.llm4j.loom.validation.Classifier*Test</param>
                                 <param>io.github.llm4j.loom.execution.IntentClassify*Test</param>
                                 <param>io.github.llm4j.loom.parser.IntentClassifier*Test</param>
+                            </targetTests>
+                            <threads>4</threads>
+                            <timeoutFactor>4</timeoutFactor>
+                            <mutationThreshold>75</mutationThreshold>
+                            <outputFormats><param>XML</param><param>HTML</param></outputFormats>
+                            <timestampedReports>false</timestampedReports>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Mutation testing of the extractor checks, runner and answer reader: mvn -Pmutation-extract org.pitest:pitest-maven:mutationCoverage (see docs/specs/24-stateless-nodes/VERIFICATION.md) -->
+        <profile>
+            <id>mutation-extract</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.17.4</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.1</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>io.github.llm4j.loom.execution.ExtractorChecks</param>
+                                <param>io.github.llm4j.loom.execution.ExtractRunner</param>
+                                <param>io.github.llm4j.loom.execution.ExtractAnswer</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.llm4j.loom.extract.*Test</param>
                             </targetTests>
                             <threads>4</threads>
                             <timeoutFactor>4</timeoutFactor>

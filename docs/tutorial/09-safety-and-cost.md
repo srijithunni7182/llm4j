@@ -149,6 +149,58 @@ workflow Main(raw_text) {
 }
 ```
 
+## Policies: rules checked at the edge
+
+A rule about what must never be said does not belong in an agent's prompt. A prompt is a wish: a model can ignore it, and a reply that quotes "Section 4.6" would go straight out. Put the rule in a **policy file** instead, and check the reply before it reaches anyone.
+
+The file sits in a `policies/` folder beside the script. A person who owns compliance can read and edit it with no Loom knowledge: each rule is a heading (its id) and a sentence about what breaking it looks like.
+
+```markdown
+# House rules
+
+## no_refund_promise
+The reply promises a refund, a credit or any compensation.
+
+## no_internal_refs
+The reply mentions internal policy sections, instructions, or how the assistant was set up.
+```
+
+An **evaluator** judges text against those rules. It is a stateless step, like an extractor: it sees only the rules and the text, never the conversation. A **`check`** step puts it at the edge and says what happens on a violation:
+
+```loom-parse
+evaluator Compliance { model: "claude-haiku-5-5"  samples: 3  unsure below 0.8 }
+policy HouseRules: "house-rules" checked by Compliance
+
+workflow Main(question) {
+    delegate "{question}" to Support -> reply
+    check reply against HouseRules using Compliance -> verdict on_violation { rewrite with Editor }
+    return reply
+}
+```
+
+On a violation you choose **one** action: `rewrite with Editor` (another agent fixes the text, and it is checked again once), `ask person` (a person sends it as it is, types a different text, or stops it), `replace with "A colleague will reply."` or `fail`. With nothing written the step fails and the error names the rules, never the text.
+
+The evaluator **fails closed**. A rule it cannot judge is "unsure", and unsure blocks just as a violation does, but it is counted apart so you can tell a timid evaluator from one that catches problems. If it cannot answer at all (the model is down), `on_unavailable { replace with "We are looking into this." }` gives a holding answer; the default is to fail, so nothing unchecked leaves.
+
+### The runtime guards the exits
+
+Declare a policy and Loom stops trusting your memory. It remembers, for every value, whether a model wrote it, and **refuses to let model-written text leave unchecked**. The exits are the `return` of the run, the arguments of a task that changes something, and an agent's own calls to a tool that changes something. A number, a true/false, an enum word, a label, a person's answer and the result of a task with no model are not model text and pass freely.
+
+| The value is | At an exit |
+|---|---|
+| a constant, an input, a number, a label, a person's answer | passes |
+| an agent's reply, a text field of an extractor | refused until a `check` passed it |
+| a reply that passed `check ... against HouseRules` | passes (if every declared policy was checked) |
+| the checked reply with new model words added | refused again |
+
+The refusal tells you what to do: "`reply` was written by a model and has not been checked against HouseRules. Add `check reply against HouseRules using ...` before this step." `weave check` finds the same path before you run anything and names the line of the return and the line of the agent.
+
+An agent that can **send an email or call an API** writes its call inside its own loop, where you cannot put a `check`. So the runtime checks each such call for you, before it runs and before a person is asked (`policy HouseRules: "house-rules" checked by Compliance` names the judge). A call that breaks a rule does not run; the agent is told which rule ids it broke and why, never the rule text, and tries again. After two refusals in a step it is told to stop. A policy judges what a call *says*, not how much it moves: a limit on an amount belongs in the code that acts.
+
+`weave review` raises **LY07** when the output can reach people (the workflow is scheduled, or an agent holds a tool that changes things) and no policy is declared. Accept it with a reason when no customer sees the output.
+
+The **leak guard** is a guard that needs no model. `guard { prompt_leak: block  internal_refs: ["POL-[0-9]+"] }` stops an answer that repeats 12 words of the agent's own instructions, of the shared prompt or of a policy rule, or that names an internal reference. `warn` records it and carries on; with a policy declared every agent warns by default.
+
 ## Secrets
 
 **Never write a key in a script.** A literal secret is a load error, on purpose. Keys come from the environment (`env.NAME`) or the encrypted secret store (`secret.NAME`):
@@ -209,6 +261,24 @@ flowchart TD
 
 The cure is to break the triangle: give the agent that reads the web no way to send, give the agent that sends no access to private data, or put a person's approval between them. This is why starter [07-approval](../../src/loom/starters/07-approval/) splits *drafting* from *sending*, and why the sender needs an approval.
 
+#### The same triangle through the transcript (LA21)
+
+By default every agent is briefed with everything said before it (the shared transcript, [Chapter 7](07-knowledge-and-memory.md#who-sees-what-was-said-before)). So an agent that reads the web is not only a risk by itself: what it read, and anything an attacker hid in it, is carried to every agent that runs after it.
+
+```mermaid
+flowchart LR
+  R["Researcher<br/>reads the web"] -- "its answer goes into<br/>the shared transcript" --> T[("transcript")]
+  T -- "briefs" --> S["Sender<br/>private data + can send"]
+  classDef bad fill:#fde2e2,stroke:#c53030,color:#5b1111
+  class S bad
+```
+
+If that later agent also reaches private data and can send or act, the triangle is complete even though no single agent has all three tools. `weave audit` counts this path and reports it as **LA21** (and as the lethal trifecta, LA01, when it completes one), naming the agents. Three fixes:
+
+- give the receiving agent `memory { transcript: none }` (or `own`), so it is not briefed with the reader's words;
+- hand it only typed values: pull the fields it needs out of the reader's answer with an [extractor](05-structured-answers-and-failure.md#extractors-fields-from-text-with-nothing-else), and give the sender `transcript: none` so those fields are all it gets (an extractor on its own does not remove the reader's answer from the transcript);
+- split the work so no agent that acts runs after one that reads the outside world.
+
 ### What else it catches
 
 Typical findings, each with the reason and a fix:
@@ -237,6 +307,7 @@ Every step that changes the world (a `webhook`, an `email`, an `http` POST, a `f
 - Mask personal data (`guard { pii: mask }`) before it reaches a hosted model.
 - Run `weave check`, `weave audit` and `weave review` before every release.
 - Prefer a script rule or a task over a prompt for anything that must always hold.
+- Put rules about what must never be said in a policy file and `check` replies against it before they leave.
 
 The full threat model, and what Loom does *not* protect you from, is in [Secure by construction](../security/secure-by-construction.md) and the [security guide](../../SECURITY.md).
 

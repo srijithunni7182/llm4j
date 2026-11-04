@@ -78,11 +78,14 @@ class OptionalLensesTest {
     }
 
     @Test
-    void theOptionalLensesAreOffUntilAskedFor() throws Exception {
+    void humanOversightIsOnByDefaultAndCanBeTurnedOff() throws Exception {
+        // From 6.2.0 the oversight lens is one of the default lenses (docs/specs/27, R7).
         String script = questions(12);
-        assertThat(titles("LH03", script)).isEmpty();
+        assertThat(titles("LH03", script)).hasSize(1);
         assertThat(titles("LH03", script, "--lens", "+oversight")).hasSize(1);
         assertThat(titles("LH03", script, "--lens", "all")).hasSize(1);
+        Files.writeString(dir.resolve("review.properties"), "lenses = -oversight\n");
+        assertThat(titles("LH03", script)).as("lenses = -oversight restores the old default").isEmpty();
     }
 
     @Test

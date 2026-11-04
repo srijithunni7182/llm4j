@@ -66,6 +66,15 @@ final class NodeDescriber {
         if (st instanceof io.github.llm4j.loom.ast.IntentClassifyStmt c) {
             return classify(c);
         }
+        if (st instanceof io.github.llm4j.loom.ast.ExtractStmt x) {
+            return extract(x);
+        }
+        if (st instanceof io.github.llm4j.loom.ast.CheckStmt k) {
+            return check(k);
+        }
+        if (st instanceof io.github.llm4j.loom.ast.UseStmt u) {
+            return use(u);
+        }
         if (st instanceof HandoffStmt h) {
             return new Described(Kinds.HANDOFF, "handoff " + h.getTargetAgent())
                     .agent(h.getTargetAgent())
@@ -98,15 +107,18 @@ final class NodeDescriber {
             return d;
         }
         if (st instanceof ForEachStmt f) {
-            return new Described(
-                            Kinds.FOREACH,
-                            "for each " + f.getItemName() + " in " + f.getCollectionPath())
-                    .attrs(
-                            Attrs.create()
-                                    .text("item", f.getItemName())
-                                    .text("collection", f.getCollectionPath())
-                                    .flag("parallel", f.isParallel())
-                                    .budget(f.getBudget()));
+            Described d =
+                    new Described(
+                                    Kinds.FOREACH,
+                                    "for each " + f.getItemName() + " in " + f.getCollectionPath())
+                            .attrs(
+                                    Attrs.create()
+                                            .text("item", f.getItemName())
+                                            .text("collection", f.getCollectionPath())
+                                            .flag("parallel", f.isParallel())
+                                            .budget(f.getBudget()));
+            d.bound = f.getMax() > 0 ? f.getMax() : null;
+            return d;
         }
         if (st instanceof HumanPromptStmt h) {
             return new Described(Kinds.HUMAN_PROMPT, "ask a person")
@@ -217,6 +229,57 @@ final class NodeDescriber {
                                 .positive("retry", r.getRetryCount())
                                 .positive("backoffMs", r.getBackoffMillis())
                                 .positive("timeoutMs", r.getTimeoutMillis()));
+    }
+
+    private Described use(io.github.llm4j.loom.ast.UseStmt u) {
+        List<String> args = new ArrayList<>();
+        for (RunStmt.Arg a : u.getArgs()) args.add(a.name());
+        return new Described(Kinds.USE, "use " + u.getTool())
+                .attrs(
+                        Attrs.create()
+                                .text("tool", u.getTool())
+                                .text("variable", u.getVariableName())
+                                .list("args", args)
+                                .flag("approve", u.isApprove())
+                                .positive("retry", u.getRetryCount())
+                                .positive("backoffMs", u.getBackoffMillis())
+                                .positive("timeoutMs", u.getTimeoutMillis()));
+    }
+
+    private Described check(io.github.llm4j.loom.ast.CheckStmt k) {
+        return new Described(Kinds.CHECK, "check " + k.getSubject())
+                .attrs(
+                        Attrs.create()
+                                .text("subject", k.getSubject())
+                                .list("policies", k.getPolicies())
+                                .text("evaluator", k.getEvaluator())
+                                .text("onViolation", actionWord(k.getOnViolation()))
+                                .text("onUnavailable", actionWord(k.getOnUnavailable()))
+                                .text("variable", k.getVerdictVariable())
+                                .positive("retry", k.getRetryCount())
+                                .positive("timeoutMs", k.getTimeoutMillis()));
+    }
+
+    private static String actionWord(io.github.llm4j.loom.ast.CheckStmt.Action action) {
+        if (action instanceof io.github.llm4j.loom.ast.CheckStmt.Rewrite r)
+            return "rewrite with " + r.agent();
+        if (action instanceof io.github.llm4j.loom.ast.CheckStmt.Replace) return "replace";
+        if (action instanceof io.github.llm4j.loom.ast.CheckStmt.AskPerson) return "ask person";
+        return "fail";
+    }
+
+    private Described extract(io.github.llm4j.loom.ast.ExtractStmt x) {
+        List<String> inputs = new ArrayList<>();
+        for (RunStmt.Arg in : x.getInputs()) inputs.add(in.name().isEmpty() ? in.text() : in.name());
+        return new Described(Kinds.EXTRACT, "extract " + x.getExtractor())
+                .attrs(
+                        Attrs.create()
+                                .text("extractor", x.getExtractor())
+                                .text("variable", x.getVariableName())
+                                .list("inputs", inputs)
+                                .positive("retry", x.getRetryCount())
+                                .positive("backoffMs", x.getBackoffMillis())
+                                .positive("timeoutMs", x.getTimeoutMillis()));
     }
 
     private Described classify(io.github.llm4j.loom.ast.IntentClassifyStmt c) {

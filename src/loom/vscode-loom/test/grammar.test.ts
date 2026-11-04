@@ -104,3 +104,9 @@ test('C7: rate and confidence stay ordinary words where they are not a classifie
     assert.notEqual(scopeOf('        climb when history.last(50).rate(agrees).lower95 >= 0.9', 'rate'), 'keyword.control.loom');
     assert.notEqual(scopeOf('    note "{intent.confidence}"', 'confidence'), 'keyword.control.loom');
 });
+
+test('P28: false_alarm_limit and the routing allow-list words are highlighted', () => {
+    assert.equal(scopeOf('    false_alarm_limit: 10%', 'false_alarm_limit'), 'keyword.control.loom');
+    assert.equal(scopeOf('    delegate "Fix {fix.problem}" to {fix.owner} in [Writer, Designer] -> results[fix.name]', 'in'), 'keyword.control.loom');
+    assert.equal(scopeOf('    delegate "Fix {fix.problem}" to {fix.owner} in [Writer, Designer] -> results[fix.name]', 'delegate'), 'keyword.control.loom');
+});

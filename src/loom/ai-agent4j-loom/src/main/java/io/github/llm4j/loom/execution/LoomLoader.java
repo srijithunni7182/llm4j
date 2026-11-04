@@ -30,7 +30,38 @@ public class LoomLoader {
      */
     public LoomScript load(String location, ScriptSource source) throws IOException {
         visitedFiles.clear();
-        return loadRecursive(location, source);
+        LoomScript loaded = loadRecursive(location, source);
+        noteTheGateIsBuildTime(loaded);
+        return loaded;
+    }
+
+    private static final java.util.concurrent.atomic.AtomicBoolean GATE_NOTICE_GIVEN =
+            new java.util.concurrent.atomic.AtomicBoolean();
+    private static volatile boolean gateNoticeWanted = true;
+
+    /**
+     * Says whether loading should mention, once, that the golden-case gate for extractors and
+     * evaluators is enforced by {@code weave check} at build time. The {@code weave} command turns
+     * it off because it enforces the gate itself.
+     */
+    public static void setGateNoticeWanted(boolean wanted) {
+        gateNoticeWanted = wanted;
+        if (wanted) GATE_NOTICE_GIVEN.set(false); // asking again re-arms the single mention
+    }
+
+    /**
+     * Loading never reads {@code eval/golden}: an application need not ship it. So that the gate
+     * is not forgotten, a script with extractors or evaluators says once that it is enforced at
+     * build time (docs/specs/28-evaluation-first, R4).
+     */
+    private static void noteTheGateIsBuildTime(LoomScript script) {
+        if (!gateNoticeWanted
+                || (script.getExtractors().isEmpty() && script.getEvaluators().isEmpty())) return;
+        if (GATE_NOTICE_GIVEN.compareAndSet(false, true))
+            log.warning(
+                    "This script has extractors or evaluators. Their golden cases are required by"
+                            + " `weave check`, not when the script is loaded: run `weave check` over the"
+                            + " project in your build.");
     }
 
     private LoomScript loadRecursive(String path, ScriptSource source) throws IOException {

@@ -7,6 +7,8 @@ import io.github.llm4j.loom.review.fact.FactBase;
 import io.github.llm4j.loom.review.fact.FactBuilder;
 import io.github.llm4j.loom.review.fact.Unknown;
 import io.github.llm4j.loom.review.fix.FixBuilder;
+import io.github.llm4j.loom.review.fix.JavaFixOption;
+import io.github.llm4j.loom.review.fix.JavaFixOptions;
 import io.github.llm4j.loom.review.fix.SourceText;
 import io.github.llm4j.loom.review.model.Finding;
 import io.github.llm4j.loom.review.model.Fix;
@@ -56,7 +58,8 @@ public final class DataRuleSource implements FindingSource {
         FactBase base = facts.build(input, settings);
         Supplier<SourceText> source = source(input);
         for (Pack pack : packs)
-            for (RuleDoc rule : pack.rules()) run(rule, base, settings, sink, source, input.file());
+            for (RuleDoc rule : pack.rules())
+                run(rule, base, settings, sink, source, input);
     }
 
     private void run(
@@ -65,7 +68,7 @@ public final class DataRuleSource implements FindingSource {
             ReviewSettings settings,
             Sink sink,
             Supplier<SourceText> source,
-            String file) {
+            ReviewInput input) {
         if (!settings.lensOn(rule.lens())) return;
         Boolean enabled = settings.rule(rule.id()).enabled();
         if (Boolean.FALSE.equals(enabled)) return;
@@ -78,7 +81,7 @@ public final class DataRuleSource implements FindingSource {
         for (Entity e : base.entities(rule.about())) {
             Evaluation result = Evaluator.evaluate(rule.when(), e, base);
             if (result.result() != Tri.TRUE) continue;
-            sink.finding(finding(rule, e, base, source, file));
+            sink.finding(finding(rule, e, base, source, input));
         }
     }
 
@@ -99,7 +102,8 @@ public final class DataRuleSource implements FindingSource {
     }
 
     static Finding finding(
-            RuleDoc rule, Entity e, FactBase base, Supplier<SourceText> source, String file) {
+            RuleDoc rule, Entity e, FactBase base, Supplier<SourceText> source, ReviewInput input) {
+        String file = input.file();
         Optional<Fix> fix = Optional.empty();
         SourceText text = rule.fix() == null ? null : source.get();
         if (text != null) {
@@ -115,6 +119,15 @@ public final class DataRuleSource implements FindingSource {
         if (optionText != null)
             for (OptionTemplate o : rule.options())
                 FixBuilder.buildOption(o, e, base, optionText, file).ifPresent(options::add);
+        String fixHint = Template.render(rule.fixHint(), e, base);
+        for (JavaFixOption java : JavaFixOptions.forRule(rule.id())) {
+            SourceText text2 = source.get();
+            if (text2 == null) continue;
+            JavaFixOption.Offer offer =
+                    java.offer(e, input.script(), text2, file, input.baseDir());
+            if (offer.option() != null) options.add(offer.option());
+            else fixHint += " No automatic rewrite: " + offer.reason() + ".";
+        }
         return new Finding(
                 rule.id(),
                 rule.lens(),
@@ -122,7 +135,7 @@ public final class DataRuleSource implements FindingSource {
                 e.where(),
                 Template.render(rule.title(), e, base),
                 Template.render(rule.why(), e, base),
-                Template.render(rule.fixHint(), e, base),
+                fixHint,
                 rule.references(),
                 fix,
                 List.of(),

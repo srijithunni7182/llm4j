@@ -100,6 +100,32 @@ workflow Refund(msg) {
 - A task spends no tokens and does not count against the run budget; a task that changes things is **never repeated by a crash or a `retry`** unless it is idempotent.
 - Reference: `weave guide loom`, the section "Tasks".
 
+## Thinking and formatting are two jobs
+
+An agent that has to reason (it uses tools, searches the web, or works through a long brief) should not also be made to answer in a big JSON schema: it has no room to think. Let it write prose and add an `extractor` after it; `weave review` rule LP10 spots the trap and `weave review --fix-finding <id> --option split` writes the rewrite. See the tutorial, chapter 5.
+
+## Extracting: pull fields out of text with an extractor, not an agent
+
+When a step only has to pull fields out of text (an invoice, an email, a form), do not ask an agent to do it. An agent sees the whole run so far and the shared prompt, so what it extracts depends on what ran before it, and a test of the agent on its own does not predict what it does inside the workflow. Declare an `extractor` and use `extract`: it is handed only the text you name and the fields you want.
+
+```loom
+extractor Invoice {
+    model: "gemini-2.5-flash"
+    instructions: "Read the invoice. Use the vendor's legal name."
+    fields { vendor: string  total: number }
+    optional: [total]
+}
+
+workflow Main(text) {
+    extract Invoice from text -> invoice retry 1 on_failure { halt "Unreadable: {_error}" }
+    alt (invoice.total == missing) { note "no total on the invoice" } else { note "total {invoice.total}" }
+}
+```
+
+- The text is **data**: it goes to the model between markers that say it is untrusted, and the extractor never sees the transcript, so an earlier agent's words cannot steer it.
+- A field the text does not state is `missing` (optional) or fails the step (required). The runtime never invents a value.
+- Test an extractor on its own with `weave test` (script its answer in `models:`), and with golden cases once `weave eval` has them.
+
 ## Classifying: route and judge with a classifier, not an agent
 
 When a step only has to choose (which team gets this message? did the reply meet the criterion? how angry is the customer?), do not ask an agent to write an answer and then parse it. Declare an `intentclassifier` and use `intentclassify`: one call, a label out, no prose to misread, a confidence you can act on.
@@ -157,7 +183,11 @@ workflow Main(topic) {
 
 Put `substitution: braces` at the top of a new script so that only `{name}` is replaced; with the default (`legacy`) a bare word that is also a variable name (an `out` inside "length out of range") is replaced too. `weave check --substitution braces` shows what an existing script would change and `--fix-substitution` rewrites it after you see the diff. When a `parallel` branch may fail while the others still count, give each branch its own flag set in its `on_failure` (see `LOOM_GUIDE.md`, "Parallel branches that fall back").
 
-Put what every agent must know (house rules, a glossary, the brief) in one `shared_prompt: "…"` or `shared_prompt: prompt "house-rules"` at the top of the script instead of pasting it into each agent. It comes first in every agent's system prompt, the same bytes each time; keep dates and run ids out of it. See `LOOM_GUIDE.md`, "A Prompt Every Agent Starts With".
+Put what every agent must know (tone, house style, shared facts, a glossary, the brief) in one `shared_prompt: "…"` or `shared_prompt: prompt "house-rules"` at the top of the script instead of pasting it into each agent. It comes first in every agent's system prompt, the same bytes each time; keep dates and run ids out of it. See `LOOM_GUIDE.md`, "A Prompt Every Agent Starts With".
+
+### Rules about what must never be said: a policy, not a prompt
+
+A rule that must hold does not belong in `shared_prompt` or in an agent's prompt: a prompt is a wish, and a model can ignore it. Write it in a policy file (`policies/house-rules.md`: a `## rule_id` heading, then what breaking it looks like) with the person who owns compliance, declare an `evaluator` and a `policy`, and put `check reply against HouseRules using Compliance -> verdict on_violation { rewrite with Editor }` before every exit. For each agent ask: do its words reach a person? Those agents get tone and task only. With a policy declared, Loom refuses unchecked model text at the return of the run and in what an agent sends, and `weave check` names the path. See `LOOM_GUIDE.md` ("Policies: rules checked at the edge") and starter 17.
 
 ### A step a person may stop
 

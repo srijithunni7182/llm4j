@@ -346,6 +346,7 @@
     {
       "name": "Researcher",
       "model": "gpt-4",
+      "transcript": "all",
       "source": {
         "file": "<root>/src/test/resources/graph/handlers.loom",
         "line": 1
@@ -354,6 +355,7 @@
     {
       "name": "Writer",
       "model": "gpt-4",
+      "transcript": "all",
       "source": {
         "file": "<root>/src/test/resources/graph/handlers.loom",
         "line": 2

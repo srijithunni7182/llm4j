@@ -1,0 +1,68 @@
+# Written by `weave init`. The free checks run on every push. The real evaluation of what changed runs on pull
+# requests only when a key is configured, and never above the cap below. A full evaluation on a clock costs money,
+# so it is written out but commented: turn it on when you mean it.
+name: weave
+
+on:
+  push:
+  pull_request:
+  # schedule:
+  #   - cron: "17 3 * * 1"
+
+jobs:
+  free-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install weave
+        run: |
+          curl -Ls https://sh.jbang.dev | bash -s - app install weave@srijithunni7182/llm4j
+          echo "$HOME/.jbang/bin" >> "$GITHUB_PATH"
+      - run: weave check main.loom
+      - run: weave test main.loom
+      - run: weave review main.loom --fail-on high
+
+  changed-evaluation:
+    if: github.event_name == 'pull_request'
+    needs: free-checks
+    runs-on: ubuntu-latest
+    env:
+      # Add the key your agents need under Settings > Secrets, and list it here.
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # The most a pull request may spend on the cases that changed. Set it to what you can afford.
+      EVAL_MAX_TOKENS: "200000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install weave
+        run: |
+          curl -Ls https://sh.jbang.dev | bash -s - app install weave@srijithunni7182/llm4j
+          echo "$HOME/.jbang/bin" >> "$GITHUB_PATH"
+      - name: Evaluate what changed, for real
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "No key is configured, so the real evaluation was skipped. Add the secret to run it."
+            exit 0
+          fi
+          weave eval main.loom --changed --max-tokens "$EVAL_MAX_TOKENS" --yes
+
+  # full-evaluation:
+  #   if: github.event_name == 'schedule'
+  #   runs-on: ubuntu-latest
+  #   env:
+  #     GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-java@v4
+  #       with: { distribution: temurin, java-version: "17" }
+  #     - run: |
+  #         curl -Ls https://sh.jbang.dev | bash -s - app install weave@srijithunni7182/llm4j
+  #         echo "$HOME/.jbang/bin" >> "$GITHUB_PATH"
+  #     - run: weave eval main.loom --max-tokens 2000000 --yes

@@ -24,6 +24,10 @@
 > [!TIP]
 > **[About llm4j: mission, stats and history](ABOUT.md)**
 >
+> **[Architecture you can review: the idea behind the guarantees](REVIEWABLE_ARCHITECTURE.md)**
+>
+> **Articles:** [Architecture you can review](articles/REVIEWABLE_ARCHITECTURE_ARTICLE.md) · [Loom](articles/LOOM_ARTICLE.md) · [Cheap workflows](articles/CHEAP_WORKFLOWS_ARTICLE.md) · [dev.to](articles/DEVTO_ARTICLE.md)
+>
 > **[Why llm4j? What you get out of the box, and what you would otherwise build](WHY_LLM4J.md)**
 >
 > **[Why AI Agent4J? Our comparison against LangChain4j and Spring AI](../src/ai-agent4j/wiki/WHY_AI_AGENT4J.md)**

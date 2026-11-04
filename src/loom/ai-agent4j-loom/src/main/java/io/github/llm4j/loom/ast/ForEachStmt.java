@@ -47,6 +47,27 @@ public class ForEachStmt extends LocatedStatement {
         this.budget = budget;
     }
 
+    private int max;
+
+    /** The most items the list may have ({@code max N}), or 0 for no bound. */
+    public int getMax() {
+        return max;
+    }
+
+    public void setMax(int max) {
+        this.max = max;
+    }
+
+    private final List<Statement> onTooMany = new java.util.ArrayList<>();
+
+    /**
+     * Runs instead of the body when the list has more than {@link #getMax()} items, with {@code
+     * _count} and {@code _max} in scope. Empty when the workflow should fail instead.
+     */
+    public List<Statement> getOnTooMany() {
+        return onTooMany;
+    }
+
     private final List<Statement> onExhausted = new java.util.ArrayList<>();
 
     /** Runs when the for-each's budget runs out before every item was processed. */

@@ -138,6 +138,33 @@ public class AgentDef implements Node {
         return memory;
     }
 
+    private TranscriptMode transcriptMode;
+    private boolean sharedPromptExcluded;
+
+    /**
+     * How much of the run's transcript this agent is briefed with: what {@code memory { transcript:
+     * … }} says, else {@link TranscriptMode#ALL}. A host's own {@code MemoryEngine} should honour it
+     * (an engine that ignores it keeps today's behaviour).
+     */
+    public TranscriptMode getTranscriptMode() {
+        if (transcriptMode != null) return transcriptMode;
+        TranscriptMode written = memory == null ? null : TranscriptMode.of(memory.get("transcript"));
+        return written == null ? TranscriptMode.ALL : written;
+    }
+
+    public void setTranscriptMode(TranscriptMode mode) {
+        this.transcriptMode = mode;
+    }
+
+    /** True for {@code shared_prompt: none}: the script's shared prompt is not put in front of it. */
+    public boolean isSharedPromptExcluded() {
+        return sharedPromptExcluded;
+    }
+
+    public void setSharedPromptExcluded(boolean excluded) {
+        this.sharedPromptExcluded = excluded;
+    }
+
     public void setMemory(MemoryConfig memory) {
         this.memory = memory;
     }
@@ -370,6 +397,28 @@ public class AgentDef implements Node {
 
         public String getBiasModel() {
             return get("bias_model");
+        }
+
+        /** {@code off}, {@code warn} or {@code block}, or null when not written. */
+        public String getPromptLeak() {
+            return get("prompt_leak");
+        }
+
+        /** The shortest run of shared words that counts as repeating instructions, or 0. */
+        public int getPromptLeakWords() {
+            String n = get("prompt_leak_words");
+            try {
+                return n == null ? 0 : Integer.parseInt(n);
+            } catch (NumberFormatException bad) {
+                return -1;
+            }
+        }
+
+        private final java.util.List<String> internalRefs = new java.util.ArrayList<>();
+
+        /** The patterns an answer must not match ({@code internal_refs: [..]}). */
+        public java.util.List<String> getInternalRefs() {
+            return internalRefs;
         }
     }
 

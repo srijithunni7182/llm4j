@@ -49,30 +49,42 @@ agent TrendScout {
 agent Researcher {
     model: "studio"
     temperature: 0.3
-    system: "You are Researcher. Before anything is written, research the idea itself on the open web: run web_search (twice if the first results are thin), read the 2-3 most useful sources in full with read_page, and synthesise what is true, recent, surprising and debated. Every finding must carry the URL it came from; if something could not be verified, put it under caveats instead."
+    system: "You are Researcher. Before anything is written, research the idea itself on the open web: run web_search (twice if the first results are thin), read the 2-3 most useful sources in full with read_page, and synthesise what is true, recent, surprising and debated. Every finding must carry the URL it came from; if something could not be verified, put it under caveats instead. Answer in plain prose; explain your reasoning, then state your conclusions."
     tools: [WebSearch, ReadPage, FactCheck]
-    output_schema: {
-        summary: string,
-        findings: list<{ point: string, source: string, url: string }>,
-        fresh_angles: list<string>,
-        debates: list<string>,
+}
+
+extractor ResearcherFields {
+    model: "studio"
+    instructions: "Pull these fields out of the analysis."
+    fields {
+        summary: string
+        findings: list<{ point: string, source: string, url: string }>
+        fresh_angles: list<string>
+        debates: list<string>
         caveats: list<string>
     }
+    optional: [summary, findings, fresh_angles, debates, caveats]
 }
 
 agent Strategist {
     model: "studio"
     temperature: 0.9
-    system: "You are Strategist. Turn the brief, the web research and the trend signals into an angle, five scroll-stopping hooks, key facts and hashtags. Key facts come from the research findings and keep their source."
+    system: "You are Strategist. Turn the brief, the web research and the trend signals into an angle, five scroll-stopping hooks, key facts and hashtags. Key facts come from the research findings and keep their source. Answer in plain prose; explain your reasoning, then state your conclusions."
     tools: [ViralPlaybook, WordLab]
-    output_schema: {
-        angle: string,
-        audience_insight: string,
-        hooks: list<string>,
-        key_facts: list<string>,
-        hashtags: list<string>,
+}
+
+extractor StrategistFields {
+    model: "studio"
+    instructions: "Pull these fields out of the analysis."
+    fields {
+        angle: string
+        audience_insight: string
+        hooks: list<string>
+        key_facts: list<string>
+        hashtags: list<string>
         posting_moment: string
     }
+    optional: [angle, audience_insight, hooks, key_facts, hashtags, posting_moment]
 }
 
 agent XWriter {
@@ -218,7 +230,7 @@ YOUR PAST CASTINGS FOR THIS CREATOR:
             delegate "Research this idea on the open web and report what is true, new and debated, with a source URL for every finding.
 IDEA: {creatorIdea}
 NICHE: {creatorNiche}
-REGION: {creatorRegion}" to Researcher -> researchDossier retry 1 on_failure {
+REGION: {creatorRegion}" to Researcher -> researchDossier_analysis retry 1 on_failure {
                 note "Web research failed: {_error}"
             }
             delegate "Scout live trends for this brief and report the strongest signals with sources.
@@ -228,6 +240,9 @@ REGION: {creatorRegion}" to TrendScout -> trendReport retry 1 on_failure {
                 note "Trend scouting failed: {_error}"
             }
         }
+        extract ResearcherFields from researchDossier_analysis -> researchDossier on_failure {
+                note "Web research failed: {_error}"
+            }
 
         // 3. Strategy with typed output.
         delegate "Build the content strategy.
@@ -236,7 +251,8 @@ NICHE: {creatorNiche}
 TONE: {creatorTone}
 CREATOR: @{creatorHandle}
 RESEARCH: {researchDossier}
-TRENDS: {trendReport}" to Strategist -> gamePlan retry 1
+TRENDS: {trendReport}" to Strategist -> gamePlan_analysis retry 1
+        extract StrategistFields from gamePlan_analysis -> gamePlan
 
         // 4. Human-in-the-loop: the creator picks the hook.
         human_prompt "HOOK_PICK: Which hook should we run with for: {creatorIdea}" -> hookChoice
@@ -359,14 +375,20 @@ VISUAL STYLE: {castingSheet.visual_style}" to Showrunner -> qualityReport expect
             }
 
             // Each failing area goes to the specialist who owns it (video last: it's cut from the others).
+            // The owner is named in the script, one branch per area, so a model's words cannot pick the agent.
             for each fix in qualityReport.fixes {
-                delegate "{fix.task}
+                set fix_prompt = "{fix.task}
 FIX: {fix.problem}
 IDEA: {creatorIdea}
 TONE: {creatorTone}
 HOOK: {hookChoice}
 VISUAL STYLE: {castingSheet.visual_style}
-CURRENT: {fix.current}" to {fix.owner} -> {fix.output} retry 1
+CURRENT: {fix.current}"
+                alt (fix.area == "x") { delegate "{fix_prompt}" to XWriter -> xPack retry 1 }
+                alt (fix.area == "reel") { delegate "{fix_prompt}" to ReelDirector -> reelPack retry 1 }
+                alt (fix.area == "youtube") { delegate "{fix_prompt}" to YouTubeProducer -> youtubePack retry 1 }
+                alt (fix.area == "visuals") { delegate "{fix_prompt}" to ArtDirector -> visualPack retry 1 }
+                alt (fix.area == "video") { delegate "{fix_prompt}" to VideoEditor -> videoPack retry 1 }
             }
         } on_exhausted {
             note "Quality loop reached its limit after {_loopRounds} rounds — some artifacts still fail the gate."

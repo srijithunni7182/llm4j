@@ -208,7 +208,9 @@ public final class ReviewSettings {
                     "data.inline.max-lines", "12",
                     "data.workflow.max-steps", "60",
                     "data.workflow.max-depth", "5",
-                    "data.threshold.repeats", "4");
+                    "data.threshold.repeats", "4",
+                    "prompts.short-prompt-tokens", "300",
+                    "prompts.large-schema-fields", "5");
 
     /**
      * A value such as {@code data.regions}: what the project declared, else the built-in default

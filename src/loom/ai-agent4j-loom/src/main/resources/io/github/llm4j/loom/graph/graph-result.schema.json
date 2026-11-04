@@ -155,7 +155,7 @@
       "properties": {
         "id": { "type": "string" },
         "kind": {
-          "enum": ["start", "end", "delegate", "task", "classify", "handoff", "broadcast", "parallel", "alt", "loop", "foreach",
+          "enum": ["start", "end", "delegate", "task", "classify", "extract", "check", "use", "handoff", "broadcast", "parallel", "alt", "loop", "foreach",
                    "human_prompt", "checkpoint", "rewind", "call", "guardrail", "decide", "observe", "note", "halt", "set", "return", "sleep", "outcome", "unknown"]
         },
         "label": { "type": "string" },
@@ -249,6 +249,8 @@
         "streaming": { "const": true },
         "reasoning": { "const": true },
         "steerable": { "const": true },
+        "transcript": { "enum": ["all", "own", "none"] },
+        "sharedPromptExcluded": { "const": true },
         "grounding": {
           "type": "object",
           "additionalProperties": false,

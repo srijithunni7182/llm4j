@@ -17,6 +17,8 @@
 
 ---
 
+> **The idea behind these guarantees:** Loom is a language, so the architecture of a multi-agent workflow can be reviewed by people and checked by tools. [Architecture you can review](REVIEWABLE_ARCHITECTURE.md) shows thirteen mistakes and what you see for each.
+
 ## 🎯 What you get out of the box, and what you would otherwise build
 
 | You need | 🧵 llm4j + Loom | On the usual path |
@@ -31,6 +33,27 @@
 | 🔭 **Watch it live** | `--observe` and **Fabric**: cost, context windows, incidents, injection and trifecta signals, a time bar, **Pause / Suspend / Stop**. **Self-hosted, free.** | Tracing and dashboards are LangSmith features, hosted; self-hosting is an Enterprise-plan option. |
 | ☕ **A stack for Java teams** | Your agents, workflows, tests and evaluation in the language your services are written in: JUnit, Spring, Maven. | LangChain and LangGraph are Python and JavaScript; LangChain4j's `agentic` module is documented as experimental. |
 | 🏢 **Compliance, mapped** | Audit events, PII masking, approvals, secrets that never become text, **mapped to GDPR, the EU AI Act and the NIST AI RMF**. | See each project's own documentation. |
+
+### 🏗️ Architecture mistakes, one row each
+
+Each row links the [probe](../probes/README.md) that ran the same scenario with fake models on LangGraph 1.2.18, LangChain 1.4.7 and the Python Google ADK 2.13.0. Where a row has no probe it makes no claim about another framework. The page that explains them is [Architecture you can review](REVIEWABLE_ARCHITECTURE.md).
+
+| The mistake | 🧵 llm4j + Loom | What the probe found elsewhere |
+|---|---|---|
+| **The god prompt**: a rule only in a prompt | A policy file, an evaluator at the exits, and `weave check` refuses an exit with no check; an agent's own changing tool calls are checked too | A reply that broke a rule left with no check, and a hook exists for a check you write; nothing reported that none was installed ([P11](../probes/README.md#p11-a-reply-that-breaks-a-written-rule-can-it-leave-without-a-check)) |
+| **The JSON trap**: reasoning forced into a big schema | LP10 and a `split` fix: prose, then an `extractor` | Builds with no warning in all three ([P10](../probes/README.md#p10-a-step-that-uses-tools-and-must-answer-in-a-large-nested-schema)) |
+| **Evaluation as an afterthought** | `weave check` fails on an untested evaluator or extractor; `weave eval --requirements` | A guard with no test builds and runs with no warning in all three ([P13](../probes/README.md#p13-a-guard-that-enforces-a-rule-can-it-be-used-with-no-test-of-it)) |
+| **Asking a person mid-reasoning** | `use ... approve` at the edge; LH05 and LH03 | LangGraph's `interrupt()` in a node restarted the node, so the text sent differed from the text shown; LangChain and ADK ask at the tool call; nothing counts the questions ([P12](../probes/README.md#p12-a-sending-tool-that-needs-a-persons-yes-where-does-the-run-pause)) |
+| **Global state leakage** | Internal nodes see only their inputs; LP08, LP09, LA21 | Code you write in LangGraph and LangChain; ADK's `include_contents='none'` still let the previous agent's output through in a `SequentialAgent`, an `AgentTool` did not ([P9](../probes/README.md#p9-a-utility-step-that-pulls-fields-out-of-text-can-it-be-given-only-its-inputs)) |
+| **Premature agentification** | Tasks and classifiers are first-class; LC07, LC01 | No probe, no claim |
+| **Error cascading** | Extract, `check` or `approve` before a step acts; LR11 | A made-up amount reached a paying tool with nothing between the agents and no warning in all three ([P15](../probes/README.md#p15-one-agents-invented-amount-handed-to-an-agent-that-pays)) |
+| **Stringly-typed state** | The script owns typed progress ([starter 16](../src/loom/starters/16-step-by-step-agent/)) | All three can keep progress outside the messages, with a state field or tool you write ([P16](../probes/README.md#p16-a-long-agent-loop-that-runs-past-its-context-window)) |
+| **Tools that change things, retried** | `effect: changes` is declared once; `weave check` refuses `retry` unless the tool is safe to repeat | A tool that posted and timed out was posted twice under each framework's retry ([P14](../probes/README.md#p14-a-tool-that-posts-is-it-changes-something-stated-once-and-honoured)) |
+| **Unbounded action loops** | Bounded loops, retries and budgets; LR03, LB01 | No new probe (see the budget and retry rows above) |
+| **The model chooses the route** | Routing only within an allow-list; refused when outside it; LA22 | LangGraph's `Command(goto=...)` ran the privileged node, a conditional edge's target list refused it; LangChain's tool list and ADK's `sub_agents` are allow-lists by construction ([P17](../probes/README.md#p17-a-planner-told-to-route-a-task-to-a-privileged-agent)) |
+| **Unbounded fan-out** | `for each ... max N`; LR13 | No probe, no claim |
+| **The doer grades itself** | A different default judge; LR12, LR14 | No probe, no claim |
+| **Self-reported confidence** | Taught, not checked | No probe, no claim |
 
 <sub>Compared with the public documentation of LangChain and LangGraph (v1), LangSmith and LangChain4j as read in October 2026. The crash and budget rows are [reproducible probes](../probes/README.md): fake models, no keys, one script per stack.</sub>
 

@@ -140,12 +140,14 @@
       - { field: readsFreeText, is: true }
   title: "{label} branches on a field of an answer that has no output_schema"
   why: "Without an output_schema the model's answer is free text, so the field the condition reads may be missing or spelt differently, and the branch silently goes the wrong way."
-  fixHint: "Give the agent an output_schema that has the field the condition reads."
+  fixHint: "If the branch is on a label, ask an intentclassifier. If it is on fields of what an agent worked out, add an extractor after the agent and branch on its fields. For a small, flat answer from an agent that does not need to think, an output_schema with that field is enough."
   since: "1.2.0"
   explain: >
     A condition such as r.score < 5 assumes the answer has a score. Only an output_schema makes the
     model produce one and lets the runtime check it. This rule looks at conditions that read a
-    field of a variable that is bound only by agents with no output_schema.
+    field of a variable that is bound only by agents with no output_schema. Do not reach for a big
+    output_schema on an agent that has to reason (LP10): let it write its analysis, then pull the
+    fields out with an extractor.
   examples:
     fires: [ examples/lr05-fires.loom ]
     quiet: [ examples/lr05-quiet-schema.loom ]
@@ -230,3 +232,92 @@
   examples:
     fires: [ examples/lr10-fires.loom ]
     quiet: [ examples/lr10-quiet-checkpoint.loom, examples/lr10-quiet-short.loom ]
+
+- id: LR13
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: kind, is: foreach }
+      - { field: fansOutModelList, is: true }
+      - { field: fanoutBound, is: 0 }
+  title: "{label} walks over {fanoutList}, a list a model wrote, with no maximum"
+  why: "The length of the list is chosen by a model (or by text that steered it), so this step may run once for every item of a list of any length. Budgets stop the total, but they stop it part-way, with some items done."
+  fixHint: "Add max N after the list (and tell the agent that wrote it the limit in its instructions). Add on_too_many { ... } if something other than failing should happen."
+  since: "6.2.0"
+  explain: >
+    for each ... max N fails the workflow before any item starts when the list is longer than N,
+    and names the agent that wrote the list, because a list far over its bound usually means a
+    problem upstream: what the agent was given, what it was asked, or text in its input trying to
+    steer it. The rule fires only for a list an agent or extractor wrote; a list passed in by the
+    caller is not model-written. The cost estimate shows the worst case of such a step as unknown
+    until it has a maximum.
+  examples:
+    fires: [ examples/lr13-fires.loom, examples/lr13-fires-parallel.loom ]
+    quiet: [ examples/lr13-quiet-max.loom, examples/lr13-quiet-parameter.loom ]
+
+- id: LR11
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: actsOnUnvalidatedProse, is: true }
+  title: "{label} acts on what agent {proseAgent} wrote ({proseVariable}), and nothing checks it on the way"
+  why: "If the first agent invents a fact (an amount, an order id), the second acts on it with confidence. The mistake travels downstream and becomes an action."
+  fixHint: "Check the hand-off with the cheapest thing that works: extract the fields and test them (alt, or a task), check the text against a policy, or add approve to the acting step."
+  since: "6.2.0"
+  explain: >
+    Fires when text an agent wrote freely (no output_schema, no expecting) reaches, directly or
+    through set and interpolation, a step that changes something: a delegate to an agent that holds
+    a tool whose effect is changes and is not under approve:, or a use of such a tool without
+    approve. It stays quiet when a step that checks the text stands between: an extract, an
+    intentclassify, a run of a task that reads it, a check against a policy, a decide, or approve
+    on the acting step. Only structure is read (value flow, tool effects, statement kinds), never what
+    a prompt means.
+  examples:
+    fires: [ examples/lr11-fires.loom ]
+    quiet: [ examples/lr11-quiet-extract.loom, examples/lr11-quiet-approve.loom ]
+
+
+- id: LR12
+  lens: reliability
+  severity: medium
+  about: step
+  when:
+    all:
+      - { field: decidesItsOwnLoop, is: true }
+  title: "{label} ends when agent {loopDecider} says it is done, and {loopDecider} also wrote the work"
+  why: "An agent that decides its own work is finished tends to say yes. The loop stops when the writer is satisfied, not when the work is good."
+  fixHint: "Let a different agent review it (starter 03's shape), check the criteria in code with a task (best when they can be checked, such as tests passing), or check the text against a policy."
+  since: "6.2.0"
+  explain: >
+    Fires on a loop whose condition reads the answer of a delegate in the loop body to an agent that
+    also produces the work the loop iterates on: the same agent binds another variable that is read
+    later, or the agent is handed its own answer again on the next round. It stays quiet when a
+    different agent reviews, when a task or a check decides, or when a person does. Only structure
+    is read (who binds what, what the condition reads), never what a prompt means. Rewind conditions
+    are not read yet, and the add-reviewer fix is not built.
+  examples:
+    fires: [ examples/lr12-fires.loom, examples/lr12-fires-own-answer.loom ]
+    quiet: [ examples/lr12-quiet-reviewer.loom, examples/lr12-quiet-person.loom ]
+
+- id: LR14
+  lens: reliability
+  severity: low
+  about: step
+  when:
+    all:
+      - { field: checkedByOwnModel, is: true }
+  title: "{label} is judged by the same model that wrote the text ({checkedAgent})"
+  why: "A model judging its own kind of text shares its blind spots, so a violation it wrote is less likely to be seen."
+  fixHint: "Give the evaluator a model from another provider, or at least another model than agent {checkedAgent}'s."
+  since: "6.2.0"
+  explain: >
+    Fires on a check whose evaluator is declared with the same model as the agent that wrote the
+    text it checks. It is the second half of rule LR12 in the design (a separate id, because a rule
+    is about one kind of step). Only the declared models are compared.
+  examples:
+    fires: [ examples/lr14-fires.loom ]
+    quiet: [ examples/lr14-quiet.loom ]

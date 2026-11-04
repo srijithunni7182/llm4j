@@ -1,0 +1,6 @@
+agent Summariser { model: "m"  system: "You summarise." memory { transcript: none } }
+workflow Main(topic) {
+  delegate "Summarise the meeting notes" to Summariser -> notes // <- LP08
+  note "{notes}"
+}
+// ignore: LP02 LP05 LO01

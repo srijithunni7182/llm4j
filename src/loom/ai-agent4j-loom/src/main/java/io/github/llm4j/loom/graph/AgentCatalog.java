@@ -91,7 +91,9 @@ final class AgentCatalog {
                 a.isStreaming(),
                 a.isReasoning(),
                 a.isSteerable(),
-                groundingSummary(a.getGrounding()));
+                groundingSummary(a.getGrounding()),
+                a.getTranscriptMode().name().toLowerCase(java.util.Locale.ROOT),
+                a.isSharedPromptExcluded());
     }
 
     private static java.util.Map<String, Object> groundingSummary(AgentDef.GroundingConfig g) {
