@@ -257,6 +257,20 @@ public class AgentDef implements Node {
         this.temperature = temperature;
     }
 
+    private boolean promptCaching = true;
+
+    /**
+     * Whether the agent's model calls let the provider cache what a loop resends (the {@code cache:
+     * on|off} setting); on unless the script says {@code cache: off}.
+     */
+    public boolean isPromptCaching() {
+        return promptCaching;
+    }
+
+    public void setPromptCaching(boolean promptCaching) {
+        this.promptCaching = promptCaching;
+    }
+
     private String ladder;
     private int ladderLine;
     private final java.util.Map<String, io.github.llm4j.loom.autonomy.expr.Expr> ladderArgs =

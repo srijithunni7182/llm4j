@@ -23,6 +23,7 @@ public final class LLMRequest {
     private final boolean reasoning;
     private final io.github.llm4j.grounding.Grounding grounding;
     private final ResponseFormat responseFormat;
+    private final PromptCache promptCache;
 
     /** Whether the model may call the tools it is offered. */
     public enum ToolChoice {
@@ -53,6 +54,7 @@ public final class LLMRequest {
         this.reasoning = builder.reasoning;
         this.grounding = builder.grounding;
         this.responseFormat = builder.responseFormat;
+        this.promptCache = builder.promptCache;
 
         validate();
     }
@@ -139,6 +141,14 @@ public final class LLMRequest {
         return responseFormat;
     }
 
+    /**
+     * The parts of this request a provider may keep in its prompt cache, or null for none (the
+     * default). See {@link PromptCache}.
+     */
+    public PromptCache getPromptCache() {
+        return promptCache;
+    }
+
     /** A builder holding everything of this request, so a copy never drops a field. */
     public Builder toBuilder() {
         Builder b =
@@ -154,7 +164,8 @@ public final class LLMRequest {
                         .toolChoice(toolChoice)
                         .reasoning(reasoning)
                         .grounding(grounding)
-                        .responseFormat(responseFormat);
+                        .responseFormat(responseFormat)
+                        .promptCache(promptCache);
         if (!additionalParameters.isEmpty()) b.additionalParameters(additionalParameters);
         return b;
     }
@@ -180,7 +191,8 @@ public final class LLMRequest {
                 && toolChoice == that.toolChoice
                 && reasoning == that.reasoning
                 && Objects.equals(grounding, that.grounding)
-                && Objects.equals(responseFormat, that.responseFormat);
+                && Objects.equals(responseFormat, that.responseFormat)
+                && Objects.equals(promptCache, that.promptCache);
     }
 
     @Override
@@ -198,7 +210,8 @@ public final class LLMRequest {
                 toolChoice,
                 reasoning,
                 grounding,
-                responseFormat);
+                responseFormat,
+                promptCache);
     }
 
     @Override
@@ -238,8 +251,19 @@ public final class LLMRequest {
         private boolean reasoning;
         private io.github.llm4j.grounding.Grounding grounding;
         private ResponseFormat responseFormat;
+        private PromptCache promptCache;
 
         private Builder() {}
+
+        /**
+         * Lets the provider keep the marked parts of this request in its prompt cache; null (the
+         * default) asks for nothing. See {@link PromptCache} for what it costs and which providers
+         * act on it.
+         */
+        public Builder promptCache(PromptCache promptCache) {
+            this.promptCache = promptCache;
+            return this;
+        }
 
         /** Asks for a reply that follows a JSON Schema; null (the default) leaves it free. */
         public Builder responseFormat(ResponseFormat responseFormat) {

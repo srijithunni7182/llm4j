@@ -109,6 +109,7 @@ public class GoogleProvider implements DescribableProvider {
         }
         String[] finish = {null};
         Integer[] usage = {null, null};
+        int[] cached = {0}; // usageMetadata.cachedContentTokenCount
         int[] calls = {0}; // tool calls seen so far, to number the next
         StringBuilder answer = new StringBuilder(); // the answer text, for grounding offsets
         JsonNode[] grounding = {null}; // the last groundingMetadata Gemini sent
@@ -142,6 +143,7 @@ public class GoogleProvider implements DescribableProvider {
                                     }
                                     JsonNode u = root.path("usageMetadata");
                                     if (!u.isMissingNode()) {
+                                        cached[0] = u.path("cachedContentTokenCount").asInt(0);
                                         usage[0] = u.path("promptTokenCount").asInt(0);
                                         usage[1] =
                                                 u.path("candidatesTokenCount").asInt(0)
@@ -176,12 +178,14 @@ public class GoogleProvider implements DescribableProvider {
                                                                                                 String,
                                                                                                 Object>>>() {}));
                                             }
-                                            LLMResponse last =
+                                            LLMResponse.Builder out =
                                                     Providers.finalChunk(
                                                             finish[0], usage[0], usage[1], model,
-                                                            raw);
-                                            if (request.getGrounding() == null) return last;
-                                            LLMResponse.Builder out = last.toBuilder();
+                                                            raw)
+                                                            .toBuilder();
+                                            if (cached[0] > 0)
+                                                out.addMetadata(Providers.CACHED_TOKENS, cached[0]);
+                                            if (request.getGrounding() == null) return out.build();
                                             GoogleGrounding.read(
                                                     objectMapper
                                                             .createObjectNode()
@@ -660,6 +664,8 @@ public class GoogleProvider implements DescribableProvider {
                         .providerData(rawParts)
                         .finishReason(calls.isEmpty() ? finishReason : "tool_calls")
                         .addMetadata(Providers.FINISH_REASON_RAW, finishReason);
+        int cachedPrompt = usage.path("cachedContentTokenCount").asInt(0);
+        if (cachedPrompt > 0) out.addMetadata(Providers.CACHED_TOKENS, cachedPrompt);
         if (grounded) GoogleGrounding.read(candidate, textContent, out);
         return out.build();
     }

@@ -2669,6 +2669,7 @@ public class HarnessExecutor implements LoomEngine {
             if (agentDef.getTemperature() != null) {
                 agentBuilder.temperature(agentDef.getTemperature());
             }
+            agentBuilder.promptCaching(agentDef.isPromptCaching());
             boolean searchesKnowledge =
                     agentDef.getKnowledgeBases().stream()
                             .anyMatch(

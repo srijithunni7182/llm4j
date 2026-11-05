@@ -138,11 +138,14 @@ Prices change often, so **none ship with the library**. Write your own file, in 
 million tokens:
 
 ```properties
-# prices.properties — model = input / output [/ searches per 1000]  (tokens per million)
+# prices.properties — model = input / output [/ searches per 1000 [/ cache read [/ cache write]]]
+# (tokens per million)
 gemini/gemini-2.5-flash = 0.30 / 2.50
 gemini/gemini-2.5-pro   = 1.25 / 10.00
-anthropic/claude-sonnet = 3.00 / 15.00
+anthropic/claude-sonnet = 3.00 / 15.00 / 0 / 0.30 / 3.75
 ```
+
+The last two numbers are what a **cache read** and a **cache write** cost (here Anthropic's: a read is a tenth of the input price, a write a quarter more). They are optional. When the provider reports that part of the prompt came from its prompt cache (`usage.cached_tokens`) or went into it (`usage.cache_write_tokens`), a call is priced as fresh input at the input rate, plus the reads at the read rate, plus the writes at the write rate. Without cache rates those tokens are priced as ordinary input, which charges a write correctly and a read too much. Write `0` for the searches field when a model has none and you only want to give cache rates. What is held back before a call is still priced at the full input rate, so a budget is never undershot.
 
 ```java
 PriceTable prices = PriceTable.load(Path.of("prices.properties"));

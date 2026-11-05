@@ -90,4 +90,25 @@ Grep the whole repository for `Message`, `delegate`, `attach`, `human_prompt`, `
 
 ## 7. Results
 
-Not started. Each sub-phase records here: what was built, deviations from the design, the confirmed vendor facts (P2, P3), the statement list (P4), guard-removal results, scores, and anything left out.
+### 31a: prompt caching (built; Loom module check owed, see the end of this section)
+
+**Built.** `PromptCache` and `LLMRequest.promptCache` (R1); the Anthropic writer marks the system block, the last tool and the named messages, and refuses an index past the end before any call (R1); `usage.cached_tokens` on Anthropic and Google, `usage.cache_write_tokens` on Anthropic, in the whole response and on the last chunk of a stream, with OpenAI's key moved to one shared constant (R3); `PriceTable.Price` cache read and write rates, the price file format, `BudgetSet.Pricing.cost(...)` and the budgeted client's settlement (R4); `ReActAgent.promptCaching` and its default (R5); the Loom agent setting `cache: on | off` with its parser, executor wiring, hover, highlighting, guide, prompt, `llms.txt`, wiki pages, `API_COMPATIBILITY.md`, release notes and extension changelog (R5, D6).
+
+**Tests (written first, red for the right reason, then green).** `PromptCacheTest` (8), `PromptCacheBodyTest` (10), `CachedUsageTest` (5), `CachePricingTest` (9), `ReActAgentPromptCacheTest` (3), `AgentPromptCacheTest` (6, Loom). `mvn verify` on `ai-agent4j`: 3,547 tests, 0 failures, 2 skipped (the existing ones), all coverage checks met.
+
+**Guard-removal checks (done by hand, each failed a test, then restored).** The index range check (`anIndexBeyondTheMessagesIsRefusedBeforeTheCall`); the rule that a marked text block cannot collapse to a plain string (`aMarkedMessageEndsInAMarkedBlock…`, `allFourBreakpointsAreWritten`); the tool-list marker (`onlyTheLastToolIsMarked`, `allFourBreakpointsAreWritten`).
+
+**Deviations from the design.**
+- R4: "the trace says so once" for a model with no cache rate was **not built**. A model without cache rates is priced as ordinary input, which charges a write right and a read too much; the page says so. No flag is added to the response.
+- The Loom syntax is `cache: on | off` as D6 proposed, although the other yes/no agent settings (`streaming`, `reasoning`, `steerable`) take `true` or `false`. Worth a decision before release: keep `on|off`, or follow the others.
+- `cache` is part of the agent's *behaviour on the bill*, not its answers, so it is **not** in `AgentIdentity` (the eval fingerprint). Changing it does not invalidate a cached eval result.
+- Only the native tool-calling loop sends the cache. The text-format loop (a model that cannot call tools), the wrap-up call and the other `LLMRequest`s `ReActAgent` builds do not. The Spring properties do not take cache rates.
+- `weave check`, `weave audit` and the graph have nothing to say about `cache`, by design (it moves no data).
+- One existing test, `SearchBudgetTest.thePriceTableReadsAnOptionalPricePerThousandSearches`, asserted that a four-field price line is an error. That is exactly what R4 makes valid (the fourth field is the cache read rate), so its invalid example became a six-field line. The behaviour it protects, that a malformed line is refused, is unchanged.
+
+**Not verified (owed).**
+- **P3, the vendor facts**: the four-breakpoint limit, the minimum cacheable length (below it Anthropic silently does not cache), the TTL and the write premium are from my knowledge of the API and the request shape is tested against the code's own expectation, not a recorded live response. The first live call (M7) confirms it.
+- **M7**: the ten-turn Anthropic loop with and without caching, with figures.
+- A recorded Anthropic cache response fixture: `CachedUsageTest` uses hand-written bodies that follow the documented field names.
+- PIT mutation run for the changed classes (none of them is in a mutation profile yet).
+

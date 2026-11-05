@@ -172,6 +172,8 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**approve** `: [Tool, …] | all`\n\nOn an agent: those tool calls wait for a person\'s yes. Journaled per call; a durable run pauses until someone answers.',
     max_iterations:
         '**max_iterations** `: N`\n\nOn an agent: the most reasoning steps it may take for one task.',
+    cache:
+        '**cache** `: on | off`\n\nOn an agent: lets the provider cache the system prompt, tools and conversation a looping agent resends (on by default). Turn it off for an agent that answers in one call.',
     source:
         '**source** `: "docs/"`\n\nIn a `knowledge` block: a file or directory of md, txt, html, json or csv files.',
     provider:

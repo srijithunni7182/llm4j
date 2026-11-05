@@ -39,6 +39,7 @@ import io.github.llm4j.model.ConfidenceScore;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.Message;
+import io.github.llm4j.model.PromptCache;
 import io.github.llm4j.model.TextToSpeechRequest;
 import io.github.llm4j.model.TextToSpeechResponse;
 import io.github.llm4j.model.ToolCall;
@@ -164,6 +165,7 @@ public class ReActAgent {
     private final int maxIterations;
     private final double temperature;
     private final io.github.llm4j.grounding.Grounding grounding;
+    private final boolean promptCaching;
     private final AgentPersona persona;
     private final List<AgentSkill> skills;
     private final PromptRegistry promptRegistry;
@@ -227,6 +229,7 @@ public class ReActAgent {
         this.maxIterations = builder.maxIterations;
         this.temperature = builder.temperature;
         this.grounding = builder.grounding;
+        this.promptCaching = builder.promptCaching;
         this.conversationHistory = builder.conversationHistory;
         this.semanticMemoryService = builder.semanticMemoryService;
         this.recallTopK = builder.recallTopK;
@@ -460,6 +463,19 @@ public class ReActAgent {
      * The conversation as one call sees it: with the hooks' note as a last message, which is not
      * kept.
      */
+    /**
+     * What a call of the loop lets the provider cache, or null when caching is off. The system
+     * prompt and tools do not change between calls or even between runs; the conversation is the
+     * same up to its newest message, which is where the next call picks up. The first call has
+     * nothing to reuse but the fixed part, so it does not pay to cache its single question.
+     */
+    private PromptCache promptCache(List<Message> conversation, int iteration) {
+        if (!promptCaching) return null;
+        PromptCache.Builder cache = PromptCache.builder().system().tools();
+        if (iteration > 0) cache.throughMessage(conversation.size() - 1);
+        return cache.build();
+    }
+
     private static List<Message> withNote(List<Message> conversation, String note) {
         if (note.isEmpty()) return conversation;
         List<Message> shown = new ArrayList<>(conversation);
@@ -1297,6 +1313,7 @@ public class ReActAgent {
                             .temperature(temperature)
                             .grounding(grounding)
                             .reasoning(streaming && reasoning)
+                            .promptCache(promptCache(conversation, i))
                             .build();
             LLMResponse response;
             try {
@@ -1320,6 +1337,7 @@ public class ReActAgent {
                                     .temperature(temperature)
                                     .grounding(grounding)
                                     .reasoning(streaming && reasoning)
+                                    .promptCache(promptCache(conversation, i))
                                     .build();
                     response = modelCall(request, i, telemetry, handle);
                 }
@@ -2374,6 +2392,7 @@ public class ReActAgent {
         private int maxIterations = 10;
         private double temperature = 0.7;
         private io.github.llm4j.grounding.Grounding grounding;
+        private boolean promptCaching = true;
         private AgentPersona persona;
         private List<AgentSkill> skills = new ArrayList<>();
         private PromptRegistry promptRegistry;
@@ -2435,6 +2454,7 @@ public class ReActAgent {
             this.maxIterations = agent.maxIterations;
             this.temperature = agent.temperature;
             this.grounding = agent.grounding;
+            this.promptCaching = agent.promptCaching;
             this.persona = agent.persona;
             this.skills = new ArrayList<>(agent.skills);
             this.promptRegistry = agent.promptRegistry;
@@ -2585,6 +2605,18 @@ public class ReActAgent {
 
         public Builder grounding(io.github.llm4j.grounding.Grounding.Builder grounding) {
             this.grounding = grounding == null ? null : grounding.build();
+            return this;
+        }
+
+        /**
+         * Whether each model call lets the provider cache what the loop resends: the system prompt
+         * and tools always, and from the second call on the conversation so far. On by default,
+         * because a loop is the case that reads the cache back; a provider that cannot cache, or
+         * that caches by itself, ignores it. Turn it off for an agent whose runs are a single call,
+         * where Anthropic's write premium is never repaid. See {@link PromptCache}.
+         */
+        public Builder promptCaching(boolean promptCaching) {
+            this.promptCaching = promptCaching;
             return this;
         }
 
