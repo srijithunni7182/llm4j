@@ -19,7 +19,7 @@
         <java.version>17</java.version>
         <!-- The core this kit runs against: the version of the reactor's ai-agent4j jar. The kit has its
              own version, so ${project.version} cannot stand for it; change this with the parent version. -->
-        <ai-agent4j.version>6.2.0-SNAPSHOT</ai-agent4j.version>
+        <ai-agent4j.version>6.2.1-SNAPSHOT</ai-agent4j.version>
         
         <!-- Dependency Versions -->
         <jackson.version>2.18.11</jackson.version>

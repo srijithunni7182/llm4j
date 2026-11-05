@@ -15,10 +15,12 @@ case "$mode:$version" in
 esac
 cd "$root"
 mvn -q -B versions:set -DnewVersion="$version" -DgenerateBackupPoms=false -Pextended
+# The compatibility kit has a version of its own, so versions:set leaves the core it runs against alone.
+sed -i "s|<ai-agent4j.version>[^<]*</ai-agent4j.version>|<ai-agent4j.version>$version</ai-agent4j.version>|" src/loom/ctk/pom.xml
 if [ "$mode" = release ]; then
   sed -i "s|<llm4j.released>[^<]*</llm4j.released>|<llm4j.released>$version</llm4j.released>|" pom.xml
   sed -i "s|\(\"script-ref\": \"io.github.srijithunni7182:ai-agent4j-loom:\)[^:]*\(:cli\"\)|\1$version\2|" jbang-catalog.json
 fi
-echo "set $version in every pom$([ "$mode" = release ] && echo ", llm4j.released and jbang-catalog.json")"
+echo "set $version in every pom and the kit's core version$([ "$mode" = release ] && echo ", llm4j.released and jbang-catalog.json")"
 grep -n "<llm4j.released>" pom.xml
 grep -n "script-ref" jbang-catalog.json
