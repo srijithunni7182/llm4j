@@ -158,7 +158,9 @@ class MediaClientGuardTest {
     @Test
     void theMaskingClientPassesTheCapabilityAndKeepsTheMedia() {
         Fake provider = new Fake(MediaCapabilities.of(MediaKind.IMAGE));
-        MaskingLLMClient client = new MaskingLLMClient(new DefaultLLMClient(provider));
+        // masking refuses media unless told it is acceptable (MaskingMediaTest); here it is
+        MaskingLLMClient client =
+                new MaskingLLMClient(new DefaultLLMClient(provider)).allowUnscannedMedia();
 
         assertThat(client.mediaCapabilities(null)).isEqualTo(MediaCapabilities.of(MediaKind.IMAGE));
         client.chat(withPhoto());

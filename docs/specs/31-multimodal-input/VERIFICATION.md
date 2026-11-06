@@ -90,6 +90,26 @@ Grep the whole repository for `Message`, `delegate`, `attach`, `human_prompt`, `
 
 ## 7. Results
 
+### 31d: masking, budgets, compaction and the agent (built; the Loom `guard` spelling moves to 31e)
+
+**Built.** `MaskingLLMClient` refuses a request that carries media unless `allowUnscannedMedia()` is called (R13); `MediaTokens` and its use in `CharsPerTokenEstimator`, which the budget and the context manager both use (R14); `ReActAgent.run(question, media)` and `run(question, media, handle)` with `Builder.mediaPolicy`, in the native loop (media on the first user message, kept for every call), the text loop (media on its one user message, including the wrap-up call) and the native wrap-up (R19); compaction that names what it removes: the `drop_oldest` marker and the `summarize` summary, with the counts carried in `providerData` so a second pass adds to them (R19). The wiki page [Media-Input.md](../../../src/ai-agent4j/wiki/Media-Input.md) gained the agent, personal-data and budget sections, each sample tested by `MediaDocsExamplesTest`.
+
+**Tests (written first, red because the API did not exist, then green).** `MaskingMediaTest` (6), `MediaTokensTest` (9), `MediaCompactionTest` (10), `ReActAgentMediaTest` (10), `MediaDocsExamplesTest` (5, two new samples).
+
+**The estimates are checked against real usage.** `MediaTokensTest` asserts the estimate is never below the prompt tokens Gemini 2.5 Flash reported on 2026-11-06 for real files (a 32x32 picture 268, a one-page PDF 268, 2 s of WAV 77, 2 s of MP3 78, a 2 s MP4 clip 864; each includes about 13 tokens of question). They are not checked against Anthropic's or OpenAI's counts, which I did not record.
+
+**Guard-removal checks (each guard disabled by hand, a test failed, then restored).** Masking's media refusal; a picture costing nothing for a budget; the estimator adding media; the document ceiling; the drop marker naming media; the summary's media note; the old note not shown to the summariser; the transcript saying media was attached; the native first message carrying the media; the text loop's main request and its wrap-up carrying the media. One mutation I wrote was a no-op (it replaced a line with itself) and reported "missed"; I redid it properly and it is caught.
+
+**Deviations from the design.**
+- **The Loom `guard { pii: mask  media: unscanned }` spelling is not built here.** It does nothing until a Loom script can attach media, so it lands with `attach` in 31e, where it is tested end to end. The core rule it will switch on (`allowUnscannedMedia()`) is built and tested. D7 is taken as the owner chose: refuse by default, opt in with `media: unscanned`.
+- `pii: block` and `pii: warn` (Loom's `AgentGuard.checkTask`, which inspect the task text) are unchanged here; whether they should also refuse media is a 31e question, because it depends on how a script can attach media.
+- The estimates are flat per kind (a picture 1,600) or by size with a floor and a ceiling; they do not read a picture's dimensions or a clip's length, so a very large picture or a very long clip is under-counted until the provider's usage replaces the estimate. The spec said "never silently breached"; what holds is that a budget is never *blind* to media and that one call's overshoot is corrected afterwards.
+- `ReActAgent` hooks (`RunHook.onInput`) and the personal-data checks see the question text only. Said in the javadoc and the wiki.
+- `run(question, null)` with a bare `null` no longer compiles (two overloads fit); recorded in `API_COMPATIBILITY.md` and the release notes. No caller in this repository did that.
+- Media on a message other than the first user message of a run is not special-cased: if `ConversationHistory` or a custom compactor rebuilds messages, they keep media through `toBuilder`, and `ConversationSummarizer`'s plain-text history does not mention it. Not tested.
+
+**Not verified (owed).** PIT for the new decision logic (`MediaTokens`, the masking refusal, the compaction notes). The downstream modules for this commit (see the end of this section).
+
 ### 31c: the providers (built; live-confirmed for the providers whose keys were available)
 
 **Built.** Per-model media capabilities for the OpenAI family (`Dialect`, `ResponsesDialect`, the patterns in `MediaModels`), Anthropic, Google and Ollama; the writers for Anthropic (`image`, `document`), OpenAI chat (`image_url`, `file`, `input_audio`), OpenAI Responses (`input_image`, `input_file`), Google (`inline_data`) and Ollama (`images`); `Providers.requireMedia`, called first by every provider that takes media and by Sarvam, so media is refused and never dropped even when a provider is called directly; Google's 20 MiB inline limit (R11, R10, R3). The user page [Media-Input.md](../../../src/ai-agent4j/wiki/Media-Input.md) with a docs-example test (`MediaDocsExamplesTest`), linked from the wiki index and `llms.txt`; `API_COMPATIBILITY.md`; the release notes.

@@ -41,6 +41,30 @@ boolean sees = caps.accepts(MediaKind.IMAGE);
 
 When a request carries something the model cannot take, `chat` throws an `InvalidRequestException` such as `anthropic claude-sonnet-5-5 does not accept video; accepted: image, document` and sends nothing. The wrappers (budgets, masking, routing) pass the question on; a router only claims what **every** client behind it takes.
 
+## Ask an agent about it
+
+```java
+AgentResult answer = agent.run("What is the total on this receipt?", List.of(receipt));
+```
+
+The media goes with the first user message of the run and stays there for every later step, so the agent can look again after calling a tool. Compaction keeps that first message, so a long run does not lose its picture. If the model cannot take the kind, it is never called. Run hooks and personal-data guards see the question only, not the media. To send more than the default policy allows (4 items, 32 MiB), give the agent a `MediaPolicy` with `ReActAgent.builder().mediaPolicy(...)`.
+
+When compaction does have to remove a message that carried media (an older user message, not the task), it says so instead of letting the picture vanish: the marker reads `[12 earlier messages were removed to save space, including 2 images that can no longer be seen.]` and a summary ends with `[Media that went with these steps and can no longer be seen: 2 images.]`.
+
+## Personal data
+
+`MaskingLLMClient` replaces emails, phone numbers and the like with placeholders, but only in text. It cannot see a name on a photographed form or a spoken card number, so **it refuses a request that carries media** and tells you why. If sending the media unmasked is acceptable, say so:
+
+```java
+LLMClient client = new MaskingLLMClient(base).allowUnscannedMedia();
+```
+
+The text of such a request is still masked; only the media goes through as it is.
+
+## Budgets and context windows
+
+A budget and a context window count media, or a request full of pictures would slip past both. The default estimate (`MediaTokens`) is about 1,600 tokens a picture, 3,000 or more a document, and sound and video by size, always on the high side. After the call the provider's reported usage replaces the estimate. For a different rule, give the agent or the budgeted client your own `TokenEstimator`.
+
 ## Limits
 
 A `MediaPolicy` holds the limits, and `MediaPolicy.defaults()` is 20 MiB per item, 4 items per message and 32 MiB per request. Change them for one request with `LLMRequest.builder().mediaPolicy(...)`. Gemini takes at most 20 MiB of inline media in one request, and the Google provider refuses more before sending it. You can narrow what is allowed (`MediaPolicy.builder().allow(MediaKind.IMAGE, "image/png")`) or refuse a kind outright (`.refuse(MediaKind.VIDEO)`).
@@ -52,9 +76,9 @@ A `Media` prints as `media:image/png:182340B:ab12cd34` (type, size, a short hash
 ## What this does not do
 
 - **It does not read the media for you.** The model does, and it can be wrong; measure it as you would any answer ([evaluation](../../eval4j/README.md)).
-- **It does not mask personal data in a picture or a recording.** `MaskingLLMClient` and a Loom `guard { pii: mask }` work on text. Treat media as unscanned.
+- **It does not mask personal data in a picture or a recording.** `MaskingLLMClient` works on text, which is why it refuses media unless told otherwise (above). Treat media as unscanned.
 - **It does not fetch URLs.** Media comes from a file or from bytes you hold. A path that comes from outside your program must be checked by you (it is not confined to a directory here).
-- **Media costs tokens.** A picture, a page, a second of sound or video is counted by the provider, and a budget's estimate for it is rough; the provider's reported usage replaces it after the call.
+- **Media costs tokens.** A picture, a page, a second of sound or video is counted by the provider, and a budget's estimate for it is rough (above); the provider's reported usage replaces it after the call.
 - **Prompt injection can arrive as pixels or speech.** Text in a picture or words in a recording can instruct the model like any other input. Do not give an agent that reads untrusted media a way to act on its own.
 
 See also [Providers and the uniform contract](Providers-and-the-Uniform-Contract.md) and, for prompt caching, [the same page](Providers-and-the-Uniform-Contract.md#prompt-caching).

@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.llm4j.agent.AgentResult;
+import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
@@ -13,6 +15,7 @@ import io.github.llm4j.model.MediaKind;
 import io.github.llm4j.model.MediaPolicy;
 import io.github.llm4j.model.Message;
 import io.github.llm4j.model.TinyMedia;
+import io.github.llm4j.privacy.MaskingLLMClient;
 import io.github.llm4j.provider.openai.OpenAiCompatibleProvider;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -89,6 +92,30 @@ class MediaDocsExamplesTest {
     }
 
     @Test
+    void askAnAgentAboutIt(@TempDir Path dir) throws Exception {
+        Media receipt = Media.image(Files.write(dir.resolve("r.png"), TinyMedia.png()), MediaPolicy.defaults());
+        ReActAgent agent = ReActAgent.builder().llmClient(client()).build();
+        // --- sample: agent
+        AgentResult answer = agent.run("What is the total on this receipt?", List.of(receipt));
+        // --- end sample
+        assertThat(answer.getFinalAnswer()).isNotBlank();
+        JsonNode first = new ObjectMapper().readTree(server.takeRequest().getBody().readUtf8())
+                .at("/messages");
+        boolean carried = false;
+        for (JsonNode message : first) carried |= message.at("/content").isArray();
+        assertThat(carried).as("the media went to the model with the question").isTrue();
+    }
+
+    @Test
+    void sendMediaThroughMaskingOnPurpose() {
+        LLMClient base = client();
+        // --- sample: masking
+        LLMClient client = new MaskingLLMClient(base).allowUnscannedMedia();
+        // --- end sample
+        assertThat(client.mediaCapabilities("gpt-5-mini").accepts(MediaKind.IMAGE)).isTrue();
+    }
+
+    @Test
     void thePageShowsExactlyTheSamplesThatAreTested() throws Exception {
         String source = Files.readString(Path.of("src/test/java/io/github/llm4j/MediaDocsExamplesTest.java"));
         String page = Files.readString(Path.of("wiki/Media-Input.md"));
@@ -98,6 +125,6 @@ class MediaDocsExamplesTest {
             found++;
             assertThat(page).as("the page shows the '" + m.group(1) + "' sample").contains(m.group(2).stripIndent().strip());
         }
-        assertThat(found).isEqualTo(2);
+        assertThat(found).isEqualTo(4);
     }
 }
