@@ -413,6 +413,14 @@ public class AgentDef implements Node {
             return get("bias_model");
         }
 
+        /**
+         * Whether the guard accepts sending pictures, sound, video and documents, which {@code pii:}
+         * cannot inspect ({@code media: unscanned}).
+         */
+        public boolean isUnscannedMedia() {
+            return "unscanned".equals(get("media"));
+        }
+
         /** {@code off}, {@code warn} or {@code block}, or null when not written. */
         public String getPromptLeak() {
             return get("prompt_leak");

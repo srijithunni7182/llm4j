@@ -233,19 +233,22 @@ final class ExtractRunner {
      *
      * @throws StepFailure when the step cannot go ahead
      */
+    /** The refusal, worded once for the runtime and for {@code weave check}. */
+    static String mediaRefusal(String extractor, String pii) {
+        return "extractor "
+                + extractor
+                + " has pii: "
+                + pii
+                + ", which works on text and cannot see inside a picture, a recording or a"
+                + " document, so the file is refused; add media: unscanned to the extractor if"
+                + " sending it unscanned is acceptable";
+    }
+
     private java.util.List<io.github.llm4j.model.Media> media(ExtractStmt stmt, ExtractorDef def) {
         if (stmt.getMediaInputs().isEmpty()) return java.util.List.of();
         String pii = def.getPii();
         if (!def.isUnscannedMedia() && ("mask".equals(pii) || "block".equals(pii))) {
-            throw new StepFailure(
-                    "extractor "
-                            + def.getName()
-                            + " has pii: "
-                            + pii
-                            + ", which works on text and cannot see inside a picture, a recording"
-                            + " or a document, so the file is refused; add media: unscanned to the"
-                            + " extractor if sending it unscanned is acceptable",
-                    null);
+            throw new StepFailure(mediaRefusal(def.getName(), pii), null);
         }
         java.util.List<io.github.llm4j.model.Media> media;
         try {

@@ -528,6 +528,7 @@ public class ScriptValidator {
         DecisionChecks.run(c);
         ClassifierChecks.run(c);
         ExtractorChecks.run(c);
+        MediaChecks.run(c);
         PolicyChecks.run(c);
         UseChecks.run(c);
         RoutingChecks.run(c);

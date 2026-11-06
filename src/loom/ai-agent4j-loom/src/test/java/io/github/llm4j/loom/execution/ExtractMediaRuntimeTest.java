@@ -96,7 +96,12 @@ class ExtractMediaRuntimeTest {
     }
 
     private void run(String source) {
-        executor(source).executeWorkflow("Main", Map.of("receipt", "receipt", "memo", "lunch with Ana"));
+        run(source, "receipt");
+    }
+
+    /** Runs with the input {@code receipt} set as given, which a path may name. */
+    private void run(String source, String receipt) {
+        executor(source).executeWorkflow("Main", Map.of("receipt", receipt, "memo", "lunch with Ana"));
     }
 
     private static Message userMessageOf(LLMRequest request) {
@@ -162,9 +167,16 @@ class ExtractMediaRuntimeTest {
 
     // ── nothing is sent when something is wrong ────────────────────────────────────────────
 
+    // A literal path that is wrong is found by `weave check` when the script loads (MediaChecksTest).
+    // These use a path filled in from an input, which only the runtime can see.
+
     @Test
     void aMissingFileStopsTheStepBeforeAnyModelIsCalled() {
-        assertThatThrownBy(() -> run(script("", "extract Receipt from image \"missing.png\" -> fields retry 2")))
+        assertThatThrownBy(
+                        () ->
+                                run(
+                                        script("", "extract Receipt from image \"{receipt}.png\" -> fields retry 2"),
+                                        "missing"))
                 .hasStackTraceContaining("missing.png");
         assertThat(sent).isEmpty();
     }
@@ -173,7 +185,11 @@ class ExtractMediaRuntimeTest {
     void aPathThatEscapesTheFolderStopsTheStep() throws IOException {
         Files.write(dir.resolve("secret.png"), png());
 
-        assertThatThrownBy(() -> run(script("", "extract Receipt from image \"../secret.png\" -> fields")))
+        assertThatThrownBy(
+                        () ->
+                                run(
+                                        script("", "extract Receipt from image \"{receipt}\" -> fields"),
+                                        "../secret.png"))
                 .hasStackTraceContaining("image");
         assertThat(sent).isEmpty();
     }
@@ -193,7 +209,8 @@ class ExtractMediaRuntimeTest {
         run(
                 script(
                         "",
-                        "extract Receipt from image \"missing.png\" -> fields on_failure { note \"handled\" }"));
+                        "extract Receipt from image \"{receipt}.png\" -> fields on_failure { note \"handled\" }"),
+                "missing");
 
         assertThat(trace).anySatisfy(e -> assertThat(String.valueOf(e)).contains("handled"));
         assertThat(sent).isEmpty();

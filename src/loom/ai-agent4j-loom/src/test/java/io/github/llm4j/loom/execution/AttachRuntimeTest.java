@@ -95,7 +95,12 @@ class AttachRuntimeTest {
     }
 
     private void run(String source) {
-        executor(source).executeWorkflow("Main", Map.of("receipt", "receipt"));
+        run(source, "receipt");
+    }
+
+    /** Runs with the workflow's one input set to {@code receipt}, which a path may name. */
+    private void run(String source, String receipt) {
+        executor(source).executeWorkflow("Main", Map.of("receipt", receipt));
     }
 
     private static io.github.llm4j.model.Message userMessageOf(LLMRequest request) {
@@ -155,6 +160,10 @@ class AttachRuntimeTest {
 
     // ── nothing is sent when something is wrong ────────────────────────────────────────────
 
+    // A literal path that is wrong is found by `weave check` when the script loads (MediaChecksTest),
+    // before anything runs. The tests below use a path filled in from an input, which only the
+    // runtime can see, so they exercise the runtime's own refusal.
+
     @Test
     void noMediaRootStopsTheStepBeforeAnyModelIsCalled() {
         assertThatThrownBy(() -> run(script(null, "delegate \"x\" to Reader attach image \"receipt.png\" -> out")))
@@ -166,7 +175,12 @@ class AttachRuntimeTest {
     void aPathThatEscapesTheFolderStopsTheStep() throws IOException {
         Files.write(dir.resolve("secret.png"), png());
 
-        assertThatThrownBy(() -> run(script("assets", "delegate \"x\" to Reader attach image \"../secret.png\" -> out")))
+        // the input is what names the way out, as it would if a person or a model wrote it
+        assertThatThrownBy(
+                        () ->
+                                run(
+                                        script("assets", "delegate \"x\" to Reader attach image \"{receipt}\" -> out"),
+                                        "../secret.png"))
                 .hasStackTraceContaining("attach image");
         assertThat(sent).isEmpty();
     }
@@ -178,7 +192,8 @@ class AttachRuntimeTest {
                                 run(
                                         script(
                                                 "assets",
-                                                "delegate \"x\" to Reader attach image \"missing.png\" -> out retry 3")))
+                                                "delegate \"x\" to Reader attach image \"{receipt}.png\" -> out retry 3"),
+                                        "missing"))
                 .hasStackTraceContaining("missing.png")
                 .hasStackTraceContaining("is not retried");
         // no attempt reached a model, however many retries the step allows
@@ -210,8 +225,9 @@ class AttachRuntimeTest {
         run(
                 script(
                         "assets",
-                        "delegate \"x\" to Reader attach image \"missing.png\" -> out on_failure { note \"handled\" }\n"
-                                + "note \"after\""));
+                        "delegate \"x\" to Reader attach image \"{receipt}.png\" -> out on_failure { note \"handled\" }\n"
+                                + "note \"after\""),
+                "missing");
 
         assertThat(trace).anySatisfy(e -> assertThat(String.valueOf(e)).contains("handled"));
         assertThat(sent).isEmpty();

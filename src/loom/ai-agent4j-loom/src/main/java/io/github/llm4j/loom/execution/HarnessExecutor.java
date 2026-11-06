@@ -3116,10 +3116,7 @@ public class HarnessExecutor implements LoomEngine {
      * defaults.
      */
     io.github.llm4j.model.MediaPolicy mediaPolicy() {
-        io.github.llm4j.model.MediaPolicy.Builder policy = io.github.llm4j.model.MediaPolicy.builder();
-        if (script.getMediaMaxBytes() != null) policy.maxBytesPerItem(script.getMediaMaxBytes());
-        if (script.getMediaMaxItems() != null) policy.maxItemsPerMessage(script.getMediaMaxItems());
-        return policy.build();
+        return MediaSource.policyOf(script);
     }
 
     /**
@@ -3157,6 +3154,14 @@ public class HarnessExecutor implements LoomEngine {
                                     .collect(java.util.stream.Collectors.toSet()));
         } catch (io.github.llm4j.exception.InvalidRequestException e) {
             throw new MediaRefusal(e.getMessage(), e);
+        }
+        AgentGuard guard = guards.get(agentName);
+        if (guard != null) {
+            try {
+                guard.checkMedia(media);
+            } catch (StepFailure refused) {
+                throw new MediaRefusal(refused.getMessage(), refused);
+            }
         }
     }
 

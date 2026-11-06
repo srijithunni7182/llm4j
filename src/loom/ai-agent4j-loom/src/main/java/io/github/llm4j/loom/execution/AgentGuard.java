@@ -44,6 +44,7 @@ final class AgentGuard {
     private final String leakMode; // warn, block or off
     private final LeakCheck leak;
     private final Pii pii;
+    private final boolean unscannedMedia;
     private final Bias bias;
     private final BiasMonitor monitor;
     private final HarnessExecutor executor;
@@ -59,6 +60,7 @@ final class AgentGuard {
                 config.getPii() == null
                         ? null
                         : Pii.valueOf(config.getPii().toUpperCase(Locale.ROOT));
+        this.unscannedMedia = config.isUnscannedMedia();
         this.bias =
                 config.getBias() == null
                         ? null
@@ -87,11 +89,37 @@ final class AgentGuard {
     /** With {@code pii: mask}, everything the agent sends its model is masked first. */
     LLMClient wrap(LLMClient client) {
         if (pii != Pii.MASK) return client;
-        return new MaskingLLMClient(
-                client,
-                detector,
-                MaskingLLMClient.PERSONAL,
-                counts -> report("pii_masked", "model input", counts));
+        MaskingLLMClient masking =
+                new MaskingLLMClient(
+                        client,
+                        detector,
+                        MaskingLLMClient.PERSONAL,
+                        counts -> report("pii_masked", "model input", counts));
+        return unscannedMedia ? masking.allowUnscannedMedia() : masking;
+    }
+
+    /**
+     * Refuses media when this guard masks or blocks personal data and the script has not accepted
+     * sending media unscanned: those settings work on text, and cannot see inside a picture or a
+     * recording. {@code warn} only records, so it does not stop media.
+     *
+     * @throws StepFailure naming the agent, the setting and how to accept it
+     */
+    void checkMedia(java.util.List<io.github.llm4j.model.Media> media) {
+        if (media.isEmpty() || unscannedMedia || (pii != Pii.MASK && pii != Pii.BLOCK)) return;
+        throw new StepFailure(
+                mediaRefusal(agent, pii.name().toLowerCase(Locale.ROOT)), null);
+    }
+
+    /** The refusal, worded once for the runtime and for {@code weave check}. */
+    static String mediaRefusal(String agent, String pii) {
+        return "agent "
+                + agent
+                + " has guard { pii: "
+                + pii
+                + " }, which works on text and cannot see inside a picture, a recording or a"
+                + " document, so the attachment is refused; add media: unscanned to the guard if"
+                + " sending it unscanned is acceptable";
     }
 
     /**

@@ -50,6 +50,23 @@ final class MediaSource {
         this.policy = policy;
     }
 
+    /** The limits a script sets with {@code media { }}, over the library's defaults. */
+    static MediaPolicy policyOf(io.github.llm4j.loom.ast.LoomScript script) {
+        MediaPolicy.Builder policy = MediaPolicy.builder();
+        if (script.getMediaMaxBytes() != null) policy.maxBytesPerItem(script.getMediaMaxBytes());
+        if (script.getMediaMaxItems() != null) policy.maxItemsPerMessage(script.getMediaMaxItems());
+        return policy.build();
+    }
+
+    /**
+     * Checks the media folder alone: named, inside the script's folder, and there.
+     *
+     * @throws MediaRefusal if it is not
+     */
+    void checkRoot() {
+        guardOfTheMediaRoot();
+    }
+
     /**
      * Reads every attachment of a step, or refuses the whole step before any is sent.
      *
