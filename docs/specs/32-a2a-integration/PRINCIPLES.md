@@ -1,6 +1,6 @@
 # A2A in llm4j: what it is and how we approach it
 
-**Status: draft for review.** This page is meant to guide the A2A work in llm4j, so every design choice can be checked against it. It is not a specification: the design, tests and verification plan come after it, in this folder. Facts about the A2A protocol are marked **[verified]** when they were read in the published 1.0.0 specification, and **[unverified]** when they come from a summary or from memory and must be checked before they are relied on (see "What has and has not been checked" at the end).
+**Status: draft for review.** This page is meant to guide the A2A work in llm4j, so every design choice can be checked against it. It is not a specification: the design, tests and verification plan come after it, in this folder. Facts about the A2A protocol are marked **[verified]** when they were read in the published 1.0.0 specification, and **[unverified]** when they come from a summary or from memory and must be checked before they are relied on.
 
 ## 1. What A2A is
 
@@ -151,65 +151,3 @@ llm4j makes it possible to expose and to call agents over A2A. It does not decid
 **When in doubt**, ask in this order: Does this make llm4j's own types or syntax depend on a protocol version? If so, move it into the translation. Does this move a decision about the consumer's environment into llm4j? If so, make it an interface. Does this protect against a failure the consumer cannot easily see? If so, llm4j decides and fails closed. Can a reviewer see it in the script? If not, it needs a declaration.
 
 A change to these principles is the owner's decision and is made here, in this page, before it is made in code.
-
-## 6. What we have decided so far
-
-These choices follow from the principles above. They are the starting point for the design, and a change to one of them is made here first.
-
-**Calling another agent**
-
-- A `remote` declaration, separate from `agent`, because a remote agent is opaque, its reply is untrusted, its cost is outside our budgets, and it can take hours. Its card address and a reference to a secret go in the block; there is no version setting.
-- The statement that calls it is the one we already have: `delegate "…" to Supplier -> quote`.
-- The card is fetched and checked **at run time**, before anything is sent. `weave check` does not pretend to validate it: it warns that the remote agent is not validated. What the remote accepts (files, for instance) is decided by its card.
-- In Java, a separate `RemoteAgent` type, not a second implementation of one `Agent` interface. It is built from a card, an injected transport and a channel, and it has `send`, `reply`, `get` and `cancel`. It does not wait or poll. We do not ship a tool wrapper for it.
-- A crash after a send never creates a second remote task: the message and context ids are journaled first, and a resume looks the task up before it considers sending again.
-
-**Being called**
-
-- An `expose` declaration, separate from the workflow it names, with a description, limits and skills. Only workflows can be exposed from a script; to expose an agent, wrap it in a one-step workflow. A published agent that bypasses a workflow's budget, exit checks and approvals is the "god prompt" mistake, and the audit says so.
-- A card builder turns the declaration, plus the address and login the host supplies, into card JSON. `weave card main.loom` prints it for review.
-- The handler wraps `LoomHost` and does not change it: a task is a durable run, a pending `human_prompt` is a pause, and a crash resumes the run.
-- The handler requires the caller's identity from the host and shows each caller only its own tasks. With no identity, it refuses.
-
-**Questions, authorization and links: `agent_channel`**
-
-- An `agent_channel` is the script's declaration of a consumer-implemented channel for what passes between agents. It is separate from the existing person channel (console, Telegram), which, along with `human_prompt` and `approve`, is not changed at all.
-- It declares an **audience** (staff, caller or automatic), a **question limit** and a **timeout**. The audit reads the audience. The runtime enforces the limit and the timeout.
-- `remote` and `expose` each name their channel. The statement for our workflow to ask is `ask Channel "…" -> reply`. It is keyword-first, because every Loom statement starts with a keyword.
-- Replies are **text or structured**, and structured ones are checked against `expecting`, the schema language Loom already has. A reply that fails is returned to the channel with the reason, and each attempt uses one of the question limit. The count is per run and step, retries included. Files are not accepted as replies.
-- The channel receives a defined, read-only **context** (run, step, workflow, direction, counterpart, deadline, questions left) and messages of three kinds: a question, a request for authorization, and a link. It answers with a reply, a deferral to be completed later, a refusal, or, for a link, a received file. An unhandled message fails the step. A message nobody handles is never dropped silently.
-- Every message and response is journaled with an idempotency key, so a resume never repeats an effect.
-
-**Files that arrive**
-
-- When the channel is given a link, the context gives it a **writable stream**. The runtime chooses the destination, a `received/` folder inside `media_root`, and a generated file name. The sender's own file name is kept only as a label and never builds a path.
-- The size is capped while the bytes arrive, using the script's `media { max_bytes }`. There is no separate setting for now. The type is decided from the bytes, and SVG and unknown types are refused. A failed write leaves nothing behind.
-- The files reach the workflow as a **list variable**, such as `{quote_files}`, like the citations of a grounded agent. A script that has no `media_root` cannot receive files, which fails closed in the same way as `attach`. Because the path is chosen at run time, the audit rule for run-time media paths (LA23) already applies.
-- A resumed run needs the `received/` folder to survive with the run's journal. Otherwise the hash check fails the step, which is the safe result. The documentation must say so.
-
-**Versions**
-
-- The model is version-free, as principle 9 says. We target the 1.0 JSON-RPC translation only, as one optional helper.
-
-## What has and has not been checked
-
-The specification page was read in part. The sections that were read word for word: the overview, the list of operations, the agent card and its discovery, the security considerations for authentication and TLS, and the push-notification flow. Sections that were only seen through a summary: the exact definitions of Task, task states, and Part; the complete agent card field list; the error codes; and the migration notes between versions.
-
-Specific things to settle when the specification is read closely, before the design is written:
-
-- The spelling of task states. The specification's examples are inconsistent with its enumeration. This now affects only the optional 1.0 helper, which must accept what it meets and write the 1.0 form.
-- Whether a separate structured-data part exists, and how a file is represented (the specification names `raw` and `url`, with a media type).
-- The exact JSON-RPC method names and result shapes. `SendMessage`, `SendStreamingMessage`, `GetTask`, `ListTasks`, `CancelTask`, `SubscribeToTask` and `GetExtendedAgentCard` were seen as headings; the push-notification configuration methods were not.
-- ~~Which bindings llm4j's types should be written for.~~ Settled by principle 9: the model is independent of binding and version, and the only translation we ship is 1.0 over JSON-RPC.
-- `TASK_STATE_AUTH_REQUIRED`, a second kind of pause besides asking for input. The channel receives it as its own kind of message and fails closed unless handled (section 6); how a channel should handle it in detail is open (see "Still to decide").
-- The 1.0.0 specification changes names from earlier versions (0.3.0, 0.2.6 and 0.1.0 are linked). Other sources and examples on the web may use the old names.
-
-## Still to decide
-
-These are open design questions, to be settled before the specification is written:
-
-1. How an incoming A2A message becomes the exposed workflow's parameters, since a message can carry text, structured data and files.
-2. How to expose a plain `ReActAgent` from Java, which has no journal behind it.
-3. The audit rules and their numbers. At minimum: a published workflow that reaches private data and can send something; a remote call with no `on_failure`; an `agent_channel` whose audience is `automatic` and answers an outside party; private data or files sent to a remote agent.
-4. How an `agent_channel` handles a request for authorization in detail, beyond failing closed.
-5. Whether to offer a hook for verifying signed agent cards.
