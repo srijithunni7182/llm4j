@@ -70,12 +70,12 @@ Grep the whole repository for `Message`, `delegate`, `attach`, `human_prompt`, `
 ## 5. Exit checklist
 
 - [ ] All of A1 to A19 pass with the evidence named.
-- [ ] Guard-removal checks (TEST_STRATEGY §5) done and recorded.
-- [ ] Documentation checklist (§3) done; samples verified.
+- [x] Guard-removal checks (TEST_STRATEGY §5) done and recorded (§7, per sub-phase).
+- [x] Documentation checklist (§3) done; samples verified (the Loom guide section by `AttachGuideTest`; the VS Code snippet is deliberately absent, §7 31f).
 - [ ] Recorded fixtures cover every provider cell marked yes in DESIGN §4.3; unconfirmed cells are marked so.
-- [ ] Release notes and `API_COMPATIBILITY.md` updated.
-- [ ] The roadmap row is current.
-- [ ] Anything not done is listed in §7 under "Left out", with the reason.
+- [x] Release notes and `API_COMPATIBILITY.md` updated.
+- [x] The roadmap row is current.
+- [x] Anything not done is listed in §7 (31f "Not verified").
 
 ## 6. Risks
 
@@ -90,7 +90,25 @@ Grep the whole repository for `Message`, `delegate`, `attach`, `human_prompt`, `
 
 ## 7. Results
 
-### 31e: Loom (in progress; steps 1 to 3 built: the language, the resolver, the runtime for `delegate`, `broadcast` and `handoff`)
+### 31f: documentation, editor, compatibility kit, mutation tests (built)
+
+**Built.**
+- **Docs.** `LOOM_GUIDE.md` has a section, "Sending pictures, recordings and documents", with three ` ```loom ` blocks that `AttachGuideTest` parses; `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md`, `docs/guide/07-validate-and-audit.md` (LA23), the `llm4j-workflow-guide` skill, `llms.txt`, the `Media-Input.md` wiki page (a Loom section), `docs/security/owasp-llm-top-10.md` (LA23 under LLM01), `docs/API_COMPATIBILITY.md` and `docs/RELEASE_NOTES_6_2_0.md` (31e entry; one stale `cache: off` corrected to `cache: false`).
+- **Editor.** `attach`, `media_root`, `media`, `max_bytes`, `max_items` and `unscanned` are highlighted, `attach`, `media_root` and `media` have hover help, `CHANGELOG.md` records it. **No snippet:** a snippet is checked by running `weave check` on it as a script, and an `attach` needs a file under `media_root` that a snippet cannot bring.
+- **Compatibility kit.** `ctk/scripts/attach_basic.loom` (with `scripts/media/pixel.png`), `mocks/attach_basic.json`, `traces/attach_basic.json` (three runs: a file under the root is sent once with its type; a path out of the root and a missing file are refused with no model call), `AttachCtkConformanceTest`, and a README section.
+- **Mutation tests.** A `mutation-media` profile in `ai-agent4j` (`Media`, `MediaPolicy`, `MediaSniffer`, `MediaCapabilities`, `MediaDescriptor`; threshold 85). First run 111 of 132 killed (84%), below the bar: the sniffer had no test for FLAC, Ogg, QuickTime or M4A, the MPEG audio frame check, or the exact header length, and `equals`/`hashCode`/`toString` were untested. `MediaSnifferTest` (new), and additions to `MediaTest` and `MediaCapabilitiesTest`, bring it to **129 of 132 (98%)**. A first reading of the survivors called the bounded-read boundary equivalent; it was not (a file of exactly the limit must be taken), so `takesAFileOfExactlyTheLimit` was added and killed it. The three survivors are a boundary in the file-name cleaner (`> 100` against `>= 100` give the same name) and the sniffer's `ascii` bounds check, whose "too short" branch no input can reach because every tag it looks for ends inside the 12-byte minimum. Spotless is clean on `ai-agent4j`.
+
+**A real bug found by writing the compatibility scenario.** `LoomLoader`, which every `weave` command uses, built the loaded script from its imports and **dropped `media_root` and the `media { }` limits**, so from the command line every `attach` failed with "the script has no media_root". 31e's tests parsed scripts directly and never went through the loader. `RepositoryScriptsTest` (which loads every script in the repository through the loader) caught it the first time a script with `media_root` was added. Fixed in `LoomLoader` (an importing file's media folder is its own; a library's is not imposed on the importer), with two tests in `LoaderKeepsEveryDeclarationTest` that failed before the fix. `weave check` and `weave audit` on the kit script now work from the real command line (`LA23` fires on the run-time path). A displaced Javadoc in `LoomScript` was put back.
+
+**Builds.** Core `mvn verify`: 3,775 tests, 0 failures. Loom `mvn verify`: 4,884 tests, 0 failures, coverage gates met (a first run failed two guide-link tests, because a guide chapter may link only to another chapter or the web; the link became a web address and the run was repeated in full).
+
+**Not verified.**
+- **VS Code extension:** the extension's own suite ran (778 tests, 729 pass, 48 skipped, 1 fail). The failure is `review.e2e.browser.test.js` "A1", which expects 10 findings from a fixture script and gets 13; the extra three are validity findings (LV09, LV00: the fixture's `shell` tool uses an option the tool no longer accepts). I did not touch the shell tool or that fixture, and I did not run the suite on `main` to prove it failed before, so treat it as likely pre-existing, not proven. The grammar and hover changes are covered by the suites that passed.
+- **A Loom mutation profile** for `MediaSource`, `MediaChecks` and `MediaJournal` is not built; their guards were checked by hand (guard-removal, 66 in 31e) but not by PIT.
+- **Fabric and the editor do not display attached media** (the run page shows the descriptor line only); a media folder outside the script's folder is not allowed.
+- **Kimi, Qwen and Ollama** are built from their documentation and unconfirmed against the real service.
+
+### 31e: Loom (built; steps 1 to 3 shown first: the language, the resolver, the runtime for `delegate`, `broadcast` and `handoff`)
 
 **Built.** `attach image "a.png", audio "b.wav"` on `delegate`, `broadcast` and `handoff`, and the script settings `media_root: "./assets"` and `media { max_bytes: 20MB  max_items: 4 }` (step 1); `MediaSource`, which loads attachments only from files under `media_root` (step 2); the runtime: the files are read and checked before any model call, `broadcast` checks every target before it sends to any, and the media goes through the agent's run to the model (step 3). Core gained `MediaCapabilities.require(subject, kinds)`, `ReActAgent.mediaCapabilities()` and the by-name lookups (`AnthropicProvider.mediaCapabilitiesOf`, `GoogleProvider.mediaCapabilitiesOf`, `OllamaProvider.mediaCapabilitiesOf`, `Vendor.mediaCapabilities`).
 
@@ -115,7 +133,7 @@ Grep the whole repository for `Message`, `delegate`, `attach`, `human_prompt`, `
 - **The graph (step 9, R22).** A node that sends files has an `attaches` attribute (the kinds, in order, never the file names) and a chip in the renderer ("attaches 2 images, document"), on `delegate`, `broadcast`, `handoff`, `extract` and `human_prompt`. The shipped renderer copies are synced. `AttachGraphTest` (5) and 3 new JS tests (95 pass).
 - **`human_prompt ... attach image "..." -> answer` (step 10, §5.4).** The files are read and checked before anyone is asked; the person sees the question plus one line per file (kind, path in the media folder, size; never an absolute path of this machine); a resumed run checks the files are those the person was shown. **A richer display in Fabric and the editor is not built**: every channel shows the lines, none shows the picture. `AttachHumanPromptTest` (10).
 - Loom 4,879 tests green, coverage gates met. Eighteen more guards were disabled in turn; seventeen were caught at once and one edit did not compile, then was redone and caught. A generated rule page went stale when LA23 was added and was regenerated with the repository's own switch (`-Dregenerate.rule.docs=true`).
-- Not yet built in 31e: nothing in the language and runtime. 31f remains: the documentation, grammar, snippets and compatibility-kit scenarios.
+- 31e is complete. What 31f added is below.
 
 ### 31d: masking, budgets, compaction and the agent (built; the Loom `guard` spelling moves to 31e)
 

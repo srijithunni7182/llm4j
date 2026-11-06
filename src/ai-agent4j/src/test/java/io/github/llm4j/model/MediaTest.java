@@ -243,6 +243,23 @@ class MediaTest {
     }
 
     @Test
+    void takesAFileOfExactlyTheLimit(@TempDir Path dir) throws Exception {
+        byte[] png = TinyMedia.png();
+        Path file = Files.write(dir.resolve("exact.png"), png);
+        MediaPolicy exact = MediaPolicy.builder().maxBytesPerItem(png.length).build();
+
+        assertThat(Media.image(file, exact).size()).isEqualTo(png.length);
+        assertThatThrownBy(
+                        () ->
+                                Media.image(
+                                        file,
+                                        MediaPolicy.builder()
+                                                .maxBytesPerItem(png.length - 1)
+                                                .build()))
+                .isInstanceOf(InvalidRequestException.class);
+    }
+
+    @Test
     void refusesAFileBiggerThanTheLimitWithoutKeepingIt(@TempDir Path dir) throws Exception {
         Path file = Files.write(dir.resolve("big.png"), TinyMedia.png());
         MediaPolicy small = MediaPolicy.builder().maxBytesPerItem(10).build();
@@ -261,5 +278,18 @@ class MediaTest {
         assertThatThrownBy(() -> Media.image(dir.resolve("missing.png"), POLICY))
                 .isInstanceOf(InvalidRequestException.class)
                 .hasMessageContaining("missing.png");
+    }
+
+    @Test
+    void twoFilesWithTheSameBytesAreEqualWhateverTheyAreCalled() {
+        Media first = Media.of(MediaKind.IMAGE, TinyMedia.png(), "one.png", POLICY);
+        Media second = Media.of(MediaKind.IMAGE, TinyMedia.png(), "two.png", POLICY);
+        byte[] other = TinyMedia.png();
+        other[40] = 7;
+        Media different = Media.of(MediaKind.IMAGE, other, "one.png", POLICY);
+
+        assertThat(first).isEqualTo(first).isEqualTo(second).hasSameHashCodeAs(second);
+        assertThat(first).isNotEqualTo(different).isNotEqualTo("one.png").isNotEqualTo(null);
+        assertThat(first.hashCode()).isNotEqualTo(different.hashCode()).isNotZero();
     }
 }

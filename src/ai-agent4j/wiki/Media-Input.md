@@ -51,6 +51,26 @@ The media goes with the first user message of the run and stays there for every 
 
 When compaction does have to remove a message that carried media (an older user message, not the task), it says so instead of letting the picture vanish: the marker reads `[12 earlier messages were removed to save space, including 2 images that can no longer be seen.]` and a summary ends with `[Media that went with these steps and can no longer be seen: 2 images.]`.
 
+## In a Loom workflow
+
+A Loom script attaches files with a trailing `attach` clause, and an extractor takes a file as an input of `from`:
+
+```loom
+media_root: "./assets"
+
+agent Vision {
+    model: "gemini-2.5-flash"
+    system: "You read receipts."
+}
+
+workflow Expense(receipt) {
+    delegate "What is the total and the currency?" to Vision attach image "{receipt}" -> reading
+    return reading
+}
+```
+
+Files are read only from `media_root`; a kind the agent's model cannot take is a load error from `weave check`; `weave audit` rule LA23 flags a file chosen at run time. The whole language side, with its limits and the `media: unscanned` opt-in for agents with a PII guard, is in the [Loom guide](../../loom/ai-agent4j-loom/LOOM_GUIDE.md).
+
 ## Personal data
 
 `MaskingLLMClient` replaces emails, phone numbers and the like with placeholders, but only in text. It cannot see a name on a photographed form or a spoken card number, so **it refuses a request that carries media** and tells you why. If sending the media unmasked is acceptable, say so:

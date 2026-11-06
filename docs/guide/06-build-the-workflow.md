@@ -76,6 +76,8 @@ Keep keys in the secret store: `weave secrets set OPENAI_API_KEY` binds the key 
 
 When an agent needs facts newer than its model, give it `grounding: web` rather than a search tool, if its provider can (Perplexity, Claude, Gemini, or OpenAI and xAI through a provider with `api: responses`). The sources come back typed in `{name_citations}`, searches are capped with `budget { searches: N }`, and `weave check` refuses a model or setting that cannot ground. It is a new way to read untrusted content: `weave audit` counts the agent as exposed (LA20) whatever its `allow:` list says, so keep it away from private data and from tools that send or act. Test it offline with `ScriptedClient.sources(...)` and assert with `citesOnlyFrom(...)`. Details: the Loom guide, "Searching the web".
 
+When an agent has to look at a picture, listen to a recording or read a PDF, send the file with the task: `delegate "What is the total?" to Vision attach image "{receipt}" -> total`, with `media_root: "./assets"` at the top naming the one folder files may come from (an extractor takes it as `extract Receipt from image "{receipt}" -> fields`). `weave check` refuses a model that cannot take that kind, and an agent with `guard { pii: mask }` refuses media until it says `media: unscanned`, because masking cannot read a picture. A file chosen at run time is flagged by `weave audit` (LA23). Details: the Loom guide, "Sending pictures, recordings and documents"; [Media input](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Media-Input.md).
+
 ## Tasks: the steps with no model
 
 Hexamind has no step that needs one, but most business workflows do. A support bot that refunds orders lets a model read the message and lets **code** decide and pay:

@@ -174,6 +174,12 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**max_iterations** `: N`\n\nOn an agent: the most reasoning steps it may take for one task.',
     cache:
         '**cache** `: true | false`\n\nOn an agent: lets the provider cache the system prompt, tools and conversation a looping agent resends (on by default). Turn it off for an agent that answers in one call.',
+    attach:
+        '**attach** `image|audio|video|document "<file>", …`\n\nOn `delegate`, `broadcast`, `handoff` and `human_prompt`, before `->`: sends the files with the task. Files are read from the folder named by `media_root`. For `extract`, the file is an input of `from` instead.',
+    media_root:
+        '**media_root** `: "./assets"`\n\nTop level: the one folder, relative to the script, that `attach` may read from. With none, no file can be attached.',
+    media:
+        '**media** `{ max_bytes: 20MB  max_items: 4 }`\n\nTop level: caps one attached file and the number of files on one message. In a `guard { }` or an `extractor`, `media: unscanned` lets an agent with a PII guard receive files the guard cannot scan.',
     source:
         '**source** `: "docs/"`\n\nIn a `knowledge` block: a file or directory of md, txt, html, json or csv files.',
     provider:

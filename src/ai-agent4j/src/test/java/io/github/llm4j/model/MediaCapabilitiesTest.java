@@ -124,4 +124,15 @@ class MediaCapabilitiesTest {
         assertThat(a.and(b)).isEqualTo(MediaCapabilities.of(MediaKind.IMAGE));
         assertThat(a.and(MediaCapabilities.NONE)).isEqualTo(MediaCapabilities.NONE);
     }
+
+    @Test
+    void capabilitiesAreComparedByWhatTheyTake() {
+        MediaCapabilities a = MediaCapabilities.of(MediaKind.IMAGE, MediaKind.DOCUMENT);
+        MediaCapabilities same = MediaCapabilities.of(MediaKind.DOCUMENT, MediaKind.IMAGE);
+
+        assertThat(a).isEqualTo(same).hasSameHashCodeAs(same);
+        assertThat(a).isNotEqualTo(MediaCapabilities.of(MediaKind.IMAGE)).isNotEqualTo("image");
+        assertThat(a.hashCode()).isNotEqualTo(MediaCapabilities.NONE.hashCode());
+        assertThat(a.toString()).startsWith("MediaCapabilities").contains("IMAGE", "DOCUMENT");
+    }
 }
