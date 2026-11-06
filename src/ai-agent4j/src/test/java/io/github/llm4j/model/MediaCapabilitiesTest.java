@@ -97,6 +97,26 @@ class MediaCapabilitiesTest {
     }
 
     @Test
+    void canCheckAgainstASetOfKindsAndALabelWhenThereIsNoRequestYet() {
+        MediaCapabilities caps = MediaCapabilities.of(MediaKind.IMAGE);
+
+        caps.require("agent Reader (gemini-2.5-flash)", java.util.Set.of(MediaKind.IMAGE));
+        assertThatThrownBy(
+                        () ->
+                                caps.require(
+                                        "agent Reader (gemini-2.5-flash)",
+                                        java.util.Set.of(MediaKind.IMAGE, MediaKind.VIDEO)))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("agent Reader (gemini-2.5-flash) does not accept video")
+                .hasMessageContaining("accepted: image");
+    }
+
+    @Test
+    void anEmptySetOfKindsAlwaysPasses() {
+        MediaCapabilities.NONE.require("anything", java.util.Set.of());
+    }
+
+    @Test
     void whatTwoClientsBothTakeIsTheIntersection() {
         MediaCapabilities a = MediaCapabilities.of(MediaKind.IMAGE, MediaKind.VIDEO);
         MediaCapabilities b = MediaCapabilities.of(MediaKind.IMAGE, MediaKind.AUDIO);

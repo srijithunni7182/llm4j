@@ -392,6 +392,14 @@ public class ReActAgent {
     }
 
     /**
+     * Which kinds of media the agent's model can take, so a caller can refuse before it loads a
+     * file. {@link io.github.llm4j.model.MediaCapabilities#NONE} when the client does not say.
+     */
+    public io.github.llm4j.model.MediaCapabilities mediaCapabilities() {
+        return llmClient.mediaCapabilities(null);
+    }
+
+    /**
      * Runs the agent on a question that comes with pictures, sound, video or documents. The media
      * goes to the model with the question, in the first user message of the run, and stays there
      * for every later call of the loop; compaction keeps that message. A model that cannot take a
@@ -946,6 +954,7 @@ public class ReActAgent {
                                 LLMRequest.builder()
                                         .addSystemMessage(systemPrompt)
                                         .addMessage(Message.user(context, media))
+                                        .mediaPolicy(mediaPolicy)
                                         .build());
                 ContextManager.Prepared prepared =
                         contextManager.prepare(scratchpad.messages(), i, overhead);
@@ -993,6 +1002,7 @@ public class ReActAgent {
                                             LLMRequest.builder()
                                                     .addSystemMessage(systemPrompt)
                                                     .addMessage(Message.user(context, media))
+                                                    .mediaPolicy(mediaPolicy)
                                                     .build());
                     ContextManager.Prepared again =
                             contextManager == null

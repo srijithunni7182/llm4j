@@ -169,6 +169,29 @@ class ReActAgentMediaTest {
     }
 
     @Test
+    void theTextLoopAcceptsMoreThanTheDefaultWhenGivenAMorePermissivePolicy() {
+        // the text loop also builds a request to measure its prompt overhead; it too must use the
+        // policy
+        MediaPolicy loose = MediaPolicy.builder().maxItemsPerMessage(5).build();
+        ToolThenAnswer model = new ToolThenAnswer(false);
+
+        ReActAgent.builder()
+                .llmClient(model)
+                .addTool(notebook())
+                .mediaPolicy(loose)
+                // with a context window the agent measures its prompt overhead, which is where
+                // the policy was once forgotten
+                .contextPolicy(
+                        io.github.llm4j.context.ContextPolicy.builder()
+                                .window(io.github.llm4j.context.ContextWindow.of(1_000_000))
+                                .build())
+                .build()
+                .run("look", Collections.nCopies(5, photo()));
+
+        assertThat(userMessage(model.seen.get(0)).getMedia()).hasSize(5);
+    }
+
+    @Test
     void theNativeLoopsWrapUpCallStillSeesTheMedia() {
         ToolThenAnswer model = new ToolThenAnswer(true);
         RunHandle handle = new RunHandle();
@@ -182,6 +205,13 @@ class ReActAgentMediaTest {
 
         assertThat(model.seen).hasSize(1);
         assertThat(userMessage(model.seen.get(0)).getMedia()).containsExactly(photo());
+    }
+
+    @Test
+    void theAgentSaysWhatItsModelTakesBeforeAnythingIsSent() {
+        ReActAgent agent = ReActAgent.builder().llmClient(new ToolThenAnswer(true)).build();
+
+        assertThat(agent.mediaCapabilities()).isEqualTo(MediaCapabilities.of(MediaKind.IMAGE));
     }
 
     @Test

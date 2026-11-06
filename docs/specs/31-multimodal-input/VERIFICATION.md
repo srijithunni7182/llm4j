@@ -90,6 +90,22 @@ Grep the whole repository for `Message`, `delegate`, `attach`, `human_prompt`, `
 
 ## 7. Results
 
+### 31e: Loom (in progress; steps 1 to 3 built: the language, the resolver, the runtime for `delegate`, `broadcast` and `handoff`)
+
+**Built.** `attach image "a.png", audio "b.wav"` on `delegate`, `broadcast` and `handoff`, and the script settings `media_root: "./assets"` and `media { max_bytes: 20MB  max_items: 4 }` (step 1); `MediaSource`, which loads attachments only from files under `media_root` (step 2); the runtime: the files are read and checked before any model call, `broadcast` checks every target before it sends to any, and the media goes through the agent's run to the model (step 3). Core gained `MediaCapabilities.require(subject, kinds)`, `ReActAgent.mediaCapabilities()` and the by-name lookups (`AnthropicProvider.mediaCapabilitiesOf`, `GoogleProvider.mediaCapabilitiesOf`, `OllamaProvider.mediaCapabilitiesOf`, `Vendor.mediaCapabilities`).
+
+**Tests (written first).** `AttachParserTest` (18), `MediaSourceTest` (35), `AttachRuntimeTest` (18). Core 3,761 and Loom 4,783 tests, 0 failures, coverage gates met.
+
+**Guard-removal checks.** The resolver: the media folder being inside the script's folder, `PathGuard` (traversal, links, hidden files, control characters), the run's own files being reserved, the media folder being a folder, the item-count limit, the total-bytes limit, a missing file being named and not retried, no `media_root` meaning no files, control characters not echoed in messages: **nine of nine caught**. The runtime: `delegate` loading its attachments, checking the agent's model, sending the media and tracing it; `handoff` checking and sending; `broadcast` checking every target before sending and sending; the script's item and size limits applying; agents being built with the script's limits; the limit runner passing the media on: **twelve of twelve caught** (one of my first edits did not compile, so it proved nothing; redone properly).
+
+**A bug the Loom tests found in 31d's core code.** The text loop built a request to measure its prompt overhead without the agent's media policy, so a text-loop agent with context management and a raised limit still refused more than four items. 31d's tests had only raised the limit on the native loop. Fixed, with a core test that reproduces it (`theTextLoopAcceptsMoreThanTheDefaultWhenGivenAMorePermissivePolicy`).
+
+**Deviations from the design.**
+- A step that refuses is reported by the existing failure message, which prints the step's configured `retry` count ("failed after 3 retries") even though a media refusal is never retried. The message also says the file is not retried. I did not change the shared wording.
+- `handoff` has no `on_failure` block, so a refused handoff fails the workflow.
+- The media folder must be inside the script's folder (stricter than the spec said), because `media_root: "/"` would otherwise make the whole disk available to any path a variable can name. A shared folder outside the script's folder is not possible yet.
+- Not yet built in 31e: `weave check` rules (R17), the journal record and replay check (R20), the audit rule (R21), the graph badge (R22), `guard { media: unscanned }` and `pii: block|warn` behaviour with media, `attach` on `extract` and `human_prompt`, and the documentation, grammar, snippets and compatibility-kit scenarios.
+
 ### 31d: masking, budgets, compaction and the agent (built; the Loom `guard` spelling moves to 31e)
 
 **Built.** `MaskingLLMClient` refuses a request that carries media unless `allowUnscannedMedia()` is called (R13); `MediaTokens` and its use in `CharsPerTokenEstimator`, which the budget and the context manager both use (R14); `ReActAgent.run(question, media)` and `run(question, media, handle)` with `Builder.mediaPolicy`, in the native loop (media on the first user message, kept for every call), the text loop (media on its one user message, including the wrap-up call) and the native wrap-up (R19); compaction that names what it removes: the `drop_oldest` marker and the `summarize` summary, with the counts carried in `providerData` so a second pass adds to them (R19). The wiki page [Media-Input.md](../../../src/ai-agent4j/wiki/Media-Input.md) gained the agent, personal-data and budget sections, each sample tested by `MediaDocsExamplesTest`.
@@ -108,7 +124,7 @@ Grep the whole repository for `Message`, `delegate`, `attach`, `human_prompt`, `
 - `run(question, null)` with a bare `null` no longer compiles (two overloads fit); recorded in `API_COMPATIBILITY.md` and the release notes. No caller in this repository did that.
 - Media on a message other than the first user message of a run is not special-cased: if `ConversationHistory` or a custom compactor rebuilds messages, they keep media through `toBuilder`, and `ConversationSummarizer`'s plain-text history does not mention it. Not tested.
 
-**Not verified (owed).** PIT for the new decision logic (`MediaTokens`, the masking refusal, the compaction notes). The downstream modules for this commit (see the end of this section).
+**Not verified (owed).** PIT for the new decision logic (`MediaTokens`, the masking refusal, the compaction notes). **Downstream, run after the commit:** addons 17 tests, tools 364, eval4j 576, Loom 4,712, all green.
 
 ### 31c: the providers (built; live-confirmed for the providers whose keys were available)
 

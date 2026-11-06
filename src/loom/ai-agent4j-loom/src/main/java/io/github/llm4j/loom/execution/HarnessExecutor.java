@@ -447,6 +447,18 @@ public class HarnessExecutor implements LoomEngine {
                         }
 
                         @Override
+                        public java.util.List<io.github.llm4j.model.Media> attachmentsOf(
+                                java.util.List<io.github.llm4j.loom.ast.AttachItem> items) {
+                            return HarnessExecutor.this.attachmentsOf(items);
+                        }
+
+                        @Override
+                        public void requireMediaFor(
+                                String agent, java.util.List<io.github.llm4j.model.Media> media) {
+                            HarnessExecutor.this.requireMediaFor(agent, media);
+                        }
+
+                        @Override
                         public Path baseDir() {
                             return baseDir;
                         }
@@ -2670,6 +2682,7 @@ public class HarnessExecutor implements LoomEngine {
                 agentBuilder.temperature(agentDef.getTemperature());
             }
             agentBuilder.promptCaching(agentDef.isPromptCaching());
+            agentBuilder.mediaPolicy(mediaPolicy());
             boolean searchesKnowledge =
                     agentDef.getKnowledgeBases().stream()
                             .anyMatch(
@@ -3099,29 +3112,55 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     /**
-     * Until the runtime sends attachments (phase 31e, next step), a step that names some refuses
-     * to run, so a picture is never silently left out of what the model is sent.
+     * The limits attachments are held to: the script's {@code media { }} settings over the library's
+     * defaults.
      */
-    private static void refuseAttachmentsNotYetRun(Statement stmt) {
-        java.util.List<io.github.llm4j.loom.ast.AttachItem> items =
-                stmt instanceof DelegateStmt d
-                        ? d.getAttachments()
-                        : stmt instanceof HandoffStmt h
-                                ? h.getAttachments()
-                                : stmt instanceof BroadcastStmt b
-                                        ? b.getAttachments()
-                                        : java.util.List.of();
-        if (!items.isEmpty()) {
-            throw new IllegalStateException(
-                    "this step attaches "
-                            + items.size()
-                            + " file(s), and this version of Loom does not send attachments yet;"
-                            + " nothing was sent");
+    io.github.llm4j.model.MediaPolicy mediaPolicy() {
+        io.github.llm4j.model.MediaPolicy.Builder policy = io.github.llm4j.model.MediaPolicy.builder();
+        if (script.getMediaMaxBytes() != null) policy.maxBytesPerItem(script.getMediaMaxBytes());
+        if (script.getMediaMaxItems() != null) policy.maxItemsPerMessage(script.getMediaMaxItems());
+        return policy.build();
+    }
+
+    /**
+     * Reads the files a step attaches, or refuses the step: they must be under the script's {@code
+     * media_root} and within the limits (see {@link MediaSource}).
+     *
+     * @throws MediaRefusal if any attachment cannot be used; nothing has been sent
+     */
+    java.util.List<io.github.llm4j.model.Media> attachmentsOf(
+            java.util.List<io.github.llm4j.loom.ast.AttachItem> items) {
+        return new MediaSource(baseDir, script.getMediaRoot(), reservedPaths(), mediaPolicy())
+                .load(items, this::resolvePayload);
+    }
+
+    /**
+     * Refuses media the agent's model cannot take, before anything is sent. The message names the
+     * agent and its model.
+     */
+    void requireMediaFor(String agentName, java.util.List<io.github.llm4j.model.Media> media) {
+        if (media.isEmpty()) return;
+        ReActAgent agent = activeAgents.get(agentName);
+        if (agent == null) return; // an unknown agent is reported by the step itself
+        String model =
+                script.getAgents().stream()
+                        .filter(a -> a.getName().equals(agentName))
+                        .map(AgentDef::getModel)
+                        .findFirst()
+                        .orElse("?");
+        try {
+            agent.mediaCapabilities()
+                    .require(
+                            "agent " + agentName + " (" + model + ")",
+                            media.stream()
+                                    .map(io.github.llm4j.model.Media::kind)
+                                    .collect(java.util.stream.Collectors.toSet()));
+        } catch (io.github.llm4j.exception.InvalidRequestException e) {
+            throw new MediaRefusal(e.getMessage(), e);
         }
     }
 
     private void executeStatement(Statement stmt) {
-        refuseAttachmentsNotYetRun(stmt);
         decisions.enter(stmt, step.get());
         if (stmt instanceof CheckpointStmt checkpoint) {
             java.util.ArrayDeque<Rewinder.Frame> stack = frames.get();
@@ -3183,15 +3222,22 @@ public class HarnessExecutor implements LoomEngine {
 
             boolean replayed = journal.get(step.get()).isPresent();
             if (agent != null && agentDef != null && !replayed) {
+                // files are read and checked before the agent is told anything
+                java.util.List<io.github.llm4j.model.Media> media =
+                        attachmentsOf(handoff.getAttachments());
+                requireMediaFor(handoff.getTargetAgent(), media);
                 String contextBriefing =
                         memoryEngine.assembleContext(agentDef, resolvedPayload, view());
+                Map<String, Object> startData = new java.util.LinkedHashMap<>();
+                startData.put("variable", "handoff");
+                if (!media.isEmpty()) startData.put("attachments", DelegateRunner.describe(media));
                 trace(
                         TraceEvent.DELEGATE_START,
                         handoff.getTargetAgent(),
                         resolvedPayload,
-                        new java.util.LinkedHashMap<>(Map.of("variable", "handoff")));
+                        startData);
                 io.github.llm4j.agent.AgentResult result =
-                        limits.runUnderLimits(agent, contextBriefing);
+                        limits.runUnderLimits(agent, contextBriefing, media);
                 trace(
                         TraceEvent.DELEGATE_END,
                         handoff.getTargetAgent(),
@@ -3238,6 +3284,12 @@ public class HarnessExecutor implements LoomEngine {
                                     budgets.newBudget("step " + stepId, broadcast.getBudget())));
                 }
                 try {
+                    // the files are read once, and every target must be able to take them, before
+                    // any target is sent anything
+                    java.util.List<io.github.llm4j.model.Media> media =
+                            attachmentsOf(broadcast.getAttachments());
+                    for (String agentName : broadcast.getTargetAgents())
+                        requireMediaFor(agentName, media);
                     ThreadScope.Snapshot scope = threadScope.capture().at(stepId, locals.get());
                     List<CompletableFuture<String>> answers = new java.util.ArrayList<>();
                     for (String agentName : broadcast.getTargetAgents()) {
@@ -3251,18 +3303,24 @@ public class HarnessExecutor implements LoomEngine {
                                                 // each target is a step of its own to anyone
                                                 // watching: it starts and ends like a delegate,
                                                 // with its tokens
+                                                Map<String, Object> startData =
+                                                        new java.util.LinkedHashMap<>();
+                                                startData.put(
+                                                        "variable", broadcast.getVariableName());
+                                                if (!media.isEmpty())
+                                                    startData.put(
+                                                            "attachments",
+                                                            DelegateRunner.describe(media));
                                                 trace(
                                                         TraceEvent.DELEGATE_START,
                                                         agentName,
                                                         resolvedPayload,
-                                                        new java.util.LinkedHashMap<>(
-                                                                Map.of(
-                                                                        "variable",
-                                                                        broadcast
-                                                                                .getVariableName())));
+                                                        startData);
                                                 io.github.llm4j.agent.AgentResult r =
                                                         limits.runUnderLimits(
-                                                                broadcastAgent, resolvedPayload);
+                                                                broadcastAgent,
+                                                                resolvedPayload,
+                                                                media);
                                                 trace(
                                                         TraceEvent.DELEGATE_END,
                                                         agentName,

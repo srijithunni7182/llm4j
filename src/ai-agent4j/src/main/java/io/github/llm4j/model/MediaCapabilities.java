@@ -54,15 +54,26 @@ public final class MediaCapabilities {
      * @throws InvalidRequestException naming each kind that is refused and what is accepted
      */
     public void require(String provider, LLMRequest request) {
+        String model = request.getModel() == null ? "the default model" : request.getModel();
+        require(provider + " " + model, request.mediaKinds());
+    }
+
+    /**
+     * As {@link #require(String, LLMRequest)} before there is a request: for a caller that knows
+     * what it is about to attach and wants to refuse early.
+     *
+     * @param subject who would be sent the media, for the message (for example {@code agent Reader
+     *     (gemini-2.5-flash)})
+     * @param wanted the kinds it would be sent
+     * @throws InvalidRequestException naming each kind that is refused and what is accepted
+     */
+    public void require(String subject, Set<MediaKind> wanted) {
         Set<MediaKind> refused = EnumSet.noneOf(MediaKind.class);
-        refused.addAll(request.mediaKinds());
+        refused.addAll(wanted);
         refused.removeAll(kinds);
         if (refused.isEmpty()) return;
-        String model = request.getModel() == null ? "the default model" : request.getModel();
         throw new InvalidRequestException(
-                provider
-                        + " "
-                        + model
+                subject
                         + " does not accept "
                         + list(refused)
                         + "; "
