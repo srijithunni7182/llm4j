@@ -118,7 +118,7 @@ llm4j is a framework for building agents and workflows. A2A, like any protocol, 
 - **It would break the promise to stay light.** llm4j avoids framework dependencies, background threads nobody asked for, and static initialisers that do work. A built-in server and polling loop would need all three.
 - **People already have servers.** Teams use Spring, Javalin, Quarkus, a gateway or a cloud function. What they lack is the protocol layer, and that is what llm4j gives them.
 
-What llm4j does provide: the A2A types; a card builder that turns a script's declaration into card JSON; a handler that takes an A2A request and returns a response (or a stream of events), which any web server can mount; a `RemoteAgent` for calling other agents; and the interfaces a consumer fills in. In short, **llm4j supplies something to mount, never something to run.**
+What llm4j does provide: a version-free model of agents, tasks and messages (principle 9); a card builder that turns a script's declaration into card JSON; a handler that takes an A2A request and returns a response (or a stream of events), which any web server can mount; a `RemoteAgent` for calling other agents; one optional helper that translates A2A 1.0 over JSON-RPC to and from that model; and the interfaces a consumer fills in. In short, **llm4j supplies something to mount, never something to run.**
 
 ## 5. Our philosophy: a facilitator, not a decision-maker
 
@@ -137,11 +137,16 @@ llm4j makes it possible to expose and to call agents over A2A. It does not decid
 5. **Honest about what cannot be checked.** A remote agent's card is fetched at run time and checked then. `weave check` says so in a warning and does not pretend it validated anything. The same honesty applies to a channel: the script declares the audience, and a reviewer reads the implementation once, as with a tool's declared reach.
 6. **Additive, and nothing existing changes.** `human_prompt`, `approve`, the person channel (console, Telegram) and `LoomHost` keep working exactly as they do. A2A arrives as new declarations and new types.
 7. **No ownership of waiting.** llm4j does not poll, sleep or schedule on behalf of a consumer. It returns the state of a task, and whoever drives the call decides when to look again. In Loom, a durable run pauses and the host resumes it.
-8. **Smallest footprint.** The protocol types and the handler interface go in the core with no new dependencies. Loom's adapter depends on the core, never the other way round. No HTTP server or client library is added for A2A.
+8. **Smallest footprint.** The model and the handler interface go in the core with no new dependencies. Loom's adapter depends on the core, never the other way round. No HTTP server or client library is added for A2A.
+9. **Version-agnostic.** llm4j's own model is normalised and carries no protocol version. It holds only what llm4j's behaviour needs, and the consumer's transport translates between it and the wire for whatever version and binding the other agent speaks.
+   - **What the model holds.** For an agent: its name, description, skills, the endpoints it offers (address, binding, version) and the input types it accepts. For a task: its id, its context id and one state from a small fixed set (working, input needed, authorization needed, completed, failed, canceled, rejected, or unknown). For messages and artifacts: text and structured data.
+   - **Nothing above the transport knows a version.** That covers the Loom syntax, `agent_channel`, the journal, the audit rules and the card check. A script never states an A2A version, and the `remote` block has no version setting.
+   - **One place knows one version.** The single optional helper that translates A2A 1.0 over JSON-RPC is the only code in llm4j that knows a wire name. A consumer who speaks another version or binding writes their own translation and uses everything else unchanged. We do not add `if (version == X)` branches to shared code.
+   - **Fail closed on what is not understood.** If the card offers no endpoint the transport can speak, the call is refused before anything is sent, with a message that names the versions offered. A state that is not recognised becomes *unknown*: it is never treated as completed, it is reported to the consumer, and if it lasts until the timeout the step fails. Unknown fields in incoming data are ignored, so a newer agent's extra fields do not break a caller.
 
-**What we will not do**, so nobody has to ask: run a server; ship an HTTP client or poller for A2A; provide an identity or login system; operate a registry or directory of agents; wrap a remote agent as a tool; or add a framework adapter. Each of these is a reasonable thing for a consumer to build on top.
+**What we will not do**, so nobody has to ask: run a server; ship an HTTP client or poller for A2A; follow every protocol version in our own types; provide an identity or login system; operate a registry or directory of agents; wrap a remote agent as a tool; or add a framework adapter. Each of these is a reasonable thing for a consumer to build on top.
 
-**When in doubt**, ask in this order: Does this move a decision about the consumer's environment into llm4j? If so, make it an interface. Does this protect against a failure the consumer cannot easily see? If so, llm4j decides and fails closed. Can a reviewer see it in the script? If not, it needs a declaration.
+**When in doubt**, ask in this order: Does this make llm4j's own types or syntax depend on a protocol version? If so, move it into the translation. Does this move a decision about the consumer's environment into llm4j? If so, make it an interface. Does this protect against a failure the consumer cannot easily see? If so, llm4j decides and fails closed. Can a reviewer see it in the script? If not, it needs a declaration.
 
 A change to these principles is the owner's decision and is made here, in this page, before it is made in code.
 
@@ -151,9 +156,9 @@ The specification page was read in part. The sections that were read word for wo
 
 Specific things to settle when the specification is read closely, before the design is written:
 
-- The spelling of task states (the specification's examples are inconsistent with its enumeration).
+- The spelling of task states. The specification's examples are inconsistent with its enumeration. This now affects only the optional 1.0 helper, which must accept what it meets and write the 1.0 form.
 - Whether a separate structured-data part exists, and how a file is represented (the specification names `raw` and `url`, with a media type).
 - The exact JSON-RPC method names and result shapes. `SendMessage`, `SendStreamingMessage`, `GetTask`, `ListTasks`, `CancelTask`, `SubscribeToTask` and `GetExtendedAgentCard` were seen as headings; the push-notification configuration methods were not.
-- Which bindings llm4j's types should be written for (JSON-RPC only, or independent of the binding).
+- ~~Which bindings llm4j's types should be written for.~~ Settled by principle 9: the model is independent of binding and version, and the only translation we ship is 1.0 over JSON-RPC.
 - `TASK_STATE_AUTH_REQUIRED`, a second kind of pause besides asking for input. The `agent_channel` design currently covers questions; it must decide how to handle a request for authorization.
 - The 1.0.0 specification changes names from earlier versions (0.3.0, 0.2.6 and 0.1.0 are linked). Other sources and examples on the web may use the old names.
