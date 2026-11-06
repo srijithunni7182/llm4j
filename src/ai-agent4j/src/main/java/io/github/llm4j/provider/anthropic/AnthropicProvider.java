@@ -19,6 +19,7 @@ import io.github.llm4j.http.StreamingBody;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.Message;
+import io.github.llm4j.model.PromptCache;
 import io.github.llm4j.model.ToolCall;
 import io.github.llm4j.model.ToolCallDelta;
 import io.github.llm4j.model.ToolSpec;
@@ -62,6 +63,8 @@ public class AnthropicProvider implements DescribableProvider {
      */
     static final String RAW_CONTENT = "anthropic.content";
 
+    private static final String CACHE_CONTROL = "cache_control";
+
     /** The settings of a {@link io.github.llm4j.grounding.Grounding} this provider honours. */
     public static final Set<GroundingOption> GROUNDING_OPTIONS = AnthropicGrounding.OPTIONS;
 
@@ -100,6 +103,7 @@ public class AnthropicProvider implements DescribableProvider {
 
     @Override
     public LLMResponse chat(LLMRequest request) {
+        Providers.requireMedia(this, request);
         String model = model(request);
         try {
             return parse(
@@ -187,6 +191,7 @@ public class AnthropicProvider implements DescribableProvider {
      */
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
+        Providers.requireMedia(this, request);
         String model = model(request);
         StreamingBody body;
         try {
@@ -199,6 +204,7 @@ public class AnthropicProvider implements DescribableProvider {
         JsonNode[] stopDetails = {null};
         Integer[] usage = {null, null};
         JsonNode[] serverTools = {null}; // usage.server_tool_use, with the search count
+        JsonNode[] cacheUsage = {null}; // the usage object that last named the prompt cache
         // the content blocks as Claude sends them, built up, so a tool turn can be continued with
         // its thinking blocks intact
         java.util.Map<Integer, ObjectNode> blocks = new java.util.TreeMap<>();
@@ -224,6 +230,7 @@ public class AnthropicProvider implements DescribableProvider {
                                     if (message.hasNonNull("model"))
                                         answering[0] = message.get("model").asText();
                                     usage[0] = inputTokens(message.path("usage"));
+                                    cacheUsage[0] = message.path("usage");
                                     if (message.path("usage").has("server_tool_use"))
                                         serverTools[0] =
                                                 message.path("usage").get("server_tool_use");
@@ -325,6 +332,9 @@ public class AnthropicProvider implements DescribableProvider {
                                     if (u.has("server_tool_use"))
                                         serverTools[0] = u.get("server_tool_use");
                                     if (u.has("input_tokens")) usage[0] = inputTokens(u);
+                                    if (u.has("cache_read_input_tokens")
+                                            || u.has("cache_creation_input_tokens"))
+                                        cacheUsage[0] = u;
                                     return Stream.empty();
                                 }
                                 case "message_stop" -> {
@@ -362,11 +372,13 @@ public class AnthropicProvider implements DescribableProvider {
                                                                                 java.util.Map<
                                                                                         String,
                                                                                         Object>>>() {}));
-                                    LLMResponse last =
+                                    LLMResponse.Builder out =
                                             Providers.finalChunk(
-                                                    stop[0], usage[0], usage[1], answering[0], raw);
-                                    if (request.getGrounding() == null) return Stream.of(last);
-                                    LLMResponse.Builder out = last.toBuilder();
+                                                    stop[0], usage[0], usage[1], answering[0], raw)
+                                                    .toBuilder();
+                                    if (cacheUsage[0] != null) addCacheUsage(out, cacheUsage[0]);
+                                    if (request.getGrounding() == null)
+                                        return Stream.of(out.build());
                                     AnthropicGrounding.read(
                                             JSON.valueToTree(blocks.values()),
                                             JSON.createObjectNode()
@@ -390,6 +402,21 @@ public class AnthropicProvider implements DescribableProvider {
     @Override
     public String getProviderName() {
         return "anthropic";
+    }
+
+    /** Every Claude model takes pictures and PDFs; none takes sound or video (confirmed live). */
+    @Override
+    public io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
+        return mediaCapabilitiesOf(model != null ? model : config.getDefaultModel());
+    }
+
+    /** What the model of this name takes, with no provider or key needed; null takes nothing. */
+    public static io.github.llm4j.model.MediaCapabilities mediaCapabilitiesOf(String name) {
+        return name != null && name.startsWith("claude-")
+                ? io.github.llm4j.model.MediaCapabilities.of(
+                        io.github.llm4j.model.MediaKind.IMAGE,
+                        io.github.llm4j.model.MediaKind.DOCUMENT)
+                : io.github.llm4j.model.MediaCapabilities.NONE;
     }
 
     @Override
@@ -426,7 +453,16 @@ public class AnthropicProvider implements DescribableProvider {
                         .filter(m -> m.getRole() == Message.Role.SYSTEM)
                         .map(Message::getContent)
                         .collect(Collectors.joining("\n\n"));
-        if (!system.isEmpty()) root.put("system", system);
+        PromptCache cache = request.getPromptCache();
+        Set<Integer> marked = markedMessages(cache, request.getMessages());
+        if (!system.isEmpty()) {
+            if (cache != null && (cache.system() || markedSystem(marked, request.getMessages()))) {
+                // a breakpoint sits on a block, so the string form becomes one marked block
+                root.putArray("system").add(markedText(system));
+            } else {
+                root.put("system", system);
+            }
+        }
 
         // Anthropic has no system role and expects user/assistant turns: merge consecutive turns of
         // one role.
@@ -434,10 +470,12 @@ public class AnthropicProvider implements DescribableProvider {
         // tool_use blocks.
         List<String> roles = new ArrayList<>();
         List<List<ObjectNode>> blocks = new ArrayList<>();
-        for (Message m : request.getMessages()) {
+        for (int index = 0; index < request.getMessages().size(); index++) {
+            Message m = request.getMessages().get(index);
             if (m.getRole() == Message.Role.SYSTEM) continue;
             String role = m.getRole() == Message.Role.ASSISTANT ? "assistant" : "user";
             List<ObjectNode> mine = blocksOf(m);
+            if (marked.contains(index)) mine.get(mine.size() - 1).set(CACHE_CONTROL, ephemeral());
             if (!roles.isEmpty() && roles.get(roles.size() - 1).equals(role)) {
                 blocks.get(blocks.size() - 1).addAll(mine);
             } else {
@@ -449,7 +487,7 @@ public class AnthropicProvider implements DescribableProvider {
         for (int i = 0; i < roles.size(); i++) {
             ObjectNode turn = messages.addObject().put("role", roles.get(i));
             List<ObjectNode> turnBlocks = blocks.get(i);
-            if (turnBlocks.stream().allMatch(AnthropicProvider::isText)) {
+            if (turnBlocks.stream().allMatch(AnthropicProvider::isPlainText)) {
                 // plain text turns keep the simple string form
                 turn.put(
                         "content",
@@ -468,6 +506,9 @@ public class AnthropicProvider implements DescribableProvider {
                 ObjectNode tool =
                         tools.addObject().put("name", t.name()).put("description", t.description());
                 tool.set("input_schema", JSON.valueToTree(t.parameters()));
+            }
+            if (cache != null && cache.tools()) {
+                ((ObjectNode) tools.get(tools.size() - 1)).set(CACHE_CONTROL, ephemeral());
             }
             root.putObject("tool_choice")
                     .put(
@@ -530,6 +571,47 @@ public class AnthropicProvider implements DescribableProvider {
         return "text".equals(block.path("type").asText());
     }
 
+    /** A text block with nothing else on it, which the string form can stand for. */
+    private static boolean isPlainText(ObjectNode block) {
+        return isText(block) && !block.has(CACHE_CONTROL);
+    }
+
+    private static ObjectNode ephemeral() {
+        return JSON.createObjectNode().put("type", "ephemeral");
+    }
+
+    private static ObjectNode markedText(String text) {
+        ObjectNode block = JSON.createObjectNode().put("type", "text").put("text", text);
+        block.set(CACHE_CONTROL, ephemeral());
+        return block;
+    }
+
+    /**
+     * The messages a cache breakpoint ends, checked against the request: an index past the end is
+     * the caller's mistake, found here and not as an error from the API.
+     */
+    private static Set<Integer> markedMessages(PromptCache cache, List<Message> messages) {
+        if (cache == null) return Set.of();
+        for (int index : cache.throughMessages()) {
+            if (index >= messages.size()) {
+                throw new InvalidRequestException(
+                        "prompt cache marks message "
+                                + index
+                                + " but the request has "
+                                + messages.size()
+                                + " messages (0 to "
+                                + (messages.size() - 1)
+                                + ")");
+            }
+        }
+        return Set.copyOf(cache.throughMessages());
+    }
+
+    /** Whether a breakpoint ends a system message, which Anthropic holds in one system field. */
+    private static boolean markedSystem(Set<Integer> marked, List<Message> messages) {
+        return marked.stream().anyMatch(i -> messages.get(i).getRole() == Message.Role.SYSTEM);
+    }
+
     /**
      * The content blocks of one message. An assistant tool-call turn re-sends the blocks Claude
      * produced (thinking included), verbatim.
@@ -564,8 +646,29 @@ public class AnthropicProvider implements DescribableProvider {
             }
             return out;
         }
-        out.add(JSON.createObjectNode().put("type", "text").put("text", m.getContent()));
+        // pictures and documents go before the question about them, as the API advises
+        for (io.github.llm4j.model.Media item : m.getMedia()) out.add(mediaBlock(item));
+        if (!m.getContent().isEmpty() || m.getMedia().isEmpty()) {
+            out.add(JSON.createObjectNode().put("type", "text").put("text", m.getContent()));
+        }
         return out;
+    }
+
+    /** An {@code image} or {@code document} block with the bytes inline as base64. */
+    private static ObjectNode mediaBlock(io.github.llm4j.model.Media item) {
+        String type =
+                switch (item.kind()) {
+                    case IMAGE -> "image";
+                    case DOCUMENT -> "document";
+                    default -> throw new InvalidRequestException(
+                            "the Messages API takes images and PDFs, not " + item.kind().label());
+                };
+        ObjectNode block = JSON.createObjectNode().put("type", type);
+        block.putObject("source")
+                .put("type", "base64")
+                .put("media_type", item.mediaType())
+                .put("data", item.base64());
+        return block;
     }
 
     @Override
@@ -673,7 +776,16 @@ public class AnthropicProvider implements DescribableProvider {
                         .addMetadata(Providers.FINISH_REASON_RAW, stop)
                         .addMetadata("id", root.path("id").asText(null));
         if (grounded) AnthropicGrounding.read(root.path("content"), u, out);
+        addCacheUsage(out, u);
         return out.build();
+    }
+
+    /** Reports the prompt cache under the names every provider uses; nothing if it was not used. */
+    private static void addCacheUsage(LLMResponse.Builder out, JsonNode usage) {
+        int read = usage.path("cache_read_input_tokens").asInt(0);
+        int written = usage.path("cache_creation_input_tokens").asInt(0);
+        if (read > 0) out.addMetadata(Providers.CACHED_TOKENS, read);
+        if (written > 0) out.addMetadata(Providers.CACHE_WRITE_TOKENS, written);
     }
 
     /** Input tokens including those written to or read from the prompt cache. */

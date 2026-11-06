@@ -81,6 +81,25 @@ workflow Main(topic) {
 
 The agent that has to think is not forced into JSON; the cheap extractor does the formatting. Use it whenever LP10 fires.
 
+### Recipe: read a receipt from a photo
+
+```loom-parse
+media_root: "./assets"
+
+extractor Receipt {
+    model: "gemini-2.5-flash"
+    instructions: "Read the receipt."
+    fields { total: number  currency: string }
+}
+
+workflow Main(receipt) {
+    extract Receipt from image "{receipt}" -> fields
+    return fields
+}
+```
+
+Files come only from `media_root`. See chapter 3 and chapter 5.
+
 ### Recipe: a cheaper model when money runs low
 
 ```loom
@@ -234,6 +253,8 @@ budget { tokens: 200000  calls: 150  warn_at: 80% }
 rate_limits { on_limit: suspend  max_wait: 24h  max_resumes: 50 }
 shared_prompt: "rules for every agent"
 audit { logger: "file"  path: "audit.log" }
+media_root: "./assets"                       // the only folder attach may read from
+media { max_bytes: 20MB  max_items: 4 }
 
 persona Name { role: "..."  tone: "..."  constraints: ["..."] }
 provider Name { use: ollama  base_url: "..."  api_key: env.NAME }
@@ -251,9 +272,9 @@ agent Name {
     persona: P   temperature: 0.2   max_iterations: 8
     tools: [A, B]   approve: [A] | all   knowledge: [K]   skills: ["fs://x.md"]
     output_schema: { f: string, n: number, b: boolean, e: enum["A","B"], l: list<string> }
-    budget { tokens: N  per_call: N }   memory { ... }   guard { pii: mask|block|warn  bias: warn|block  prompt_leak: warn|block|off  internal_refs: ["POL-[0-9]+"] }
+    budget { tokens: N  per_call: N }   memory { ... }   guard { pii: mask|block|warn  media: unscanned  bias: warn|block  prompt_leak: warn|block|off  internal_refs: ["POL-[0-9]+"] }
     context { compact: chain(trim_tool_results, summarize, drop_oldest) }
-    streaming: true   steerable: true   grounding: web { ... }
+    cache: false   streaming: true   steerable: true   grounding: web { ... }
     memory { transcript: none|own|all }   shared_prompt: none
 }
 
@@ -263,6 +284,7 @@ schedule Name { cron: "0 7 * * 1-5"  timezone: "..."  run: Wf(arg="v")  misfire:
 
 workflow Name(p1, p2) {
     delegate "task {p1}" to Agent -> result  [expecting {...}] [retry N] [backoff 2s] [timeout 90s] [budget N tokens] [on_failure {...}] [on_stopped {...}]
+    delegate "task" to Agent attach image "{p1}", document "policy.pdf" -> result     // also broadcast, handoff, human_prompt
     broadcast "task" to [A, B] -> result
     handoff "task" to Agent
     parallel { ... }
@@ -274,6 +296,7 @@ workflow Name(p1, p2) {
     use Tool(arg = value) [approve ["heading"]] -> result [retry N] [backoff 2s] [timeout 30s] [on_declined {...}] [on_failure {...}]
     intentclassify Name on text -> result
     extract Name from text -> result          extract Name from (a = x, b = y) -> result
+    extract Name from image "{p1}" -> result  extract Name from (note = x, photo = image "{p1}") -> result
     check reply against P, Q using Evaluator -> verdict  on_violation { rewrite with Agent | ask person | replace with "..." | fail }  on_unavailable { ... }
     decide Decision -> verdict
     human_prompt "question {x}" -> answer

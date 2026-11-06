@@ -214,7 +214,7 @@ class SearchBudgetTest {
                 .isEqualByComparingTo("14.00");
         assertThatThrownBy(
                         () -> {
-                            java.nio.file.Files.writeString(f, "m = 1 / 2 / 3 / 4\n");
+                            java.nio.file.Files.writeString(f, "m = 1 / 2 / 3 / 4 / 5 / 6\n");
                             PriceTable.load(f);
                         })
                 .isInstanceOf(IllegalArgumentException.class)

@@ -164,6 +164,19 @@ ReActAgent agent = ReActAgent.builder()
         .build();
 ```
 
+### Prompt caching
+
+A loop resends its system prompt, tools and history on every step. By default the agent lets the provider cache them (Anthropic bills a cached read at a fraction of the normal price; OpenAI and Gemini cache by themselves). Turn it off for an agent that answers in one call, where Anthropic's cache-write premium is never repaid:
+
+```java
+ReActAgent agent = ReActAgent.builder()
+        .llmClient(client)
+        .promptCaching(false)
+        .build();
+```
+
+See [Providers and the Uniform Contract](Providers-and-the-Uniform-Contract.md#prompt-caching).
+
 ### Custom System Prompt
 
 Provide your own prompt template. Note that the agent expects `Action Input` to be a JSON object.

@@ -111,6 +111,41 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
         return null;
     }
 
+    /**
+     * What the named model takes, worked out from its name alone: no key, no provider, no network.
+     * Empty for a model this factory cannot place (a provider declared in the script), because
+     * guessing would be worse than saying nothing.
+     */
+    static java.util.Optional<io.github.llm4j.model.MediaCapabilities> mediaCapabilitiesOf(
+            String modelName) {
+        if (modelName == null || modelName.isBlank()) return java.util.Optional.empty();
+        Kind kind = kindOf(modelName);
+        if (kind == null) return java.util.Optional.empty();
+        String lower = modelName.toLowerCase(Locale.ROOT);
+        return java.util.Optional.of(
+                switch (kind) {
+                    case GEMINI -> io.github.llm4j.provider.google.GoogleProvider
+                            .mediaCapabilitiesOf(modelName);
+                    case ANTHROPIC -> io.github.llm4j.provider.anthropic.AnthropicProvider
+                            .mediaCapabilitiesOf(
+                                    lower.startsWith("anthropic/")
+                                            ? modelName.substring("anthropic/".length())
+                                            : modelName);
+                    case OLLAMA -> io.github.llm4j.provider.ollama.OllamaProvider
+                            .mediaCapabilitiesOf(
+                                    lower.startsWith("ollama/")
+                                            ? modelName.substring("ollama/".length())
+                                            : modelName);
+                    case SARVAM -> io.github.llm4j.model.MediaCapabilities.NONE;
+                    case VENDOR -> {
+                        var resolved =
+                                io.github.llm4j.provider.openai.Vendor.ofModel(modelName)
+                                        .orElseThrow();
+                        yield resolved.vendor().mediaCapabilities(resolved.model());
+                    }
+                });
+    }
+
     private String env(String name) {
         String v = env.apply(name);
         return v == null || v.isBlank() ? null : v;

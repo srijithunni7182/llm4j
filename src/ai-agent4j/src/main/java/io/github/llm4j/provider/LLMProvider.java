@@ -71,6 +71,15 @@ public interface LLMProvider {
     }
 
     /**
+     * Which kinds of media this provider can send {@code model}; {@link
+     * io.github.llm4j.model.MediaCapabilities#NONE} unless it is recorded that the model takes
+     * them. A null model means the one the provider is configured with.
+     */
+    default io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
+        return io.github.llm4j.model.MediaCapabilities.NONE;
+    }
+
+    /**
      * Whether {@link #chat} honours {@link LLMRequest#getTools()} and returns {@link
      * LLMResponse#getToolCalls()}.
      */

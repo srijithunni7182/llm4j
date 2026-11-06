@@ -5,6 +5,7 @@ import io.github.llm4j.model.ToolCall;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -90,6 +91,20 @@ final class Exchanges {
                 int already = Messages.dropped(messages.get(j));
                 total += already > 0 ? already : 1;
             }
+        }
+        return total;
+    }
+
+    /** The media the first {@code k} removable units carry or stand for, by kind. */
+    static Map<io.github.llm4j.model.MediaKind, Integer> mediaStandingFor(
+            List<Message> messages, List<Unit> removable, int k) {
+        Map<io.github.llm4j.model.MediaKind, Integer> total =
+                new java.util.EnumMap<>(io.github.llm4j.model.MediaKind.class);
+        for (int i = 0; i < k; i++) {
+            Unit u = removable.get(i);
+            for (int j = u.start(); j < u.end(); j++)
+                Messages.mediaStanding(messages.get(j))
+                        .forEach((kind, n) -> total.merge(kind, n, Integer::sum));
         }
         return total;
     }

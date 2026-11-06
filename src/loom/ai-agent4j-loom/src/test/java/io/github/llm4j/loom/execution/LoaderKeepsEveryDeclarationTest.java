@@ -76,4 +76,26 @@ class LoaderKeepsEveryDeclarationTest {
 
         assertThat(script.getSharedPrompt()).isNull();
     }
+
+    @Test
+    void aLoadedScriptKeepsItsMediaFolderAndLimits() throws IOException {
+        LoomScript script =
+                load(
+                        "media.loom",
+                        "media_root: \"./assets\"\nmedia { max_bytes: 2MB  max_items: 3 }\n"
+                                + "agent A { model: \"m\" }\n");
+
+        assertThat(script.getMediaRoot()).isEqualTo("./assets");
+        assertThat(script.getMediaMaxBytes()).isEqualTo(2L * 1024 * 1024);
+        assertThat(script.getMediaMaxItems()).isEqualTo(3);
+    }
+
+    @Test
+    void anImportedFilesMediaFolderIsNotImposedOnTheImporter() throws IOException {
+        Files.writeString(
+                dir.resolve("lib.loom"), "media_root: \"./lib-assets\"\nagent Lib { model: \"m\" }\n");
+        LoomScript script = load("importer.loom", "import \"lib.loom\"\nagent B { model: \"m\" }\n");
+
+        assertThat(script.getMediaRoot()).isNull();
+    }
 }

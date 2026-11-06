@@ -118,17 +118,18 @@
 
   /** The chips each kind can show, in the order they are drawn. */
   var CHIP_KINDS = {
-    delegate: ['prompt', 'timeout', 'retry', 'budget', 'expecting', 'variable'],
+    delegate: ['attaches', 'prompt', 'timeout', 'retry', 'budget', 'expecting', 'variable'],
     task: ['timeout', 'retry', 'variable'],
     classify: ['backend', 'samples', 'timeout', 'retry', 'variable'],
-    extract: ['timeout', 'retry', 'variable'],
+    extract: ['attaches', 'timeout', 'retry', 'variable'],
     check: ['timeout', 'retry', 'variable'],
     use: ['timeout', 'retry', 'variable'],
-    broadcast: ['budget', 'variable'],
+    broadcast: ['attaches', 'budget', 'variable'],
+    handoff: ['attaches'],
     parallel: ['branches'],
     loop: ['max', 'budget'],
     foreach: ['parallel', 'budget'],
-    human_prompt: ['variable'],
+    human_prompt: ['attaches', 'variable'],
     checkpoint: ['values'],
     rewind: ['atMost', 'effects', 'carrying'],
     call: ['args', 'variable'],
@@ -145,9 +146,17 @@
     return 'budget ' + parts[0] + (parts.length > 1 ? ' +' : '');
   }
 
+  /** The kinds of file a step sends, grouped in order of first appearance: "2 images, document". */
+  function attachesText(kinds) {
+    var order = [], counts = {};
+    kinds.forEach(function (k) { if (!(k in counts)) { counts[k] = 0; order.push(k); } counts[k] += 1; });
+    return 'attaches ' + order.map(function (k) { return counts[k] > 1 ? counts[k] + ' ' + k + 's' : k; }).join(', ');
+  }
+
   function chipFor(key, node) {
     var a = attrsOf(node);
     switch (key) {
+      case 'attaches': return a.attaches && a.attaches.length ? { t: attachesText(a.attaches) } : null;
       case 'prompt': return a.prompt ? { t: cut(String(a.prompt), 26), v: 'muted' } : null;
       case 'timeout': return a.timeoutMs ? { t: 'timeout ' + duration(a.timeoutMs) } : null;
       case 'retry': return a.retry ? { t: 'retry ' + a.retry + (a.backoffMs ? ' · ' + duration(a.backoffMs) : '') } : null;

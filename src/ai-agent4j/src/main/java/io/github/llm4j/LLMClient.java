@@ -53,6 +53,18 @@ public interface LLMClient {
     }
 
     /**
+     * Which kinds of media ({@link io.github.llm4j.model.Media}) this client can send the model
+     * {@code model}. {@link io.github.llm4j.model.MediaCapabilities#NONE} unless it is recorded
+     * that the model takes them: an unknown model is never assumed to see or hear anything.
+     *
+     * @param model the model name the request will use, or null for the model this client is
+     *     configured with
+     */
+    default io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
+        return io.github.llm4j.model.MediaCapabilities.NONE;
+    }
+
+    /**
      * Whether this client can ground a request (search the web and return its sources); {@link
      * io.github.llm4j.grounding.GroundingSupport#NONE} unless it says so.
      */

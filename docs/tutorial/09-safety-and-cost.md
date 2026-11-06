@@ -279,6 +279,10 @@ If that later agent also reaches private data and can send or act, the triangle 
 - hand it only typed values: pull the fields it needs out of the reader's answer with an [extractor](05-structured-answers-and-failure.md#extractors-fields-from-text-with-nothing-else), and give the sender `transcript: none` so those fields are all it gets (an extractor on its own does not remove the reader's answer from the transcript);
 - split the work so no agent that acts runs after one that reads the outside world.
 
+#### Files the script did not choose (LA23)
+
+A picture, recording or PDF can carry instructions that no masking can see. When the file name is filled in at run time (`attach image "{receipt}"`), `weave audit` counts the agent as reading untrusted content (LA23), as it does for web grounding. A file named in the script does not fire it. An agent with `guard { pii: mask }` or `pii: block` also **refuses media** unless it says `guard { pii: mask  media: unscanned }`, because masking works on text and cannot read a picture. Say so only when you accept that.
+
 ### What else it catches
 
 Typical findings, each with the reason and a fix:

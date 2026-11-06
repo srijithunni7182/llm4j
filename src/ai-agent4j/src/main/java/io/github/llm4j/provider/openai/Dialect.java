@@ -42,6 +42,7 @@ public final class Dialect {
     private final Function<String, ModelTraits> traits;
     private final String fallbackModel;
     private final java.util.regex.Pattern structuredOutputModels;
+    private final Map<io.github.llm4j.model.MediaKind, java.util.regex.Pattern> mediaModels;
 
     private Dialect(Builder b) {
         this.name = Objects.requireNonNull(b.name, "name cannot be null");
@@ -64,6 +65,7 @@ public final class Dialect {
         this.traits = b.traits;
         this.fallbackModel = b.fallbackModel;
         this.structuredOutputModels = b.structuredOutputModels;
+        this.mediaModels = Map.copyOf(b.mediaModels);
     }
 
     /**
@@ -206,6 +208,25 @@ public final class Dialect {
     }
 
     /**
+     * The kinds of media {@code model} takes, from the patterns recorded for this vendor; {@link
+     * io.github.llm4j.model.MediaCapabilities#NONE} for a model nobody recorded.
+     */
+    public io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
+        if (model == null) return io.github.llm4j.model.MediaCapabilities.NONE;
+        java.util.EnumSet<io.github.llm4j.model.MediaKind> kinds =
+                java.util.EnumSet.noneOf(io.github.llm4j.model.MediaKind.class);
+        mediaModels.forEach(
+                (kind, pattern) -> {
+                    if (pattern.matcher(model).matches()) kinds.add(kind);
+                });
+        return kinds.isEmpty()
+                ? io.github.llm4j.model.MediaCapabilities.NONE
+                : io.github.llm4j.model.MediaCapabilities.of(
+                        kinds.iterator().next(),
+                        kinds.toArray(new io.github.llm4j.model.MediaKind[0]));
+    }
+
+    /**
      * The model used when neither the request nor the configuration names one; null when there is
      * no sensible default.
      */
@@ -236,7 +257,8 @@ public final class Dialect {
                 .hosts(hosts)
                 .traits(traits)
                 .fallbackModel(fallbackModel)
-                .structuredOutputModels(structuredOutputModels);
+                .structuredOutputModels(structuredOutputModels)
+                .copyMediaModels(mediaModels);
     }
 
     /**
@@ -279,6 +301,9 @@ public final class Dialect {
                     .structuredOutputModels(
                             java.util.regex.Pattern.compile(
                                     "^(?:gpt-(?:4o|4\\.1|[5-9])|o[134])(?:[-.].*)?$"))
+                    .mediaModels(io.github.llm4j.model.MediaKind.IMAGE, MediaModels.OPENAI_SEES)
+                    .mediaModels(io.github.llm4j.model.MediaKind.DOCUMENT, MediaModels.OPENAI_SEES)
+                    .mediaModels(io.github.llm4j.model.MediaKind.AUDIO, MediaModels.OPENAI_HEARS)
                     .build();
 
     /** xAI (Grok) chat completions. */
@@ -292,6 +317,7 @@ public final class Dialect {
                     .traits(ModelTraits::xai)
                     // the Grok 4 family (docs: structured outputs with tools is Grok 4 only)
                     .structuredOutputModels(java.util.regex.Pattern.compile("^grok-4(?:[-.].*)?$"))
+                    .mediaModels(io.github.llm4j.model.MediaKind.IMAGE, MediaModels.XAI_SEES)
                     .build();
 
     /** Moonshot's Kimi chat completions (preview: documentation-derived fixtures only). */
@@ -303,6 +329,7 @@ public final class Dialect {
                     .baseUrlEnv("MOONSHOT_BASE_URL")
                     .hosts(List.of("api.moonshot.ai"))
                     .traits(ModelTraits::kimi)
+                    .mediaModels(io.github.llm4j.model.MediaKind.IMAGE, MediaModels.KIMI_SEES)
                     .build();
 
     /**
@@ -317,6 +344,7 @@ public final class Dialect {
                     .baseUrlEnv("DASHSCOPE_BASE_URL")
                     .hosts(List.of("dashscope-intl.aliyuncs.com", "dashscope.aliyuncs.com"))
                     .traits(ModelTraits::qwen)
+                    .mediaModels(io.github.llm4j.model.MediaKind.IMAGE, MediaModels.QWEN_SEES)
                     .build();
 
     /**
@@ -369,6 +397,8 @@ public final class Dialect {
         private Function<String, ModelTraits> traits = m -> ModelTraits.DEFAULT;
         private String fallbackModel;
         private java.util.regex.Pattern structuredOutputModels;
+        private final Map<io.github.llm4j.model.MediaKind, java.util.regex.Pattern> mediaModels =
+                new java.util.EnumMap<>(io.github.llm4j.model.MediaKind.class);
 
         private Builder(String name) {
             this.name = name;
@@ -467,6 +497,23 @@ public final class Dialect {
          */
         public Builder structuredOutputModels(java.util.regex.Pattern models) {
             this.structuredOutputModels = models;
+            return this;
+        }
+
+        /**
+         * The models that take this kind of media, by pattern over the whole model name; none (the
+         * default) for a vendor whose support is not recorded. Unknown models are never assumed to
+         * take any.
+         */
+        public Builder mediaModels(
+                io.github.llm4j.model.MediaKind kind, java.util.regex.Pattern models) {
+            this.mediaModels.put(kind, models);
+            return this;
+        }
+
+        private Builder copyMediaModels(
+                Map<io.github.llm4j.model.MediaKind, java.util.regex.Pattern> models) {
+            this.mediaModels.putAll(models);
             return this;
         }
 

@@ -77,14 +77,29 @@ final class DropOldest implements ContextCompactor {
     private static List<Message> without(
             List<Message> messages, List<Exchanges.Unit> removable, int k) {
         return Exchanges.replacing(
-                messages, removable, k, marker(Exchanges.standingFor(messages, removable, k)));
+                messages,
+                removable,
+                k,
+                marker(
+                        Exchanges.standingFor(messages, removable, k),
+                        Exchanges.mediaStandingFor(messages, removable, k)));
     }
 
-    private static Message marker(int dropped) {
+    private static Message marker(
+            int dropped, Map<io.github.llm4j.model.MediaKind, Integer> media) {
+        Map<String, Object> data = new java.util.HashMap<>();
+        data.put(Messages.COMPACTION, NAME);
+        data.put(Messages.DROPPED, dropped);
+        String text = "[" + dropped + " earlier messages were removed to save space";
+        Map<String, Integer> recorded = Messages.asData(media);
+        if (recorded != null) {
+            data.put(Messages.DROPPED_MEDIA, recorded);
+            text += ", including " + Messages.describeMedia(media) + " that can no longer be seen";
+        }
         return Message.builder()
                 .role(Message.Role.USER)
-                .content("[" + dropped + " earlier messages were removed to save space.]")
-                .providerData(Map.of(Messages.COMPACTION, NAME, Messages.DROPPED, dropped))
+                .content(text + ".]")
+                .providerData(data)
                 .build();
     }
 }

@@ -39,6 +39,8 @@ public final class ResponsesDialect {
     private final ResponsesGrounding grounding;
     private final java.util.regex.Pattern structuredOutputModels;
     private final StructuredStyle structuredStyle;
+    private final java.util.Map<io.github.llm4j.model.MediaKind, java.util.regex.Pattern>
+            mediaModels;
 
     /** Where a vendor takes a JSON-Schema response format on the Responses schema. */
     public enum StructuredStyle {
@@ -68,6 +70,7 @@ public final class ResponsesDialect {
         this.extraRequest = Map.copyOf(b.extraRequest);
         this.grounding = b.grounding;
         this.structuredOutputModels = b.structuredOutputModels;
+        this.mediaModels = java.util.Map.copyOf(b.mediaModels);
         this.structuredStyle = b.structuredStyle;
     }
 
@@ -84,6 +87,21 @@ public final class ResponsesDialect {
     }
 
     /** Where this vendor takes the response format. */
+    public io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
+        if (model == null) return io.github.llm4j.model.MediaCapabilities.NONE;
+        java.util.EnumSet<io.github.llm4j.model.MediaKind> kinds =
+                java.util.EnumSet.noneOf(io.github.llm4j.model.MediaKind.class);
+        mediaModels.forEach(
+                (kind, pattern) -> {
+                    if (pattern.matcher(model).matches()) kinds.add(kind);
+                });
+        return kinds.isEmpty()
+                ? io.github.llm4j.model.MediaCapabilities.NONE
+                : io.github.llm4j.model.MediaCapabilities.of(
+                        kinds.iterator().next(),
+                        kinds.toArray(new io.github.llm4j.model.MediaKind[0]));
+    }
+
     public StructuredStyle structuredStyle() {
         return structuredStyle;
     }
@@ -223,6 +241,8 @@ public final class ResponsesDialect {
                             java.util.regex.Pattern.compile(
                                     "^(?:gpt-(?:4o|4\\.1|[5-9])|o[134])(?:[-.].*)?$"),
                             StructuredStyle.TEXT_FORMAT)
+                    .mediaModels(io.github.llm4j.model.MediaKind.IMAGE, MediaModels.OPENAI_SEES)
+                    .mediaModels(io.github.llm4j.model.MediaKind.DOCUMENT, MediaModels.OPENAI_SEES)
                     .replayTypes(Set.of("message", "reasoning", "function_call", "web_search_call"))
                     .reasoningSummary(true)
                     .grounding(
@@ -252,6 +272,7 @@ public final class ResponsesDialect {
                     .structuredOutput(
                             java.util.regex.Pattern.compile("^grok-4(?:[-.].*)?$"),
                             StructuredStyle.TEXT_FORMAT)
+                    .mediaModels(io.github.llm4j.model.MediaKind.IMAGE, MediaModels.XAI_SEES)
                     .grounding(
                             ResponsesGrounding.builder("web_search")
                                     .allowDomains("filters.allowed_domains", 5)
@@ -324,6 +345,18 @@ public final class ResponsesDialect {
         private ResponsesGrounding grounding;
         private java.util.regex.Pattern structuredOutputModels;
         private StructuredStyle structuredStyle = StructuredStyle.TEXT_FORMAT;
+        private final java.util.Map<io.github.llm4j.model.MediaKind, java.util.regex.Pattern>
+                mediaModels = new java.util.EnumMap<>(io.github.llm4j.model.MediaKind.class);
+
+        /**
+         * The models that take this kind of media on the Responses schema, by pattern over the
+         * whole model name; none (the default) when not recorded.
+         */
+        public Builder mediaModels(
+                io.github.llm4j.model.MediaKind kind, java.util.regex.Pattern models) {
+            this.mediaModels.put(kind, models);
+            return this;
+        }
 
         private Builder(String name) {
             this.name = name;

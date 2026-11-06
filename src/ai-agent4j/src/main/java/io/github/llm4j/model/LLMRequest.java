@@ -23,6 +23,8 @@ public final class LLMRequest {
     private final boolean reasoning;
     private final io.github.llm4j.grounding.Grounding grounding;
     private final ResponseFormat responseFormat;
+    private final PromptCache promptCache;
+    private final MediaPolicy mediaPolicy;
 
     /** Whether the model may call the tools it is offered. */
     public enum ToolChoice {
@@ -53,6 +55,9 @@ public final class LLMRequest {
         this.reasoning = builder.reasoning;
         this.grounding = builder.grounding;
         this.responseFormat = builder.responseFormat;
+        this.promptCache = builder.promptCache;
+        this.mediaPolicy =
+                builder.mediaPolicy == null ? MediaPolicy.defaults() : builder.mediaPolicy;
 
         validate();
     }
@@ -70,6 +75,59 @@ public final class LLMRequest {
         if (topP != null && (topP < 0.0 || topP > 1.0)) {
             throw new IllegalArgumentException("topP must be between 0.0 and 1.0");
         }
+        validateMedia();
+    }
+
+    /** The media limits of {@link #getMediaPolicy()}: per item, per message and for the request. */
+    private void validateMedia() {
+        long total = 0;
+        for (Message message : messages) {
+            List<Media> media = message.getMedia();
+            if (media.size() > mediaPolicy.maxItemsPerMessage()) {
+                throw new IllegalArgumentException(
+                        "a message carries "
+                                + media.size()
+                                + " media items, over the "
+                                + mediaPolicy.maxItemsPerMessage()
+                                + " allowed per message");
+            }
+            for (Media item : media) {
+                if (item.size() > mediaPolicy.maxBytesPerItem()) {
+                    throw new IllegalArgumentException(
+                            "a media item is "
+                                    + item.size()
+                                    + " bytes, over the "
+                                    + mediaPolicy.maxBytesPerItem()
+                                    + " allowed per item");
+                }
+                total += item.size();
+            }
+        }
+        if (total > mediaPolicy.maxBytesPerRequest()) {
+            throw new IllegalArgumentException(
+                    "the request carries "
+                            + total
+                            + " bytes of media, over the "
+                            + mediaPolicy.maxBytesPerRequest()
+                            + " allowed per request");
+        }
+    }
+
+    /**
+     * The limits the media of this request was checked against; {@link MediaPolicy#defaults()}
+     * unless the builder set another.
+     */
+    public MediaPolicy getMediaPolicy() {
+        return mediaPolicy;
+    }
+
+    /** The kinds of media any message of this request carries; empty for a text-only request. */
+    public java.util.Set<MediaKind> mediaKinds() {
+        java.util.Set<MediaKind> kinds = java.util.EnumSet.noneOf(MediaKind.class);
+        for (Message message : messages) {
+            for (Media item : message.getMedia()) kinds.add(item.kind());
+        }
+        return kinds;
     }
 
     public List<Message> getMessages() {
@@ -139,6 +197,14 @@ public final class LLMRequest {
         return responseFormat;
     }
 
+    /**
+     * The parts of this request a provider may keep in its prompt cache, or null for none (the
+     * default). See {@link PromptCache}.
+     */
+    public PromptCache getPromptCache() {
+        return promptCache;
+    }
+
     /** A builder holding everything of this request, so a copy never drops a field. */
     public Builder toBuilder() {
         Builder b =
@@ -154,7 +220,9 @@ public final class LLMRequest {
                         .toolChoice(toolChoice)
                         .reasoning(reasoning)
                         .grounding(grounding)
-                        .responseFormat(responseFormat);
+                        .responseFormat(responseFormat)
+                        .promptCache(promptCache)
+                        .mediaPolicy(mediaPolicy);
         if (!additionalParameters.isEmpty()) b.additionalParameters(additionalParameters);
         return b;
     }
@@ -180,7 +248,9 @@ public final class LLMRequest {
                 && toolChoice == that.toolChoice
                 && reasoning == that.reasoning
                 && Objects.equals(grounding, that.grounding)
-                && Objects.equals(responseFormat, that.responseFormat);
+                && Objects.equals(responseFormat, that.responseFormat)
+                && Objects.equals(promptCache, that.promptCache)
+                && Objects.equals(mediaPolicy, that.mediaPolicy);
     }
 
     @Override
@@ -198,7 +268,9 @@ public final class LLMRequest {
                 toolChoice,
                 reasoning,
                 grounding,
-                responseFormat);
+                responseFormat,
+                promptCache,
+                mediaPolicy);
     }
 
     @Override
@@ -238,8 +310,29 @@ public final class LLMRequest {
         private boolean reasoning;
         private io.github.llm4j.grounding.Grounding grounding;
         private ResponseFormat responseFormat;
+        private PromptCache promptCache;
+        private MediaPolicy mediaPolicy;
 
         private Builder() {}
+
+        /**
+         * The limits to hold the request's media to; {@link MediaPolicy#defaults()} when not set.
+         * The request is refused when its media is over them.
+         */
+        public Builder mediaPolicy(MediaPolicy mediaPolicy) {
+            this.mediaPolicy = mediaPolicy;
+            return this;
+        }
+
+        /**
+         * Lets the provider keep the marked parts of this request in its prompt cache; null (the
+         * default) asks for nothing. See {@link PromptCache} for what it costs and which providers
+         * act on it.
+         */
+        public Builder promptCache(PromptCache promptCache) {
+            this.promptCache = promptCache;
+            return this;
+        }
 
         /** Asks for a reply that follows a JSON Schema; null (the default) leaves it free. */
         public Builder responseFormat(ResponseFormat responseFormat) {

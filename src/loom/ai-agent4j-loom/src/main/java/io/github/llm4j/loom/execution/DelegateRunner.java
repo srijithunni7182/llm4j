@@ -83,6 +83,21 @@ final class DelegateRunner {
 
         String resolvePayload(String raw);
 
+        /**
+         * Reads the files a step attaches, or refuses the step.
+         *
+         * @throws MediaRefusal when any attachment cannot be used
+         */
+        java.util.List<io.github.llm4j.model.Media> attachmentsOf(
+                java.util.List<io.github.llm4j.loom.ast.AttachItem> items);
+
+        /**
+         * Refuses media the agent's model cannot take.
+         *
+         * @throws MediaRefusal naming the agent, its model and what it accepts
+         */
+        void requireMediaFor(String agent, java.util.List<io.github.llm4j.model.Media> media);
+
         Path baseDir();
 
         AgentVoice voice(String agent);
@@ -238,6 +253,14 @@ final class DelegateRunner {
                         "discarded earlier: " + entry.value(),
                         null);
             } else {
+                try {
+                    // the answer was about these files; if they are not these files, it is not reused
+                    MediaJournal.verify(
+                            host.journal(), stepId, host.attachmentsOf(del.getAttachments()));
+                } catch (MediaRefusal changed) {
+                    failStep(del, stepId, agentName, changed.getMessage(), changed);
+                    return;
+                }
                 host.bind(variableName, entry.value(), answerOrigin(del, agentDef));
                 host.journal()
                         .get(stepId + "#audio")
@@ -293,6 +316,17 @@ final class DelegateRunner {
             }
         }
         final String resolvedPayload = payload;
+        // The files are read and checked before the agent is told anything; a problem with them
+        // stops the step here, and a retry would meet the same file, so it is never retried.
+        final java.util.List<io.github.llm4j.model.Media> media;
+        try {
+            media = host.attachmentsOf(del.getAttachments());
+            host.requireMediaFor(agentName, media);
+            MediaJournal.record(host.journal(), stepId, media);
+        } catch (MediaRefusal refused) {
+            failStep(del, stepId, agentName, refused.getMessage(), refused);
+            return;
+        }
         if (host.decisions().asking()) {
             // a hook may already know this answer (the recorded one, when nothing it depends on
             // has changed): use it as a recorded step would be used
@@ -373,6 +407,7 @@ final class DelegateRunner {
                             startData.put("prompt", u.label());
                             startData.put("promptHash", u.hash());
                         });
+        if (!media.isEmpty()) startData.put("attachments", describe(media));
         host.trace(TraceEvent.DELEGATE_START, agentName, resolvedPayload, startData);
 
         // A step's own `expecting { ... }` schema wins over the agent's output_schema.
@@ -437,10 +472,12 @@ final class DelegateRunner {
                                         ? runWithTimeout(
                                                 runAgent,
                                                 attemptBriefing,
+                                                media,
                                                 del.getTimeoutMillis(),
                                                 handle,
                                                 watching)
-                                        : supervised(watching, runAgent, attemptBriefing, handle);
+                                        : supervised(
+                                                watching, runAgent, attemptBriefing, media, handle);
                     } finally {
                         interventions.close(stepId);
                     }
@@ -966,16 +1003,37 @@ final class DelegateRunner {
             Supervision.Run watching,
             ReActAgent agent,
             String task,
+            java.util.List<io.github.llm4j.model.Media> media,
             io.github.llm4j.agent.RunHandle handle)
             throws Exception {
         return watching == null
-                ? agent.run(task, handle)
-                : Supervision.watching(watching, () -> agent.run(task, handle));
+                ? agent.run(task, media, handle)
+                : Supervision.watching(watching, () -> agent.run(task, media, handle));
+    }
+
+    /**
+     * What may be written down about a step's attachments (a trace, a journal): kind, type, size,
+     * SHA-256 and file name for each, never the bytes.
+     */
+    static List<Map<String, Object>> describe(List<io.github.llm4j.model.Media> media) {
+        List<Map<String, Object>> out = new java.util.ArrayList<>();
+        for (io.github.llm4j.model.Media item : media) {
+            io.github.llm4j.model.MediaDescriptor d = item.descriptor();
+            Map<String, Object> entry = new java.util.LinkedHashMap<>();
+            entry.put("kind", d.kind().name());
+            entry.put("mediaType", d.mediaType());
+            entry.put("bytes", d.bytes());
+            entry.put("sha256", d.sha256());
+            entry.put("name", d.name());
+            out.add(entry);
+        }
+        return out;
     }
 
     private io.github.llm4j.agent.AgentResult runWithTimeout(
             ReActAgent agent,
             String task,
+            java.util.List<io.github.llm4j.model.Media> media,
             long timeoutMillis,
             io.github.llm4j.agent.RunHandle handle,
             Supervision.Run watching)
@@ -985,7 +1043,7 @@ final class DelegateRunner {
                 CompletableFuture.supplyAsync(
                         () -> {
                             try (ThreadScope.Installed ignored = scope.install()) {
-                                return supervised(watching, agent, task, handle);
+                                return supervised(watching, agent, task, media, handle);
                             } catch (RuntimeException e) {
                                 throw e;
                             } catch (Exception e) {

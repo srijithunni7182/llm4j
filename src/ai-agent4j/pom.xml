@@ -301,6 +301,56 @@
             </build>
         </profile>
 
+        <!-- Mutation testing of media input: mvn -Pmutation-media org.pitest:pitest-maven:mutationCoverage (see docs/specs/31-multimodal-input/VERIFICATION.md) -->
+        <profile>
+            <id>mutation-media</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.17.4</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.1</version>
+                            </dependency>
+                            <!-- the plugin was built for JUnit 5; this module runs JUnit 6, so give PIT the same platform -->
+                            <dependency>
+                                <groupId>org.junit.platform</groupId>
+                                <artifactId>junit-platform-launcher</artifactId>
+                                <version>${junit.version}</version>
+                            </dependency>
+                            <dependency>
+                                <groupId>org.junit.platform</groupId>
+                                <artifactId>junit-platform-commons</artifactId>
+                                <version>${junit.version}</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>io.github.llm4j.model.Media</param>
+                                <param>io.github.llm4j.model.MediaPolicy</param>
+                                <param>io.github.llm4j.model.MediaSniffer</param>
+                                <param>io.github.llm4j.model.MediaCapabilities</param>
+                                <param>io.github.llm4j.model.MediaDescriptor</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.llm4j.model.Media*Test</param>
+                                <param>io.github.llm4j.model.MessageMediaTest</param>
+                            </targetTests>
+                            <threads>4</threads>
+                            <timeoutFactor>4</timeoutFactor>
+                            <mutationThreshold>85</mutationThreshold>
+                            <outputFormats><param>XML</param><param>HTML</param></outputFormats>
+                            <timestampedReports>false</timestampedReports>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <!-- Mutation testing of context management: mvn -Pmutation-context org.pitest:pitest-maven:mutationCoverage (see docs/specs/01-context-management/VERIFICATION.md) -->
         <profile>
             <id>mutation-context</id>

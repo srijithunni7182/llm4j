@@ -38,7 +38,10 @@ import io.github.llm4j.media.JavaAudioPlayer;
 import io.github.llm4j.model.ConfidenceScore;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
+import io.github.llm4j.model.Media;
+import io.github.llm4j.model.MediaPolicy;
 import io.github.llm4j.model.Message;
+import io.github.llm4j.model.PromptCache;
 import io.github.llm4j.model.TextToSpeechRequest;
 import io.github.llm4j.model.TextToSpeechResponse;
 import io.github.llm4j.model.ToolCall;
@@ -164,6 +167,8 @@ public class ReActAgent {
     private final int maxIterations;
     private final double temperature;
     private final io.github.llm4j.grounding.Grounding grounding;
+    private final boolean promptCaching;
+    private final MediaPolicy mediaPolicy;
     private final AgentPersona persona;
     private final List<AgentSkill> skills;
     private final PromptRegistry promptRegistry;
@@ -227,6 +232,8 @@ public class ReActAgent {
         this.maxIterations = builder.maxIterations;
         this.temperature = builder.temperature;
         this.grounding = builder.grounding;
+        this.promptCaching = builder.promptCaching;
+        this.mediaPolicy = builder.mediaPolicy;
         this.conversationHistory = builder.conversationHistory;
         this.semanticMemoryService = builder.semanticMemoryService;
         this.recallTopK = builder.recallTopK;
@@ -381,7 +388,30 @@ public class ReActAgent {
     }
 
     public AgentResult run(String question) {
-        return run(question, null);
+        return run(question, List.of(), (RunHandle) null);
+    }
+
+    /**
+     * Which kinds of media the agent's model can take, so a caller can refuse before it loads a
+     * file. {@link io.github.llm4j.model.MediaCapabilities#NONE} when the client does not say.
+     */
+    public io.github.llm4j.model.MediaCapabilities mediaCapabilities() {
+        return llmClient.mediaCapabilities(null);
+    }
+
+    /**
+     * Runs the agent on a question that comes with pictures, sound, video or documents. The media
+     * goes to the model with the question, in the first user message of the run, and stays there
+     * for every later call of the loop; compaction keeps that message. A model that cannot take a
+     * kind is never called: the client refuses the request ({@link
+     * io.github.llm4j.model.MediaCapabilities}). Run hooks and personal-data guards see the
+     * question only, not the media.
+     *
+     * @param media what to send with the question; empty for none
+     * @see #mediaPolicy
+     */
+    public AgentResult run(String question, List<Media> media) {
+        return run(question, media, null);
     }
 
     /**
@@ -392,7 +422,16 @@ public class ReActAgent {
      * @param handle the run's remote control; {@code null} for a run nobody controls
      */
     public AgentResult run(String question, RunHandle handle) {
+        return run(question, List.of(), handle);
+    }
+
+    /**
+     * As {@link #run(String, RunHandle)}, with media sent beside the question (see {@link
+     * #run(String, List)}).
+     */
+    public AgentResult run(String question, List<Media> media, RunHandle handle) {
         Objects.requireNonNull(question, "question cannot be null");
+        Objects.requireNonNull(media, "media cannot be null");
         RunTelemetry telemetry = new RunTelemetry();
         if (handle != null) handle.bind();
         try {
@@ -424,8 +463,8 @@ public class ReActAgent {
             }
             AgentResult result =
                     nativeCalling
-                            ? runNative(question, telemetry, handle)
-                            : runText(question, telemetry, handle);
+                            ? runNative(question, media, telemetry, handle)
+                            : runText(question, media, telemetry, handle);
             return result.toBuilder()
                     .stats(telemetry.snapshot())
                     .citations(telemetry.citations())
@@ -460,6 +499,19 @@ public class ReActAgent {
      * The conversation as one call sees it: with the hooks' note as a last message, which is not
      * kept.
      */
+    /**
+     * What a call of the loop lets the provider cache, or null when caching is off. The system
+     * prompt and tools do not change between calls or even between runs; the conversation is the
+     * same up to its newest message, which is where the next call picks up. The first call has
+     * nothing to reuse but the fixed part, so it does not pay to cache its single question.
+     */
+    private PromptCache promptCache(List<Message> conversation, int iteration) {
+        if (!promptCaching) return null;
+        PromptCache.Builder cache = PromptCache.builder().system().tools();
+        if (iteration > 0) cache.throughMessage(conversation.size() - 1);
+        return cache.build();
+    }
+
     private static List<Message> withNote(List<Message> conversation, String note) {
         if (note.isEmpty()) return conversation;
         List<Message> shown = new ArrayList<>(conversation);
@@ -613,6 +665,7 @@ public class ReActAgent {
     private AgentResult wrapUpText(
             RunHandle handle,
             StopReport.Phase phase,
+            List<Media> media,
             Scratchpad scratchpad,
             List<AgentResult.AgentStep> steps,
             String best,
@@ -631,7 +684,8 @@ public class ReActAgent {
         LLMRequest request =
                 LLMRequest.builder()
                         .addSystemMessage(systemPrompt)
-                        .addUserMessage(history + scratchpad.render())
+                        .addMessage(Message.user(history + scratchpad.render(), media))
+                        .mediaPolicy(mediaPolicy)
                         .temperature(temperature)
                         .build();
         String answer = best;
@@ -679,6 +733,7 @@ public class ReActAgent {
         LLMRequest request =
                 LLMRequest.builder()
                         .messages(conversation)
+                        .mediaPolicy(mediaPolicy)
                         .tools(specs)
                         .toolChoice(LLMRequest.ToolChoice.NONE)
                         .temperature(temperature)
@@ -800,7 +855,8 @@ public class ReActAgent {
     }
 
     /** The loop on the text protocol: the model writes a JSON block that the agent parses. */
-    private AgentResult runText(String question, RunTelemetry telemetry, RunHandle handle) {
+    private AgentResult runText(
+            String question, List<Media> media, RunTelemetry telemetry, RunHandle handle) {
 
         // If question starts with "VOICE:" (or similar marker), we could infer?
         // But better to have explicit methods.
@@ -850,6 +906,7 @@ public class ReActAgent {
                 return wrapUpText(
                         handle,
                         phase,
+                        media,
                         scratchpad,
                         steps,
                         best,
@@ -896,7 +953,8 @@ public class ReActAgent {
                         estimator.prompt(
                                 LLMRequest.builder()
                                         .addSystemMessage(systemPrompt)
-                                        .addUserMessage(context)
+                                        .addMessage(Message.user(context, media))
+                                        .mediaPolicy(mediaPolicy)
                                         .build());
                 ContextManager.Prepared prepared =
                         contextManager.prepare(scratchpad.messages(), i, overhead);
@@ -916,10 +974,13 @@ public class ReActAgent {
             LLMRequest request =
                     LLMRequest.builder()
                             .addSystemMessage(systemPrompt)
-                            .addUserMessage(
-                                    context
-                                            + scratchpad.render()
-                                            + (hookNote.isEmpty() ? "" : "\n\n" + hookNote))
+                            .addMessage(
+                                    Message.user(
+                                            context
+                                                    + scratchpad.render()
+                                                    + (hookNote.isEmpty() ? "" : "\n\n" + hookNote),
+                                            media))
+                            .mediaPolicy(mediaPolicy)
                             .temperature(temperature)
                             .grounding(grounding)
                             .build();
@@ -940,7 +1001,8 @@ public class ReActAgent {
                                     : estimator.prompt(
                                             LLMRequest.builder()
                                                     .addSystemMessage(systemPrompt)
-                                                    .addUserMessage(context)
+                                                    .addMessage(Message.user(context, media))
+                                                    .mediaPolicy(mediaPolicy)
                                                     .build());
                     ContextManager.Prepared again =
                             contextManager == null
@@ -963,7 +1025,8 @@ public class ReActAgent {
                     request =
                             LLMRequest.builder()
                                     .addSystemMessage(systemPrompt)
-                                    .addUserMessage(context + scratchpad.render())
+                                    .addMessage(Message.user(context + scratchpad.render(), media))
+                                    .mediaPolicy(mediaPolicy)
                                     .temperature(temperature)
                                     .grounding(grounding)
                                     .build();
@@ -1215,7 +1278,8 @@ public class ReActAgent {
      * final answer. Approvals, budgets, rate limits, duplicate blocking, listeners, audit and the
      * result are the same as on the text protocol.
      */
-    private AgentResult runNative(String question, RunTelemetry telemetry, RunHandle handle) {
+    private AgentResult runNative(
+            String question, List<Media> media, RunTelemetry telemetry, RunHandle handle) {
         List<AgentResult.AgentStep> steps = new ArrayList<>();
         Set<String> actionHistory = new HashSet<>();
         AtomicInteger redundantActionCount = new AtomicInteger(0);
@@ -1245,7 +1309,7 @@ public class ReActAgent {
         }
         List<Message> conversation = new ArrayList<>();
         conversation.add(Message.system(nativePrompt));
-        conversation.add(Message.user(context + question));
+        conversation.add(Message.user(context + question, media));
         List<ToolSpec> specs = toolSpecs();
         ContextManager contextManager = newContextManager(specs);
         StopReport.Phase abortedIn =
@@ -1293,10 +1357,12 @@ public class ReActAgent {
             LLMRequest request =
                     LLMRequest.builder()
                             .messages(withNote(conversation, hookNote))
+                            .mediaPolicy(mediaPolicy)
                             .tools(specs)
                             .temperature(temperature)
                             .grounding(grounding)
                             .reasoning(streaming && reasoning)
+                            .promptCache(promptCache(conversation, i))
                             .build();
             LLMResponse response;
             try {
@@ -1316,10 +1382,12 @@ public class ReActAgent {
                     request =
                             LLMRequest.builder()
                                     .messages(withNote(conversation, hookNote))
+                                    .mediaPolicy(mediaPolicy)
                                     .tools(specs)
                                     .temperature(temperature)
                                     .grounding(grounding)
                                     .reasoning(streaming && reasoning)
+                                    .promptCache(promptCache(conversation, i))
                                     .build();
                     response = modelCall(request, i, telemetry, handle);
                 }
@@ -2374,6 +2442,8 @@ public class ReActAgent {
         private int maxIterations = 10;
         private double temperature = 0.7;
         private io.github.llm4j.grounding.Grounding grounding;
+        private boolean promptCaching = true;
+        private MediaPolicy mediaPolicy = MediaPolicy.defaults();
         private AgentPersona persona;
         private List<AgentSkill> skills = new ArrayList<>();
         private PromptRegistry promptRegistry;
@@ -2435,6 +2505,8 @@ public class ReActAgent {
             this.maxIterations = agent.maxIterations;
             this.temperature = agent.temperature;
             this.grounding = agent.grounding;
+            this.promptCaching = agent.promptCaching;
+            this.mediaPolicy = agent.mediaPolicy;
             this.persona = agent.persona;
             this.skills = new ArrayList<>(agent.skills);
             this.promptRegistry = agent.promptRegistry;
@@ -2585,6 +2657,28 @@ public class ReActAgent {
 
         public Builder grounding(io.github.llm4j.grounding.Grounding.Builder grounding) {
             this.grounding = grounding == null ? null : grounding.build();
+            return this;
+        }
+
+        /**
+         * The limits the media of a run is held to ({@link MediaPolicy#defaults()} unless set): how
+         * many items one message may carry and how many bytes a request may hold. Needed only to
+         * send more than the defaults allow.
+         */
+        public Builder mediaPolicy(MediaPolicy mediaPolicy) {
+            this.mediaPolicy = Objects.requireNonNull(mediaPolicy, "mediaPolicy cannot be null");
+            return this;
+        }
+
+        /**
+         * Whether each model call lets the provider cache what the loop resends: the system prompt
+         * and tools always, and from the second call on the conversation so far. On by default,
+         * because a loop is the case that reads the cache back; a provider that cannot cache, or
+         * that caches by itself, ignores it. Turn it off for an agent whose runs are a single call,
+         * where Anthropic's write premium is never repaid. See {@link PromptCache}.
+         */
+        public Builder promptCaching(boolean promptCaching) {
+            this.promptCaching = promptCaching;
             return this;
         }
 

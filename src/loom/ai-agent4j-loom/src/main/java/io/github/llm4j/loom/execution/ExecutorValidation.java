@@ -405,7 +405,13 @@ final class ExecutorValidation {
             java.util.Set.of("listen", "speak", "language", "voice", "out");
     private static final java.util.Set<String> GUARD_KEYS =
             java.util.Set.of(
-                    "pii", "bias", "bias_model", "prompt_leak", "prompt_leak_words", "internal_refs");
+                    "pii",
+                    "bias",
+                    "bias_model",
+                    "prompt_leak",
+                    "prompt_leak_words",
+                    "internal_refs",
+                    "media");
 
     private static final java.util.Set<String> GROUNDING_KEYS =
             java.util.Set.of("allow", "block", "recency", "country", "max_searches");
@@ -770,6 +776,20 @@ final class ExecutorValidation {
                     g.getLine(),
                     who,
                     "guard needs pii: mask | block | warn, bias: warn | block, or prompt_leak: warn | block | off");
+        if (g.has("media") && !g.isUnscannedMedia())
+            c.error(
+                    g.lineOf("media"),
+                    who,
+                    "guard media: write media: unscanned (it accepts sending pictures, sound, video or"
+                            + " documents that pii: cannot inspect), not "
+                            + g.get("media"));
+        if (g.isUnscannedMedia()
+                && !"mask".equals(g.getPii())
+                && !"block".equals(g.getPii()))
+            c.warn(
+                    g.lineOf("media"),
+                    who,
+                    "guard media: unscanned does nothing unless pii is mask or block");
         if (g.getPromptLeak() != null && !AgentGuard.LEAK_VALUES.contains(g.getPromptLeak()))
             c.error(
                     g.lineOf("prompt_leak"),

@@ -118,9 +118,9 @@ final class ChatResponseReader {
         int out = usage.path("completion_tokens").asInt(0);
         b.tokenUsage(in, out, usage.path("total_tokens").asInt(in + out));
         JsonNode cached = usage.path("prompt_tokens_details").path("cached_tokens");
-        if (cached.isNumber()) b.addMetadata("usage.cached_tokens", cached.asInt());
+        if (cached.isNumber()) b.addMetadata(Providers.CACHED_TOKENS, cached.asInt());
         else if (usage.path("cached_tokens").isNumber())
-            b.addMetadata("usage.cached_tokens", usage.get("cached_tokens").asInt());
+            b.addMetadata(Providers.CACHED_TOKENS, usage.get("cached_tokens").asInt());
         JsonNode reasoning = usage.path("completion_tokens_details").path("reasoning_tokens");
         if (reasoning.isNumber()) b.addMetadata("usage.reasoning_tokens", reasoning.asInt());
     }

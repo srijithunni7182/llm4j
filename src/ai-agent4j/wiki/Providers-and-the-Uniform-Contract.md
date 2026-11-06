@@ -35,7 +35,33 @@ conformance suite runs against each provider.
 | `content` | The answer only. Gemini "thought" parts, Claude thinking blocks and Sarvam's leading `<think>…</think>` are removed. |
 | `finishReason` | `STOP`, `LENGTH`, `CONTENT_FILTER`, `TOOL_CALLS` or `ERROR`, whatever the provider called it. The provider's own value is kept in `metadata.finish_reason_raw`. |
 | `tokenUsage` | Prompt tokens include cached input; completion tokens include billed thinking (Gemini). |
+| `metadata.usage.cached_tokens` | How many of the prompt tokens the provider served from its prompt cache, when it says (OpenAI family, Anthropic, Gemini). Already counted in the prompt tokens. |
+| `metadata.usage.cache_write_tokens` | How many prompt tokens went into the provider's cache on this call. Only Anthropic reports it, because it charges more to write. |
 | `model` | The model that actually answered. |
+
+### Prompt caching
+
+Repeating a long system prompt, tool list and history on every call of a loop is the most expensive habit in an agent. A request can say which parts are stable, and a provider that caches on request keeps them:
+
+```java
+LLMRequest request = LLMRequest.builder()
+        .messages(history)
+        .tools(tools)
+        .promptCache(PromptCache.builder()
+                .system()                                  // the system prompt
+                .tools()                                   // the tool list
+                .throughMessage(history.size() - 1)        // and the conversation so far
+                .build())
+        .build();
+```
+
+| Provider | What it does with it |
+|---|---|
+| Anthropic | Writes a `cache_control` marker on the last block of each part you named (at most four: the vendor's limit, checked when you build the `PromptCache`). Anthropic charges a write above the normal input price and a read at a fraction of it, so mark only what the next call repeats. |
+| OpenAI family, Google | Cache a long prefix by themselves. The hint is accepted and does nothing; the saving still shows in `usage.cached_tokens`. |
+| Ollama, Sarvam, Perplexity | Ignore it. |
+
+Nothing is cached unless the request asks, so existing code is unchanged. `ReActAgent` asks for the system prompt and tools on every call and, from the second call on, the conversation so far, because a loop reads it back; `ReActAgent.builder().promptCaching(false)` stops it (use that for an agent whose runs are a single call). Caching changes what a call costs, never what it answers. Price the difference with cache rates in your price table ([Budgets and Rate Limits](Budgets-and-Rate-Limits.md)).
 
 ### Failures look the same everywhere
 

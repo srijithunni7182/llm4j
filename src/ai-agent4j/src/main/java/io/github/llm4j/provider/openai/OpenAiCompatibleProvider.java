@@ -106,6 +106,7 @@ public class OpenAiCompatibleProvider implements DescribableProvider {
 
     @Override
     public LLMResponse chat(LLMRequest request) {
+        Providers.requireMedia(this, request);
         String model = model(request);
         try {
             String body =
@@ -128,6 +129,7 @@ public class OpenAiCompatibleProvider implements DescribableProvider {
      */
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
+        Providers.requireMedia(this, request);
         String model = model(request);
         StreamingBody body;
         try {
@@ -238,6 +240,13 @@ public class OpenAiCompatibleProvider implements DescribableProvider {
         String name = model != null ? model : config.getDefaultModel();
         if (name == null || name.isBlank()) name = dialect.fallbackModel();
         return dialect.structuredOutput(name);
+    }
+
+    @Override
+    public io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
+        String name = model != null ? model : config.getDefaultModel();
+        if (name == null || name.isBlank()) name = dialect.fallbackModel();
+        return dialect.mediaCapabilities(name);
     }
 
     @Override

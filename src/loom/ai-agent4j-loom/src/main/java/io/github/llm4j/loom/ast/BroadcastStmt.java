@@ -13,6 +13,13 @@ public class BroadcastStmt extends LocatedStatement {
         this.variableName = variableName;
     }
 
+    private final java.util.List<AttachItem> attachments = new java.util.ArrayList<>();
+
+    /** The pictures, sound, video and documents sent with the task; empty for most steps. */
+    public java.util.List<AttachItem> getAttachments() {
+        return attachments;
+    }
+
     public String getPayload() {
         return payload;
     }

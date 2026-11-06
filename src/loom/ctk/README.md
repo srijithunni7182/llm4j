@@ -123,3 +123,12 @@ mvn test
 ## License
 
 Apache License 2.0
+
+## Attached media (`attach`)
+
+A `delegate … attach image "{picture}" -> reading` statement (also `broadcast`, `handoff`, `human_prompt`, and `extract … from image "…"`) sends a file with the task. The file is
+read from the script's `media_root` only, its kind is decided from its bytes, and the agent's model must be able to take it. `scripts/attach_basic.loom` is the canonical scenario
+and `scripts/media/pixel.png` the file it reads. `traces/attach_basic.json` lists three runs of it: a file under the root (`outcome: ok`, the model is called once with the
+attachment's type, `image/png`), a path that climbs out of the root and a file that does not exist (both `outcome: refused`, **no model call is made**). A runtime must refuse
+before the call and must not record the bytes. `mocks/attach_basic.json` maps the agent's name and task to its answer. The Java runtime runs it in `AttachCtkConformanceTest`
+(module `ai-agent4j-loom`).

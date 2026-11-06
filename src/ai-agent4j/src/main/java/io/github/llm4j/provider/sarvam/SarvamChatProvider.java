@@ -47,6 +47,7 @@ public class SarvamChatProvider implements LLMProvider {
 
     @Override
     public LLMResponse chat(LLMRequest request) {
+        Providers.requireMedia(this, request);
         try {
             String endpoint = "/v1/chat/completions";
             String url = baseUrl + endpoint;
@@ -71,6 +72,7 @@ public class SarvamChatProvider implements LLMProvider {
      */
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
+        Providers.requireMedia(this, request);
         io.github.llm4j.http.StreamingBody body;
         String model = modelFor(request);
         try {

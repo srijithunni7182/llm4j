@@ -109,6 +109,16 @@ public class RoutingLLMClient implements LLMClient {
                 : io.github.llm4j.model.StructuredOutput.NONE;
     }
 
+    /** Only the media every client takes, since any of them may end up serving the request. */
+    @Override
+    public io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
+        return clientsByTier.values().stream()
+                .flatMap(List::stream)
+                .map(c -> c.mediaCapabilities(model))
+                .reduce(io.github.llm4j.model.MediaCapabilities::and)
+                .orElse(io.github.llm4j.model.MediaCapabilities.NONE);
+    }
+
     /** True only when every client supports it, since any of them may end up serving a request. */
     @Override
     public boolean supportsToolCalling() {

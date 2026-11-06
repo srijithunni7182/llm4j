@@ -129,7 +129,7 @@ Each kind of step has its own picture and colour, so you can read the shape of a
 
 **Interventions.** A step with an `on_stopped { }` handler shows the handler under it on a **dotted** line labelled *stopped*; a `rewind` inside it (or anywhere) draws a **dashed** line back to its checkpoint labelled *sent back ≤N*. The two differ in pattern as well as colour, and a key under the Flow view (and in the exported picture) says which is which. Steering an agent never changes the workflow, so it draws nothing. In the editor, `_stop.` offers the fields of a stop, `rewind to` offers only the checkpoints declared above it, and the first word inside `on_stopped { }` offers the outcomes.
 
-The strip's legend names the main ones. Settings show as chips on each step: `retry 3 · 2s`, `timeout 90s`, `budget 5k tok`, `expects {score, notes}`, a loop's `max 3`, `→ variable`.
+The strip's legend names the main ones. A step that sends files shows an `attaches 2 images, document` chip (the kinds, never the file names). Settings show as chips on each step: `retry 3 · 2s`, `timeout 90s`, `budget 5k tok`, `expects {score, notes}`, a loop's `max 3`, `→ variable`.
 
 ### Agents and their tools
 

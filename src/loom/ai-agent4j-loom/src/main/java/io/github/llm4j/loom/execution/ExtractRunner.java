@@ -59,6 +59,20 @@ final class ExtractRunner {
             if ("failed".equals(entry.kind())) {
                 fail(stmt, def, stepId, String.valueOf(entry.value()), null, false, 0);
             } else {
+                try {
+                    MediaJournal.verify(
+                            journal,
+                            stepId,
+                            stmt.getMediaInputs().isEmpty()
+                                    ? java.util.List.of()
+                                    : executor.attachmentsOf(
+                                            stmt.getMediaInputs().stream()
+                                                    .map(io.github.llm4j.loom.ast.ExtractMedia::item)
+                                                    .toList()));
+                } catch (MediaRefusal changed) {
+                    fail(stmt, def, stepId, changed.getMessage(), changed, true, 0);
+                    return;
+                }
                 executor.bind(variable, entry.value(), origin(def));
                 replayed(def);
             }
@@ -66,8 +80,11 @@ final class ExtractRunner {
         }
 
         LLMRequest.Builder request;
+        java.util.List<io.github.llm4j.model.Media> media;
         try {
-            request = request(stmt, def);
+            media = media(stmt, def);
+            MediaJournal.record(journal, stepId, media);
+            request = request(stmt, def, media);
         } catch (StepFailure bad) {
             fail(stmt, def, stepId, bad.getMessage(), bad, true, 0);
             return;
@@ -77,6 +94,7 @@ final class ExtractRunner {
         startData.put("extractor", def.getName());
         startData.put("step", stepId);
         startData.put("model", def.getModel());
+        if (!media.isEmpty()) startData.put("attachments", DelegateRunner.describe(media));
         executor.trace(TraceEvent.EXTRACT_START, null, "extract " + def.getName(), startData);
 
         io.github.llm4j.LLMClient client = executor.clientForExtractor(def);
@@ -222,7 +240,53 @@ final class ExtractRunner {
 
     // ---- what reaches the model
 
-    private LLMRequest.Builder request(ExtractStmt stmt, ExtractorDef def) {
+    /**
+     * The files this step reads, loaded and checked before any model is called: they must be under
+     * the script's media folder, within its limits, of a kind the extractor's model takes, and, when
+     * the extractor masks or blocks personal data, only if the extractor accepts media that cannot
+     * be scanned.
+     *
+     * @throws StepFailure when the step cannot go ahead
+     */
+    /** The refusal, worded once for the runtime and for {@code weave check}. */
+    static String mediaRefusal(String extractor, String pii) {
+        return "extractor "
+                + extractor
+                + " has pii: "
+                + pii
+                + ", which works on text and cannot see inside a picture, a recording or a"
+                + " document, so the file is refused; add media: unscanned to the extractor if"
+                + " sending it unscanned is acceptable";
+    }
+
+    private java.util.List<io.github.llm4j.model.Media> media(ExtractStmt stmt, ExtractorDef def) {
+        if (stmt.getMediaInputs().isEmpty()) return java.util.List.of();
+        String pii = def.getPii();
+        if (!def.isUnscannedMedia() && ("mask".equals(pii) || "block".equals(pii))) {
+            throw new StepFailure(mediaRefusal(def.getName(), pii), null);
+        }
+        java.util.List<io.github.llm4j.model.Media> media;
+        try {
+            media =
+                    executor.attachmentsOf(
+                            stmt.getMediaInputs().stream()
+                                    .map(io.github.llm4j.loom.ast.ExtractMedia::item)
+                                    .toList());
+            executor.clientForExtractor(def)
+                    .mediaCapabilities(null)
+                    .require(
+                            "extractor " + def.getName() + " (" + def.getModel() + ")",
+                            media.stream()
+                                    .map(io.github.llm4j.model.Media::kind)
+                                    .collect(java.util.stream.Collectors.toSet()));
+        } catch (MediaRefusal | io.github.llm4j.exception.InvalidRequestException refused) {
+            throw new StepFailure(refused.getMessage(), refused);
+        }
+        return media;
+    }
+
+    private LLMRequest.Builder request(
+            ExtractStmt stmt, ExtractorDef def, java.util.List<io.github.llm4j.model.Media> media) {
         StringBuilder inputs = new StringBuilder();
         for (RunStmt.Arg in : stmt.getInputs()) {
             String text =
@@ -245,7 +309,20 @@ final class ExtractRunner {
             if (!in.name().isEmpty()) inputs.append(' ').append(in.name());
             inputs.append(">>>\n").append(sanitize(text)).append('\n').append(CLOSE).append('\n');
         }
-        return build(def, executor.instructionsOf(def), inputs.toString());
+        // each file is said to be there, by its label and kind: the name of the file is input too,
+        // and masking cannot vouch for it, so it is not repeated to the model
+        for (int i = 0; i < stmt.getMediaInputs().size(); i++) {
+            io.github.llm4j.loom.ast.ExtractMedia input = stmt.getMediaInputs().get(i);
+            inputs.append(OPEN);
+            if (!input.label().isEmpty()) inputs.append(' ').append(input.label());
+            inputs.append(">>>\n[")
+                    .append(input.item().kind().label())
+                    .append(" attached]\n")
+                    .append(CLOSE)
+                    .append('\n');
+        }
+        return build(
+                def, executor.instructionsOf(def), inputs.toString(), media, executor.mediaPolicy());
     }
 
     /**
@@ -253,6 +330,21 @@ final class ExtractRunner {
      * NodeCaseRunner} so that a golden case is run with exactly the prompt a workflow sends.
      */
     static LLMRequest.Builder build(ExtractorDef def, String instructions, String inputs) {
+        return build(
+                def,
+                instructions,
+                inputs,
+                java.util.List.of(),
+                io.github.llm4j.model.MediaPolicy.defaults());
+    }
+
+    /** As above, with files sent beside the inputs. */
+    static LLMRequest.Builder build(
+            ExtractorDef def,
+            String instructions,
+            String inputs,
+            java.util.List<io.github.llm4j.model.Media> media,
+            io.github.llm4j.model.MediaPolicy policy) {
         StringBuilder system = new StringBuilder(PREAMBLE);
         if (instructions != null && !instructions.isBlank())
             system.append("\n\n").append(instructions);
@@ -263,7 +355,8 @@ final class ExtractRunner {
             system.append("\nOptional fields: ").append(String.join(", ", def.getOptional()));
         return LLMRequest.builder()
                 .addSystemMessage(system.toString())
-                .addUserMessage(inputs)
+                .addMessage(io.github.llm4j.model.Message.user(inputs, media))
+                .mediaPolicy(policy)
                 .temperature(def.getTemperature());
     }
 

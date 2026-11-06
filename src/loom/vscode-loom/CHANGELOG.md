@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.3.0
 
+- **Media input.** `attach`, `media_root`, `media { max_bytes max_items }` and `media: unscanned` are highlighted and have hover help. Needs the engine's media input (phase 31e). A snippet is not offered: an `attach` needs a file under `media_root`, so a snippet cannot be checked as a script on its own.
+- **Prompt caching.** `cache: true | false` on an agent is highlighted and has hover help. Needs the engine's prompt caching (phase 31a).
 - **Evaluator over-caution limit.** `false_alarm_limit` on an `evaluator` is highlighted and has hover help. The `in [A, B]` routing allow-list and `results[key]` use words that were already highlighted. Four snippets: `evaluator` (an evaluator with `false_alarm_limit` and the policy it checks), `check`, `use` (a tool call after a person approves) and `for-each-max` (a bounded fan-out with `on_too_many`). Needs the engine's false-alarm limit (phase 28).
 - **The idea behind it.** The marketplace text now says what the extension is for: a workflow written as a language can be reviewed by people and checked by tools, with a link to the thirteen mistakes and what you see for each.
 - **Review.** The Human oversight lens is on by default and the panel shows the new rules LH05, LH06 and LR11. Needs the engine's review changes (phase 27c).

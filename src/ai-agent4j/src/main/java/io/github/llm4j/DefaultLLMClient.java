@@ -46,10 +46,17 @@ public class DefaultLLMClient implements LLMClient {
     public LLMResponse chat(LLMRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
         requireToolSupport(request);
+        requireMediaSupport(request);
         if (request.getGrounding() == null) return provider.chat(request);
         Checked checked = checkGrounding(request);
         if (checked.fallback()) return GroundingFallback.run(provider, checked.request());
         return checked.mark(provider.chat(checked.request()));
+    }
+
+    /** Refuses media the model cannot take, before anything is sent (R10 of phase 31). */
+    private void requireMediaSupport(LLMRequest request) {
+        if (request.mediaKinds().isEmpty()) return;
+        provider.mediaCapabilities(request.getModel()).require(provider.getProviderName(), request);
     }
 
     private void requireToolSupport(LLMRequest request) {
@@ -118,6 +125,11 @@ public class DefaultLLMClient implements LLMClient {
     }
 
     @Override
+    public io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
+        return provider.mediaCapabilities(model);
+    }
+
+    @Override
     public boolean supportsToolCalling() {
         return provider.supportsToolCalling();
     }
@@ -136,6 +148,7 @@ public class DefaultLLMClient implements LLMClient {
     public Stream<LLMResponse> chatStream(LLMRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
         requireToolSupport(request);
+        requireMediaSupport(request);
         if (request.getGrounding() == null) return provider.chatStream(request);
         Checked checked = checkGrounding(request);
         if (checked.fallback())

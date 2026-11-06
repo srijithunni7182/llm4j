@@ -366,6 +366,7 @@ agent Analyst {
     max_iterations: 8                    // how many reasoning steps it may take
     streaming: true                      // show the reply as it is written (see "Steering, Stopping and Wrapping Up an Agent")
     steerable: true                      // a person may steer it while it works
+    cache: false                         // on by default: lets the provider cache the prompt a looping agent resends (see "Prompt caching")
 
     skills: ["fs://skills/analyst_best_practices.md"]   // Markdown instructions, relative to the script
     tools: [Search, calculator]          // declared tools, built-ins, or .loot / Java tools
@@ -1253,6 +1254,84 @@ agent Vllm   { model: "Local/qwen3" }
 ```
 
 Kimi and Qwen are **preview** until their fixtures are recorded from the real APIs; Perplexity's Orchestrator (`perplexity_router`) is in private preview at Perplexity.
+
+### Prompt caching
+
+An agent that uses tools resends its system prompt, its tool list and the conversation so far on every step. Anthropic bills that input again each time unless the request marks it for its prompt cache, and a cached read costs a fraction of the normal price. Loom marks it for you: the system prompt and tools on every call, and from the second call on the conversation up to its newest message. OpenAI and Gemini cache a long prefix by themselves and ignore the mark. Caching changes what a call costs, never what it answers.
+
+An agent that answers in one call never reads the cache back, and Anthropic charges a premium to write it, so turn it off there:
+
+```loom
+agent Classifier {
+    model: "claude-sonnet-5-5"
+    system: "Label the ticket."
+    cache: false
+}
+```
+
+`cache: true` is the default and need not be written. Anything but `true` or `false` is a load error. `weave audit` and `weave check` have nothing to say about it: it moves no data. The tokens a provider served from its cache show in the call's trace as `usage.cached_tokens` (and `usage.cache_write_tokens` on Anthropic), and a price table with cache rates ([Budgets and Rate Limits](../../ai-agent4j/wiki/Budgets-and-Rate-Limits.md)) prices them separately.
+
+### Sending pictures, recordings and documents (`attach`)
+
+A model that can see, hear or read a PDF can be sent a file with the task. Put a trailing `attach` clause on any statement that sends a task to a model:
+
+```loom
+media_root: "./assets"
+media { max_bytes: 20MB  max_items: 4 }
+
+agent Vision {
+    model: "gemini-2.5-flash"
+    system: "You read receipts."
+}
+
+workflow Expense(receipt) {
+    delegate "What is the total and the currency?" to Vision
+        attach image "{receipt}", document "limits.pdf" -> reading
+    return reading
+}
+```
+
+- **Kinds:** `image`, `audio`, `video` or `document` (a PDF), then a quoted file name. Several items are comma-separated. The file's real type is decided by reading its first bytes, never by its name; an SVG is refused.
+- **Where it works:** `delegate`, `broadcast` (every agent gets the same files), `handoff`, `extract` and `human_prompt`. `intentclassify`, `run`, `check`, `note` and `halt` take none: `attach` after them is a load error that says which statements do.
+- **Where files may live:** `media_root` names one folder, relative to the script, and every path is resolved inside it. `..`, absolute paths and links that leave the folder are refused. With no `media_root`, no file can be attached. A `{name}` in the path is filled in first and then checked the same way. The folder must be the script's folder or below it.
+- **Limits:** `media { max_bytes: … max_items: … }` caps one file (`KB`, `MB`, `GB` or bytes) and the files on one message. The defaults are 20 MB per file and 4 files per message.
+- **Which models:** what each provider takes is fixed by the library, not by the script (see [Media Input](../../ai-agent4j/wiki/Media-Input.md)). A kind the agent's model cannot take is a load error from `weave check` when the file and the agent are written in the script, and a refusal before any model call otherwise. Nothing is silently dropped.
+- **Personal data:** a picture or a recording cannot be scanned for personal data. An agent whose `guard` says `pii: mask` or `pii: block` refuses media unless it says so:
+
+```loom
+media_root: "./assets"
+
+agent Reader {
+    model: "gemini-2.5-flash"
+    system: "You read scanned forms."
+    guard { pii: mask  media: unscanned }
+}
+```
+
+- **Replays:** the journal records each attachment's kind, type, size and SHA-256, never the bytes. A resumed or rewound run reloads the file and fails the step if it has changed.
+- **Audit:** `weave audit` rule LA23 fires when the file name is filled in at run time, because a picture, recording or document you did not write can carry instructions. A file named in the script does not fire it.
+
+#### Media in `extract`
+
+An extractor has no `attach`; a file is one more input of `from`. Give a single file, or label several inputs with a text:
+
+```loom
+media_root: "./assets"
+
+extractor Receipt {
+    model: "gemini-2.5-flash"
+    instructions: "Read the receipt."
+    fields { total: number  currency: string }
+}
+
+workflow Expense(receipt) {
+    extract Receipt from image "{receipt}" -> fields
+    extract Receipt from (note = "Read this receipt", photo = image "{receipt}") -> again
+    return fields
+}
+```
+
+An extractor with a PII guard needs `media: unscanned` among its settings for the same reason as an agent.
 
 ### Model Routing Policies
 Define global policies to manage costs and reliability across different LLM providers.

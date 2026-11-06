@@ -272,7 +272,7 @@ final class ResponsesReader {
         int out = usage.path("output_tokens").asInt(0);
         b.tokenUsage(in, out, usage.path("total_tokens").asInt(in + out));
         JsonNode cached = usage.path("input_tokens_details").path("cached_tokens");
-        if (cached.isNumber()) b.addMetadata("usage.cached_tokens", cached.asInt());
+        if (cached.isNumber()) b.addMetadata(Providers.CACHED_TOKENS, cached.asInt());
         JsonNode reasoning = usage.path("output_tokens_details").path("reasoning_tokens");
         if (reasoning.isNumber()) b.addMetadata("usage.reasoning_tokens", reasoning.asInt());
     }

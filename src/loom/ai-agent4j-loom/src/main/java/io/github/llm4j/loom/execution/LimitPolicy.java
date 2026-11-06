@@ -115,10 +115,16 @@ final class LimitPolicy {
 
     /** Runs an agent, waiting out or pausing for limits as {@link #onLimit} decides. */
     io.github.llm4j.agent.AgentResult runUnderLimits(ReActAgent agent, String task) {
+        return runUnderLimits(agent, task, java.util.List.of());
+    }
+
+    /** As above, sending {@code media} with the task. */
+    io.github.llm4j.agent.AgentResult runUnderLimits(
+            ReActAgent agent, String task, java.util.List<io.github.llm4j.model.Media> media) {
         int[] waits = {0};
         while (true) {
             try {
-                io.github.llm4j.agent.AgentResult r = agent.run(task);
+                io.github.llm4j.agent.AgentResult r = agent.run(task, media);
                 if (r.isCancelled()) throw new StepFailure("the agent run was cancelled", null);
                 if (r.budgetExhausted() && host.refills(r.getBudgetExceeded())) {
                     throw io.github.llm4j.ratelimit.RateLimited.of(r.getBudgetExceeded());

@@ -6,6 +6,7 @@ import io.github.llm4j.context.ContextWindows;
 import io.github.llm4j.grounding.SearchUsage;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
+import io.github.llm4j.provider.Providers;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -233,7 +234,13 @@ public final class BudgetedLLMClient implements LLMClient {
             SearchUsage found = response == null ? null : response.getSearches();
             boolean searchesEstimated = searchCap > 0 && found != null && !found.countKnown();
             long searches = found == null ? 0 : searchesEstimated ? searchCap : found.count();
-            BigDecimal money = cost(p, c).add(searchCost(found, searches));
+            BigDecimal money =
+                    cost(
+                                    p,
+                                    c,
+                                    cacheTokens(response, Providers.CACHED_TOKENS),
+                                    cacheTokens(response, Providers.CACHE_WRITE_TOKENS))
+                            .add(searchCost(found, searches));
             charge(new Charge(p, c, 1, money, estimated || searchesEstimated, searches));
             if (response == null || (!estimated && price == null && found == null)) return response;
             Map<String, Object> meta =
@@ -269,7 +276,17 @@ public final class BudgetedLLMClient implements LLMClient {
         }
 
         private BigDecimal cost(long p, long c) {
-            return price == null ? BigDecimal.ZERO : price.cost(p, c);
+            return cost(p, c, 0, 0);
+        }
+
+        private BigDecimal cost(long p, long c, long cachedRead, long cacheWrite) {
+            return price == null ? BigDecimal.ZERO : price.cost(p, c, cachedRead, cacheWrite);
+        }
+
+        /** The prompt tokens a provider says went through its cache, 0 when it did not say. */
+        private long cacheTokens(LLMResponse response, String key) {
+            if (response == null || response.getMetadata() == null) return 0;
+            return response.getMetadata().get(key) instanceof Number n ? n.longValue() : 0;
         }
     }
 
@@ -294,6 +311,11 @@ public final class BudgetedLLMClient implements LLMClient {
     @Override
     public io.github.llm4j.model.StructuredOutput structuredOutput(String model) {
         return delegate.structuredOutput(model);
+    }
+
+    @Override
+    public io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
+        return delegate.mediaCapabilities(model);
     }
 
     @Override

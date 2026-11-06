@@ -33,6 +33,7 @@ public class MaskingLLMClient implements LLMClient {
     private final PIIDetector detector;
     private final Set<PIIType> types;
     private final Consumer<Map<PIIType, Integer>> onMasked;
+    private final boolean unscannedMedia;
 
     public MaskingLLMClient(LLMClient delegate) {
         this(delegate, new RegexPIIDetector(), PERSONAL, masked -> {});
@@ -46,10 +47,30 @@ public class MaskingLLMClient implements LLMClient {
             PIIDetector detector,
             Set<PIIType> types,
             Consumer<Map<PIIType, Integer>> onMasked) {
+        this(delegate, detector, types, onMasked, false);
+    }
+
+    private MaskingLLMClient(
+            LLMClient delegate,
+            PIIDetector detector,
+            Set<PIIType> types,
+            Consumer<Map<PIIType, Integer>> onMasked,
+            boolean unscannedMedia) {
         this.delegate = Objects.requireNonNull(delegate, "delegate cannot be null");
         this.detector = Objects.requireNonNull(detector, "detector cannot be null");
         this.types = Set.copyOf(types);
         this.onMasked = Objects.requireNonNull(onMasked, "onMasked cannot be null");
+        this.unscannedMedia = unscannedMedia;
+    }
+
+    /**
+     * A client that also sends pictures, sound, video and documents, which masking cannot inspect.
+     * Without this, a request that carries media is refused: masking works on text, so personal
+     * data in a photo of a form or in a recording would go to the model untouched. Call it only
+     * when that is acceptable.
+     */
+    public MaskingLLMClient allowUnscannedMedia() {
+        return new MaskingLLMClient(delegate, detector, types, onMasked, true);
     }
 
     @Override
@@ -68,11 +89,17 @@ public class MaskingLLMClient implements LLMClient {
     }
 
     @Override
+    public io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
+        return delegate.mediaCapabilities(model);
+    }
+
+    @Override
     public boolean supportsToolCalling() {
         return delegate.supportsToolCalling();
     }
 
     private LLMRequest masked(LLMRequest request) {
+        refuseMediaUnlessAllowed(request);
         Map<PIIType, Integer> counts = new EnumMap<>(PIIType.class);
         List<Message> messages = new ArrayList<>();
         for (Message m : request.getMessages()) {
@@ -92,6 +119,20 @@ public class MaskingLLMClient implements LLMClient {
         }
         if (!counts.isEmpty()) onMasked.accept(counts);
         return request.toBuilder().messages(messages).build();
+    }
+
+    private void refuseMediaUnlessAllowed(LLMRequest request) {
+        if (unscannedMedia || request.mediaKinds().isEmpty()) return;
+        throw new io.github.llm4j.exception.InvalidRequestException(
+                "personal-data masking is on, and it cannot see inside a picture, a recording or a"
+                        + " document, so this request's "
+                        + request.mediaKinds().stream()
+                                .sorted()
+                                .map(io.github.llm4j.model.MediaKind::label)
+                                .collect(java.util.stream.Collectors.joining(", "))
+                        + " would reach the model unmasked. Send it only if that is acceptable:"
+                        + " MaskingLLMClient.allowUnscannedMedia() (in a Loom guard: media:"
+                        + " unscanned)");
     }
 
     private Map<String, Object> maskedArguments(

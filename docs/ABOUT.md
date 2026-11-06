@@ -19,7 +19,8 @@ Three ideas shape everything in the repository:
    (Jackson, OkHttp, SLF4J, Swagger Parser, Commons Math and jsoup). It does not require Spring, and it runs on Java 17+.
 3. **Make agents trustworthy.** Evaluation (eval4j), audit trails, confidence scores, PII masking, spend caps and
    security checks (`weave audit`) ship with the stack, and so does web search with typed citations and a search budget
-   (`Grounding`, `grounding: web` in Loom).
+   (`Grounding`, `grounding: web` in Loom). Pictures, recordings, video and PDFs can be sent with a task, and files are
+   read only from a folder the script names (`attach` in Loom).
 
 ## The stack
 
@@ -94,6 +95,7 @@ Test code is almost as large as production code: about 217,000 test lines agains
 | 2026-11-04 | Phases 26 to 28: `policy` files, the `evaluator` node and `check ... against ... using ...`, with the runtime refusing model text that has not been checked at the exits of a workflow; every tool's effect, `use Tool(...)` and `approve`; the golden dataset as the requirements (`weave check` fails on an untested extractor or evaluator, `weave eval --requirements` and `--changed`), and a different default judge. |
 | 2026-11-04 | Phase 29: [Architecture you can review](REVIEWABLE_ARCHITECTURE.md), with real `weave` output for each mistake and nine probes that run the same questions against LangGraph, LangChain and the Python Google ADK. |
 | 2026-11-04 | Phase 30: **native JSON for extractors.** A typed `ResponseFormat` on the request and a per-model capability; an `extract` asks the provider to hold the reply to a JSON Schema on OpenAI, xAI, Claude, Gemini, Perplexity and Ollama, and uses the prompt anywhere else. Recorded against the real APIs (24 live extractions on 8 routes, all structured on the first attempt). On its own branch, not yet released. |
+| 2026-11-06 | Phase 31: **prompt caching and multimodal input.** Anthropic prompt caching with cached-token reporting and cache prices; images, audio, video and PDFs in a `Message`, written by Anthropic, Gemini, OpenAI, xAI, Kimi, Qwen and Ollama and refused before any call by a model that cannot take them (confirmed against the real APIs for Anthropic, Gemini, OpenAI and xAI). In Loom, an `attach` clause on `delegate`, `broadcast`, `handoff`, `human_prompt` and `extract`, files limited to a `media_root` folder, checked by `weave check`, flagged by audit rule LA23, and recorded in the journal as descriptors, never bytes. On its own branch, not yet released. |
 
 Release dates for 1.0 to 5.0 come from the git tags; 4.0 and 5.0 were not published to Maven Central (its only earlier version is 0.1.0), so 6.0.0 is the first Central release since then. The other entries are dates of the commits that introduced the
 feature.

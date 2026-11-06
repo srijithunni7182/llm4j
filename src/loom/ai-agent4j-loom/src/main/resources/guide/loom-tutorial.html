@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: e2757b8bdbf188de32871ec6800477974eebf939616dcf8e32c13b0196854702 -->
+<!-- source-sha256: 8e1ab9945ee49386dfcd6d4cadc8f68f86f210dc85dd440f89287d905f5607b3 -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -200,7 +200,7 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
 <tr>
 <td>3</td>
 <td><a href="#c03">Agents</a></td>
-<td><code>model</code>, <code>system</code>, prompt files, personas, temperature, providers, routing and fallbacks, a shared prompt (and leaving it out), agents versus internal nodes</td>
+<td><code>model</code>, <code>system</code>, prompt files, personas, temperature, providers, routing and fallbacks, a shared prompt (and leaving it out), web search, pictures, sound and documents (<code>media_root</code>, <code>attach</code>), agents versus internal nodes</td>
 <td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/02-chain" target="_blank" rel="noopener">02</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/10-memory-assistant" target="_blank" rel="noopener">10</a></td>
 </tr>
 <tr>
@@ -212,7 +212,7 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
 <tr>
 <td>5</td>
 <td><a href="#c05">Structured answers and failure</a></td>
-<td><code>output_schema</code>, <code>expecting</code>, <code>extractor</code> and <code>extract</code>, reason first then extract, <code>retry</code>, <code>backoff</code>, <code>timeout</code>, <code>on_failure</code>, degraded runs</td>
+<td><code>output_schema</code>, <code>expecting</code>, <code>extractor</code> and <code>extract</code> (from text or from a picture or PDF), reason first then extract, <code>retry</code>, <code>backoff</code>, <code>timeout</code>, <code>on_failure</code>, degraded runs</td>
 <td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/03-review-loop" target="_blank" rel="noopener">03</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/05-parallel-research" target="_blank" rel="noopener">05</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/08-extract-and-validate" target="_blank" rel="noopener">08</a></td>
 </tr>
 <tr>
@@ -236,7 +236,7 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
 <tr>
 <td>9</td>
 <td><a href="#c09">Safety and cost</a></td>
-<td>Budgets, guards, PII, the leak guard, policies checked at the edge, secrets, the audit and review, the lethal trifecta</td>
+<td>Budgets, guards, PII (and <code>media: unscanned</code>), the leak guard, policies checked at the edge, secrets, the audit and review, the lethal trifecta</td>
 <td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/07-approval" target="_blank" rel="noopener">07</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/15-earned-autonomy" target="_blank" rel="noopener">15</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/17-compliance-boundary" target="_blank" rel="noopener">17</a></td>
 </tr>
 <tr>
@@ -801,6 +801,20 @@ Then sign off as C:\\Greeter\\"</span> <span class="tk-k">to</span> Greeter -&gt
     <span class="tk-k">return</span> notes
 }</code></pre></figure>
 <p>The sources are in <code>{notes_citations}</code> (a list with <code>index</code>, <code>url</code>, <code>title</code> and <code>snippet</code>). Only some models can be grounded, and each honours only some of the options (for Perplexity: <code>allow</code>, <code>block</code>, <code>recency</code> and <code>country</code>). <code>weave check</code> tells you exactly which when you ask for something your model cannot do. For an agent that uses a search <em>tool</em> instead, see <a href="#c06">Chapter 6</a>.</p>
+<h2 id="c03-pictures-sound-and-documents">Pictures, sound and documents</h2>
+<p>A model that can see, hear or read a PDF can be sent a file with its task. Name the one folder files may come from with <code>media_root</code>, then add <code>attach</code> before the <code>-&gt;</code>:</p>
+<figure class="code"><figcaption>excerpt</figcaption><pre><code>media_root: <span class="tk-s">"./assets"</span>
+
+<span class="tk-k">agent</span> Vision {
+    model: <span class="tk-s">"gemini-2.5-flash"</span>
+    system: <span class="tk-s">"You read receipts."</span>
+}
+
+<span class="tk-k">workflow</span> Main(receipt) {
+    <span class="tk-k">delegate</span> <span class="tk-s">"What is the total and the currency?"</span> <span class="tk-k">to</span> Vision attach image <span class="tk-s">"<span class="tk-v">{receipt}</span>"</span> -&gt; reading
+    <span class="tk-k">return</span> reading
+}</code></pre></figure>
+<p>The kinds are <code>image</code>, <code>audio</code>, <code>video</code> and <code>document</code> (a PDF). Several files are comma-separated. <code>broadcast</code>, <code>handoff</code> and <code>human_prompt</code> take the same clause. The file type is decided from the file&#39;s bytes, so a renamed file is not fooled. Paths are read only from <code>media_root</code>: <code>..</code>, absolute paths and links out of the folder are refused. <code>weave check</code> tells you when the agent&#39;s model cannot take a kind, before anything is paid for. <code>media { max_bytes: 20MB  max_items: 4 }</code> sets the limits. The full rules are in the <a href="https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/LOOM_GUIDE.md" target="_blank" rel="noopener">Loom guide</a>, &quot;Sending pictures, recordings and documents&quot;.</p>
 <h2 id="c03-several-agents-one-team">Several agents, one team</h2>
 <p>A team is just several agents in one script. What makes it a team is the workflow: <a href="#c04">Chapter 4</a> covers how they hand work to each other.</p>
 <figure class="diagram"><div class="plate"><svg role="img" aria-label="Diagram 4" aria-roledescription="flowchart-v2" role="graphics-document document" viewBox="-19.359375 -8 674.4072265625 237" height="237" xmlns="http://www.w3.org/2000/svg" width="674.4072265625" id="d3"><style>#d3{font-family:Arial,Helvetica,"Liberation Sans",sans-serif;font-size:15px;fill:#161a2b;}#d3 .error-icon{fill:#f5f6fa;}#d3 .error-text{fill:#0a0905;stroke:#0a0905;}#d3 .edge-thickness-normal{stroke-width:2px;}#d3 .edge-thickness-thick{stroke-width:3.5px;}#d3 .edge-pattern-solid{stroke-dasharray:0;}#d3 .edge-pattern-dashed{stroke-dasharray:3;}#d3 .edge-pattern-dotted{stroke-dasharray:2;}#d3 .marker{fill:#5a6078;stroke:#5a6078;}#d3 .marker.cross{stroke:#5a6078;}#d3 svg{font-family:Arial,Helvetica,"Liberation Sans",sans-serif;font-size:15px;}#d3 .label{font-family:Arial,Helvetica,"Liberation Sans",sans-serif;color:#161a2b;}#d3 .cluster-label text{fill:#0a0905;}#d3 .cluster-label span,#d3 p{color:#0a0905;}#d3 .label text,#d3 span,#d3 p{fill:#161a2b;color:#161a2b;}#d3 .node rect,#d3 .node circle,#d3 .node ellipse,#d3 .node polygon,#d3 .node path{fill:#d9efec;stroke:#0f766e;stroke-width:1px;}#d3 .flowchart-label text{text-anchor:middle;}#d3 .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#d3 .node .label{text-align:center;}#d3 .node.clickable{cursor:pointer;}#d3 .arrowheadPath{fill:#0b0b0b;}#d3 .edgePath .path{stroke:#5a6078;stroke-width:2.0px;}#d3 .flowchart-link{stroke:#5a6078;fill:none;}#d3 .edgeLabel{background-color:#eef0f7;text-align:center;}#d3 .edgeLabel rect{opacity:0.5;background-color:#eef0f7;fill:#eef0f7;}#d3 .labelBkg{background-color:rgba(238, 240, 247, 0.5);}#d3 .cluster rect{fill:#f5f6fa;stroke:#b9c0d4;stroke-width:1px;}#d3 .cluster text{fill:#0a0905;}#d3 .cluster span,#d3 p{color:#0a0905;}#d3 div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:Arial,Helvetica,"Liberation Sans",sans-serif;font-size:12px;background:#f5f6fa;border:1px solid hsl(228, 0%, 87.0588235294%);border-radius:2px;pointer-events:none;z-index:100;}#d3 .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#161a2b;}#d3 :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}#d3 .step rect{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d3 .step polygon{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d3 .step ellipse{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d3 .step circle{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d3 .step path{fill:#d9efec!important;stroke:#0f766e!important;color:#0b3b37!important;}#d3 .step tspan{fill:#0b3b37!important;}</style><g><marker orient="auto" markerHeight="12" markerWidth="12" markerUnits="userSpaceOnUse" refY="5" refX="6" viewBox="0 0 10 10" class="marker flowchart" id="d3_flowchart-pointEnd"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerHeight="12" markerWidth="12" markerUnits="userSpaceOnUse" refY="5" refX="4.5" viewBox="0 0 10 10" class="marker flowchart" id="d3_flowchart-pointStart"><path style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="11" viewBox="0 0 10 10" class="marker flowchart" id="d3_flowchart-circleEnd"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="-1" viewBox="0 0 10 10" class="marker flowchart" id="d3_flowchart-circleStart"><circle style="stroke-width: 1; stroke-dasharray: 1, 0;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="12" viewBox="0 0 11 11" class="marker cross flowchart" id="d3_flowchart-crossEnd"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="-1" viewBox="0 0 11 11" class="marker cross flowchart" id="d3_flowchart-crossStart"><path style="stroke-width: 2; stroke-dasharray: 1, 0;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"><g id="Flow" class="cluster step flowchart-label"><rect height="202" width="478.6416015625" y="3.5" x="168.40625" ry="0" rx="0" style=""></rect><g transform="translate(407.72705078125, 3.5)" class="cluster-label"><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">used by workflows</tspan></text></g></g><g id="Declared" class="cluster step flowchart-label"><rect height="221" width="165.125" y="0" x="-11.359375" ry="0" rx="0" style=""></rect><g transform="translate(71.203125, 0)" class="cluster-label"><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">declared once, at the top</tspan></text></g></g></g><g class="edgePaths"><path marker-end="url(#d3_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-S1 LE-S2" id="L-S1-S2-0" d="M307.531,43.5L309.698,43.5C311.865,43.5,316.198,43.5,326.46,46.601C336.722,49.701,352.912,55.903,361.008,59.004L369.103,62.104"></path><path marker-end="url(#d3_flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-S2 LE-S3" id="L-S2-S3-0" d="M482.454,77L484.621,77C486.787,77,491.121,77,500.21,80.06C509.299,83.119,523.144,89.238,530.067,92.298L536.99,95.357"></path><path marker-end="url(#d3_flowchart-pointEnd)" style="fill:none;stroke-width:2px;stroke-dasharray:3;" class="edge-thickness-normal edge-pattern-dotted flowchart-link LS-W LE-S1" id="L-W-S1-0" d="M128.156,43.5L130.531,43.5C132.906,43.5,137.656,43.5,142.198,43.5C146.74,43.5,151.073,43.5,155.406,43.5C159.74,43.5,164.073,43.5,167.523,43.5C170.973,43.5,173.54,43.5,174.823,43.5L176.106,43.5"></path><path marker-end="url(#d3_flowchart-pointEnd)" style="fill:none;stroke-width:2px;stroke-dasharray:3;" class="edge-thickness-normal edge-pattern-dotted flowchart-link LS-R LE-S2" id="L-R-S2-0" d="M128.156,110.5L130.531,110.5C132.906,110.5,137.656,110.5,142.198,110.5C146.74,110.5,151.073,110.5,155.406,110.5C159.74,110.5,164.073,110.5,178.917,110.5C193.76,110.5,219.115,110.5,244.469,110.5C269.823,110.5,295.177,110.5,315.949,107.399C336.722,104.299,352.912,98.097,361.008,94.996L369.103,91.896"></path><path marker-end="url(#d3_flowchart-pointEnd)" style="fill:none;stroke-width:2px;stroke-dasharray:3;" class="edge-thickness-normal edge-pattern-dotted flowchart-link LS-E LE-S3" id="L-E-S3-0" d="M129.406,177.5L131.573,177.5C133.74,177.5,138.073,177.5,142.406,177.5C146.74,177.5,151.073,177.5,155.406,177.5C159.74,177.5,164.073,177.5,178.917,177.5C193.76,177.5,219.115,177.5,244.469,177.5C269.823,177.5,295.177,177.5,322.431,177.5C349.685,177.5,378.839,177.5,407.993,177.5C437.146,177.5,466.3,177.5,490.397,169.085C514.494,160.67,533.533,143.84,543.053,135.425L552.573,127.01"></path></g><g class="edgeLabels"><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><rect height="0" width="0" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><rect height="0" width="0" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><rect height="0" width="0" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><rect height="0" width="0" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve"></tspan></text></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><rect height="0" width="0" ry="0" rx="0"></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve"></tspan></text></g></g></g><g class="nodes"><g transform="translate(571.2509765625, 110.5)" data-id="S3" data-node="true" id="flowchart-S3-31" class="node default step flowchart-label"><rect height="26" width="125.59375" y="-13" x="-62.796875" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -9)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">delegate to Editor</tspan></text></g></g><g transform="translate(407.99267578125, 77)" data-id="S2" data-node="true" id="flowchart-S2-30" class="node default step flowchart-label"><rect height="26" width="148.9228515625" y="-13" x="-74.46142578125" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -9)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">delegate to Reviewer</tspan></text></g></g><g transform="translate(244.46875, 43.5)" data-id="S1" data-node="true" id="flowchart-S1-29" class="node default step flowchart-label"><rect height="26" width="126.125" y="-13" x="-63.0625" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -9)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">delegate to Writer</tspan></text></g></g><g transform="translate(71.203125, 43.5)" data-id="W" data-node="true" id="flowchart-W-26" class="node default step flowchart-label"><rect height="41" width="113.90625" y="-20.5" x="-56.953125" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -16.5)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">Writer</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">temperature 0.7</tspan></text></g></g><g transform="translate(71.203125, 110.5)" data-id="R" data-node="true" id="flowchart-R-27" class="node default step flowchart-label"><rect height="41" width="113.90625" y="-20.5" x="-56.953125" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -16.5)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">Reviewer</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">temperature 0.1</tspan></text></g></g><g transform="translate(71.203125, 177.5)" data-id="E" data-node="true" id="flowchart-E-28" class="node default step flowchart-label"><rect height="41" width="116.40625" y="-20.5" x="-58.203125" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(0, -16.5)" style="" class="label"><rect></rect><text style=""><tspan class="row" x="0" dy="1em" xml:space="preserve">Editor</tspan><tspan class="row" x="0" dy="1em" xml:space="preserve">routing: Reliable</tspan></text></g></g></g></g></g></svg></div><button type="button" class="bigger" aria-label="Show the diagram larger">Larger</button></figure>
@@ -1245,6 +1259,21 @@ extractor Invoice {
 <li>An answer in the wrong shape is a failed attempt, as for an agent: it is told what was wrong and asked once more, then <code>retry</code> applies. (With native JSON this is rare, not impossible: a reply can still be cut at the token limit.)</li>
 </ul>
 <p>In a test, script the extractor&#39;s answer like an agent&#39;s: <code>models: { Invoice: { vendor: Acme } }</code>.</p>
+<h3 id="c05-extracting-from-a-picture-or-a-pdf">Extracting from a picture or a PDF</h3>
+<p>A file is one more input of <code>from</code>. There is no <code>attach</code> here:</p>
+<figure class="code"><figcaption>excerpt</figcaption><pre><code>media_root: <span class="tk-s">"./assets"</span>
+
+extractor Receipt {
+    model: <span class="tk-s">"gemini-2.5-flash"</span>
+    instructions: <span class="tk-s">"Read the receipt."</span>
+    fields { total: number  currency: string }
+}
+
+<span class="tk-k">workflow</span> Main(receipt) {
+    extract Receipt from image <span class="tk-s">"<span class="tk-v">{receipt}</span>"</span> -&gt; fields
+    <span class="tk-k">return</span> fields
+}</code></pre></figure>
+<p>To give text beside the file, label the inputs: <code>from (note = &quot;Read this receipt&quot;, photo = image &quot;{receipt}&quot;)</code>.</p>
 <h2 id="c05-reason-first-then-extract">Reason first, then extract</h2>
 <blockquote>
 <p><strong>You don&#39;t need this until</strong> an agent has to think (it uses tools, searches the web, or works through a long brief) and you want its answer as fields.</p>
@@ -2568,6 +2597,8 @@ weave rules                  # every rule, its id and why it exists</code></pre>
 <li>hand it only typed values: pull the fields it needs out of the reader&#39;s answer with an <a href="#c05-extractors-fields-from-text-with-nothing-else">extractor</a>, and give the sender <code>transcript: none</code> so those fields are all it gets (an extractor on its own does not remove the reader&#39;s answer from the transcript);</li>
 <li>split the work so no agent that acts runs after one that reads the outside world.</li>
 </ul>
+<h4 id="c09-files-the-script-did-not-choose-la23">Files the script did not choose (LA23)</h4>
+<p>A picture, recording or PDF can carry instructions that no masking can see. When the file name is filled in at run time (<code>attach image &quot;{receipt}&quot;</code>), <code>weave audit</code> counts the agent as reading untrusted content (LA23), as it does for web grounding. A file named in the script does not fire it. An agent with <code>guard { pii: mask }</code> or <code>pii: block</code> also <strong>refuses media</strong> unless it says <code>guard { pii: mask  media: unscanned }</code>, because masking works on text and cannot read a picture. Say so only when you accept that.</p>
 <h3 id="c09-what-else-it-catches">What else it catches</h3>
 <p>Typical findings, each with the reason and a fix:</p>
 <table>
@@ -3916,6 +3947,20 @@ extractor ResearchFields {
     <span class="tk-k">return</span> notes.summary
 }</code></pre></figure>
 <p>The agent that has to think is not forced into JSON; the cheap extractor does the formatting. Use it whenever LP10 fires.</p>
+<h3 id="c14-recipe-read-a-receipt-from-a-photo">Recipe: read a receipt from a photo</h3>
+<figure class="code"><figcaption>excerpt</figcaption><pre><code>media_root: <span class="tk-s">"./assets"</span>
+
+extractor Receipt {
+    model: <span class="tk-s">"gemini-2.5-flash"</span>
+    instructions: <span class="tk-s">"Read the receipt."</span>
+    fields { total: number  currency: string }
+}
+
+<span class="tk-k">workflow</span> Main(receipt) {
+    extract Receipt from image <span class="tk-s">"<span class="tk-v">{receipt}</span>"</span> -&gt; fields
+    <span class="tk-k">return</span> fields
+}</code></pre></figure>
+<p>Files come only from <code>media_root</code>. See chapter 3 and chapter 5.</p>
 <h3 id="c14-recipe-a-cheaper-model-when-money-runs-low">Recipe: a cheaper model when money runs low</h3>
 <figure class="code"><figcaption>Loom</figcaption><pre><code><span class="tk-k">substitution</span>: braces
 
@@ -4094,6 +4139,8 @@ budget { tokens: 200000  calls: 150  warn_at: 80% }
 rate_limits { on_limit: suspend  max_wait: 24h  max_resumes: 50 }
 shared_prompt: "rules for every agent"
 audit { logger: "file"  path: "audit.log" }
+media_root: "./assets"                       // the only folder attach may read from
+media { max_bytes: 20MB  max_items: 4 }
 
 persona Name { role: "..."  tone: "..."  constraints: ["..."] }
 provider Name { use: ollama  base_url: "..."  api_key: env.NAME }
@@ -4111,9 +4158,9 @@ agent Name {
     persona: P   temperature: 0.2   max_iterations: 8
     tools: [A, B]   approve: [A] | all   knowledge: [K]   skills: ["fs://x.md"]
     output_schema: { f: string, n: number, b: boolean, e: enum["A","B"], l: list&lt;string&gt; }
-    budget { tokens: N  per_call: N }   memory { ... }   guard { pii: mask|block|warn  bias: warn|block  prompt_leak: warn|block|off  internal_refs: ["POL-[0-9]+"] }
+    budget { tokens: N  per_call: N }   memory { ... }   guard { pii: mask|block|warn  media: unscanned  bias: warn|block  prompt_leak: warn|block|off  internal_refs: ["POL-[0-9]+"] }
     context { compact: chain(trim_tool_results, summarize, drop_oldest) }
-    streaming: true   steerable: true   grounding: web { ... }
+    cache: false   streaming: true   steerable: true   grounding: web { ... }
     memory { transcript: none|own|all }   shared_prompt: none
 }
 
@@ -4123,6 +4170,7 @@ schedule Name { cron: "0 7 * * 1-5"  timezone: "..."  run: Wf(arg="v")  misfire:
 
 workflow Name(p1, p2) {
     delegate "task {p1}" to Agent -&gt; result  [expecting {...}] [retry N] [backoff 2s] [timeout 90s] [budget N tokens] [on_failure {...}] [on_stopped {...}]
+    delegate "task" to Agent attach image "{p1}", document "policy.pdf" -&gt; result     // also broadcast, handoff, human_prompt
     broadcast "task" to [A, B] -&gt; result
     handoff "task" to Agent
     parallel { ... }
@@ -4134,6 +4182,7 @@ workflow Name(p1, p2) {
     use Tool(arg = value) [approve ["heading"]] -&gt; result [retry N] [backoff 2s] [timeout 30s] [on_declined {...}] [on_failure {...}]
     intentclassify Name on text -&gt; result
     extract Name from text -&gt; result          extract Name from (a = x, b = y) -&gt; result
+    extract Name from image "{p1}" -&gt; result  extract Name from (note = x, photo = image "{p1}") -&gt; result
     check reply against P, Q using Evaluator -&gt; verdict  on_violation { rewrite with Agent | ask person | replace with "..." | fail }  on_unavailable { ... }
     decide Decision -&gt; verdict
     human_prompt "question {x}" -&gt; answer

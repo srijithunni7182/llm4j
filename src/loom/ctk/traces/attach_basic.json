@@ -1,0 +1,24 @@
+{
+  "scriptName": "attach_basic.loom",
+  "workflowName": "main",
+  "scenarios": [
+    {
+      "input": "pixel.png",
+      "outcome": "ok",
+      "attachments": "image/png",
+      "modelCalls": 1
+    },
+    {
+      "input": "../outside.png",
+      "outcome": "refused",
+      "attachments": "",
+      "modelCalls": 0
+    },
+    {
+      "input": "missing.png",
+      "outcome": "refused",
+      "attachments": "",
+      "modelCalls": 0
+    }
+  ]
+}

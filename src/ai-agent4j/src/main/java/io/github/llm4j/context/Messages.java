@@ -19,6 +19,12 @@ public final class Messages {
     /** On a "messages were removed" marker: how many messages it stands for, cumulatively. */
     public static final String DROPPED = "llm4j.compaction.dropped";
 
+    /**
+     * On a marker or a summary: the media that went with the messages it stands for, as {@code kind
+     * name -> count}, cumulatively.
+     */
+    public static final String DROPPED_MEDIA = "llm4j.compaction.dropped_media";
+
     /** Set (to true) on a message that must never be removed or changed by compaction. */
     public static final String PINNED = "llm4j.pinned";
 
@@ -43,6 +49,62 @@ public final class Messages {
     /** How many messages a "removed" marker stands for; zero for any other message. */
     public static int dropped(Message message) {
         return message.getProviderData().get(DROPPED) instanceof Number n ? n.intValue() : 0;
+    }
+
+    /**
+     * The media a marker or summary stands for, by kind; empty for any other message. It is what
+     * compaction removed earlier, kept so that a second compaction adds to it.
+     */
+    public static Map<io.github.llm4j.model.MediaKind, Integer> droppedMedia(Message message) {
+        Map<io.github.llm4j.model.MediaKind, Integer> counts =
+                new java.util.EnumMap<>(io.github.llm4j.model.MediaKind.class);
+        if (message.getProviderData().get(DROPPED_MEDIA) instanceof Map<?, ?> stored) {
+            stored.forEach(
+                    (kind, n) -> {
+                        if (n instanceof Number count && count.intValue() > 0) {
+                            counts.put(
+                                    io.github.llm4j.model.MediaKind.valueOf(String.valueOf(kind)),
+                                    count.intValue());
+                        }
+                    });
+        }
+        return counts;
+    }
+
+    /** The media a message stands for: what it carries now plus what it stands in for. */
+    static Map<io.github.llm4j.model.MediaKind, Integer> mediaStanding(Message message) {
+        Map<io.github.llm4j.model.MediaKind, Integer> counts = droppedMedia(message);
+        for (io.github.llm4j.model.Media item : message.getMedia())
+            counts.merge(item.kind(), 1, Integer::sum);
+        return counts;
+    }
+
+    /** The counts as providerData for a marker or summary; null when there is nothing to record. */
+    static Map<String, Integer> asData(Map<io.github.llm4j.model.MediaKind, Integer> counts) {
+        if (counts.isEmpty()) return null;
+        Map<String, Integer> data = new java.util.LinkedHashMap<>();
+        counts.forEach((kind, n) -> data.put(kind.name(), n));
+        return data;
+    }
+
+    /** {@code 1 image}, {@code 2 images and 1 video}, {@code 1 image, 3 sounds and 2 documents}. */
+    public static String describeMedia(Map<io.github.llm4j.model.MediaKind, Integer> counts) {
+        java.util.List<String> parts = new java.util.ArrayList<>();
+        for (io.github.llm4j.model.MediaKind kind : io.github.llm4j.model.MediaKind.values()) {
+            int n = counts.getOrDefault(kind, 0);
+            if (n > 0) parts.add(n + " " + word(kind) + (n == 1 ? "" : "s"));
+        }
+        if (parts.size() <= 1) return String.join("", parts);
+        return String.join(", ", parts.subList(0, parts.size() - 1))
+                + " and "
+                + parts.get(parts.size() - 1);
+    }
+
+    private static String word(io.github.llm4j.model.MediaKind kind) {
+        return switch (kind) {
+            case AUDIO -> "sound";
+            default -> kind.label();
+        };
     }
 
     /**

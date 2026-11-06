@@ -83,6 +83,16 @@ public final class BudgetSet {
     public interface Pricing {
         BigDecimal cost(long promptTokens, long completionTokens);
 
+        /**
+         * As {@link #cost(long, long)} when {@code cachedRead} of the prompt came from the
+         * provider's cache and {@code cacheWrite} went into it. A price with no cache rates ignores
+         * them.
+         */
+        default BigDecimal cost(
+                long promptTokens, long completionTokens, long cachedRead, long cacheWrite) {
+            return cost(promptTokens, completionTokens);
+        }
+
         /** Price of one output token. */
         BigDecimal perOutputToken();
 

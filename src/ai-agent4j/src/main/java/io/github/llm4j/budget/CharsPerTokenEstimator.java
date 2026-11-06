@@ -5,7 +5,7 @@ import io.github.llm4j.model.Message;
 
 /**
  * The default estimate: about 4 characters per token, plus a 10% safety margin so budgets err on
- * the side of refusing early rather than overspending.
+ * the side of refusing early rather than overspending. Media is added at {@link MediaTokens}.
  */
 public final class CharsPerTokenEstimator implements TokenEstimator {
 
@@ -14,10 +14,13 @@ public final class CharsPerTokenEstimator implements TokenEstimator {
     @Override
     public long prompt(LLMRequest request) {
         long chars = 0;
+        long media = 0;
         for (Message m : request.getMessages()) {
             chars += m.getContent() == null ? 0 : m.getContent().length();
             for (io.github.llm4j.model.ToolCall c : m.getToolCalls())
                 chars += c.name().length() + String.valueOf(c.arguments()).length();
+            for (io.github.llm4j.model.Media item : m.getMedia())
+                media += MediaTokens.estimate(item);
         }
         // tool definitions are part of the prompt the model reads
         for (io.github.llm4j.model.ToolSpec t : request.getTools()) {
@@ -26,7 +29,8 @@ public final class CharsPerTokenEstimator implements TokenEstimator {
                             + t.description().length()
                             + String.valueOf(t.parameters()).length();
         }
-        return tokens(chars);
+        // media is estimated in tokens already, so it takes no characters-per-token margin
+        return tokens(chars) + media;
     }
 
     @Override

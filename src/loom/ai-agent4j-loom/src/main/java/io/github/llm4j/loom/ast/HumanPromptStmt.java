@@ -9,6 +9,13 @@ public class HumanPromptStmt extends LocatedStatement {
         this.variableName = variableName;
     }
 
+    private final java.util.List<AttachItem> attachments = new java.util.ArrayList<>();
+
+    /** The files shown to the person with the question; empty for most prompts. */
+    public java.util.List<AttachItem> getAttachments() {
+        return attachments;
+    }
+
     public String getMessage() {
         return message;
     }

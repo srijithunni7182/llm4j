@@ -83,6 +83,21 @@ public final class ExtractorDef implements Node {
         return optional;
     }
 
+    private boolean unscannedMedia;
+
+    /**
+     * Whether the script accepts sending this extractor pictures, sound, video or documents that
+     * {@code pii:} cannot inspect ({@code media: unscanned}). Without it, media is refused when
+     * {@code pii} is {@code mask} or {@code block}.
+     */
+    public boolean isUnscannedMedia() {
+        return unscannedMedia;
+    }
+
+    public void setUnscannedMedia(boolean unscannedMedia) {
+        this.unscannedMedia = unscannedMedia;
+    }
+
     /** {@code mask}, {@code block} or {@code warn}, or null when the setting was not written. */
     public String getPii() {
         return pii;

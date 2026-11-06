@@ -55,6 +55,15 @@ public enum Vendor {
     }
 
     /** The kind written in a script ({@code use: …}). */
+    /**
+     * What the named model takes, from the chat-completions record when the vendor has one and the
+     * Responses record otherwise; nothing for a model nobody recorded. Needs no key or provider, so
+     * a script can be checked before any credential exists.
+     */
+    public io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
+        return chat != null ? chat.mediaCapabilities(model) : responses.mediaCapabilities(model);
+    }
+
     public String kind() {
         return kind;
     }

@@ -1,0 +1,15 @@
+// Canonical CTK test: attach_basic
+// Tests a file sent with a task (attach): the step reads media/pixel.png from the script's media_root, decides
+// what it is from its bytes, and hands it to the agent with the task. The trace records what was attached
+// (kind and type), never the bytes. mocks/attach_basic.json defines what the agent answers.
+
+media_root: "./media"
+
+agent Vision {
+    model: "gemini-2.5-flash"
+    system: "You describe pictures."
+}
+
+workflow main(picture) {
+    delegate "What is in this picture?" to Vision attach image "{picture}" -> reading
+}

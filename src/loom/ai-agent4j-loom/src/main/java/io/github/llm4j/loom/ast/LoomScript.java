@@ -152,6 +152,40 @@ public class LoomScript implements Node {
         return sharedPromptLine;
     }
 
+    private String mediaRoot;
+    private Long mediaMaxBytes;
+    private Integer mediaMaxItems;
+
+    /**
+     * The folder attached files must be under ({@code media_root: "./assets"}), as written; null
+     * means the script may attach no files.
+     */
+    public String getMediaRoot() {
+        return mediaRoot;
+    }
+
+    public void setMediaRoot(String mediaRoot) {
+        this.mediaRoot = mediaRoot;
+    }
+
+    /** The most bytes one attachment may hold ({@code media { max_bytes }}), or null for the default. */
+    public Long getMediaMaxBytes() {
+        return mediaMaxBytes;
+    }
+
+    public void setMediaMaxBytes(Long mediaMaxBytes) {
+        this.mediaMaxBytes = mediaMaxBytes;
+    }
+
+    /** The most items one task may carry ({@code media { max_items }}), or null for the default. */
+    public Integer getMediaMaxItems() {
+        return mediaMaxItems;
+    }
+
+    public void setMediaMaxItems(Integer mediaMaxItems) {
+        this.mediaMaxItems = mediaMaxItems;
+    }
+
     /**
      * {@code substitution: braces}: only {@code {name}} is replaced by a variable's value. The
      * default, {@code legacy}, also replaces a variable's name where it is written as a plain word.
