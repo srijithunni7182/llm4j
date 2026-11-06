@@ -314,6 +314,11 @@ public final class BudgetedLLMClient implements LLMClient {
     }
 
     @Override
+    public io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
+        return delegate.mediaCapabilities(model);
+    }
+
+    @Override
     public boolean supportsToolCalling() {
         return delegate.supportsToolCalling();
     }

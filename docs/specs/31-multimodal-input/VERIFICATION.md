@@ -90,6 +90,24 @@ Grep the whole repository for `Message`, `delegate`, `attach`, `human_prompt`, `
 
 ## 7. Results
 
+### 31b: the media model and guards (built; wider module checks owed, see the end of this section)
+
+**Built.** `MediaKind`, `Media`, `MediaDescriptor`, `MediaPolicy`, `MediaCapabilities` and the package-private `MediaSniffer` (R7, R8, R9, R15); `Message.media` with its Jackson behaviour (R7, R9); `LLMRequest.mediaPolicy`, `mediaKinds()` and the per-message and per-request limits (R8); `mediaCapabilities(model)` on `LLMClient` and `LLMProvider` (default `NONE`), the refusal in `DefaultLLMClient.chat` and `chatStream`, and the pass-through in the budgeted, masking and routing clients (R10, R12 in part).
+
+**Tests (written first, red because the types did not exist, then green).** `MediaTest` (39, counting the table cases), `MediaPolicyTest` (6), `MessageMediaTest` (10), `LLMRequestMediaTest` (8), `MediaCapabilitiesTest` (9), `MediaClientGuardTest` (9). `mvn verify` on `ai-agent4j`: 3,628 tests, 0 failures, all coverage checks met; javadoc builds.
+
+**Guard-removal checks (each guard disabled by hand, a test failed, then restored).** The kind-versus-bytes check, the per-item size check, the policy allow-list check, the empty check, user-only media, the per-message count, the per-request bytes, the request-level item size, the client's capability refusal, and the PDF sniff. **Two were missed on the first pass** (the kind check and the empty check): another guard behind each refused the same input with a worse message, and the tests only asserted the exception type. The tests now pin the message, and both are caught.
+
+**Deviations from the design.**
+- Formats beyond the spec's list are sniffed: FLAC, Ogg audio and QuickTime video. Each is in the default allow-list; remove them with `MediaPolicy.builder().allow(...)` if not wanted. The §4.3 provider table decides what is actually sent, in 31c.
+- `MediaPolicy` is a record with a builder, and `allow(...)` refuses a media type the sniffer cannot produce, so a policy can never look like permission it cannot grant.
+- `Message` JSON drops `media` on reading (the descriptor cannot rebuild the bytes), as DESIGN R9 says a replay reloads them; the Jackson `@JsonIgnoreProperties` is limited to that one property.
+- A file is read with a bounded read of one byte past the limit and not by trusting its size on disk; a directory, a device or a missing file is refused. **Path containment (R16) is Loom's job in 31e**, not this class's: `Media.fromFile` takes any path the caller gives it, so a caller that takes a path from outside must check it first.
+- The sniffer looks at the leading bytes only (a file that starts like a picture and is something else later still passes; decoding is the provider's job). The javadoc says so.
+- No wiki page yet: a page about attaching media would describe something no provider can send. It arrives in 31c with the first writer, together with the §3 documentation checklist for the model.
+
+**Not verified (owed).** The full test suites of `eval4j`, `ai-agent4j-tools`, `ai-agent4j-addons` and Loom against the changed `Message`/`LLMRequest`/`LLMClient` (run at the end of this section); a mutation profile for `Media`, `MediaPolicy`, `MediaSniffer` and the capability check (TEST_STRATEGY: 85%); `assertNoPayloadLeak` for logs and the journal (nothing logs or journals media yet, so this lands with 31c and 31e).
+
 ### 31a: prompt caching (built; Loom module check owed, see the end of this section)
 
 **Built.** `PromptCache` and `LLMRequest.promptCache` (R1); the Anthropic writer marks the system block, the last tool and the named messages, and refuses an index past the end before any call (R1); `usage.cached_tokens` on Anthropic and Google, `usage.cache_write_tokens` on Anthropic, in the whole response and on the last chunk of a stream, with OpenAI's key moved to one shared constant (R3); `PriceTable.Price` cache read and write rates, the price file format, `BudgetSet.Pricing.cost(...)` and the budgeted client's settlement (R4); `ReActAgent.promptCaching` and its default (R5); the Loom agent setting `cache: true | false` with its parser, executor wiring, hover, highlighting, guide, prompt, `llms.txt`, wiki pages, `API_COMPATIBILITY.md`, release notes and extension changelog (R5, D6).
