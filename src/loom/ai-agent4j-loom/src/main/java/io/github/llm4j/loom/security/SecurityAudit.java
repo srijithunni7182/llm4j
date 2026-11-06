@@ -211,6 +211,9 @@ public final class SecurityAudit {
                                     ? ""
                                     : " (allow: " + String.join(", ", allowed) + ")"));
         }
+        // a file chosen at run time can be anything a person or a model put there
+        int runTimeMedia = runTimeMediaLine(script, a.getName());
+        if (runTimeMedia > 0) untrusted.add("attachments chosen at run time");
         String pii = a.getGuard() == null ? null : a.getGuard().getPii();
         AgentProfile profile =
                 new AgentProfile(
@@ -248,6 +251,25 @@ public final class SecurityAudit {
                                                     + String.join(", ", allowed)
                                                     + ") narrows where it reads but does not make those pages trusted, so the audit still counts it as reading untrusted content."),
                             "Keep a grounded agent away from private data and from tools that send or act (the lethal trifecta), narrow it with allow: [\"…\"], mask personal data with guard { pii: mask }, and check sources in tests with citesOnlyFrom(...)."));
+        }
+        if (runTimeMedia > 0) {
+            findings.add(
+                    new Finding(
+                            "LA23",
+                            Severity.LOW,
+                            List.of(Owasp.LLM01, Owasp.LLM02),
+                            a.getName(),
+                            runTimeMedia,
+                            "An agent reads a file chosen at run time",
+                            a.getName()
+                                    + " is sent a picture, a recording or a document whose file name"
+                                    + " is filled in at run time. Whoever or whatever supplies it"
+                                    + " (a workflow input, another agent's answer) can put text in a"
+                                    + " picture or words in a recording that read as instructions,"
+                                    + " and personal-data masking and the text guards cannot see"
+                                    + " inside it, so the audit counts it as reading untrusted"
+                                    + " content.",
+                            "Name the file in the script where you can, keep the agent away from private data and from tools that send or act (the lethal trifecta), and return only typed fields from what it reads with an extractor."));
         }
         if (a.isSteerable()) {
             boolean exposed =
@@ -989,6 +1011,41 @@ public final class SecurityAudit {
                         produced.put(d.getVariableName(), d);
                     });
         }
+    }
+
+    /**
+     * The line of the first step that sends this agent an attachment whose file name is filled in at
+     * run time, or 0 when none does. A file the script's author named is not counted.
+     */
+    private static int runTimeMediaLine(LoomScript script, String agent) {
+        int[] first = {0};
+        for (var workflow : script.getWorkflows()) {
+            io.github.llm4j.loom.ast.StatementWalker.walk(
+                    workflow.getStatements(),
+                    s -> {
+                        if (first[0] != 0) return;
+                        java.util.List<io.github.llm4j.loom.ast.AttachItem> items;
+                        boolean receives;
+                        if (s instanceof io.github.llm4j.loom.ast.DelegateStmt d) {
+                            items = d.getAttachments();
+                            receives =
+                                    d.hasDynamicTarget()
+                                            ? d.getAllowedTargets().contains(agent)
+                                            : d.getTargetAgent().equals(agent);
+                        } else if (s instanceof io.github.llm4j.loom.ast.HandoffStmt h) {
+                            items = h.getAttachments();
+                            receives = h.getTargetAgent().equals(agent);
+                        } else if (s instanceof io.github.llm4j.loom.ast.BroadcastStmt b) {
+                            items = b.getAttachments();
+                            receives = b.getTargetAgents().contains(agent);
+                        } else {
+                            return;
+                        }
+                        if (receives && items.stream().anyMatch(i -> i.path().contains("{")))
+                            first[0] = Math.max(1, s.getLine());
+                    });
+        }
+        return first[0];
     }
 
     private static boolean writesPrograms(AgentDef agent, LoomScript script) {

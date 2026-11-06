@@ -159,6 +159,17 @@ class MediaChecksTest {
     }
 
     @Test
+    void aQuestionToAPersonIsCheckedForItsFilesAndNotForAnyModel() {
+        assertThat(errors(ROOT, "human_prompt \"ok?\" attach image \"receipt.png\" -> answer")).isEmpty();
+        assertThat(errors(ROOT, "human_prompt \"ok?\" attach image \"missing.png\" -> answer"))
+                .anySatisfy(e -> assertThat(e).contains("missing.png").contains("human_prompt"));
+        assertThat(errors("", "human_prompt \"ok?\" attach image \"receipt.png\" -> answer"))
+                .anySatisfy(e -> assertThat(e).contains("media_root"));
+        assertThat(warnings(ROOT, "human_prompt \"ok?\" attach image \"{receipt}.png\" -> answer"))
+                .anySatisfy(w -> assertThat(w).contains("not checked"));
+    }
+
+    @Test
     void aFileThatIsNotWhatItIsCalledIsAnError() {
         assertThat(errors(ROOT, "delegate \"x\" to Reader attach image \"scan.png\" -> out"))
                 .anySatisfy(e -> assertThat(e).contains("given as IMAGE"));

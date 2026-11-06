@@ -59,6 +59,20 @@ final class ExtractRunner {
             if ("failed".equals(entry.kind())) {
                 fail(stmt, def, stepId, String.valueOf(entry.value()), null, false, 0);
             } else {
+                try {
+                    MediaJournal.verify(
+                            journal,
+                            stepId,
+                            stmt.getMediaInputs().isEmpty()
+                                    ? java.util.List.of()
+                                    : executor.attachmentsOf(
+                                            stmt.getMediaInputs().stream()
+                                                    .map(io.github.llm4j.loom.ast.ExtractMedia::item)
+                                                    .toList()));
+                } catch (MediaRefusal changed) {
+                    fail(stmt, def, stepId, changed.getMessage(), changed, true, 0);
+                    return;
+                }
                 executor.bind(variable, entry.value(), origin(def));
                 replayed(def);
             }
@@ -69,6 +83,7 @@ final class ExtractRunner {
         java.util.List<io.github.llm4j.model.Media> media;
         try {
             media = media(stmt, def);
+            MediaJournal.record(journal, stepId, media);
             request = request(stmt, def, media);
         } catch (StepFailure bad) {
             fail(stmt, def, stepId, bad.getMessage(), bad, true, 0);

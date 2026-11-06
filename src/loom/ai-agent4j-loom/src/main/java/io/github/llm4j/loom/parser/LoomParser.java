@@ -2339,9 +2339,13 @@ public class LoomParser {
                 consume(
                         TokenType.STRING_LITERAL,
                         "Expect string literal message for human prompt.");
+        java.util.List<AttachItem> attachments = new java.util.ArrayList<>();
+        parseAttachments(attachments);
         consume(TokenType.ARROW, "Expect '->' to assign human prompt result.");
         Token varName = consume(TokenType.IDENTIFIER, "Expect variable name for result.");
-        return new HumanPromptStmt(msg.getValue(), varName.getValue());
+        HumanPromptStmt prompt = new HumanPromptStmt(msg.getValue(), varName.getValue());
+        prompt.getAttachments().addAll(attachments);
+        return prompt;
     }
 
     // -----------------------------------------------------------------------

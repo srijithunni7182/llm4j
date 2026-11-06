@@ -3132,6 +3132,26 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     /**
+     * One line per file for the person who is asked: what it is, its size, and where to open it in
+     * the media folder. An absolute path of this machine is never shown.
+     */
+    private String attachmentLines(
+            java.util.List<io.github.llm4j.loom.ast.AttachItem> items,
+            java.util.List<io.github.llm4j.model.Media> media) {
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < media.size(); i++) {
+            out.append("\n[attached ")
+                    .append(media.get(i).kind().label())
+                    .append(": ")
+                    .append(resolvePayload(items.get(i).path()))
+                    .append(", ")
+                    .append(media.get(i).size())
+                    .append(" bytes]");
+        }
+        return out.toString();
+    }
+
+    /**
      * Refuses media the agent's model cannot take, before anything is sent. The message names the
      * agent and its model.
      */
@@ -3226,11 +3246,15 @@ public class HarnessExecutor implements LoomEngine {
                             + resolvedPayload);
 
             boolean replayed = journal.get(step.get()).isPresent();
+            if (replayed) {
+                MediaJournal.verify(journal, step.get(), attachmentsOf(handoff.getAttachments()));
+            }
             if (agent != null && agentDef != null && !replayed) {
                 // files are read and checked before the agent is told anything
                 java.util.List<io.github.llm4j.model.Media> media =
                         attachmentsOf(handoff.getAttachments());
                 requireMediaFor(handoff.getTargetAgent(), media);
+                MediaJournal.record(journal, step.get(), media);
                 String contextBriefing =
                         memoryEngine.assembleContext(agentDef, resolvedPayload, view());
                 Map<String, Object> startData = new java.util.LinkedHashMap<>();
@@ -3279,6 +3303,7 @@ public class HarnessExecutor implements LoomEngine {
             var recorded = journal.get(stepId);
             String results;
             if (recorded.isPresent()) {
+                MediaJournal.verify(journal, stepId, attachmentsOf(broadcast.getAttachments()));
                 results = String.valueOf(recorded.get().value());
             } else {
                 List<io.github.llm4j.budget.Budget> outerScopes = scopes.get();
@@ -3295,6 +3320,7 @@ public class HarnessExecutor implements LoomEngine {
                             attachmentsOf(broadcast.getAttachments());
                     for (String agentName : broadcast.getTargetAgents())
                         requireMediaFor(agentName, media);
+                    MediaJournal.record(journal, stepId, media);
                     ThreadScope.Snapshot scope = threadScope.capture().at(stepId, locals.get());
                     List<CompletableFuture<String>> answers = new java.util.ArrayList<>();
                     for (String agentName : broadcast.getTargetAgents()) {
@@ -3418,9 +3444,15 @@ public class HarnessExecutor implements LoomEngine {
             }
             log.info("Exiting loop.");
         } else if (stmt instanceof HumanPromptStmt hp) {
-            String resolvedMessage = resolvePayload(hp.getMessage());
-            log.info("Human Prompt: " + resolvedMessage);
             String stepId = step.get();
+            // the files are read and checked before anyone is asked, and a resumed run checks they
+            // are the ones the person was shown
+            java.util.List<io.github.llm4j.model.Media> shownFiles =
+                    attachmentsOf(hp.getAttachments());
+            MediaJournal.recordOrVerify(journal, stepId, shownFiles);
+            String resolvedMessage =
+                    resolvePayload(hp.getMessage()) + attachmentLines(hp.getAttachments(), shownFiles);
+            log.info("Human Prompt: " + resolvedMessage);
             String recordedAnswer = rewinder.recordedAnswer(resolvedMessage);
             if (recordedAnswer != null) {
                 bind(hp.getVariableName(), recordedAnswer, Provenance.NOT_MODEL);

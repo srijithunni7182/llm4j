@@ -120,6 +120,11 @@ public final class AuditCatalog {
             "The transcript carries untrusted text to a later agent",
             "An agent that receives the whole transcript after an agent that reads untrusted content has run is exposed to what it read. Give it transcript: none or own, or split the work."
         },
+        {
+            "LA23",
+            "An agent reads a file chosen at run time",
+            "An agent sent a picture, recording or document whose file name is filled in at run time reads untrusted content: it can carry instructions that masking cannot see. Name the file in the script where you can."
+        },
     };
 
     /** One entry per audit rule. The severity varies with the situation, so none is given. */

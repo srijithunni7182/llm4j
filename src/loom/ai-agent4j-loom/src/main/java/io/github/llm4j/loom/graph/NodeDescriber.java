@@ -78,13 +78,17 @@ final class NodeDescriber {
         if (st instanceof HandoffStmt h) {
             return new Described(Kinds.HANDOFF, "handoff " + h.getTargetAgent())
                     .agent(h.getTargetAgent())
-                    .attrs(Attrs.create().text("text", h.getPayload()));
+                    .attrs(
+                            Attrs.create()
+                                    .text("text", h.getPayload())
+                                    .list("attaches", kinds(h.getAttachments())));
         }
         if (st instanceof BroadcastStmt b) {
             return new Described(Kinds.BROADCAST, "broadcast")
                     .attrs(
                             Attrs.create()
                                     .list("agents", b.getTargetAgents())
+                                    .list("attaches", kinds(b.getAttachments()))
                                     .text("variable", b.getVariableName())
                                     .budget(b.getBudget())
                                     .text("text", b.getPayload()));
@@ -125,6 +129,7 @@ final class NodeDescriber {
                     .attrs(
                             Attrs.create()
                                     .text("variable", h.getVariableName())
+                                    .list("attaches", kinds(h.getAttachments()))
                                     .text("text", h.getMessage()));
         }
         if (st instanceof CheckpointStmt c) {
@@ -204,12 +209,20 @@ final class NodeDescriber {
                         .toLowerCase(Locale.ROOT));
     }
 
+    /** The kinds a step attaches, in order: the file names are script text and are not shown. */
+    private static List<String> kinds(List<io.github.llm4j.loom.ast.AttachItem> items) {
+        List<String> out = new ArrayList<>();
+        for (io.github.llm4j.loom.ast.AttachItem item : items) out.add(item.kind().label());
+        return out;
+    }
+
     private Described delegate(DelegateStmt d) {
         return new Described(Kinds.DELEGATE, "delegate " + d.getTargetAgent())
                 .agent(d.getTargetAgent())
                 .attrs(
                         Attrs.create()
                                 .text("variable", d.getVariableName())
+                                .list("attaches", kinds(d.getAttachments()))
                                 .positive("retry", d.getRetryCount())
                                 .positive("backoffMs", d.getBackoffMillis())
                                 .positive("timeoutMs", d.getTimeoutMillis())
@@ -277,6 +290,12 @@ final class NodeDescriber {
                                 .text("extractor", x.getExtractor())
                                 .text("variable", x.getVariableName())
                                 .list("inputs", inputs)
+                                .list(
+                                        "attaches",
+                                        kinds(
+                                                x.getMediaInputs().stream()
+                                                        .map(io.github.llm4j.loom.ast.ExtractMedia::item)
+                                                        .toList()))
                                 .positive("retry", x.getRetryCount())
                                 .positive("backoffMs", x.getBackoffMillis())
                                 .positive("timeoutMs", x.getTimeoutMillis()));

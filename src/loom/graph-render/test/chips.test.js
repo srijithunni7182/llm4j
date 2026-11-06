@@ -136,3 +136,23 @@ test('a classify node says whether its answers are calibrated', () => {
   assert.deepEqual(texts(chat), ['chat model · uncalibrated']);
   assert.equal(G.chips(chat)[0].v, 'warn');
 });
+
+test('a step that sends files shows their kinds first, grouped, because it changes what the model is given', () => {
+  assert.deepEqual(texts(node('delegate', { attaches: ['image', 'document'], retry: 1 })), ['attaches image, document', 'retry 1']);
+  assert.deepEqual(texts(node('delegate', { attaches: ['image', 'image', 'document'] })), ['attaches 2 images, document']);
+});
+
+test('broadcast, handoff and extract can show it too', () => {
+  assert.deepEqual(texts(node('broadcast', { attaches: ['audio'], variable: 'out' })), ['attaches audio', '→ out']);
+  assert.deepEqual(texts(node('handoff', { attaches: ['video'] })), ['attaches video']);
+  assert.deepEqual(texts(node('extract', { attaches: ['image'], retry: 2 })), ['attaches image', 'retry 2']);
+});
+
+test('a step that sends no files shows no such chip', () => {
+  assert.deepEqual(texts(node('delegate', { retry: 1 })), ['retry 1']);
+  assert.deepEqual(texts(node('delegate', { attaches: [] })), []);
+});
+
+test('a question that shows a person a file says so', () => {
+  assert.deepEqual(texts(node('human_prompt', { attaches: ['image'], variable: 'answer' })), ['attaches image', '→ answer']);
+});

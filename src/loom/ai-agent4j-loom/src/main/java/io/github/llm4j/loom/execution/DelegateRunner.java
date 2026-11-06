@@ -253,6 +253,14 @@ final class DelegateRunner {
                         "discarded earlier: " + entry.value(),
                         null);
             } else {
+                try {
+                    // the answer was about these files; if they are not these files, it is not reused
+                    MediaJournal.verify(
+                            host.journal(), stepId, host.attachmentsOf(del.getAttachments()));
+                } catch (MediaRefusal changed) {
+                    failStep(del, stepId, agentName, changed.getMessage(), changed);
+                    return;
+                }
                 host.bind(variableName, entry.value(), answerOrigin(del, agentDef));
                 host.journal()
                         .get(stepId + "#audio")
@@ -314,6 +322,7 @@ final class DelegateRunner {
         try {
             media = host.attachmentsOf(del.getAttachments());
             host.requireMediaFor(agentName, media);
+            MediaJournal.record(host.journal(), stepId, media);
         } catch (MediaRefusal refused) {
             failStep(del, stepId, agentName, refused.getMessage(), refused);
             return;

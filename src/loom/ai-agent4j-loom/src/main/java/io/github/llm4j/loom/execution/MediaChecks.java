@@ -64,6 +64,10 @@ final class MediaChecks {
                     files(c, source, policy, reported, "broadcast", b.getLine(), b.getAttachments());
                     for (String name : b.getTargetAgents())
                         agent(c, b.getLine(), "broadcast", name, kinds(b.getAttachments()));
+                } else if (s instanceof io.github.llm4j.loom.ast.HumanPromptStmt p
+                        && !p.getAttachments().isEmpty()) {
+                    // nobody's model reads it, so only the files themselves can be wrong
+                    files(c, source, policy, reported, "human_prompt", p.getLine(), p.getAttachments());
                 } else if (s instanceof ExtractStmt e && !e.getMediaInputs().isEmpty()) {
                     List<AttachItem> items =
                             e.getMediaInputs().stream().map(ExtractMedia::item).toList();
