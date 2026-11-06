@@ -3056,6 +3056,7 @@ public class LoomParser {
                     "fields",
                     "optional",
                     "pii",
+                    "media",
                     "temperature",
                     "timeout",
                     "budget");
@@ -3332,6 +3333,19 @@ public class LoomParser {
                     consume(TokenType.COLON, "Expect ':' after pii.");
                     def.setPii(word("Expect mask, block or warn after pii:.").getValue());
                 }
+                case "media" -> {
+                    consume(TokenType.COLON, "Expect ':' after media.");
+                    Token value = word("Write media: unscanned.");
+                    if (!"unscanned".equals(value.getValue()))
+                        throw error(
+                                value,
+                                "media takes one value, as in media: unscanned (it accepts sending"
+                                        + " pictures, sound, video or documents that pii: cannot"
+                                        + " inspect), not "
+                                        + value.getValue()
+                                        + ".");
+                    def.setUnscannedMedia(true);
+                }
                 case "temperature" -> {
                     consume(TokenType.COLON, "Expect ':' after temperature.");
                     def.setTemperature(
@@ -3413,39 +3427,62 @@ public class LoomParser {
      * tokens] [on_failure { … }]} or {@code extract Claim from (email = msg, order = record) ->
      * claim}.
      */
+    /**
+     * Whether an {@code extract} input is a file: a kind word followed by a quoted file, as in
+     * {@code image "{receipt}"}. A kind word alone is still a variable of that name.
+     */
+    private boolean atMediaInput() {
+        return check(TokenType.IDENTIFIER)
+                && mediaKindOf(peek().getValue()) != null
+                && peekAt(1).getType() == TokenType.STRING_LITERAL;
+    }
+
+    private AttachItem parseMediaInput() {
+        Token kind = advance();
+        Token file = consume(TokenType.STRING_LITERAL, "Write the file after " + kind.getValue() + ".");
+        return new AttachItem(mediaKindOf(kind.getValue()), file.getValue(), kind.getLine());
+    }
+
     private io.github.llm4j.loom.ast.ExtractStmt parseExtract() {
         Token keyword = advance();
         Token extractor = consume(TokenType.IDENTIFIER, "Expect the name of an extractor.");
         advance(); // from
         java.util.List<RunStmt.Arg> inputs = new java.util.ArrayList<>();
+        java.util.List<ExtractMedia> media = new java.util.ArrayList<>();
+        String written = "(…)";
         if (match(TokenType.LPAREN)) {
             while (!check(TokenType.RPAREN) && !isAtEnd()) {
                 Token field =
                         word("Expect an input name, as in from (email = msg, order = record).");
                 consume(TokenType.ASSIGN, "Expect '=' after " + field.getValue() + ".");
-                inputs.add(classifierInput(field.getValue()));
+                if (atMediaInput()) media.add(new ExtractMedia(field.getValue(), parseMediaInput()));
+                else inputs.add(classifierInput(field.getValue()));
                 match(TokenType.COMMA);
             }
             consume(TokenType.RPAREN, "Expect ')' after the inputs.");
-            if (inputs.isEmpty())
+            if (inputs.isEmpty() && media.isEmpty())
                 throw error(previous(), "Name at least one input, as in from (email = msg).");
+        } else if (atMediaInput()) {
+            AttachItem item = parseMediaInput();
+            media.add(new ExtractMedia("", item));
+            written = item.kind().label() + " \"" + item.path() + "\"";
         } else {
             inputs.add(classifierInput(""));
+            written = inputs.get(0).text();
         }
         consume(
                 TokenType.ARROW,
                 "Expect '->' and a variable to hold the fields, as in extract "
                         + extractor.getValue()
                         + " from "
-                        + (inputs.size() == 1 && inputs.get(0).name().isEmpty()
-                                ? inputs.get(0).text()
-                                : "(…)")
+                        + written
                         + " -> result.");
         String variable = nameOrReference("Expect a variable name for the fields.");
         io.github.llm4j.loom.ast.ExtractStmt stmt =
                 new io.github.llm4j.loom.ast.ExtractStmt(extractor.getValue(), variable);
         stmt.setLine(keyword.getLine());
         stmt.getInputs().addAll(inputs);
+        stmt.getMediaInputs().addAll(media);
         while (true) {
             if (match(TokenType.RETRY)) {
                 stmt.setRetryCount(

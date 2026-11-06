@@ -35,6 +35,16 @@ public final class ExtractStmt extends LocatedStatement {
         return inputs;
     }
 
+    private final List<ExtractMedia> mediaInputs = new ArrayList<>();
+
+    /**
+     * The files the step reads, beside or instead of its text inputs; empty for most steps. A step
+     * has at least one input of one kind or the other.
+     */
+    public List<ExtractMedia> getMediaInputs() {
+        return mediaInputs;
+    }
+
     /** The variable that receives the extracted fields. */
     public String getVariableName() {
         return variableName;
