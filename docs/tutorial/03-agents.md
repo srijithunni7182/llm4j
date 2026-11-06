@@ -213,6 +213,26 @@ workflow Main(question) {
 
 The sources are in `{notes_citations}` (a list with `index`, `url`, `title` and `snippet`). Only some models can be grounded, and each honours only some of the options (for Perplexity: `allow`, `block`, `recency` and `country`). `weave check` tells you exactly which when you ask for something your model cannot do. For an agent that uses a search *tool* instead, see [Chapter 6](06-tools-and-tasks.md).
 
+## Pictures, sound and documents
+
+A model that can see, hear or read a PDF can be sent a file with its task. Name the one folder files may come from with `media_root`, then add `attach` before the `->`:
+
+```loom-parse
+media_root: "./assets"
+
+agent Vision {
+    model: "gemini-2.5-flash"
+    system: "You read receipts."
+}
+
+workflow Main(receipt) {
+    delegate "What is the total and the currency?" to Vision attach image "{receipt}" -> reading
+    return reading
+}
+```
+
+The kinds are `image`, `audio`, `video` and `document` (a PDF). Several files are comma-separated. `broadcast`, `handoff` and `human_prompt` take the same clause. The file type is decided from the file's bytes, so a renamed file is not fooled. Paths are read only from `media_root`: `..`, absolute paths and links out of the folder are refused. `weave check` tells you when the agent's model cannot take a kind, before anything is paid for. `media { max_bytes: 20MB  max_items: 4 }` sets the limits. The full rules are in the [Loom guide](../../src/loom/ai-agent4j-loom/LOOM_GUIDE.md), "Sending pictures, recordings and documents".
+
 ## Several agents, one team
 
 A team is just several agents in one script. What makes it a team is the workflow: [Chapter 4](04-control-flow.md) covers how they hand work to each other.

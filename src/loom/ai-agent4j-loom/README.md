@@ -96,6 +96,7 @@ SqlQuery    = com.mycompany.tools.DatabaseTool
 |---|---|
 | `delegate` | Call one agent, await result, bind to variable |
 | `broadcast` | Fan out to multiple agents in parallel (Java streams), collect combined result |
+| `attach` | A trailing clause on `delegate`, `broadcast`, `handoff` and `human_prompt` that sends pictures, recordings, video or PDFs with the task: `delegate "Total?" to Vision attach image "{receipt}" -> total`. For `extract` the file is an input of `from`. Files are read only from the folder named by `media_root`; `weave check` refuses a model that cannot take the kind |
 | `handoff` | Terminal node — pass control to an agent and end the current branch |
 | `intentclassify` | Put typed questions (`choose`, `ask`, `rate`) to a classifier declared with `intentclassifier` (Jev or a chat model) and bind one label per question; a confidence rule turns a doubtful answer into `unsure`. See the guide section "Classifying". |
 | `run` | Run a deterministic **task** — plain Java, no model, no tokens — and bind its result: `run RefundPolicy(amount = request.amount) -> verdict`. For the steps too important to leave to an LLM (policy checks, payments, audit records). Journaled and replayed like a `delegate`; a task that changes things is never repeated by a crash or a retry; a model can never call one. See [Tasks](LOOM_GUIDE.md#tasks-deterministic-steps-run) |
@@ -191,6 +192,7 @@ agent Support {
 ```
 
 - **Approvals are durable.** An approval is journaled per tool call and holds no thread while it waits.
+- **Pictures, sound, video and PDFs.** `attach image|audio|video|document "<file>"` sends a file with a task. Files come only from `media_root`, an agent with a PII guard refuses them unless it says `media: unscanned`, `weave audit` flags a file chosen at run time (LA23), and the journal keeps the file's hash, never its bytes. See [Sending pictures, recordings and documents](LOOM_GUIDE.md#sending-pictures-recordings-and-documents-attach).
 - **Voice and language tools.** `translate`, `transcribe` and `speak` are tools too.
 - **More in the script.** Knowledge graphs, personas declared in the script, and skills fetched from a URL.
 - **See it live.** `weave run --trace` shows every plan, tool call and token spent as it happens.

@@ -148,6 +148,27 @@ workflow Main(text) {
 
 In a test, script the extractor's answer like an agent's: `models: { Invoice: { vendor: Acme } }`.
 
+### Extracting from a picture or a PDF
+
+A file is one more input of `from`. There is no `attach` here:
+
+```loom-parse
+media_root: "./assets"
+
+extractor Receipt {
+    model: "gemini-2.5-flash"
+    instructions: "Read the receipt."
+    fields { total: number  currency: string }
+}
+
+workflow Main(receipt) {
+    extract Receipt from image "{receipt}" -> fields
+    return fields
+}
+```
+
+To give text beside the file, label the inputs: `from (note = "Read this receipt", photo = image "{receipt}")`.
+
 ## Reason first, then extract
 
 > **You don't need this until** an agent has to think (it uses tools, searches the web, or works through a long brief) and you want its answer as fields.
