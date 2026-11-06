@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.0
 
 - **Media input.** `attach`, `media_root`, `media { max_bytes max_items }` and `media: unscanned` are highlighted and have hover help. Needs the engine's media input (phase 31e). A snippet is not offered: an `attach` needs a file under `media_root`, so a snippet cannot be checked as a script on its own.
 - **Prompt caching.** `cache: true | false` on an agent is highlighted and has hover help. Needs the engine's prompt caching (phase 31a).
