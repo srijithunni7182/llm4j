@@ -17,7 +17,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@code cache: off} on an agent (docs/specs/31-multimodal-input, R5 and D6): an agent's loop lets
+ * {@code cache: false} on an agent (docs/specs/31-multimodal-input, R5 and D6): an agent's loop lets
  * the provider cache what it resends unless the script says not to.
  */
 class AgentPromptCacheTest {
@@ -84,30 +84,29 @@ class AgentPromptCacheTest {
     }
 
     @Test
-    void cacheOffTurnsItOff() {
-        assertThat(parse(script("cache: off")).getAgents().get(0).isPromptCaching()).isFalse();
+    void cacheFalseTurnsItOff() {
+        assertThat(parse(script("cache: false")).getAgents().get(0).isPromptCaching()).isFalse();
     }
 
     @Test
-    void cacheOnIsTheSameAsTheDefault() {
-        assertThat(parse(script("cache: on")).getAgents().get(0).isPromptCaching()).isTrue();
+    void cacheTrueIsTheSameAsTheDefault() {
+        assertThat(parse(script("cache: true")).getAgents().get(0).isPromptCaching()).isTrue();
     }
 
     @Test
     void anythingElseIsAParseErrorThatNamesTheChoices() {
         assertThatThrownBy(() -> parse(script("cache: maybe")))
-                .hasMessageContaining("cache must be on or off")
-                .hasMessageContaining("maybe");
+                .hasMessageContaining("cache must be true or false");
     }
 
     @Test
     void theAgentsCallsCarryTheCacheUnlessItIsOff() {
         assertThat(run("").caches).isNotEmpty().allSatisfy(c -> assertThat(c).isNotNull());
-        assertThat(run("cache: off").caches).isNotEmpty().containsOnlyNulls();
+        assertThat(run("cache: false").caches).isNotEmpty().containsOnlyNulls();
     }
 
     @Test
     void cacheIsAListedAgentSetting() {
-        assertThatThrownBy(() -> parse(script("cash: off"))).hasMessageContaining("cache");
+        assertThatThrownBy(() -> parse(script("cash: false"))).hasMessageContaining("cache");
     }
 }

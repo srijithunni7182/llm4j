@@ -21,7 +21,7 @@ agent, R12 to R14, R19; **31e** Loom, R16 to R22; **31f** documentation, editor 
 |---|---|---|
 | A1 | Anthropic requests carry `cache_control` where asked and nowhere else, at most four, and the savings show as `usage.cached_tokens` on every provider | R1 to R3 tests |
 | A2 | Cache reads and writes are priced and budgeted correctly | R4 tests |
-| A3 | `ReActAgent` caches its loop prefix by default where supported, and `cache: off` stops it | R5 tests |
+| A3 | `ReActAgent` caches its loop prefix by default where supported, and `cache: false` stops it | R5 tests |
 | A4 | An image, audio, video or PDF can be put in a `Message` from Java, and the type is decided by the bytes | R7 tests |
 | A5 | Size, count and type limits hold at every boundary, and a refusal says which | R8 tests |
 | A6 | The bytes never appear in a log, trace, journal, report, exception, `toString` or JSON | `assertNoPayloadLeak` in every layer |
@@ -92,7 +92,7 @@ Grep the whole repository for `Message`, `delegate`, `attach`, `human_prompt`, `
 
 ### 31a: prompt caching (built; Loom module check owed, see the end of this section)
 
-**Built.** `PromptCache` and `LLMRequest.promptCache` (R1); the Anthropic writer marks the system block, the last tool and the named messages, and refuses an index past the end before any call (R1); `usage.cached_tokens` on Anthropic and Google, `usage.cache_write_tokens` on Anthropic, in the whole response and on the last chunk of a stream, with OpenAI's key moved to one shared constant (R3); `PriceTable.Price` cache read and write rates, the price file format, `BudgetSet.Pricing.cost(...)` and the budgeted client's settlement (R4); `ReActAgent.promptCaching` and its default (R5); the Loom agent setting `cache: on | off` with its parser, executor wiring, hover, highlighting, guide, prompt, `llms.txt`, wiki pages, `API_COMPATIBILITY.md`, release notes and extension changelog (R5, D6).
+**Built.** `PromptCache` and `LLMRequest.promptCache` (R1); the Anthropic writer marks the system block, the last tool and the named messages, and refuses an index past the end before any call (R1); `usage.cached_tokens` on Anthropic and Google, `usage.cache_write_tokens` on Anthropic, in the whole response and on the last chunk of a stream, with OpenAI's key moved to one shared constant (R3); `PriceTable.Price` cache read and write rates, the price file format, `BudgetSet.Pricing.cost(...)` and the budgeted client's settlement (R4); `ReActAgent.promptCaching` and its default (R5); the Loom agent setting `cache: true | false` with its parser, executor wiring, hover, highlighting, guide, prompt, `llms.txt`, wiki pages, `API_COMPATIBILITY.md`, release notes and extension changelog (R5, D6).
 
 **Tests (written first, red for the right reason, then green).** `PromptCacheTest` (8), `PromptCacheBodyTest` (10), `CachedUsageTest` (5), `CachePricingTest` (9), `ReActAgentPromptCacheTest` (3), `AgentPromptCacheTest` (6, Loom). `mvn verify` on `ai-agent4j`: 3,547 tests, 0 failures, 2 skipped (the existing ones), all coverage checks met.
 
@@ -100,7 +100,7 @@ Grep the whole repository for `Message`, `delegate`, `attach`, `human_prompt`, `
 
 **Deviations from the design.**
 - R4: "the trace says so once" for a model with no cache rate was **not built**. A model without cache rates is priced as ordinary input, which charges a write right and a read too much; the page says so. No flag is added to the response.
-- The Loom syntax is `cache: on | off` as D6 proposed, although the other yes/no agent settings (`streaming`, `reasoning`, `steerable`) take `true` or `false`. Worth a decision before release: keep `on|off`, or follow the others.
+- The Loom syntax is `cache: false` (true or false, like `streaming`, `reasoning` and `steerable`), changed from the `on | off` first proposed in D6 on the owner's decision; the setting shares the parser branch of those three.
 - `cache` is part of the agent's *behaviour on the bill*, not its answers, so it is **not** in `AgentIdentity` (the eval fingerprint). Changing it does not invalidate a cached eval result.
 - Only the native tool-calling loop sends the cache. The text-format loop (a model that cannot call tools), the wrap-up call and the other `LLMRequest`s `ReActAgent` builds do not. The Spring properties do not take cache rates.
 - `weave check`, `weave audit` and the graph have nothing to say about `cache`, by design (it moves no data).

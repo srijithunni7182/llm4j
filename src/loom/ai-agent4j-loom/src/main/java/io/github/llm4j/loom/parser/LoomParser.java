@@ -384,7 +384,8 @@ public class LoomParser {
                 agent.setTemperature(temperature);
             } else if (isNamedAttribute("streaming")
                     || isNamedAttribute("reasoning")
-                    || isNamedAttribute("steerable")) {
+                    || isNamedAttribute("steerable")
+                    || isNamedAttribute("cache")) {
                 Token keyword = advance();
                 advance(); // the colon
                 Token value = advance();
@@ -395,22 +396,9 @@ public class LoomParser {
                 switch (keyword.getValue()) {
                     case "streaming" -> agent.setStreaming(on);
                     case "reasoning" -> agent.setReasoning(on);
+                    case "cache" -> agent.setPromptCaching(on);
                     default -> agent.setSteerable(on);
                 }
-            } else if (isNamedAttribute("cache")) {
-                advance(); // the word
-                advance(); // the colon
-                Token value = advance();
-                if (!"on".equals(value.getValue()) && !"off".equals(value.getValue())) {
-                    throw error(
-                            value,
-                            "cache must be on or off (not "
-                                    + (value.getValue() == null
-                                            ? value.getType()
-                                            : value.getValue())
-                                    + "), as in cache: off.");
-                }
-                agent.setPromptCaching("on".equals(value.getValue()));
             } else if (isBudgetKeyword()) {
                 Token keyword = advance();
                 if (agent.getBudget() != null)

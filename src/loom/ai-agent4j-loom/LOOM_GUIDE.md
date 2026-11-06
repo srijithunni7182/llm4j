@@ -366,7 +366,7 @@ agent Analyst {
     max_iterations: 8                    // how many reasoning steps it may take
     streaming: true                      // show the reply as it is written (see "Steering, Stopping and Wrapping Up an Agent")
     steerable: true                      // a person may steer it while it works
-    cache: off                           // on by default: lets the provider cache the prompt a looping agent resends (see "Prompt caching")
+    cache: false                         // on by default: lets the provider cache the prompt a looping agent resends (see "Prompt caching")
 
     skills: ["fs://skills/analyst_best_practices.md"]   // Markdown instructions, relative to the script
     tools: [Search, calculator]          // declared tools, built-ins, or .loot / Java tools
@@ -1265,11 +1265,11 @@ An agent that answers in one call never reads the cache back, and Anthropic char
 agent Classifier {
     model: "claude-sonnet-5-5"
     system: "Label the ticket."
-    cache: off
+    cache: false
 }
 ```
 
-`cache: on` is the default and need not be written. Anything but `on` or `off` is a load error. `weave audit` and `weave check` have nothing to say about it: it moves no data. The tokens a provider served from its cache show in the call's trace as `usage.cached_tokens` (and `usage.cache_write_tokens` on Anthropic), and a price table with cache rates ([Budgets and Rate Limits](../../ai-agent4j/wiki/Budgets-and-Rate-Limits.md)) prices them separately.
+`cache: true` is the default and need not be written. Anything but `true` or `false` is a load error. `weave audit` and `weave check` have nothing to say about it: it moves no data. The tokens a provider served from its cache show in the call's trace as `usage.cached_tokens` (and `usage.cache_write_tokens` on Anthropic), and a price table with cache rates ([Budgets and Rate Limits](../../ai-agent4j/wiki/Budgets-and-Rate-Limits.md)) prices them separately.
 
 ### Model Routing Policies
 Define global policies to manage costs and reliability across different LLM providers.

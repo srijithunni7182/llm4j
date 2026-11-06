@@ -261,7 +261,7 @@ public class AgentDef implements Node {
 
     /**
      * Whether the agent's model calls let the provider cache what a loop resends (the {@code cache:
-     * on|off} setting); on unless the script says {@code cache: off}.
+     * true|false} setting); on unless the script says {@code cache: false}.
      */
     public boolean isPromptCaching() {
         return promptCaching;

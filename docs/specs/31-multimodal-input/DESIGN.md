@@ -70,7 +70,7 @@ call never reads it back.
 - **R4.** The price table and the budget accounting price a cache read and a cache write at their own rates, so a budget neither over-charges cached reads nor misses the write premium.
   A model with no cache price in the table is priced as before and the trace says so once.
 - **R5.** `ReActAgent` turns on `system()` and `tools()` caching for its own loop when its model's provider supports it, because a loop is the case that reads the prefix back. A setting turns it off.
-  In Loom, an agent option `cache: off` (the default is on for an agent that loops) is the only syntax (D6).
+  In Loom, an agent option `cache: false` (the default is on for an agent that loops) is the only syntax (D6).
 - **R6.** Caching changes cost, never answers. A test shows the request body differs only by the markers.
 
 ## 4. Part B: multimodal input
@@ -194,7 +194,7 @@ VERIFICATION §7. Nothing else in this phase waits on it.
 | D3 | A media type a provider cannot take fails closed, at `weave check` where it can be known; no automatic transcription or captioning. | **taken** (owner) |
 | D4 | Delivered phase by phase: this spec first, then each sub-phase committed and pushed on its own. | **taken** (owner) |
 | D5 | Caching is off by default in the library, on for `ReActAgent` loops. | proposed |
-| D6 | The only Loom caching syntax is the agent option `cache: off`. | proposed |
+| D6 | The only Loom caching syntax is the agent option `cache: false` (true/false, like `streaming` and `steerable`). | **taken** (owner) |
 | D7 | With `pii: mask` or `pii: block`, media is refused unless the script opts in with an explicit "unscanned" setting on the guard. Exact spelling is open. | proposed |
 | D8 | Default limits: 20 MB per item, 4 items per message, 32 MB per request, image/audio/video/PDF allow lists as in §4.2 R7. To be checked against the vendors' limits in 31c. | proposed |
 | D9 | `note` and `halt` do not take `attach`. | proposed |

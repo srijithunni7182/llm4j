@@ -173,7 +173,7 @@ const LOOM_KEYWORDS: Record<string, string> = {
     max_iterations:
         '**max_iterations** `: N`\n\nOn an agent: the most reasoning steps it may take for one task.',
     cache:
-        '**cache** `: on | off`\n\nOn an agent: lets the provider cache the system prompt, tools and conversation a looping agent resends (on by default). Turn it off for an agent that answers in one call.',
+        '**cache** `: true | false`\n\nOn an agent: lets the provider cache the system prompt, tools and conversation a looping agent resends (on by default). Turn it off for an agent that answers in one call.',
     source:
         '**source** `: "docs/"`\n\nIn a `knowledge` block: a file or directory of md, txt, html, json or csv files.',
     provider:
