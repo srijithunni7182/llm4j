@@ -201,7 +201,7 @@ Specific things to settle when the specification is read closely, before the des
 - Whether a separate structured-data part exists, and how a file is represented (the specification names `raw` and `url`, with a media type).
 - The exact JSON-RPC method names and result shapes. `SendMessage`, `SendStreamingMessage`, `GetTask`, `ListTasks`, `CancelTask`, `SubscribeToTask` and `GetExtendedAgentCard` were seen as headings; the push-notification configuration methods were not.
 - ~~Which bindings llm4j's types should be written for.~~ Settled by principle 9: the model is independent of binding and version, and the only translation we ship is 1.0 over JSON-RPC.
-- `TASK_STATE_AUTH_REQUIRED`, a second kind of pause besides asking for input. The `agent_channel` design currently covers questions; it must decide how to handle a request for authorization.
+- `TASK_STATE_AUTH_REQUIRED`, a second kind of pause besides asking for input. The channel receives it as its own kind of message and fails closed unless handled (section 6); how a channel should handle it in detail is open (see "Still to decide").
 - The 1.0.0 specification changes names from earlier versions (0.3.0, 0.2.6 and 0.1.0 are linked). Other sources and examples on the web may use the old names.
 
 ## Still to decide
