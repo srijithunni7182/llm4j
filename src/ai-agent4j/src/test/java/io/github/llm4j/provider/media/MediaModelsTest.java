@@ -16,6 +16,7 @@ import io.github.llm4j.provider.openai.Dialect;
 import io.github.llm4j.provider.openai.OpenAiCompatibleProvider;
 import io.github.llm4j.provider.openai.OpenAiResponsesProvider;
 import io.github.llm4j.provider.openai.ResponsesDialect;
+import io.github.llm4j.provider.openai.Vendor;
 import io.github.llm4j.provider.sarvam.SarvamChatProvider;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -215,6 +216,32 @@ class MediaModelsTest {
 
         assertThat(provider.mediaCapabilities(model.strip()).kinds())
                 .containsExactlyInAnyOrderElementsOf(kinds(expected));
+    }
+
+    @Test
+    void whatAModelTakesCanBeAskedByNameAloneWithoutAProviderOrAKey() {
+        // weave check answers from a model name before any credential exists
+        assertThat(AnthropicProvider.mediaCapabilitiesOf("claude-sonnet-5-5").kinds())
+                .containsExactlyInAnyOrder(IMAGE, DOCUMENT);
+        assertThat(AnthropicProvider.mediaCapabilitiesOf("gpt-5"))
+                .isEqualTo(MediaCapabilities.NONE);
+        assertThat(AnthropicProvider.mediaCapabilitiesOf(null)).isEqualTo(MediaCapabilities.NONE);
+        assertThat(GoogleProvider.mediaCapabilitiesOf("gemini-2.5-flash").kinds())
+                .containsExactlyInAnyOrder(IMAGE, AUDIO, VIDEO, DOCUMENT);
+        assertThat(GoogleProvider.mediaCapabilitiesOf("gemini-2.5-flash-preview-tts"))
+                .isEqualTo(MediaCapabilities.NONE);
+        assertThat(OllamaProvider.mediaCapabilitiesOf("gemma3:4b").kinds()).containsExactly(IMAGE);
+        assertThat(OllamaProvider.mediaCapabilitiesOf("llama3.1:8b"))
+                .isEqualTo(MediaCapabilities.NONE);
+    }
+
+    @Test
+    void aVendorAnswersByModelNameToo() {
+        assertThat(Vendor.OPENAI.mediaCapabilities("gpt-5-mini").kinds())
+                .containsExactlyInAnyOrder(IMAGE, DOCUMENT);
+        assertThat(Vendor.XAI.mediaCapabilities("grok-4").kinds()).containsExactly(IMAGE);
+        // Perplexity has only the Responses record, which records nothing
+        assertThat(Vendor.PERPLEXITY.mediaCapabilities("sonar")).isEqualTo(MediaCapabilities.NONE);
     }
 
     @Test

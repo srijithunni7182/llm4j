@@ -147,8 +147,8 @@ workflow Expense(receipt_path) {
 
 - `attach` takes one or more items, comma-separated: `image|audio|video|document "<path>"`. The path is a string like any other, so `{name}` substitution applies (and the `substitution` setting governs it).
 - Order in a statement: payload, `to`, `attach …`, then `-> var`, then `expecting`, `retry`, and the rest, unchanged. `attach` before `->` reads left to right: what is sent, to whom, with what.
-- The same clause is accepted on `broadcast` (the same media goes to every agent in the list), `handoff`, `extract`, `intentclassify`, a `run` step that names a model, and `human_prompt` (the person is shown the media, §5.4).
-  `note` and `halt` record text and send nothing to a model, so they do not take `attach` (D9). The full list of statements is confirmed against the parser in 31e's first task.
+- The same clause is accepted on `broadcast` (the same media goes to every agent in the list), `handoff`, `extract` and `human_prompt` (the person is shown the media, §5.4).
+  **Settled in 31e's survey (P4) and by the owner:** the statements that send a task to a model are `delegate`, `broadcast` and `handoff` (they run an agent, through `ReActAgent.run`, and `for each` runs them) and `extract` (a direct model call, its own request). `intentclassify` takes **no** media (owner, 2026-11-06: not needed; its classifier interface is text only). A `run` task is Java code, `check` judges text, and `note` and `halt` record text and send nothing to a model (D9), so none of them takes `attach`. A statement that does not take it and is followed by `attach` is a parse error that says which statements do.
 - A script sets where files may live, once, at the top, like `substitution`:
 
 ```loom
@@ -210,7 +210,7 @@ VERIFICATION §7. Nothing else in this phase waits on it.
 | **31b** | `MediaKind`, `Media`, `MediaPolicy`, `Message.media`, request validation, `MediaCapabilities`, serialisation as a descriptor, `toString`/log hygiene | R7 to R10, R15 |
 | **31c** | The writers: Anthropic, OpenAI chat, OpenAI Responses, Google, Ollama, the OpenAI-compatible family, refusals for Sarvam and Perplexity; recorded fixtures; the §4.3 table confirmed | R11 |
 | **31d** | Decorators, PII refusal, token estimates for budgets and windows, `ReActAgent.run` overload and compaction | R12 to R14, R19 |
-| **31e** | Loom: AST, parser, `media_root`/`media`, source resolver, `weave check`, runtime, journal and replay, audit rule, graph, `human_prompt` | R16 to R22 |
+| **31e** | Loom: AST, parser, `media_root`/`media`, source resolver, `weave check`, runtime, journal and replay, audit rule, graph, `guard { media: unscanned }`; in this order, each committed on its own: `delegate`/`broadcast`/`handoff`, then `extract`, then `human_prompt` | R16 to R22 |
 | **31f** | Docs everywhere they live, the VS Code grammar and snippets, CTK scenarios, starters/tutorial where they apply, the skills, release notes, `API_COMPATIBILITY.md`, mutation profile | R23 and the documentation rules |
 
 Each sub-phase is written test first, passes `mvn verify` on every module it touches, is committed and pushed on its own, and updates its row in [the roadmap](../README.md).

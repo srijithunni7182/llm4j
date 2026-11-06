@@ -1,6 +1,7 @@
 package io.github.llm4j.loom.parser;
 
 import io.github.llm4j.loom.ast.*;
+import io.github.llm4j.model.MediaKind;
 import io.github.llm4j.loom.lexer.Token;
 import io.github.llm4j.loom.lexer.TokenType;
 import java.util.List;
@@ -82,6 +83,22 @@ public class LoomParser {
                                         "Expect a folder for prompts, e.g. prompts: \"./prompts\".")
                                 .getValue(),
                         keyword.getLine());
+            } else if (isNamedAttribute("media_root")) {
+                // Contextual, like prompts: stays usable as a name everywhere else.
+                Token keyword = advance();
+                advance(); // the colon
+                if (script.getMediaRoot() != null)
+                    throw error(keyword, "Only one media_root can be given.");
+                script.setMediaRoot(
+                        consume(
+                                        TokenType.STRING_LITERAL,
+                                        "Expect a folder for media_root, e.g. media_root: \"./assets\".")
+                                .getValue());
+            } else if (isWord("media") && peekAt(1).getType() == TokenType.LBRACE) {
+                Token keyword = advance();
+                if (script.getMediaMaxBytes() != null || script.getMediaMaxItems() != null)
+                    throw error(keyword, "Only one media block can be given.");
+                parseMediaBlock(script);
             } else if (isNamedAttribute("substitution")) {
                 // Contextual, like shared_prompt: stays usable as a name everywhere else.
                 Token keyword = advance();
@@ -532,6 +549,14 @@ public class LoomParser {
             return parseSleep();
         }
 
+        if (isWord("attach")) {
+            throw error(
+                    peek(),
+                    "attach belongs after the target of a delegate, broadcast, handoff and extract,"
+                            + " as in: delegate \"What is the total?\" to Reader attach image"
+                            + " \"receipt.png\" -> total. note and halt send nothing to a model, so"
+                            + " they take no attachment.");
+        }
         throw error(peek(), "Expected statement, got " + peek().getType());
     }
 
@@ -548,6 +573,46 @@ public class LoomParser {
     private boolean parseOutcomeAhead() {
         pendingOutcome = parseOutcome();
         return pendingOutcome != null;
+    }
+
+    /** {@code media { max_bytes: 20MB  max_items: 4 }}, after the word {@code media}. */
+    private void parseMediaBlock(LoomScript script) {
+        consume(TokenType.LBRACE, "Expect '{' after media.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token key = consume(TokenType.IDENTIFIER, "Expect max_bytes or max_items in media { }.");
+            if (!"max_bytes".equals(key.getValue()) && !"max_items".equals(key.getValue())) {
+                throw error(
+                        key, "media { } takes max_bytes and max_items, not " + key.getValue() + ".");
+            }
+            consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
+            Token number = consume(TokenType.NUMBER_LITERAL, "Expect a number after " + key.getValue() + ":.");
+            if ("max_bytes".equals(key.getValue())) script.setMediaMaxBytes(bytesWithUnit(number));
+            else script.setMediaMaxItems((int) Double.parseDouble(number.getValue()));
+        }
+        consume(TokenType.RBRACE, "Expect '}' after the media settings.");
+    }
+
+    /** A byte count: a number, then KB, MB or GB, or nothing for bytes. */
+    private long bytesWithUnit(Token number) {
+        double value = Double.parseDouble(number.getValue());
+        long factor = 1;
+        // a word that is followed by a colon is the next setting, not a unit
+        if (check(TokenType.IDENTIFIER) && peekAt(1).getType() != TokenType.COLON) {
+            Token unit = advance();
+            factor =
+                    switch (unit.getValue().toUpperCase(java.util.Locale.ROOT)) {
+                        case "B" -> 1L;
+                        case "KB" -> 1024L;
+                        case "MB" -> 1024L * 1024;
+                        case "GB" -> 1024L * 1024 * 1024;
+                        default -> throw error(
+                                unit,
+                                "max_bytes takes a number and then KB, MB or GB, not "
+                                        + unit.getValue()
+                                        + ".");
+                    };
+        }
+        return (long) (value * factor);
     }
 
     private boolean isWord(String word) {
@@ -1657,7 +1722,48 @@ public class LoomParser {
         consume(TokenType.TO, "Expect 'to' after handoff payload.");
         Token target = consume(TokenType.IDENTIFIER, "Expect target agent identifier.");
 
-        return new HandoffStmt(payload, target.getValue());
+        HandoffStmt handoff = new HandoffStmt(payload, target.getValue());
+        parseAttachments(handoff.getAttachments());
+        return handoff;
+    }
+
+    /**
+     * The optional {@code attach image "a.png", audio "b.wav"} clause, which follows the target of
+     * a step that sends a task to an agent. {@code attach} is a word only here, so an agent or a
+     * variable of that name still works everywhere else.
+     */
+    private void parseAttachments(java.util.List<AttachItem> into) {
+        if (!isWord("attach")) return;
+        advance();
+        do {
+            Token kindWord = peek();
+            MediaKind kind =
+                    check(TokenType.IDENTIFIER) ? mediaKindOf(kindWord.getValue()) : null;
+            if (kind == null) {
+                throw error(
+                        kindWord,
+                        "attach takes image, audio, video or document, as in attach image \"photo.png\""
+                                + (kindWord.getValue() == null
+                                        ? "."
+                                        : ", not \"" + kindWord.getValue() + "\"."));
+            }
+            advance();
+            Token file =
+                    consume(
+                            TokenType.STRING_LITERAL,
+                            "Write the file after " + kind.label() + ": attach " + kind.label() + " \"photo.png\"");
+            into.add(new AttachItem(kind, file.getValue(), kindWord.getLine()));
+        } while (match(TokenType.COMMA));
+    }
+
+    private static MediaKind mediaKindOf(String word) {
+        return switch (word) {
+            case "image" -> MediaKind.IMAGE;
+            case "audio" -> MediaKind.AUDIO;
+            case "video" -> MediaKind.VIDEO;
+            case "document" -> MediaKind.DOCUMENT;
+            default -> null;
+        };
     }
 
     private DelegateStmt parseDelegateStmt() {
@@ -1685,11 +1791,15 @@ public class LoomParser {
             throw error(peek(), "in [..] is for a target chosen at run time ({task.owner}); " + target + " is already one agent.");
         }
 
+        java.util.List<AttachItem> attachments = new java.util.ArrayList<>();
+        parseAttachments(attachments);
+
         consume(TokenType.ARROW, "Expect '->' to assign delegate result.");
         String varName = nameOrReference("Expect variable name for result (or {item.field}).");
 
         DelegateStmt stmt = new DelegateStmt(payload, target, varName);
         stmt.getAllowedTargets().addAll(allowed);
+        stmt.getAttachments().addAll(attachments);
 
         // Optional per-step schema: the same agent can return different structures in different
         // steps.
@@ -2169,10 +2279,14 @@ public class LoomParser {
         }
         consume(TokenType.RBRACKET, "Expect ']' after agent list.");
 
+        java.util.List<AttachItem> attachments = new java.util.ArrayList<>();
+        parseAttachments(attachments);
+
         consume(TokenType.ARROW, "Expect '->' to assign broadcast result.");
         Token varName = consume(TokenType.IDENTIFIER, "Expect variable name for result.");
 
         BroadcastStmt broadcast = new BroadcastStmt(payload, targetAgents, varName.getValue());
+        broadcast.getAttachments().addAll(attachments);
         while (isBudgetModifier()) broadcast.setBudget(parseBudgetModifier(broadcast.getBudget()));
         return broadcast;
     }

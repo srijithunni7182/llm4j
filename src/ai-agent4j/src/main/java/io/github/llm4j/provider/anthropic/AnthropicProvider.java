@@ -407,7 +407,11 @@ public class AnthropicProvider implements DescribableProvider {
     /** Every Claude model takes pictures and PDFs; none takes sound or video (confirmed live). */
     @Override
     public io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
-        String name = model != null ? model : config.getDefaultModel();
+        return mediaCapabilitiesOf(model != null ? model : config.getDefaultModel());
+    }
+
+    /** What the model of this name takes, with no provider or key needed; null takes nothing. */
+    public static io.github.llm4j.model.MediaCapabilities mediaCapabilitiesOf(String name) {
         return name != null && name.startsWith("claude-")
                 ? io.github.llm4j.model.MediaCapabilities.of(
                         io.github.llm4j.model.MediaKind.IMAGE,

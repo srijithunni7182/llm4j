@@ -254,7 +254,11 @@ public class OllamaProvider implements DescribableProvider {
      */
     @Override
     public io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
-        String name = model != null ? model : config.getDefaultModel();
+        return mediaCapabilitiesOf(model != null ? model : config.getDefaultModel());
+    }
+
+    /** What the model of this name takes, with no provider or key needed; null takes nothing. */
+    public static io.github.llm4j.model.MediaCapabilities mediaCapabilitiesOf(String name) {
         return name != null && VISION_MODELS.matcher(name).matches()
                 ? io.github.llm4j.model.MediaCapabilities.of(io.github.llm4j.model.MediaKind.IMAGE)
                 : io.github.llm4j.model.MediaCapabilities.NONE;

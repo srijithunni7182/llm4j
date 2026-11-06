@@ -3098,7 +3098,30 @@ public class HarnessExecutor implements LoomEngine {
         }
     }
 
+    /**
+     * Until the runtime sends attachments (phase 31e, next step), a step that names some refuses
+     * to run, so a picture is never silently left out of what the model is sent.
+     */
+    private static void refuseAttachmentsNotYetRun(Statement stmt) {
+        java.util.List<io.github.llm4j.loom.ast.AttachItem> items =
+                stmt instanceof DelegateStmt d
+                        ? d.getAttachments()
+                        : stmt instanceof HandoffStmt h
+                                ? h.getAttachments()
+                                : stmt instanceof BroadcastStmt b
+                                        ? b.getAttachments()
+                                        : java.util.List.of();
+        if (!items.isEmpty()) {
+            throw new IllegalStateException(
+                    "this step attaches "
+                            + items.size()
+                            + " file(s), and this version of Loom does not send attachments yet;"
+                            + " nothing was sent");
+        }
+    }
+
     private void executeStatement(Statement stmt) {
+        refuseAttachmentsNotYetRun(stmt);
         decisions.enter(stmt, step.get());
         if (stmt instanceof CheckpointStmt checkpoint) {
             java.util.ArrayDeque<Rewinder.Frame> stack = frames.get();
