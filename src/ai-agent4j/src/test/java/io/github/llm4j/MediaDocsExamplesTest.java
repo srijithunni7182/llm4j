@@ -60,11 +60,11 @@ class MediaDocsExamplesTest {
 
     @Test
     void attachSomethingToAMessage(@TempDir Path dir) throws Exception {
-        Files.write(dir.resolve("receipt.png"), TinyMedia.png());
+        Path receiptFile = Files.write(dir.resolve("receipt.png"), TinyMedia.png());
         LLMClient client = client();
         // --- sample: attach
         MediaPolicy policy = MediaPolicy.defaults();
-        Media receipt = Media.image(dir.resolve("receipt.png"), policy);
+        Media receipt = Media.image(receiptFile, policy);
 
         LLMResponse reply = client.chat(LLMRequest.builder()
                 .addMessage(Message.user("What is the total on this receipt?", List.of(receipt)))

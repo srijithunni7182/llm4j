@@ -6,14 +6,14 @@ A message can carry more than text. Give the model a screenshot, a scanned form,
 
 ```java
 MediaPolicy policy = MediaPolicy.defaults();
-Media receipt = Media.image(Path.of("receipt.png"), policy);
+Media receipt = Media.image(receiptFile, policy);
 
 LLMResponse reply = client.chat(LLMRequest.builder()
         .addMessage(Message.user("What is the total on this receipt?", List.of(receipt)))
         .build());
 ```
 
-`Media.image`, `Media.audio`, `Media.video` and `Media.document` (a PDF) read a file. `Media.of(kind, bytes, name, policy)` takes bytes you already have. Only a user message can carry media; an assistant, system or tool message that tries is refused.
+Here `receiptFile` is the `Path` of a picture. `Media.image`, `Media.audio`, `Media.video` and `Media.document` (a PDF) read a file. `Media.of(kind, bytes, name, policy)` takes bytes you already have. Only a user message can carry media; an assistant, system or tool message that tries is refused.
 
 The type is decided from the **bytes**, never from the file name or from what you call it. A PDF handed over as an image is refused, so is an empty file, a file over the limit, a format the library does not know, and SVG (it is text that can carry script). The error says which.
 
