@@ -152,10 +152,6 @@ public class LoomScript implements Node {
         return sharedPromptLine;
     }
 
-    /**
-     * {@code substitution: braces}: only {@code {name}} is replaced by a variable's value. The
-     * default, {@code legacy}, also replaces a variable's name where it is written as a plain word.
-     */
     private String mediaRoot;
     private Long mediaMaxBytes;
     private Integer mediaMaxItems;
@@ -190,6 +186,10 @@ public class LoomScript implements Node {
         this.mediaMaxItems = mediaMaxItems;
     }
 
+    /**
+     * {@code substitution: braces}: only {@code {name}} is replaced by a variable's value. The
+     * default, {@code legacy}, also replaces a variable's name where it is written as a plain word.
+     */
     public String getSubstitution() {
         return substitution;
     }
