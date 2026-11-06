@@ -29,6 +29,13 @@ public class GoogleProvider implements DescribableProvider {
     private static final java.util.regex.Pattern STRUCTURED_OUTPUT_MODELS =
             java.util.regex.Pattern.compile("^gemini-(?:2\\.5|[3-9](?:\\.\\d+)?)(?:-.*)?$");
 
+    /** The Gemini models that take media: all but the speech-synthesis ({@code -tts}) ones. */
+    private static final java.util.regex.Pattern MEDIA_MODELS =
+            java.util.regex.Pattern.compile("^(?:models/)?gemini-(?!.*tts).*$");
+
+    /** What a {@code generateContent} request may carry inline, in bytes (the vendor's limit). */
+    static final long MAX_INLINE_BYTES = 20L * 1024 * 1024;
+
     private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
             new com.fasterxml.jackson.databind.ObjectMapper();
 
@@ -65,6 +72,7 @@ public class GoogleProvider implements DescribableProvider {
 
     @Override
     public LLMResponse chat(LLMRequest request) {
+        requireMedia(request);
         try {
             String model =
                     request.getModel() != null ? request.getModel() : config.getDefaultModel();
@@ -96,6 +104,7 @@ public class GoogleProvider implements DescribableProvider {
      */
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
+        requireMedia(request);
         String model = request.getModel() != null ? request.getModel() : config.getDefaultModel();
         if (model == null) {
             throw new InvalidRequestException("Model must be specified in request or config");
@@ -473,7 +482,16 @@ public class GoogleProvider implements DescribableProvider {
             }
             return;
         }
-        parts.addObject().put("text", message.getContent());
+        // pictures, sound, video and PDFs go before the question about them
+        for (io.github.llm4j.model.Media item : message.getMedia()) {
+            parts.addObject()
+                    .putObject("inline_data")
+                    .put("mime_type", item.mediaType())
+                    .put("data", item.base64());
+        }
+        if (!message.getContent().isEmpty() || message.getMedia().isEmpty()) {
+            parts.addObject().put("text", message.getContent());
+        }
     }
 
     /**
@@ -541,6 +559,44 @@ public class GoogleProvider implements DescribableProvider {
     /**
      * Gemini 2.5 and later hold a reply to a JSON Schema (Google's structured-output announcement).
      */
+    /**
+     * Every Gemini model except the speech models takes pictures, sound, video and PDFs (confirmed
+     * live on gemini-2.5-flash).
+     */
+    /**
+     * Refuses media the model cannot take, or more of it than a request may carry inline, before
+     * anything is sent.
+     */
+    private void requireMedia(LLMRequest request) {
+        io.github.llm4j.provider.Providers.requireMedia(this, request);
+        long inline =
+                request.getMessages().stream()
+                        .flatMap(m -> m.getMedia().stream())
+                        .mapToLong(io.github.llm4j.model.Media::size)
+                        .sum();
+        if (inline > MAX_INLINE_BYTES) {
+            throw new io.github.llm4j.exception.InvalidRequestException(
+                    "the request carries "
+                            + inline
+                            + " bytes of media, over the "
+                            + MAX_INLINE_BYTES
+                            + " (20 MiB) Gemini takes inline in one request; send less, or smaller"
+                            + " media");
+        }
+    }
+
+    @Override
+    public io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
+        String name = model != null ? model : config.getDefaultModel();
+        return name != null && MEDIA_MODELS.matcher(name).matches()
+                ? io.github.llm4j.model.MediaCapabilities.of(
+                        io.github.llm4j.model.MediaKind.IMAGE,
+                        io.github.llm4j.model.MediaKind.AUDIO,
+                        io.github.llm4j.model.MediaKind.VIDEO,
+                        io.github.llm4j.model.MediaKind.DOCUMENT)
+                : io.github.llm4j.model.MediaCapabilities.NONE;
+    }
+
     @Override
     public io.github.llm4j.model.StructuredOutput structuredOutput(String model) {
         String name = model != null ? model : config.getDefaultModel();

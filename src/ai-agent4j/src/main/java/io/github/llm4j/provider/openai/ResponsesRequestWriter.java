@@ -225,10 +225,14 @@ final class ResponsesRequestWriter {
                         .put("call_id", m.getToolCallId() == null ? "" : m.getToolCallId())
                         .put("output", m.getContent());
                 case ASSISTANT -> assistant(dialect, m, input);
-                default -> input.addObject()
-                        .put("type", "message")
-                        .put("role", "user")
-                        .put("content", m.getContent());
+                default -> {
+                    ObjectNode user = input.addObject().put("type", "message").put("role", "user");
+                    if (m.getMedia().isEmpty()) {
+                        user.put("content", m.getContent());
+                    } else {
+                        user.set("content", MediaParts.responses(m));
+                    }
+                }
             }
         }
         return input;

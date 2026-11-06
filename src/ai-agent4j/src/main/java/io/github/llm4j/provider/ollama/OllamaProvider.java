@@ -22,6 +22,15 @@ public class OllamaProvider implements DescribableProvider {
     private static final Logger logger = LoggerFactory.getLogger(OllamaProvider.class);
     private static final String DEFAULT_BASE_URL = "http://localhost:11434/api";
 
+    /**
+     * Ollama models that see pictures, by name: LLaVA and its relatives, Gemma 3, Llama 3.2 Vision
+     * and 4, MiniCPM-V, Moondream and the Qwen-VL line. From Ollama's library, not confirmed
+     * against a running server.
+     */
+    private static final java.util.regex.Pattern VISION_MODELS =
+            java.util.regex.Pattern.compile(
+                    "(?i).*(?:llava|vision|-vl|\\dvl|gemma3|moondream|minicpm-v|bakllava|llama4).*");
+
     private final LLMConfig config;
     private final HttpClientWrapper httpClient;
     private final ObjectMapper objectMapper;
@@ -46,6 +55,7 @@ public class OllamaProvider implements DescribableProvider {
 
     @Override
     public LLMResponse chat(LLMRequest request) {
+        Providers.requireMedia(this, request);
         try {
             String model =
                     request.getModel() != null ? request.getModel() : config.getDefaultModel();
@@ -80,6 +90,7 @@ public class OllamaProvider implements DescribableProvider {
      */
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
+        Providers.requireMedia(this, request);
         String model = request.getModel() != null ? request.getModel() : config.getDefaultModel();
         if (model == null) model = getFirstAvailableModel();
         if (model == null) {
@@ -207,6 +218,11 @@ public class OllamaProvider implements DescribableProvider {
             String role = message.getRole().name().toLowerCase();
             messageNode.put("role", role);
             messageNode.put("content", message.getContent());
+            if (!message.getMedia().isEmpty()) {
+                ArrayNode images = messageNode.putArray("images");
+                for (io.github.llm4j.model.Media item : message.getMedia())
+                    images.add(item.base64());
+            }
         }
 
         ObjectNode optionsNode = root.putObject("options");
@@ -232,6 +248,18 @@ public class OllamaProvider implements DescribableProvider {
      * Cloud documents that it does not support structured outputs, so a host that is {@code
      * ollama.com} or a subdomain of it is left on the prompt route.
      */
+    /**
+     * Pictures on the vision models, by name; everything else is refused. Ollama's chat API has no
+     * place for sound or video.
+     */
+    @Override
+    public io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
+        String name = model != null ? model : config.getDefaultModel();
+        return name != null && VISION_MODELS.matcher(name).matches()
+                ? io.github.llm4j.model.MediaCapabilities.of(io.github.llm4j.model.MediaKind.IMAGE)
+                : io.github.llm4j.model.MediaCapabilities.NONE;
+    }
+
     @Override
     public io.github.llm4j.model.StructuredOutput structuredOutput(String model) {
         String host = java.net.URI.create(baseUrl).getHost();

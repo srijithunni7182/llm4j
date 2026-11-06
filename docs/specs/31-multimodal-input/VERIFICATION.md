@@ -90,6 +90,41 @@ Grep the whole repository for `Message`, `delegate`, `attach`, `human_prompt`, `
 
 ## 7. Results
 
+### 31c: the providers (built; live-confirmed for the providers whose keys were available)
+
+**Built.** Per-model media capabilities for the OpenAI family (`Dialect`, `ResponsesDialect`, the patterns in `MediaModels`), Anthropic, Google and Ollama; the writers for Anthropic (`image`, `document`), OpenAI chat (`image_url`, `file`, `input_audio`), OpenAI Responses (`input_image`, `input_file`), Google (`inline_data`) and Ollama (`images`); `Providers.requireMedia`, called first by every provider that takes media and by Sarvam, so media is refused and never dropped even when a provider is called directly; Google's 20 MiB inline limit (R11, R10, R3). The user page [Media-Input.md](../../../src/ai-agent4j/wiki/Media-Input.md) with a docs-example test (`MediaDocsExamplesTest`), linked from the wiki index and `llms.txt`; `API_COMPATIBILITY.md`; the release notes.
+
+**Live confirmation (P2 and P3), 2026-11-06.** By hand, then through the library with `mvn -Plive` (`LiveMediaTest`, `LiveCachingTest`: 13 tests, 0 failures, 0 skipped, a 60,000-token budget per provider):
+
+| Check | Result |
+|---|---|
+| Anthropic `claude-haiku-5-5`: picture | "Red" |
+| Anthropic: PDF containing `TOTAL 4217` | "4217" |
+| Anthropic: `audio` and `video` blocks | HTTP 400 "Input tag 'audio' found using 'type' does not match any of the expected tags" (so refusing both is right) |
+| Anthropic: a marked 13,003-token system block, sent twice | call 1 wrote 13,003 tokens to the cache, call 2 read the same 13,003 (**closes M7**; through the library: the second call read over 1,000 tokens the first had written) |
+| Anthropic: five `cache_control` markers | HTTP 400 "A maximum of 4 blocks with cache_control may be provided. Found 5." (**confirms the limit of four**) |
+| OpenAI chat `gpt-5-mini`: picture, PDF as a `file` part | answered (the picture: "Maroon" for a pure red picture on the hand call, "red" when the question named the choices) / "4217" |
+| OpenAI Responses `gpt-5-mini`: picture, PDF as `input_file` | "Red" / "4217" |
+| OpenAI `gpt-audio` and `gpt-audio-mini`: `input_audio` WAV | HTTP 200 (the two models disagreed whether a tone is speech: the wire shape is confirmed, their judgement is not) |
+| OpenAI `gpt-5-mini`: `input_audio` | HTTP 400 (so sound is per model, not per provider) |
+| xAI `grok-4.20-0309-non-reasoning`: picture | "red" |
+| Google `gemini-2.5-flash`: picture, PDF, WAV, MP3, MP4 (all `inline_data`) | "Red", "4217", "Tone", "Tone", "Red." |
+
+The sniffer's rules also match the first bytes of real files made with ffmpeg (WAV `RIFF…WAVE`, MP3 `ID3`, MP4 `ftypisom`) and of a real PNG and PDF, so the synthetic test fixtures were faithful.
+
+**Tests (written first, red because `mediaCapabilities` did not exist, then green).** `MediaModelsTest` (a table over every provider and model named in DESIGN §4.3), `MediaBodyTest` for Anthropic, OpenAI (chat and Responses), Google and Ollama, `MediaRefusalTest` for Sarvam, `MediaDocsExamplesTest`, plus the tagged live tests.
+
+**Guard-removal checks (each guard disabled by hand, a test failed, then restored).** The shared provider refusal (`requireMedia`); Google's 20 MiB inline limit; the MP3-to-`mp3` mapping; the refusal of audio formats the API does not take; audio models not being offered pictures; `o1-mini` and `o3-mini` not being offered pictures; Anthropic needing a Claude model; Gemini speech models not being offered media. **One was missed on the first pass** (Anthropic needing a Claude model: no test gave Anthropic another model name) and one "catch" was not valid (my edit left the file uncompilable). A test was added and the check redone with a well-formed edit; all are now caught.
+
+**Deviations from the design.**
+- The OpenAI Responses API is offered pictures and PDFs only. Sound there is not offered, though it was not tried against the real API; chat completions is the confirmed route.
+- OpenAI's audio models are not offered pictures or PDFs (their documentation lists text and audio), and a plain chat model is not offered sound. Pictures on `gpt-4-turbo` and older are not offered either: the patterns record only what is known, so the older models are refused until someone adds them.
+- Kimi and Qwen are offered pictures on models whose names say vision (`vision`, `-vl`). **Not confirmed**: no key. Ollama is offered pictures on models whose names match the pattern in `OllamaProvider`; **not confirmed**: no running server. Both are tested against the request they must send.
+- A generic OpenAI-style server takes no media. A user running a local vision model on LM Studio or vLLM is refused until the dialect can be told (`Dialect.Builder.mediaModels`, public, takes a pattern); a setting for it in `LLMConfig` is **not built**.
+- `Media.fromFile` still takes any path (path containment is Loom's, 31e).
+
+**Not verified (owed).** Kimi, Qwen and Ollama against the real services. Video on any provider but Gemini (none of the others takes it). PIT mutation profile for the media classes (TEST_STRATEGY: 85%). The downstream suites for this commit (see the end of this section).
+
 ### 31b: the media model and guards (built; wider module checks owed, see the end of this section)
 
 **Built.** `MediaKind`, `Media`, `MediaDescriptor`, `MediaPolicy`, `MediaCapabilities` and the package-private `MediaSniffer` (R7, R8, R9, R15); `Message.media` with its Jackson behaviour (R7, R9); `LLMRequest.mediaPolicy`, `mediaKinds()` and the per-message and per-request limits (R8); `mediaCapabilities(model)` on `LLMClient` and `LLMProvider` (default `NONE`), the refusal in `DefaultLLMClient.chat` and `chatStream`, and the pass-through in the budgeted, masking and routing clients (R10, R12 in part).

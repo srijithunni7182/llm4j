@@ -123,7 +123,11 @@ final class ChatRequestWriter {
             }
             return node;
         }
-        node.put("content", m.getContent());
+        if (m.getMedia().isEmpty()) {
+            node.put("content", m.getContent());
+        } else {
+            node.set("content", MediaParts.chat(m));
+        }
         return node;
     }
 }

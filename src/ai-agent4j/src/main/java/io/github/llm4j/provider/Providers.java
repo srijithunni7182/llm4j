@@ -4,6 +4,7 @@ import io.github.llm4j.exception.AuthenticationException;
 import io.github.llm4j.exception.InvalidRequestException;
 import io.github.llm4j.exception.ProviderException;
 import io.github.llm4j.exception.RateLimitException;
+import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 
 /** Small helpers every provider uses to keep the contract uniform. */
@@ -29,6 +30,16 @@ public final class Providers {
     public static final String CACHE_WRITE_TOKENS = "usage.cache_write_tokens";
 
     private Providers() {}
+
+    /**
+     * Refuses a request whose media the provider cannot send, before anything goes out. The writers
+     * of a provider that takes media assume this has passed; a provider that takes none calls it so
+     * media is never silently dropped, whichever way the provider is reached.
+     */
+    public static void requireMedia(LLMProvider provider, LLMRequest request) {
+        if (request.mediaKinds().isEmpty()) return;
+        provider.mediaCapabilities(request.getModel()).require(provider.getProviderName(), request);
+    }
 
     /**
      * Keeps a typed failure as it is — authentication, invalid request, rate limit, or any provider

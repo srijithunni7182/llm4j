@@ -110,20 +110,22 @@ Message m = Message.user("What is the total on this receipt?", List.of(photo));
   otherwise by bytes), conservatively high so that a budget is never silently breached. The vendor's reported usage replaces the estimate after the call. The estimates are named constants with the vendor figure they come from.
 - **R15. Secrets.** No secret ever appears in media handling: no key in a path, no credential in a descriptor. Media bytes are never logged. A test fails if a byte of the payload reaches a log appender.
 
-### 4.3 What each provider takes (to be confirmed by recorded fixtures in 31c)
+### 4.3 What each provider takes
+
+**confirmed** means a real call on 2026-11-06 returned the right answer (VERIFICATION §7, 31c); **documented** means it follows the vendor's documentation and is tested against the request it must send, not yet against the real API.
 
 | Provider | Image | Audio | Video | PDF | Wire shape |
 |---|---|---|---|---|---|
-| Anthropic | yes | no | no | yes | `image` / `document` blocks with a base64 `source` |
-| OpenAI chat | yes (vision models) | some models only | no | via file part on some models | `content` array: `image_url` with a `data:` URI; `input_audio`; `file` |
-| OpenAI Responses | yes | some models only | no | yes | `input_image`, `input_file`, `input_audio` items |
-| xAI, Kimi, Qwen, generic OpenAI-compatible | vision-capable models | no | no | no | `image_url` as OpenAI chat; anything else is refused |
-| Google (Gemini) | yes | yes | yes | yes | `inline_data {mime_type, data}` parts |
-| Ollama | vision models | no | no | no | base64 `images` array on the message |
-| Sarvam, Perplexity (router and decisions) | no | no | no | no | refused with a clear error |
+| Anthropic (every Claude model) | confirmed | **no**: the API answers 400 | **no**: the API answers 400 | confirmed | `image` / `document` blocks with a base64 `source`, before the text |
+| OpenAI chat completions | confirmed (`gpt-5-mini`; the models in `MediaModels.OPENAI_SEES`) | confirmed on `gpt-audio` and `gpt-audio-mini` (WAV, MP3); a plain chat model answers 400 | no | confirmed (`gpt-5-mini`) | `content` array: `image_url` with a `data:` URI; `file` with `filename` and `file_data`; `input_audio` with `data` and `format` |
+| OpenAI Responses | confirmed | not offered (chat completions only) | no | confirmed | `input_image` with a `data:` URI; `input_file` with `filename` and `file_data`; `input_text` |
+| xAI (Grok 4 family, Grok 2 vision) | confirmed (`grok-4.20-0309-non-reasoning`) | no | no | no | `image_url` as OpenAI chat |
+| Kimi (vision models), Qwen (`-vl` models) | documented | no | no | no | `image_url` as OpenAI chat |
+| Google (every `gemini-*` except `-tts`) | confirmed (`gemini-2.5-flash`) | confirmed (WAV, MP3) | confirmed (MP4) | confirmed | `inline_data {mime_type, data}` parts, before the text |
+| Ollama (vision models by name) | documented | no | no | no | base64 `images` array on the message |
+| Sarvam, Perplexity (router and decisions), a generic OpenAI-style server | no | no | no | no | refused with a clear error |
 
-This table is **recorded knowledge of the vendors' APIs, not yet verified in this repository**. Sub-phase 31c's first task is to confirm each cell against the vendor reference and a recorded fixture, and to correct this table
-where the vendors differ. Where a model within a provider differs (for example OpenAI audio models), the capability lives in the model traits, not in the provider.
+What a model takes is data, recorded by model name, and a model nobody recorded takes nothing. The speech-synthesis Gemini models and the OpenAI audio models are excluded from pictures by name. Where a model within a provider differs, the capability lives in the model patterns (`Dialect`, `ResponsesDialect`), not in the provider.
 
 Inline base64 is the only delivery in this phase (D2). The request-size limits of the vendors (a few tens of megabytes) are part of the capability data, so a video that is too large for inline delivery is refused with that reason.
 

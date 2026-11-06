@@ -103,6 +103,7 @@ public class AnthropicProvider implements DescribableProvider {
 
     @Override
     public LLMResponse chat(LLMRequest request) {
+        Providers.requireMedia(this, request);
         String model = model(request);
         try {
             return parse(
@@ -190,6 +191,7 @@ public class AnthropicProvider implements DescribableProvider {
      */
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
+        Providers.requireMedia(this, request);
         String model = model(request);
         StreamingBody body;
         try {
@@ -400,6 +402,17 @@ public class AnthropicProvider implements DescribableProvider {
     @Override
     public String getProviderName() {
         return "anthropic";
+    }
+
+    /** Every Claude model takes pictures and PDFs; none takes sound or video (confirmed live). */
+    @Override
+    public io.github.llm4j.model.MediaCapabilities mediaCapabilities(String model) {
+        String name = model != null ? model : config.getDefaultModel();
+        return name != null && name.startsWith("claude-")
+                ? io.github.llm4j.model.MediaCapabilities.of(
+                        io.github.llm4j.model.MediaKind.IMAGE,
+                        io.github.llm4j.model.MediaKind.DOCUMENT)
+                : io.github.llm4j.model.MediaCapabilities.NONE;
     }
 
     @Override
@@ -629,8 +642,29 @@ public class AnthropicProvider implements DescribableProvider {
             }
             return out;
         }
-        out.add(JSON.createObjectNode().put("type", "text").put("text", m.getContent()));
+        // pictures and documents go before the question about them, as the API advises
+        for (io.github.llm4j.model.Media item : m.getMedia()) out.add(mediaBlock(item));
+        if (!m.getContent().isEmpty() || m.getMedia().isEmpty()) {
+            out.add(JSON.createObjectNode().put("type", "text").put("text", m.getContent()));
+        }
         return out;
+    }
+
+    /** An {@code image} or {@code document} block with the bytes inline as base64. */
+    private static ObjectNode mediaBlock(io.github.llm4j.model.Media item) {
+        String type =
+                switch (item.kind()) {
+                    case IMAGE -> "image";
+                    case DOCUMENT -> "document";
+                    default -> throw new InvalidRequestException(
+                            "the Messages API takes images and PDFs, not " + item.kind().label());
+                };
+        ObjectNode block = JSON.createObjectNode().put("type", type);
+        block.putObject("source")
+                .put("type", "base64")
+                .put("media_type", item.mediaType())
+                .put("data", item.base64());
+        return block;
     }
 
     @Override
