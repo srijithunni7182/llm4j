@@ -26,15 +26,27 @@ The reactor order matters: a failure in `ai-agent4j-loom` skips the modules afte
 | Command | Use |
 |---|---|
 | `make build` | Compile |
-| `make test` / `mvn verify` | Fast, hermetic tests **and** the JaCoCo coverage gates. This is what "done" means. `mvn test` alone skips the gates. |
 | `mvn -pl <module> -Dtest=FooTest -Djacoco.skip=true test` | Quick loop on one test while iterating |
+| `make test-core` | **Core tier.** The Loom language core (about 30 s, run in parallel, no coverage gates): everything except the `weave` commands, the starters and tutorial, the generated bindings and the editor server. **Run it after every sub-phase.** |
+| `make test-fast` | **Fast tier.** Every test except the ones tagged `slow`, **with** the JaCoCo coverage gates (about 2 minutes for Loom). **Run it after every phase**, on every module you touched. This is what "done" means for a phase. |
+| `make test-oracle` | **The provenance oracle alone** (about 16 s): runs every script in the repository with canary-carrying mock models and checks that no model-written value is treated as trusted. It is a `slow` test, so the other tiers skip it. **Run it once per session, at the end.** |
+| `make test-full` / `make test` / `mvn verify` | **Full tier.** Everything, `slow` tests included, **and** the coverage gates (about 5 to 6 minutes for Loom). **Not part of the working loop**: CI runs it on every pull request. Run it yourself only when the maintainer asks. `mvn test` alone skips the gates. |
 | `make test-extended` | Also the `integration` and `fragile` tests, engram and the examples |
 | `make test-live` | Real provider APIs. Needs keys and costs money; never run it unasked. |
 | `make format-check` | Spotless (google-java-format, AOSP style) on core and addons. `mvn spotless:apply -pl <module>` fixes it. |
 | `make release-check` | Sources and javadoc jars exactly as a release builds them |
 | `mvn -P<mutation-profile> org.pitest:pitest-maven:mutationCoverage -pl <module>` | Mutation tests (see below) |
 
-Don't run Maven with `-o`, because the JaCoCo plugin isn't available offline. The Loom module takes a few minutes to test, so use `-Dtest=` while iterating and run the whole module once before pushing.
+Don't run Maven with `-o`, because the JaCoCo plugin isn't available offline.
+
+**The tiers, and when to run each.** The Loom module takes about 5 to 6 minutes to test, and seven slow tests (scale, property and replay-everything tests) are most of it, so the suite has three tiers (`docs/TESTING_STRATEGY.md`, "The tiers"). The loop is deliberately fast; this is the maintainer's rule for any new build:
+- **While working:** `-Dtest=` for the class you are changing.
+- **After every sub-phase** (for example 31a, 31b, the sub-phases of phase 31 in `docs/specs`), or after each logical step when the work has no phases: `make test-core`.
+- **After every phase** (the whole numbered phase, for example 31, or the whole piece of work when it has none), and before the final push: `make test-fast` on every module you touched. It runs the coverage gates.
+- **Once per session, at the end:** `make test-oracle`, the provenance oracle alone. It is a security check over every script in the repository and the only `slow` test that runs in a session.
+- **The full tier is not part of the loop.** CI runs it on every pull request, and the maintainer reviews. Do not run `make test-full` unless asked. State in your report that the other `slow` tests did not run in the session.
+
+A test is tagged `@Tag("slow")` when it is correct but takes more than about five seconds; do not tag a test slow to hide a performance problem in the code it tests.
 
 ## Principles
 
@@ -108,7 +120,7 @@ Don't run Maven with `-o`, because the JaCoCo plugin isn't available offline. Th
   - When you change code in those areas, run the profile and don't let the score drop. Kill surviving mutants with better assertions; don't exclude them.
   - For new security-critical or decision-making logic, add its classes to a mutation profile.
 - **Test the guards themselves:** security controls are tested like features. A test should fail if the guard is removed, so check it once by breaking the guard on purpose.
-- Before declaring work done, run `mvn verify` on every module you touched, and `make format-check` where it applies. Report honestly what ran and what didn't.
+- Before declaring a sub-phase done, run `make test-core`. Before declaring a phase done, run `make test-fast` on every module you touched, and `make format-check` where it applies. Run `make test-oracle` once at the end of the session. Report honestly which tiers ran and what didn't, including that the other `slow` tests are left to CI.
 
 ### 5. Never leak an API key or secret
 

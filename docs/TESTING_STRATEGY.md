@@ -6,7 +6,9 @@ The default build is fast and hermetic, and it is what a release is gated on. Ev
 
 | Command | What runs |
 |---|---|
-| `mvn verify` (`make test`) | Every test that is not tagged below, plus the coverage rules. No network, no database, no real model, no external program. |
+| `mvn -pl src/loom/ai-agent4j-loom -Pcore test` (`make test-core`) | **Core tier.** The Loom language core (about 30 seconds, 3,760 tests, run in parallel with one JVM per core and a quick JIT; `-DforkCount=1` runs them one after another, for example to chase a test that fails only in parallel): everything except the `weave` commands (`cli`), the starters and the tutorial (`starters`), the generated bindings (`bind`) and the editor server (`serve`), and the `slow` tests. Policies, rewind, earned autonomy, capture, channels, time travel and the debugger are language semantics and are in. No coverage gates. |
+| `mvn -Pfast verify` (`make test-fast`) | **Fast tier.** Every test except the ones tagged `slow`, plus the coverage rules (about 2 minutes for Loom). |
+| `mvn -Pfull verify` (`make test-full`, `make test`, plain `mvn verify`) | **Full tier.** Every test that is not tagged `live`, `integration` or `fragile`, `slow` ones included, plus the coverage rules (about 5 to 6 minutes for Loom). No network, no database, no real model, no external program. |
 | `mvn -Pextended verify` (`make test-extended`) | The default tests **and** the `integration` and `fragile` tests, plus the modules that are not published: `engram` and the example applications with their tests. |
 | `mvn -Plive verify` (`make test-live`) | Only the `live` tests, which call real provider APIs with real keys and cost money. |
 | `mvn -Prelease -Dgpg.skip=true verify` (`make release-check`) | The default build, plus the sources and javadoc jars a release uploads. |
@@ -21,7 +23,22 @@ A test class (or method) is tagged with JUnit 5's `@Tag`:
 
 The default build excludes all three. Untagged is the default for a new test: write it so it needs nothing from the machine, and tag it only when it really does.
 
+- **`slow`**: a correct, hermetic test that takes more than about five seconds: a scale test, a property test over many random cases, or a test that replays everything in the repository. Unlike the three above it is **not** excluded by default; `-Pfast` leaves it out and `-Pfull` (the same as the default) runs it. Seven Loom tests carry it, and they are about 64% of the Loom test time. Tag a test `slow` only when it is correct and expensive, never to hide a performance problem in the code it tests.
+
 To see what is tagged: `grep -rl '@Tag("fragile")' --include=*Test.java .`
+
+## The tiers
+
+The tiers exist so that the language can be checked often and the whole suite rarely. The loop is the maintainer's rule for any new build: core after every sub-phase, fast after every phase, and the full tier left to CI. The one `slow` test that runs in a session is the provenance oracle, alone, once at the end (`make test-oracle`): it runs every script in the repository and checks that no model-written value is treated as trusted. Any other slow test can be run alone by name when a change might affect it.
+
+| Tier | Time (Loom) | When |
+|---|---:|---|
+| Core | about 30 s | **after every sub-phase** |
+| Fast | about 2 minutes | **after every phase**, and before the final push |
+| Oracle | about 16 s | **once per session, at the end**: `make test-oracle`, the provenance oracle alone |
+| Full | about 5 to 6 minutes | **in CI on every pull request**; not part of the working loop, run by hand only when asked |
+
+The coverage gates run in the fast and full tiers and not in the core tier, since a subset cannot meet them. Leaving the `slow` tests out of the fast tier was checked not to weaken the gates: with the seven heaviest classes excluded, every coverage rule was still met. The core tier is defined by excluding the four packages that are not the language itself, so a new package is in it by default. What the fast tier adds over core is the command line (about 1,000 tests), the starters and tutorial, the bindings and the editor server.
 
 ## Evaluating a workflow: three costs
 
@@ -40,6 +57,6 @@ The default build runs JaCoCo and writes `target/site/jacoco` for every module. 
 
 ## CI mapping
 
-- **Pull requests and pushes:** `mvn verify` (default tests and coverage gates), and the release check (`-Prelease -Dgpg.skip=true`) so a broken javadoc or a missing field is found before a release, not during one.
+- **Pull requests and pushes:** `mvn verify` (the full tier: default tests, `slow` ones included, and coverage gates), and the release check (`-Prelease -Dgpg.skip=true`) so a broken javadoc or a missing field is found before a release, not during one.
 - **Weekly, and on request:** `mvn -Pextended verify`, and the dependency vulnerability scan.
 - **A version tag:** `mvn -Prelease deploy`, which runs the default tests again before anything is uploaded. See [PUBLISHING.md](PUBLISHING.md).

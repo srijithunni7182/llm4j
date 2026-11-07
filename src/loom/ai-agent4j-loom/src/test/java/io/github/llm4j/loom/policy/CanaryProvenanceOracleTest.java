@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test;
  * <p>It runs over every script in the repository, starters and CTK scenarios included, with mock
  * models and simulated tasks. It stays in CI for any change to the runtime, not only this phase's.
  */
+@Tag("slow")
 class CanaryProvenanceOracleTest {
 
     static final String CANARY_WORD = "mock";
