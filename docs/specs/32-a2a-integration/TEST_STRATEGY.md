@@ -20,13 +20,13 @@ and a security guard is tested by breaking it on purpose. The principles in [PRI
 | **Unit (guard)** | The endpoint guard (R5): same host, other host, userinfo and port tricks, a host that merely contains the declared one, no supported endpoint (the message names the offered versions), an `http` address |
 | **Unit (exchange)** | `ExchangeGuard`: the question limit at, below and above; the limit across `retry`; timeout with a fake clock; invalid structured reply re-asked and counted; size cap; a channel that throws, hangs or returns nothing |
 | **Unit (sink)** | The received-file stream: size cap reached mid-write, type from bytes, SVG and unknown refused, kind mismatch, atomic move, no leftover after a failure, label never used as a path, no `media_root` |
-| **Helper** | `A2AJsonRpc10` round trips on the specification's examples, tolerant of both state spellings, writes only the 1.0 form, ignores unknown fields, malformed input |
-| **RemoteAgent** | `send`, `reply`, `get`, `cancel` against a `ScriptedRemote`; it never waits; a card that points elsewhere; credentials passed as references only |
-| **Handler** | Caller identity required; one caller cannot see, cancel or list another's tasks; unknown task is "not found" for both a missing and a foreign task; malformed requests; nothing is started by the handler itself |
+| **Helper** | `A2AJsonRpc10` round trips on the specification's examples, tolerant of both state spellings and of both names for stream events and the push setting, sets `returnImmediately` and the version header, writes only the 1.0 form, ignores unknown fields, malformed input |
+| **RemoteAgent** | `send`, `reply`, `get`, `cancel` against a `ScriptedRemote`; a send that returns a plain message and no task; `reply` on a terminal task refused; it never waits; a card that points elsewhere; a required extension the transport lacks; a signed card with and without a verifier; credentials passed as references only |
+| **Handler** | A send that must wait returns a pending future and the handler never blocks a thread (checked with a thread that fails the test if it is held); the specification's request rules (unknown task, mismatching context and task, a client-supplied task id, a terminal task, a context id that cannot be honoured); `ListTasks` paging, order and scope; `GetTask` history length; `CancelTask` twice; tenant scoping; Caller identity required; one caller cannot see, cancel or list another's tasks; unknown task is "not found" for both a missing and a foreign task; malformed requests; nothing is started by the handler itself |
 | **Loom parser** | The three declarations and `ask`: every setting, errors that say what to write, contextual words (an agent or variable named `remote`, `expose`, `ask` or `agent_channel` still parses), `ask` with and without `expecting` |
 | **Loom check** | Each R26 error with line and fix, and the warning for every `remote` |
-| **Loom runtime (calling)** | End to end with `FakeTransport` and `ScriptedRemote`: a plain call, a question answered by the channel, a deferred answer completed later, an authorization request, a refused card, `UNKNOWN` until timeout, `on_failure`, `retry` |
-| **Loom runtime (crash)** | A crash after the send (simulated by failing the journal after the message id is written): resume finds the task by context id and does not send again; when it finds nothing it sends once; when the transport cannot tell, the step stops with the message |
+| **Loom runtime (calling)** | A duplicate or stale `taskChanged` changes nothing. End to end with `FakeTransport` and `ScriptedRemote`: a plain call, a question answered by the channel, a deferred answer completed later, an authorization request, a refused card, `UNKNOWN` until timeout, `on_failure`, `retry` |
+| **Loom runtime (crash)** | A crash after the send (simulated by failing the journal after the message id and time are written): resume lists recent tasks, finds the one whose history holds the message id and does not send again; when it finds none, or the server will not list, the step stops with the unknown-outcome message and nothing is sent; a plain-message reply is not asked for again |
 | **Loom runtime (files)** | A link offered, the channel writes through the sink, `{name_files}` lists the files, the next step attaches one, a resumed run verifies the hash, a deleted file fails the step |
 | **Loom runtime (serving)** | `expose` over a real `LoomHost` with a fake model: a task is a run, state mapping, an internal `human_prompt` shows `WORKING`, an `ask` to a `caller` channel shows `INPUT_REQUIRED`, cancel stops the run, a crash resumes it, caller isolation |
 | **Security** | See §5 |
@@ -52,21 +52,23 @@ and a security guard is tested by breaking it on purpose. The principles in [PRI
 |---|---|
 | **R1** | `ModelRecordsRejectInvalidValuesTest`, `UnknownStateIsUnknownNeverCompletedTest`, `UnknownFieldsAreIgnoredTest` |
 | **R2, R3** | `TransportIsTheOnlyWayOutTest`, `CredentialIsAReferenceNeverResolvedByUsTest`, `NoCredentialInAnyOutputTest` |
-| **R4** | `RemoteAgentNeverWaitsTest`, `SendReplyGetCancelTest`, `RemoteAgentIsNotAnAgentTest` (no shared interface) |
+| **R4** | `RemoteAgentNeverWaitsTest`, `SendReplyGetCancelTest`, `SendMayReturnAPlainMessageTest`, `ReplyOnATerminalTaskIsRefusedTest`, `RemoteAgentIsNotAnAgentTest` (no shared interface) |
 | **R5** | `CardPointingElsewhereIsRefusedBeforeAnySendTest`, `HostLookalikesAreRefusedTest`, `NoSupportedEndpointNamesTheOfferedVersionsTest`, `SelectsTheFirstSupportedEndpointTest` |
 | **R6** | `FileOfAnUnacceptedTypeIsRefusedBeforeSendingTest`, `CardWithNoInputTypesSendsTest` |
+| **R6b** | `RequiredExtensionTheTransportLacksIsRefusedBeforeSendingTest`, `OptionalExtensionIsNotAnObstacleTest` |
 | **R7** | `UnknownStateUntilTimeoutFailsTheStepTest` |
 | **R8, R9** | `SealedSwitchIsExhaustiveTest` (compile-time check kept as a test), `ContextShowsNoVariablesTest`, `UntrustedTextIsMarkedTest` |
 | **R10** | `QuestionLimitHoldsAcrossRetriesTest`, `InvalidReplyIsReAskedAndCountedTest`, `ChannelThatThrowsFailsTheStepTest`, `ChannelThatNeverAnswersHitsTheTimeoutTest`, `UnhandledMessageFailsAndIsNeverDroppedTest`, `OversizeReplyIsRefusedTest` |
 | **R11** | `SinkStopsAtTheSizeCapMidWriteTest`, `TypeIsDecidedFromTheBytesTest`, `SvgAndUnknownAreRefusedAndRemovedTest`, `FailedWriteLeavesNothingTest`, `SenderNameNeverBuildsAPathTest`, `NoMediaRootNoFilesTest`, `HashIsComputedOnTheWayTest` |
-| **R12** | `RoundTripsEverySpecExampleTest`, `AcceptsBothStateSpellingsWritesOneTest`, `OnlyThisClassKnowsAWireNameTest` (a test that greps the other classes for wire names), `MalformedInputIsAClearErrorTest` |
-| **R13** | `NoIdentityIsRefusedTest`, `CallersNeverSeeEachOthersTasksTest`, `ForeignTaskLooksLikeMissingTaskTest`, `HandlerStartsNothingByItselfTest` |
-| **R14** | `CardIsBuiltFromTheDeclarationAndHostDetailsTest`, `BuilderRunsNothingTest` |
+| **R12** | `SetsReturnImmediatelyAndTheVersionHeaderTest`, `AcceptsBothNamesForStreamEventsTest`, `RoundTripsEverySpecExampleTest`, `AcceptsBothStateSpellingsWritesOneTest`, `OnlyThisClassKnowsAWireNameTest` (a test that greps the other classes for wire names), `MalformedInputIsAClearErrorTest` |
+| **R13** | `WaitingSendReturnsAPendingFutureAndNeverBlocksTest`, `UnknownTaskIsNotFoundTest`, `MismatchingContextAndTaskIsRejectedTest`, `ClientSuppliedTaskIdIsNotAcceptedTest`, `TerminalTaskTakesNoMoreMessagesTest`, `ListTasksPagesOrdersAndScopesTest`, `TenantScopesTasksTest`, `NoIdentityIsRefusedTest`, `CallersNeverSeeEachOthersTasksTest`, `ForeignTaskLooksLikeMissingTaskTest`, `HandlerStartsNothingByItselfTest` |
+| **R14** | `CardIsBuiltFromTheDeclarationAndHostDetailsTest`, `DefaultsToNoStreamingNoPushNoExtendedCardTest`, `ETagFollowsTheContentTest`, `BuilderRunsNothingTest` |
+| **R14b** | `RejectingVerifierRefusesTheCallTest`, `SignedCardWithNoVerifierGoesAheadAndTracesItTest` |
 | **R15** | `RemoteCallFetchesCheckGuardsThenSendsTest`, `FailureIsRetriedOnlyWhenItCanChangeTest` |
-| **R16** | `MessageAndContextIdsAreJournaledBeforeSendingTest`, `CrashAfterSendDoesNotSendAgainTest`, `CrashBeforeSendSendsOnceTest`, `UnknownOutcomeStopsWithTheMessageTest` |
-| **R17** | `RunPausesHoldingNoThreadTest`, `TaskChangedResumesTheRunTest`, `DeadlineFailsTheStepTest` |
-| **R18** | `EachStateMapsToTheRightOutcomeTest`, `RemoteMessageIsShortenedAndMarkedUntrustedTest` |
-| **R19** | `QuestionGoesToTheChannelAndTheReplyIsSentTest`, `DeferredAnswerCompletesLaterTest`, `AuthorizationNeededFailsClosedUnlessHandledTest`, `LinkIsNeverFollowedByUsTest`, `IgnoreDropsOneFileExplicitlyTest`, `ExchangesAreJournaledWithKeysTest` |
+| **R16** | `MessageIdAndTimeAreJournaledBeforeSendingTest`, `CrashAfterSendReattachesByMessageIdInHistoryTest`, `CrashAfterSendWithNoMatchStopsAndSendsNothingTest`, `ServerThatWillNotListStopsAndSendsNothingTest`, `ProposedContextIdIsNeverReliedOnTest` |
+| **R17** | `DuplicateTaskChangedChangesNothingTest`, `StaleTaskChangedChangesNothingTest`, `RunPausesHoldingNoThreadTest`, `TaskChangedResumesTheRunTest`, `DeadlineFailsTheStepTest` |
+| **R18** | `PlainMessageReplyEndsTheStepWithoutATaskTest`, `EachStateMapsToTheRightOutcomeTest`, `RemoteMessageIsShortenedAndMarkedUntrustedTest` |
+| **R19** | `AuthorizationReplyIsOnlyAMessageNeverACredentialTest`, `QuestionGoesToTheChannelAndTheReplyIsSentTest`, `DeferredAnswerCompletesLaterTest`, `AuthorizationNeededFailsClosedUnlessHandledTest`, `LinkIsNeverFollowedByUsTest`, `IgnoreDropsOneFileExplicitlyTest`, `ExchangesAreJournaledWithKeysTest` |
 | **R20** | `ReceivedFileCanBeAttachedWithLa23Test`, `SendingFilesToARemoteNeedsMediaUnscannedWithAPiiGuardTest` |
 | **R21** | `AskGoesThroughTheExchangeGuardTest`, `AskWithExpectingBindsATypedReplyTest` |
 | **R22** | `TaskIsADurableRunTest`, `StateFollowsTheRunTest`, `CancelIsStopTest`, `CrashResumesTheRunTest`, `LoomHostIsUnchangedTest` (its public surface is compared with a recorded list) |
@@ -76,6 +78,7 @@ and a security guard is tested by breaking it on purpose. The principles in [PRI
 | **R26** | One test per check, each asserting the line and the fix in the message |
 | **R27** | One test per audit rule, positive and negative; `SecurityDocTest` |
 | **R28** | `RemoteNodeAndChipTest`, `ExposeMarksTheEntryPointTest`, `GraphRenderSyncTest`, `FabricEscapesRemoteTextTest` |
+| **R30** | `ConsumerSamplesCompileTest` (the transport, channel and serving samples on the A2A page compile against the real interfaces), `ConsumerDutiesPageListsEveryDutyTest` |
 | **R29** | `JournalRecordsExchangesAndFilesTest`, `ResumeNeverResendsAnAcknowledgedMessageTest`, `RewindAndForkNeverResendTest`, `MissingReceivedFileFailsTheStepTest` |
 
 ## 5. Test the guards themselves
@@ -97,6 +100,11 @@ Each of these is checked once by breaking the guard on purpose and confirming a 
 13. The journal-before-send and the look-up before a resend.
 14. `UNKNOWN` is never treated as completed.
 15. The version rule: wire names appear only in `A2AJsonRpc10`.
+16. The required-extension refusal.
+17. "The handler never blocks" (a waiting send must return a pending future).
+18. The tenant and caller scoping of `ListTasks` and `GetTask`.
+19. The terminal-task rule and the context and task consistency rules.
+20. The duplicate and stale `taskChanged` guard.
 
 ## 6. What is deliberately not tested
 
