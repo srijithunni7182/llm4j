@@ -512,9 +512,10 @@
 
     <profiles>
         <!--
-            mvn -pl src/loom/ai-agent4j-loom -Pcore test: the Loom language core only, for iterating (about 30 seconds).
-            Everything except the program-level packages (the weave commands, earned autonomy, policies, capture, time travel, the starters,
-            rewind, bindings, the debugger, the server and the channels) and the slow tests. A new package is in the core by default.
+            mvn -pl src/loom/ai-agent4j-loom -Pcore test: the Loom language core, for iterating.
+            Everything except the packages that are not the language itself: the weave commands (cli), the starters and the tutorial
+            (starters), the generated bindings (bind) and the editor server (serve), and except the slow tests. Policies, rewind, earned
+            autonomy, capture, channels, time travel and the debugger are language semantics and are in. A new package is in the core by default.
             The coverage gates are not run: a subset cannot meet them. Use -Pfast or -Pfull for that.
         -->
         <profile>
@@ -523,7 +524,7 @@
                 <jacoco.skip>true</jacoco.skip>
                 <test.excluded>live,integration,fragile,slow</test.excluded>
                 <surefire.failIfNoSpecifiedTests>false</surefire.failIfNoSpecifiedTests>
-                <test>!io/github/llm4j/loom/cli/**,!io/github/llm4j/loom/autonomy/**,!io/github/llm4j/loom/policy/**,!io/github/llm4j/loom/loop/**,!io/github/llm4j/loom/travel/**,!io/github/llm4j/loom/starters/**,!io/github/llm4j/loom/rewind/**,!io/github/llm4j/loom/bind/**,!io/github/llm4j/loom/debug/**,!io/github/llm4j/loom/serve/**,!io/github/llm4j/loom/channel/**</test>
+                <test>!io/github/llm4j/loom/cli/**,!io/github/llm4j/loom/starters/**,!io/github/llm4j/loom/bind/**,!io/github/llm4j/loom/serve/**</test>
             </properties>
         </profile>
 

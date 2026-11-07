@@ -5,7 +5,7 @@ SHELL := /bin/bash
 help:
 	@echo "Targets:"
 	@echo "  make build          - Compile the published libraries"
-	@echo "  make test-core      - The Loom language core only, about 30 seconds, no coverage gates: run after every sub-phase"
+	@echo "  make test-core      - The Loom language core, about 70 seconds, no coverage gates (not the weave commands, starters, bindings or editor server): run after every sub-phase"
 	@echo "  make test-fast      - Every test except the slow ones, with the coverage gates (about 2 minutes for Loom): run after every phase"
 	@echo "  make test-oracle    - The provenance oracle alone (about 16 seconds): run once per session, at the end"
 	@echo "  make test-full      - Everything, slow tests included, with the coverage gates (about 5 to 6 minutes for Loom): CI runs it on every pull request; run by hand only when asked"

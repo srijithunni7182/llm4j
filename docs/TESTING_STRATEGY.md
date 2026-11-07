@@ -6,7 +6,7 @@ The default build is fast and hermetic, and it is what a release is gated on. Ev
 
 | Command | What runs |
 |---|---|
-| `mvn -pl src/loom/ai-agent4j-loom -Pcore test` (`make test-core`) | **Core tier.** The Loom language core only (about 30 seconds): everything except the program-level packages (the weave commands, earned autonomy, policies, capture, time travel, the starters, rewind, bindings, the debugger, the server, the channels) and the `slow` tests. No coverage gates. |
+| `mvn -pl src/loom/ai-agent4j-loom -Pcore test` (`make test-core`) | **Core tier.** The Loom language core (about 70 seconds, 3,760 tests): everything except the `weave` commands (`cli`), the starters and the tutorial (`starters`), the generated bindings (`bind`) and the editor server (`serve`), and the `slow` tests. Policies, rewind, earned autonomy, capture, channels, time travel and the debugger are language semantics and are in. No coverage gates. |
 | `mvn -Pfast verify` (`make test-fast`) | **Fast tier.** Every test except the ones tagged `slow`, plus the coverage rules (about 2 minutes for Loom). |
 | `mvn -Pfull verify` (`make test-full`, `make test`, plain `mvn verify`) | **Full tier.** Every test that is not tagged `live`, `integration` or `fragile`, `slow` ones included, plus the coverage rules (about 5 to 6 minutes for Loom). No network, no database, no real model, no external program. |
 | `mvn -Pextended verify` (`make test-extended`) | The default tests **and** the `integration` and `fragile` tests, plus the modules that are not published: `engram` and the example applications with their tests. |
@@ -33,12 +33,12 @@ The tiers exist so that the language can be checked often and the whole suite ra
 
 | Tier | Time (Loom) | When |
 |---|---:|---|
-| Core | about 30 s | **after every sub-phase** |
+| Core | about 70 s | **after every sub-phase** |
 | Fast | about 2 minutes | **after every phase**, and before the final push |
 | Oracle | about 16 s | **once per session, at the end**: `make test-oracle`, the provenance oracle alone |
 | Full | about 5 to 6 minutes | **in CI on every pull request**; not part of the working loop, run by hand only when asked |
 
-The coverage gates run in the fast and full tiers and not in the core tier, since a subset cannot meet them. Leaving the `slow` tests out of the fast tier was checked not to weaken the gates: with the seven heaviest classes excluded, every coverage rule was still met. The core tier is defined by excluding the program-level packages, so a new package is in it by default.
+The coverage gates run in the fast and full tiers and not in the core tier, since a subset cannot meet them. Leaving the `slow` tests out of the fast tier was checked not to weaken the gates: with the seven heaviest classes excluded, every coverage rule was still met. The core tier is defined by excluding the four packages that are not the language itself, so a new package is in it by default. What the fast tier adds over core is the command line (about 1,000 tests), the starters and tutorial, the bindings and the editor server.
 
 ## Evaluating a workflow: three costs
 

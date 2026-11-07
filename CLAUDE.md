@@ -27,7 +27,7 @@ The reactor order matters: a failure in `ai-agent4j-loom` skips the modules afte
 |---|---|
 | `make build` | Compile |
 | `mvn -pl <module> -Dtest=FooTest -Djacoco.skip=true test` | Quick loop on one test while iterating |
-| `make test-core` | **Core tier.** The Loom language core only (about 30 s, no coverage gates). **Run it after every sub-phase.** |
+| `make test-core` | **Core tier.** The Loom language core (about 70 s, no coverage gates): everything except the `weave` commands, the starters and tutorial, the generated bindings and the editor server. **Run it after every sub-phase.** |
 | `make test-fast` | **Fast tier.** Every test except the ones tagged `slow`, **with** the JaCoCo coverage gates (about 2 minutes for Loom). **Run it after every phase**, on every module you touched. This is what "done" means for a phase. |
 | `make test-oracle` | **The provenance oracle alone** (about 16 s): runs every script in the repository with canary-carrying mock models and checks that no model-written value is treated as trusted. It is a `slow` test, so the other tiers skip it. **Run it once per session, at the end.** |
 | `make test-full` / `make test` / `mvn verify` | **Full tier.** Everything, `slow` tests included, **and** the coverage gates (about 5 to 6 minutes for Loom). **Not part of the working loop**: CI runs it on every pull request. Run it yourself only when the maintainer asks. `mvn test` alone skips the gates. |
