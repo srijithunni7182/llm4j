@@ -31,6 +31,8 @@ CI (`Build, Validate, and Deploy`) runs the whole reactor on JDK 17 and JDK 21, 
 
 ## Things that are tested against each other (change one, change the other)
 
+Run `make docs-check` after any of these (about 40 s): it runs the generators (`make regen`), lists every generated file that was stale in one go, and runs the documentation tests. At the start of a session in a fresh checkout run `make setup` once (the cloud environment may have run it); it installs the core and Loom from the checkout so `loom-inspect*`, `loom-fabric` and the extension's tests do not run against stale jars.
+
 | If you change | Also update, or a test fails |
 |---|---|
 | Loom syntax or a new construct | `src/loom/ai-agent4j-loom/LOOM_GUIDE.md` (its ```` ```loom ```` blocks are parse-tested), `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md`, the `llm4j-workflow-guide` skill, the VS Code grammar/hover/snippets, a CTK scenario. Docs ship with the parser change, never before it. |
