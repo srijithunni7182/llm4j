@@ -12,7 +12,7 @@ Status: **not started** (P2 and P3 are done: the specification was read, results
 | P3 | **Find out whether servers de-duplicate a message id**, and whether a client may supply the context id, so that the crash rule (R16) is sound. If neither holds, the rule rests on `find` by context id alone | recorded with the section, and DESIGN R16 matches | ✅ neither is guaranteed; R16 and D19 rewritten (§7) |
 | P4 | **Survey Loom and ai-agent4j** for the places the new words touch (also: whether the `guardrail` block can wrap a remote step for masking; whether a Loom list-of-objects form exists for `skills`; how `expecting` is applied to a `delegate`; how a `LoomHost` is built with its own persistence and base folder for a per-scope host; whether a `ReActAgent` run handle can stop a run): every statement that can be followed by `ask`/`on_failure`, how `delegate` binds its result and a list variable (the grounding citations are the pattern), how `LoomHost` represents a pending `human_prompt`, what `runs()` and `run(id)` return, what a stopped or failed run looks like, and which parts of `ExecutorValidation` a new declaration must register with | the list is in §7 and DESIGN §4 matches it | ⬜ |
 | P5 | **Find the next free audit rule numbers** and the review-lens rules to use, and read `docs/security/weave-audit.md` and `owasp-llm-top-10.md` for the wording to follow | recorded in §7 | ⬜ |
-| P6 | **Ask the owner whether a real A2A agent is available** for the live check (one that calls out or can be called; a sample from a vendor's SDK is enough). Keys stay in the owner's environment, never in the chat | recorded as run or not run | ⬜ |
+| P6 | **Ask the owner whether a real third-party A2A agent is available** for the optional live check (one that calls out or can be called; a sample from a vendor's SDK is enough). Keys stay in the owner's environment, never in the chat. **The plan does not depend on it**: the end-to-end checks use the mock A2A agent (TEST_STRATEGY §3), and without a real agent the results say so | recorded as run or not run | ⬜ |
 | P7 | **Baseline**: `mvn verify` on `ai-agent4j`, `ai-agent4j-loom` and every module after it, the mutation profiles, and the VS Code extension suite; record the scores and any failure that exists before the change | recorded in §7 | ⬜ |
 | P8 | **Build the compile-only starter** `src/examples/a2a-starter` (D31) against the real interfaces once 32a to 32d exist, with a marked `TODO` wherever authentication, TLS, address validation, signature checking or durable storage plug in, and with its Loom script excluded from `weave check` (D33: named in the exclusion list with its reason, parse-tested); add it to the extended build and to the CI extended job | the starter compiles in `make test-extended` and in CI, and `PageExcerptsMatchTheStarterTest` passes | ⬜ |
 | P9 | **Survey the ecosystem** (DESIGN §4.6) before 32c: the policy for tutorial and starter scripts given that every `remote` warns (`loom-parse` blocks, or a marker for an expected warning, and what `StartersTest` allows); the format of `weave test` files and where a scripted remote and channel fit; what `ScriptDrift` checks; how `docs/serve/PROTOCOL.md` versions symbol kinds; whether any other Loom runtime exists in the repository (the compatibility kit speaks of Java and Python) and so needs the scenarios; which tutorial chapters and which guide chapters need which sections; whether `weave deploy` and `loom-maven-plugin` need any change | the answers are in §7 and DESIGN §4.6 matches them | ⬜ |
@@ -51,6 +51,7 @@ Status: **not started** (P2 and P3 are done: the specification was read, results
 | A28 | The editor offers go-to-definition, references, rename, completion and hover for `remote`, `agent_channel` and `expose`; the extension is released with a version bump | R32, R40 tests |
 | A29 | A2A support has a structured documentation set in `docs/a2a/` (what A2A is, our philosophy, a Java guide, a Loom guide, what the consumer provides, security and review, a reference), each page landing with its code, linked together, with excerpts compiled or parsed and the reference matching the code | R41 tests |
 | A30 | Every README of an affected project mentions A2A support and links the set, and the unaffected ones are recorded as reviewed | R42 tests and the census |
+| A31 | The helper, a consumer-style transport and our handler interoperate over real HTTP on loopback against a mock A2A agent that enforces the specification's rules and is driven by the specification's own examples. **This shows agreement with our reading of the specification, not with a third-party implementation**; §7 says so unless the live check (P6) ran | R12, R13, R16 wire tests |
 
 ## 2. Quality gates
 
@@ -87,12 +88,13 @@ Each is updated in the same sub-phase as the behaviour it describes, not later. 
 | M2 | Run `weave check` and `weave audit` on the sample | the "not validated" warning, and the expected audit findings with their fixes |
 | M3 | Run `weave card` on the sample's `expose` block | the card JSON, with a placeholder address, matches the declaration |
 | M4 | Kill the process after the send and resume | the run finds its task and does not send again |
-| M5 | With a real A2A agent, if available (P6): call it, answer a question, receive a file | it works, and the exchange is in the journal |
+| M5 | Against the **mock A2A agent** over loopback: call it, answer a question, receive a file, crash after the send and resume, call our own handler with `RemoteAgent` | it works, and the exchange is in the journal |
+| M5b | With a real third-party A2A agent, only if available (P6): the same | it works; otherwise recorded as not verified against a third-party implementation |
 | M6 | Read the sample channel as a reviewer would | the audience, limits and what leaves the process are clear from the script alone |
 
 ## 5. Exit checklist
 
-- [ ] All of A1 to A30 pass with the evidence named.
+- [ ] All of A1 to A31 pass with the evidence named, each marked with its level: fakes, loopback against the mock agent, or live. Anything claimed about interoperability with other implementations rests on the live level; without it, §7 says "not verified against a third-party implementation".
 - [ ] Guard-removal checks (TEST_STRATEGY §5) done and recorded.
 - [ ] Documentation checklist (§3) done; samples verified.
 - [ ] Every claim about the specification is marked verified with its section (P2), or listed as unverified.
@@ -113,6 +115,7 @@ Each is updated in the same sub-phase as the behaviour it describes, not later. 
 | The new words clash with existing scripts | contextual words, tested with agents and variables of those names |
 | Scope is large | six sub-phases, each green and pushed alone; Part C (a plain agent) and the signed-card hook can be dropped without changing the rest |
 | The protocol moves | principle 9; only `A2AJsonRpc10` changes |
+| We test against our own reading of the specification (a mock we wrote cannot catch a shared misreading) | the mock is driven by the specification's own examples and enforces its stated rules; the optional live check (P6) is the only independent evidence, and §7 never claims more than the level that ran |
 | The specification's prose disagrees with itself (and the GitHub copy of it is headed "Release Candidate") | the protocol definition (protobuf) at the `1.0.0` tag is followed; the helper accepts the variants; the disagreements are in §7 |
 | Tenants share a host and one caller's data surfaces in another's (the journal, long-term memory, `received/` files) | principle 10: isolation is the consumer's duty, with one host per tenant as the supported way; the page says what a host shares; filtering by scope key is defence in depth and described as such |
 | A waiting send makes a server hold a request for hours | the handler returns a future and the host decides; documented as the consumer's duty (R30) |
