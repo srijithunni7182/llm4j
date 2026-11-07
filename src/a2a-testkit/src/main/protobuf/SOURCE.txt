@@ -1,0 +1,8 @@
+a2a.proto in this folder is the official A2A protocol definition, copied byte for byte.
+Source:  https://raw.githubusercontent.com/a2aproject/A2A/v1.0.0/specification/a2a.proto
+Tag:     v1.0.0
+SHA-256: 4b74c0baa923ae0acb55474e548f1d6e5d3f83b80d757b65f8bf3e99a3c2257f
+Fetched: 2026-11-07
+The specification text it belongs to (docs/specification.md at the same tag) has SHA-256
+087c6f6272ec08a7fcd90eb16843bf97e25e0dcd155afa5779033d23d5ac377d.
+No JSON Schema is committed at that tag; the definition is the normative source. Test scope only: never in a published module.
