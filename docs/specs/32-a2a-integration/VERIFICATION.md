@@ -1,6 +1,6 @@
 # Phase 32 verification plan: A2A integration
 
-Status: **not started** (P2 and P3 are done: the specification was read, results in §7). Run §0 first, then top to bottom at the end of each sub-phase (**32a** the core, R1 to R12; **32b** the handler, R13, R14; **32c** Loom calling, R15 to R21, R26, R29; **32d** Loom being called, R22 to R25; **32e** audit and Fabric, R27, R28;
+Status: **not started** (P2 and P3 are done: the specification was read, results in §7; all design decisions D1 to D31 are taken). Run §0 first, then top to bottom at the end of each sub-phase (**32a** the core, R1 to R12; **32b** the handler, R13, R14; **32c** Loom calling, R15 to R21, R26, R29; **32d** Loom being called, R22 to R25; **32e** audit and Fabric, R27, R28;
 **32f** documentation, editor, compatibility kit and mutation tests). Results in §7. Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md). Principles: [PRINCIPLES.md](PRINCIPLES.md).
 
 ## 0. Before writing anything
@@ -10,11 +10,11 @@ Status: **not started** (P2 and P3 are done: the specification was read, results
 | P1 | **The owner reviews this spec** and answers the proposed decisions D19 to D26 (or accepts the proposals) | the decisions table in DESIGN §6 says taken for each, or the item is removed | ⬜ |
 | P2 | **Read the A2A 1.0.0 specification** (the page was only partly read verbatim): the exact definitions of Task, task states, Part (is there a separate structured-data part, and how is a file carried), the complete agent card fields, the JSON-RPC method names and result shapes (including the push-notification configuration methods), the error codes, and Appendix A (what changed from 0.3.0) | every item in the "unverified" list is marked confirmed with the section, or remains listed as unverified, and `SpecExamples` is filled with the specification's own examples | ✅ read; see §7 (a few items remain unverified and are listed there) |
 | P3 | **Find out whether servers de-duplicate a message id**, and whether a client may supply the context id, so that the crash rule (R16) is sound. If neither holds, the rule rests on `find` by context id alone | recorded with the section, and DESIGN R16 matches | ✅ neither is guaranteed; R16 and D19 rewritten (§7) |
-| P4 | **Survey Loom** for the places the new words touch: every statement that can be followed by `ask`/`on_failure`, how `delegate` binds its result and a list variable (the grounding citations are the pattern), how `LoomHost` represents a pending `human_prompt`, what `runs()` and `run(id)` return, what a stopped or failed run looks like, and which parts of `ExecutorValidation` a new declaration must register with | the list is in §7 and DESIGN §4 matches it | ⬜ |
+| P4 | **Survey Loom and ai-agent4j** for the places the new words touch (also: whether the `guardrail` block can wrap a remote step for masking; whether a Loom list-of-objects form exists for `skills`; how `expecting` is applied to a `delegate`; how a `LoomHost` is built with its own persistence and base folder for a per-scope host; whether a `ReActAgent` run handle can stop a run): every statement that can be followed by `ask`/`on_failure`, how `delegate` binds its result and a list variable (the grounding citations are the pattern), how `LoomHost` represents a pending `human_prompt`, what `runs()` and `run(id)` return, what a stopped or failed run looks like, and which parts of `ExecutorValidation` a new declaration must register with | the list is in §7 and DESIGN §4 matches it | ⬜ |
 | P5 | **Find the next free audit rule numbers** and the review-lens rules to use, and read `docs/security/weave-audit.md` and `owasp-llm-top-10.md` for the wording to follow | recorded in §7 | ⬜ |
 | P6 | **Ask the owner whether a real A2A agent is available** for the live check (one that calls out or can be called; a sample from a vendor's SDK is enough). Keys stay in the owner's environment, never in the chat | recorded as run or not run | ⬜ |
 | P7 | **Baseline**: `mvn verify` on `ai-agent4j`, `ai-agent4j-loom` and every module after it, the mutation profiles, and the VS Code extension suite; record the scores and any failure that exists before the change | recorded in §7 | ⬜ |
-| P8 | **Check the sample channel and transport compile** against the real interfaces once 32a is built, and keep them as a docs test | the sample is in `src/examples` or a docs test | ⬜ |
+| P8 | **Build the compile-only starter** `src/examples/a2a-starter` (D31) against the real interfaces once 32a to 32d exist, with a marked `TODO` wherever authentication, TLS, address validation, signature checking or durable storage plug in; add it to the extended build and to the CI extended job | the starter compiles in `make test-extended` and in CI, and `PageExcerptsMatchTheStarterTest` passes | ⬜ |
 
 ## 1. Acceptance criteria
 
@@ -39,7 +39,12 @@ Status: **not started** (P2 and P3 are done: the specification was read, results
 | A17 | A send that returns a plain message is handled; a task in a terminal state takes no more messages | R4, R18 tests |
 | A18 | The handler never blocks: a send that must wait returns a future the host completes | R13 tests |
 | A19 | A card that requires an extension the transport lacks is refused before sending; a signed card is verified when a verifier is configured | R6b, R14b tests |
-| A20 | The consumer's duties are documented with examples that compile | R30 tests |
+| A20 | The consumer's duties are documented, with a starter project that compiles and excerpts that match it | R30 tests |
+| A21 | An incoming message binds only as R23 says: text to `text_input`, data by name, files refused, over-size refused before any work | R23 tests |
+| A22 | A plain `ReActAgent` can be exposed through `AgentTaskRunner` with its stated limits, and refuses to start without the limits confirmation | §5 tests |
+| A23 | Scopes never share a journal when given separate hosts, and filtering by scope key holds when they share one | R13 tests |
+| A24 | `require_signed_card` and a failed signature are enforced; llm4j does no cryptography | R14b tests |
+| A25 | A stopped run cancels its in-flight remote tasks, best effort | R15b tests |
 
 ## 2. Quality gates
 
@@ -63,7 +68,7 @@ Each is updated in the same sub-phase as the behaviour it describes, not later. 
 - [ ] The skills under `.claude/skills/` that teach Loom
 - [ ] The VS Code grammar, hover text, README and `CHANGELOG.md` (with a version bump, because the release check requires one when the extension changes); update the frozen parser's parity baseline if the corpus changes
 - [ ] The sample channel and transport, compiled by a test
-- [ ] The consumer's-duties page (DESIGN R30), covering: transport, channel, waiting (poll, stream, push, duplicates), serving (mounting, card address and caching, authentication, identity and tenant, the future for a waiting send), where tasks and the `received/` folder live with the journal, signing and verifying cards, and operations; examples compiled by a test
+- [ ] The consumer's-duties page (DESIGN R30) and the compile-only starter `src/examples/a2a-starter`, covering: transport, channel, waiting (poll, stream, push, duplicates), serving (mounting, card address and caching, authentication, identity and tenant, the future for a waiting send), where tasks and the `received/` folder live with the journal, signing and verifying cards, and operations; examples compiled by a test
 
 ## 4. Manual checks
 
@@ -78,7 +83,7 @@ Each is updated in the same sub-phase as the behaviour it describes, not later. 
 
 ## 5. Exit checklist
 
-- [ ] All of A1 to A20 pass with the evidence named.
+- [ ] All of A1 to A25 pass with the evidence named.
 - [ ] Guard-removal checks (TEST_STRATEGY §5) done and recorded.
 - [ ] Documentation checklist (§3) done; samples verified.
 - [ ] Every claim about the specification is marked verified with its section (P2), or listed as unverified.
@@ -100,6 +105,7 @@ Each is updated in the same sub-phase as the behaviour it describes, not later. 
 | Scope is large | six sub-phases, each green and pushed alone; Part C (a plain agent) and the signed-card hook can be dropped without changing the rest |
 | The protocol moves | principle 9; only `A2AJsonRpc10` changes |
 | The specification's prose disagrees with itself (and the GitHub copy of it is headed "Release Candidate") | the protocol definition (protobuf) at the `1.0.0` tag is followed; the helper accepts the variants; the disagreements are in §7 |
+| Tenants share a host and one caller's data surfaces in another's (the journal, long-term memory, `received/` files) | principle 10: isolation is the consumer's duty, with one host per tenant as the supported way; the page says what a host shares; filtering by scope key is defence in depth and described as such |
 | A waiting send makes a server hold a request for hours | the handler returns a future and the host decides; documented as the consumer's duty (R30) |
 
 ## 7. Results

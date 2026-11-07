@@ -22,15 +22,18 @@ and a security guard is tested by breaking it on purpose. The principles in [PRI
 | **Unit (sink)** | The received-file stream: size cap reached mid-write, type from bytes, SVG and unknown refused, kind mismatch, atomic move, no leftover after a failure, label never used as a path, no `media_root` |
 | **Helper** | `A2AJsonRpc10` round trips on the specification's examples, tolerant of both state spellings and of both names for stream events and the push setting, sets `returnImmediately` and the version header, writes only the 1.0 form, ignores unknown fields, malformed input |
 | **RemoteAgent** | `send`, `reply`, `get`, `cancel` against a `ScriptedRemote`; a send that returns a plain message and no task; `reply` on a terminal task refused; it never waits; a card that points elsewhere; a required extension the transport lacks; a signed card with and without a verifier; credentials passed as references only |
-| **Handler** | A send that must wait returns a pending future and the handler never blocks a thread (checked with a thread that fails the test if it is held); the specification's request rules (unknown task, mismatching context and task, a client-supplied task id, a terminal task, a context id that cannot be honoured); `ListTasks` paging, order and scope; `GetTask` history length; `CancelTask` twice; tenant scoping; Caller identity required; one caller cannot see, cancel or list another's tasks; unknown task is "not found" for both a missing and a foreign task; malformed requests; nothing is started by the handler itself |
-| **Loom parser** | The three declarations and `ask`: every setting, errors that say what to write, contextual words (an agent or variable named `remote`, `expose`, `ask` or `agent_channel` still parses), `ask` with and without `expecting` |
-| **Loom check** | Each R26 error with line and fix, and the warning for every `remote` |
+| **Handler** | A send that must wait returns a pending future and the handler never blocks a thread (checked with a thread that fails the test if it is held); the specification's request rules (unknown task, mismatching context and task, a client-supplied task id, a terminal task, a context id that cannot be honoured); `ListTasks` paging, order and scope; `GetTask` history length; `CancelTask` twice; filtering by scope key and one runner resolved per scope; Caller identity required; one caller cannot see, cancel or list another's tasks; unknown task is "not found" for both a missing and a foreign task; malformed requests; nothing is started by the handler itself |
+| **Plain agent runner** | `AgentTaskRunner`: the per-task agent function (two scopes never share an agent), refusal to start without the confirmation that the agent has limits, a task through a `TaskStore` and an `Executor` with a fake executor, no `INPUT_REQUIRED`, cancel with and without an interruptible run, a crash leaving a `working` task the consumer can clean up |
+| **Loom parser** | The three declarations and `ask`: every setting (including `text_input`, `max_input` and `require_signed_card`), errors that say what to write, contextual words (an agent or variable named `remote`, `expose`, `ask` or `agent_channel` still parses), `ask` with and without `expecting` |
+| **Loom check** | Each R26 error with line and fix (a token budget on a remote step, a mixed target list, a `text_input` that names no parameter), and the warning for every `remote` |
 | **Loom runtime (calling)** | A duplicate or stale `taskChanged` changes nothing. End to end with `FakeTransport` and `ScriptedRemote`: a plain call, a question answered by the channel, a deferred answer completed later, an authorization request, a refused card, `UNKNOWN` until timeout, `on_failure`, `retry` |
 | **Loom runtime (crash)** | A crash after the send (simulated by failing the journal after the message id and time are written): resume lists recent tasks, finds the one whose history holds the message id and does not send again; when it finds none, or the server will not list, the step stops with the unknown-outcome message and nothing is sent; a plain-message reply is not asked for again |
+| **Loom runtime (results)** | A plain-message reply ends the step with no task; `quote`, `quote_files` and `quote_data`; `expecting` with a single data part, with JSON in a text part, with several data parts, with a mismatch (a definite failure, so `retry` applies); the size and depth caps on JSON from outside |
+| **Loom runtime (stop)** | A stopped run asks the transport to cancel in-flight remote tasks; a cancel that fails is recorded and does not block the stop; `retry` after a definite failure but not after an unknown outcome |
 | **Loom runtime (files)** | A link offered, the channel writes through the sink, `{name_files}` lists the files, the next step attaches one, a resumed run verifies the hash, a deleted file fails the step |
-| **Loom runtime (serving)** | `expose` over a real `LoomHost` with a fake model: a task is a run, state mapping, an internal `human_prompt` shows `WORKING`, an `ask` to a `caller` channel shows `INPUT_REQUIRED`, cancel stops the run, a crash resumes it, caller isolation |
+| **Loom runtime (serving)** | The mapping of an incoming message (R23): text only to `text_input`, data by name, unknown keys ignored, a missing parameter refused with the list, files refused, `max_input`, a message that names a task answers the waiting `ask`, a message that names only a context starts a run. `expose` over a real `LoomHost` with a fake model, and with one host per scope (journals never shared): a task is a run, state mapping, an internal `human_prompt` shows `WORKING`, an `ask` to a `caller` channel shows `INPUT_REQUIRED`, cancel stops the run, a crash resumes it, caller isolation |
 | **Security** | See §5 |
-| **Audit** | Each R27 rule fires when it should and not otherwise; it is listed in `docs/security/weave-audit.md` (`SecurityDocTest`); the trifecta rule fires for an exposed workflow with the other legs |
+| **Audit** | LA24 to LA27 and the LR02 extension each fire when they should and not otherwise (LA26 high when the channel handles authorization; LA25 accepted with a reason); it is listed in `docs/security/weave-audit.md` (`SecurityDocTest`); the trifecta rule fires for an exposed workflow with the other legs |
 | **Graph / Fabric** | `AttachGraphTest`-style tests for the new node kinds and chips; the sync scripts; escaping of remote text |
 | **Docs** | The new ` ```loom ` blocks in the guide and tutorial parse or check as their type says; the VS Code grammar finds the new words; `API_COMPATIBILITY.md` lists the new types |
 | **CTK** | New scenarios: a call that completes; a call that asks a question; a refused card; an exposed workflow's card (`weave card`) |
@@ -44,6 +47,7 @@ and a security guard is tested by breaking it on purpose. The principles in [PRI
 - **`ScriptedRemote`**: a list of steps, each a state with an optional question, artifacts and link, used behind `FakeTransport`.
 - **`RecordingChannel`** and **`MisbehavingChannel`**: record every message and context; the second misbehaves on purpose.
 - **`TempMediaRoot`** and **`TinyMedia`** from phase 31 for the file tests.
+- **`PerScopeRunners`**: a resolver over two separate `LoomHost`s with separate persistence, to show scopes never share a journal.
 - **`CrashingJournal`**: a journal wrapper that throws after the n-th write, for the crash tests.
 
 ## 4. Per requirement
@@ -61,10 +65,11 @@ and a security guard is tested by breaking it on purpose. The principles in [PRI
 | **R10** | `QuestionLimitHoldsAcrossRetriesTest`, `InvalidReplyIsReAskedAndCountedTest`, `ChannelThatThrowsFailsTheStepTest`, `ChannelThatNeverAnswersHitsTheTimeoutTest`, `UnhandledMessageFailsAndIsNeverDroppedTest`, `OversizeReplyIsRefusedTest` |
 | **R11** | `SinkStopsAtTheSizeCapMidWriteTest`, `TypeIsDecidedFromTheBytesTest`, `SvgAndUnknownAreRefusedAndRemovedTest`, `FailedWriteLeavesNothingTest`, `SenderNameNeverBuildsAPathTest`, `NoMediaRootNoFilesTest`, `HashIsComputedOnTheWayTest` |
 | **R12** | `SetsReturnImmediatelyAndTheVersionHeaderTest`, `AcceptsBothNamesForStreamEventsTest`, `RoundTripsEverySpecExampleTest`, `AcceptsBothStateSpellingsWritesOneTest`, `OnlyThisClassKnowsAWireNameTest` (a test that greps the other classes for wire names), `MalformedInputIsAClearErrorTest` |
-| **R13** | `WaitingSendReturnsAPendingFutureAndNeverBlocksTest`, `UnknownTaskIsNotFoundTest`, `MismatchingContextAndTaskIsRejectedTest`, `ClientSuppliedTaskIdIsNotAcceptedTest`, `TerminalTaskTakesNoMoreMessagesTest`, `ListTasksPagesOrdersAndScopesTest`, `TenantScopesTasksTest`, `NoIdentityIsRefusedTest`, `CallersNeverSeeEachOthersTasksTest`, `ForeignTaskLooksLikeMissingTaskTest`, `HandlerStartsNothingByItselfTest` |
+| **R13** | `WaitingSendReturnsAPendingFutureAndNeverBlocksTest`, `UnknownTaskIsNotFoundTest`, `MismatchingContextAndTaskIsRejectedTest`, `ClientSuppliedTaskIdIsNotAcceptedTest`, `TerminalTaskTakesNoMoreMessagesTest`, `ListTasksPagesOrdersAndScopesTest`, `ScopeKeyScopesTasksTest`, `RunnerIsResolvedPerScopeTest`, `SeparateHostsNeverShareAJournalTest`, `EndpointTenantIsPassedThroughUntouchedTest`, `NoIdentityIsRefusedTest`, `CallersNeverSeeEachOthersTasksTest`, `ForeignTaskLooksLikeMissingTaskTest`, `HandlerStartsNothingByItselfTest` |
 | **R14** | `CardIsBuiltFromTheDeclarationAndHostDetailsTest`, `DefaultsToNoStreamingNoPushNoExtendedCardTest`, `ETagFollowsTheContentTest`, `BuilderRunsNothingTest` |
-| **R14b** | `RejectingVerifierRefusesTheCallTest`, `SignedCardWithNoVerifierGoesAheadAndTracesItTest` |
+| **R14b** | `FailedSignatureIsAlwaysRefusedTest`, `RequireSignedCardRefusesAnythingNotVerifiedTest`, `UnsignedCardGoesAheadWhenNotRequiredAndTracesItTest`, `LlmFourJDoesNoCryptographyTest` (no signature library on the classpath of the core) |
 | **R15** | `RemoteCallFetchesCheckGuardsThenSendsTest`, `FailureIsRetriedOnlyWhenItCanChangeTest` |
+| **R15b** | `StoppedRunCancelsInFlightRemoteTasksTest`, `FailedCancelIsRecordedAndDoesNotBlockTheStopTest`, `RetryOnlyAfterADefiniteFailureTest` |
 | **R16** | `MessageIdAndTimeAreJournaledBeforeSendingTest`, `CrashAfterSendReattachesByMessageIdInHistoryTest`, `CrashAfterSendWithNoMatchStopsAndSendsNothingTest`, `ServerThatWillNotListStopsAndSendsNothingTest`, `ProposedContextIdIsNeverReliedOnTest` |
 | **R17** | `DuplicateTaskChangedChangesNothingTest`, `StaleTaskChangedChangesNothingTest`, `RunPausesHoldingNoThreadTest`, `TaskChangedResumesTheRunTest`, `DeadlineFailsTheStepTest` |
 | **R18** | `PlainMessageReplyEndsTheStepWithoutATaskTest`, `EachStateMapsToTheRightOutcomeTest`, `RemoteMessageIsShortenedAndMarkedUntrustedTest` |
@@ -72,13 +77,15 @@ and a security guard is tested by breaking it on purpose. The principles in [PRI
 | **R20** | `ReceivedFileCanBeAttachedWithLa23Test`, `SendingFilesToARemoteNeedsMediaUnscannedWithAPiiGuardTest` |
 | **R21** | `AskGoesThroughTheExchangeGuardTest`, `AskWithExpectingBindsATypedReplyTest` |
 | **R22** | `TaskIsADurableRunTest`, `StateFollowsTheRunTest`, `CancelIsStopTest`, `CrashResumesTheRunTest`, `LoomHostIsUnchangedTest` (its public surface is compared with a recorded list) |
-| **R23** | `OneTextPartBindsOneParameterTest`, `DataPartBindsByNameTest`, `AnythingElseIsRefusedWithTheParameterListTest`, `IncomingTextPassesTheGuardsTest` |
+| **R23** | `TextBindsOnlyToTextInputEvenWithOneParameterTest`, `SeveralTextPartsAreJoinedTest`, `DataPartBindsByNameTest`, `UnknownKeysAreIgnoredTest`, `MissingParameterIsRefusedWithTheListTest`, `FilePartsAreRefusedTest`, `MessageOverMaxInputIsRefusedBeforeAnyWorkTest`, `MessageNamingATaskAnswersTheWaitingAskTest`, `MessageNamingOnlyAContextStartsARunTest`, `IncomingTextPassesTheGuardsTest` |
 | **R24** | `InternalHumanPromptShowsWorkingTest`, `AskToACallerChannelShowsInputRequiredTest`, `CallerNeverAnswersAnInternalApprovalTest` |
 | **R25** | `WeaveCardPrintsTheCardOfferingNoNetworkTest`, `CardDiffShowsAChangeToExposeTest` |
 | **R26** | One test per check, each asserting the line and the fix in the message |
-| **R27** | One test per audit rule, positive and negative; `SecurityDocTest` |
+| **R27** | One test per audit rule, positive and negative (LA24 to LA27 and LR02, including LA26 high with authorization); `SecurityDocTest` |
+| **§4.1 results** | `PlainMessageReplyBindsQuoteFilesAndDataTest`, `ExpectingTakesTheSingleDataPartTest`, `ExpectingFallsBackToJsonInTextTest`, `SeveralDataPartsFailTheStepTest`, `JsonSizeAndDepthAreCappedTest` |
+| **§5 (plain agent)** | `AgentFunctionIsCalledPerTaskTest`, `TwoScopesNeverShareAnAgentTest`, `RunnerRefusesWithoutTheLimitsConfirmationTest`, `NoInputRequiredFromAPlainAgentTest`, `CrashLeavesAWorkingTaskTheConsumerCanCleanUpTest`, `RefusalMessagePointsToLoomTest` |
 | **R28** | `RemoteNodeAndChipTest`, `ExposeMarksTheEntryPointTest`, `GraphRenderSyncTest`, `FabricEscapesRemoteTextTest` |
-| **R30** | `ConsumerSamplesCompileTest` (the transport, channel and serving samples on the A2A page compile against the real interfaces), `ConsumerDutiesPageListsEveryDutyTest` |
+| **R30** | `StarterCompilesInTheExtendedBuildTest` (`src/examples/a2a-starter` compiles against the real interfaces), `PageExcerptsMatchTheStarterTest`, `ConsumerDutiesPageListsEveryDutyTest` |
 | **R29** | `JournalRecordsExchangesAndFilesTest`, `ResumeNeverResendsAnAcknowledgedMessageTest`, `RewindAndForkNeverResendTest`, `MissingReceivedFileFailsTheStepTest` |
 
 ## 5. Test the guards themselves
@@ -105,10 +112,17 @@ Each of these is checked once by breaking the guard on purpose and confirming a 
 18. The tenant and caller scoping of `ListTasks` and `GetTask`.
 19. The terminal-task rule and the context and task consistency rules.
 20. The duplicate and stale `taskChanged` guard.
+21. `text_input` being explicit, and `max_input` refusing before any work.
+22. `require_signed_card`, and a failed signature always refused.
+23. No mixed dynamic target lists, and no token budget on a remote step.
+24. A stopped run cancelling its remote tasks.
+25. The plain-agent runner refusing to start without the limits confirmation.
+26. One runner per scope: a request for one scope never reaches another scope's runner.
 
 ## 6. What is deliberately not tested
 
 - A real network, a real A2A server or gRPC and REST bindings. The optional live test uses the owner's own agent and is never part of the default build.
 - Other protocol versions. Principle 9 puts them in a translation the consumer writes; llm4j tests only that nothing else knows a version.
-- The consumer's transport and channel. The tests use fakes; the sample in the documentation is compiled in a docs test but not run against a network.
+- The consumer's transport and channel. The tests use fakes; the starter project is compiled in the extended build but never run against a network.
+- Cryptography and signature verification: llm4j has none, so only the status handling is tested.
 - Spring, Javalin or any web stack. The handler is tested as a function.
