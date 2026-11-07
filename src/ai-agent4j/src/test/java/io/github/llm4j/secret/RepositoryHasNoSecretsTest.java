@@ -132,6 +132,35 @@ class RepositoryHasNoSecretsTest {
     }
 
     @Test
+    void everyShapeIsCaughtNotOnlyTheFirstFew() {
+        // assembled at run time, and with enough distinct characters not to read as placeholders
+        String random = "Qw8Er7Ty6Ui5Op4As3Df2Gh1Jk9Lz8Xc7Vb6Nm5Qw4Er3Ty2Ui1Op0As";
+        String[] realistic = {
+            "sk-" + "proj-" + random,
+            "sk-" + random,
+            "gh" + "p_" + random.substring(0, 40),
+            "gh" + "o_" + random.substring(0, 40),
+            "gh" + "u_" + random.substring(0, 40),
+            "gh" + "s_" + random.substring(0, 40),
+            "gh" + "r_" + random.substring(0, 40),
+            "github" + "_pat_" + random,
+            "xox" + "b-" + random.substring(0, 30),
+            "xox" + "a-" + random.substring(0, 30),
+            "xox" + "p-" + random.substring(0, 30),
+            "xox" + "r-" + random.substring(0, 30),
+            "xox" + "s-" + random.substring(0, 30),
+            "-----BEGIN " + "RSA PRIVATE KEY-----",
+            "-----BEGIN " + "EC PRIVATE KEY-----",
+            "-----BEGIN " + "OPENSSH PRIVATE KEY-----",
+        };
+        for (String key : realistic)
+            assertEquals(
+                    1,
+                    findings("value = \"" + key + "\"\n").size(),
+                    "not caught: " + key.substring(0, 8));
+    }
+
+    @Test
     void noFileInTheRepositoryContainsACredentialShapedString() throws IOException {
         assertTrue(
                 Files.isDirectory(ROOT.resolve("src/ai-agent4j")),

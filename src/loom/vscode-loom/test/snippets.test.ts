@@ -112,28 +112,66 @@ test('the snippets teach the habits the guide asks for', () => {
     assert.match(snippets['loop'].description, /max/);
 });
 
+/** The checks are started together, a few at a time, because each is a JVM start of about half a second; the tests below await their own. */
+const CONCURRENT_CHECKS = 4;
+let running = 0;
+const waiting: Array<() => void> = [];
+function slot(): Promise<void> {
+    if (running < CONCURRENT_CHECKS) { running++; return Promise.resolve(); }
+    return new Promise((resolve) => waiting.push(() => { running++; resolve(); }));
+}
+function release(): void { running--; waiting.shift()?.(); }
+
+interface Run { status: number | null; stdout: string; stderr: string }
+
+function runWeave(args: string[]): Promise<Run> {
+    return slot().then(() => new Promise<Run>((resolve) => {
+        const child = child_process.spawn('java', ['-jar', jar, ...args]);
+        let stdout = '';
+        let stderr = '';
+        child.stdout.on('data', (c) => { stdout += c; });
+        child.stderr.on('data', (c) => { stderr += c; });
+        child.on('close', (status) => { release(); resolve({ status, stdout, stderr }); });
+    }));
+}
+
+/** What a checked project has beside its script, written to a fresh folder; returns the script's path and the weave arguments. */
+function prepare(name: string, snippet: { body: string[] }): { file: string; args: string[] } {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'loom-snippet-'));
+    fs.mkdirSync(path.join(dir, 'prompts'));
+    // the rules of a policy, and golden cases for each extractor and evaluator
+    fs.mkdirSync(path.join(dir, 'policies'));
+    fs.writeFileSync(path.join(dir, 'policies', 'house-rules.md'), '# House rules\n\n## no_refund_promise\nThe reply promises a refund.\n');
+    fs.mkdirSync(path.join(dir, 'eval', 'golden'), { recursive: true });
+    const fieldCase = '- id: a-001\n  name: one\n  input: "ACME total 5"\n  expected_fields: { %s: x }\n';
+    fs.writeFileSync(path.join(dir, 'eval', 'golden', 'invoice.yaml'), fieldCase.replace('%s', 'vendor'));
+    fs.writeFileSync(path.join(dir, 'eval', 'golden', 'plan.yaml'), fieldCase.replace('%s', 'items'));
+    fs.writeFileSync(path.join(dir, 'eval', 'golden', 'compliance.yaml'),
+        '- id: c-001\n  name: breaks it\n  policy: HouseRules\n  text: "We will refund you."\n  expected: { no_refund_promise: violated }\n' +
+        '- id: c-002\n  name: near miss\n  policy: HouseRules\n  near_miss: true\n  text: "I cannot promise a refund."\n  expected: { no_refund_promise: clean }\n');
+    fs.writeFileSync(path.join(dir, 'prompts', 'writer.md'), 'You write.\n');
+    const file = path.join(dir, 'main.loom');
+    fs.writeFileSync(file, frame(name, expand(snippet.body)));
+    const args = PARSE_ONLY.has(name) ? ['graph', file, '--format', 'json'] : ['check', file, '--no-env', '--format', 'json'];
+    return { file, args };
+}
+
+const started = new Map<string, { file: string; run: Promise<Run> }>();
+if (!skip) {
+    for (const [name, snippet] of Object.entries(snippets)) {
+        if (SKIP.has(name)) { continue; }
+        const { file, args } = prepare(name, snippet);
+        started.set(name, { file, run: runWeave(args) });
+    }
+}
+
 for (const [name, s] of Object.entries(snippets)) {
     if (SKIP.has(name)) {
         continue;
     }
-    test(`the "${s.prefix}" snippet, as typed, is a script that weave accepts`, { skip }, () => {
-        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'loom-snippet-'));
-        fs.mkdirSync(path.join(dir, 'prompts'));
-        // what a checked project has beside its script: the rules of a policy, and golden cases for each extractor and evaluator
-        fs.mkdirSync(path.join(dir, 'policies'));
-        fs.writeFileSync(path.join(dir, 'policies', 'house-rules.md'), '# House rules\n\n## no_refund_promise\nThe reply promises a refund.\n');
-        fs.mkdirSync(path.join(dir, 'eval', 'golden'), { recursive: true });
-        const fieldCase = '- id: a-001\n  name: one\n  input: "ACME total 5"\n  expected_fields: { %s: x }\n';
-        fs.writeFileSync(path.join(dir, 'eval', 'golden', 'invoice.yaml'), fieldCase.replace('%s', 'vendor'));
-        fs.writeFileSync(path.join(dir, 'eval', 'golden', 'plan.yaml'), fieldCase.replace('%s', 'items'));
-        fs.writeFileSync(path.join(dir, 'eval', 'golden', 'compliance.yaml'),
-            '- id: c-001\n  name: breaks it\n  policy: HouseRules\n  text: "We will refund you."\n  expected: { no_refund_promise: violated }\n' +
-            '- id: c-002\n  name: near miss\n  policy: HouseRules\n  near_miss: true\n  text: "I cannot promise a refund."\n  expected: { no_refund_promise: clean }\n');
-        fs.writeFileSync(path.join(dir, 'prompts', 'writer.md'), 'You write.\n');
-        const file = path.join(dir, 'main.loom');
-        fs.writeFileSync(file, frame(name, expand(s.body)));
-        const args = PARSE_ONLY.has(name) ? ['graph', file, '--format', 'json'] : ['check', file, '--no-env', '--format', 'json'];
-        const r = child_process.spawnSync('java', ['-jar', jar, ...args], { encoding: 'utf8' });
+    test(`the "${s.prefix}" snippet, as typed, is a script that weave accepts`, { skip }, async () => {
+        const { file, run } = started.get(name)!;
+        const r = await run;
         const where = `${name}\n${fs.readFileSync(file, 'utf8')}\n${r.stdout}${r.stderr}`;
         assert.equal(r.status, 0, where);
         const json = JSON.parse(r.stdout);
