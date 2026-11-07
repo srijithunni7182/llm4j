@@ -37,6 +37,7 @@ and a security guard is tested by breaking it on purpose. The principles in [PRI
 | **Graph / Fabric** | `AttachGraphTest`-style tests for the new node kinds and chips; the sync scripts; escaping of remote text |
 | **Docs** | The new ` ```loom ` blocks in the guide and tutorial parse or check as their type says; the VS Code grammar finds the new words; `API_COMPATIBILITY.md` lists the new types |
 | **CTK** | New scenarios: a call that completes; a call that asks a question; a refused card; an exposed workflow's card (`weave card`) |
+| **Ecosystem** | The completeness test (D32); `weave test` with a scripted remote and a scripted channel (states, a question, an authorization request, a file, a refusal) and step coverage that counts remote steps; the symbols index for the new declarations and references (go-to-definition, references, rename); the stepper over a remote call; the cost estimate showing a remote step as outside the budgets; trace events and the loom-inspect rules and security signals for exchanges; OTLP spans; the graph kinds and chips with the sync check; the VS Code grammar, hover, completion, snippets (run through `weave check`) and the regenerated parity baseline; the compatibility-kit scenarios; the guide, tutorial and starter tests; the extension version check |
 | **Mutation (PIT)** | A profile for the decision-making classes: the endpoint guard, `ExchangeGuard`, the sink, the caller filter, the state mapping and `A2AJsonRpc10`, at an 85% threshold |
 | **Live (tagged `live`, never default)** | If a real A2A agent is available (VERIFICATION P6), one call each way with the owner's own agent and keys; confirms the helper against a real server. Run only when asked |
 
@@ -87,6 +88,16 @@ and a security guard is tested by breaking it on purpose. The principles in [PRI
 | **R28** | `RemoteNodeAndChipTest`, `ExposeMarksTheEntryPointTest`, `GraphRenderSyncTest`, `FabricEscapesRemoteTextTest` |
 | **R30** | `StarterCompilesInTheExtendedBuildTest` (`src/examples/a2a-starter` compiles against the real interfaces), `PageExcerptsMatchTheStarterTest`, `ConsumerDutiesPageListsEveryDutyTest` |
 | **R29** | `JournalRecordsExchangesAndFilesTest`, `ResumeNeverResendsAnAcknowledgedMessageTest`, `RewindAndForkNeverResendTest`, `MissingReceivedFileFailsTheStepTest` |
+| **R31** | `EveryStatementVisitorHandlesRemoteAskAndExposeTest` (via the completeness test), `ScriptDriftSeesTheNewConstructsTest`, `StaticSinkChecksReadRemoteAndAskTest` |
+| **R32** | `SymbolsIndexRemoteChannelAndExposeTest`, `ReferencesFromToChannelAndAskResolveTest`, `RenameUpdatesEveryReferenceTest`, `ProtocolDocListsTheNewKindsTest`, the extension's `grammar`, `semantic`, `snippets` and `parserParity` tests |
+| **R33** | `ScriptedRemoteInATestFileTest`, `ScriptedChannelInATestFileTest`, `AssertionOnARemoteStepTest`, `StepCoverageCountsRemoteStepsTest`, `EvalMockRunsARemoteStepTest`, `CaptureRecordsExchangesAsDigestsOnlyTest` |
+| **R34** | `StepperStepsOverARemoteCallTest`, `WhyExplainsARemoteStepTest`, `NarratorReadsTheNewStatementsTest` |
+| **R35** | `RuleDocsGeneratedTest` (regenerated pages), `SecurityDocTest`, `ReviewRuleTreatsARemoteAsAbleToActTest`, `CostEstimateShowsARemoteStepOutsideTheBudgetsTest`, `BudgetCoordinatorDoesNotCountARemoteStepTest` |
+| **R36** | `RemoteAndExposeGraphKindsTest`, `GraphSchemaAcceptsTheNewKindsTest`, `GraphRenderSyncTest`, the JS chip tests |
+| **R37** | `TraceEventsForRemoteExchangesTest`, `InspectRaisesAnIncidentForARemotePastItsDeadlineTest`, `InspectSignalsAnExposedWorkflowsUntrustedInputTest`, `OtlpSpansForRemoteCallsTest`, `FabricEscapesRemoteTextTest` |
+| **R38** | `RemoteCallCtkConformanceTest`, `RemoteQuestionCtkConformanceTest`, `RefusedCardCtkConformanceTest`, `ExposedCardCtkConformanceTest` |
+| **R39** | `TutorialExamplesTest` and `StartersTest` (with the policy for the not-validated warning), `GuideTutorialPageTest` (regenerated), the guide tests, `LoomGuideBlocksParseTest`, `RepositoryScriptsTest`, `SkillPackageTest`, `CommandReferenceListsWeaveCardTest` |
+| **R40** | The extension suite, `releaseCheck`, `manifest`, and the publish workflow's version check |
 
 ## 5. Test the guards themselves
 
@@ -118,6 +129,8 @@ Each of these is checked once by breaking the guard on purpose and confirming a 
 24. A stopped run cancelling its remote tasks.
 25. The plain-agent runner refusing to start without the limits confirmation.
 26. One runner per scope: a request for one scope never reaches another scope's runner.
+27. The completeness test: adding a statement type to the AST without handling it in a registry fails the test.
+28. The scripted remote in `weave test`: with scripting removed, a test of a remote step fails.
 
 ## 6. What is deliberately not tested
 

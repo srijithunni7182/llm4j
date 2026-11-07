@@ -15,6 +15,7 @@ Status: **not started** (P2 and P3 are done: the specification was read, results
 | P6 | **Ask the owner whether a real A2A agent is available** for the live check (one that calls out or can be called; a sample from a vendor's SDK is enough). Keys stay in the owner's environment, never in the chat | recorded as run or not run | ⬜ |
 | P7 | **Baseline**: `mvn verify` on `ai-agent4j`, `ai-agent4j-loom` and every module after it, the mutation profiles, and the VS Code extension suite; record the scores and any failure that exists before the change | recorded in §7 | ⬜ |
 | P8 | **Build the compile-only starter** `src/examples/a2a-starter` (D31) against the real interfaces once 32a to 32d exist, with a marked `TODO` wherever authentication, TLS, address validation, signature checking or durable storage plug in; add it to the extended build and to the CI extended job | the starter compiles in `make test-extended` and in CI, and `PageExcerptsMatchTheStarterTest` passes | ⬜ |
+| P9 | **Survey the ecosystem** (DESIGN §4.6) before 32c: the policy for tutorial and starter scripts given that every `remote` warns (`loom-parse` blocks, or a marker for an expected warning, and what `StartersTest` allows); the format of `weave test` files and where a scripted remote and channel fit; what `ScriptDrift` checks; how `docs/serve/PROTOCOL.md` versions symbol kinds; whether any other Loom runtime exists in the repository (the compatibility kit speaks of Java and Python) and so needs the scenarios; which tutorial chapters and which guide chapters need which sections; whether `weave deploy` and `loom-maven-plugin` need any change | the answers are in §7 and DESIGN §4.6 matches them | ⬜ |
 
 ## 1. Acceptance criteria
 
@@ -45,6 +46,9 @@ Status: **not started** (P2 and P3 are done: the specification was read, results
 | A23 | Scopes never share a journal when given separate hosts, and filtering by scope key holds when they share one | R13 tests |
 | A24 | `require_signed_card` and a failed signature are enforced; llm4j does no cryptography | R14b tests |
 | A25 | A stopped run cancels its in-flight remote tasks, best effort | R15b tests |
+| A26 | **No surface drifts.** Every surface in DESIGN §4.6 handles every construct of this phase, in the sub-phase that adds it, and the completeness test passes | R31 to R40 tests, the completeness test |
+| A27 | A workflow that calls a remote agent can be tested offline with `weave test` (a scripted remote and channel) and its steps count in coverage | R33 tests |
+| A28 | The editor offers go-to-definition, references, rename, completion and hover for `remote`, `agent_channel` and `expose`; the extension is released with a version bump | R32, R40 tests |
 
 ## 2. Quality gates
 
@@ -55,9 +59,9 @@ Status: **not started** (P2 and P3 are done: the specification was read, results
 - `make release-check` (sources, javadoc, metadata) green: every new public type and method has Javadoc.
 - GitGuardian-clean: no credential anywhere, including fixtures and docs.
 
-## 3. Documentation checklist (principle 7)
+## 3. Documentation and ecosystem checklist (principle 7 of `CLAUDE.md` and principle 11)
 
-Each is updated in the same sub-phase as the behaviour it describes, not later. Check the box only when the page was read and corrected.
+Each is updated in the same sub-phase as the behaviour it describes, not later. Check the box only when the page was read and corrected. The full list of surfaces, with what must change and what catches drift, is DESIGN §4.6 (R31 to R40); every box below that is a Loom surface follows it.
 
 - [ ] `PRINCIPLES.md` (if anything here changes a principle) and this folder's specs
 - [ ] `LOOM_GUIDE.md` (a section with parse-tested blocks), `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md` and `07-validate-and-audit.md`
@@ -68,6 +72,7 @@ Each is updated in the same sub-phase as the behaviour it describes, not later. 
 - [ ] The skills under `.claude/skills/` that teach Loom
 - [ ] The VS Code grammar, hover text, README and `CHANGELOG.md` (with a version bump, because the release check requires one when the extension changes); update the frozen parser's parity baseline if the corpus changes
 - [ ] The sample channel and transport, compiled by a test
+- [ ] Every surface of DESIGN §4.6, each ticked in the sub-phase that adds the construct: language core visitors; symbols, `docs/serve/PROTOCOL.md` and the editor (grammar, hover, completion, snippets, parity baseline); `weave test`, `eval` and `capture` support; the debugger and demos; review, audit, cost and the generated rule pages; the graph and its copies; trace events, loom-inspect, OTLP and Fabric; the compatibility kit; the guide, tutorial, starters and skills; `COMMAND_REFERENCE.md` and `weave man`; the VS Code release
 - [ ] The consumer's-duties page (DESIGN R30) and the compile-only starter `src/examples/a2a-starter`, covering: transport, channel, waiting (poll, stream, push, duplicates), serving (mounting, card address and caching, authentication, identity and tenant, the future for a waiting send), where tasks and the `received/` folder live with the journal, signing and verifying cards, and operations; examples compiled by a test
 
 ## 4. Manual checks
@@ -83,7 +88,7 @@ Each is updated in the same sub-phase as the behaviour it describes, not later. 
 
 ## 5. Exit checklist
 
-- [ ] All of A1 to A25 pass with the evidence named.
+- [ ] All of A1 to A28 pass with the evidence named.
 - [ ] Guard-removal checks (TEST_STRATEGY §5) done and recorded.
 - [ ] Documentation checklist (§3) done; samples verified.
 - [ ] Every claim about the specification is marked verified with its section (P2), or listed as unverified.
