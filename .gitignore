@@ -63,3 +63,7 @@ fabric-data/
 fabric-sim-data/
 **/fabric-data/
 **/fabric-sim-data/
+
+# Written by the audit logger of the sample scripts, relative to wherever a test or a run happens to start
+boardroom-audit.json
+hexamind-audit.json

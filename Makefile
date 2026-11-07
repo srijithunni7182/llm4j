@@ -1,9 +1,12 @@
 SHELL := /bin/bash
 
-.PHONY: help build test test-core test-fast test-oracle test-full test-extended test-live smoke-apps release-check skill-package quick verify format-check
+.PHONY: help setup regen docs-check build test test-core test-fast test-oracle test-full test-extended test-live smoke-apps release-check skill-package quick verify format-check
 
 help:
 	@echo "Targets:"
+	@echo "  make setup          - Get a checkout ready: full history, the core and Loom installed from this checkout, the VS Code extension built (about a minute; run once per session or after switching branches)"
+	@echo "  make regen          - Regenerate every generated file: command reference, starter pictures, graph renderer copies, review rule pages, tutorial page"
+	@echo "  make docs-check     - Regenerate and list everything that was stale, then run the documentation tests (about 45 seconds): run after changing docs, a command, a starter or a review rule"
 	@echo "  make build          - Compile the published libraries"
 	@echo "  make test-core      - The Loom language core, about 30 seconds (parallel), no coverage gates (not the weave commands, starters, bindings or editor server): run after every sub-phase"
 	@echo "  make test-fast      - Every test except the slow ones, with the coverage gates (about 2 minutes for Loom): run after every phase"
@@ -17,6 +20,20 @@ help:
 	@echo "  make quick          - Build and test the core libraries (no live, integration or fragile tests, no examples), package the skill, build and install the VS Code extension"
 	@echo "  make release-check  - Build the sources and javadoc jars exactly as a release does, without signing"
 	@echo "  make format-check   - Check formatting for core and addons"
+
+# The tests that pin documentation to code or to each other. By name, so a new one is picked up: the Loom guides and tutorial,
+# the starters, the command reference, every .loom file in the repository, llms.txt, the wiki's code samples.
+DOCS_TESTS = *Doc*Test,*Docs*Test,*Guide*Test,*Tutorial*Test,StartersTest,ManPageTest,RepositoryScriptsTest,LlmsTxtTest,ProbesReadmeVersionsTest,WhyLlm4jLinksProbesTest,!Doctor*Test,!DocumentChunkingTest,!DocumentedExamplesTest
+
+setup:
+	bash scripts/setup-dev.sh
+
+regen:
+	bash scripts/regen.sh
+
+docs-check:
+	bash scripts/regen.sh --check
+	mvn -q -pl src/ai-agent4j,src/loom/ai-agent4j-loom -Djacoco.skip=true -Dtest='$(DOCS_TESTS)' -Dsurefire.failIfNoSpecifiedTests=false test
 
 build:
 	mvn -q -DskipTests compile

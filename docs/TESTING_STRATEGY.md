@@ -40,6 +40,12 @@ The tiers exist so that the language can be checked often and the whole suite ra
 
 The coverage gates run in the fast and full tiers and not in the core tier, since a subset cannot meet them. Leaving the `slow` tests out of the fast tier was checked not to weaken the gates: with the seven heaviest classes excluded, every coverage rule was still met. The core tier is defined by excluding the four packages that are not the language itself, so a new package is in it by default. What the fast tier adds over core is the command line (about 1,000 tests), the starters and tutorial, the bindings and the editor server.
 
+## The documentation lane, and a ready checkout
+
+Outside the tiers, `make docs-check` (about 40 seconds) is for work on documentation and generated files. It runs `scripts/regen.sh --check`, which runs every generator (the command reference, the starters' pictures, the graph renderer's copies, the review rule pages, the tutorial's web page) and lists **every** generated file that was stale, then runs the documentation tests by name (`DOCS_TESTS` in the Makefile: the guides, tutorial, starters, command reference, `RepositoryScriptsTest`, `llms.txt` and the wiki's code samples). Without it, each stale file shows up as a separate failure of a separate test. The files are left regenerated, ready to commit.
+
+`make setup` (about a minute) prepares a checkout: the full git history, the core, Loom and `loom-inspect-core` installed from the checkout into `~/.m2`, and the VS Code extension built with a `bin/weave.jar` from the same build. The modules that compile against the installed jars (`loom-inspect*`, `loom-fabric`) and the extension's tests otherwise use whatever an earlier build left, which fails in confusing ways.
+
 ## Evaluating a workflow: three costs
 
 For the workflows you build with Loom (not this repository's own tests), evaluation is run at three prices: `weave test` and `weave eval --mock` on every change (scripted, free); `weave eval --changed --max-tokens N` before a merge (real, only the cases of what changed, capped); and a full `weave eval` on a schedule (real, everything, off until someone turns it on). `weave init` writes the CI file. See the Loom guide, "Evaluating a Workflow".
