@@ -15,9 +15,10 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * A small transport for the tests: it speaks JSON-RPC 1.0 through {@link A2AJsonRpc10} and routes the
- * https host the card names to a loopback port. Not the starter, and not for production: it does no
- * address validation, no redirects policy and no credential handling beyond what the tests need.
+ * A small transport for the tests: it speaks JSON-RPC 1.0 through {@link A2AJsonRpc10} and routes
+ * the https host the card names to a loopback port. Not the starter, and not for production: it
+ * does no address validation, no redirects policy and no credential handling beyond what the tests
+ * need.
  */
 final class HttpTestTransport implements A2ATransport {
 
@@ -48,11 +49,14 @@ final class HttpTestTransport implements A2ATransport {
 
     @Override
     public AgentCardView fetchCard(String address) {
-        return A2AJsonRpc10.parseCard(call(HttpRequest.newBuilder(URI.create(route(address))).GET().build()));
+        return A2AJsonRpc10.parseCard(
+                call(HttpRequest.newBuilder(URI.create(route(address))).GET().build()));
     }
 
     private String rpc(AgentCardView.Endpoint endpoint, A2AJsonRpc10.Request request) {
-        var builder = HttpRequest.newBuilder(URI.create(route(endpoint.url()))).header("Content-Type", "application/json");
+        var builder =
+                HttpRequest.newBuilder(URI.create(route(endpoint.url())))
+                        .header("Content-Type", "application/json");
         request.headers().forEach(builder::header);
         if (!extensions.isEmpty()) {
             builder.header("A2A-Extensions", String.join(",", extensions));
@@ -62,11 +66,15 @@ final class HttpTestTransport implements A2ATransport {
 
     private String call(HttpRequest request) {
         try {
-            HttpResponse<InputStream> response = http.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            HttpResponse<InputStream> response =
+                    http.send(request, HttpResponse.BodyHandlers.ofInputStream());
             try (InputStream in = response.body()) {
                 byte[] body = in.readNBytes(MAX_RESPONSE_BYTES + 1);
                 if (body.length > MAX_RESPONSE_BYTES) {
-                    throw new A2AException("the response is larger than " + MAX_RESPONSE_BYTES + " bytes; refused");
+                    throw new A2AException(
+                            "the response is larger than "
+                                    + MAX_RESPONSE_BYTES
+                                    + " bytes; refused");
                 }
                 if (response.statusCode() == 401) {
                     throw new A2AException("the remote refused the credentials (401)");
@@ -82,23 +90,50 @@ final class HttpTestTransport implements A2ATransport {
     }
 
     @Override
-    public SendResult send(AgentCardView.Endpoint endpoint, SecretRef credential, A2AMessage message, SendOptions options) {
-        return A2AJsonRpc10.parseSendResponse(rpc(endpoint, A2AJsonRpc10.sendMessage(ids.incrementAndGet(), message, options, endpoint.tenant())));
+    public SendResult send(
+            AgentCardView.Endpoint endpoint,
+            SecretRef credential,
+            A2AMessage message,
+            SendOptions options) {
+        return A2AJsonRpc10.parseSendResponse(
+                rpc(
+                        endpoint,
+                        A2AJsonRpc10.sendMessage(
+                                ids.incrementAndGet(), message, options, endpoint.tenant())));
     }
 
     @Override
     public RemoteTask get(AgentCardView.Endpoint endpoint, SecretRef credential, String taskId) {
-        return A2AJsonRpc10.parseGetTaskResponse(rpc(endpoint, A2AJsonRpc10.getTask(ids.incrementAndGet(), taskId, 10, endpoint.tenant())));
+        return A2AJsonRpc10.parseGetTaskResponse(
+                rpc(
+                        endpoint,
+                        A2AJsonRpc10.getTask(
+                                ids.incrementAndGet(), taskId, 10, endpoint.tenant())));
     }
 
     @Override
     public RemoteTask cancel(AgentCardView.Endpoint endpoint, SecretRef credential, String taskId) {
-        return A2AJsonRpc10.parseGetTaskResponse(rpc(endpoint, A2AJsonRpc10.cancelTask(ids.incrementAndGet(), taskId, endpoint.tenant())));
+        return A2AJsonRpc10.parseGetTaskResponse(
+                rpc(
+                        endpoint,
+                        A2AJsonRpc10.cancelTask(ids.incrementAndGet(), taskId, endpoint.tenant())));
     }
 
     @Override
-    public List<RemoteTask> recentTasks(AgentCardView.Endpoint endpoint, SecretRef credential, Instant since, int historyLimit) {
-        return A2AJsonRpc10.parseListTasksResponse(rpc(endpoint, A2AJsonRpc10.listTasks(ids.incrementAndGet(), since, historyLimit, 50, endpoint.tenant())));
+    public List<RemoteTask> recentTasks(
+            AgentCardView.Endpoint endpoint,
+            SecretRef credential,
+            Instant since,
+            int historyLimit) {
+        return A2AJsonRpc10.parseListTasksResponse(
+                rpc(
+                        endpoint,
+                        A2AJsonRpc10.listTasks(
+                                ids.incrementAndGet(),
+                                since,
+                                historyLimit,
+                                50,
+                                endpoint.tenant())));
     }
 
     @Override

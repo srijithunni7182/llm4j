@@ -15,10 +15,10 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * The one place in llm4j that knows a wire name: it translates A2A 1.0 over JSON-RPC to and from the
- * version-free model. Pure functions, no network. A consumer's transport that speaks this binding
- * calls it and only moves the bytes; a consumer who speaks anything else writes their own mapping
- * and uses the rest of the package unchanged.
+ * The one place in llm4j that knows a wire name: it translates A2A 1.0 over JSON-RPC to and from
+ * the version-free model. Pure functions, no network. A consumer's transport that speaks this
+ * binding calls it and only moves the bytes; a consumer who speaks anything else writes their own
+ * mapping and uses the rest of the package unchanged.
  *
  * <p>It writes only the 1.0 form. On input it accepts both spellings of a task state that the 1.0
  * text and its examples use, ignores fields it does not know, and treats a state it does not
@@ -69,7 +69,8 @@ public final class A2AJsonRpc10 {
      * @param options how to send
      * @param tenant a tenant to pass through, or null
      */
-    public static Request sendMessage(long id, A2AMessage message, SendOptions options, String tenant) {
+    public static Request sendMessage(
+            long id, A2AMessage message, SendOptions options, String tenant) {
         ObjectNode params = JSON.createObjectNode();
         putTenant(params, tenant);
         params.set("message", writeMessage(message));
@@ -111,7 +112,8 @@ public final class A2AJsonRpc10 {
      * @param historyLength how many history messages per task
      * @param pageSize the page size
      */
-    public static Request listTasks(long id, Instant since, int historyLength, int pageSize, String tenant) {
+    public static Request listTasks(
+            long id, Instant since, int historyLength, int pageSize, String tenant) {
         ObjectNode params = JSON.createObjectNode();
         putTenant(params, tenant);
         params.put("pageSize", pageSize);
@@ -122,7 +124,8 @@ public final class A2AJsonRpc10 {
 
     /** Whether this helper can speak to the endpoint: the JSON-RPC binding at version 1.0. */
     public static boolean supports(AgentCardView.Endpoint endpoint) {
-        return BINDING.equalsIgnoreCase(endpoint.binding()) && VERSION.equals(endpoint.protocolVersion());
+        return BINDING.equalsIgnoreCase(endpoint.binding())
+                && VERSION.equals(endpoint.protocolVersion());
     }
 
     private static Request request(long id, String method, ObjectNode params) {
@@ -195,7 +198,8 @@ public final class A2AJsonRpc10 {
         if (result.has("id") && result.has("status")) {
             return new SendResult.TaskResult(readTask(result));
         }
-        throw new A2AException.Malformed("the response to a send holds neither a task nor a message", null);
+        throw new A2AException.Malformed(
+                "the response to a send holds neither a task nor a message", null);
     }
 
     /** Parses the response to a get or a cancel. */
@@ -227,25 +231,42 @@ public final class A2AJsonRpc10 {
         List<AgentCardView.Endpoint> endpoints = new ArrayList<>();
         for (JsonNode i : array(card, "supportedInterfaces")) {
             if (!text(i, "url").isEmpty()) {
-                endpoints.add(new AgentCardView.Endpoint(
-                        text(i, "url"), text(i, "protocolBinding"), text(i, "protocolVersion"), nullable(i, "tenant")));
+                endpoints.add(
+                        new AgentCardView.Endpoint(
+                                text(i, "url"),
+                                text(i, "protocolBinding"),
+                                text(i, "protocolVersion"),
+                                nullable(i, "tenant")));
             }
         }
         if (endpoints.isEmpty() && !text(card, "url").isEmpty()) {
             // an older card has one address and states its own version; offer it as it is so the
             // refusal can name the version
-            String binding = text(card, "preferredTransport").isEmpty() ? BINDING : text(card, "preferredTransport");
-            endpoints.add(new AgentCardView.Endpoint(text(card, "url"), binding, text(card, "protocolVersion"), null));
+            String binding =
+                    text(card, "preferredTransport").isEmpty()
+                            ? BINDING
+                            : text(card, "preferredTransport");
+            endpoints.add(
+                    new AgentCardView.Endpoint(
+                            text(card, "url"), binding, text(card, "protocolVersion"), null));
         }
         List<AgentCardView.Skill> skills = new ArrayList<>();
         for (JsonNode s : array(card, "skills")) {
-            skills.add(new AgentCardView.Skill(
-                    text(s, "id"), text(s, "name"), text(s, "description"), strings(s, "tags"),
-                    strings(s, "examples"), strings(s, "inputModes"), strings(s, "outputModes")));
+            skills.add(
+                    new AgentCardView.Skill(
+                            text(s, "id"),
+                            text(s, "name"),
+                            text(s, "description"),
+                            strings(s, "tags"),
+                            strings(s, "examples"),
+                            strings(s, "inputModes"),
+                            strings(s, "outputModes")));
         }
         List<AgentCardView.Extension> extensions = new ArrayList<>();
         for (JsonNode e : array(card.path("capabilities"), "extensions")) {
-            extensions.add(new AgentCardView.Extension(text(e, "uri"), e.path("required").asBoolean(false)));
+            extensions.add(
+                    new AgentCardView.Extension(
+                            text(e, "uri"), e.path("required").asBoolean(false)));
         }
         List<String> schemes = new ArrayList<>();
         JsonNode securitySchemes = card.path("securitySchemes");
@@ -255,9 +276,15 @@ public final class A2AJsonRpc10 {
         boolean signed = array(card, "signatures").iterator().hasNext();
         try {
             return new AgentCardView(
-                    text(card, "name"), text(card, "description"), skills, endpoints,
-                    strings(card, "defaultInputModes"), extensions,
-                    signed ? AgentCardView.SignatureStatus.NOT_CHECKED : AgentCardView.SignatureStatus.NOT_SIGNED,
+                    text(card, "name"),
+                    text(card, "description"),
+                    skills,
+                    endpoints,
+                    strings(card, "defaultInputModes"),
+                    extensions,
+                    signed
+                            ? AgentCardView.SignatureStatus.NOT_CHECKED
+                            : AgentCardView.SignatureStatus.NOT_SIGNED,
                     schemes);
         } catch (IllegalArgumentException | NullPointerException e) {
             throw new A2AException.Malformed("the agent card is not valid: " + e.getMessage(), e);
@@ -329,8 +356,13 @@ public final class A2AJsonRpc10 {
             for (JsonNode m : array(task, "history")) {
                 history.add(readMessage(m));
             }
-            return new RemoteTask(text(task, "id"), text(task, "contextId"), state(status.path("state").asText(null)),
-                    question, artifacts, history);
+            return new RemoteTask(
+                    text(task, "id"),
+                    text(task, "contextId"),
+                    state(status.path("state").asText(null)),
+                    question,
+                    artifacts,
+                    history);
         } catch (IllegalArgumentException | NullPointerException e) {
             throw new A2AException.Malformed("the task is not valid: " + e.getMessage(), e);
         }
@@ -339,9 +371,15 @@ public final class A2AJsonRpc10 {
     private static A2AMessage readMessage(JsonNode message) {
         try {
             String role = message.path("role").asText("").toLowerCase(Locale.ROOT);
-            A2AMessage.Role parsed = role.contains("user") ? A2AMessage.Role.USER : A2AMessage.Role.AGENT;
-            return new A2AMessage(text(message, "messageId"), parsed, readParts(message),
-                    nullable(message, "contextId"), nullable(message, "taskId"), strings(message, "referenceTaskIds"));
+            A2AMessage.Role parsed =
+                    role.contains("user") ? A2AMessage.Role.USER : A2AMessage.Role.AGENT;
+            return new A2AMessage(
+                    text(message, "messageId"),
+                    parsed,
+                    readParts(message),
+                    nullable(message, "contextId"),
+                    nullable(message, "taskId"),
+                    strings(message, "referenceTaskIds"));
         } catch (IllegalArgumentException | NullPointerException e) {
             throw new A2AException.Malformed("the message is not valid: " + e.getMessage(), e);
         }
@@ -360,12 +398,17 @@ public final class A2AJsonRpc10 {
                 parts.add(Part.FileOffered.link(p.get("url").asText(), label, type));
             } else if (p.has("raw")) {
                 try {
-                    parts.add(Part.FileOffered.inline(Base64.getDecoder().decode(p.get("raw").asText()), label, type));
+                    parts.add(
+                            Part.FileOffered.inline(
+                                    Base64.getDecoder().decode(p.get("raw").asText()),
+                                    label,
+                                    type));
                 } catch (IllegalArgumentException e) {
                     throw new A2AException.Malformed("a raw part is not valid base64", e);
                 }
             } else {
-                throw new A2AException.Malformed("a part holds none of text, data, url or raw", null);
+                throw new A2AException.Malformed(
+                        "a part holds none of text, data, url or raw", null);
             }
         }
         return parts;
