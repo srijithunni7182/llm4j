@@ -110,6 +110,13 @@
             <version>${assertj.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- not published: validates A2A wire messages against the official definition, and the mock A2A agent -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>llm4j-a2a-testkit</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>mockwebserver</artifactId>

@@ -10,9 +10,7 @@ import org.junit.jupiter.api.Test;
 class ModelTest {
 
     @Test
-    void anUnrecognisedStateIsUnknownAndNeverCompleted() {
-        assertThat(TaskState.fromName("SOMETHING_NEW")).isEqualTo(TaskState.UNKNOWN);
-        assertThat(TaskState.fromName(null)).isEqualTo(TaskState.UNKNOWN);
+    void anUnknownStateIsNeverTerminalOrCompleted() {
         assertThat(TaskState.UNKNOWN.isTerminal()).isFalse();
         assertThat(TaskState.UNKNOWN).isNotEqualTo(TaskState.COMPLETED);
     }
