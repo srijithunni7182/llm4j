@@ -160,16 +160,18 @@ see [API keys in the Quick Start](src/ai-agent4j/wiki/Getting-Started.md#set-up-
 
 ## Agent skills
 
-Four [Claude skills](docs/PUBLISHING_SKILL.md) live in [`.claude/skills/`](.claude/skills/), so a coding agent can walk you through the whole job, one gate at a time:
+Six [Claude skills](docs/PUBLISHING_SKILL.md) live in [`.claude/skills/`](.claude/skills/), so a coding agent can walk you through the whole job, one gate at a time:
 
 | Skill | Use it to |
 |---|---|
 | [`llm4j-eval-design`](.claude/skills/llm4j-eval-design/SKILL.md) | **Design** how the workflow will be evaluated before the dataset is built (what correct means, the oracles, what the dataset must hold, how to trust a judge, the run protocol and the gates) and write it down as an `EVAL_DESIGN.md`; **review** an existing evaluation against the known anti-patterns |
 | [`llm4j-harness-design`](.claude/skills/llm4j-harness-design/SKILL.md) | **Design** the harness around an autonomous workflow before building it (what agents may touch, how a run is bounded, fails, survives a crash and is stopped, who steps in) and write it down as a `HARNESS.md` |
+| [`llm4j-workflow-patterns`](.claude/skills/llm4j-workflow-patterns/SKILL.md) | **Choose the shape** from what you want to build (route, write-review loop, parallel research, plan and fan out, approval at the edge, extract and validate, answers from documents, wait for a person, schedule, long job, rules check) and start from a tested skeleton |
 | [`llm4j-workflow-guide`](.claude/skills/llm4j-workflow-guide/SKILL.md) | **Build** it: agents, golden dataset, prompt and agent tests, the Loom workflow, `weave check` and `weave audit`, steering and stopping, going live under budgets ([the guide](docs/guide/README.md)) |
+| [`llm4j-run-debugging`](.claude/skills/llm4j-run-debugging/SKILL.md) | **Find out why** a run went wrong, for free, from its journal (`weave why`, `whatif`, `step`, `timeline`), and fix it with a test that keeps it fixed |
 | [`llm4j-loom-deployer`](.claude/skills/llm4j-loom-deployer/SKILL.md) | **Run** it watched: the security decisions, the rules file, a Fabric server, launching both, reading the pages |
 
-They hand over to each other in that order and each works alone. `weave guide --install-skill` installs all four into your project ([how the skills are published](docs/PUBLISHING_SKILL.md)).
+They hand over to each other and each works alone. `weave guide --install-skill` installs all six into your project ([how the skills are published](docs/PUBLISHING_SKILL.md)).
 
 ## Secure by construction
 

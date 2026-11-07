@@ -1,6 +1,6 @@
 # Publishing the llm4j skills
 
-There are four skills. **`llm4j-eval-design`** designs how the workflow will be evaluated (what correct means, the oracles, what the dataset must hold, how the judge is validated, the run protocol and the gates) and writes an `EVAL_DESIGN.md`, or reviews an existing evaluation into an `EVAL_REVIEW.md`; it sits after "decide the agents" and before "build the golden dataset". **`llm4j-harness-design`** comes next: it designs the harness around an autonomous workflow (what agents may touch, how a run is bounded, how it fails, survives a crash and is stopped, who steps in) and writes the decisions down as a `HARNESS.md` design record. **`llm4j-workflow-guide`** builds, tests, secures and ships the workflow (chapters 1 to 16 of the guide). **`llm4j-loom-deployer`** takes the finished workflow to a running, watched one: the security decisions, the rules file, a Fabric server, launching the application and the server with scripts, and reading the pages. They hand over to each other by name, in that order, and each can be used alone; a team can install only the deployer on a server. `weave guide --install-skill` installs all four into a project (`--skill eval`, `--skill harness`, `--skill workflow` or `--skill deployer` for one).
+There are six skills. **`llm4j-eval-design`** designs how the workflow will be evaluated (what correct means, the oracles, what the dataset must hold, how the judge is validated, the run protocol and the gates) and writes an `EVAL_DESIGN.md`, or reviews an existing evaluation into an `EVAL_REVIEW.md`; it sits after "decide the agents" and before "build the golden dataset". **`llm4j-harness-design`** comes next: it designs the harness around an autonomous workflow (what agents may touch, how a run is bounded, how it fails, survives a crash and is stopped, who steps in) and writes the decisions down as a `HARNESS.md` design record. **`llm4j-workflow-patterns`** picks the shape of the workflow from what the person wants to build and starts from a tested skeleton. **`llm4j-workflow-guide`** builds, tests, secures and ships the workflow (chapters 1 to 16 of the guide), with a fast lane for a first version. **`llm4j-run-debugging`** finds out why a run went wrong from its journal (`weave why`, `whatif`, `step`, `timeline`) and fixes it with a test. **`llm4j-loom-deployer`** takes the finished workflow to a running, watched one: the security decisions, the rules file, a Fabric server, launching the application and the server with scripts, and reading the pages. They hand over to each other by name, in that order, and each can be used alone; a team can install only the deployer on a server. `weave guide --install-skill` installs all six into a project (`--skill eval`, `--skill harness`, `--skill patterns`, `--skill workflow`, `--skill debug` or `--skill deployer` for one).
 
 ## The evaluation-design skill
 
@@ -40,7 +40,28 @@ llm4j-harness-design/
 
 Keep `references/loom-mapping.md` in step with the Loom reference when a construct changes: nothing checks it automatically.
 
+## The workflow-patterns and run-debugging skills
+
+Both are text only, like the harness-design skill, so there is nothing to build but a folder (or its zip):
+
+```
+llm4j-workflow-patterns/
+  SKILL.md                      how to pick a shape with the person, and the hand-over to the workflow guide
+  references/patterns.md        eleven patterns, each with a tested Loom skeleton, the questions to ask and the traps
+llm4j-run-debugging/
+  SKILL.md                      the loop: get the run, read it, name the kind of problem, try the change, test it
+  references/triage.md          symptom, usual cause, first command
+  references/commands.md        what each debugging command does and the options that matter
+```
+
+Every skeleton in `patterns.md` is a starter's `main.loom` (`src/loom/starters`), and a test compares them, so a skeleton cannot drift from a
+starter that is checked on every build. Another test checks that every `weave` command and option the two skills name exists.
+`make skill-package` builds `dist/llm4j-workflow-patterns.zip` and `dist/llm4j-run-debugging.zip` and checks them from an empty folder;
+`weave guide --install-skill --skill patterns` and `--skill debug` write the same files into a project.
+
 ## The workflow skill
+
+`SKILL.md` is the short form of the rules and says when to read each one; the full text is in `references/guiding-rules.md`, which travels with it.
 
 `make skill-package` builds `dist/llm4j-workflow-guide.zip` (about 21 MB) and checks it from an empty folder. The package is self-contained, so it
 can go to a skills marketplace or be handed to someone with nothing else installed:

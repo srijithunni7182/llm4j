@@ -93,3 +93,43 @@ if [ -f "$ezip" ]; then
 else
   echo "(no eval-design package at $ezip: run scripts/package-skill.sh)"
 fi
+
+# ---------------------------------------------------------------------------------------------------------------------------------------
+# The workflow-patterns skill, from its own zip, away from the repository: text only, so it must be complete and point at no repository path.
+patzip="$root/dist/llm4j-workflow-patterns.zip"
+if [ -f "$patzip" ]; then
+  patwork="$(mktemp -d)"
+  unzip -q "$patzip" -d "$patwork"
+  pat="$patwork/llm4j-workflow-patterns"
+  for f in SKILL.md references/patterns.md references/conventions.md; do
+    [ -e "$pat/$f" ] || { echo "missing from the workflow-patterns package: $f" >&2; rm -rf "$patwork"; exit 1; }
+  done
+  grep -q '^name: llm4j-workflow-patterns' "$pat/SKILL.md" || { echo "the workflow-patterns SKILL.md has no name" >&2; rm -rf "$patwork"; exit 1; }
+  if grep -rEn 'docs/(guide|deploy|specs)|\]\(\.\./' "$pat/SKILL.md" "$pat/references" | grep -v "https://" >/dev/null; then
+    echo "the workflow-patterns skill points at a repository path" >&2; rm -rf "$patwork"; exit 1
+  fi
+  rm -rf "$patwork"
+  echo "ok: the workflow-patterns package is complete and stands alone"
+else
+  echo "(no workflow-patterns package at $patzip: run scripts/package-skill.sh)"
+fi
+
+# ---------------------------------------------------------------------------------------------------------------------------------------
+# The run-debugging skill, from its own zip, away from the repository: text only, so it must be complete and point at no repository path.
+dbgzip="$root/dist/llm4j-run-debugging.zip"
+if [ -f "$dbgzip" ]; then
+  dbgwork="$(mktemp -d)"
+  unzip -q "$dbgzip" -d "$dbgwork"
+  dbg="$dbgwork/llm4j-run-debugging"
+  for f in SKILL.md references/triage.md references/commands.md references/conventions.md; do
+    [ -e "$dbg/$f" ] || { echo "missing from the run-debugging package: $f" >&2; rm -rf "$dbgwork"; exit 1; }
+  done
+  grep -q '^name: llm4j-run-debugging' "$dbg/SKILL.md" || { echo "the run-debugging SKILL.md has no name" >&2; rm -rf "$dbgwork"; exit 1; }
+  if grep -rEn 'docs/(guide|deploy|specs)|\]\(\.\./' "$dbg/SKILL.md" "$dbg/references" | grep -v "https://" >/dev/null; then
+    echo "the run-debugging skill points at a repository path" >&2; rm -rf "$dbgwork"; exit 1
+  fi
+  rm -rf "$dbgwork"
+  echo "ok: the run-debugging package is complete and stands alone"
+else
+  echo "(no run-debugging package at $dbgzip: run scripts/package-skill.sh)"
+fi

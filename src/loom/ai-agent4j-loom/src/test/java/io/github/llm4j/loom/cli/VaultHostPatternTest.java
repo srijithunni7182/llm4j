@@ -112,8 +112,7 @@ class VaultHostPatternTest {
                 .contains("new DefaultLLMClientFactory(System::getenv, secrets)")
                 .contains("Google Secret Manager");
         assertThat(
-                        Files.readString(
-                                Path.of("../../../.claude/skills/llm4j-workflow-guide/SKILL.md")))
+                        WorkflowSkillText.repository())
                 .contains("implements `SecretStore`")
                 .contains("executor.setSecretStore(store)");
     }

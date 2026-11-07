@@ -111,7 +111,7 @@ class InitKeyFilesTest {
     void theGuideAndTheSkillKeepTheDeveloperAndTheDeployerApart() throws Exception {
         String chapter = Files.readString(Path.of("../../../docs/guide/09-go-live.md"));
         String skill =
-                Files.readString(Path.of("../../../.claude/skills/llm4j-workflow-guide/SKILL.md"));
+                WorkflowSkillText.repository();
 
         assertThat(chapter)
                 .contains("## Keys and secrets: two different people")

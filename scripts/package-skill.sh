@@ -89,3 +89,23 @@ mv "$root/dist/.stage/.claude/skills/llm4j-eval-design" "$EVL"
 rm -rf "$root/dist/.stage"
 ( cd "$root/dist" && zip -qr llm4j-eval-design.zip llm4j-eval-design )
 echo "built $EVL and $EVL.zip ($(du -h "$EVL.zip" | cut -f1), $(ls "$EVL/references" | wc -l) reference files)"
+
+# ---------------------------------------------------------------------------------------------------------------------------------------
+# The workflow-patterns skill: text only, the same way.
+PAT="$root/dist/llm4j-workflow-patterns"
+rm -rf "$PAT" "$PAT.zip" "$root/dist/.stage"; mkdir -p "$root/dist/.stage"
+( cd "$root/dist/.stage" && java -jar "$jar" guide --install-skill --skill patterns >/dev/null )
+mv "$root/dist/.stage/.claude/skills/llm4j-workflow-patterns" "$PAT"
+rm -rf "$root/dist/.stage"
+( cd "$root/dist" && zip -qr llm4j-workflow-patterns.zip llm4j-workflow-patterns )
+echo "built $PAT and $PAT.zip ($(du -h "$PAT.zip" | cut -f1), $(ls "$PAT/references" | wc -l) reference files)"
+
+# ---------------------------------------------------------------------------------------------------------------------------------------
+# The run-debugging skill: text only, the same way.
+DBG="$root/dist/llm4j-run-debugging"
+rm -rf "$DBG" "$DBG.zip" "$root/dist/.stage"; mkdir -p "$root/dist/.stage"
+( cd "$root/dist/.stage" && java -jar "$jar" guide --install-skill --skill debug >/dev/null )
+mv "$root/dist/.stage/.claude/skills/llm4j-run-debugging" "$DBG"
+rm -rf "$root/dist/.stage"
+( cd "$root/dist" && zip -qr llm4j-run-debugging.zip llm4j-run-debugging )
+echo "built $DBG and $DBG.zip ($(du -h "$DBG.zip" | cut -f1), $(ls "$DBG/references" | wc -l) reference files)"
