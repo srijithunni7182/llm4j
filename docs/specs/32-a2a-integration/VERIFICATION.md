@@ -1,6 +1,6 @@
 # Phase 32 verification plan: A2A integration
 
-Status: **not started**. Run §0 first, then top to bottom at the end of each sub-phase (**32a** the core, R1 to R12; **32b** the handler, R13, R14; **32c** Loom calling, R15 to R21, R26, R29; **32d** Loom being called, R22 to R25; **32e** audit and Fabric, R27, R28;
+Status: **not started** (P2 and P3 are done: the specification was read, results in §7). Run §0 first, then top to bottom at the end of each sub-phase (**32a** the core, R1 to R12; **32b** the handler, R13, R14; **32c** Loom calling, R15 to R21, R26, R29; **32d** Loom being called, R22 to R25; **32e** audit and Fabric, R27, R28;
 **32f** documentation, editor, compatibility kit and mutation tests). Results in §7. Strategy: [TEST_STRATEGY.md](TEST_STRATEGY.md). Principles: [PRINCIPLES.md](PRINCIPLES.md).
 
 ## 0. Before writing anything
@@ -8,8 +8,8 @@ Status: **not started**. Run §0 first, then top to bottom at the end of each su
 | # | Task | Done when | Result |
 |---|---|---|---|
 | P1 | **The owner reviews this spec** and answers the proposed decisions D19 to D26 (or accepts the proposals) | the decisions table in DESIGN §6 says taken for each, or the item is removed | ⬜ |
-| P2 | **Read the whole A2A 1.0.0 specification** (the page was only partly read verbatim): the exact definitions of Task, task states, Part (is there a separate structured-data part, and how is a file carried), the complete agent card fields, the JSON-RPC method names and result shapes (including the push-notification configuration methods), the error codes, and Appendix A (what changed from 0.3.0) | every item in the "unverified" list of the working notes is marked confirmed with the section number, and `SpecExamples` is filled with the specification's own examples | ⬜ |
-| P3 | **Find out whether servers de-duplicate a message id**, and whether a client may supply the context id, so that the crash rule (R16) is sound. If neither holds, the rule rests on `find` by context id alone | recorded with the section, and DESIGN R16 matches | ⬜ |
+| P2 | **Read the A2A 1.0.0 specification** (the page was only partly read verbatim): the exact definitions of Task, task states, Part (is there a separate structured-data part, and how is a file carried), the complete agent card fields, the JSON-RPC method names and result shapes (including the push-notification configuration methods), the error codes, and Appendix A (what changed from 0.3.0) | every item in the "unverified" list is marked confirmed with the section, or remains listed as unverified, and `SpecExamples` is filled with the specification's own examples | ✅ read; see §7 (a few items remain unverified and are listed there) |
+| P3 | **Find out whether servers de-duplicate a message id**, and whether a client may supply the context id, so that the crash rule (R16) is sound. If neither holds, the rule rests on `find` by context id alone | recorded with the section, and DESIGN R16 matches | ✅ neither is guaranteed; R16 and D19 rewritten (§7) |
 | P4 | **Survey Loom** for the places the new words touch: every statement that can be followed by `ask`/`on_failure`, how `delegate` binds its result and a list variable (the grounding citations are the pattern), how `LoomHost` represents a pending `human_prompt`, what `runs()` and `run(id)` return, what a stopped or failed run looks like, and which parts of `ExecutorValidation` a new declaration must register with | the list is in §7 and DESIGN §4 matches it | ⬜ |
 | P5 | **Find the next free audit rule numbers** and the review-lens rules to use, and read `docs/security/weave-audit.md` and `owasp-llm-top-10.md` for the wording to follow | recorded in §7 | ⬜ |
 | P6 | **Ask the owner whether a real A2A agent is available** for the live check (one that calls out or can be called; a sample from a vendor's SDK is enough). Keys stay in the owner's environment, never in the chat | recorded as run or not run | ⬜ |
@@ -27,7 +27,7 @@ Status: **not started**. Run §0 first, then top to bottom at the end of each su
 | A5 | A structured reply is checked against its shape, and a bad one is re-asked and counted | R10, R21 tests |
 | A6 | A file or link from outside never reaches the workflow without passing through the channel and the media checks; llm4j never follows a link | R11, R19 tests |
 | A7 | A Loom script can call a remote agent with `delegate`, answer its questions through a channel, receive files and use them, with the journal recording each exchange | R15 to R21, R29 tests |
-| A8 | A crash after a send never creates a second remote task | R16 tests |
+| A8 | A crash after a send never creates a second remote task: the task is found by its message id in the history, or the step stops and sends nothing | R16 tests |
 | A9 | A Loom workflow can be exposed; a task is a durable run; callers only see their own tasks; no identity means refused | R13, R22 tests |
 | A10 | An internal approval or `human_prompt` never reaches the caller | R24 tests |
 | A11 | `weave check` reports each mistake with its line and fix, and warns for every remote agent that it is not validated | R26 tests |
@@ -36,6 +36,10 @@ Status: **not started**. Run §0 first, then top to bottom at the end of each su
 | A14 | A script without the new words, and every existing channel and statement, behave exactly as before | the existing suites, `LoomHostIsUnchangedTest` |
 | A15 | Wire names exist in one class only | `OnlyThisClassKnowsAWireNameTest` |
 | A16 | `weave card` prints the card an `expose` block produces, with no network | R25 tests |
+| A17 | A send that returns a plain message is handled; a task in a terminal state takes no more messages | R4, R18 tests |
+| A18 | The handler never blocks: a send that must wait returns a future the host completes | R13 tests |
+| A19 | A card that requires an extension the transport lacks is refused before sending; a signed card is verified when a verifier is configured | R6b, R14b tests |
+| A20 | The consumer's duties are documented with examples that compile | R30 tests |
 
 ## 2. Quality gates
 
@@ -59,7 +63,7 @@ Each is updated in the same sub-phase as the behaviour it describes, not later. 
 - [ ] The skills under `.claude/skills/` that teach Loom
 - [ ] The VS Code grammar, hover text, README and `CHANGELOG.md` (with a version bump, because the release check requires one when the extension changes); update the frozen parser's parity baseline if the corpus changes
 - [ ] The sample channel and transport, compiled by a test
-- [ ] Documentation that tells the consumer what the framework leaves to them: transport, polling, hosting, login, where the `received/` folder must live with the journal
+- [ ] The consumer's-duties page (DESIGN R30), covering: transport, channel, waiting (poll, stream, push, duplicates), serving (mounting, card address and caching, authentication, identity and tenant, the future for a waiting send), where tasks and the `received/` folder live with the journal, signing and verifying cards, and operations; examples compiled by a test
 
 ## 4. Manual checks
 
@@ -74,10 +78,10 @@ Each is updated in the same sub-phase as the behaviour it describes, not later. 
 
 ## 5. Exit checklist
 
-- [ ] All of A1 to A16 pass with the evidence named.
+- [ ] All of A1 to A20 pass with the evidence named.
 - [ ] Guard-removal checks (TEST_STRATEGY §5) done and recorded.
 - [ ] Documentation checklist (§3) done; samples verified.
-- [ ] Every claim about the specification is marked verified with its section (P2).
+- [ ] Every claim about the specification is marked verified with its section (P2), or listed as unverified.
 - [ ] Release notes and `API_COMPATIBILITY.md` updated.
 - [ ] The roadmap row is current.
 - [ ] Anything not done is listed in §7 under "Not verified", with the reason.
@@ -87,7 +91,7 @@ Each is updated in the same sub-phase as the behaviour it describes, not later. 
 | Risk | Mitigation |
 |---|---|
 | The specification is not what we assumed (the page was read in part) | P2 before any code; the design's wire knowledge sits in one class, so a correction is local |
-| Servers do not de-duplicate, so the crash rule cannot be proved | P3; the rule relies on `find` by context id, and a step that cannot tell stops with a message |
+| Servers do not de-duplicate and may refuse a proposed context id, so the crash rule cannot always find the task | the rule matches our message id in recent tasks' history, and a step that cannot tell stops with a message and sends nothing |
 | Consumer channels and transports are hard to write correctly | a worked, compiled sample; defaults that fail closed; the bounds are the runtime's |
 | An exposed workflow leaks data to a caller | the audit rule, caller isolation, the internal/caller split of pauses, guards on incoming text |
 | A remote agent is not validated until run time | the warning on every `remote`, `on_failure` encouraged by a review rule, and the endpoint guard before any send |
@@ -95,7 +99,35 @@ Each is updated in the same sub-phase as the behaviour it describes, not later. 
 | The new words clash with existing scripts | contextual words, tested with agents and variables of those names |
 | Scope is large | six sub-phases, each green and pushed alone; Part C (a plain agent) and the signed-card hook can be dropped without changing the rest |
 | The protocol moves | principle 9; only `A2AJsonRpc10` changes |
+| The specification's prose disagrees with itself (and the GitHub copy of it is headed "Release Candidate") | the protocol definition (protobuf) at the `1.0.0` tag is followed; the helper accepts the variants; the disagreements are in §7 |
+| A waiting send makes a server hold a request for hours | the handler returns a future and the host decides; documented as the consumer's duty (R30) |
 
 ## 7. Results
 
-(Empty. Each sub-phase records here what was built, the tests, the guard-removal results, deviations and what was not verified, newest first, as in [phase 31](../31-multimodal-input/VERIFICATION.md).)
+### Specification reading (P2, P3), 2026-11-07
+
+**Sources.** The protocol definition (`a2a.proto`) at the `v1.0.0` tag, read in full. The specification text at the same tag (`docs/specification.md`), read word for word, except where noted; it is headed "Release Candidate v1.0" and "Latest Released Version 0.3.0" and some of its examples still show 0.3, while the website calls 1.0.0 the latest. The "What's new in v1" page, partly summarised by the fetch tool. The website's own rendering of the specification, partly summarised. Where the definition and the prose disagree, the definition was followed.
+
+**Confirmed from the definition.**
+- A part is exactly one of `text`, `raw` (bytes, base64 in JSON), `url` or `data` (any JSON value), plus an optional `filename`, `mediaType` and `metadata`; there is no kind field and no separate file part.
+- `TaskState` has `UNSPECIFIED`, `SUBMITTED`, `WORKING`, `COMPLETED`, `FAILED`, `CANCELED`, `INPUT_REQUIRED`, `REJECTED` and `AUTH_REQUIRED`. Terminal: completed, failed, canceled, rejected. Interrupted: input required, auth required.
+- `AgentCard` requires `name`, `description`, `supportedInterfaces`, `version`, `capabilities`, `defaultInputModes`, `defaultOutputModes` and `skills`; it has no single address. `AgentInterface` has `url`, `protocolBinding` (`JSONRPC`, `GRPC`, `HTTP+JSON`), `protocolVersion` (such as `1.0`) and an optional `tenant`.
+- Operations (JSON-RPC names): `SendMessage`, `SendStreamingMessage`, `GetTask`, `ListTasks`, `CancelTask`, `SubscribeToTask`, `CreateTaskPushNotificationConfig`, `GetTaskPushNotificationConfig`, `ListTaskPushNotificationConfigs`, `DeleteTaskPushNotificationConfig`, `GetExtendedAgentCard`. `SendMessageResponse` holds a task or a message. Error codes -32001 to -32009 with their names.
+- `SendMessageConfiguration.returnImmediately` defaults to false, in which case the server must wait until a terminal or interrupted state.
+
+**Confirmed from the specification text.**
+- Task ids are server-made and a message that names a task must name an existing one. A server may accept a client-proposed context id, must reject it if it cannot and must not replace it; clients should not propose one unless they know the server's behaviour. A server may use the message id to detect duplicates ("MAY"). **(P3: neither is guaranteed, so R16 and D19 changed.)**
+- Messages to a task in a terminal state are refused; a refinement is a new task in the same context.
+- Listing and getting must be scoped to the caller; the existence of a resource the caller may not see must not be revealed. Servers must authenticate every request.
+- Push notifications are delivered at least once; the receiver must answer with a success status; agents are advised to validate webhook addresses against SSRF. File references must be validated against SSRF.
+- `AUTH_REQUIRED`: the agent must use a task, enter that state and explain the authorization; it must receive credentials out of band; the client is expected to arrange it (contact a person or another service, or do it out of band).
+- Agent cards may be signed (JWS with canonicalisation); clients should verify at least one signature when present. A card may mark an extension as required; an agent errors when a client does not support it.
+- The client sends the protocol version with each request and an unsupported version is an error (`VersionNotSupportedError`).
+
+**Disagreements inside the specification** (handled by tolerance in the helper): state spellings in some examples are lowercase or hyphenated; stream events are `statusUpdate` and `artifactUpdate` in the body and `taskStatusUpdate` and `taskArtifactUpdate` on the migration page; the push setting is `taskPushNotificationConfig` in the definition and `pushNotificationConfig` in an example; HTTP errors are described as AIP-193 while two examples use `application/problem+json`; examples still show version `0.3`.
+
+**Not verified.** The versioning rules of section 3.6 word for word (only a summary: the client must send the version with each request); how a tenant is carried on each binding; the push-notification configuration request shapes in the JSON-RPC binding; whether any real server behaves as the text says.
+
+**Design changes made from this reading.** A send returns a task or a plain message (R1, R2, R4, R18); the translation always sets `returnImmediately` (R2, R12); the crash rule matches the message id in recent tasks' history and stops when it cannot tell (R16, D19); a required extension the transport lacks is refused (R6b, D29); a tenant on the endpoint and the caller identity (R1, R13, D30); `taskChanged` is idempotent (R17); a task in a terminal state takes no more messages (R4, R13); the handler's request rules and `ListTasks` paging follow the specification (R13); the card builder defaults to no streaming, no push and no extended card (R14); a card verifier hook is recommended (R14b, D25); the handler never blocks (R13, D27, taken); the consumer's duties are documented (R30, D31).
+
+(Each sub-phase then records here what was built, the tests, the guard-removal results, deviations and what was not verified, newest first, as in [phase 31](../31-multimodal-input/VERIFICATION.md).)
