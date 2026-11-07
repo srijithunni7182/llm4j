@@ -18,6 +18,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * commit before this work) running {@link LevelHistoryDriver}; this test runs the same driver on
  * the same scripts here and compares line by line.
  */
+@Tag("slow")
 @Tag("L7")
 class PreviousReleaseLevelHistoryTest {
 

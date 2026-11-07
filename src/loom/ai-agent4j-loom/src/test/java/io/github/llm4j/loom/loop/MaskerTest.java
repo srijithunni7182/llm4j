@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /** R6, R8 of spec 14: nothing personal or secret survives, and what is kept keeps its shape. */
@@ -62,6 +63,9 @@ class MaskerTest {
         assertThat(out.toString()).contains("7").contains("true");
     }
 
+    // slow only because Masker.mask removes overlapping detections in quadratic time; tagged so the fast tiers do
+    // not pay for it until that is fixed
+    @Tag("slow")
     @Test
     void aMegabyteOfTextIsMaskedAndEmptyAndNullPassThrough() {
         Masker m = new Masker();
