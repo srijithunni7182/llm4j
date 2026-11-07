@@ -6,7 +6,7 @@ The default build is fast and hermetic, and it is what a release is gated on. Ev
 
 | Command | What runs |
 |---|---|
-| `mvn -pl src/loom/ai-agent4j-loom -Pcore test` (`make test-core`) | **Core tier.** The Loom language core (about 70 seconds, 3,760 tests): everything except the `weave` commands (`cli`), the starters and the tutorial (`starters`), the generated bindings (`bind`) and the editor server (`serve`), and the `slow` tests. Policies, rewind, earned autonomy, capture, channels, time travel and the debugger are language semantics and are in. No coverage gates. |
+| `mvn -pl src/loom/ai-agent4j-loom -Pcore test` (`make test-core`) | **Core tier.** The Loom language core (about 30 seconds, 3,760 tests, run in parallel with one JVM per core and a quick JIT; `-DforkCount=1` runs them one after another, for example to chase a test that fails only in parallel): everything except the `weave` commands (`cli`), the starters and the tutorial (`starters`), the generated bindings (`bind`) and the editor server (`serve`), and the `slow` tests. Policies, rewind, earned autonomy, capture, channels, time travel and the debugger are language semantics and are in. No coverage gates. |
 | `mvn -Pfast verify` (`make test-fast`) | **Fast tier.** Every test except the ones tagged `slow`, plus the coverage rules (about 2 minutes for Loom). |
 | `mvn -Pfull verify` (`make test-full`, `make test`, plain `mvn verify`) | **Full tier.** Every test that is not tagged `live`, `integration` or `fragile`, `slow` ones included, plus the coverage rules (about 5 to 6 minutes for Loom). No network, no database, no real model, no external program. |
 | `mvn -Pextended verify` (`make test-extended`) | The default tests **and** the `integration` and `fragile` tests, plus the modules that are not published: `engram` and the example applications with their tests. |
@@ -33,7 +33,7 @@ The tiers exist so that the language can be checked often and the whole suite ra
 
 | Tier | Time (Loom) | When |
 |---|---:|---|
-| Core | about 70 s | **after every sub-phase** |
+| Core | about 30 s | **after every sub-phase** |
 | Fast | about 2 minutes | **after every phase**, and before the final push |
 | Oracle | about 16 s | **once per session, at the end**: `make test-oracle`, the provenance oracle alone |
 | Full | about 5 to 6 minutes | **in CI on every pull request**; not part of the working loop, run by hand only when asked |

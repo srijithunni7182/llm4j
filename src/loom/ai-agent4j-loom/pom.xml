@@ -522,6 +522,11 @@
             <id>core</id>
             <properties>
                 <jacoco.skip>true</jacoco.skip>
+                <!-- One JVM per core, and only the quick JIT in each: the tests are many and short, so the heavy compiler threads of four JVMs only
+                     compete for the same cores (measured: about 56 to 69 s one after another, about 30 s like this). Pass -DforkCount=1 to run
+                     them one after another again, for example to chase a test that fails only in parallel. -->
+                <forkCount>1C</forkCount>
+                <argLine>-XX:TieredStopAtLevel=1</argLine>
                 <test.excluded>live,integration,fragile,slow</test.excluded>
                 <surefire.failIfNoSpecifiedTests>false</surefire.failIfNoSpecifiedTests>
                 <test>!io/github/llm4j/loom/cli/**,!io/github/llm4j/loom/starters/**,!io/github/llm4j/loom/bind/**,!io/github/llm4j/loom/serve/**</test>
