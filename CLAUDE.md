@@ -25,6 +25,9 @@ The reactor order matters: a failure in `ai-agent4j-loom` skips the modules afte
 
 | Command | Use |
 |---|---|
+| `make setup` | **Get a checkout ready** (about a minute): the full git history, the core, Loom and `loom-inspect-core` installed from this checkout into `~/.m2`, and the VS Code extension built with a matching `bin/weave.jar`. Run it **once at the start of a session** and after switching branch. The cloud environment may already have run it. Without it, `loom-inspect*`, `loom-fabric` and the extension compile and run against whatever jars an earlier build left, and fail in confusing ways. |
+| `make regen` | Regenerates every generated file in one go: the command reference, the pictures in the starters' READMEs, the graph renderer's copies, the review rule pages and the tutorial's web page. |
+| `make docs-check` | **Run it after changing docs, a command or option, a starter, a review rule or the tutorial** (about 40 s). It regenerates everything, lists *all* the generated files that were stale (the tests that pin them fail one at a time), then runs the documentation tests. Commit what it regenerated. |
 | `make build` | Compile |
 | `mvn -pl <module> -Dtest=FooTest -Djacoco.skip=true test` | Quick loop on one test while iterating |
 | `make test-core` | **Core tier.** The Loom language core (about 30 s, run in parallel, no coverage gates): everything except the `weave` commands, the starters and tutorial, the generated bindings and the editor server. **Run it after every sub-phase.** |
@@ -41,8 +44,9 @@ Don't run Maven with `-o`, because the JaCoCo plugin isn't available offline.
 
 **The tiers, and when to run each.** The Loom module takes about 5 to 6 minutes to test, and seven slow tests (scale, property and replay-everything tests) are most of it, so the suite has three tiers (`docs/TESTING_STRATEGY.md`, "The tiers"). The loop is deliberately fast; this is the maintainer's rule for any new build:
 - **While working:** `-Dtest=` for the class you are changing.
-- **After every sub-phase** (for example 32a, 32b), or after each logical step when the work has no phases: `make test-core`.
-- **After every phase** (the whole numbered phase, for example 32, or the whole piece of work when it has none), and before the final push: `make test-fast` on every module you touched. It runs the coverage gates.
+- **At the start of a session:** `make setup` (see above), unless the cloud environment already did.
+- **After every sub-phase** (for example 31a, 31b, the sub-phases of phase 31 in `docs/specs`), or after each logical step when the work has no phases: `make test-core`. **After any change to docs, a command, a starter, a review rule or the tutorial: `make docs-check`.**
+- **After every phase** (the whole numbered phase, for example 31, or the whole piece of work when it has none), and before the final push: `make test-fast` on every module you touched. It runs the coverage gates.
 - **Once per session, at the end:** `make test-oracle`, the provenance oracle alone. It is a security check over every script in the repository and the only `slow` test that runs in a session.
 - **The full tier is not part of the loop.** CI runs it on every pull request, and the maintainer reviews. Do not run `make test-full` unless asked. State in your report that the other `slow` tests did not run in the session.
 
@@ -220,7 +224,7 @@ Every dependency of a published module becomes a dependency of every application
 
 ## Things that change together
 
-Several files are tested against each other; the full table is in the `steward` skill. The most common are:
+Several files are tested against each other; the full table is in the `steward` skill. The most common are, and `make regen` runs every generator below in one go (`make docs-check` also lists what was stale):
 
 - **Loom syntax:** update `LOOM_GUIDE.md` (its `loom` blocks are parse-tested), `LOOM_PROMPT.md`, `docs/guide/06-build-the-workflow.md`, the `docs/tutorial` chapters and the `src/loom/starters` that use it (`TutorialExamplesTest` and `StartersTest` fail on a block that no longer loads), the `llm4j-workflow-guide` skill, the VS Code grammar and snippets, and add a CTK scenario.
 - **The tutorial's markdown:** regenerate the web page the jar carries with `bash scripts/make-tutorial-html.sh` (needs Node 18+; `GuideTutorialPageTest` fails on a stale page).

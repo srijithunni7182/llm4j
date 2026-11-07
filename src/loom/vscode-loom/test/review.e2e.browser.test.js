@@ -47,7 +47,11 @@ test('A1: the real engine\'s review of a real script reaches the page, and the p
     await controller.request(file);
     const state = controller.state(file);
     assert.equal(state.status, 'idle');
-    assert.equal(state.review.findings.length, 10);
+    // The page must show the engine's own numbers. They are read from the review, not typed here: a hand-written count
+    // failed each time a rule was added to the engine (phases 26 and 28 added three findings to this very script).
+    const findings = state.review.findings;
+    const total = (severity) => findings.filter((f) => f.severity === severity).length;
+    for (const rule of ['LA01', 'LV09', 'LA02']) assert.ok(findings.some((f) => f.rule === rule), `the risky script is still reported for ${rule}`);
 
     const html = path.join(os.tmpdir(), 'loom-review-e2e.html');
     const media = path.join(__dirname, '..', 'media');
@@ -59,9 +63,9 @@ test('A1: the real engine\'s review of a real script reaches the page, and the p
     await page.evaluate((m) => window.postMessage(m, '*'), { type: 'review', review: state.review, graph: state.graph, status: state.status, entry: file });
     await page.waitForTimeout(150);
     const strip = (await page.$eval('#strip', (n) => n.innerText)).replace(/\s+/g, ' ');
-    assert.match(strip, /3 high · 5 medium · 2 low/i);
+    assert.match(strip, new RegExp(`${total('high')} high · ${total('medium')} medium · ${total('low')} low`, 'i'));
     assert.match(strip, /trifecta present/);
-    assert.equal(await page.$$eval('#flist .fd', (r) => r.length), 10);
+    assert.equal(await page.$$eval('#flist .fd', (r) => r.length), findings.length);
     assert.ok((await page.$$eval('[data-node] .np', (r) => r.length)) >= 2, 'steps carry badges');
     await context.close();
   } finally {
