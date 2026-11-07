@@ -39,7 +39,7 @@ and a security guard is tested by breaking it on purpose. The principles in [PRI
 | **CTK** | New scenarios: a call that completes; a call that asks a question; a refused card; an exposed workflow's card (`weave card`) |
 | **Starter script** | The starter's `main.loom` is excluded from `weave check` and from `RepositoryScriptsTest`'s check (D33), and the exclusion names the file and the reason; `StarterScriptParsesTest` parses it so a grammar change cannot break it silently; `StarterExclusionIsTheOnlyOneForA2ATest` checks that no other A2A script is excluded |
 | **Documentation set** | Every relative link and heading anchor in `docs/a2a/` resolves; every page names its reader and links to the README and the philosophy; the README lists every page (`A2ADocsIndexTest`); the ` ```loom ` blocks in `LOOM.md` parse or check as their marker says; the Java excerpts compile and match the starter's source; the `REFERENCE.md` tables match the code (every `TaskState`, every Loom setting and default, every trace event, every audit and review rule id, every limit default); the pointer left in `PRINCIPLES.md` resolves |
-| **Ecosystem** | The completeness test (D32); `weave test` with a scripted remote and a scripted channel (states, a question, an authorization request, a file, a refusal) and step coverage that counts remote steps; the symbols index for the new declarations and references (go-to-definition, references, rename); the stepper over a remote call; the cost estimate showing a remote step as outside the budgets; trace events and the loom-inspect rules and security signals for exchanges; OTLP spans; the graph kinds and chips with the sync check; the VS Code grammar, hover, completion, snippets (run through `weave check`) and the regenerated parity baseline; the compatibility-kit scenarios; the guide, tutorial and starter tests; the extension version check |
+| **Ecosystem** | `weave test` with a scripted remote and a scripted channel (states, a question, an authorization request, a file, a refusal) and step coverage that counts remote steps; the symbols index for the new declarations and references (go-to-definition, references, rename); the stepper over a remote call; the cost estimate showing a remote step as outside the budgets; trace events and the loom-inspect rules and security signals for exchanges; OTLP spans; the graph kinds and chips with the sync check; the VS Code grammar, hover, completion, snippets (run through `weave check`) and the regenerated parity baseline; the compatibility-kit scenarios; the guide, tutorial and starter tests; the extension version check |
 | **Mutation (PIT)** | A profile for the decision-making classes: the endpoint guard, `ExchangeGuard`, the sink, the caller filter, the state mapping and `A2AJsonRpc10`, at an 85% threshold |
 | **Live (tagged `live`, never default)** | If a real A2A agent is available (VERIFICATION P6), one call each way with the owner's own agent and keys; confirms the helper against a real server. Run only when asked |
 
@@ -90,7 +90,7 @@ and a security guard is tested by breaking it on purpose. The principles in [PRI
 | **R28** | `RemoteNodeAndChipTest`, `ExposeMarksTheEntryPointTest`, `GraphRenderSyncTest`, `FabricEscapesRemoteTextTest` |
 | **R30** | `StarterCompilesInTheExtendedBuildTest` (`src/examples/a2a-starter` compiles against the real interfaces), `PageExcerptsMatchTheStarterTest`, `ConsumerDutiesPageListsEveryDutyTest` |
 | **R29** | `JournalRecordsExchangesAndFilesTest`, `ResumeNeverResendsAnAcknowledgedMessageTest`, `RewindAndForkNeverResendTest`, `MissingReceivedFileFailsTheStepTest` |
-| **R31** | `EveryStatementVisitorHandlesRemoteAskAndExposeTest` (via the completeness test), `ScriptDriftSeesTheNewConstructsTest`, `StaticSinkChecksReadRemoteAndAskTest` |
+| **R31** | `EveryStatementVisitorHandlesRemoteAskAndExposeTest` (a plain test per visitor; a general completeness test is deferred, D32), `ScriptDriftSeesTheNewConstructsTest`, `StaticSinkChecksReadRemoteAndAskTest` |
 | **R32** | `SymbolsIndexRemoteChannelAndExposeTest`, `ReferencesFromToChannelAndAskResolveTest`, `RenameUpdatesEveryReferenceTest`, `ProtocolDocListsTheNewKindsTest`, the extension's `grammar`, `semantic`, `snippets` and `parserParity` tests |
 | **R33** | `ScriptedRemoteInATestFileTest`, `ScriptedChannelInATestFileTest`, `AssertionOnARemoteStepTest`, `StepCoverageCountsRemoteStepsTest`, `EvalMockRunsARemoteStepTest`, `CaptureRecordsExchangesAsDigestsOnlyTest` |
 | **R34** | `StepperStepsOverARemoteCallTest`, `WhyExplainsARemoteStepTest`, `NarratorReadsTheNewStatementsTest` |
@@ -133,8 +133,7 @@ Each of these is checked once by breaking the guard on purpose and confirming a 
 24. A stopped run cancelling its remote tasks.
 25. The plain-agent runner refusing to start without the limits confirmation.
 26. One runner per scope: a request for one scope never reaches another scope's runner.
-27. The completeness test: adding a statement type to the AST without handling it in a registry fails the test.
-28. The scripted remote in `weave test`: with scripting removed, a test of a remote step fails.
+27. The scripted remote in `weave test`: with scripting removed, a test of a remote step fails.
 
 ## 6. What is deliberately not tested
 

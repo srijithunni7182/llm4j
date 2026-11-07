@@ -46,7 +46,7 @@ Status: **not started** (P2 and P3 are done: the specification was read, results
 | A23 | Scopes never share a journal when given separate hosts, and filtering by scope key holds when they share one | R13 tests |
 | A24 | `require_signed_card` and a failed signature are enforced; llm4j does no cryptography | R14b tests |
 | A25 | A stopped run cancels its in-flight remote tasks, best effort | R15b tests |
-| A26 | **No surface drifts.** Every surface in DESIGN §4.6 handles every construct of this phase, in the sub-phase that adds it, and the completeness test passes | R31 to R40 tests, the completeness test |
+| A26 | **No surface drifts.** Every surface in DESIGN §4.6 handles every construct of this phase, in the sub-phase that adds it, and the maintainer has reviewed it | R31 to R40 tests, and the maintainer's review of each sub-phase against the DESIGN §4.6 checklist (a general completeness test is deferred, D32) |
 | A27 | A workflow that calls a remote agent can be tested offline with `weave test` (a scripted remote and channel) and its steps count in coverage | R33 tests |
 | A28 | The editor offers go-to-definition, references, rename, completion and hover for `remote`, `agent_channel` and `expose`; the extension is released with a version bump | R32, R40 tests |
 | A29 | A2A support has a structured documentation set in `docs/a2a/` (what A2A is, our philosophy, a Java guide, a Loom guide, what the consumer provides, security and review, a reference), each page landing with its code, linked together, with excerpts compiled or parsed and the reference matching the code | R41 tests |
