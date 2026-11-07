@@ -1,12 +1,13 @@
 SHELL := /bin/bash
 
-.PHONY: help build test test-core test-fast test-full test-extended test-live smoke-apps release-check skill-package quick verify format-check
+.PHONY: help build test test-core test-fast test-oracle test-full test-extended test-live smoke-apps release-check skill-package quick verify format-check
 
 help:
 	@echo "Targets:"
 	@echo "  make build          - Compile the published libraries"
 	@echo "  make test-core      - The Loom language core only, about 30 seconds, no coverage gates: run after every sub-phase"
 	@echo "  make test-fast      - Every test except the slow ones, with the coverage gates (about 2 minutes for Loom): run after every phase"
+	@echo "  make test-oracle    - The provenance oracle alone (about 16 seconds): run once per session, at the end"
 	@echo "  make test-full      - Everything, slow tests included, with the coverage gates (about 5 to 6 minutes for Loom): CI runs it on every pull request; run by hand only when asked"
 	@echo "  make test           - The same as test-full (the default build: hermetic tests and the coverage gates; a release is gated on it)"
 	@echo "  make test-extended  - Everything: integration and fragile tests too, plus engram and the example applications"
@@ -28,6 +29,9 @@ test-core:
 
 test-fast:
 	mvn -q -Pfast verify
+
+test-oracle:
+	mvn -q -pl src/loom/ai-agent4j-loom -Dtest=CanaryProvenanceOracleTest -Djacoco.skip=true test
 
 test-full:
 	mvn -q -Pfull verify

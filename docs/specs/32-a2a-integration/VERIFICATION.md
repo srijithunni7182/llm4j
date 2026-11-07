@@ -56,7 +56,7 @@ Status: **not started** (P2 and P3 are done: the specification was read, results
 
 ## 2. Quality gates
 
-- **After every sub-phase:** `make test-core` green. **After the phase** (after 32f), and before the final push: `make test-fast` (`mvn -Pfast verify`) green on every module touched, with the coverage gates. The full tier (`mvn verify`) is left to CI and is run by hand only if the owner asks; **record in §7 which tier ran, and that the `slow` tests did not run in the session.** While iterating: `-Dtest=`. The Loom coverage rules are met in the fast tier; the Loom coverage rules met (a new class in a gated package is covered to the same bar); `make format-check` clean.
+- **After every sub-phase:** `make test-core` green. **After the phase** (after 32f), and before the final push: `make test-fast` (`mvn -Pfast verify`) green on every module touched, with the coverage gates. **Once at the end of the session:** `make test-oracle` (the provenance oracle alone). The full tier (`mvn verify`) is left to CI and is run by hand only if the owner asks; **record in §7 which tiers ran, that the oracle ran, and that the other `slow` tests did not.** While iterating: `-Dtest=`. The Loom coverage rules are met in the fast tier; the Loom coverage rules met (a new class in a gated package is covered to the same bar); `make format-check` clean.
 - The mutation profile for the decision-making classes at 85% or better, with survivors listed and explained (as for `mutation-media`).
 - The VS Code extension suite green except for any failure recorded in P7 as already present.
 - No new runtime dependency in `ai-agent4j` (`mvn dependency:tree` unchanged).
