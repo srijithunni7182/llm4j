@@ -29,13 +29,13 @@ To see what is tagged: `grep -rl '@Tag("fragile")' --include=*Test.java .`
 
 ## The tiers
 
-The tiers exist so that the language can be checked often and the whole suite rarely.
+The tiers exist so that the language can be checked often and the whole suite rarely. The loop is the maintainer's rule for any new build: core after every sub-phase, fast after every phase, and the full tier left to CI. A slow test can be run alone by name when a change might affect it (for example `-Dtest=CanaryProvenanceOracleTest` after a change to the runtime).
 
 | Tier | Time (Loom) | When |
 |---|---:|---|
-| Core | about 30 s | while iterating on the language |
-| Fast | about 2 minutes | after a sub-phase, and before a push in the middle of a session |
-| Full | about 5 to 6 minutes | **once at the end of every session**, before a pull request is opened, and in CI |
+| Core | about 30 s | **after every sub-phase** |
+| Fast | about 2 minutes | **after every phase**, and before the final push |
+| Full | about 5 to 6 minutes | **in CI on every pull request**; not part of the working loop, run by hand only when asked |
 
 The coverage gates run in the fast and full tiers and not in the core tier, since a subset cannot meet them. Leaving the `slow` tests out of the fast tier was checked not to weaken the gates: with the seven heaviest classes excluded, every coverage rule was still met. The core tier is defined by excluding the program-level packages, so a new package is in it by default.
 

@@ -5,9 +5,9 @@ SHELL := /bin/bash
 help:
 	@echo "Targets:"
 	@echo "  make build          - Compile the published libraries"
-	@echo "  make test-core      - The Loom language core only, about 30 seconds, no coverage gates: for iterating on the language"
-	@echo "  make test-fast      - Every test except the slow ones, with the coverage gates (about 2 minutes for Loom): after a sub-phase or before a mid-session push"
-	@echo "  make test-full      - Everything, slow tests included, with the coverage gates (about 5 to 6 minutes for Loom): run once at the end of every session; CI runs it"
+	@echo "  make test-core      - The Loom language core only, about 30 seconds, no coverage gates: run after every sub-phase"
+	@echo "  make test-fast      - Every test except the slow ones, with the coverage gates (about 2 minutes for Loom): run after every phase"
+	@echo "  make test-full      - Everything, slow tests included, with the coverage gates (about 5 to 6 minutes for Loom): CI runs it on every pull request; run by hand only when asked"
 	@echo "  make test           - The same as test-full (the default build: hermetic tests and the coverage gates; a release is gated on it)"
 	@echo "  make test-extended  - Everything: integration and fragile tests too, plus engram and the example applications"
 	@echo "  make test-live      - Only the live tests, against real provider APIs (needs keys, costs money)"
