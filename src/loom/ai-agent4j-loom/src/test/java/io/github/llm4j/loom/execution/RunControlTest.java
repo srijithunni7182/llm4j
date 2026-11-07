@@ -40,6 +40,9 @@ class RunControlTest {
     private final List<String> notes = Collections.synchronizedList(new ArrayList<>());
     private final List<TraceEvent> controls = Collections.synchronizedList(new ArrayList<>());
 
+    /** How long the trace listener takes to record a control event: a loaded machine, on demand. */
+    private volatile long controlDelayMillis;
+
     private HarnessExecutor executor(java.util.function.Consumer<TraceEvent> onEvent) {
         LoomScript script = new LoomParser(new Lexer(SCRIPT).tokenize()).parseScript();
         HarnessExecutor e =
@@ -52,11 +55,22 @@ class RunControlTest {
         e.addTraceListener(
                 event -> {
                     if (TraceEvent.NOTE.equals(event.type())) notes.add(event.text());
-                    if (TraceEvent.CONTROL.equals(event.type())) controls.add(event);
+                    if (TraceEvent.CONTROL.equals(event.type())) {
+                        pauseListener();
+                        controls.add(event);
+                    }
                     if (onEvent != null) onEvent.accept(event);
                 });
         e.initialize();
         return e;
+    }
+
+    private void pauseListener() {
+        try {
+            if (controlDelayMillis > 0) Thread.sleep(controlDelayMillis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static void until(BooleanSupplier c) throws InterruptedException {
@@ -146,10 +160,13 @@ class RunControlTest {
     @Test
     void aPausedRunHoldsBeforeItsNextStepUntilResumed() throws Exception {
         HarnessExecutor e = executor(null);
+        controlDelayMillis = 300; // the event is emitted just after the state changes, so a slow listener must not matter
         e.control().request(RunControl.Action.PAUSE, "alice");
         Thread run = new Thread(() -> e.executeWorkflow("Main", Map.of()));
         run.start();
         until(() -> e.control().state().held());
+        // the "held" event is emitted just after the state changes (outside the lock), so wait for it too
+        until(() -> states().contains("pause:held"));
         assertThat(notes).isEmpty(); // held before the first step
         assertThat(states()).containsExactly("pause:requested", "pause:held");
         assertThat(run.isAlive()).isTrue();
