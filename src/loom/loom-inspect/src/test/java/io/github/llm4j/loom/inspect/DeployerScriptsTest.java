@@ -18,18 +18,27 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
  * R41, R43: the deployer skill's scripts, run for real: a Fabric started in the background, a
  * workflow reporting to it with its client key stored and never printed, an unsafe bind refused,
- * everything idempotent. Skipped (with the reason) where bash, curl or the built jars are missing.
+ * everything idempotent. Skipped (with the reason) where bash, curl or the built jars are missing, or the
+ * jars are from different builds ({@link DeployerJars}).
+ *
+ * <p>Tagged {@code fragile}: it needs bash, curl, the checkout's layout and jars built beforehand, and it
+ * starts real processes (about a minute). The default build leaves it out, as it already skipped on a
+ * clean checkout. To run it: {@code mvn -DskipTests clean package}, then {@code mvn -pl
+ * src/loom/loom-inspect -Dtest=DeployerScriptsTest -Dtest.excluded=live,integration test}.
  */
+@Tag("fragile")
 class DeployerScriptsTest {
 
     private static final Path REPO = Path.of("../../..");
@@ -80,6 +89,14 @@ class DeployerScriptsTest {
         assumeTrue(
                 fabric != null && weave != null && inspect != null && core != null,
                 "the jars are not built (mvn -DskipTests package)");
+        Optional<String> mismatch =
+                DeployerJars.mismatch(
+                        Map.of(
+                                "WEAVE_JAR", weave,
+                                "INSPECT_JAR", inspect,
+                                "INSPECT_CORE_JAR", core,
+                                "FABRIC_JAR", fabric));
+        assumeTrue(mismatch.isEmpty(), () -> mismatch.orElse(""));
         jars =
                 Map.of(
                         "FABRIC_JAR",
