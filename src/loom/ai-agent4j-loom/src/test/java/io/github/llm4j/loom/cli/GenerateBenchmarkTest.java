@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.io.TempDir;
  * scripts/bench-generate.sh} against a real model; a description without one is simply not
  * replayed.
  */
+@Tag("slow")
 class GenerateBenchmarkTest {
 
     @TempDir Path dir;

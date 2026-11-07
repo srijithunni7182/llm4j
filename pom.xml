@@ -76,6 +76,8 @@
               fragile      depends on wall-clock time, an external program (git, javac, node), the operating system or the checkout's layout
               live         calls a real provider API with a real key (and costs money)
             -Pextended runs integration and fragile too (and builds engram and the examples); -Plive runs only the live ones.
+            slow         a correct test that takes more than about five seconds (scale, property and replay-everything tests). It is NOT excluded by
+                         default: -Pfast leaves it out, -Pfull (the same as the default) runs it. See docs/TESTING_STRATEGY.md, "The tiers".
         -->
         <test.groups></test.groups>
         <test.excluded>live,integration,fragile</test.excluded>
@@ -244,6 +246,22 @@
     </build>
 
     <profiles>
+        <profile>
+            <!-- mvn -Pfast verify: everything except the tests tagged slow, with the coverage gates. About a third of the time of -Pfull in the Loom module. -->
+            <id>fast</id>
+            <properties>
+                <test.excluded>live,integration,fragile,slow</test.excluded>
+            </properties>
+        </profile>
+
+        <profile>
+            <!-- mvn -Pfull verify: everything the default build runs, slow tests included, with the coverage gates. Same as the default; the name says what it means. -->
+            <id>full</id>
+            <properties>
+                <test.excluded>live,integration,fragile</test.excluded>
+            </properties>
+        </profile>
+
         <profile>
             <!-- mvn -Pextended verify: the slow and environment-dependent tests too, and engram and the example applications -->
             <id>extended</id>

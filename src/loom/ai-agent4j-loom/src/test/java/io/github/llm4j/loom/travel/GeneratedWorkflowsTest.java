@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.io.TempDir;
  * A failing seed is printed with its script. 500 seeds on every build; {@code -Dloom.seeds=10000}
  * for the nightly run.
  */
+@Tag("slow")
 public class GeneratedWorkflowsTest {
 
     @TempDir Path dir;

@@ -24,10 +24,10 @@ Repository conventions for an agent that owns or drives a PR. They sit under the
 
 CI (`Build, Validate, and Deploy`) runs the whole reactor on JDK 17 and JDK 21, a release check (sources, javadoc, metadata), CodeQL and GitGuardian. The reactor order is: `ai-agent4j`, `ai-agent4j-addons`, `ai-agent4j-tools`, `eval4j`, `ai-agent4j-loom`, `eval4j-report`, `loom-inspect-core`, `loom-fabric`, `loom-inspect`. **A failure in `ai-agent4j-loom` skips the four modules after it**, so a green-looking earlier job proves nothing about them.
 
-- Run `mvn verify` (not just `mvn test`) before declaring done: the JaCoCo `coverage-rules` check in `src/loom/ai-agent4j-loom/pom.xml` runs in `verify` and fails the build on a class below its line (0.90) or branch (0.85) ratio. New branches in a covered class (for example `channel.Listener`, `execution.ThreadScope*`, the context classes) need tests.
+- Run the fast tier (`make test-fast`, which is `mvn -Pfast verify`) after a sub-phase and the full tier (`make test-full`, which is `mvn verify`) once at the end of the session, not just `mvn test`; the gates run in both: the JaCoCo `coverage-rules` check in `src/loom/ai-agent4j-loom/pom.xml` runs in `verify` and fails the build on a class below its line (0.90) or branch (0.85) ratio. New branches in a covered class (for example `channel.Listener`, `execution.ThreadScope*`, the context classes) need tests.
 - Use `-Djacoco.skip=true` for quick test runs; do not use `-o` (offline) because the JaCoCo plugin is not available offline.
 - `loom-inspect*` and `loom-fabric` compile against the installed Loom jar. After changing Loom classes they use, run `mvn -pl src/loom/ai-agent4j-loom -DskipTests install` first, or their tests will not see the change.
-- The Loom module takes about four minutes to test. Run a targeted `-Dtest=` while iterating and the full module once before pushing.
+- The Loom module takes about 5 to 6 minutes to test in the full tier, about 2 minutes in the fast tier and about 30 seconds in the core tier (`make test-core`). Iterate with a targeted `-Dtest=` or the core tier, check a sub-phase with the fast tier, and run the full tier once at the end of the session. CI runs the full tier, so a PR that was only checked with the fast tier can still fail on a `slow` test; run the full tier before opening one.
 
 ## Things that are tested against each other (change one, change the other)
 

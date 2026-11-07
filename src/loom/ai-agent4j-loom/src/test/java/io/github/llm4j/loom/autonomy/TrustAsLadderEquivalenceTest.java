@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Timeout;
  * ladder written from it, and after every case they must stand on the same rung and have done the
  * same thing.
  */
+@Tag("slow")
 @Tag("L7")
 class TrustAsLadderEquivalenceTest {
 

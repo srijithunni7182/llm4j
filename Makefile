@@ -1,11 +1,14 @@
 SHELL := /bin/bash
 
-.PHONY: help build test test-extended test-live smoke-apps release-check skill-package quick verify format-check
+.PHONY: help build test test-core test-fast test-full test-extended test-live smoke-apps release-check skill-package quick verify format-check
 
 help:
 	@echo "Targets:"
 	@echo "  make build          - Compile the published libraries"
-	@echo "  make test           - The default build: fast, hermetic tests and the coverage gates (this is what a release is gated on)"
+	@echo "  make test-core      - The Loom language core only, about 30 seconds, no coverage gates: for iterating on the language"
+	@echo "  make test-fast      - Every test except the slow ones, with the coverage gates (about 2 minutes for Loom): after a sub-phase or before a mid-session push"
+	@echo "  make test-full      - Everything, slow tests included, with the coverage gates (about 5 to 6 minutes for Loom): run once at the end of every session; CI runs it"
+	@echo "  make test           - The same as test-full (the default build: hermetic tests and the coverage gates; a release is gated on it)"
 	@echo "  make test-extended  - Everything: integration and fragile tests too, plus engram and the example applications"
 	@echo "  make test-live      - Only the live tests, against real provider APIs (needs keys, costs money)"
 	@echo "  make smoke-apps     - Compile engram and the example applications (no tests)"
@@ -19,6 +22,15 @@ build:
 
 test:
 	mvn -q verify
+
+test-core:
+	mvn -q -pl src/loom/ai-agent4j-loom -Pcore test
+
+test-fast:
+	mvn -q -Pfast verify
+
+test-full:
+	mvn -q -Pfull verify
 
 verify: test
 

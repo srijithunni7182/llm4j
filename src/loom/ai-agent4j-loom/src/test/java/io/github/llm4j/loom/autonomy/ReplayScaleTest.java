@@ -12,6 +12,7 @@ import org.junit.jupiter.api.io.TempDir;
  * Thousands of replays cost small overlays and the candidate's calls, not copies of the journals
  * (spec loom-earned-autonomy R7.8).
  */
+@Tag("slow")
 class ReplayScaleTest {
 
     @TempDir Path dir;
