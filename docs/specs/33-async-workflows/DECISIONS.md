@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 to D5, D8 and D21 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5, D8, D21 and D28 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -38,7 +38,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D25 | Judged assertions | **partly taken** (a judge inside `supervise` is wanted) |
 | D26 | Time: how long, how often | **partly taken** (time is in scope) |
 | D27 | Who pays for a judge | open |
-| D28 | What `elapsed` measures | open |
+| D28 | What `elapsed` measures | **taken** (running time; `idle` excludes sleep and waiting; the `start` deadline is wall clock; `weave check` warns on a longer sleep) |
 | D29 | A suspended parent | open |
 | D30 | Overlap and testing time | open |
 
@@ -367,7 +367,7 @@ The same facts remain readable as plain values elsewhere in the script (`work[t.
 
 **Why.** In `supervise` today a condition is one of a closed set of runtime counters (`looping(N)`, `tool_failing(Tool, N)`, `context > P%`, `steps > N`), so rules can be checked before a run and cost nothing to evaluate. This keeps that property.
 
-- Proposed new counters for a handle: `tokens`, `cost`, `calls`, `elapsed`, `idle` (time since the child last finished a step or used tokens), `status`.
+- Proposed new counters for a handle: `tokens`, `cost`, `calls`, `elapsed`, `idle` (time with work to do but no progress: a child that is sleeping or waiting on a person is not idle, see D28), `status`.
 - `idle` is the one that catches a child stuck in a single long step, which no step-based rule can see.
 - Actions are the existing ones: `steer "text"`, `wrap_up`, `cancel [outcome]`. A steer text is **written in the script**, never taken from a child's output.
 - Rules fire when the condition *becomes* true and again only if it goes false and true again; `once` limits a rule to one firing (existing behaviour).
@@ -444,7 +444,8 @@ assert "searches only for the topic and reads at least two sources" using TopicJ
 
 **Recommendation: B**, with the child's `timeout` as the wall-clock limit. Needs the clock to be injected so the rule can be tested (D30).
 
-**Decision:** open.
+**Decision (owner): accepted as proposed.** `elapsed` and `idle` exclude time the child spends sleeping or waiting on a person: `elapsed` counts running time, and `idle` is time **with work to do but no progress**. The deadline on `start` (D26) stays a **wall-clock** limit that **does** count sleep.
+Because the started workflow's script is known, `weave check` **warns when that workflow contains a `sleep` or a wait longer than the `start` timeout**. Judged assertions skip a child that has done nothing since the last one, so a sleeping child is skipped. (Whether a `sleeping` status is added, and how a waiting parent treats its children, are still open: see the open points under D9, D8 and D29.)
 
 ## D29. Is a suspended parent still supervising?
 
