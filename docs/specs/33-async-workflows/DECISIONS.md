@@ -83,7 +83,7 @@ three counted conditions, and two kinds of `assert`. What it leaves out for now:
 - **C. Start with the 60-second demo and add only what it needs.** The demo needs start, wait, steer, cancel and a restart, so this is nearly A.
 
 **Recommendation: B, with `supervise` as the way to watch and steer.** v1 = `start` (with `timeout`, `budget`, a handle), `wait` (one or all), `cancel`, readable facts (`h.status`, `h.tokens`, `h.elapsed`), and `supervise <handle> { when ... }` with counted conditions (D21, D23);
-v2 = code assertions and judged assertions (D24, D25); v3 = declared progress, signals, `wait any`, `detach`. Steering is already built for agents, so it is cheaper than it looks, and `supervise` already carries the journaling, tracing and audit.
+v2 = code assertions and judged assertions (D24, D25); v3 = declared progress, signals, `wait any` (no `detach`, see D10). Steering is already built for agents, so it is cheaper than it looks, and `supervise` already carries the journaling, tracing and audit.
 
 **Decision (owner): staged, as in option B.**
 - **v1:** `start` with `timeout`, `budget` and a handle; `wait` (one or all); `cancel`; readable facts (`h.status`, `h.tokens`, `h.elapsed`); `supervise <handle> { when ... }` with counted rules; the small keyed-variable additions it needs (iterate the keys, `wait all` over a keyed variable).
