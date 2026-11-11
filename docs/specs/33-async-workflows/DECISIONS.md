@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 to D5, D8 to D11, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5, D8 to D12, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -22,7 +22,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D9 | How a child's outcome reaches the parent | **taken** (eight statuses including `sleeping`; `status`, `is ok`, `reason`, `failure`; the result is an error unless completed) |
 | D10 | Children when the parent ends | **taken** (warn at check time; cancel with a reason at run time, 30 s grace; no `detach`) |
 | D11 | Whose budget a child spends | **taken** (its own required budget, charged to the parent, with reservation) |
-| D12 | What `steer` targets | open (reconciled with D23) |
+| D12 | What `steer` targets | **taken** (only `steerable` agents; literal text; named outside `supervise`) |
 | D13 | What `cancel` means | open |
 | D14 | Limits on the tree | open |
 | D15 | Authority and security | open |
@@ -263,7 +263,13 @@ which you meant, so this one is **yours to clarify**.
 
 **Recommendation: A.** Explicit, and it extends the existing input-channel audit (LA18) to "a parent script can steer this agent".
 
-**Decision:** open. **Reconciled with D23:** inside a `supervise` block a `steer "text"` with no agent named applies to the handle's running steerable agents; naming an agent (`steer Researcher "text"`) is the optional precise form, and outside `supervise` the agent must be named.
+**Decision (owner): option C, opt-in.** A parent can address, and steer, only the agents of a started workflow that are marked `steerable: true`. The child's author decides what is exposed; the parent still cannot see the child's prompts, variables or other agents.
+- Inside a `supervise` block a bare `steer "text"` applies to the handle's running steerable agents; naming one (`steer Researcher "text"`) is optional there and **required** in a `steer` statement outside `supervise`: `steer work[name] Researcher "text"`.
+- Naming an agent that is not `steerable` is a `weave check` error that says why. Renaming a steerable agent is a visible interface change.
+- The steer text is **literal text written in the script**; a placeholder in it is a load error. (A table keyed by a judge's verdict may offer a choice among fixed texts later, D25.)
+- If no steerable agent of the child is running when the steer fires, nothing is delivered; that is recorded in the journal and trace as "not delivered" and is not an error (as `LoomRun.steer` returns how many agents took it). `once` and the existing fire-when-it-becomes-true behaviour stop a rule steering on every tick.
+- `weave audit` lists a script that can steer a started workflow as an input channel (in the manner of LA18); the new rule number follows LA27.
+- This replaces the earlier proposal that a script-declared steer needs no `steerable`: that precedent holds inside one workflow, and a parent and a child are different workflows.
 
 ## D13. What does `cancel` mean?
 
