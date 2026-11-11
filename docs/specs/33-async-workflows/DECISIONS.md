@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 to D5, D8, D21 and D28 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5, D8, D9, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -19,7 +19,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D6 | What the monitor is | open (staged to v3 by D1; parked) |
 | D7 | Monitor separate or part of the handle | open (staged to v3 by D1; parked; a question for the owner) |
 | D8 | What `wait` does | **taken** (required timeout; returns on timeout; `wait all` records every outcome; no thread held) |
-| D9 | How a child's outcome reaches the parent | open |
+| D9 | How a child's outcome reaches the parent | **taken** (eight statuses including `sleeping`; `status`, `is ok`, `reason`, `failure`; the result is an error unless completed) |
 | D10 | Children when the parent ends | open |
 | D11 | Whose budget a child spends | open |
 | D12 | What `steer` targets | open (reconciled with D23) |
@@ -39,7 +39,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D26 | Time: how long, how often | **partly taken** (time is in scope) |
 | D27 | Who pays for a judge | open |
 | D28 | What `elapsed` measures | **taken** (running time; `idle` excludes sleep and waiting; the `start` deadline is wall clock; `weave check` warns on a longer sleep) |
-| D29 | A suspended parent | open |
+| D29 | A suspended parent | **taken** (a waiting parent does not pause children; a parent suspended otherwise does) |
 | D30 | Overlap and testing time | open |
 
 "Partly taken" means the owner has said what is wanted; the details under it are still open.
@@ -198,6 +198,8 @@ which you meant, so this one is **yours to clarify**.
 - A single wait returns the child's result, with the status readable on the handle. `wait all` returns a keyed variable with every outcome recorded (a failed or cancelled child is recorded as such, not left out), and waits for every child; fail-fast is written as a `supervise` rule that cancels the others.
 - A wait **suspends without holding a thread** when the run is journaled, as `human_prompt` and `sleep` do.
 
+**Amendment (owner, with D9 and D29):** a `wait` **parks while any child is running**; the children keep running and supervision stays active (in v1 the process stays alive, D5). The whole tree **suspends and the process may exit only when nothing can run** (every child sleeping or waiting on a person), and `weave tick` or `weave daemon` resumes it. The earlier line "suspends without holding a thread" applies to that case.
+
 ## D9. How does a child's outcome reach the parent?
 
 **Why.** Principle 6: failure is a value.
@@ -210,7 +212,11 @@ which you meant, so this one is **yours to clarify**.
 
 **Recommendation: C**, following how tasks already work (`run ... -> r` then `alt (r is ok)`, and `on_failure`).
 
-**Decision:** open.
+**Decision (owner): accepted as proposed.**
+- **Statuses:** `running`, `sleeping` (with its wake time readable as `h.wakes`), `waiting` (on a person), `completed`, `failed`, `stopped` (a person, or a `supervise` rule inside the child), `cancelled` (by the parent or its `supervise` rule, with a reason), `timed out` (the `start` deadline passed). `cancelled` and `timed out` stay separate from `stopped`.
+- **Reading:** `h.status`; `h is ok` (true only when `completed`; **fails closed**, so a child that has not settled or was cancelled is not ok); `h.reason` (why it was cancelled or stopped); `h.failure` (what failed, with the existing failure category names).
+- **The result** (`h.result`, or the `-> result` of a `wait`) exists only for a `completed` child. Reading it on any other status is a **runtime error that names the status**, and `weave check` warns about a read not guarded by `is ok` or a status test.
+- **`on_failure`** is allowed on `wait` as shorthand for "when the status is `failed`"; a script may always read the status instead.
 
 ## D10. What happens to children when the parent ends, fails or is cancelled?
 
@@ -457,7 +463,7 @@ Because the started workflow's script is known, `weave check` **warns when that 
 
 **Recommendation: A for v1, C later.**
 
-**Decision:** open.
+**Decision (owner): option A, narrowed.** A parent that **waits on its children** (`wait`) does not pause them (see the amendment under D8). A parent that suspends for **anything else** (`human_prompt`, its own `sleep`) **pauses its children too, with their deadlines paused**, because nothing is awake to supervise them. Supervision across suspended runs, through the trigger store and `weave daemon`, is later (option C).
 
 ## D30. Overlapping rules and testing time
 
