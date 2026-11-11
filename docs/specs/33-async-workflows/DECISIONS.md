@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1, D2, D3, D4 and D21 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5 and D21 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -15,9 +15,9 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D2 | What a handle is | **taken** (opaque; keyed variables and `call` arguments allowed; returning refused) |
 | D3 | Where the child's journal lives | **taken** (a separate linked run, nested under the parent's folder) |
 | D4 | Replay and the double start | **taken** (a deterministic id including the parent's attempt, journal first) |
-| D5 | Where the child runs | open |
-| D6 | What the monitor is | open |
-| D7 | Monitor separate or part of the handle | open (a question for the owner) |
+| D5 | Where the child runs | **taken** (in the same process in v1; the trigger store is not ruled out) |
+| D6 | What the monitor is | open (staged to v3 by D1; parked) |
+| D7 | Monitor separate or part of the handle | open (staged to v3 by D1; parked; a question for the owner) |
 | D8 | What `wait` does | open |
 | D9 | How a child's outcome reaches the parent | open |
 | D10 | Children when the parent ends | open |
@@ -147,7 +147,7 @@ a trigger store (read: the trigger package exists; its details were not read for
 
 **Recommendation: C.** Different machines are out of scope until decided (see principles).
 
-**Decision:** open.
+**Decision (owner): option C.** In v1 a child runs in the same process, on a thread (as `LoomRun` does). Because each child has its own journal (D3) and a deterministic id (D4), a restart re-attaches and resumes it like any suspended run; something has to restart the parent (a person, or `weave daemon`). Nothing in the design may rule out running children through the trigger store later (option B); children on other machines are out of scope for this phase.
 
 ## D6. What is the monitor?
 
