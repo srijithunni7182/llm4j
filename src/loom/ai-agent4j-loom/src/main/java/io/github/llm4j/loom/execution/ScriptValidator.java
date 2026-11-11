@@ -529,6 +529,7 @@ public class ScriptValidator {
         ClassifierChecks.run(c);
         ExtractorChecks.run(c);
         MediaChecks.run(c);
+        A2AChecks.run(c);
         PolicyChecks.run(c);
         UseChecks.run(c);
         RoutingChecks.run(c);
@@ -551,6 +552,8 @@ public class ScriptValidator {
             } else if (st instanceof DelegateStmt d) {
                 knownAgent(c, d.getLine(), "delegate", d.getTargetAgent());
                 walk(d.getOnFailure(), c);
+            } else if (st instanceof io.github.llm4j.loom.ast.AskStmt ask) {
+                walk(ask.getOnFailure(), c);
             } else if (st instanceof RunStmt r) {
                 walk(r.getOnFailure(), c);
             } else if (st instanceof io.github.llm4j.loom.ast.IntentClassifyStmt ic) {
@@ -584,6 +587,7 @@ public class ScriptValidator {
             return; // chosen by the data at run time
         List<String> known = c.script().getAgents().stream().map(a -> a.getName()).toList();
         if (known.contains(agent)) return;
+        if (c.script().getRemotes().stream().anyMatch(r -> r.getName().equals(agent))) return; // a remote agent
         List<String> near = io.github.llm4j.loom.prompt.PromptCatalog.nearest(agent, known);
         c.error(
                 line,

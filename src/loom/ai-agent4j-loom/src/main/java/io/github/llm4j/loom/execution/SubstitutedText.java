@@ -38,6 +38,7 @@ public final class SubstitutedText {
                     "BroadcastStmt.getPayload",
                     "HandoffStmt.getPayload",
                     "HumanPromptStmt.getMessage",
+                    "AskStmt.getText",
                     "NoteStmt.getMessage",
                     "HaltStmt.getMessage",
                     "SetStmt.getValue",
@@ -87,6 +88,8 @@ public final class SubstitutedText {
                     "ExtractStmt.getVariableName",
                     "RunStmt.getApproveHeading",
                     "UseStmt.getTool",
+                    "AskStmt.getChannel",
+                    "AskStmt.getVariable",
                     "UseStmt.getVariableName",
                     "UseStmt.getApproveHeading",
                     "CheckStmt.getSubject",
@@ -116,6 +119,7 @@ public final class SubstitutedText {
         else if (s instanceof BroadcastStmt b) add(out, "broadcast payload", b.getPayload());
         else if (s instanceof HandoffStmt h) add(out, "handoff payload", h.getPayload());
         else if (s instanceof HumanPromptStmt h) add(out, "human_prompt message", h.getMessage());
+        else if (s instanceof io.github.llm4j.loom.ast.AskStmt a) add(out, "ask question", a.getText());
         else if (s instanceof NoteStmt n) add(out, "note message", n.getMessage());
         else if (s instanceof HaltStmt h) add(out, "halt message", h.getMessage());
         else if (s instanceof SetStmt v) texts(out, "set value", v.getValue());
