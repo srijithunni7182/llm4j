@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 to D5 and D21 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5, D8 and D21 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -18,7 +18,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D5 | Where the child runs | **taken** (in the same process in v1; the trigger store is not ruled out) |
 | D6 | What the monitor is | open (staged to v3 by D1; parked) |
 | D7 | Monitor separate or part of the handle | open (staged to v3 by D1; parked; a question for the owner) |
-| D8 | What `wait` does | open |
+| D8 | What `wait` does | **taken** (required timeout; returns on timeout; `wait all` records every outcome; no thread held) |
 | D9 | How a child's outcome reaches the parent | open |
 | D10 | Children when the parent ends | open |
 | D11 | Whose budget a child spends | open |
@@ -192,7 +192,11 @@ which you meant, so this one is **yours to clarify**.
 
 **Recommendation:** all three forms in time (one and all first, `any` with D1's v3), a mandatory `timeout`, and `-> result` plus `h.status` readable.
 
-**Decision:** open. `wait` is the owner's word. The sketch uses `wait all ... timeout`; `wait any` is staged later by the simplification.
+**Decision (owner): accepted as proposed.**
+- `wait h timeout T -> result` for one child and `wait all work timeout T -> results` for a keyed variable of handles. The `timeout` is **required** (`weave check` refuses a wait without one).
+- On timeout the wait **returns**; the children keep running until the script decides, and the script reads `h.status` (an optional `on_timeout { ... }` block may act on it).
+- A single wait returns the child's result, with the status readable on the handle. `wait all` returns a keyed variable with every outcome recorded (a failed or cancelled child is recorded as such, not left out), and waits for every child; fail-fast is written as a `supervise` rule that cancels the others.
+- A wait **suspends without holding a thread** when the run is journaled, as `human_prompt` and `sleep` do.
 
 ## D9. How does a child's outcome reach the parent?
 
