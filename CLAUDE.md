@@ -25,7 +25,7 @@ The reactor order matters: a failure in `ai-agent4j-loom` skips the modules afte
 
 | Command | Use |
 |---|---|
-| `make setup` | **Get a checkout ready** (about a minute): the full git history, the core, Loom and `loom-inspect-core` installed from this checkout into `~/.m2`, and the VS Code extension built with a matching `bin/weave.jar`. Run it **once at the start of a session** and after switching branch. The cloud environment may already have run it. Without it, `loom-inspect*`, `loom-fabric` and the extension compile and run against whatever jars an earlier build left, and fail in confusing ways. |
+| `make setup` | **Get a checkout ready** (about a minute): the full git history, the A2A test kit, the core, Loom and `loom-inspect-core` installed from this checkout into `~/.m2`, and the VS Code extension built with a matching `bin/weave.jar`. Run it **once at the start of a session** and after switching branch. The cloud environment may already have run it. Without it, `loom-inspect*`, `loom-fabric` and the extension compile and run against whatever jars an earlier build left, and fail in confusing ways. |
 | `make regen` | Regenerates every generated file in one go: the command reference, the pictures in the starters' READMEs, the graph renderer's copies, the review rule pages and the tutorial's web page. |
 | `make docs-check` | **Run it after changing docs, a command or option, a starter, a review rule or the tutorial** (about 40 s). It regenerates everything, lists *all* the generated files that were stale (the tests that pin them fail one at a time), then runs the documentation tests. Commit what it regenerated. |
 | `make build` | Compile |
