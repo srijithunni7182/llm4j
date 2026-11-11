@@ -63,6 +63,10 @@ class LoomTaskRunnerTest {
             workflow Chatty(receipt) {
                 note "internal note: the vault code is 1234"
             }
+            workflow Waits(receipt) {
+                human_prompt "Release {receipt}? (yes/no)" -> decision
+                return decision
+            }
             workflow Breaks(receipt) {
                 halt "internal detail: db password is hunter2"
             }
@@ -462,5 +466,19 @@ class LoomTaskRunnerTest {
 
         assertThat(store.list("alice")).isEmpty();
         assertThat(runner.get("alice", "direct-1")).isEmpty();
+    }
+
+    @Test
+    void aWorkflowWaitingOnAPersonInsideShowsAsWorkingAndNeverAsInputRequired() throws Exception {
+        LoomTaskRunner runner = runnerFor("Waits", "receipt", "1k");
+        OwnedTask started = runner.start("alice", text("lunch"), null);
+
+        long until = System.nanoTime() + PATIENCE.toNanos();
+        while (System.nanoTime() < until && !host.run(started.task().id()).map(r -> r.status() == io.github.llm4j.loom.host.RunRecord.Status.SUSPENDED).orElse(false)) Thread.sleep(10);
+
+        assertThat(host.run(started.task().id()).orElseThrow().status()).as("the run is waiting for a person").isEqualTo(io.github.llm4j.loom.host.RunRecord.Status.SUSPENDED);
+        assertThat(runner.get("alice", started.task().id()).orElseThrow().task().state()).isEqualTo(TaskState.WORKING);
+        assertThat(runner.settled("alice", started.task().id()).toCompletableFuture().isDone()).as("nothing for the caller to do yet").isFalse();
+        assertThat(String.valueOf(runner.get("alice", started.task().id()).orElseThrow().task())).doesNotContain("Release");
     }
 }

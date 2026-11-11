@@ -165,7 +165,7 @@ Each is updated in the same sub-phase as the behaviour it describes, not later. 
 | A6 | fakes (sink and guards); links are never followed | |
 | A7, A8 | loopback (a script calling the mock; the crash rule with a dropped reply and a listing the server refuses) | |
 | A9 | fakes: `LoomTaskRunner` over a real `LoomHost`; the handler over HTTP with a fake runner | the runner was not mounted behind the handler over HTTP |
-| A10 | by design: only an `ask` to a `caller` channel pauses a task for the caller | **no test runs an exposed workflow that waits on a `human_prompt` or an `approve`** |
+| A10 | fakes: an exposed workflow waiting on a `human_prompt` shows as working, is never input-required and never shows the prompt text; only an `ask` to a `caller` channel pauses a task for the caller | an `approve` inside an exposed workflow was not run separately (it suspends the run the same way) |
 | A11, A12, A16, A21, A22, A24, A25, A27 | fakes, with guard-removal checks | |
 | A13 | assertions in several layers (no remote text in spans, incidents, events or the failure sentence) | not an exhaustive sweep of every layer |
 | A14 | the existing suites, green | |
