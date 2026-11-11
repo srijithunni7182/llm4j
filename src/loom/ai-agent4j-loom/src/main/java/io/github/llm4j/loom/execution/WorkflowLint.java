@@ -260,6 +260,7 @@ public final class WorkflowLint {
         String name = null;
         if (s instanceof DelegateStmt d) name = d.getVariableName();
         else if (s instanceof HumanPromptStmt h) name = h.getVariableName();
+        else if (s instanceof io.github.llm4j.loom.ast.AskStmt ask) name = ask.getVariable();
         else if (s instanceof BroadcastStmt b) name = b.getVariableName();
         else if (s instanceof CallStmt c) name = c.getResultVariable();
         else if (s instanceof DecideStmt d) name = d.getVariable();

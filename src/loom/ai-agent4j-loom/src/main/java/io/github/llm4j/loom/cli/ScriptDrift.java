@@ -93,13 +93,20 @@ public final class ScriptDrift {
                     script.getAgents().stream()
                             .filter(x -> x.getName().equals(d.getTargetAgent()))
                             .findFirst();
+            var remote = script.getRemotes().stream().filter(x -> x.getName().equals(d.getTargetAgent())).findFirst();
             return d.getTargetAgent()
                     + ":"
                     + d.getPayload()
                     + ":"
                     + (agent.isPresent()
                             ? agent.get().getTools() + "/" + agent.get().getModel()
-                            : "?");
+                            : remote.isPresent()
+                                    ? "remote " + remote.get().get("card") + "@" + remote.get().get("agent_channel")
+                                    : "?");
+        }
+        if (s instanceof io.github.llm4j.loom.ast.AskStmt a) {
+            var channel = script.getAgentChannels().stream().filter(x -> x.getName().equals(a.getChannel())).findFirst();
+            return "ask " + a.getChannel() + ":" + a.getText() + ":" + a.getExpecting() + ":" + channel.map(c -> c.get("audience")).orElse("?");
         }
         if (s instanceof io.github.llm4j.loom.ast.RunStmt r) {
             StringBuilder b =
