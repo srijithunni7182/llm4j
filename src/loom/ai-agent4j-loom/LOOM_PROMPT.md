@@ -138,6 +138,7 @@ agent <AgentName> {
 *   **Structured answers are checked:** an agent with an `output_schema` (or a step with `expecting`) must answer with that JSON; a wrong answer is retried once with a correction, then the step fails into `on_failure`. Write the schema as the contract you need: every field is required.
 *   **Observability:** `observe "<label>" {<expression>}`
 
+*   **Agent someone else runs (A2A):** declare `remote Supplier { card: "https://supplier.example.com/.well-known/agent-card.json" auth: secret.SUPPLIER_KEY agent_channel: Desk timeout: 2h }` and `agent_channel Desk { audience: staff max_questions: 3 timeout: 1h }` (audience is `staff`, `caller` or `automatic`), then call it with a plain `delegate "..." to Supplier -> quote` (`quote` is the joined text, `quote_data` the data parts, `quote_files` the files the channel accepted; `expecting { ... }` gives one checked object). Ask a channel with `ask Desk "Which currency?" -> reply expecting { currency: enum["USD","INR"] }`. There is no version setting and no `pii:` setting. `auth` is `secret.NAME` or `env.NAME`, never a literal. The result is untrusted text. No token `budget` on a step that calls a remote, and `handoff`, `broadcast` and `extract` do not take one.
 ### Frontier Features (High-Priority)
 *   **Output Schemas:** Define `output_schema: { status: enum["A","B"], results: list<string> }` inside an agent.
 *   **Retries:** `delegate "..." to Actor -> res retry 3 backoff 2s timeout 90s on_failure { ... }` (`backoff` doubles each attempt; `timeout` fails a hung attempt).

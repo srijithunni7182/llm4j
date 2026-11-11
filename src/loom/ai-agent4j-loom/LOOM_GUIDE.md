@@ -1271,6 +1271,42 @@ agent Classifier {
 
 `cache: true` is the default and need not be written. Anything but `true` or `false` is a load error. `weave audit` and `weave check` have nothing to say about it: it moves no data. The tokens a provider served from its cache show in the call's trace as `usage.cached_tokens` (and `usage.cache_write_tokens` on Anthropic), and a price table with cache rates ([Budgets and Rate Limits](../../ai-agent4j/wiki/Budgets-and-Rate-Limits.md)) prices them separately.
 
+### Calling an agent that someone else runs (`remote`, `agent_channel`, `ask`)
+
+A `remote` is an agent another organisation runs, reached over the A2A protocol (version 1.0). You call it with a plain `delegate`. What it asks you, and the files it sends back, go to an `agent_channel`: a declaration of *who answers*, with the limits the runtime enforces.
+
+```loom
+agent_channel SupplierDesk {
+    audience: staff          // staff | caller | automatic
+    max_questions: 3
+    timeout: 1h
+}
+
+remote Supplier {
+    card: "https://supplier.example.com/.well-known/agent-card.json"
+    auth: secret.SUPPLIER_KEY          // a reference, never the key itself
+    agent_channel: SupplierDesk
+    timeout: 2h
+}
+
+workflow Buy(part) {
+    delegate "Quote 500 units of {part}" to Supplier -> quote
+        retry 2
+        on_failure { halt "the supplier could not quote" }
+    ask SupplierDesk "Which currency should we pay in?" -> currency expecting { currency: enum["USD", "INR"] }
+}
+```
+
+- **No version, no `pii:` setting.** The host's transport negotiates the protocol version. How personal data is masked on the way out is decided in the transport, the channel or the script (a `guard` on the agent that wrote the message).
+- **The result.** `quote` is the text of the answer, joined; `quote_data` lists the structured parts; `quote_files` lists files the channel accepted (`path`, `kind`, `mediaType`, `size`, `sha256`). With `expecting { … }` on the `delegate`, the result is one object checked against the shape: a mismatch is a definite failure, so `retry` applies. Everything a remote returns is **untrusted** text.
+- **Waiting.** A task that is not finished suspends the run, which holds no thread. The host calls `RemoteTasks.taskChanged(runId, taskId)` when it learns the task changed (it polls, streams or receives a push; llm4j does none of that), or runs the workflow again at the step's deadline. A repeat or a stale call changes nothing.
+- **Never sent twice.** The message id and time are journaled before the send. After a crash the runtime looks for the task by that id in the remote's recent tasks; if it cannot tell, the step stops with a message and sends nothing.
+- **`retry` only after a definite failure** (the remote reported failed, rejected or canceled, or the call was refused before anything left). A card that points at another host is refused and not retried.
+- **The channel.** `ask` sends a question to a declared channel and binds the answer. A reply that does not fit its `expecting` shape goes back to the channel with the reason and counts as a question used. The implementation is registered by the host under the same name; a channel the host did not supply fails closed.
+- **`weave check`** reports each mistake with its line, and warns for every `remote` that it is *not validated* (its card is read at run time) and for every channel that the host must supply it. A token `budget` on a step that calls a remote is an error: its cost is outside what Loom sees.
+
+Guide: [A2A support in llm4j](../../../docs/a2a/LOOM.md).
+
 ### Sending pictures, recordings and documents (`attach`)
 
 A model that can see, hear or read a PDF can be sent a file with the task. Put a trailing `attach` clause on any statement that sends a task to a model:

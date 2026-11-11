@@ -20,12 +20,13 @@ llm4j supports **A2A version 1.0** as a *facilitator*. It gives you the meaning 
 | I am writing | Read |
 |---|---|
 | Plain Java with ai-agent4j, calling or serving | [The Java guide](JAVA_GUIDE.md) |
+| A Loom workflow that calls a remote agent | [The Loom guide](LOOM.md) |
 | What the code around llm4j must do | [What you provide](INTEGRATING.md) |
 | Types, states, errors and limits | [Reference](REFERENCE.md) |
 | What A2A is | [What A2A is](WHAT_IS_A2A.md) |
 | Why llm4j does it this way | [Our approach](PHILOSOPHY.md) |
 
-The guide for Loom workflows (`remote`, `expose`, `agent_channel`, `ask`) and the security and review page arrive with the Loom support, in later steps of the same work.
+The guide for calling a remote agent from a Loom workflow is [The Loom guide](LOOM.md). Exposing a workflow (`expose`, `weave card`), the audit rules and the security and review page arrive in later steps of the same work.
 
 ## Status
 

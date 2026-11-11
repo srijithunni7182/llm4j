@@ -50,6 +50,55 @@ On JDK 21 and later a `switch` over `ChannelMessage` or `ChannelResponse` needs 
 | `AgentTaskRunner`, `TaskStore` | Exposes plain `ReActAgent`s; needs `confirmAgentsHaveLimits()` |
 | `A2AJsonRpc10` | Also: `parseRequest`, `writeResponse`, `writeError`, `writeCard` |
 
+## Loom: settings and defaults
+
+| Declaration | Setting | Required | Default |
+|---|---|---|---|
+| `remote Name { }` | `card` (an `https` address) | yes | |
+| | `agent_channel` (a declared channel) | yes | |
+| | `auth` (`secret.NAME` or `env.NAME`; never a literal) | no | no credential |
+| | `timeout` (a duration such as `2h`) | no | 1h |
+| | `require_signed_card` (`true` or `false`) | no | false |
+| `agent_channel Name { }` | `audience` (`staff`, `caller` or `automatic`) | yes | |
+| | `max_questions` (1 or more) | no | 3 |
+| | `timeout` | no | 1h |
+| `ask Channel "text" -> var` | `expecting { }`, `retry`, `backoff`, `timeout`, `on_failure { }` | no | |
+| `delegate "text" to Remote -> var` | `expecting { }`, `retry`, `backoff`, `timeout`, `on_failure { }`, `attach` | no | |
+
+There is no setting for an A2A version and none for `pii:`. A step that calls a remote may not carry a token `budget`.
+
+## Loom: what a call to a remote binds
+
+| Variable | Holds |
+|---|---|
+| `result` | The joined text; with `expecting { }`, one object checked against the shape |
+| `result_data` | The structured parts, as a list |
+| `result_files` | The files the channel accepted: `path`, `kind`, `mediaType`, `size`, `sha256` |
+
+## Loom: suspension and the host
+
+| Name | Meaning |
+|---|---|
+| `RunSuspended.Reason.REMOTE` | A remote task is not finished; the run holds no thread. `resumeAt` is the step's deadline |
+| `RemoteTasks.wiring(transport, channels)` | Goes into `LoomHost.Builder.customizer`; gives every run its transport and its channels |
+| `RemoteTasks.taskChanged(runId, taskId)` | Resumes the run waiting on that task; a repeat or stale call changes nothing |
+| `HarnessExecutor.setA2ATransport`, `setAgentChannel` | The same wiring for a single executor |
+
+## Loom: trace events
+
+| Event | When |
+|---|---|
+| `remote` (`TraceEvent.REMOTE`) | `data.kind` is `send`, `state`, `found` (an earlier send was found after a crash), `cancel`, `cancel_failed`, `done`. Remote text is never put here unshortened |
+| `exchange` (`TraceEvent.EXCHANGE`) | `data.kind` is `question`, `authorization`, `file`, `ask` or `reply`, with the channel, the direction, a digest (never the text) and the idempotency key |
+
+## Loom: limits
+
+| Limit | Value |
+|---|---|
+| Largest reply from a channel | 64 KiB |
+| Questions per run and step | the channel's `max_questions` |
+| Received files | the script's `media { max_bytes }` and `max_items` |
+
 ## Errors
 
 All are unchecked subclasses of `A2AException` (itself an `LLMException`); callers never see a wire code.
