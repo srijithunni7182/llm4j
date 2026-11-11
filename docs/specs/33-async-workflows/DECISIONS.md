@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1, D2 and D21 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1, D2, D3, D4 and D21 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -13,8 +13,8 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 |---|---|---|
 | D1 | What is in the first version | **taken** (staged: v1 start/wait/cancel/supervise with counted rules; v2 assertions; v3 progress, signals, `wait any`, `detach`) |
 | D2 | What a handle is | **taken** (opaque; keyed variables and `call` arguments allowed; returning refused) |
-| D3 | Where the child's journal lives | open |
-| D4 | Replay and the double start | open |
+| D3 | Where the child's journal lives | **taken** (a separate linked run, nested under the parent's folder) |
+| D4 | Replay and the double start | **taken** (a deterministic id including the parent's attempt, journal first) |
 | D5 | Where the child runs | open |
 | D6 | What the monitor is | open |
 | D7 | Monitor separate or part of the handle | open (a question for the owner) |
@@ -118,7 +118,8 @@ It may live in a keyed variable (`work[t.name]`), and may be passed into a `call
 
 **Recommendation: B**, for the reason that every existing tool already understands "a run". Needs the check of how Fabric and `loom-inspect` identify a run (not yet read).
 
-**Decision:** open.
+**Decision (owner): option C, nested on disk.** Each child is a separate run with its own journal, linked to its parent: the parent's `start` entry holds the child's run id and a summary, and the child records its parent's id. For the file journal the child lives under the parent's run folder (`<run folder>/children/<child id>/`), so backup, deletion and `weave fork` take the whole tree; the tools that take a run folder (`timeline`, `why`, `rewind`, `resume`) work on a child folder as they are.
+For the JDBC journal the equivalent is rows keyed by the child's run id with the parent's id stored on each; the journal interface needs "open the journal of child X", with a file and a database implementation. How Fabric and `loom-inspect` show a child is left to D16.
 
 ## D4. How does replay avoid starting the child twice?
 
@@ -131,7 +132,9 @@ It may live in a keyed variable (`work[t.name]`), and may be passed into a `call
 
 **Recommendation: C.** The deterministic id makes `start` idempotent, which is what the existing effect rules (principle 8, and "effects are journaled") already ask of everything else.
 
-**Decision:** open.
+**Decision (owner): option C, with the parent's attempt number in the id.** The child's id is derived from the parent's run, the parent's **attempt**, and the start site (the stable step id, which already includes the loop round and, for a `for each`, the item); the parent's journal entry for the start is written first.
+A **resume** keeps the attempt and so re-attaches to the same child; a **rewind** increments it, so the script starts a fresh child, and the previous attempt's children are cancelled with a recorded reason (see D10) before it does.
+The guard test (D17, D30): kill the parent at every point between `start` and `wait`, resume, and check that there is exactly one child and every effect happened once; break the guard on purpose once to see the test fail. This protects against a duplicate child, not against a tool whose own effect was not journaled (the effect rule's job).
 
 ## D5. Where does the child run?
 
