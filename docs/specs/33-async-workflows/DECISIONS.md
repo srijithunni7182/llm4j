@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 to D5, D8, D9, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5, D8 to D10, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -11,7 +11,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 
 | | Decision | State |
 |---|---|---|
-| D1 | What is in the first version | **taken** (staged: v1 start/wait/cancel/supervise with counted rules; v2 assertions; v3 progress, signals, `wait any`, `detach`) |
+| D1 | What is in the first version | **taken** (staged: v1 start/wait/cancel/supervise with counted rules; v2 assertions; v3 progress, signals, `wait any`; no `detach`) |
 | D2 | What a handle is | **taken** (opaque; keyed variables and `call` arguments allowed; returning refused) |
 | D3 | Where the child's journal lives | **taken** (a separate linked run, nested under the parent's folder) |
 | D4 | Replay and the double start | **taken** (a deterministic id including the parent's attempt, journal first) |
@@ -20,7 +20,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D7 | Monitor separate or part of the handle | open (staged to v3 by D1; parked; a question for the owner) |
 | D8 | What `wait` does | **taken** (required timeout; returns on timeout; `wait all` records every outcome; no thread held) |
 | D9 | How a child's outcome reaches the parent | **taken** (eight statuses including `sleeping`; `status`, `is ok`, `reason`, `failure`; the result is an error unless completed) |
-| D10 | Children when the parent ends | open |
+| D10 | Children when the parent ends | **taken** (warn at check time; cancel with a reason at run time, 30 s grace; no `detach`) |
 | D11 | Whose budget a child spends | open |
 | D12 | What `steer` targets | open (reconciled with D23) |
 | D13 | What `cancel` means | open |
@@ -88,7 +88,7 @@ v2 = code assertions and judged assertions (D24, D25); v3 = declared progress, s
 **Decision (owner): staged, as in option B.**
 - **v1:** `start` with `timeout`, `budget` and a handle; `wait` (one or all); `cancel`; readable facts (`h.status`, `h.tokens`, `h.elapsed`); `supervise <handle> { when ... }` with counted rules; the small keyed-variable additions it needs (iterate the keys, `wait all` over a keyed variable).
 - **v2:** assertions in code, then judged assertions.
-- **v3:** declared progress (`report`), signals (`notify`), `wait any`, `detach`.
+- **v3:** declared progress (`report`), signals (`notify`), `wait any`. (`detach` was removed by the owner under D10: a child never outlives its parent.)
 
 The demo is built in this order: counted rules first (cancel an overspender, steer an idle child, survive a restart), the judged drift check as soon as v2 is in.
 
@@ -105,7 +105,7 @@ The demo is built in this order: counted rules first (cancel an overspender, ste
 **Recommendation: A**, in a list allowed, passing into a `call` allowed (it stays inside the script), returning out of the workflow refused.
 
 **Decision (owner): option A, opaque.** A handle is a value held in a variable that names a child run. It is used only in the handle operations (`wait`, `cancel`, `supervise`, readable facts such as `h.status`); a placeholder `{h}` in a prompt, or a handle given to a tool or an agent, is a load error.
-It may live in a keyed variable (`work[t.name]`), and may be passed into a `call`ed sub-workflow. Returning a handle out of a workflow, or in the result of a `call`, is refused. The returning rule is revisited if `detach` is added (v3).
+It may live in a keyed variable (`work[t.name]`), and may be passed into a `call`ed sub-workflow. Returning a handle out of a workflow, or in the result of a `call`, is refused. There is no `detach` (D10), so the returning rule is permanent.
 
 ## D3. Where does the child's journal live?
 
@@ -229,7 +229,11 @@ which you meant, so this one is **yours to clarify**.
 
 **Recommendation: D.** Static where the script can tell, enforced at run time where it cannot.
 
-**Decision:** open.
+**Decision (owner): both layers, and no `detach`.**
+- **Check time:** `weave check` **warns** when a `start` result is never waited on, cancelled or supervised anywhere in the workflow (a warning, not an error: a handle in a keyed variable inside a loop cannot always be proven handled on every path).
+- **Run time (the guarantee):** when a parent ends in any way (finishes, `halt`, fails, is cancelled, or is rewound), every child still running is **cancelled with a recorded reason** ("parent ended"), and the parent's end is not complete until they settle. Settling lets an in-flight effect finish and record (D13), within a **grace period**, a runtime setting with a default (proposed 30 seconds); a child still unsettled after it is recorded as `cancelled` with a note that it did not settle, and its journal shows where it stopped.
+- After a process death nothing is cancelled: on resume the parent re-attaches to each child by id (D4).
+- **There is no `detach`.** A child never outlives the run that started it. That also makes the D2 rule permanent: a handle is never returned out of a workflow.
 
 ## D11. Whose budget does a child spend?
 
@@ -342,6 +346,7 @@ tutorial, wiki, README census, release notes).
 
 ## D20. What stays out of this phase
 
+- `detach` (a child outliving its parent): not wanted (D10).
 - Children on other machines, a scheduler or queue of children, a visual builder, and any change to `call`.
 - Whether `weave generate` should be taught to produce supervisor workflows: after the language settles.
 
