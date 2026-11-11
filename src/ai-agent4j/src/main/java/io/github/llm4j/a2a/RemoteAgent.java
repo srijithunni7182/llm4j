@@ -195,7 +195,7 @@ public final class RemoteAgent {
      * @throws A2AException if the transport cannot list
      */
     public Optional<RemoteTask> findBySentMessage(String messageId, Instant sentAt) {
-        Objects.requireNonNull(messageId, "messageId");
+        Objects.requireNonNull(messageId, "the message id");
         Objects.requireNonNull(sentAt, "sentAt");
         List<RemoteTask> recent =
                 transport.recentTasks(prepare(), credential, sentAt.minus(CLOCK_MARGIN), SEARCH_HISTORY);
