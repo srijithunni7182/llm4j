@@ -149,6 +149,7 @@ see [API keys in the Quick Start](src/ai-agent4j/wiki/Getting-Started.md#set-up-
 | 🧩 [**Addons**](src/ai-agent4j-addons/) | How do I keep data private and costs at zero? | Local ONNX/DJL embeddings, pgvector and Pinecone |
 | 🔧 [**Tools**](src/ai-agent4j-tools/) | How do I let an agent act safely? | `webhook`, `email`, `http`, `file`, `shell`, read-only `sql`, with allow-lists and journals |
 | 🌱 [**Spring Boot starter**](src/spring/llm4j-spring-boot-starter/) | I already use Spring. How do I get llm4j as beans? | `LLMClient`s, budgets, agents, tools, RAG and the Loom runtime (`LoomHost`), wired from `application.yml`. Optional: nothing in llm4j depends on it. Running a workflow in your app: [guide](docs/SPRING_BOOT_LOOM_GUIDE.md) |
+| 🤝 [**A2A**](docs/a2a/README.md) | How do I call another organisation's agent, and stay in control? | `RemoteAgent` calls an agent over the Agent2Agent protocol (version 1.0) as a facilitator: you bring the transport and the channel, llm4j refuses a card that points at another host, bounds every exchange and runs no server. Loom support follows ([guide](docs/a2a/README.md)) |
 | 🏷️ [**Classification**](src/ai-agent4j/wiki/Classification.md) | Which of these is it? | `Classifier`: typed questions (a choice, a yes/no, a score) answered in one call by a chat model or [Jev](docs/specs/07-classifier/STUDY_REPORT.md), `intentclassify` in Loom, classifier-backed judges in eval4j |
 | 🧪 [**eval4j**](src/eval4j/) | How do I know it works? | AssertJ assertions on agent behaviour, LLM judges, golden datasets, a [local dashboard](src/eval4j-report/docs/USER-GUIDE.md) ([why](src/ai-agent4j/wiki/WHY_EVAL4J.md)) |
 
@@ -193,6 +194,7 @@ and a [Gmail MCP app](src/examples/gmail-mcp-app/). [All examples](docs/EXAMPLES
 [Loom guide](src/loom/ai-agent4j-loom/LOOM_GUIDE.md) ·
 [Observability](docs/OBSERVABILITY.md) · [Deploying observability](docs/OBSERVABILITY_DEPLOYMENT.md) · [Agent skills: design it, build it, deploy it](docs/PUBLISHING_SKILL.md) ·
 [Secret Store](src/ai-agent4j/wiki/Secret-Store.md) ·
+[A2A](docs/a2a/README.md) ·
 [Security](SECURITY.md) ·
 [eval4j](src/eval4j/README.md) ·
 [About and history](docs/ABOUT.md) ·

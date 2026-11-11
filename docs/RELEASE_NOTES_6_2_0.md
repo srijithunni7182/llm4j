@@ -2,6 +2,10 @@
 
 All eleven artifacts are at `6.2.0`, aligned ([VERSION_MATRIX.md](VERSION_MATRIX.md)). This release is the field findings program ([docs/specs/FIELD_FINDINGS.md](specs/FIELD_FINDINGS.md)), a Loom tutorial and a starter set. Each item says what changed for you.
 
+## A2A: calling a remote agent from Java (phase 32a)
+
+- **`RemoteAgent` calls an agent that someone else runs over the A2A 1.0 protocol.** It checks the card, refuses a card that points at a host you did not declare, offers no supported endpoint, carries a failed signature or requires an extension your transport lacks, and makes one call per operation. It never waits or polls. llm4j runs no server and ships no HTTP client: you implement `A2ATransport` and `AgentChannel`; `A2AJsonRpc10` translates A2A 1.0 over JSON-RPC. Questions, authorization requests and files go through your channel inside limits the runtime enforces, and received files are written safely under `received/` in your media root. Start at [docs/a2a](a2a/README.md). The Loom support (`remote`, `expose`, `agent_channel`, `ask`) and serving an agent come later in phase 32.
+
 ## Media in Loom (phase 31e)
 
 - **`attach` sends a picture, recording, video or PDF with a task.** `delegate "What is the total?" to Vision attach image "{receipt}" -> total` (also `broadcast`, `handoff` and `human_prompt`); `extract Receipt from image "{receipt}" -> fields` for an extractor. Files are read only from the folder named by `media_root: "./assets"` (no `media_root`, no files), with `media { max_bytes: 20MB  max_items: 4 }` for limits. `intentclassify` takes no media. **Visible changes:** none for a script that does not use them; `attach`, `media_root`, `media` and `unscanned` are keywords only in the places above, so agents and variables with those names still load. The Loom guide has a section on it: [LOOM_GUIDE.md](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md).

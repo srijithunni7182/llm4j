@@ -78,3 +78,7 @@ test jar.
 ## Adding a tool
 
 See [Writing a tool](docs/writing-a-tool.md).
+
+## For an A2A transport
+
+A consumer's [A2A transport](../../docs/a2a/INTEGRATING.md) and its link fetching should use `NetPolicy` and `HttpSupport`: they refuse loopback, private and cloud-metadata addresses and keep a request under the declared base URL. llm4j's A2A support does not do this for you, by design.

@@ -279,6 +279,10 @@ Nothing is opened unless `enabled` is true, and it listens on loopback unless yo
 Evaluation (`eval4j`, `eval4j-report`) is not wired: run it from tests or the command line. Also not provided: a Spring MVC or WebFlux front end for answering suspended runs,
 Micrometer metrics, and Spring Boot Actuator endpoints. Each is straightforward to add around the beans above, and none is needed to use them.
 
+## A2A
+
+There is **no** A2A adapter in the starter, by design. Calling a remote agent needs a `RemoteAgent` built with your own `A2ATransport` and `AgentChannel`, which you can expose as beans yourself. Serving an agent will be one framework-neutral handler that you mount from a Spring controller. See [A2A support in llm4j](../../../docs/a2a/README.md).
+
 ## Things worth knowing
 
 - **One executor per run.** A `HarnessExecutor` holds one run's variables, journal and budgets, so the host makes a fresh one for each run. An invalid script, or a model with no key, fails when the application starts, listing every problem.

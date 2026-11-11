@@ -33,7 +33,7 @@ Each module answers the question the previous one raises.
 
 - [Quick Start](../src/ai-agent4j/wiki/Getting-Started.md)
 - [ReAct Agent Guide](../src/ai-agent4j/wiki/ReAct-Agent-Guide.md)
-- [Providers and the Uniform Contract](../src/ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md) · [Web-search grounding](../src/ai-agent4j/wiki/Web-Search-Grounding.md) · [Media input (pictures, PDFs, sound, video)](../src/ai-agent4j/wiki/Media-Input.md) · [Sarvam](../src/ai-agent4j/docs/SARVAM.md) · [Ollama](../src/ai-agent4j/docs/OLLAMA.md)
+- [Providers and the Uniform Contract](../src/ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md) · [Web-search grounding](../src/ai-agent4j/wiki/Web-Search-Grounding.md) · [Media input (pictures, PDFs, sound, video)](../src/ai-agent4j/wiki/Media-Input.md) · [Sarvam](../src/ai-agent4j/docs/SARVAM.md) · [Ollama](../src/ai-agent4j/docs/OLLAMA.md) · [A2A](../src/ai-agent4j/wiki/A2A.md)
 - [Creating Custom Tools](../src/ai-agent4j/wiki/Creating-Custom-Tools.md) · [Ready-made tools](../src/ai-agent4j-tools/docs/README.md)
 - [Agent Skills](../src/ai-agent4j/wiki/Agent-Skills-Guide.md) · [Personas](../src/ai-agent4j/wiki/Agent-Personas.md) · [Prompt Registry](../src/ai-agent4j/wiki/Prompt-Registry-Guide.md)
 - [Memory](../src/ai-agent4j/wiki/Memory-and-Persistence.md) · [Semantic Memory](../src/ai-agent4j/wiki/SEMANTIC_MEMORY.md)
