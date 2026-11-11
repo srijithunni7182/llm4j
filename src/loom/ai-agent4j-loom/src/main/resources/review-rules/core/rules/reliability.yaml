@@ -78,8 +78,11 @@
   about: step
   when:
     all:
-      - { field: kind, is: delegate }
-      - { field: agent.hasEffects, is: true }
+      - any:
+          - all:
+              - { field: kind, is: delegate }
+              - { field: agent.hasEffects, is: true }
+          - { field: kind, is: remote }
       - { field: onFailure, is: false }
   title: "{label} can write or send but has no on_failure"
   why: "When a step that acts on the outside world fails half way, nothing decides what happens next: the run ends with the effect done, undone or unknown."
@@ -108,10 +111,11 @@
   explain: >
     An agent whose tools write or send can fail after part of its work is done. An on_failure
     block is where the workflow says what then: stop cleanly, tell someone, or ask a person.
-    Without one the failure ends the run wherever it happens.
+    Without one the failure ends the run wherever it happens. A call to a remote agent counts as
+    able to act, because nobody on this side can see what the remote does.
   examples:
-    fires: [ examples/lr02-fires.loom, examples/lr02-fires-multiline.loom ]
-    quiet: [ examples/lr02-quiet-handled.loom, examples/lr02-quiet-reads.loom ]
+    fires: [ examples/lr02-fires.loom, examples/lr02-fires-multiline.loom, examples/lr02-fires-remote.loom ]
+    quiet: [ examples/lr02-quiet-handled.loom, examples/lr02-quiet-reads.loom, examples/lr02-quiet-remote-handled.loom ]
 
 - id: LR04
   lens: reliability

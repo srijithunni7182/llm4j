@@ -60,9 +60,10 @@ public final class SecurityAudit {
         for (ToolDef t : script.getTools()) tools.put(t.getName(), t);
         List<Finding> findings = new ArrayList<>();
         List<AgentProfile> profiles = new ArrayList<>();
+        Map<String, List<String>> exposedAgents = A2AAudit.exposedAgents(script);
 
         for (AgentDef a : script.getAgents())
-            profiles.add(agent(a, script, tools, lootReach, findings));
+            profiles.add(agent(a, script, tools, lootReach, exposedAgents.get(a.getName()), findings));
         toolSettings(script, findings);
         actingAsInvoker(script, findings);
         supplyChain(script, findings);
@@ -85,6 +86,7 @@ public final class SecurityAudit {
         decisions(script, findings);
         rewinds(script, findings);
         personRunsWhatIsWritten(script, profiles, findings);
+        A2AAudit.findings(script, profiles, findings);
 
         findings.sort(
                 Comparator.comparing(Finding::severity)
@@ -98,6 +100,7 @@ public final class SecurityAudit {
             LoomScript script,
             Map<String, ToolDef> tools,
             Map<String, String> lootReach,
+            List<String> exposedBy,
             List<Finding> findings) {
         List<String> untrusted = new ArrayList<>();
         List<String> privateData = new ArrayList<>();
@@ -214,6 +217,8 @@ public final class SecurityAudit {
         // a file chosen at run time can be anything a person or a model put there
         int runTimeMedia = runTimeMediaLine(script, a.getName());
         if (runTimeMedia > 0) untrusted.add("attachments chosen at run time");
+        // whoever may call an exposed workflow writes what its agents read
+        if (exposedBy != null) untrusted.add("exposed workflow input (" + String.join(", ", exposedBy) + ")");
         String pii = a.getGuard() == null ? null : a.getGuard().getPii();
         AgentProfile profile =
                 new AgentProfile(

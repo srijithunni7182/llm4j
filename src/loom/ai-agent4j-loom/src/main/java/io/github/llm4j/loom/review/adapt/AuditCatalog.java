@@ -125,6 +125,26 @@ public final class AuditCatalog {
             "An agent reads a file chosen at run time",
             "An agent sent a picture, recording or document whose file name is filled in at run time reads untrusted content: it can carry instructions that masking cannot see. Name the file in the script where you can."
         },
+        {
+            "LA24",
+            "A workflow takes input from outside",
+            "An expose block lets other agents call a workflow. Everything it reaches counts as reading untrusted content, so the lethal trifecta rule can fire. Keep those agents away from private data and from tools that send or act."
+        },
+        {
+            "LA25",
+            "Data leaves to a remote agent",
+            "A delegate to a remote agent sends text and files to another organisation. Nothing in the script masks personal data first unless an agent of the workflow has a pii guard. Medium when the workflow reaches private data and nothing masks it."
+        },
+        {
+            "LA26",
+            "A channel answers with no person",
+            "An agent_channel with audience automatic answers a party from outside without a person looking. High when a remote agent uses it, because that agent can ask for authorization."
+        },
+        {
+            "LA27",
+            "An exposed workflow has no spend cap",
+            "An expose with neither a budget of its own nor a run budget leaves the cost to whoever can call it. Add a budget."
+        },
     };
 
     /** One entry per audit rule. The severity varies with the situation, so none is given. */

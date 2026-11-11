@@ -1,0 +1,3 @@
+agent_channel Desk { audience: staff }
+remote Supplier { card: "https://supplier.example.com/.well-known/agent-card.json"  agent_channel: Desk }
+workflow Main(q) { delegate "{q}" to Supplier -> r on_failure { note "the supplier failed" } note "{r}" }
