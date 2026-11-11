@@ -291,6 +291,282 @@ public final class A2AJsonRpc10 {
         }
     }
 
+    // ---- the server side: requests in, responses and the card out ----
+
+    /**
+     * A parsed JSON-RPC call.
+     *
+     * @param id the JSON-RPC id to echo back
+     * @param request the request in the version-free model
+     */
+    public record Call(JsonNode id, A2ARequest request) {}
+
+    /**
+     * What a card says about the agent beyond what a caller needs, for {@link #writeCard}.
+     *
+     * @param view name, description, skills, endpoints, accepted media types and authentication schemes
+     * @param version the agent's own version
+     * @param outputMediaTypes the media types it produces by default
+     * @param streaming whether it streams; llm4j offers none itself, so a host that does says so
+     * @param pushNotifications whether it sends push notifications
+     * @param extendedCard whether it has an extended card
+     * @param providerOrganization the organisation, or null
+     * @param providerUrl the organisation's address, or null
+     */
+    public record CardSpec(
+            AgentCardView view,
+            String version,
+            List<String> outputMediaTypes,
+            boolean streaming,
+            boolean pushNotifications,
+            boolean extendedCard,
+            String providerOrganization,
+            String providerUrl) {
+        /** Requires the view and a version; copies the list. */
+        public CardSpec {
+            Objects.requireNonNull(view, "view");
+            Objects.requireNonNull(version, "version");
+            outputMediaTypes = List.copyOf(outputMediaTypes);
+        }
+    }
+
+    /**
+     * Parses a JSON-RPC request into the model.
+     *
+     * @throws A2AException.Malformed if it is not JSON or not a request
+     * @throws A2AException.MethodNotFound if the method is not one this helper maps
+     * @throws A2AException.InvalidParams if its parameters are not valid
+     */
+    public static Call parseRequest(String json) {
+        JsonNode root = parse(json);
+        if (!root.isObject() || !root.has("method")) {
+            throw new A2AException.Malformed("the request is not a JSON-RPC request", null);
+        }
+        JsonNode id = root.has("id") ? root.get("id") : JSON.nullNode();
+        JsonNode params = root.path("params");
+        String method = root.get("method").asText("");
+        try {
+            return switch (method) {
+                case "SendMessage" -> {
+                    if (!params.has("message")) {
+                        throw new A2AException.InvalidParams("SendMessage needs a message");
+                    }
+                    JsonNode configuration = params.path("configuration");
+                    Integer history = configuration.has("historyLength") ? configuration.get("historyLength").asInt() : null;
+                    yield new Call(id, new A2ARequest.Send(readMessage(params.get("message")),
+                            configuration.path("returnImmediately").asBoolean(false), history, nullable(params, "tenant")));
+                }
+                case "GetTask" -> new Call(id, new A2ARequest.GetTask(required(params, "id"),
+                        params.has("historyLength") ? params.get("historyLength").asInt() : null));
+                case "CancelTask" -> new Call(id, new A2ARequest.CancelTask(required(params, "id")));
+                case "ListTasks" -> new Call(id, new A2ARequest.ListTasks(nullable(params, "contextId"),
+                        params.has("status") ? state(params.get("status").asText()) : null,
+                        params.has("pageSize") ? params.get("pageSize").asInt() : null,
+                        nullable(params, "pageToken"),
+                        params.has("historyLength") ? params.get("historyLength").asInt() : null,
+                        params.has("statusTimestampAfter") ? Instant.parse(params.get("statusTimestampAfter").asText()) : null,
+                        params.path("includeArtifacts").asBoolean(false)));
+                default -> throw new A2AException.MethodNotFound(method);
+            };
+        } catch (java.time.format.DateTimeParseException e) {
+            throw new A2AException.InvalidParams("statusTimestampAfter is not a timestamp");
+        } catch (A2AException.Malformed e) {
+            throw new A2AException.InvalidParams(e.getMessage());
+        }
+    }
+
+    private static String required(JsonNode params, String field) {
+        String value = text(params, field);
+        if (value.isEmpty()) {
+            throw new A2AException.InvalidParams("the request needs '" + field + "'");
+        }
+        return value;
+    }
+
+    /**
+     * Writes the JSON-RPC response to a handler answer. The shape depends on the request: a send
+     * answers with a task or a message wrapped as such, while a get or a cancel answers with the
+     * task itself.
+     *
+     * @param id the id of the request
+     * @param request the request that was handled
+     * @param response what the handler answered
+     */
+    public static String writeResponse(JsonNode id, A2ARequest request, A2AResponse response) {
+        if (response instanceof A2AResponse.TaskPage page) {
+            ObjectNode result = JSON.createObjectNode();
+            ArrayNode tasks = result.putArray("tasks");
+            page.tasks().forEach(t -> tasks.add(writeTask(t)));
+            result.put("nextPageToken", page.nextPageToken());
+            result.put("pageSize", page.pageSize());
+            result.put("totalSize", page.totalSize());
+            return envelope(id, "result", result);
+        }
+        if (response instanceof A2AResponse.TaskResponse t
+                && (request instanceof A2ARequest.GetTask || request instanceof A2ARequest.CancelTask)) {
+            return envelope(id, "result", writeTask(t.task()));
+        }
+        ObjectNode result = JSON.createObjectNode();
+        if (response instanceof A2AResponse.TaskResponse t) {
+            result.set("task", writeTask(t.task()));
+        } else if (response instanceof A2AResponse.MessageResponse m) {
+            result.set("message", writeMessage(m.message()));
+        }
+        return envelope(id, "result", result);
+    }
+
+    /**
+     * Writes the JSON-RPC error for an exception. A2A errors carry their name and domain; any other
+     * failure is reported as an internal error without its message, so nothing internal leaks.
+     */
+    public static String writeError(JsonNode id, A2AException e) {
+        int code;
+        String reason;
+        String message = e.getMessage();
+        if (e instanceof A2AException.TaskNotFound) {
+            code = -32001; reason = "TASK_NOT_FOUND";
+        } else if (e instanceof A2AException.TaskNotCancelable) {
+            code = -32002; reason = "TASK_NOT_CANCELABLE";
+        } else if (e instanceof A2AException.UnsupportedOperation) {
+            code = -32004; reason = "UNSUPPORTED_OPERATION";
+        } else if (e instanceof A2AException.ContentTypeNotSupported) {
+            code = -32005; reason = "CONTENT_TYPE_NOT_SUPPORTED";
+        } else if (e instanceof A2AException.ExtensionSupportRequired) {
+            code = -32008; reason = "EXTENSION_SUPPORT_REQUIRED";
+        } else if (e instanceof A2AException.VersionNotSupported) {
+            code = -32009; reason = "VERSION_NOT_SUPPORTED";
+        } else if (e instanceof A2AException.InvalidParams) {
+            code = -32602; reason = null;
+        } else if (e instanceof A2AException.MethodNotFound) {
+            code = -32601; reason = null;
+        } else if (e instanceof A2AException.Malformed) {
+            code = -32700; reason = null; message = "Invalid JSON payload";
+        } else if (e instanceof A2AException.Refused) {
+            code = -32600; reason = null;
+        } else {
+            code = -32603; reason = null; message = "Internal error";
+        }
+        ObjectNode error = JSON.createObjectNode().put("code", code).put("message", message);
+        if (reason != null) {
+            ObjectNode info = error.putArray("data").addObject();
+            info.put("@type", "type.googleapis.com/google.rpc.ErrorInfo");
+            info.put("reason", reason);
+            info.put("domain", "a2a-protocol.org");
+        }
+        return envelope(id, "error", error);
+    }
+
+    /** Writes an agent card in the 1.0 form. */
+    public static String writeCard(CardSpec spec) {
+        AgentCardView view = spec.view();
+        ObjectNode card = JSON.createObjectNode();
+        card.put("name", view.name());
+        card.put("description", view.description());
+        ArrayNode interfaces = card.putArray("supportedInterfaces");
+        for (AgentCardView.Endpoint e : view.endpoints()) {
+            ObjectNode node = interfaces.addObject();
+            node.put("url", e.url());
+            node.put("protocolBinding", e.binding());
+            if (e.tenant() != null) {
+                node.put("tenant", e.tenant());
+            }
+            node.put("protocolVersion", e.protocolVersion());
+        }
+        if (spec.providerOrganization() != null) {
+            ObjectNode provider = card.putObject("provider");
+            provider.put("url", spec.providerUrl() == null ? "" : spec.providerUrl());
+            provider.put("organization", spec.providerOrganization());
+        }
+        card.put("version", spec.version());
+        ObjectNode capabilities = card.putObject("capabilities");
+        capabilities.put("streaming", spec.streaming());
+        capabilities.put("pushNotifications", spec.pushNotifications());
+        capabilities.put("extendedAgentCard", spec.extendedCard());
+        if (!view.extensions().isEmpty()) {
+            ArrayNode extensions = capabilities.putArray("extensions");
+            for (AgentCardView.Extension x : view.extensions()) {
+                extensions.addObject().put("uri", x.uri()).put("required", x.required());
+            }
+        }
+        ArrayNode in = card.putArray("defaultInputModes");
+        view.defaultInputMediaTypes().forEach(in::add);
+        ArrayNode out = card.putArray("defaultOutputModes");
+        spec.outputMediaTypes().forEach(out::add);
+        ArrayNode skills = card.putArray("skills");
+        for (AgentCardView.Skill s : view.skills()) {
+            ObjectNode node = skills.addObject();
+            node.put("id", s.id());
+            node.put("name", s.name());
+            node.put("description", s.description());
+            ArrayNode tags = node.putArray("tags");
+            s.tags().forEach(tags::add);
+            if (!s.examples().isEmpty()) {
+                ArrayNode examples = node.putArray("examples");
+                s.examples().forEach(examples::add);
+            }
+            if (!s.inputMediaTypes().isEmpty()) {
+                ArrayNode modes = node.putArray("inputModes");
+                s.inputMediaTypes().forEach(modes::add);
+            }
+            if (!s.outputMediaTypes().isEmpty()) {
+                ArrayNode modes = node.putArray("outputModes");
+                s.outputMediaTypes().forEach(modes::add);
+            }
+        }
+        return card.toString();
+    }
+
+    private static String envelope(JsonNode id, String field, JsonNode body) {
+        ObjectNode root = JSON.createObjectNode();
+        root.put("jsonrpc", "2.0");
+        root.set("id", id == null ? JSON.nullNode() : id);
+        root.set(field, body);
+        return root.toString();
+    }
+
+    private static ObjectNode writeTask(RemoteTask task) {
+        ObjectNode node = JSON.createObjectNode();
+        node.put("id", task.id());
+        if (!task.contextId().isEmpty()) {
+            node.put("contextId", task.contextId());
+        }
+        ObjectNode status = node.putObject("status");
+        status.put("state", wireState(task.state()));
+        if (task.statusMessage() != null) {
+            status.set("message", writeMessage(task.statusMessage()));
+        }
+        if (!task.artifacts().isEmpty()) {
+            ArrayNode artifacts = node.putArray("artifacts");
+            for (Artifact a : task.artifacts()) {
+                ObjectNode artifact = artifacts.addObject();
+                artifact.put("artifactId", a.id());
+                if (!a.name().isEmpty()) {
+                    artifact.put("name", a.name());
+                }
+                ArrayNode parts = artifact.putArray("parts");
+                a.parts().forEach(p -> parts.add(writePart(p)));
+            }
+        }
+        if (!task.history().isEmpty()) {
+            ArrayNode history = node.putArray("history");
+            task.history().forEach(m -> history.add(writeMessage(m)));
+        }
+        return node;
+    }
+
+    private static String wireState(TaskState state) {
+        return switch (state) {
+            case WORKING -> "TASK_STATE_WORKING";
+            case INPUT_REQUIRED -> "TASK_STATE_INPUT_REQUIRED";
+            case AUTH_REQUIRED -> "TASK_STATE_AUTH_REQUIRED";
+            case COMPLETED -> "TASK_STATE_COMPLETED";
+            case FAILED -> "TASK_STATE_FAILED";
+            case CANCELED -> "TASK_STATE_CANCELED";
+            case REJECTED -> "TASK_STATE_REJECTED";
+            case UNKNOWN -> throw new A2AException("a task in an unknown state cannot be written; the runner must report a known state");
+        };
+    }
+
     // ---- reading ----
 
     private static JsonNode parse(String json) {

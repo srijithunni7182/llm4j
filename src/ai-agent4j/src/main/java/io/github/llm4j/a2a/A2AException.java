@@ -90,6 +90,22 @@ public class A2AException extends LLMException {
         }
     }
 
+    /** The method named in a request is not one this agent speaks. */
+    public static final class MethodNotFound extends A2AException {
+        /** @param method the method that was asked for */
+        public MethodNotFound(String method) {
+            super("the method '" + method + "' is not supported by this agent");
+        }
+    }
+
+    /** A request is not valid (a mismatching context, a page size out of range, an unusable context id). */
+    public static final class InvalidParams extends A2AException {
+        /** @param message what was wrong and what to send instead */
+        public InvalidParams(String message) {
+            super(message);
+        }
+    }
+
     /**
      * A call was refused by llm4j before anything was sent (a card pointing elsewhere, an
      * unsupported version, a required extension, a file type the card does not accept). Retrying
