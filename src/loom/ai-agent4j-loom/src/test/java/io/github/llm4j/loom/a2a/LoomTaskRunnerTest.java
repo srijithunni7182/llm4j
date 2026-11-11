@@ -369,4 +369,98 @@ class LoomTaskRunnerTest {
 
         assertThat(served).containsExactly("true");
     }
+
+    // ---- the limits and the errors around them
+
+    @Test
+    void maxInputUnderstandsBytesKilobytesAndMegabytesAndDefaultsToSixtyFourK() throws Exception {
+        assertThatThrownBy(() -> runnerFor("Pay", "receipt", "500").start("alice", text("x".repeat(501)), null)).isInstanceOf(A2AException.InvalidParams.class);
+        assertThat(runnerFor("Pay", "receipt", "2kb").start("alice", text("x".repeat(1500)), null).task().state()).isIn(TaskState.WORKING, TaskState.INPUT_REQUIRED);
+        assertThat(runnerFor("Pay", "receipt", "1mb").start("alice", text("x".repeat(2000)), null).task().id()).isNotBlank();
+        assertThat(runnerFor("Pay", "receipt", null).start("alice", text("x".repeat(5000)), null).task().id()).isNotBlank();
+        assertThatThrownBy(() -> runnerFor("Pay", "receipt", null).start("alice", text("x".repeat(70_000)), null)).isInstanceOf(A2AException.InvalidParams.class);
+    }
+
+    @Test
+    void aRunnerThatWasNeverAttachedToAHostSaysSo() throws Exception {
+        Path script = dir.resolve("main.loom");
+        Files.writeString(script, SOURCE);
+        var loaded = new LoomLoader().load(script.toString());
+        var runner = new LoomTaskRunner(loaded.getExposes().get(0), loaded, new MemoryStore(), clock);
+
+        assertThatThrownBy(() -> runner.start("alice", text("lunch"), null)).isInstanceOf(IllegalStateException.class).hasMessageContaining("attach");
+    }
+
+    @Test
+    void anAnswerNeedsTextAndAnExistingWaitingTaskAndAReasonableSize() throws Exception {
+        LoomTaskRunner runner = runnerFor("Pay", "receipt", "1k");
+        OwnedTask started = runner.start("alice", text("lunch"), null);
+        settle(runner, started);
+
+        assertThatThrownBy(() -> runner.answer("alice", "no-such-task", text("EUR"))).isInstanceOf(A2AException.TaskNotFound.class);
+        assertThatThrownBy(() -> runner.answer("bob", started.task().id(), text("EUR"))).isInstanceOf(A2AException.TaskNotFound.class);
+        assertThatThrownBy(() -> runner.answer("alice", started.task().id(), A2AMessage.user("m", List.of(new Part.Data(JSON.readTree("{}")))))).isInstanceOf(A2AException.InvalidParams.class);
+        assertThatThrownBy(() -> runner.answer("alice", started.task().id(), text("x".repeat(2000)))).isInstanceOf(A2AException.InvalidParams.class).hasMessageContaining("max_input");
+        assertThat(runner.get("alice", started.task().id()).orElseThrow().task().state()).as("a refused answer leaves it waiting").isEqualTo(TaskState.INPUT_REQUIRED);
+    }
+
+    @Test
+    void cancelAndSettledOnATaskThatDoesNotExistAreNotFoundAndSettledOnAWaitingTaskAnswersAtOnce() throws Exception {
+        LoomTaskRunner runner = runnerFor("Pay", "receipt", "1k");
+
+        assertThatThrownBy(() -> runner.cancel("alice", "nope")).isInstanceOf(A2AException.TaskNotFound.class);
+        assertThatThrownBy(() -> runner.settled("alice", "nope")).isInstanceOf(A2AException.TaskNotFound.class);
+
+        OwnedTask started = runner.start("alice", text("lunch"), null);
+        OwnedTask waiting = settle(runner, started);
+        assertThat(runner.settled("alice", started.task().id()).toCompletableFuture().isDone()).as("already waiting on the caller").isTrue();
+        assertThat(waiting.task().state()).isEqualTo(TaskState.INPUT_REQUIRED);
+    }
+
+    // ---- what a data part may hold
+
+    @Test
+    void numbersAndBooleansBindAsTheirJsonTextAndANullCountsAsMissing() throws Exception {
+        LoomTaskRunner runner = runnerFor("Total", "receipt", "1k");
+
+        OwnedTask started = runner.start("alice", json("{\"receipt\":12.5,\"currency_hint\":true}"), null);
+        OwnedTask done = settle(runner, started);
+        assertThat(done.task().artifacts().get(0).parts()).containsExactly(new Part.Text("total for 12.5"));
+
+        assertThatThrownBy(() -> runner.start("alice", json("{\"receipt\":null,\"currency_hint\":\"EUR\"}"), null))
+                .isInstanceOf(A2AException.InvalidParams.class)
+                .hasMessageContaining("receipt");
+    }
+
+    @Test
+    void aParameterGivenAsTextAndAsDataIsRefused() throws Exception {
+        LoomTaskRunner runner = runnerFor("Total", "receipt", "1k");
+        A2AMessage both = A2AMessage.user("m", List.of(new Part.Text("lunch"), new Part.Data(JSON.readTree("{\"receipt\":\"dinner\",\"currency_hint\":\"EUR\"}"))));
+
+        assertThatThrownBy(() -> runner.start("alice", both, null)).isInstanceOf(A2AException.InvalidParams.class).hasMessageContaining("twice");
+        assertThat(host.runs()).isEmpty();
+    }
+
+    @Test
+    void severalTextPartsAreJoinedWithABlankLine() throws Exception {
+        LoomTaskRunner runner = runnerFor("Pay", "receipt", "1k");
+        A2AMessage two = A2AMessage.user("m", List.of(new Part.Text("one"), new Part.Text("two")));
+
+        OwnedTask started = runner.start("alice", two, null);
+        settle(runner, started);
+        OwnedTask answered = runner.answer("alice", started.task().id(), text("EUR"));
+        OwnedTask done = settle(runner, answered);
+
+        assertThat(done.task().artifacts().get(0).parts()).containsExactly(new Part.Text("paid one\n\ntwo in EUR"));
+    }
+
+    @Test
+    void aRunTheRunnerDidNotStartIsNotATask() throws Exception {
+        LoomTaskRunner runner = runnerFor("Total", "receipt", "1k");
+
+        host.run(io.github.llm4j.loom.host.RunRequest.of("Pay", Map.of("receipt", "lunch")).withRunId("direct-1"));
+
+        assertThat(store.list("alice")).isEmpty();
+        assertThat(runner.get("alice", "direct-1")).isEmpty();
+    }
 }
