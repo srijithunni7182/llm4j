@@ -223,10 +223,62 @@ class RemoteCallTest {
     }
 
     @Test
+    void aPlainMessageReplyIsNotSentAgainOnAResume() {
+        mock.script(Script.plainMessage("42 each"));
+        assertThat(runOnce(SCRIPT)).isEqualTo("42 each");
+        assertThat(runOnce(SCRIPT)).as("replayed from the journal, no task to find").isEqualTo("42 each");
+        assertThat(mock.receivedMessageIds()).hasSize(1);
+    }
+
+    @Test
+    void whenNoRecentTaskHoldsTheMessageIdTheStepStopsAndSendsNothing() {
+        // the send never reached the server: nothing there can be found, and nothing may be sent blindly
+        transport = new LoopbackTransport(PUBLIC, mock.loopbackBase()) {
+            @Override
+            public io.github.llm4j.a2a.SendResult send(io.github.llm4j.a2a.AgentCardView.Endpoint endpoint, io.github.llm4j.secret.SecretRef credential, io.github.llm4j.a2a.A2AMessage message, io.github.llm4j.a2a.SendOptions options) {
+                throw new io.github.llm4j.a2a.A2AException("connection reset");
+            }
+        };
+        assertThatThrownBy(() -> runOnce(SCRIPT)).hasMessageContaining("not known whether it arrived");
+        transport = new LoopbackTransport(PUBLIC, mock.loopbackBase());
+        assertThatThrownBy(() -> runOnce(SCRIPT)).hasMessageContaining("no recent task").hasMessageContaining("nothing was sent again");
+        assertThat(mock.receivedMessageIds()).isEmpty();
+        assertThat(mock.taskCount()).isZero();
+    }
+
+    @Test
+    void aRefusalThatCannotChangeIsNeverRetriedSoTheCardIsFetchedOnce() {
+        int[] cardFetches = {0};
+        mock.mode(MockA2AAgent.Mode.CARD_ELSEWHERE);
+        transport = new LoopbackTransport(PUBLIC, mock.loopbackBase()) {
+            @Override
+            public io.github.llm4j.a2a.AgentCardView fetchCard(String address) {
+                cardFetches[0]++;
+                return super.fetchCard(address);
+            }
+        };
+        assertThatThrownBy(() -> runOnce(SCRIPT.replace("-> quote\n", "-> quote retry 3\n"))).hasMessageContaining("evil.example.net");
+        assertThat(cardFetches[0]).isEqualTo(1);
+    }
+
+    @Test
+    void whatTheRemoteWroteIsUncheckedSoItCannotLeaveToTheRemoteAgainWhenAPolicyIsDeclared() throws Exception {
+        java.nio.file.Files.createDirectories(dir.resolve("policies"));
+        java.nio.file.Files.writeString(dir.resolve("policies/house-rules.md"), "# House\n\n## no_promise\nThe reply promises a refund.\n");
+        String guarded = """
+                evaluator Compliance { model: "judge" }
+                policy HouseRules: "house-rules" checked by Compliance
+                """ + SCRIPT.replace("-> quote\n", "-> quote\n    delegate \"confirm {quote}\" to Supplier -> again\n");
+        mock.script(Script.completesAtOnce("42 each"));
+        assertThatThrownBy(() -> runOnce(guarded)).hasMessageContaining("has not been checked").hasMessageContaining("quote");
+        assertThat(mock.receivedMessageIds()).as("only the first message left").hasSize(1);
+    }
+
+    @Test
     void aMissingTransportOrChannelFailsClosedBeforeAnythingIsSent() {
         HarnessExecutor noTransport = new ScriptedRun(dir).executor(SCRIPT);
         noTransport.setAgentChannel("Desk", channel);
-        assertThatThrownBy(() -> noTransport.executeWorkflow("Buy", Map.of("part", "12"))).hasMessageContaining("transport");
+        assertThatThrownBy(() -> noTransport.executeWorkflow("Buy", Map.of("part", "12"))).hasMessageContaining("has no A2A transport");
         HarnessExecutor noChannel = new ScriptedRun(dir).executor(SCRIPT);
         noChannel.setA2ATransport(transport);
         assertThatThrownBy(() -> noChannel.executeWorkflow("Buy", Map.of("part", "12"))).hasMessageContaining("agent_channel Desk");
