@@ -1,11 +1,48 @@
 # Phase 33: open decisions
 
-Status: **open, except D21 (taken by the owner).** D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D21 taken; D2, D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
 Take them roughly in this order: D1 (scope) shapes everything; D2 to D5 are the foundation (what a handle is and how it survives a restart); D6 and D7 settle the monitor;
-D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side.
+D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side; D19 and D20 are names and scope; D21 to D30 are supervision (where it is written, what it can see, assertions, the judge and time).
+
+## Decision log
+
+| | Decision | State |
+|---|---|---|
+| D1 | What is in the first version | open (direction: simpler, around `supervise`) |
+| D2 | What a handle is | **partly taken** (a value in a variable) |
+| D3 | Where the child's journal lives | open |
+| D4 | Replay and the double start | open |
+| D5 | Where the child runs | open |
+| D6 | What the monitor is | open |
+| D7 | Monitor separate or part of the handle | open (a question for the owner) |
+| D8 | What `wait` does | open |
+| D9 | How a child's outcome reaches the parent | open |
+| D10 | Children when the parent ends | open |
+| D11 | Whose budget a child spends | open |
+| D12 | What `steer` targets | open (reconciled with D23) |
+| D13 | What `cancel` means | open |
+| D14 | Limits on the tree | open |
+| D15 | Authority and security | open |
+| D16 | Visibility | open |
+| D17 | Tests | open |
+| D18 | The Java side | open |
+| D19 | Names | **partly taken** (`wait`, `notify` are the owner's) |
+| D20 | What stays out | open |
+| D21 | Where supervision is written | **taken** (the header names the handle) |
+| D22 | How a child exposes progress | open (the owner's view recorded) |
+| D23 | The counted conditions | **partly taken** (bare counters relative to the handle) |
+| D24 | Assertions in code | open |
+| D25 | Judged assertions | **partly taken** (a judge inside `supervise` is wanted) |
+| D26 | Time: how long, how often | **partly taken** (time is in scope) |
+| D27 | Who pays for a judge | open |
+| D28 | What `elapsed` measures | open |
+| D29 | A suspended parent | open |
+| D30 | Overlap and testing time | open |
+
+"Partly taken" means the owner has said what is wanted; the details under it are still open.
 
 ## The current sketch
 
@@ -48,7 +85,7 @@ three counted conditions, and two kinds of `assert`. What it leaves out for now:
 **Recommendation: B, with `supervise` as the way to watch and steer.** v1 = `start` (with `timeout`, `budget`, a handle), `wait` (one or all), `cancel`, readable facts (`h.status`, `h.tokens`, `h.elapsed`), and `supervise <handle> { when ... }` with counted conditions (D21, D23);
 v2 = code assertions and judged assertions (D24, D25); v3 = declared progress, signals, `wait any`, `detach`. Steering is already built for agents, so it is cheaper than it looks, and `supervise` already carries the journaling, tracing and audit.
 
-**Decision:** open.
+**Decision:** open. **Direction from the owner:** the syntax must be simpler, so the surface was reshaped around `supervise` (see the sketch). The staging itself is not decided.
 
 ## D2. What is a handle?
 
@@ -62,7 +99,7 @@ v2 = code assertions and judged assertions (D24, D25); v3 = declared progress, s
 **Open sub-questions.** May handles be put in a list (needed for `wait all` over a `for each`)? May a handle be passed to a `call`ed sub-workflow, or returned from one?
 **Recommendation: A**, in a list allowed, passing into a `call` allowed (it stays inside the script), returning out of the workflow refused.
 
-**Decision:** open.
+**Decision:** partly taken. The owner described the call as returning "a workflow handle as variable", so a handle is **a value held in a variable**. Still open: opaque or a string (principle 2 favours opaque), handles in lists, passing one into a `call`.
 
 ## D3. Where does the child's journal live?
 
@@ -131,7 +168,7 @@ which you meant, so this one is **yours to clarify**.
 
 **Recommendation: C.** A handle already identifies the one child to be signalled; B is only needed when two children must signal each other.
 
-**Decision:** open. **Question for the owner:** which of A or B did you have in mind, and is sibling-to-sibling signalling a requirement?
+**Decision:** open. **The owner's wording:** "pass a monitor which the sub workflow uses; the locked monitor is part of the handle", which is a mix of A and B. **Question for the owner, still unanswered:** which of A or B, and is sibling-to-sibling signalling a requirement? Staged to v3 by the simplification (D1), so not needed for the demo.
 
 ## D8. What does `wait` do?
 
@@ -146,7 +183,7 @@ which you meant, so this one is **yours to clarify**.
 
 **Recommendation:** all three forms in time (one and all first, `any` with D1's v3), a mandatory `timeout`, and `-> result` plus `h.status` readable.
 
-**Decision:** open.
+**Decision:** open. `wait` is the owner's word. The sketch uses `wait all ... timeout`; `wait any` is staged later by the simplification.
 
 ## D9. How does a child's outcome reach the parent?
 
@@ -197,7 +234,7 @@ which you meant, so this one is **yours to clarify**.
 
 **Recommendation: A.** Explicit, and it extends the existing input-channel audit (LA18) to "a parent script can steer this agent".
 
-**Decision:** open.
+**Decision:** open. **Reconciled with D23:** inside a `supervise` block a `steer "text"` with no agent named applies to the handle's running steerable agents; naming an agent (`steer Researcher "text"`) is the optional precise form, and outside `supervise` the agent must be named.
 
 ## D13. What does `cancel` mean?
 
@@ -208,7 +245,7 @@ which you meant, so this one is **yours to clarify**.
 - Open: can a parent cancel a child back to a checkpoint (`LoomRun.cancel` can already)? **Recommendation:** yes, using the same rule that the checkpoint must be declared and
   `at most N times` is stated.
 
-**Decision:** open.
+**Decision:** open. The owner's word for cancel is "end".
 
 ## D14. Limits on the tree
 
@@ -282,7 +319,7 @@ tutorial, wiki, README census, release notes).
 - **Recommendation:** `start`, `wait`, `notify`, `cancel`, `steer`. They read as plain words, none clashes with an existing keyword (to be confirmed by the lexer check),
   and they match the Java names where one exists (`steer`, `cancel`).
 
-**Decision:** open.
+**Decision:** partly taken. `wait` and `notify` are the owner's words, and the Java names `steer` and `cancel` already exist. `start` is a proposal (the owner said "invoke async"). To confirm with the lexer check.
 
 ## D20. What stays out of this phase
 
@@ -311,7 +348,7 @@ The same facts remain readable as plain values elsewhere in the script (`work[t.
 **The owner's stated view:** A, B and C are all wanted, with a simple syntax. **Proposal:** A in v1, because it needs no change to the child and `supervise` can act on it; B and C in a later stage, with the rules proposed in the earlier discussion
 (progress is bounded in size and rate, journaled, restored by a rewind, readable only through the handle, Fabric and the live page).
 
-**Decision:** open.
+**Decision:** open. **The owner's view:** A, B and C are all wanted, with a simple syntax. Proposal: A in v1, B and C later.
 
 ## D23. Which counted conditions are in v1?
 
@@ -324,7 +361,7 @@ The same facts remain readable as plain values elsewhere in the script (`work[t.
 
 **Recommendation:** `tokens`, `cost`, `calls`, `elapsed`, `idle`, `status` in v1. A condition on a child with several agents that names no agent applies to the child as a whole.
 
-**Decision:** open.
+**Decision:** partly taken. The owner confirmed (D21) that conditions are bare counters relative to the named handle. The list of counters is open.
 
 ## D24. Assertions in code about a child's trajectory
 
@@ -357,7 +394,7 @@ assert "searches only for the topic and reads at least two sources" using TopicJ
 
 **Recommendation:** v2, facts only by default, fixed text or a table, the verdict journaled.
 
-**Decision:** open.
+**Decision:** partly taken. **The owner wants a judge agent inside `supervise` that asserts the trajectory of the sub-workflow.** Open: the `assert` spelling (a proposal), what the judge sees, where the action text comes from, whether the ladder applies.
 
 ## D26. Time: how long, and how often
 
@@ -374,7 +411,7 @@ assert "searches only for the topic and reads at least two sources" using TopicJ
 - **Replay.** A tick and its verdict are journaled with the child's position, as `sleep` journals its wake time, so a replay returns what was recorded.
 - **Later, not v1:** back-off (`every 1m, then 3m`).
 
-**Decision:** open.
+**Decision:** partly taken. **The owner said time has to be factored in** (how long to supervise, how often). Open: every specific in the table (the deadline spelling, the tick, the cadence unit, the floor, the default).
 
 ## D27. Who pays for a judge?
 
