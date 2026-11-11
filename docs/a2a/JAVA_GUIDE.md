@@ -128,7 +128,10 @@ import io.github.llm4j.a2a.AgentTaskRunner;
 import io.github.llm4j.a2a.CallerIdentity;
 import io.github.llm4j.a2a.TaskStore;
 import io.github.llm4j.agent.ReActAgent;
+import com.fasterxml.jackson.databind.JsonNode;
+import io.github.llm4j.a2a.A2AException;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
@@ -158,11 +161,17 @@ public final class ServeAnAgent {
     }
 
     /** Called from your route, after you authenticated the caller and chose their scope key. */
-    public CompletionStage<String> handle(String authenticatedScope, String requestBody) {
-        A2AJsonRpc10.Call call = A2AJsonRpc10.parseRequest(requestBody);
-        A2ARequest request = call.request();
-        return handler.handle(new CallerIdentity(authenticatedScope), request)
-                .thenApply((A2AResponse response) -> A2AJsonRpc10.writeResponse(call.id(), request, response));
+    public CompletionStage<String> handle(String authenticatedScope, String versionHeader, String requestBody) {
+        JsonNode id = A2AJsonRpc10.idOf(requestBody); // so an error answers the right request
+        try {
+            A2AJsonRpc10.requireSupportedVersion(versionHeader); // no header means 0.3, which this agent does not speak
+            A2AJsonRpc10.Call call = A2AJsonRpc10.parseRequest(requestBody);
+            A2ARequest request = call.request();
+            return handler.handle(new CallerIdentity(authenticatedScope), request)
+                    .thenApply((A2AResponse response) -> A2AJsonRpc10.writeResponse(call.id(), request, response));
+        } catch (A2AException e) {
+            return CompletableFuture.completedFuture(A2AJsonRpc10.writeError(id, e));
+        }
     }
 }
 ```
@@ -170,6 +179,7 @@ public final class ServeAnAgent {
 Things to know.
 
 - **The handler never blocks.** A send that does not set the flag asking not to wait must be held until the task finishes or pauses (the specification's default). The handler returns a stage that completes when the runner says the task has settled; you decide how long your request waits and what to do on a timeout.
+- **Check the version, and answer the right request.** `A2AJsonRpc10.requireSupportedVersion` refuses any version but 1.0, and a request with no `A2A-Version` means 0.3, which this helper does not speak. `A2AJsonRpc10.idOf` reads the id of a request that could not be parsed, so its error still answers that request. An operation the agent does not offer is refused with its own error (streaming and an extended card with `UnsupportedOperation`, push notification configuration with `PushNotificationNotSupported`), and only a method nobody knows is `MethodNotFound`. A third-party compatibility kit found all three gaps in an earlier version of this page's sample.
 - **A failure completes the stage exceptionally** with an `A2AException`; turn it into the protocol's error with `A2AJsonRpc10.writeError`. An internal failure is written as a generic error without its message.
 - **Scopes are defence in depth, not isolation.** A task is visible only to the scope that created it, and asking for another scope's task answers "not found", exactly as for a missing one. If tenants need their data kept apart, give each its own host (journal, files, memory, secrets, budgets) and return that host's runner from `TaskRunners`. llm4j never interprets a tenant.
 - **A plain agent is limited.** `AgentTaskRunner` has no `INPUT_REQUIRED`, a crash loses running tasks unless your store is durable and you restart or fail them, and there is no audit. If you need questions to the caller, crash-safe tasks, cancel and the audit, expose a Loom workflow instead.

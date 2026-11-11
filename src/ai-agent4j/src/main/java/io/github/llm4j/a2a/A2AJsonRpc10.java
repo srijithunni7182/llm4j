@@ -332,6 +332,48 @@ public final class A2AJsonRpc10 {
     }
 
     /**
+     * Reads the id of a JSON-RPC request without parsing the rest, so an error for a request that
+     * cannot be parsed still answers the right request. A body that is not a request object has no
+     * id, and the answer is a JSON null.
+     *
+     * @param json the request body
+     * @return the id, or a JSON null when there is none
+     */
+    public static JsonNode idOf(String json) {
+        try {
+            JsonNode root = JSON.readTree(json);
+            if (root != null && root.isObject() && root.has("id")) {
+                return root.get("id");
+            }
+        } catch (JsonProcessingException notJson) {
+            // no id can be read from it
+        }
+        return JSON.nullNode();
+    }
+
+    /**
+     * Checks the protocol version a request asks for (the {@code A2A-Version} service parameter).
+     * The agent must process a request with the semantics of the version asked for, matching major
+     * and minor, so anything but {@code 1.0} (a patch such as {@code 1.0.1} is the same version) is
+     * refused. A request with no version means 0.3, which this helper does not speak.
+     *
+     * @param requested the value of the parameter, or null when the client sent none
+     * @throws A2AException.VersionNotSupported when this helper cannot serve that version
+     */
+    public static void requireSupportedVersion(String requested) {
+        String value = requested == null ? "" : requested.trim();
+        if (value.isEmpty()) {
+            throw new A2AException.VersionNotSupported(
+                    "the request names no A2A version, which means 0.3; this agent speaks " + VERSION);
+        }
+        boolean sameMajorMinor = value.equals(VERSION) || value.startsWith(VERSION + ".");
+        if (!sameMajorMinor) {
+            throw new A2AException.VersionNotSupported(
+                    "the version '" + value + "' is not supported; this agent speaks " + VERSION);
+        }
+    }
+
+    /**
      * Parses a JSON-RPC request into the model.
      *
      * @throws A2AException.Malformed if it is not JSON or not a request
@@ -388,6 +430,15 @@ public final class A2AJsonRpc10 {
                                         ? Instant.parse(params.get("statusTimestampAfter").asText())
                                         : null,
                                 params.path("includeArtifacts").asBoolean(false)));
+                // optional operations this agent does not offer: each has its own error (3.3.4)
+                case "SendStreamingMessage", "SubscribeToTask" -> throw new A2AException.UnsupportedOperation(
+                        "streaming; this agent answers with a task or a message");
+                case "GetExtendedAgentCard" -> throw new A2AException.UnsupportedOperation(
+                        "an extended agent card");
+                case "CreateTaskPushNotificationConfig",
+                        "GetTaskPushNotificationConfig",
+                        "ListTaskPushNotificationConfigs",
+                        "DeleteTaskPushNotificationConfig" -> throw new A2AException.PushNotificationNotSupported();
                 default -> throw new A2AException.MethodNotFound(method);
             };
         } catch (java.time.format.DateTimeParseException e) {
@@ -452,6 +503,9 @@ public final class A2AJsonRpc10 {
         } else if (e instanceof A2AException.TaskNotCancelable) {
             code = -32002;
             reason = "TASK_NOT_CANCELABLE";
+        } else if (e instanceof A2AException.PushNotificationNotSupported) {
+            code = -32003;
+            reason = "PUSH_NOTIFICATION_NOT_SUPPORTED";
         } else if (e instanceof A2AException.UnsupportedOperation) {
             code = -32004;
             reason = "UNSUPPORTED_OPERATION";

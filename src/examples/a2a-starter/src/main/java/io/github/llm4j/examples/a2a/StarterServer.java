@@ -1,7 +1,6 @@
 package io.github.llm4j.examples.a2a;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import io.github.llm4j.a2a.A2AException;
@@ -26,8 +25,6 @@ import java.util.concurrent.TimeoutException;
  * scope key you trust.
  */
 public final class StarterServer implements AutoCloseable {
-
-    private static final ObjectMapper JSON = new ObjectMapper();
 
     /** YOUR DECISION: how long a request that must wait is held. The handler itself never blocks. */
     private static final long MOST_SECONDS_TO_HOLD = 30;
@@ -71,11 +68,14 @@ public final class StarterServer implements AutoCloseable {
             return;
         }
         String request = new String(exchange.getRequestBody().readNBytes(1_000_000), StandardCharsets.UTF_8);
-        JsonNode id = JSON.nullNode();
+        // read the id first, so an error for a request that cannot be parsed still answers that request
+        JsonNode id = A2AJsonRpc10.idOf(request);
         String response;
         try {
+            // YOUR DECISION: the versions you speak. The helper refuses anything but 1.0, and a request
+            // with no A2A-Version header means 0.3 (the specification's rule), so it is refused too.
+            A2AJsonRpc10.requireSupportedVersion(exchange.getRequestHeaders().getFirst("A2A-Version"));
             A2AJsonRpc10.Call call = A2AJsonRpc10.parseRequest(request);
-            id = call.id();
             A2AResponse answer =
                     handler.handle(new CallerIdentity(scope), call.request())
                             .toCompletableFuture()

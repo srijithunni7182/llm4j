@@ -48,7 +48,7 @@ On JDK 21 and later a `switch` over `ChannelMessage` or `ChannelResponse` needs 
 | `TaskRunner`, `TaskRunner.OwnedTask`, `TaskRunners` | What requests map onto, and which runner serves a scope |
 | `AgentCardBuilder` | Builds the card; streaming, push notifications and the extended card default to false |
 | `AgentTaskRunner`, `TaskStore` | Exposes plain `ReActAgent`s; needs `confirmAgentsHaveLimits()` |
-| `A2AJsonRpc10` | Also: `parseRequest`, `writeResponse`, `writeError`, `writeCard` |
+| `A2AJsonRpc10` | Also: `parseRequest`, `idOf` (the id of a request that cannot be parsed), `requireSupportedVersion` (refuses any version but 1.0), `writeResponse`, `writeError`, `writeCard` |
 
 ## Loom: settings and defaults
 
@@ -111,6 +111,7 @@ All are unchecked subclasses of `A2AException` (itself an `LLMException`); calle
 | `TaskNotFound` | The remote has no such task, or you may not see it |
 | `TaskNotCancelable` | The task cannot be canceled in its state |
 | `UnsupportedOperation` | The remote does not support the operation, or the task is finished |
+| `PushNotificationNotSupported` | Push notifications are not offered: the operations that configure them cannot be used (code -32003) |
 | `ContentTypeNotSupported` | The remote does not accept a content type you sent |
 | `VersionNotSupported` | The remote does not speak the version the transport sent |
 | `ExtensionSupportRequired` | The remote requires an extension you did not declare |

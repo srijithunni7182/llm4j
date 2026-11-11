@@ -35,6 +35,8 @@ You implement `AgentChannel` for what comes back that needs a decision. You deci
 | **Authenticate every request** and decide what each caller may do | Nothing: the specification says a server must authenticate every request and decides by its own policies. Those are yours |
 | Tell the handler who the caller is as one scope key, and say which runner serves that scope | Refuses a request with no identity; shows a task only to the scope that created it |
 | Hold a request that must wait (the specification's default for a send), for as long as you choose | Returns a stage and holds no thread; you complete or time it out |
+| Read the `A2A-Version` the client asks for and refuse what you do not speak (no header means 0.3) | `A2AJsonRpc10.requireSupportedVersion` does the comparison and throws `VersionNotSupported`; reading the header is yours |
+| Answer a request that cannot be parsed with its own id | `A2AJsonRpc10.idOf` reads the id; streaming, an extended card and push notification configuration are answered with the errors the specification names, and only an unknown method is `MethodNotFound` |
 | Turn an `A2AException` into the protocol's error | `A2AJsonRpc10.writeError` does it, with no internal message in an unexpected failure |
 | Keep tenants' data apart if they need that: **one host per tenant** | Filters by scope key inside a host, as defence in depth. Everything a host shares (journal, files, memory, secrets, budgets) is shared by every scope it serves, including what an agent remembers, which can surface in another caller's answer |
 | For `AgentTaskRunner`: the per-task agent function, the `TaskStore`, the `Executor`, and restarting or failing unfinished tasks at startup | Runs one `agent.run(...)` per task; refuses to start until you confirm the agents have limits |
@@ -54,7 +56,7 @@ TLS, rate limits, scaling, monitoring and the identity provider are yours.
 
 ## The starter
 
-Every duty above has code in [the starter](../../src/examples/a2a-starter/README.md): a transport, a channel, a serving route, a runner per caller and a task store, each marked where a decision is yours. It compiles in the extended build and its script is parsed by a test; it is a map and not a working service, and it has not been run against a third-party agent.
+Every duty above has code in [the starter](../../src/examples/a2a-starter/README.md): a transport, a channel, a serving route, a runner per caller and a task store, each marked where a decision is yours. It compiles in the extended build and its script is parsed by a test; it is a map and not a working service. Its server uses the same helper calls as the one the compatibility kit was run against.
 
 ## Next
 

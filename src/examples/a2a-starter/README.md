@@ -21,7 +21,7 @@
 - **No durable tasks.** `MemoryTaskStore` loses everything on restart.
 - **No waiting.** Nothing here polls, streams or receives a push. The host calls `RemoteTasks.taskChanged` when it learns a task changed; see [the Loom guide](../../../docs/a2a/LOOM.md).
 - **No card signing or verification.** llm4j does no cryptography.
-- **Not verified against a third-party agent.** It was compiled and its script parsed; nothing more.
+- **Not run as a service.** It was compiled and its script parsed. The helper calls its server makes (the version check, the id of a request that cannot be parsed) are the ones llm4j's server half was run with against the A2A project's compatibility kit.
 
 ## The script
 

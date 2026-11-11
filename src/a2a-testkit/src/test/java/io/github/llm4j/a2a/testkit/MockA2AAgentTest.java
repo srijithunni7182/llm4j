@@ -208,9 +208,12 @@ class MockA2AAgentTest {
     @Test
     void streamingAndPushAreUnsupportedBecauseTheCardSaysSo() throws Exception {
         covers("streaming-unsupported");
+        covers("push-unsupported");
+        covers("extended-card-unsupported");
         assertThat(code(rpc("SendStreamingMessage", send(message("m1", "", "hi"), true)))).isEqualTo(-32004);
         assertThat(code(rpc("SubscribeToTask", "{\"id\":\"x\"}"))).isEqualTo(-32004);
-        assertThat(code(rpc("GetExtendedAgentCard", "{}"))).isEqualTo(-32007);
+        // its card says extendedAgentCard is false, so the answer is UnsupportedOperation (spec 3.3.4); -32007 is for a card that says true and has none
+        assertThat(code(rpc("GetExtendedAgentCard", "{}"))).isEqualTo(-32004);
         assertThat(code(rpc("CreateTaskPushNotificationConfig", "{\"taskId\":\"x\",\"url\":\"https://w.example.com\"}"))).isEqualTo(-32003);
         assertThat(code(rpc("Nope", "{}"))).isEqualTo(-32601);
     }

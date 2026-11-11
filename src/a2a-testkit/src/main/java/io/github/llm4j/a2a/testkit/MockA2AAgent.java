@@ -423,7 +423,7 @@ public final class MockA2AAgent implements AutoCloseable {
                         "ListTaskPushNotificationConfigs", "DeleteTaskPushNotificationConfig" ->
                         error(id, -32003, "Push notifications are not supported", "PUSH_NOTIFICATION_NOT_SUPPORTED", Map.of());
                 case "GetExtendedAgentCard" ->
-                        error(id, -32007, "No extended card is configured", "EXTENDED_AGENT_CARD_NOT_CONFIGURED", Map.of());
+                        error(id, -32004, "An extended agent card is not offered", "UNSUPPORTED_OPERATION", Map.of());
                 default -> error(id, -32601, "Method not found", "METHOD_NOT_FOUND", Map.of());
             };
         }
