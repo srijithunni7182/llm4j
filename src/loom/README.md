@@ -97,6 +97,12 @@ The policy does not have to be one we wrote. A **ladder** is a reusable policy y
 | Primitive | What it does |
 |---|---|
 | `delegate` | Call one agent, await result, bind to variable |
+| `run` | Run a **task**: plain Java, no model and no tokens, for the steps too important to leave to an LLM. `x is ok` asks whether it did what it was for, and fails closed |
+| `use Tool(...)` | Call a tool yourself, with no agent in between; add `approve "…"` and a person says yes to the exact payload first |
+| `extractor` / `extract` | Pull checked fields out of text. The extractor is stateless; a field the text does not state is `missing` (or fails the step if it is required), never guessed |
+| `evaluator` / `policy` / `check … against` | Rules live in a markdown file written for whoever owns compliance; a separate evaluator checks a reply against them at the edge, and `on_violation { rewrite with … }` fixes it |
+| `set` / `return` / `halt` | `set` gives a variable a value; `return` hands a value back (what a `call` receives); `halt "reason"` ends the whole run on purpose, with no retry and no failure handler |
+| `attach` | Send a picture, recording, video or PDF with a task (`delegate … attach image "{file}"`, `extract … from image …`); files may only come from the one folder `media_root` names |
 | `remote` / `agent_channel` / `ask` | Call an agent another organisation runs over A2A with a plain `delegate`; a channel says who answers its questions. What comes back is untrusted. See [the A2A guide](../../docs/a2a/LOOM.md) |
 | `expose` | Let other agents call a workflow over A2A; `weave card` prints what the world would see. The host serves it; llm4j runs no server |
 | `intentclassify` | Put typed questions (choose, ask, rate) to a classifier (Jev or a chat model) and bind one label per question, with a confidence rule |
@@ -109,15 +115,19 @@ The policy does not have to be one we wrote. A **ladder** is a reusable policy y
 | `sleep` | Waits a fixed time (`sleep 5m`); with a run journal the run pauses, holds no thread, and wakes on time |
 | `budget` | Caps a run, an agent or a step in tokens, calls or money; enforced before each LLM call. `per day` makes it refill |
 | `checkpoint` / `rewind` | Name a point and go back to it when a late check fails, carrying what was learned and keeping the old attempt as history: `rewind to collected when (review.score < 7) at most 2 times carrying feedback = "{review.notes}"`. Identical side effects and answers are never repeated; `weave timeline`, `rewind`, `reset` and `fork` do the same from outside |
+| `supervise` / `intervention` / `on_stopped` | Rules that act on counts of what an agent did (`looping(3)`, `tool_failing(Tool, 3)`, `context > 90%`), and what a run does when a person steers, wraps up or stops a `steerable` agent. See [Steering, stopping and wrapping up](./ai-agent4j-loom/LOOM_GUIDE.md#steering-stopping-and-wrapping-up-an-agent) |
 | `decision` / `decide` | Earned autonomy: an agent proposes, a person decides, and the record of both moves the agent up a ladder (`watch`, `suggest`, `act`) or back down. Written in plain phrases (`to act: after 300 cases over 30 days, agreeing at least 97%, with no dangerous mistakes`); `weave autonomy` operates it and `weave replay` tries a changed prompt or model on past cases with nothing sent |
-| `tool` | Declare and configure a tool in the script (`use: webhook`, `email`, `http`, `file`, `shell`, `sql`, `serpapi`, `openapi`, …); secrets only from `env.NAME` or the encrypted secret store (`secret.NAME`); side effects are journaled so a resume never repeats a send |
+| `tool` | Declare and configure a tool in the script (`use: webhook`, `email`, `http`, `file`, `shell`, `sql`, `serpapi`, `openapi`, `mcp`, …); secrets only from `env.NAME` or the encrypted secret store (`secret.NAME`); side effects are journaled so a resume never repeats a send |
 | `knowledge` | A knowledge base: source files, embedding model, index store; agents get the relevant passages |
 | `approve` | On an agent: which tool calls need a person's yes (durable, journaled per call) |
 | `memory` | On an agent: its conversations per session and long-term facts, kept across runs |
+| `context` | On an agent: how its prompt stays inside the model's window as a tool loop grows (`compact: chain(trim_tool_results, summarize, drop_oldest)`) |
 | `voice` | On an agent: hear audio tasks and speak answers (Sarvam); `translate`, `speak`, `transcribe`, … are tools |
 | `guard` | On an agent: `pii: mask \| block \| warn`, `bias: warn \| block` |
 | `provider` | A model endpoint with its own key: `provider Box { use: ollama base_url: "…" }`, then `model: "Box/llama3"` |
 | `persona` | A persona declared in the script; an agent's `persona:` combines it with its `system:` prompt |
+| `shared_prompt` | One prompt every agent starts with; rules that must hold belong in a policy, not here |
+| `routing` | A global policy for models: `fallback` in the order written, or `cost_aware` |
 | `rate_limits` | Pause a run when a provider limit or quota is hit, and resume it when the limit lifts |
 | `schedule` | Run a workflow or agent task on a cron or interval — stored, so it survives restarts |
 | `guardrail` | Wraps a block — intercepts output before it escapes (e.g. PII detection) |

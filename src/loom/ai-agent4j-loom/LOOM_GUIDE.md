@@ -1559,10 +1559,17 @@ Loom provides **Symbolic Controls** that ensure your agents follow a rigid seque
 - **`human_prompt`**: Ask a person. With a run journal the run suspends instead of holding a thread. See [Durable Runs](#durable-runs-no-new-syntax).
 - **`sleep`**: Wait a fixed time (`sleep 5m`). With a run journal the run pauses and holds no thread. See [Sleeping](#sleeping).
 - **`budget`**: Cap what a run, an agent or a single step may spend on LLM calls. See [Cost Budgets](#cost-budgets).
+- **`use Tool(...)`**: Call a tool yourself, with named arguments and no agent in between; `approve "…"` asks a person first. See [Calling a tool yourself](#calling-a-tool-yourself-use-and-asking-first-approve).
+- **`extractor` / `extract`**: Pull checked fields out of text; a field the text does not state is `missing`. See [Extracting fields](#extracting-fields-extractor-and-extract).
+- **`policy` / `evaluator` / `check … against`**: Check a reply against rules a compliance owner wrote, at the edge. See [Policies](#policies-rules-checked-at-the-edge).
+- **`set` / `return` / `halt`**: Give a variable a value, hand a value back, or end the whole run on purpose. See [Ending a run](#ending-a-run-handing-back-a-value-and-asking-whether-a-step-worked).
+- **`attach`**: Send a picture, recording, video or PDF with a task. See [Sending pictures, recordings and documents](#sending-pictures-recordings-and-documents-attach).
+- **`remote` / `agent_channel` / `ask`**: Call an agent another organisation runs over A2A. See [Calling an agent that someone else runs](#calling-an-agent-that-someone-else-runs-remote-agent_channel-ask).
+- **`expose`**: Let other agents call a workflow over A2A. See [Letting others call a workflow](#letting-others-call-a-workflow-expose-weave-card).
+- **`supervise` / `intervention` / `on_stopped`**: Rules that watch an agent, and what a run does when a person steers or stops it. See [Steering, Stopping and Wrapping Up an Agent](#steering-stopping-and-wrapping-up-an-agent).
+- **`checkpoint` / `rewind`**: Name a point and go back to it. See [Checkpoints, Rewind and Fork](#checkpoints-rewind-and-fork).
+- **`decision` / `decide`**: Earned autonomy. See [Earned Autonomy](#earned-autonomy).
 
-> **New in this release:** [cost budgets](#cost-budgets), [durable runs](#durable-runs-no-new-syntax), [`for each` with runtime routing](#for-each),
-> [bounded loops](#bounded-loops), [retry backoff and timeouts](#retry-backoff-and-timeouts),
-> [per-step schemas](#per-step-schemas-expecting), agent `temperature:` and `{var.list.0}` payload paths.
 
 ### Strings and Quotes
 A string is written between double quotes and may run over several lines. Inside it, `\"` is a double quote and `\\` is a backslash, so a string can hold a quote and can end with a backslash. Any other backslash stays as written: `\n` and `\t` are read later, as they always were. A string cannot end in a single backslash before its closing quote (that reads as an escaped quote); write two.

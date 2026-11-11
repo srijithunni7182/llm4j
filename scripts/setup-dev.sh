@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Gets a checkout ready for the working loop, so the first build of a session does not stall or run against stale artifacts:
 #   1. full git history     (scripts/about-stats.sh and `git log` need it; a cloud checkout is shallow)
-#   2. the core, Loom and loom-inspect-core installed from THIS checkout into ~/.m2: loom-inspect, loom-fabric and the
+#   2. the A2A test kit (a test dependency of the core), the core, Loom and loom-inspect-core installed from THIS checkout into ~/.m2: loom-inspect, loom-fabric and the
 #      extension's real-engine tests compile and run against the installed jars, which are otherwise whatever an earlier
 #      build left (a different commit, or the published release), and fail in confusing ways
 #   3. the VS Code extension: its dependencies, its test build, and bin/weave.jar from the Loom build above
@@ -18,9 +18,9 @@ if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
   git fetch -q --unshallow origin || echo "   could not fetch the full history; scripts/about-stats.sh will refuse to run" >&2
 fi
 
-step "installing the core, eval4j, eval4j-report, Loom and loom-inspect-core from this checkout"
+step "installing the A2A test kit, the core, eval4j, eval4j-report, Loom and loom-inspect-core from this checkout"
 mvn -q -B -DskipTests -Djacoco.skip=true -Dspotless.check.skip=true \
-  -pl src/ai-agent4j,src/eval4j,src/eval4j-report,src/loom/ai-agent4j-loom,src/loom/loom-inspect-core install
+  -pl src/a2a-testkit,src/ai-agent4j,src/eval4j,src/eval4j-report,src/loom/ai-agent4j-loom,src/loom/loom-inspect-core install
 
 ext=src/loom/vscode-loom
 if command -v node > /dev/null 2>&1 && [ -f "$ext/package.json" ]; then
