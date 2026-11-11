@@ -706,7 +706,18 @@ public final class RunState {
      * A task or delegate failed. If its {@code on_failure} took over, that is an incident; if not,
      * the run's end says so.
      */
+    /** The words the runtime uses when a channel's question limit is spent. */
+    private static final String QUESTION_LIMIT_MARK = "question limit";
+
     private void failureSeen(LogRec r) {
+        if ("remote".equals(r.text(Semconv.LOOM_FAILURE_KIND)))
+            detectors.onRemoteFailed(
+                    r.text(Semconv.LOOM_FAILURE_NAME),
+                    r.text(Semconv.LOOM_STEP),
+                    number(r.attr(Semconv.LOOM_FAILURE_ATTEMPTS)),
+                    Boolean.TRUE.equals(r.attr(Semconv.LOOM_FAILURE_HANDLED)),
+                    String.valueOf(r.text(Semconv.LOOM_FAILURE_ERROR)).contains(QUESTION_LIMIT_MARK),
+                    r.timeNanos());
         if (!Boolean.TRUE.equals(r.attr(Semconv.LOOM_FAILURE_HANDLED))) return;
         detectors.onDiverted(
                 r.text(Semconv.LOOM_FAILURE_KIND),
