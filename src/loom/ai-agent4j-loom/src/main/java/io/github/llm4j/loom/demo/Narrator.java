@@ -45,7 +45,19 @@ public final class Narrator {
         return out;
     }
 
-    private static Line line(String step, Statement st, RunJournal.Entry e, DecisionPoint d) {
+    static Line line(String step, Statement st, RunJournal.Entry e, DecisionPoint d) {
+        if (e != null && (e.kind().equals("remote") || e.kind().equals("remote_failed"))
+                && st instanceof DelegateStmt remote) {
+            String who = remote.getTargetAgent();
+            if (e.kind().equals("remote_failed"))
+                return new Line(step, "remote " + who, "remote: the agent " + who + ", which someone else runs, did not give an answer (" + clip(String.valueOf(e.value())) + "). What it says is never trusted.");
+            Object text = e.value() instanceof java.util.Map<?, ?> m ? m.get("text") : e.value();
+            return new Line(step, "remote " + who, "remote: the agent " + who + ", which someone else runs, was asked and answered: \"" + clip(String.valueOf(text)) + "\". It is outside your budgets, and what it says is not trusted until it is checked.");
+        }
+        if (e != null && st instanceof io.github.llm4j.loom.ast.AskStmt ask)
+            return new Line(step, "ask " + ask.getChannel(), e.kind().equals("ask_failed")
+                    ? "ask: the channel " + ask.getChannel() + " did not answer (" + clip(String.valueOf(e.value())) + ")."
+                    : "ask: the channel " + ask.getChannel() + " was asked and answered: \"" + clip(String.valueOf(e.value())) + "\".");
         if (d != null && d.kind().equals("failure"))
             return new Line(
                     step,
