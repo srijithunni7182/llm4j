@@ -198,6 +198,15 @@ class MockA2AAgentTest {
     }
 
     @Test
+    void theVersionIsMatchedOnMajorAndMinorSoAPatchIsTheSameVersion() throws Exception {
+        covers("version-header-required");
+        assertThat(code(rpc("GetTask", "{\"id\":\"x\"}", Map.of("A2A-Version", "1.0.1")))).isEqualTo(-32001);
+        assertThat(code(rpc("GetTask", "{\"id\":\"x\"}", Map.of("A2A-Version", "1.1")))).isEqualTo(-32009);
+        assertThat(code(rpc("GetTask", "{\"id\":\"x\"}", Map.of("A2A-Version", "1.05")))).isEqualTo(-32009);
+        assertThat(code(rpc("GetTask", "{\"id\":\"x\"}", Map.of("A2A-Version", "99.0")))).isEqualTo(-32009);
+    }
+
+    @Test
     void aRequiredExtensionMustBeDeclared() throws Exception {
         covers("required-extension");
         agent.requiredExtension("https://e.example.com/geo/v1");

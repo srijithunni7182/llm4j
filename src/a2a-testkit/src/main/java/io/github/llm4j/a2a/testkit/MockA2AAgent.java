@@ -401,7 +401,8 @@ public final class MockA2AAgent implements AutoCloseable {
 
     private ObjectNode handle(JsonNode id, String method, JsonNode params, Map<String, String> headers, String scope) {
         String version = headers.getOrDefault("a2a-version", "");
-        if (!version.equals("1.0")) {
+        // the version is matched on major and minor (spec 3.6.2): 1.0.1 is the same version as 1.0
+        if (!(version.equals("1.0") || version.startsWith("1.0."))) {
             return error(id, -32009, "Unsupported A2A version '" + version + "'; this agent speaks 1.0", "VERSION_NOT_SUPPORTED", Map.of());
         }
         if (requiredExtension != null
