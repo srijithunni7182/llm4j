@@ -1,0 +1,17 @@
+// A workflow that other agents may call over A2A, and the card the world is shown for it.
+agent_channel CallerDesk {
+    audience: caller
+    max_questions: 2
+}
+
+expose Totals {
+    workflow: main
+    description: "Totals a receipt."
+    agent_channel: CallerDesk
+    text_input: receipt
+    max_input: 64k
+}
+
+workflow main(receipt, currency) {
+    return "total for {receipt} in {currency}"
+}

@@ -25,7 +25,7 @@ const TOP = new Set(['extractor', 'evaluator', 'intentclassifier', 'agent', 'age
 // Not checkable on their own: a task is Java (graph only), an import needs a file.
 // halt and return end the path (the frame's own statements after them would never run), and `is ok` needs a real run result.
 // remote, agent-channel and ask carry warnings by design: the card is read at run time and the host supplies the channel.
-const PARSE_ONLY = new Set(['remote', 'agent-channel', 'ask', 'agent-grounded', 'run', 'halt', 'return', 'isok']);
+const PARSE_ONLY = new Set(['expose', 'remote', 'agent-channel', 'ask', 'agent-grounded', 'run', 'halt', 'return', 'isok']);
 const SKIP = new Set(['import']);
 
 const PRELUDE = [
@@ -57,6 +57,10 @@ function frame(name: string, text: string): string {
     if (name === 'for-each-max') {
         return PRELUDE + 'extractor Plan {\n    model: "ollama/llama3"\n    fields {\n        items: list<{ name: string }>\n    }\n}\nworkflow Main(topic_text) {\n    extract Plan from topic_text -> plan\n' +
             text.split('\n').map((l) => '    ' + l).join('\n') + '\n}\n';
+    }
+    if (name === 'expose') {
+        // an exposed workflow of the same name as the snippet's default, and the channel it names
+        return PRELUDE + 'agent_channel CallerDesk { audience: caller }\n' + text + '\nworkflow Total(receipt) {\n    return "{receipt}"\n}\n';
     }
     if (name === 'remote') {
         return PRELUDE + 'agent_channel SupplierDesk { audience: staff }\n' + text + '\nworkflow Main(topic_text) {\n    delegate "Quote {topic_text}" to Supplier -> quote_text\n    note "{quote_text}"\n}\n';

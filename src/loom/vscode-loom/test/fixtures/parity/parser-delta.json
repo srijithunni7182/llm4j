@@ -1,5 +1,5 @@
 {
-  "compared": 434,
+  "compared": 435,
   "differences": [
     "scripts/g5/refund.loom: only TypeScript defines agent changes @13:19",
     "src/loom/ai-agent4j-loom/src/test/resources/ladders/blog_publisher.loom: only TypeScript defines agent changes @40:19",

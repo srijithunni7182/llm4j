@@ -360,5 +360,18 @@
       "ask ${1:SupplierDesk} \"${2:Which currency should we pay in?}\" -> ${3:currency_text} expecting { ${4:currency}: ${5:string} }"
     ],
     "description": "Ask the people behind an agent channel a question and keep a typed answer. The reply is checked against the shape; what comes back is not trusted."
+  },
+  "expose": {
+    "prefix": "expose",
+    "body": [
+      "expose ${1:Totals} {",
+      "\tworkflow: ${2:Total}",
+      "\tdescription: \"${3:Totals a receipt.}\"",
+      "\tagent_channel: ${4:CallerDesk}",
+      "\ttext_input: ${5:receipt}",
+      "\tmax_input: ${6:64k}",
+      "}"
+    ],
+    "description": "Lets other agents call a workflow over A2A: what it is for, the channel for its questions, the one parameter that takes text and the largest message accepted."
   }
 }

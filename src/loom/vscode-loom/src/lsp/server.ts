@@ -124,6 +124,12 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**audience** `: staff | caller | automatic`\n\nIn an `agent_channel`: who answers a remote agent\'s questions.',
     max_questions:
         '**max_questions** `: N`\n\nIn an `agent_channel`: the most questions a remote may ask in one exchange, retries included.',
+    expose:
+        '**expose** `<Name> { workflow: W  description: "…"  agent_channel: <Channel>  text_input: param  max_input: 64k }`\n\nTop level: lets other agents call a workflow over A2A. Text binds only to `text_input`, JSON by parameter name, files are refused. The caller sees a failure as one fixed sentence. `weave card` prints the card outsiders see.',
+    text_input:
+        '**text_input** `: <parameter>`\n\nIn an `expose`: the one parameter that receives a text message. Always written, even for a workflow with one parameter.',
+    max_input:
+        '**max_input** `: 64k`\n\nIn an `expose`: the largest message accepted (default 64 KB); a bigger one is refused before any work starts.',
     budget:
         '**budget** `{ tokens: N  calls: N  cost: "$X"  warn_at: 80% }` or `budget N tokens`\n\nCaps what LLM calls may spend: at top level for the whole run, inside an agent (with `per_call`), or after a `delegate`, `broadcast`, `loop until` or `for each`. A call that can\'t be paid for is refused before it reaches the model and is never retried; `{_budget.remaining}` and friends are live.',
     per_call:

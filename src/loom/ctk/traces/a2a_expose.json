@@ -1,0 +1,15 @@
+{
+  "scriptName": "a2a_expose.loom",
+  "address": "https://agent.example.test/a2a",
+  "card": {
+    "name": "Totals",
+    "description": "Totals a receipt.",
+    "acceptedMediaTypes": ["text/plain", "application/json"],
+    "skillIds": ["main"],
+    "endpoint": "https://agent.example.test/a2a",
+    "mustNotContain": ["CallerDesk", "agent_channel", "total for"]
+  },
+  "refused": {
+    "addressNotHttps": "http://agent.example.test/a2a"
+  }
+}
