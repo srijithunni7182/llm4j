@@ -4,6 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.llm4j.a2a.A2AException;
 import io.github.llm4j.a2a.TaskState;
+import io.github.llm4j.loom.execution.ScriptValidator;
+import io.github.llm4j.loom.execution.TraceEvent;
+import io.github.llm4j.loom.lexer.Lexer;
+import io.github.llm4j.loom.parser.LoomParser;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -121,6 +125,35 @@ class A2ADocsTest {
         String reference = read(A2A.resolve("REFERENCE.md"));
         for (TaskState state : TaskState.values()) assertThat(reference).as(state.name()).contains("`" + state.name() + "`");
         for (Class<?> nested : A2AException.class.getDeclaredClasses()) assertThat(reference).as(nested.getSimpleName()).contains("`" + nested.getSimpleName() + "`");
+    }
+
+    private static final Pattern LOOM_BLOCK = Pattern.compile("```loom\\n(.*?)```", Pattern.DOTALL);
+
+    @Test
+    void everyLoomBlockOnTheLoomPageAndInTheGuidesA2ASectionParsesAndChecksWithNoError() throws Exception {
+        String guide = read(Path.of("LOOM_GUIDE.md"));
+        String section = guide.substring(guide.indexOf("### Calling an agent that someone else runs"), guide.indexOf("### Sending pictures, recordings and documents"));
+        List<String> blocks = new ArrayList<>();
+        for (String text : List.of(read(A2A.resolve("LOOM.md")), section)) {
+            Matcher m = LOOM_BLOCK.matcher(text);
+            while (m.find()) blocks.add(m.group(1));
+        }
+        assertThat(blocks).as("the Loom page and the guide each show a script").hasSizeGreaterThanOrEqualTo(2);
+        for (String block : blocks) {
+            var script = new LoomParser(new Lexer(block).tokenize()).parseScript();
+            var problems = new ScriptValidator().validate(script, new ScriptValidator.Context().registeredTools(java.util.Set.of()).baseDir(Path.of(".")));
+            assertThat(problems.stream().filter(p -> p.severity() == ScriptValidator.Severity.ERROR).map(ScriptValidator.Problem::message))
+                    .as(block).isEmpty();
+        }
+    }
+
+    @Test
+    void theReferenceListsEveryLoomSettingItsDefaultsAndEveryTraceEvent() throws Exception {
+        String reference = read(A2A.resolve("REFERENCE.md"));
+        for (String setting : List.of("card", "auth", "agent_channel", "timeout", "require_signed_card", "audience", "max_questions", "expecting", "RemoteTasks.taskChanged", "RunSuspended.Reason.REMOTE"))
+            assertThat(reference).as(setting).contains(setting);
+        assertThat(reference).contains("`" + TraceEvent.REMOTE + "`").contains("`" + TraceEvent.EXCHANGE + "`");
+        assertThat(reference).contains("| 3 |").contains("1h");
     }
 
     @Test
