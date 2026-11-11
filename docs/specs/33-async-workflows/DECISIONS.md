@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 and D21 taken; D2, D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1, D2 and D21 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -12,7 +12,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | | Decision | State |
 |---|---|---|
 | D1 | What is in the first version | **taken** (staged: v1 start/wait/cancel/supervise with counted rules; v2 assertions; v3 progress, signals, `wait any`, `detach`) |
-| D2 | What a handle is | **partly taken** (a value in a variable) |
+| D2 | What a handle is | **taken** (opaque; keyed variables and `call` arguments allowed; returning refused) |
 | D3 | Where the child's journal lives | open |
 | D4 | Replay and the double start | open |
 | D5 | Where the child runs | open |
@@ -104,7 +104,8 @@ The demo is built in this order: counted rules first (cancel an overspender, ste
 **Open sub-questions.** May handles be put in a list (needed for `wait all` over a `for each`)? May a handle be passed to a `call`ed sub-workflow, or returned from one?
 **Recommendation: A**, in a list allowed, passing into a `call` allowed (it stays inside the script), returning out of the workflow refused.
 
-**Decision:** partly taken. The owner described the call as returning "a workflow handle as variable", so a handle is **a value held in a variable**. Still open: opaque or a string (principle 2 favours opaque), handles in lists, passing one into a `call`.
+**Decision (owner): option A, opaque.** A handle is a value held in a variable that names a child run. It is used only in the handle operations (`wait`, `cancel`, `supervise`, readable facts such as `h.status`); a placeholder `{h}` in a prompt, or a handle given to a tool or an agent, is a load error.
+It may live in a keyed variable (`work[t.name]`), and may be passed into a `call`ed sub-workflow. Returning a handle out of a workflow, or in the result of a `call`, is refused. The returning rule is revisited if `detach` is added (v3).
 
 ## D3. Where does the child's journal live?
 
