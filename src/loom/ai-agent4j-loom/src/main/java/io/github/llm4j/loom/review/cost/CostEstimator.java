@@ -487,6 +487,11 @@ public final class CostEstimator {
         // ---- one model step
 
         void agentStep(int line, String label, String agentName, String payload, int retries) {
+            if (agentName != null && c.script.getRemotes().stream().anyMatch(r -> r.getName().equals(agentName))) {
+                // not free and not a guess: what a remote agent costs happens on its side, outside every budget here
+                note(label + " calls a remote agent: its cost is outside your budgets and is not estimated here");
+                return;
+            }
             AgentDef agent = agentName == null ? null : c.agents.get(agentName);
             Usage one;
             String model;

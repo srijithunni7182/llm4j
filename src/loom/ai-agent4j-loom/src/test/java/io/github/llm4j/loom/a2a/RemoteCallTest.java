@@ -275,6 +275,14 @@ class RemoteCallTest {
     }
 
     @Test
+    void aRemoteStepIsNotCountedByABudgetBecauseItsCostIsOutsideWhatLoomSees() {
+        mock.script(Script.completesAtOnce("42 each"));
+        String budgeted = "budget { calls: 1 }\n" + SCRIPT.replace("-> quote\n", "-> quote\n    delegate \"again {quote}\" to Supplier -> second\n");
+        runOnce(budgeted); // two remote calls under a budget of one call: nothing is counted, nothing is refused
+        assertThat(mock.receivedMessageIds()).hasSize(2);
+    }
+
+    @Test
     void aMissingTransportOrChannelFailsClosedBeforeAnythingIsSent() {
         HarnessExecutor noTransport = new ScriptedRun(dir).executor(SCRIPT);
         noTransport.setAgentChannel("Desk", channel);
