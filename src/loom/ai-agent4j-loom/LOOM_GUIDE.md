@@ -1308,6 +1308,37 @@ workflow Buy(part) {
 
 Guide: [A2A support in llm4j](../../../docs/a2a/LOOM.md).
 
+### Letting others call a workflow (`expose`, `weave card`)
+
+An `expose` block says that one workflow may be called by other agents over A2A, and what the world is told about it. It is a declaration: the host serves it (llm4j runs no server), and the script says what and the host decides who, where and how.
+
+```loom
+agent_channel CallerDesk {
+    audience: caller         // the caller of the workflow answers its questions
+    max_questions: 2
+}
+
+expose Totals {
+    workflow: Total
+    description: "Totals a receipt."
+    agent_channel: CallerDesk
+    text_input: receipt      // the one parameter that receives a text message
+    max_input: 64k           // the largest message accepted
+}
+
+workflow Total(receipt, currency) {
+    ask CallerDesk "Which currency?" -> reply
+    return "total for {receipt} in {reply}"
+}
+```
+
+- **What comes in.** A text message binds only to the parameter named by `text_input` (always written, even for one parameter). A JSON object binds by parameter name, and unknown keys are ignored. A parameter with no value is refused with a message that lists what the workflow takes. Files are refused, and a message over `max_input` is refused before any work starts.
+- **What the caller sees.** A task is a durable run. It shows as working while the workflow runs, **including while it waits for a `human_prompt` or an `approve`**, which are internal. Only an `ask` to a channel whose `audience` is `caller` pauses it as *input required*. The result is what the workflow `return`s, never its notes. A failure shows one fixed sentence, never the workflow's own error text. `AUTH_REQUIRED` is not produced.
+- Several `expose` blocks may name one workflow.
+- **`weave card main.loom [--address URL] [--expose NAME]`** prints the card an `expose` block shows to outsiders, with a placeholder address unless one is given (https only). It needs no network and no model, so a reviewer sees in a diff what a change does to what outsiders can see.
+- **`weave check`** reports an `expose` with no `workflow`, `description` or `agent_channel`, a workflow that does not exist, a `text_input` that is not a parameter, and a `max_input` that is not a size.
+- **Serving.** From Java, `LoomTaskRunner` (in `io.github.llm4j.loom.host`) implements the handler's `TaskRunner` over a `LoomHost`; see [A2A support in llm4j](../../../docs/a2a/LOOM.md).
+
 ### Sending pictures, recordings and documents (`attach`)
 
 A model that can see, hear or read a PDF can be sent a file with the task. Put a trailing `attach` clause on any statement that sends a task to a model:

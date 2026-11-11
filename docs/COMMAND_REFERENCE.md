@@ -22,6 +22,7 @@ Written by `weave man --all --format markdown` from the commands themselves; do 
 - [`weave check`](#weave-check) — Checks a script — tools, knowledge, secrets, names — without running it.
 - [`weave explain`](#weave-explain) — Describes a script in plain English (which agent is asked what, where a person is asked, what can spend money) without running anything or calling a model.
 - [`weave graph`](#weave-graph) — Draws the workflows of a script and its imports as a graph, as JSON (default) or Mermaid, without running anything.
+- [`weave card`](#weave-card) — Prints the A2A agent card of an expose block as JSON, without running anything, so a change to what outsiders see shows in a diff.
 - [`weave symbols`](#weave-symbols) — Lists the definitions, uses and variable types of a script and its imports as JSON, without running anything.
 - [`weave review`](#weave-review) — Reviews a script without running it: security, validity and the other lenses in one ranked list, each finding with why it matters and what to do.
 - [`weave audit`](#weave-audit) — Reviews a script's security without running it: what each agent can reach, where untrusted content, private data and a way out meet in one agent, unapproved effects, budgets and outside dependencies.
@@ -1777,6 +1778,24 @@ weave graph [OPTIONS] <script>
 - `--run=<runs>` — A run directory to draw on the graph: how often each statement ran, the edges taken, what was chosen, and (with several runs) the statements none reached (repeatable).
 - `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 - `--workflow=<workflow>` — Only this workflow.
+
+### `weave card`
+
+Prints the A2A agent card of an expose block as JSON, without running anything, so a change to what outsiders see shows in a diff.
+
+```
+weave card [OPTIONS] <script>
+```
+
+**Arguments**
+
+- `<script>` — The .loom script.
+
+**Options**
+
+- `--address=<address>` — The https address the agent will be served at (default: a placeholder).
+- `--expose=<expose>` — Only this expose block (default: the only one).
+- `-v, --verbose` — Show the log as well as the answer: -v the progress lines, -vv the detail. By default only the answer is printed. (repeatable)
 
 ### `weave symbols`
 

@@ -2,7 +2,7 @@
 # and ManPageTest fails until it is placed.
 Start here: try doctor init next guide man
 Describe it and build it: generate
-Understand and check a script: check explain graph symbols review audit rules
+Understand and check a script: check explain graph card symbols review audit rules
 Test and evaluate: test eval judge metamorphic security probe gate preflight
 Run it: run step package resume
 Watch a run and ask why: observe why whatif timeline

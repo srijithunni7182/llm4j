@@ -1,6 +1,6 @@
-# The Loom guide: calling a remote agent
+# The Loom guide: calling a remote agent, and letting others call yours
 
-**Who this is for:** someone writing a Loom workflow that calls an agent that another organisation runs. You need to know what [A2A is](WHAT_IS_A2A.md); you do not need Java except for the host that runs the workflow. Letting others call a workflow (`expose`) and `weave card` arrive with the serving support for Loom.
+**Who this is for:** someone writing a Loom workflow that calls an agent that another organisation runs. You need to know what [A2A is](WHAT_IS_A2A.md); you do not need Java except for the host that runs the workflow. Letting others call a workflow (`expose`) and `weave card` are at the end of this page support for Loom.
 
 ## The words
 
@@ -99,6 +99,40 @@ The message id and the time are journaled before the send. If the process dies a
 ## What `weave check` says
 
 Each mistake is reported with its line and what to write: a card that is not `https`, a literal in `auth`, a channel that is not declared, an unknown setting, a token `budget` on a step that calls a remote (its cost is outside Loom's budgets), a list of agents that mixes remote and local ones, `handoff`, `broadcast` or `extract` naming a remote (use `delegate`, in a `parallel` block for several). Every `remote` also gets a warning that it is **not validated**: its card is read at run time. Every channel gets one saying the host must supply its implementation.
+
+## Letting others call a workflow
+
+An `expose` block says that one workflow may be called over A2A, and what the world is told about it:
+
+```loom
+agent_channel CallerDesk {
+    audience: caller
+    max_questions: 2
+}
+
+expose Totals {
+    workflow: Total
+    description: "Totals a receipt."
+    agent_channel: CallerDesk
+    text_input: receipt
+    max_input: 64k
+}
+
+workflow Total(receipt, currency) {
+    ask CallerDesk "Which currency?" -> reply
+    return "total for {receipt} in {reply}"
+}
+```
+
+It is a declaration. llm4j runs no server: the host serves the card and the endpoint, authenticates the caller and gives the handler a scope key for each caller. See [What you provide](INTEGRATING.md).
+
+**What comes in.** A text message binds only to the parameter named by `text_input`, which you always write, even for a workflow with one parameter. A JSON object binds by parameter name; unknown keys are ignored. A missing parameter is refused with a message that lists what the workflow takes. Files are refused, and a message over `max_input` (64 KB unless you say) is refused before any work starts.
+
+**What the caller sees.** A task is a durable run of the workflow, owned by the caller's scope: no other scope sees it or can cancel it. It shows as working while the workflow runs, including while the workflow waits for a `human_prompt` or an `approve`, because those are internal. Only an `ask` to a channel whose `audience` is `caller` pauses the task as *input required*; the caller's answer carries it on. When the workflow finishes, the caller gets what it `return`s and never its notes. When it fails, the caller gets one fixed sentence, never the workflow's own error text. llm4j does not produce *authentication required* in this version.
+
+**`weave card`.** `weave card main.loom` prints the card an `expose` block shows to outsiders, with a placeholder address; `--address https://…` sets the address and `--expose NAME` picks one block when there are several. It needs no network and no model, so a reviewer sees in a diff what a change does to what outsiders can see. The card says what is accepted (text for `text_input`, JSON for the other parameters) and nothing about the agents, channels or tools inside.
+
+**From Java.** `LoomTaskRunner` in `io.github.llm4j.loom.host` serves one `expose` block as tasks. Create it with the block, the script, a `TaskStore` and a clock, pass `wiring()` to `LoomHost.Builder.customizer`, then call `attach(host)`. Give it to the handler as its `TaskRunner`. A task that must survive a restart needs a durable `TaskStore`. `onEvent` reports what happens to a task (received, state, answered, cancelled) with the task id and state only, never the caller or any text.
 
 ## Next
 
