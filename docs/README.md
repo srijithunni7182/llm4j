@@ -24,6 +24,8 @@
 | [Sarvam](../src/ai-agent4j/docs/SARVAM.md) · [Ollama](../src/ai-agent4j/docs/OLLAMA.md) | | |
 
 > [!TIP]
+> **[llm4j at a glance: the whole stack, skills, security and examples](OVERVIEW.md)**
+>
 > **[About llm4j: mission, stats and history](ABOUT.md)**
 >
 > **[Architecture you can review: the idea behind the guarantees](REVIEWABLE_ARCHITECTURE.md)**
