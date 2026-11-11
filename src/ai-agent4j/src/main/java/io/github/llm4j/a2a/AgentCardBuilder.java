@@ -12,8 +12,8 @@ import java.util.Objects;
  * Turns a declaration (name, description, skills, accepted media types) plus the host's details
  * (public address, authentication, provider) into a card, and {@link A2AJsonRpc10} writes it as the
  * 1.0 JSON. It runs nothing. The declared capabilities default to no streaming, no push
- * notifications and no extended card, because llm4j offers none of them itself; a host that provides
- * them says so. Signing a card is the host's job.
+ * notifications and no extended card, because llm4j offers none of them itself; a host that
+ * provides them says so. Signing a card is the host's job.
  */
 public final class AgentCardBuilder {
 
@@ -50,7 +50,10 @@ public final class AgentCardBuilder {
         return this;
     }
 
-    /** Declares a media type the agent accepts by default (and produces, unless output types are set). */
+    /**
+     * Declares a media type the agent accepts by default (and produces, unless output types are
+     * set).
+     */
     public AgentCardBuilder acceptsMediaType(String mediaType) {
         inputTypes.add(Objects.requireNonNull(mediaType, "mediaType"));
         return this;
@@ -112,7 +115,8 @@ public final class AgentCardBuilder {
      */
     public Published build() {
         if (endpoints.isEmpty()) {
-            throw new IllegalStateException("a card needs at least one endpoint: say where the host serves the agent");
+            throw new IllegalStateException(
+                    "a card needs at least one endpoint: say where the host serves the agent");
         }
         if (skills.isEmpty()) {
             throw new IllegalStateException("a card needs at least one skill");
@@ -120,16 +124,37 @@ public final class AgentCardBuilder {
         if (inputTypes.isEmpty()) {
             throw new IllegalStateException("a card needs the media types the agent accepts");
         }
-        AgentCardView view = new AgentCardView(name, description, skills, endpoints, inputTypes, List.of(), AgentCardView.SignatureStatus.NOT_SIGNED, authSchemes);
+        AgentCardView view =
+                new AgentCardView(
+                        name,
+                        description,
+                        skills,
+                        endpoints,
+                        inputTypes,
+                        List.of(),
+                        AgentCardView.SignatureStatus.NOT_SIGNED,
+                        authSchemes);
         List<String> outputs = outputTypes.isEmpty() ? inputTypes : outputTypes;
-        String json = A2AJsonRpc10.writeCard(new A2AJsonRpc10.CardSpec(view, version, outputs, streaming, pushNotifications, extendedCard, providerOrganization, providerUrl));
+        String json =
+                A2AJsonRpc10.writeCard(
+                        new A2AJsonRpc10.CardSpec(
+                                view,
+                                version,
+                                outputs,
+                                streaming,
+                                pushNotifications,
+                                extendedCard,
+                                providerOrganization,
+                                providerUrl));
         return new Published(view, json, etag(json));
     }
 
     /** A strong validator derived from the card's content, for the host's caching headers. */
     static String etag(String json) {
         try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(json.getBytes(StandardCharsets.UTF_8));
+            byte[] digest =
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(json.getBytes(StandardCharsets.UTF_8));
             return "\"" + HexFormat.of().formatHex(digest, 0, 16) + "\"";
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);

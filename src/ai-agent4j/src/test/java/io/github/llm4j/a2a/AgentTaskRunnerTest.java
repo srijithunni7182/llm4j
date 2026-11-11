@@ -37,7 +37,12 @@ class AgentTaskRunnerTest {
         @Override
         public LLMResponse chat(LLMRequest request) {
             if (failure != null) throw failure;
-            return LLMResponse.builder().content(answer).model("m").tokenUsage(1, 1, 2).finishReason("stop").build();
+            return LLMResponse.builder()
+                    .content(answer)
+                    .model("m")
+                    .tokenUsage(1, 1, 2)
+                    .finishReason("stop")
+                    .build();
         }
 
         @Override
@@ -136,7 +141,8 @@ class AgentTaskRunnerTest {
         executor.runAll();
         var done = runner.get("alice", id).orElseThrow().task();
         assertThat(done.state()).isEqualTo(TaskState.COMPLETED);
-        assertThat(((Part.Text) done.artifacts().get(0).parts().get(0)).text()).isEqualTo("The total is 42.");
+        assertThat(((Part.Text) done.artifacts().get(0).parts().get(0)).text())
+                .isEqualTo("The total is 42.");
         assertThat(settled).isDone();
     }
 
@@ -187,41 +193,65 @@ class AgentTaskRunnerTest {
         var canceled = runner.cancel("alice", id);
         assertThat(canceled.task().state()).isEqualTo(TaskState.CANCELED);
         executor.runAll();
-        assertThat(runner.get("alice", id).orElseThrow().task().state()).isEqualTo(TaskState.CANCELED);
+        assertThat(runner.get("alice", id).orElseThrow().task().state())
+                .isEqualTo(TaskState.CANCELED);
     }
 
     @Test
     void aCrashLeavesAWorkingTaskInTheStoreTheConsumerCanCleanUp() {
         var runner = runner();
         var id = runner.start("alice", ask("a"), null).task().id();
-        // the process dies: the executor never runs the task; a restarted runner over the same store sees it
+        // the process dies: the executor never runs the task; a restarted runner over the same
+        // store sees it
         var restarted = runner();
-        assertThat(restarted.get("alice", id).orElseThrow().task().state()).isEqualTo(TaskState.WORKING);
-        assertThat(restarted.list("alice")).extracting(t -> t.task().state()).containsExactly(TaskState.WORKING);
+        assertThat(restarted.get("alice", id).orElseThrow().task().state())
+                .isEqualTo(TaskState.WORKING);
+        assertThat(restarted.list("alice"))
+                .extracting(t -> t.task().state())
+                .containsExactly(TaskState.WORKING);
     }
 
     @Test
     void anExecutorThatRefusesFailsTheTaskInsteadOfLosingIt() {
-        var runner = AgentTaskRunner.builder((s, c) -> null, store, command -> { throw new RejectedExecutionException("full"); })
-                .confirmAgentsHaveLimits().build();
+        var runner =
+                AgentTaskRunner.builder(
+                                (s, c) -> null,
+                                store,
+                                command -> {
+                                    throw new RejectedExecutionException("full");
+                                })
+                        .confirmAgentsHaveLimits()
+                        .build();
         var started = runner.start("alice", ask("a"), null);
-        assertThat(runner.get("alice", started.task().id()).orElseThrow().task().state()).isEqualTo(TaskState.FAILED);
+        assertThat(runner.get("alice", started.task().id()).orElseThrow().task().state())
+                .isEqualTo(TaskState.FAILED);
     }
 
     @Test
     void onlyTextIsAcceptedAsInput() {
         var runner = runner();
-        var withFile = A2AMessage.user("m", List.of(Part.FileOffered.link("https://f.example.com/a.pdf", "a", "application/pdf")));
-        assertThatThrownBy(() -> runner.start("alice", withFile, null)).isInstanceOf(A2AException.ContentTypeNotSupported.class);
+        var withFile =
+                A2AMessage.user(
+                        "m",
+                        List.of(
+                                Part.FileOffered.link(
+                                        "https://f.example.com/a.pdf", "a", "application/pdf")));
+        assertThatThrownBy(() -> runner.start("alice", withFile, null))
+                .isInstanceOf(A2AException.ContentTypeNotSupported.class);
     }
 
     @Test
     void theRunnerWorksBehindTheHandlerForAScope() {
         var runner = runner();
         var handler = new A2AHandler(scope -> runner);
-        var stage = handler.handle(new CallerIdentity("alice"), new A2ARequest.Send(ask("Total?"), false, null, null)).toCompletableFuture();
+        var stage =
+                handler.handle(
+                                new CallerIdentity("alice"),
+                                new A2ARequest.Send(ask("Total?"), false, null, null))
+                        .toCompletableFuture();
         assertThat(stage).isNotDone();
         executor.runAll();
-        assertThat(((A2AResponse.TaskResponse) stage.join()).task().state()).isEqualTo(TaskState.COMPLETED);
+        assertThat(((A2AResponse.TaskResponse) stage.join()).task().state())
+                .isEqualTo(TaskState.COMPLETED);
     }
 }

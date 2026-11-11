@@ -137,7 +137,11 @@ public final class AgentTaskRunner implements TaskRunner {
         }
         String id = "task-" + UUID.randomUUID();
         String context = contextId == null ? "ctx-" + UUID.randomUUID() : contextId;
-        OwnedTask working = owned(scope, new RemoteTask(id, context, TaskState.WORKING, null, List.of(), List.of(message)));
+        OwnedTask working =
+                owned(
+                        scope,
+                        new RemoteTask(
+                                id, context, TaskState.WORKING, null, List.of(), List.of(message)));
         store.save(working);
         RunHandle handle = new RunHandle();
         handles.put(id, handle);
@@ -145,7 +149,13 @@ public final class AgentTaskRunner implements TaskRunner {
         try {
             executor.execute(() -> run(scope, id, context, text, handle));
         } catch (RejectedExecutionException e) {
-            finish(scope, id, TaskState.FAILED, "the agent could not be started: no capacity", List.of(), false);
+            finish(
+                    scope,
+                    id,
+                    TaskState.FAILED,
+                    "the agent could not be started: no capacity",
+                    List.of(),
+                    false);
             return store.find(scope, id).orElse(working);
         }
         return working;
@@ -158,7 +168,13 @@ public final class AgentTaskRunner implements TaskRunner {
                 finish(scope, id, TaskState.CANCELED, null, List.of(), true);
             } else if (result.isCompleted()) {
                 String answer = result.getFinalAnswer() == null ? "" : result.getFinalAnswer();
-                finish(scope, id, TaskState.COMPLETED, null, List.of(new Artifact("answer", "Answer", List.of(new Part.Text(answer)))), true);
+                finish(
+                        scope,
+                        id,
+                        TaskState.COMPLETED,
+                        null,
+                        List.of(new Artifact("answer", "Answer", List.of(new Part.Text(answer)))),
+                        true);
             } else {
                 finish(scope, id, TaskState.FAILED, "the agent did not finish", List.of(), true);
             }
@@ -170,16 +186,28 @@ public final class AgentTaskRunner implements TaskRunner {
         }
     }
 
-    private void finish(String scope, String id, TaskState state, String note, List<Artifact> artifacts, boolean keepCancel) {
+    private void finish(
+            String scope,
+            String id,
+            TaskState state,
+            String note,
+            List<Artifact> artifacts,
+            boolean keepCancel) {
         Optional<OwnedTask> current = store.find(scope, id);
-        if (keepCancel && current.isPresent() && current.get().task().state() == TaskState.CANCELED) {
+        if (keepCancel
+                && current.isPresent()
+                && current.get().task().state() == TaskState.CANCELED) {
             complete(scope, id, current.get());
             return;
         }
         String context = current.map(c -> c.task().contextId()).orElse("");
         List<A2AMessage> history = current.map(c -> c.task().history()).orElse(List.of());
-        A2AMessage status = note == null ? null : A2AMessage.agent("status-" + id, List.of(new Part.Text(note)));
-        OwnedTask next = owned(scope, new RemoteTask(id, context, state, status, artifacts, history));
+        A2AMessage status =
+                note == null
+                        ? null
+                        : A2AMessage.agent("status-" + id, List.of(new Part.Text(note)));
+        OwnedTask next =
+                owned(scope, new RemoteTask(id, context, state, status, artifacts, history));
         store.save(next);
         complete(scope, id, next);
     }
@@ -207,17 +235,21 @@ public final class AgentTaskRunner implements TaskRunner {
 
     @Override
     public OwnedTask answer(String scope, String taskId, A2AMessage message) {
-        throw new A2AException.UnsupportedOperation("this agent cannot ask questions, so it takes no further messages for a task. " + LOOM_ADVICE);
+        throw new A2AException.UnsupportedOperation(
+                "this agent cannot ask questions, so it takes no further messages for a task. "
+                        + LOOM_ADVICE);
     }
 
     @Override
     public OwnedTask cancel(String scope, String taskId) {
-        OwnedTask current = store.find(scope, taskId).orElseThrow(() -> new A2AException.TaskNotFound(taskId));
+        OwnedTask current =
+                store.find(scope, taskId).orElseThrow(() -> new A2AException.TaskNotFound(taskId));
         RunHandle handle = handles.get(taskId);
         if (handle != null) {
             handle.cancel("canceled by the caller");
         }
-        OwnedTask canceled = owned(scope, RemoteTask.of(taskId, current.task().contextId(), TaskState.CANCELED));
+        OwnedTask canceled =
+                owned(scope, RemoteTask.of(taskId, current.task().contextId(), TaskState.CANCELED));
         store.save(canceled);
         complete(scope, taskId, canceled);
         return canceled;

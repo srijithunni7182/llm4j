@@ -1,6 +1,6 @@
 # What you provide
 
-**Who this is for:** the developer or operator who wires llm4j's A2A support into an application. llm4j runs nothing, so the running parts are yours. This page lists each duty, what llm4j already does for you, and what it refuses to do on your behalf. Sections for serving (mounting a handler, scopes, tenants) arrive with the handler.
+**Who this is for:** the developer or operator who wires llm4j's A2A support into an application. llm4j runs nothing, so the running parts are yours. This page lists each duty, what llm4j already does for you, and what it refuses to do on your behalf. The serving duties are below.
 
 ## The transport
 
@@ -25,6 +25,20 @@ You implement `AgentChannel` for what comes back that needs a decision. You deci
 - **Authorization requests.** The reply is only a message. The remote agent receives the credential out of band; never put one in a reply.
 - **Links.** llm4j never follows one. If you fetch it, validate the address against server-side request forgery, and write the bytes through `ChannelContext.receiveFile`.
 - **Files.** An inline file is offered the same way as a link, so you can refuse it. Accepting means writing the stream; the runtime counts the bytes, stops at the size limit, decides the type from the bytes, refuses SVG and unknown types, and moves the file into place only when it is complete. The sender's name is a label and is never part of a path.
+
+## Serving
+
+| Your duty | What llm4j does |
+|---|---|
+| Mount the handler on a route, and the card at a well-known address (`/.well-known/agent-card.json` by convention) | `A2AHandler` takes a request and gives a response; `AgentCardBuilder` and `A2AJsonRpc10.writeCard` make the card. They run nothing |
+| Serve the card with sensible caching headers, and sign it if your organisation wants that | Gives you an `ETag` derived from the card's content. Signing is yours |
+| **Authenticate every request** and decide what each caller may do | Nothing: the specification says a server must authenticate every request and decides by its own policies. Those are yours |
+| Tell the handler who the caller is as one scope key, and say which runner serves that scope | Refuses a request with no identity; shows a task only to the scope that created it |
+| Hold a request that must wait (the specification's default for a send), for as long as you choose | Returns a stage and holds no thread; you complete or time it out |
+| Turn an `A2AException` into the protocol's error | `A2AJsonRpc10.writeError` does it, with no internal message in an unexpected failure |
+| Keep tenants' data apart if they need that: **one host per tenant** | Filters by scope key inside a host, as defence in depth. Everything a host shares (journal, files, memory, secrets, budgets) is shared by every scope it serves, including what an agent remembers, which can surface in another caller's answer |
+| For `AgentTaskRunner`: the per-task agent function, the `TaskStore`, the `Executor`, and restarting or failing unfinished tasks at startup | Runs one `agent.run(...)` per task; refuses to start until you confirm the agents have limits |
+| Declare streaming or push notifications only if your host provides them | The card says no to both by default |
 
 ## Waiting
 

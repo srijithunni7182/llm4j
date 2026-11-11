@@ -2,6 +2,10 @@
 
 All eleven artifacts are at `6.2.0`, aligned ([VERSION_MATRIX.md](VERSION_MATRIX.md)). This release is the field findings program ([docs/specs/FIELD_FINDINGS.md](specs/FIELD_FINDINGS.md)), a Loom tutorial and a starter set. Each item says what changed for you.
 
+## A2A: serving an agent from Java (phase 32b)
+
+- **`A2AHandler` lets others call your agent, from any web stack.** You authenticate the caller and pass a scope key; the handler applies the specification's request rules, shows a task only to the scope that created it, never blocks (a send that must wait returns a stage the host completes), and starts nothing. `AgentCardBuilder` makes the card (no streaming, push or extended card unless you say so). `AgentTaskRunner` exposes a plain `ReActAgent` with a per-task agent function, your `TaskStore` and your `Executor`, and refuses to start until you confirm the agents have limits. See [docs/a2a](a2a/JAVA_GUIDE.md).
+
 ## A2A: calling a remote agent from Java (phase 32a)
 
 - **`RemoteAgent` calls an agent that someone else runs over the A2A 1.0 protocol.** It checks the card, refuses a card that points at a host you did not declare, offers no supported endpoint, carries a failed signature or requires an extension your transport lacks, and makes one call per operation. It never waits or polls. llm4j runs no server and ships no HTTP client: you implement `A2ATransport` and `AgentChannel`; `A2AJsonRpc10` translates A2A 1.0 over JSON-RPC. Questions, authorization requests and files go through your channel inside limits the runtime enforces, and received files are written safely under `received/` in your media root. Start at [docs/a2a](a2a/README.md). The Loom support (`remote`, `expose`, `agent_channel`, `ask`) and serving an agent come later in phase 32.

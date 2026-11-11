@@ -7,10 +7,10 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 /**
- * What the {@link A2AHandler} maps requests onto: something that runs tasks. A Loom workflow host is
- * one, an agent wrapper another, and a consumer may write their own. Every method takes the caller's
- * scope key and must show a task only to the scope that created it; the handler checks again.
- * Methods must not block on the work itself: a task runs elsewhere.
+ * What the {@link A2AHandler} maps requests onto: something that runs tasks. A Loom workflow host
+ * is one, an agent wrapper another, and a consumer may write their own. Every method takes the
+ * caller's scope key and must show a task only to the scope that created it; the handler checks
+ * again. Methods must not block on the work itself: a task runs elsewhere.
  */
 public interface TaskRunner {
 

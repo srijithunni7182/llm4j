@@ -3,7 +3,10 @@ package io.github.llm4j.a2a;
 import java.util.List;
 import java.util.Objects;
 
-/** What the handler answers. A failure is an {@link A2AException} that completes the stage exceptionally. */
+/**
+ * What the handler answers. A failure is an {@link A2AException} that completes the stage
+ * exceptionally.
+ */
 public sealed interface A2AResponse {
 
     /** A task. */

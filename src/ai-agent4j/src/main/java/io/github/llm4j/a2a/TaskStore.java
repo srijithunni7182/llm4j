@@ -4,9 +4,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Where an {@link AgentTaskRunner} keeps tasks between requests. The consumer supplies it: memory is
- * enough to try things, but a task that must survive a restart needs a durable store, and the
- * consumer restarts or fails unfinished tasks at startup (llm4j keeps no journal for a plain agent).
+ * Where an {@link AgentTaskRunner} keeps tasks between requests. The consumer supplies it: memory
+ * is enough to try things, but a task that must survive a restart needs a durable store, and the
+ * consumer restarts or fails unfinished tasks at startup (llm4j keeps no journal for a plain
+ * agent).
  */
 public interface TaskStore {
 

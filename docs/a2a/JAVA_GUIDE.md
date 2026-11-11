@@ -1,6 +1,6 @@
 # The Java guide: calling a remote agent
 
-**Who this is for:** a Java developer using ai-agent4j who wants to call an A2A agent that someone else runs. You need to know what a [task and a message are](WHAT_IS_A2A.md); you do not need Loom. Serving your own agent is covered when the handler ships.
+**Who this is for:** a Java developer using ai-agent4j who wants to call an A2A agent that someone else runs. You need to know what a [task and a message are](WHAT_IS_A2A.md); you do not need Loom. Serving one of your own agents is covered further down.
 
 ## The pieces, and who writes which
 
@@ -101,6 +101,79 @@ Each refusal is an `A2AException.Refused` that says what to do, and nothing has 
 When a task is `INPUT_REQUIRED` or `AUTH_REQUIRED`, hand the question to your channel through an `ExchangeGuard`, which holds the bounds whatever the channel does: the number of questions, the time, the size of the reply, and your check of its shape. Then send the reply with `RemoteAgent.reply`. An authorization request goes to the channel as its own kind of message, and your reply to it is only a message: the credential is arranged out of band and never travels in a reply.
 
 A file or link offered by the remote arrives as a `ChannelMessage.FileOffered`. llm4j never follows a link; your channel decides, validating the address against server-side request forgery. To accept a file, write it through `ChannelContext.receiveFile`, which checks the size and decides the type from the bytes.
+
+## Serve an agent
+
+To let others call one of your agents, mount an `A2AHandler` in your own web stack. llm4j supplies something to mount, never something to run: you do the authentication, the routing, the TLS and the choice of when a request has waited long enough.
+
+| Piece | Written by | What it is |
+|---|---|---|
+| `A2AHandler` | llm4j | Takes a `CallerIdentity` and an `A2ARequest`, applies the specification's request rules, and answers with a stage |
+| `CallerIdentity` | **you** | One opaque scope key you choose for the authenticated caller. No identity, no service |
+| `TaskRunner` and `TaskRunners` | llm4j (`AgentTaskRunner`), Loom, or **you** | Runs the tasks; `TaskRunners` says which runner serves which scope |
+| `AgentCardBuilder` | llm4j | Turns your declaration and your host's details into the card; `A2AJsonRpc10.writeCard` writes the 1.0 JSON |
+| `AgentTaskRunner`, `TaskStore` | llm4j, and **you** for the store | Exposes plain `ReActAgent`s; you supply the per-task agent function, the store and the executor |
+
+<!-- compiles -->
+```java
+package docs.a2a;
+
+import io.github.llm4j.a2a.A2AHandler;
+import io.github.llm4j.a2a.A2AJsonRpc10;
+import io.github.llm4j.a2a.A2ARequest;
+import io.github.llm4j.a2a.A2AResponse;
+import io.github.llm4j.a2a.AgentCardBuilder;
+import io.github.llm4j.a2a.AgentCardView;
+import io.github.llm4j.a2a.AgentTaskRunner;
+import io.github.llm4j.a2a.CallerIdentity;
+import io.github.llm4j.a2a.TaskStore;
+import io.github.llm4j.agent.ReActAgent;
+import java.util.List;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
+
+public final class ServeAnAgent {
+
+    private final A2AHandler handler;
+    private final AgentCardBuilder.Published card;
+
+    public ServeAnAgent(ReActAgent agent, TaskStore store, Executor executor) {
+        AgentTaskRunner runner =
+                AgentTaskRunner.builder((scope, contextId) -> agent, store, executor)
+                        .confirmAgentsHaveLimits() // required: outsiders can drive the cost
+                        .build();
+        this.handler = new A2AHandler(scope -> runner);
+        this.card =
+                AgentCardBuilder.of("Expense", "Reads a receipt and returns the total.")
+                        .skill(new AgentCardView.Skill("read_receipt", "Read a receipt", "Reads a receipt",
+                                List.of("expenses"), List.of(), List.of(), List.of()))
+                        .acceptsMediaType("text/plain")
+                        .endpoint(new AgentCardView.Endpoint("https://agent.example.com/a2a", "JSONRPC", "1.0", null))
+                        .build();
+    }
+
+    /** The body and the ETag to serve at the card address, with the caching headers you choose. */
+    public String cardJson() {
+        return card.json();
+    }
+
+    /** Called from your route, after you authenticated the caller and chose their scope key. */
+    public CompletionStage<String> handle(String authenticatedScope, String requestBody) {
+        A2AJsonRpc10.Call call = A2AJsonRpc10.parseRequest(requestBody);
+        A2ARequest request = call.request();
+        return handler.handle(new CallerIdentity(authenticatedScope), request)
+                .thenApply((A2AResponse response) -> A2AJsonRpc10.writeResponse(call.id(), request, response));
+    }
+}
+```
+
+Things to know.
+
+- **The handler never blocks.** A send that does not set the flag asking not to wait must be held until the task finishes or pauses (the specification's default). The handler returns a stage that completes when the runner says the task has settled; you decide how long your request waits and what to do on a timeout.
+- **A failure completes the stage exceptionally** with an `A2AException`; turn it into the protocol's error with `A2AJsonRpc10.writeError`. An internal failure is written as a generic error without its message.
+- **Scopes are defence in depth, not isolation.** A task is visible only to the scope that created it, and asking for another scope's task answers "not found", exactly as for a missing one. If tenants need their data kept apart, give each its own host (journal, files, memory, secrets, budgets) and return that host's runner from `TaskRunners`. llm4j never interprets a tenant.
+- **A plain agent is limited.** `AgentTaskRunner` has no `INPUT_REQUIRED`, a crash loses running tasks unless your store is durable and you restart or fail them, and there is no audit. If you need questions to the caller, crash-safe tasks, cancel and the audit, expose a Loom workflow instead.
+- **The card says no streaming, no push notifications and no extended card** unless you say otherwise, because llm4j offers none of them.
 
 ## Test it without a network
 

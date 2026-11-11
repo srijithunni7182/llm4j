@@ -37,12 +37,27 @@ A finished task takes no more messages. `INPUT_REQUIRED` and `AUTH_REQUIRED` are
 
 On JDK 21 and later a `switch` over `ChannelMessage` or `ChannelResponse` needs no default branch. The project builds for Java 17, where pattern matching in `switch` is a preview feature, so its own code uses `instanceof`.
 
+## Serving types
+
+| Type | What it is |
+|---|---|
+| `A2AHandler` | `new A2AHandler(TaskRunners)`; `handle(CallerIdentity, A2ARequest)` returns a `CompletionStage<A2AResponse>`; page size 1 to 100, default 50 |
+| `CallerIdentity` | One non-blank scope key |
+| `A2ARequest` | `Send`, `GetTask`, `ListTasks`, `CancelTask` |
+| `A2AResponse` | `TaskResponse`, `MessageResponse`, `TaskPage` (its `nextPageToken` is never null; empty on the last page) |
+| `TaskRunner`, `TaskRunner.OwnedTask`, `TaskRunners` | What requests map onto, and which runner serves a scope |
+| `AgentCardBuilder` | Builds the card; streaming, push notifications and the extended card default to false |
+| `AgentTaskRunner`, `TaskStore` | Exposes plain `ReActAgent`s; needs `confirmAgentsHaveLimits()` |
+| `A2AJsonRpc10` | Also: `parseRequest`, `writeResponse`, `writeError`, `writeCard` |
+
 ## Errors
 
 All are unchecked subclasses of `A2AException` (itself an `LLMException`); callers never see a wire code.
 
 | Exception | When |
 |---|---|
+| `InvalidParams` | A request is not valid: a mismatching context and task, a page size out of range, a context id the agent cannot honour (never replaced) |
+| `MethodNotFound` | The method is not one the helper maps |
 | `Refused` | llm4j refused before sending: off-host card, no supported endpoint, failed or missing signature, required extension, file type, a task not waiting on you. Retrying cannot change the outcome |
 | `TaskNotFound` | The remote has no such task, or you may not see it |
 | `TaskNotCancelable` | The task cannot be canceled in its state |
@@ -62,6 +77,7 @@ All are unchecked subclasses of `A2AException` (itself an `LLMException`); calle
 | Reply size in bytes | `ExchangeGuard(..., maxReplyBytes, ...)` | none: you pass it |
 | Bytes per received file | `MediaPolicy.maxBytesPerItem` | 20 MiB |
 | Received files per task | `ReceivedFileSink(..., maxItems)` | none: you pass it |
+| Page size of a list | `A2AHandler` | 50 (1 to 100) |
 
 The Loom settings (`max_questions`, `timeout`, `media { max_bytes }`) and their defaults are added with the Loom support.
 

@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.Test;
@@ -46,9 +45,11 @@ class A2AHandlerTest {
 
     @Test
     void noIdentityIsRefusedAndNothingReachesTheRunner() {
-        assertThatThrownBy(() -> done(handler.handle(null, send(msg("m"), true)))).isInstanceOf(A2AException.Refused.class);
+        assertThatThrownBy(() -> done(handler.handle(null, send(msg("m"), true))))
+                .isInstanceOf(A2AException.Refused.class);
         assertThat(runner.calls).isEmpty();
-        assertThatThrownBy(() -> new CallerIdentity(" ")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new CallerIdentity(" "))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -70,26 +71,52 @@ class A2AHandlerTest {
         var stage = handler.handle(ALICE, send(msg("m-1"), false)).toCompletableFuture();
         assertThat(stage).isNotDone();
         var id = runner.tasks.keySet().iterator().next();
-        runner.settled.get(id).complete(new TaskRunner.OwnedTask("alice", RemoteTask.of(id, "c", TaskState.COMPLETED), java.time.Instant.now()));
+        runner.settled
+                .get(id)
+                .complete(
+                        new TaskRunner.OwnedTask(
+                                "alice",
+                                RemoteTask.of(id, "c", TaskState.COMPLETED),
+                                java.time.Instant.now()));
         assertThat(stage).isDone();
-        assertThat(((A2AResponse.TaskResponse) stage.join()).task().state()).isEqualTo(TaskState.COMPLETED);
+        assertThat(((A2AResponse.TaskResponse) stage.join()).task().state())
+                .isEqualTo(TaskState.COMPLETED);
     }
 
     @Test
     void aMessageNamingAnUnknownTaskIsNotFound() {
-        assertThatThrownBy(() -> done(handler.handle(ALICE, send(msg("m").forTask("nope", null), true)))).isInstanceOf(A2AException.TaskNotFound.class);
+        assertThatThrownBy(
+                        () ->
+                                done(
+                                        handler.handle(
+                                                ALICE, send(msg("m").forTask("nope", null), true))))
+                .isInstanceOf(A2AException.TaskNotFound.class);
     }
 
     @Test
     void aClientSuppliedTaskIdForANewTaskIsNotAccepted() {
-        assertThatThrownBy(() -> done(handler.handle(ALICE, send(msg("m").forTask("my-own-id", "ctx-x"), true)))).isInstanceOf(A2AException.TaskNotFound.class);
+        assertThatThrownBy(
+                        () ->
+                                done(
+                                        handler.handle(
+                                                ALICE,
+                                                send(
+                                                        msg("m").forTask("my-own-id", "ctx-x"),
+                                                        true))))
+                .isInstanceOf(A2AException.TaskNotFound.class);
         assertThat(runner.calls).doesNotContain("start");
     }
 
     @Test
     void aMismatchingContextAndTaskIsRejected() {
         runner.put("alice", "t-1", "ctx-1", TaskState.INPUT_REQUIRED);
-        assertThatThrownBy(() -> done(handler.handle(ALICE, send(msg("m").forTask("t-1", "ctx-other"), true)))).isInstanceOf(A2AException.InvalidParams.class);
+        assertThatThrownBy(
+                        () ->
+                                done(
+                                        handler.handle(
+                                                ALICE,
+                                                send(msg("m").forTask("t-1", "ctx-other"), true))))
+                .isInstanceOf(A2AException.InvalidParams.class);
         assertThat(runner.calls).doesNotContain("answer");
     }
 
@@ -104,15 +131,28 @@ class A2AHandlerTest {
     @Test
     void aTerminalTaskTakesNoMoreMessages() {
         runner.put("alice", "t-1", "ctx-1", TaskState.COMPLETED);
-        assertThatThrownBy(() -> done(handler.handle(ALICE, send(msg("m").forTask("t-1", null), true)))).isInstanceOf(A2AException.UnsupportedOperation.class);
+        assertThatThrownBy(
+                        () ->
+                                done(
+                                        handler.handle(
+                                                ALICE, send(msg("m").forTask("t-1", null), true))))
+                .isInstanceOf(A2AException.UnsupportedOperation.class);
         assertThat(runner.calls).doesNotContain("answer");
     }
 
     @Test
     void aContextTheRunnerCannotHonourIsRejectedAndNeverReplaced() {
         runner.rejectContext = "mine";
-        var m = new A2AMessage("m", A2AMessage.Role.USER, List.of(new Part.Text("x")), "mine", null, List.of());
-        assertThatThrownBy(() -> done(handler.handle(ALICE, send(m, true)))).isInstanceOf(A2AException.InvalidParams.class);
+        var m =
+                new A2AMessage(
+                        "m",
+                        A2AMessage.Role.USER,
+                        List.of(new Part.Text("x")),
+                        "mine",
+                        null,
+                        List.of());
+        assertThatThrownBy(() -> done(handler.handle(ALICE, send(m, true))))
+                .isInstanceOf(A2AException.InvalidParams.class);
     }
 
     // ---- get, cancel ----
@@ -121,8 +161,15 @@ class A2AHandlerTest {
     void getHonoursHistoryLength() {
         var history = new ArrayList<A2AMessage>();
         for (int i = 0; i < 5; i++) history.add(msg("h" + i));
-        runner.tasks.put("t-1", new TaskRunner.OwnedTask("alice", new RemoteTask("t-1", "c", TaskState.WORKING, null, List.of(), history), java.time.Instant.now()));
-        assertThat(task(ALICE, new A2ARequest.GetTask("t-1", 2)).history()).extracting(A2AMessage::messageId).containsExactly("h3", "h4");
+        runner.tasks.put(
+                "t-1",
+                new TaskRunner.OwnedTask(
+                        "alice",
+                        new RemoteTask("t-1", "c", TaskState.WORKING, null, List.of(), history),
+                        java.time.Instant.now()));
+        assertThat(task(ALICE, new A2ARequest.GetTask("t-1", 2)).history())
+                .extracting(A2AMessage::messageId)
+                .containsExactly("h3", "h4");
         assertThat(task(ALICE, new A2ARequest.GetTask("t-1", 0)).history()).isEmpty();
         assertThat(task(ALICE, new A2ARequest.GetTask("t-1", null)).history()).isEmpty();
     }
@@ -130,11 +177,14 @@ class A2AHandlerTest {
     @Test
     void cancelTwiceIsTheSameAndAFinishedTaskIsNotCancelable() {
         runner.put("alice", "t-1", "c", TaskState.WORKING);
-        assertThat(task(ALICE, new A2ARequest.CancelTask("t-1")).state()).isEqualTo(TaskState.CANCELED);
-        assertThat(task(ALICE, new A2ARequest.CancelTask("t-1")).state()).isEqualTo(TaskState.CANCELED);
+        assertThat(task(ALICE, new A2ARequest.CancelTask("t-1")).state())
+                .isEqualTo(TaskState.CANCELED);
+        assertThat(task(ALICE, new A2ARequest.CancelTask("t-1")).state())
+                .isEqualTo(TaskState.CANCELED);
         assertThat(runner.calls.stream().filter(c -> c.equals("cancel"))).hasSize(1);
         runner.put("alice", "t-2", "c", TaskState.COMPLETED);
-        assertThatThrownBy(() -> done(handler.handle(ALICE, new A2ARequest.CancelTask("t-2")))).isInstanceOf(A2AException.TaskNotCancelable.class);
+        assertThatThrownBy(() -> done(handler.handle(ALICE, new A2ARequest.CancelTask("t-2"))))
+                .isInstanceOf(A2AException.TaskNotCancelable.class);
     }
 
     // ---- scopes ----
@@ -142,12 +192,20 @@ class A2AHandlerTest {
     @Test
     void aForeignTaskLooksExactlyLikeAMissingOne() {
         runner.put("alice", "t-1", "c", TaskState.WORKING);
-        Throwable foreign = catchThrowable(() -> done(handler.handle(BOB, new A2ARequest.GetTask("t-1", null))));
-        Throwable missing = catchThrowable(() -> done(handler.handle(BOB, new A2ARequest.GetTask("t-404", null))));
+        Throwable foreign =
+                catchThrowable(
+                        () -> done(handler.handle(BOB, new A2ARequest.GetTask("t-1", null))));
+        Throwable missing =
+                catchThrowable(
+                        () -> done(handler.handle(BOB, new A2ARequest.GetTask("t-404", null))));
         assertThat(foreign).isInstanceOf(A2AException.TaskNotFound.class);
-        assertThat(foreign.getMessage().replace("t-1", "X")).isEqualTo(missing.getMessage().replace("t-404", "X"));
-        assertThatThrownBy(() -> done(handler.handle(BOB, new A2ARequest.CancelTask("t-1")))).isInstanceOf(A2AException.TaskNotFound.class);
-        assertThatThrownBy(() -> done(handler.handle(BOB, send(msg("m").forTask("t-1", null), true)))).isInstanceOf(A2AException.TaskNotFound.class);
+        assertThat(foreign.getMessage().replace("t-1", "X"))
+                .isEqualTo(missing.getMessage().replace("t-404", "X"));
+        assertThatThrownBy(() -> done(handler.handle(BOB, new A2ARequest.CancelTask("t-1"))))
+                .isInstanceOf(A2AException.TaskNotFound.class);
+        assertThatThrownBy(
+                        () -> done(handler.handle(BOB, send(msg("m").forTask("t-1", null), true))))
+                .isInstanceOf(A2AException.TaskNotFound.class);
         assertThat(runner.tasks.get("t-1").task().state()).isEqualTo(TaskState.WORKING);
     }
 
@@ -167,7 +225,8 @@ class A2AHandlerTest {
         runner.leaky = true;
         var page = (A2AResponse.TaskPage) done(handler.handle(ALICE, listAll()));
         assertThat(page.tasks()).extracting(RemoteTask::id).containsExactly("t-1");
-        assertThatThrownBy(() -> done(handler.handle(ALICE, new A2ARequest.GetTask("t-2", null)))).isInstanceOf(A2AException.TaskNotFound.class);
+        assertThatThrownBy(() -> done(handler.handle(ALICE, new A2ARequest.GetTask("t-2", null))))
+                .isInstanceOf(A2AException.TaskNotFound.class);
     }
 
     @Test
@@ -201,33 +260,108 @@ class A2AHandlerTest {
     @Test
     void listIsNewestFirstPagedAndTheTokenIsAlwaysPresent() {
         for (int i = 1; i <= 5; i++) runner.put("alice", "t-" + i, "c", TaskState.WORKING);
-        var p1 = (A2AResponse.TaskPage) done(handler.handle(ALICE, new A2ARequest.ListTasks(null, null, 2, null, null, null, false)));
+        var p1 =
+                (A2AResponse.TaskPage)
+                        done(
+                                handler.handle(
+                                        ALICE,
+                                        new A2ARequest.ListTasks(
+                                                null, null, 2, null, null, null, false)));
         assertThat(p1.tasks()).extracting(RemoteTask::id).containsExactly("t-5", "t-4");
         assertThat(p1.nextPageToken()).isNotEmpty();
         assertThat(p1.totalSize()).isEqualTo(5);
-        var p3 = (A2AResponse.TaskPage) done(handler.handle(ALICE, new A2ARequest.ListTasks(null, null, 2, "4", null, null, false)));
+        var p3 =
+                (A2AResponse.TaskPage)
+                        done(
+                                handler.handle(
+                                        ALICE,
+                                        new A2ARequest.ListTasks(
+                                                null, null, 2, "4", null, null, false)));
         assertThat(p3.tasks()).extracting(RemoteTask::id).containsExactly("t-1");
         assertThat(p3.nextPageToken()).isEmpty();
     }
 
     @Test
     void pageSizeIsBetweenOneAndAHundredWithADefaultOfFifty() {
-        assertThatThrownBy(() -> done(handler.handle(ALICE, new A2ARequest.ListTasks(null, null, 0, null, null, null, false)))).isInstanceOf(A2AException.InvalidParams.class);
-        assertThatThrownBy(() -> done(handler.handle(ALICE, new A2ARequest.ListTasks(null, null, 101, null, null, null, false)))).isInstanceOf(A2AException.InvalidParams.class);
-        assertThat(((A2AResponse.TaskPage) done(handler.handle(ALICE, listAll()))).pageSize()).isEqualTo(50);
-        assertThatThrownBy(() -> done(handler.handle(ALICE, new A2ARequest.ListTasks(null, null, 5, "not-a-number", null, null, false)))).isInstanceOf(A2AException.InvalidParams.class);
+        assertThatThrownBy(
+                        () ->
+                                done(
+                                        handler.handle(
+                                                ALICE,
+                                                new A2ARequest.ListTasks(
+                                                        null, null, 0, null, null, null, false))))
+                .isInstanceOf(A2AException.InvalidParams.class);
+        assertThatThrownBy(
+                        () ->
+                                done(
+                                        handler.handle(
+                                                ALICE,
+                                                new A2ARequest.ListTasks(
+                                                        null, null, 101, null, null, null, false))))
+                .isInstanceOf(A2AException.InvalidParams.class);
+        assertThat(((A2AResponse.TaskPage) done(handler.handle(ALICE, listAll()))).pageSize())
+                .isEqualTo(50);
+        assertThatThrownBy(
+                        () ->
+                                done(
+                                        handler.handle(
+                                                ALICE,
+                                                new A2ARequest.ListTasks(
+                                                        null,
+                                                        null,
+                                                        5,
+                                                        "not-a-number",
+                                                        null,
+                                                        null,
+                                                        false))))
+                .isInstanceOf(A2AException.InvalidParams.class);
     }
 
     @Test
     void listFiltersByContextAndStatusAndOmitsArtifactsUnlessAsked() {
-        runner.tasks.put("t-1", new TaskRunner.OwnedTask("alice", new RemoteTask("t-1", "c1", TaskState.COMPLETED, null, List.of(new Artifact("a", "n", List.of(new Part.Text("x")))), List.of()), java.time.Instant.ofEpochSecond(1)));
+        runner.tasks.put(
+                "t-1",
+                new TaskRunner.OwnedTask(
+                        "alice",
+                        new RemoteTask(
+                                "t-1",
+                                "c1",
+                                TaskState.COMPLETED,
+                                null,
+                                List.of(new Artifact("a", "n", List.of(new Part.Text("x")))),
+                                List.of()),
+                        java.time.Instant.ofEpochSecond(1)));
         runner.put("alice", "t-2", "c2", TaskState.WORKING);
-        var byContext = (A2AResponse.TaskPage) done(handler.handle(ALICE, new A2ARequest.ListTasks("c1", null, null, null, null, null, false)));
+        var byContext =
+                (A2AResponse.TaskPage)
+                        done(
+                                handler.handle(
+                                        ALICE,
+                                        new A2ARequest.ListTasks(
+                                                "c1", null, null, null, null, null, false)));
         assertThat(byContext.tasks()).extracting(RemoteTask::id).containsExactly("t-1");
         assertThat(byContext.tasks().get(0).artifacts()).isEmpty();
-        var withArtifacts = (A2AResponse.TaskPage) done(handler.handle(ALICE, new A2ARequest.ListTasks("c1", null, null, null, null, null, true)));
+        var withArtifacts =
+                (A2AResponse.TaskPage)
+                        done(
+                                handler.handle(
+                                        ALICE,
+                                        new A2ARequest.ListTasks(
+                                                "c1", null, null, null, null, null, true)));
         assertThat(withArtifacts.tasks().get(0).artifacts()).hasSize(1);
-        var byState = (A2AResponse.TaskPage) done(handler.handle(ALICE, new A2ARequest.ListTasks(null, TaskState.WORKING, null, null, null, null, false)));
+        var byState =
+                (A2AResponse.TaskPage)
+                        done(
+                                handler.handle(
+                                        ALICE,
+                                        new A2ARequest.ListTasks(
+                                                null,
+                                                TaskState.WORKING,
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                false)));
         assertThat(byState.tasks()).extracting(RemoteTask::id).containsExactly("t-2");
     }
 }

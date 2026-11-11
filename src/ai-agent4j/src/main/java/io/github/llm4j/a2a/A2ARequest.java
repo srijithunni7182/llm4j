@@ -3,14 +3,18 @@ package io.github.llm4j.a2a;
 import java.time.Instant;
 import java.util.Objects;
 
-/** A request to the handler, in the version-free model. The consumer's web layer builds it ({@link A2AJsonRpc10#parseRequest} does for A2A 1.0 over JSON-RPC). */
+/**
+ * A request to the handler, in the version-free model. The consumer's web layer builds it ({@link
+ * A2AJsonRpc10#parseRequest} does for A2A 1.0 over JSON-RPC).
+ */
 public sealed interface A2ARequest {
 
     /**
      * Send a message: a new task, or an answer to a waiting one.
      *
      * @param message the message
-     * @param returnImmediately whether the caller does not want to be held until the task finishes or pauses
+     * @param returnImmediately whether the caller does not want to be held until the task finishes
+     *     or pauses
      * @param historyLength how many history messages to return, or null
      * @param tenant an endpoint tenant, passed through and never interpreted, or null
      */

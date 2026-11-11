@@ -15,10 +15,10 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Mounts our {@link A2AHandler} on a loopback HTTP server, the way a consumer mounts it in their own
- * stack: the host authenticates (here the Authorization header is the scope key), parses the request
- * with the helper, calls the handler and writes the answer. It checks every message it sends
- * against the official definition.
+ * Mounts our {@link A2AHandler} on a loopback HTTP server, the way a consumer mounts it in their
+ * own stack: the host authenticates (here the Authorization header is the scope key), parses the
+ * request with the helper, calls the handler and writes the answer. It checks every message it
+ * sends against the official definition.
  */
 final class LoopbackA2AServer implements AutoCloseable {
 
@@ -30,14 +30,16 @@ final class LoopbackA2AServer implements AutoCloseable {
 
     LoopbackA2AServer(A2AHandler handler, AgentCardBuilder.Published card) throws IOException {
         server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
-        server.createContext("/.well-known/agent-card.json", ex -> {
-            byte[] body = card.json().getBytes(StandardCharsets.UTF_8);
-            ex.getResponseHeaders().add("ETag", card.etag());
-            ex.getResponseHeaders().add("Cache-Control", "max-age=60");
-            ex.sendResponseHeaders(200, body.length);
-            ex.getResponseBody().write(body);
-            ex.close();
-        });
+        server.createContext(
+                "/.well-known/agent-card.json",
+                ex -> {
+                    byte[] body = card.json().getBytes(StandardCharsets.UTF_8);
+                    ex.getResponseHeaders().add("ETag", card.etag());
+                    ex.getResponseHeaders().add("Cache-Control", "max-age=60");
+                    ex.sendResponseHeaders(200, body.length);
+                    ex.getResponseBody().write(body);
+                    ex.close();
+                });
         server.createContext("/rpc", ex -> serve(handler, ex));
         server.start();
     }
@@ -60,11 +62,19 @@ final class LoopbackA2AServer implements AutoCloseable {
             A2AJsonRpc10.Call call = A2AJsonRpc10.parseRequest(request);
             id = call.id();
             // the host decides how long to wait for a send that must wait; the handler never blocks
-            A2AResponse answer = handler.handle(new CallerIdentity(scope), call.request()).toCompletableFuture().get(HOST_WAIT_SECONDS, TimeUnit.SECONDS);
+            A2AResponse answer =
+                    handler.handle(new CallerIdentity(scope), call.request())
+                            .toCompletableFuture()
+                            .get(HOST_WAIT_SECONDS, TimeUnit.SECONDS);
             response = A2AJsonRpc10.writeResponse(id, call.request(), answer);
             validate(call.request(), response);
         } catch (java.util.concurrent.ExecutionException e) {
-            response = A2AJsonRpc10.writeError(id, e.getCause() instanceof A2AException a ? a : new A2AException("internal"));
+            response =
+                    A2AJsonRpc10.writeError(
+                            id,
+                            e.getCause() instanceof A2AException a
+                                    ? a
+                                    : new A2AException("internal"));
         } catch (A2AException e) {
             response = A2AJsonRpc10.writeError(id, e);
         } catch (Exception e) {
@@ -78,9 +88,12 @@ final class LoopbackA2AServer implements AutoCloseable {
     }
 
     private void validate(A2ARequest request, String response) throws IOException {
-        String type = request instanceof A2ARequest.Send ? "SendMessageResponse"
-                : request instanceof A2ARequest.ListTasks ? "ListTasksResponse" : "Task";
-        List<String> problems = OfficialDefinition.problems(type, JSON.readTree(response).get("result").toString());
+        String type =
+                request instanceof A2ARequest.Send
+                        ? "SendMessageResponse"
+                        : request instanceof A2ARequest.ListTasks ? "ListTasksResponse" : "Task";
+        List<String> problems =
+                OfficialDefinition.problems(type, JSON.readTree(response).get("result").toString());
         if (!problems.isEmpty()) {
             invalidOutput.add(type + ": " + problems);
         }

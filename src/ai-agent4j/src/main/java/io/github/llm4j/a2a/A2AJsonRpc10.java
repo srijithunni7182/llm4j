@@ -304,7 +304,8 @@ public final class A2AJsonRpc10 {
     /**
      * What a card says about the agent beyond what a caller needs, for {@link #writeCard}.
      *
-     * @param view name, description, skills, endpoints, accepted media types and authentication schemes
+     * @param view name, description, skills, endpoints, accepted media types and authentication
+     *     schemes
      * @param version the agent's own version
      * @param outputMediaTypes the media types it produces by default
      * @param streaming whether it streams; llm4j offers none itself, so a host that does says so
@@ -352,20 +353,41 @@ public final class A2AJsonRpc10 {
                         throw new A2AException.InvalidParams("SendMessage needs a message");
                     }
                     JsonNode configuration = params.path("configuration");
-                    Integer history = configuration.has("historyLength") ? configuration.get("historyLength").asInt() : null;
-                    yield new Call(id, new A2ARequest.Send(readMessage(params.get("message")),
-                            configuration.path("returnImmediately").asBoolean(false), history, nullable(params, "tenant")));
+                    Integer history =
+                            configuration.has("historyLength")
+                                    ? configuration.get("historyLength").asInt()
+                                    : null;
+                    yield new Call(
+                            id,
+                            new A2ARequest.Send(
+                                    readMessage(params.get("message")),
+                                    configuration.path("returnImmediately").asBoolean(false),
+                                    history,
+                                    nullable(params, "tenant")));
                 }
-                case "GetTask" -> new Call(id, new A2ARequest.GetTask(required(params, "id"),
-                        params.has("historyLength") ? params.get("historyLength").asInt() : null));
-                case "CancelTask" -> new Call(id, new A2ARequest.CancelTask(required(params, "id")));
-                case "ListTasks" -> new Call(id, new A2ARequest.ListTasks(nullable(params, "contextId"),
-                        params.has("status") ? state(params.get("status").asText()) : null,
-                        params.has("pageSize") ? params.get("pageSize").asInt() : null,
-                        nullable(params, "pageToken"),
-                        params.has("historyLength") ? params.get("historyLength").asInt() : null,
-                        params.has("statusTimestampAfter") ? Instant.parse(params.get("statusTimestampAfter").asText()) : null,
-                        params.path("includeArtifacts").asBoolean(false)));
+                case "GetTask" -> new Call(
+                        id,
+                        new A2ARequest.GetTask(
+                                required(params, "id"),
+                                params.has("historyLength")
+                                        ? params.get("historyLength").asInt()
+                                        : null));
+                case "CancelTask" -> new Call(
+                        id, new A2ARequest.CancelTask(required(params, "id")));
+                case "ListTasks" -> new Call(
+                        id,
+                        new A2ARequest.ListTasks(
+                                nullable(params, "contextId"),
+                                params.has("status") ? state(params.get("status").asText()) : null,
+                                params.has("pageSize") ? params.get("pageSize").asInt() : null,
+                                nullable(params, "pageToken"),
+                                params.has("historyLength")
+                                        ? params.get("historyLength").asInt()
+                                        : null,
+                                params.has("statusTimestampAfter")
+                                        ? Instant.parse(params.get("statusTimestampAfter").asText())
+                                        : null,
+                                params.path("includeArtifacts").asBoolean(false)));
                 default -> throw new A2AException.MethodNotFound(method);
             };
         } catch (java.time.format.DateTimeParseException e) {
@@ -403,7 +425,8 @@ public final class A2AJsonRpc10 {
             return envelope(id, "result", result);
         }
         if (response instanceof A2AResponse.TaskResponse t
-                && (request instanceof A2ARequest.GetTask || request instanceof A2ARequest.CancelTask)) {
+                && (request instanceof A2ARequest.GetTask
+                        || request instanceof A2ARequest.CancelTask)) {
             return envelope(id, "result", writeTask(t.task()));
         }
         ObjectNode result = JSON.createObjectNode();
@@ -424,27 +447,40 @@ public final class A2AJsonRpc10 {
         String reason;
         String message = e.getMessage();
         if (e instanceof A2AException.TaskNotFound) {
-            code = -32001; reason = "TASK_NOT_FOUND";
+            code = -32001;
+            reason = "TASK_NOT_FOUND";
         } else if (e instanceof A2AException.TaskNotCancelable) {
-            code = -32002; reason = "TASK_NOT_CANCELABLE";
+            code = -32002;
+            reason = "TASK_NOT_CANCELABLE";
         } else if (e instanceof A2AException.UnsupportedOperation) {
-            code = -32004; reason = "UNSUPPORTED_OPERATION";
+            code = -32004;
+            reason = "UNSUPPORTED_OPERATION";
         } else if (e instanceof A2AException.ContentTypeNotSupported) {
-            code = -32005; reason = "CONTENT_TYPE_NOT_SUPPORTED";
+            code = -32005;
+            reason = "CONTENT_TYPE_NOT_SUPPORTED";
         } else if (e instanceof A2AException.ExtensionSupportRequired) {
-            code = -32008; reason = "EXTENSION_SUPPORT_REQUIRED";
+            code = -32008;
+            reason = "EXTENSION_SUPPORT_REQUIRED";
         } else if (e instanceof A2AException.VersionNotSupported) {
-            code = -32009; reason = "VERSION_NOT_SUPPORTED";
+            code = -32009;
+            reason = "VERSION_NOT_SUPPORTED";
         } else if (e instanceof A2AException.InvalidParams) {
-            code = -32602; reason = null;
+            code = -32602;
+            reason = null;
         } else if (e instanceof A2AException.MethodNotFound) {
-            code = -32601; reason = null;
+            code = -32601;
+            reason = null;
         } else if (e instanceof A2AException.Malformed) {
-            code = -32700; reason = null; message = "Invalid JSON payload";
+            code = -32700;
+            reason = null;
+            message = "Invalid JSON payload";
         } else if (e instanceof A2AException.Refused) {
-            code = -32600; reason = null;
+            code = -32600;
+            reason = null;
         } else {
-            code = -32603; reason = null; message = "Internal error";
+            code = -32603;
+            reason = null;
+            message = "Internal error";
         }
         ObjectNode error = JSON.createObjectNode().put("code", code).put("message", message);
         if (reason != null) {
@@ -563,7 +599,8 @@ public final class A2AJsonRpc10 {
             case FAILED -> "TASK_STATE_FAILED";
             case CANCELED -> "TASK_STATE_CANCELED";
             case REJECTED -> "TASK_STATE_REJECTED";
-            case UNKNOWN -> throw new A2AException("a task in an unknown state cannot be written; the runner must report a known state");
+            case UNKNOWN -> throw new A2AException(
+                    "a task in an unknown state cannot be written; the runner must report a known state");
         };
     }
 

@@ -149,6 +149,25 @@ Each is updated in the same sub-phase as the behaviour it describes, not later. 
 
 **Design changes made from this reading.** A send returns a task or a plain message (R1, R2, R4, R18); the translation always sets `returnImmediately` (R2, R12); the crash rule matches the message id in recent tasks' history and stops when it cannot tell (R16, D19); a required extension the transport lacks is refused (R6b, D29); a tenant on the endpoint and the caller identity (R1, R13, D30); `taskChanged` is idempotent (R17); a task in a terminal state takes no more messages (R4, R13); the handler's request rules and `ListTasks` paging follow the specification (R13); the card builder defaults to no streaming, no push and no extended card (R14); a card verifier hook is recommended (R14b, D25); the handler never blocks (R13, D27, taken); the consumer's duties are documented (R30, D31).
 
+### 32b (the handler, the card builder, `AgentTaskRunner`), 2026-11-11
+
+**Built and green (core).** `A2AHandler`, `CallerIdentity`, `A2ARequest`, `A2AResponse`, `TaskRunner` (with `OwnedTask`), `TaskRunners`, `TaskStore`, `AgentCardBuilder`, `AgentTaskRunner`; the server half of `A2AJsonRpc10` (`parseRequest`, `writeResponse`, `writeError`, `writeCard`). `mvn -pl src/a2a-testkit,src/ai-agent4j verify`: 3,958 core tests and 31 test-kit tests, 0 failures; `spotless:check` clean; the release-profile javadoc build of the core passes. `make docs-check` clean; `make test-core` was green after 32a (before 32b; it is run again with 32c).
+
+**Interop (A18 and the second half of A31).** `HandlerInteropTest` mounts our handler on a loopback server (a test host that does the authentication, parses with the helper, waits for a blocking send and writes the answer) and calls it with `RemoteAgent` through our helper; everything the server writes is checked against the official definition. **It found a real bug:** a get or cancel answers with a bare `Task`, a send wraps it, and the first server-side writer used the wrapped form for all three. Fixed by making `writeResponse` take the request. Evidence level: loopback, our handler against our client, both from one reading of the specification; **not a third-party implementation**.
+
+**Guard-removal checks (TEST_STRATEGY section 5), all caught by tests and restored:** 11 (no identity refused; scope filter on get, cancel and send; scope filter on list), 17 (a waiting send is not answered at once), 18 (list and get scoping), 19 (terminal task takes no more messages; mismatching context and task rejected), 25 (the plain-agent runner refuses without the limits confirmation), 26 (one runner per scope: this check first showed the test was weak, since it only called as one caller; the test was strengthened and then caught the mutation), plus: internal failures never leak their message, the card defaults to no streaming, the page-size upper bound.
+
+**Survey answers (P4).** A `ReActAgent` run can be cancelled through `RunHandle.cancel(...)` (interrupts at the next step), so `AgentTaskRunner` cancel works for it. Not yet answered: how a `LoomHost` is built with its own persistence per scope (32d).
+
+**Deviations.**
+1. A2AHandler's response to a get or cancel is `TaskResponse`, and the wire shape is chosen by `A2AJsonRpc10.writeResponse(id, request, response)`; DESIGN R13 said `handle(...) -> A2AResponse`. The handler returns a `CompletionStage<A2AResponse>` as D27 says; an error is an exceptional completion with an `A2AException`.
+2. `TaskRunner` takes the scope key on every method and returns `OwnedTask` (task, owner scope, last update), and has `settled(scope, taskId)` for a waiting send. The handler re-checks the owner of every task a runner returns. DESIGN described a runner per scope only; both are kept (principle 10, defence in depth).
+3. `A2AException` gained `InvalidParams` and `MethodNotFound` (the protocol's invalid-parameters and method-not-found errors); a request naming a context the runner cannot honour is `InvalidParams` and the context is never replaced.
+4. There is no in-memory `TaskStore` in the core: the consumer supplies one (D22); the tests have one.
+5. The loopback test host waits for a blocking send with a bounded wait on the stage (the host's job, not the handler's); this is a test host, not shipped code.
+
+**Not verified in 32b.** Behaviour under a real web stack; a `TaskRunner` over a Loom host (32d); the mutation profile (not yet written); `SpecExamples` fixtures.
+
 ### 32a, code half (core model, guards, `RemoteAgent`, helper, mock agent), 2026-11-07
 
 **Status: the code and its tests are done; the 32a documentation half is NOT done** (the `docs/a2a/` pages, `API_COMPATIBILITY.md`, `llms.txt`, the core README and wiki page, the `PRINCIPLES.md` pointer, the Javadoc/`make release-check` pass, the mutation profile). 32a is therefore not closed and 32b must not start.

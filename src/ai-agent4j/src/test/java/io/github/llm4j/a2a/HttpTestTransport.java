@@ -59,7 +59,8 @@ final class HttpTestTransport implements A2ATransport {
                 HttpRequest.newBuilder(URI.create(route(endpoint.url())))
                         .header("Content-Type", "application/json");
         if (credential != null) {
-            builder.header("Authorization", credential.resolveFor(URI.create(endpoint.url()).getHost()));
+            builder.header(
+                    "Authorization", credential.resolveFor(URI.create(endpoint.url()).getHost()));
         }
         request.headers().forEach(builder::header);
         if (!extensions.isEmpty()) {
@@ -100,7 +101,9 @@ final class HttpTestTransport implements A2ATransport {
             A2AMessage message,
             SendOptions options) {
         return A2AJsonRpc10.parseSendResponse(
-                rpc(endpoint, credential,
+                rpc(
+                        endpoint,
+                        credential,
                         A2AJsonRpc10.sendMessage(
                                 ids.incrementAndGet(), message, options, endpoint.tenant())));
     }
@@ -108,7 +111,9 @@ final class HttpTestTransport implements A2ATransport {
     @Override
     public RemoteTask get(AgentCardView.Endpoint endpoint, SecretRef credential, String taskId) {
         return A2AJsonRpc10.parseGetTaskResponse(
-                rpc(endpoint, credential,
+                rpc(
+                        endpoint,
+                        credential,
                         A2AJsonRpc10.getTask(
                                 ids.incrementAndGet(), taskId, 10, endpoint.tenant())));
     }
@@ -116,7 +121,9 @@ final class HttpTestTransport implements A2ATransport {
     @Override
     public RemoteTask cancel(AgentCardView.Endpoint endpoint, SecretRef credential, String taskId) {
         return A2AJsonRpc10.parseGetTaskResponse(
-                rpc(endpoint, credential,
+                rpc(
+                        endpoint,
+                        credential,
                         A2AJsonRpc10.cancelTask(ids.incrementAndGet(), taskId, endpoint.tenant())));
     }
 
@@ -127,7 +134,9 @@ final class HttpTestTransport implements A2ATransport {
             Instant since,
             int historyLimit) {
         return A2AJsonRpc10.parseListTasksResponse(
-                rpc(endpoint, credential,
+                rpc(
+                        endpoint,
+                        credential,
                         A2AJsonRpc10.listTasks(
                                 ids.incrementAndGet(),
                                 since,

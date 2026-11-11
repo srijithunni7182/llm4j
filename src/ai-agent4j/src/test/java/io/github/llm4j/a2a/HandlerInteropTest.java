@@ -26,11 +26,21 @@ class HandlerInteropTest {
 
     @BeforeEach
     void start() throws Exception {
-        var card = AgentCardBuilder.of("Expense", "Reads a receipt.")
-                .skill(new AgentCardView.Skill("read", "Read", "Reads", List.of("x"), List.of(), List.of(), List.of()))
-                .acceptsMediaType("text/plain")
-                .endpoint(new AgentCardView.Endpoint(PUBLIC + "/rpc", "JSONRPC", "1.0", null))
-                .build();
+        var card =
+                AgentCardBuilder.of("Expense", "Reads a receipt.")
+                        .skill(
+                                new AgentCardView.Skill(
+                                        "read",
+                                        "Read",
+                                        "Reads",
+                                        List.of("x"),
+                                        List.of(),
+                                        List.of(),
+                                        List.of()))
+                        .acceptsMediaType("text/plain")
+                        .endpoint(
+                                new AgentCardView.Endpoint(PUBLIC + "/rpc", "JSONRPC", "1.0", null))
+                        .build();
         server = new LoopbackA2AServer(new A2AHandler(scope -> runner), card);
         transport = new HttpTestTransport(PUBLIC, server.loopbackBase());
     }
@@ -42,7 +52,9 @@ class HandlerInteropTest {
     }
 
     private RemoteAgent agent(String caller) {
-        return RemoteAgent.builder(PUBLIC + "/.well-known/agent-card.json", transport, CHANNEL).credential(SecretRef.literal(caller)).build();
+        return RemoteAgent.builder(PUBLIC + "/.well-known/agent-card.json", transport, CHANNEL)
+                .credential(SecretRef.literal(caller))
+                .build();
     }
 
     private static A2AMessage ask(String id) {
@@ -60,7 +72,12 @@ class HandlerInteropTest {
     void aWaitingSendIsHeldByTheHostAndAnswersWhenTheTaskSettles() {
         runner.autoSettle = true;
         var endpoint = new AgentCardView.Endpoint(PUBLIC + "/rpc", "JSONRPC", "1.0", null);
-        var result = transport.send(endpoint, SecretRef.literal("alice"), ask("m-1"), new SendOptions(false, List.of(), null));
+        var result =
+                transport.send(
+                        endpoint,
+                        SecretRef.literal("alice"),
+                        ask("m-1"),
+                        new SendOptions(false, List.of(), null));
         assertThat(((SendResult.TaskResult) result).task().state()).isEqualTo(TaskState.COMPLETED);
     }
 
@@ -78,17 +95,22 @@ class HandlerInteropTest {
     @Test
     void aCallerNeverSeesAnotherCallersTask() {
         runner.put("alice", "t-1", "c-1", TaskState.WORKING);
-        assertThatThrownBy(() -> agent("bob").get("t-1")).isInstanceOf(A2AException.TaskNotFound.class);
+        assertThatThrownBy(() -> agent("bob").get("t-1"))
+                .isInstanceOf(A2AException.TaskNotFound.class);
         assertThat(agent("alice").get("t-1").id()).isEqualTo("t-1");
         var endpoint = new AgentCardView.Endpoint(PUBLIC + "/rpc", "JSONRPC", "1.0", null);
-        assertThat(transport.recentTasks(endpoint, SecretRef.literal("bob"), Instant.EPOCH, 5)).isEmpty();
-        assertThat(transport.recentTasks(endpoint, SecretRef.literal("alice"), Instant.EPOCH, 5)).hasSize(1);
+        assertThat(transport.recentTasks(endpoint, SecretRef.literal("bob"), Instant.EPOCH, 5))
+                .isEmpty();
+        assertThat(transport.recentTasks(endpoint, SecretRef.literal("alice"), Instant.EPOCH, 5))
+                .hasSize(1);
     }
 
     @Test
     void aRequestWithNoIdentityIsRefusedByTheHostAndNeverReachesTheRunner() {
         var endpoint = new AgentCardView.Endpoint(PUBLIC + "/rpc", "JSONRPC", "1.0", null);
-        assertThatThrownBy(() -> transport.get(endpoint, null, "t-1")).isInstanceOf(A2AException.class).hasMessageContaining("401");
+        assertThatThrownBy(() -> transport.get(endpoint, null, "t-1"))
+                .isInstanceOf(A2AException.class)
+                .hasMessageContaining("401");
         assertThat(runner.calls).isEmpty();
     }
 
@@ -96,7 +118,13 @@ class HandlerInteropTest {
     void aFinishedTaskRefusesMoreMessagesAsTheSpecificationSays() {
         runner.put("alice", "t-1", "c-1", TaskState.COMPLETED);
         var endpoint = new AgentCardView.Endpoint(PUBLIC + "/rpc", "JSONRPC", "1.0", null);
-        assertThatThrownBy(() -> transport.send(endpoint, SecretRef.literal("alice"), ask("m-9").forTask("t-1", null), SendOptions.immediate()))
+        assertThatThrownBy(
+                        () ->
+                                transport.send(
+                                        endpoint,
+                                        SecretRef.literal("alice"),
+                                        ask("m-9").forTask("t-1", null),
+                                        SendOptions.immediate()))
                 .isInstanceOf(A2AException.UnsupportedOperation.class);
     }
 }
