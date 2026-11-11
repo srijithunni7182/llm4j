@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 to D5, D8 to D12, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5, D8 to D13, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -23,7 +23,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D10 | Children when the parent ends | **taken** (warn at check time; cancel with a reason at run time, 30 s grace; no `detach`) |
 | D11 | Whose budget a child spends | **taken** (its own required budget, charged to the parent, with reservation) |
 | D12 | What `steer` targets | **taken** (only `steerable` agents; literal text; named outside `supervise`) |
-| D13 | What `cancel` means | open |
+| D13 | What `cancel` means | **taken** (existing outcomes; effects finish first; `h.partial`; rewind to a declared checkpoint) |
 | D14 | Limits on the tree | open |
 | D15 | Authority and security | open |
 | D16 | Visibility | open |
@@ -280,7 +280,12 @@ which you meant, so this one is **yours to clarify**.
 - Open: can a parent cancel a child back to a checkpoint (`LoomRun.cancel` can already)? **Recommendation:** yes, using the same rule that the checkpoint must be declared and
   `at most N times` is stated.
 
-**Decision:** open. The owner's word for cancel is "end".
+**Decision (owner): accepted as proposed.**
+- **Statement:** `cancel h [outcome] [reason "..."]`. The outcomes are the existing ones (`use partial`, `skip`, `discard`, `conclude`, `rewind to <checkpoint> at most N times`); `cancel h conclude` is the gentle "wrap up", so no new verb is added. A missing reason defaults to "cancelled by the parent script, line N".
+- **When it takes effect:** an in-flight effect always finishes and is journaled first (a cancel never interrupts one); otherwise at the next step boundary, or by ending a streaming agent's model call in progress. There is no forced kill: a step that never ends is the job of the `timeout` on `start` and the grace period (D10).
+- **What the parent gets:** status `cancelled` and `h.reason`; with `use partial`, whatever the child had produced is readable as **`h.partial`**, marked partial and `unchecked` (`h.result` stays an error, D9); with `discard`, nothing is kept.
+- **Rewind:** a parent may send a child back to a checkpoint the **child declared**, with `at most N times` required, as `LoomRun.cancel` can already do from Java; the child's attempt number increases and it keeps running.
+- **Edge cases:** cancelling a child that has already settled is a no-op, recorded; cancelling twice is the same; cancelling a child that is sleeping or waiting on a person settles it at once, and the pending question is withdrawn and recorded.
 
 ## D14. Limits on the tree
 
