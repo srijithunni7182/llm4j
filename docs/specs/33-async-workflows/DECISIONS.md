@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D21 taken; D2, D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 and D21 taken; D2, D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -11,7 +11,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 
 | | Decision | State |
 |---|---|---|
-| D1 | What is in the first version | open (direction: simpler, around `supervise`) |
+| D1 | What is in the first version | **taken** (staged: v1 start/wait/cancel/supervise with counted rules; v2 assertions; v3 progress, signals, `wait any`, `detach`) |
 | D2 | What a handle is | **partly taken** (a value in a variable) |
 | D3 | Where the child's journal lives | open |
 | D4 | Replay and the double start | open |
@@ -85,7 +85,12 @@ three counted conditions, and two kinds of `assert`. What it leaves out for now:
 **Recommendation: B, with `supervise` as the way to watch and steer.** v1 = `start` (with `timeout`, `budget`, a handle), `wait` (one or all), `cancel`, readable facts (`h.status`, `h.tokens`, `h.elapsed`), and `supervise <handle> { when ... }` with counted conditions (D21, D23);
 v2 = code assertions and judged assertions (D24, D25); v3 = declared progress, signals, `wait any`, `detach`. Steering is already built for agents, so it is cheaper than it looks, and `supervise` already carries the journaling, tracing and audit.
 
-**Decision:** open. **Direction from the owner:** the syntax must be simpler, so the surface was reshaped around `supervise` (see the sketch). The staging itself is not decided.
+**Decision (owner): staged, as in option B.**
+- **v1:** `start` with `timeout`, `budget` and a handle; `wait` (one or all); `cancel`; readable facts (`h.status`, `h.tokens`, `h.elapsed`); `supervise <handle> { when ... }` with counted rules; the small keyed-variable additions it needs (iterate the keys, `wait all` over a keyed variable).
+- **v2:** assertions in code, then judged assertions.
+- **v3:** declared progress (`report`), signals (`notify`), `wait any`, `detach`.
+
+The demo is built in this order: counted rules first (cancel an overspender, steer an idle child, survive a restart), the judged drift check as soon as v2 is in.
 
 ## D2. What is a handle?
 
