@@ -11,6 +11,9 @@ REST APIs, local RAG (addons), creator memory (Engram), an eval4j quality gate, 
 rendered Reel, a Showrunner that signs off every artifact, and approval-gated Instagram publishing. A multi-user website that deploys to Cloud Run and
 runs locally with `./launch.sh`, with no API key needed.
 
+### [a2a-starter](./a2a-starter/)
+The code around llm4j's A2A support that you provide: a transport, a channel, a serving route, a runner per caller and a task store, in the JDK only. It compiles and need not run, and it marks every decision that is yours.
+
 ### [gmail-mcp-app](./gmail-mcp-app/)
 Gmail integration using Model Context Protocol (MCP).
 

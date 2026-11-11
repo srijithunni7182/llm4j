@@ -52,6 +52,10 @@ Received files go under `received/<run id>/` in the folder you give `ReceivedFil
 
 TLS, rate limits, scaling, monitoring and the identity provider are yours.
 
+## The starter
+
+Every duty above has code in [the starter](../../src/examples/a2a-starter/README.md): a transport, a channel, a serving route, a runner per caller and a task store, each marked where a decision is yours. It compiles in the extended build and its script is parsed by a test; it is a map and not a working service, and it has not been run against a third-party agent.
+
 ## Next
 
 [A2A support in llm4j](README.md) · [Our approach](PHILOSOPHY.md) · [The Java guide](JAVA_GUIDE.md) · [Reference](REFERENCE.md)

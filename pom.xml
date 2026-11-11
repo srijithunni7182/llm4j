@@ -276,6 +276,7 @@
                 <module>src/examples/kingini</module>
                 <module>src/examples/gmail-mcp-app</module>
                 <module>src/examples/getviral</module>
+                <module>src/examples/a2a-starter</module>
             </modules>
         </profile>
 
