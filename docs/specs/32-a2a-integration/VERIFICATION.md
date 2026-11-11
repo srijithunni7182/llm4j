@@ -149,6 +149,43 @@ Each is updated in the same sub-phase as the behaviour it describes, not later. 
 
 **Design changes made from this reading.** A send returns a task or a plain message (R1, R2, R4, R18); the translation always sets `returnImmediately` (R2, R12); the crash rule matches the message id in recent tasks' history and stops when it cannot tell (R16, D19); a required extension the transport lacks is refused (R6b, D29); a tenant on the endpoint and the caller identity (R1, R13, D30); `taskChanged` is idempotent (R17); a task in a terminal state takes no more messages (R4, R13); the handler's request rules and `ListTasks` paging follow the specification (R13); the card builder defaults to no streaming, no push and no extended card (R14); a card verifier hook is recommended (R14b, D25); the handler never blocks (R13, D27, taken); the consumer's duties are documented (R30, D31).
 
+### 32f, the end of the phase: starter, mutation, docs set, tiers and the exit checklist, 2026-11-11
+
+**Built.** `src/examples/a2a-starter` (compile-only, JDK only, in the `-Pextended` build, a test parses its script and checks the channel's refusal; every decision that is the consumer's is marked `YOUR DECISION`; its README lists what it does not do). The mutation profile `mutation-a2a` in `ai-agent4j` (`EndpointGuard`, `ExchangeGuard`, `ReceivedFileSink`, `RemoteAgent`, `A2AHandler`): first run 157 of 174 killed (90%); the 17 survivors were read, `GuardEdgesTest` was written for them, and the second and third runs killed 171 and then **174 of 174 (100%)** (a timed-out mutant counts as killed). The documentation set, the tutorial section in chapter 6 (with the regenerated page), the guide chapter 6 section, the four skills (their mapping pages say nothing about a repository path, which a test enforces), the READMEs of the census, `ABOUT.md`, `THE_STACK.md`, `EXAMPLES.md`, the deployment security chapter, the release notes and `API_COMPATIBILITY.md`.
+
+**The D33 exception was not needed.** The starter's script loads cleanly with every other script (`RepositoryScriptsTest`), so no exclusion was added; the script is also parsed by the starter's own test.
+
+**Tiers run.** `make docs-check` exit 0 and clean; `make test-core` exit 0 after each sub-phase; `make test-fast` on every module (core, tools, eval4j, Loom with its coverage gates, `loom-inspect*`, Fabric) exit 0 at the end, after fixing three things it found that the narrower runs had not: a wire-name literal in `RemoteAgent` (a parameter-name string, caught by the "only one class knows a wire name" test), a repository path in a skill page, and the `host` package falling to 0.79 branch coverage against a minimum of 0.80 (new `LoomTaskRunner` behaviour tests, no limit changed); `make test-oracle` exit 0; the release build (`mvn -Prelease -Dgpg.skip=true clean verify` with tests skipped because the fast tier had just run them) and `scripts/CheckJars.java` exit 0; the VS Code extension suite 783 of 783 on an otherwise idle machine after the parity baseline was regenerated (it lists the starter's script and two review examples as tracked differences, the same kind as the kit's). **Not run:** `make test-full` and the other `slow` tests (left to CI), `make test-extended` as a whole (only the starter's own module), `make test-live`, and the full-reactor release build with tests. One `loom-inspect` timing test (`ServerLinkTest.finishDeliversWhatIsLeftQuickly…`) failed once under load and passed alone three times and in the final run.
+
+**Acceptance criteria, with the level of evidence.** "Loopback" means the real helper and handler over HTTP on loopback against the mock agent, every message validated against the official definition; "fakes" means unit tests with fakes. Nothing here is "live".
+
+| Criterion | Evidence | Caveat |
+|---|---|---|
+| A1, A2, A3, A4, A5, A17, A18 | fakes and loopback | |
+| A6 | fakes (sink and guards); links are never followed | |
+| A7, A8 | loopback (a script calling the mock; the crash rule with a dropped reply and a listing the server refuses) | |
+| A9 | fakes: `LoomTaskRunner` over a real `LoomHost`; the handler over HTTP with a fake runner | the runner was not mounted behind the handler over HTTP |
+| A10 | by design: only an `ask` to a `caller` channel pauses a task for the caller | **no test runs an exposed workflow that waits on a `human_prompt` or an `approve`** |
+| A11, A12, A16, A21, A22, A24, A25, A27 | fakes, with guard-removal checks | |
+| A13 | assertions in several layers (no remote text in spans, incidents, events or the failure sentence) | not an exhaustive sweep of every layer |
+| A14 | the existing suites, green | |
+| A15 | the wire-name test, which caught a real violation | |
+| A19 | a required extension is refused before sending | the signature is whatever status the transport reports; llm4j does no cryptography |
+| A20 | the starter compiles and its script parses | excerpts in the pages are not compared with the starter by a test |
+| A23 | filtering by scope key is tested | isolation by separate hosts is the consumer's, and was not exercised |
+| A26 | each construct handled in the sub-phase that added it, recorded in §7 | the open items below; the maintainer's review is still to come |
+| A28 | grammar, hover, snippets and symbols; extension 1.4.0; suite green | |
+| A29, A30 | pages written and linked; census checked | the unaffected READMEs are listed as reviewed with no change: `eval4j`, `eval4j-report`, `starters`, `addons`, `engram-core`, `install`, `probes`, the docs indexes for `docs/deploy` |
+| A31 | loopback against the mock agent | **own mock only; nothing was checked against a third-party A2A agent (P6 not run; no local independent implementation was found or built)** |
+
+**Not verified, and open.**
+- Interoperability with any other A2A implementation (P6, P10 live level).
+- The graph renderer does not draw `exposedAs`; served-task events are not turned into `loom-inspect` spans (the runner emits them for the consumer); no Fabric-specific test; `weave test` has no scripting for being called.
+- `SpecExamples` fixtures and a full pass over every MUST and SHOULD of the specification (the mock enforces a rules table, not the whole text).
+- No end-to-end test of `AUTH_REQUIRED` through Loom, no `PII` or `media: unscanned` guard on files sent to a remote (R20), a stop requested on a suspended run is seen at its next resume, and a deferred channel answer is completed only by the runner's own `answer` (there is no general API to complete a `Defer`).
+- P7 baselines of the mutation profiles and the extension before the work began were not taken; the optional Masker overlap change was not done.
+- Decision D32 (the completeness test) stays deferred as decided.
+
 ### 32e, audit, review and the served-run signal, 2026-11-11
 
 **Built.** `weave audit` LA24 to LA27 (`A2AAudit`, called from `SecurityAudit`): LA24 an `expose` (low; every agent the exposed workflow reaches, through its steps and the workflows it calls, now counts as reading untrusted content, so the trifecta rule can fire), LA25 a `delegate` to a remote (low; medium when the workflow reaches private data and no agent of it has a `pii` guard that is on), LA26 an `audience: automatic` channel (medium; high when a `remote` uses it), LA27 an `expose` with neither its own budget nor a run budget (high). `AuditCatalog` entries, `docs/security/weave-audit.md`, `docs/security/owasp-llm-top-10.md` (LLM01, LLM02, LLM06, LLM10), the generated rule pages. Review lens: LR02 now fires on a `delegate` to a remote with no `on_failure`, with a firing and a quiet example. Observation: a run started by outsiders through an `expose` block says so (`HarnessExecutor.setServedFromOutside`, set by `LoomTaskRunner.wiring()`, `served` on the run-start trace, `loom.run.served` in the mapper); `loom-inspect-core` counts every agent of a served run as having read untrusted content, so private data plus a send raises the trifecta incident naming "exposed workflow input". New page `docs/a2a/SECURITY_AND_REVIEW.md` (linked from the README), the Security signals wiki page.
