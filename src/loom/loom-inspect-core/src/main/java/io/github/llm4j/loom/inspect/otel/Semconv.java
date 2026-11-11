@@ -43,6 +43,12 @@ public final class Semconv {
     public static final String LOOM_SUSPEND_REASON = "loom.suspend.reason";
     public static final String LOOM_RESUME_AT = "loom.resume_at";
     public static final String LOOM_SLEEP_WAKE_AT = "loom.sleep.wake_at";
+
+    /** The name of the remote agent a span is a call to. */
+    public static final String LOOM_REMOTE = "loom.remote.name";
+
+    /** The remote agent's task id, once it has made one. */
+    public static final String LOOM_REMOTE_TASK = "loom.remote.task_id";
     public static final String LOOM_USAGE_TOTAL_TOKENS = "loom.usage.total_tokens";
     public static final String LOOM_USAGE_CALLS = "loom.usage.calls";
     public static final String LOOM_COST_USD = "loom.cost.usd";
@@ -161,6 +167,9 @@ public final class Semconv {
     public static final String KIND_TOOL = "tool";
     public static final String KIND_TASK = "task";
     public static final String KIND_SLEEP = "sleep";
+
+    /** A call to a remote agent that someone else runs (docs/specs/32-a2a-integration). */
+    public static final String KIND_REMOTE = "remote";
     public static final String KIND_MODEL = "model";
 
     // ---- Log record event names ----
