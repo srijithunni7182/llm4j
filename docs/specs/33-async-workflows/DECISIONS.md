@@ -1,6 +1,6 @@
 # Phase 33: open decisions
 
-Status: **D1 to D5, D8 to D10, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **D1 to D5, D8 to D11, D21, D28 and D29 taken; D19, D23, D25 and D26 partly taken; the rest open** (see the decision log). D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
@@ -21,7 +21,7 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 | D8 | What `wait` does | **taken** (required timeout; returns on timeout; `wait all` records every outcome; no thread held) |
 | D9 | How a child's outcome reaches the parent | **taken** (eight statuses including `sleeping`; `status`, `is ok`, `reason`, `failure`; the result is an error unless completed) |
 | D10 | Children when the parent ends | **taken** (warn at check time; cancel with a reason at run time, 30 s grace; no `detach`) |
-| D11 | Whose budget a child spends | open |
+| D11 | Whose budget a child spends | **taken** (its own required budget, charged to the parent, with reservation) |
 | D12 | What `steer` targets | open (reconciled with D23) |
 | D13 | What `cancel` means | open |
 | D14 | Limits on the tree | open |
@@ -245,7 +245,13 @@ which you meant, so this one is **yours to clarify**.
 
 **Recommendation: C**, with an explicit child budget **required** (a `start` with no budget is a `weave check` error, as an `expose` with none is flagged by LA27).
 
-**Decision:** open.
+**Decision (owner): option C, with a required budget and reservation.**
+- Every `start` carries a `budget` (`start Research(...) budget { tokens: 100000 } -> h`); a `start` with none is a `weave check` error (as an `expose` with none is flagged by LA27).
+- The child's cap may not exceed what the parent has left **minus what its other live children could still spend** (a reservation); if it would, the `start` fails at run time with a message that says so, instead of letting the child hit a wall mid-work.
+- If the child's own script declares a `budget`, the **smaller** of the two applies. The child's spending also counts against the parent's budget, so the parent's `budget` stays the limit for the whole run.
+- A child whose budget runs out ends `failed` with the budget as the failure category (D9). If the **parent's** budget runs out while children run, the run ends in the normal way and D10 cancels the children.
+- The worst-case cost shown by `weave review` and `weave generate` is the sum of the child budgets times the most children the script can start (D14).
+- Not yet read: `BudgetCoordinator`, to see how a budget is shared between scopes today.
 
 ## D12. What does `steer` target?
 
