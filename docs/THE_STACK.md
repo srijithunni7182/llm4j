@@ -73,6 +73,7 @@ What the runtime does for you:
 - ships six generic tools usable from the script with no Java: `webhook`, `email`, `http`, `file`, `shell` and read-only `sql`, with a journal so a crash never sends the same message twice ([Generic Tools](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#generic-tools), [daily digest sample](../src/loom/ai-agent4j-loom/samples/digest/));
 - lets an agent **earn its autonomy**: it proposes, a person decides, and a ledger of both moves it from `watch` to `suggest` to `act` (and back) on evidence, with a prompt change tested on your past cases before it goes live ([Earned Autonomy](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#earned-autonomy));
 - asks you on Telegram when it needs a person, and carries on when you reply, so it can run on a machine nobody sits at ([Answering from Your Phone](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md#answering-from-your-phone));
+- calls and serves **other organisations' agents** over A2A (`remote`, `ask`, `expose`, `weave card`): what comes back is untrusted, a send is never repeated by a crash, and llm4j runs no server ([A2A](a2a/README.md));
 - finds problems with `weave check` before anything runs.
 
 👉 [Loom overview](../src/loom/ai-agent4j-loom/README.md) · [**Why Loom?**](../src/loom/ai-agent4j-loom/WHY_LOOM.md) ·

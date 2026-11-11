@@ -99,6 +99,7 @@ Then **carry on with what the user asked** (run, test, package, deploy): open fi
 - The page shows what happened. It is **not a security guarantee**: injection detection reads patterns in tool results, so a careful attack can pass it and a harmless page can trip it; the trifecta and access signals say a risky combination was used, not that anyone abused it. A green page is not a review (`weave audit` and the user's own review are).
 - A past view of a run (the time bar) is built from the records the server kept (up to 50,000 per run) with the rules and prices in force now; past that, the page says its totals are partial.
 - The scripts are for development and for trying it. A permanent Fabric is run by a service manager (the guide's chapter 5 says how), behind TLS, with `master.key` moved away from the vault.
+- A workflow that other agents may call (`expose`, A2A) is served by **their** code: llm4j runs no server, no authentication and no poller, and `weave deploy` does not deploy one. Before it goes live read `docs/a2a/SECURITY_AND_REVIEW.md` with the user: `weave audit` LA24 to LA27, a spend cap on the `expose`, who may call (the host decides), and the served-run trifecta signal on the page.
 - You cannot see the user's browser. Ask what they see; do not describe a page you did not open.
 
 ## Useful commands

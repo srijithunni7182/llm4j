@@ -68,7 +68,9 @@ you reach that situation, and do not guess at what it adds.
   rule for the layout, `grounding: web` (current information) and `attach` (pictures, sound and documents).
 - **0a to 0d. Choose the right node.** A step that only pulls fields out of text is an `extractor`, not an agent with an `output_schema`; an agent
   that must reason gets prose and an `extractor` after it, not a large schema; one agent working through many steps keeps its progress in a typed
-  variable the script owns; a `for each` over a list a model wrote needs `max N`.
+  variable the script owns; a `for each` over a list a model wrote needs `max N`. A step that belongs to an agent another team runs is a
+  `remote` (A2A) called with `delegate`, with an `agent_channel` for its questions and an `on_failure`; its answer is untrusted. A workflow others
+  may call is an `expose`, and `weave card` shows what the world sees (`docs/a2a/LOOM.md`).
 - **1. Ask once: "Do you want tests first?"** (default yes). The golden dataset is the requirements, and it is written **with** the person
   (`weave guide 11`), never for them. Skipping is allowed and loud; record it in the README (`Evaluation: skipped`) and do not ask again.
 - **2. Two paths.** A script run with `weave` (Loom is the runtime) or Java code; prompts live in files either way. An application with a screen is

@@ -47,6 +47,10 @@ weave daemon triggers/ --secrets keys.store \
 
 `--observe-name` is required and must be a client created above. The same options work on `run`, `resume`, `tick` and `daemon`. Events are written to a local outbox first (`--observe-outbox`, default `./loom-inspect-outbox`; 256 MB or 7 days per name), so a Fabric that is down, slow or restarted never affects a workflow, and everything missed streams in when it returns. `weave observe flush` delivers what a finished process left behind; `weave observe purge` removes it.
 
+## Remote agents (A2A)
+
+Fabric shows a call to a remote agent and the incidents about it the way it shows every record: names, states and counts, escaped by the page, never what a remote or a caller said. See [Security and review](../../../docs/a2a/SECURITY_AND_REVIEW.md).
+
 ## What it keeps
 
 History goes to `<data>/history/<client>/<day>.jsonl` (no database): every accepted batch is forced to disk before the server acknowledges it, and a restart rebuilds the console from it. Retention is 30 days and 2 GB by default (`--retention-days`, `--retention-size`), oldest day first.
