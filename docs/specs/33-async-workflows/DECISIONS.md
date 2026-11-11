@@ -1,11 +1,41 @@
 # Phase 33: open decisions
 
-Status: **all open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
+Status: **open, except D21 (taken by the owner).** D21 to D30 were added after the first sketches (supervision of a started workflow). Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides,
 one at a time, and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against. Facts about the current code
 are from the source on the day of writing; where something was not read, it says so.
 
 Take them roughly in this order: D1 (scope) shapes everything; D2 to D5 are the foundation (what a handle is and how it survives a restart); D6 and D7 settle the monitor;
 D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side.
+
+## The current sketch
+
+Not valid Loom today; the `NEW` marks the proposed parts. Everything else is ordinary Loom. This is where the discussion stands, and it changes as decisions are taken.
+
+```loom
+evaluator TopicJudge { model: "gemini-2.5-flash" }
+
+workflow Main(question) {
+    delegate "Question: {question}" to Planner -> plan
+
+    for each t in plan.topics max 3 {
+        start Research(topic = t.topic) timeout 20m budget { tokens: 100000 } -> work[t.name]     // NEW
+        supervise work[t.name] {                                                                   // existing form; the header names the handle (D21)
+            when tokens > 90000 { cancel use partial }                                             // NEW condition (D23)
+            when idle > 3m      { steer "You seem stuck. Narrow the topic and answer with what you have." once }   // NEW condition (D23)
+            assert never calls shell { cancel }                                                    // NEW (D24)
+            assert "searches only for the topic and reads at least two sources"
+                using TopicJudge every 2m max 4 { steer "Go back to the topic." once }             // NEW (D25, D26)
+        }
+    }
+
+    wait all work timeout 25m -> results                                                           // NEW
+    delegate "Question: {question}\nFindings:\n{results}" to Editor -> report
+    return report
+}
+```
+
+The child is an ordinary workflow and needs no change to be supervised. What the surface adds: `start` (with `timeout`, `budget` and a handle), `wait`, the existing `supervise` block pointed at a handle,
+three counted conditions, and two kinds of `assert`. What it leaves out for now: a declared `progress` shape and `report` (D22), signals and `notify` (D6, D7), and `wait any`.
 
 ## D1. What is in the first version?
 
@@ -15,7 +45,8 @@ D8 to D14 are the behaviour; D15 to D18 are safety, visibility and the Java side
 - **B. Staged:** v1 = `start`, `wait` (one or all), `cancel`, a readable status; v2 = `notify` and signals; v3 = `steer`, `wait any`, `detach`.
 - **C. Start with the 60-second demo and add only what it needs.** The demo needs start, wait, steer, cancel and a restart, so this is nearly A.
 
-**Recommendation: B**, but with the demo as the acceptance test for v2/v3, so steering is not left too long. Steering is already built for agents, so it may be cheaper than it looks.
+**Recommendation: B, with `supervise` as the way to watch and steer.** v1 = `start` (with `timeout`, `budget`, a handle), `wait` (one or all), `cancel`, readable facts (`h.status`, `h.tokens`, `h.elapsed`), and `supervise <handle> { when ... }` with counted conditions (D21, D23);
+v2 = code assertions and judged assertions (D24, D25); v3 = declared progress, signals, `wait any`, `detach`. Steering is already built for agents, so it is cheaper than it looks, and `supervise` already carries the journaling, tracing and audit.
 
 **Decision:** open.
 
@@ -257,6 +288,131 @@ tutorial, wiki, README census, release notes).
 
 - Children on other machines, a scheduler or queue of children, a visual builder, and any change to `call`.
 - Whether `weave generate` should be taught to produce supervisor workflows: after the language settles.
+
+**Decision:** open.
+
+## D21. Where is supervision written? **Taken by the owner**
+
+**Question.** `supervise` can be attached to the `start` statement (the target implicit), or be a separate block whose header names the handle, as `supervise Researcher { ... }` names an agent today.
+
+**Decision (owner):** the header names the handle: `supervise work[t.name] { when tokens > 90000 { ... } }`. Conditions inside are bare counters, relative to the named handle; they are not script expressions
+(a condition that read arbitrary script variables would need the runtime to re-evaluate script expressions on every change, and `weave check` could no longer say which counters a rule depends on).
+The same facts remain readable as plain values elsewhere in the script (`work[t.name].tokens`).
+
+## D22. How does a child expose its progress?
+
+**Why.** What a supervisor can do depends on what it can see.
+
+- **A. Runtime facts**, free and trustworthy: `status`, `tokens`, `calls`, `cost`, `elapsed`, `idle`, the current step, the last checkpoint reached.
+- **B. Declared progress:** the child declares a typed shape in its signature and updates it with `report`; the parent reads `h.progress.stage`. Written by the child, so it carries `unchecked` provenance and is for display and soft rules only.
+- **C. Pushed events:** the child sends a signal to its starter (`notify parent ...`); needs the signal mechanism of D6 and D7.
+- **D. Reading a child's variables directly.** Refused: it breaks encapsulation.
+
+**The owner's stated view:** A, B and C are all wanted, with a simple syntax. **Proposal:** A in v1, because it needs no change to the child and `supervise` can act on it; B and C in a later stage, with the rules proposed in the earlier discussion
+(progress is bounded in size and rate, journaled, restored by a rewind, readable only through the handle, Fabric and the live page).
+
+**Decision:** open.
+
+## D23. Which counted conditions are in v1?
+
+**Why.** In `supervise` today a condition is one of a closed set of runtime counters (`looping(N)`, `tool_failing(Tool, N)`, `context > P%`, `steps > N`), so rules can be checked before a run and cost nothing to evaluate. This keeps that property.
+
+- Proposed new counters for a handle: `tokens`, `cost`, `calls`, `elapsed`, `idle` (time since the child last finished a step or used tokens), `status`.
+- `idle` is the one that catches a child stuck in a single long step, which no step-based rule can see.
+- Actions are the existing ones: `steer "text"`, `wrap_up`, `cancel [outcome]`. A steer text is **written in the script**, never taken from a child's output.
+- Rules fire when the condition *becomes* true and again only if it goes false and true again; `once` limits a rule to one firing (existing behaviour).
+
+**Recommendation:** `tokens`, `cost`, `calls`, `elapsed`, `idle`, `status` in v1. A condition on a child with several agents that names no agent applies to the child as a whole.
+
+**Decision:** open.
+
+## D24. Assertions in code about a child's trajectory
+
+**Why.** `weave test` already has path, round-count and budget tests on scripted models. The same checks could run live, as free, deterministic, checkable rules, which suits the project's principle that a rule lives in code.
+
+- Candidates: `assert never calls <tool>`, `assert steps <= N`, `assert calls A before B`, `assert never reaches <checkpoint>`.
+- The block after an assertion runs when it is **violated**, with the same actions as `when`.
+- `weave check` verifies that the names exist; `weave explain` says them in words.
+
+**Recommendation:** v2, and before any judged assertion (D25). **Open:** the exact list; whether they should reuse the `weave test` path syntax.
+
+**Decision:** open.
+
+## D25. Judged assertions: a judge agent asserts the trajectory
+
+**Why.** Some things code cannot express ("stays on topic"). The owner wants a judge inside `supervise`. This is a model's opinion in a block whose rules were counts, so it is explicit and bounded.
+
+```loom
+assert "searches only for the topic and reads at least two sources" using TopicJudge every 2m max 4 { steer "Go back to the topic." once }
+```
+
+- **What the judge sees.** By default the **facts** of the trajectory (steps, agents and tools called, checkpoints, counts), the same record `weave why` and `weave capture` use; not the child's text. A rule may opt in to content (`seeing outputs`), and the audit then says so.
+  (How the evaluation dataset's `expect:` lines render "what the run did" was not read; the design should reuse it.)
+- **The verdict** is a fixed pass or fail, never free text.
+- **The action** is text written in the script, or a pick from a table written in the script keyed by the verdict (`steer by verdict: { off_topic: "...", thin: "..." }`). A judge never writes an instruction for a child.
+- **Replay.** A verdict is journaled with the child's position at the time; a resume returns the recorded verdict and never asks again.
+- **Cost.** Each check is a model call, bounded by D26, charged to a budget (D27) and shown in the cost estimate.
+- **Audit.** `weave audit` lists each judged rule, what the judge can see and what it can cause. A judge that can cancel work is a decision-maker: whether it comes under the earned-autonomy ladder is open.
+- **Injection.** A trajectory may contain untrusted text; facts-only by default, a fixed verdict and fixed actions close that path. The provenance oracle gets cases for it.
+
+**Recommendation:** v2, facts only by default, fixed text or a table, the verdict journaled.
+
+**Decision:** open.
+
+## D26. Time: how long, and how often
+
+**Why.** Time is a first-class part of supervision. An earlier proposal to judge "every N steps" was wrong: a child stuck in one long step never reaches step N.
+
+| Question | Proposal |
+|---|---|
+| How long may the child run? | A deadline on `start`, written like the existing `timeout` of `delegate`: `start Research(...) timeout 20m`. When it passes the child is cancelled with the outcome `timed out`, readable as a status. |
+| How long does supervision last? | As long as the child runs: it ends when the child completes, fails or is cancelled. No separate lifetime. |
+| How often are counted rules checked? | When a counter changes, plus a runtime tick for time counters (about every 10 seconds). A tick is a local comparison and costs no model call. Not written by the script. |
+| How often is a judged assertion run? | The script says: `every 2m` or `every 3 steps`, one unit per assertion, with `max N` **required** and no default. A **floor** (proposed 30 seconds) is enforced by `weave check`. A check is skipped if the child has done nothing since the last one. |
+| Guidance | About 5 to 10 judgements over the child's expected lifetime (a heuristic, not a measurement). |
+
+- **Replay.** A tick and its verdict are journaled with the child's position, as `sleep` journals its wake time, so a replay returns what was recorded.
+- **Later, not v1:** back-off (`every 1m, then 3m`).
+
+**Decision:** open.
+
+## D27. Who pays for a judge?
+
+- **A.** The `supervise` statement has its own budget (`supervise work[...] budget { tokens: 20000 } { ... }`).
+- **B.** The child's budget. **C.** The parent's budget. **D.** A, and also counted against the parent so the run total holds (as D11 option C).
+
+**Recommendation: D**, with the `supervise` budget required when a judged assertion is present.
+
+**Decision:** open.
+
+## D28. What does `elapsed` measure when the process was down?
+
+**Why.** After a restart two hours later, a rule `elapsed > 5m` fires at once if it counts wall time since the start.
+
+- **A.** Wall time since the start: simple and honest, but a restart looks like a stall.
+- **B.** Running time only (suspended and down time excluded); the `timeout` on `start` stays a wall-clock deadline as the hard limit.
+
+**Recommendation: B**, with the child's `timeout` as the wall-clock limit. Needs the clock to be injected so the rule can be tested (D30).
+
+**Decision:** open.
+
+## D29. Is a suspended parent still supervising?
+
+**Why.** `supervise` needs something awake to tick. In v1 children run in the same process (D5 option A), so a parent that suspends (for a person, or a long `sleep`) is not ticking.
+
+- **A.** Children are **paused with the parent**, and their deadlines are paused too (consistent with principle 3).
+- **B.** Children keep running unsupervised: unsafe, refused.
+- **C.** Supervision across suspended runs, through the trigger store and `weave daemon` (D5 option B): later.
+
+**Recommendation: A for v1, C later.**
+
+**Decision:** open.
+
+## D30. Overlapping rules and testing time
+
+- **Order.** If several rules fire in the same tick, they are applied in the order written, and a `cancel` ends the evaluation. A conflict (two rules that steer the same agent differently) is a `weave check` warning.
+- **Tests.** `weave test` needs a fake clock and scripted children that take chosen amounts of time (their durations, their counters, their verdicts), so every timeout, `idle` and cadence rule can be tested with no real waiting. Designed with the feature, not after.
+- **The guard test.** Kill the parent at every point between `start` and `wait`, resume, and check that there is exactly one child and every effect happened once (D17); break the guard on purpose once to see it fail.
 
 **Decision:** open.
 

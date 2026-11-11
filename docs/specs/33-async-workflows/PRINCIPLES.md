@@ -22,7 +22,8 @@ These facts were read in the source on the day this draft was written; each is a
   There is no construct today for a branch that outlives its block.
 - `LoomRun` already gives a Java host a handle on a running workflow: `steer`, `wrapUp`, `cancel` (with an outcome, or back to a checkpoint), `pause`, `resume` and
   `await`, with statuses `RUNNING`, `COMPLETED`, `SUSPENDED`, `STOPPED`, `FAILED`, and it registers in `LiveRuns` so a console or chat can reach it. A script cannot use it.
-- Steering and stopping are already audited (`steerable`, rule LA18) and journaled; `supervise` already acts on counts of what an agent did.
+- Steering and stopping are already audited (`steerable`, rule LA18) and journaled; `supervise` already acts on counts of what an agent did, from a closed set of runtime counters, and the guide says so: "every signal is a count, never a model's opinion".
+- `delegate ... timeout 60s` already exists, and `sleep` journals its wake time (`RunJournal`), which is how a time-based event can be replayed.
 
 Not read yet, to be checked before the design: `BudgetCoordinator` (how a budget is shared), the trigger store and `weave tick`/`daemon` (how a suspended run is picked up),
 `InterventionCoordinator`, and how Fabric and `loom-inspect` identify a run.
@@ -49,7 +50,10 @@ Not read yet, to be checked before the design: `BudgetCoordinator` (how a budget
 11. **Visible everywhere.** A handle shows in `weave graph`, `explain`, `audit`, `review`, `timeline`, `why`, the live page and Fabric, the VS Code extension, the compatibility
     kit and the tutorial. The ecosystem moves together, as it did for A2A.
 12. **One small surface.** A new verb has to earn its place against the 60-second demo (below). `call` stays synchronous and unchanged; everything here is opt-in.
-13. **Same language, same guarantees.** The new constructs follow the existing style (plain words, `max`/`timeout` written on the statement, `on_failure` handlers) and the
+13. **Counts before opinions.** Supervision rules over runtime counters, and assertions written in code, are the default. A judge is explicit in the script, bounded (a cadence with a floor and a `max`), journaled with the position it judged, sees facts about the trajectory unless the rule says
+    otherwise, and acts only through text written in the script. A judge never writes an instruction for another run.
+14. **Time is part of supervision.** A deadline belongs on `start`, supervision lasts as long as the child, a stall is detected by time (`idle`) and not only by counting steps, and every time-based rule can be tested with a fake clock.
+15. **Same language, same guarantees.** The new constructs follow the existing style (plain words, `max`/`timeout` written on the statement, `on_failure` handlers) and the
     existing checks (`weave check` refuses what is ambiguous; a missing or unknown setting denies).
 
 ## The 60-second demo (the test of whether this is a feature or a distraction)
