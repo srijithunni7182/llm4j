@@ -155,6 +155,8 @@ Each is updated in the same sub-phase as the behaviour it describes, not later. 
 
 **Tests.** `RemoteIncidentTest` (5), `RemoteMappingTest` (4), `A2ACtkConformanceTest`, `StepperRemoteTest` (2); `GuideExamplesTest`, `GuideLinksTest`, `GuideTutorialPageTest`, `A2ADocsTest` green. The kit test was broken on purpose (an expected message count changed) and failed with the case named, then restored.
 
+**Tiers run for this slice.** `make docs-check` exit 0, tree clean afterwards; `make test-core` exit 0; `loom-inspect-core` install with its gates; the extension suite (782 tests) once with 8 failures that were the three new snippets (a `remote` needs an `agent_channel`, and these three carry warnings by design, so the test now checks them for errors only) and the parity baseline (regenerated: the frozen TypeScript parser reads `Supplier` in the kit script as an agent, a tracked difference), plus five timing tests that failed only while other builds ran and passed alone (28 of 28). A full extension rerun after the fixes was not repeated on a quiet machine. `make test-fast`, `make test-oracle` and `make release-check` are for the end of the phase.
+
 **P9 (other runtimes).** No other Loom runtime exists in this repository (the kit's README still says "Java and Python"; `scripts/loomgen.py` is a generator), so the Java conformance test is the only one to extend.
 
 **Not done in this slice.** The security signal for an exposed workflow's input and the Fabric display of served tasks belong to 32d and 32e (nothing is served yet). Fabric shows the new records the way it shows every record, as names and counts; no Fabric-specific test was added. The tutorial chapter, starter, skills and the other guide chapters are 32f.
