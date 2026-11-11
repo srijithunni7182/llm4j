@@ -121,6 +121,15 @@ class ExposedAuditTest {
     }
 
     @Test
+    void aGuardThatIsSwitchedOffDoesNotCountAsMasking() {
+        String source = HEAD.replace("agent Clerk { model: \"gemini-2.5-flash\" system: \"x\" }", "tool Files { use: file root: \".\" mode: read }\nagent Clerk { model: \"gemini-2.5-flash\" system: \"x\" tools: [Files] guard { pii: off } }")
+                + REMOTE
+                + "workflow Buy(part) { delegate \"look {part}\" to Clerk -> a\n delegate \"Quote {a}\" to Supplier -> quote }\n";
+
+        assertThat(rule(audit(source), "LA25")).singleElement().satisfies(f -> assertThat(f.severity()).isEqualTo(Severity.MEDIUM));
+    }
+
+    @Test
     void aLocalDelegateIsNotLa25() {
         assertThat(rule(audit(HEAD + "workflow M() { delegate \"x\" to Clerk -> out }"), "LA25")).isEmpty();
     }
