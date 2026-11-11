@@ -157,6 +157,13 @@ class A2ADocsTest {
     }
 
     @Test
+    void theServeProtocolDocListsTheNewSymbolKeysAndRoles() throws Exception {
+        String protocol = read(ROOT.resolve("docs/serve/PROTOCOL.md"));
+        for (String word : List.of("`remote:`", "`channel:`", "`expose:`", "remote-channel", "expose-channel", "expose-workflow", "`ask`"))
+            assertThat(protocol).as(word).contains(word);
+    }
+
+    @Test
     void thePrinciplesFileIsAPointerThatResolves() throws Exception {
         Path pointer = ROOT.resolve("docs/specs/32-a2a-integration/PRINCIPLES.md");
         Matcher m = LINK.matcher(read(pointer));

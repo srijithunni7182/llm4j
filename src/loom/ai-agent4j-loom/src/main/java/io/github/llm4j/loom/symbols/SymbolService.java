@@ -68,8 +68,10 @@ public final class SymbolService {
         Map<String, AgentDef> agents = new HashMap<>();
         Map<String, IntentClassifierDef> classifiers = new HashMap<>();
         Map<String, DecisionDef> decisions = new HashMap<>();
+        Set<String> remotes = new java.util.HashSet<>();
         for (Loaded l : loaded.values()) {
             LoomScript s = l.parse().script();
+            s.getRemotes().forEach(r -> remotes.add(r.getName()));
             s.getAgents().forEach(a -> agents.putIfAbsent(a.getName(), a));
             s.getIntentClassifiers().forEach(c -> classifiers.putIfAbsent(c.getName(), c));
             s.getDecisions().forEach(d -> decisions.putIfAbsent(d.getName(), d));
@@ -128,6 +130,11 @@ public final class SymbolService {
                     references.add(
                             new SymbolIndex.Reference(
                                     to, "binding", r.role(), file, r.range(), true));
+                } else if (r.kind().equals("agent") && !defined.contains(to) && defined.contains("remote:" + r.name())) {
+                    // a delegate whose target is a remote agent, not a local one
+                    references.add(
+                            new SymbolIndex.Reference(
+                                    "remote:" + r.name(), "remote", r.role(), file, r.range(), true));
                 } else {
                     boolean resolved = defined.contains(to);
                     if (r.weak() && !resolved) continue; // a library persona, a model with a slash
@@ -145,7 +152,7 @@ public final class SymbolService {
             for (FileIndexer.RawScope s : l.index().scopes)
                 scopes.add(new SymbolIndex.Scope(s.workflow(), file, s.params(), s.range()));
             for (FileIndexer.RawBinding b : l.index().bindings) {
-                SymType type = typeOf(b, l, agents, classifiers, decisions);
+                SymType type = typeOf(b, l, agents, classifiers, decisions, remotes);
                 bindings.add(
                         new SymbolIndex.Binding(
                                 "binding:" + b.workflow() + "/" + b.name(),
@@ -263,8 +270,14 @@ public final class SymbolService {
             Loaded l,
             Map<String, AgentDef> agents,
             Map<String, IntentClassifierDef> classifiers,
-            Map<String, DecisionDef> decisions) {
+            Map<String, DecisionDef> decisions,
+            Set<String> remotes) {
         switch (b.typeOf()) {
+            case "ask":
+                {
+                    SymType expecting = expecting(l, b);
+                    return expecting != null ? expecting : SymType.STRING;
+                }
             case "string":
                 return SymType.STRING;
             case "number":
@@ -280,7 +293,7 @@ public final class SymbolService {
                     SymType expecting = expecting(l, b);
                     if (expecting != null) return expecting;
                     AgentDef a = agents.get(b.typeName());
-                    if (a == null) return SymType.UNKNOWN;
+                    if (a == null) return remotes.contains(b.typeName()) ? SymType.STRING : SymType.UNKNOWN;
                     return a.getOutputSchema() == null
                             ? SymType.STRING
                             : SymType.of(a.getOutputSchema());
@@ -312,6 +325,10 @@ public final class SymbolService {
                                 && d.getLine() == b.statementLine()
                                 && d.getExpecting() != null)
                             found[0] = SymType.of(d.getExpecting());
+                        if (s instanceof io.github.llm4j.loom.ast.AskStmt a
+                                && a.getLine() == b.statementLine()
+                                && a.getExpecting() != null)
+                            found[0] = SymType.of(a.getExpecting());
                     });
         }
         return found[0];

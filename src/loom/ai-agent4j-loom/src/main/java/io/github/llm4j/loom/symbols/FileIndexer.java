@@ -121,6 +121,15 @@ final class FileIndexer {
                         case "intentclassifier" -> {
                             return named(i, "classifier", false);
                         }
+                        case "remote" -> {
+                            return a2aBlock(i, "remote");
+                        }
+                        case "agent_channel" -> {
+                            return a2aBlock(i, "channel");
+                        }
+                        case "expose" -> {
+                            return a2aBlock(i, "expose");
+                        }
                         case "decision" -> {
                             return decision(i);
                         }
@@ -165,6 +174,30 @@ final class FileIndexer {
         if (agent) agentSettings(open, end);
         else if (kind.equals("classifier")) classifierSettings(open, end);
         return end + 1;
+    }
+
+    /**
+     * {@code remote Name { … }}, {@code agent_channel Name { … }} or {@code expose Name { … }}: a
+     * definition, and the names its settings refer to ({@code agent_channel: X} and, for an
+     * {@code expose}, {@code workflow: W}).
+     */
+    private int a2aBlock(int i, String kind) {
+        int open = i + 2;
+        int end = blockEnd(open);
+        int next = named(i, kind, false);
+        int depth = 0;
+        for (int k = open + 1; k < end; k++) {
+            TokenType type = type(k);
+            if (type == TokenType.LBRACE) depth++;
+            else if (type == TokenType.RBRACE) depth--;
+            if (depth != 0 || type(k + 1) != TokenType.COLON || !isName(k + 2)) continue;
+            if (isWord(k, "agent_channel") && !kind.equals("channel")) {
+                references.add(new RawRef("channel", value(k + 2), kind.equals("remote") ? "remote-channel" : "expose-channel", range(t.get(k + 2)), false, null));
+            } else if ((type == TokenType.WORKFLOW || isWord(k, "workflow")) && kind.equals("expose")) {
+                references.add(new RawRef("workflow", value(k + 2), "expose-workflow", range(t.get(k + 2)), false, null));
+            }
+        }
+        return next;
     }
 
     private int decision(int i) {
@@ -392,6 +425,15 @@ final class FileIndexer {
                                 "classifier",
                                 value(i + 1),
                                 claimed);
+                }
+            }
+            case "ask" -> {
+                if (type(i + 1) == TokenType.IDENTIFIER && type(i + 2) == TokenType.STRING_LITERAL) {
+                    references.add(new RawRef("channel", value(i + 1), "ask", range(t.get(i + 1)), false, null));
+                    claimed.add(i + 1);
+                    int arrow = arrowAfter(i + 3, 4);
+                    if (arrow > 0 && isName(arrow + 1))
+                        bind(workflow, arrow + 1, "result", "ask", i, "ask", value(i + 1), claimed);
                 }
             }
             case "decide" -> {
