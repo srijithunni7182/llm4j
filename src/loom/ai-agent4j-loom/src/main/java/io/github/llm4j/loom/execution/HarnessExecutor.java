@@ -1784,6 +1784,17 @@ public class HarnessExecutor implements LoomEngine {
         return runId;
     }
 
+    private volatile boolean servedFromOutside;
+
+    /**
+     * Marks this run as started by other agents through an {@code expose} block, so what they wrote
+     * is untrusted input. It only changes what the trace says, which the inspection reads as the
+     * first leg of the lethal trifecta for every agent in the run.
+     */
+    public void setServedFromOutside(boolean served) {
+        this.servedFromOutside = served;
+    }
+
     /**
      * How schedule triggers refer to this script (e.g. its path); part of their ids. Default
      * "script".
@@ -3032,6 +3043,7 @@ public class HarnessExecutor implements LoomEngine {
             startData.put("workflow", workflowName);
             if (runId != null) startData.put("run", runId);
             startData.put("resumed", String.valueOf(resumedFromPause));
+            if (servedFromOutside) startData.put("served", "true");
             // the page never reads the dataset itself: the host that ran the check says so here
             if (evaluated != null && !evaluated) startData.put("evaluated", "false");
             trace(TraceEvent.RUN_START, null, "workflow " + workflowName, startData);

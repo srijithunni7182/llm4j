@@ -43,6 +43,10 @@ SendEmail.reach = sends
 
 A refused *approval* is people deciding, not an incident: it is counted in the view and nothing more.
 
+### A run that outsiders started
+
+A run started through an `expose` block (A2A) is marked as served. For the trifecta, every agent in it counts as having read untrusted content from the start, because whoever called the workflow wrote its input. An agent that then reaches private data and sends something out raises the trifecta incident, and the evidence names `exposed workflow input` as its first leg. See [Security and review](../docs/a2a/SECURITY_AND_REVIEW.md).
+
 ### Accepting a trifecta
 
 Many legitimate agents use all three legs by design: a support agent reads a ticket, looks up the customer and replies. An alarm on every run of such an agent would teach people to ignore the one signal that matters. So the author of the rules can accept it, **with a written reason** (a missing or empty reason is an error, so an acceptance is never silent):

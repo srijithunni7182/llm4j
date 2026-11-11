@@ -354,4 +354,19 @@ class LoomTaskRunnerTest {
 
         assertThat(events.stream().map(LoomTaskRunner.ServedEvent::kind)).contains("cancelled");
     }
+
+    @Test
+    void theRunsOfAServedWorkflowSayInTheirTraceThatOutsidersStartedThem() throws Exception {
+        LoomTaskRunner runner = runnerFor("Total", "receipt", "1k");
+        List<Object> served = new java.util.concurrent.CopyOnWriteArrayList<>();
+        var wiring = runner.wiring();
+        // a second customizer reads the start event of the run the runner's own wiring marked
+        io.github.llm4j.loom.execution.HarnessExecutor probe = host.newExecutor("probe-run");
+        probe.addTraceListener(e -> {
+            if (e.type().equals(io.github.llm4j.loom.execution.TraceEvent.RUN_START)) served.add(e.data().get("served"));
+        });
+        probe.executeWorkflow("Total", new java.util.HashMap<>(Map.of("receipt", "x", "currency_hint", "EUR")));
+
+        assertThat(served).containsExactly("true");
+    }
 }

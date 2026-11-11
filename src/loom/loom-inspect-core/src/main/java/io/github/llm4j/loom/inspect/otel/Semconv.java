@@ -36,6 +36,8 @@ public final class Semconv {
     public static final String LOOM_SEQ = "loom.seq";
     public static final String LOOM_SPAN_KIND = "loom.span.kind";
     public static final String LOOM_RESUMED = "loom.run.resumed";
+    /** True on a run that other agents started through an {@code expose} block. */
+    public static final String LOOM_SERVED = "loom.run.served";
 
     /** Present and false on a run start when nothing measures the script's agents. */
     public static final String LOOM_EVALUATED = "loom.run.evaluated";

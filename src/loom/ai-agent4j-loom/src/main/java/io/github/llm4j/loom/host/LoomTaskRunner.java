@@ -162,6 +162,7 @@ public final class LoomTaskRunner implements TaskRunner {
         return executor -> {
             String runId = executor.getRunId();
             if (runId == null) return;
+            executor.setServedFromOutside(true);
             for (String channel : callerChannels) executor.setAgentChannel(channel, callerChannel(runId));
             executor.addTraceListener(event -> onTrace(runId, executor, event));
         };

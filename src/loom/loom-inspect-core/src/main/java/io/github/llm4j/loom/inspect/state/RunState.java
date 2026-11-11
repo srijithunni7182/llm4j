@@ -451,6 +451,7 @@ public final class RunState {
         if (r.text(Semconv.LOOM_WORKFLOW) != null) workflow = r.text(Semconv.LOOM_WORKFLOW);
         if (startedNanos == 0) startedNanos = r.timeNanos();
         if ("false".equals(r.text(Semconv.LOOM_EVALUATED))) evaluated = false;
+        if (Boolean.TRUE.equals(r.attr(Semconv.LOOM_SERVED))) security.onServedRun();
         endedNanos = 0;
         status = Status.RUNNING;
         suspendReason = null;
