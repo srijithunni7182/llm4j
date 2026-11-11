@@ -35,6 +35,7 @@ final class NodeDescriber {
 
     private final Map<String, String> decisionLevels;
     private final Map<String, GraphBuilder.ClassifierInfo> classifiers;
+    private final GraphBuilder.A2AInfo a2a;
 
     /**
      * @param decisionLevels decision name to the level it starts at ({@code watch}, {@code
@@ -43,9 +44,11 @@ final class NodeDescriber {
      */
     NodeDescriber(
             Map<String, String> decisionLevels,
-            Map<String, GraphBuilder.ClassifierInfo> classifiers) {
+            Map<String, GraphBuilder.ClassifierInfo> classifiers,
+            GraphBuilder.A2AInfo a2a) {
         this.classifiers = classifiers;
         this.decisionLevels = decisionLevels;
+        this.a2a = a2a;
     }
 
     GraphNode describe(String id, Statement statement, String file) {
@@ -57,6 +60,12 @@ final class NodeDescriber {
     }
 
     private Described describe(Statement st) {
+        if (st instanceof DelegateStmt d && a2a.remotes().containsKey(d.getTargetAgent())) {
+            return remote(d, a2a.remotes().get(d.getTargetAgent()));
+        }
+        if (st instanceof io.github.llm4j.loom.ast.AskStmt a) {
+            return ask(a);
+        }
         if (st instanceof DelegateStmt d) {
             return delegate(d);
         }
@@ -229,6 +238,38 @@ final class NodeDescriber {
                                 .text("expecting", SchemaOutline.of(d.getExpecting()))
                                 .budget(d.getBudget())
                                 .text("text", d.getPayload()));
+    }
+
+    /** A call to an agent someone else runs: opaque, untrusted, outside the budgets, and possibly slow. */
+    private Described remote(DelegateStmt d, GraphBuilder.RemoteInfo info) {
+        return new Described(Kinds.REMOTE, "remote " + d.getTargetAgent())
+                .attrs(
+                        Attrs.create()
+                                .text("remote", d.getTargetAgent())
+                                .text("host", info.host())
+                                .text("channel", info.channel())
+                                .text("audience", a2a.audiences().get(info.channel()))
+                                .text("variable", d.getVariableName())
+                                .list("attaches", kinds(d.getAttachments()))
+                                .positive("retry", d.getRetryCount())
+                                .positive("backoffMs", d.getBackoffMillis())
+                                .positive("timeoutMs", d.getTimeoutMillis())
+                                .text("expecting", SchemaOutline.of(d.getExpecting()))
+                                .flag("outsideBudgets", true));
+    }
+
+    /** A question to a declared channel. The question text is not shown: it can carry variables. */
+    private Described ask(io.github.llm4j.loom.ast.AskStmt a) {
+        return new Described(Kinds.ASK, "ask " + a.getChannel())
+                .attrs(
+                        Attrs.create()
+                                .text("channel", a.getChannel())
+                                .text("audience", a2a.audiences().get(a.getChannel()))
+                                .text("variable", a.getVariable())
+                                .text("expecting", SchemaOutline.of(a.getExpecting()))
+                                .positive("retry", a.getRetryCount())
+                                .positive("backoffMs", a.getBackoffMillis())
+                                .positive("timeoutMs", a.getTimeoutMillis()));
     }
 
     private Described run(RunStmt r) {

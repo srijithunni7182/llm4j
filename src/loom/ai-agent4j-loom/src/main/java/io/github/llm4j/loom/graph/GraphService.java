@@ -47,6 +47,10 @@ public final class GraphService {
                         GraphBuilder.classifiersOf(
                                 runOrder.stream()
                                         .map(file -> closure.scripts().get(file))
+                                        .toList()),
+                        GraphBuilder.a2aOf(
+                                runOrder.stream()
+                                        .map(file -> closure.scripts().get(file))
                                         .toList()));
         List<WorkflowGraph> graphs = new ArrayList<>();
         Map<String, AgentCatalog.Located> agents = new LinkedHashMap<>();

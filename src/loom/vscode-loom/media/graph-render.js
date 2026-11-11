@@ -26,6 +26,8 @@
     end: { k: 'misc', g: null, shape: 'pill' },
     delegate: { k: 'agent', g: 'agent', shape: 'rect' },
     handoff: { k: 'agent', g: 'handoff', shape: 'rect' },
+    remote: { k: 'agent', g: 'handoff', shape: 'rect', dashed: true },
+    ask: { k: 'human', g: 'person', shape: 'rect' },
     broadcast: { k: 'agent', g: 'broadcast', shape: 'rect' },
     task: { k: 'task', g: 'code', shape: 'rect' },
     parallel: { k: 'par', g: 'par', shape: 'bar' },
@@ -82,7 +84,7 @@
   };
 
   var LEGEND = [
-    ['agent', 'Agent step (delegate, handoff, broadcast)'], ['task', 'Task, guardrail, classify, extract, check or use'], ['par', 'Parallel round'],
+    ['agent', 'Agent step (delegate, handoff, broadcast, remote)'], ['task', 'Task, guardrail, classify, extract, check or use'], ['par', 'Parallel round'],
     ['alt', 'Branch (alt)'], ['loop', 'Loop or for each'], ['call', 'Call or decision'], ['human', 'Ask a person'],
     ['misc', 'Checkpoint, note, other']
   ];
@@ -121,6 +123,8 @@
     delegate: ['attaches', 'prompt', 'timeout', 'retry', 'budget', 'expecting', 'variable'],
     task: ['timeout', 'retry', 'variable'],
     classify: ['backend', 'samples', 'timeout', 'retry', 'variable'],
+    remote: ['outsideBudgets', 'audience', 'timeout', 'retry', 'attaches', 'expecting', 'variable'],
+    ask: ['audience', 'timeout', 'retry', 'expecting', 'variable'],
     extract: ['attaches', 'timeout', 'retry', 'variable'],
     check: ['timeout', 'retry', 'variable'],
     use: ['timeout', 'retry', 'variable'],
@@ -172,6 +176,8 @@
       case 'args': return a.args ? { t: plural(a.args, 'arg') } : null;
       case 'backend': return a.backend ? (a.backend === 'jev' ? { t: 'Jev · calibrated' } : { t: 'chat model · uncalibrated', v: 'warn' }) : null;
       case 'samples': return a.samples ? { t: a.samples + ' samples' } : null;
+      case 'outsideBudgets': return a.outsideBudgets ? { t: 'outside your budgets', v: 'warn' } : null;
+      case 'audience': return a.audience ? { t: a.audience === 'automatic' ? 'answered by no person' : 'answered by ' + a.audience, v: a.audience === 'automatic' ? 'warn' : 'muted' } : null;
       case 'level': return a.level ? { t: String(a.level).toUpperCase() } : null;
       case 'variable': return a.variable ? { t: '→ ' + cut(a.variable, 20) } : null;
       default: return null;
@@ -205,6 +211,8 @@
         if (!list.length) { return null; }
         return list.slice(0, limit).join(', ') + (list.length > limit ? ' +' + (list.length - limit) : '');
       }
+      case 'remote': return a.host ? a.host + (a.channel ? ' · via ' + a.channel : '') : null;
+      case 'ask': return a.channel ? 'to ' + a.channel : null;
       case 'human_prompt':
       case 'note': return a.text ? cut(a.text, 40) : null;
       case 'observe': return a.text ? cut(a.text, 40) : null;

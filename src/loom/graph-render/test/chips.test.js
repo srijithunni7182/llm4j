@@ -156,3 +156,22 @@ test('a step that sends no files shows no such chip', () => {
 test('a question that shows a person a file says so', () => {
   assert.deepEqual(texts(node('human_prompt', { attaches: ['image'], variable: 'answer' })), ['attaches image', '→ answer']);
 });
+
+test('a remote agent says it is outside your budgets, who answers it, and its deadline', () => {
+  const n = node('remote', { remote: 'Supplier', host: 'supplier.example.com', channel: 'Desk', audience: 'staff', variable: 'quote', timeoutMs: 7200000, retry: 2, outsideBudgets: true });
+  assert.deepEqual(texts(n), ['outside your budgets', 'answered by staff', 'timeout 2h', 'retry 2', '→ quote']);
+  assert.equal(G.chips(n)[0].v, 'warn');
+});
+
+test('a channel nobody staffs is flagged, and a remote shows its host and channel as the subtitle', () => {
+  const auto = node('ask', { channel: 'Auto', audience: 'automatic' });
+  assert.equal(G.chips(auto)[0].t, 'answered by no person');
+  assert.equal(G.chips(auto)[0].v, 'warn');
+  assert.equal(G.subtitle(node('remote', { host: 'supplier.example.com', channel: 'Desk' })), 'supplier.example.com · via Desk');
+  assert.equal(G.subtitle(auto), 'to Auto');
+});
+
+test('remote and ask have their own look: a remote is drawn dashed, apart from a local agent', () => {
+  assert.equal(G.kinds.remote.dashed, true);
+  assert.equal(G.kinds.ask.k, 'human');
+});
