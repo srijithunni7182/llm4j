@@ -324,4 +324,71 @@ class A2AServerWireTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("skill");
     }
+
+    // ---- optional operations this agent does not offer (spec 3.3.4), found by the TCK
+
+    @ParameterizedTest
+    @CsvSource({
+        "SendStreamingMessage, UnsupportedOperation",
+        "SubscribeToTask, UnsupportedOperation",
+        "GetExtendedAgentCard, UnsupportedOperation",
+        "CreateTaskPushNotificationConfig, PushNotificationNotSupported",
+        "GetTaskPushNotificationConfig, PushNotificationNotSupported",
+        "ListTaskPushNotificationConfigs, PushNotificationNotSupported",
+        "DeleteTaskPushNotificationConfig, PushNotificationNotSupported",
+        "Frobnicate, MethodNotFound"
+    })
+    void anOptionalOperationAnAgentDoesNotOfferGetsItsOwnErrorAndAnUnknownOneIsNotFound(
+            String method, String error) {
+        String request = "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"" + method + "\",\"params\":{}}";
+
+        assertThatThrownBy(() -> A2AJsonRpc10.parseRequest(request))
+                .isInstanceOf(A2AException.class)
+                .satisfies(e -> assertThat(e.getClass().getSimpleName()).isEqualTo(error));
+    }
+
+    @Test
+    void pushNotificationsNotSupportedIsCode32003WithItsReason() throws Exception {
+        var json = JSON.readTree(A2AJsonRpc10.writeError(id(4), new A2AException.PushNotificationNotSupported()));
+
+        assertThat(json.get("error").get("code").asInt()).isEqualTo(-32003);
+        assertThat(json.get("error").get("data").get(0).get("reason").asText()).isEqualTo("PUSH_NOTIFICATION_NOT_SUPPORTED");
+        assertThat(json.get("id").asInt()).isEqualTo(4);
+    }
+
+    // ---- the id of a request that could not be parsed (an error must still answer the right request)
+
+    @Test
+    void theIdOfARequestIsReadEvenWhenTheRestOfItCannotBeParsed() {
+        assertThat(A2AJsonRpc10.idOf("{\"jsonrpc\":\"2.0\",\"id\":42,\"method\":\"Frobnicate\"}").asInt()).isEqualTo(42);
+        assertThat(A2AJsonRpc10.idOf("{\"id\":\"req-7\",\"method\":1}").asText()).isEqualTo("req-7");
+        assertThat(A2AJsonRpc10.idOf("{\"method\":\"SendMessage\"}").isNull()).isTrue();
+        assertThat(A2AJsonRpc10.idOf("not json").isNull()).isTrue();
+        assertThat(A2AJsonRpc10.idOf("[1,2]").isNull()).isTrue();
+    }
+
+    // ---- the version a client asks for (spec 3.6.2): matching Major.Minor, or a refusal
+
+    @ParameterizedTest
+    @CsvSource({"1.0", "1.0.1", "1.0.0-rc1"})
+    void aRequestForVersionOnePointZeroIsAccepted(String version) {
+        A2AJsonRpc10.requireSupportedVersion(version);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"99.0", "0.3", "1.1", "2.0", "1", "abc"})
+    void anyOtherVersionIsRefusedWithVersionNotSupported(String version) {
+        assertThatThrownBy(() -> A2AJsonRpc10.requireSupportedVersion(version))
+                .isInstanceOf(A2AException.VersionNotSupported.class)
+                .hasMessageContaining(version);
+    }
+
+    @Test
+    void noVersionAtAllMeansZeroPointThreeWhichThisHelperDoesNotSpeak() {
+        assertThatThrownBy(() -> A2AJsonRpc10.requireSupportedVersion(null))
+                .isInstanceOf(A2AException.VersionNotSupported.class)
+                .hasMessageContaining("0.3");
+        assertThatThrownBy(() -> A2AJsonRpc10.requireSupportedVersion("  "))
+                .isInstanceOf(A2AException.VersionNotSupported.class);
+    }
 }

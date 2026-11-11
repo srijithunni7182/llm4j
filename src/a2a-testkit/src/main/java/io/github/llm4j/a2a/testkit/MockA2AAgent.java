@@ -401,7 +401,8 @@ public final class MockA2AAgent implements AutoCloseable {
 
     private ObjectNode handle(JsonNode id, String method, JsonNode params, Map<String, String> headers, String scope) {
         String version = headers.getOrDefault("a2a-version", "");
-        if (!version.equals("1.0")) {
+        // the version is matched on major and minor (spec 3.6.2): 1.0.1 is the same version as 1.0
+        if (!(version.equals("1.0") || version.startsWith("1.0."))) {
             return error(id, -32009, "Unsupported A2A version '" + version + "'; this agent speaks 1.0", "VERSION_NOT_SUPPORTED", Map.of());
         }
         if (requiredExtension != null
@@ -423,7 +424,7 @@ public final class MockA2AAgent implements AutoCloseable {
                         "ListTaskPushNotificationConfigs", "DeleteTaskPushNotificationConfig" ->
                         error(id, -32003, "Push notifications are not supported", "PUSH_NOTIFICATION_NOT_SUPPORTED", Map.of());
                 case "GetExtendedAgentCard" ->
-                        error(id, -32007, "No extended card is configured", "EXTENDED_AGENT_CARD_NOT_CONFIGURED", Map.of());
+                        error(id, -32004, "An extended agent card is not offered", "UNSUPPORTED_OPERATION", Map.of());
                 default -> error(id, -32601, "Method not found", "METHOD_NOT_FOUND", Map.of());
             };
         }

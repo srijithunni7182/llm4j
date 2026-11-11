@@ -43,6 +43,8 @@ public final class SpecRules {
                     new Rule("version-header-required", "3.6.2", "MUST", "Agents MUST process requests using the requested A2A-Version and return VersionNotSupportedError if unsupported; an empty value means 0.3"),
                     new Rule("required-extension", "3.3.4", "MUST", "An agent errors when a client does not support an extension the card marks required"),
                     new Rule("streaming-unsupported", "3.3.4", "MUST", "If capabilities.streaming is false, SendStreamingMessage and SubscribeToTask MUST return UnsupportedOperationError"),
+                    new Rule("push-unsupported", "3.3.4", "MUST", "If capabilities.pushNotifications is false, the operations that configure push notifications (Create, Get, List, Delete) MUST return PushNotificationNotSupportedError"),
+                    new Rule("extended-card-unsupported", "3.3.4", "MUST", "If capabilities.extendedAgentCard is false or not present, GetExtendedAgentCard MUST return UnsupportedOperationError"),
                     new Rule("error-info", "9.5", "MUST", "A2A-specific errors MUST include a google.rpc.ErrorInfo in the data array with reason and domain a2a-protocol.org"),
                     new Rule("required-fields", "5.7", "SHOULD", "Implementations SHOULD validate REQUIRED fields and reject messages missing them"),
                     new Rule("send-may-dedupe", "3.3.1", "MAY", "Send Message operations MAY be idempotent; agents may use the messageId to detect duplicates"),

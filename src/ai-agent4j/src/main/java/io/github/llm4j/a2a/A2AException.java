@@ -57,6 +57,14 @@ public class A2AException extends LLMException {
         }
     }
 
+    /** Push notifications are not offered: the operations that configure them cannot be used. */
+    public static final class PushNotificationNotSupported extends A2AException {
+        /** Says that this agent offers no push notifications. */
+        public PushNotificationNotSupported() {
+            super("push notifications are not supported by this agent");
+        }
+    }
+
     /** The remote does not support a content type that was sent. */
     public static final class ContentTypeNotSupported extends A2AException {
         /**

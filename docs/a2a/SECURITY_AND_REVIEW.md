@@ -41,7 +41,7 @@ The reliability lens counts every `delegate` to a remote as able to act, because
 - Whether a remote agent is who its card says it is. llm4j refuses a card that points at another host and one that needs an extension you did not enable, but it does no cryptography: **signing and verifying cards is yours.**
 - Whether a caller may call at all. Authentication and the scope key belong to the host that serves the endpoint; llm4j only makes sure one scope never sees another's tasks.
 - What a remote does with what you send, and what a caller does with what you return.
-- Anything about a remote agent from a third party: the checks above ran against llm4j's own mock agent, not against another implementation.
+- Anything about a remote agent you will really call. The checks above ran against llm4j's own mock agent; llm4j's calls and its server were also checked once against the Python SDK's helloworld agent and the A2A project's compatibility kit (JSON-RPC, loopback), which says nothing about your remote.
 
 ## Next
 
