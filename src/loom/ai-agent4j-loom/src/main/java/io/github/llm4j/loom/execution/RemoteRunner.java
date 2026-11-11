@@ -405,7 +405,7 @@ final class RemoteRunner {
     }
 
     private void fail(DelegateStmt stmt, String stepId, String message, Throwable cause, int attempts, boolean record) {
-        executor.traceFailure("delegate", stmt.getTargetAgent(), message, cause, null, attempts, !stmt.getOnFailure().isEmpty());
+        executor.traceFailure("remote", stmt.getTargetAgent(), message, cause, null, attempts, !stmt.getOnFailure().isEmpty());
         if (stmt.getOnFailure().isEmpty())
             throw new RuntimeException("delegate " + stmt.getTargetAgent() + " failed: " + message, cause);
         if (record) executor.journal().put(stepId, new RunJournal.Entry("remote_failed", message));

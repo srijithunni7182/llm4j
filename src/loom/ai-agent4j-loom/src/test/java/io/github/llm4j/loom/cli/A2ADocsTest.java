@@ -154,6 +154,8 @@ class A2ADocsTest {
             assertThat(reference).as(setting).contains(setting);
         assertThat(reference).contains("`" + TraceEvent.REMOTE + "`").contains("`" + TraceEvent.EXCHANGE + "`");
         assertThat(reference).contains("| 3 |").contains("1h");
+        assertThat(read(A2A.resolve("LOOM.md"))).contains("remotes:").contains("channels:").contains("virtual time");
+        assertThat(read(Path.of("LOOM_GUIDE.md"))).contains("`remotes:`, `channels:`");
     }
 
     @Test

@@ -65,6 +65,33 @@ remoteTasks.taskChanged(runId, taskId);
 
 `transport` and `channel` are the consumer's own implementations: see [What you provide](INTEGRATING.md).
 
+## Testing it offline
+
+`weave test` scripts a remote agent and a channel in a test file, so a workflow that calls one is tested with no network and no remote. A remote is scripted one step per look at the task, and a channel answers in order:
+
+```yaml
+script: ../main.loom
+workflow: Buy
+cases:
+  - name: the supplier asks a question and then quotes
+    input: { part: bolt }
+    remotes:
+      Supplier:
+        - { state: working }
+        - { state: input_required, question: "Which date?" }
+        - { state: working }
+        - { state: completed, text: "42 each, 30 days" }
+    channels:
+      SupplierDesk:
+        - "Within 30 days."
+    expect:
+      result: "42 each, 30 days"
+      asked: [ "Which date?" ]
+      route: [ "remote Supplier" ]
+```
+
+The other states are `auth_required` (with an `explanation`), `failed`, `rejected` and `canceled` (with a `message`); a completed step may carry `data` and `files: [ { link, name, type } ]`; `{ reply: "…" }` is a plain message and no task. The last step repeats, so a remote that stays `working` fails the step at its `timeout`, in virtual time. A channel answer may also be `{ refuse: "…" }` or, for a file or link, `{ ignore: true }`. A remote or channel the case did not script fails the case: nothing is guessed. The remote's step counts in `--coverage` like any other.
+
 ## Never sent twice
 
 The message id and the time are journaled before the send. If the process dies after the send, the run does not send again: it asks the remote for its recent tasks and looks for one whose history holds that id. If it finds the task it carries on; if it cannot tell, the step stops with a message. `retry` is used only after a definite failure, never after an unknown outcome.

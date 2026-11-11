@@ -141,6 +141,12 @@ final class Recorder implements TraceListener {
             case TraceEvent.DELEGATE_START -> "delegate " + e.agent();
             case TraceEvent.CLASSIFY -> "classify " + e.data().get("classifier");
             case TraceEvent.TASK_START -> "run " + taskName(e);
+            case TraceEvent.REMOTE -> "send".equals(String.valueOf(e.data().get("kind")))
+                    ? "remote " + e.data().get("remote")
+                    : null;
+            case TraceEvent.EXCHANGE -> "ask".equals(String.valueOf(e.data().get("kind")))
+                    ? "ask " + e.data().get("channel")
+                    : null;
             case TraceEvent.NOTE -> "note";
             case TraceEvent.CHECKPOINT -> "checkpoint " + e.data().getOrDefault("name", "");
             case TraceEvent.REWIND -> "rewind";

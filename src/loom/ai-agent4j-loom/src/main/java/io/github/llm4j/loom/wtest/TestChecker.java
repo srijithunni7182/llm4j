@@ -47,7 +47,9 @@ public final class TestChecker {
                     "clock",
                     "usage",
                     "steer",
-                    "stop");
+                    "stop",
+                    "remotes",
+                    "channels");
 
     /** The keys of {@code expect}. */
     static final List<String> EXPECT_KEYS =
@@ -83,6 +85,8 @@ public final class TestChecker {
     private final Set<String> classifiers = new LinkedHashSet<>();
     private final Set<String> extractors = new LinkedHashSet<>();
     private final Set<String> evaluators = new LinkedHashSet<>();
+    private final Set<String> remotes = new LinkedHashSet<>();
+    private final Set<String> channelNames = new LinkedHashSet<>();
     private final Set<String> tools = new LinkedHashSet<>();
     private final Set<String> tasks = new LinkedHashSet<>();
     private final Set<String> steps;
@@ -94,6 +98,8 @@ public final class TestChecker {
         script.getIntentClassifiers().forEach(c -> classifiers.add(c.getName()));
         script.getExtractors().forEach(x -> extractors.add(x.getName()));
         script.getEvaluators().forEach(x -> evaluators.add(x.getName()));
+        script.getRemotes().forEach(r -> remotes.add(r.getName()));
+        script.getAgentChannels().forEach(ch -> channelNames.add(ch.getName()));
         script.getTools().forEach(t -> tools.add(t.getName()));
         for (AgentDef a : script.getAgents()) tools.addAll(a.getTools());
         for (WorkflowDef w : script.getWorkflows())
@@ -212,6 +218,7 @@ public final class TestChecker {
         }
         scripts(c, "tools", tools, problems);
         scripts(c, "tasks", tasks, problems);
+        a2a(c, problems);
         real(c, problems);
         fail(c, problems);
         for (String key : List.of("humans", "resume"))
@@ -578,7 +585,7 @@ public final class TestChecker {
             else
                 for (JsonNode r : expect.get("ran"))
                     if (!r.asText()
-                            .matches("on_failure of (delegate|classify|intentclassify|task) \\S+"))
+                            .matches("on_failure of (delegate|classify|intentclassify|task|remote|ask) \\S+"))
                         problems.add(
                                 where(c)
                                         + "expect.ran: '"
@@ -645,6 +652,59 @@ public final class TestChecker {
         return "the script has "
                 + workflowNames()
                 + "; name one with workflow: in the file or the case";
+    }
+
+    /** {@code remotes:} and {@code channels:}: names the script declares, steps and answers that make sense. */
+    private void a2a(TestFile.Case c, List<String> problems) {
+        JsonNode remoteScripts = c.get("remotes");
+        if (remoteScripts != null) {
+            if (!remoteScripts.isObject())
+                problems.add(where(c) + "remotes: a map of remote names to a list of steps");
+            else
+                for (Iterator<String> it = remoteScripts.fieldNames(); it.hasNext(); ) {
+                    String name = it.next();
+                    if (!remotes.contains(name)) {
+                        problems.add(where(c) + "remotes: '" + name + "' is not a remote of the script" + Suggest.hint(name, remotes));
+                        continue;
+                    }
+                    JsonNode steps = remoteScripts.get(name);
+                    if (!steps.isArray() || steps.isEmpty()) {
+                        problems.add(where(c) + "remotes." + name + ": a list of steps, such as [ { state: completed, text: \"…\" } ]");
+                        continue;
+                    }
+                    for (int i = 0; i < steps.size(); i++) remoteStep(c, name, i, steps.get(i), problems);
+                }
+        }
+        JsonNode channelScripts = c.get("channels");
+        if (channelScripts != null) {
+            if (!channelScripts.isObject())
+                problems.add(where(c) + "channels: a map of agent_channel names to a list of answers");
+            else
+                for (Iterator<String> it = channelScripts.fieldNames(); it.hasNext(); ) {
+                    String name = it.next();
+                    if (!channelNames.contains(name))
+                        problems.add(where(c) + "channels: '" + name + "' is not an agent_channel of the script" + Suggest.hint(name, channelNames));
+                    else if (!channelScripts.get(name).isArray())
+                        problems.add(where(c) + "channels." + name + ": a list of answers, in the order they are asked");
+                }
+        }
+    }
+
+    private void remoteStep(TestFile.Case c, String name, int i, JsonNode step, List<String> problems) {
+        String at = where(c) + "remotes." + name + "[" + (i + 1) + "]: ";
+        if (!step.isObject()) {
+            problems.add(at + "a step is a map such as { state: working }");
+        } else if (step.has("reply")) {
+            if (i != 0) problems.add(at + "a plain reply must be the only first step: it ends the call with no task");
+        } else {
+            String state = step.path("state").asText("");
+            if (!ScriptedRemotes.STATES.contains(state))
+                problems.add(at + "state '" + state + "' is not one of " + String.join(", ", ScriptedRemotes.STATES) + Suggest.hint(state, ScriptedRemotes.STATES));
+            else if (state.equals("input_required") && !step.has("question"))
+                problems.add(at + "input_required needs the question the remote asks: question: \"…\"");
+            else if (state.equals("auth_required") && !step.has("explanation") && !step.has("question"))
+                problems.add(at + "auth_required needs the explanation the remote gives: explanation: \"…\"");
+        }
     }
 
     private static Set<String> union(Set<String> a, Set<String> b) {
