@@ -1,0 +1,5 @@
+{
+  "complete": { "steps": [ { "state": "working" }, { "state": "completed", "text": "42 each" } ], "channelReply": "Within 30 days." },
+  "question": { "steps": [ { "state": "working" }, { "state": "input_required", "text": "Which date?" }, { "state": "working" }, { "state": "completed", "text": "42 each" } ], "channelReply": "Within 30 days." },
+  "card_elsewhere": { "mode": "card_elsewhere", "steps": [] }
+}

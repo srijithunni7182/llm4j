@@ -21,7 +21,7 @@ function expand(body: string[]): string {
 }
 
 // Statement-level snippets go inside a workflow; the rest are whole top-level definitions.
-const TOP = new Set(['extractor', 'evaluator', 'intentclassifier', 'agent', 'agent-private', 'agent-steerable', 'agent-grounded', 'intervention', 'supervise', 'workflow', 'budget', 'tool', 'tool-class', 'import']);
+const TOP = new Set(['extractor', 'evaluator', 'intentclassifier', 'agent', 'agent-private', 'agent-steerable', 'agent-grounded', 'intervention', 'supervise', 'workflow', 'budget', 'tool', 'tool-class', 'import', 'remote', 'agent-channel']);
 // Not checkable on their own: a task is Java (graph only), an import needs a file.
 // halt and return end the path (the frame's own statements after them would never run), and `is ok` needs a real run result.
 const PARSE_ONLY = new Set(['agent-grounded', 'run', 'halt', 'return', 'isok']);
@@ -56,6 +56,11 @@ function frame(name: string, text: string): string {
     if (name === 'for-each-max') {
         return PRELUDE + 'extractor Plan {\n    model: "ollama/llama3"\n    fields {\n        items: list<{ name: string }>\n    }\n}\nworkflow Main(topic_text) {\n    extract Plan from topic_text -> plan\n' +
             text.split('\n').map((l) => '    ' + l).join('\n') + '\n}\n';
+    }
+    if (name === 'ask') {
+        // needs an agent channel declared above it
+        return PRELUDE + 'agent_channel SupplierDesk { audience: staff }\nworkflow Main(topic_text) {\n' +
+            text.split('\n').map((l) => '    ' + l).join('\n') + '\n    note "{currency_text.currency}"\n}\n';
     }
     if (name === 'extract') {
         // a statement that needs an extractor declared above it

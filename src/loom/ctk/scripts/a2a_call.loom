@@ -1,0 +1,17 @@
+// A call to a remote agent over A2A, and a channel for its questions.
+// The scenario: the remote answers, or asks a question first, or its card names another host.
+agent_channel Desk {
+    audience: staff
+    max_questions: 3
+    timeout: 5m
+}
+
+remote Supplier {
+    card: "https://agent.example.test/.well-known/agent-card.json"
+    agent_channel: Desk
+    timeout: 2h
+}
+
+workflow main(part) {
+    delegate "Quote 500 units of {part}" to Supplier -> quote
+}
