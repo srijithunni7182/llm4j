@@ -24,6 +24,10 @@
 | [Sarvam](../src/ai-agent4j/docs/SARVAM.md) · [Ollama](../src/ai-agent4j/docs/OLLAMA.md) | | |
 
 > [!TIP]
+> **[Quickstart: the CLI, VS Code, a generated workflow, your first agent in Java](QUICKSTART.md)**
+>
+> **[Security audit: finding the hole before an attacker does](SECURITY_AUDIT.md)**
+>
 > **[llm4j at a glance: the whole stack, skills, security and examples](OVERVIEW.md)**
 >
 > **[About llm4j: mission, stats and history](ABOUT.md)**
