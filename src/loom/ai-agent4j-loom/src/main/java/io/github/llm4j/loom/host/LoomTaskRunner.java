@@ -78,7 +78,32 @@ public final class LoomTaskRunner implements TaskRunner {
     private final Map<String, String> answers = new ConcurrentHashMap<>();
     private final Map<String, LoomRun> live = new ConcurrentHashMap<>();
     private final Map<String, String> scopes = new ConcurrentHashMap<>();
+    private final java.util.List<java.util.function.Consumer<ServedEvent>> listeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private volatile LoomHost host;
+
+    /**
+     * What happened to a served task, for the consumer's own observability. It carries the task id,
+     * the kind of event and the state, never the caller's scope or any text from either side.
+     *
+     * @param kind {@code received}, {@code state}, {@code answered} or {@code cancelled}
+     * @param taskId the task
+     * @param state the task's state after the event
+     */
+    public record ServedEvent(String kind, String taskId, String state) {}
+
+    /**
+     * Calls the listener for every event of a served task.
+     *
+     * @param listener what to call; it must not block
+     */
+    public void onEvent(java.util.function.Consumer<ServedEvent> listener) {
+        listeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    private void emit(String kind, String taskId, TaskState state) {
+        ServedEvent event = new ServedEvent(kind, taskId, state.name());
+        for (var listener : listeners) listener.accept(event);
+    }
 
     /**
      * Creates the runner for one {@code expose} block.
@@ -223,6 +248,7 @@ public final class LoomTaskRunner implements TaskRunner {
         String runId = "a2a-" + UUID.randomUUID();
         String context = contextId == null || contextId.isBlank() ? "ctx-" + UUID.randomUUID() : contextId;
         save(scope, RemoteTask.of(runId, context, TaskState.WORKING));
+        emit("received", runId, TaskState.WORKING);
         settled.put(runId, new CompletableFuture<>());
         try {
             live.put(runId, running.start(RunRequest.of(workflow.getName(), inputs).withRunId(runId).from(ORIGIN + ":" + scope)));
@@ -255,6 +281,7 @@ public final class LoomTaskRunner implements TaskRunner {
         pendingQuestions.remove(taskId);
         OwnedTask working = save(scope, RemoteTask.of(taskId, owned.task().contextId(), TaskState.WORKING));
         settled.put(taskId, new CompletableFuture<>());
+        emit("answered", taskId, TaskState.WORKING);
         try {
             live.put(taskId, resumeWhenReleased(taskId));
         } catch (A2AException notResumed) {
@@ -296,6 +323,7 @@ public final class LoomTaskRunner implements TaskRunner {
         pendingQuestions.remove(taskId);
         answers.remove(taskId);
         finish(taskId, TaskState.CANCELED, null, null);
+        emit("cancelled", taskId, TaskState.CANCELED);
         return store.find(scope, taskId).orElseThrow();
     }
 
@@ -361,6 +389,7 @@ public final class LoomTaskRunner implements TaskRunner {
                             A2AMessage status = A2AMessage.agent("q-" + UUID.randomUUID(), List.of(new Part.Text(question)));
                             OwnedTask updated =
                                     save(owned.scope(), new RemoteTask(task.id(), task.contextId(), TaskState.INPUT_REQUIRED, status, task.artifacts(), List.of()));
+                            emit("state", taskId, TaskState.INPUT_REQUIRED);
                             complete(taskId, updated);
                         });
     }
@@ -379,6 +408,7 @@ public final class LoomTaskRunner implements TaskRunner {
                                             : A2AMessage.agent("f-" + UUID.randomUUID(), List.of(new Part.Text(failureText)));
                             OwnedTask updated = save(owned.scope(), new RemoteTask(task.id(), task.contextId(), state, status, artifacts, List.of()));
                             live.remove(taskId);
+                            emit("state", taskId, state);
                             complete(taskId, updated);
                         });
     }

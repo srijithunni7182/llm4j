@@ -145,7 +145,8 @@
         "line": { "type": "integer", "minimum": 1 },
         "params": { "type": "array", "items": { "type": "string" } },
         "nodes": { "type": "array", "items": { "$ref": "#/$defs/node" } },
-        "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } }
+        "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } },
+        "exposedAs": { "type": "array", "items": { "type": "string" } }
       }
     },
     "node": {

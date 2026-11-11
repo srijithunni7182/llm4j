@@ -324,4 +324,34 @@ class LoomTaskRunnerTest {
         assertThatThrownBy(() -> runner.start("alice", json("[\"lunch\"]"), null)).isInstanceOf(A2AException.InvalidParams.class).hasMessageContaining("JSON object");
         assertThat(host.runs()).isEmpty();
     }
+
+    @Test
+    void whatHappensToATaskIsReportedWithoutTheCallerOrAnyText() throws Exception {
+        LoomTaskRunner runner = runnerFor("Pay", "receipt", "1k");
+        List<LoomTaskRunner.ServedEvent> events = new java.util.concurrent.CopyOnWriteArrayList<>();
+        runner.onEvent(events::add);
+
+        OwnedTask started = runner.start("alice", text("lunch SECRET-CANARY"), null);
+        settle(runner, started);
+        runner.answer("alice", started.task().id(), text("EUR SECRET-CANARY"));
+        settle(runner, store.find("alice", started.task().id()).orElseThrow());
+
+        assertThat(events.stream().map(LoomTaskRunner.ServedEvent::kind))
+                .containsSubsequence("received", "state", "answered", "state");
+        assertThat(events.stream().map(LoomTaskRunner.ServedEvent::state)).contains("INPUT_REQUIRED", "COMPLETED");
+        assertThat(String.valueOf(events)).doesNotContain("alice").doesNotContain("SECRET-CANARY").doesNotContain("lunch");
+    }
+
+    @Test
+    void aCancelIsReported() throws Exception {
+        LoomTaskRunner runner = runnerFor("Pay", "receipt", "1k");
+        List<LoomTaskRunner.ServedEvent> events = new java.util.concurrent.CopyOnWriteArrayList<>();
+        runner.onEvent(events::add);
+        OwnedTask started = runner.start("alice", text("lunch"), null);
+        settle(runner, started);
+
+        runner.cancel("alice", started.task().id());
+
+        assertThat(events.stream().map(LoomTaskRunner.ServedEvent::kind)).contains("cancelled");
+    }
 }

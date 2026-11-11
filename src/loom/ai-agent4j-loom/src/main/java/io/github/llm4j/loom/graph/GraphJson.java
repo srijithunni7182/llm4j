@@ -76,6 +76,9 @@ public final class GraphJson {
         out.put("params", graph.params());
         out.put("nodes", graph.nodes().stream().map(GraphJson::node).toList());
         out.put("edges", graph.edges().stream().map(GraphJson::edge).toList());
+        if (!graph.exposedAs().isEmpty()) {
+            out.put("exposedAs", graph.exposedAs());
+        }
         return out;
     }
 

@@ -39,6 +39,7 @@ import java.util.Set;
  */
 public final class GraphBuilder {
 
+    private final A2AInfo a2a;
     private final NodeDescriber describer;
 
     /**
@@ -78,6 +79,7 @@ public final class GraphBuilder {
             Map<String, String> decisionLevels,
             Map<String, ClassifierInfo> classifiers,
             A2AInfo a2a) {
+        this.a2a = a2a;
         this.describer = new NodeDescriber(decisionLevels, classifiers, a2a);
     }
 
@@ -87,10 +89,19 @@ public final class GraphBuilder {
      *
      * @param remotes remote name to what to show
      * @param audiences channel name to its audience
+     * @param exposed workflow name to the names of the {@code expose} blocks that serve it
      */
-    public record A2AInfo(Map<String, RemoteInfo> remotes, Map<String, String> audiences) {
-        /** No remote agents and no channels. */
-        public static final A2AInfo NONE = new A2AInfo(Map.of(), Map.of());
+    public record A2AInfo(
+            Map<String, RemoteInfo> remotes,
+            Map<String, String> audiences,
+            Map<String, List<String>> exposed) {
+        /** No remote agents, no channels, nothing exposed. */
+        public static final A2AInfo NONE = new A2AInfo(Map.of(), Map.of(), Map.of());
+
+        /** Remote agents and channels, with nothing exposed. */
+        public A2AInfo(Map<String, RemoteInfo> remotes, Map<String, String> audiences) {
+            this(remotes, audiences, Map.of());
+        }
     }
 
     /**
@@ -106,7 +117,10 @@ public final class GraphBuilder {
     public static A2AInfo a2aOf(List<io.github.llm4j.loom.ast.LoomScript> scripts) {
         Map<String, RemoteInfo> remotes = new java.util.LinkedHashMap<>();
         Map<String, String> audiences = new java.util.LinkedHashMap<>();
+        Map<String, List<String>> exposed = new java.util.LinkedHashMap<>();
         for (io.github.llm4j.loom.ast.LoomScript s : scripts) {
+            for (io.github.llm4j.loom.ast.ExposeDef e : s.getExposes())
+                if (e.get("workflow") != null) exposed.computeIfAbsent(e.get("workflow"), k -> new ArrayList<>()).add(e.getName());
             for (io.github.llm4j.loom.ast.AgentChannelDef c : s.getAgentChannels())
                 audiences.putIfAbsent(c.getName(), c.get("audience", ""));
             for (io.github.llm4j.loom.ast.RemoteDef r : s.getRemotes()) {
@@ -119,7 +133,7 @@ public final class GraphBuilder {
                 remotes.putIfAbsent(r.getName(), new RemoteInfo(host == null ? "" : host, r.get("agent_channel", ""), r.get("timeout")));
             }
         }
-        return new A2AInfo(remotes, audiences);
+        return new A2AInfo(remotes, audiences, exposed);
     }
 
     /**
@@ -240,7 +254,8 @@ public final class GraphBuilder {
                     workflow.getLine(),
                     workflow.getParameters(),
                     nodes,
-                    new ArrayList<>(new LinkedHashSet<>(expanded)));
+                    new ArrayList<>(new LinkedHashSet<>(expanded)),
+                    a2a.exposed().getOrDefault(workflow.getName(), List.of()));
         }
 
         /**
