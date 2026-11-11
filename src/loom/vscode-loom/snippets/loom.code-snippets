@@ -337,10 +337,11 @@
       "remote ${1:Supplier} {",
       "\tcard: \"${2:https://supplier.example.com/.well-known/agent-card.json}\"",
       "\tauth: secret.${3:SUPPLIER_KEY}",
-      "\ttimeout: ${4:2h}",
+      "\tagent_channel: ${4:SupplierDesk}",
+      "\ttimeout: ${5:2h}",
       "}"
     ],
-    "description": "A remote agent reached over A2A: its card address, the secret that opens it and how long to wait. Use it as the target of a delegate."
+    "description": "A remote agent reached over A2A: its card address, the secret that opens it, the agent channel that answers its questions and how long to wait. Use it as the target of a delegate."
   },
   "agent-channel": {
     "prefix": "agent-channel",
