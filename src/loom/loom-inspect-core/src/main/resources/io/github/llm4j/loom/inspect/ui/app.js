@@ -415,7 +415,7 @@
   var lastScroll = null;
 
   var KINDS = { PAUSED: 'Paused', LOOPING: 'Looping', SUSPECT_OUTPUT: 'Suspect output', FAILED: 'Failing', BUDGET: 'Budget', CONTEXT: 'Context', TRUNCATED: 'Truncated answer',
-    THRASH: 'Compaction thrash', TOOL_RATE: 'Tool success rate', SPIKE: 'Latency spike', BROKEN: 'Broken', DIVERTED: 'Diverted', FANOUT: 'Plan over its bound', TRIFECTA: 'Lethal trifecta', INJECTION: 'Injection', ACCESS: 'Access' };
+    THRASH: 'Compaction thrash', TOOL_RATE: 'Tool success rate', SPIKE: 'Latency spike', BROKEN: 'Broken', DIVERTED: 'Diverted', FANOUT: 'Plan over its bound', REMOTE: 'Remote agent failed', TRIFECTA: 'Lethal trifecta', INJECTION: 'Injection', ACCESS: 'Access' };
   var SECURITY_KINDS = { TRIFECTA: true, INJECTION: true, ACCESS: true };
   var SEV = { high: 'High', warn: 'Warning', info: 'Info' };
 

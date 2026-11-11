@@ -355,6 +355,8 @@ Incident { id, runId, agent, kind: PAUSED|LOOPING|SUSPECT_OUTPUT|FAILED|BUDGET,
            actions: [pause, suspend, stop] }
 ```
 
+**Remote agents (phase 32).** A call to a remote agent is one `loom.remote` span (its id comes from the run and the step, so it survives a resume). A call that failed, ran past its `timeout` or spent a channel's question limit raises the `REMOTE` incident, with the remote's name, the step and the attempts and nothing the remote said. Fabric shows these as it shows every record: names and counts, escaped by the page.
+
 Detectors are pure functions over the event stream and `RunState`, so they are tested by replaying a recorded event list. An incident opens when a rule fires and closes when its condition clears or the step ends. Hallucination incidents are labelled "suspect", carry the list of signals that fired, and are never auto-closed by the tool as "resolved".
 
 ## 7. HTTP API

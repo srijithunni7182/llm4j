@@ -94,7 +94,7 @@ fields they do not know.
 
 ## OpenTelemetry records
 
-Spans (kind `loom.span.kind`: `workflow`, `agent`, `tool`, `task`, `sleep`) and log records, with the
+Spans (kind `loom.span.kind`: `workflow`, `agent`, `tool`, `task`, `sleep`, `remote`) and log records, with the
 [GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) where they fit.
 
 | Attribute | Meaning |
@@ -103,6 +103,7 @@ Spans (kind `loom.span.kind`: `workflow`, `agent`, `tool`, `task`, `sleep`) and 
 | `gen_ai.operation.name` (`invoke_agent`, `execute_tool`), `gen_ai.agent.name`, `gen_ai.tool.name`, `gen_ai.request.model` | what ran |
 | `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `loom.usage.total_tokens`, `loom.usage.calls`, `loom.cost.usd` | what it cost |
 | `loom.run.id`, `loom.workflow`, `loom.step`, `loom.seq`, `loom.run.resumed` | where in the run; `loom.seq` is per instance and makes repeats ignorable and gaps countable |
+| `loom.remote`, `loom.remote.task` | the remote agent's name and its task id on a `loom.remote` span (the span id comes from the run and the step, so it survives a resume) |
 | `loom.run.status`, `loom.suspend.reason`, `loom.resume_at`, `loom.sleep.wake_at` | end state, suspension, sleeps |
 | `loom.action.hash`, `loom.output.hash`, `loom.grounding.figures`, `loom.grounding.ungrounded`, `loom.grounding.examples` | the in-process signals the incident rules use |
 | `loom.control.action`, `loom.control.state`, `loom.control.by` | operator controls |
