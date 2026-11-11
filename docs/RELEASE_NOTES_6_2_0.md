@@ -2,6 +2,31 @@
 
 All eleven artifacts are at `6.2.0`, aligned ([VERSION_MATRIX.md](VERSION_MATRIX.md)). This release is the field findings program ([docs/specs/FIELD_FINDINGS.md](specs/FIELD_FINDINGS.md)), a Loom tutorial and a starter set. Each item says what changed for you.
 
+## A2A in Loom: calling and being called (phases 32c to 32f)
+
+- **`remote`, `agent_channel`, `ask` and `expose`.** A Loom script can call an agent another organisation runs with a plain `delegate`, say who answers its questions, ask a channel a question of its own, and let other agents call one of its workflows. What comes back is untrusted; a send is never repeated by a crash; a call that cannot finish suspends the run and holds no thread. llm4j runs no server, no poller and no authentication: the host supplies the transport, the channels and the endpoint. See [the A2A pages](a2a/README.md).
+- **`weave card`** prints the agent card an `expose` block shows to outsiders, with no network and no model, so a reviewer sees in a diff what a change does to what the world can see.
+- **`LoomTaskRunner`, `RemoteTasks` and `ExposedCard`** (in `io.github.llm4j.loom.host`) serve an `expose` block as A2A tasks over a `LoomHost`, carry a run on when a remote task changes, and build the card.
+- **`weave audit` LA24 to LA27 and a wider LR02.** An exposed workflow counts as reading untrusted content (LA24), a call to a remote is a place data leaves (LA25), an `audience: automatic` channel answers with no person (LA26), and an exposed workflow with no spend cap is high (LA27). The reliability rule LR02 now counts a call to a remote as able to act.
+- **Watching and testing it.** A remote call is one `loom.remote` span with a `Remote agent failed` incident, a run that outsiders started is marked served so the trifecta signal counts its input as untrusted, `weave test` scripts remotes and channels in virtual time, and the graph, symbols, debugger, narration and cost estimate know the new constructs.
+- **The editor and the kit.** VS Code extension 1.4.0 (highlighting, hover and snippets for the new words), compatibility scenarios `a2a_call` and `a2a_expose`, and a compile-only starter, `src/examples/a2a-starter`, for the code around llm4j that you provide.
+- **Not verified against a third-party A2A agent.** Everything was checked against llm4j's own mock agent, whose messages are validated against the official protocol definition.
+
+## A2A: serving an agent from Java (phase 32b)
+
+- **`A2AHandler` lets others call your agent, from any web stack.** You authenticate the caller and pass a scope key; the handler applies the specification's request rules, shows a task only to the scope that created it, never blocks (a send that must wait returns a stage the host completes), and starts nothing. `AgentCardBuilder` makes the card (no streaming, push or extended card unless you say so). `AgentTaskRunner` exposes a plain `ReActAgent` with a per-task agent function, your `TaskStore` and your `Executor`, and refuses to start until you confirm the agents have limits. See [docs/a2a](a2a/JAVA_GUIDE.md).
+
+## A2A: calling a remote agent from Java (phase 32a)
+
+- **`RemoteAgent` calls an agent that someone else runs over the A2A 1.0 protocol.** It checks the card, refuses a card that points at a host you did not declare, offers no supported endpoint, carries a failed signature or requires an extension your transport lacks, and makes one call per operation. It never waits or polls. llm4j runs no server and ships no HTTP client: you implement `A2ATransport` and `AgentChannel`; `A2AJsonRpc10` translates A2A 1.0 over JSON-RPC. Questions, authorization requests and files go through your channel inside limits the runtime enforces, and received files are written safely under `received/` in your media root. Start at [docs/a2a](a2a/README.md). The Loom support (`remote`, `expose`, `agent_channel`, `ask`) and serving an agent come later in phase 32.
+
+## Two new skills, and a lighter workflow-guide skill
+
+- **`llm4j-workflow-patterns`** picks the shape of a workflow from what the person wants to build (eleven patterns) and starts from a tested skeleton: each one is a starter's `main.loom`, compared by a test.
+- **`llm4j-run-debugging`** finds out why a run went wrong, from its journal and with no keys (`weave why`, `whatif`, `step`, `timeline`, `rewind`, `capture`), and fixes it with a test that keeps it fixed.
+- **`llm4j-workflow-guide` is about half the size** (`SKILL.md` went from 9,500 to about 5,000 words): every rule is in short form with a pointer to its full text in the new `references/guiding-rules.md`, which is installed with the skill. It gains a **fast lane** for a quick first version that skips evidence, never safety, and says what was skipped, and it now mentions prompt caching.
+- `weave guide --install-skill` installs six skills; `--skill patterns` and `--skill debug` install the new ones, and `make skill-package` builds their zips.
+
 ## Media in Loom (phase 31e)
 
 - **`attach` sends a picture, recording, video or PDF with a task.** `delegate "What is the total?" to Vision attach image "{receipt}" -> total` (also `broadcast`, `handoff` and `human_prompt`); `extract Receipt from image "{receipt}" -> fields` for an extractor. Files are read only from the folder named by `media_root: "./assets"` (no `media_root`, no files), with `media { max_bytes: 20MB  max_items: 4 }` for limits. `intentclassify` takes no media. **Visible changes:** none for a script that does not use them; `attach`, `media_root`, `media` and `unscanned` are keywords only in the places above, so agents and variables with those names still load. The Loom guide has a section on it: [LOOM_GUIDE.md](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md).

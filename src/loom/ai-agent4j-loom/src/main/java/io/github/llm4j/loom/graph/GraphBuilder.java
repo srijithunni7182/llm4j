@@ -39,6 +39,7 @@ import java.util.Set;
  */
 public final class GraphBuilder {
 
+    private final A2AInfo a2a;
     private final NodeDescriber describer;
 
     /**
@@ -67,7 +68,72 @@ public final class GraphBuilder {
      */
     public GraphBuilder(
             Map<String, String> decisionLevels, Map<String, ClassifierInfo> classifiers) {
-        this.describer = new NodeDescriber(decisionLevels, classifiers);
+        this(decisionLevels, classifiers, A2AInfo.NONE);
+    }
+
+    /**
+     * @param a2a the remote agents and channels a script declares, so a {@code delegate} to a remote
+     *     and an {@code ask} can be drawn as nodes of their own
+     */
+    public GraphBuilder(
+            Map<String, String> decisionLevels,
+            Map<String, ClassifierInfo> classifiers,
+            A2AInfo a2a) {
+        this.a2a = a2a;
+        this.describer = new NodeDescriber(decisionLevels, classifiers, a2a);
+    }
+
+    /**
+     * What the graph shows about the remote agents and channels a script declares. The card is shown
+     * as its host only, and no credential is ever part of it.
+     *
+     * @param remotes remote name to what to show
+     * @param audiences channel name to its audience
+     * @param exposed workflow name to the names of the {@code expose} blocks that serve it
+     */
+    public record A2AInfo(
+            Map<String, RemoteInfo> remotes,
+            Map<String, String> audiences,
+            Map<String, List<String>> exposed) {
+        /** No remote agents, no channels, nothing exposed. */
+        public static final A2AInfo NONE = new A2AInfo(Map.of(), Map.of(), Map.of());
+
+        /** Remote agents and channels, with nothing exposed. */
+        public A2AInfo(Map<String, RemoteInfo> remotes, Map<String, String> audiences) {
+            this(remotes, audiences, Map.of());
+        }
+    }
+
+    /**
+     * One remote agent as drawn.
+     *
+     * @param host the host of its card address
+     * @param channel the channel that answers it
+     * @param timeout the declared deadline, as written, or null
+     */
+    public record RemoteInfo(String host, String channel, String timeout) {}
+
+    /** The remote agents and channels the scripts declare. */
+    public static A2AInfo a2aOf(List<io.github.llm4j.loom.ast.LoomScript> scripts) {
+        Map<String, RemoteInfo> remotes = new java.util.LinkedHashMap<>();
+        Map<String, String> audiences = new java.util.LinkedHashMap<>();
+        Map<String, List<String>> exposed = new java.util.LinkedHashMap<>();
+        for (io.github.llm4j.loom.ast.LoomScript s : scripts) {
+            for (io.github.llm4j.loom.ast.ExposeDef e : s.getExposes())
+                if (e.get("workflow") != null) exposed.computeIfAbsent(e.get("workflow"), k -> new ArrayList<>()).add(e.getName());
+            for (io.github.llm4j.loom.ast.AgentChannelDef c : s.getAgentChannels())
+                audiences.putIfAbsent(c.getName(), c.get("audience", ""));
+            for (io.github.llm4j.loom.ast.RemoteDef r : s.getRemotes()) {
+                String host = "";
+                try {
+                    host = java.net.URI.create(String.valueOf(r.get("card"))).getHost();
+                } catch (IllegalArgumentException notAnAddress) {
+                    // weave check reports it; the graph just shows no host
+                }
+                remotes.putIfAbsent(r.getName(), new RemoteInfo(host == null ? "" : host, r.get("agent_channel", ""), r.get("timeout")));
+            }
+        }
+        return new A2AInfo(remotes, audiences, exposed);
     }
 
     /**
@@ -188,7 +254,8 @@ public final class GraphBuilder {
                     workflow.getLine(),
                     workflow.getParameters(),
                     nodes,
-                    new ArrayList<>(new LinkedHashSet<>(expanded)));
+                    new ArrayList<>(new LinkedHashSet<>(expanded)),
+                    a2a.exposed().getOrDefault(workflow.getName(), List.of()));
         }
 
         /**
@@ -290,6 +357,9 @@ public final class GraphBuilder {
             } else if (statement instanceof io.github.llm4j.loom.ast.IntentClassifyStmt classify) {
                 exits.add(new Exit(id, null));
                 defer(exits, id, "failure", "failure", classify.getOnFailure());
+            } else if (statement instanceof io.github.llm4j.loom.ast.AskStmt ask) {
+                exits.add(new Exit(id, null));
+                defer(exits, id, "failure", "failure", ask.getOnFailure());
             } else if (statement instanceof CheckpointStmt checkpoint) {
                 checkpoints.putIfAbsent(checkpoint.getName(), id);
                 exits.add(new Exit(id, null));

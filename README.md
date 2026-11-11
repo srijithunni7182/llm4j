@@ -119,7 +119,7 @@ ReActAgent support = ReActAgent.builder()
 assertThat(support.run(question)).usesTool("refund").completedSuccessfully();   // eval4j, in plain JUnit
 ```
 
-[Quick Start](src/ai-agent4j/wiki/Getting-Started.md) · [Secret Store](src/ai-agent4j/wiki/Secret-Store.md) · [Security guide](SECURITY.md) · [Examples](docs/EXAMPLES.md) · [Docs index](docs/README.md)
+[Quick Start](src/ai-agent4j/wiki/Getting-Started.md) · [Secret Store](src/ai-agent4j/wiki/Secret-Store.md) · [Security guide](SECURITY.md) · [Examples](docs/EXAMPLES.md) · [A2A](docs/a2a/README.md) · [Docs index](docs/README.md)
 
 > [!TIP]
 > How it compares: [Why teams choose llm4j and Loom](docs/WHY_LLM4J.md) · [vs LangChain4j and Spring AI](src/ai-agent4j/wiki/WHY_AI_AGENT4J.md) · [Loom vs LangGraph](src/loom/ai-agent4j-loom/WHY_LOOM.md) · [eval4j vs deepeval](src/ai-agent4j/wiki/WHY_EVAL4J.md)

@@ -23,6 +23,7 @@ import java.util.function.Function;
 final class SecurityState {
 
     private static final List<String> LEGS = List.of("untrusted", "private", "outward");
+    private static final String SERVED_INPUT = "exposed workflow input";
 
     private record Pending(String source, String groups, long count) {}
 
@@ -63,6 +64,15 @@ final class SecurityState {
     private long piiBlocked;
     private long piiDetected;
     private long bias;
+    private boolean served;
+
+    /**
+     * The run was started by other agents through an {@code expose} block: whatever they wrote is
+     * untrusted input, so every agent counts as having read untrusted content.
+     */
+    void onServedRun() {
+        served = true;
+    }
 
     SecurityState(Incidents incidents, Function<String, Thresholds> thresholds) {
         this.incidents = incidents;
@@ -129,6 +139,10 @@ final class SecurityState {
         }
         a.called.add(tool);
 
+        if (served) {
+            a.used.get("untrusted").add(SERVED_INPUT);
+            a.knownBy.get("untrusted").add(SERVED_INPUT);
+        }
         if (reach != null) {
             for (String leg : reach.split(",")) {
                 if (leg.isBlank() || !a.used.containsKey(leg)) continue;

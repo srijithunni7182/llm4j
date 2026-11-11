@@ -720,6 +720,11 @@ public class HarnessExecutor implements LoomEngine {
     private final ExtractRunner extractRunner = new ExtractRunner(this);
     private final CheckRunner checkRunner = new CheckRunner(this);
     private final UseRunner useRunner = new UseRunner(this);
+    private final RemoteRunner remoteRunner = new RemoteRunner(this);
+    private final AskRunner askRunner = new AskRunner(this);
+    private io.github.llm4j.a2a.A2ATransport a2aTransport;
+    private final Map<String, io.github.llm4j.a2a.AgentChannel> agentChannels =
+            new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * The tasks {@code run} statements can use. Default: every task the class path declares as a
@@ -1779,6 +1784,17 @@ public class HarnessExecutor implements LoomEngine {
         return runId;
     }
 
+    private volatile boolean servedFromOutside;
+
+    /**
+     * Marks this run as started by other agents through an {@code expose} block, so what they wrote
+     * is untrusted input. It only changes what the trace says, which the inspection reads as the
+     * first leg of the lethal trifecta for every agent in the run.
+     */
+    public void setServedFromOutside(boolean served) {
+        this.servedFromOutside = served;
+    }
+
     /**
      * How schedule triggers refer to this script (e.g. its path); part of their ids. Default
      * "script".
@@ -2043,6 +2059,65 @@ public class HarnessExecutor implements LoomEngine {
                 new ProviderSpec(
                         declared.getName(), declared.getKind(), baseUrl, key, ref, options),
                 model.substring(declared.getName().length() + 1));
+    }
+
+    // ── A2A: remote agents and agent channels ───────────────────────────────────────────────
+
+    /**
+     * The transport this run speaks to remote agents through. There is no default: a run that calls a
+     * remote agent without one fails the step with a message that says to supply it.
+     */
+    public void setA2ATransport(io.github.llm4j.a2a.A2ATransport transport) {
+        this.a2aTransport = transport;
+    }
+
+    /** The implementation of the {@code agent_channel} of this name; the host registers it. */
+    public void setAgentChannel(String name, io.github.llm4j.a2a.AgentChannel channel) {
+        agentChannels.put(java.util.Objects.requireNonNull(name, "name"), java.util.Objects.requireNonNull(channel, "channel"));
+    }
+
+    io.github.llm4j.a2a.A2ATransport a2aTransport() {
+        return a2aTransport;
+    }
+
+    io.github.llm4j.a2a.AgentChannel agentChannel(String name) {
+        return agentChannels.get(name);
+    }
+
+    /** The {@code remote} declared under this name, or null. */
+    io.github.llm4j.loom.ast.RemoteDef remoteDef(String name) {
+        if (name == null) return null;
+        for (io.github.llm4j.loom.ast.RemoteDef r : script.getRemotes())
+            if (r.getName().equals(name)) return r;
+        return null;
+    }
+
+    /** The {@code agent_channel} declared under this name, or null. */
+    io.github.llm4j.loom.ast.AgentChannelDef channelDef(String name) {
+        for (io.github.llm4j.loom.ast.AgentChannelDef c : script.getAgentChannels())
+            if (c.getName().equals(name)) return c;
+        return null;
+    }
+
+    /** A reference to the credential a remote's {@code auth} names; never its value. */
+    io.github.llm4j.secret.SecretRef credentialRef(io.github.llm4j.loom.ast.ToolDef.OptionValue auth) {
+        if (auth == null || !auth.isReference()) return null;
+        if (auth.source() == io.github.llm4j.loom.ast.ToolDef.OptionValue.Source.SECRET) {
+            return secretStore == null
+                    ? null
+                    : io.github.llm4j.secret.SecretRef.of(secretStore, auth.value());
+        }
+        return io.github.llm4j.secret.SecretRef.of(
+                io.github.llm4j.secret.EnvSecretStore.of(envLookup), auth.value());
+    }
+
+    /** The folder received files are written under, or null when the script has no media_root. */
+    Path receivedMediaRoot() {
+        return script.getMediaRoot() == null ? null : baseDir().resolve(script.getMediaRoot());
+    }
+
+    String runIdOrDefault() {
+        return runId == null ? sessionId : runId;
     }
 
     /** The key as a reference into the secret store when that is where it lives, else null. */
@@ -2968,6 +3043,7 @@ public class HarnessExecutor implements LoomEngine {
             startData.put("workflow", workflowName);
             if (runId != null) startData.put("run", runId);
             startData.put("resumed", String.valueOf(resumedFromPause));
+            if (servedFromOutside) startData.put("served", "true");
             // the page never reads the dataset itself: the host that ran the check says so here
             if (evaluated != null && !evaluated) startData.put("evaluated", "false");
             trace(TraceEvent.RUN_START, null, "workflow " + workflowName, startData);
@@ -2996,6 +3072,7 @@ public class HarnessExecutor implements LoomEngine {
             throw paused;
         } catch (io.github.llm4j.loom.runtime.RunStopped stopped) {
             ended = "stopped";
+            if (topLevel) remoteRunner.cancelInFlight();
             throw stopped;
         } catch (RuntimeException | Error failure) {
             ended = failure instanceof io.github.llm4j.budget.BudgetExceeded ? "budget" : "failed";
@@ -3226,6 +3303,10 @@ public class HarnessExecutor implements LoomEngine {
             checkRunner.run(check);
         } else if (stmt instanceof io.github.llm4j.loom.ast.UseStmt use) {
             useRunner.run(use);
+        } else if (stmt instanceof DelegateStmt del && remoteDef(del.getTargetAgent()) != null) {
+            remoteRunner.run(del);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.AskStmt ask) {
+            askRunner.run(ask);
         } else if (stmt instanceof DelegateStmt del) {
             delegates.execute(del);
         } else if (stmt instanceof CallStmt call) {

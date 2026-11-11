@@ -330,5 +330,48 @@
       "}"
     ],
     "description": "Run a block for each item of a list a model wrote, failing before any item starts when the list is longer than the bound."
+  },
+  "remote": {
+    "prefix": "remote",
+    "body": [
+      "remote ${1:Supplier} {",
+      "\tcard: \"${2:https://supplier.example.com/.well-known/agent-card.json}\"",
+      "\tauth: secret.${3:SUPPLIER_KEY}",
+      "\tagent_channel: ${4:SupplierDesk}",
+      "\ttimeout: ${5:2h}",
+      "}"
+    ],
+    "description": "A remote agent reached over A2A: its card address, the secret that opens it, the agent channel that answers its questions and how long to wait. Use it as the target of a delegate."
+  },
+  "agent-channel": {
+    "prefix": "agent-channel",
+    "body": [
+      "agent_channel ${1:SupplierDesk} {",
+      "\taudience: ${2|staff,caller,automatic|}",
+      "\tmax_questions: ${3:3}",
+      "\ttimeout: ${4:1h}",
+      "}"
+    ],
+    "description": "Who answers when a remote agent asks a question or needs authorization: a person on staff, the caller, or code. The question limit and the timeout bound the exchange."
+  },
+  "ask": {
+    "prefix": "ask",
+    "body": [
+      "ask ${1:SupplierDesk} \"${2:Which currency should we pay in?}\" -> ${3:currency_text} expecting { ${4:currency}: ${5:string} }"
+    ],
+    "description": "Ask the people behind an agent channel a question and keep a typed answer. The reply is checked against the shape; what comes back is not trusted."
+  },
+  "expose": {
+    "prefix": "expose",
+    "body": [
+      "expose ${1:Totals} {",
+      "\tworkflow: ${2:Total}",
+      "\tdescription: \"${3:Totals a receipt.}\"",
+      "\tagent_channel: ${4:CallerDesk}",
+      "\ttext_input: ${5:receipt}",
+      "\tmax_input: ${6:64k}",
+      "}"
+    ],
+    "description": "Lets other agents call a workflow over A2A: what it is for, the channel for its questions, the one parameter that takes text and the largest message accepted."
   }
 }

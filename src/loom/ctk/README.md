@@ -48,6 +48,10 @@ the list. A runtime emits one `fanout_exceeded` trace event carrying `count`, `m
 is the canonical scenario; `mocks/for_each_max.json` holds a plan within the bound and one over it, and `traces/for_each_max.json` the expected outcome of each. The
 Java runtime runs it in `ForEachMaxCtkConformanceTest` (module `ai-agent4j-loom`).
 
+## Remote agents (A2A)
+
+`delegate "…" to Remote -> result` sends a task to an agent reached over A2A, and `ask Channel "…" -> result` asks the people behind an agent channel. A runtime emits `remote` trace events (`send`, `state`, `done`, a cancel) and `exchange` events (`question`, `reply`, `authorization`, `file`) that hold a digest and sizes, never the remote's text. `scripts/a2a_call.loom` is the canonical scenario; `mocks/a2a_call.json` holds three cases (a remote that completes, one that asks a question first, and a card that names another host) as the states the remote moves through and what the channel answers; `traces/a2a_call.json` holds what each must give: the bound text, the number of messages sent (a resume never sends again), the questions asked and the trace kinds. A card on another host is refused before anything is sent. The Java runtime runs it in `A2ACtkConformanceTest` (module `ai-agent4j-loom`) against the mock A2A agent of `src/a2a-testkit`. `scripts/a2a_expose.loom` and `traces/a2a_expose.json` are the scenario for an exposed workflow: the card an `expose` block shows outsiders, built from the script alone, in terms of what a client reads (name, description, accepted media types, skills, address), with words that must not appear in it (the channel, the workflow's text) and an address that is not https, which is refused. The Java runtime runs it in `A2AExposeCtkConformanceTest`. No other runtime in this repository implements Loom, so there is nothing else to extend (verification P9).
+
 ## Provider declarations
 
 `scripts/provider_declarations.loom` declares one provider of every kind the language accepts: `openai` (with `api: responses`), `xai`, `kimi`, `qwen`, `perplexity`,

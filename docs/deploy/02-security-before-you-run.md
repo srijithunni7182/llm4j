@@ -51,10 +51,15 @@ The reason is required and names who looked and when; it is shown on the page. A
 
 Pause, suspend and stop need an admin sign-in; with none set the page is read-only. On Fabric the admin password you set at the first start is the one. On an embedded page, the admin password is a *hash* kept in the app's secret store (`LOOM_INSPECT_NEW_PASSWORD='...' weave observe hash-password`, then `weave secrets set LOOM_INSPECT_ADMIN_PASSWORD --stdin`); ask the user if they want controls at all.
 
+## 7. A workflow that other agents may call, or that calls theirs
+
+If the script has an `expose` block, **your own code serves it**: llm4j runs no server, no authentication and no poller, and `weave deploy` does not deploy an endpoint. Before anything is reachable, decide with the user who may call (the host authenticates and gives each caller a scope key), put a spend cap on the `expose` (`weave audit` LA27 is high without one), and read LA24 (everything the exposed workflow reaches counts as reading what a stranger wrote). For `remote` calls, read LA25 (what leaves) and LA26 (a channel that answers with no person). The A2A pages on GitHub (`docs/a2a`: Security and review, and What you provide) say all of it, including the code you write around llm4j.
+
 ## Gate
 
 - `weave audit --fail-on medium` is clean, or every finding has an explanation the user has seen.
 - For each agent with the trifecta: split, or accepted in writing by the user with a reason.
+- An `expose` has a spend cap and the user knows who authenticates its callers; a `remote` or an `agent_channel` with `audience: automatic` was read and accepted on purpose.
 - Tools declare `reach`; keys are in a store or the environment; the detail level is chosen; the user knows who can pause or stop a run.
 
 ## A classifier sends text out (LA19)

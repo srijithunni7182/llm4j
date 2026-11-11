@@ -325,6 +325,7 @@ cases:
 | `tools:`, `tasks:` | the tool or task returns this; tools that act (webhook, email, http, file, shell, sql) only *record* what they would have done, which `expect: { effects: … }` asserts |
 | `real:` | `real: [RefundPolicy]` runs that task's own code instead of a scripted result, and `expect.calls` still counts it. Only a task that declares no effect on the world (`TaskEffect.NONE`) may be real; naming one that changes things, or does not say, is an error: *has effects; a test cannot run it for real; script its result in tasks:*. The class has to be on the class path (`weave test --classes <dir>`, or `target/classes`); a name in both `real:` and `tasks:` is an error |
 | `expect.told` | `told: { Billing: [ "customer 4417" ] }` asserts that an agent was told each text somewhere over the run (any capitalisation): a handoff that drops the fact fails the case instead of producing a confident answer built on a missing input |
+| `remotes:`, `channels:` | a `remote` agent is scripted one step per look: `Supplier: [ { state: working }, { state: input_required, question: "Which date?" }, { state: completed, text: "42 each", data: { price: 42 } } ]` (also `auth_required` with an `explanation`, `failed`, `rejected` and `canceled` with a `message`, `files: [ { link, name, type } ]`, or a single `{ reply: "…" }` for a plain message and no task); the last step repeats, so a remote that never finishes fails the step at its deadline in virtual time. `channels: { Desk: [ "Within 30 days.", { refuse: "no" }, { ignore: true } ] }` answers an `agent_channel` in order, and `asked:` sees each question. A remote or channel the case did not script fails the case |
 | `humans:`, `resume:` | the people answer in order; with no answer left the run is `suspended`, and `resume:` continues it from its journal |
 | `expect.degraded`, `expect.fallbacks` | `degraded: true` asserts that the run used an `on_failure` fallback; `fallbacks: [ Writer ]` asserts exactly which agents or tasks did |
 | `clock:` | time is virtual: a `sleep 6h` or a retry back-off costs no real time, and `elapsed_virtual` asserts how long the run waited |
@@ -1270,6 +1271,73 @@ agent Classifier {
 ```
 
 `cache: true` is the default and need not be written. Anything but `true` or `false` is a load error. `weave audit` and `weave check` have nothing to say about it: it moves no data. The tokens a provider served from its cache show in the call's trace as `usage.cached_tokens` (and `usage.cache_write_tokens` on Anthropic), and a price table with cache rates ([Budgets and Rate Limits](../../ai-agent4j/wiki/Budgets-and-Rate-Limits.md)) prices them separately.
+
+### Calling an agent that someone else runs (`remote`, `agent_channel`, `ask`)
+
+A `remote` is an agent another organisation runs, reached over the A2A protocol (version 1.0). You call it with a plain `delegate`. What it asks you, and the files it sends back, go to an `agent_channel`: a declaration of *who answers*, with the limits the runtime enforces.
+
+```loom
+agent_channel SupplierDesk {
+    audience: staff          // staff | caller | automatic
+    max_questions: 3
+    timeout: 1h
+}
+
+remote Supplier {
+    card: "https://supplier.example.com/.well-known/agent-card.json"
+    auth: secret.SUPPLIER_KEY          // a reference, never the key itself
+    agent_channel: SupplierDesk
+    timeout: 2h
+}
+
+workflow Buy(part) {
+    delegate "Quote 500 units of {part}" to Supplier -> quote
+        retry 2
+        on_failure { halt "the supplier could not quote" }
+    ask SupplierDesk "Which currency should we pay in?" -> currency expecting { currency: enum["USD", "INR"] }
+}
+```
+
+- **No version, no `pii:` setting.** The host's transport negotiates the protocol version. How personal data is masked on the way out is decided in the transport, the channel or the script (a `guard` on the agent that wrote the message).
+- **The result.** `quote` is the text of the answer, joined; `quote_data` lists the structured parts; `quote_files` lists files the channel accepted (`path`, `kind`, `mediaType`, `size`, `sha256`). With `expecting { … }` on the `delegate`, the result is one object checked against the shape: a mismatch is a definite failure, so `retry` applies. Everything a remote returns is **untrusted** text.
+- **Waiting.** A task that is not finished suspends the run, which holds no thread. The host calls `RemoteTasks.taskChanged(runId, taskId)` when it learns the task changed (it polls, streams or receives a push; llm4j does none of that), or runs the workflow again at the step's deadline. A repeat or a stale call changes nothing.
+- **Never sent twice.** The message id and time are journaled before the send. After a crash the runtime looks for the task by that id in the remote's recent tasks; if it cannot tell, the step stops with a message and sends nothing.
+- **`retry` only after a definite failure** (the remote reported failed, rejected or canceled, or the call was refused before anything left). A card that points at another host is refused and not retried.
+- **The channel.** `ask` sends a question to a declared channel and binds the answer. A reply that does not fit its `expecting` shape goes back to the channel with the reason and counts as a question used. The implementation is registered by the host under the same name; a channel the host did not supply fails closed.
+- **`weave check`** reports each mistake with its line, and warns for every `remote` that it is *not validated* (its card is read at run time) and for every channel that the host must supply it. A token `budget` on a step that calls a remote is an error: its cost is outside what Loom sees.
+
+Guide: [A2A support in llm4j](../../../docs/a2a/LOOM.md).
+
+### Letting others call a workflow (`expose`, `weave card`)
+
+An `expose` block says that one workflow may be called by other agents over A2A, and what the world is told about it. It is a declaration: the host serves it (llm4j runs no server), and the script says what and the host decides who, where and how.
+
+```loom
+agent_channel CallerDesk {
+    audience: caller         // the caller of the workflow answers its questions
+    max_questions: 2
+}
+
+expose Totals {
+    workflow: Total
+    description: "Totals a receipt."
+    agent_channel: CallerDesk
+    text_input: receipt      // the one parameter that receives a text message
+    max_input: 64k           // the largest message accepted
+}
+
+workflow Total(receipt, currency) {
+    ask CallerDesk "Which currency?" -> reply
+    return "total for {receipt} in {reply}"
+}
+```
+
+- **What comes in.** A text message binds only to the parameter named by `text_input` (always written, even for one parameter). A JSON object binds by parameter name, and unknown keys are ignored. A parameter with no value is refused with a message that lists what the workflow takes. Files are refused, and a message over `max_input` is refused before any work starts.
+- **What the caller sees.** A task is a durable run. It shows as working while the workflow runs, **including while it waits for a `human_prompt` or an `approve`**, which are internal. Only an `ask` to a channel whose `audience` is `caller` pauses it as *input required*. The result is what the workflow `return`s, never its notes. A failure shows one fixed sentence, never the workflow's own error text. `AUTH_REQUIRED` is not produced.
+- Several `expose` blocks may name one workflow.
+- **`weave card main.loom [--address URL] [--expose NAME]`** prints the card an `expose` block shows to outsiders, with a placeholder address unless one is given (https only). It needs no network and no model, so a reviewer sees in a diff what a change does to what outsiders can see.
+- **`weave check`** reports an `expose` with no `workflow`, `description` or `agent_channel`, a workflow that does not exist, a `text_input` that is not a parameter, and a `max_input` that is not a size.
+- **Serving.** From Java, `LoomTaskRunner` (in `io.github.llm4j.loom.host`) implements the handler's `TaskRunner` over a `LoomHost`; see [A2A support in llm4j](../../../docs/a2a/LOOM.md).
 
 ### Sending pictures, recordings and documents (`attach`)
 

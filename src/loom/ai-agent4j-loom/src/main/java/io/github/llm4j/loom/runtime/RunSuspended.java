@@ -16,6 +16,8 @@ import java.time.Instant;
  *   <li>{@link Reason#SLEEP}: a {@code sleep} step; run it again at {@link #resumeAt()}. The wake
  *       time is journaled, so a restart never lengthens the sleep, and a sleep is not counted
  *       against {@code max_resumes}.
+ *   <li>{@link Reason#REMOTE}: a remote agent's task is not finished; run it again when the task
+ *       changes, or at {@link #resumeAt()}, the step's deadline.
  *   <li>{@link Reason#OPERATOR}: a person asked for the run to be suspended (from an observer's
  *       control). It holds nothing and schedules nothing: run it again with the same journal when
  *       you want it to go on.
@@ -28,6 +30,13 @@ public class RunSuspended extends AgentInterrupt {
         RATE_LIMIT,
         BUDGET_WINDOW,
         SLEEP,
+        /**
+         * A remote agent's task is not finished. The run holds no thread: the host calls {@code
+         * taskChanged} when it learns the task changed (polling, a stream or a push notification),
+         * which runs the workflow again with the same journal, or it runs it again at {@link
+         * #resumeAt()}, the step's deadline, when the step fails.
+         */
+        REMOTE,
         OPERATOR
     }
 
@@ -68,6 +77,27 @@ public class RunSuspended extends AgentInterrupt {
         this.reason = reason;
         this.resumeAt = null;
         this.limit = null;
+    }
+
+    /**
+     * A step waiting on a remote agent's task.
+     *
+     * @param stepId the step
+     * @param deadline when the step gives up if the task has not changed
+     * @param detail what the run waits for, in words
+     */
+    public static RunSuspended remote(String stepId, Instant deadline, String detail) {
+        return new RunSuspended(stepId, deadline, detail, Reason.REMOTE);
+    }
+
+    private RunSuspended(String stepId, Instant resumeAt, String detail, Reason reason) {
+        super("Waiting at " + stepId + ": " + detail + "; gives up at " + resumeAt);
+        this.stepId = stepId;
+        this.prompt = null;
+        this.reason = reason;
+        this.resumeAt = resumeAt;
+        this.limit = null;
+        this.detail = detail;
     }
 
     /** A {@code sleep} step that runs until {@code wakeAt}. */

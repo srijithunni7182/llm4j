@@ -12,7 +12,9 @@ class SkillsMentionPolicyAndEvaluatorTest {
     static final Path SKILLS = Path.of("../../../.claude/skills");
 
     static String skill(String name) throws Exception {
-        return Files.readString(SKILLS.resolve(name).resolve("SKILL.md"));
+        String text = Files.readString(SKILLS.resolve(name).resolve("SKILL.md"));
+        Path rules = SKILLS.resolve(name).resolve("references/guiding-rules.md");
+        return Files.exists(rules) ? text + "\n" + Files.readString(rules) : text;
     }
 
     @Test

@@ -89,6 +89,22 @@ public final class RunProfile {
         return out;
     }
 
+    private static final long DEFAULT_REMOTE_DEADLINE_MILLIS = 3_600_000L;
+
+    /** A duration such as {@code 90s}, {@code 30m} or {@code 2h}, in milliseconds; an hour when it is absent or unreadable. */
+    private static long declaredMillis(String text) {
+        if (text == null) return DEFAULT_REMOTE_DEADLINE_MILLIS;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+(?:\\.\\d+)?)(ms|s|m|h)").matcher(text.strip());
+        if (!m.matches()) return DEFAULT_REMOTE_DEADLINE_MILLIS;
+        double v = Double.parseDouble(m.group(1));
+        return (long) switch (m.group(2)) {
+            case "ms" -> v;
+            case "m" -> v * 60_000;
+            case "h" -> v * 3_600_000;
+            default -> v * 1_000;
+        };
+    }
+
     /** What is known about one workflow. */
     public record Profile(TimeEstimate time, EffectsEstimate effects) {}
 
@@ -415,6 +431,18 @@ public final class RunProfile {
 
         Part agentStep(
                 int line, String label, String agentName, int retries, long backoff, long timeout) {
+            var remote = agentName == null ? null : input.script().getRemotes().stream().filter(r -> r.getName().equals(agentName)).findFirst().orElse(null);
+            if (remote != null) {
+                // time is the remote's: bounded only by the deadline the script declares for it
+                long deadline = timeout > 0 ? timeout : declaredMillis(remote.get("timeout"));
+                double attempts = worst ? retries + 1.0 : 1.0;
+                Part p = new Part();
+                p.ms = worst ? deadline * attempts : 0;
+                p.path = List.of("line " + line + " " + label);
+                wait("remote agent " + agentName + " (line " + line + "): it can take up to " + (remote.get("timeout") == null ? "its default deadline" : remote.get("timeout")) + " and Loom does not measure its time");
+                p.sends = attempts; // what it is told leaves the workflow
+                return p;
+            }
             AgentDef agent = agentName == null ? null : agents.get(agentName);
             if (agent == null) agent = slowest();
             if (agent == null) return Part.NONE;

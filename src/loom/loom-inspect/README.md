@@ -9,6 +9,8 @@ weave daemon triggers/ --secrets keys.store \
       --observe-fabric https://fabric.example.com:9090 --observe-name getviral-prod --observe-ca ca.pem
 ```
 
+A call to a remote agent (A2A) is one `loom.remote` span and a failed or overdue one is the `Remote agent failed` incident; a run that outsiders started through an `expose` block is marked served, so the trifecta signal counts its input as untrusted from the start. Nothing a remote or a caller said is put in a record.
+
 What it shows: tokens and cost per agent, who and what is active, the workflow with the running step marked, autonomy ladders, sleeps and pauses, and flagged trouble (repeated calls and answers, failing tools, no progress, ungrounded figures). How a workflow is watched lives beside it, in `flow.inspect`; the script itself is untouched.
 
 What it can change, and only for a signed-in administrator:

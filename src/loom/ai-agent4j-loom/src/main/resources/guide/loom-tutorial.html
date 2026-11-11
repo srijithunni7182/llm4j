@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- source-sha256: 8e1ab9945ee49386dfcd6d4cadc8f68f86f210dc85dd440f89287d905f5607b3 -->
+<!-- source-sha256: 493dfd3d1d0df1cbaade24eee5dd392648b3267d42e67d1e041f043b892a8b98 -->
 <title>The Loom Tutorial</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -218,7 +218,7 @@ a:focus-visible, select:focus-visible { outline: 2px solid var(--thread); outlin
 <tr>
 <td>6</td>
 <td><a href="#c06">Tools and tasks</a></td>
-<td>Built-in and declared tools, the six generic tools, OpenAPI, MCP, approvals, <code>run</code> tasks, classifiers</td>
+<td>Built-in and declared tools, the six generic tools, OpenAPI, MCP, approvals, <code>run</code> tasks, classifiers, a <code>remote</code> agent another team runs (A2A)</td>
 <td><a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/07-approval" target="_blank" rel="noopener">07</a>, <a href="https://github.com/srijithunni7182/llm4j/tree/main/src/loom/starters/11-daily-digest" target="_blank" rel="noopener">11</a></td>
 </tr>
 <tr>
@@ -1867,6 +1867,35 @@ extractor Invoice {
 <li><code>samples: 3</code> asks a chat model three times and takes the majority, so its confidence is the share of votes rather than its own report (a dedicated classification model needs no samples).</li>
 <li><code>confidence at least 0.8 else escalate</code> turns an unsure answer into the label <code>unsure</code>, so a branch can send it to a person: <code>alt (intent.kind == &quot;unsure&quot;) { ... }</code>.</li>
 <li>It is cheaper and more predictable than an agent with an <code>output_schema</code> when all you want is a label. Use an agent when you want it to also explain.</li>
+</ul>
+<h2 id="c06-another-teams-agent-remote">Another team&#39;s agent: <code>remote</code></h2>
+<p>Sometimes the step belongs to an agent that <strong>another team or company runs</strong>. You do not write a model step for it: you declare where it is, who answers its questions, and call it with the <code>delegate</code> you already know.</p>
+<figure class="code"><figcaption>excerpt</figcaption><pre><code>agent_channel SupplierDesk {
+    audience: staff
+    max_questions: <span class="tk-n">3</span>
+    <span class="tk-k">timeout</span>: <span class="tk-n">1h</span>
+}
+
+remote Supplier {
+    card: <span class="tk-s">"https://supplier.example.com/.well-known/agent-card.json"</span>
+    auth: secret.SUPPLIER_KEY
+    agent_channel: SupplierDesk
+    <span class="tk-k">timeout</span>: <span class="tk-n">2h</span>
+}
+
+<span class="tk-k">workflow</span> Buy(part) {
+    <span class="tk-k">delegate</span> <span class="tk-s">"Quote 500 units of <span class="tk-v">{part}</span>"</span> <span class="tk-k">to</span> Supplier -&gt; quote
+        <span class="tk-k">retry</span> <span class="tk-n">2</span>
+        <span class="tk-k">on_failure</span> { <span class="tk-k">halt</span> <span class="tk-s">"the supplier could not quote"</span> }
+    <span class="tk-k">return</span> quote
+}</code></pre></figure>
+<ul>
+<li>The protocol is A2A (Agent2Agent). The <strong>card</strong> says what the remote offers; it must be on an <code>https</code> address and stay on that host, and the key is sent only there.</li>
+<li>What comes back is <strong>untrusted</strong>, like a tool result. Check it before an action depends on it.</li>
+<li>A remote can take hours. The run <strong>suspends</strong> and holds no thread; the host that runs your workflow decides when to look again. A restart never sends the task twice.</li>
+<li><code>weave check</code> warns on every <code>remote</code> that it is <strong>not validated</strong>: its card is read at run time. That warning is the point, not a mistake.</li>
+<li><code>ask SupplierDesk &quot;Which currency?&quot; -&gt; currency</code> asks the people behind a channel a question of your own.</li>
+<li>The other direction works too: an <code>expose</code> block lets other agents call one of your workflows, and <code>weave card main.loom</code> prints what the world would see. See the A2A guide linked from the <a href="https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/LOOM_GUIDE.md" target="_blank" rel="noopener">Loom guide</a>.</li>
 </ul>
 <h2 id="c06-try-it-yourself">Try it yourself</h2>
 <ol>

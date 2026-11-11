@@ -22,6 +22,7 @@ calls tools, and the building blocks around them: memory, RAG, knowledge graphs,
 |-------|-------------|
 | **[🚀 Getting Started](Getting-Started.md)** | Installation, configuration, and your first program. |
 | **[🔌 Providers](Providers-and-the-Uniform-Contract.md)** | Gemini, Claude, Sarvam, Ollama and the OpenAI family behind one contract; [structured output](Structured-Output.md) (replies that follow a JSON Schema); see [OpenAI, xAI, Kimi, Qwen and any OpenAI-style server](OpenAI-Family-Providers.md) and [the Responses schema and Perplexity](Responses-Schema-and-Perplexity.md); pictures, PDFs, sound and video go in a message with [media input](Media-Input.md); web search with citations is [one option](Web-Search-Grounding.md). See also the [Sarvam](../docs/SARVAM.md) and [Ollama](../docs/OLLAMA.md) guides. |
+| **[🤝 A2A](A2A.md)** | Call another organisation's agent over the Agent2Agent protocol as a facilitator: `RemoteAgent`, your transport and channel, no server. |
 | **[🤖 ReAct Agent](ReAct-Agent.md)** | Build agents that reason, plan, and use tools. ([Short guide](ReAct-Agent-Guide.md)) |
 | **[🛠️ Custom Tools](Creating-Custom-Tools.md)** | Extend an agent with your own logic, including approvals. |
 | **[🛠️ Native Tool Calling](Native-Tool-Calling.md)** | Agents use Gemini and Claude's structured tool calls instead of parsing text, with the text protocol as the fallback. |

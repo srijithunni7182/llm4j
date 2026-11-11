@@ -4,6 +4,8 @@
 
 ## Explore the docs
 
+**Calling or serving agents over A2A?** [A2A support in llm4j](a2a/README.md): what you get, what you provide, and the guides.
+
 **New here?** [Build a multi-agent workflow step by step](guide/README.md): from choosing agents to a budgeted live run.
 
 | Build agents | Orchestrate | Ship with confidence |

@@ -92,7 +92,13 @@ public final class StaticSinkChecks {
     }
 
     private Known step(WorkflowDef w, Statement s, Map<String, Known> env, boolean entry) {
-        if (s instanceof DelegateStmt d) {
+        if (s instanceof DelegateStmt d && script.getRemotes().stream().anyMatch(r -> r.getName().equals(d.getTargetAgent()))) {
+            // what a remote agent wrote is untrusted whatever shape was asked for (the runtime tags it the same way)
+            env.put(d.getVariableName(), new Known(Provenance.UNCHECKED, d.getLine(), d.getTargetAgent()));
+        } else if (s instanceof io.github.llm4j.loom.ast.AskStmt ask) {
+            // an answer from outside the workflow is not something a model has judged
+            env.put(ask.getVariable(), new Known(Provenance.UNCHECKED, ask.getLine(), ask.getChannel()));
+        } else if (s instanceof DelegateStmt d) {
             AgentDef agent = agent(d.getTargetAgent());
             SchemaDef schema = d.getExpecting() != null ? d.getExpecting() : agent == null ? null : agent.getOutputSchema();
             Provenance.Tag tag =

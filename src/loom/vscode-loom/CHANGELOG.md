@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0
+
+- **Remote agents (A2A).** `remote`, `agent_channel` and `ask`, with their settings `card`, `auth`, `require_signed_card`, `audience` and `max_questions`, are highlighted and have hover help; three snippets (`remote`, `agent-channel`, `ask`) that pass `weave check`. The graph draws a call to a remote agent and an `ask`, with its card host and timeout on the node. Go to definition, references and rename follow a remote's name. Needs the engine's A2A support (phase 32c). `expose` (with `text_input` and `max_input`) is highlighted and has hover help, with an `expose` snippet; `weave card` prints what an exposed workflow shows outsiders. Needs the engine's `expose` and `weave card` (phase 32d).
+
 ## 1.3.0
 
 - **Media input.** `attach`, `media_root`, `media { max_bytes max_items }` and `media: unscanned` are highlighted and have hover help. Needs the engine's media input (phase 31e). A snippet is not offered: an `attach` needs a file under `media_root`, so a snippet cannot be checked as a script on its own.

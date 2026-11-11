@@ -7,6 +7,9 @@ public class LoomScript implements Node {
     private final List<AgentDef> agents = new ArrayList<>();
     private final List<WorkflowDef> workflows = new ArrayList<>();
     private final List<McpServerDef> mcpServers = new ArrayList<>();
+    private final List<RemoteDef> remotes = new ArrayList<>();
+    private final List<AgentChannelDef> agentChannels = new ArrayList<>();
+    private final List<ExposeDef> exposes = new ArrayList<>();
     private final List<KnowledgeDef> knowledgeBases = new ArrayList<>();
     private final List<RoutingPolicyDef> routingPolicies = new ArrayList<>();
     private final List<ScheduleDef> schedules = new ArrayList<>();
@@ -217,6 +220,33 @@ public class LoomScript implements Node {
         this.promptsDirLine = line;
     }
 
+    /** The {@code remote} declarations: agents someone else runs, reached over A2A. */
+    public List<RemoteDef> getRemotes() {
+        return remotes;
+    }
+
+    public void addRemote(RemoteDef remote) {
+        remotes.add(remote);
+    }
+
+    /** The {@code agent_channel} declarations: who answers what an outside agent asks. */
+    public List<AgentChannelDef> getAgentChannels() {
+        return agentChannels;
+    }
+
+    public void addAgentChannel(AgentChannelDef channel) {
+        agentChannels.add(channel);
+    }
+
+    /** The {@code expose} declarations: workflows others may call over A2A. */
+    public List<ExposeDef> getExposes() {
+        return exposes;
+    }
+
+    public void addExpose(ExposeDef expose) {
+        exposes.add(expose);
+    }
+
     public void addMcpServer(McpServerDef mcp) {
         this.mcpServers.add(mcp);
     }
@@ -390,6 +420,9 @@ public class LoomScript implements Node {
         this.agents.addAll(other.agents);
         this.workflows.addAll(other.workflows);
         this.mcpServers.addAll(other.mcpServers);
+        this.remotes.addAll(other.remotes);
+        this.agentChannels.addAll(other.agentChannels);
+        this.exposes.addAll(other.exposes);
         this.knowledgeBases.addAll(other.knowledgeBases);
         this.routingPolicies.addAll(other.routingPolicies);
         this.schedules.addAll(other.schedules);

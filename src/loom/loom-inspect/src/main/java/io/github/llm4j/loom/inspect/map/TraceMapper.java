@@ -76,6 +76,7 @@ public final class TraceMapper {
     private final Map<String, Signals.Corpus> corpora = new HashMap<>();
 
     private final Map<String, Pending> sleeps = new HashMap<>();
+    private final Map<String, Pending> remotes = new HashMap<>();
 
     /**
      * A tool span whose observation has arrived, held for its tool_call event (only once the trace
@@ -172,7 +173,8 @@ public final class TraceMapper {
             case TraceEvent.EXTRACT_END -> extract(e, data, now, spans);
             case TraceEvent.TASK_START -> taskStart(e, data, now, logs);
             case TraceEvent.TASK_END -> taskEnd(e, data, now, spans);
-            case TraceEvent.FAILURE -> failure(e, data, now, logs);
+            case TraceEvent.REMOTE -> remote(e, data, now, logs, spans);
+            case TraceEvent.FAILURE -> failure(e, data, now, logs, spans);
             case TraceEvent.TASK_REPLAYED -> taskReplayed(e, data, now, spans);
             case TraceEvent.SLEEP -> sleep(e, data, now, logs, spans);
             case TraceEvent.NOTE -> logs.add(
@@ -247,6 +249,7 @@ public final class TraceMapper {
         a.put(Semconv.LOOM_WORKFLOW, workflow);
         a.put(Semconv.LOOM_RESUMED, "true".equals(String.valueOf(data.get("resumed"))));
         if ("false".equals(String.valueOf(data.get("evaluated")))) a.put(Semconv.LOOM_EVALUATED, false);
+        if ("true".equals(String.valueOf(data.get("served")))) a.put(Semconv.LOOM_SERVED, true);
         logs.add(record(now, LogRec.INFO, Semconv.EV_RUN_START, "workflow " + workflow, a, null));
     }
 
@@ -952,7 +955,17 @@ public final class TraceMapper {
      * A task or delegate failed: names and numbers always; the error text only as far as the detail
      * level lets text out.
      */
-    private void failure(TraceEvent e, Map<String, Object> data, long now, List<LogRec> logs) {
+    private void failure(
+            TraceEvent e,
+            Map<String, Object> data,
+            long now,
+            List<LogRec> logs,
+            List<SpanRec> spans) {
+        if ("remote".equals(String.valueOf(data.get("kind")))) {
+            Pending open = remotes.remove(text(data.get("step"), e.step()));
+            if (open != null)
+                spans.add(span(open, now, SpanRec.STATUS_ERROR, "the remote call failed", Map.of()));
+        }
         boolean handled =
                 Boolean.TRUE.equals(data.get("handled"))
                         || "true".equals(String.valueOf(data.get("handled")));
@@ -1005,6 +1018,46 @@ public final class TraceMapper {
                         now,
                         a);
         spans.add(span(p, now, SpanRec.STATUS_OK, null, Map.of()));
+    }
+
+    /**
+     * A call to a remote agent: one span from the send to its end, which can be in another process
+     * (the span id comes from the run and the step). What the remote said is never in the record: the
+     * runtime puts digests and sizes in these events, and the detail level shortens the rest.
+     */
+    private void remote(
+            TraceEvent e,
+            Map<String, Object> data,
+            long now,
+            List<LogRec> logs,
+            List<SpanRec> spans) {
+        String step = text(data.get("step"), e.step());
+        String kind = String.valueOf(data.get("kind"));
+        String name = text(data.get("remote"), "remote");
+        String spanId = Ids.spanId(runId, step + "#remote");
+        Map<String, Object> a = new LinkedHashMap<>();
+        a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_REMOTE);
+        a.put(Semconv.LOOM_STEP, step);
+        a.put(Semconv.LOOM_REMOTE, name);
+        if (data.get("task_id") != null) a.put(Semconv.LOOM_REMOTE_TASK, String.valueOf(data.get("task_id")));
+        switch (kind) {
+            case "send" -> {
+                Pending p = new Pending(spanId, "loom.remote", Semconv.KIND_REMOTE, null, null, step, now, a);
+                remotes.put(step, p);
+                logs.add(record(now, LogRec.INFO, Semconv.EV_SPAN_START, "loom.remote", new LinkedHashMap<>(a), spanId));
+            }
+            case "done" -> {
+                Pending p = remotes.remove(step);
+                if (p == null) p = new Pending(spanId, "loom.remote", Semconv.KIND_REMOTE, null, null, step, now, a);
+                spans.add(span(p, now, SpanRec.STATUS_OK, null, Map.of()));
+            }
+            default -> {
+                // a state change, an earlier send found, a cancel: a log of what happened, nothing from the remote's own text
+                Pending open = remotes.get(step);
+                if (open != null && data.get("task_id") != null) open.attrs().put(Semconv.LOOM_REMOTE_TASK, String.valueOf(data.get("task_id")));
+                logs.add(log(now, LogRec.INFO, Semconv.EV_PREFIX + "remote." + kind, "remote " + name + " " + kind, e, null));
+            }
+        }
     }
 
     private void sleep(

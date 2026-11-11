@@ -32,7 +32,7 @@ final class GuideCommand implements Callable<Integer> {
     @Option(
             names = "--install-skill",
             description =
-                    "Write the skills and the guide into <dir>/.claude/skills (default: this folder): llm4j-eval-design (design the evaluation), llm4j-harness-design (design the harness), llm4j-workflow-guide (build, test, secure, ship) and llm4j-loom-deployer (run it, watched).",
+                    "Write the skills and the guide into <dir>/.claude/skills (default: this folder): llm4j-eval-design (design the evaluation), llm4j-harness-design (design the harness), llm4j-workflow-patterns (choose the shape), llm4j-workflow-guide (build, test, secure, ship), llm4j-run-debugging (find out why a run went wrong) and llm4j-loom-deployer (run it, watched).",
             arity = "0..1",
             fallbackValue = ".")
     File installTo;
@@ -40,7 +40,7 @@ final class GuideCommand implements Callable<Integer> {
     @Option(
             names = "--skill",
             description =
-                    "With --install-skill: eval, harness, workflow, deployer or all (default all).",
+                    "With --install-skill: eval, harness, patterns, workflow, debug, deployer or all (default all).",
             defaultValue = "all")
     String which;
 
@@ -78,10 +78,10 @@ final class GuideCommand implements Callable<Integer> {
 
     static int guide(GuideCommand c, WeaveEnv env) {
         if (c.installTo != null) {
-            if (!List.of("all", "eval", "harness", "workflow", "deployer").contains(c.which)) {
+            if (!List.of("all", "eval", "harness", "patterns", "workflow", "debug", "deployer").contains(c.which)) {
                 env.err()
                         .println(
-                                "Error: --skill is eval, harness, workflow, deployer or all (not "
+                                "Error: --skill is eval, harness, patterns, workflow, debug, deployer or all (not "
                                         + c.which
                                         + ").");
                 return 2;
@@ -160,6 +160,44 @@ final class GuideCommand implements Callable<Integer> {
                                                 + " ("
                                                 + written.size()
                                                 + " files): it designs the harness around a workflow and writes a HARNESS.md before the workflow is built.");
+                    }
+                }
+                if (claude && (c.which.equals("all") || c.which.equals("patterns"))) {
+                    List<String> written = Guide.installPatternsSkill(project, c.force);
+                    if (written.isEmpty())
+                        env.err()
+                                .println(
+                                        "The skill is already in "
+                                                + Guide.patternsFolder(project)
+                                                + ". Use --force to replace it.");
+                    else {
+                        installed++;
+                        env.out()
+                                .println(
+                                        "Installed the skill in "
+                                                + Guide.patternsFolder(project)
+                                                + " ("
+                                                + written.size()
+                                                + " files): it picks the shape of a workflow from what the user wants and starts from a tested skeleton.");
+                    }
+                }
+                if (claude && (c.which.equals("all") || c.which.equals("debug"))) {
+                    List<String> written = Guide.installDebugSkill(project, c.force);
+                    if (written.isEmpty())
+                        env.err()
+                                .println(
+                                        "The skill is already in "
+                                                + Guide.debugFolder(project)
+                                                + ". Use --force to replace it.");
+                    else {
+                        installed++;
+                        env.out()
+                                .println(
+                                        "Installed the skill in "
+                                                + Guide.debugFolder(project)
+                                                + " ("
+                                                + written.size()
+                                                + " files): it finds out why a run went wrong, from its journal, and fixes it with a test.");
                     }
                 }
                 if (claude && (c.which.equals("all") || c.which.equals("workflow"))) {

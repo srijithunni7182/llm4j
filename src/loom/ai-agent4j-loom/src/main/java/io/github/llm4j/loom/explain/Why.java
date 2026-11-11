@@ -101,6 +101,8 @@ public final class Why {
     private static final Set<String> SHOWN =
             Set.of(
                     Kinds.DELEGATE,
+                    Kinds.REMOTE,
+                    Kinds.ASK,
                     Kinds.PARALLEL,
                     Kinds.TASK,
                     Kinds.CLASSIFY,
@@ -253,6 +255,8 @@ public final class Why {
         return switch (entryKind) {
             case "delegate", "citations", "audio" -> nodeKind.equals(Kinds.DELEGATE);
             case "classify" -> nodeKind.equals(Kinds.CLASSIFY);
+            case "remote", "remote_failed" -> nodeKind.equals(Kinds.REMOTE);
+            case "ask", "ask_failed" -> nodeKind.equals(Kinds.ASK);
             case "task" -> nodeKind.equals(Kinds.TASK);
             case "failed" -> nodeKind.equals(Kinds.DELEGATE)
                     || nodeKind.equals(Kinds.TASK)
@@ -374,11 +378,15 @@ public final class Why {
                                 .orElse(null));
     }
 
-    private static String summary(RunJournal.Entry e) {
+    static String summary(RunJournal.Entry e) {
         if (e == null) return null;
         Object v = e.value();
         String text = String.valueOf(v);
         return switch (e.kind()) {
+            case "remote" -> remoteSummary(v);
+            case "remote_failed" -> "the remote agent failed: " + shorten(text);
+            case "ask" -> "answered (" + text.length() + " chars)";
+            case "ask_failed" -> "the question was not answered: " + shorten(text);
             case "delegate" -> "replied (" + text.length() + " chars)";
             case "failed" -> "failed: " + shorten(text);
             case "human" -> "answered " + quote(shorten(text));
@@ -389,6 +397,15 @@ public final class Why {
             case "sleep" -> "slept until " + text;
             default -> e.kind();
         };
+    }
+
+    /** What a remote agent returned, in sizes only: its text is untrusted and is not repeated here. */
+    private static String remoteSummary(Object value) {
+        if (!(value instanceof Map<?, ?> m)) return "the remote agent replied";
+        int chars = String.valueOf(m.get("text")).length();
+        int data = m.get("data") instanceof java.util.Collection<?> c ? c.size() : 0;
+        int files = m.get("files") instanceof java.util.Collection<?> c ? c.size() : 0;
+        return "the remote agent replied (" + chars + " chars, " + data + " data part" + (data == 1 ? "" : "s") + ", " + files + " file" + (files == 1 ? "" : "s") + ")";
     }
 
     private static String failureMessage(Object value) {

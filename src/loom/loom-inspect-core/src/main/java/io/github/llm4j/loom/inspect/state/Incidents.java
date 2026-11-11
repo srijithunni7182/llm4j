@@ -37,7 +37,8 @@ final class Incidents {
         TRIFECTA,
         INJECTION,
         ACCESS,
-        FANOUT
+        FANOUT,
+        REMOTE
     }
 
     private static final List<String> ORDER = List.of("info", "warn", "high");

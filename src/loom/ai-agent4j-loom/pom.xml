@@ -44,6 +44,14 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- not published: the mock A2A 1.0 agent and the official definition, for the tests of remote calls -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>llm4j-a2a-testkit</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>io.github.srijithunni7182</groupId>
             <artifactId>ai-agent4j-addons</artifactId>
@@ -203,7 +211,7 @@
             <resource>
                 <directory>../../../.claude/skills/llm4j-workflow-guide</directory>
                 <targetPath>skill</targetPath>
-                <includes><include>SKILL.md</include><include>scripts/*</include><include>references/conventions.md</include></includes>
+                <includes><include>SKILL.md</include><include>scripts/*</include><include>references/conventions.md</include><include>references/guiding-rules.md</include></includes>
             </resource>
             <!-- the deployer skill: its chapters, its SKILL.md and its launch scripts (the jars it launches are not here: they travel in the skill package) -->
             <resource>
@@ -226,6 +234,17 @@
             <resource>
                 <directory>../../../.claude/skills/llm4j-harness-design</directory>
                 <targetPath>skill-harness</targetPath>
+                <includes><include>SKILL.md</include><include>references/*.md</include></includes>
+            </resource>
+            <!-- the workflow-patterns and run-debugging skills: text only (their SKILL.md and references) -->
+            <resource>
+                <directory>../../../.claude/skills/llm4j-workflow-patterns</directory>
+                <targetPath>skill-patterns</targetPath>
+                <includes><include>SKILL.md</include><include>references/*.md</include></includes>
+            </resource>
+            <resource>
+                <directory>../../../.claude/skills/llm4j-run-debugging</directory>
+                <targetPath>skill-debug</targetPath>
                 <includes><include>SKILL.md</include><include>references/*.md</include></includes>
             </resource>
         </resources>

@@ -36,6 +36,16 @@ public final class Kinds {
      */
     public static final String USE = "use";
 
+    /**
+     * A {@code delegate} to a {@code remote} agent that someone else runs, reached over A2A. It is
+     * drawn apart from a local {@code delegate} because it differs in the ways that matter: it is
+     * opaque, its reply is untrusted, its cost is outside the budgets and it can take hours.
+     */
+    public static final String REMOTE = "remote";
+
+    /** An {@code ask} statement: a question put to a declared {@code agent_channel}. */
+    public static final String ASK = "ask";
+
     public static final String HANDOFF = "handoff";
     public static final String BROADCAST = "broadcast";
     public static final String PARALLEL = "parallel";

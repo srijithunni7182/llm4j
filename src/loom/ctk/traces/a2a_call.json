@@ -1,0 +1,9 @@
+{
+  "scriptName": "a2a_call.loom",
+  "workflowName": "main",
+  "cases": {
+    "complete": { "outcome": "completed", "quote": "42 each", "messagesSent": 1, "questionsAsked": 0, "traceKinds": ["remote:send", "remote:done"] },
+    "question": { "outcome": "completed", "quote": "42 each", "messagesSent": 2, "questionsAsked": 1, "traceKinds": ["remote:send", "exchange:question", "exchange:reply", "remote:done"] },
+    "card_elsewhere": { "outcome": "failed", "messagesSent": 0, "questionsAsked": 0, "traceKinds": [] }
+  }
+}

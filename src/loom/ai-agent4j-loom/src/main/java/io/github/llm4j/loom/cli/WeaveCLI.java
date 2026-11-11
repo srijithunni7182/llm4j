@@ -1800,6 +1800,7 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new ReviewCommand())
                 .addSubcommand(new RulesCommand())
                 .addSubcommand(new GraphCommand())
+                .addSubcommand(new CardCommand())
                 .addSubcommand(new SymbolsCommand())
                 .addSubcommand(new ExplainCommand())
                 .addSubcommand(new NextCommand())

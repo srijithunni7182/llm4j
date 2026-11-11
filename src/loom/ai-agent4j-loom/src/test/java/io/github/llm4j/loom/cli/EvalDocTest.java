@@ -67,7 +67,7 @@ class EvalDocTest {
 
     @Test
     void theSkillAsksOnceRecordsTheChoiceAndNeverWritesAJavaLoader() throws Exception {
-        String skill = read("../../../.claude/skills/llm4j-workflow-guide/SKILL.md");
+        String skill = WorkflowSkillText.repository();
 
         assertThat(skill)
                 .contains("Do you want tests first?")

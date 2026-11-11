@@ -108,6 +108,28 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**backoff** `<duration>`\n\nWait between retries (e.g. `2s`), doubling each attempt.',
     timeout:
         '**timeout** `<duration>`\n\nGives up on a delegate attempt that runs longer than this (e.g. `90s`); counts as a failed attempt.',
+    remote:
+        '**remote** `<Name> { card: "https://…/agent-card.json"  auth: secret.NAME  agent_channel: <Channel>  timeout: 2h  require_signed_card: true }`\n\nTop level: an agent reached over A2A. Use its name as the target of a `delegate`. The card must be on an https address and stay on that host; the key is bound to it. What comes back is **not trusted**.',
+    agent_channel:
+        '**agent_channel** `<Name> { audience: staff|caller|automatic  max_questions: N  timeout: 1h }`\n\nTop level: who answers when a remote agent asks a question or needs authorization, and how many questions it may ask. Name it in a `remote`\'s `agent_channel:` or use it with `ask`.',
+    ask:
+        '**ask** `<Channel> "<question>" -> <var> [expecting { … }]`\n\nAsks the people behind an agent channel a question and keeps the answer; with `expecting`, the reply is checked against the shape. What comes back is **not trusted**.',
+    card:
+        '**card** `: "https://host/.well-known/agent-card.json"`\n\nIn a `remote`: where its agent card is. https only; the card must stay on this host.',
+    auth:
+        '**auth** `: secret.NAME`\n\nIn a `remote`: the secret that opens it, resolved per request for that host only. A literal key is a load error.',
+    require_signed_card:
+        '**require_signed_card** `: true|false`\n\nIn a `remote`: refuse a card that is not signed. llm4j does not verify the signature itself; with `true`, an unsigned card is refused.',
+    audience:
+        '**audience** `: staff | caller | automatic`\n\nIn an `agent_channel`: who answers a remote agent\'s questions.',
+    max_questions:
+        '**max_questions** `: N`\n\nIn an `agent_channel`: the most questions a remote may ask in one exchange, retries included.',
+    expose:
+        '**expose** `<Name> { workflow: W  description: "…"  agent_channel: <Channel>  text_input: param  max_input: 64k }`\n\nTop level: lets other agents call a workflow over A2A. Text binds only to `text_input`, JSON by parameter name, files are refused. The caller sees a failure as one fixed sentence. `weave card` prints the card outsiders see.',
+    text_input:
+        '**text_input** `: <parameter>`\n\nIn an `expose`: the one parameter that receives a text message. Always written, even for a workflow with one parameter.',
+    max_input:
+        '**max_input** `: 64k`\n\nIn an `expose`: the largest message accepted (default 64 KB); a bigger one is refused before any work starts.',
     budget:
         '**budget** `{ tokens: N  calls: N  cost: "$X"  warn_at: 80% }` or `budget N tokens`\n\nCaps what LLM calls may spend: at top level for the whole run, inside an agent (with `per_call`), or after a `delegate`, `broadcast`, `loop until` or `for each`. A call that can\'t be paid for is refused before it reaches the model and is never retried; `{_budget.remaining}` and friends are live.',
     per_call:

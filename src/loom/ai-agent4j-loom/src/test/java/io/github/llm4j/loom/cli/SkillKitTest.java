@@ -18,7 +18,7 @@ import picocli.CommandLine;
 class SkillKitTest {
 
     static String skill() {
-        return Guide.read("skill/SKILL.md").orElseThrow();
+        return WorkflowSkillText.jar();
     }
 
     @Test
@@ -57,7 +57,8 @@ class SkillKitTest {
 
     @Test
     void everyChapterAndGuidePageTheSkillNamesIsInTheJar() {
-        String s = skill();
+        // the table of chapters is in SKILL.md itself; the full rules it points at may name chapters too
+        String s = Guide.read("skill/SKILL.md").orElseThrow();
         Matcher chapters = Pattern.compile("docs/guide/(\\d\\d-[a-z-]+\\.md)").matcher(s);
         int found = 0;
         while (chapters.find()) {
@@ -76,7 +77,7 @@ class SkillKitTest {
     void theInstalledSkillSendsNobodyToTheRepository() {
         // `mvn test` is fine: it is the build of the project weave init makes. Only the framework
         // repository's own build lines are out.
-        String installed = Guide.skill().orElseThrow();
+        String installed = WorkflowSkillText.jar();
         assertThat(installed).doesNotContain("docs/guide/").contains("references/");
         for (String repoOnly :
                 List.of(

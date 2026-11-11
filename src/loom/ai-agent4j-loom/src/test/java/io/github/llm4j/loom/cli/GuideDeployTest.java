@@ -112,7 +112,7 @@ class GuideDeployTest {
                         "`weave check prod.loom` fails naming every variable that is not set there")
                 .contains("a database user that is itself read-only");
         String skill =
-                Files.readString(Path.of("../../../.claude/skills/llm4j-workflow-guide/SKILL.md"));
+                WorkflowSkillText.repository();
         assertThat(skill)
                 .contains("prepare it for deployment")
                 .contains("\"Deploying\" section")

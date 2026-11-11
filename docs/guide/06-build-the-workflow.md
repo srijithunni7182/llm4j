@@ -102,6 +102,38 @@ workflow Refund(msg) {
 - A task spends no tokens and does not count against the run budget; a task that changes things is **never repeated by a crash or a `retry`** unless it is idempotent.
 - Reference: `weave guide loom`, the section "Tasks".
 
+## Another team's agent: a `remote`
+
+When the step belongs to an agent that another team runs, call it over A2A (the Agent2Agent protocol) instead of writing a model step. You declare where it is and who answers its questions; the call looks like any `delegate`:
+
+```loom
+agent_channel SupplierDesk {
+    audience: staff
+    max_questions: 3
+    timeout: 1h
+}
+
+remote Supplier {
+    card: "https://supplier.example.com/.well-known/agent-card.json"
+    auth: secret.SUPPLIER_KEY
+    agent_channel: SupplierDesk
+    timeout: 2h
+}
+
+workflow Buy(part) {
+    delegate "Quote 500 units of {part}" to Supplier -> quote
+        retry 2
+        on_failure { halt "the supplier could not quote" }
+    ask SupplierDesk "Which currency should we pay in?" -> currency expecting { currency: enum["USD", "INR"] }
+}
+```
+
+- What comes back from a remote agent is **untrusted**, like a tool result: check it before an action depends on it.
+- The card must be on an https address and stays on that host; the key is bound to it. A literal key is a load error.
+- A remote can take hours. The run **suspends** and the host wakes it; a restart never sends the task twice.
+- `weave test` can script a remote and a channel in virtual time, so no network is needed.
+- Reference: `weave guide loom`, the section "Calling an agent that someone else runs".
+
 ## Thinking and formatting are two jobs
 
 An agent that has to reason (it uses tools, searches the web, or works through a long brief) should not also be made to answer in a big JSON schema: it has no room to think. Let it write prose and add an `extractor` after it; `weave review` rule LP10 spots the trap and `weave review --fix-finding <id> --option split` writes the rewrite. See the tutorial, chapter 5.

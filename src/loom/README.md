@@ -97,6 +97,8 @@ The policy does not have to be one we wrote. A **ladder** is a reusable policy y
 | Primitive | What it does |
 |---|---|
 | `delegate` | Call one agent, await result, bind to variable |
+| `remote` / `agent_channel` / `ask` | Call an agent another organisation runs over A2A with a plain `delegate`; a channel says who answers its questions. What comes back is untrusted. See [the A2A guide](../../docs/a2a/LOOM.md) |
+| `expose` | Let other agents call a workflow over A2A; `weave card` prints what the world would see. The host serves it; llm4j runs no server |
 | `intentclassify` | Put typed questions (choose, ask, rate) to a classifier (Jev or a chat model) and bind one label per question, with a confidence rule |
 | `broadcast` | Fan out to multiple agents in parallel, collect combined result |
 | `handoff` | Terminal node — pass control to an agent and end the current branch |

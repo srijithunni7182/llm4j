@@ -278,6 +278,13 @@ public final class Capture {
                         run.id()
                                 + " has parallel or broadcast steps, whose calls come in no fixed"
                                 + " order; a case cannot be taken from it yet.");
+            if (st instanceof io.github.llm4j.loom.ast.AskStmt
+                    || (st instanceof DelegateStmt call
+                            && script.getRemotes().stream().anyMatch(r -> r.getName().equals(call.getTargetAgent()))))
+                throw new IllegalArgumentException(
+                        run.id()
+                                + " calls a remote agent or asks a channel, and a case cannot be taken from such a run yet:"
+                                + " script the remote and the channel by hand with remotes: and channels: in the test file.");
             String agent = null;
             if (st instanceof DelegateStmt d) agent = d.getTargetAgent();
             else if (st instanceof HandoffStmt h) agent = h.getTargetAgent();

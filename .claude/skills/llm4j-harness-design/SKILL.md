@@ -150,7 +150,7 @@ Then **carry on with what the user asked** (run, test, package, deploy): open fi
 
 ## Be honest about the edges
 
-A harness lowers risk; it does not remove it. Injection detection reads patterns, so a careful attack can pass it. Static audits
+A harness lowers risk; it does not remove it. Injection detection reads patterns, so a careful attack can pass it. A remote agent or a caller is a party outside the harness: bound the exchange (`max_questions`, `timeout`, `max_input`, a spend cap on an `expose`), treat what comes back as untrusted, and say in the record who answers a channel (the A2A "Security and review" page on GitHub). Static audits
 read the script, not the code of the tools and tasks it calls; review that code like any code that moves money. A model judge is
 useful and noisy; measure its noise before trusting small differences. Earned autonomy is only as good as the cases it has seen.
 Say so in the record when it matters, and never present a design as a guarantee.

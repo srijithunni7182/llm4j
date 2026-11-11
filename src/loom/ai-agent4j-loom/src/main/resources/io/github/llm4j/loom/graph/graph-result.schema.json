@@ -145,7 +145,8 @@
         "line": { "type": "integer", "minimum": 1 },
         "params": { "type": "array", "items": { "type": "string" } },
         "nodes": { "type": "array", "items": { "$ref": "#/$defs/node" } },
-        "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } }
+        "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } },
+        "exposedAs": { "type": "array", "items": { "type": "string" } }
       }
     },
     "node": {
@@ -155,7 +156,7 @@
       "properties": {
         "id": { "type": "string" },
         "kind": {
-          "enum": ["start", "end", "delegate", "task", "classify", "extract", "check", "use", "handoff", "broadcast", "parallel", "alt", "loop", "foreach",
+          "enum": ["start", "end", "delegate", "task", "classify", "remote", "ask", "extract", "check", "use", "handoff", "broadcast", "parallel", "alt", "loop", "foreach",
                    "human_prompt", "checkpoint", "rewind", "call", "guardrail", "decide", "observe", "note", "halt", "set", "return", "sleep", "outcome", "unknown"]
         },
         "label": { "type": "string" },

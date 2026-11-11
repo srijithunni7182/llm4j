@@ -199,8 +199,7 @@ class HostApplicationTest {
                 .contains("journal.answer(stepId, answer)")
                 .contains("`note`");
         assertThat(
-                        Files.readString(
-                                Path.of("../../../.claude/skills/llm4j-workflow-guide/SKILL.md")))
+                        WorkflowSkillText.repository())
                 .contains("addTraceListener")
                 .contains("HumanInterface")
                 .contains("An application with its own interface");

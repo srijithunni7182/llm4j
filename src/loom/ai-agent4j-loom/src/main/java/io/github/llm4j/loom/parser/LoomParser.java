@@ -128,6 +128,24 @@ public class LoomParser {
                     if (text.getValue().isBlank()) throw error(text, "shared_prompt is empty.");
                     script.setSharedPrompt(text.getValue(), null, keyword.getLine());
                 }
+            } else if (isDeclaration("remote")) {
+                script.addRemote(
+                        parseNamedSettings(
+                                io.github.llm4j.loom.ast.RemoteDef::new,
+                                "remote",
+                                name ->
+                                        script.getRemotes().stream()
+                                                .anyMatch(r -> r.getName().equals(name))));
+            } else if (isDeclaration("agent_channel")) {
+                script.addAgentChannel(
+                        parseNamedSettings(
+                                io.github.llm4j.loom.ast.AgentChannelDef::new,
+                                "agent_channel",
+                                name ->
+                                        script.getAgentChannels().stream()
+                                                .anyMatch(c -> c.getName().equals(name))));
+            } else if (isDeclaration("expose")) {
+                script.addExpose(parseExpose(script));
             } else if (isWord("supervise")
                     && peekAt(1).getType() == TokenType.IDENTIFIER
                     && peekAt(2).getType() == TokenType.LBRACE) {
@@ -547,6 +565,8 @@ public class LoomParser {
             return parseUse();
         } else if (isWord("sleep") && isDurationStart(peekAt(1))) {
             return parseSleep();
+        } else if (isWord("ask") && peekAt(1).getType() == TokenType.IDENTIFIER) {
+            return parseAsk();
         }
 
         if (isWord("attach")) {
@@ -4105,6 +4125,121 @@ public class LoomParser {
                 || tokens.size() <= current + 1) return false;
         TokenType next = tokens.get(current + 1).getType();
         return next == TokenType.NUMBER_LITERAL || next == TokenType.STRING_LITERAL;
+    }
+
+    /** A contextual declaration keyword followed by a name and a block: {@code remote Name {}. */
+    private boolean isDeclaration(String keyword) {
+        return isWord(keyword)
+                && peekAt(1).getType() == TokenType.IDENTIFIER
+                && peekAt(2).getType() == TokenType.LBRACE;
+    }
+
+    /** {@code keyword Name { key: value … }}: a name and a settings block; a name may be declared once. */
+    private <T extends io.github.llm4j.loom.ast.NamedSettings> T parseNamedSettings(
+            java.util.function.Function<String, T> factory,
+            String keyword,
+            java.util.function.Predicate<String> alreadyDeclared) {
+        Token keywordToken = advance();
+        Token name = consume(TokenType.IDENTIFIER, "Expect a name after " + keyword + ".");
+        if (alreadyDeclared.test(name.getValue()))
+            throw error(name, keyword + " " + name.getValue() + " is declared twice.");
+        return parseSettings(factory.apply(name.getValue()), keyword + " " + name.getValue(), keywordToken.getLine());
+    }
+
+    /**
+     * {@code expose Name { workflow: W … skills: [ { id: "x" name: "y" } ] budget { … } }}: settings, plus a
+     * list of skills and a budget block.
+     */
+    private io.github.llm4j.loom.ast.ExposeDef parseExpose(LoomScript script) {
+        Token keywordToken = advance();
+        Token name = consume(TokenType.IDENTIFIER, "Expect a name after expose.");
+        if (script.getExposes().stream().anyMatch(e -> e.getName().equals(name.getValue())))
+            throw error(name, "expose " + name.getValue() + " is declared twice.");
+        io.github.llm4j.loom.ast.ExposeDef expose = new io.github.llm4j.loom.ast.ExposeDef(name.getValue());
+        expose.setLine(keywordToken.getLine());
+        consume(TokenType.LBRACE, "Expect '{' after expose " + name.getValue() + ".");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token key = word("Expect an expose setting, e.g. workflow: Expense");
+            if (key.getValue().equals("budget") && check(TokenType.LBRACE)) {
+                if (expose.getBudget() != null) throw error(key, "budget is given twice in expose");
+                expose.setBudget(parseBudgetBlock(false));
+                continue;
+            }
+            consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
+            if (expose.has(key.getValue()) || (key.getValue().equals("skills") && !expose.getSkills().isEmpty()))
+                throw error(key, key.getValue() + " is given twice in expose");
+            if (key.getValue().equals("skills")) {
+                parseSkills(expose);
+            } else {
+                expose.put(key.getValue(), optionValue(), key.getLine());
+            }
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after expose settings.");
+        return expose;
+    }
+
+    private void parseSkills(io.github.llm4j.loom.ast.ExposeDef expose) {
+        consume(TokenType.LBRACKET, "Write the skills in brackets: skills: [ { id: \"read\" name: \"Read a receipt\" } ]");
+        while (!check(TokenType.RBRACKET) && !isAtEnd()) {
+            Token open = consume(TokenType.LBRACE, "Write each skill in braces: { id: \"read\" name: \"Read a receipt\" }");
+            String id = null;
+            String skillName = null;
+            String description = "";
+            while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                Token key = word("Expect a skill setting: id, name or description");
+                consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
+                String value = consume(TokenType.STRING_LITERAL, "Write the " + key.getValue() + " of the skill in quotes.").getValue();
+                switch (key.getValue()) {
+                    case "id" -> id = value;
+                    case "name" -> skillName = value;
+                    case "description" -> description = value;
+                    default -> throw error(key, "a skill has an id, a name and a description, not " + key.getValue() + ".");
+                }
+                match(TokenType.COMMA);
+            }
+            consume(TokenType.RBRACE, "Expect '}' after the skill.");
+            if (id == null) throw error(open, "A skill needs an id, as in { id: \"read\" name: \"Read a receipt\" }.");
+            expose.getSkills().add(new io.github.llm4j.loom.ast.ExposeDef.Skill(id, skillName == null ? id : skillName, description, open.getLine()));
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACKET, "Expect ']' after the skills.");
+    }
+
+    /** {@code ask Channel "question" -> reply [expecting { … }] [retry n] [backoff d] [timeout d] [on_failure { … }]}. */
+    private io.github.llm4j.loom.ast.AskStmt parseAsk() {
+        advance(); // ask
+        Token channel = consume(TokenType.IDENTIFIER, "Name the agent_channel to ask, as in: ask Desk \"Which currency?\" -> reply");
+        Token text = consume(TokenType.STRING_LITERAL, "Write the question in quotes, as in: ask " + channel.getValue() + " \"Which currency?\" -> reply");
+        consume(TokenType.ARROW, "Expect '->' and a variable for the answer, as in: ask " + channel.getValue() + " \"" + text.getValue() + "\" -> reply");
+        Token variable = consume(TokenType.IDENTIFIER, "Expect a variable name for the answer.");
+        io.github.llm4j.loom.ast.AskStmt ask = new io.github.llm4j.loom.ast.AskStmt(channel.getValue(), text.getValue(), variable.getValue());
+        if (check(TokenType.IDENTIFIER) && "expecting".equals(peek().getValue())) {
+            advance();
+            ask.setExpecting(parseSchema());
+        }
+        while (true) {
+            if (match(TokenType.RETRY)) {
+                Token count = consume(TokenType.NUMBER_LITERAL, "Expect number of retries.");
+                ask.setRetryCount((int) Double.parseDouble(count.getValue()));
+            } else if (check(TokenType.IDENTIFIER)
+                    && ("backoff".equals(peek().getValue()) || "timeout".equals(peek().getValue()))) {
+                String option = advance().getValue();
+                long millis = durationMillis();
+                if (option.equals("backoff")) ask.setBackoffMillis(millis);
+                else ask.setTimeoutMillis(millis);
+            } else {
+                break;
+            }
+        }
+        if (match(TokenType.ON_FAILURE)) {
+            consume(TokenType.LBRACE, "Expect '{' before on_failure body.");
+            while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                ask.getOnFailure().add(parseStatement());
+            }
+            consume(TokenType.RBRACE, "Expect '}' after on_failure body.");
+        }
+        return ask;
     }
 
     /** A contextual keyword opening a block: {@code name {}. */

@@ -50,6 +50,9 @@ final class CaseRunner {
             RunJournal journal,
             Map<String, Long> fallbacks) {}
 
+    /** The most times a case looks again at a remote that has not finished. */
+    private static final int MAX_REMOTE_WAITS = 200;
+
     static Outcome run(Path script, String workflow, TestFile.Case c) {
         long start = System.nanoTime();
         Recorder recorder = new Recorder();
@@ -68,6 +71,13 @@ final class CaseRunner {
             List<String> humans = strings(c.get("humans"));
             ScriptedHumans people = new ScriptedHumans(humans, recorder);
             journal = RunJournal.inMemory();
+            LoomScript declared = new LoomLoader().load(script.toString());
+            ScriptedRemotes remotes = new ScriptedRemotes(declared, fields(c.get("remotes")), recorder);
+            Map<String, JsonNode> channelScripts = fields(c.get("channels"));
+            Map<String, ScriptedChannels> channels = new LinkedHashMap<>();
+            for (io.github.llm4j.loom.ast.AgentChannelDef ch : declared.getAgentChannels())
+                channels.put(ch.getName(), new ScriptedChannels(ch.getName(), ch.get("audience", ""), channelScripts.get(ch.getName()), recorder));
+            int remoteWaits = 0;
             List<String> resume = new ArrayList<>(strings(c.get("resume")));
             Map<String, String> input = inputs(c.get("input"));
             Interventions interventions = new Interventions(c.get("steer"), c.get("stop"));
@@ -104,6 +114,8 @@ final class CaseRunner {
                 executor.setClassifierFactory(new ScriptedClassifiers(models, recorder, failures));
                 executor.setTaskRegistry(tasks);
                 executor.setHumanInterface(people);
+                if (!fresh.getRemotes().isEmpty()) executor.setA2ATransport(remotes);
+                channels.forEach(executor::setAgentChannel);
                 executor.setJournal(journal);
                 executor.setClock(clock);
                 executor.setSleeper(clock);
@@ -125,6 +137,16 @@ final class CaseRunner {
                 vars = new LinkedHashMap<>(executor.getContext().getAll());
                 fallbacks = executor.fallbacksTaken();
                 executor.shutdown();
+                if (waiting != null
+                        && waiting.reason() == io.github.llm4j.loom.runtime.RunSuspended.Reason.REMOTE
+                        && remoteWaits++ < MAX_REMOTE_WAITS) {
+                    // the run waits for a remote agent: look again, as the host would when told the
+                    // task changed; when nothing moved, time passes until the step's deadline
+                    if (!remotes.takeProgress() && waiting.resumeAt() != null)
+                        clock.sleep(Duration.between(clock.instant(), waiting.resumeAt()));
+                    error = null;
+                    continue;
+                }
                 if (waiting != null && !resume.isEmpty()) {
                     // the run waited for a person: record the next answer as a person would, and
                     // run it again over the same journal

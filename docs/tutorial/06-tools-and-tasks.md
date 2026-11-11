@@ -457,6 +457,39 @@ workflow Triage(message) {
 - `confidence at least 0.8 else escalate` turns an unsure answer into the label `unsure`, so a branch can send it to a person: `alt (intent.kind == "unsure") { ... }`.
 - It is cheaper and more predictable than an agent with an `output_schema` when all you want is a label. Use an agent when you want it to also explain.
 
+## Another team's agent: `remote`
+
+Sometimes the step belongs to an agent that **another team or company runs**. You do not write a model step for it: you declare where it is, who answers its questions, and call it with the `delegate` you already know.
+
+```loom-parse
+agent_channel SupplierDesk {
+    audience: staff
+    max_questions: 3
+    timeout: 1h
+}
+
+remote Supplier {
+    card: "https://supplier.example.com/.well-known/agent-card.json"
+    auth: secret.SUPPLIER_KEY
+    agent_channel: SupplierDesk
+    timeout: 2h
+}
+
+workflow Buy(part) {
+    delegate "Quote 500 units of {part}" to Supplier -> quote
+        retry 2
+        on_failure { halt "the supplier could not quote" }
+    return quote
+}
+```
+
+- The protocol is A2A (Agent2Agent). The **card** says what the remote offers; it must be on an `https` address and stay on that host, and the key is sent only there.
+- What comes back is **untrusted**, like a tool result. Check it before an action depends on it.
+- A remote can take hours. The run **suspends** and holds no thread; the host that runs your workflow decides when to look again. A restart never sends the task twice.
+- `weave check` warns on every `remote` that it is **not validated**: its card is read at run time. That warning is the point, not a mistake.
+- `ask SupplierDesk "Which currency?" -> currency` asks the people behind a channel a question of your own.
+- The other direction works too: an `expose` block lets other agents call one of your workflows, and `weave card main.loom` prints what the world would see. See the A2A guide linked from the [Loom guide](../../src/loom/ai-agent4j-loom/LOOM_GUIDE.md).
+
 ## Try it yourself
 
 1. In starter [07-approval](../../src/loom/starters/07-approval/), remove `approve: [Notify]` and run `weave audit main.loom`. What changes?

@@ -39,7 +39,7 @@ Skipping is not hidden: chapter 9 reminds you once that no evaluation exists, an
 | 3 | [Test the prompts](03-prompt-tests.md) | rubric checks, A/B against a candidate | `llmJudged`, `PromptComparison` | cents | each prompt meets its rule |
 | 4 | [Optimize the prompts](04-prompt-optimization.md) | only where tests fail | `PromptOptimizer` | capped | held-out test agrees (`generalized()`) |
 | 5 | [Test each agent, with spend caps](05-test-agents-with-caps.md) | free on mocks, then real under a cap | `ScriptedClient`, `FakeJudge`, `SpendGuard`, `AgentReplay` | dollars, capped | agents meet their goals; judge noise known |
-| 6 | [Build the workflow](06-build-the-workflow.md) | compose tested agents in Loom, exact steps as tasks, and choosing steps as classifiers | Loom, `Task`, `intentclassify` | $0 | the script loads |
+| 6 | [Build the workflow](06-build-the-workflow.md) | compose tested agents in Loom, exact steps as tasks, choosing steps as classifiers, and an agent another team runs (`remote`, A2A) | Loom, `Task`, `intentclassify` | $0 | the script loads |
 | 7 | [Validate and audit](07-validate-and-audit.md) | static checks, security audit, injection tests | `weave check`, `weave audit` | $0 | no unexplained findings |
 | 8 | [Test the trajectory](08-trajectory-tests.md) | path, branches, rounds, budget stop | scripted model, `LoomTrace`, `WorkflowAssertions` | $0, then capped | expected paths hold |
 | 9 | [Go live: real APIs, budgets, cost checks](09-go-live.md) | staged rollout under caps | `weave run --max-cost`, `SpendGuard` | capped | spend within the model; limits set |
@@ -71,7 +71,7 @@ the [Loom workflow](https://github.com/srijithunni7182/llm4j/blob/main/src/examp
 
 ## Use it as a Claude skill
 
-The same path is available as a skill, so Claude can walk you through it stage by stage and check each gate: in this repo it is `.claude/skills/llm4j-workflow-guide/` (with `.claude/skills/llm4j-eval-design/` to design how it will be evaluated before you build the dataset, `.claude/skills/llm4j-harness-design/` to design the harness before you build, and `.claude/skills/llm4j-loom-deployer/` for running it, watched), and `scripts/package-skill.sh` builds a standalone bundle (`dist/llm4j-workflow-guide.zip`) from these chapters for distribution.
+The same path is available as a skill, so Claude can walk you through it stage by stage and check each gate: in this repo it is `.claude/skills/llm4j-workflow-guide/` (with `.claude/skills/llm4j-eval-design/` to design how it will be evaluated before you build the dataset, `.claude/skills/llm4j-harness-design/` to design the harness before you build, `.claude/skills/llm4j-workflow-patterns/` to pick the shape of the workflow, `.claude/skills/llm4j-run-debugging/` to find out why a run went wrong, and `.claude/skills/llm4j-loom-deployer/` for running it, watched), and `scripts/package-skill.sh` builds a standalone bundle (`dist/llm4j-workflow-guide.zip`) from these chapters for distribution.
 
 ## Be honest about the edges
 

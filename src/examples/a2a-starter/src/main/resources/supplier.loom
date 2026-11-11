@@ -1,0 +1,40 @@
+// A starter script: it calls a remote supplier agent and exposes one workflow to other agents.
+// It is a compile-only illustration. The card address is an example, the secret is not set here and
+// the channels are supplied by the host (see StarterApp), so `weave check` is not run on it in the
+// repository; it is only parsed by a test (docs/specs/32-a2a-integration, D33).
+
+agent_channel SupplierDesk {
+    audience: staff
+    max_questions: 3
+    timeout: 1h
+}
+
+agent_channel CallerDesk {
+    audience: caller
+    max_questions: 2
+}
+
+remote Supplier {
+    card: "https://supplier.example.com/.well-known/agent-card.json"
+    auth: secret.SUPPLIER_KEY
+    agent_channel: SupplierDesk
+    timeout: 2h
+}
+
+budget { tokens: 100000 calls: 50 }
+
+expose Quotes {
+    workflow: Quote
+    description: "Gets a price for a part from our supplier."
+    agent_channel: CallerDesk
+    text_input: part
+    max_input: 4k
+}
+
+workflow Quote(part) {
+    delegate "Quote 500 units of {part}" to Supplier -> quote
+        retry 2
+        backoff 5s
+        on_failure { halt "the supplier could not quote" }
+    return quote
+}

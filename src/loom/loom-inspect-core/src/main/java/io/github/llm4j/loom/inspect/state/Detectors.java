@@ -622,6 +622,34 @@ final class Detectors {
                                         + " was given, what it was asked, or text in its input trying to steer it.")));
     }
 
+    /**
+     * A call to a remote agent failed, ran past its deadline or spent a channel's question limit.
+     * Names and counts only: what the remote said is never in the incident.
+     */
+    void onRemoteFailed(
+            String remote, String step, long attempts, boolean handled, boolean questionLimit, long now) {
+        String where = StepPaths.normalize(step);
+        String name = remote == null || remote.isBlank() ? "a remote agent" : remote;
+        incidents.raise(
+                "remote:" + where,
+                Incidents.Kind.REMOTE,
+                handled ? "warn" : "high",
+                null,
+                where,
+                now,
+                questionLimit
+                        ? "A channel hit its question limit while " + name + " was working"
+                        : "The call to " + name + " failed after " + attempts + " attempt(s)",
+                List.of(
+                        Incidents.evidence(
+                                "remote",
+                                String.valueOf(attempts),
+                                null,
+                                handled
+                                        ? "The step's on_failure took over."
+                                        : "No on_failure took over, so the run ends here.")));
+    }
+
     // ------------------------------------------------------------------------------ the end
 
     /**

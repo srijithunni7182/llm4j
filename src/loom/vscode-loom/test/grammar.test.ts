@@ -110,3 +110,12 @@ test('P28: false_alarm_limit and the routing allow-list words are highlighted', 
     assert.equal(scopeOf('    delegate "Fix {fix.problem}" to {fix.owner} in [Writer, Designer] -> results[fix.name]', 'in'), 'keyword.control.loom');
     assert.equal(scopeOf('    delegate "Fix {fix.problem}" to {fix.owner} in [Writer, Designer] -> results[fix.name]', 'delegate'), 'keyword.control.loom');
 });
+
+test('P32: the words of a remote agent and an agent channel are highlighted', () => {
+    const lines: Array<[string, string]> = [
+        ['remote Supplier {', 'remote'], ['    card: "https://supplier.example.com/.well-known/agent-card.json"', 'card'], ['    auth: secret.SUPPLIER_KEY', 'auth'],
+        ['    require_signed_card: true', 'require_signed_card'], ['agent_channel Desk {', 'agent_channel'], ['    audience: staff', 'audience'],
+        ['    max_questions: 3', 'max_questions'], ['expose Totals {', 'expose'], ['    text_input: receipt', 'text_input'], ['    max_input: 64k', 'max_input'], ['    ask Desk "Which currency?" -> currency_text', 'ask'],
+    ];
+    for (const [line, word] of lines) assert.equal(scopeOf(line, word), 'keyword.control.loom', `${word} in: ${line}`);
+});

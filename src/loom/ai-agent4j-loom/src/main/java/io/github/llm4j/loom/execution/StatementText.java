@@ -36,6 +36,7 @@ public final class StatementText {
         if (s instanceof CheckpointStmt c) return "checkpoint " + c.getName();
         if (s instanceof RewindStmt r) return "rewind to " + r.getTarget();
         if (s instanceof HumanPromptStmt h) return "human_prompt";
+        if (s instanceof io.github.llm4j.loom.ast.AskStmt a) return "ask " + a.getChannel();
         if (s instanceof SetStmt s2) return "set " + s2.getName();
         if (s instanceof ReturnStmt) return "return";
         if (s instanceof HaltStmt) return "halt";
