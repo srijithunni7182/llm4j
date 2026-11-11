@@ -55,6 +55,23 @@ public record TraceEvent(
      */
     public static final String SLEEP = "sleep";
 
+    /**
+     * Something happened in a step that calls a remote agent: {@code data.kind} is {@code send},
+     * {@code state} (the task changed), {@code found} (an earlier send was found after a crash),
+     * {@code cancel}, {@code done} or {@code failed}; with {@code remote}, {@code message_id},
+     * {@code context_id}, {@code task_id} and {@code task_state} where they apply. The text of the
+     * remote agent is never put here unshortened: it is untrusted.
+     */
+    public static final String REMOTE = "remote";
+
+    /**
+     * A question, request for authorization or file from outside reached a channel, or a workflow
+     * asked one: {@code data.kind} is {@code question}, {@code authorization}, {@code file}, {@code
+     * ask} or {@code reply}, with {@code channel}, {@code direction}, {@code digest} (never the
+     * text) and the {@code key} that makes it idempotent.
+     */
+    public static final String EXCHANGE = "exchange";
+
     public static final String TOOL = "tool";
     public static final String CHECKPOINT = "checkpoint";
     public static final String REWIND = "rewind";

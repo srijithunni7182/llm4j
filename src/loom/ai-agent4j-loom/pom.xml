@@ -44,6 +44,14 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- not published: the mock A2A 1.0 agent and the official definition, for the tests of remote calls -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>llm4j-a2a-testkit</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>io.github.srijithunni7182</groupId>
             <artifactId>ai-agent4j-addons</artifactId>

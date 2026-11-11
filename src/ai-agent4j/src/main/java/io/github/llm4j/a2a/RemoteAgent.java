@@ -1,7 +1,10 @@
 package io.github.llm4j.a2a;
 
 import io.github.llm4j.secret.SecretRef;
+import java.time.Instant;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
@@ -15,6 +18,12 @@ import java.util.Set;
  * <p>Instances are safe to share between threads.
  */
 public final class RemoteAgent {
+
+    /** How far before the recorded send time a search for it starts, to allow for clock differences. */
+    static final java.time.Duration CLOCK_MARGIN = java.time.Duration.ofMinutes(5);
+
+    /** How many history messages are asked for per task when searching. */
+    static final int SEARCH_HISTORY = 20;
 
     private final String cardAddress;
     private final Set<String> extraHosts;
@@ -171,6 +180,28 @@ public final class RemoteAgent {
     public RemoteTask cancel(String taskId) {
         Objects.requireNonNull(taskId, "taskId");
         return transport.cancel(prepare(), credential, taskId);
+    }
+
+    /**
+     * Looks for the task an earlier send created, after a crash that left it unknown whether the send
+     * arrived. It lists recent tasks, with history, since a short margin before {@code sentAt} (clocks
+     * differ), and matches the message id in their history. A server may return less history than
+     * asked for and cut the message off, or refuse to list: neither is a match, and the caller must
+     * then treat the outcome as unknown and send nothing.
+     *
+     * @param messageId the id of the message that was sent
+     * @param sentAt when it was recorded as sent
+     * @return the task, or empty if none holds the message
+     * @throws A2AException if the transport cannot list
+     */
+    public Optional<RemoteTask> findBySentMessage(String messageId, Instant sentAt) {
+        Objects.requireNonNull(messageId, "messageId");
+        Objects.requireNonNull(sentAt, "sentAt");
+        List<RemoteTask> recent =
+                transport.recentTasks(prepare(), credential, sentAt.minus(CLOCK_MARGIN), SEARCH_HISTORY);
+        return recent.stream()
+                .filter(t -> t.history().stream().anyMatch(m -> m.messageId().equals(messageId)))
+                .findFirst();
     }
 
     private synchronized AgentCardView.Endpoint prepare() {
