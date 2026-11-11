@@ -82,9 +82,9 @@ class HarnessSkillTest {
     }
 
     @Test
-    void anUnknownSkillNameListsTheFourChoices() {
+    void anUnknownSkillNameListsTheChoices() {
         assertThat(guide("--install-skill", dir.toString(), "--skill", "nope")).isEqualTo(2);
-        assertThat(err.toString()).contains("harness, workflow, deployer or all");
+        assertThat(err.toString()).contains("patterns, workflow, debug, deployer or all");
     }
 
     @Test

@@ -149,7 +149,7 @@ class GuideCommandTest {
         assertThat(guide("--install-skill", dir.toString())).isZero();
 
         Path folder = Guide.skillFolder(dir);
-        assertThat(Files.readString(folder.resolve("SKILL.md")))
+        assertThat(WorkflowSkillText.installed(folder))
                 .contains(
                         "earned autonomy",
                         "weave ladder describe",
@@ -188,8 +188,8 @@ class GuideCommandTest {
         }
         assertThat(stdout())
                 .contains("Installed the skill in")
-                // the guide pages, SKILL.md, references/conventions.md and the two launcher scripts (scripts/weave, scripts/weave.cmd)
-                .contains((guidePages + 4) + " files");
+                // the guide pages, SKILL.md, references/conventions.md, references/guiding-rules.md and the two launcher scripts (scripts/weave, scripts/weave.cmd)
+                .contains((guidePages + 5) + " files");
     }
 
     @Test

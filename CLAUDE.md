@@ -244,4 +244,6 @@ Several files are tested against each other; the full table is in the `steward` 
   - Deploying or observing one: `llm4j-loom-deployer`.
   - Designing how a workflow will be evaluated, or reviewing an evaluation: `llm4j-eval-design`.
   - Designing an autonomous harness: `llm4j-harness-design`.
+  - Choosing the shape of a workflow before building it: `llm4j-workflow-patterns`.
+  - Finding out why a run went wrong: `llm4j-run-debugging`.
   - A red CI check: `babysit`.

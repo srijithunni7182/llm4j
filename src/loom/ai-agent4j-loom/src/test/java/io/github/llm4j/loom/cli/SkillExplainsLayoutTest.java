@@ -15,7 +15,7 @@ class SkillExplainsLayoutTest {
     @Test
     void theSkillSaysWhatEachPartOfTheStarterIsAndToExplainAsItGoes() throws Exception {
         String skill =
-                Files.readString(Path.of("../../../.claude/skills/llm4j-workflow-guide/SKILL.md"));
+                WorkflowSkillText.repository();
         assertThat(skill)
                 .contains("makes a **Maven project**")
                 .contains("src/main/resources/main.loom")
@@ -44,11 +44,17 @@ class SkillExplainsLayoutTest {
     @Test
     void theSkillRoundsUpWithABuildAReportTheDashboardAndOnlyThenTheSteppingStoneToSpending()
             throws Exception {
+        // the full text of the rule lives in the guiding rules the skill points at
         String skill =
-                Files.readString(Path.of("../../../.claude/skills/llm4j-workflow-guide/SKILL.md"));
+                Files.readString(
+                        Path.of(
+                                "../../../.claude/skills/llm4j-workflow-guide/references/guiding-rules.md"));
         int roundUp = skill.indexOf("**Round up before you talk about money.**");
         assertThat(roundUp).isPositive();
-        String stage = skill.substring(roundUp, skill.indexOf("## Explain as you go"));
+        String stage =
+                skill.substring(
+                        roundUp,
+                        skill.indexOf("## What a real workflow needs that a first draft forgets"));
         assertThat(stage)
                 .contains("Run `mvn test`")
                 .contains("PROJECT_REPORT.md")

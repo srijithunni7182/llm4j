@@ -168,6 +168,13 @@ public final class Guide {
                     "design-record.md",
                     "conventions.md");
 
+    /** The references that travel with the workflow-patterns skill. */
+    public static final List<String> PATTERNS_REFERENCES = List.of("patterns.md", "conventions.md");
+
+    /** The references that travel with the run-debugging skill. */
+    public static final List<String> DEBUG_REFERENCES =
+            List.of("triage.md", "commands.md", "conventions.md");
+
     private Guide() {}
 
     public static List<Page> pages() {
@@ -354,19 +361,84 @@ public final class Guide {
         return written;
     }
 
-    /** The rules every skill shares, copied from the jar into the skill's references. */
-    private static void writeConventions(Path folder, String resourceRoot, List<String> written)
+    /** Where the workflow-patterns skill goes inside a project. */
+    public static Path patternsFolder(Path project) {
+        return project.resolve(".claude").resolve("skills").resolve("llm4j-workflow-patterns");
+    }
+
+    /** Where the run-debugging skill goes inside a project. */
+    public static Path debugFolder(Path project) {
+        return project.resolve(".claude").resolve("skills").resolve("llm4j-run-debugging");
+    }
+
+    /**
+     * Writes the workflow-patterns skill into {@code
+     * project/.claude/skills/llm4j-workflow-patterns}: {@code SKILL.md} and {@code references/}.
+     * Without {@code force} nothing is written when the skill is already there.
+     *
+     * @return the files written, relative to the skill folder; empty when it was already there
+     */
+    public static List<String> installPatternsSkill(Path project, boolean force)
             throws IOException {
-        Files.writeString(
-                folder.resolve("references").resolve("conventions.md"),
-                read(resourceRoot + "/references/conventions.md")
+        return installTextSkill(
+                patternsFolder(project), "skill-patterns", PATTERNS_REFERENCES, force);
+    }
+
+    /**
+     * Writes the run-debugging skill into {@code project/.claude/skills/llm4j-run-debugging}:
+     * {@code SKILL.md} and {@code references/}. Without {@code force} nothing is written when the
+     * skill is already there.
+     *
+     * @return the files written, relative to the skill folder; empty when it was already there
+     */
+    public static List<String> installDebugSkill(Path project, boolean force) throws IOException {
+        return installTextSkill(debugFolder(project), "skill-debug", DEBUG_REFERENCES, force);
+    }
+
+    private static List<String> installTextSkill(
+            Path folder, String resourceRoot, List<String> references, boolean force)
+            throws IOException {
+        if (Files.exists(folder.resolve("SKILL.md")) && !force) return List.of();
+        String skill =
+                read(resourceRoot + "/SKILL.md")
                         .orElseThrow(
                                 () ->
                                         new IllegalStateException(
-                                                "this jar has no conventions.md for "
-                                                        + resourceRoot)),
+                                                "this jar has no " + resourceRoot + " (a broken jar?)"));
+        List<String> written = new ArrayList<>();
+        Files.createDirectories(folder.resolve("references"));
+        Files.writeString(folder.resolve("SKILL.md"), skill, StandardCharsets.UTF_8);
+        written.add("SKILL.md");
+        for (String ref : references) {
+            Files.writeString(
+                    folder.resolve("references").resolve(ref),
+                    read(resourceRoot + "/references/" + ref)
+                            .orElseThrow(() -> new IllegalStateException("this jar has no " + ref)),
+                    StandardCharsets.UTF_8);
+            written.add("references/" + ref);
+        }
+        return written;
+    }
+
+    /** The rules every skill shares, copied from the jar into the skill's references. */
+    private static void writeConventions(Path folder, String resourceRoot, List<String> written)
+            throws IOException {
+        writeReference(folder, resourceRoot, "conventions.md", written);
+    }
+
+    /** One reference file, copied from the jar into the skill's {@code references/}. */
+    private static void writeReference(
+            Path folder, String resourceRoot, String name, List<String> written)
+            throws IOException {
+        Files.writeString(
+                folder.resolve("references").resolve(name),
+                read(resourceRoot + "/references/" + name)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "this jar has no " + name + " for " + resourceRoot)),
                 StandardCharsets.UTF_8);
-        written.add("references/conventions.md");
+        written.add("references/" + name);
     }
 
     /** Where the skill goes inside a project. */
@@ -406,6 +478,7 @@ public final class Guide {
             written.add("references/" + name);
         }
         writeConventions(folder, "skill", written);
+        writeReference(folder, "skill", "guiding-rules.md", written);
         // the launcher for a terminal with no `weave` on its PATH
         for (String script : new String[] {"weave", "weave.cmd"}) {
             Optional<String> text = read("skill/scripts/" + script);

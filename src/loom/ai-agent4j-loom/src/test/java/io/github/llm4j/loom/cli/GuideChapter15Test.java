@@ -102,7 +102,7 @@ class GuideChapter15Test {
                 .contains("ToolHook")
                 .contains("DelegateTaskTool")
                 .contains("LoomRun");
-        String skill = Files.readString(SKILL);
+        String skill = WorkflowSkillText.repository();
         assertThat(skill)
                 .contains("docs/guide/15-steer-stop-and-supervise.md")
                 .contains("weave guide 15")
