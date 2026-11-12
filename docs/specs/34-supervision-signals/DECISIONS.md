@@ -1,6 +1,6 @@
 # Phase 34: decisions
 
-Status: **D1 to D4 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
+Status: **D1 to D5 taken; the rest open.** Each decision gives the question, why it matters, the options and a recommendation. The recommendation is a proposal, not a choice: the owner decides one at a time and the answer is written under **Decision**. [PRINCIPLES.md](PRINCIPLES.md) holds the principles each option is checked against.
 References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS.md). Facts about the code are from the merged source and are marked (read) or (not read).
 
 ## Decision log
@@ -11,7 +11,7 @@ References: "33-D6" is decision D6 of [phase 33](../33-async-workflows/DECISIONS
 | D2 | Which v1 gaps are carried into this phase | **taken** (all of F1 to F11) |
 | D3 | The judge budget: reserved at `start` | **taken** (paired statically; a warning for a supervise that cannot be paired) |
 | D4 | The judge's facts view | **taken** (keep `Trajectory`; risk 7 closed as not followed, by choice) |
-| D5 | A judge-driven demo test | open |
+| D5 | A judge-driven demo test | **taken** (a case in starter 18's tests where the judge fires on virtual time) |
 | D6 | Declared progress: the syntax and the typing | open |
 | D7 | Declared progress: what a script may do with it | open |
 | D8 | The signal model | open |
@@ -86,7 +86,8 @@ Risk 7 of phase 33 is closed as **"not followed, by choice"**, with the reason r
 
 **Recommendation: A.** E4, running starter 18 by hand with a real key, stays the owner's.
 
-**Decision:** open.
+**Decision (owner): option A.** Starter 18's tests gain a case in which the virtual clock advances and the judge fires (`judges: { TopicJudge: [ pass, fail ] }` and a `clock:`): a researcher passes the first judgement, fails the second, and the supervisor's steer is delivered, all on virtual time with no real model. If the starter's script has no judged assertion to drive, one is added and the starter's picture is redrawn (`scripts/make-starter-diagrams.sh`); the first step of the session is to read the starter's script.
+A scripted judge proves the supervisor reacts correctly to a verdict, not that a real judge is good at spotting drift: that stays the owner's by-hand run with a real key (E4), and the documentation keeps saying so.
 
 ## D6. Declared progress: the syntax and the typing
 
